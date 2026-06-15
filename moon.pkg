@@ -1,0 +1,16 @@
+import {
+  "Milky2018/buslane",
+  "Milky2018/buslane/interpreter" @buslane_interpreter,
+  "Milky2018/lane2/compile",
+  "Milky2018/lane2/elaborate",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/async",
+  "moonbitlang/core/argparse",
+  "moonbitlang/x/fs",
+}
+
+supported_targets = "native"
+
+options(
+  "is-main": true,
+)
