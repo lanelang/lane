@@ -15,7 +15,7 @@ test "run selected value through prelude buslane interpreter" {
   guard result.program is Some(program) else { abort("expected program") }
   let runtime = @buslane_interpreter.evaluate_buslane_program(
     program,
-    external_runtime(result.externals),
+    @intrinsics.standard_external_runtime(result.externals),
   )
   let entry = find_entry(result.entries, "answer")
   inspect(
@@ -34,7 +34,7 @@ test "selected function entry renders as function" {
   guard result.program is Some(program) else { abort("expected program") }
   let runtime = @buslane_interpreter.evaluate_buslane_program(
     program,
-    external_runtime(result.externals),
+    @intrinsics.standard_external_runtime(result.externals),
   )
   let entry = find_entry(result.entries, "id")
   assert_true(runtime.lookup(entry.value).is_function())

@@ -45,7 +45,7 @@ fn lane_run(file : String, entry : String) -> Unit {
   }
   let runtime = @buslane_interpreter.evaluate_buslane_program(
     program,
-    external_runtime(result.externals),
+    @intrinsics.standard_external_runtime(result.externals),
   ) catch {
     error => fail_with_message(@prettyprinter.render(error, width=100))
   }
