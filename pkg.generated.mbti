@@ -1,0 +1,14 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lane"
+
+// Values
+
+// Errors
+
+// Types and methods
+type LaneCommand
+
+// Type aliases
+
+// Traits
+
