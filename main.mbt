@@ -53,11 +53,15 @@ fn lane_run(file : String, entry : String, stdlib : String?) -> Unit {
   let value = runtime.lookup(entry.value) catch {
     error => fail_with_message(@prettyprinter.render(error, width=100))
   }
-  if value.is_function() {
-    println("<function>")
-  } else {
-    println(@prettyprinter.render(value, width=100))
-  }
+  println(render_entry_value(value, entry.type_))
+}
+
+///|
+fn render_entry_value(
+  value : @buslane_interpreter.BuslaneRuntimeValue,
+  type_ : @buslane.Type,
+) -> String {
+  @prettyprinter.render(value.pretty_with_type(type_), width=100)
 }
 
 ///|

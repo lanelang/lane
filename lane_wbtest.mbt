@@ -27,8 +27,8 @@ test "run selected value through prelude buslane interpreter" {
   )
   let entry = find_entry(result.entries, "answer")
   inspect(
-    @prettyprinter.render(runtime.lookup(entry.value), width=100),
-    content="int 3",
+    render_entry_value(runtime.lookup(entry.value), entry.type_),
+    content="3 : Int",
   )
 }
 
@@ -45,5 +45,33 @@ test "selected function entry renders as function" {
     @intrinsics.standard_external_runtime(result.externals),
   )
   let entry = find_entry(result.entries, "id")
-  assert_true(runtime.lookup(entry.value).is_function())
+  inspect(
+    render_entry_value(runtime.lookup(entry.value), entry.type_),
+    content="<function> : (Int) -> Int",
+  )
+}
+
+///|
+test "render primitive entry values with source type annotations" {
+  inspect(
+    render_entry_value(
+      @buslane_interpreter.BuslaneRuntimeValue::bool(true),
+      Primitive(Bool),
+    ),
+    content="true : Bool",
+  )
+  inspect(
+    render_entry_value(
+      @buslane_interpreter.BuslaneRuntimeValue::string("lane"),
+      Primitive(String),
+    ),
+    content="\"lane\" : String",
+  )
+  inspect(
+    render_entry_value(
+      @buslane_interpreter.BuslaneRuntimeValue::unit(),
+      Primitive(Unit),
+    ),
+    content="() : Unit",
+  )
 }
