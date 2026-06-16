@@ -5,14 +5,14 @@ async fn main {
     error => fail_with_message("\{error}")
   }
   match command {
-    Check(file~) => lane_check(file)
-    Run(file~, entry~) => lane_run(file, entry)
+    Check(file~, stdlib~) => lane_check(file, stdlib)
+    Run(file~, entry~, stdlib~) => lane_run(file, entry, stdlib)
   }
 }
 
 ///|
-fn lane_check(file : String) -> Unit {
-  let prelude = read_source_file(prelude_path) catch {
+fn lane_check(file : String, stdlib : String?) -> Unit {
+  let prelude = read_prelude(stdlib) catch {
     error => fail_with_message("failed to read prelude: \{error}")
   }
   let source = read_source_file(file) catch {
@@ -28,8 +28,8 @@ fn lane_check(file : String) -> Unit {
 }
 
 ///|
-fn lane_run(file : String, entry : String) -> Unit {
-  let prelude = read_source_file(prelude_path) catch {
+fn lane_run(file : String, entry : String, stdlib : String?) -> Unit {
+  let prelude = read_prelude(stdlib) catch {
     error => fail_with_message("failed to read prelude: \{error}")
   }
   let source = read_source_file(file) catch {

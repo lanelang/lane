@@ -1,8 +1,16 @@
 ///|
 fn read_test_prelude() -> String {
-  @fs.read_file_to_string(prelude_path, encoding="utf8") catch {
+  read_prelude(Some("lane-std")) catch {
     _ => abort("failed to read prelude")
   }
+}
+
+///|
+test "stdlib option resolves prelude path" {
+  inspect(
+    prelude_path(Some("/tmp/lane-lib")),
+    content="/tmp/lane-lib/prelude.lane",
+  )
 }
 
 ///|

@@ -7,6 +7,7 @@ import {
   "moonbitlang/async",
   "moonbitlang/core/argparse",
   "moonbitlang/x/fs",
+  "moonbitlang/x/sys",
 }
 
 supported_targets = "native"
