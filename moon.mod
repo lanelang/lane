@@ -4,7 +4,7 @@ version = "0.1.0"
 
 repository = ""
 
-license = "Apache-2.0"
+license = "MIT"
 
 keywords = [ "language", "compiler", "cli", "moonbit" ]
 
