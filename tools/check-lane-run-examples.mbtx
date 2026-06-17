@@ -1,0 +1,162 @@
+import {
+  "moonbitlang/async@0.19.1",
+  "moonbitlang/async@0.19.1/process",
+  "moonbitlang/async@0.19.1/io",
+  "moonbitlang/core/json",
+  "moonbitlang/x@0.4.45/fs",
+  "moonbitlang/x@0.4.45/sys",
+}
+
+struct FixtureManifest {
+  stdlib : String
+  cases : Array[FixtureCase]
+}
+
+let fixture_timeout_ms : Int = 15000
+
+struct FixtureCase {
+  name : String
+  file : String
+  entry : String
+  expectation : FixtureExpectation
+}
+
+struct LaneRunResult {
+  code : Int
+  output : String
+}
+
+enum FixtureExpectation {
+  Equals(String)
+  Contains(Array[String])
+}
+
+async fn main {
+  let manifest = read_fixture_manifest("examples/fixtures/lane-run.json")
+  let mut failure_count = 0
+  for case in manifest.cases {
+    let result = @async.with_timeout_opt(
+      fixture_timeout_ms,
+      () => run_lane(case, manifest.stdlib),
+    )
+    guard result is Some(result) else {
+      failure_count += 1
+      println("FAILED " + case.name)
+      println("  file: " + case.file)
+      println("  entry: " + case.entry)
+      println("  error: timed out after " + fixture_timeout_ms.to_string() + "ms")
+      continue
+    }
+    if result.code != 0 || !matches_expectation(result.output, case.expectation) {
+      failure_count += 1
+      println("FAILED " + case.name)
+      println("  file: " + case.file)
+      println("  entry: " + case.entry)
+      println("  exit: " + result.code.to_string())
+      println("  actual: " + result.output)
+      print_expectation(case.expectation)
+    }
+  }
+  if failure_count != 0 {
+    println("lane run fixture failures: " + failure_count.to_string())
+    @sys.exit(1)
+  }
+}
+
+fn read_fixture_manifest(path : String) -> FixtureManifest raise {
+  decode_manifest(@json.parse(read_text(path)))
+}
+
+fn read_text(path : String) -> String raise {
+  @fs.read_file_to_string(path, encoding="utf8")
+}
+
+fn decode_manifest(json : Json) -> FixtureManifest {
+  match json {
+    { "stdlib": String(stdlib), "cases": Array(cases), .. } =>
+      {
+        stdlib,
+        cases: cases.mapi(fn(index, item) {
+          decode_case(item, "cases[" + index.to_string() + "]")
+        }),
+      }
+    _ => abort("manifest must contain string field stdlib and array field cases")
+  }
+}
+
+fn decode_case(json : Json, path : String) -> FixtureCase {
+  match json {
+    {
+      "name": String(name),
+      "file": String(file),
+      "entry": String(entry),
+      "expect": expectation,
+      ..
+    } =>
+      { name, file, entry, expectation: decode_expectation(expectation, path + ".expect") }
+    _ =>
+      abort(
+        path +
+        " must contain string fields name/file/entry and object field expect",
+      )
+  }
+}
+
+fn decode_expectation(json : Json, path : String) -> FixtureExpectation {
+  match json {
+    { "equals": String(_), "contains": _, .. } =>
+      abort(path + " must contain exactly one of equals or contains")
+    { "equals": String(expected), .. } => Equals(expected)
+    { "contains": Array(items), .. } =>
+      Contains(
+        items.mapi(fn(index, item) {
+          decode_string(item, path + ".contains[" + index.to_string() + "]")
+        })
+      )
+    _ => abort(path + " must contain exactly one of equals or contains")
+  }
+}
+
+fn decode_string(json : Json, path : String) -> String {
+  match json {
+    String(value) => value
+    _ => abort(path + " must be a JSON string")
+  }
+}
+
+async fn run_lane(case : FixtureCase, stdlib : String) -> LaneRunResult {
+  ignore(read_text(case.file))
+  let (code, output) = @process.collect_output_merged(
+    "moon",
+    [
+      "-q", "run", "--target", "native", "modules/lane", "--", "run",
+      case.file, "--entry", case.entry, "--stdlib", stdlib,
+    ],
+  )
+  { code, output: output.text().trim_end(chars="\n\r").to_owned() }
+}
+
+fn matches_expectation(output : String, expectation : FixtureExpectation) -> Bool {
+  match expectation {
+    Equals(expected) => output == expected
+    Contains(fragments) => {
+      for fragment in fragments {
+        if !output.contains(fragment) {
+          return false
+        }
+      }
+      true
+    }
+  }
+}
+
+fn print_expectation(expectation : FixtureExpectation) -> Unit {
+  match expectation {
+    Equals(expected) => println("  expected: " + expected)
+    Contains(fragments) => {
+      for fragment in fragments {
+        println("  expected fragment: " + fragment)
+      }
+    }
+  }
+}

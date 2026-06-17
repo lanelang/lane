@@ -1,0 +1,23 @@
+struct Meter {
+  value : Int
+}
+
+fn meter_equal(a : Meter, b : Meter) -> Bool {
+  a.value == b.value
+}
+
+struct MeterOps {
+  offer equal_impl : Equal[Meter]
+}
+
+let meter_equal_ops : Equal[Meter] = make_equal(meter_equal)
+
+offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
+
+fn use_forwarded_field() -> Int {
+  if Meter::{ value: 1 } == Meter::{ value: 1 } {
+    1
+  } else {
+    0
+  }
+}

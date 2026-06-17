@@ -1,0 +1,7 @@
+// invalid: struct literals must provide every existential type witness
+struct Hide {
+  type T : Type
+  val : T
+}
+
+let bad : Hide = Hide::{ val: 1 }

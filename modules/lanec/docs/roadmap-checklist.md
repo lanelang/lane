@@ -253,7 +253,7 @@ and unresolved or ambiguous states before Buslane lowering.
   intrinsic runtime plugins.
 - [x] Provide a native-only `lane` command for single-file `check` and
   `run --entry` workflows.
-- [x] Expand valid and invalid conformance fixtures under `spec/examples`.
+- [x] Expand valid and invalid conformance fixtures under `examples`.
 - [x] Existential: add valid and invalid parser, resolver, type checker,
   elaborator, Buslane Core Language, ANF, and interpreter fixture coverage for
   existential enums, structs, higher-kind-ready type members, and escape

@@ -1,0 +1,4 @@
+// invalid: named functions must state their result type
+fn id(value : Int) {
+  value
+}

@@ -1,0 +1,21 @@
+fn[A] choose(cond : Bool, left : A, right : A) -> A {
+  if cond {
+    left
+  } else {
+    right
+  }
+}
+
+fn use_local_id(value : Int) -> Int {
+  let id = fn[A](x : A) {
+    x
+  }
+  id(value)
+}
+
+fn check_expected_function() -> Int {
+  let f : (Int) -> Int = fn(x) {
+    x
+  }
+  f(1)
+}

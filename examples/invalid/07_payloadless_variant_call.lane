@@ -1,0 +1,7 @@
+// invalid: payloadless variants are values, not zero-argument calls
+enum Option[A] {
+  none
+  some(A)
+}
+
+let value : Option[Int] = Option::none()

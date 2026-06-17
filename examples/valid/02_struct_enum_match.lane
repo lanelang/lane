@@ -1,0 +1,25 @@
+struct Point {
+  x : Int
+  y : Int
+}
+
+enum Option[A] {
+  none
+  some(A)
+}
+
+fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+  match value {
+    Option::none => fallback
+    Option::some(x) => x
+  }
+}
+
+fn sum_point(point : Point) -> Int {
+  match point {
+    Point::{ x, y } => x + y
+  }
+}
+
+let origin : Point = Point::{ x: 0, y: 0 }
+let chosen : Option[Int] = some(1)

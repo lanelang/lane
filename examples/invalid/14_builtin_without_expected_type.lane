@@ -1,0 +1,5 @@
+// invalid: builtin requires a direct expected type
+fn bad() -> Int {
+  let x = builtin("%anything")
+  x
+}

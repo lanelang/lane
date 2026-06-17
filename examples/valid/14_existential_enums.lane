@@ -1,0 +1,12 @@
+enum Packed {
+  hide[T](T)
+}
+
+fn repack(p : Packed) -> Packed {
+  match p {
+    Packed::hide[T](value) => Packed::hide[T](value)
+  }
+}
+
+let packed_int : Packed = Packed::hide[Int](builtin("%answer"))
+let repacked_int : Packed = repack(packed_int)

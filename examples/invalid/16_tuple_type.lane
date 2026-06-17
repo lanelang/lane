@@ -1,0 +1,2 @@
+// invalid: tuple types are not part of v1
+let pair : (Int, Bool) = (1, true)

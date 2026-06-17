@@ -1,0 +1,8 @@
+// invalid: struct spread and copy update are not supported in v1
+struct Point {
+  x : Int
+  y : Int
+}
+
+let point : Point = Point::{ x: 1, y: 2 }
+let moved : Point = Point::{ ..point, x: 3 }

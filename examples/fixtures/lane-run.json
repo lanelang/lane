@@ -1,0 +1,69 @@
+{
+  "stdlib": "../stdlib",
+  "cases": [
+    {
+      "name": "top-level forward function value",
+      "file": "examples/valid/01_top_level_forward_function_value.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
+      "name": "top-level contextual offer",
+      "file": "examples/valid/05_top_level_contextual_offer.lane",
+      "entry": "chosen",
+      "expect": {
+        "equals": "1 : Int"
+      }
+    },
+    {
+      "name": "struct value entry",
+      "file": "examples/valid/02_struct_enum_match.lane",
+      "entry": "origin",
+      "expect": {
+        "contains": [" : type#"]
+      }
+    },
+    {
+      "name": "enum match selected value",
+      "file": "examples/valid/02_struct_enum_match.lane",
+      "entry": "chosen",
+      "expect": {
+        "contains": ["type#"]
+      }
+    },
+    {
+      "name": "nominal type value",
+      "file": "examples/valid/10_nominal_types.lane",
+      "entry": "user_id",
+      "expect": {
+        "contains": [" : type#"]
+      }
+    },
+    {
+      "name": "function entry",
+      "file": "examples/valid/11_function_types.lane",
+      "entry": "id_int",
+      "expect": {
+        "equals": "<function> : (Int) -> Int"
+      }
+    },
+    {
+      "name": "struct forwarding finite closure value",
+      "file": "examples/valid/08_struct_forwarding.lane",
+      "entry": "meter_equal_ops",
+      "expect": {
+        "contains": ["<function>"]
+      }
+    },
+    {
+      "name": "builtin external value stays opaque",
+      "file": "examples/valid/07_builtin_expected_type.lane",
+      "entry": "host_value",
+      "expect": {
+        "contains": ["external_value", " : Int"]
+      }
+    }
+  ]
+}

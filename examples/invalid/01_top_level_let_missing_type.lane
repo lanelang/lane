@@ -1,0 +1,2 @@
+// invalid: top-level let must include an explicit type annotation
+let answer = 42

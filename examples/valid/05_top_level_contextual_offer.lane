@@ -1,0 +1,11 @@
+fn custom_add(a : Int, b : Int) -> Int {
+  a
+}
+
+offer custom_add_ops : Add[Int] = Add::{ add: custom_add }
+
+let chosen : Int = op_add(1, 2, op=custom_add_ops)
+
+fn use_offered_add() -> Int {
+  chosen
+}

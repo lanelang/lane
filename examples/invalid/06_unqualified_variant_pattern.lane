@@ -1,0 +1,12 @@
+// invalid: enum variants in patterns must be qualified
+enum Option[A] {
+  none
+  some(A)
+}
+
+fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+  match value {
+    none => fallback
+    some(x) => x
+  }
+}

@@ -1,0 +1,8 @@
+// invalid: contextual resolution rejects multiple visible offers for the same target type
+fn custom_add(a : Int, b : Int) -> Int {
+  a
+}
+
+offer custom_add_ops : Add[Int] = Add::{ add: custom_add }
+
+let chosen : Int = 1 + 2

@@ -1,0 +1,16 @@
+fn factorial(n : Int) -> Int {
+  fn loop(x : Int, acc : Int) -> Int {
+    if x == 0 {
+      acc
+    } else {
+      loop(x - 1, acc * x)
+    }
+  }
+  loop(n, 1)
+}
+
+fn shadow_value(x : Int) -> Int {
+  let x = x + 1
+  let x = x + 1
+  x
+}

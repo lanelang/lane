@@ -1,3 +1,5 @@
 /.mooncakes/
 /_build/
+/tools/.mooncakes/
+/tools/_build/
 .DS_Store

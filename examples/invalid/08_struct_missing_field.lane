@@ -1,0 +1,7 @@
+// invalid: struct literals must provide every field
+struct Point {
+  x : Int
+  y : Int
+}
+
+let point : Point = Point::{ x: 1 }

@@ -1,0 +1,13 @@
+fn add_three(a : Int, b : Int, c : Int) -> Int {
+  a + b + c
+}
+
+fn pipeline_call(x : Int) -> Int {
+  x |> add_three(1, 2)
+}
+
+fn pipeline_literal(x : Int) -> Int {
+  x |> fn(value : Int) {
+    value + 1
+  }
+}

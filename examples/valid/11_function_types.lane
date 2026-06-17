@@ -1,0 +1,15 @@
+fn apply(value : Int, f : (Int) -> Int) -> Int {
+  f(value)
+}
+
+fn[A] apply_generic(value : A, f : (A) -> A) -> A {
+  f(value)
+}
+
+let id_int : (Int) -> Int = fn(value) {
+  value
+}
+
+let id_poly : [A](A) -> A = fn[A](value) {
+  value
+}
