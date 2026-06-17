@@ -1,0 +1,207 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/checked"
+
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/symbol",
+  "Milky2018/lanec/types",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct CheckedEnumDeclaration {
+  symbol : @symbol.TypeSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  variants : Array[CheckedVariantDeclaration]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedEnumDeclaration
+
+pub(all) enum CheckedExpr {
+  Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Value(name~ : String, symbol~ : @symbol.ValueSymbolId, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  UnsafeBuiltin(name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  TypeApplication(callee~ : CheckedExpr, arguments~ : Array[@types.Type], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Block(items~ : Array[CheckedLocalItem], result~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  If(condition~ : CheckedExpr, then_branch~ : CheckedExpr, else_branch~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Match(scrutinee~ : CheckedExpr, arms~ : Array[CheckedMatchArm], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Call(callee~ : CheckedExpr, arguments~ : Array[CheckedExpr], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Field(base~ : CheckedExpr, field~ : @symbol.FieldSymbolId, name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  StructLiteral(symbol~ : @symbol.TypeSymbolId, type_arguments~ : Array[@types.Type], type_witnesses~ : Array[CheckedStructTypeWitness], fields~ : Array[CheckedStructLiteralField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Variant(symbol~ : @symbol.VariantSymbolId, type_arguments~ : Array[@types.Type], arguments~ : Array[CheckedExpr], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn CheckedExpr::loc(Self) -> @basic.SourceSpan
+pub fn CheckedExpr::type_(Self) -> @types.Type
+pub impl @prettyprinter.Pretty for CheckedExpr
+
+pub(all) struct CheckedFieldDeclaration {
+  symbol : @symbol.FieldSymbolId
+  is_offered : Bool
+  name : String
+  index : Int
+  type_ : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedFieldDeclaration
+
+pub(all) struct CheckedFunctionDeclaration {
+  symbol : @symbol.ValueSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  parameters : Array[CheckedValueParameter]
+  return_type : @types.Type
+  body : CheckedExpr
+  type_ : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration
+
+pub(all) struct CheckedIntLiteral {
+  raw : String
+  value : Int64
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CheckedLetDeclaration {
+  symbol : @symbol.ValueSymbolId
+  name : String?
+  initializer : CheckedExpr
+  type_ : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedLetDeclaration
+
+pub(all) enum CheckedLiteral {
+  Int(CheckedIntLiteral)
+  String(String)
+  Bool(Bool)
+  Unit
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CheckedLocalItem {
+  Let(CheckedLetDeclaration)
+  PatternLet(CheckedPatternLetDeclaration)
+  Function(CheckedFunctionDeclaration)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedLocalItem
+
+pub(all) struct CheckedMatchArm {
+  pattern : CheckedPattern
+  body : CheckedExpr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedMatchArm
+
+pub(all) enum CheckedPattern {
+  Wildcard(type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Binding(name~ : String, symbol~ : @symbol.ValueSymbolId, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Variant(symbol~ : @symbol.VariantSymbolId, type_arguments~ : Array[@types.Type], arguments~ : Array[CheckedPattern], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Struct(symbol~ : @symbol.TypeSymbolId, type_binders~ : Array[CheckedStructTypeBinder], fields~ : Array[CheckedStructPatternField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn CheckedPattern::loc(Self) -> @basic.SourceSpan
+pub fn CheckedPattern::type_(Self) -> @types.Type
+pub impl @prettyprinter.Pretty for CheckedPattern
+
+pub(all) struct CheckedPatternLetDeclaration {
+  pattern : CheckedPattern
+  initializer : CheckedExpr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedPatternLetDeclaration
+
+pub(all) struct CheckedSourceFile {
+  declarations : Array[CheckedTopLevelDeclaration]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedSourceFile
+
+pub(all) struct CheckedStructDeclaration {
+  symbol : @symbol.TypeSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  type_members : Array[CheckedTypeMemberDeclaration]
+  fields : Array[CheckedFieldDeclaration]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedStructDeclaration
+
+pub(all) struct CheckedStructLiteralField {
+  symbol : @symbol.FieldSymbolId
+  name : String
+  value : CheckedExpr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedStructLiteralField
+
+pub(all) struct CheckedStructPatternField {
+  symbol : @symbol.FieldSymbolId
+  name : String
+  pattern : CheckedPattern
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedStructPatternField
+
+pub(all) struct CheckedStructTypeBinder {
+  symbol : @symbol.TypeMemberSymbolId
+  type_parameter : @types.TypeParameter?
+  name : String?
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedStructTypeBinder
+
+pub(all) struct CheckedStructTypeWitness {
+  symbol : @symbol.TypeMemberSymbolId
+  name : String
+  type_ : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedStructTypeWitness
+
+pub(all) enum CheckedTopLevelDeclaration {
+  Struct(CheckedStructDeclaration)
+  Enum(CheckedEnumDeclaration)
+  Function(CheckedFunctionDeclaration)
+  Let(CheckedLetDeclaration)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedTopLevelDeclaration
+
+pub(all) struct CheckedTypeMemberDeclaration {
+  symbol : @symbol.TypeMemberSymbolId
+  type_parameter : @types.TypeParameter
+  name : String
+  kind : @types.Kind
+  index : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedTypeMemberDeclaration
+
+pub(all) struct CheckedValueParameter {
+  symbol : @symbol.ValueSymbolId
+  is_auto : Bool
+  is_offered : Bool
+  name : String
+  type_ : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedValueParameter
+
+pub(all) struct CheckedVariantDeclaration {
+  symbol : @symbol.VariantSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[@types.TypeParameter]
+  payload : Array[@types.Type]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedVariantDeclaration
+
+// Type aliases
+
+// Traits

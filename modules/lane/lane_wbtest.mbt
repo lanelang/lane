@@ -1,6 +1,6 @@
 ///|
 fn read_test_prelude() -> String {
-  read_prelude(Some("lane-std")) catch {
+  read_prelude(Some("../stdlib")) catch {
     _ => abort("failed to read prelude")
   }
 }

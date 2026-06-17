@@ -1,0 +1,125 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/parser/yacc_parser"
+
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/syntax",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn source_file(Array[(Token, @basic.SourceSpan, @basic.SourceSpan)], initial_pos? : @basic.SourceSpan) -> @syntax.SourceFile raise ParseError
+
+// Errors
+pub suberror ParseError {
+  UnexpectedToken(Token, (@basic.SourceSpan, @basic.SourceSpan), Array[TokenKind])
+  UnexpectedEndOfInput(@basic.SourceSpan, Array[TokenKind])
+} derive(@debug.Debug)
+
+// Types and methods
+pub(all) enum Token {
+  INT(String)
+  STRING(String)
+  IDENT(String)
+  RESERVED(String)
+  EOF
+  FALSE
+  TRUE
+  STRUCT
+  ENUM
+  FN
+  LET
+  TYPE
+  OFFER
+  AUTO
+  IF
+  ELSE
+  MATCH
+  BUILTIN
+  PLUS
+  MINUS
+  STAR
+  SLASH
+  PERCENT
+  EQEQ
+  BANGEQ
+  LT
+  LTEQ
+  GT
+  GTEQ
+  AMPAMP
+  BARBAR
+  BANG
+  PIPE
+  LPAREN
+  RPAREN
+  LBRACE
+  RBRACE
+  LBRACKET
+  RBRACKET
+  COMMA
+  DOT
+  COLON
+  COLONCOLON
+  THIN_ARROW
+  FAT_ARROW
+  EQUAL
+  UNDERSCORE
+} derive(@debug.Debug)
+pub fn Token::kind(Self) -> TokenKind
+
+pub(all) enum TokenKind {
+  TK_INT
+  TK_STRING
+  TK_IDENT
+  TK_RESERVED
+  TK_EOF
+  TK_FALSE
+  TK_TRUE
+  TK_STRUCT
+  TK_ENUM
+  TK_FN
+  TK_LET
+  TK_TYPE
+  TK_OFFER
+  TK_AUTO
+  TK_IF
+  TK_ELSE
+  TK_MATCH
+  TK_BUILTIN
+  TK_PLUS
+  TK_MINUS
+  TK_STAR
+  TK_SLASH
+  TK_PERCENT
+  TK_EQEQ
+  TK_BANGEQ
+  TK_LT
+  TK_LTEQ
+  TK_GT
+  TK_GTEQ
+  TK_AMPAMP
+  TK_BARBAR
+  TK_BANG
+  TK_PIPE
+  TK_LPAREN
+  TK_RPAREN
+  TK_LBRACE
+  TK_RBRACE
+  TK_LBRACKET
+  TK_RBRACKET
+  TK_COMMA
+  TK_DOT
+  TK_COLON
+  TK_COLONCOLON
+  TK_THIN_ARROW
+  TK_FAT_ARROW
+  TK_EQUAL
+  TK_UNDERSCORE
+} derive(Compare, Eq, Hash)
+pub impl Show for TokenKind
+pub impl @debug.Debug for TokenKind
+
+// Type aliases
+
+// Traits

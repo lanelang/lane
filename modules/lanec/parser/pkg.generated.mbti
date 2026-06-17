@@ -1,0 +1,45 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/parser"
+
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/lexer",
+  "Milky2018/lanec/syntax",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn parse_string(String) -> ParseResult
+
+pub fn parse_tokens(Array[(@lexer.Token, @basic.SourceSpan)]) -> ParseResult
+
+// Errors
+
+// Types and methods
+pub(all) struct ExpectedSyntax {
+  label : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ParseError {
+  kind : ParseErrorKind
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ParseErrorKind {
+  UnexpectedToken(TokenSummary, Array[ExpectedSyntax])
+  UnexpectedEndOfInput(Array[ExpectedSyntax])
+} derive(Eq, @debug.Debug)
+
+pub struct ParseResult {
+  source : @syntax.SourceFile?
+  lexical_errors : Array[@lexer.LexError]
+  parse_errors : Array[ParseError]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct TokenSummary {
+  label : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

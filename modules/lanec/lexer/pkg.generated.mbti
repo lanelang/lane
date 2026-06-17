@@ -1,0 +1,86 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/lexer"
+
+import {
+  "Milky2018/lanec/basic",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn tokens_from_string(String) -> LexResult
+
+// Errors
+
+// Types and methods
+pub(all) struct LexError {
+  error : LexicalError
+  span : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub struct LexResult {
+  tokens : Array[(Token, @basic.SourceSpan)]
+  errors : Array[LexError]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LexicalError {
+  IllegalCharacter(String)
+  UnterminatedBlockComment
+  UnterminatedString
+  InvalidStringEscape(String)
+  InvalidHexEscape(String)
+  NonAsciiStringCharacter
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Token {
+  INT(String)
+  STRING(String)
+  IDENT(String)
+  RESERVED(String)
+  EOF
+  FALSE
+  TRUE
+  STRUCT
+  ENUM
+  FN
+  LET
+  TYPE
+  OFFER
+  AUTO
+  IF
+  ELSE
+  MATCH
+  BUILTIN
+  PLUS
+  MINUS
+  STAR
+  SLASH
+  PERCENT
+  EQEQ
+  BANGEQ
+  LT
+  LTEQ
+  GT
+  GTEQ
+  AMPAMP
+  BARBAR
+  BANG
+  PIPE
+  LPAREN
+  RPAREN
+  LBRACE
+  RBRACE
+  LBRACKET
+  RBRACKET
+  COMMA
+  DOT
+  COLON
+  COLONCOLON
+  THIN_ARROW
+  FAT_ARROW
+  EQUAL
+  UNDERSCORE
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

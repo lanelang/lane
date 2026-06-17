@@ -1,0 +1,39 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lane_lsp"
+
+import {
+  "gmlewis/jsonrpc2",
+  "moonbitlang/async/io",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub async fn read_protocol_message(&@io.Reader) -> @jsonrpc2.Message?
+
+pub async fn write_protocol_message(&@io.Writer, @jsonrpc2.Message) -> Unit
+
+// Errors
+
+// Types and methods
+pub(all) struct DocumentSnapshot {
+  uri : String
+  version : Int
+  text : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct HandlerResult {
+  outgoing : Array[@jsonrpc2.Message]
+  exit_requested : Bool
+} derive(Eq, @debug.Debug)
+
+pub struct ServerState {
+  prelude : String
+  documents : Map[String, DocumentSnapshot]
+  mut shutdown_requested : Bool
+}
+pub fn ServerState::ServerState(String) -> Self
+pub fn ServerState::handle_message(Self, @jsonrpc2.Message) -> HandlerResult
+
+// Type aliases
+
+// Traits

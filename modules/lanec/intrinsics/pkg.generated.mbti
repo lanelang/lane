@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/intrinsics"
+
+import {
+  "Milky2018/buslane/interpreter",
+  "Milky2018/lanec/elaborate",
+}
+
+// Values
+pub fn standard_external_runtime(@elaborate.BuslaneExternalMap) -> @interpreter.BuslaneExternalRuntime
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

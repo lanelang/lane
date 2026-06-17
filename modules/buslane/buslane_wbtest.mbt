@@ -1,0 +1,262 @@
+///|
+fn int_type() -> Type {
+  Primitive(Int)
+}
+
+///|
+fn bool_type() -> Type {
+  Primitive(Bool)
+}
+
+///|
+test "buslane metadata owns nominal data shape" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let option_param = metadata.define_type_parameter(Type)
+  let option_type = metadata.define_type([option_param])
+  let none = metadata.define_data_constructor(option_type, [], [])
+  let some = metadata.define_data_constructor(option_type, [], [
+    Parameter(option_param),
+  ])
+  inspect(
+    @prettyprinter.render(metadata, width=100),
+    content=(
+      #|metadata {
+      #|  type type#0[tparam#0] {
+      #|    datacon#0()
+      #|    datacon#1(tparam#0)
+      #|  }
+      #|  type_parameter tparam#0 : Type
+      #|}
+    ),
+  )
+  assert_true(
+    metadata.data_constructor_info(none).unwrap().owner == option_type,
+  )
+  assert_true(
+    metadata.data_constructor_info(some).unwrap().owner == option_type,
+  )
+}
+
+///|
+test "buslane forall equality is alpha equivalent" {
+  let left_param = TypeParameterId::{ index: 0 }
+  let right_param = TypeParameterId::{ index: 1 }
+  let left = Type::Forall([left_param], Parameter(left_param))
+  let right = Type::Forall([right_param], Parameter(right_param))
+  assert_true(left == right)
+}
+
+///|
+test "pretty buslane expression tree core" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value(Value, int_type())
+  let function = metadata.define_value(
+    Function,
+    Function([int_type()], int_type()),
+  )
+  let parameter = metadata.define_value(Parameter, int_type())
+  let program = Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: function,
+          rhs: Function({
+            parameters: [parameter],
+            result_type: int_type(),
+            body: Ref(parameter),
+          }),
+        },
+      ]),
+      Let(value, Call(Ref(function), [Literal(Int(42L))])),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(program, width=100),
+    content=(
+      #|buslane {
+      #|  metadata {
+      #|    value value#0 : Int
+      #|    function value#1 : (Int) -> Int
+      #|    parameter value#2 : Int
+      #|  }
+      #|  letrec {
+      #|    value#1 = fn(value#2) -> Int {
+      #|      value#2
+      #|    }
+      #|  }
+      #|  let value#0 = value#1(42)
+      #|}
+    ),
+  )
+}
+
+///|
+test "pretty buslane construct and one-level match" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let option_type_parameter = metadata.define_type_parameter(Type)
+  let option_type = metadata.define_type([option_type_parameter])
+  let some = metadata.define_data_constructor(option_type, [], [
+    Parameter(option_type_parameter),
+  ])
+  let scrutinee = metadata.define_value(
+    Value,
+    Nominal(option_type, [int_type()]),
+  )
+  let match_binder = metadata.define_value(
+    MatchBinder,
+    Nominal(option_type, [int_type()]),
+  )
+  let payload = metadata.define_value(Parameter, int_type())
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(
+        scrutinee,
+        Construct({
+          data_constructor: some,
+          type_arguments: [int_type()],
+          hidden_witnesses: [],
+          payloads: [Literal(Int(1L))],
+        }),
+      ),
+      Let(
+        payload,
+        Match({
+          scrutinee: Ref(scrutinee),
+          binder: match_binder,
+          result_type: int_type(),
+          alternatives: [
+            {
+              alt_constructor: DataCon(some),
+              type_binders: [],
+              value_binders: [payload],
+              body: Ref(payload),
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(program.terms[1], width=100),
+    content=(
+      #|let value#2 = match value#0 as value#1 -> Int {
+      #|  datacon#0(value#2) => value#2
+      #|}
+    ),
+  )
+}
+
+///|
+test "verify buslane function call program" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value(Value, int_type())
+  let function = metadata.define_value(
+    Function,
+    Function([int_type()], int_type()),
+  )
+  let parameter = metadata.define_value(Parameter, int_type())
+  let program = Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: function,
+          rhs: Function({
+            parameters: [parameter],
+            result_type: int_type(),
+            body: Ref(parameter),
+          }),
+        },
+      ]),
+      Let(value, Call(Ref(function), [Literal(Int(42L))])),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
+test "verify buslane generic function parameter scope" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let parameter_type = metadata.define_type_parameter(Type)
+  let function = metadata.define_value(
+    Function,
+    Forall(
+      [parameter_type],
+      Function([Parameter(parameter_type)], Parameter(parameter_type)),
+    ),
+  )
+  let parameter = metadata.define_value(Parameter, Parameter(parameter_type))
+  let program = Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: function,
+          rhs: TypeLambda(
+            [parameter_type],
+            Function({
+              parameters: [parameter],
+              result_type: Parameter(parameter_type),
+              body: Ref(parameter),
+            }),
+          ),
+        },
+      ]),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
+test "verify buslane reports structural errors" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value(Value, int_type())
+  let binder = metadata.define_value(MatchBinder, bool_type())
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(value, Call(Literal(Int(1L)), [])),
+      Let(
+        value,
+        Match({
+          scrutinee: Literal(Bool(true)),
+          binder,
+          result_type: int_type(),
+          alternatives: [
+            {
+              alt_constructor: Literal(Bool(true)),
+              type_binders: [],
+              value_binders: [],
+              body: Literal(Int(1L)),
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  not_function Int
+      #|  type_mismatch {
+      #|    expected Int
+      #|    actual Unit
+      #|  }
+      #|  non_exhaustive_match
+      #|}
+    ),
+  )
+}

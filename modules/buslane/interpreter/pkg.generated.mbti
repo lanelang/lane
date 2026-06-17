@@ -1,0 +1,64 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/buslane/interpreter"
+
+import {
+  "Milky2018/buslane",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn evaluate_buslane_program(@buslane.Program, BuslaneExternalRuntime) -> BuslaneRuntimeProgram raise BuslaneRuntimeError
+
+pub fn external_failure(@buslane.ValueId, String) -> BuslaneRuntimeError
+
+pub fn missing_external(@buslane.ValueId) -> BuslaneRuntimeError
+
+// Errors
+pub suberror BuslaneRuntimeError {
+  InvalidProgram(Array[@buslane.VerifyDiagnostic])
+  UnboundValue(@buslane.ValueId)
+  MissingExternal(@buslane.ValueId)
+  ExternalFailure(id~ : @buslane.ValueId, message~ : String)
+  InvalidValue(message~ : String)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for BuslaneRuntimeError
+
+// Types and methods
+pub struct BuslaneExternalRuntime {
+  // private fields
+}
+pub fn BuslaneExternalRuntime::BuslaneExternalRuntime() -> Self
+pub fn BuslaneExternalRuntime::add_resolver(Self, (@buslane.ValueId, @buslane.Type) -> BuslaneRuntimeValue raise BuslaneRuntimeError) -> Unit
+
+pub struct BuslaneRuntimeProgram {
+  // private fields
+}
+pub fn BuslaneRuntimeProgram::lookup(Self, @buslane.ValueId) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+pub impl @prettyprinter.Pretty for BuslaneRuntimeProgram
+
+pub struct BuslaneRuntimeValue {
+  // private fields
+}
+pub fn BuslaneRuntimeValue::as_bool(Self) -> Bool?
+pub fn BuslaneRuntimeValue::as_int(Self) -> Int64?
+pub fn BuslaneRuntimeValue::as_string(Self) -> String?
+pub fn BuslaneRuntimeValue::bool(Bool) -> Self
+pub fn BuslaneRuntimeValue::data(@buslane.DataConId, Array[Self]) -> Self
+pub fn BuslaneRuntimeValue::external(@buslane.ValueId) -> Self
+pub fn BuslaneRuntimeValue::int(Int64) -> Self
+pub fn BuslaneRuntimeValue::is_function(Self) -> Bool
+pub fn BuslaneRuntimeValue::native_function((Array[Self]) -> Self raise BuslaneRuntimeError) -> Self
+pub fn BuslaneRuntimeValue::pretty_with_type(Self, @buslane.Type) -> @prettyprinter.Document
+pub fn BuslaneRuntimeValue::string(String) -> Self
+pub fn BuslaneRuntimeValue::unit() -> Self
+pub impl @prettyprinter.Pretty for BuslaneRuntimeValue
+
+type BuslaneRuntimeValueKind
+
+// Type aliases
+pub type BuslaneExternalResolver = (@buslane.ValueId, @buslane.Type) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+
+pub type BuslaneNativeFunction = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+
+// Traits

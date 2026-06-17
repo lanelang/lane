@@ -1,0 +1,16 @@
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/syntax",
+  "moonbitlang/core/list",
+}
+
+rule(
+  name: "moonyacc",
+  command: "$mod_dir/../../.mooncakes/moonbitlang/yacc/moonyacc --no-comments $input -o $output && moonfmt -w $output && moonfmt -w $output",
+)
+
+dev_build(
+  rule: "moonyacc",
+  input: "parser.mbty",
+  output: "generated_parser.mbt",
+)

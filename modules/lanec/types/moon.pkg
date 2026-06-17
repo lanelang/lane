@@ -1,0 +1,8 @@
+import {
+  "Milky2018/lanec/symbol",
+  "moonbit-community/prettyprinter",
+}
+
+import {
+  "Milky2018/lanec/basic",
+} for "wbtest"

@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/pretty"
+
+import {
+  "Milky2018/lanec/basic",
+  "moonbit-community/prettyprinter",
+}
+
+// Values
+pub fn braced_block(Array[@prettyprinter.Document]) -> @prettyprinter.Document
+
+pub fn bracketed_inline(Array[@prettyprinter.Document]) -> @prettyprinter.Document
+
+pub fn comma_line() -> @prettyprinter.Document
+
+pub fn comma_space() -> @prettyprinter.Document
+
+pub fn join_comma(Array[@prettyprinter.Document]) -> @prettyprinter.Document
+
+pub fn join_comma_group(Array[@prettyprinter.Document]) -> @prettyprinter.Document
+
+pub fn parenthesized_inline(Array[@prettyprinter.Document]) -> @prettyprinter.Document
+
+pub fn section(String, Array[@prettyprinter.Document]) -> @prettyprinter.Document
+
+pub fn source_span(@basic.SourceSpan) -> @prettyprinter.Document
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,86 @@
+///|
+fn SemanticChecker::check_hidden_type_escape(
+  self : SemanticChecker,
+  opened : Array[TypeParameterId],
+  type_ : @types.Type,
+  loc : SourceSpan,
+) -> Unit {
+  if type_.mentions_any_type_parameter(opened) {
+    self.diagnostics.push({ kind: HiddenTypeEscape(type_~), loc })
+  }
+}
+
+///|
+fn @checked.CheckedPattern::opened_type_parameters(
+  self : @checked.CheckedPattern,
+) -> Array[TypeParameterId] {
+  let parameters : Array[TypeParameterId] = []
+  self.collect_opened_type_parameters(parameters)
+  parameters
+}
+
+///|
+fn @checked.CheckedPattern::collect_opened_type_parameters(
+  self : @checked.CheckedPattern,
+  parameters : Array[TypeParameterId],
+) -> Unit {
+  match self {
+    Wildcard(..) | Binding(..) | Literal(..) => ()
+    Variant(type_arguments~, arguments~, ..) => {
+      for argument in type_arguments {
+        if argument is Parameter(id) {
+          parameters.push(id)
+        }
+      }
+      for argument in arguments {
+        argument.collect_opened_type_parameters(parameters)
+      }
+    }
+    Struct(type_binders~, fields~, ..) => {
+      for binder in type_binders {
+        if binder.type_parameter is Some(parameter) {
+          parameters.push(parameter.id)
+        }
+      }
+      for field in fields {
+        field.pattern.collect_opened_type_parameters(parameters)
+      }
+    }
+  }
+}
+
+///|
+fn @types.Type::mentions_any_type_parameter(
+  self : @types.Type,
+  parameters : Array[TypeParameterId],
+) -> Bool {
+  self.mentions_any_type_parameter_with_bound(parameters, [])
+}
+
+///|
+fn @types.Type::mentions_any_type_parameter_with_bound(
+  self : @types.Type,
+  parameters : Array[TypeParameterId],
+  bound : Array[TypeParameterId],
+) -> Bool {
+  match self {
+    Error | Primitive(_) => false
+    Nominal(_, arguments) =>
+      arguments.any(fn(argument) {
+        argument.mentions_any_type_parameter_with_bound(parameters, bound)
+      })
+    Parameter(id) => parameters.contains(id) && !bound.contains(id)
+    Function(function_parameters, result) =>
+      function_parameters.any(fn(parameter) {
+        parameter.mentions_any_type_parameter_with_bound(parameters, bound)
+      }) ||
+      result.mentions_any_type_parameter_with_bound(parameters, bound)
+    Forall(type_parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in type_parameters {
+        next_bound.push(parameter.id)
+      }
+      body.mentions_any_type_parameter_with_bound(parameters, next_bound)
+    }
+  }
+}

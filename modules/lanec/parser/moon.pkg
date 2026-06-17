@@ -1,0 +1,10 @@
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/lexer",
+  "Milky2018/lanec/parser/yacc_parser",
+  "Milky2018/lanec/syntax",
+}
+
+import {
+  "moonbit-community/prettyprinter",
+} for "wbtest"

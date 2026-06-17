@@ -1,0 +1,49 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/compile"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/elaborate",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn check_with_prelude(String, String) -> CheckResult
+
+pub fn compile_with_prelude(String, String) -> CompileResult
+
+// Errors
+
+// Types and methods
+pub(all) struct CheckResult {
+  source : @checked.CheckedSourceFile?
+  diagnostics : Array[CompileDiagnostic]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckResult
+
+pub(all) struct CompileDiagnostic {
+  message : String
+  span : @basic.SourceSpan?
+  severity : CompileDiagnosticSeverity
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CompileDiagnostic
+
+pub(all) enum CompileDiagnosticSeverity {
+  Error
+  Warning
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompileResult {
+  program : @buslane.Program?
+  externals : @elaborate.BuslaneExternalMap
+  entries : Array[@elaborate.BuslaneEntry]
+  diagnostics : Array[CompileDiagnostic]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CompileResult
+
+// Type aliases
+
+// Traits

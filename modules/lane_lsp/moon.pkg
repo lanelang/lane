@@ -1,0 +1,20 @@
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/compile",
+  "gmlewis/jsonrpc2" @jsonrpc,
+  "moonbitlang/async",
+  "moonbitlang/async/io",
+  "moonbitlang/async/stdio",
+  "moonbitlang/core/argparse",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/fs",
+  "moonbitlang/x/sys",
+}
+
+supported_targets = "native"
+
+options(
+  "is-main": true,
+)

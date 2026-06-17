@@ -1,0 +1,240 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/syntax"
+
+import {
+  "Milky2018/lanec/basic",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum BinaryOperator {
+  Add
+  Sub
+  Mul
+  Div
+  Rem
+  Equal
+  NotEqual
+  Less
+  LessEqual
+  Greater
+  GreaterEqual
+  And
+  Or
+} derive(Eq, @debug.Debug)
+pub fn BinaryOperator::minimum_precedence() -> Int
+pub fn BinaryOperator::precedence(Self) -> Int
+pub impl @prettyprinter.Pretty for BinaryOperator
+
+pub(all) enum CallArgument {
+  Positional(Expr)
+  Named(name~ : String, value~ : Expr, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn CallArgument::loc(Self) -> @basic.SourceSpan
+pub impl @prettyprinter.Pretty for CallArgument
+
+pub(all) struct EnumDeclaration {
+  name : String
+  type_parameters : Array[String]
+  variants : Array[EnumVariant]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EnumDeclaration
+
+pub(all) struct EnumVariant {
+  name : String
+  type_parameters : Array[String]
+  payload : Array[Type]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EnumVariant
+
+pub(all) enum Expr {
+  IntLiteral(String, loc~ : @basic.SourceSpan)
+  StringLiteral(String, loc~ : @basic.SourceSpan)
+  BoolLiteral(Bool, loc~ : @basic.SourceSpan)
+  UnitLiteral(loc~ : @basic.SourceSpan)
+  Var(String, loc~ : @basic.SourceSpan)
+  QualifiedVariant(type_name~ : String, type_arguments~ : Array[Type], variant~ : String, variant_type_arguments~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
+  StructLiteral(type_name~ : String, type_arguments~ : Array[Type], fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
+  Builtin(String, loc~ : @basic.SourceSpan)
+  FunctionLiteral(type_parameters~ : Array[String], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, body~ : Expr, loc~ : @basic.SourceSpan)
+  Block(items~ : Array[LocalItem], result~ : Expr, loc~ : @basic.SourceSpan)
+  If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
+  Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : @basic.SourceSpan)
+  Call(callee~ : Expr, arguments~ : Array[CallArgument], loc~ : @basic.SourceSpan)
+  Field(base~ : Expr, name~ : String, loc~ : @basic.SourceSpan)
+  Unary(operator~ : UnaryOperator, operand~ : Expr, loc~ : @basic.SourceSpan)
+  Binary(operator~ : BinaryOperator, left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
+  Pipeline(left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn Expr::loc(Self) -> @basic.SourceSpan
+pub impl @prettyprinter.Pretty for Expr
+
+pub(all) struct FieldDeclaration {
+  is_offered : Bool
+  name : String
+  type_ : Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for FieldDeclaration
+
+pub(all) struct FunctionDeclaration {
+  type_parameters : Array[String]
+  name : String
+  parameters : Array[Parameter]
+  return_type : Type
+  body : Expr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for FunctionDeclaration
+
+pub(all) struct FunctionLiteralParameter {
+  is_offered : Bool
+  name : String
+  type_annotation : Type?
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for FunctionLiteralParameter
+
+pub(all) enum Kind {
+  Type(loc~ : @basic.SourceSpan)
+  Arrow(parameter~ : Kind, result~ : Kind, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn Kind::loc(Self) -> @basic.SourceSpan
+pub impl @prettyprinter.Pretty for Kind
+
+pub(all) struct LetDeclaration {
+  name : String?
+  type_annotation : Type?
+  initializer : Expr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for LetDeclaration
+
+pub(all) enum LocalItem {
+  Let(LetDeclaration)
+  PatternLet(PatternLetDeclaration)
+  Function(FunctionDeclaration)
+  Offer(OfferDeclaration)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for LocalItem
+
+pub(all) struct MatchArm {
+  pattern : Pattern
+  body : Expr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for MatchArm
+
+pub(all) struct OfferDeclaration {
+  name : String
+  type_annotation : Type
+  initializer : Expr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OfferDeclaration
+
+pub(all) struct Parameter {
+  is_auto : Bool
+  is_offered : Bool
+  name : String
+  type_ : Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for Parameter
+
+pub(all) struct ParameterModifiers {
+  is_auto : Bool
+  is_offered : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Pattern {
+  Wildcard(@basic.SourceSpan)
+  Binding(String, loc~ : @basic.SourceSpan)
+  IntLiteral(String, loc~ : @basic.SourceSpan)
+  StringLiteral(String, loc~ : @basic.SourceSpan)
+  BoolLiteral(Bool, loc~ : @basic.SourceSpan)
+  QualifiedVariant(type_name~ : String, variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
+  Struct(type_name~ : String, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn Pattern::loc(Self) -> @basic.SourceSpan
+pub impl @prettyprinter.Pretty for Pattern
+
+pub(all) struct PatternLetDeclaration {
+  pattern : Pattern
+  initializer : Expr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for PatternLetDeclaration
+
+pub(all) struct SourceFile {
+  declarations : Array[TopLevelDeclaration]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for SourceFile
+
+pub(all) struct StructDeclaration {
+  name : String
+  type_parameters : Array[String]
+  members : Array[StructMember]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for StructDeclaration
+
+pub(all) enum StructLiteralField {
+  Value(name~ : String, value~ : Expr?, loc~ : @basic.SourceSpan)
+  TypeWitness(name~ : String, witness~ : Type, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for StructLiteralField
+
+pub(all) enum StructMember {
+  TypeMember(TypeMemberDeclaration)
+  Field(FieldDeclaration)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for StructMember
+
+pub(all) enum StructPatternField {
+  Value(name~ : String, pattern~ : Pattern?, loc~ : @basic.SourceSpan)
+  TypeBinder(name~ : String, loc~ : @basic.SourceSpan)
+  TypeWildcard(loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for StructPatternField
+
+pub(all) enum TopLevelDeclaration {
+  Struct(StructDeclaration)
+  Enum(EnumDeclaration)
+  Function(FunctionDeclaration)
+  Let(LetDeclaration)
+  Offer(OfferDeclaration)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TopLevelDeclaration
+
+pub(all) enum Type {
+  Name(name~ : String, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
+  Function(type_parameters~ : Array[String], parameters~ : Array[Type], result~ : Type, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn Type::loc(Self) -> @basic.SourceSpan
+pub impl @prettyprinter.Pretty for Type
+
+pub(all) struct TypeMemberDeclaration {
+  name : String
+  kind : Kind
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeMemberDeclaration
+
+pub(all) enum UnaryOperator {
+  Neg
+  Not
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for UnaryOperator
+
+// Type aliases
+
+// Traits

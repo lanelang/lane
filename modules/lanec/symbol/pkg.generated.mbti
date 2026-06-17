@@ -1,0 +1,146 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/symbol"
+
+import {
+  "Milky2018/lanec/basic",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct FieldSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for FieldSymbolId
+
+pub(all) struct FieldSymbolMetadata {
+  id : FieldSymbolId
+  owner : TypeSymbolId
+  name : String
+  index : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for FieldSymbolMetadata
+
+pub(all) enum NominalTypeKind {
+  Struct
+  Enum
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for NominalTypeKind
+
+pub struct SymbolRegistry {
+  types : Array[TypeSymbolMetadata]
+  type_parameters : Array[TypeParameterMetadata]
+  type_members : Array[TypeMemberSymbolMetadata]
+  values : Array[ValueSymbolMetadata]
+  fields : Array[FieldSymbolMetadata]
+  variants : Array[VariantSymbolMetadata]
+} derive(Eq, @debug.Debug)
+pub fn SymbolRegistry::SymbolRegistry() -> Self
+pub fn SymbolRegistry::define_field(Self, TypeSymbolId, String, Int, @basic.SourceSpan) -> FieldSymbolId
+pub fn SymbolRegistry::define_type(Self, String, NominalTypeKind, Int, @basic.SourceSpan) -> TypeSymbolId
+pub fn SymbolRegistry::define_type_member(Self, TypeSymbolId, String, Int, TypeParameterId, @basic.SourceSpan) -> TypeMemberSymbolId
+pub fn SymbolRegistry::define_type_parameter(Self, String, @basic.SourceSpan) -> TypeParameterId
+pub fn SymbolRegistry::define_value(Self, String, ValueSymbolKind, @basic.SourceSpan) -> ValueSymbolId
+pub fn SymbolRegistry::define_variant(Self, TypeSymbolId, String, Int, Int, @basic.SourceSpan) -> VariantSymbolId
+pub fn SymbolRegistry::field_metadata(Self, FieldSymbolId) -> FieldSymbolMetadata?
+pub fn SymbolRegistry::field_named(Self, TypeSymbolId, String) -> FieldSymbolId?
+pub fn SymbolRegistry::fields_of(Self, TypeSymbolId) -> Array[FieldSymbolMetadata]
+pub fn SymbolRegistry::type_member_metadata(Self, TypeMemberSymbolId) -> TypeMemberSymbolMetadata?
+pub fn SymbolRegistry::type_member_named(Self, TypeSymbolId, String) -> TypeMemberSymbolId?
+pub fn SymbolRegistry::type_members_of(Self, TypeSymbolId) -> Array[TypeMemberSymbolMetadata]
+pub fn SymbolRegistry::type_metadata(Self, TypeSymbolId) -> TypeSymbolMetadata?
+pub fn SymbolRegistry::type_named(Self, String) -> TypeSymbolId?
+pub fn SymbolRegistry::type_parameter_metadata(Self, TypeParameterId) -> TypeParameterMetadata?
+pub fn SymbolRegistry::value_metadata(Self, ValueSymbolId) -> ValueSymbolMetadata?
+pub fn SymbolRegistry::variant_metadata(Self, VariantSymbolId) -> VariantSymbolMetadata?
+pub fn SymbolRegistry::variant_named(Self, TypeSymbolId, String) -> VariantSymbolId?
+pub fn SymbolRegistry::variants_named(Self, String) -> Array[VariantSymbolId]
+pub impl @prettyprinter.Pretty for SymbolRegistry
+
+pub struct TypeMemberSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeMemberSymbolId
+
+pub(all) struct TypeMemberSymbolMetadata {
+  id : TypeMemberSymbolId
+  owner : TypeSymbolId
+  type_parameter : TypeParameterId
+  name : String
+  index : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeMemberSymbolMetadata
+
+pub struct TypeParameterId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeParameterId
+
+pub(all) struct TypeParameterMetadata {
+  id : TypeParameterId
+  name : String
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeParameterMetadata
+
+pub struct TypeSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeSymbolId
+
+pub(all) struct TypeSymbolMetadata {
+  id : TypeSymbolId
+  name : String
+  kind : NominalTypeKind
+  arity : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeSymbolMetadata
+
+pub struct ValueSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ValueSymbolId
+
+pub(all) enum ValueSymbolKind {
+  TopLevelValue
+  TopLevelFunction
+  Parameter
+  LocalBinding
+  LocalFunction
+  PatternBinder
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ValueSymbolKind
+
+pub(all) struct ValueSymbolMetadata {
+  id : ValueSymbolId
+  name : String
+  kind : ValueSymbolKind
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ValueSymbolMetadata
+
+pub struct VariantSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for VariantSymbolId
+
+pub(all) struct VariantSymbolMetadata {
+  id : VariantSymbolId
+  owner : TypeSymbolId
+  name : String
+  index : Int
+  payload_count : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for VariantSymbolMetadata
+
+// Type aliases
+
+// Traits

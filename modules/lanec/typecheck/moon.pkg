@@ -1,0 +1,18 @@
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/desugar",
+  "Milky2018/lanec/typecheck/candidates",
+  "Milky2018/lanec/pretty",
+  "Milky2018/lanec/resolve",
+  "Milky2018/lanec/symbol",
+  "Milky2018/lanec/types",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/string",
+}
+
+import {
+  "Milky2018/lanec/parser",
+  "Milky2018/lanec/syntax",
+  "moonbitlang/core/test",
+} for "wbtest"

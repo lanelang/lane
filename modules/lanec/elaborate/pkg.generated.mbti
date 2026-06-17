@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/elaborate"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/anf",
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/resolve",
+  "Milky2018/lanec/typecheck",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn elaborate_resolved_source_file(@resolve.ResolvedSourceFile) -> ElaborateResult
+
+pub fn elaborate_resolved_source_file_to_anf(@resolve.ResolvedSourceFile) -> AnfElaborateResult
+
+pub fn elaborate_resolved_source_file_to_buslane(@resolve.ResolvedSourceFile) -> BuslaneElaborateResult
+
+pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program
+
+pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult
+
+// Errors
+
+// Types and methods
+pub(all) struct AnfElaborateResult {
+  program : @anf.BuslaneAnfProgram?
+  diagnostics : Array[@typecheck.TypeCheckDiagnostic]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfElaborateResult
+
+pub(all) struct BuslaneBuiltinExternal {
+  value : @buslane.ValueId
+  name : String
+  type_ : @buslane.Type
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneElaborateResult {
+  program : @buslane.Program?
+  diagnostics : Array[@typecheck.TypeCheckDiagnostic]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for BuslaneElaborateResult
+
+pub(all) struct BuslaneEntry {
+  name : String
+  value : @buslane.ValueId
+  type_ : @buslane.Type
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneExternalMap {
+  builtins : Array[BuslaneBuiltinExternal]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneLowerResult {
+  program : @buslane.Program
+  externals : BuslaneExternalMap
+  entries : Array[BuslaneEntry]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ElaborateResult {
+  source : @checked.CheckedSourceFile?
+  diagnostics : Array[@typecheck.TypeCheckDiagnostic]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ElaborateResult
+
+// Type aliases
+
+// Traits
