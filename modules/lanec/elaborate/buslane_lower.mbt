@@ -530,9 +530,8 @@ fn BuslaneLowerer::lower_items(
           Local,
           self.lower_type(declaration.type_),
         )
-        Let(
-          id,
-          self.lower_function_declaration(declaration),
+        LetRec(
+          [{ id, rhs: self.lower_function_declaration(declaration) }],
           self.lower_items(items, index + 1, result),
         )
       }

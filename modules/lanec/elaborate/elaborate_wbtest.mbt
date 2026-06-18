@@ -200,6 +200,29 @@ test "elaborate pattern binders before match arm bodies" {
 }
 
 ///|
+test "elaborate local recursive function into verifiable buslane" {
+  let result = elaborate_buslane_source(
+    (
+      #|fn use(value : Int) -> Int {
+      #|  fn loop(current : Int) -> Int {
+      #|    loop(current)
+      #|  }
+      #|  loop(value)
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
 test "elaborate resolved source into anf" {
   let result = elaborate_anf_source(
     (

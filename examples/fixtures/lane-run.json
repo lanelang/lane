@@ -34,11 +34,11 @@
       }
     },
     {
-      "name": "04 local recursive function current run diagnostic",
+      "name": "04 local recursive function entry",
       "file": "examples/valid/04_blocks_and_local_scope.lane",
       "entry": "factorial",
       "expect": {
-        "contains": ["invalid_program", "unknown_value"]
+        "equals": "<function> : (Int) -> Int"
       }
     },
     {
