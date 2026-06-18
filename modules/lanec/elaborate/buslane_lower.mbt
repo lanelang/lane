@@ -666,10 +666,10 @@ fn BuslaneLowerer::lower_pattern_alternative(
         value_binders: [],
         body,
       }
-    Variant(symbol~, arguments~, ..) =>
+    Variant(symbol~, type_arguments~, arguments~, ..) =>
       self.lower_data_pattern_alternative(
         self.data_constructor_id(symbol),
-        [],
+        self.lower_pattern_type_binders(type_arguments),
         arguments,
         body,
         result_type,
@@ -727,6 +727,20 @@ fn BuslaneLowerer::lower_struct_pattern_alternative(
     body,
     result_type,
   )
+}
+
+///|
+fn BuslaneLowerer::lower_pattern_type_binders(
+  self : BuslaneLowerer,
+  type_arguments : Array[@types.Type],
+) -> Array[@buslane.TypeParameterId] {
+  let lowered : Array[@buslane.TypeParameterId] = []
+  for argument in type_arguments {
+    if argument is Parameter(parameter) {
+      lowered.push(self.define_type_parameter(parameter))
+    }
+  }
+  lowered
 }
 
 ///|
@@ -805,10 +819,12 @@ fn BuslaneLowerer::define_pattern_binders(
     Wildcard(..) | Literal(..) => ()
     Binding(symbol~, type_~, ..) =>
       ignore(self.define_value(symbol, MatchBinder, self.lower_type(type_)))
-    Variant(arguments~, ..) =>
+    Variant(type_arguments~, arguments~, ..) => {
+      ignore(self.lower_pattern_type_binders(type_arguments))
       for argument in arguments {
         self.define_pattern_binders(argument)
       }
+    }
     Struct(type_binders~, fields~, ..) => {
       for binder in type_binders {
         if binder.type_parameter is Some(parameter) {

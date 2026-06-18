@@ -122,11 +122,11 @@
       }
     },
     {
-      "name": "14 existential enum current run diagnostic",
+      "name": "14 existential enum packed value",
       "file": "examples/valid/14_existential_enums.lane",
       "entry": "packed_int",
       "expect": {
-        "contains": ["invalid_program", "invalid_alternative_binder_count"]
+        "contains": ["data_value", "external_value", " : type#"]
       }
     },
     {
