@@ -21,6 +21,7 @@ pub(all) struct DataConId {
 ///|
 pub(all) enum Kind {
   Type
+  Function(Array[Kind], Kind)
 } derive(Debug, Eq)
 
 ///|
@@ -35,7 +36,9 @@ pub(all) enum PrimitiveType {
 pub(all) enum Type {
   Primitive(PrimitiveType)
   Parameter(TypeParameterId)
-  Nominal(TypeId, Array[Type])
+  Constructor(TypeId)
+  Apply(Type, Array[Type])
+  TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type)
   Forall(Array[TypeParameterId], Type)
 } derive(Debug)
@@ -253,9 +256,9 @@ pub fn MetadataRegistry::data_constructor_info(
 }
 
 ///|
-/// Returns whether two Buslane types are equal up to forall-bound parameter renaming.
+/// Returns whether two Buslane types are definitionally equal.
 pub fn Type::equals(self : Type, other : Type) -> Bool {
-  alpha_equal_with([], self, other)
+  alpha_equal_with([], self.normalize(), other.normalize())
 }
 
 ///|
@@ -279,24 +282,41 @@ fn alpha_equal_with(
     (Primitive(left), Primitive(right)) => left == right
     (Parameter(left), Parameter(right)) =>
       alpha_equal_parameter(bindings, left, right)
-    (Nominal(left_id, left_args), Nominal(right_id, right_args)) =>
-      left_id == right_id &&
+    (Constructor(left_id), Constructor(right_id)) => left_id == right_id
+    (Apply(left_callee, left_args), Apply(right_callee, right_args)) =>
+      alpha_equal_with(bindings, left_callee, right_callee) &&
       same_length_alpha_equal(bindings, left_args, right_args)
+    (TypeLambda(left_params, left_body), TypeLambda(right_params, right_body)) =>
+      alpha_equal_binders(
+        bindings, left_params, right_params, left_body, right_body,
+      )
     (Function(left_params, left_result), Function(right_params, right_result)) =>
       same_length_alpha_equal(bindings, left_params, right_params) &&
       alpha_equal_with(bindings, left_result, right_result)
     (Forall(left_params, left_body), Forall(right_params, right_body)) =>
-      if left_params.length() != right_params.length() {
-        false
-      } else {
-        let next = bindings.copy()
-        for index in 0..<left_params.length() {
-          next.push({ left: left_params[index], right: right_params[index] })
-        }
-        alpha_equal_with(next, left_body, right_body)
-      }
+      alpha_equal_binders(
+        bindings, left_params, right_params, left_body, right_body,
+      )
     _ => false
   }
+}
+
+///|
+fn alpha_equal_binders(
+  bindings : Array[AlphaBinding],
+  left_params : Array[TypeParameterId],
+  right_params : Array[TypeParameterId],
+  left_body : Type,
+  right_body : Type,
+) -> Bool {
+  if left_params.length() != right_params.length() {
+    return false
+  }
+  let next = bindings.copy()
+  for index in 0..<left_params.length() {
+    next.push({ left: left_params[index], right: right_params[index] })
+  }
+  alpha_equal_with(next, left_body, right_body)
 }
 
 ///|
@@ -328,4 +348,144 @@ fn alpha_equal_parameter(
     }
   }
   left == right
+}
+
+///|
+pub struct TypeSubstitutionEntry {
+  parameter : TypeParameterId
+  replacement : Type
+} derive(Debug, Eq)
+
+///|
+pub struct TypeSubstitution {
+  entries : Array[TypeSubstitutionEntry]
+} derive(Debug, Eq)
+
+///|
+pub fn TypeSubstitution::TypeSubstitution() -> TypeSubstitution {
+  { entries: [] }
+}
+
+///|
+pub fn TypeSubstitution::insert(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+  replacement : Type,
+) -> Unit {
+  self.entries.push({ parameter, replacement })
+}
+
+///|
+fn TypeSubstitution::lookup(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+  bound : Array[TypeParameterId],
+) -> Type? {
+  if bound.contains(parameter) {
+    return None
+  }
+  for entry in self.entries {
+    if entry.parameter == parameter {
+      return Some(entry.replacement)
+    }
+  }
+  None
+}
+
+///|
+fn Type::normalize(self : Type) -> Type {
+  self.normalize_with_fuel(1024)
+}
+
+///|
+fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
+  if fuel <= 0 {
+    abort("Buslane type normalization fuel exhausted")
+  }
+  match self {
+    Primitive(_) | Parameter(_) | Constructor(_) => self
+    Apply(callee, arguments) => {
+      let normalized_callee = callee.normalize_with_fuel(fuel - 1)
+      let normalized_arguments = arguments.map(fn(argument) {
+        argument.normalize_with_fuel(fuel - 1)
+      })
+      match normalized_callee {
+        TypeLambda(parameters, body) =>
+          if parameters.length() != normalized_arguments.length() {
+            Apply(normalized_callee, normalized_arguments)
+          } else {
+            let substitution = TypeSubstitution::TypeSubstitution()
+            for index in 0..<parameters.length() {
+              substitution.insert(
+                parameters[index],
+                normalized_arguments[index],
+              )
+            }
+            body.substitute(substitution).normalize_with_fuel(fuel - 1)
+          }
+        _ => Apply(normalized_callee, normalized_arguments)
+      }
+    }
+    TypeLambda(parameters, body) =>
+      TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
+    Function(parameters, result) =>
+      Function(
+        parameters.map(fn(parameter) { parameter.normalize_with_fuel(fuel - 1) }),
+        result.normalize_with_fuel(fuel - 1),
+      )
+    Forall(parameters, body) =>
+      Forall(parameters, body.normalize_with_fuel(fuel - 1))
+  }
+}
+
+///|
+pub fn Type::substitute(self : Type, substitution : TypeSubstitution) -> Type {
+  self.substitute_with_bound(substitution, [])
+}
+
+///|
+fn Type::substitute_with_bound(
+  self : Type,
+  substitution : TypeSubstitution,
+  bound : Array[TypeParameterId],
+) -> Type {
+  match self {
+    Primitive(_) | Constructor(_) => self
+    Parameter(parameter) =>
+      match substitution.lookup(parameter, bound) {
+        Some(replacement) => replacement
+        None => self
+      }
+    Apply(callee, arguments) =>
+      Apply(
+        callee.substitute_with_bound(substitution, bound),
+        arguments.map(fn(argument) {
+          argument.substitute_with_bound(substitution, bound)
+        }),
+      )
+    TypeLambda(parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in parameters {
+        next_bound.push(parameter)
+      }
+      TypeLambda(
+        parameters,
+        body.substitute_with_bound(substitution, next_bound),
+      )
+    }
+    Function(parameters, result) =>
+      Function(
+        parameters.map(fn(parameter) {
+          parameter.substitute_with_bound(substitution, bound)
+        }),
+        result.substitute_with_bound(substitution, bound),
+      )
+    Forall(parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in parameters {
+        next_bound.push(parameter)
+      }
+      Forall(parameters, body.substitute_with_bound(substitution, next_bound))
+    }
+  }
 }

@@ -77,20 +77,23 @@ fn TypeArgumentInference::collect(
         self.remember(parameter, actual)
       }
     (
-      Nominal(left_symbol, left_arguments),
-      Nominal(right_symbol, right_arguments),
-    ) =>
-      if left_symbol == right_symbol {
-        self.collect_array(left_arguments, right_arguments)
-      }
-    (
       Function(left_parameters, left_result),
       Function(right_parameters, right_result),
     ) => {
       self.collect_array(left_parameters, right_parameters)
       self.collect(left_result, right_result)
     }
-    _ => ()
+    _ =>
+      match (template.decompose_nominal(), actual.decompose_nominal()) {
+        (
+          Some((left_symbol, left_arguments)),
+          Some((right_symbol, right_arguments)),
+        ) =>
+          if left_symbol == right_symbol {
+            self.collect_array(left_arguments, right_arguments)
+          }
+        _ => ()
+      }
   }
 }
 

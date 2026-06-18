@@ -124,8 +124,8 @@ test "pretty prints checked match with resolved patterns" {
   let field = registry.define_field(box, "value", 0, loc())
   let binder = registry.define_value("x", PatternBinder, loc())
   let scrutinee = registry.define_value("value", Parameter, loc())
-  let box_int = @types.Type::Nominal(box, [int_type()])
-  let option_box = @types.Type::Nominal(option, [box_int])
+  let box_int = @types.nominal_type(box, [int_type()])
+  let option_box = @types.nominal_type(option, [box_int])
   let pattern = CheckedPattern::Variant(
     symbol=some,
     type_arguments=[],

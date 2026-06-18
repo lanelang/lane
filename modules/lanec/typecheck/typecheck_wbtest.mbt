@@ -2,10 +2,28 @@
 fn expect_parse_ok(source : String) -> @syntax.SourceFile {
   let result = @parser.parse_string(source)
   if !result.lexical_errors.is_empty() || !result.parse_errors.is_empty() {
-    abort("expected parse success")
+    abort("expected parse success: " + parse_error_summary(result.parse_errors))
   }
   guard result.source is Some(file) else { abort("expected source file") }
   file
+}
+
+///|
+fn parse_error_summary(errors : Array[@parser.ParseError]) -> String {
+  if errors.is_empty() {
+    return "no parse errors"
+  }
+  let error = errors[0]
+  match error.kind {
+    UnexpectedToken(actual, expected) =>
+      "unexpected " +
+      actual.label +
+      " expected " +
+      expected.map(fn(item) { item.label }).join(",")
+    UnexpectedEndOfInput(expected) =>
+      "unexpected eof expected " +
+      expected.map(fn(item) { item.label }).join(",")
+  }
 }
 
 ///|
@@ -44,6 +62,7 @@ fn expect_checked_let_initializer(
   let declaration_result = typecheck_declarations(resolved)
   let source = @desugar.desugar_source_file(resolved)
   let checker = SemanticChecker::{
+    resolved_source: resolved,
     source,
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
@@ -87,6 +106,7 @@ fn expect_first_checked_match_pattern(
   let declaration_result = typecheck_declarations(resolved)
   let source = @desugar.desugar_source_file(resolved)
   let checker = SemanticChecker::{
+    resolved_source: resolved,
     source,
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
@@ -180,7 +200,7 @@ test "typecheck preserves existential declaration metadata" {
   let result = expect_declaration_typecheck_result(
     (
       #|struct HideF {
-      #|  type F : Type -> Type
+      #|  type F : [Type] -> Type
       #|  val : F[Int]
       #|}
       #|enum Packed {
@@ -195,18 +215,18 @@ test "typecheck preserves existential declaration metadata" {
       #|  checked_declarations {
       #|    types {
       #|      struct HideF#0 {
-      #|        type F#0 : Type -> Type
-      #|        val#0 : tparam#0
+      #|        type F#0 : [Type] -> Type
+      #|        val#0 : tparam#0[Int]
       #|      }
       #|      enum Packed#1 {
       #|        hide#0[T#1 : Type](tparam#1)
       #|      }
       #|    }
       #|    type_members {
-      #|      type F#0 : Type -> Type
+      #|      type F#0 : [Type] -> Type
       #|    }
       #|    fields {
-      #|      val#0 : tparam#0
+      #|      val#0 : tparam#0[Int]
       #|    }
       #|    variants {
       #|      hide#0[T#1 : Type](tparam#1)
@@ -1710,6 +1730,52 @@ test "typecheck allows repacking existential enum before leaving match arm" {
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck expands transparent type alias beta applications" {
+  let result = expect_typecheck_result(
+    (
+      #|type Id = type[A] => A
+      #|let answer : Id[Int] = 42
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  guard result.values.values[0] is Let(value) else {
+    abort("expected checked let")
+  }
+  inspect(@prettyprinter.render(value.type_, width=100), content="Int")
+}
+
+///|
+test "typecheck accepts higher-kinded alias parameter" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|type ApplyInt = type[F : [Type] -> Type] => F[Int]
+      #|fn get(box : ApplyInt[Box]) -> Int {
+      #|  box.value
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck reports type alias cycle" {
+  let result = expect_typecheck_result(
+    (
+      #|type A = B
+      #|type B = A
+      #|let answer : A = 42
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="type_alias_cycle A",
+  )
 }
 
 ///|

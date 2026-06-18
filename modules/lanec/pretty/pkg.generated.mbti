@@ -32,3 +32,4 @@ pub fn source_span(@basic.SourceSpan) -> @prettyprinter.Document
 // Type aliases
 
 // Traits
+

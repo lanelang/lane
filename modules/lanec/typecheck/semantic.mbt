@@ -1,5 +1,6 @@
 ///|
 priv struct SemanticChecker {
+  resolved_source : @resolve.ResolvedSourceFile
   source : @desugar.DesugaredSourceFile
   declarations : CheckedDeclarationEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
@@ -16,8 +17,10 @@ pub fn typecheck_source_file(
   source : @resolve.ResolvedSourceFile,
 ) -> TypeCheckResult {
   let declaration_result = typecheck_declarations(source)
-  let source = @desugar.desugar_source_file(source)
+  let resolved_source = source
+  let source = @desugar.desugar_source_file(resolved_source)
   let checker = SemanticChecker::{
+    resolved_source,
     source,
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
@@ -222,7 +225,7 @@ fn SemanticChecker::check_type(
   self : SemanticChecker,
   type_ : @resolve.ResolvedType,
 ) -> @types.Type {
-  check_resolved_type(self.source.symbols, self.diagnostics, type_)
+  check_resolved_type(self.resolved_source, self.diagnostics, type_)
 }
 
 ///|

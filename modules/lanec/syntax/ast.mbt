@@ -8,15 +8,23 @@ pub(all) struct SourceFile {
 pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)
   Enum(EnumDeclaration)
+  TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)
   Offer(OfferDeclaration)
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct TypeParameter {
+  name : String
+  kind : Kind?
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct StructDeclaration {
   name : String
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   members : Array[StructMember]
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -37,14 +45,14 @@ pub(all) struct TypeMemberDeclaration {
 ///|
 pub(all) enum Kind {
   Type(loc~ : SourceSpan)
-  Arrow(parameter~ : Kind, result~ : Kind, loc~ : SourceSpan)
+  Function(parameters~ : Array[Kind], result~ : Kind, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|
 /// Returns the source span covered by this kind syntax node.
 pub fn Kind::loc(self : Kind) -> SourceSpan {
   match self {
-    Type(loc~) | Arrow(loc~, ..) => loc
+    Type(loc~) | Function(loc~, ..) => loc
   }
 }
 
@@ -59,7 +67,7 @@ pub(all) struct FieldDeclaration {
 ///|
 pub(all) struct EnumDeclaration {
   name : String
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   variants : Array[EnumVariant]
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -67,14 +75,21 @@ pub(all) struct EnumDeclaration {
 ///|
 pub(all) struct EnumVariant {
   name : String
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   payload : Array[Type]
   loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct TypeAliasDeclaration {
+  name : String
+  body : Type
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct FunctionDeclaration {
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   name : String
   parameters : Array[Parameter]
   return_type : Type
@@ -115,9 +130,15 @@ pub(all) struct OfferDeclaration {
 
 ///|
 pub(all) enum Type {
-  Name(name~ : String, arguments~ : Array[Type], loc~ : SourceSpan)
+  Name(name~ : String, loc~ : SourceSpan)
+  Apply(callee~ : Type, arguments~ : Array[Type], loc~ : SourceSpan)
+  TypeLambda(
+    parameters~ : Array[TypeParameter],
+    body~ : Type,
+    loc~ : SourceSpan
+  )
   Function(
-    type_parameters~ : Array[String],
+    type_parameters~ : Array[TypeParameter],
     parameters~ : Array[Type],
     result~ : Type,
     loc~ : SourceSpan
@@ -128,7 +149,10 @@ pub(all) enum Type {
 /// Returns the source span covered by this type syntax node.
 pub fn Type::loc(self : Type) -> SourceSpan {
   match self {
-    Name(loc~, ..) | Function(loc~, ..) => loc
+    Name(loc~, ..)
+    | Apply(loc~, ..)
+    | TypeLambda(loc~, ..)
+    | Function(loc~, ..) => loc
   }
 }
 
@@ -155,7 +179,7 @@ pub(all) enum Expr {
   )
   Builtin(String, loc~ : SourceSpan)
   FunctionLiteral(
-    type_parameters~ : Array[String],
+    type_parameters~ : Array[TypeParameter],
     parameters~ : Array[FunctionLiteralParameter],
     return_type~ : Type?,
     body~ : Expr,

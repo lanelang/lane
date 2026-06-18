@@ -9,6 +9,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownTypeParameter(TypeParameterId)
   UnknownValue(ValueId)
   UnknownDataConstructor(DataConId)
+  KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeMismatch(expected~ : Type, actual~ : Type)
   NotFunction(Type)
   NotForall(Type)
@@ -41,17 +42,6 @@ priv struct ValueScope {
 ///|
 priv struct TypeScope {
   parameters : Array[TypeParameterId]
-}
-
-///|
-priv struct TypeSubstitutionEntry {
-  parameter : TypeParameterId
-  replacement : Type
-}
-
-///|
-priv struct TypeSubstitution {
-  entries : Array[TypeSubstitutionEntry]
 }
 
 ///|
@@ -89,7 +79,7 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
   }
   for value in self.program.metadata.values {
     if value.kind.has_closed_metadata_type() {
-      self.verify_type(value.type_, { parameters: [] })
+      self.verify_value_type(value.type_, { parameters: [] })
     }
   }
   for data_constructor in self.program.metadata.data_constructors {
@@ -107,7 +97,7 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
       self.require_type_parameter(parameter)
     }
     for payload_type in data_constructor.payload_types {
-      self.verify_type(payload_type, scope)
+      self.verify_value_type(payload_type, scope)
     }
   }
 }
@@ -259,7 +249,7 @@ fn VerifyContext::synthesize_function(
     parameters.push(info.type_)
     body_scope.values.push(parameter)
   }
-  self.verify_type(function.result_type, type_scope)
+  self.verify_value_type(function.result_type, type_scope)
   self.check_expr(function.body, function.result_type, body_scope, type_scope)
   Function(parameters, function.result_type)
 }
@@ -332,15 +322,17 @@ fn VerifyContext::synthesize_type_apply(
     )
     return body
   }
-  let substitution = TypeSubstitution::{ entries: [] }
+  let substitution = TypeSubstitution::TypeSubstitution()
   for index in 0..<parameters.length() {
-    self.verify_type(arguments[index], type_scope)
-    substitution.entries.push({
-      parameter: parameters[index],
-      replacement: arguments[index],
-    })
+    guard self.program.metadata.type_parameter_info(parameters[index])
+      is Some(info) else {
+      self.report(UnknownTypeParameter(parameters[index]))
+      continue
+    }
+    self.verify_type_kind(arguments[index], info.kind, type_scope)
+    substitution.insert(parameters[index], arguments[index])
   }
-  body.substitute(substitution, [])
+  body.substitute(substitution)
 }
 
 ///|
@@ -383,38 +375,44 @@ fn VerifyContext::synthesize_construct(
       ),
     )
   }
-  let substitution = TypeSubstitution::{ entries: [] }
+  let substitution = TypeSubstitution::TypeSubstitution()
   for
     index in 0..<owner.parameters
     .length()
     .min(construct.type_arguments.length()) {
     let argument = construct.type_arguments[index]
-    self.verify_type(argument, type_scope)
-    substitution.entries.push({
-      parameter: owner.parameters[index],
-      replacement: argument,
-    })
+    guard self.program.metadata.type_parameter_info(owner.parameters[index])
+      is Some(parameter_info) else {
+      self.report(UnknownTypeParameter(owner.parameters[index]))
+      continue
+    }
+    self.verify_type_kind(argument, parameter_info.kind, type_scope)
+    substitution.insert(owner.parameters[index], argument)
   }
   for
     index in 0..<info.hidden_type_parameters
     .length()
     .min(construct.hidden_witnesses.length()) {
     let witness = construct.hidden_witnesses[index]
-    self.verify_type(witness, type_scope)
-    substitution.entries.push({
-      parameter: info.hidden_type_parameters[index],
-      replacement: witness,
-    })
+    guard self.program.metadata.type_parameter_info(
+        info.hidden_type_parameters[index],
+      )
+      is Some(parameter_info) else {
+      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
+      continue
+    }
+    self.verify_type_kind(witness, parameter_info.kind, type_scope)
+    substitution.insert(info.hidden_type_parameters[index], witness)
   }
   for index in 0..<info.payload_types.length().min(construct.payloads.length()) {
     self.check_expr(
       construct.payloads[index],
-      info.payload_types[index].substitute(substitution, []),
+      info.payload_types[index].substitute(substitution),
       value_scope,
       type_scope,
     )
   }
-  Nominal(info.owner, construct.type_arguments)
+  nominal_type(info.owner, construct.type_arguments)
 }
 
 ///|
@@ -542,7 +540,8 @@ fn VerifyContext::verify_data_alternative(
   body_scope : ValueScope,
   type_scope : TypeScope,
 ) -> Unit {
-  guard scrutinee_type is Nominal(owner_id, type_arguments) else {
+  guard decompose_nominal_type(scrutinee_type)
+    is Some((owner_id, type_arguments)) else {
     self.report(TypeMismatch(expected=scrutinee_type, actual=Primitive(Unit)))
     return
   }
@@ -555,7 +554,7 @@ fn VerifyContext::verify_data_alternative(
     self.report(
       TypeMismatch(
         expected=scrutinee_type,
-        actual=Nominal(info.owner, type_arguments),
+        actual=nominal_type(info.owner, type_arguments),
       ),
     )
   }
@@ -568,18 +567,15 @@ fn VerifyContext::verify_data_alternative(
     self.report(UnknownType(info.owner))
     return
   }
-  let substitution = TypeSubstitution::{ entries: [] }
+  let substitution = TypeSubstitution::TypeSubstitution()
   for index in 0..<owner.parameters.length().min(type_arguments.length()) {
-    substitution.entries.push({
-      parameter: owner.parameters[index],
-      replacement: type_arguments[index],
-    })
+    substitution.insert(owner.parameters[index], type_arguments[index])
   }
   for index in 0..<info.hidden_type_parameters.length() {
-    substitution.entries.push({
-      parameter: info.hidden_type_parameters[index],
-      replacement: Parameter(alternative.type_binders[index]),
-    })
+    substitution.insert(
+      info.hidden_type_parameters[index],
+      Parameter(alternative.type_binders[index]),
+    )
   }
   for index in 0..<alternative.value_binders.length() {
     let binder = alternative.value_binders[index]
@@ -587,8 +583,8 @@ fn VerifyContext::verify_data_alternative(
       self.report(UnknownValue(binder))
       continue
     }
-    let expected = info.payload_types[index].substitute(substitution, [])
-    if binder_info.type_ != expected {
+    let expected = info.payload_types[index].substitute(substitution)
+    if !binder_info.type_.equals(expected) {
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
     body_scope.values.push(binder)
@@ -649,7 +645,7 @@ fn VerifyContext::is_exhaustive(
     Primitive(Unit) => literals.contains(Unit)
     Primitive(Bool) =>
       literals.contains(Bool(true)) && literals.contains(Bool(false))
-    Nominal(owner, _) =>
+    type_ if decompose_nominal_type(type_) is Some((owner, _)) =>
       match self.program.metadata.type_info(owner) {
         Some(info) =>
           info.constructors.all(fn(data_constructor) {
@@ -662,39 +658,115 @@ fn VerifyContext::is_exhaustive(
 }
 
 ///|
-fn VerifyContext::verify_type(
+fn VerifyContext::verify_value_type(
   self : VerifyContext,
   type_ : Type,
   scope : TypeScope,
 ) -> Unit {
+  self.verify_type_kind(type_, Type, scope)
+}
+
+///|
+fn VerifyContext::verify_type_kind(
+  self : VerifyContext,
+  type_ : Type,
+  expected : Kind,
+  scope : TypeScope,
+) -> Unit {
+  let actual = self.synthesize_type_kind(type_, scope)
+  if actual != expected {
+    self.report(KindMismatch(expected~, actual~))
+  }
+}
+
+///|
+fn VerifyContext::synthesize_type_kind(
+  self : VerifyContext,
+  type_ : Type,
+  scope : TypeScope,
+) -> Kind {
   match type_ {
-    Primitive(_) => ()
-    Parameter(parameter) =>
+    Primitive(_) => Type
+    Parameter(parameter) => {
       if !scope.contains(parameter) {
         self.report(UnknownTypeParameter(parameter))
+        return Type
       }
-    Nominal(id, arguments) => {
+      match self.program.metadata.type_parameter_info(parameter) {
+        Some(info) => info.kind
+        None => {
+          self.report(UnknownTypeParameter(parameter))
+          Type
+        }
+      }
+    }
+    Constructor(id) => {
       guard self.program.metadata.type_info(id) is Some(info) else {
         self.report(UnknownType(id))
-        return
+        return Type
       }
-      if info.parameters.length() != arguments.length() {
+      if info.parameters.is_empty() {
+        Type
+      } else {
+        Function(
+          info.parameters.map(fn(parameter) {
+            match self.program.metadata.type_parameter_info(parameter) {
+              Some(parameter_info) => parameter_info.kind
+              None => {
+                self.report(UnknownTypeParameter(parameter))
+                Type
+              }
+            }
+          }),
+          Type,
+        )
+      }
+    }
+    Apply(callee, arguments) => {
+      let callee_kind = self.synthesize_type_kind(callee, scope)
+      guard callee_kind is Function(parameter_kinds, result_kind) else {
+        self.report(
+          KindMismatch(expected=Function([], Type), actual=callee_kind),
+        )
+        return Type
+      }
+      if parameter_kinds.length() != arguments.length() {
         self.report(
           ArityMismatch(
-            expected=info.parameters.length(),
+            expected=parameter_kinds.length(),
             actual=arguments.length(),
           ),
         )
       }
-      for argument in arguments {
-        self.verify_type(argument, scope)
+      for index in 0..<arguments.length() {
+        let argument = arguments[index]
+        if index < parameter_kinds.length() {
+          self.verify_type_kind(argument, parameter_kinds[index], scope)
+        } else {
+          ignore(self.synthesize_type_kind(argument, scope))
+        }
       }
+      result_kind
+    }
+    TypeLambda(parameters, body) => {
+      let body_scope = scope.copy()
+      let parameter_kinds = []
+      for parameter in parameters {
+        self.require_type_parameter(parameter)
+        body_scope.parameters.push(parameter)
+        match self.program.metadata.type_parameter_info(parameter) {
+          Some(info) => parameter_kinds.push(info.kind)
+          None => parameter_kinds.push(Type)
+        }
+      }
+      Function(parameter_kinds, self.synthesize_type_kind(body, body_scope))
     }
     Function(parameters, result) => {
       for parameter in parameters {
-        self.verify_type(parameter, scope)
+        self.verify_type_kind(parameter, Type, scope)
       }
-      self.verify_type(result, scope)
+      self.verify_type_kind(result, Type, scope)
+      Type
     }
     Forall(parameters, body) => {
       let body_scope = scope.copy()
@@ -702,7 +774,8 @@ fn VerifyContext::verify_type(
         self.require_type_parameter(parameter)
         body_scope.parameters.push(parameter)
       }
-      self.verify_type(body, body_scope)
+      self.verify_type_kind(body, Type, body_scope)
+      Type
     }
   }
 }
@@ -781,53 +854,19 @@ fn Expr::is_recursable_function(self : Expr) -> Bool {
 }
 
 ///|
-fn Type::substitute(
-  self : Type,
-  substitution : TypeSubstitution,
-  bound : Array[TypeParameterId],
-) -> Type {
-  match self {
-    Primitive(_) => self
-    Parameter(parameter) =>
-      match substitution.lookup(parameter, bound) {
-        Some(replacement) => replacement
-        None => self
-      }
-    Nominal(id, arguments) =>
-      Nominal(
-        id,
-        arguments.map(fn(argument) { argument.substitute(substitution, bound) }),
-      )
-    Function(parameters, result) =>
-      Function(
-        parameters.map(fn(parameter) {
-          parameter.substitute(substitution, bound)
-        }),
-        result.substitute(substitution, bound),
-      )
-    Forall(parameters, body) => {
-      let next_bound = bound.copy()
-      for parameter in parameters {
-        next_bound.push(parameter)
-      }
-      Forall(parameters, body.substitute(substitution, next_bound))
-    }
+fn nominal_type(owner : TypeId, arguments : Array[Type]) -> Type {
+  if arguments.is_empty() {
+    Constructor(owner)
+  } else {
+    Apply(Constructor(owner), arguments)
   }
 }
 
 ///|
-fn TypeSubstitution::lookup(
-  self : TypeSubstitution,
-  parameter : TypeParameterId,
-  bound : Array[TypeParameterId],
-) -> Type? {
-  if bound.contains(parameter) {
-    return None
+fn decompose_nominal_type(type_ : Type) -> (TypeId, Array[Type])? {
+  match type_ {
+    Constructor(owner) => Some((owner, []))
+    Apply(Constructor(owner), arguments) => Some((owner, arguments))
+    _ => None
   }
-  for entry in self.entries {
-    if entry.parameter == parameter {
-      return Some(entry.replacement)
-    }
-  }
-  None
 }

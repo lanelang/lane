@@ -273,22 +273,24 @@ fn SemanticChecker::check_variant_symbol_pattern(
     })
     return Wildcard(type_=Error, loc~)
   }
-  let type_arguments = match expected {
-    Nominal(owner, arguments) if owner == metadata.owner => arguments
-    Error => []
-    _ => {
-      self.expect_type(
-        expected,
-        Nominal(
-          metadata.owner,
-          declaration.type_parameters.map(fn(parameter) {
-            Parameter(parameter.id)
-          }),
-        ),
-        loc,
-      )
-      []
-    }
+  let type_arguments = match expected.decompose_nominal() {
+    Some((owner, arguments)) if owner == metadata.owner => arguments
+    _ =>
+      if expected is Error {
+        []
+      } else {
+        self.expect_type(
+          expected,
+          @types.nominal_type(
+            metadata.owner,
+            declaration.type_parameters.map(fn(parameter) {
+              Parameter(parameter.id)
+            }),
+          ),
+          loc,
+        )
+        []
+      }
   }
   if variant_declaration.payload.length() != arguments.length() {
     self.diagnostics.push({
@@ -371,17 +373,19 @@ fn SemanticChecker::check_struct_pattern(
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return Wildcard(type_=Error, loc~)
   }
-  let type_arguments = match expected {
-    Nominal(owner, arguments) if owner == symbol => arguments
-    Error => []
-    _ => {
-      self.expect_type(expected, Nominal(symbol, []), loc)
-      []
-    }
+  let type_arguments = match expected.decompose_nominal() {
+    Some((owner, arguments)) if owner == symbol => arguments
+    _ =>
+      if expected is Error {
+        []
+      } else {
+        self.expect_type(expected, @types.nominal_type(symbol, []), loc)
+        []
+      }
   }
   guard self.declarations.checked_struct(symbol) is Some(declaration) else {
     self.diagnostics.push({
-      kind: NotAStruct(Nominal(symbol, type_arguments)),
+      kind: NotAStruct(@types.nominal_type(symbol, type_arguments)),
       loc,
     })
     return Wildcard(type_=Error, loc~)
@@ -609,12 +613,8 @@ fn PatternMatrix::is_exhaustive(
   if self.rows.any(fn(row) { pattern_is_irrefutable(declarations, row, type_) }) {
     true
   } else {
-    match type_ {
-      Error => true
-      Primitive(Bool) =>
-        self.covers_bool_literal(true) && self.covers_bool_literal(false)
-      Primitive(Unit) | Primitive(Int) | Primitive(String) => false
-      Nominal(symbol, _) =>
+    match type_.decompose_nominal() {
+      Some((symbol, _)) =>
         match declarations.checked_enum(symbol) {
           Some(declaration) =>
             declaration.variants.all(fn(variant) {
@@ -622,7 +622,19 @@ fn PatternMatrix::is_exhaustive(
             })
           None => false
         }
-      Parameter(_) | Function(_, _) | Forall(_, _) => false
+      None =>
+        match type_ {
+          Error => true
+          Primitive(Bool) =>
+            self.covers_bool_literal(true) && self.covers_bool_literal(false)
+          Primitive(Unit) | Primitive(Int) | Primitive(String) => false
+          Parameter(_)
+          | Constructor(_)
+          | Apply(_, _)
+          | TypeLambda(_, _)
+          | Function(_, _)
+          | Forall(_, _) => false
+        }
     }
   }
 }
@@ -721,13 +733,16 @@ fn pattern_is_irrefutable(
         )
       })
     Variant(symbol~, arguments~, ..) =>
-      if type_ is Nominal(owner, _) &&
-        declarations.checked_enum(owner) is Some(declaration) {
-        declaration.variants.length() == 1 &&
-        declaration.variants[0].symbol == symbol &&
-        variant_arguments_irrefutable(declarations, arguments)
-      } else {
-        false
+      match type_.decompose_nominal() {
+        Some((owner, _)) =>
+          if declarations.checked_enum(owner) is Some(declaration) {
+            declaration.variants.length() == 1 &&
+            declaration.variants[0].symbol == symbol &&
+            variant_arguments_irrefutable(declarations, arguments)
+          } else {
+            false
+          }
+        None => false
       }
     Literal(..) => false
   }

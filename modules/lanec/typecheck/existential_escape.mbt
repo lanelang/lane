@@ -64,11 +64,19 @@ fn @types.Type::mentions_any_type_parameter_with_bound(
   bound : Array[TypeParameterId],
 ) -> Bool {
   match self {
-    Error | Primitive(_) => false
-    Nominal(_, arguments) =>
+    Error | Primitive(_) | Constructor(_) => false
+    Apply(callee, arguments) =>
+      callee.mentions_any_type_parameter_with_bound(parameters, bound) ||
       arguments.any(fn(argument) {
         argument.mentions_any_type_parameter_with_bound(parameters, bound)
       })
+    TypeLambda(type_parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in type_parameters {
+        next_bound.push(parameter.id)
+      }
+      body.mentions_any_type_parameter_with_bound(parameters, next_bound)
+    }
     Parameter(id) => parameters.contains(id) && !bound.contains(id)
     Function(function_parameters, result) =>
       function_parameters.any(fn(parameter) {

@@ -37,6 +37,12 @@ pub impl @prettyprinter.Pretty for DataConId with fn pretty(id : DataConId) {
 pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
   match kind {
     Type => text("Type")
+    Function(parameters, result) =>
+      bracketed_inline(parameters.map(Kind::pretty)) +
+      space +
+      text("->") +
+      space +
+      result.pretty()
   }
 }
 
@@ -57,8 +63,16 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
   match type_ {
     Primitive(primitive) => primitive.pretty()
     Parameter(parameter) => parameter.pretty()
-    Nominal(type_id, arguments) =>
-      type_id.pretty() + type_arguments_doc(arguments)
+    Constructor(type_id) => type_id.pretty()
+    Apply(callee, arguments) => callee.pretty() + type_arguments_doc(arguments)
+    TypeLambda(parameters, body) =>
+      text("type") +
+      space +
+      bracketed_inline(parameters.map(TypeParameterId::pretty)) +
+      space +
+      text("=>") +
+      space +
+      body.pretty()
     Function(parameters, result) =>
       parenthesized_inline(parameters.map(Type::pretty)) +
       space +
@@ -300,6 +314,13 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
     UnknownValue(id) => text("unknown_value") + space + id.pretty()
     UnknownDataConstructor(id) =>
       text("unknown_data_constructor") + space + id.pretty()
+    KindMismatch(expected~, actual~) =>
+      text("kind_mismatch") +
+      space +
+      braced_block([
+        text("expected ") + expected.pretty(),
+        text("actual ") + actual.pretty(),
+      ])
     TypeMismatch(expected~, actual~) =>
       text("type_mismatch") +
       space +

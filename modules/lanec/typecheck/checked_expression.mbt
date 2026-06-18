@@ -1105,7 +1105,7 @@ fn SemanticChecker::synthesize_checked_field(
     Symbol(field) =>
       self.checked_field_from_symbol(base, checked_base.type_, field, name, loc)
     Deferred(_) =>
-      if checked_base.type_ is Nominal(symbol, _) {
+      if checked_base.type_.decompose_nominal() is Some((symbol, _)) {
         guard self.source.symbols.field_named(symbol, name) is Some(field) else {
           self.diagnostics.push({ kind: UnknownField(name~), loc })
           return checked_expression_none_reported(Error)

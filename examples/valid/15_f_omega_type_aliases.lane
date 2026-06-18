@@ -1,0 +1,15 @@
+// Valid: transparent type aliases, type-level lambdas, and higher-kinded
+// type parameters normalize before value type checking and Buslane lowering.
+
+struct Box[A] {
+  value : A
+}
+
+type Id = type[A] => A
+type ApplyInt = type[F : [Type] -> Type] => F[Int]
+
+fn get(box : ApplyInt[Box]) -> Id[Int] {
+  box.value
+}
+
+let answer : Id[Int] = get(Box::{ value: 42 })

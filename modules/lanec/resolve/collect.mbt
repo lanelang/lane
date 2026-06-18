@@ -1,9 +1,15 @@
 ///|
 priv struct Resolver {
   registry : SymbolRegistry
+  type_aliases : Array[TypeAliasBinding]
   top_values : Array[ValueBinding]
   ordered_top_values : Array[ValueBinding]
   diagnostics : Array[ResolveDiagnostic]
+}
+
+///|
+priv struct TypeAliasBinding {
+  name : String
 }
 
 ///|
@@ -35,7 +41,13 @@ pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult 
 
 ///|
 fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
-  { registry, top_values: [], ordered_top_values: [], diagnostics: [] }
+  {
+    registry,
+    type_aliases: [],
+    top_values: [],
+    ordered_top_values: [],
+    diagnostics: [],
+  }
 }
 
 ///|
@@ -61,6 +73,8 @@ fn Resolver::collect_top_level_headers(
           declaration.loc,
         )
         |> ignore
+      TypeAlias(declaration) =>
+        self.type_aliases.push({ name: declaration.name })
       Function(declaration) => {
         let symbol = self.registry.define_value(
           declaration.name,
@@ -152,7 +166,7 @@ fn Resolver::collect_nominal_members(
           |> ignore
         }
       }
-      Function(_) | Let(_) | Offer(_) => ()
+      TypeAlias(_) | Function(_) | Let(_) | Offer(_) => ()
     }
   }
 }
@@ -170,6 +184,8 @@ fn @syntax.TopLevelDeclaration::resolve_top_level(
   match self {
     Struct(declaration) => Struct(declaration.resolve_struct(resolver))
     Enum(declaration) => Enum(declaration.resolve_enum(resolver))
+    TypeAlias(declaration) =>
+      TypeAlias(declaration.resolve_type_alias(resolver))
     Function(declaration) =>
       Function(declaration.resolve_top_level_function(resolver))
     Let(declaration) => Let(declaration.resolve_top_level_let(resolver))
@@ -234,6 +250,7 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
   let type_parameter : ResolvedTypeParameter = {
     symbol: type_parameter_symbol,
     name: self.name,
+    kind: Some(self.kind.resolve_kind()),
     loc: self.loc,
   }
   let symbol = resolver.registry.define_type_member(
@@ -262,12 +279,24 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
 fn @syntax.Kind::resolve_kind(self : @syntax.Kind) -> ResolvedKind {
   match self {
     Type(loc~) => Type(loc~)
-    Arrow(parameter~, result~, loc~) =>
-      Arrow(
-        parameter=parameter.resolve_kind(),
+    Function(parameters~, result~, loc~) =>
+      Function(
+        parameters=parameters.map(fn(parameter) { parameter.resolve_kind() }),
         result=result.resolve_kind(),
         loc~,
       )
+  }
+}
+
+///|
+fn @syntax.TypeAliasDeclaration::resolve_type_alias(
+  self : @syntax.TypeAliasDeclaration,
+  resolver : Resolver,
+) -> ResolvedTypeAliasDeclaration {
+  {
+    name: self.name,
+    body: self.body.resolve_type(resolver, resolver.scope([])),
+    loc: self.loc,
   }
 }
 
@@ -299,12 +328,32 @@ fn @syntax.EnumDeclaration::resolve_enum(
 /// referenced by parameter, return, and body type annotations.
 fn Resolver::resolve_type_parameters(
   self : Resolver,
+  parameters : Array[@syntax.TypeParameter],
+  _loc : SourceSpan,
+) -> Array[ResolvedTypeParameter] {
+  parameters.map(fn(parameter) {
+    let symbol = self.registry.define_type_parameter(
+      parameter.name,
+      parameter.loc,
+    )
+    {
+      symbol,
+      name: parameter.name,
+      kind: parameter.kind.map(@syntax.Kind::resolve_kind),
+      loc: parameter.loc,
+    }
+  })
+}
+
+///|
+fn Resolver::resolve_type_parameter_names(
+  self : Resolver,
   names : Array[String],
   loc : SourceSpan,
 ) -> Array[ResolvedTypeParameter] {
   names.map(fn(name) {
     let symbol = self.registry.define_type_parameter(name, loc)
-    { symbol, name, loc }
+    { symbol, name, kind: None, loc }
   })
 }
 
@@ -625,12 +674,9 @@ fn @syntax.Type::resolve_type(
   scope : ResolveScope,
 ) -> ResolvedType {
   match self {
-    Name(name~, arguments~, loc~) => {
-      let resolved_arguments = arguments.map(fn(argument) {
-        argument.resolve_type(resolver, scope)
-      })
+    Name(name~, loc~) =>
       // Type names are resolved in the language order: primitives first, then
-      // in-scope type parameters, then nominal type constructors.
+      // in-scope type parameters, then nominal type constructors, then aliases.
       match primitive_type(name) {
         Some(primitive) => Primitive(primitive, loc~)
         None =>
@@ -638,15 +684,36 @@ fn @syntax.Type::resolve_type(
             Some(symbol) => Parameter(symbol~, name~, loc~)
             None =>
               match resolver.registry.type_named(name) {
-                Some(symbol) =>
-                  Nominal(symbol~, name~, arguments=resolved_arguments, loc~)
-                None => {
-                  resolver.report(UnresolvedType(name), loc)
-                  Unresolved(name~, arguments=resolved_arguments, loc~)
-                }
+                Some(symbol) => Constructor(symbol~, name~, loc~)
+                None =>
+                  if resolver.has_type_alias(name) {
+                    Alias(name~, loc~)
+                  } else {
+                    resolver.report(UnresolvedType(name), loc)
+                    Unresolved(name~, arguments=[], loc~)
+                  }
               }
           }
       }
+    Apply(callee~, arguments~, loc~) =>
+      Apply(
+        callee=callee.resolve_type(resolver, scope),
+        arguments=arguments.map(fn(argument) {
+          argument.resolve_type(resolver, scope)
+        }),
+        loc~,
+      )
+    TypeLambda(parameters~, body~, loc~) => {
+      let resolved_type_parameters = resolver.resolve_type_parameters(
+        parameters, loc,
+      )
+      let next_scope = scope.enter_scope()
+      next_scope.type_parameters.append(resolved_type_parameters)
+      TypeLambda(
+        parameters=resolved_type_parameters,
+        body=body.resolve_type(resolver, next_scope),
+        loc~,
+      )
     }
     Function(type_parameters~, parameters~, result~, loc~) => {
       let resolved_type_parameters = resolver.resolve_type_parameters(
@@ -664,6 +731,11 @@ fn @syntax.Type::resolve_type(
       )
     }
   }
+}
+
+///|
+fn Resolver::has_type_alias(self : Resolver, name : String) -> Bool {
+  self.type_aliases.any(fn(type_alias) { type_alias.name == name })
 }
 
 ///|
@@ -893,10 +965,23 @@ fn Resolver::nominal_type_of_expr(
   match expr {
     Var(reference~, ..) =>
       match scope.value_type(reference) {
-        Some(Nominal(symbol~, ..)) => Some(symbol)
+        Some(type_) =>
+          match nominal_type_of_resolved_type(type_) {
+            Some(symbol) => Some(symbol)
+            None => None
+          }
         _ => None
       }
     StructLiteral(type_name~, ..) => self.registry.type_named(type_name)
+    _ => None
+  }
+}
+
+///|
+fn nominal_type_of_resolved_type(type_ : ResolvedType) -> TypeSymbolId? {
+  match type_ {
+    Constructor(symbol~, ..) => Some(symbol)
+    Apply(callee=Constructor(symbol~, ..), ..) => Some(symbol)
     _ => None
   }
 }
@@ -1255,7 +1340,9 @@ fn @syntax.Pattern::resolve_pattern(
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
     QualifiedVariant(type_name~, variant~, type_binders~, arguments~, loc~) => {
-      let type_binders = resolver.resolve_type_parameters(type_binders, loc)
+      let type_binders = resolver.resolve_type_parameter_names(
+        type_binders, loc,
+      )
       scope.type_parameters.append(type_binders)
       QualifiedVariant(
         type_name~,
@@ -1322,7 +1409,7 @@ fn Resolver::resolve_pattern_type_binder(
   loc : SourceSpan,
 ) -> ResolvedStructPatternField {
   let symbol = self.registry.define_type_parameter(name, loc)
-  let type_parameter = { symbol, name, loc }
+  let type_parameter = { symbol, name, kind: None, loc }
   scope.type_parameters.push(type_parameter)
   TypeBinder(name~, type_parameter~, loc~)
 }
@@ -1334,7 +1421,12 @@ fn Resolver::resolve_pattern_type_wildcard(
   loc : SourceSpan,
 ) -> ResolvedStructPatternField {
   let symbol = self.registry.define_type_parameter("_", loc)
-  let type_parameter : ResolvedTypeParameter = { symbol, name: "_", loc }
+  let type_parameter : ResolvedTypeParameter = {
+    symbol,
+    name: "_",
+    kind: None,
+    loc,
+  }
   scope.type_parameters.push(type_parameter)
   TypeWildcard(type_parameter~, loc~)
 }

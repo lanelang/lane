@@ -5,7 +5,7 @@ fn loc() -> SourceSpan {
 
 ///|
 fn hide_type(symbol : TypeSymbolId) -> @types.Type {
-  Nominal(symbol, [])
+  @types.nominal_type(symbol, [])
 }
 
 ///|

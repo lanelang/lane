@@ -144,3 +144,4 @@ pub impl @prettyprinter.Pretty for VariantSymbolMetadata
 // Type aliases
 
 // Traits
+

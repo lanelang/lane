@@ -81,9 +81,16 @@ top_level_declarations -> Array[TopLevelDeclaration]
 top_level_declaration -> TopLevelDeclaration
   : struct_declaration { Struct($1) }
   | enum_declaration { Enum($1) }
+  | type_alias_declaration { TypeAlias($1) }
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
   | offer_value_declaration { Offer($1) }
+  ;
+
+type_alias_declaration -> TypeAliasDeclaration
+  : "type" IDENT "=" type {
+    { name: $2, body: $4, loc: span($sloc) }
+  }
   ;
 
 struct_declaration -> StructDeclaration
@@ -112,10 +119,21 @@ kind -> Kind
   : IDENT {
     Type(loc=span($sloc))
   }
-  | IDENT "->" kind {
-    Arrow(parameter=Type(loc=$sloc.0), result=$3, loc=span($sloc))
+  | "[" kind_list "]" "->" kind {
+    Function(parameters=$2, result=$5, loc=span($sloc))
   }
   | "(" kind ")" { $2 }
+  ;
+
+kind_list -> Array[Kind]
+  : { [] }
+  | non_empty_kind_list { $1 }
+  ;
+
+non_empty_kind_list -> Array[Kind]
+  : kind { [ $1 ] }
+  | non_empty_kind_list "," kind { comma_push($1, $3) }
+  | non_empty_kind_list "," { $1 }
   ;
 
 field_declaration -> FieldDeclaration
@@ -221,37 +239,61 @@ offer_value_declaration -> OfferDeclaration
   }
   ;
 
-type_parameters -> Array[String]
+type_parameters -> Array[TypeParameter]
   : { [] }
-  | "[" non_empty_ident_list "]" { $2 }
+  | "[" non_empty_type_parameter_list "]" { $2 }
   ;
 
-non_empty_ident_list -> Array[String]
-  : IDENT { [ $1 ] }
-  | non_empty_ident_list "," IDENT { comma_push($1, $3) }
+non_empty_type_parameter_list -> Array[TypeParameter]
+  : type_parameter { [ $1 ] }
+  | non_empty_type_parameter_list "," type_parameter { comma_push($1, $3) }
+  | non_empty_type_parameter_list "," { $1 }
+  ;
+
+type_parameter -> TypeParameter
+  : IDENT {
+    { name: $1, kind: None, loc: span($sloc) }
+  }
+  | IDENT ":" kind {
+    { name: $1, kind: Some($3), loc: span($sloc) }
+  }
   ;
 
 type -> Type
-  : named_type { $1 }
+  : type_lambda { $1 }
+  | type_application "->" type {
+    Function(type_parameters=[], parameters=[$1], result=$3, loc=span($sloc))
+  }
   | function_type { $1 }
-  | "[" non_empty_ident_list "]" function_type {
-    guard $4 is Function(type_parameters=_, parameters~, result~, loc~)
-    Function(type_parameters=$2, parameters~, result~, loc~)
+  | type_application { $1 }
+  ;
+
+type_lambda -> Type
+  : "type" "[" non_empty_type_parameter_list "]" "=>" type {
+    TypeLambda(parameters=$3, body=$6, loc=span($sloc))
   }
   ;
 
-named_type -> Type
+type_application -> Type
+  : type_primary { $1 }
+  | type_application "[" type_list "]" {
+    Apply(callee=$1, arguments=$3, loc=span($sloc))
+  }
+  ;
+
+type_primary -> Type
   : IDENT {
-    Name(name=$1, arguments=[], loc=span($sloc))
+    Name(name=$1, loc=span($sloc))
   }
-  | IDENT "[" type_list "]" {
-    Name(name=$1, arguments=$3, loc=span($sloc))
-  }
+  | "(" type ")" { $2 }
   ;
 
 function_type -> Type
   : "(" type_list ")" "->" type {
     Function(type_parameters=[], parameters=$2, result=$5, loc=span($sloc))
+  }
+  | "[" non_empty_type_parameter_list "]" "(" type_list ")" "->" type {
+    Function(type_parameters=$2, parameters=$5, result=$8, loc=span($sloc))
   }
   ;
 
@@ -509,6 +551,12 @@ struct_pattern -> Pattern
 variant_type_binders -> Array[String]
   : { [] }
   | "[" non_empty_ident_list "]" { $2 }
+  ;
+
+non_empty_ident_list -> Array[String]
+  : IDENT { [ $1 ] }
+  | non_empty_ident_list "," IDENT { comma_push($1, $3) }
+  | non_empty_ident_list "," { $1 }
   ;
 
 pattern_arguments -> Array[Pattern]

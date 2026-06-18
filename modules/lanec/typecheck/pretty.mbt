@@ -226,6 +226,15 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text("actual=") +
       text(actual.to_string())
+    TypeAliasCycle(name~) => text("type_alias_cycle") + space + text(name)
+    KindMismatch(expected~, actual~) =>
+      text("kind_mismatch") +
+      space +
+      text("expected=") +
+      expected.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty()
     TypeMismatch(expected~, actual~) =>
       text("type_mismatch") +
       space +

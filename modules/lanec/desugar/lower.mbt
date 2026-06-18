@@ -19,6 +19,7 @@ fn desugar_top_level_declaration(
   match declaration {
     Struct(declaration) => Some(Struct(declaration))
     Enum(declaration) => Some(Enum(declaration))
+    TypeAlias(_) => None
     Function(declaration) =>
       Some(Function(desugar_function_declaration(declaration)))
     Let(declaration) => Some(Let(desugar_let_declaration(declaration)))

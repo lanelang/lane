@@ -47,3 +47,4 @@ pub impl @prettyprinter.Pretty for CompileResult
 // Type aliases
 
 // Traits
+

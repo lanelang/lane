@@ -133,7 +133,7 @@ pub impl @prettyprinter.Pretty for ResolvedFunctionLiteralParameter
 
 pub(all) enum ResolvedKind {
   Type(loc~ : @basic.SourceSpan)
-  Arrow(parameter~ : ResolvedKind, result~ : ResolvedKind, loc~ : @basic.SourceSpan)
+  Function(parameters~ : Array[ResolvedKind], result~ : ResolvedKind, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedKind
 
@@ -226,6 +226,7 @@ pub impl @prettyprinter.Pretty for ResolvedStructPatternField
 pub(all) enum ResolvedTopLevelDeclaration {
   Struct(ResolvedStructDeclaration)
   Enum(ResolvedEnumDeclaration)
+  TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
   Offer(ResolvedOfferDeclaration)
@@ -234,12 +235,22 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration
 
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : @basic.SourceSpan)
-  Nominal(symbol~ : @symbol.TypeSymbolId, name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  Constructor(symbol~ : @symbol.TypeSymbolId, name~ : String, loc~ : @basic.SourceSpan)
+  Alias(name~ : String, loc~ : @basic.SourceSpan)
+  Apply(callee~ : ResolvedType, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  TypeLambda(parameters~ : Array[ResolvedTypeParameter], body~ : ResolvedType, loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
   Function(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedType], result~ : ResolvedType, loc~ : @basic.SourceSpan)
   Unresolved(name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedType
+
+pub(all) struct ResolvedTypeAliasDeclaration {
+  name : String
+  body : ResolvedType
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration
 
 pub(all) struct ResolvedTypeMemberDeclaration {
   symbol : @symbol.TypeMemberSymbolId
@@ -254,6 +265,7 @@ pub impl @prettyprinter.Pretty for ResolvedTypeMemberDeclaration
 pub(all) struct ResolvedTypeParameter {
   symbol : @symbol.TypeParameterId
   name : String
+  kind : ResolvedKind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedTypeParameter
@@ -287,3 +299,4 @@ pub impl @prettyprinter.Pretty for ResolvedVariantReference
 // Type aliases
 
 // Traits
+

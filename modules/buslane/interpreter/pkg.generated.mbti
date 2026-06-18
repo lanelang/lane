@@ -62,3 +62,4 @@ pub type BuslaneExternalResolver = (@buslane.ValueId, @buslane.Type) -> BuslaneR
 pub type BuslaneNativeFunction = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
 
 // Traits
+

@@ -154,7 +154,7 @@ fn SemanticChecker::offer_forwarding_fields(
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  guard type_ is Nominal(owner, arguments) else { return }
+  guard type_.decompose_nominal() is Some((owner, arguments)) else { return }
   guard self.declarations.checked_struct(owner) is Some(declaration) else {
     return
   }

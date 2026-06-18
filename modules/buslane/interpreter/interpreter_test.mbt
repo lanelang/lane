@@ -86,7 +86,7 @@ test "pretty recursive closure environment stays finite" {
   let function_type = @buslane.Type::Function([], int_type())
   let box = metadata.define_data_constructor(box_type, [], [function_type])
   let function = metadata.define_value(Function, function_type)
-  let boxed = metadata.define_value(Value, Nominal(box_type, []))
+  let boxed = metadata.define_value(Value, Constructor(box_type))
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -129,7 +129,7 @@ test "data constructor match selects matching alternative" {
   let option = metadata.define_type([parameter])
   let none = metadata.define_data_constructor(option, [], [])
   let some = metadata.define_data_constructor(option, [], [Parameter(parameter)])
-  let option_int = @buslane.Type::Nominal(option, [int_type()])
+  let option_int = @buslane.Type::Apply(Constructor(option), [int_type()])
   let scrutinee = metadata.define_value(Value, option_int)
   let binder = metadata.define_value(MatchBinder, option_int)
   let payload = metadata.define_value(MatchBinder, int_type())

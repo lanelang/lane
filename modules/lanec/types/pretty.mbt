@@ -14,8 +14,14 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
 pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
   match kind {
     Type => text("Type")
-    Arrow(parameter, result) =>
-      group(parameter.pretty() + space + text("->") + space + result.pretty())
+    Function(parameters, result) =>
+      group(
+        bracketed(parameters.map(Kind::pretty)) +
+        space +
+        text("->") +
+        space +
+        result.pretty(),
+      )
   }
 }
 
@@ -52,12 +58,19 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
   match type_ {
     Error => text("<error>")
     Primitive(primitive) => primitive.pretty()
-    Nominal(symbol, arguments) =>
-      if arguments.is_empty() {
-        symbol.pretty()
-      } else {
-        group(symbol.pretty() + bracketed(arguments.map(Type::pretty)))
-      }
+    Constructor(symbol) => symbol.pretty()
+    Apply(callee, arguments) =>
+      group(callee.pretty() + bracketed(arguments.map(Type::pretty)))
+    TypeLambda(parameters, body) =>
+      group(
+        text("type") +
+        space +
+        bracketed(parameters.map(TypeParameter::pretty)) +
+        space +
+        text("=>") +
+        space +
+        body.pretty(),
+      )
     Parameter(id) => id.pretty()
     Function(parameters, result) =>
       group(

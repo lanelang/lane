@@ -268,7 +268,7 @@ fn BuslaneLowerer::selector_receiver_type(
   self : BuslaneLowerer,
   declaration : @checked.CheckedStructDeclaration,
 ) -> @buslane.Type {
-  Nominal(
+  buslane_nominal_type(
     self.type_id(declaration.symbol),
     declaration.type_parameters.map(fn(parameter) {
       Parameter(self.type_parameter_id(parameter.id))
@@ -828,8 +828,8 @@ fn BuslaneLowerer::lower_field(
   field : @symbol.FieldSymbolId,
 ) -> @buslane.Expr {
   let selector : @buslane.Expr = Ref(self.field_selector_id(field))
-  let callee = match base.type_() {
-    Nominal(_, arguments) =>
+  let callee = match base.type_().decompose_nominal() {
+    Some((_, arguments)) =>
       if arguments.is_empty() {
         selector
       } else {
@@ -880,10 +880,18 @@ fn BuslaneLowerer::lower_type(
   match type_ {
     Error => Primitive(Unit)
     Primitive(primitive) => Primitive(lower_primitive_type(primitive))
-    Nominal(symbol, arguments) =>
-      Nominal(
-        self.type_id(symbol),
+    Constructor(symbol) => Constructor(self.type_id(symbol))
+    Apply(callee, arguments) =>
+      Apply(
+        self.lower_type(callee),
         arguments.map(fn(argument) { self.lower_type(argument) }),
+      )
+    TypeLambda(parameters, body) =>
+      TypeLambda(
+        parameters.map(fn(parameter) {
+          self.define_type_parameter(parameter.id)
+        }),
+        self.lower_type(body),
       )
     Parameter(parameter) => Parameter(self.type_parameter_id(parameter))
     Function(parameters, result) =>
@@ -906,10 +914,22 @@ fn BuslaneLowerer::nominal_type_arguments(
   self : BuslaneLowerer,
   type_ : @types.Type,
 ) -> Array[@buslane.Type] {
-  match type_ {
-    Nominal(_, arguments) =>
+  match type_.decompose_nominal() {
+    Some((_, arguments)) =>
       arguments.map(fn(argument) { self.lower_type(argument) })
-    _ => []
+    None => []
+  }
+}
+
+///|
+fn buslane_nominal_type(
+  symbol : @buslane.TypeId,
+  arguments : Array[@buslane.Type],
+) -> @buslane.Type {
+  if arguments.is_empty() {
+    Constructor(symbol)
+  } else {
+    Apply(Constructor(symbol), arguments)
   }
 }
 

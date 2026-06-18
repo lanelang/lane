@@ -5,7 +5,17 @@ fn test_loc() -> SourceSpan {
 
 ///|
 fn test_type(name : String, arguments? : Array[Type] = []) -> Type {
-  Name(name~, arguments~, loc=test_loc())
+  let base = Name(name~, loc=test_loc())
+  if arguments.is_empty() {
+    base
+  } else {
+    Apply(callee=base, arguments~, loc=test_loc())
+  }
+}
+
+///|
+fn test_type_parameter(name : String) -> TypeParameter {
+  { name, kind: None, loc: test_loc() }
 }
 
 ///|
@@ -35,7 +45,7 @@ test "pretty print source file" {
       }),
       Enum({
         name: "Option",
-        type_parameters: ["A"],
+        type_parameters: [test_type_parameter("A")],
         variants: [
           { name: "none", type_parameters: [], payload: [], loc: test_loc() },
           {

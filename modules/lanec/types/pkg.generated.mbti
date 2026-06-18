@@ -8,13 +8,14 @@ import {
 }
 
 // Values
+pub fn nominal_type(@symbol.TypeSymbolId, Array[Type]) -> Type
 
 // Errors
 
 // Types and methods
 pub(all) enum Kind {
   Type
-  Arrow(Kind, Kind)
+  Function(Array[Kind], Kind)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Kind
 
@@ -29,13 +30,17 @@ pub impl @prettyprinter.Pretty for PrimitiveType
 pub(all) enum Type {
   Error
   Primitive(PrimitiveType)
-  Nominal(@symbol.TypeSymbolId, Array[Type])
+  Constructor(@symbol.TypeSymbolId)
+  Apply(Type, Array[Type])
+  TypeLambda(Array[TypeParameter], Type)
   Parameter(@symbol.TypeParameterId)
   Function(Array[Type], Type)
   Forall(Array[TypeParameter], Type)
 } derive(@debug.Debug)
 pub fn Type::alpha_equal(Self, Self) -> Bool
+pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[Self])?
 pub fn Type::equals(Self, Self) -> Bool
+pub fn Type::normalize(Self) -> Self
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Type
 pub impl Eq for Type
@@ -63,3 +68,4 @@ pub struct TypeSubstitutionEntry {
 // Type aliases
 
 // Traits
+

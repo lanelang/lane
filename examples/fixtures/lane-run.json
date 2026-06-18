@@ -2,7 +2,7 @@
   "stdlib": "../stdlib",
   "cases": [
     {
-      "name": "top-level forward function value",
+      "name": "01 top-level forward value",
       "file": "examples/valid/01_top_level_forward_function_value.lane",
       "entry": "answer",
       "expect": {
@@ -10,15 +10,7 @@
       }
     },
     {
-      "name": "top-level contextual offer",
-      "file": "examples/valid/05_top_level_contextual_offer.lane",
-      "entry": "chosen",
-      "expect": {
-        "equals": "1 : Int"
-      }
-    },
-    {
-      "name": "struct value entry",
+      "name": "02 struct value entry",
       "file": "examples/valid/02_struct_enum_match.lane",
       "entry": "origin",
       "expect": {
@@ -26,7 +18,7 @@
       }
     },
     {
-      "name": "enum match selected value",
+      "name": "02 enum value entry",
       "file": "examples/valid/02_struct_enum_match.lane",
       "entry": "chosen",
       "expect": {
@@ -34,23 +26,47 @@
       }
     },
     {
-      "name": "nominal type value",
-      "file": "examples/valid/10_nominal_types.lane",
-      "entry": "user_id",
+      "name": "03 generic function literal",
+      "file": "examples/valid/03_generic_functions_and_literals.lane",
+      "entry": "check_expected_function",
       "expect": {
-        "contains": [" : type#"]
+        "equals": "<function> : () -> Int"
       }
     },
     {
-      "name": "function entry",
-      "file": "examples/valid/11_function_types.lane",
-      "entry": "id_int",
+      "name": "04 local recursive function current run diagnostic",
+      "file": "examples/valid/04_blocks_and_local_scope.lane",
+      "entry": "factorial",
+      "expect": {
+        "contains": ["invalid_program", "unknown_value"]
+      }
+    },
+    {
+      "name": "05 top-level contextual offer",
+      "file": "examples/valid/05_top_level_contextual_offer.lane",
+      "entry": "chosen",
+      "expect": {
+        "equals": "1 : Int"
+      }
+    },
+    {
+      "name": "06 pipeline function entry",
+      "file": "examples/valid/06_pipeline.lane",
+      "entry": "pipeline_literal",
       "expect": {
         "equals": "<function> : (Int) -> Int"
       }
     },
     {
-      "name": "struct forwarding finite closure value",
+      "name": "07 builtin external value stays opaque",
+      "file": "examples/valid/07_builtin_expected_type.lane",
+      "entry": "host_value",
+      "expect": {
+        "contains": ["external_value", " : Int"]
+      }
+    },
+    {
+      "name": "08 struct forwarding finite closure value",
       "file": "examples/valid/08_struct_forwarding.lane",
       "entry": "meter_equal_ops",
       "expect": {
@@ -58,11 +74,67 @@
       }
     },
     {
-      "name": "builtin external value stays opaque",
-      "file": "examples/valid/07_builtin_expected_type.lane",
-      "entry": "host_value",
+      "name": "09 explicit contextual argument function entry",
+      "file": "examples/valid/09_explicit_contextual_argument.lane",
+      "entry": "use_weird_add",
       "expect": {
-        "contains": ["external_value", " : Int"]
+        "equals": "<function> : (Int, Int) -> Int"
+      }
+    },
+    {
+      "name": "10 nominal type value",
+      "file": "examples/valid/10_nominal_types.lane",
+      "entry": "user_id",
+      "expect": {
+        "contains": [" : type#"]
+      }
+    },
+    {
+      "name": "11 monomorphic function value",
+      "file": "examples/valid/11_function_types.lane",
+      "entry": "id_int",
+      "expect": {
+        "equals": "<function> : (Int) -> Int"
+      }
+    },
+    {
+      "name": "11 polymorphic function value",
+      "file": "examples/valid/11_function_types.lane",
+      "entry": "id_poly",
+      "expect": {
+        "contains": ["<function> : forall", "(tparam#"]
+      }
+    },
+    {
+      "name": "12 comparison function entry",
+      "file": "examples/valid/12_compare_and_equal_operators.lane",
+      "entry": "compare_ints",
+      "expect": {
+        "equals": "<function> : (Int, Int) -> Bool"
+      }
+    },
+    {
+      "name": "13 existential struct current run diagnostic",
+      "file": "examples/valid/13_existential_structs.lane",
+      "entry": "packed_int",
+      "expect": {
+        "contains": ["invalid_program", "type_mismatch"]
+      }
+    },
+    {
+      "name": "14 existential enum current run diagnostic",
+      "file": "examples/valid/14_existential_enums.lane",
+      "entry": "packed_int",
+      "expect": {
+        "contains": ["invalid_program", "invalid_alternative_binder_count"]
+      }
+    },
+    {
+      "name": "15 f-omega transparent type aliases",
+      "file": "examples/valid/15_f_omega_type_aliases.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
       }
     }
   ]

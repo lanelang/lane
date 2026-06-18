@@ -47,6 +47,13 @@ test "buslane forall equality is alpha equivalent" {
 }
 
 ///|
+test "buslane type equality beta normalizes type lambdas" {
+  let parameter = TypeParameterId::{ index: 0 }
+  let lambda = Type::TypeLambda([parameter], Parameter(parameter))
+  assert_true(Apply(lambda, [int_type()]) == int_type())
+}
+
+///|
 test "pretty buslane expression tree core" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let value = metadata.define_value(Value, int_type())
@@ -101,11 +108,11 @@ test "pretty buslane construct and one-level match" {
   ])
   let scrutinee = metadata.define_value(
     Value,
-    Nominal(option_type, [int_type()]),
+    Apply(Constructor(option_type), [int_type()]),
   )
   let match_binder = metadata.define_value(
     MatchBinder,
-    Nominal(option_type, [int_type()]),
+    Apply(Constructor(option_type), [int_type()]),
   )
   let payload = metadata.define_value(Parameter, int_type())
   let program = Program::{

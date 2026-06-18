@@ -121,3 +121,4 @@ pub impl @prettyprinter.Pretty for DesugaredTopLevelDeclaration
 // Type aliases
 
 // Traits
+

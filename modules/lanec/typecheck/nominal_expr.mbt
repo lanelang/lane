@@ -180,7 +180,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   if variant_declaration.payload.length() != arguments.length() {
     self.diagnostics.push({ kind: CannotInferExpression("variant arity"), loc })
     return checked_expression_none_reported(
-      Nominal(metadata.owner, explicit_type_arguments),
+      @types.nominal_type(metadata.owner, explicit_type_arguments),
     )
   }
   let type_arguments = if explicit_type_arguments.is_empty() &&
@@ -235,7 +235,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
       None => complete = false
     }
   }
-  let type_ = @types.Type::Nominal(metadata.owner, type_arguments)
+  let type_ = @types.nominal_type(metadata.owner, type_arguments)
   if complete {
     checked_expression(
       Variant(
@@ -315,7 +315,7 @@ fn SemanticChecker::infer_variant_type_arguments(
     declaration.type_parameters,
   )
   if expected_result is Some(expected) {
-    let result_template = @types.Type::Nominal(
+    let result_template = @types.nominal_type(
       declaration.symbol,
       declaration.type_parameters.map(fn(parameter) { Parameter(parameter.id) }),
     )
@@ -399,7 +399,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     arguments.length(),
     loc,
   )
-  let type_ = @types.Type::Nominal(symbol, arguments)
+  let type_ = @types.nominal_type(symbol, arguments)
   guard self.declarations.checked_struct(symbol) is Some(struct_declaration) else {
     self.diagnostics.push({ kind: NotAStruct(type_), loc })
     return checked_expression_none_reported(Error)
@@ -478,10 +478,12 @@ fn SemanticChecker::struct_literal_type_arguments(
   // adjacent expected type is the same nominal constructor, omitted source type
   // arguments are copied from that expected type. Explicit source type
   // arguments are always respected.
-  if type_arguments.is_empty() &&
-    expected is Some(Nominal(expected_symbol, expected_arguments)) &&
-    expected_symbol == symbol {
-    return expected_arguments.copy()
+  if type_arguments.is_empty() && expected is Some(expected_type) {
+    match expected_type.decompose_nominal() {
+      Some((expected_symbol, expected_arguments)) if expected_symbol == symbol =>
+        return expected_arguments.copy()
+      _ => ()
+    }
   }
   type_arguments.map(fn(type_) { self.check_type(type_) })
 }
@@ -549,7 +551,7 @@ fn SemanticChecker::synthesize_field(
       Error
     }
     Deferred(_) =>
-      if base_type is Nominal(symbol, _) {
+      if base_type.decompose_nominal() is Some((symbol, _)) {
         guard self.source.symbols.field_named(symbol, name) is Some(field) else {
           self.diagnostics.push({ kind: UnknownField(name~), loc })
           return Error

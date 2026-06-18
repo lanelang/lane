@@ -120,6 +120,8 @@ pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedValue(String)
   MissingTopLevelLetAnnotation
   TypeArgumentArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
+  TypeAliasCycle(name~ : String)
+  KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)
   TypeMismatch(expected~ : @types.Type, actual~ : @types.Type)
   NotCallable(@types.Type)
   UnknownField(name~ : String)

@@ -24,7 +24,9 @@ using @syntax {
   type StructLiteralField,
   type StructMember,
   type StructPatternField,
+  type TypeAliasDeclaration,
   type TypeMemberDeclaration,
+  type TypeParameter,
   type TopLevelDeclaration,
   type Type,
 }

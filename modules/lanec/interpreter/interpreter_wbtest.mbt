@@ -276,7 +276,9 @@ test "evaluate buslane nominal data match" {
   let some = metadata.define_data_constructor(option_type, [], [
     Parameter(option_parameter),
   ])
-  let option_int = @buslane.Type::Nominal(option_type, [Primitive(Int)])
+  let option_int = @buslane.Type::Apply(Constructor(option_type), [
+    Primitive(Int),
+  ])
   let scrutinee = metadata.define_value(Value, option_int)
   let result = metadata.define_value(Value, Primitive(Int))
   let binder = metadata.define_value(MatchBinder, option_int)

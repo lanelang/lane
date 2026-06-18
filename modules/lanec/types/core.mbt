@@ -9,7 +9,7 @@ pub(all) enum PrimitiveType {
 ///|
 pub(all) enum Kind {
   Type
-  Arrow(Kind, Kind)
+  Function(Array[Kind], Kind)
 } derive(Debug, Eq)
 
 ///|
@@ -23,7 +23,9 @@ pub(all) struct TypeParameter {
 pub(all) enum Type {
   Error
   Primitive(PrimitiveType)
-  Nominal(TypeSymbolId, Array[Type])
+  Constructor(TypeSymbolId)
+  Apply(Type, Array[Type])
+  TypeLambda(Array[TypeParameter], Type)
   Parameter(TypeParameterId)
   Function(Array[Type], Type)
   Forall(Array[TypeParameter], Type)
@@ -97,13 +99,24 @@ fn Type::substitute_with_bound(
   match self {
     Error => self
     Primitive(_) => self
-    Nominal(symbol, arguments) =>
-      Nominal(
-        symbol,
+    Constructor(_) => self
+    Apply(callee, arguments) =>
+      Apply(
+        callee.substitute_with_bound(substitution, bound),
         arguments.map(fn(argument) {
           argument.substitute_with_bound(substitution, bound)
         }),
       )
+    TypeLambda(type_parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in type_parameters {
+        next_bound.push(parameter.id)
+      }
+      TypeLambda(
+        type_parameters,
+        body.substitute_with_bound(substitution, next_bound),
+      )
+    }
     Parameter(id) =>
       match substitution.lookup(id, bound) {
         Some(replacement) => replacement
@@ -136,7 +149,7 @@ priv struct AlphaBinding {
 }
 
 ///|
-/// Returns whether two types are equal up to forall-bound parameter renaming.
+/// Returns whether two types are equal up to binder renaming.
 pub fn Type::alpha_equal(self : Type, other : Type) -> Bool {
   alpha_equal_with([], self, other)
 }
@@ -144,7 +157,7 @@ pub fn Type::alpha_equal(self : Type, other : Type) -> Bool {
 ///|
 /// Returns whether two types are equal under Lane2 type equality.
 pub fn Type::equals(self : Type, other : Type) -> Bool {
-  self.alpha_equal(other)
+  self.normalize().alpha_equal(other.normalize())
 }
 
 ///|
@@ -161,32 +174,50 @@ fn alpha_equal_with(
   match (left, right) {
     (Error, Error) => true
     (Primitive(left), Primitive(right)) => left == right
-    (Nominal(left_symbol, left_args), Nominal(right_symbol, right_args)) =>
-      left_symbol == right_symbol &&
+    (Constructor(left_symbol), Constructor(right_symbol)) =>
+      left_symbol == right_symbol
+    (Apply(left_callee, left_args), Apply(right_callee, right_args)) =>
+      alpha_equal_with(bindings, left_callee, right_callee) &&
       same_length_alpha_equal(bindings, left_args, right_args)
+    (TypeLambda(left_params, left_body), TypeLambda(right_params, right_body)) =>
+      alpha_equal_type_parameters(
+        bindings, left_params, right_params, left_body, right_body,
+      )
     (Parameter(left), Parameter(right)) =>
       alpha_equal_parameter(bindings, left, right)
     (Function(left_params, left_result), Function(right_params, right_result)) =>
       same_length_alpha_equal(bindings, left_params, right_params) &&
       alpha_equal_with(bindings, left_result, right_result)
     (Forall(left_params, left_body), Forall(right_params, right_body)) =>
-      if left_params.length() != right_params.length() {
-        false
-      } else {
-        let next_bindings = bindings.copy()
-        let mut ok = true
-        for index in 0..<left_params.length() {
-          let left_param = left_params[index]
-          let right_param = right_params[index]
-          if left_param.kind != right_param.kind {
-            ok = false
-          }
-          next_bindings.push({ left: left_param.id, right: right_param.id })
-        }
-        ok && alpha_equal_with(next_bindings, left_body, right_body)
-      }
+      alpha_equal_type_parameters(
+        bindings, left_params, right_params, left_body, right_body,
+      )
     _ => false
   }
+}
+
+///|
+fn alpha_equal_type_parameters(
+  bindings : Array[AlphaBinding],
+  left_params : Array[TypeParameter],
+  right_params : Array[TypeParameter],
+  left_body : Type,
+  right_body : Type,
+) -> Bool {
+  if left_params.length() != right_params.length() {
+    return false
+  }
+  let next_bindings = bindings.copy()
+  let mut ok = true
+  for index in 0..<left_params.length() {
+    let left_param = left_params[index]
+    let right_param = right_params[index]
+    if left_param.kind != right_param.kind {
+      ok = false
+    }
+    next_bindings.push({ left: left_param.id, right: right_param.id })
+  }
+  ok && alpha_equal_with(next_bindings, left_body, right_body)
 }
 
 ///|
@@ -218,4 +249,68 @@ fn alpha_equal_parameter(
     }
   }
   left == right
+}
+
+///|
+pub fn Type::normalize(self : Type) -> Type {
+  self.normalize_with_fuel(1024)
+}
+
+///|
+fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
+  if fuel <= 0 {
+    abort("Lane type normalization fuel exhausted")
+  }
+  match self {
+    Error | Primitive(_) | Constructor(_) | Parameter(_) => self
+    Apply(callee, arguments) => {
+      let normalized_callee = callee.normalize_with_fuel(fuel - 1)
+      let normalized_arguments = arguments.map(fn(argument) {
+        argument.normalize_with_fuel(fuel - 1)
+      })
+      match normalized_callee {
+        TypeLambda(parameters, body) =>
+          if parameters.length() == normalized_arguments.length() {
+            let substitution = TypeSubstitution::TypeSubstitution()
+            for index in 0..<parameters.length() {
+              substitution.insert(
+                parameters[index].id,
+                normalized_arguments[index],
+              )
+            }
+            body.substitute(substitution).normalize_with_fuel(fuel - 1)
+          } else {
+            Apply(normalized_callee, normalized_arguments)
+          }
+        _ => Apply(normalized_callee, normalized_arguments)
+      }
+    }
+    TypeLambda(parameters, body) =>
+      TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
+    Function(parameters, result) =>
+      Function(
+        parameters.map(fn(parameter) { parameter.normalize_with_fuel(fuel - 1) }),
+        result.normalize_with_fuel(fuel - 1),
+      )
+    Forall(parameters, body) =>
+      Forall(parameters, body.normalize_with_fuel(fuel - 1))
+  }
+}
+
+///|
+pub fn nominal_type(symbol : TypeSymbolId, arguments : Array[Type]) -> Type {
+  if arguments.is_empty() {
+    Constructor(symbol)
+  } else {
+    Apply(Constructor(symbol), arguments)
+  }
+}
+
+///|
+pub fn Type::decompose_nominal(self : Type) -> (TypeSymbolId, Array[Type])? {
+  match self.normalize() {
+    Constructor(symbol) => Some((symbol, []))
+    Apply(Constructor(symbol), arguments) => Some((symbol, arguments))
+    _ => None
+  }
 }

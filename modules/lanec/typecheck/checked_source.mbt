@@ -5,8 +5,10 @@ pub fn typecheck_checked_source_file(
   source : @resolve.ResolvedSourceFile,
 ) -> CheckedSourceTypeCheckResult {
   let declaration_result = typecheck_declarations(source)
-  let source = @desugar.desugar_source_file(source)
+  let resolved_source = source
+  let source = @desugar.desugar_source_file(resolved_source)
   let checker = SemanticChecker::{
+    resolved_source,
     source,
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),

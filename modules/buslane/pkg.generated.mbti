@@ -70,6 +70,7 @@ pub impl @prettyprinter.Pretty for FunctionExpr
 
 pub(all) enum Kind {
   Type
+  Function(Array[Kind], Kind)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Kind
 
@@ -136,11 +137,14 @@ pub impl @prettyprinter.Pretty for TopTerm
 pub(all) enum Type {
   Primitive(PrimitiveType)
   Parameter(TypeParameterId)
-  Nominal(TypeId, Array[Type])
+  Constructor(TypeId)
+  Apply(Type, Array[Type])
+  TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type)
   Forall(Array[TypeParameterId], Type)
 } derive(@debug.Debug)
 pub fn Type::equals(Self, Self) -> Bool
+pub fn Type::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Type
 pub impl Eq for Type
 
@@ -164,6 +168,17 @@ pub(all) struct TypeParameterInfo {
   kind : Kind
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeParameterInfo
+
+pub struct TypeSubstitution {
+  entries : Array[TypeSubstitutionEntry]
+} derive(Eq, @debug.Debug)
+pub fn TypeSubstitution::TypeSubstitution() -> Self
+pub fn TypeSubstitution::insert(Self, TypeParameterId, Type) -> Unit
+
+pub struct TypeSubstitutionEntry {
+  parameter : TypeParameterId
+  replacement : Type
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ValueId {
   index : Int
@@ -196,6 +211,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownTypeParameter(TypeParameterId)
   UnknownValue(ValueId)
   UnknownDataConstructor(DataConId)
+  KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeMismatch(expected~ : Type, actual~ : Type)
   NotFunction(Type)
   NotForall(Type)
@@ -219,3 +235,4 @@ pub impl @prettyprinter.Pretty for VerifyResult
 // Type aliases
 
 // Traits
+

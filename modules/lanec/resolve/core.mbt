@@ -45,6 +45,7 @@ pub(all) enum ResolveDiagnosticKind {
 pub(all) enum ResolvedTopLevelDeclaration {
   Struct(ResolvedStructDeclaration)
   Enum(ResolvedEnumDeclaration)
+  TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
   Offer(ResolvedOfferDeclaration)
@@ -105,6 +106,13 @@ pub(all) struct ResolvedEnumVariant {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct ResolvedTypeAliasDeclaration {
+  name : String
+  body : ResolvedType
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct ResolvedFunctionDeclaration {
   symbol : ValueSymbolId
   name : String
@@ -137,13 +145,18 @@ pub(all) struct ResolvedOfferDeclaration {
 pub(all) struct ResolvedTypeParameter {
   symbol : TypeParameterId
   name : String
+  kind : ResolvedKind?
   loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum ResolvedKind {
   Type(loc~ : SourceSpan)
-  Arrow(parameter~ : ResolvedKind, result~ : ResolvedKind, loc~ : SourceSpan)
+  Function(
+    parameters~ : Array[ResolvedKind],
+    result~ : ResolvedKind,
+    loc~ : SourceSpan
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -159,10 +172,16 @@ pub(all) struct ResolvedValueParameter {
 ///|
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : SourceSpan)
-  Nominal(
-    symbol~ : TypeSymbolId,
-    name~ : String,
+  Constructor(symbol~ : TypeSymbolId, name~ : String, loc~ : SourceSpan)
+  Alias(name~ : String, loc~ : SourceSpan)
+  Apply(
+    callee~ : ResolvedType,
     arguments~ : Array[ResolvedType],
+    loc~ : SourceSpan
+  )
+  TypeLambda(
+    parameters~ : Array[ResolvedTypeParameter],
+    body~ : ResolvedType,
     loc~ : SourceSpan
   )
   Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)

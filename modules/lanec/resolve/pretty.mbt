@@ -20,6 +20,7 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    TypeAlias(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
     Offer(declaration) => declaration.pretty()
@@ -145,8 +146,12 @@ pub impl @prettyprinter.Pretty for ResolvedKind with fn pretty(
 ) {
   match kind {
     Type(..) => text("Type")
-    Arrow(parameter~, result~, ..) =>
-      parameter.pretty() + space + text("->") + space + result.pretty()
+    Function(parameters~, result~, ..) =>
+      @pretty.bracketed_inline(parameters.map(ResolvedKind::pretty)) +
+      space +
+      text("->") +
+      space +
+      result.pretty()
   }
 }
 
@@ -201,6 +206,19 @@ pub impl @prettyprinter.Pretty for ResolvedEnumVariant with fn pretty(
   text(variant.payload.length().to_string()) +
   type_parameters_doc(variant.type_parameters) +
   payload_doc(variant.payload)
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration with fn pretty(
+  declaration : ResolvedTypeAliasDeclaration,
+) {
+  text("type") +
+  space +
+  text(declaration.name) +
+  space +
+  text("=") +
+  space +
+  declaration.body.pretty()
 }
 
 ///|
@@ -269,7 +287,11 @@ pub impl @prettyprinter.Pretty for ResolvedOfferDeclaration with fn pretty(
 pub impl @prettyprinter.Pretty for ResolvedTypeParameter with fn pretty(
   parameter : ResolvedTypeParameter,
 ) {
-  parameter.symbol.pretty() + space + text(parameter.name)
+  let kind = match parameter.kind {
+    Some(kind) => space + text(":") + space + kind.pretty()
+    None => empty
+  }
+  parameter.symbol.pretty() + space + text(parameter.name) + kind
 }
 
 ///|
@@ -312,15 +334,18 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
 ) {
   match type_ {
     Primitive(primitive, ..) => primitive.pretty()
-    Nominal(symbol~, name~, arguments~, ..) =>
-      if arguments.is_empty() {
-        symbol.pretty() + space + text(name)
-      } else {
-        symbol.pretty() +
-        space +
-        text(name) +
-        @pretty.bracketed_inline(arguments.map(ResolvedType::pretty))
-      }
+    Constructor(symbol~, name~, ..) => symbol.pretty() + space + text(name)
+    Alias(name~, ..) => text("alias") + space + text(name)
+    Apply(callee~, arguments~, ..) =>
+      callee.pretty() +
+      @pretty.bracketed_inline(arguments.map(ResolvedType::pretty))
+    TypeLambda(parameters~, body~, ..) =>
+      text("type") +
+      type_parameters_doc(parameters) +
+      space +
+      text("=>") +
+      space +
+      body.pretty()
     Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
     Function(type_parameters~, parameters~, result~, ..) => {
       let forall = type_parameters_doc(type_parameters)

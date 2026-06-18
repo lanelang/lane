@@ -66,6 +66,38 @@ test "parse nominal declarations and match" {
 }
 
 ///|
+test "parse type aliases and F-omega type expressions" {
+  let file = expect_parse_ok(
+    (
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|type Id = type[A] => A
+      #|type ApplyInt = type[F : [Type] -> Type] => F[Int]
+      #|fn get(box : ApplyInt[Box]) -> Id[Int] {
+      #|  box.value
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|
+      #|type Id = type[A] => A
+      #|
+      #|type ApplyInt = type[F : [Type] -> Type] => F[Int]
+      #|
+      #|fn get(box : ApplyInt[Box]) -> Id[Int] {
+      #|  box.value
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse function literal and pipeline" {
   let file = expect_parse_ok(
     (
@@ -200,7 +232,7 @@ test "parse rejects equals function body syntax" {
       #|[
       #|  UnexpectedToken(
       #|    { label: "`=`" },
-      #|    [{ label: "`{`" }, { label: "`[`" }],
+      #|    [{ label: "`{`" }, { label: "`[`" }, { label: "`->`" }],
       #|  ),
       #|]
     ),
@@ -215,7 +247,12 @@ test "parse rejects empty enum variant payload syntax" {
       #|[
       #|  UnexpectedToken(
       #|    { label: "`)`" },
-      #|    [{ label: "identifier" }, { label: "`(`" }, { label: "`[`" }],
+      #|    [
+      #|      { label: "identifier" },
+      #|      { label: "`type`" },
+      #|      { label: "`(`" },
+      #|      { label: "`[`" },
+      #|    ],
       #|  ),
       #|]
     ),

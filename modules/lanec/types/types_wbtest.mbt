@@ -14,7 +14,7 @@ test "pretty prints checked type objects" {
   let type_ = Forall(
     [a],
     Function(
-      [Nominal(option, [Parameter(a.id)]), Primitive(Int)],
+      [nominal_type(option, [Parameter(a.id)]), Primitive(Int)],
       Parameter(a.id),
     ),
   )
@@ -29,8 +29,8 @@ test "pretty prints checked type objects" {
 ///|
 test "pretty prints arrow kinds" {
   inspect(
-    @prettyprinter.render(Kind::Arrow(Type, Type)),
-    content="Type -> Type",
+    @prettyprinter.render(Kind::Function([Type], Type)),
+    content="[Type] -> Type",
   )
 }
 
@@ -38,7 +38,7 @@ test "pretty prints arrow kinds" {
 test "substitutes free type parameters but not forall-bound parameters" {
   let (_, a, b) = test_symbols()
   let substitution = TypeSubstitution::single(a.id, Primitive(Int))
-  let free = Function([Parameter(a.id)], Parameter(b.id))
+  let free = Type::Function([Parameter(a.id)], Parameter(b.id))
   let bound = Forall([a], Function([Parameter(a.id)], Parameter(b.id)))
   inspect(
     @prettyprinter.render(free.substitute(substitution)),

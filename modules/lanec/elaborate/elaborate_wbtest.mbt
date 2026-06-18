@@ -117,6 +117,30 @@ test "elaborate generic enum variant into verifiable buslane" {
 }
 
 ///|
+test "elaborate type aliases into alias-free buslane types" {
+  let result = elaborate_buslane_source(
+    (
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|type Boxed = type[A] => Box[A]
+      #|let answer : Boxed[Int] = Box::{ value: 1 }
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+  let answer_type = program.metadata.values[program.metadata.values.length() - 1].type_
+  inspect(@prettyprinter.render(answer_type, width=100), content="type#0[Int]")
+}
+
+///|
 test "elaborate struct field access into buslane selector" {
   let result = elaborate_buslane_source(
     (

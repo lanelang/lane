@@ -37,3 +37,4 @@ pub fn ServerState::handle_message(Self, @jsonrpc2.Message) -> HandlerResult
 // Type aliases
 
 // Traits
+

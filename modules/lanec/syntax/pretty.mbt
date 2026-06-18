@@ -24,11 +24,11 @@ fn join_comma_group(docs : Array[Document]) -> Document {
 }
 
 ///|
-fn bracketed_type_parameters(parameters : Array[String]) -> Document {
+fn bracketed_type_parameters(parameters : Array[TypeParameter]) -> Document {
   if parameters.is_empty() {
     empty
   } else {
-    brackets(join_comma(parameters.map(text)))
+    brackets(join_comma(parameters.map(TypeParameter::to_doc)))
   }
 }
 
@@ -84,9 +84,25 @@ fn TopLevelDeclaration::to_doc(self : TopLevelDeclaration) -> Document {
   match self {
     Struct(declaration) => declaration.to_doc()
     Enum(declaration) => declaration.to_doc()
+    TypeAlias(declaration) => declaration.to_doc()
     Function(declaration) => declaration.to_doc()
     Let(declaration) => declaration.to_doc()
     Offer(declaration) => declaration.to_doc()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for TypeParameter with fn pretty(
+  parameter : TypeParameter,
+) {
+  parameter.to_doc()
+}
+
+///|
+fn TypeParameter::to_doc(self : TypeParameter) -> Document {
+  match self.kind {
+    Some(kind) => text(self.name) + space + text(":") + space + kind.to_doc()
+    None => text(self.name)
   }
 }
 
@@ -149,8 +165,12 @@ pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
 fn Kind::to_doc(self : Kind) -> Document {
   match self {
     Type(..) => text("Type")
-    Arrow(parameter~, result~, ..) =>
-      parameter.to_doc() + space + text("->") + space + result.to_doc()
+    Function(parameters~, result~, ..) =>
+      brackets(join_comma(parameters.map(Kind::to_doc))) +
+      space +
+      text("->") +
+      space +
+      result.to_doc()
   }
 }
 
@@ -201,6 +221,24 @@ pub impl @prettyprinter.Pretty for EnumVariant with fn pretty(
   variant : EnumVariant,
 ) {
   variant.to_doc()
+}
+
+///|
+pub impl @prettyprinter.Pretty for TypeAliasDeclaration with fn pretty(
+  declaration : TypeAliasDeclaration,
+) {
+  declaration.to_doc()
+}
+
+///|
+fn TypeAliasDeclaration::to_doc(self : TypeAliasDeclaration) -> Document {
+  keyword("type") +
+  space +
+  text(self.name) +
+  space +
+  text("=") +
+  space +
+  self.body.to_doc()
 }
 
 ///|
@@ -298,8 +336,16 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
 ///|
 fn Type::to_doc(self : Type) -> Document {
   match self {
-    Name(name~, arguments~, ..) =>
-      text(name) + bracketed_type_arguments(arguments)
+    Name(name~, ..) => text(name)
+    Apply(callee~, arguments~, ..) =>
+      callee.to_doc() + bracketed_type_arguments(arguments)
+    TypeLambda(parameters~, body~, ..) =>
+      keyword("type") +
+      bracketed_type_parameters(parameters) +
+      space +
+      text("=>") +
+      space +
+      body.to_doc()
     Function(type_parameters~, parameters~, result~, ..) =>
       bracketed_type_parameters(type_parameters) +
       parenthesized(parameters.map(Type::to_doc)) +
@@ -567,10 +613,12 @@ fn Pattern::to_doc(self : Pattern) -> Document {
     StringLiteral(value, ..) => source_string(value)
     BoolLiteral(value, ..) => text(value.to_string())
     QualifiedVariant(type_name~, variant~, type_binders~, arguments~, ..) => {
-      let head = text(type_name) +
-        text("::") +
-        text(variant) +
-        bracketed_type_parameters(type_binders)
+      let binders_doc = if type_binders.is_empty() {
+        empty
+      } else {
+        brackets(join_comma(type_binders.map(text)))
+      }
+      let head = text(type_name) + text("::") + text(variant) + binders_doc
       if arguments.is_empty() {
         head
       } else {

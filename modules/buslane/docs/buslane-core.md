@@ -113,10 +113,12 @@ TypeParameterInfo {
 }
 ```
 
-V1 supports only one kind:
+Buslane supports value types and n-ary type-level functions:
 
 ```text
-Kind = Type
+Kind =
+  Type
+  Function(Array[Kind], Kind)
 ```
 
 Nominal type and data-constructor metadata describe the complete nominal data
@@ -148,7 +150,9 @@ Buslane owns its type objects and type logic:
 Type =
   Primitive(PrimitiveType)
   Parameter(TypeParameterId)
-  Nominal(TypeId, Array[Type])
+  Constructor(TypeId)
+  Apply(Type, Array[Type])
+  TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type)
   Forall(Array[TypeParameterId], Type)
 
@@ -162,6 +166,11 @@ PrimitiveType =
 Function types use n-ary parameter lists. Buslane does not curry function types,
 does not tuple arguments implicitly, and does not support implicit partial
 application.
+
+Nominal constructors are type-level values. A nullary nominal type is a
+`Constructor`; generic nominal instances use uniform `Apply(Constructor(id),
+arguments)`. Buslane stores alias-free type terms; transparent source aliases
+are expanded before lowering.
 
 Buslane has no standalone `Exists` type constructor. Existential information is
 nominal: hidden type members live in data-constructor metadata, construction

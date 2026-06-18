@@ -40,7 +40,7 @@ pub impl @prettyprinter.Pretty for CallArgument
 
 pub(all) struct EnumDeclaration {
   name : String
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   variants : Array[EnumVariant]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -48,7 +48,7 @@ pub impl @prettyprinter.Pretty for EnumDeclaration
 
 pub(all) struct EnumVariant {
   name : String
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   payload : Array[Type]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -63,7 +63,7 @@ pub(all) enum Expr {
   QualifiedVariant(type_name~ : String, type_arguments~ : Array[Type], variant~ : String, variant_type_arguments~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, type_arguments~ : Array[Type], fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
-  FunctionLiteral(type_parameters~ : Array[String], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, body~ : Expr, loc~ : @basic.SourceSpan)
+  FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, body~ : Expr, loc~ : @basic.SourceSpan)
   Block(items~ : Array[LocalItem], result~ : Expr, loc~ : @basic.SourceSpan)
   If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : @basic.SourceSpan)
@@ -85,7 +85,7 @@ pub(all) struct FieldDeclaration {
 pub impl @prettyprinter.Pretty for FieldDeclaration
 
 pub(all) struct FunctionDeclaration {
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   name : String
   parameters : Array[Parameter]
   return_type : Type
@@ -104,7 +104,7 @@ pub impl @prettyprinter.Pretty for FunctionLiteralParameter
 
 pub(all) enum Kind {
   Type(loc~ : @basic.SourceSpan)
-  Arrow(parameter~ : Kind, result~ : Kind, loc~ : @basic.SourceSpan)
+  Function(parameters~ : Array[Kind], result~ : Kind, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Kind::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for Kind
@@ -181,7 +181,7 @@ pub impl @prettyprinter.Pretty for SourceFile
 
 pub(all) struct StructDeclaration {
   name : String
-  type_parameters : Array[String]
+  type_parameters : Array[TypeParameter]
   members : Array[StructMember]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -209,6 +209,7 @@ pub impl @prettyprinter.Pretty for StructPatternField
 pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)
   Enum(EnumDeclaration)
+  TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)
   Offer(OfferDeclaration)
@@ -216,11 +217,20 @@ pub(all) enum TopLevelDeclaration {
 pub impl @prettyprinter.Pretty for TopLevelDeclaration
 
 pub(all) enum Type {
-  Name(name~ : String, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
-  Function(type_parameters~ : Array[String], parameters~ : Array[Type], result~ : Type, loc~ : @basic.SourceSpan)
+  Name(name~ : String, loc~ : @basic.SourceSpan)
+  Apply(callee~ : Type, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
+  TypeLambda(parameters~ : Array[TypeParameter], body~ : Type, loc~ : @basic.SourceSpan)
+  Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Type::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for Type
+
+pub(all) struct TypeAliasDeclaration {
+  name : String
+  body : Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeAliasDeclaration
 
 pub(all) struct TypeMemberDeclaration {
   name : String
@@ -228,6 +238,13 @@ pub(all) struct TypeMemberDeclaration {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeMemberDeclaration
+
+pub(all) struct TypeParameter {
+  name : String
+  kind : Kind?
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeParameter
 
 pub(all) enum UnaryOperator {
   Neg
@@ -238,3 +255,4 @@ pub impl @prettyprinter.Pretty for UnaryOperator
 // Type aliases
 
 // Traits
+

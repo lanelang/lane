@@ -1,0 +1,7 @@
+// Invalid: transparent top-level type aliases must form an acyclic dependency
+// graph. Expanding A reaches B, which reaches A again.
+
+type A = B
+type B = A
+
+let answer : A = 42
