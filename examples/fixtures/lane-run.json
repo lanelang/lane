@@ -114,11 +114,11 @@
       }
     },
     {
-      "name": "13 existential struct current run diagnostic",
+      "name": "13 existential struct packed value",
       "file": "examples/valid/13_existential_structs.lane",
       "entry": "packed_int",
       "expect": {
-        "contains": ["invalid_program", "type_mismatch"]
+        "contains": ["data_value", "external_value", " : type#"]
       }
     },
     {

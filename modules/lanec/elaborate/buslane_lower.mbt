@@ -538,8 +538,14 @@ fn BuslaneLowerer::lower_items(
       PatternLet(declaration) => {
         self.define_pattern_binders(declaration.pattern)
         let initializer = self.lower_expr(declaration.initializer)
+        let result_type = self.lower_type(result.type_())
         let body = self.lower_items(items, index + 1, result)
-        self.lower_pattern_as_match(declaration.pattern, initializer, body)
+        self.lower_pattern_as_match(
+          declaration.pattern,
+          initializer,
+          body,
+          result_type,
+        )
       }
     }
   }
@@ -618,6 +624,7 @@ fn BuslaneLowerer::lower_pattern_as_match(
   pattern : @checked.CheckedPattern,
   initializer : @buslane.Expr,
   body : @buslane.Expr,
+  result_type : @buslane.Type,
 ) -> @buslane.Expr {
   self.define_pattern_binders(pattern)
   let binder = self.define_fresh_value(
@@ -627,14 +634,9 @@ fn BuslaneLowerer::lower_pattern_as_match(
   Match({
     scrutinee: initializer,
     binder,
-    result_type: self.synthesize_known_body_type(body),
+    result_type,
     alternatives: [
-      self.lower_pattern_alternative(
-        pattern,
-        binder,
-        body,
-        self.synthesize_known_body_type(body),
-      ),
+      self.lower_pattern_alternative(pattern, binder, body, result_type),
     ],
   })
 }
@@ -840,25 +842,6 @@ fn BuslaneLowerer::lower_field(
     _ => selector
   }
   Call(callee, [self.lower_expr(base)])
-}
-
-///|
-fn BuslaneLowerer::synthesize_known_body_type(
-  self : BuslaneLowerer,
-  body : @buslane.Expr,
-) -> @buslane.Type {
-  match body {
-    Literal(Unit) => Primitive(Unit)
-    Literal(Bool(_)) => Primitive(Bool)
-    Literal(Int(_)) => Primitive(Int)
-    Literal(String(_)) => Primitive(String)
-    Ref(id) =>
-      match self.metadata.value_info(id) {
-        Some(info) => info.type_
-        None => Primitive(Unit)
-      }
-    _ => Primitive(Unit)
-  }
 }
 
 ///|
