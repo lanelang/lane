@@ -136,6 +136,166 @@
       "expect": {
         "equals": "42 : Int"
       }
+    },
+    {
+      "name": "invalid 01 top-level let missing type",
+      "file": "examples/invalid/01_top_level_let_missing_type.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `=`, expected `:`"]
+      }
+    },
+    {
+      "name": "invalid 02 top-level let forward value",
+      "file": "examples/invalid/02_top_level_let_forward_value.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["unresolved_value x"]
+      }
+    },
+    {
+      "name": "invalid 03 offer missing type annotation",
+      "file": "examples/invalid/03_offer_missing_type_annotation.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `=`, expected `:`"]
+      }
+    },
+    {
+      "name": "invalid 04 empty block no implicit unit",
+      "file": "examples/invalid/04_empty_block_no_implicit_unit.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `}`"]
+      }
+    },
+    {
+      "name": "invalid 05 multiple expression statements",
+      "file": "examples/invalid/05_multiple_expression_statements.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected identifier `x`"]
+      }
+    },
+    {
+      "name": "invalid 06 unqualified variant pattern",
+      "file": "examples/invalid/06_unqualified_variant_pattern.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `(`", "expected `::`, `=>`"]
+      }
+    },
+    {
+      "name": "invalid 07 payloadless variant call",
+      "file": "examples/invalid/07_payloadless_variant_call.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `)`"]
+      }
+    },
+    {
+      "name": "invalid 08 struct missing field",
+      "file": "examples/invalid/08_struct_missing_field.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["missing_field y"]
+      }
+    },
+    {
+      "name": "invalid 09 struct update spread",
+      "file": "examples/invalid/09_struct_update_spread.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `.`"]
+      }
+    },
+    {
+      "name": "invalid 10 function equals body",
+      "file": "examples/invalid/10_function_equals_body.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `=`, expected `{`, `[`, `->`"]
+      }
+    },
+    {
+      "name": "invalid 11 named function missing result type",
+      "file": "examples/invalid/11_named_function_missing_result_type.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `{`, expected `->`"]
+      }
+    },
+    {
+      "name": "invalid 12 local function forward reference",
+      "file": "examples/invalid/12_local_function_forward_reference.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `fn`"]
+      }
+    },
+    {
+      "name": "invalid 13 function literal missing parameter type",
+      "file": "examples/invalid/13_function_literal_missing_parameter_type.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["cannot_infer function literal parameter"]
+      }
+    },
+    {
+      "name": "invalid 14 builtin without expected type",
+      "file": "examples/invalid/14_builtin_without_expected_type.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["cannot_infer builtin"]
+      }
+    },
+    {
+      "name": "invalid 15 method call syntax",
+      "file": "examples/invalid/15_method_call_syntax.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["not_callable Int"]
+      }
+    },
+    {
+      "name": "invalid 16 tuple type",
+      "file": "examples/invalid/16_tuple_type.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `=`, expected `->`"]
+      }
+    },
+    {
+      "name": "invalid 17 existential struct missing witness",
+      "file": "examples/invalid/17_existential_struct_missing_witness.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["missing_type_member T"]
+      }
+    },
+    {
+      "name": "invalid 18 existential hidden type escape",
+      "file": "examples/invalid/18_existential_hidden_type_escape.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["type_mismatch expected=Int actual=tparam#"]
+      }
+    },
+    {
+      "name": "invalid 19 ambiguous contextual offer",
+      "file": "examples/invalid/19_ambiguous_contextual_offer.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["cannot_infer ambiguous contextual offer"]
+      }
+    },
+    {
+      "name": "invalid 20 type alias cycle",
+      "file": "examples/invalid/20_type_alias_cycle.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["type_alias_cycle A"]
+      }
     }
   ]
 }
