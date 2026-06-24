@@ -37,9 +37,8 @@ without performing file or process IO.
 _Avoid_: LSP handler, filesystem service
 
 **Single-File Analysis**:
-The v1 compiler-analysis mode that checks one Lane source text together with
-the standard prelude, without project discovery, module graphs, or cross-file
-dependency analysis.
+The v1 compiler-analysis mode that checks one Lane source text as a complete
+module, without project discovery or filesystem-derived dependency analysis.
 _Avoid_: project compilation, workspace analysis
 
 **Document Snapshot**:
@@ -133,7 +132,7 @@ _Avoid_: VS Code Web extension, WASM language server
 > belong to **Editor Intelligence** after the diagnostic loop is stable."
 
 > **Dev:** "Should the first LSP implementation discover projects?"
-> **Domain expert:** "No. v1 uses **Single-File Analysis** with prelude loading."
+> **Domain expert:** "No. v1 uses **Single-File Analysis** over the current document."
 
 > **Dev:** "Should the LSP parse compiler diagnostic strings to recover ranges?"
 > **Domain expert:** "No. `lanec` produces **Structured Compiler Diagnostics**."

@@ -136,6 +136,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
     ("\[", rest) => add_simple_token(LBRACKET, input, rest, base~, env~)
     ("\]", rest) => add_simple_token(RBRACKET, input, rest, base~, env~)
     (",", rest) => add_simple_token(COMMA, input, rest, base~, env~)
+    ("\.\*", rest) => add_simple_token(DOTSTAR, input, rest, base~, env~)
     ("\.", rest) => add_simple_token(DOT, input, rest, base~, env~)
     (":", rest) => add_simple_token(COLON, input, rest, base~, env~)
     ("\+", rest) => add_simple_token(PLUS, input, rest, base~, env~)

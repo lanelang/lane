@@ -27,11 +27,10 @@ pub(all) struct HandlerResult {
 } derive(Eq, @debug.Debug)
 
 pub struct ServerState {
-  prelude : String
   documents : Map[String, DocumentSnapshot]
   mut shutdown_requested : Bool
 }
-pub fn ServerState::ServerState(String) -> Self
+pub fn ServerState::ServerState() -> Self
 pub fn ServerState::handle_message(Self, @jsonrpc2.Message) -> HandlerResult
 
 // Type aliases

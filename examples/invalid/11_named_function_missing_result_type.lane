@@ -1,4 +1,5 @@
+module Examples.Invalid11
 // invalid: named functions must state their result type
-fn id(value : Int) {
+pub fn id(value : Int) {
   value
 }

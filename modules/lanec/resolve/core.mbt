@@ -1,5 +1,6 @@
 ///|
 pub(all) struct ResolvedSourceFile {
+  module_path : @syntax.ModulePath
   symbols : SymbolRegistry
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : SourceSpan
@@ -53,6 +54,7 @@ pub(all) enum ResolvedTopLevelDeclaration {
 
 ///|
 pub(all) struct ResolvedStructDeclaration {
+  is_public : Bool
   symbol : TypeSymbolId
   name : String
   type_parameters : Array[ResolvedTypeParameter]
@@ -88,6 +90,7 @@ pub(all) struct ResolvedFieldDeclaration {
 
 ///|
 pub(all) struct ResolvedEnumDeclaration {
+  is_public : Bool
   symbol : TypeSymbolId
   name : String
   type_parameters : Array[ResolvedTypeParameter]
@@ -107,6 +110,7 @@ pub(all) struct ResolvedEnumVariant {
 
 ///|
 pub(all) struct ResolvedTypeAliasDeclaration {
+  is_public : Bool
   name : String
   body : ResolvedType
   loc : SourceSpan
@@ -114,6 +118,7 @@ pub(all) struct ResolvedTypeAliasDeclaration {
 
 ///|
 pub(all) struct ResolvedFunctionDeclaration {
+  is_public : Bool
   symbol : ValueSymbolId
   name : String
   type_parameters : Array[ResolvedTypeParameter]
@@ -125,6 +130,7 @@ pub(all) struct ResolvedFunctionDeclaration {
 
 ///|
 pub(all) struct ResolvedLetDeclaration {
+  is_public : Bool
   symbol : ValueSymbolId
   name : String?
   type_annotation : ResolvedType?
@@ -134,6 +140,7 @@ pub(all) struct ResolvedLetDeclaration {
 
 ///|
 pub(all) struct ResolvedOfferDeclaration {
+  is_public : Bool
   symbol : ValueSymbolId
   name : String
   type_annotation : ResolvedType

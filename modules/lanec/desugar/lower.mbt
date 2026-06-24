@@ -9,7 +9,12 @@ pub fn desugar_source_file(
       declarations.push(declaration)
     }
   }
-  { symbols: source.symbols, declarations, loc: source.loc }
+  {
+    module_path: source.module_path,
+    symbols: source.symbols,
+    declarations,
+    loc: source.loc,
+  }
 }
 
 ///|
@@ -32,6 +37,7 @@ fn desugar_function_declaration(
   declaration : @resolve.ResolvedFunctionDeclaration,
 ) -> DesugaredFunctionDeclaration {
   {
+    is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
     type_parameters: declaration.type_parameters,
@@ -47,6 +53,7 @@ fn desugar_let_declaration(
   declaration : @resolve.ResolvedLetDeclaration,
 ) -> DesugaredLetDeclaration {
   {
+    is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
     type_annotation: declaration.type_annotation,
@@ -60,6 +67,7 @@ fn desugar_offer_declaration(
   declaration : @resolve.ResolvedOfferDeclaration,
 ) -> DesugaredOfferDeclaration {
   {
+    is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
     type_annotation: declaration.type_annotation,

@@ -5,20 +5,25 @@ async fn main {
     error => fail_with_message("\{error}")
   }
   match command {
-    Check(file~, stdlib~) => lane_check(file, stdlib)
-    Run(file~, entry~, stdlib~) => lane_run(file, entry, stdlib)
+    Check(file~, libs~, lib_dirs~) => lane_check(file, libs, lib_dirs)
+    Run(file~, entry~, libs~, lib_dirs~) =>
+      lane_run(file, entry, libs, lib_dirs)
   }
 }
 
 ///|
-fn lane_check(file : String, stdlib : String?) -> Unit {
-  let prelude = read_prelude(stdlib) catch {
-    error => fail_with_message("failed to read prelude: \{error}")
-  }
+fn lane_check(
+  file : String,
+  libs : Array[String],
+  lib_dirs : Array[String],
+) -> Unit {
   let source = read_source_file(file) catch {
     error => fail_with_message("failed to read source: \{error}")
   }
-  let result = @compile.check_with_prelude(prelude, source)
+  let libraries = read_library_sources(libs, lib_dirs) catch {
+    error => fail_with_message("failed to read library source: \{error}")
+  }
+  let result = @compile.check_sources(source, libraries)
   if result.diagnostics.is_empty() {
     exit_success()
   } else {
@@ -28,14 +33,19 @@ fn lane_check(file : String, stdlib : String?) -> Unit {
 }
 
 ///|
-fn lane_run(file : String, entry : String, stdlib : String?) -> Unit {
-  let prelude = read_prelude(stdlib) catch {
-    error => fail_with_message("failed to read prelude: \{error}")
-  }
+fn lane_run(
+  file : String,
+  entry : String,
+  libs : Array[String],
+  lib_dirs : Array[String],
+) -> Unit {
   let source = read_source_file(file) catch {
     error => fail_with_message("failed to read source: \{error}")
   }
-  let result = @compile.compile_with_prelude(prelude, source)
+  let libraries = read_library_sources(libs, lib_dirs) catch {
+    error => fail_with_message("failed to read library source: \{error}")
+  }
+  let result = @compile.compile_sources(source, libraries)
   if !result.diagnostics.is_empty() {
     print_diagnostics(result.diagnostics)
     exit_failure()

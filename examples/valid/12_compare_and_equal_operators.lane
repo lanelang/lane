@@ -1,4 +1,6 @@
-fn compare_ints(a : Int, b : Int) -> Bool {
+module Examples.Valid12
+import Ops.*
+pub fn compare_ints(a : Int, b : Int) -> Bool {
   if a < b {
     a != b
   } else {

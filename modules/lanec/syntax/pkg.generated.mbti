@@ -39,6 +39,7 @@ pub fn CallArgument::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for CallArgument
 
 pub(all) struct EnumDeclaration {
+  is_public : Bool
   name : String
   type_parameters : Array[TypeParameter]
   variants : Array[EnumVariant]
@@ -85,6 +86,7 @@ pub(all) struct FieldDeclaration {
 pub impl @prettyprinter.Pretty for FieldDeclaration
 
 pub(all) struct FunctionDeclaration {
+  is_public : Bool
   type_parameters : Array[TypeParameter]
   name : String
   parameters : Array[Parameter]
@@ -102,6 +104,20 @@ pub(all) struct FunctionLiteralParameter {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for FunctionLiteralParameter
 
+pub(all) enum ImportDeclaration {
+  Qualified(module_path~ : ModulePath, loc~ : @basic.SourceSpan)
+  Open(module_path~ : ModulePath, loc~ : @basic.SourceSpan)
+  Selective(module_path~ : ModulePath, items~ : Array[ImportItem], loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn ImportDeclaration::loc(Self) -> @basic.SourceSpan
+pub impl @prettyprinter.Pretty for ImportDeclaration
+
+pub(all) struct ImportItem {
+  name : String
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ImportItem
+
 pub(all) enum Kind {
   Type(loc~ : @basic.SourceSpan)
   Function(parameters~ : Array[Kind], result~ : Kind, loc~ : @basic.SourceSpan)
@@ -110,6 +126,7 @@ pub fn Kind::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for Kind
 
 pub(all) struct LetDeclaration {
+  is_public : Bool
   name : String?
   type_annotation : Type?
   initializer : Expr
@@ -132,7 +149,14 @@ pub(all) struct MatchArm {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for MatchArm
 
+pub(all) struct ModulePath {
+  components : Array[String]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ModulePath
+
 pub(all) struct OfferDeclaration {
+  is_public : Bool
   name : String
   type_annotation : Type
   initializer : Expr
@@ -174,12 +198,15 @@ pub(all) struct PatternLetDeclaration {
 pub impl @prettyprinter.Pretty for PatternLetDeclaration
 
 pub(all) struct SourceFile {
+  module_path : ModulePath
+  imports : Array[ImportDeclaration]
   declarations : Array[TopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for SourceFile
 
 pub(all) struct StructDeclaration {
+  is_public : Bool
   name : String
   type_parameters : Array[TypeParameter]
   members : Array[StructMember]
@@ -226,6 +253,7 @@ pub fn Type::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for Type
 
 pub(all) struct TypeAliasDeclaration {
+  is_public : Bool
   name : String
   body : Type
   loc : @basic.SourceSpan

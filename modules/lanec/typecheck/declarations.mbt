@@ -64,6 +64,7 @@ fn DeclarationChecker::check_struct(
     }
   }
   {
+    is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
     type_parameters: declaration.type_parameters.map(checked_type_parameter),
@@ -117,6 +118,7 @@ fn DeclarationChecker::check_enum(
     variants.push(self.check_variant(variant))
   }
   {
+    is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
     type_parameters: declaration.type_parameters.map(checked_type_parameter),

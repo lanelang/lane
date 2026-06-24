@@ -10,7 +10,7 @@ fn hide_type(symbol : TypeSymbolId) -> @types.Type {
 
 ///|
 fn expect_anf_program(source : String) -> AnfProgram {
-  let parse_result = @parser.parse_string(source)
+  let parse_result = @parser.parse_string("module Test\n" + source)
   if !parse_result.lexical_errors.is_empty() ||
     !parse_result.parse_errors.is_empty() {
     abort("expected parse success")
@@ -117,6 +117,7 @@ test "pretty prints ANF existential package and opening" {
   let program = AnfProgram::{
     declarations: [
       Struct({
+        is_public: false,
         symbol: hide,
         name: "Hide",
         type_parameters: [],

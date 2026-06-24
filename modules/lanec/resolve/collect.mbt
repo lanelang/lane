@@ -35,7 +35,12 @@ pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult 
   let declarations = source.declarations.map(fn(declaration) {
     declaration.resolve_top_level(resolver)
   })
-  let resolved = { symbols: resolver.registry, declarations, loc: source.loc }
+  let resolved = {
+    module_path: source.module_path,
+    symbols: resolver.registry,
+    declarations,
+    loc: source.loc,
+  }
   { source: resolved, diagnostics: resolver.diagnostics }
 }
 
@@ -227,7 +232,14 @@ fn @syntax.StructDeclaration::resolve_struct(
       }
     }
   }
-  { symbol, name: self.name, type_parameters, members, loc: self.loc }
+  {
+    is_public: self.is_public,
+    symbol,
+    name: self.name,
+    type_parameters,
+    members,
+    loc: self.loc,
+  }
 }
 
 ///|
@@ -294,6 +306,7 @@ fn @syntax.TypeAliasDeclaration::resolve_type_alias(
   resolver : Resolver,
 ) -> ResolvedTypeAliasDeclaration {
   {
+    is_public: self.is_public,
     name: self.name,
     body: self.body.resolve_type(resolver, resolver.scope([])),
     loc: self.loc,
@@ -318,7 +331,14 @@ fn @syntax.EnumDeclaration::resolve_enum(
   let variants = self.variants.mapi(fn(index, variant) {
     variant.resolve_variant(resolver, scope, symbol, index)
   })
-  { symbol, name: self.name, type_parameters, variants, loc: self.loc }
+  {
+    is_public: self.is_public,
+    symbol,
+    name: self.name,
+    type_parameters,
+    variants,
+    loc: self.loc,
+  }
 }
 
 ///|
@@ -455,6 +475,7 @@ fn @syntax.FunctionDeclaration::resolve_function_with_symbol(
   // return type can use type parameters, and the body can use both type and
   // value parameters.
   {
+    is_public: self.is_public,
     symbol,
     name: self.name,
     type_parameters,
@@ -583,7 +604,14 @@ fn @syntax.LetDeclaration::resolve_let_with_resolved_type(
   if self.name is Some(name) {
     scope.define_value(name, symbol, type_annotation)
   }
-  { symbol, name: self.name, type_annotation, initializer, loc: self.loc }
+  {
+    is_public: self.is_public,
+    symbol,
+    name: self.name,
+    type_annotation,
+    initializer,
+    loc: self.loc,
+  }
 }
 
 ///|
@@ -659,7 +687,14 @@ fn @syntax.OfferDeclaration::resolve_offer_value_with_resolved_type(
 ) -> ResolvedOfferDeclaration {
   let initializer = self.initializer.resolve_expr(resolver, scope)
   scope.define_value(self.name, symbol, Some(type_annotation))
-  { symbol, name: self.name, type_annotation, initializer, loc: self.loc }
+  {
+    is_public: self.is_public,
+    symbol,
+    name: self.name,
+    type_annotation,
+    initializer,
+    loc: self.loc,
+  }
 }
 
 ///|

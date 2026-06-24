@@ -11,7 +11,7 @@ fn loc() -> SourceSpan {
 
 ///|
 fn expect_anf_program(source : String) -> @anf.AnfProgram {
-  let parse_result = @parser.parse_string(source)
+  let parse_result = @parser.parse_string("module Test\n" + source)
   if !parse_result.lexical_errors.is_empty() ||
     !parse_result.parse_errors.is_empty() {
     abort("expected parse success")
@@ -27,7 +27,7 @@ fn expect_anf_program(source : String) -> @anf.AnfProgram {
 
 ///|
 fn expect_buslane_program(source : String) -> @buslane.Program {
-  let parse_result = @parser.parse_string(source)
+  let parse_result = @parser.parse_string("module Test\n" + source)
   if !parse_result.lexical_errors.is_empty() ||
     !parse_result.parse_errors.is_empty() {
     abort("expected parse success")

@@ -1,5 +1,6 @@
-fn read_answer() -> Int {
+module Examples.Valid01
+pub fn read_answer() -> Int {
   answer
 }
 
-let answer : Int = 42
+pub let answer : Int = 42

@@ -1,7 +1,4 @@
 ///|
-let prelude_file_name : String = "prelude.lane"
-
-///|
 #cfg(any(target="native", target="llvm"))
 extern "c" fn native_exit(code : Int) = "exit"
 
@@ -11,33 +8,46 @@ fn read_source_file(path : String) -> String raise {
 }
 
 ///|
-fn read_prelude(stdlib : String?) -> String raise {
-  read_source_file(prelude_path(stdlib))
+fn read_library_sources(
+  libs : Array[String],
+  lib_dirs : Array[String],
+) -> Array[String] raise {
+  let sources = []
+  for lib in libs {
+    sources.push(read_source_file(lib))
+  }
+  for dir in lib_dirs {
+    append_library_dir_sources(dir, sources)
+  }
+  sources
 }
 
 ///|
-fn prelude_path(stdlib : String?) -> String {
-  stdlib_root(stdlib) + "/" + prelude_file_name
-}
-
-///|
-fn stdlib_root(stdlib : String?) -> String {
-  match stdlib {
-    Some(root) => root
-    None =>
-      match @sys.get_env_var("LANE_STDLIB") {
-        Some(root) => root
-        None => default_stdlib_root()
-      }
+fn append_library_dir_sources(
+  path : String,
+  sources : Array[String],
+) -> Unit raise {
+  let entries = @fs.read_dir(path)
+  entries.sort()
+  for entry in entries {
+    if should_skip_library_entry(entry) {
+      continue
+    }
+    let child = path + "/" + entry
+    if @fs.is_dir(child) {
+      append_library_dir_sources(child, sources)
+    } else if @fs.is_file(child) && child.has_suffix(".lane") {
+      sources.push(read_source_file(child))
+    }
   }
 }
 
 ///|
-fn default_stdlib_root() -> String {
-  match @sys.get_env_var("HOME") {
-    Some(home) => home + "/.lane/lib"
-    None => ".lane/lib"
-  }
+fn should_skip_library_entry(entry : String) -> Bool {
+  entry.has_prefix(".") ||
+  entry == "_build" ||
+  entry == "build" ||
+  entry == "dist"
 }
 
 ///|

@@ -1,15 +1,17 @@
+module Examples.Valid15
+import Ops.*
 // Valid: transparent type aliases, type-level lambdas, and higher-kinded
 // type parameters normalize before value type checking and Buslane lowering.
 
-struct Box[A] {
+pub struct Box[A] {
   value : A
 }
 
-type Id = type[A] => A
-type ApplyInt = type[F : [Type] -> Type] => F[Int]
+pub type Id = type[A] => A
+pub type ApplyInt = type[F : [Type] -> Type] => F[Int]
 
-fn get(box : ApplyInt[Box]) -> Id[Int] {
+pub fn get(box : ApplyInt[Box]) -> Id[Int] {
   box.value
 }
 
-let answer : Id[Int] = get(Box::{ value: 42 })
+pub let answer : Id[Int] = get(Box::{ value: 42 })

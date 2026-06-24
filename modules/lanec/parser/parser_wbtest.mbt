@@ -1,6 +1,6 @@
 ///|
 fn expect_parse_ok(source : String) -> @syntax.SourceFile {
-  let result = parse_string(source)
+  let result = parse_string("module Test\n" + source)
   if !result.lexical_errors.is_empty() || !result.parse_errors.is_empty() {
     abort("expected parse success")
   }
@@ -10,7 +10,7 @@ fn expect_parse_ok(source : String) -> @syntax.SourceFile {
 
 ///|
 fn parse_errors(source : String) -> Array[ParseError] {
-  let result = parse_string(source)
+  let result = parse_string("module Test\n" + source)
   if !result.lexical_errors.is_empty() {
     abort("expected parser errors, got lexer errors")
   }
@@ -45,6 +45,7 @@ test "parse nominal declarations and match" {
   inspect(
     @prettyprinter.render(file),
     content=(
+      #|module Test
       #|struct Point {
       #|  x : Int
       #|  y : Int
@@ -82,6 +83,7 @@ test "parse type aliases and F-omega type expressions" {
   inspect(
     @prettyprinter.render(file),
     content=(
+      #|module Test
       #|struct Box[A] {
       #|  value : A
       #|}
@@ -111,6 +113,7 @@ test "parse function literal and pipeline" {
   inspect(
     @prettyprinter.render(file),
     content=(
+      #|module Test
       #|fn pipeline_literal(x : Int) -> Int {
       #|  x |> fn (value : Int) {
       #|    value
@@ -143,6 +146,7 @@ test "parse offered value definitions and contextual parameter syntax" {
   inspect(
     @prettyprinter.render(file),
     content=(
+      #|module Test
       #|struct Equal[A] {
       #|  equal : (A, A) -> Bool
       #|}
@@ -193,6 +197,7 @@ test "parse existential surface syntax" {
   inspect(
     @prettyprinter.render(file),
     content=(
+      #|module Test
       #|struct Hide {
       #|  type T : Type
       #|  val : T

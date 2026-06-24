@@ -66,10 +66,71 @@ fn source_string(value : String) -> Document {
 
 ///|
 pub impl @prettyprinter.Pretty for SourceFile with fn pretty(file : SourceFile) {
-  separate(
-    hardline + hardline,
-    file.declarations.map(TopLevelDeclaration::to_doc),
-  )
+  let docs = [keyword("module") + space + file.module_path.to_doc()]
+  for import_ in file.imports {
+    docs.push(import_.to_doc())
+  }
+  if !file.declarations.is_empty() {
+    docs.push(
+      separate(
+        hardline + hardline,
+        file.declarations.map(TopLevelDeclaration::to_doc),
+      ),
+    )
+  }
+  separate(hardline, docs)
+}
+
+///|
+pub impl @prettyprinter.Pretty for ModulePath with fn pretty(path : ModulePath) {
+  path.to_doc()
+}
+
+///|
+fn ModulePath::to_doc(self : ModulePath) -> Document {
+  text(self.components.join("."))
+}
+
+///|
+pub impl @prettyprinter.Pretty for ImportDeclaration with fn pretty(
+  declaration : ImportDeclaration,
+) {
+  declaration.to_doc()
+}
+
+///|
+fn ImportDeclaration::to_doc(self : ImportDeclaration) -> Document {
+  match self {
+    Qualified(module_path~, ..) =>
+      keyword("import") + space + module_path.to_doc()
+    Open(module_path~, ..) =>
+      keyword("import") + space + module_path.to_doc() + text(".*")
+    Selective(module_path~, items~, ..) =>
+      keyword("import") +
+      space +
+      module_path.to_doc() +
+      text("::") +
+      surround(char('{'), char('}'), join_comma(items.map(ImportItem::to_doc)))
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ImportItem with fn pretty(item : ImportItem) {
+  item.to_doc()
+}
+
+///|
+fn ImportItem::to_doc(self : ImportItem) -> Document {
+  text(self.name)
+}
+
+///|
+fn public_prefix(is_public : Bool) -> Document {
+  if is_public {
+    keyword("pub") + space
+  } else {
+    empty
+  }
 }
 
 ///|
@@ -115,6 +176,7 @@ pub impl @prettyprinter.Pretty for StructDeclaration with fn pretty(
 
 ///|
 fn StructDeclaration::to_doc(self : StructDeclaration) -> Document {
+  public_prefix(self.is_public) +
   keyword("struct") +
   space +
   text(self.name) +
@@ -196,6 +258,7 @@ pub impl @prettyprinter.Pretty for EnumDeclaration with fn pretty(
 
 ///|
 fn EnumDeclaration::to_doc(self : EnumDeclaration) -> Document {
+  public_prefix(self.is_public) +
   keyword("enum") +
   space +
   text(self.name) +
@@ -232,6 +295,7 @@ pub impl @prettyprinter.Pretty for TypeAliasDeclaration with fn pretty(
 
 ///|
 fn TypeAliasDeclaration::to_doc(self : TypeAliasDeclaration) -> Document {
+  public_prefix(self.is_public) +
   keyword("type") +
   space +
   text(self.name) +
@@ -250,6 +314,7 @@ pub impl @prettyprinter.Pretty for FunctionDeclaration with fn pretty(
 
 ///|
 fn FunctionDeclaration::to_doc(self : FunctionDeclaration) -> Document {
+  public_prefix(self.is_public) +
   keyword("fn") +
   bracketed_type_parameters(self.type_parameters) +
   space +
@@ -297,6 +362,7 @@ fn LetDeclaration::to_doc(self : LetDeclaration) -> Document {
     Some(type_) => space + text(":") + space + type_.to_doc()
     None => empty
   }
+  public_prefix(self.is_public) +
   keyword("let") +
   name_doc +
   type_doc +
@@ -315,6 +381,7 @@ pub impl @prettyprinter.Pretty for OfferDeclaration with fn pretty(
 
 ///|
 fn OfferDeclaration::to_doc(self : OfferDeclaration) -> Document {
+  public_prefix(self.is_public) +
   keyword("offer") +
   space +
   text(self.name) +

@@ -1,4 +1,5 @@
-fn apply(value : Int, f : (Int) -> Int) -> Int {
+module Examples.Valid11
+pub fn apply(value : Int, f : (Int) -> Int) -> Int {
   f(value)
 }
 
@@ -6,10 +7,10 @@ fn[A] apply_generic(value : A, f : (A) -> A) -> A {
   f(value)
 }
 
-let id_int : (Int) -> Int = fn(value) {
+pub let id_int : (Int) -> Int = fn(value) {
   value
 }
 
-let id_poly : [A](A) -> A = fn[A](value) {
+pub let id_poly : [A](A) -> A = fn[A](value) {
   value
 }

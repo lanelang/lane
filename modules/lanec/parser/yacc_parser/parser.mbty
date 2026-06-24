@@ -25,6 +25,9 @@
 %token ELSE "else"
 %token MATCH "match"
 %token BUILTIN "builtin"
+%token MODULE "module"
+%token IMPORT "import"
+%token PUB "pub"
 %token PLUS "+"
 %token MINUS "-"
 %token STAR "*"
@@ -47,6 +50,7 @@
 %token LBRACKET "["
 %token RBRACKET "]"
 %token COMMA ","
+%token DOTSTAR ".*"
 %token DOT "."
 %token COLON ":"
 %token COLONCOLON "::"
@@ -68,9 +72,54 @@
 %%
 
 source_file -> SourceFile
-  : top_level_declarations EOF {
-    { declarations: $1, loc: span($sloc) }
+  : module_declaration import_declarations top_level_declarations EOF {
+    { module_path: $1, imports: $2, declarations: $3, loc: span($sloc) }
   }
+  ;
+
+module_declaration -> ModulePath
+  : "module" module_path { $2 }
+  ;
+
+module_path -> ModulePath
+  : non_empty_module_path { { components: $1, loc: span($sloc) } }
+  ;
+
+non_empty_module_path -> Array[String]
+  : IDENT { [ $1 ] }
+  | non_empty_module_path "." IDENT { comma_push($1, $3) }
+  ;
+
+import_declarations -> Array[ImportDeclaration]
+  : { [] }
+  | import_declarations import_declaration { comma_push($1, $2) }
+  ;
+
+import_declaration -> ImportDeclaration
+  : "import" module_path {
+    Qualified(module_path=$2, loc=span($sloc))
+  }
+  | "import" module_path ".*" {
+    Open(module_path=$2, loc=span($sloc))
+  }
+  | "import" module_path "::" "{" import_item_list "}" {
+    Selective(module_path=$2, items=$5, loc=span($sloc))
+  }
+  ;
+
+import_item_list -> Array[ImportItem]
+  : { [] }
+  | non_empty_import_item_list { $1 }
+  ;
+
+non_empty_import_item_list -> Array[ImportItem]
+  : import_item { [ $1 ] }
+  | non_empty_import_item_list "," import_item { comma_push($1, $3) }
+  | non_empty_import_item_list "," { $1 }
+  ;
+
+import_item -> ImportItem
+  : IDENT { { name: $1, loc: span($sloc) } }
   ;
 
 top_level_declarations -> Array[TopLevelDeclaration]
@@ -85,17 +134,39 @@ top_level_declaration -> TopLevelDeclaration
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
   | offer_value_declaration { Offer($1) }
+  | "pub" public_top_level_declaration { $2 }
+  ;
+
+public_top_level_declaration -> TopLevelDeclaration
+  : public_struct_declaration { Struct($1) }
+  | public_enum_declaration { Enum($1) }
+  | public_type_alias_declaration { TypeAlias($1) }
+  | public_function_declaration { Function($1) }
+  | public_top_level_let_declaration { Let($1) }
+  | public_offer_value_declaration { Offer($1) }
   ;
 
 type_alias_declaration -> TypeAliasDeclaration
   : "type" IDENT "=" type {
-    { name: $2, body: $4, loc: span($sloc) }
+    { is_public: false, name: $2, body: $4, loc: span($sloc) }
+  }
+  ;
+
+public_type_alias_declaration -> TypeAliasDeclaration
+  : "type" IDENT "=" type {
+    { is_public: true, name: $2, body: $4, loc: span($sloc) }
   }
   ;
 
 struct_declaration -> StructDeclaration
   : "struct" IDENT type_parameters "{" struct_members "}" {
-    { name: $2, type_parameters: $3, members: $5, loc: span($sloc) }
+    { is_public: false, name: $2, type_parameters: $3, members: $5, loc: span($sloc) }
+  }
+  ;
+
+public_struct_declaration -> StructDeclaration
+  : "struct" IDENT type_parameters "{" struct_members "}" {
+    { is_public: true, name: $2, type_parameters: $3, members: $5, loc: span($sloc) }
   }
   ;
 
@@ -149,7 +220,13 @@ field_offer_modifier -> Bool
 
 enum_declaration -> EnumDeclaration
   : "enum" IDENT type_parameters "{" enum_variants "}" {
-    { name: $2, type_parameters: $3, variants: $5, loc: span($sloc) }
+    { is_public: false, name: $2, type_parameters: $3, variants: $5, loc: span($sloc) }
+  }
+  ;
+
+public_enum_declaration -> EnumDeclaration
+  : "enum" IDENT type_parameters "{" enum_variants "}" {
+    { is_public: true, name: $2, type_parameters: $3, variants: $5, loc: span($sloc) }
   }
   ;
 
@@ -176,6 +253,21 @@ enum_variant -> EnumVariant
 function_declaration -> FunctionDeclaration
   : "fn" type_parameters IDENT parameters "->" type block_expression {
     {
+      is_public: false,
+      type_parameters: $2,
+      name: $3,
+      parameters: $4,
+      return_type: $6,
+      body: $7,
+      loc: span($sloc),
+    }
+  }
+  ;
+
+public_function_declaration -> FunctionDeclaration
+  : "fn" type_parameters IDENT parameters "->" type block_expression {
+    {
+      is_public: true,
       type_parameters: $2,
       name: $3,
       parameters: $4,
@@ -212,13 +304,19 @@ parameter_modifiers -> ParameterModifiers
 
 top_level_let_declaration -> LetDeclaration
   : "let" IDENT ":" type "=" expression {
-    { name: Some($2), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+    { is_public: false, name: Some($2), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+  }
+  ;
+
+public_top_level_let_declaration -> LetDeclaration
+  : "let" IDENT ":" type "=" expression {
+    { is_public: true, name: Some($2), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
 local_let_declaration -> LetDeclaration
   : "let" IDENT local_type_annotation "=" expression {
-    { name: Some($2), type_annotation: $3, initializer: $5, loc: span($sloc) }
+    { is_public: false, name: Some($2), type_annotation: $3, initializer: $5, loc: span($sloc) }
   }
   ;
 
@@ -235,7 +333,13 @@ local_type_annotation -> Type?
 
 offer_value_declaration -> OfferDeclaration
   : "offer" IDENT ":" type "=" expression {
-    { name: $2, type_annotation: $4, initializer: $6, loc: span($sloc) }
+    { is_public: false, name: $2, type_annotation: $4, initializer: $6, loc: span($sloc) }
+  }
+  ;
+
+public_offer_value_declaration -> OfferDeclaration
+  : "offer" IDENT ":" type "=" expression {
+    { is_public: true, name: $2, type_annotation: $4, initializer: $6, loc: span($sloc) }
   }
   ;
 

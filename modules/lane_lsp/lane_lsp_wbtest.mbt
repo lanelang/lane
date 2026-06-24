@@ -1,23 +1,4 @@
 ///|
-fn lsp_test_prelude() -> String {
-  (
-    #|struct Add[T] {
-    #|  add : (T, T) -> T
-    #|}
-    #|
-    #|fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
-    #|  op.add(a, b)
-    #|}
-    #|
-    #|fn int_add(a : Int, b : Int) -> Int {
-    #|  builtin("%i64_add")(a, b)
-    #|}
-    #|
-    #|offer int_add_ops : Add[Int] = Add::{ add: int_add }
-  )
-}
-
-///|
 fn request(id : Int, method_name : String, params : Json) -> @jsonrpc.Message {
   @jsonrpc.new_call(@jsonrpc.ID::number(id.to_int64()), method_name, params)
 }
@@ -36,7 +17,7 @@ fn open_params(uri : String, text : String) -> Json {
 
 ///|
 test "initialize returns full document sync capability" {
-  let state = ServerState::ServerState(lsp_test_prelude())
+  let state = ServerState::ServerState()
   let result = state.handle_message(request(1, "initialize", Json::null()))
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
     {
@@ -51,21 +32,19 @@ test "initialize returns full document sync capability" {
 }
 
 ///|
-test "stdlib option resolves prelude path" {
-  inspect(
-    prelude_path(Some("/tmp/lane-lib")),
-    content="/tmp/lane-lib/prelude.lane",
-  )
-}
-
-///|
 test "didOpen publishes compiler diagnostics" {
-  let state = ServerState::ServerState(lsp_test_prelude())
+  let state = ServerState::ServerState()
   let result = state.handle_message(
     request(
       2,
       "textDocument/didOpen",
-      open_params("file:///bad.lane", "let answer : Missing = 1\n"),
+      open_params(
+        "file:///bad.lane",
+        (
+          #|module Test
+          #|let answer : Missing = 1
+        ),
+      ),
     ),
   )
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
@@ -77,8 +56,8 @@ test "didOpen publishes compiler diagnostics" {
         "diagnostics": [
           {
             "range": {
-              "start": { "line": 13, "character": 13 },
-              "end": { "line": 13, "character": 20 },
+              "start": { "line": 1, "character": 13 },
+              "end": { "line": 1, "character": 20 },
             },
             "severity": 1,
             "source": "lane",

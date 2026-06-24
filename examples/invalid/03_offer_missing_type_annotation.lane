@@ -1,6 +1,7 @@
+module Examples.Invalid03
 // invalid: offered value definitions must include an explicit type annotation
-offer constants = Constants::{ answer: 42 }
+pub offer constants = Constants::{ answer: 42 }
 
-struct Constants {
+pub struct Constants {
   answer : Int
 }

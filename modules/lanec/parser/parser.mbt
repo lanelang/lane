@@ -88,6 +88,9 @@ fn token_label(token : @yacc_parser.Token) -> String {
     ELSE => "`else`"
     MATCH => "`match`"
     BUILTIN => "`builtin`"
+    MODULE => "`module`"
+    IMPORT => "`import`"
+    PUB => "`pub`"
     PLUS => "`+`"
     MINUS => "`-`"
     STAR => "`*`"
@@ -110,6 +113,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     LBRACKET => "`[`"
     RBRACKET => "`]`"
     COMMA => "`,`"
+    DOTSTAR => "`.*`"
     DOT => "`.`"
     COLON => "`:`"
     COLONCOLON => "`::`"
@@ -141,6 +145,9 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_ELSE => "`else`"
     TK_MATCH => "`match`"
     TK_BUILTIN => "`builtin`"
+    TK_MODULE => "`module`"
+    TK_IMPORT => "`import`"
+    TK_PUB => "`pub`"
     TK_PLUS => "`+`"
     TK_MINUS => "`-`"
     TK_STAR => "`*`"
@@ -163,6 +170,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_LBRACKET => "`[`"
     TK_RBRACKET => "`]`"
     TK_COMMA => "`,`"
+    TK_DOTSTAR => "`.*`"
     TK_DOT => "`.`"
     TK_COLON => "`:`"
     TK_COLONCOLON => "`::`"
@@ -194,6 +202,9 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     ELSE => ELSE
     MATCH => MATCH
     BUILTIN => BUILTIN
+    MODULE => MODULE
+    IMPORT => IMPORT
+    PUB => PUB
     PLUS => PLUS
     MINUS => MINUS
     STAR => STAR
@@ -216,6 +227,7 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     LBRACKET => LBRACKET
     RBRACKET => RBRACKET
     COMMA => COMMA
+    DOTSTAR => DOTSTAR
     DOT => DOT
     COLON => COLON
     COLONCOLON => COLONCOLON

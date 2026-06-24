@@ -1,10 +1,11 @@
+module Examples.Invalid06
 // invalid: enum variants in patterns must be qualified
-enum Option[A] {
+pub enum Option[A] {
   none
   some(A)
 }
 
-fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+pub fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
   match value {
     none => fallback
     some(x) => x

@@ -10,12 +10,13 @@ project workflows.
 _Avoid_: compiler library, language server
 
 **Single-File Run**:
-The v1 command behavior that checks one Lane file with the prelude and prints a
-selected entry value.
+The v1 command behavior that checks one root Lane module with explicitly
+supplied library modules and prints a selected entry value.
 _Avoid_: language-level main, project execution
 
-**Standard Library Location**:
-The tool configuration that tells `lane` where to find the Lane prelude.
+**Library Input**:
+The explicit `--lib` or `--lib-dir` source input that tells `lane` which
+library modules are available to the root module.
 _Avoid_: source import path, compiler-internal path
 
 ## Relationships

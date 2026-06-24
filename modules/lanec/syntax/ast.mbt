@@ -1,8 +1,40 @@
 ///|
 pub(all) struct SourceFile {
+  module_path : ModulePath
+  imports : Array[ImportDeclaration]
   declarations : Array[TopLevelDeclaration]
   loc : SourceSpan
 } derive(Debug, Eq)
+
+///|
+pub(all) struct ModulePath {
+  components : Array[String]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ImportDeclaration {
+  Qualified(module_path~ : ModulePath, loc~ : SourceSpan)
+  Open(module_path~ : ModulePath, loc~ : SourceSpan)
+  Selective(
+    module_path~ : ModulePath,
+    items~ : Array[ImportItem],
+    loc~ : SourceSpan
+  )
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ImportItem {
+  name : String
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub fn ImportDeclaration::loc(self : ImportDeclaration) -> SourceSpan {
+  match self {
+    Qualified(loc~, ..) | Open(loc~, ..) | Selective(loc~, ..) => loc
+  }
+}
 
 ///|
 pub(all) enum TopLevelDeclaration {
@@ -23,6 +55,7 @@ pub(all) struct TypeParameter {
 
 ///|
 pub(all) struct StructDeclaration {
+  is_public : Bool
   name : String
   type_parameters : Array[TypeParameter]
   members : Array[StructMember]
@@ -66,6 +99,7 @@ pub(all) struct FieldDeclaration {
 
 ///|
 pub(all) struct EnumDeclaration {
+  is_public : Bool
   name : String
   type_parameters : Array[TypeParameter]
   variants : Array[EnumVariant]
@@ -82,6 +116,7 @@ pub(all) struct EnumVariant {
 
 ///|
 pub(all) struct TypeAliasDeclaration {
+  is_public : Bool
   name : String
   body : Type
   loc : SourceSpan
@@ -89,6 +124,7 @@ pub(all) struct TypeAliasDeclaration {
 
 ///|
 pub(all) struct FunctionDeclaration {
+  is_public : Bool
   type_parameters : Array[TypeParameter]
   name : String
   parameters : Array[Parameter]
@@ -114,6 +150,7 @@ pub(all) struct ParameterModifiers {
 
 ///|
 pub(all) struct LetDeclaration {
+  is_public : Bool
   name : String?
   type_annotation : Type?
   initializer : Expr
@@ -122,6 +159,7 @@ pub(all) struct LetDeclaration {
 
 ///|
 pub(all) struct OfferDeclaration {
+  is_public : Bool
   name : String
   type_annotation : Type
   initializer : Expr

@@ -1,8 +1,10 @@
-fn weird_add(a : Int, b : Int) -> Int {
+module Examples.Valid09
+import Ops.*
+pub fn weird_add(a : Int, b : Int) -> Int {
   a
 }
 
-fn use_weird_add(a : Int, b : Int) -> Int {
+pub fn use_weird_add(a : Int, b : Int) -> Int {
   let weird_add_ops : Add[Int] = Add::{ add: weird_add }
   op_add(a, b, op=weird_add_ops)
 }

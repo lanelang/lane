@@ -1,2 +1,3 @@
+module Examples.Invalid16
 // invalid: tuple types are not part of v1
-let pair : (Int, Bool) = (1, true)
+pub let pair : (Int, Bool) = (1, true)

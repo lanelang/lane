@@ -12,6 +12,5 @@ The examples follow the language specification rather than the current
 implementation. Rejecting a `valid` example or accepting an `invalid` example
 is an implementation discrepancy unless the specification changes.
 
-The examples assume the v1 prelude described by
-[`lanelang/spec`](https://github.com/lanelang/spec) is loaded before user
-source.
+Examples that use standard operations import the relevant standard-library
+modules explicitly. `lane run` fixtures pass those modules with `--lib-dir`.

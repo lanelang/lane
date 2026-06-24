@@ -1,13 +1,10 @@
 ///|
 async fn main {
   @async.pause()
-  let stdlib = parse_lsp_stdlib() catch {
+  parse_lsp_command() catch {
     _ => abort("failed to parse command line")
   }
-  let prelude = read_prelude(stdlib) catch {
-    _ => abort("failed to read prelude")
-  }
-  run_server(ServerState(prelude))
+  run_server(ServerState::ServerState())
 }
 
 ///|

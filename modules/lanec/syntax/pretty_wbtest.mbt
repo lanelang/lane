@@ -19,12 +19,20 @@ fn test_type_parameter(name : String) -> TypeParameter {
 }
 
 ///|
+fn test_module_path(name : String) -> ModulePath {
+  { components: [name], loc: test_loc() }
+}
+
+///|
 test "pretty print source file" {
   let int_type = test_type("Int")
   let option_int_type = test_type("Option", arguments=[int_type])
   let file = SourceFile::{
+    module_path: test_module_path("Test"),
+    imports: [],
     declarations: [
       Struct({
+        is_public: false,
         name: "Point",
         type_parameters: [],
         members: [
@@ -44,6 +52,7 @@ test "pretty print source file" {
         loc: test_loc(),
       }),
       Enum({
+        is_public: false,
         name: "Option",
         type_parameters: [test_type_parameter("A")],
         variants: [
@@ -58,6 +67,7 @@ test "pretty print source file" {
         loc: test_loc(),
       }),
       Function({
+        is_public: false,
         type_parameters: [],
         name: "unwrap_or",
         parameters: [
@@ -117,6 +127,7 @@ test "pretty print source file" {
   inspect(
     @prettyprinter.render(file),
     content=(
+      #|module Test
       #|struct Point {
       #|  x : Int
       #|  y : Int

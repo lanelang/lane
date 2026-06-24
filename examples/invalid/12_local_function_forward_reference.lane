@@ -1,5 +1,6 @@
+module Examples.Invalid12
 // invalid: local named functions are sequential and cannot be called before declaration
-fn bad(value : Int) -> Int {
+pub fn bad(value : Int) -> Int {
   helper(value)
   fn helper(x : Int) -> Int {
     x

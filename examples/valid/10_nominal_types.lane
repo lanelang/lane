@@ -1,14 +1,15 @@
-struct UserId {
+module Examples.Valid10
+pub struct UserId {
   value : Int
 }
 
-struct OrderId {
+pub struct OrderId {
   value : Int
 }
 
-fn user_value(id : UserId) -> Int {
+pub fn user_value(id : UserId) -> Int {
   id.value
 }
 
-let user_id : UserId = UserId::{ value: 1 }
-let order_id : OrderId = OrderId::{ value: 1 }
+pub let user_id : UserId = UserId::{ value: 1 }
+pub let order_id : OrderId = OrderId::{ value: 1 }

@@ -10,7 +10,6 @@ pub(all) struct DocumentSnapshot {
 
 ///|
 pub struct ServerState {
-  prelude : String
   documents : Map[String, DocumentSnapshot]
   mut shutdown_requested : Bool
 }
@@ -22,8 +21,8 @@ pub(all) struct HandlerResult {
 } derive(Debug, Eq)
 
 ///|
-pub fn ServerState::ServerState(prelude : String) -> ServerState {
-  { prelude, documents: {}, shutdown_requested: false }
+pub fn ServerState::ServerState() -> ServerState {
+  { documents: {}, shutdown_requested: false }
 }
 
 ///|
@@ -162,10 +161,10 @@ fn ServerState::method_not_found(
 
 ///|
 fn ServerState::check(
-  self : ServerState,
+  _self : ServerState,
   text : String,
 ) -> Array[@compile.CompileDiagnostic] {
-  @compile.check_with_prelude(self.prelude, text).diagnostics
+  @compile.check_source(text).diagnostics
 }
 
 ///|

@@ -1,3 +1,4 @@
+module Examples.Invalid02
 // invalid: top-level let initializers follow ordered value scope
-let y : Int = x
-let x : Int = 1
+pub let y : Int = x
+pub let x : Int = 1

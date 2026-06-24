@@ -1,3 +1,4 @@
+module Examples.Valid03
 fn[A] choose(cond : Bool, left : A, right : A) -> A {
   if cond {
     left
@@ -6,14 +7,14 @@ fn[A] choose(cond : Bool, left : A, right : A) -> A {
   }
 }
 
-fn use_local_id(value : Int) -> Int {
+pub fn use_local_id(value : Int) -> Int {
   let id = fn[A](x : A) {
     x
   }
   id(value)
 }
 
-fn check_expected_function() -> Int {
+pub fn check_expected_function() -> Int {
   let f : (Int) -> Int = fn(x) {
     x
   }

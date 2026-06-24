@@ -3,8 +3,13 @@ using @argparse {type Command}
 
 ///|
 enum LaneCommand {
-  Check(file~ : String, stdlib~ : String?)
-  Run(file~ : String, entry~ : String, stdlib~ : String?)
+  Check(file~ : String, libs~ : Array[String], lib_dirs~ : Array[String])
+  Run(
+    file~ : String,
+    entry~ : String,
+    libs~ : Array[String],
+    lib_dirs~ : Array[String]
+  )
 }
 
 ///|
@@ -17,7 +22,7 @@ fn lane_command_spec() -> Command {
       Command(
         "check",
         about="Check a single Lane source file.",
-        options=[stdlib_option()],
+        options=[lib_option(), lib_dir_option()],
         positionals=[PositionArg("file")],
       ),
       Command(
@@ -25,7 +30,8 @@ fn lane_command_spec() -> Command {
         about="Run a selected top-level entry from a single Lane source file.",
         options=[
           OptionArg("entry", long="entry", required=true),
-          stdlib_option(),
+          lib_option(),
+          lib_dir_option(),
         ],
         positionals=[PositionArg("file")],
       ),
@@ -40,25 +46,37 @@ fn parse_lane_command() -> LaneCommand raise {
     Some(("check", child)) =>
       Check(
         file=required_value(child, "file"),
-        stdlib=optional_value(child, "stdlib"),
+        libs=values(child, "lib"),
+        lib_dirs=values(child, "lib-dir"),
       )
     Some(("run", child)) =>
       Run(
         file=required_value(child, "file"),
         entry=required_value(child, "entry"),
-        stdlib=optional_value(child, "stdlib"),
+        libs=values(child, "lib"),
+        lib_dirs=values(child, "lib-dir"),
       )
     _ => fail_with_message("unknown lane command")
   }
 }
 
 ///|
-fn stdlib_option() -> @argparse.OptionArg {
+fn lib_option() -> @argparse.OptionArg {
   OptionArg(
-    "stdlib",
-    long="stdlib",
-    env="LANE_STDLIB",
-    about="Path to the Lane standard library root.",
+    "lib",
+    long="lib",
+    action=Append,
+    about="Lane library source file to include.",
+  )
+}
+
+///|
+fn lib_dir_option() -> @argparse.OptionArg {
+  OptionArg(
+    "lib-dir",
+    long="lib-dir",
+    action=Append,
+    about="Lane library directory to include.",
   )
 }
 
@@ -74,7 +92,7 @@ fn required_value(matches : @argparse.Matches, name : String) -> String {
 }
 
 ///|
-fn optional_value(matches : @argparse.Matches, name : String) -> String? {
-  guard matches.values.get(name) is Some(values) else { return None }
-  values.get(0)
+fn values(matches : @argparse.Matches, name : String) -> Array[String] {
+  guard matches.values.get(name) is Some(values) else { return [] }
+  values
 }

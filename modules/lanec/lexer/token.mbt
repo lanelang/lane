@@ -18,6 +18,9 @@ pub(all) enum Token {
   ELSE
   MATCH
   BUILTIN
+  MODULE
+  IMPORT
+  PUB
   PLUS
   MINUS
   STAR
@@ -40,6 +43,7 @@ pub(all) enum Token {
   LBRACKET
   RBRACKET
   COMMA
+  DOTSTAR
   DOT
   COLON
   COLONCOLON

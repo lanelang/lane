@@ -244,10 +244,10 @@ and unresolved or ambiguous states before Buslane lowering.
 - [x] Use the Buslane interpreter as the semantic oracle for the first native
   `lane run` implementation.
 
-## 8. Prelude And Conformance
+## 8. Standard Library And Conformance
 
-- [x] Encode and check the v1 prelude as Lane source.
-- [ ] Populate the initial contextual offer environment from prelude-provided
+- [x] Encode and check the v1 standard library modules as Lane source.
+- [x] Populate contextual offers from explicitly imported standard-library
   offered value definitions.
 - [x] Provide required standard intrinsic implementations through `lanec`
   intrinsic runtime plugins.

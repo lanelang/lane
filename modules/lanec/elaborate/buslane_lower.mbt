@@ -331,13 +331,17 @@ fn BuslaneLowerer::collect_top_values(
         }
         let type_ = self.lower_type(declaration.type_)
         let value = self.define_value(declaration.symbol, Function, type_)
-        self.add_entry(declaration.name, value, type_)
+        if declaration.is_public {
+          self.add_entry(declaration.name, value, type_)
+        }
       }
       Let(declaration) => {
         let type_ = self.lower_type(declaration.type_)
         let value = self.define_value(declaration.symbol, Value, type_)
-        if declaration.name is Some(name) {
-          self.add_entry(name, value, type_)
+        if declaration.is_public {
+          if declaration.name is Some(name) {
+            self.add_entry(name, value, type_)
+          }
         }
       }
       _ => ()

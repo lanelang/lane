@@ -1,28 +1,10 @@
 ///|
-fn mini_prelude() -> String {
-  (
-    #|struct Add[T] {
-    #|  add : (T, T) -> T
-    #|}
-    #|
-    #|fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
-    #|  op.add(a, b)
-    #|}
-    #|
-    #|fn int_add(a : Int, b : Int) -> Int {
-    #|  builtin("%i64_add")(a, b)
-    #|}
-    #|
-    #|offer int_add_ops : Add[Int] = Add::{ add: int_add }
-  )
-}
-
-///|
-test "compile with prelude records builtin externals and entries" {
-  let result = compile_with_prelude(
-    mini_prelude(),
+test "compile source records builtin externals and public entries" {
+  let result = compile_source(
     (
-      #|let answer : Int = 1 + 2
+      #|module Test
+      #|pub let int_add : (Int, Int) -> Int = builtin("%i64_add")
+      #|let private_value : Int = 1
     ),
   )
   inspect(result.diagnostics.length(), content="0")
@@ -30,16 +12,16 @@ test "compile with prelude records builtin externals and entries" {
   inspect(result.externals.builtins[0].name, content="%i64_add")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
-    content="op_add,int_add,int_add_ops,answer",
+    content="int_add",
   )
   guard result.program is Some(_) else { abort("expected Buslane program") }
 }
 
 ///|
 test "check reports payloadless variant call" {
-  let result = check_with_prelude(
-    "",
+  let result = check_source(
     (
+      #|module Test
       #|enum Option[A] {
       #|  none
       #|  some(A)
@@ -51,5 +33,27 @@ test "check reports payloadless variant call" {
   inspect(
     result.diagnostics[0].message,
     content="payloadless_variant_call none",
+  )
+}
+
+///|
+test "compile sources accepts explicit library modules" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = value
+    ),
+    [
+      (
+        #|module Lib
+        #|pub let value : Int = 42
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.entries.map(fn(entry) { entry.name }).join(","),
+    content="answer",
   )
 }

@@ -1,5 +1,6 @@
-fn host_int() -> Int {
+module Examples.Valid07
+pub fn host_int() -> Int {
   builtin("%host_int")
 }
 
-let host_value : Int = builtin("%host_value")
+pub let host_value : Int = builtin("%host_value")

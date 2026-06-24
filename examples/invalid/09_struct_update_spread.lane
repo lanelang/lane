@@ -1,8 +1,9 @@
+module Examples.Invalid09
 // invalid: struct spread and copy update are not supported in v1
-struct Point {
+pub struct Point {
   x : Int
   y : Int
 }
 
-let point : Point = Point::{ x: 1, y: 2 }
-let moved : Point = Point::{ ..point, x: 3 }
+pub let point : Point = Point::{ x: 1, y: 2 }
+pub let moved : Point = Point::{ ..point, x: 3 }

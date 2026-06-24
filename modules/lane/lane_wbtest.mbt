@@ -1,23 +1,11 @@
 ///|
-fn read_test_prelude() -> String {
-  read_prelude(Some("../stdlib")) catch {
-    _ => abort("failed to read prelude")
-  }
-}
-
-///|
-test "stdlib option resolves prelude path" {
-  inspect(
-    prelude_path(Some("/tmp/lane-lib")),
-    content="/tmp/lane-lib/prelude.lane",
-  )
-}
-
-///|
-test "run selected value through prelude buslane interpreter" {
-  let result = @compile.compile_with_prelude(
-    read_test_prelude(),
-    "let answer : Int = 1 + 2\n",
+test "run selected public value through buslane interpreter" {
+  let result = @compile.compile_source(
+    (
+      #|module Test
+      #|pub let answer : Int = 42
+      #|let hidden : Int = 1
+    ),
   )
   inspect(result.diagnostics.length(), content="0")
   guard result.program is Some(program) else { abort("expected program") }
@@ -28,15 +16,21 @@ test "run selected value through prelude buslane interpreter" {
   let entry = find_entry(result.entries, "answer")
   inspect(
     render_entry_value(runtime.lookup(entry.value), entry.type_),
-    content="3 : Int",
+    content="42 : Int",
+  )
+  inspect(
+    result.entries.map(fn(entry) { entry.name }).join(","),
+    content="answer",
   )
 }
 
 ///|
-test "selected function entry renders as function" {
-  let result = @compile.compile_with_prelude(
-    read_test_prelude(),
-    "fn id(x : Int) -> Int { x }\n",
+test "selected public function entry renders as function" {
+  let result = @compile.compile_source(
+    (
+      #|module Test
+      #|pub fn id(x : Int) -> Int { x }
+    ),
   )
   inspect(result.diagnostics.length(), content="0")
   guard result.program is Some(program) else { abort("expected program") }

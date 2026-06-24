@@ -11,6 +11,9 @@ let keyword_table : @hashmap.HashMap[String, Token] = [
     ("else", ELSE),
     ("match", MATCH),
     ("builtin", BUILTIN),
+    ("module", MODULE),
+    ("import", IMPORT),
+    ("pub", PUB),
     ("true", TRUE),
     ("false", FALSE),
     ("_", UNDERSCORE),
@@ -19,6 +22,6 @@ let keyword_table : @hashmap.HashMap[String, Token] = [
 
 ///|
 let reserved_word_table : @hashset.HashSet[String] = [
-    "effect", "handler", "module", "import", "pub", "return",
+    "effect", "handler", "return",
   ]
   |> @hashset.from_array()

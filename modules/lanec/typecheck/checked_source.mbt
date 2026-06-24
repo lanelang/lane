@@ -29,6 +29,7 @@ pub fn typecheck_checked_source_file(
   }
   let checked_source = if complete && checker.diagnostics.is_empty() {
     Some(@checked.CheckedSourceFile::{
+      module_path: source.module_path,
       declarations: checked_declarations,
       loc: source.loc,
     })
@@ -118,6 +119,7 @@ fn SemanticChecker::checked_top_level_function(
   }
   Some(
     Function({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: declaration.name,
       type_parameters: declaration.type_parameters.map(checked_type_parameter),
@@ -163,6 +165,7 @@ fn SemanticChecker::checked_top_level_let(
   })
   self.values.push(
     Let({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: declaration.name,
       type_,
@@ -179,6 +182,7 @@ fn SemanticChecker::checked_top_level_let(
   }
   Some(
     Let({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: declaration.name,
       initializer,
@@ -215,6 +219,7 @@ fn SemanticChecker::checked_top_level_offer(
   )
   self.values.push(
     Let({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: Some(declaration.name),
       type_,
@@ -231,6 +236,7 @@ fn SemanticChecker::checked_top_level_offer(
   }
   Some(
     Let({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: Some(declaration.name),
       initializer,
@@ -266,6 +272,7 @@ fn SemanticChecker::check_checked_local_let(
     return None
   }
   Some({
+    is_public: false,
     symbol: declaration.symbol,
     name: declaration.name,
     initializer,
@@ -297,6 +304,7 @@ fn SemanticChecker::check_checked_local_offer(
     return None
   }
   Some({
+    is_public: false,
     symbol: declaration.symbol,
     name: Some(declaration.name),
     initializer,
@@ -380,6 +388,7 @@ fn SemanticChecker::check_checked_local_function(
     return None
   }
   Some({
+    is_public: false,
     symbol: declaration.symbol,
     name: declaration.name,
     type_parameters: declaration.type_parameters.map(checked_type_parameter),
@@ -412,6 +421,7 @@ fn CheckedStructDeclaration::to_checked_struct_declaration(
 ) -> @checked.CheckedStructDeclaration {
   {
     symbol: self.symbol,
+    is_public: self.is_public,
     name: self.name,
     type_parameters: self.type_parameters,
     type_members: self.type_members.map(
@@ -458,6 +468,7 @@ fn CheckedEnumDeclaration::to_checked_enum_declaration(
 ) -> @checked.CheckedEnumDeclaration {
   {
     symbol: self.symbol,
+    is_public: self.is_public,
     name: self.name,
     type_parameters: self.type_parameters,
     variants: self.variants.map(

@@ -1,5 +1,6 @@
 ///|
 pub(all) struct CheckedSourceFile {
+  module_path : @syntax.ModulePath
   declarations : Array[CheckedTopLevelDeclaration]
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -14,6 +15,7 @@ pub(all) enum CheckedTopLevelDeclaration {
 
 ///|
 pub(all) struct CheckedStructDeclaration {
+  is_public : Bool
   symbol : TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -44,6 +46,7 @@ pub(all) struct CheckedFieldDeclaration {
 
 ///|
 pub(all) struct CheckedEnumDeclaration {
+  is_public : Bool
   symbol : TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -63,6 +66,7 @@ pub(all) struct CheckedVariantDeclaration {
 
 ///|
 pub(all) struct CheckedFunctionDeclaration {
+  is_public : Bool
   symbol : ValueSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -75,6 +79,7 @@ pub(all) struct CheckedFunctionDeclaration {
 
 ///|
 pub(all) struct CheckedLetDeclaration {
+  is_public : Bool
   symbol : ValueSymbolId
   name : String?
   initializer : CheckedExpr

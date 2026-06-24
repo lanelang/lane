@@ -44,6 +44,7 @@ pub(all) enum CheckedValueDeclaration {
 
 ///|
 pub(all) struct CheckedStructDeclaration {
+  is_public : Bool
   symbol : TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -74,6 +75,7 @@ pub(all) struct CheckedFieldDeclaration {
 
 ///|
 pub(all) struct CheckedEnumDeclaration {
+  is_public : Bool
   symbol : TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -93,6 +95,7 @@ pub(all) struct CheckedVariantDeclaration {
 
 ///|
 pub(all) struct CheckedFunctionDeclaration {
+  is_public : Bool
   symbol : ValueSymbolId
   name : String
   type_ : @types.Type
@@ -102,6 +105,7 @@ pub(all) struct CheckedFunctionDeclaration {
 
 ///|
 pub(all) struct CheckedLetDeclaration {
+  is_public : Bool
   symbol : ValueSymbolId
   name : String?
   type_ : @types.Type

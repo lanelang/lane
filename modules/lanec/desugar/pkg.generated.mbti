@@ -5,6 +5,7 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
+  "Milky2018/lanec/syntax",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
@@ -38,6 +39,7 @@ pub fn DesugaredExpr::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for DesugaredExpr
 
 pub(all) struct DesugaredFunctionDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_parameters : Array[@resolve.ResolvedTypeParameter]
@@ -49,6 +51,7 @@ pub(all) struct DesugaredFunctionDeclaration {
 pub impl @prettyprinter.Pretty for DesugaredFunctionDeclaration
 
 pub(all) struct DesugaredLetDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   type_annotation : @resolve.ResolvedType?
@@ -81,6 +84,7 @@ pub(all) struct DesugaredMatchArm {
 pub impl @prettyprinter.Pretty for DesugaredMatchArm
 
 pub(all) struct DesugaredOfferDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_annotation : @resolve.ResolvedType
@@ -97,6 +101,7 @@ pub(all) struct DesugaredPatternLetDeclaration {
 pub impl @prettyprinter.Pretty for DesugaredPatternLetDeclaration
 
 pub(all) struct DesugaredSourceFile {
+  module_path : @syntax.ModulePath
   symbols : @symbol.SymbolRegistry
   declarations : Array[DesugaredTopLevelDeclaration]
   loc : @basic.SourceSpan

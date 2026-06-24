@@ -4,6 +4,7 @@ package "Milky2018/lanec/checked"
 import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/symbol",
+  "Milky2018/lanec/syntax",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -15,6 +16,7 @@ import {
 
 // Types and methods
 pub(all) struct CheckedEnumDeclaration {
+  is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -52,6 +54,7 @@ pub(all) struct CheckedFieldDeclaration {
 pub impl @prettyprinter.Pretty for CheckedFieldDeclaration
 
 pub(all) struct CheckedFunctionDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -69,6 +72,7 @@ pub(all) struct CheckedIntLiteral {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedLetDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   initializer : CheckedExpr
@@ -117,12 +121,14 @@ pub(all) struct CheckedPatternLetDeclaration {
 pub impl @prettyprinter.Pretty for CheckedPatternLetDeclaration
 
 pub(all) struct CheckedSourceFile {
+  module_path : @syntax.ModulePath
   declarations : Array[CheckedTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedSourceFile
 
 pub(all) struct CheckedStructDeclaration {
+  is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]

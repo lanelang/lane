@@ -1,3 +1,4 @@
+module Examples.Invalid04
 // invalid: empty blocks do not implicitly produce Unit
-fn empty() -> Unit {
+pub fn empty() -> Unit {
 }

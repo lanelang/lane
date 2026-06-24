@@ -1,12 +1,14 @@
-fn add_three(a : Int, b : Int, c : Int) -> Int {
+module Examples.Valid06
+import Ops.*
+pub fn add_three(a : Int, b : Int, c : Int) -> Int {
   a + b + c
 }
 
-fn pipeline_call(x : Int) -> Int {
+pub fn pipeline_call(x : Int) -> Int {
   x |> add_three(1, 2)
 }
 
-fn pipeline_literal(x : Int) -> Int {
+pub fn pipeline_literal(x : Int) -> Int {
   x |> fn(value : Int) {
     value + 1
   }

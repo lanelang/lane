@@ -1,8 +1,9 @@
+module Examples.Invalid15
 // invalid : Lane2 v1 has field access plus call, but no method receiver lookup
-struct UserId {
+pub struct UserId {
   value : Int
 }
 
-fn bad(id : UserId) -> Int {
+pub fn bad(id : UserId) -> Int {
   id.value()
 }

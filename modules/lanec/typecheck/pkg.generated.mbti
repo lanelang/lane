@@ -30,6 +30,7 @@ pub(all) struct CheckedDeclarationEnvironment {
 pub impl @prettyprinter.Pretty for CheckedDeclarationEnvironment
 
 pub(all) struct CheckedEnumDeclaration {
+  is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
@@ -49,6 +50,7 @@ pub(all) struct CheckedFieldDeclaration {
 pub impl @prettyprinter.Pretty for CheckedFieldDeclaration
 
 pub(all) struct CheckedFunctionDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_ : @types.Type
@@ -58,6 +60,7 @@ pub(all) struct CheckedFunctionDeclaration {
 pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration
 
 pub(all) struct CheckedLetDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   type_ : @types.Type
@@ -72,6 +75,7 @@ pub(all) struct CheckedSourceTypeCheckResult {
 pub impl @prettyprinter.Pretty for CheckedSourceTypeCheckResult
 
 pub(all) struct CheckedStructDeclaration {
+  is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]

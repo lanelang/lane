@@ -1,5 +1,6 @@
 ///|
 pub(all) struct DesugaredSourceFile {
+  module_path : @syntax.ModulePath
   symbols : SymbolRegistry
   declarations : Array[DesugaredTopLevelDeclaration]
   loc : SourceSpan
@@ -16,6 +17,7 @@ pub(all) enum DesugaredTopLevelDeclaration {
 
 ///|
 pub(all) struct DesugaredFunctionDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_parameters : Array[@resolve.ResolvedTypeParameter]
@@ -27,6 +29,7 @@ pub(all) struct DesugaredFunctionDeclaration {
 
 ///|
 pub(all) struct DesugaredLetDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   type_annotation : @resolve.ResolvedType?
@@ -43,6 +46,7 @@ pub(all) struct DesugaredPatternLetDeclaration {
 
 ///|
 pub(all) struct DesugaredOfferDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_annotation : @resolve.ResolvedType

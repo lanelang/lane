@@ -30,7 +30,7 @@ A uniform runtime value used by the reference interpreter.
 _Avoid_: unboxed primitive special case, source AST node
 
 **Global Environment**:
-The interpreter environment containing initialized top-level and prelude values.
+The interpreter environment containing initialized linked top-level values.
 _Avoid_: module namespace, source scope
 
 **Call Frame**:
@@ -65,7 +65,7 @@ _Avoid_: integer trap, arbitrary precision integer
 
 - The first **Execution Target** currently evaluates ANF IR.
 - The **Reference Interpreter** uses **Interpreter Entry Selection** over a whole checked compiler program.
-- **Run Entry Convention** is a caller policy layered on top of **Interpreter Entry Selection** and selects from the final top-level environment after prelude loading.
+- **Run Entry Convention** is a caller policy layered on top of **Interpreter Entry Selection** and selects from the final linked top-level environment.
 - **Run Debug Rendering** displays function values as opaque function placeholders rather than invoking them.
 - The **Reference Interpreter** separates the **Global Environment**, **Call Frame**, and **Closure Environment**.
 - The **Reference Interpreter** evaluates to **Interpreter Values**.

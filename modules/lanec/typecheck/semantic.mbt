@@ -82,6 +82,7 @@ fn SemanticChecker::collect_top_level_function_type(
   self.ordered_value_types.push(binding)
   self.values.push(
     Function({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: declaration.name,
       type_,
@@ -162,6 +163,7 @@ fn SemanticChecker::check_top_level_let(
   })
   self.values.push(
     Let({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: declaration.name,
       type_,
@@ -193,6 +195,7 @@ fn SemanticChecker::check_top_level_offer(
   )
   self.values.push(
     Let({
+      is_public: declaration.is_public,
       symbol: declaration.symbol,
       name: Some(declaration.name),
       type_,

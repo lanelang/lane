@@ -8,7 +8,7 @@ import {
 }
 
 struct FixtureManifest {
-  stdlib : String
+  lib_dirs : Array[String]
   cases : Array[FixtureCase]
 }
 
@@ -37,7 +37,7 @@ async fn main {
   for case in manifest.cases {
     let result = @async.with_timeout_opt(
       fixture_timeout_ms,
-      () => run_lane(case, manifest.stdlib),
+      () => run_lane(case, manifest.lib_dirs),
     )
     guard result is Some(result) else {
       failure_count += 1
@@ -73,14 +73,16 @@ fn read_text(path : String) -> String raise {
 
 fn decode_manifest(json : Json) -> FixtureManifest {
   match json {
-    { "stdlib": String(stdlib), "cases": Array(cases), .. } =>
+    { "lib_dirs": Array(lib_dirs), "cases": Array(cases), .. } =>
       {
-        stdlib,
+        lib_dirs: lib_dirs.mapi(fn(index, item) {
+          decode_string(item, "lib_dirs[" + index.to_string() + "]")
+        }),
         cases: cases.mapi(fn(index, item) {
           decode_case(item, "cases[" + index.to_string() + "]")
         }),
       }
-    _ => abort("manifest must contain string field stdlib and array field cases")
+    _ => abort("manifest must contain array fields lib_dirs and cases")
   }
 }
 
@@ -124,14 +126,19 @@ fn decode_string(json : Json, path : String) -> String {
   }
 }
 
-async fn run_lane(case : FixtureCase, stdlib : String) -> LaneRunResult {
+async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult {
   ignore(read_text(case.file))
+  let args = [
+    "-q", "run", "--target", "native", "modules/lane", "--", "run",
+    case.file, "--entry", case.entry,
+  ]
+  for lib_dir in lib_dirs {
+    args.push("--lib-dir")
+    args.push(lib_dir)
+  }
   let (code, output) = @process.collect_output_merged(
     "moon",
-    [
-      "-q", "run", "--target", "native", "modules/lane", "--", "run",
-      case.file, "--entry", case.entry, "--stdlib", stdlib,
-    ],
+    args,
   )
   { code, output: output.text().trim_end(chars="\n\r").to_owned() }
 }

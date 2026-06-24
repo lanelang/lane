@@ -1,7 +1,8 @@
+module Examples.Invalid08
 // invalid: struct literals must provide every field
-struct Point {
+pub struct Point {
   x : Int
   y : Int
 }
 
-let point : Point = Point::{ x: 1 }
+pub let point : Point = Point::{ x: 1 }

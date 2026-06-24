@@ -54,6 +54,7 @@ pub(all) enum ResolvedCallArgument {
 pub impl @prettyprinter.Pretty for ResolvedCallArgument
 
 pub(all) struct ResolvedEnumDeclaration {
+  is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
   type_parameters : Array[ResolvedTypeParameter]
@@ -112,6 +113,7 @@ pub(all) enum ResolvedFieldReference {
 pub impl @prettyprinter.Pretty for ResolvedFieldReference
 
 pub(all) struct ResolvedFunctionDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_parameters : Array[ResolvedTypeParameter]
@@ -138,6 +140,7 @@ pub(all) enum ResolvedKind {
 pub impl @prettyprinter.Pretty for ResolvedKind
 
 pub(all) struct ResolvedLetDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   type_annotation : ResolvedType?
@@ -162,6 +165,7 @@ pub(all) struct ResolvedMatchArm {
 pub impl @prettyprinter.Pretty for ResolvedMatchArm
 
 pub(all) struct ResolvedOfferDeclaration {
+  is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   type_annotation : ResolvedType
@@ -189,6 +193,7 @@ pub(all) struct ResolvedPatternLetDeclaration {
 pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
 
 pub(all) struct ResolvedSourceFile {
+  module_path : @syntax.ModulePath
   symbols : @symbol.SymbolRegistry
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : @basic.SourceSpan
@@ -196,6 +201,7 @@ pub(all) struct ResolvedSourceFile {
 pub impl @prettyprinter.Pretty for ResolvedSourceFile
 
 pub(all) struct ResolvedStructDeclaration {
+  is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
   type_parameters : Array[ResolvedTypeParameter]
@@ -246,6 +252,7 @@ pub(all) enum ResolvedType {
 pub impl @prettyprinter.Pretty for ResolvedType
 
 pub(all) struct ResolvedTypeAliasDeclaration {
+  is_public : Bool
   name : String
   body : ResolvedType
   loc : @basic.SourceSpan

@@ -36,6 +36,9 @@ pub(all) enum Token {
   ELSE
   MATCH
   BUILTIN
+  MODULE
+  IMPORT
+  PUB
   PLUS
   MINUS
   STAR
@@ -58,6 +61,7 @@ pub(all) enum Token {
   LBRACKET
   RBRACKET
   COMMA
+  DOTSTAR
   DOT
   COLON
   COLONCOLON
@@ -87,6 +91,9 @@ pub(all) enum TokenKind {
   TK_ELSE
   TK_MATCH
   TK_BUILTIN
+  TK_MODULE
+  TK_IMPORT
+  TK_PUB
   TK_PLUS
   TK_MINUS
   TK_STAR
@@ -109,6 +116,7 @@ pub(all) enum TokenKind {
   TK_LBRACKET
   TK_RBRACKET
   TK_COMMA
+  TK_DOTSTAR
   TK_DOT
   TK_COLON
   TK_COLONCOLON
