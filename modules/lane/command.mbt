@@ -28,12 +28,8 @@ fn lane_command_spec() -> Command {
       Command(
         "run",
         about="Run a selected top-level entry from a single Lane source file.",
-        options=[
-          OptionArg("entry", long="entry", required=true),
-          lib_option(),
-          lib_dir_option(),
-        ],
-        positionals=[PositionArg("file")],
+        options=[lib_option(), lib_dir_option()],
+        positionals=[PositionArg("target")],
       ),
     ],
   )
@@ -49,15 +45,32 @@ fn parse_lane_command() -> LaneCommand raise {
         libs=values(child, "lib"),
         lib_dirs=values(child, "lib-dir"),
       )
-    Some(("run", child)) =>
+    Some(("run", child)) => {
+      let target = parse_run_target(required_value(child, "target"))
       Run(
-        file=required_value(child, "file"),
-        entry=required_value(child, "entry"),
+        file=target.file,
+        entry=target.entry,
         libs=values(child, "lib"),
         lib_dirs=values(child, "lib-dir"),
       )
+    }
     _ => fail_with_message("unknown lane command")
   }
+}
+
+///|
+priv struct RunTarget {
+  file : String
+  entry : String
+}
+
+///|
+fn parse_run_target(target : String) -> RunTarget {
+  let parts = target.split(":").collect()
+  if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
+    fail_with_message("run target must be FILE:ENTRY")
+  }
+  { file: parts[0].to_owned(), entry: parts[1].to_owned() }
 }
 
 ///|

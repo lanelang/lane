@@ -1,4 +1,11 @@
 ///|
+test "parse run target from file and entry suffix" {
+  let target = parse_run_target("examples/main.lane:answer")
+  inspect(target.file, content="examples/main.lane")
+  inspect(target.entry, content="answer")
+}
+
+///|
 test "run selected public value through buslane interpreter" {
   let result = @compile.compile_source(
     (

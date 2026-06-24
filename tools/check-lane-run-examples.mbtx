@@ -130,7 +130,7 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
   ignore(read_text(case.file))
   let args = [
     "-q", "run", "--target", "native", "modules/lane", "--", "run",
-    case.file, "--entry", case.entry,
+    case.file + ":" + case.entry,
   ]
   for lib_dir in lib_dirs {
     args.push("--lib-dir")

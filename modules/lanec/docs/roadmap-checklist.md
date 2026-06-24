@@ -252,7 +252,7 @@ and unresolved or ambiguous states before Buslane lowering.
 - [x] Provide required standard intrinsic implementations through `lanec`
   intrinsic runtime plugins.
 - [x] Provide a native-only `lane` command for single-file `check` and
-  `run --entry` workflows.
+  `run FILE:ENTRY` workflows.
 - [x] Expand valid and invalid conformance fixtures under `examples`.
 - [x] Existential: add valid and invalid parser, resolver, type checker,
   elaborator, Buslane Core Language, ANF, and interpreter fixture coverage for

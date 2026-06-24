@@ -18,7 +18,7 @@ The rule that a caller chooses which checked value or function to evaluate rathe
 _Avoid_: built-in main, source entrypoint
 
 **Run Entry Convention**:
-The Lane Command convention that single-file `lane run` requires an explicit entry name and prints the selected value with debug rendering.
+The Lane Command convention that single-file `lane run` takes a `FILE:ENTRY` target and prints the selected value with debug rendering.
 _Avoid_: language-level main semantics, project entrypoint, interpreter hard-code
 
 **Run Debug Rendering**:
@@ -82,7 +82,7 @@ _Avoid_: integer trap, arbitrary precision integer
 > **Domain expert:** "No. **Interpreter Entry Selection** belongs to the caller or later linker, not to the reference interpreter."
 
 > **Dev:** "Can single-file `lane run` execute `main` by default?"
-> **Domain expert:** "No. The **Run Entry Convention** requires an explicit entry name and debug-prints the selected value."
+> **Domain expert:** "No. The **Run Entry Convention** requires `FILE:ENTRY` and debug-prints the selected value."
 
 > **Dev:** "If the selected entry is a function, should `lane run` call it?"
 > **Domain expert:** "No. **Run Debug Rendering** prints an opaque function placeholder instead of applying it."
