@@ -1,0 +1,135 @@
+module Examples.Valid21
+import Ops.*
+
+pub enum Option[A] {
+  none
+  some(A)
+}
+
+pub enum List[A] {
+  nil
+  cons(A, List[A])
+}
+
+pub type Mappable[F : [Type] -> Type] = [A, B]((A) -> B, F[A]) -> F[B]
+
+pub type FlatMappable[F : [Type] -> Type] = [A, B]((A) -> F[B], F[A]) -> F[B]
+
+pub type Applicative[F : [Type] -> Type] = [A, B](F[(A) -> B], F[A]) -> F[B]
+
+pub fn[A] unwrap_or(option : Option[A], fallback : A) -> A {
+  match option {
+    Option::none => fallback
+    Option::some(inner) => inner
+  }
+}
+
+pub fn[A, B] option_map(f : (A) -> B, option : Option[A]) -> Option[B] {
+  match option {
+    Option::none => Option::none
+    Option::some(inner) => Option::some(f(inner))
+  }
+}
+
+pub fn[A, B] option_flat_map(
+  f : (A) -> Option[B],
+  option : Option[A]
+) -> Option[B] {
+  match option {
+    Option::none => Option::none
+    Option::some(inner) => f(inner)
+  }
+}
+
+pub fn[A] option_pure(inner : A) -> Option[A] {
+  Option::some(inner)
+}
+
+pub fn[A, B] option_apply(
+  f : Option[(A) -> B],
+  option : Option[A]
+) -> Option[B] {
+  match f {
+    Option::none => Option::none
+    Option::some(inner) => option_map(inner, option)
+  }
+}
+
+pub fn[A] append(left : List[A], right : List[A]) -> List[A] {
+  match left {
+    List::nil => right
+    List::cons(head, tail) => List::cons(head, append(tail, right))
+  }
+}
+
+pub fn[A, B] list_map(f : (A) -> B, list : List[A]) -> List[B] {
+  match list {
+    List::nil => List::nil
+    List::cons(head, tail) => List::cons(f(head), list_map(f, tail))
+  }
+}
+
+pub fn[A, B] list_flat_map(f : (A) -> List[B], list : List[A]) -> List[B] {
+  match list {
+    List::nil => List::nil
+    List::cons(head, tail) => append(f(head), list_flat_map(f, tail))
+  }
+}
+
+pub fn[A] list_pure(inner : A) -> List[A] {
+  List::cons(inner, List::nil)
+}
+
+pub fn[A, B] list_apply(functions : List[(A) -> B], values : List[A]) -> List[B] {
+  match functions {
+    List::nil => List::nil
+    List::cons(f, tail) => append(list_map(f, values), list_apply(tail, values))
+  }
+}
+
+pub fn[A] reverse(list : List[A]) -> List[A] {
+  match list {
+    List::nil => List::nil
+    List::cons(head, tail) => append(reverse(tail), List::cons(head, List::nil))
+  }
+}
+
+pub fn[A] index(list : List[A], position : Int) -> Option[A] {
+  if position < 0 {
+    Option::none
+  } else {
+    match list {
+      List::nil => Option::none
+      List::cons(head, tail) =>
+        if position == 0 {
+          Option::some(head)
+        } else {
+          index(tail, position - 1)
+        }
+    }
+  }
+}
+
+pub fn elem(list : List[Int], needle : Int) -> Bool {
+  match list {
+    List::nil => false
+    List::cons(head, tail) =>
+      if head == needle {
+        true
+      } else {
+        elem(tail, needle)
+      }
+  }
+}
+
+pub fn found_score(found : Bool) -> Int {
+  if found {
+    40
+  } else {
+    0
+  }
+}
+
+pub let numbers : List[Int] = List::cons(1, List::cons(2, List::cons(3, List::nil)))
+
+pub let answer : Int = unwrap_or(index(reverse(numbers), 1), 0) + found_score(elem(numbers, 3))

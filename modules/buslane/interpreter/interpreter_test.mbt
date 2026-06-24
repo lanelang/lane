@@ -123,6 +123,45 @@ test "pretty recursive closure environment stays finite" {
 }
 
 ///|
+test "recursive group closures see later bindings from same group" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let function_type = @buslane.Type::Function([], int_type())
+  let first = metadata.define_value(Function, function_type)
+  let second = metadata.define_value(Function, function_type)
+  let result = metadata.define_value(Value, int_type())
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: first,
+          rhs: Function({
+            parameters: [],
+            result_type: int_type(),
+            body: Call(Ref(second), []),
+          }),
+        },
+        {
+          id: second,
+          rhs: Function({
+            parameters: [],
+            result_type: int_type(),
+            body: Literal(Int(42L)),
+          }),
+        },
+      ]),
+      Let(result, Call(Ref(first), [])),
+    ],
+  }
+  expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 42",
+  )
+}
+
+///|
 test "data constructor match selects matching alternative" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_type_parameter(Type)

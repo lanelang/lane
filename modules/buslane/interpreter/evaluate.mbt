@@ -64,13 +64,11 @@ fn recursive_runtime_value(
         Closure(
           parameters=function.parameters,
           body=function.body,
-          environment=environment.copy(),
+          environment~,
         ),
       )
     TypeLambda(_, body) =>
-      BuslaneRuntimeValue::runtime(
-        TypeClosure(body~, environment=environment.copy()),
-      )
+      BuslaneRuntimeValue::runtime(TypeClosure(body~, environment~))
     _ => raise InvalidValue(message="letrec rhs is not a function")
   }
 }
