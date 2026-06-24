@@ -515,10 +515,20 @@ fn @syntax.TypeAliasDeclaration::resolve_type_alias(
   self : @syntax.TypeAliasDeclaration,
   resolver : Resolver,
 ) -> ResolvedTypeAliasDeclaration {
+  let type_parameters = resolver.resolve_type_parameters(
+    self.type_parameters,
+    self.loc,
+  )
+  let scope = resolver.scope(type_parameters)
+  let body = self.body.resolve_type(resolver, scope)
   {
     is_public: self.is_public,
     name: self.name,
-    body: self.body.resolve_type(resolver, resolver.scope([])),
+    body: if type_parameters.is_empty() {
+      body
+    } else {
+      TypeLambda(parameters=type_parameters, body~, loc=self.loc)
+    },
     loc: self.loc,
   }
 }

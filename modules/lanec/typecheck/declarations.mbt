@@ -39,7 +39,7 @@ pub fn typecheck_declarations(
         }
         types.push(Enum(checked))
       }
-      TypeAlias(_) => ()
+      TypeAlias(declaration) => checker.check_type_alias(declaration)
       _ => ()
     }
   }
@@ -50,10 +50,25 @@ pub fn typecheck_declarations(
 }
 
 ///|
+fn DeclarationChecker::check_type_alias(
+  self : DeclarationChecker,
+  declaration : @resolve.ResolvedTypeAliasDeclaration,
+) -> Unit {
+  ignore(
+    TypeExpressionChecker::{
+      source: self.source,
+      diagnostics: self.diagnostics,
+      expanding: [declaration.name],
+    }.synthesize_type(declaration.body),
+  )
+}
+
+///|
 fn DeclarationChecker::check_struct(
   self : DeclarationChecker,
   declaration : @resolve.ResolvedStructDeclaration,
 ) -> CheckedStructDeclaration {
+  let type_parameters = self.check_type_parameters(declaration.type_parameters)
   let type_members = []
   let fields = []
   for item in declaration.members {
@@ -67,7 +82,7 @@ fn DeclarationChecker::check_struct(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
-    type_parameters: declaration.type_parameters.map(checked_type_parameter),
+    type_parameters,
     type_members,
     fields,
     loc: declaration.loc,
@@ -113,6 +128,7 @@ fn DeclarationChecker::check_enum(
   self : DeclarationChecker,
   declaration : @resolve.ResolvedEnumDeclaration,
 ) -> CheckedEnumDeclaration {
+  let type_parameters = self.check_type_parameters(declaration.type_parameters)
   let variants = []
   for variant in declaration.variants {
     variants.push(self.check_variant(variant))
@@ -121,7 +137,7 @@ fn DeclarationChecker::check_enum(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
-    type_parameters: declaration.type_parameters.map(checked_type_parameter),
+    type_parameters,
     variants,
     loc: declaration.loc,
   }
@@ -136,10 +152,18 @@ fn DeclarationChecker::check_variant(
     symbol: variant.symbol,
     name: variant.name,
     index: variant.index,
-    type_parameters: variant.type_parameters.map(checked_type_parameter),
+    type_parameters: self.check_type_parameters(variant.type_parameters),
     payload: variant.payload.map(fn(type_) { self.check_type(type_) }),
     loc: variant.loc,
   }
+}
+
+///|
+fn DeclarationChecker::check_type_parameters(
+  self : DeclarationChecker,
+  parameters : Array[@resolve.ResolvedTypeParameter],
+) -> Array[@types.TypeParameter] {
+  check_type_parameters(self.diagnostics, parameters)
 }
 
 ///|
@@ -256,7 +280,10 @@ fn TypeExpressionChecker::synthesize_type(
       }
     }
     TypeLambda(parameters~, body~, ..) => {
-      let checked_parameters = parameters.map(checked_type_parameter)
+      let checked_parameters = check_type_parameters(
+        self.diagnostics,
+        parameters,
+      )
       let body_result = self.synthesize_type(body)
       {
         type_: TypeLambda(checked_parameters, body_result.type_),
@@ -274,7 +301,10 @@ fn TypeExpressionChecker::synthesize_type(
       { type_: Parameter(symbol), kind }
     }
     Function(type_parameters~, parameters~, result~, ..) => {
-      let checked_type_parameters = type_parameters.map(checked_type_parameter)
+      let checked_type_parameters = check_type_parameters(
+        self.diagnostics,
+        type_parameters,
+      )
       let checked_parameters = parameters.map(fn(parameter) {
         self.expect_kind(parameter, Type).type_
       })
@@ -480,6 +510,24 @@ fn find_kind_in_type(
     }
     _ => None
   }
+}
+
+///|
+fn check_type_parameters(
+  diagnostics : Array[TypeCheckDiagnostic],
+  parameters : Array[@resolve.ResolvedTypeParameter],
+) -> Array[@types.TypeParameter] {
+  for index in 0..<parameters.length() {
+    for previous in 0..<index {
+      if parameters[index].name == parameters[previous].name {
+        diagnostics.push({
+          kind: DuplicateTypeParameter(name=parameters[index].name),
+          loc: parameters[index].loc,
+        })
+      }
+    }
+  }
+  parameters.map(checked_type_parameter)
 }
 
 ///|

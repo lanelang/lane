@@ -46,7 +46,7 @@ test "pretty prints checked source without surface-only syntax" {
     loc=loc(),
   )
   let source = CheckedSourceFile::{
-    module_path: @syntax.ModulePath::{ components: ["Test"], loc: loc() },
+    module_path: { components: ["Test"], loc: loc() },
     declarations: [
       Let({
         is_public: true,

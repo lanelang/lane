@@ -255,6 +255,7 @@ pub impl @prettyprinter.Pretty for Type
 pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
+  type_parameters : Array[TypeParameter]
   body : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

@@ -1,0 +1,7 @@
+// Valid: nested type-level binders may shadow alias header binders.
+
+module Examples.Valid20
+pub type Shadow[A] = type[A] => A
+pub type BoolAlias = Shadow[Int][Bool]
+
+pub let answer : BoolAlias = true

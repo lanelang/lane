@@ -118,6 +118,7 @@ pub(all) struct EnumVariant {
 pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
+  type_parameters : Array[TypeParameter]
   body : Type
   loc : SourceSpan
 } derive(Debug, Eq)

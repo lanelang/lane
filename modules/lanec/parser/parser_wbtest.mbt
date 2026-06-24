@@ -73,8 +73,8 @@ test "parse type aliases and F-omega type expressions" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|type Id = type[A] => A
-      #|type ApplyInt = type[F : [Type] -> Type] => F[Int]
+      #|type Id[A] = A
+      #|type ApplyInt[F : [Type] -> Type] = F[Int]
       #|fn get(box : ApplyInt[Box]) -> Id[Int] {
       #|  box.value
       #|}
@@ -88,9 +88,9 @@ test "parse type aliases and F-omega type expressions" {
       #|  value : A
       #|}
       #|
-      #|type Id = type[A] => A
+      #|type Id[A] = A
       #|
-      #|type ApplyInt = type[F : [Type] -> Type] => F[Int]
+      #|type ApplyInt[F : [Type] -> Type] = F[Int]
       #|
       #|fn get(box : ApplyInt[Box]) -> Id[Int] {
       #|  box.value
@@ -225,6 +225,26 @@ test "parse existential surface syntax" {
       #|    }
       #|  }
       #|}
+    ),
+  )
+}
+
+///|
+test "parse rejects empty type alias parameter header" {
+  debug_inspect(
+    parse_error_kinds("type Empty[] = Int"),
+    content=(
+      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+    ),
+  )
+}
+
+///|
+test "parse rejects multi-layer type alias parameter header" {
+  debug_inspect(
+    parse_error_kinds("type Result[E][A] = Int"),
+    content=(
+      #|[UnexpectedToken({ label: "`[`" }, [{ label: "`=`" }])]
     ),
   )
 }

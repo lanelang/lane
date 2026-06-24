@@ -1,0 +1,7 @@
+// Invalid: duplicate type parameter binders in the same alias header are
+// rejected.
+
+module Examples.Invalid24
+pub type Bad[A, A] = A
+
+pub let answer : Int = 42

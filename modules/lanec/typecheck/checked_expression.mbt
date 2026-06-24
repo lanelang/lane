@@ -742,14 +742,18 @@ fn SemanticChecker::synthesize_checked_function_literal(
     )
   }
   let function_type = @types.Type::Function(parameter_types, result_type)
+  let checked_type_parameters = check_type_parameters(
+    self.diagnostics,
+    type_parameters,
+  )
   let type_ = if type_parameters.is_empty() {
     function_type
   } else {
-    Forall(type_parameters.map(checked_type_parameter), function_type)
+    Forall(checked_type_parameters, function_type)
   }
   checked_expression(
     FunctionLiteral(
-      type_parameters=type_parameters.map(checked_type_parameter),
+      type_parameters=checked_type_parameters,
       parameters=checked_parameters,
       return_type=result_type,
       body~,
@@ -773,6 +777,10 @@ fn SemanticChecker::check_checked_function_literal(
 ) -> CheckedExpressionSynthesis {
   match expected {
     Forall(expected_parameters, expected_body) => {
+      let checked_type_parameters = check_type_parameters(
+        self.diagnostics,
+        type_parameters,
+      )
       if type_parameters.length() != expected_parameters.length() {
         self.diagnostics.push({
           kind: CannotInferExpression("generic function arity"),
@@ -802,11 +810,10 @@ fn SemanticChecker::check_checked_function_literal(
         ) else {
         return checked
       }
-      let type_parameters = type_parameters.map(checked_type_parameter)
-      let type_ : @types.Type = Forall(type_parameters, type_)
+      let type_ : @types.Type = Forall(checked_type_parameters, type_)
       checked_expression(
         FunctionLiteral(
-          type_parameters~,
+          type_parameters=checked_type_parameters,
           parameters~,
           return_type~,
           body~,

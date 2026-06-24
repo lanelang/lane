@@ -147,14 +147,14 @@ public_top_level_declaration -> TopLevelDeclaration
   ;
 
 type_alias_declaration -> TypeAliasDeclaration
-  : "type" IDENT "=" type {
-    { is_public: false, name: $2, body: $4, loc: span($sloc) }
+  : "type" IDENT type_parameters "=" type {
+    { is_public: false, name: $2, type_parameters: $3, body: $5, loc: span($sloc) }
   }
   ;
 
 public_type_alias_declaration -> TypeAliasDeclaration
-  : "type" IDENT "=" type {
-    { is_public: true, name: $2, body: $4, loc: span($sloc) }
+  : "type" IDENT type_parameters "=" type {
+    { is_public: true, name: $2, type_parameters: $3, body: $5, loc: span($sloc) }
   }
   ;
 

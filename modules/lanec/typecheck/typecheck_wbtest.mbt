@@ -1760,7 +1760,7 @@ test "typecheck allows repacking existential enum before leaving match arm" {
 test "typecheck expands transparent type alias beta applications" {
   let result = expect_typecheck_result(
     (
-      #|type Id = type[A] => A
+      #|type Id[A] = A
       #|let answer : Id[Int] = 42
     ),
   )
@@ -1778,13 +1778,41 @@ test "typecheck accepts higher-kinded alias parameter" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|type ApplyInt = type[F : [Type] -> Type] => F[Int]
+      #|type ApplyInt[F : [Type] -> Type] = F[Int]
       #|fn get(box : ApplyInt[Box]) -> Int {
       #|  box.value
       #|}
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck defaults unannotated alias header parameter kind to Type" {
+  let result = expect_typecheck_result(
+    (
+      #|type ApplyInt[F] = F[Int]
+      #|let answer : ApplyInt[Int] = 42
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="kind_mismatch expected=[] -> Type actual=Type",
+  )
+}
+
+///|
+test "typecheck reports duplicate type alias header parameter" {
+  let result = expect_typecheck_result(
+    (
+      #|type Bad[A, A] = A
+      #|let answer : Int = 42
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="duplicate_type_parameter A",
+  )
 }
 
 ///|

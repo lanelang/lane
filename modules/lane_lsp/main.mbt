@@ -4,7 +4,7 @@ async fn main {
   parse_lsp_command() catch {
     _ => abort("failed to parse command line")
   }
-  run_server(ServerState::ServerState())
+  run_server(ServerState())
 }
 
 ///|

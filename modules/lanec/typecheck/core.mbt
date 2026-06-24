@@ -134,6 +134,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   UnknownTypeMember(name~ : String)
   MissingTypeMember(name~ : String)
   DuplicateTypeMember(name~ : String)
+  DuplicateTypeParameter(name~ : String)
   NotAStruct(@types.Type)
   NonExhaustiveMatch(@types.Type)
   UnreachableMatchArm

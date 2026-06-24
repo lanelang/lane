@@ -299,6 +299,7 @@ fn TypeAliasDeclaration::to_doc(self : TypeAliasDeclaration) -> Document {
   keyword("type") +
   space +
   text(self.name) +
+  bracketed_type_parameters(self.type_parameters) +
   space +
   text("=") +
   space +

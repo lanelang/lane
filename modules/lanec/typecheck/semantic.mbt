@@ -311,7 +311,7 @@ fn SemanticChecker::function_type(
   if type_parameters.is_empty() {
     type_
   } else {
-    Forall(type_parameters.map(checked_type_parameter), type_)
+    Forall(check_type_parameters(self.diagnostics, type_parameters), type_)
   }
 }
 

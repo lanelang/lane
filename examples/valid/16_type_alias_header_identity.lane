@@ -1,0 +1,7 @@
+// Valid: a single type alias parameter header desugars to a transparent
+// type-level lambda.
+
+module Examples.Valid16
+pub type Id[A] = A
+
+pub let answer : Id[Int] = 42

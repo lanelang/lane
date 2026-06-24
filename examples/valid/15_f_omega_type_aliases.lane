@@ -7,8 +7,8 @@ pub struct Box[A] {
   value : A
 }
 
-pub type Id = type[A] => A
-pub type ApplyInt = type[F : [Type] -> Type] => F[Int]
+pub type Id[A] = A
+pub type ApplyInt[F : [Type] -> Type] = F[Int]
 
 pub fn get(box : ApplyInt[Box]) -> Id[Int] {
   box.value

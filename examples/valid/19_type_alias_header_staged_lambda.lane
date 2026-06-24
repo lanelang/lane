@@ -1,0 +1,16 @@
+// Valid: an alias header composes with a right-hand-side type-level lambda as
+// the outer lambda layer.
+
+module Examples.Valid19
+pub struct Box[A] {
+  value : A
+}
+
+pub type Mapper[F : [Type] -> Type] = type[A] => F[A]
+pub type BoxInt = Mapper[Box][Int]
+
+pub fn get(box : BoxInt) -> Int {
+  box.value
+}
+
+pub let answer : Int = get(Box::{ value: 42 })

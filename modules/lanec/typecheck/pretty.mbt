@@ -251,6 +251,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     MissingTypeMember(name~) => text("missing_type_member") + space + text(name)
     DuplicateTypeMember(name~) =>
       text("duplicate_type_member") + space + text(name)
+    DuplicateTypeParameter(name~) =>
+      text("duplicate_type_parameter") + space + text(name)
     NotAStruct(type_) => text("not_a_struct") + space + type_.pretty()
     NonExhaustiveMatch(type_) =>
       text("non_exhaustive_match") + space + type_.pretty()

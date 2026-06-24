@@ -52,7 +52,7 @@ fn SemanticChecker::synthesize_function_literal(
   if type_parameters.is_empty() {
     type_
   } else {
-    Forall(type_parameters.map(checked_type_parameter), type_)
+    Forall(check_type_parameters(self.diagnostics, type_parameters), type_)
   }
 }
 
@@ -145,6 +145,7 @@ fn SemanticChecker::check_generic_function_literal(
   // Forall introduction is local to the function literal. The literal must
   // declare the generic parameters it introduces; checking only aligns the
   // expected forall parameters with those local parameters.
+  ignore(check_type_parameters(self.diagnostics, type_parameters))
   if type_parameters.length() != expected_parameters.length() {
     self.diagnostics.push({
       kind: CannotInferExpression("generic function arity"),

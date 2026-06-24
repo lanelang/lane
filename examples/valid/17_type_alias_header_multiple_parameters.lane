@@ -1,0 +1,6 @@
+// Valid: one alias parameter header may contain multiple binders.
+
+module Examples.Valid17
+pub type Left[A, B] = A
+
+pub let answer : Left[Int, Bool] = 42
