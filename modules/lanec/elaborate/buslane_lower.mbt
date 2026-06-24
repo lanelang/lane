@@ -79,12 +79,35 @@ pub fn lower_checked_source_file_to_buslane(
 pub fn lower_checked_source_file_to_buslane_result(
   source : @checked.CheckedSourceFile,
 ) -> BuslaneLowerResult {
+  lower_checked_source_files_to_buslane_result(source, [])
+}
+
+///|
+/// Lowers a root checked module and already checked library modules into one
+/// linked Buslane program. Only the root module contributes public entries.
+pub fn lower_checked_source_files_to_buslane_result(
+  root : @checked.CheckedSourceFile,
+  libraries : Array[@checked.CheckedSourceFile],
+) -> BuslaneLowerResult {
   let lowerer = BuslaneLowerer::BuslaneLowerer()
-  lowerer.collect_type_headers(source)
-  lowerer.collect_data_constructors(source)
-  lowerer.collect_field_selectors(source)
-  lowerer.collect_top_values(source)
-  let terms = lowerer.lower_top_terms(source)
+  let sources = libraries + [root]
+  for source in sources {
+    lowerer.collect_type_headers(source)
+  }
+  for source in sources {
+    lowerer.collect_data_constructors(source)
+  }
+  for source in sources {
+    lowerer.collect_field_selectors(source)
+  }
+  for source in libraries {
+    lowerer.collect_top_values(source, include_entries=false)
+  }
+  lowerer.collect_top_values(root, include_entries=true)
+  let terms = []
+  for source in sources {
+    terms.append(lowerer.lower_top_terms(source))
+  }
   {
     program: {
       metadata: lowerer.metadata,
@@ -322,6 +345,7 @@ fn BuslaneLowerer::selector_body(
 fn BuslaneLowerer::collect_top_values(
   self : BuslaneLowerer,
   source : @checked.CheckedSourceFile,
+  include_entries~ : Bool,
 ) -> Unit {
   for declaration in source.declarations {
     match declaration {
@@ -331,14 +355,14 @@ fn BuslaneLowerer::collect_top_values(
         }
         let type_ = self.lower_type(declaration.type_)
         let value = self.define_value(declaration.symbol, Function, type_)
-        if declaration.is_public {
+        if include_entries && declaration.is_public {
           self.add_entry(declaration.name, value, type_)
         }
       }
       Let(declaration) => {
         let type_ = self.lower_type(declaration.type_)
         let value = self.define_value(declaration.symbol, Value, type_)
-        if declaration.is_public {
+        if include_entries && declaration.is_public {
           if declaration.name is Some(name) {
             self.add_entry(name, value, type_)
           }

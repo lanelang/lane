@@ -12,7 +12,16 @@ pub struct MeterOps {
   offer equal_impl : Equal[Meter]
 }
 
-pub let meter_equal_ops : Equal[Meter] = make_equal(meter_equal)
+pub let meter_equal_ops : Equal[Meter] = Equal::{
+  equal: meter_equal,
+  not_equal: fn(a : Meter, b : Meter) -> Bool {
+    if meter_equal(a, b) {
+      false
+    } else {
+      true
+    }
+  },
+}
 
 pub offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
 

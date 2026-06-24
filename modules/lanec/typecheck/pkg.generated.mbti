@@ -14,6 +14,8 @@ import {
 // Values
 pub fn typecheck_checked_source_file(@resolve.ResolvedSourceFile) -> CheckedSourceTypeCheckResult
 
+pub fn typecheck_checked_source_file_with_imports(@resolve.ResolvedSourceFile, Array[@resolve.ResolvedSourceFile]) -> CheckedSourceTypeCheckResult
+
 pub fn typecheck_declarations(@resolve.ResolvedSourceFile) -> DeclarationTypeCheckResult
 
 pub fn typecheck_source_file(@resolve.ResolvedSourceFile) -> TypeCheckResult

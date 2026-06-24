@@ -61,6 +61,98 @@ fn SemanticChecker::collect_top_level_value_types(
 }
 
 ///|
+fn SemanticChecker::seed_imported_top_level_value_types(
+  self : SemanticChecker,
+  context_source : @desugar.DesugaredSourceFile,
+  imported_sources : Array[@resolve.ResolvedSourceFile],
+) -> Unit {
+  let mut imported_count = 0
+  for imported in imported_sources {
+    imported_count += imported.declarations.length()
+  }
+  for index in 0..<imported_count {
+    if context_source.declarations.get(index) is Some(declaration) {
+      self.seed_imported_top_level_value_type(declaration)
+    }
+  }
+}
+
+///|
+fn SemanticChecker::seed_imported_top_level_value_type(
+  self : SemanticChecker,
+  declaration : @desugar.DesugaredTopLevelDeclaration,
+) -> Unit {
+  match declaration {
+    Function(declaration) => {
+      let type_ = self.function_type(
+        declaration.type_parameters,
+        declaration.parameters,
+        declaration.return_type,
+      )
+      let parameters = declaration.parameters.map(fn(parameter) {
+        self.checked_value_parameter(parameter)
+      })
+      let binding = {
+        symbol: declaration.symbol,
+        type_,
+        parameters: Some(parameters),
+      }
+      self.value_types.push(binding)
+      self.ordered_value_types.push(binding)
+      self.values.push(
+        Function({
+          is_public: declaration.is_public,
+          symbol: declaration.symbol,
+          name: declaration.name,
+          type_,
+          parameters,
+          loc: declaration.loc,
+        }),
+      )
+    }
+    Let(declaration) =>
+      if declaration.type_annotation is Some(type_annotation) {
+        let type_ = self.check_type(type_annotation)
+        let binding = { symbol: declaration.symbol, type_, parameters: None }
+        self.value_types.push(binding)
+        self.ordered_value_types.push(binding)
+        self.values.push(
+          Let({
+            is_public: declaration.is_public,
+            symbol: declaration.symbol,
+            name: declaration.name,
+            type_,
+            loc: declaration.loc,
+          }),
+        )
+      }
+    Offer(declaration) => {
+      let type_ = self.check_type(declaration.type_annotation)
+      let binding = { symbol: declaration.symbol, type_, parameters: None }
+      self.value_types.push(binding)
+      self.ordered_value_types.push(binding)
+      self.offer_symbol(self.offers, declaration.symbol, type_, declaration.loc)
+      self.offer_symbol(
+        self.ordered_offers,
+        declaration.symbol,
+        type_,
+        declaration.loc,
+      )
+      self.values.push(
+        Let({
+          is_public: declaration.is_public,
+          symbol: declaration.symbol,
+          name: Some(declaration.name),
+          type_,
+          loc: declaration.loc,
+        }),
+      )
+    }
+    _ => ()
+  }
+}
+
+///|
 fn SemanticChecker::collect_top_level_function_type(
   self : SemanticChecker,
   declaration : @desugar.DesugaredFunctionDeclaration,

@@ -24,8 +24,8 @@ pub fn check_sources(
   root_source : String,
   library_sources : Array[String],
 ) -> CheckResult {
-  match checked_source_from_inputs(root_source, library_sources) {
-    Ok(source) => { source: Some(source), diagnostics: [] }
+  match compile_module_set_from_inputs(root_source, library_sources) {
+    Ok(modules) => { source: Some(modules.root.checked), diagnostics: [] }
     Err(diagnostics) => { source: None, diagnostics }
   }
 }
@@ -44,10 +44,11 @@ pub fn compile_sources(
   root_source : String,
   library_sources : Array[String],
 ) -> CompileResult {
-  match checked_source_from_inputs(root_source, library_sources) {
-    Ok(source) => {
-      let lowered = @elaborate.lower_checked_source_file_to_buslane_result(
-        source,
+  match compile_module_set_from_inputs(root_source, library_sources) {
+    Ok(modules) => {
+      let lowered = @elaborate.lower_checked_source_files_to_buslane_result(
+        modules.root.checked,
+        modules.libraries.map(fn(module_) { module_.checked }),
       )
       {
         program: Some(lowered.program),
@@ -62,16 +63,16 @@ pub fn compile_sources(
 }
 
 ///|
-fn checked_source_from_inputs(
+fn compile_module_set_from_inputs(
   root_source : String,
   library_sources : Array[String],
-) -> Result[@checked.CheckedSourceFile, Array[CompileDiagnostic]] {
+) -> Result[CompiledModuleSet, Array[CompileDiagnostic]] {
   match parse_module_input_set(root_source, library_sources) {
     Err(diagnostics) => Err(diagnostics)
     Ok(inputs) =>
       match build_module_graph(inputs) {
         Err(diagnostics) => Err(diagnostics)
-        Ok(graph) => checked_source_from_module_graph(graph)
+        Ok(graph) => compile_module_graph(graph)
       }
   }
 }

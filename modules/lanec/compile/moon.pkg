@@ -6,6 +6,7 @@ import {
   "Milky2018/lanec/lexer",
   "Milky2018/lanec/parser",
   "Milky2018/lanec/resolve",
+  "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
   "Milky2018/lanec/typecheck",
   "moonbit-community/prettyprinter",

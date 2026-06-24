@@ -22,6 +22,8 @@ pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @busl
 
 pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult
 
+pub fn lower_checked_source_files_to_buslane_result(@checked.CheckedSourceFile, Array[@checked.CheckedSourceFile]) -> BuslaneLowerResult
+
 // Errors
 
 // Types and methods

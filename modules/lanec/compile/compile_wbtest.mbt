@@ -59,6 +59,68 @@ test "compile sources accepts explicit library modules" {
 }
 
 ///|
+test "compile sources exposes only root public entries" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = value
+    ),
+    [
+      (
+        #|module Lib
+        #|pub let value : Int = 42
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.entries.map(fn(entry) { entry.name }).join(","),
+    content="answer",
+  )
+}
+
+///|
+test "check sources does not expose private imported values" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = value
+    ),
+    [
+      (
+        #|module Lib
+        #|let value : Int = 42
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="unresolved_value value")
+}
+
+///|
+test "check sources does not expose private imported types" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Hidden = Hidden::{ value: 42 }
+    ),
+    [
+      (
+        #|module Lib
+        #|struct Hidden {
+        #|  value : Int
+        #|}
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="unresolved_type Hidden")
+}
+
+///|
 test "check sources rejects missing import" {
   let result = check_sources(
     (

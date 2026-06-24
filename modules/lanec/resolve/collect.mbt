@@ -1,10 +1,17 @@
 ///|
 priv struct Resolver {
   registry : SymbolRegistry
+  types : Array[TypeBinding]
   type_aliases : Array[TypeAliasBinding]
   top_values : Array[ValueBinding]
   ordered_top_values : Array[ValueBinding]
   diagnostics : Array[ResolveDiagnostic]
+}
+
+///|
+priv struct TypeBinding {
+  name : String
+  symbol : TypeSymbolId
 }
 
 ///|
@@ -28,31 +35,230 @@ pub fn resolve_source_file(source : @syntax.SourceFile) -> ResolvedSourceFile {
 /// type diagnostic while still returning a resolved tree for later phases.
 pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult {
   let resolver = Resolver::Resolver(SymbolRegistry())
+  resolver.resolve_source_file_result(source)
+}
+
+///|
+/// Resolves a source file inside one compiler invocation registry and with
+/// directly imported module interfaces already available.
+pub fn resolve_source_file_with_imports_result(
+  source : @syntax.SourceFile,
+  registry : SymbolRegistry,
+  imported_sources : Array[ResolvedSourceFile],
+) -> ResolveResult {
+  let resolver = Resolver::Resolver(registry)
+  resolver.publish_imported_bindings(source, imported_sources)
+  resolver.resolve_source_file_result(source)
+}
+
+///|
+fn Resolver::resolve_source_file_result(
+  self : Resolver,
+  source : @syntax.SourceFile,
+) -> ResolveResult {
   // Headers and nominal members are collected before declaration bodies so
   // top-level functions, structs, enums, fields, and variants can be recursive.
-  resolver.collect_top_level_headers(source)
-  resolver.collect_nominal_members(source)
+  self.collect_top_level_headers(source)
+  self.collect_nominal_members(source)
   let declarations = source.declarations.map(fn(declaration) {
-    declaration.resolve_top_level(resolver)
+    declaration.resolve_top_level(self)
   })
   let resolved = {
     module_path: source.module_path,
-    symbols: resolver.registry,
+    symbols: self.registry,
     declarations,
     loc: source.loc,
   }
-  { source: resolved, diagnostics: resolver.diagnostics }
+  { source: resolved, diagnostics: self.diagnostics }
 }
 
 ///|
 fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
   {
     registry,
+    types: [],
     type_aliases: [],
     top_values: [],
     ordered_top_values: [],
     diagnostics: [],
   }
+}
+
+///|
+fn Resolver::publish_imported_bindings(
+  self : Resolver,
+  source : @syntax.SourceFile,
+  imported_sources : Array[ResolvedSourceFile],
+) -> Unit {
+  for import_ in source.imports {
+    match import_ {
+      Qualified(_) => ()
+      Open(module_path~, loc~) =>
+        match find_imported_source(imported_sources, module_path) {
+          Some(imported) => {
+            self.publish_imported_public_types(imported)
+            self.publish_imported_public_values(imported, loc)
+          }
+          None => ()
+        }
+      Selective(module_path~, items~, loc~) =>
+        match find_imported_source(imported_sources, module_path) {
+          Some(imported) => {
+            self.publish_imported_selected_types(imported, items)
+            self.publish_imported_selected_values(imported, items)
+          }
+          None => ignore(loc)
+        }
+    }
+  }
+}
+
+///|
+fn find_imported_source(
+  sources : Array[ResolvedSourceFile],
+  module_path : @syntax.ModulePath,
+) -> ResolvedSourceFile? {
+  let path = module_path_text(module_path)
+  for source in sources {
+    if module_path_text(source.module_path) == path {
+      return Some(source)
+    }
+  }
+  None
+}
+
+///|
+fn module_path_text(path : @syntax.ModulePath) -> String {
+  path.components.join(".")
+}
+
+///|
+fn Resolver::publish_imported_public_types(
+  self : Resolver,
+  source : ResolvedSourceFile,
+) -> Unit {
+  for declaration in source.declarations {
+    match imported_public_type_binding(declaration) {
+      Some(binding) => self.publish_type_binding(binding.name, binding.symbol)
+      None => ()
+    }
+    match declaration {
+      TypeAlias(declaration) if declaration.is_public =>
+        self.type_aliases.push({ name: declaration.name })
+      _ => ()
+    }
+  }
+}
+
+///|
+fn Resolver::publish_imported_selected_types(
+  self : Resolver,
+  source : ResolvedSourceFile,
+  items : Array[@syntax.ImportItem],
+) -> Unit {
+  for item in items {
+    for declaration in source.declarations {
+      match imported_public_type_binding(declaration) {
+        Some(binding) if binding.name == item.name =>
+          self.publish_type_binding(binding.name, binding.symbol)
+        _ => ()
+      }
+      match declaration {
+        TypeAlias(declaration) if declaration.is_public &&
+          declaration.name == item.name =>
+          self.type_aliases.push({ name: declaration.name })
+        _ => ()
+      }
+    }
+  }
+}
+
+///|
+fn imported_public_type_binding(
+  declaration : ResolvedTopLevelDeclaration,
+) -> TypeBinding? {
+  match declaration {
+    Struct(declaration) if declaration.is_public =>
+      Some({ name: declaration.name, symbol: declaration.symbol })
+    Enum(declaration) if declaration.is_public =>
+      Some({ name: declaration.name, symbol: declaration.symbol })
+    _ => None
+  }
+}
+
+///|
+fn Resolver::publish_imported_public_values(
+  self : Resolver,
+  source : ResolvedSourceFile,
+  loc : SourceSpan,
+) -> Unit {
+  for declaration in source.declarations {
+    if imported_public_value_binding(declaration) is Some(binding) {
+      self.publish_complete_top_level_binding(binding, loc)
+      self.publish_ordered_top_level_binding(binding, loc)
+    }
+  }
+}
+
+///|
+fn Resolver::publish_imported_selected_values(
+  self : Resolver,
+  source : ResolvedSourceFile,
+  items : Array[@syntax.ImportItem],
+) -> Unit {
+  for item in items {
+    for declaration in source.declarations {
+      match imported_public_value_binding(declaration) {
+        Some(binding) if binding.name == item.name => {
+          self.publish_complete_top_level_binding(binding, item.loc)
+          self.publish_ordered_top_level_binding(binding, item.loc)
+        }
+        _ => ()
+      }
+    }
+  }
+}
+
+///|
+fn imported_public_value_binding(
+  declaration : ResolvedTopLevelDeclaration,
+) -> ValueBinding? {
+  match declaration {
+    Function(declaration) if declaration.is_public =>
+      Some({
+        name: declaration.name,
+        reference: Symbol(declaration.symbol),
+        type_: Some(resolved_function_type(declaration)),
+        kind: Plain,
+      })
+    Let(declaration) if declaration.is_public && declaration.name is Some(name) =>
+      Some({
+        name,
+        reference: Symbol(declaration.symbol),
+        type_: declaration.type_annotation,
+        kind: Plain,
+      })
+    Offer(declaration) if declaration.is_public =>
+      Some({
+        name: declaration.name,
+        reference: Symbol(declaration.symbol),
+        type_: Some(declaration.type_annotation),
+        kind: Plain,
+      })
+    _ => None
+  }
+}
+
+///|
+fn resolved_function_type(
+  declaration : ResolvedFunctionDeclaration,
+) -> ResolvedType {
+  Function(
+    type_parameters=declaration.type_parameters,
+    parameters=declaration.parameters.map(fn(parameter) { parameter.type_ }),
+    result=declaration.return_type,
+    loc=declaration.loc,
+  )
 }
 
 ///|
@@ -63,21 +269,25 @@ fn Resolver::collect_top_level_headers(
   for declaration in source.declarations {
     match declaration {
       Struct(declaration) =>
-        self.registry.define_type(
+        self.publish_type_binding(
           declaration.name,
-          Struct,
-          declaration.type_parameters.length(),
-          declaration.loc,
+          self.registry.define_type(
+            declaration.name,
+            Struct,
+            declaration.type_parameters.length(),
+            declaration.loc,
+          ),
         )
-        |> ignore
       Enum(declaration) =>
-        self.registry.define_type(
+        self.publish_type_binding(
           declaration.name,
-          Enum,
-          declaration.type_parameters.length(),
-          declaration.loc,
+          self.registry.define_type(
+            declaration.name,
+            Enum,
+            declaration.type_parameters.length(),
+            declaration.loc,
+          ),
         )
-        |> ignore
       TypeAlias(declaration) =>
         self.type_aliases.push({ name: declaration.name })
       Function(declaration) => {
@@ -718,7 +928,7 @@ fn @syntax.Type::resolve_type(
           match scope.type_parameter(name) {
             Some(symbol) => Parameter(symbol~, name~, loc~)
             None =>
-              match resolver.registry.type_named(name) {
+              match resolver.type_symbol_opt(name) {
                 Some(symbol) => Constructor(symbol~, name~, loc~)
                 None =>
                   if resolver.has_type_alias(name) {
@@ -1007,7 +1217,7 @@ fn Resolver::nominal_type_of_expr(
           }
         _ => None
       }
-    StructLiteral(type_name~, ..) => self.registry.type_named(type_name)
+    StructLiteral(type_name~, ..) => self.type_symbol_opt(type_name)
     _ => None
   }
 }
@@ -1397,7 +1607,7 @@ fn @syntax.Pattern::resolve_pattern(
           fields,
           resolver,
           scope,
-          resolver.registry.type_named(type_name),
+          resolver.type_symbol_opt(type_name),
         ),
         loc~,
       )
@@ -1512,7 +1722,32 @@ fn Resolver::ordered_scope(
 
 ///|
 fn Resolver::type_symbol(self : Resolver, name : String) -> TypeSymbolId {
-  self.registry.type_named(name).unwrap()
+  self.type_binding(name).unwrap().symbol
+}
+
+///|
+fn Resolver::type_symbol_opt(self : Resolver, name : String) -> TypeSymbolId? {
+  self.type_binding(name).map(fn(binding) { binding.symbol })
+}
+
+///|
+fn Resolver::type_binding(self : Resolver, name : String) -> TypeBinding? {
+  for index = self.types.length(); index > 0; index = index - 1 {
+    let binding = self.types[index - 1]
+    if binding.name == name {
+      return Some(binding)
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::publish_type_binding(
+  self : Resolver,
+  name : String,
+  symbol : TypeSymbolId,
+) -> Unit {
+  self.types.push({ name, symbol })
 }
 
 ///|
@@ -1617,7 +1852,7 @@ fn Resolver::variant_reference(
   variant : String,
   loc : SourceSpan,
 ) -> ResolvedVariantReference {
-  if self.registry.type_named(type_name) is Some(owner) {
+  if self.type_symbol_opt(type_name) is Some(owner) {
     if self.registry.variant_named(owner, variant) is Some(symbol) {
       Symbol(symbol)
     } else {

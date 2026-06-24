@@ -4,12 +4,25 @@
 pub fn typecheck_checked_source_file(
   source : @resolve.ResolvedSourceFile,
 ) -> CheckedSourceTypeCheckResult {
-  let declaration_result = typecheck_declarations(source)
-  let resolved_source = source
+  typecheck_checked_source_file_with_imports(source, [])
+}
+
+///|
+/// Checks one resolved module against already resolved imported modules.
+pub fn typecheck_checked_source_file_with_imports(
+  source : @resolve.ResolvedSourceFile,
+  imported_sources : Array[@resolve.ResolvedSourceFile],
+) -> CheckedSourceTypeCheckResult {
+  let context_source = resolved_context_source(source, imported_sources)
+  let declaration_result = typecheck_declarations(context_source)
+  let resolved_source = context_source
   let source = @desugar.desugar_source_file(resolved_source)
+  let current_source = @desugar.desugar_source_file(
+    source_without_import_context(resolved_source, imported_sources),
+  )
   let checker = SemanticChecker::{
     resolved_source,
-    source,
+    source: current_source,
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
     values: [],
@@ -18,10 +31,11 @@ pub fn typecheck_checked_source_file(
     offers: [],
     ordered_offers: [],
   }
+  checker.seed_imported_top_level_value_types(source, imported_sources)
   checker.collect_top_level_value_types()
   let checked_declarations : Array[@checked.CheckedTopLevelDeclaration] = []
   let mut complete = true
-  for declaration in source.declarations {
+  for declaration in current_source.declarations {
     match checker.check_checked_top_level_declaration(declaration) {
       Some(declaration) => checked_declarations.push(declaration)
       None => complete = false
@@ -37,6 +51,39 @@ pub fn typecheck_checked_source_file(
     None
   }
   { source: checked_source, diagnostics: checker.diagnostics }
+}
+
+///|
+fn resolved_context_source(
+  source : @resolve.ResolvedSourceFile,
+  imported_sources : Array[@resolve.ResolvedSourceFile],
+) -> @resolve.ResolvedSourceFile {
+  let declarations = []
+  for imported in imported_sources {
+    declarations.append(imported.declarations)
+  }
+  declarations.append(source.declarations)
+  { ..source, declarations, }
+}
+
+///|
+fn source_without_import_context(
+  source : @resolve.ResolvedSourceFile,
+  imported_sources : Array[@resolve.ResolvedSourceFile],
+) -> @resolve.ResolvedSourceFile {
+  let mut imported_count = 0
+  for imported in imported_sources {
+    imported_count += imported.declarations.length()
+  }
+  if imported_count == 0 {
+    source
+  } else {
+    let declarations = []
+    for index in imported_count..<source.declarations.length() {
+      declarations.push(source.declarations[index])
+    }
+    { ..source, declarations, }
+  }
 }
 
 ///|
