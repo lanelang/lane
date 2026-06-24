@@ -78,18 +78,11 @@ fn SemanticChecker::check_checked_expr(
       self.check_checked_function_literal(
         scope, type_parameters, parameters, return_type, body, expected, loc,
       )
-    Var(name~, reference~, loc~) =>
-      match reference {
-        Candidates(candidates~, ..) =>
-          self.check_checked_candidate_reference(
-            scope, name, candidates, expected, loc,
-          )
-        _ => {
-          let checked = self.synthesize_checked_expr(scope, expression)
-          self.expect_type(expected, checked.type_, expression.loc())
-          checked
-        }
-      }
+    Var(..) => {
+      let checked = self.synthesize_checked_expr(scope, expression)
+      self.expect_type(expected, checked.type_, expression.loc())
+      checked
+    }
   }
 }
 
@@ -445,12 +438,6 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  if callee is Var(name~, reference~, loc=callee_loc) &&
-    reference is Candidates(..) {
-    return self.synthesize_checked_resolved_callable_call(
-      scope, reference, name, arguments, expected_result, callee_loc,
-    )
-  }
   if callee is Builtin(name, loc=callee_loc) &&
     expected_result is Some(expected_result) {
     return self.synthesize_checked_builtin_callee_call(
@@ -603,91 +590,6 @@ fn SemanticChecker::check_checked_call(
   )
   self.expect_type(expected, checked.type_, loc)
   checked
-}
-
-///|
-fn SemanticChecker::synthesize_checked_resolved_callable_call(
-  self : SemanticChecker,
-  scope : TypeScope,
-  reference : @resolve.ResolvedValueReference,
-  name : String,
-  arguments : Array[@desugar.DesugaredCallArgument],
-  expected_result : @types.Type?,
-  loc : SourceSpan,
-) -> CheckedExpressionSynthesis {
-  // Candidate selection is still type-directed at the desugared-call boundary.
-  // Once a callable candidate is selected, this function constructs the
-  // concrete checked callee and checked arguments so no candidate set reaches
-  // Checked Source.
-  let typed_candidates = if reference is Candidates(candidates~, ..) {
-    self.typed_candidates(scope, candidates, name, loc)
-  } else if self.typed_candidate(scope, reference, name, loc) is Some(candidate) {
-    [candidate]
-  } else {
-    []
-  }
-  match
-    self.select_callable_by_local_typing(
-      scope, name, typed_candidates, arguments, expected_result, loc,
-    ) {
-    Selected(candidate) =>
-      self.synthesize_checked_callable_candidate(
-        scope, name, candidate, arguments, loc,
-      )
-    Ambiguous(name~, ..) => {
-      self.report_ambiguous_value_reference(name, loc)
-      checked_expression_none_reported(Error)
-    }
-    NoMatch(name~) => {
-      self.diagnostics.push({
-        kind: CannotInferExpression(
-          "no matching callable value reference " + name,
-        ),
-        loc,
-      })
-      checked_expression_none_reported(Error)
-    }
-  }
-}
-
-///|
-fn SemanticChecker::synthesize_checked_callable_candidate(
-  self : SemanticChecker,
-  scope : TypeScope,
-  name : String,
-  candidate : @candidates.CallableCandidate,
-  arguments : Array[@desugar.DesugaredCallArgument],
-  loc : SourceSpan,
-) -> CheckedExpressionSynthesis {
-  let checked_callee = self.synthesize_checked_value_reference(
-    scope,
-    candidate.reference,
-    name,
-    loc,
-  )
-  guard self.require_checked_expression(checked_callee, loc, "call callee")
-    is Some(callee) else {
-    return checked_expression_none_reported(candidate.result)
-  }
-  guard self.check_checked_call_arguments(
-      scope,
-      candidate.parameters,
-      arguments,
-      loc,
-    )
-    is Some(arguments) else {
-    return checked_expression_none_reported(candidate.result)
-  }
-  let callee = type_applied_callee(
-    callee,
-    candidate.type_arguments,
-    Function(candidate.parameters, candidate.result),
-    loc,
-  )
-  checked_expression(
-    Call(callee~, arguments~, type_=candidate.result, loc~),
-    candidate.result,
-  )
 }
 
 ///|
@@ -998,38 +900,6 @@ fn SemanticChecker::check_checked_function_literal(
 }
 
 ///|
-fn SemanticChecker::check_checked_candidate_reference(
-  self : SemanticChecker,
-  scope : TypeScope,
-  name : String,
-  candidates : Array[@resolve.ResolvedValueReference],
-  expected : @types.Type,
-  loc : SourceSpan,
-) -> CheckedExpressionSynthesis {
-  let typed_candidates = self.typed_candidates(scope, candidates, name, loc)
-  match @candidates.select_by_expected(name, typed_candidates, expected) {
-    Selected(candidate) =>
-      self.synthesize_checked_value_reference(
-        scope,
-        candidate.reference,
-        name,
-        loc,
-      )
-    Ambiguous(name~, ..) => {
-      self.report_ambiguous_value_reference(name, loc)
-      checked_expression_none(Error)
-    }
-    NoMatch(name~) => {
-      self.diagnostics.push({
-        kind: CannotInferExpression("no matching value reference " + name),
-        loc,
-      })
-      checked_expression_none(Error)
-    }
-  }
-}
-
-///|
 fn SemanticChecker::synthesize_checked_value_reference(
   self : SemanticChecker,
   scope : TypeScope,
@@ -1040,31 +910,6 @@ fn SemanticChecker::synthesize_checked_value_reference(
   match reference {
     Symbol(symbol) =>
       self.synthesize_checked_symbol_value(scope, symbol, name, loc)
-    OpenedField(base~, path~) =>
-      self.synthesize_checked_opened_field(scope, base, path, name, loc)
-    Candidates(name~, candidates~) => {
-      let typed_candidates = self.typed_candidates(scope, candidates, name, loc)
-      match @candidates.select_without_context(name, typed_candidates) {
-        Selected(candidate) =>
-          self.synthesize_checked_value_reference(
-            scope,
-            candidate.reference,
-            name,
-            loc,
-          )
-        Ambiguous(name~, ..) => {
-          self.report_ambiguous_value_reference(name, loc)
-          checked_expression_none(Error)
-        }
-        NoMatch(name~) => {
-          self.diagnostics.push({
-            kind: CannotInferExpression("no matching value reference " + name),
-            loc,
-          })
-          checked_expression_none(Error)
-        }
-      }
-    }
     Unresolved(name) => {
       self.diagnostics.push({ kind: UnresolvedValue(name), loc })
       checked_expression_none(Error)
@@ -1147,54 +992,6 @@ fn SemanticChecker::checked_field_from_symbol(
     loc,
   )
   checked_expression(Field(base~, field~, name~, type_~, loc~), type_)
-}
-
-///|
-fn SemanticChecker::synthesize_checked_opened_field(
-  self : SemanticChecker,
-  scope : TypeScope,
-  base : ValueSymbolId,
-  path : Array[FieldSymbolId],
-  name : String,
-  loc : SourceSpan,
-) -> CheckedExpressionSynthesis {
-  guard scope.lookup(base) is Some(base_type) else {
-    self.diagnostics.push({ kind: UnresolvedValue(name), loc })
-    return checked_expression_none(Error)
-  }
-  let base_name = match self.source.symbols.value_metadata(base) {
-    Some(metadata) => metadata.name
-    None => name
-  }
-  let mut expression : @checked.CheckedExpr = Value(
-    name=base_name,
-    symbol=base,
-    type_=base_type,
-    loc~,
-  )
-  let mut type_ = base_type
-  for field in path {
-    let field_name = match self.source.symbols.field_metadata(field) {
-      Some(metadata) => metadata.name
-      None => name
-    }
-    let field_type = self.declarations.field_type(
-      self.diagnostics,
-      type_,
-      field,
-      field_name,
-      loc,
-    )
-    expression = Field(
-      base=expression,
-      field~,
-      name=field_name,
-      type_=field_type,
-      loc~,
-    )
-    type_ = field_type
-  }
-  checked_expression(expression, type_)
 }
 
 ///|

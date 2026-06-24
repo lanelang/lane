@@ -373,28 +373,7 @@ pub impl @prettyprinter.Pretty for ResolvedValueReference with fn pretty(
 ) {
   match reference {
     Symbol(symbol) => symbol.pretty()
-    OpenedField(base~, path~) =>
-      field_path_doc(path) + space + text("of") + space + base.pretty()
-    Candidates(name~, candidates~) =>
-      text("?candidates") +
-      space +
-      text(name) +
-      space +
-      @pretty.bracketed_inline(candidates.map(ResolvedValueReference::pretty))
     Unresolved(name) => text("?") + text(name)
-  }
-}
-
-///|
-fn field_path_doc(path : Array[FieldSymbolId]) -> Document {
-  if path.is_empty() {
-    empty
-  } else {
-    let mut doc = path[0].pretty()
-    for index in 1..<path.length() {
-      doc = doc + text(".") + path[index].pretty()
-    }
-    doc
   }
 }
 

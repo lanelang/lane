@@ -16,18 +16,6 @@ fn SemanticChecker::report_ambiguous_variant_reference(
 }
 
 ///|
-fn SemanticChecker::report_ambiguous_value_reference(
-  self : SemanticChecker,
-  name : String,
-  loc : SourceSpan,
-) -> Unit {
-  self.diagnostics.push({
-    kind: CannotInferExpression("ambiguous value reference " + name),
-    loc,
-  })
-}
-
-///|
 fn SemanticChecker::diagnostic_checkpoint(
   self : SemanticChecker,
 ) -> DiagnosticCheckpoint {

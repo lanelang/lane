@@ -289,8 +289,6 @@ pub impl @prettyprinter.Pretty for ResolvedValueParameter
 
 pub(all) enum ResolvedValueReference {
   Symbol(@symbol.ValueSymbolId)
-  OpenedField(base~ : @symbol.ValueSymbolId, path~ : Array[@symbol.FieldSymbolId])
-  Candidates(name~ : String, candidates~ : Array[ResolvedValueReference])
   Unresolved(String)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedValueReference

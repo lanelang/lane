@@ -208,8 +208,6 @@ pub(all) enum ResolvedType {
 ///|
 pub(all) enum ResolvedValueReference {
   Symbol(ValueSymbolId)
-  OpenedField(base~ : ValueSymbolId, path~ : Array[FieldSymbolId])
-  Candidates(name~ : String, candidates~ : Array[ResolvedValueReference])
   Unresolved(String)
 } derive(Debug, Eq)
 

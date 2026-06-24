@@ -1037,7 +1037,7 @@ fn Resolver::resolve_unqualified_name_use(
   name_use : UnqualifiedNameUse,
 ) -> ResolvedExpr {
   match scope.value_reference(name) {
-    Symbol(_) | OpenedField(..) | Candidates(..) as reference =>
+    Symbol(_) as reference =>
       name_use.resolve_as_value(self, scope, name, name_loc, reference)
     Unresolved(_) =>
       self.resolve_unqualified_variant_use(scope, name, name_loc, name_use)
@@ -1282,8 +1282,8 @@ fn @syntax.FunctionLiteralParameter::resolve_function_literal_parameter(
 ///|
 /// Resolves a local block item in source order.
 ///
-/// Example: a local `let` extends the following scope, a local `fn` binds its
-/// name before resolving its body, and a local `open` exposes struct fields.
+/// Example: a local `let` extends the following scope, and a local `fn` binds
+/// its name before resolving its body.
 fn @syntax.LocalItem::resolve_local_item(
   self : @syntax.LocalItem,
   resolver : Resolver,
@@ -1606,32 +1606,8 @@ fn Resolver::binding_display(self : Resolver, binding : ValueBinding) -> String 
         Some(metadata) => metadata.name
         None => binding.name
       }
-    OpenedField(base~, path~) => {
-      let base_name = match self.registry.value_metadata(base) {
-        Some(metadata) => metadata.name
-        None => "<unknown>"
-      }
-      base_name + "." + self.field_path_display(path, binding.name)
-    }
-    Candidates(name~, ..) => name
     Unresolved(name) => name
   }
-}
-
-///|
-fn Resolver::field_path_display(
-  self : Resolver,
-  path : Array[FieldSymbolId],
-  fallback : String,
-) -> String {
-  let names = []
-  for field in path {
-    match self.registry.field_metadata(field) {
-      Some(metadata) => names.push(metadata.name)
-      None => names.push(fallback)
-    }
-  }
-  names.join(".")
 }
 
 ///|
@@ -1711,8 +1687,6 @@ fn Resolver::report_unresolved_value(
 ) -> Unit {
   match reference {
     Symbol(_) => ()
-    OpenedField(..) => ()
-    Candidates(..) => ()
     Unresolved(name) => self.report(UnresolvedValue(name), loc)
   }
 }

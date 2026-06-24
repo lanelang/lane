@@ -25,22 +25,6 @@ fn CheckedDeclarationEnvironment::checked_enum(
 }
 
 ///|
-fn CheckedDeclarationEnvironment::field_path_type(
-  self : CheckedDeclarationEnvironment,
-  diagnostics : Array[TypeCheckDiagnostic],
-  base_type : @types.Type,
-  path : Array[FieldSymbolId],
-  name : String,
-  loc : SourceSpan,
-) -> @types.Type {
-  let mut current = base_type
-  for field in path {
-    current = self.field_type(diagnostics, current, field, name, loc)
-  }
-  current
-}
-
-///|
 fn CheckedDeclarationEnvironment::field_type(
   self : CheckedDeclarationEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],

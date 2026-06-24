@@ -10,21 +10,16 @@ fn SemanticChecker::check_expr(
   //   Gamma |- e <= Expected
   //
   // The expected type flows only to syntax nodes that are adjacent to this
-  // expression: variable candidates, block results, if branches, function
-  // literals, calls, and operators. This is the local part of LTI; it never
-  // creates global inference variables to be solved elsewhere.
+  // expression: block results, if branches, function literals, calls, and
+  // operators. This is the local part of LTI; it never creates global inference
+  // variables to be solved elsewhere.
   match expr {
     Literal(literal~, loc~) => self.check_literal(literal, expected, loc)
     Builtin(_, ..) => ()
-    Var(name~, reference~, loc~) =>
-      match reference {
-        Candidates(candidates~, ..) =>
-          self.check_candidate_reference(scope, name, candidates, expected, loc)
-        _ => {
-          let actual = self.synthesize_expr(scope, expr)
-          self.expect_type(expected, actual, expr.loc())
-        }
-      }
+    Var(..) => {
+      let actual = self.synthesize_expr(scope, expr)
+      self.expect_type(expected, actual, expr.loc())
+    }
     Block(items~, result~, ..) =>
       self.check_block(scope, items, result, expected)
     If(condition~, then_branch~, else_branch~, ..) =>

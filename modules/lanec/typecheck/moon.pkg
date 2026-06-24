@@ -2,7 +2,6 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/desugar",
-  "Milky2018/lanec/typecheck/candidates",
   "Milky2018/lanec/pretty",
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
