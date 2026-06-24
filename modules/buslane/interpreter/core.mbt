@@ -24,14 +24,12 @@ pub struct BuslaneRuntimeValue {
 }
 
 ///|
-priv struct BuslaneRuntimeBinding {
-  id : @buslane.ValueId
-  value : BuslaneRuntimeValue
-}
-
-///|
 priv struct BuslaneRuntimeEnvironment {
-  values : Array[BuslaneRuntimeBinding]
+  parent : BuslaneRuntimeEnvironment?
+  mut values : @immut_sorted_map.SortedMap[
+    @buslane.ValueId,
+    BuslaneRuntimeValue,
+  ]
 }
 
 ///|
@@ -170,7 +168,7 @@ fn BuslaneRuntimeValue::runtime(
 ///|
 /// Creates an empty Buslane runtime environment.
 fn BuslaneRuntimeEnvironment::BuslaneRuntimeEnvironment() -> BuslaneRuntimeEnvironment {
-  { values: [] }
+  { parent: None, values: @immut_sorted_map.new() }
 }
 
 ///|
@@ -215,34 +213,34 @@ fn BuslaneExternalRuntime::resolve(
 }
 
 ///|
-/// Binds a Buslane value identity in this runtime environment.
+/// Creates a child frame whose parent is this runtime environment.
+fn BuslaneRuntimeEnvironment::child(
+  self : BuslaneRuntimeEnvironment,
+) -> BuslaneRuntimeEnvironment {
+  { parent: Some(self), values: @immut_sorted_map.new() }
+}
+
+///|
+/// Binds a Buslane value identity in this runtime environment frame.
 fn BuslaneRuntimeEnvironment::bind(
   self : BuslaneRuntimeEnvironment,
   id : @buslane.ValueId,
   value : BuslaneRuntimeValue,
 ) -> Unit {
-  self.values.push({ id, value })
+  self.values = self.values.add(id, value)
 }
 
 ///|
-/// Returns a copy of this runtime environment.
-fn BuslaneRuntimeEnvironment::copy(
-  self : BuslaneRuntimeEnvironment,
-) -> BuslaneRuntimeEnvironment {
-  { values: self.values.copy() }
-}
-
-///|
-/// Looks up a value identity, preferring the latest binding.
+/// Looks up a value identity, searching outward through parent frames.
 fn BuslaneRuntimeEnvironment::lookup(
   self : BuslaneRuntimeEnvironment,
   id : @buslane.ValueId,
 ) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
-  for index = self.values.length() - 1; index >= 0; index = index - 1 {
-    let binding = self.values[index]
-    if binding.id == id {
-      return binding.value
-    }
+  if self.values.get(id) is Some(value) {
+    return value
+  }
+  if self.parent is Some(parent) {
+    return parent.lookup(id)
   }
   raise UnboundValue(id)
 }

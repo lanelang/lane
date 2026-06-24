@@ -162,6 +162,42 @@ test "recursive group closures see later bindings from same group" {
 }
 
 ///|
+test "closure capture ignores later child frame shadowing" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let first = metadata.define_value(Local, int_type())
+  let captured = metadata.define_value(Local, Function([], int_type()))
+  let shadow = metadata.define_value(Local, int_type())
+  let result = metadata.define_value(Value, int_type())
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Let(
+          first,
+          Literal(Int(1L)),
+          Let(
+            captured,
+            Function({
+              parameters: [],
+              result_type: int_type(),
+              body: Ref(first),
+            }),
+            Let(shadow, Literal(Int(2L)), Call(Ref(captured), [])),
+          ),
+        ),
+      ),
+    ],
+  }
+  expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 1",
+  )
+}
+
+///|
 test "data constructor match selects matching alternative" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_type_parameter(Type)

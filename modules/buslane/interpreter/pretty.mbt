@@ -55,23 +55,23 @@ fn runtime_value_source_doc(value : BuslaneRuntimeValue) -> Document {
 }
 
 ///|
-impl @prettyprinter.Pretty for BuslaneRuntimeBinding with fn pretty(
-  binding : BuslaneRuntimeBinding,
-) {
-  text("value") +
-  space +
-  binding.id.pretty() +
-  space +
-  braced_block([binding.value.pretty()])
+fn runtime_binding_doc(
+  binding : (@buslane.ValueId, BuslaneRuntimeValue),
+) -> Document {
+  let (id, value) = binding
+  text("value") + space + id.pretty() + space + braced_block([value.pretty()])
 }
 
 ///|
 impl @prettyprinter.Pretty for BuslaneRuntimeEnvironment with fn pretty(
   environment : BuslaneRuntimeEnvironment,
 ) {
-  text("buslane_environment") +
-  space +
-  braced_block(environment.values.map(BuslaneRuntimeBinding::pretty))
+  let docs = environment.values.to_array().map(runtime_binding_doc)
+  let docs = match environment.parent {
+    None => docs
+    Some(parent) => docs + [section("parent", [parent.pretty()])]
+  }
+  text("buslane_environment") + space + braced_block(docs)
 }
 
 ///|

@@ -87,15 +87,13 @@ fn evaluate_buslane_expr(
         Closure(
           parameters=function.parameters,
           body=function.body,
-          environment=environment.copy(),
+          environment~,
         ),
       )
     Call(callee, arguments) =>
       evaluate_buslane_call(callee, arguments, environment, externals)
     TypeLambda(_, body) =>
-      BuslaneRuntimeValue::runtime(
-        TypeClosure(body~, environment=environment.copy()),
-      )
+      BuslaneRuntimeValue::runtime(TypeClosure(body~, environment~))
     TypeApply(callee, _) =>
       erase_buslane_type_application(
         evaluate_buslane_expr(callee, environment, externals),
@@ -113,13 +111,13 @@ fn evaluate_buslane_expr(
         ),
       )
     Let(id, initializer, body) => {
-      let frame = environment.copy()
+      let frame = environment.child()
       let value = evaluate_buslane_expr(initializer, environment, externals)
       frame.bind(id, value)
       evaluate_buslane_expr(body, frame, externals)
     }
     LetRec(bindings, body) => {
-      let frame = environment.copy()
+      let frame = environment.child()
       bind_buslane_recursive_group(bindings, frame)
       evaluate_buslane_expr(body, frame, externals)
     }
@@ -162,7 +160,7 @@ fn apply_buslane_function(
       if parameters.length() != arguments.length() {
         raise InvalidValue(message="argument count mismatch")
       }
-      let frame = environment.copy()
+      let frame = environment.child()
       for index in 0..<parameters.length() {
         frame.bind(parameters[index], arguments[index])
       }
@@ -202,7 +200,7 @@ fn evaluate_buslane_match(
     externals,
   )
   for alternative in match_.alternatives {
-    let branch = environment.copy()
+    let branch = environment.child()
     branch.bind(match_.binder, scrutinee)
     if bind_buslane_alternative(alternative, scrutinee, branch) {
       return evaluate_buslane_expr(alternative.body, branch, externals)

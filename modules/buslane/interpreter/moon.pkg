@@ -1,4 +1,5 @@
 import {
   "Milky2018/buslane",
   "moonbit-community/prettyprinter",
+  "moonbitlang/core/immut/sorted_map" @immut_sorted_map,
 }
