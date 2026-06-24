@@ -21,11 +21,12 @@ allowed. A single binder list is n-ary and non-curried; nested type-level
 lambdas express staged type functions. Lambda application uses capture-avoiding
 beta reduction. Lambda equality uses alpha-equivalence, but not eta equality.
 
-Top-level type aliases use `type Name = TypeExpr`. The left side is name-only,
-and alias functions are expressed by putting a type-level lambda on the right
-side. Alias right-hand sides may have any well-formed kind. Aliases are
-transparent, top-level only, order-independent, and acyclic; dependency
-analysis uses free alias references.
+Top-level type aliases use `type Name = TypeExpr` or the single-layer sugar
+`type Name[A1 : K1, ..., An : Kn] = TypeExpr`. The parameter header is preserved
+in source syntax, diagnostics, and parser fixtures, but semantically desugars
+to a type-level lambda on the right side. Alias right-hand sides may have any
+well-formed kind. Aliases are transparent, top-level only, order-independent,
+and acyclic; dependency analysis uses free alias references after desugaring.
 
 Definitional type equality uses transparent alias expansion plus full
 beta-normalization. Eta equality is not part of this decision. Normalization
@@ -52,7 +53,9 @@ Rejected alternatives:
 - Add automatic currying or implicit partial type application. This conflicts
   with Lane2's parameter-list design and explicit ambiguity principles.
 - Use declaration-specific multi-layer alias binders such as
-  `type Result[E][A] = ...`. Ordinary type-level lambdas are more orthogonal
-  and can appear in any type expression position.
+  `type Result[E][A] = ...`. A single alias parameter header is accepted as
+  source sugar, but staged type functions still use ordinary right-hand-side
+  type-level lambdas because they are orthogonal and can appear in any type
+  expression position.
 - Add eta equality for type-level functions. This is deferred to keep
   definitional equality tractable.

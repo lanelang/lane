@@ -26,8 +26,8 @@ affect. Items prefixed with `Existential:` refer to the design note in
 - [ ] F-Omega: promote higher-kinded types, type-level lambdas, top-level type
   aliases, and definitional type equality into the language specification.
 - [ ] F-Omega: extend syntax, parser, and pretty printers for kind parameter
-  lists, kind-annotated type binders, type-level lambdas, and name-only
-  top-level type aliases.
+  lists, kind-annotated type binders, type-level lambdas, and top-level type
+  alias parameter headers.
 
 ## 1. Compiler Identity And Types
 

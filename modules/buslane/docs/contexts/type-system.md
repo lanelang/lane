@@ -22,12 +22,12 @@ A type-level application that applies a type constructor of kind `[K1, ..., Kn] 
 _Avoid_: value call, runtime application
 
 **Type Alias Function**:
-A named source-level type function written as a top-level `type` alias whose right-hand side is a type-level lambda.
+A named source-level type function written as a transparent top-level `type` alias.
 _Avoid_: runtime alias, value function, nominal type constructor
 
 **Type-Level Lambda**:
 A type-level abstraction expression that introduces type parameter binders and returns a type-level expression.
-_Avoid_: value-level lambda, implicit curry, left-hand-side alias parameters
+_Avoid_: value-level lambda, implicit curry, separate alias-header semantics
 
 **Type-Level Lambda Alpha-Equivalence**:
 The rule that type-level lambdas differing only by consistent renaming of bound type parameters are equal.
@@ -49,13 +49,13 @@ _Avoid_: local type alias, block-scoped type function
 A top-level type alias whose right-hand side may have any well-formed kind.
 _Avoid_: value-level-only alias, Type-only alias
 
-**Name-Only Type Alias Declaration**:
-A top-level type alias declaration whose left-hand side binds only the alias name.
-_Avoid_: parameterized alias header, declaration-specific alias binder list
+**Type Alias Parameter Header**:
+An optional single non-empty bracketed type-parameter binder list on a top-level type alias declaration. Source syntax preserves the header; semantic typing and export treat it as a type-level lambda on the right-hand side.
+_Avoid_: nominal type parameter header, empty alias parameter header, multi-layer alias parameter header, separate alias identity
 
 **Type Alias Declaration Syntax**:
-The top-level source form `type Name = TypeExpr`.
-_Avoid_: type alias block syntax, parameterized alias header
+The top-level source forms `type Name = TypeExpr` and `type Name[Params] = TypeExpr`.
+_Avoid_: type alias block syntax, local type alias syntax
 
 **Unified Type Namespace**:
 The source namespace shared by primitive type names, nominal type constructors, type aliases, and in-scope type parameters.
@@ -162,7 +162,7 @@ The rule that kinds are equal exactly when their syntax trees match recursively 
 _Avoid_: kind normalization, kind alpha-equivalence
 
 **Kind-Annotated Type Parameter**:
-A type parameter binder that explicitly declares its kind, with omitted kind annotations defaulting to `Type`.
+A type parameter binder that explicitly declares its kind. Omitted kind annotations default to `Type`; Lane does not infer higher kinds from later use.
 _Avoid_: type member only kind annotation, inferred higher kind
 
 **Type Parameter Binder**:
@@ -323,11 +323,15 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - Lane preserves higher-kinded polymorphic values through **Buslane F-Omega Constructs** rather than erasing them before Buslane.
 - **Type Alias Functions** are transparent and participate in **Definitional Type Equality**.
 - Buslane type metadata uses **Alias-Free Buslane Type Terms**; source type alias names are not Buslane identities.
+- Public and private **Top-Level Type Aliases** share the same **Type Alias Declaration Syntax**; `pub` controls module-interface visibility only.
+- A public **Type Alias Parameter Header** is exported through the module interface as the equivalent transparent **Type-Level Lambda** body.
 - Diagnostics may use **Source Type Presentation** to show user-written alias names even when semantic type equality is alias-free.
+- Source pretty printing and parser fixtures preserve a user-written **Type Alias Parameter Header**; semantic debug output and module interfaces may print the equivalent **Type-Level Lambda** form.
+- Diagnostics for a **Type Alias Parameter Header** use source locations and source terminology for the header and right-hand side, not the synthetic desugared **Type-Level Lambda**.
 - **Definitional Type Equality** is **Beta Definitional Equality**; v1 does not use eta equality for type-level functions.
 - **Beta Definitional Equality** compares **Full Type Normalization** results.
 - Exhausting **Type Normalization Fuel** is an internal compiler bug, not a user-facing type error.
-- A **Top-Level Type Alias** binds a name to a type-level expression; type parameters for alias functions are introduced by **Type-Level Lambdas** on the right-hand side.
+- A **Top-Level Type Alias** binds a name to a type-level expression; a **Type Alias Parameter Header** desugars to a **Type-Level Lambda** on the right-hand side.
 - **Type-Level Lambdas** are ordinary **Type-Level Expressions** and may appear anywhere a type-level expression is syntactically allowed; enclosing positions still check the resulting kind.
 - A **Type-Level Lambda** may be used directly as a type argument or existential witness when its kind matches the required kind.
 - **Type-Level Lambdas** use **Type Parameter Binders**.
@@ -337,8 +341,13 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - A **Type-Level Lambda** body may have any well-formed kind.
 - A **Parameter-List Type Lambda** is not implicitly curried; nested type lambdas express staged type-level functions.
 - Every **Type Alias Function** is a **Top-Level Type Alias**; Lane does not support local type alias declarations.
-- Every **Top-Level Type Alias** uses **Name-Only Type Alias Declaration** syntax.
-- **Type Alias Declaration Syntax** is `type Name = TypeExpr`.
+- Every **Top-Level Type Alias** may use a **Type Alias Parameter Header**.
+- Syntax trees preserve a user-written **Type Alias Parameter Header**; semantic analysis observes the desugared **Type-Level Lambda** form.
+- A **Type Alias Parameter Header** is single-layer; staged type-level functions use nested **Type-Level Lambdas** on the right-hand side.
+- A **Type Alias Parameter Header** composes with right-hand-side **Type-Level Lambdas** by adding the outermost type-level lambda layer.
+- A **Type Alias Parameter Header** uses ordinary **Type Parameter Binders**; nested binders may shadow it, but duplicate binders in the same header are invalid.
+- **Acyclic Type Alias Graph** and **Free Alias Dependency** analysis observe the desugared body of a **Type Alias Parameter Header**.
+- **Type Alias Declaration Syntax** includes `type Name = TypeExpr` and `type Name[Params] = TypeExpr`.
 - A **Top-Level Type Alias** may be an **Arbitrary-Kind Type Alias**.
 - **Top-Level Type Aliases** share the **Unified Type Namespace** with structs, enums, and primitive type names.
 - Transparent type alias declarations form an **Acyclic Type Alias Graph**.
@@ -353,7 +362,7 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - Bracket syntax follows **Position-Directed Bracket Parsing**.
 - Type syntax follows **Type Lambda Precedence**; a type-level lambda used as an application callee must be parenthesized.
 - Kind equality is **Structural Kind Equality**; there are no kind variables, kind aliases, or kind-level reductions in v1.
-- Every type parameter binder may be a **Kind-Annotated Type Parameter**; omitted kind annotations default to `Type`.
+- Every type parameter binder may be a **Kind-Annotated Type Parameter**; omitted kind annotations default to `Type`, with no kind inference from later applications.
 - Every generic type parameter list uses **Type Parameter Binders** rather than declaration-specific bare name lists.
 - The `K` in a **Type Parameter Binder** is parsed by the full kind grammar; `F : [Type] -> Type` needs no extra parentheses.
 - **Type Parameter Shadowing** is allowed across nested scopes.
@@ -368,7 +377,7 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - A **Normalized String Literal** is an ASCII byte sequence.
 - **Enum Types** and **Struct Types** create **Nominal Types**.
 - A generic struct or enum uses **Generic Type Definition** syntax and is used with **Generic Type Application** syntax.
-- Structs and enums keep a **Nominal Type Parameter Header**; only type aliases use name-only declarations with type-level lambdas on the right-hand side.
+- Structs and enums keep a **Nominal Type Parameter Header**; type alias parameter headers are pure sugar for **Type-Level Lambdas**.
 - Lane function types use **Parameter-List Function Type** syntax.
 - **Generic Function Type** syntax elaborates to a **Forall Type**.
 - **Forall Types** bind **Kinded Forall Binders**; omitted kinds default to `Type`.
