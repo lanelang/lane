@@ -141,6 +141,37 @@ test "elaborate type aliases into alias-free buslane types" {
 }
 
 ///|
+test "elaborate higher-kinded struct parameters into verifiable buslane" {
+  let result = elaborate_buslane_source(
+    (
+      #|enum Option[A] {
+      #|  none
+      #|  some(A)
+      #|}
+      #|struct Mappable[F : [Type] -> Type] {
+      #|  map : [A, B]((A) -> B, F[A]) -> F[B]
+      #|}
+      #|fn[A, B] option_map(f : (A) -> B, option : Option[A]) -> Option[B] {
+      #|  match option {
+      #|    Option::none => Option::none
+      #|    Option::some(inner) => Option::some(f(inner))
+      #|  }
+      #|}
+      #|let option_mappable : Mappable[Option] = Mappable::{ map: option_map }
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
 test "elaborate struct field access into buslane selector" {
   let result = elaborate_buslane_source(
     (

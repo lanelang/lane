@@ -8,6 +8,8 @@ package "Milky2018/lane"
 // Types and methods
 type LaneCommand
 
+type LaneCommandOutcome
+
 // Type aliases
 
 // Traits

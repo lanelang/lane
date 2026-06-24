@@ -148,10 +148,10 @@ fn BuslaneLowerer::collect_struct_header(
   declaration : @checked.CheckedStructDeclaration,
 ) -> Unit {
   let parameters = declaration.type_parameters.map(fn(parameter) {
-    self.define_type_parameter(parameter.id)
+    self.define_type_parameter(parameter)
   })
   for type_member in declaration.type_members {
-    ignore(self.define_type_parameter(type_member.type_parameter.id))
+    ignore(self.define_type_parameter(type_member.type_parameter))
   }
   let target = self.metadata.define_type(parameters)
   self.type_symbols.push({ source: declaration.symbol, target })
@@ -163,11 +163,11 @@ fn BuslaneLowerer::collect_enum_header(
   declaration : @checked.CheckedEnumDeclaration,
 ) -> Unit {
   let parameters = declaration.type_parameters.map(fn(parameter) {
-    self.define_type_parameter(parameter.id)
+    self.define_type_parameter(parameter)
   })
   for variant in declaration.variants {
     for parameter in variant.type_parameters {
-      ignore(self.define_type_parameter(parameter.id))
+      ignore(self.define_type_parameter(parameter))
     }
   }
   let target = self.metadata.define_type(parameters)
@@ -195,7 +195,7 @@ fn BuslaneLowerer::collect_struct_constructor(
 ) -> Unit {
   let owner = self.type_id(declaration.symbol)
   let hidden_type_parameters = declaration.type_members.map(fn(type_member) {
-    self.define_type_parameter(type_member.type_parameter.id)
+    self.define_type_parameter(type_member.type_parameter)
   })
   let payload_types = declaration.fields.map(fn(field) {
     self.lower_type(field.type_)
@@ -214,7 +214,7 @@ fn BuslaneLowerer::collect_enum_constructors(
   let owner = self.type_id(declaration.symbol)
   for variant in declaration.variants {
     let hidden_type_parameters = variant.type_parameters.map(fn(parameter) {
-      self.define_type_parameter(parameter.id)
+      self.define_type_parameter(parameter)
     })
     let payload_types = variant.payload.map(fn(type_) { self.lower_type(type_) })
     let target = self.metadata.define_data_constructor(
@@ -260,10 +260,10 @@ fn BuslaneLowerer::selector_type_parameters(
   declaration : @checked.CheckedStructDeclaration,
 ) -> Array[@buslane.TypeParameterId] {
   let parameters = declaration.type_parameters.map(fn(parameter) {
-    self.define_type_parameter(parameter.id)
+    self.define_type_parameter(parameter)
   })
   for type_member in declaration.type_members {
-    parameters.push(self.define_type_parameter(type_member.type_parameter.id))
+    parameters.push(self.define_type_parameter(type_member.type_parameter))
   }
   parameters
 }
@@ -351,7 +351,7 @@ fn BuslaneLowerer::collect_top_values(
     match declaration {
       Function(declaration) => {
         for parameter in declaration.type_parameters {
-          ignore(self.define_type_parameter(parameter.id))
+          ignore(self.define_type_parameter(parameter))
         }
         let type_ = self.lower_type(declaration.type_)
         let value = self.define_value(declaration.symbol, Function, type_)
@@ -421,7 +421,7 @@ fn BuslaneLowerer::lower_function_declaration(
   declaration : @checked.CheckedFunctionDeclaration,
 ) -> @buslane.Expr {
   for parameter in declaration.type_parameters {
-    ignore(self.define_type_parameter(parameter.id))
+    ignore(self.define_type_parameter(parameter))
   }
   let type_parameters = declaration.type_parameters.map(fn(parameter) {
     self.type_parameter_id(parameter.id)
@@ -506,7 +506,7 @@ fn BuslaneLowerer::lower_function_literal(
   body : @checked.CheckedExpr,
 ) -> @buslane.Expr {
   for parameter in type_parameters {
-    ignore(self.define_type_parameter(parameter.id))
+    ignore(self.define_type_parameter(parameter))
   }
   let lowered_type_parameters = type_parameters.map(fn(parameter) {
     self.type_parameter_id(parameter.id)
@@ -697,7 +697,10 @@ fn BuslaneLowerer::lower_pattern_alternative(
     Variant(symbol~, type_arguments~, arguments~, ..) =>
       self.lower_data_pattern_alternative(
         self.data_constructor_id(symbol),
-        self.lower_pattern_type_binders(type_arguments),
+        self.lower_pattern_type_binders(
+          self.data_constructor_id(symbol),
+          type_arguments,
+        ),
         arguments,
         body,
         result_type,
@@ -744,7 +747,7 @@ fn BuslaneLowerer::lower_struct_pattern_alternative(
   let lowered_type_binders : Array[@buslane.TypeParameterId] = []
   for binder in type_binders {
     if binder.type_parameter is Some(parameter) {
-      lowered_type_binders.push(self.define_type_parameter(parameter.id))
+      lowered_type_binders.push(self.define_type_parameter(parameter))
     }
   }
   let patterns = fields.map(fn(field) { field.pattern })
@@ -760,12 +763,27 @@ fn BuslaneLowerer::lower_struct_pattern_alternative(
 ///|
 fn BuslaneLowerer::lower_pattern_type_binders(
   self : BuslaneLowerer,
+  data_constructor : @buslane.DataConId,
   type_arguments : Array[@types.Type],
 ) -> Array[@buslane.TypeParameterId] {
   let lowered : Array[@buslane.TypeParameterId] = []
-  for argument in type_arguments {
+  let hidden_parameters = match
+    self.metadata.data_constructor_info(data_constructor) {
+    Some(info) => info.hidden_type_parameters
+    None => []
+  }
+  for index in 0..<type_arguments.length() {
+    let argument = type_arguments[index]
     if argument is Parameter(parameter) {
-      lowered.push(self.define_type_parameter(parameter))
+      let kind = match hidden_parameters.get(index) {
+        Some(hidden) =>
+          match self.metadata.type_parameter_info(hidden) {
+            Some(info) => info.kind
+            None => Type
+          }
+        None => Type
+      }
+      lowered.push(self.define_type_parameter_with_kind(parameter, kind))
     }
   }
   lowered
@@ -847,8 +865,13 @@ fn BuslaneLowerer::define_pattern_binders(
     Wildcard(..) | Literal(..) => ()
     Binding(symbol~, type_~, ..) =>
       ignore(self.define_value(symbol, MatchBinder, self.lower_type(type_)))
-    Variant(type_arguments~, arguments~, ..) => {
-      ignore(self.lower_pattern_type_binders(type_arguments))
+    Variant(symbol~, type_arguments~, arguments~, ..) => {
+      ignore(
+        self.lower_pattern_type_binders(
+          self.data_constructor_id(symbol),
+          type_arguments,
+        ),
+      )
       for argument in arguments {
         self.define_pattern_binders(argument)
       }
@@ -856,7 +879,7 @@ fn BuslaneLowerer::define_pattern_binders(
     Struct(type_binders~, fields~, ..) => {
       for binder in type_binders {
         if binder.type_parameter is Some(parameter) {
-          ignore(self.define_type_parameter(parameter.id))
+          ignore(self.define_type_parameter(parameter))
         }
       }
       for field in fields {
@@ -914,9 +937,7 @@ fn BuslaneLowerer::lower_type(
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
-        parameters.map(fn(parameter) {
-          self.define_type_parameter(parameter.id)
-        }),
+        parameters.map(fn(parameter) { self.define_type_parameter(parameter) }),
         self.lower_type(body),
       )
     Parameter(parameter) => Parameter(self.type_parameter_id(parameter))
@@ -927,9 +948,7 @@ fn BuslaneLowerer::lower_type(
       )
     Forall(parameters, body) =>
       Forall(
-        parameters.map(fn(parameter) {
-          self.define_type_parameter(parameter.id)
-        }),
+        parameters.map(fn(parameter) { self.define_type_parameter(parameter) }),
         self.lower_type(body),
       )
   }
@@ -968,6 +987,15 @@ fn lower_primitive_type(
     Bool => Bool
     String => String
     Unit => Unit
+  }
+}
+
+///|
+fn lower_kind(kind : @types.Kind) -> @buslane.Kind {
+  match kind {
+    Type => Type
+    Function(parameters, result) =>
+      Function(parameters.map(lower_kind), lower_kind(result))
   }
 }
 
@@ -1021,14 +1049,23 @@ fn BuslaneLowerer::define_value(
 ///|
 fn BuslaneLowerer::define_type_parameter(
   self : BuslaneLowerer,
+  parameter : @types.TypeParameter,
+) -> @buslane.TypeParameterId {
+  self.define_type_parameter_with_kind(parameter.id, lower_kind(parameter.kind))
+}
+
+///|
+fn BuslaneLowerer::define_type_parameter_with_kind(
+  self : BuslaneLowerer,
   source : @symbol.TypeParameterId,
+  kind : @buslane.Kind,
 ) -> @buslane.TypeParameterId {
   for entry in self.type_parameters {
     if entry.source == source {
       return entry.target
     }
   }
-  let target = self.metadata.define_type_parameter(Type)
+  let target = self.metadata.define_type_parameter(kind)
   self.type_parameters.push({ source, target })
   target
 }
@@ -1051,7 +1088,12 @@ fn BuslaneLowerer::type_parameter_id(
   self : BuslaneLowerer,
   source : @symbol.TypeParameterId,
 ) -> @buslane.TypeParameterId {
-  self.define_type_parameter(source)
+  for entry in self.type_parameters {
+    if entry.source == source {
+      return entry.target
+    }
+  }
+  abort("unknown Buslane type parameter id")
 }
 
 ///|
