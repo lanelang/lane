@@ -1,5 +1,6 @@
 // invalid: enum variants in patterns must be qualified
 module Examples.Invalid06
+
 pub enum Option[A] {
   none
   some(A)

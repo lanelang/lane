@@ -1,10 +1,11 @@
 ///|
-#cfg(any(target="native", target="llvm"))
-extern "c" fn native_exit(code : Int) = "exit"
-
-///|
 fn read_source_file(path : String) -> String raise {
   @fs.read_file_to_string(path, encoding="utf8")
+}
+
+///|
+fn write_source_file(path : String, source : String) -> Unit raise {
+  @fs.write_string_to_file(path, source, encoding="utf8")
 }
 
 ///|
@@ -44,6 +45,7 @@ fn append_library_dir_sources(
 
 ///|
 fn should_skip_library_entry(entry : String) -> Bool {
+  // TODO: Decide the final default-excluded directory names for library discovery.
   entry.has_prefix(".") ||
   entry == "_build" ||
   entry == "build" ||
@@ -51,18 +53,6 @@ fn should_skip_library_entry(entry : String) -> Bool {
 }
 
 ///|
-fn exit_success() -> Unit {
-  native_exit(0)
-}
-
-///|
-fn exit_failure() -> Unit {
-  native_exit(1)
-}
-
-///|
-fn[T] fail_with_message(message : String) -> T {
-  println(message)
-  exit_failure()
+fn[T] internal_error(message : String) -> T {
   abort(message)
 }

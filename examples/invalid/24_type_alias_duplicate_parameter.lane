@@ -2,6 +2,7 @@
 // rejected.
 
 module Examples.Invalid24
+
 pub type Bad[A, A] = A
 
 pub let answer : Int = 42

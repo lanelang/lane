@@ -1,8 +1,18 @@
 ///|
 test "parse run target from file and entry suffix" {
-  let target = parse_run_target("examples/main.lane:answer")
+  guard parse_run_target("examples/main.lane:answer") is Ok(target) else {
+    abort("expected run target")
+  }
   inspect(target.file, content="examples/main.lane")
   inspect(target.entry, content="answer")
+}
+
+///|
+test "reject run target without entry suffix" {
+  guard parse_run_target("examples/main.lane") is Err(message) else {
+    abort("expected run target error")
+  }
+  inspect(message, content="run target must be FILE:ENTRY")
 }
 
 ///|
@@ -21,6 +31,7 @@ test "run selected public value through buslane interpreter" {
     @intrinsics.standard_external_runtime(result.externals),
   )
   let entry = find_entry(result.entries, "answer")
+  guard entry is Ok(entry) else { abort("expected entry") }
   inspect(
     render_entry_value(runtime.lookup(entry.value), entry.type_),
     content="42 : Int",
@@ -46,6 +57,7 @@ test "selected public function entry renders as function" {
     @intrinsics.standard_external_runtime(result.externals),
   )
   let entry = find_entry(result.entries, "id")
+  guard entry is Ok(entry) else { abort("expected entry") }
   inspect(
     render_entry_value(runtime.lookup(entry.value), entry.type_),
     content="<function> : (Int) -> Int",

@@ -2,16 +2,21 @@
 // type parameters normalize before value type checking and Buslane lowering.
 
 module Examples.Valid15
+
 import Ops.*
+
 pub struct Box[A] {
   value : A
 }
 
 pub type Id[A] = A
+
 pub type ApplyInt[F : [Type] -> Type] = F[Int]
 
 pub fn get(box : ApplyInt[Box]) -> Id[Int] {
   box.value
 }
 
-pub let answer : Id[Int] = get(Box::{ value: 42 })
+pub let answer : Id[Int] = get(Box::{
+  value: 42
+})

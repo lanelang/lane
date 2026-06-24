@@ -1,6 +1,7 @@
 // Invalid: type aliases allow one parameter header layer only.
 
 module Examples.Invalid22
+
 pub type Result[E][A] = Int
 
 pub let answer : Int = 42

@@ -1,5 +1,6 @@
 // invalid: struct spread and copy update are not supported in v1
 module Examples.Invalid09
+
 pub struct Point {
   x : Int
   y : Int

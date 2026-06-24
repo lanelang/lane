@@ -1,3 +1,4 @@
 // invalid: tuple types are not part of v1
 module Examples.Invalid16
+
 pub let pair : (Int, Bool) = (1, true)

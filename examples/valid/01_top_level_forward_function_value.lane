@@ -1,4 +1,5 @@
 module Examples.Valid01
+
 pub fn read_answer() -> Int {
   answer
 }

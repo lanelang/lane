@@ -1,5 +1,6 @@
 // invalid: payloadless variants are values, not zero-argument calls
 module Examples.Invalid07
+
 pub enum Option[A] {
   none
   some(A)

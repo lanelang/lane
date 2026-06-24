@@ -2,6 +2,7 @@
 // annotations.
 
 module Examples.Valid18
+
 pub struct Box[A] {
   value : A
 }
@@ -12,4 +13,6 @@ pub fn get(box : ApplyInt[Box]) -> Int {
   box.value
 }
 
-pub let answer : Int = get(Box::{ value: 42 })
+pub let answer : Int = get(Box::{
+  value: 42
+})

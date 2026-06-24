@@ -1,3 +1,4 @@
 // invalid: top-level let must include an explicit type annotation
 module Examples.Invalid01
+
 pub let answer = 42

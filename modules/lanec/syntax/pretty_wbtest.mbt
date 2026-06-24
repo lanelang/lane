@@ -128,6 +128,7 @@ test "pretty print source file" {
     @prettyprinter.render(file),
     content=(
       #|module Test
+      #|
       #|struct Point {
       #|  x : Int
       #|  y : Int

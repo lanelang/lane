@@ -1,5 +1,6 @@
 // invalid: a block has local items followed by exactly one final expression
 module Examples.Invalid05
+
 pub fn bad(x : Int) -> Int {
   x + 1
   x + 2

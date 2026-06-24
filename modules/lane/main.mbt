@@ -1,13 +1,69 @@
 ///|
-async fn main {
-  @async.pause()
-  let command = parse_lane_command() catch {
-    error => fail_with_message("\{error}")
+enum LaneCommandOutcome {
+  Succeeded
+  UserFailure
+}
+
+///|
+fn main {
+  let command = match parse_lane_command() {
+    Ok(command) => command
+    Err(message) => {
+      println(message)
+      println("lane command failed")
+      return
+    }
   }
-  match command {
+  let outcome = match command {
     Check(file~, libs~, lib_dirs~) => lane_check(file, libs, lib_dirs)
+    Fmt(files~, check~) => lane_fmt(files, check)
     Run(file~, entry~, libs~, lib_dirs~) =>
       lane_run(file, entry, libs, lib_dirs)
+  }
+  match outcome {
+    Succeeded => ()
+    UserFailure => println("lane command failed")
+  }
+}
+
+///|
+fn lane_fmt(files : Array[String], check : Bool) -> LaneCommandOutcome {
+  let mut failed = false
+  for file in files {
+    let source = read_source_file(file) catch {
+      error => {
+        println("failed to read source: \{error}")
+        failed = true
+        continue
+      }
+    }
+    match @format.format_source(source) {
+      Ok(formatted) =>
+        if formatted != source {
+          if check {
+            println(file + ": not formatted")
+            failed = true
+          } else {
+            write_source_file(file, formatted) catch {
+              error => {
+                println("failed to write source: \{error}")
+                failed = true
+              }
+            }
+          }
+        }
+      Err(diagnostics) => {
+        failed = true
+        for diagnostic in diagnostics {
+          println(file + ": " + @prettyprinter.render(diagnostic, width=100))
+        }
+      }
+    }
+  }
+  if failed {
+    UserFailure
+  } else {
+    Succeeded
   }
 }
 
@@ -16,19 +72,25 @@ fn lane_check(
   file : String,
   libs : Array[String],
   lib_dirs : Array[String],
-) -> Unit {
+) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
-    error => fail_with_message("failed to read source: \{error}")
+    error => {
+      println("failed to read source: \{error}")
+      return UserFailure
+    }
   }
   let libraries = read_library_sources(libs, lib_dirs) catch {
-    error => fail_with_message("failed to read library source: \{error}")
+    error => {
+      println("failed to read library source: \{error}")
+      return UserFailure
+    }
   }
   let result = @compile.check_sources(source, libraries)
   if result.diagnostics.is_empty() {
-    exit_success()
+    Succeeded
   } else {
     print_diagnostics(result.diagnostics)
-    exit_failure()
+    UserFailure
   }
 }
 
@@ -38,32 +100,45 @@ fn lane_run(
   entry : String,
   libs : Array[String],
   lib_dirs : Array[String],
-) -> Unit {
+) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
-    error => fail_with_message("failed to read source: \{error}")
+    error => {
+      println("failed to read source: \{error}")
+      return UserFailure
+    }
   }
   let libraries = read_library_sources(libs, lib_dirs) catch {
-    error => fail_with_message("failed to read library source: \{error}")
+    error => {
+      println("failed to read library source: \{error}")
+      return UserFailure
+    }
   }
   let result = @compile.compile_sources(source, libraries)
   if !result.diagnostics.is_empty() {
     print_diagnostics(result.diagnostics)
-    exit_failure()
+    return UserFailure
   }
   guard result.program is Some(program) else {
-    fail_with_message("compiler produced no Buslane program")
+    internal_error("compiler produced no Buslane program")
   }
   let runtime = @buslane_interpreter.evaluate_buslane_program(
     program,
     @intrinsics.standard_external_runtime(result.externals),
   ) catch {
-    error => fail_with_message(@prettyprinter.render(error, width=100))
+    error => internal_error(@prettyprinter.render(error, width=100))
   }
-  let entry = find_entry(result.entries, entry)
+  let entry = match find_entry(result.entries, entry) {
+    Ok(entry) => entry
+    Err(message) => {
+      println(message)
+      return UserFailure
+    }
+  }
   let value = runtime.lookup(entry.value) catch {
-    error => fail_with_message(@prettyprinter.render(error, width=100))
+    error => internal_error(@prettyprinter.render(error, width=100))
   }
   println(render_entry_value(value, entry.type_))
+  Succeeded
 }
 
 ///|
@@ -78,12 +153,12 @@ fn render_entry_value(
 fn find_entry(
   entries : Array[@elaborate.BuslaneEntry],
   name : String,
-) -> @elaborate.BuslaneEntry {
+) -> Result[@elaborate.BuslaneEntry, String] {
   let matched = entries.filter(entry => entry.name == name)
   match matched.length() {
-    1 => matched[0]
-    0 => fail_with_message("entry not found: " + name)
-    _ => fail_with_message("ambiguous entry: " + name)
+    1 => Ok(matched[0])
+    0 => Err("entry not found: " + name)
+    _ => Err("ambiguous entry: " + name)
   }
 }
 

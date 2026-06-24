@@ -2,7 +2,9 @@
 // graph. Expanding A reaches B, which reaches A again.
 
 module Examples.Invalid20
+
 pub type A = B
+
 pub type B = A
 
 pub let answer : A = 42

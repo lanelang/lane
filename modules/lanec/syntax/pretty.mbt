@@ -60,6 +60,19 @@ fn brace_block(docs : Array[Document]) -> Document {
 }
 
 ///|
+fn brace_comma_block(docs : Array[Document]) -> Document {
+  if docs.is_empty() {
+    surround(char('{'), char('}'), empty)
+  } else {
+    surround(
+      char('{'),
+      hardline + char('}'),
+      nest(hardline + separate(comma_line(), docs)),
+    )
+  }
+}
+
+///|
 fn source_string(value : String) -> Document {
   text(value.escape())
 }
@@ -78,7 +91,7 @@ pub impl @prettyprinter.Pretty for SourceFile with fn pretty(file : SourceFile) 
       ),
     )
   }
-  separate(hardline, docs)
+  separate(hardline + hardline, docs)
 }
 
 ///|
@@ -469,7 +482,7 @@ fn Expr::to_doc_with_precedence(
       let head = text(type_name) +
         bracketed_type_arguments(type_arguments) +
         text("::")
-      (10, head + brace_block(fields.map(StructLiteralField::to_doc)))
+      (10, head + brace_comma_block(fields.map(StructLiteralField::to_doc)))
     }
     Builtin(name, ..) =>
       (10, keyword("builtin") + parenthesized([source_string(name)]))
@@ -696,7 +709,7 @@ fn Pattern::to_doc(self : Pattern) -> Document {
     Struct(type_name~, fields~, ..) =>
       text(type_name) +
       text("::") +
-      brace_block(fields.map(StructPatternField::to_doc))
+      brace_comma_block(fields.map(StructPatternField::to_doc))
   }
 }
 

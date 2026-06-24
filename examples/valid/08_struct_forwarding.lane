@@ -1,5 +1,7 @@
 module Examples.Valid08
+
 import Ops.*
+
 pub struct Meter {
   value : Int
 }
@@ -14,19 +16,25 @@ pub struct MeterOps {
 
 pub let meter_equal_ops : Equal[Meter] = Equal::{
   equal: meter_equal,
-  not_equal: fn(a : Meter, b : Meter) -> Bool {
+  not_equal: fn (a : Meter, b : Meter) -> Bool {
     if meter_equal(a, b) {
       false
     } else {
       true
     }
-  },
+  }
 }
 
-pub offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
+pub offer meter_ops : MeterOps = MeterOps::{
+  equal_impl: meter_equal_ops
+}
 
 pub fn use_forwarded_field() -> Int {
-  if Meter::{ value: 1 } == Meter::{ value: 1 } {
+  if Meter::{
+    value: 1
+  } == Meter::{
+    value: 1
+  } {
     1
   } else {
     0

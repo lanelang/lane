@@ -3,9 +3,9 @@ import {
   "Milky2018/buslane/interpreter" @buslane_interpreter,
   "Milky2018/lanec/compile",
   "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/format",
   "Milky2018/lanec/intrinsics",
   "moonbit-community/prettyprinter",
-  "moonbitlang/async",
   "moonbitlang/core/argparse",
   "moonbitlang/x/fs",
 }

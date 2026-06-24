@@ -46,6 +46,7 @@ test "parse nominal declarations and match" {
     @prettyprinter.render(file),
     content=(
       #|module Test
+      #|
       #|struct Point {
       #|  x : Int
       #|  y : Int
@@ -84,6 +85,7 @@ test "parse type aliases and F-omega type expressions" {
     @prettyprinter.render(file),
     content=(
       #|module Test
+      #|
       #|struct Box[A] {
       #|  value : A
       #|}
@@ -114,6 +116,7 @@ test "parse function literal and pipeline" {
     @prettyprinter.render(file),
     content=(
       #|module Test
+      #|
       #|fn pipeline_literal(x : Int) -> Int {
       #|  x |> fn (value : Int) {
       #|    value
@@ -147,6 +150,7 @@ test "parse offered value definitions and contextual parameter syntax" {
     @prettyprinter.render(file),
     content=(
       #|module Test
+      #|
       #|struct Equal[A] {
       #|  equal : (A, A) -> Bool
       #|}
@@ -198,6 +202,7 @@ test "parse existential surface syntax" {
     @prettyprinter.render(file),
     content=(
       #|module Test
+      #|
       #|struct Hide {
       #|  type T : Type
       #|  val : T
@@ -208,7 +213,7 @@ test "parse existential surface syntax" {
       #|}
       #|
       #|let h : Hide = Hide::{
-      #|  T = Int
+      #|  T = Int,
       #|  val: 5
       #|}
       #|
@@ -218,7 +223,7 @@ test "parse existential surface syntax" {
       #|  match e {
       #|    Any::hide[T](value) => {
       #|      let Hide::{
-      #|        _
+      #|        _,
       #|        val
       #|      } = h
       #|      1

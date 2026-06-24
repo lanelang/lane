@@ -1,5 +1,6 @@
 // invalid : Lane2 v1 has field access plus call, but no method receiver lookup
 module Examples.Invalid15
+
 pub struct UserId {
   value : Int
 }

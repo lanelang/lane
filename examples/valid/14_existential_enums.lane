@@ -1,4 +1,5 @@
 module Examples.Valid14
+
 pub enum Packed {
   hide[T](T)
 }
@@ -10,4 +11,5 @@ pub fn repack(p : Packed) -> Packed {
 }
 
 pub let packed_int : Packed = Packed::hide[Int](builtin("%answer"))
+
 pub let repacked_int : Packed = repack(packed_int)

@@ -1,6 +1,7 @@
 // Invalid: a type alias parameter header must be non-empty.
 
 module Examples.Invalid21
+
 pub type Empty[] = Int
 
 pub let answer : Int = 42

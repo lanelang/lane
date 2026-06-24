@@ -1,4 +1,5 @@
 module Examples.Valid07
+
 pub fn host_int() -> Int {
   builtin("%host_int")
 }

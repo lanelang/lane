@@ -1,0 +1,7 @@
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/lexer",
+  "Milky2018/lanec/parser",
+  "Milky2018/lanec/syntax",
+  "moonbit-community/prettyprinter",
+}

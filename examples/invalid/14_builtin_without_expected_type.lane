@@ -1,5 +1,6 @@
 // invalid: builtin requires a direct expected type
 module Examples.Invalid14
+
 pub fn bad() -> Int {
   let x = builtin("%anything")
   x

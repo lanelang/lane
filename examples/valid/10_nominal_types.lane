@@ -1,4 +1,5 @@
 module Examples.Valid10
+
 pub struct UserId {
   value : Int
 }
@@ -11,5 +12,10 @@ pub fn user_value(id : UserId) -> Int {
   id.value
 }
 
-pub let user_id : UserId = UserId::{ value: 1 }
-pub let order_id : OrderId = OrderId::{ value: 1 }
+pub let user_id : UserId = UserId::{
+  value: 1
+}
+
+pub let order_id : OrderId = OrderId::{
+  value: 1
+}

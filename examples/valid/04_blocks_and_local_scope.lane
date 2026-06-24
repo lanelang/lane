@@ -1,5 +1,7 @@
 module Examples.Valid04
+
 import Ops.*
+
 pub fn factorial(n : Int) -> Int {
   fn loop(x : Int, acc : Int) -> Int {
     if x == 0 {

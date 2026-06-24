@@ -1,8 +1,11 @@
 // invalid: struct literals must provide every existential type witness
 module Examples.Invalid17
+
 pub struct Hide {
   type T : Type
   val : T
 }
 
-pub let bad : Hide = Hide::{ val: 1 }
+pub let bad : Hide = Hide::{
+  val: 1
+}

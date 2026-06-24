@@ -1,4 +1,5 @@
 // invalid: empty blocks do not implicitly produce Unit
 module Examples.Invalid04
+
 pub fn empty() -> Unit {
 }

@@ -2,6 +2,7 @@
 // from higher-kinded use.
 
 module Examples.Invalid23
+
 pub type ApplyInt[F] = F[Int]
 
 pub let answer : ApplyInt[Int] = 42

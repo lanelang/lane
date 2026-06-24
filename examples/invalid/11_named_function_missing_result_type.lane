@@ -1,5 +1,6 @@
 // invalid: named functions must state their result type
 module Examples.Invalid11
+
 pub fn id(value : Int) {
   value
 }
