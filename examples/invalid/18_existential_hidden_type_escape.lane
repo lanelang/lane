@@ -1,5 +1,5 @@
-module Examples.Invalid18
 // invalid: values whose type contains an opened hidden type cannot escape
+module Examples.Invalid18
 pub enum Packed {
   hide[T](T)
 }

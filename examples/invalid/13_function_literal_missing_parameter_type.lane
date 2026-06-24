@@ -1,5 +1,5 @@
-module Examples.Invalid13
 // invalid: a function literal without expected type must provide parameter types
+module Examples.Invalid13
 pub fn bad() -> (Int) -> Int {
   let id = fn(value) {
     value

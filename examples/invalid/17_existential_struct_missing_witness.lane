@@ -1,5 +1,5 @@
-module Examples.Invalid17
 // invalid: struct literals must provide every existential type witness
+module Examples.Invalid17
 pub struct Hide {
   type T : Type
   val : T

@@ -1,5 +1,5 @@
-module Examples.Invalid08
 // invalid: struct literals must provide every field
+module Examples.Invalid08
 pub struct Point {
   x : Int
   y : Int

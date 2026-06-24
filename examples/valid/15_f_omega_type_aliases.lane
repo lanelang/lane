@@ -1,8 +1,8 @@
-module Examples.Valid15
-import Ops.*
 // Valid: transparent type aliases, type-level lambdas, and higher-kinded
 // type parameters normalize before value type checking and Buslane lowering.
 
+module Examples.Valid15
+import Ops.*
 pub struct Box[A] {
   value : A
 }

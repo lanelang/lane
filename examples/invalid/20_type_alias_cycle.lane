@@ -1,7 +1,7 @@
-module Examples.Invalid20
 // Invalid: transparent top-level type aliases must form an acyclic dependency
 // graph. Expanding A reaches B, which reaches A again.
 
+module Examples.Invalid20
 pub type A = B
 pub type B = A
 

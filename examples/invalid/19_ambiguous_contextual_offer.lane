@@ -1,6 +1,6 @@
+// invalid: contextual resolution rejects multiple visible offers for the same target type
 module Examples.Invalid19
 import Ops.*
-// invalid: contextual resolution rejects multiple visible offers for the same target type
 pub fn custom_add(a : Int, b : Int) -> Int {
   a
 }
