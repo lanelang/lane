@@ -6,7 +6,7 @@ import {
 
 rule(
   name: "moonyacc",
-  command: "$mod_dir/../../.mooncakes/moonbitlang/yacc/moonyacc --no-comments $input -o $output && moonfmt -w $output && moonfmt -w $output",
+  command: "moon runwasm moonbitlang/yacc@0.7.14 --no-comments $input -o $output && moonfmt -w $output && moonfmt -w $output",
 )
 
 dev_build(
