@@ -57,3 +57,55 @@ test "compile sources accepts explicit library modules" {
     content="answer",
   )
 }
+
+///|
+test "check sources rejects missing import" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Missing
+      #|pub let answer : Int = 42
+    ),
+    [],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="missing import Missing")
+}
+
+///|
+test "check sources rejects duplicate module input" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|pub let answer : Int = 42
+    ),
+    [
+      (
+        #|module Main
+        #|pub let value : Int = 1
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="duplicate module input Main")
+}
+
+///|
+test "check sources rejects import cycle" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Lib
+      #|pub let answer : Int = 42
+    ),
+    [
+      (
+        #|module Lib
+        #|import Main
+        #|pub let value : Int = 1
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="import cycle Main")
+}
