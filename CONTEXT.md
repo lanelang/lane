@@ -189,6 +189,18 @@ _Avoid_: independently exported field, independently exported variant
 The public fields, type members, and variants of an exported struct or enum.
 _Avoid_: opaque representation, private constructor, hidden variant set
 
+**Typed Algebraic Effect**:
+A declared source-language operation whose use is statically tracked and handled by an effect handler.
+_Avoid_: unchecked exception, runtime panic, implicit IO
+
+**Effect Handler**:
+A source-language construct that implements effect operations and discharges their tracked effect requirements.
+_Avoid_: catch block, runtime error handler, builtin plugin
+
+**Unchecked Runtime Exception**:
+A catchable language-level failure that can escape static effect tracking.
+_Avoid_: typed algebraic effect, runtime error report, undefined behavior
+
 **Lane Workspace**:
 The MoonBit workspace that contains the compiler, Buslane, command line tool,
 and language server modules.
@@ -258,6 +270,9 @@ _Avoid_: VS Code extension, compiler front end
 - Value and type declarations do not shadow **Module Bindings**.
 - Module-qualified access is written as `Module.Path::name`.
 - The left side of module-qualified access must be an imported complete **Module Path**.
+- **Typed Algebraic Effects** are the only planned language-level effect mechanism.
+- **Effect Handlers** discharge **Typed Algebraic Effects**.
+- **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
 - Importing a module does not implicitly import its dotted child module paths.
 - A **Selective Import** imports top-level **Exported Declarations**, not **Owner-Visible Members**.
 - A **Selective Import** introduces selected exported declarations as unqualified names.
