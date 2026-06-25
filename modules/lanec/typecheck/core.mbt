@@ -14,6 +14,7 @@ pub(all) struct TypeCheckResult {
 ///|
 pub(all) struct CheckedSourceTypeCheckResult {
   source : @checked.CheckedSourceFile?
+  module_interface : @module_interface.ModuleInterface?
   diagnostics : Array[TypeCheckDiagnostic]
 } derive(Debug, Eq)
 

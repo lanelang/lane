@@ -3,6 +3,7 @@ package "Milky2018/lanec/resolve"
 
 import {
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/module_interface",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
   "Milky2018/lanec/types",
@@ -15,7 +16,7 @@ pub fn resolve_source_file(@syntax.SourceFile) -> ResolvedSourceFile
 
 pub fn resolve_source_file_result(@syntax.SourceFile) -> ResolveResult
 
-pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, Array[ResolvedSourceFile]) -> ResolveResult
+pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module_interface.ImportedEnvironment) -> ResolveResult
 
 // Errors
 

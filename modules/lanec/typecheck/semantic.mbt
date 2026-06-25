@@ -2,6 +2,7 @@
 priv struct SemanticChecker {
   resolved_source : @resolve.ResolvedSourceFile
   source : @desugar.DesugaredSourceFile
+  imported_environment : @module_interface.ImportedEnvironment
   declarations : CheckedDeclarationEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
   values : Array[CheckedValueDeclaration]
@@ -22,6 +23,7 @@ pub fn typecheck_source_file(
   let checker = SemanticChecker::{
     resolved_source,
     source,
+    imported_environment: empty_imported_environment(),
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
     values: [],
@@ -63,16 +65,11 @@ fn SemanticChecker::collect_top_level_value_types(
 ///|
 fn SemanticChecker::seed_imported_top_level_value_types(
   self : SemanticChecker,
-  context_source : @desugar.DesugaredSourceFile,
-  imported_sources : Array[@resolve.ResolvedSourceFile],
+  imported_environment : @module_interface.ImportedEnvironment,
 ) -> Unit {
-  let mut imported_count = 0
-  for imported in imported_sources {
-    imported_count += imported.declarations.length()
-  }
-  for index in 0..<imported_count {
-    if context_source.declarations.get(index) is Some(declaration) {
-      self.seed_imported_top_level_value_type(declaration)
+  for module_ in imported_environment.modules {
+    for value in module_.values {
+      self.seed_imported_top_level_value_type(value)
     }
   }
 }
@@ -80,75 +77,68 @@ fn SemanticChecker::seed_imported_top_level_value_types(
 ///|
 fn SemanticChecker::seed_imported_top_level_value_type(
   self : SemanticChecker,
-  declaration : @desugar.DesugaredTopLevelDeclaration,
+  value : @module_interface.ModuleInterfaceValue,
 ) -> Unit {
-  match declaration {
-    Function(declaration) => {
-      let type_ = self.function_type(
-        declaration.type_parameters,
-        declaration.parameters,
-        declaration.return_type,
-      )
-      let parameters = declaration.parameters.map(fn(parameter) {
-        self.checked_value_parameter(parameter)
-      })
-      let binding = {
-        symbol: declaration.symbol,
-        type_,
-        parameters: Some(parameters),
-      }
-      self.value_types.push(binding)
-      self.ordered_value_types.push(binding)
+  let parameters = value.parameters.map(fn(parameters) {
+    parameters.map(checked_value_parameter_from_interface)
+  })
+  let binding = { symbol: value.symbol, type_: value.type_, parameters }
+  self.value_types.push(binding)
+  self.ordered_value_types.push(binding)
+  match value.kind {
+    Function =>
       self.values.push(
         Function({
-          is_public: declaration.is_public,
-          symbol: declaration.symbol,
-          name: declaration.name,
-          type_,
-          parameters,
-          loc: declaration.loc,
+          is_public: true,
+          symbol: value.symbol,
+          name: value.name,
+          type_: value.type_,
+          parameters: parameters.unwrap_or([]),
+          loc: value.loc,
         }),
       )
-    }
-    Let(declaration) =>
-      if declaration.type_annotation is Some(type_annotation) {
-        let type_ = self.check_type(type_annotation)
-        let binding = { symbol: declaration.symbol, type_, parameters: None }
-        self.value_types.push(binding)
-        self.ordered_value_types.push(binding)
-        self.values.push(
-          Let({
-            is_public: declaration.is_public,
-            symbol: declaration.symbol,
-            name: declaration.name,
-            type_,
-            loc: declaration.loc,
-          }),
-        )
-      }
-    Offer(declaration) => {
-      let type_ = self.check_type(declaration.type_annotation)
-      let binding = { symbol: declaration.symbol, type_, parameters: None }
-      self.value_types.push(binding)
-      self.ordered_value_types.push(binding)
-      self.offer_symbol(self.offers, declaration.symbol, type_, declaration.loc)
+    Let =>
+      self.values.push(
+        Let({
+          is_public: true,
+          symbol: value.symbol,
+          name: Some(value.name),
+          type_: value.type_,
+          loc: value.loc,
+        }),
+      )
+    Offer => {
+      self.offer_symbol(self.offers, value.symbol, value.type_, value.loc)
       self.offer_symbol(
         self.ordered_offers,
-        declaration.symbol,
-        type_,
-        declaration.loc,
+        value.symbol,
+        value.type_,
+        value.loc,
       )
       self.values.push(
         Let({
-          is_public: declaration.is_public,
-          symbol: declaration.symbol,
-          name: Some(declaration.name),
-          type_,
-          loc: declaration.loc,
+          is_public: true,
+          symbol: value.symbol,
+          name: Some(value.name),
+          type_: value.type_,
+          loc: value.loc,
         }),
       )
     }
-    _ => ()
+  }
+}
+
+///|
+fn checked_value_parameter_from_interface(
+  parameter : @module_interface.ModuleInterfaceValueParameter,
+) -> @checked.CheckedValueParameter {
+  {
+    symbol: parameter.symbol,
+    is_auto: parameter.is_auto,
+    is_offered: parameter.is_offered,
+    name: parameter.name,
+    type_: parameter.type_,
+    loc: parameter.loc,
   }
 }
 
@@ -320,7 +310,12 @@ fn SemanticChecker::check_type(
   self : SemanticChecker,
   type_ : @resolve.ResolvedType,
 ) -> @types.Type {
-  check_resolved_type(self.resolved_source, self.diagnostics, type_)
+  check_resolved_type_with_imported_environment(
+    self.resolved_source,
+    self.imported_environment,
+    self.diagnostics,
+    type_,
+  )
 }
 
 ///|

@@ -64,6 +64,7 @@ fn expect_checked_let_initializer(
   let checker = SemanticChecker::{
     resolved_source: resolved,
     source,
+    imported_environment: empty_imported_environment(),
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
     values: [],
@@ -108,6 +109,7 @@ fn expect_first_checked_match_pattern(
   let checker = SemanticChecker::{
     resolved_source: resolved,
     source,
+    imported_environment: empty_imported_environment(),
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
     values: [],

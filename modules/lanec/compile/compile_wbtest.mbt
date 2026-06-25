@@ -121,6 +121,53 @@ test "check sources does not expose private imported types" {
 }
 
 ///|
+test "check sources does not expose private imported nominal shape through public value" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = leak().value
+    ),
+    [
+      (
+        #|module Lib
+        #|struct Hidden {
+        #|  value : Int
+        #|}
+        #|pub fn leak() -> Hidden {
+        #|  Hidden::{ value: 42 }
+        #|}
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="not_a_struct type#0")
+}
+
+///|
+test "check sources exposes public imported nominal shape through public value" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = point().x
+    ),
+    [
+      (
+        #|module Lib
+        #|pub struct Point {
+        #|  x : Int
+        #|}
+        #|pub fn point() -> Point {
+        #|  Point::{ x: 42 }
+        #|}
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="0")
+}
+
+///|
 test "check sources rejects missing import" {
   let result = check_sources(
     (

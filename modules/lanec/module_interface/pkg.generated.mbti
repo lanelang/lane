@@ -1,0 +1,119 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/module_interface"
+
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/symbol",
+  "Milky2018/lanec/syntax",
+  "Milky2018/lanec/types",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn module_path_text(@syntax.ModulePath) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct ImportedEnvironment {
+  modules : Array[ModuleInterface]
+} derive(Eq, @debug.Debug)
+pub fn ImportedEnvironment::ImportedEnvironment() -> Self
+pub fn ImportedEnvironment::find(Self, String) -> ModuleInterface?
+
+pub(all) struct ModuleInterface {
+  module_path : String
+  types : Array[ModuleInterfaceType]
+  type_aliases : Array[ModuleInterfaceTypeAlias]
+  values : Array[ModuleInterfaceValue]
+  optimization_hints : Array[OptimizationHint]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceEnum {
+  symbol : @symbol.TypeSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  variants : Array[ModuleInterfaceVariant]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceField {
+  symbol : @symbol.FieldSymbolId
+  is_offered : Bool
+  name : String
+  index : Int
+  type_ : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceStruct {
+  symbol : @symbol.TypeSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  type_members : Array[ModuleInterfaceTypeMember]
+  fields : Array[ModuleInterfaceField]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModuleInterfaceType {
+  Struct(ModuleInterfaceStruct)
+  Enum(ModuleInterfaceEnum)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceTypeAlias {
+  name : String
+  body : @types.Type
+  kind : @types.Kind
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceTypeMember {
+  symbol : @symbol.TypeMemberSymbolId
+  type_parameter : @types.TypeParameter
+  name : String
+  kind : @types.Kind
+  index : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceValue {
+  symbol : @symbol.ValueSymbolId
+  kind : ModuleInterfaceValueKind
+  name : String
+  type_ : @types.Type
+  parameters : Array[ModuleInterfaceValueParameter]?
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModuleInterfaceValueKind {
+  Function
+  Let
+  Offer
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceValueParameter {
+  symbol : @symbol.ValueSymbolId
+  is_auto : Bool
+  is_offered : Bool
+  name : String
+  type_ : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceVariant {
+  symbol : @symbol.VariantSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[@types.TypeParameter]
+  payload : Array[@types.Type]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct OptimizationHint {
+  name : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

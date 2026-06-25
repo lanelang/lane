@@ -44,10 +44,10 @@ pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult 
 pub fn resolve_source_file_with_imports_result(
   source : @syntax.SourceFile,
   registry : SymbolRegistry,
-  imported_sources : Array[ResolvedSourceFile],
+  imported_environment : @module_interface.ImportedEnvironment,
 ) -> ResolveResult {
   let resolver = Resolver::Resolver(registry)
-  resolver.publish_imported_bindings(source, imported_sources)
+  resolver.publish_imported_bindings(source, imported_environment)
   resolver.resolve_source_file_result(source)
 }
 
@@ -88,13 +88,16 @@ fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
 fn Resolver::publish_imported_bindings(
   self : Resolver,
   source : @syntax.SourceFile,
-  imported_sources : Array[ResolvedSourceFile],
+  imported_environment : @module_interface.ImportedEnvironment,
 ) -> Unit {
   for import_ in source.imports {
     match import_ {
       Qualified(_) => ()
       Open(module_path~, loc~) =>
-        match find_imported_source(imported_sources, module_path) {
+        match
+          imported_environment.find(
+            @module_interface.module_path_text(module_path),
+          ) {
           Some(imported) => {
             self.publish_imported_public_types(imported)
             self.publish_imported_public_values(imported, loc)
@@ -102,7 +105,10 @@ fn Resolver::publish_imported_bindings(
           None => ()
         }
       Selective(module_path~, items~, loc~) =>
-        match find_imported_source(imported_sources, module_path) {
+        match
+          imported_environment.find(
+            @module_interface.module_path_text(module_path),
+          ) {
           Some(imported) => {
             self.publish_imported_selected_types(imported, items)
             self.publish_imported_selected_values(imported, items)
@@ -114,151 +120,87 @@ fn Resolver::publish_imported_bindings(
 }
 
 ///|
-fn find_imported_source(
-  sources : Array[ResolvedSourceFile],
-  module_path : @syntax.ModulePath,
-) -> ResolvedSourceFile? {
-  let path = module_path_text(module_path)
-  for source in sources {
-    if module_path_text(source.module_path) == path {
-      return Some(source)
-    }
-  }
-  None
-}
-
-///|
-fn module_path_text(path : @syntax.ModulePath) -> String {
-  path.components.join(".")
-}
-
-///|
 fn Resolver::publish_imported_public_types(
   self : Resolver,
-  source : ResolvedSourceFile,
+  interface : @module_interface.ModuleInterface,
 ) -> Unit {
-  for declaration in source.declarations {
-    match imported_public_type_binding(declaration) {
-      Some(binding) => self.publish_type_binding(binding.name, binding.symbol)
-      None => ()
+  for type_ in interface.types {
+    match type_ {
+      Struct(declaration) =>
+        self.publish_type_binding(declaration.name, declaration.symbol)
+      Enum(declaration) =>
+        self.publish_type_binding(declaration.name, declaration.symbol)
     }
-    match declaration {
-      TypeAlias(declaration) if declaration.is_public =>
-        self.type_aliases.push({ name: declaration.name })
-      _ => ()
-    }
+  }
+  for type_alias in interface.type_aliases {
+    self.type_aliases.push({ name: type_alias.name })
   }
 }
 
 ///|
 fn Resolver::publish_imported_selected_types(
   self : Resolver,
-  source : ResolvedSourceFile,
+  interface : @module_interface.ModuleInterface,
   items : Array[@syntax.ImportItem],
 ) -> Unit {
   for item in items {
-    for declaration in source.declarations {
-      match imported_public_type_binding(declaration) {
-        Some(binding) if binding.name == item.name =>
-          self.publish_type_binding(binding.name, binding.symbol)
-        _ => ()
-      }
-      match declaration {
-        TypeAlias(declaration) if declaration.is_public &&
-          declaration.name == item.name =>
-          self.type_aliases.push({ name: declaration.name })
+    for type_ in interface.types {
+      match type_ {
+        Struct(declaration) if declaration.name == item.name =>
+          self.publish_type_binding(declaration.name, declaration.symbol)
+        Enum(declaration) if declaration.name == item.name =>
+          self.publish_type_binding(declaration.name, declaration.symbol)
         _ => ()
       }
     }
-  }
-}
-
-///|
-fn imported_public_type_binding(
-  declaration : ResolvedTopLevelDeclaration,
-) -> TypeBinding? {
-  match declaration {
-    Struct(declaration) if declaration.is_public =>
-      Some({ name: declaration.name, symbol: declaration.symbol })
-    Enum(declaration) if declaration.is_public =>
-      Some({ name: declaration.name, symbol: declaration.symbol })
-    _ => None
+    for type_alias in interface.type_aliases {
+      if type_alias.name == item.name {
+        self.type_aliases.push({ name: type_alias.name })
+      }
+    }
   }
 }
 
 ///|
 fn Resolver::publish_imported_public_values(
   self : Resolver,
-  source : ResolvedSourceFile,
+  interface : @module_interface.ModuleInterface,
   loc : SourceSpan,
 ) -> Unit {
-  for declaration in source.declarations {
-    if imported_public_value_binding(declaration) is Some(binding) {
-      self.publish_complete_top_level_binding(binding, loc)
-      self.publish_ordered_top_level_binding(binding, loc)
-    }
+  for value in interface.values {
+    let binding = imported_interface_value_binding(value)
+    self.publish_complete_top_level_binding(binding, loc)
+    self.publish_ordered_top_level_binding(binding, loc)
   }
 }
 
 ///|
 fn Resolver::publish_imported_selected_values(
   self : Resolver,
-  source : ResolvedSourceFile,
+  interface : @module_interface.ModuleInterface,
   items : Array[@syntax.ImportItem],
 ) -> Unit {
   for item in items {
-    for declaration in source.declarations {
-      match imported_public_value_binding(declaration) {
-        Some(binding) if binding.name == item.name => {
-          self.publish_complete_top_level_binding(binding, item.loc)
-          self.publish_ordered_top_level_binding(binding, item.loc)
-        }
-        _ => ()
+    for value in interface.values {
+      if value.name == item.name {
+        let binding = imported_interface_value_binding(value)
+        self.publish_complete_top_level_binding(binding, item.loc)
+        self.publish_ordered_top_level_binding(binding, item.loc)
       }
     }
   }
 }
 
 ///|
-fn imported_public_value_binding(
-  declaration : ResolvedTopLevelDeclaration,
-) -> ValueBinding? {
-  match declaration {
-    Function(declaration) if declaration.is_public =>
-      Some({
-        name: declaration.name,
-        reference: Symbol(declaration.symbol),
-        type_: Some(resolved_function_type(declaration)),
-        kind: Plain,
-      })
-    Let(declaration) if declaration.is_public && declaration.name is Some(name) =>
-      Some({
-        name,
-        reference: Symbol(declaration.symbol),
-        type_: declaration.type_annotation,
-        kind: Plain,
-      })
-    Offer(declaration) if declaration.is_public =>
-      Some({
-        name: declaration.name,
-        reference: Symbol(declaration.symbol),
-        type_: Some(declaration.type_annotation),
-        kind: Plain,
-      })
-    _ => None
+fn imported_interface_value_binding(
+  value : @module_interface.ModuleInterfaceValue,
+) -> ValueBinding {
+  {
+    name: value.name,
+    reference: Symbol(value.symbol),
+    type_: None,
+    kind: Plain,
   }
-}
-
-///|
-fn resolved_function_type(
-  declaration : ResolvedFunctionDeclaration,
-) -> ResolvedType {
-  Function(
-    type_parameters=declaration.type_parameters,
-    parameters=declaration.parameters.map(fn(parameter) { parameter.type_ }),
-    result=declaration.return_type,
-    loc=declaration.loc,
-  )
 }
 
 ///|

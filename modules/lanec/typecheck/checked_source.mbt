@@ -4,25 +4,27 @@
 pub fn typecheck_checked_source_file(
   source : @resolve.ResolvedSourceFile,
 ) -> CheckedSourceTypeCheckResult {
-  typecheck_checked_source_file_with_imports(source, [])
+  typecheck_checked_source_file_with_imported_environment(
+    source,
+    empty_imported_environment(),
+  )
 }
 
 ///|
-/// Checks one resolved module against already resolved imported modules.
-pub fn typecheck_checked_source_file_with_imports(
+/// Checks one resolved module against already checked imported module interfaces.
+pub fn typecheck_checked_source_file_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
-  imported_sources : Array[@resolve.ResolvedSourceFile],
+  imported_environment : @module_interface.ImportedEnvironment,
 ) -> CheckedSourceTypeCheckResult {
-  let context_source = resolved_context_source(source, imported_sources)
-  let declaration_result = typecheck_declarations(context_source)
-  let resolved_source = context_source
-  let source = @desugar.desugar_source_file(resolved_source)
-  let current_source = @desugar.desugar_source_file(
-    source_without_import_context(resolved_source, imported_sources),
+  let declaration_result = typecheck_declarations_with_imported_environment(
+    source, imported_environment,
   )
+  let resolved_source = source
+  let current_source = @desugar.desugar_source_file(source)
   let checker = SemanticChecker::{
     resolved_source,
     source: current_source,
+    imported_environment,
     declarations: declaration_result.declarations,
     diagnostics: declaration_result.diagnostics.copy(),
     values: [],
@@ -31,7 +33,7 @@ pub fn typecheck_checked_source_file_with_imports(
     offers: [],
     ordered_offers: [],
   }
-  checker.seed_imported_top_level_value_types(source, imported_sources)
+  checker.seed_imported_top_level_value_types(imported_environment)
   checker.collect_top_level_value_types()
   let checked_declarations : Array[@checked.CheckedTopLevelDeclaration] = []
   let mut complete = true
@@ -43,47 +45,19 @@ pub fn typecheck_checked_source_file_with_imports(
   }
   let checked_source = if complete && checker.diagnostics.is_empty() {
     Some(@checked.CheckedSourceFile::{
-      module_path: source.module_path,
+      module_path: resolved_source.module_path,
       declarations: checked_declarations,
-      loc: source.loc,
+      loc: resolved_source.loc,
     })
   } else {
     None
   }
-  { source: checked_source, diagnostics: checker.diagnostics }
-}
-
-///|
-fn resolved_context_source(
-  source : @resolve.ResolvedSourceFile,
-  imported_sources : Array[@resolve.ResolvedSourceFile],
-) -> @resolve.ResolvedSourceFile {
-  let declarations = []
-  for imported in imported_sources {
-    declarations.append(imported.declarations)
+  let module_interface = match checked_source {
+    Some(checked_source) if checker.diagnostics.is_empty() =>
+      Some(checker.module_interface(checked_source))
+    _ => None
   }
-  declarations.append(source.declarations)
-  { ..source, declarations, }
-}
-
-///|
-fn source_without_import_context(
-  source : @resolve.ResolvedSourceFile,
-  imported_sources : Array[@resolve.ResolvedSourceFile],
-) -> @resolve.ResolvedSourceFile {
-  let mut imported_count = 0
-  for imported in imported_sources {
-    imported_count += imported.declarations.length()
-  }
-  if imported_count == 0 {
-    source
-  } else {
-    let declarations = []
-    for index in imported_count..<source.declarations.length() {
-      declarations.push(source.declarations[index])
-    }
-    { ..source, declarations, }
-  }
+  { source: checked_source, module_interface, diagnostics: checker.diagnostics }
 }
 
 ///|

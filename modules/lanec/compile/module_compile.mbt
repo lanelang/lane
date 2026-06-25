@@ -1,7 +1,7 @@
 ///|
 priv struct ModuleObject {
   path : String
-  resolved : @resolve.ResolvedSourceFile
+  interface : @module_interface.ModuleInterface
   checked : @checked.CheckedSourceFile
 }
 
@@ -40,27 +40,26 @@ fn compile_module_graph(
 fn imported_objects(
   source : @syntax.SourceFile,
   objects : Array[ModuleObject],
-) -> Array[ModuleObject] {
+) -> @module_interface.ImportedEnvironment {
   let imported = []
   for import_ in module_import_paths(source) {
     if find_module_object(objects, import_.path) is Some(object) {
-      imported.push(object)
+      imported.push(object.interface)
     }
   }
-  imported
+  { modules: imported }
 }
 
 ///|
 fn compile_one_module(
   input : ParsedModuleInput,
   registry : @symbol.SymbolRegistry,
-  imported : Array[ModuleObject],
+  imported : @module_interface.ImportedEnvironment,
 ) -> Result[ModuleObject, Array[CompileDiagnostic]] {
-  let imported_sources = imported.map(fn(object) { object.resolved })
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
     registry,
-    imported_sources,
+    imported,
   )
   let resolve_diagnostics = resolved.diagnostics.map(fn(diagnostic) {
     make_error(
@@ -71,9 +70,9 @@ fn compile_one_module(
   if !resolve_diagnostics.is_empty() {
     return Err(resolve_diagnostics)
   }
-  let checked = @typecheck.typecheck_checked_source_file_with_imports(
+  let checked = @typecheck.typecheck_checked_source_file_with_imported_environment(
     resolved.source,
-    imported_sources,
+    imported,
   )
   let typecheck_diagnostics = checked.diagnostics.map(fn(diagnostic) {
     make_error(
@@ -84,10 +83,10 @@ fn compile_one_module(
   if !typecheck_diagnostics.is_empty() {
     return Err(typecheck_diagnostics)
   }
-  match checked.source {
-    Some(checked) =>
-      Ok({ path: input.path, resolved: resolved.source, checked })
-    None => Err([make_error("checked source construction failed", span=None)])
+  match (checked.source, checked.module_interface) {
+    (Some(checked), Some(interface)) =>
+      Ok({ path: input.path, interface, checked })
+    _ => Err([make_error("checked source construction failed", span=None)])
   }
 }
 

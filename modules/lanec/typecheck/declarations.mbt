@@ -1,6 +1,7 @@
 ///|
 priv struct DeclarationChecker {
   source : @resolve.ResolvedSourceFile
+  imported_environment : @module_interface.ImportedEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
 }
 
@@ -15,11 +16,31 @@ priv struct TypeExpressionResult {
 pub fn typecheck_declarations(
   source : @resolve.ResolvedSourceFile,
 ) -> DeclarationTypeCheckResult {
-  let checker = DeclarationChecker::{ source, diagnostics: [] }
+  typecheck_declarations_with_imported_environment(
+    source,
+    empty_imported_environment(),
+  )
+}
+
+///|
+fn typecheck_declarations_with_imported_environment(
+  source : @resolve.ResolvedSourceFile,
+  imported_environment : @module_interface.ImportedEnvironment,
+) -> DeclarationTypeCheckResult {
+  let checker = DeclarationChecker::{
+    source,
+    imported_environment,
+    diagnostics: [],
+  }
   let types = []
   let type_members = []
   let fields = []
   let variants = []
+  for module_ in imported_environment.modules {
+    append_interface_declarations(
+      types, type_members, fields, variants, module_,
+    )
+  }
   for declaration in source.declarations {
     match declaration {
       Struct(declaration) => {
@@ -30,7 +51,7 @@ pub fn typecheck_declarations(
         for field in checked.fields {
           fields.push(field)
         }
-        types.push(CheckedTypeDeclaration::Struct(checked))
+        types.push(Struct(checked))
       }
       Enum(declaration) => {
         let checked = checker.check_enum(declaration)
@@ -50,6 +71,93 @@ pub fn typecheck_declarations(
 }
 
 ///|
+fn append_interface_declarations(
+  types : Array[CheckedTypeDeclaration],
+  type_members : Array[CheckedTypeMemberDeclaration],
+  fields : Array[CheckedFieldDeclaration],
+  variants : Array[CheckedVariantDeclaration],
+  interface : @module_interface.ModuleInterface,
+) -> Unit {
+  for type_ in interface.types {
+    match type_ {
+      Struct(declaration) => {
+        let checked = interface_struct_declaration(declaration)
+        for type_member in checked.type_members {
+          type_members.push(type_member)
+        }
+        for field in checked.fields {
+          fields.push(field)
+        }
+        types.push(Struct(checked))
+      }
+      Enum(declaration) => {
+        let checked = interface_enum_declaration(declaration)
+        for variant in checked.variants {
+          variants.push(variant)
+        }
+        types.push(Enum(checked))
+      }
+    }
+  }
+}
+
+///|
+fn interface_struct_declaration(
+  declaration : @module_interface.ModuleInterfaceStruct,
+) -> CheckedStructDeclaration {
+  {
+    is_public: true,
+    symbol: declaration.symbol,
+    name: declaration.name,
+    type_parameters: declaration.type_parameters,
+    type_members: declaration.type_members.map(fn(type_member) {
+      {
+        symbol: type_member.symbol,
+        type_parameter: type_member.type_parameter,
+        name: type_member.name,
+        kind: type_member.kind,
+        index: type_member.index,
+        loc: type_member.loc,
+      }
+    }),
+    fields: declaration.fields.map(fn(field) {
+      {
+        symbol: field.symbol,
+        is_offered: field.is_offered,
+        name: field.name,
+        index: field.index,
+        type_: field.type_,
+        loc: field.loc,
+      }
+    }),
+    loc: declaration.loc,
+  }
+}
+
+///|
+fn interface_enum_declaration(
+  declaration : @module_interface.ModuleInterfaceEnum,
+) -> CheckedEnumDeclaration {
+  {
+    is_public: true,
+    symbol: declaration.symbol,
+    name: declaration.name,
+    type_parameters: declaration.type_parameters,
+    variants: declaration.variants.map(fn(variant) {
+      {
+        symbol: variant.symbol,
+        name: variant.name,
+        index: variant.index,
+        type_parameters: variant.type_parameters,
+        payload: variant.payload,
+        loc: variant.loc,
+      }
+    }),
+    loc: declaration.loc,
+  }
+}
+
+///|
 fn DeclarationChecker::check_type_alias(
   self : DeclarationChecker,
   declaration : @resolve.ResolvedTypeAliasDeclaration,
@@ -57,6 +165,7 @@ fn DeclarationChecker::check_type_alias(
   ignore(
     TypeExpressionChecker::{
       source: self.source,
+      imported_environment: self.imported_environment,
       diagnostics: self.diagnostics,
       expanding: [declaration.name],
     }.synthesize_type(declaration.body),
@@ -171,7 +280,12 @@ fn DeclarationChecker::check_type(
   self : DeclarationChecker,
   type_ : @resolve.ResolvedType,
 ) -> @types.Type {
-  check_resolved_type(self.source, self.diagnostics, type_)
+  check_resolved_type_with_imported_environment(
+    self.source,
+    self.imported_environment,
+    self.diagnostics,
+    type_,
+  )
 }
 
 ///|
@@ -183,12 +297,18 @@ fn DeclarationChecker::check_kind(
 }
 
 ///|
-fn check_resolved_type(
+fn check_resolved_type_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
+  imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
   type_ : @resolve.ResolvedType,
 ) -> @types.Type {
-  let checker = TypeExpressionChecker::{ source, diagnostics, expanding: [] }
+  let checker = TypeExpressionChecker::{
+    source,
+    imported_environment,
+    diagnostics,
+    expanding: [],
+  }
   checker.check_value_type(type_)
 }
 
@@ -199,7 +319,12 @@ fn check_resolved_type_with_kind(
   type_ : @resolve.ResolvedType,
   expected : @types.Kind,
 ) -> @types.Type {
-  let checker = TypeExpressionChecker::{ source, diagnostics, expanding: [] }
+  let checker = TypeExpressionChecker::{
+    source,
+    imported_environment: empty_imported_environment(),
+    diagnostics,
+    expanding: [],
+  }
   checker.expect_kind(type_, expected).type_.normalize()
 }
 
@@ -222,6 +347,7 @@ fn check_resolved_type_arguments(
     } else {
       let checker = TypeExpressionChecker::{
         source,
+        imported_environment: empty_imported_environment(),
         diagnostics,
         expanding: [],
       }
@@ -235,6 +361,7 @@ fn check_resolved_type_arguments(
 ///|
 priv struct TypeExpressionChecker {
   source : @resolve.ResolvedSourceFile
+  imported_environment : @module_interface.ImportedEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
   expanding : Array[String]
 }
@@ -398,16 +525,21 @@ fn TypeExpressionChecker::expand_alias(
     Some(type_alias) => {
       let next = {
         source: self.source,
+        imported_environment: self.imported_environment,
         diagnostics: self.diagnostics,
         expanding: self.expanding.copy(),
       }
       next.expanding.push(name)
       next.synthesize_type(type_alias.body)
     }
-    None => {
-      self.diagnostics.push({ kind: UnresolvedType(name), loc })
-      { type_: Error, kind: Type }
-    }
+    None =>
+      match self.find_interface_alias(name) {
+        Some(type_alias) => { type_: type_alias.body, kind: type_alias.kind }
+        None => {
+          self.diagnostics.push({ kind: UnresolvedType(name), loc })
+          { type_: Error, kind: Type }
+        }
+      }
   }
 }
 
@@ -427,6 +559,21 @@ fn TypeExpressionChecker::find_alias(
 }
 
 ///|
+fn TypeExpressionChecker::find_interface_alias(
+  self : TypeExpressionChecker,
+  name : String,
+) -> @module_interface.ModuleInterfaceTypeAlias? {
+  for module_ in self.imported_environment.modules {
+    for type_alias in module_.type_aliases {
+      if type_alias.name == name {
+        return Some(type_alias)
+      }
+    }
+  }
+  None
+}
+
+///|
 fn TypeExpressionChecker::type_constructor_kind(
   self : TypeExpressionChecker,
   symbol : TypeSymbolId,
@@ -438,6 +585,17 @@ fn TypeExpressionChecker::type_constructor_kind(
       Enum(declaration) if declaration.symbol == symbol =>
         return nominal_kind(declaration.type_parameters)
       _ => ()
+    }
+  }
+  for module_ in self.imported_environment.modules {
+    for type_ in module_.types {
+      match type_ {
+        Struct(declaration) if declaration.symbol == symbol =>
+          return interface_nominal_kind(declaration.type_parameters)
+        Enum(declaration) if declaration.symbol == symbol =>
+          return interface_nominal_kind(declaration.type_parameters)
+        _ => ()
+      }
     }
   }
   Type
@@ -578,6 +736,17 @@ fn nominal_kind(
     Type
   } else {
     Function(parameters.map(resolve_type_parameter_kind), Type)
+  }
+}
+
+///|
+fn interface_nominal_kind(
+  parameters : Array[@types.TypeParameter],
+) -> @types.Kind {
+  if parameters.is_empty() {
+    Type
+  } else {
+    Function(parameters.map(fn(parameter) { parameter.kind }), Type)
   }
 }
 
