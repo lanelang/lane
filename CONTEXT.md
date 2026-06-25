@@ -217,6 +217,10 @@ _Avoid_: catch clause, method override, ordinary function clause
 The static check that a handler covers every operation of each effect it handles.
 _Avoid_: partial handler, operation-level effect removal, runtime missing-operation failure
 
+**Handled Effect Set**:
+The effect set discharged by a handler, inferred from the effects named by its operation arms.
+_Avoid_: explicit handler effect list, operation-level residual set, runtime handler registry
+
 **Handler Return Arm**:
 A handler arm that maps the normally returned value of the handled expression to the handler result.
 _Avoid_: finally block, default exception case, implicit identity result
@@ -343,6 +347,7 @@ _Avoid_: VS Code extension, compiler front end
 - **Effect Polymorphism** uses **Effect Variables** to propagate effect sets through higher-order function types.
 - A **Handler Expression** contains one **Handler Return Arm** and zero or more **Handler Operation Arms**.
 - A **Handler Operation Arm** binds a **Resume Continuation** explicitly.
+- A handler's **Handled Effect Set** is inferred from its **Handler Operation Arms**.
 - An **Effect Handler Exhaustiveness Check** rejects handlers that do not cover every operation of each handled effect.
 - A **Resume Continuation** is a **Multi-Shot Resume Continuation**.
 - A **Resume Continuation** is a **First-Class Resume Continuation**.
