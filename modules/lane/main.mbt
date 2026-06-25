@@ -15,8 +15,9 @@ fn main {
     }
   }
   let outcome = match command {
-    Check(file~, libs~, lib_dirs~) => lane_check(file, libs, lib_dirs)
-    Fmt(files~, check~) => lane_fmt(files, check)
+    Check(file~, libs~, lib_dirs~, deny~) =>
+      lane_check(file, libs, lib_dirs, deny)
+    Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
     Run(file~, entry~, libs~, lib_dirs~) =>
       lane_run(file, entry, libs, lib_dirs)
   }
@@ -27,7 +28,11 @@ fn main {
 }
 
 ///|
-fn lane_fmt(files : Array[String], check : Bool) -> LaneCommandOutcome {
+fn lane_fmt(
+  files : Array[String],
+  check : Bool,
+  deny : Bool,
+) -> LaneCommandOutcome {
   let mut failed = false
   for file in files {
     let source = read_source_file(file) catch {
@@ -40,7 +45,7 @@ fn lane_fmt(files : Array[String], check : Bool) -> LaneCommandOutcome {
     match @format.format_source(source) {
       Ok(formatted) =>
         if formatted != source {
-          if check {
+          if check || deny {
             println(file + ": not formatted")
             failed = true
           } else {
@@ -72,6 +77,7 @@ fn lane_check(
   file : String,
   libs : Array[String],
   lib_dirs : Array[String],
+  deny : Bool,
 ) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
     error => {
@@ -86,11 +92,15 @@ fn lane_check(
     }
   }
   let result = @compile.check_sources(source, libraries)
-  if result.diagnostics.is_empty() {
-    Succeeded
-  } else {
+  let failures = denied_diagnostics(result.diagnostics, deny)
+  if !failures.is_empty() {
     print_diagnostics(result.diagnostics)
     UserFailure
+  } else if !result.diagnostics.is_empty() {
+    print_diagnostics(result.diagnostics)
+    Succeeded
+  } else {
+    Succeeded
   }
 }
 
@@ -167,4 +177,12 @@ fn print_diagnostics(diagnostics : Array[@compile.CompileDiagnostic]) -> Unit {
   for diagnostic in diagnostics {
     println(@prettyprinter.render(diagnostic, width=100))
   }
+}
+
+///|
+fn denied_diagnostics(
+  diagnostics : Array[@compile.CompileDiagnostic],
+  deny : Bool,
+) -> Array[@compile.CompileDiagnostic] {
+  diagnostics.filter(fn(diagnostic) { deny || diagnostic.severity is Error })
 }

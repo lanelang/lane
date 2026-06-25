@@ -14,13 +14,13 @@ fn comma_line() -> Document {
 }
 
 ///|
-fn join_comma(docs : Array[Document]) -> Document {
-  separate(comma_space(), docs)
+fn comma_list(docs : Array[Document]) -> Document {
+  separate(comma_line(), docs)
 }
 
 ///|
-fn join_comma_group(docs : Array[Document]) -> Document {
-  group(separate(comma_line(), docs))
+fn join_comma(docs : Array[Document]) -> Document {
+  separate(comma_space(), docs)
 }
 
 ///|
@@ -43,7 +43,7 @@ fn bracketed_type_arguments(arguments : Array[Type]) -> Document {
 
 ///|
 fn parenthesized(docs : Array[Document]) -> Document {
-  parens(join_comma_group(docs))
+  group(parens(nest(softline + comma_list(docs)) + softline))
 }
 
 ///|
@@ -672,7 +672,20 @@ fn parameter_modifiers(is_auto : Bool, is_offered : Bool) -> Document {
 
 ///|
 fn MatchArm::to_doc(self : MatchArm) -> Document {
-  self.pattern.to_doc() + space + text("=>") + space + self.body.to_doc()
+  let head = self.pattern.to_doc() + space + text("=>")
+  if self.body.breaks_after_match_arrow() {
+    head + nest(hardline + self.body.to_doc())
+  } else {
+    head + space + self.body.to_doc()
+  }
+}
+
+///|
+fn Expr::breaks_after_match_arrow(self : Expr) -> Bool {
+  match self {
+    If(..) | Match(..) => true
+    _ => false
+  }
 }
 
 ///|

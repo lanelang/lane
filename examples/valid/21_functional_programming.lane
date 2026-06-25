@@ -131,11 +131,12 @@ pub fn[A] index(list : List[A], position : Int) -> Option[A] {
   } else {
     match list {
       List::nil => Option::none
-      List::cons(head, tail) => if position == 0 {
-        Option::some(head)
-      } else {
-        index(tail, position - 1)
-      }
+      List::cons(head, tail) =>
+        if position == 0 {
+          Option::some(head)
+        } else {
+          index(tail, position - 1)
+        }
     }
   }
 }
@@ -143,11 +144,12 @@ pub fn[A] index(list : List[A], position : Int) -> Option[A] {
 pub fn elem(list : List[Int], needle : Int) -> Bool {
   match list {
     List::nil => false
-    List::cons(head, tail) => if head == needle {
-      true
-    } else {
-      elem(tail, needle)
-    }
+    List::cons(head, tail) =>
+      if head == needle {
+        true
+      } else {
+        elem(tail, needle)
+      }
   }
 }
 
@@ -183,16 +185,24 @@ pub let numbers : List[Int] = List::cons(1, List::cons(2, List::cons(3, List::ni
 
 pub let incremented_numbers : List[Int] = list_mappable.map(increment, numbers)
 
-pub let flattened_numbers : List[Int] = list_flat_mappable.flat_map(singleton_int,
-incremented_numbers)
+pub let flattened_numbers : List[Int] = list_flat_mappable.flat_map(
+  singleton_int,
+  incremented_numbers
+)
 
-pub let applied_numbers : List[Int] = list_applicative.apply(List::cons(identity_int, List::nil),
-flattened_numbers)
+pub let applied_numbers : List[Int] = list_applicative.apply(
+  List::cons(identity_int, List::nil),
+  flattened_numbers
+)
 
-pub let selected_number : Option[Int] = option_flat_mappable.flat_map(option_identity,
-index(reverse(applied_numbers), 2))
+pub let selected_number : Option[Int] = option_flat_mappable.flat_map(
+  option_identity,
+  index(reverse(applied_numbers), 2)
+)
 
-pub let selected_answer : Option[Int] = option_applicative.apply(Option::some(identity_int),
-selected_number)
+pub let selected_answer : Option[Int] = option_applicative.apply(
+  Option::some(identity_int),
+  selected_number
+)
 
 pub let answer : Int = unwrap_or(selected_answer, 0) + found_score(elem(numbers, 3))

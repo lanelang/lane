@@ -3,8 +3,13 @@ using @argparse {type Command}
 
 ///|
 enum LaneCommand {
-  Check(file~ : String, libs~ : Array[String], lib_dirs~ : Array[String])
-  Fmt(files~ : Array[String], check~ : Bool)
+  Check(
+    file~ : String,
+    libs~ : Array[String],
+    lib_dirs~ : Array[String],
+    deny~ : Bool
+  )
+  Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
   Run(
     file~ : String,
     entry~ : String,
@@ -24,6 +29,13 @@ fn lane_command_spec() -> Command {
         "check",
         about="Check a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
+        flags=[
+          FlagArg(
+            "deny",
+            long="deny",
+            about="Treat warnings as check failures.",
+          ),
+        ],
         positionals=[PositionArg("file")],
       ),
       Command(
@@ -40,6 +52,11 @@ fn lane_command_spec() -> Command {
             "check",
             long="check",
             about="Report files that are not formatted without writing them.",
+          ),
+          FlagArg(
+            "deny",
+            long="deny",
+            about="Treat formatting changes as failures without writing them.",
           ),
         ],
         positionals=[PositionArg("files", num_args=ValueRange(lower=1))],
@@ -62,6 +79,7 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
               file~,
               libs=values(child, "lib"),
               lib_dirs=values(child, "lib-dir"),
+              deny=flag(child, "deny"),
             ),
           )
         Err(message) => Err(message)
@@ -84,7 +102,13 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
         Err(message) => Err(message)
       }
     Some(("fmt", child)) =>
-      Ok(Fmt(files=values(child, "files"), check=flag(child, "check")))
+      Ok(
+        Fmt(
+          files=values(child, "files"),
+          check=flag(child, "check"),
+          deny=flag(child, "deny"),
+        ),
+      )
     _ => Err("unknown lane command")
   }
 }

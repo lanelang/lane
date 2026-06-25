@@ -13,6 +13,7 @@ using @prettyprinter {
   nest,
   parens,
   separate,
+  softline,
   space,
   surround,
   text,

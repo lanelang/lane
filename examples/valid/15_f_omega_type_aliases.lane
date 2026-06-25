@@ -17,6 +17,8 @@ pub fn get(box : ApplyInt[Box]) -> Id[Int] {
   box.value
 }
 
-pub let answer : Id[Int] = get(Box::{
-  value: 42
-})
+pub let answer : Id[Int] = get(
+  Box::{
+    value: 42
+  }
+)

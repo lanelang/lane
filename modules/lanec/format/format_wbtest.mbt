@@ -99,3 +99,43 @@ test "format source keeps struct literal and pattern fields parseable" {
     abort("expected formatted source to parse")
   }
 }
+
+///|
+test "format source nests broken call arguments in match arms" {
+  let source =
+    #|module Test
+    #|import Ops.*
+    #|pub enum Term { var(Int) app(Term, Term) }
+    #|pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
+    #|  match term {
+    #|    Term::var(index) => Term::var(index)
+    #|    Term::app(function, argument) => Term::app(shift_from(cutoff, delta, function), shift_from(cutoff, delta, argument))
+    #|  }
+    #|}
+  let result = format_source(source)
+  guard result is Ok(formatted) else { abort("expected formatted source") }
+  inspect(
+    formatted,
+    content=(
+      #|module Test
+      #|
+      #|import Ops.*
+      #|
+      #|pub enum Term {
+      #|  var(Int)
+      #|  app(Term, Term)
+      #|}
+      #|
+      #|pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
+      #|  match term {
+      #|    Term::var(index) => Term::var(index)
+      #|    Term::app(function, argument) => Term::app(
+      #|      shift_from(cutoff, delta, function),
+      #|      shift_from(cutoff, delta, argument)
+      #|    )
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}

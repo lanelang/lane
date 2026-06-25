@@ -128,6 +128,40 @@ fn decode_string(json : Json, path : String) -> String {
 
 async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult {
   ignore(read_text(case.file))
+  let fmt_args = [
+    "-q", "run", "--target", "native", "modules/lane", "--", "fmt", "--deny",
+    case.file,
+  ]
+  let (fmt_code, fmt_output) = @process.collect_output_merged(
+    "moon",
+    fmt_args,
+  )
+  let fmt_output = fmt_output.text().trim_end(chars="\n\r").to_owned()
+  if fmt_code != 0 {
+    return { code: fmt_code, output: fmt_output }
+  }
+  if !fmt_output.is_empty() {
+    return { code: 0, output: fmt_output }
+  }
+  let check_args = [
+    "-q", "run", "--target", "native", "modules/lane", "--", "check", "--deny",
+    case.file,
+  ]
+  for lib_dir in lib_dirs {
+    check_args.push("--lib-dir")
+    check_args.push(lib_dir)
+  }
+  let (check_code, check_output) = @process.collect_output_merged(
+    "moon",
+    check_args,
+  )
+  let check_output = check_output.text().trim_end(chars="\n\r").to_owned()
+  if check_code != 0 {
+    return { code: check_code, output: check_output }
+  }
+  if !check_output.is_empty() {
+    return { code: 0, output: check_output }
+  }
   let args = [
     "-q", "run", "--target", "native", "modules/lane", "--", "run",
     case.file + ":" + case.entry,

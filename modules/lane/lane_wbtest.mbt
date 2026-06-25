@@ -88,3 +88,20 @@ test "render primitive entry values with source type annotations" {
     content="() : Unit",
   )
 }
+
+///|
+test "check deny controls warning failures" {
+  let warning : @compile.CompileDiagnostic = {
+    message: "example warning",
+    span: None,
+    severity: Warning,
+  }
+  let error : @compile.CompileDiagnostic = {
+    message: "example error",
+    span: None,
+    severity: Error,
+  }
+  inspect(denied_diagnostics([warning], false).length(), content="0")
+  inspect(denied_diagnostics([warning], true).length(), content="1")
+  inspect(denied_diagnostics([error], false).length(), content="1")
+}

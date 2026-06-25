@@ -15,14 +15,17 @@ pub enum Term {
 
 pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
   match term {
-    Term::var(index) => if index < cutoff {
-      Term::var(index)
-    } else {
-      Term::var(index + delta)
-    }
+    Term::var(index) =>
+      if index < cutoff {
+        Term::var(index)
+      } else {
+        Term::var(index + delta)
+      }
     Term::lam(body) => Term::lam(shift_from(cutoff + 1, delta, body))
-    Term::app(function, argument) => Term::app(shift_from(cutoff, delta, function),
-    shift_from(cutoff, delta, argument))
+    Term::app(function, argument) => Term::app(
+      shift_from(cutoff, delta, function),
+      shift_from(cutoff, delta, argument)
+    )
   }
 }
 
@@ -32,14 +35,17 @@ pub fn shift(delta : Int, term : Term) -> Term {
 
 pub fn subst(index : Int, replacement : Term, term : Term) -> Term {
   match term {
-    Term::var(variable) => if variable == index {
-      replacement
-    } else {
-      Term::var(variable)
-    }
+    Term::var(variable) =>
+      if variable == index {
+        replacement
+      } else {
+        Term::var(variable)
+      }
     Term::lam(body) => Term::lam(subst(index + 1, shift(1, replacement), body))
-    Term::app(function, argument) => Term::app(subst(index, replacement, function),
-    subst(index, replacement, argument))
+    Term::app(function, argument) => Term::app(
+      subst(index, replacement, function),
+      subst(index, replacement, argument)
+    )
   }
 }
 
@@ -50,20 +56,24 @@ pub fn beta(body : Term, argument : Term) -> Term {
 pub fn step(term : Term) -> Option[Term] {
   match term {
     Term::var(_) => Option::none
-    Term::lam(body) => match step(body) {
-      Option::none => Option::none
-      Option::some(next) => Option::some(Term::lam(next))
-    }
-    Term::app(function, argument) => match function {
-      Term::lam(body) => Option::some(beta(body, argument))
-      _ => match step(function) {
-        Option::some(next_function) => Option::some(Term::app(next_function, argument))
-        Option::none => match step(argument) {
-          Option::none => Option::none
-          Option::some(next_argument) => Option::some(Term::app(function, next_argument))
-        }
+    Term::lam(body) =>
+      match step(body) {
+        Option::none => Option::none
+        Option::some(next) => Option::some(Term::lam(next))
       }
-    }
+    Term::app(function, argument) =>
+      match function {
+        Term::lam(body) => Option::some(beta(body, argument))
+        _ =>
+          match step(function) {
+            Option::some(next_function) => Option::some(Term::app(next_function, argument))
+            Option::none =>
+              match step(argument) {
+                Option::none => Option::none
+                Option::some(next_argument) => Option::some(Term::app(function, next_argument))
+              }
+          }
+      }
   }
 }
 
@@ -88,10 +98,11 @@ pub fn term_size(term : Term) -> Int {
 
 pub fn is_identity(term : Term) -> Bool {
   match term {
-    Term::lam(body) => match body {
-      Term::var(index) => index == 0
-      _ => false
-    }
+    Term::lam(body) =>
+      match body {
+        Term::var(index) => index == 0
+        _ => false
+      }
     _ => false
   }
 }

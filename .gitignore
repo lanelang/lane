@@ -2,4 +2,5 @@
 /_build/
 /tools/.mooncakes/
 /tools/_build/
+/modules/lanec/.tmp-yacc/
 .DS_Store
