@@ -1,0 +1,31 @@
+module Examples.Valid.NestedPatternExhaustiveness
+
+enum Option[A] {
+  none
+  some(A)
+}
+
+struct Box[A] {
+  value : A
+}
+
+pub fn flatten(value : Option[Option[Int]]) -> Int {
+  match value {
+    Option::none => 0
+    Option::some(Option::none) => 1
+    Option::some(Option::some(x)) => x
+  }
+}
+
+pub fn boxed(value : Box[Option[Int]]) -> Int {
+  match value {
+    Box::{
+      value: Option::none
+    } => 0
+    Box::{
+      value: Option::some(x)
+    } => x
+  }
+}
+
+pub let answer : Int = flatten(Option::some(Option::some(42)))

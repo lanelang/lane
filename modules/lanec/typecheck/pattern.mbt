@@ -1,6 +1,6 @@
 ///|
 priv struct PatternMatrix {
-  rows : Array[@checked.CheckedPattern]
+  rows : Array[Array[@checked.CheckedPattern]]
 }
 
 ///|
@@ -13,7 +13,7 @@ fn PatternMatrix::add(
   self : PatternMatrix,
   pattern : @checked.CheckedPattern,
 ) -> Unit {
-  self.rows.push(pattern)
+  self.rows.push([pattern])
 }
 
 ///|
@@ -467,40 +467,30 @@ fn SemanticChecker::check_struct_pattern_type_binders(
     for index in 0..<fields.length() {
       let field = fields[index]
       if !used_field_indices.contains(index) {
-        match field {
-          TypeBinder(name~, type_parameter~, loc=field_loc) =>
-            if name == type_member.name {
-              used_field_indices.push(index)
-              found = true
-              binders.push({
-                symbol: type_member.symbol,
-                type_parameter: Some(
-                  checked_type_parameter_with_kind(
-                    type_parameter,
-                    type_member.kind,
-                  ),
-                ),
-                name: Some(name),
-                loc: field_loc,
-              })
-            }
-          TypeWildcard(type_parameter~, loc=field_loc) =>
-            if !found {
-              used_field_indices.push(index)
-              found = true
-              binders.push({
-                symbol: type_member.symbol,
-                type_parameter: Some(
-                  checked_type_parameter_with_kind(
-                    type_parameter,
-                    type_member.kind,
-                  ),
-                ),
-                name: None,
-                loc: field_loc,
-              })
-            }
-          _ => ()
+        if field is TypeBinder(name~, type_parameter~, loc=field_loc) &&
+          name == type_member.name {
+          used_field_indices.push(index)
+          found = true
+          binders.push({
+            symbol: type_member.symbol,
+            type_parameter: Some(
+              checked_type_parameter_with_kind(type_parameter, type_member.kind),
+            ),
+            name: Some(name),
+            loc: field_loc,
+          })
+        } else if field is TypeWildcard(type_parameter~, loc=field_loc) &&
+          !found {
+          used_field_indices.push(index)
+          found = true
+          binders.push({
+            symbol: type_member.symbol,
+            type_parameter: Some(
+              checked_type_parameter_with_kind(type_parameter, type_member.kind),
+            ),
+            name: None,
+            loc: field_loc,
+          })
         }
       }
     }
@@ -575,25 +565,13 @@ fn PatternMatrix::is_useful(
 ) -> Bool {
   // Usefulness judgment:
   //
-  //   useful(matrix, p, T)
+  //   useful(matrix, [p], [T])
   //
-  // The current implementation is the single-scrutinee slice of the standard
-  // pattern-matrix algorithm. It is intentionally conservative for nested
-  // payloads: a constructor pattern covers a previous constructor only when its
-  // payload patterns are irrefutable or structurally identical.
-  if self.is_exhaustive(declarations, type_) {
-    return false
-  }
-  match pattern {
-    Wildcard(..) | Binding(..) => true
-    Literal(literal=Bool(value), ..) => !self.covers_bool_literal(value)
-    Literal(literal=Int(literal), ..) => !self.covers_int_literal(literal.value)
-    Literal(literal=String(value), ..) => !self.covers_string_literal(value)
-    Literal(literal=Unit, ..) => true
-    Variant(symbol~, arguments~, ..) =>
-      !self.covers_variant(declarations, symbol, arguments)
-    Struct(..) => true
-  }
+  // This is the single-scrutinee entry point into the standard pattern-matrix
+  // specialization algorithm. Constructor columns are recursively expanded into
+  // payload/field columns, so nested enum and struct patterns are handled by the
+  // same coverage rule as top-level patterns.
+  matrix_useful(declarations, self.rows, [pattern], [type_])
 }
 
 ///|
@@ -604,178 +582,310 @@ fn PatternMatrix::is_exhaustive(
 ) -> Bool {
   // Exhaustiveness judgment:
   //
-  //   exhaustive(matrix, T)
+  //   !useful(matrix, [_], [T])
   //
-  // Bool and Unit use their finite primitive inhabitant sets. Int and String
-  // require an irrefutable fallback because their literal spaces are open in
-  // v1. Nominal enums are exhaustive when every variant constructor is covered;
-  // nominal structs need an irrefutable struct, wildcard, or binding pattern.
-  if self.rows.any(fn(row) { pattern_is_irrefutable(declarations, row, type_) }) {
+  if type_ is Error {
     true
   } else {
-    match type_.decompose_nominal() {
-      Some((symbol, _)) =>
-        match declarations.checked_enum(symbol) {
-          Some(declaration) =>
-            declaration.variants.all(fn(variant) {
-              self.covers_variant_constructor(declarations, variant)
-            })
-          None => false
-        }
-      None =>
-        match type_ {
-          Error => true
-          Primitive(Bool) =>
-            self.covers_bool_literal(true) && self.covers_bool_literal(false)
-          Primitive(Unit) | Primitive(Int) | Primitive(String) => false
-          Parameter(_)
-          | Constructor(_)
-          | Apply(_, _)
-          | TypeLambda(_, _)
-          | Function(_, _)
-          | Forall(_, _) => false
-        }
-    }
+    !matrix_useful(declarations, self.rows, [wildcard_pattern(type_)], [type_])
   }
 }
 
 ///|
-fn PatternMatrix::covers_bool_literal(
-  self : PatternMatrix,
-  value : Bool,
-) -> Bool {
-  self.rows.any(fn(row) {
-    match row {
-      Wildcard(..) | Binding(..) => true
-      Literal(literal=Bool(row_value), ..) => row_value == value
-      _ => false
-    }
-  })
+priv enum MatrixConstructor {
+  BoolConstructor(Bool)
+  IntConstructor(Int64)
+  StringConstructor(String)
+  UnitConstructor
+  VariantConstructor(VariantSymbolId)
+  StructConstructor(TypeSymbolId)
+} derive(Eq)
+
+///|
+priv struct ConstructorSignature {
+  tag : MatrixConstructor
+  argument_types : Array[@types.Type]
 }
 
 ///|
-fn PatternMatrix::covers_int_literal(
-  self : PatternMatrix,
-  value : Int64,
-) -> Bool {
-  self.rows.any(fn(row) {
-    match row {
-      Wildcard(..) | Binding(..) => true
-      Literal(literal=Int(row_literal), ..) => row_literal.value == value
-      _ => false
-    }
-  })
-}
-
-///|
-fn PatternMatrix::covers_string_literal(
-  self : PatternMatrix,
-  value : String,
-) -> Bool {
-  self.rows.any(fn(row) {
-    match row {
-      Wildcard(..) | Binding(..) => true
-      Literal(literal=String(row_value), ..) => row_value == value
-      _ => false
-    }
-  })
-}
-
-///|
-fn PatternMatrix::covers_variant(
-  self : PatternMatrix,
+fn matrix_useful(
   declarations : CheckedDeclarationEnvironment,
-  symbol : VariantSymbolId,
-  arguments : Array[@checked.CheckedPattern],
+  matrix : Array[Array[@checked.CheckedPattern]],
+  vector : Array[@checked.CheckedPattern],
+  types : Array[@types.Type],
 ) -> Bool {
-  self.rows.any(fn(row) {
-    match row {
-      Wildcard(..) | Binding(..) => true
-      Variant(symbol=row_symbol, arguments=row_arguments, ..) =>
-        row_symbol == symbol &&
-        variant_arguments_cover(declarations, row_arguments, arguments)
-      _ => false
-    }
-  })
-}
-
-///|
-fn PatternMatrix::covers_variant_constructor(
-  self : PatternMatrix,
-  declarations : CheckedDeclarationEnvironment,
-  variant : CheckedVariantDeclaration,
-) -> Bool {
-  self.rows.any(fn(row) {
-    match row {
-      Wildcard(..) | Binding(..) => true
-      Variant(symbol~, arguments~, ..) =>
-        symbol == variant.symbol &&
-        variant_arguments_irrefutable(declarations, arguments)
-      _ => false
-    }
-  })
-}
-
-///|
-fn pattern_is_irrefutable(
-  declarations : CheckedDeclarationEnvironment,
-  pattern : @checked.CheckedPattern,
-  type_ : @types.Type,
-) -> Bool {
-  match pattern {
-    Wildcard(..) | Binding(..) => true
-    Struct(fields~, ..) =>
-      fields.all(fn(field) {
-        pattern_is_irrefutable(
+  if vector.is_empty() {
+    return matrix.is_empty()
+  }
+  guard vector.get(0) is Some(head) else { return matrix.is_empty() }
+  guard types.get(0) is Some(type_) else { return matrix.is_empty() }
+  let vector_tail = pattern_tail(vector)
+  let type_tail = type_tail(types)
+  if constructor_signature_for_pattern(head) is Some(signature) {
+    return matrix_useful(
+      declarations,
+      specialize_matrix(matrix, signature),
+      pattern_concat(constructor_arguments_for_pattern(head), vector_tail),
+      type_concat(signature.argument_types, type_tail),
+    )
+  }
+  let seen = first_column_constructor_signatures(matrix)
+  if complete_constructor_signatures(declarations, type_) is Some(constructors) {
+    if constructor_signatures_complete(constructors, seen) {
+      return constructors.any(fn(signature) {
+        matrix_useful(
           declarations,
-          field.pattern,
-          field.pattern.type_(),
+          specialize_matrix(matrix, signature),
+          pattern_concat(
+            wildcard_patterns(signature.argument_types),
+            vector_tail,
+          ),
+          type_concat(signature.argument_types, type_tail),
         )
       })
-    Variant(symbol~, arguments~, ..) =>
-      match type_.decompose_nominal() {
-        Some((owner, _)) =>
-          if declarations.checked_enum(owner) is Some(declaration) {
-            declaration.variants.length() == 1 &&
-            declaration.variants[0].symbol == symbol &&
-            variant_arguments_irrefutable(declarations, arguments)
-          } else {
-            false
-          }
-        None => false
-      }
-    Literal(..) => false
-  }
-}
-
-///|
-fn variant_arguments_cover(
-  declarations : CheckedDeclarationEnvironment,
-  covered : Array[@checked.CheckedPattern],
-  target : Array[@checked.CheckedPattern],
-) -> Bool {
-  if covered.length() != target.length() {
-    return false
-  }
-  for index in 0..<covered.length() {
-    if !pattern_is_irrefutable(
-        declarations,
-        covered[index],
-        target[index].type_(),
-      ) &&
-      covered[index] != target[index] {
-      return false
     }
   }
-  true
+  matrix_useful(declarations, default_matrix(matrix), vector_tail, type_tail)
 }
 
 ///|
-fn variant_arguments_irrefutable(
+fn specialize_matrix(
+  matrix : Array[Array[@checked.CheckedPattern]],
+  signature : ConstructorSignature,
+) -> Array[Array[@checked.CheckedPattern]] {
+  let specialized = []
+  for row in matrix {
+    if specialize_row(row, signature) is Some(row) {
+      specialized.push(row)
+    }
+  }
+  specialized
+}
+
+///|
+fn specialize_row(
+  row : Array[@checked.CheckedPattern],
+  signature : ConstructorSignature,
+) -> Array[@checked.CheckedPattern]? {
+  guard row.get(0) is Some(head) else { return None }
+  let row_tail = pattern_tail(row)
+  match head {
+    Wildcard(..) | Binding(..) =>
+      Some(
+        pattern_concat(wildcard_patterns(signature.argument_types), row_tail),
+      )
+    _ if constructor_signature_for_pattern(head) is Some(head_signature) &&
+      head_signature.tag == signature.tag =>
+      Some(pattern_concat(constructor_arguments_for_pattern(head), row_tail))
+    _ => None
+  }
+}
+
+///|
+fn default_matrix(
+  matrix : Array[Array[@checked.CheckedPattern]],
+) -> Array[Array[@checked.CheckedPattern]] {
+  let rows = []
+  for row in matrix {
+    guard row.get(0) is Some(head) else { continue }
+    if head is Wildcard(..) || head is Binding(..) {
+      rows.push(pattern_tail(row))
+    }
+  }
+  rows
+}
+
+///|
+fn complete_constructor_signatures(
   declarations : CheckedDeclarationEnvironment,
-  arguments : Array[@checked.CheckedPattern],
+  type_ : @types.Type,
+) -> Array[ConstructorSignature]? {
+  if type_.decompose_nominal() is Some((symbol, arguments)) {
+    if declarations.checked_enum(symbol) is Some(declaration) {
+      return Some(
+        declaration.variants.map(fn(variant) {
+          {
+            tag: VariantConstructor(variant.symbol),
+            argument_types: variant_payload_types(
+              declaration, variant, arguments,
+            ),
+          }
+        }),
+      )
+    }
+    if declarations.checked_struct(symbol) is Some(declaration) {
+      return Some([
+        {
+          tag: StructConstructor(symbol),
+          argument_types: struct_field_types(declaration, arguments),
+        },
+      ])
+    }
+    return None
+  }
+  match type_ {
+    Error => Some([])
+    Primitive(Bool) =>
+      Some([
+        { tag: BoolConstructor(false), argument_types: [] },
+        { tag: BoolConstructor(true), argument_types: [] },
+      ])
+    Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [] }])
+    Primitive(Int) | Primitive(String) => None
+    Parameter(_)
+    | Constructor(_)
+    | Apply(_, _)
+    | TypeLambda(_, _)
+    | Function(_, _)
+    | Forall(_, _) => None
+  }
+}
+
+///|
+fn variant_payload_types(
+  declaration : CheckedEnumDeclaration,
+  variant : CheckedVariantDeclaration,
+  arguments : Array[@types.Type],
+) -> Array[@types.Type] {
+  let substitution = variant_type_substitution(
+    declaration.type_parameters,
+    arguments,
+  )
+  variant.payload.map(fn(type_) { type_.substitute(substitution) })
+}
+
+///|
+fn struct_field_types(
+  declaration : CheckedStructDeclaration,
+  arguments : Array[@types.Type],
+) -> Array[@types.Type] {
+  let substitution = declaration.nominal_substitution(arguments)
+  declaration.fields.map(fn(field) { field.type_.substitute(substitution) })
+}
+
+///|
+fn constructor_signature_for_pattern(
+  pattern : @checked.CheckedPattern,
+) -> ConstructorSignature? {
+  match pattern {
+    Wildcard(..) | Binding(..) => None
+    Literal(literal~, ..) =>
+      match literal {
+        Bool(value) => Some({ tag: BoolConstructor(value), argument_types: [] })
+        Int(value) =>
+          Some({ tag: IntConstructor(value.value), argument_types: [] })
+        String(value) =>
+          Some({ tag: StringConstructor(value), argument_types: [] })
+        Unit => Some({ tag: UnitConstructor, argument_types: [] })
+      }
+    Variant(symbol~, arguments~, ..) =>
+      Some({
+        tag: VariantConstructor(symbol),
+        argument_types: arguments.map(fn(argument) { argument.type_() }),
+      })
+    Struct(symbol~, fields~, ..) =>
+      Some({
+        tag: StructConstructor(symbol),
+        argument_types: fields.map(fn(field) { field.pattern.type_() }),
+      })
+  }
+}
+
+///|
+fn constructor_arguments_for_pattern(
+  pattern : @checked.CheckedPattern,
+) -> Array[@checked.CheckedPattern] {
+  match pattern {
+    Variant(arguments~, ..) => arguments
+    Struct(fields~, ..) => fields.map(fn(field) { field.pattern })
+    _ => []
+  }
+}
+
+///|
+fn first_column_constructor_signatures(
+  matrix : Array[Array[@checked.CheckedPattern]],
+) -> Array[ConstructorSignature] {
+  let signatures = []
+  for row in matrix {
+    guard row.get(0) is Some(pattern) else { continue }
+    guard constructor_signature_for_pattern(pattern) is Some(signature) else {
+      continue
+    }
+    if !constructor_signature_contains(signatures, signature.tag) {
+      signatures.push(signature)
+    }
+  }
+  signatures
+}
+
+///|
+fn constructor_signatures_complete(
+  complete : Array[ConstructorSignature],
+  seen : Array[ConstructorSignature],
 ) -> Bool {
-  arguments.all(fn(argument) {
-    pattern_is_irrefutable(declarations, argument, argument.type_())
+  !complete.is_empty() &&
+  complete.all(fn(signature) {
+    constructor_signature_contains(seen, signature.tag)
   })
+}
+
+///|
+fn constructor_signature_contains(
+  signatures : Array[ConstructorSignature],
+  tag : MatrixConstructor,
+) -> Bool {
+  signatures.any(fn(signature) { signature.tag == tag })
+}
+
+///|
+fn wildcard_pattern(type_ : @types.Type) -> @checked.CheckedPattern {
+  Wildcard(type_~, loc=SourceSpan::dummy())
+}
+
+///|
+fn wildcard_patterns(
+  types : Array[@types.Type],
+) -> Array[@checked.CheckedPattern] {
+  types.map(wildcard_pattern)
+}
+
+///|
+fn pattern_tail(
+  patterns : Array[@checked.CheckedPattern],
+) -> Array[@checked.CheckedPattern] {
+  let tail = []
+  for index in 1..<patterns.length() {
+    tail.push(patterns[index])
+  }
+  tail
+}
+
+///|
+fn type_tail(types : Array[@types.Type]) -> Array[@types.Type] {
+  let tail = []
+  for index in 1..<types.length() {
+    tail.push(types[index])
+  }
+  tail
+}
+
+///|
+fn pattern_concat(
+  head : Array[@checked.CheckedPattern],
+  tail : Array[@checked.CheckedPattern],
+) -> Array[@checked.CheckedPattern] {
+  let result = head.copy()
+  result.append(tail)
+  result
+}
+
+///|
+fn type_concat(
+  head : Array[@types.Type],
+  tail : Array[@types.Type],
+) -> Array[@types.Type] {
+  let result = head.copy()
+  result.append(tail)
+  result
 }

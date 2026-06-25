@@ -231,6 +231,43 @@ test "elaborate pattern binders before match arm bodies" {
 }
 
 ///|
+test "elaborate nested patterns into verifiable buslane decision tree" {
+  let result = elaborate_buslane_source(
+    (
+      #|enum Option[A] {
+      #|  none
+      #|  some(A)
+      #|}
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|fn flatten(value : Option[Option[Int]]) -> Int {
+      #|  match value {
+      #|    Option::none => 0
+      #|    Option::some(Option::none) => 1
+      #|    Option::some(Option::some(x)) => x
+      #|  }
+      #|}
+      #|fn boxed(value : Box[Option[Int]]) -> Int {
+      #|  match value {
+      #|    Box::{ value: Option::none } => 0
+      #|    Box::{ value: Option::some(x) } => x
+      #|  }
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
 test "elaborate local recursive function into verifiable buslane" {
   let result = elaborate_buslane_source(
     (

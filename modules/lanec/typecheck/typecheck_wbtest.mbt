@@ -2196,6 +2196,98 @@ test "typecheck reports non-exhaustive bool match" {
 }
 
 ///|
+test "typecheck accepts exhaustive nested enum patterns" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none
+      #|  some(A)
+      #|}
+      #|fn use(value : Option[Option[Int]]) -> Int {
+      #|  match value {
+      #|    Option::none => 0
+      #|    Option::some(Option::none) => 1
+      #|    Option::some(Option::some(x)) => x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="0")
+}
+
+///|
+test "typecheck reports non-exhaustive nested enum patterns" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none
+      #|  some(A)
+      #|}
+      #|fn bad(value : Option[Option[Int]]) -> Int {
+      #|  match value {
+      #|    Option::none => 0
+      #|    Option::some(Option::none) => 1
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content=(
+      #|non_exhaustive_match type#0[type#0[Int]] @ 7:15-10:4
+    ),
+  )
+}
+
+///|
+test "typecheck reports unreachable nested enum pattern" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none
+      #|  some(A)
+      #|}
+      #|fn bad(value : Option[Option[Int]]) -> Int {
+      #|  match value {
+      #|    Option::some(Option::none) => 1
+      #|    Option::some(Option::none) => 2
+      #|    Option::some(Option::some(x)) => x
+      #|    Option::none => 0
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content=(
+      #|unreachable_match_arm @ 9:5-9:36
+    ),
+  )
+}
+
+///|
+test "typecheck accepts exhaustive nested struct field patterns" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none
+      #|  some(A)
+      #|}
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|fn use(value : Box[Option[Int]]) -> Int {
+      #|  match value {
+      #|    Box::{ value: Option::none } => 0
+      #|    Box::{ value: Option::some(x) } => x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="0")
+}
+
+///|
 test "typecheck reports unreachable match arm" {
   let result = expect_typecheck_result(
     (

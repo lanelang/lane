@@ -1,0 +1,14 @@
+// invalid: nested enum payload coverage must still be exhaustive
+module Examples.Invalid.NestedPatternNonExhaustive
+
+enum Option[A] {
+  none
+  some(A)
+}
+
+pub fn bad(value : Option[Option[Int]]) -> Int {
+  match value {
+    Option::none => 0
+    Option::some(Option::none) => 1
+  }
+}

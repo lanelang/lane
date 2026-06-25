@@ -210,6 +210,14 @@
       }
     },
     {
+      "name": "25 nested pattern exhaustiveness",
+      "file": "examples/valid/25_nested_pattern_exhaustiveness.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",
@@ -407,6 +415,14 @@
       "entry": "answer",
       "expect": {
         "contains": ["parse error", "unexpected `}`", "expected `else`"]
+      }
+    },
+    {
+      "name": "invalid 26 nested pattern non-exhaustive",
+      "file": "examples/invalid/26_nested_pattern_non_exhaustive.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["non_exhaustive_match"]
       }
     }
   ]
