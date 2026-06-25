@@ -1,11 +1,11 @@
 # Desktop Native LSP first
 
-Lane2's first editor integration targets VS Code Desktop by launching a native
-LSP server executable from the VS Code extension.
+Lane2's first editor integration targets VS Code Desktop by launching the
+native `lane lsp` subcommand from the VS Code extension.
 
-The LSP server lives in the Lane workspace as `modules/lane_lsp`. It may use
-host services such as stdio, JSON-RPC transport, document URIs, workspace
-document storage, and filesystem access.
+The LSP server lives in the Lane command module as the `lane lsp` subcommand.
+It may use host services such as stdio, JSON-RPC transport, document URIs,
+workspace document storage, and filesystem access.
 
 The compiler remains in the Compiler Project as `lanec`. It exposes
 target-independent compiler-analysis APIs that operate on in-memory source

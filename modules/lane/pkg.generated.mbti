@@ -1,14 +1,24 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "Milky2018/lane"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 
 // Errors
 
 // Types and methods
+type DocumentSnapshot derive(Eq, @debug.Debug)
+
+type HandlerResult derive(Eq, @debug.Debug)
+
 type LaneCommand
 
 type LaneCommandOutcome
+
+type ServerState
 
 // Type aliases
 

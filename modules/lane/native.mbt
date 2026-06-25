@@ -1,18 +1,18 @@
 ///|
-fn read_source_file(path : String) -> String raise {
-  @fs.read_file_to_string(path, encoding="utf8")
+async fn read_source_file(path : String) -> String {
+  @fs.read_file(path).text()
 }
 
 ///|
-fn write_source_file(path : String, source : String) -> Unit raise {
-  @fs.write_string_to_file(path, source, encoding="utf8")
+async fn write_source_file(path : String, source : String) -> Unit {
+  @fs.write_file(path, source, create_mode=CreateOrTruncate)
 }
 
 ///|
-fn read_library_sources(
+async fn read_library_sources(
   libs : Array[String],
   lib_dirs : Array[String],
-) -> Array[String] raise {
+) -> Array[String] {
   let sources = []
   for lib in libs {
     sources.push(read_source_file(lib))
@@ -24,21 +24,21 @@ fn read_library_sources(
 }
 
 ///|
-fn append_library_dir_sources(
+async fn append_library_dir_sources(
   path : String,
   sources : Array[String],
-) -> Unit raise {
-  let entries = @fs.read_dir(path)
-  entries.sort()
+) -> Unit {
+  let entries = @fs.readdir(path, sort=true)
   for entry in entries {
     if should_skip_library_entry(entry) {
       continue
     }
     let child = path + "/" + entry
-    if @fs.is_dir(child) {
-      append_library_dir_sources(child, sources)
-    } else if @fs.is_file(child) && child.has_suffix(".lane") {
-      sources.push(read_source_file(child))
+    match @fs.kind(child) {
+      Directory => append_library_dir_sources(child, sources)
+      Regular if child.has_suffix(".lane") =>
+        sources.push(read_source_file(child))
+      _ => ()
     }
   }
 }

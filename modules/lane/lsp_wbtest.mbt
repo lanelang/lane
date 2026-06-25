@@ -16,7 +16,7 @@ fn open_params(uri : String, text : String) -> Json {
 }
 
 ///|
-test "initialize returns full document sync capability" {
+async test "initialize returns full document sync capability" {
   let state = ServerState::ServerState()
   let result = state.handle_message(request(1, "initialize", Json::null()))
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
@@ -25,14 +25,14 @@ test "initialize returns full document sync capability" {
       "id": 1,
       "result": {
         "capabilities": { "textDocumentSync": 1 },
-        "serverInfo": { "name": "lane_lsp", "version": "0.1.0" },
+        "serverInfo": { "name": "lane", "version": "0.1.0" },
       },
     },
   ])
 }
 
 ///|
-test "didOpen publishes compiler diagnostics" {
+async test "didOpen publishes compiler diagnostics" {
   let state = ServerState::ServerState()
   let result = state.handle_message(
     request(
@@ -70,13 +70,13 @@ test "didOpen publishes compiler diagnostics" {
 }
 
 ///|
-test "didOpen checks against workspace library sources" {
+async test "didOpen checks against workspace library sources" {
   let workspace = ".tmp-lsp-workspace"
   let main_path = workspace + "/Main.lane"
   let lib_path = workspace + "/Lib.lane"
   cleanup_workspace_fixture(workspace, main_path, lib_path)
-  @fs.create_dir(workspace)
-  @fs.write_string_to_file(
+  @fs.mkdir(workspace)
+  @fs.write_file(
     lib_path,
     (
       #|module Lib
@@ -84,9 +84,9 @@ test "didOpen checks against workspace library sources" {
       #|pub let value : Int = 42
       #|
     ),
-    encoding="utf8",
+    create_mode=CreateOrTruncate,
   )
-  @fs.write_string_to_file(
+  @fs.write_file(
     main_path,
     (
       #|module Main
@@ -94,7 +94,7 @@ test "didOpen checks against workspace library sources" {
       #|pub let stale : Int = 0
       #|
     ),
-    encoding="utf8",
+    create_mode=CreateOrTruncate,
   )
   let state = ServerState::ServerState()
   ignore(
@@ -146,13 +146,13 @@ test "file URI paths are percent decoded" {
 }
 
 ///|
-test "workspace libraries prefer unsaved open document snapshots" {
+async test "workspace libraries prefer unsaved open document snapshots" {
   let workspace = ".tmp-lsp workspace"
   let main_path = workspace + "/Main.lane"
   let lib_path = workspace + "/Lib.lane"
   cleanup_workspace_fixture(workspace, main_path, lib_path)
-  @fs.create_dir(workspace)
-  @fs.write_string_to_file(
+  @fs.mkdir(workspace)
+  @fs.write_file(
     lib_path,
     (
       #|module Lib
@@ -160,9 +160,9 @@ test "workspace libraries prefer unsaved open document snapshots" {
       #|pub let stale : Int = 0
       #|
     ),
-    encoding="utf8",
+    create_mode=CreateOrTruncate,
   )
-  @fs.write_string_to_file(
+  @fs.write_file(
     main_path,
     (
       #|module Main
@@ -170,7 +170,7 @@ test "workspace libraries prefer unsaved open document snapshots" {
       #|pub let stale : Int = 0
       #|
     ),
-    encoding="utf8",
+    create_mode=CreateOrTruncate,
   )
   let state = ServerState::ServerState()
   ignore(
@@ -228,18 +228,18 @@ test "workspace libraries prefer unsaved open document snapshots" {
 }
 
 ///|
-fn cleanup_workspace_fixture(
+async fn cleanup_workspace_fixture(
   workspace : String,
   main_path : String,
   lib_path : String,
 ) -> Unit {
-  @fs.remove_file(main_path) catch {
+  @fs.remove(main_path) catch {
     _ => ()
   }
-  @fs.remove_file(lib_path) catch {
+  @fs.remove(lib_path) catch {
     _ => ()
   }
-  @fs.remove_dir(workspace) catch {
+  @fs.rmdir(workspace) catch {
     _ => ()
   }
 }

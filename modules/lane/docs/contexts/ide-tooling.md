@@ -10,8 +10,8 @@ Developer-facing editor and language-server integration built around Lane.
 _Avoid_: compiler front end, build system
 
 **Lane LSP Server**:
-The native language-server executable implemented under `lane_lsp`
-for VS Code Desktop and other LSP clients.
+The native language server started by `lane lsp` for VS Code Desktop and other
+LSP clients.
 _Avoid_: compiler daemon, VS Code backend
 
 **Lane VS Code Extension**:
@@ -21,7 +21,7 @@ _Avoid_: compiler plugin, web extension
 
 **LSP Executable Path**:
 The VS Code setting that points the Lane VS Code Extension at a native Lane LSP
-Server executable during v1 development.
+server command during v1 development.
 _Avoid_: compiler path, project root
 
 **VS Code Language Client**:
@@ -94,7 +94,7 @@ _Avoid_: diagnostics, compiler checking
 
 **Desktop Native LSP**:
 The v1 deployment model where the Lane VS Code Extension runs on VS Code
-Desktop and launches a native Lane LSP Server executable.
+Desktop and launches `lane lsp`.
 _Avoid_: VS Code Web extension, WASM language server
 
 ## Relationships
@@ -104,8 +104,8 @@ _Avoid_: VS Code Web extension, WASM language server
   workspace state.
 - The **Compiler Analysis API** must remain target-independent and must not own
   host file IO, process management, or LSP transport.
-- The **Lane VS Code Extension** is responsible for locating, launching, and
-  restarting the **Lane LSP Server**.
+- The **Lane VS Code Extension** is responsible for locating `lane`, launching
+  `lane lsp`, and restarting the **Lane LSP Server**.
 - During v1 development, the **Lane VS Code Extension** primarily uses the
   configured **LSP Executable Path** and may fall back to repository-local
   development locations.

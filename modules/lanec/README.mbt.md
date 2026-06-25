@@ -13,8 +13,8 @@ Relative to the workspace root:
 - `docs/`: project documentation, ADRs, and informal design notes.
 - `spec/`: the formal language specification and language conformance fixtures.
 - `lanec/`: the Lane compiler implementation.
-- `modules/lane`: developer command-line tools built around the compiler.
-- `modules/lane_lsp`: the native Lane language server.
+- `modules/lane`: developer command-line tools built around the compiler,
+  including the native `lane lsp` language server subcommand.
 
 ## Development
 

@@ -205,6 +205,38 @@ _Avoid_: value declaration, operation namespace, runtime plugin
 A source-language construct that implements effect operations and discharges their tracked effect requirements.
 _Avoid_: catch block, runtime error handler, builtin plugin
 
+**Handler Expression**:
+An expression of the form `handle expression with { ... }` that evaluates a computation under effect operation arms and a return arm.
+_Avoid_: statement handler, implicit dynamic scope, exception try block
+
+**Handler Operation Arm**:
+A handler arm that implements one effect operation and binds an explicit resume continuation.
+_Avoid_: catch clause, method override, ordinary function clause
+
+**Effect Handler Exhaustiveness Check**:
+The static check that a handler covers every operation of each effect it handles.
+_Avoid_: partial handler, operation-level effect removal, runtime missing-operation failure
+
+**Handler Return Arm**:
+A handler arm that maps the normally returned value of the handled expression to the handler result.
+_Avoid_: finally block, default exception case, implicit identity result
+
+**Resume Continuation**:
+The explicit continuation binder in a handler operation arm.
+_Avoid_: implicit resume keyword, unchecked jump, ordinary recursive function
+
+**Multi-Shot Resume Continuation**:
+A resume continuation that may be invoked multiple times without linear or affine use restrictions.
+_Avoid_: one-shot continuation, affine resume, escape-analysis-dependent resume
+
+**First-Class Resume Continuation**:
+A resume continuation that can be passed, stored, returned, and invoked like an ordinary function value.
+_Avoid_: stack-only resume, scoped resume keyword, non-escaping continuation
+
+**Deep Effect Handler**:
+An effect handler whose resumed continuation remains under the same handler.
+_Avoid_: shallow handler, one-shot catch, dynamic exception handler
+
 **Effect Operation**:
 A member of an effect declaration with a Lane function type signature such as `(String) -> Unit` or `() -> String`.
 _Avoid_: top-level function, arbitrary expression payload, unchecked command
@@ -238,8 +270,8 @@ A catchable language-level failure that can escape static effect tracking.
 _Avoid_: typed algebraic effect, runtime error report, undefined behavior
 
 **Lane Workspace**:
-The MoonBit workspace that contains the compiler, Buslane, command line tool,
-and language server modules.
+The MoonBit workspace that contains the compiler, Buslane, and command line
+tool modules.
 _Avoid_: single package, release artifact
 
 **Module Repository Layout**:
@@ -257,18 +289,14 @@ verifier, interpreter, and pretty printer.
 _Avoid_: source AST, compiler front end
 
 **Lane Command Module**:
-The `modules/lane` native command module.
-_Avoid_: compiler module, language server module
-
-**Lane LSP Module**:
-The `modules/lane_lsp` native language-server module.
+The `modules/lane` native command module, including the `lane lsp` language
+server subcommand.
 _Avoid_: VS Code extension, compiler front end
 
 ## Relationships
 
 - `modules/lanec` depends on `modules/buslane`.
 - `modules/lane` depends on `modules/lanec` and `modules/buslane`.
-- `modules/lane_lsp` depends on `modules/lanec`.
 - A **Compilation Unit** contains exactly one **Module**.
 - Every non-interactive **Module** has an explicit **Module Declaration**.
 - A **Source File** contains exactly one **Module**, and its **Module Declaration** is first.
@@ -313,6 +341,12 @@ _Avoid_: VS Code extension, compiler front end
 - **Effect Operation Lookup** resolves `name!` only against visible **Effect Operations**, not ordinary values.
 - A **Function Effect Annotation** names an **Effect Set**.
 - **Effect Polymorphism** uses **Effect Variables** to propagate effect sets through higher-order function types.
+- A **Handler Expression** contains one **Handler Return Arm** and zero or more **Handler Operation Arms**.
+- A **Handler Operation Arm** binds a **Resume Continuation** explicitly.
+- An **Effect Handler Exhaustiveness Check** rejects handlers that do not cover every operation of each handled effect.
+- A **Resume Continuation** is a **Multi-Shot Resume Continuation**.
+- A **Resume Continuation** is a **First-Class Resume Continuation**.
+- **Effect Handlers** are **Deep Effect Handlers** by default.
 - **Effect Handlers** discharge **Typed Algebraic Effects**.
 - **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
 - Importing a module does not implicitly import its dotted child module paths.

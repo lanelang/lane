@@ -10,6 +10,7 @@ enum LaneCommand {
     deny~ : Bool
   )
   Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
+  Lsp(stdio~ : Bool)
   Run(
     file~ : String,
     entry~ : String,
@@ -61,6 +62,14 @@ fn lane_command_spec() -> Command {
         ],
         positionals=[PositionArg("files", num_args=ValueRange(lower=1))],
       ),
+      Command("lsp", about="Run the Lane language server.", flags=[
+        FlagArg(
+          "stdio",
+          long="stdio",
+          hidden=true,
+          about="Use stdio transport.",
+        ),
+      ]),
     ],
   )
 }
@@ -109,6 +118,7 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
           deny=flag(child, "deny"),
         ),
       )
+    Some(("lsp", child)) => Ok(Lsp(stdio=flag(child, "stdio")))
     _ => Err("unknown lane command")
   }
 }

@@ -1,33 +1,33 @@
 ///|
-let server_name : String = "lane_lsp"
+let server_name : String = "lane"
 
 ///|
-pub(all) struct DocumentSnapshot {
+struct DocumentSnapshot {
   uri : String
   version : Int
   text : String
 } derive(Debug, Eq)
 
 ///|
-pub struct ServerState {
+struct ServerState {
   documents : Map[String, DocumentSnapshot]
   mut workspace_root : String?
   mut shutdown_requested : Bool
 }
 
 ///|
-pub(all) struct HandlerResult {
+struct HandlerResult {
   outgoing : Array[@jsonrpc.Message]
   exit_requested : Bool
 } derive(Debug, Eq)
 
 ///|
-pub fn ServerState::ServerState() -> ServerState {
+fn ServerState::ServerState() -> ServerState {
   { documents: {}, workspace_root: None, shutdown_requested: false }
 }
 
 ///|
-pub fn ServerState::handle_message(
+async fn ServerState::handle_message(
   self : ServerState,
   message : @jsonrpc.Message,
 ) -> HandlerResult {
@@ -39,7 +39,7 @@ pub fn ServerState::handle_message(
 }
 
 ///|
-fn ServerState::handle_batch_request(
+async fn ServerState::handle_batch_request(
   self : ServerState,
   requests : Array[@jsonrpc.Request],
 ) -> HandlerResult {
@@ -54,7 +54,7 @@ fn ServerState::handle_batch_request(
 }
 
 ///|
-fn ServerState::handle_request(
+async fn ServerState::handle_request(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -104,7 +104,7 @@ fn ServerState::handle_exit(self : ServerState) -> HandlerResult {
 }
 
 ///|
-fn ServerState::handle_did_open(
+async fn ServerState::handle_did_open(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -119,7 +119,7 @@ fn ServerState::handle_did_open(
 }
 
 ///|
-fn ServerState::handle_did_change(
+async fn ServerState::handle_did_change(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -162,7 +162,7 @@ fn ServerState::method_not_found(
 }
 
 ///|
-fn ServerState::check(
+async fn ServerState::check(
   self : ServerState,
   document : DocumentSnapshot,
 ) -> Array[@compile.CompileDiagnostic] {
@@ -173,7 +173,7 @@ fn ServerState::check(
 }
 
 ///|
-fn ServerState::workspace_library_sources(
+async fn ServerState::workspace_library_sources(
   self : ServerState,
   current_uri : String,
 ) -> Array[String] {
@@ -293,36 +293,37 @@ fn path_is_under_workspace(path : String, root : String) -> Bool {
 }
 
 ///|
-fn discover_lane_sources(
+async fn discover_lane_sources(
   root : String,
   excluded_path : String?,
   opened_paths : Array[String],
   sources : Array[String],
-) -> Array[String] raise @fs.IOError {
+) -> Array[String] {
   append_lane_sources(root, excluded_path, opened_paths, sources)
   sources
 }
 
 ///|
-fn append_lane_sources(
+async fn append_lane_sources(
   path : String,
   excluded_path : String?,
   opened_paths : Array[String],
   sources : Array[String],
-) -> Unit raise @fs.IOError {
-  let entries = @fs.read_dir(path)
-  entries.sort()
+) -> Unit {
+  let entries = @fs.readdir(path, sort=true)
   for entry in entries {
     if should_skip_workspace_entry(entry) {
       continue
     }
     let child = path + "/" + entry
-    if @fs.is_dir(child) {
-      append_lane_sources(child, excluded_path, opened_paths, sources)
-    } else if @fs.is_file(child) && child.has_suffix(".lane") {
-      if Some(child) != excluded_path && !opened_paths.contains(child) {
-        sources.push(@fs.read_file_to_string(child, encoding="utf8"))
-      }
+    match @fs.kind(child) {
+      Directory =>
+        append_lane_sources(child, excluded_path, opened_paths, sources)
+      Regular if child.has_suffix(".lane") =>
+        if Some(child) != excluded_path && !opened_paths.contains(child) {
+          sources.push(@fs.read_file(child).text())
+        }
+      _ => ()
     }
   }
 }

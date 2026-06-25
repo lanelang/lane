@@ -28,7 +28,7 @@ _Avoid_: native command implementation, editor extension
 
 - `lanec` implements the language contract from `spec`.
 - `lanec` consumes `buslane` as the semantic core target.
-- `lane`, `lane_lsp`, and future tools should call compiler APIs instead of
-  importing internal packages when possible.
+- `lane` and future tools should call compiler APIs instead of importing
+  internal packages when possible.
 - Platform services such as filesystem access belong in tools, not in the
   compiler core.

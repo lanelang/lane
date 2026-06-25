@@ -5,7 +5,7 @@ enum LaneCommandOutcome {
 }
 
 ///|
-fn main {
+async fn main {
   let command = match parse_lane_command() {
     Ok(command) => command
     Err(message) => {
@@ -18,6 +18,7 @@ fn main {
     Check(file~, libs~, lib_dirs~, deny~) =>
       lane_check(file, libs, lib_dirs, deny)
     Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
+    Lsp(stdio~) => lsp_command(stdio)
     Run(file~, entry~, libs~, lib_dirs~) =>
       lane_run(file, entry, libs, lib_dirs)
   }
@@ -28,7 +29,27 @@ fn main {
 }
 
 ///|
-fn lane_fmt(
+async fn lsp_command(_stdio : Bool) -> LaneCommandOutcome {
+  @async.pause()
+  run_lsp_server(ServerState())
+  Succeeded
+}
+
+///|
+async fn run_lsp_server(state : ServerState) -> Unit {
+  while read_protocol_message(@stdio.stdin) is Some(message) {
+    let result = state.handle_message(message)
+    for outgoing in result.outgoing {
+      write_protocol_message(@stdio.stdout, outgoing)
+    }
+    if result.exit_requested {
+      break
+    }
+  }
+}
+
+///|
+async fn lane_fmt(
   files : Array[String],
   check : Bool,
   deny : Bool,
@@ -73,7 +94,7 @@ fn lane_fmt(
 }
 
 ///|
-fn lane_check(
+async fn lane_check(
   file : String,
   libs : Array[String],
   lib_dirs : Array[String],
@@ -105,7 +126,7 @@ fn lane_check(
 }
 
 ///|
-fn lane_run(
+async fn lane_run(
   file : String,
   entry : String,
   libs : Array[String],

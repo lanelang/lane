@@ -2,5 +2,4 @@ members = [
   "./modules/buslane",
   "./modules/lanec",
   "./modules/lane",
-  "./modules/lane_lsp",
 ]

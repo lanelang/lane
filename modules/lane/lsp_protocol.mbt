@@ -1,5 +1,5 @@
 ///|
-pub async fn read_protocol_message(input : &@io.Reader) -> @jsonrpc.Message? {
+async fn read_protocol_message(input : &@io.Reader) -> @jsonrpc.Message? {
   let length = read_content_length(input)
   guard length is Some(length) else { return None }
   let body = @utf8.decode(input.read_exactly(length))
@@ -44,7 +44,7 @@ fn parse_content_length(line : String) -> Int? {
 }
 
 ///|
-pub async fn write_protocol_message(
+async fn write_protocol_message(
   output : &@io.Writer,
   message : @jsonrpc.Message,
 ) -> Unit {
