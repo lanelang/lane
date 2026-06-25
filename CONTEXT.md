@@ -46,8 +46,12 @@ The externally supplied module interfaces visible while compiling one **Compilat
 _Avoid_: concatenated source, prelude text, linker output
 
 **Module Interface**:
-The exported type, value, and offer surface of a compiled **Module**.
+The compiler-readable interface artifact for a compiled **Module**, including its exported type, value, and offer surface plus downstream compilation metadata such as **Optimization Hints**.
 _Avoid_: checked source body, private declarations, source AST
+
+**Optimization Hint**:
+Compiler-produced metadata stored in a **Module Interface** to help downstream compilation or optimization without changing source-language semantics.
+_Avoid_: source declaration, module object code, linker-only metadata
 
 **Module Object**:
 The lowered link-time artifact for one compiled **Module**.
@@ -250,6 +254,7 @@ _Avoid_: VS Code extension, compiler front end
 - `lanec` core compiles one **Compilation Unit** without recursively resolving imports.
 - CLI and **Build Workflows** construct the **Imported Environment** before calling `lanec`.
 - A **Module Interface** is consumed during downstream compilation.
+- A **Module Interface** may carry **Optimization Hints** for downstream compilation.
 - A **Module Object** is consumed during linking.
 - A **Compiled Module** pairs a **Module Interface** with a **Module Object**.
 - The **Module Interface** and **Module Object** in one **Compiled Module** share a **Compilation Fingerprint**.
@@ -293,6 +298,7 @@ _Avoid_: VS Code extension, compiler front end
 - Public signatures only mention **Interface-Visible Types**.
 - Public nominal shapes only mention **Interface-Visible Types**.
 - A **Module Interface** records **Exported Symbols**, not Buslane identities.
+- **Optimization Hints** do not change the source-language meaning of an imported **Module**.
 - A compilation action produces a **Compiled Module**.
 - Cross-module references target **Exported Symbols**, not **Private Lowered Definitions**.
 - Module-level visibility is outside the **Module** milestone.
