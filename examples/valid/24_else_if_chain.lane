@@ -1,0 +1,17 @@
+module Examples.Valid.ElseIfChain
+
+pub fn choose(first : Bool, second : Bool) -> Int {
+  if first {
+    1
+  } else if second {
+    2
+  } else {
+    3
+  }
+}
+
+pub let first : Int = choose(true, false)
+
+pub let second : Int = choose(false, true)
+
+pub let fallback : Int = choose(false, false)

@@ -202,6 +202,14 @@
       }
     },
     {
+      "name": "24 else-if chain",
+      "file": "examples/valid/24_else_if_chain.lane",
+      "entry": "second",
+      "expect": {
+        "equals": "2 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",
@@ -391,6 +399,14 @@
       "entry": "answer",
       "expect": {
         "contains": ["duplicate_type_parameter A"]
+      }
+    },
+    {
+      "name": "invalid 25 else-if missing final else",
+      "file": "examples/invalid/25_else_if_missing_final_else.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["parse error", "unexpected `}`", "expected `else`"]
       }
     }
   ]

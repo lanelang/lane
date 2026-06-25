@@ -573,9 +573,14 @@ local_item -> LocalItem
   ;
 
 if_expression -> Expr
-  : "if" expression block_expression "else" block_expression {
+  : "if" expression block_expression "else" else_branch_expression {
     If(condition=$2, then_branch=$3, else_branch=$5, loc=span($sloc))
   }
+  ;
+
+else_branch_expression -> Expr
+  : block_expression { $1 }
+  | if_expression { $1 }
   ;
 
 match_expression -> Expr

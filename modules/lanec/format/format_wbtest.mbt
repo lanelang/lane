@@ -101,6 +101,37 @@ test "format source keeps struct literal and pattern fields parseable" {
 }
 
 ///|
+test "format source keeps else-if chains parseable" {
+  let source =
+    #|module Test
+    #|pub fn choose(first : Bool, second : Bool) -> Int {
+    #|  if first { 1 } else if second { 2 } else { 3 }
+    #|}
+  let result = format_source(source)
+  guard result is Ok(formatted) else { abort("expected formatted source") }
+  inspect(
+    formatted,
+    content=(
+      #|module Test
+      #|
+      #|pub fn choose(first : Bool, second : Bool) -> Int {
+      #|  if first {
+      #|    1
+      #|  } else if second {
+      #|    2
+      #|  } else {
+      #|    3
+      #|  }
+      #|}
+      #|
+    ),
+  )
+  guard format_source(formatted) is Ok(_) else {
+    abort("expected formatted source to parse")
+  }
+}
+
+///|
 test "format source nests broken call arguments in match arms" {
   let source =
     #|module Test

@@ -127,6 +127,39 @@ test "parse function literal and pipeline" {
 }
 
 ///|
+test "parse else-if chain" {
+  let file = expect_parse_ok(
+    (
+      #|fn choose(first : Bool, second : Bool) -> Int {
+      #|  if first {
+      #|    1
+      #|  } else if second {
+      #|    2
+      #|  } else {
+      #|    3
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|fn choose(first : Bool, second : Bool) -> Int {
+      #|  if first {
+      #|    1
+      #|  } else if second {
+      #|    2
+      #|  } else {
+      #|    3
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse offered value definitions and contextual parameter syntax" {
   let file = expect_parse_ok(
     (
@@ -285,6 +318,26 @@ test "parse rejects empty enum variant payload syntax" {
       #|    ],
       #|  ),
       #|]
+    ),
+  )
+}
+
+///|
+test "parse rejects else-if chain without final else" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|fn choose(first : Bool, second : Bool) -> Int {
+        #|  if first {
+        #|    1
+        #|  } else if second {
+        #|    2
+        #|  }
+        #|}
+      ),
+    ),
+    content=(
+      #|[UnexpectedToken({ label: "`}`" }, [{ label: "`else`" }])]
     ),
   )
 }
