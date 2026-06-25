@@ -1,6 +1,6 @@
 ///|
 priv struct ModuleObject {
-  path : String
+  module_path_text : String
   interface : @module_interface.ModuleInterface
   checked : @checked.CheckedSourceFile
 }
@@ -8,7 +8,7 @@ priv struct ModuleObject {
 ///|
 priv struct CompiledModuleSet {
   root : ModuleObject
-  libraries : Array[ModuleObject]
+  linked_libraries : Array[ModuleObject]
 }
 
 ///|
@@ -18,32 +18,38 @@ fn compile_module_graph(
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let objects : Array[ModuleObject] = []
   for input in graph.modules {
-    let imported = imported_objects(input.source, objects)
+    let imported = imported_objects(input.header, objects)
     match compile_one_module(input, registry, imported) {
       Ok(object) => objects.push(object)
       Err(diagnostics) => return Err(diagnostics)
     }
   }
-  guard find_module_object(objects, graph.root_path) is Some(root) else {
+  guard find_module_object(objects, graph.root_module_path_text) is Some(root) else {
     return Err([make_error("no root source module", span=None)])
   }
-  let libraries = []
-  for object in objects {
-    if object.path != graph.root_path {
-      libraries.push(object)
+  let linked_libraries = []
+  for module_path_text in graph.reachable_module_path_texts {
+    if module_path_text != graph.root_module_path_text {
+      match find_module_object(objects, module_path_text) {
+        Some(object) => linked_libraries.push(object)
+        None =>
+          return Err([
+            make_error("missing import " + module_path_text, span=None),
+          ])
+      }
     }
   }
-  Ok({ root, libraries })
+  Ok({ root, linked_libraries })
 }
 
 ///|
 fn imported_objects(
-  source : @syntax.SourceFile,
+  header : ModuleHeader,
   objects : Array[ModuleObject],
 ) -> @module_interface.ImportedEnvironment {
   let imported = []
-  for import_ in module_import_paths(source) {
-    if find_module_object(objects, import_.path) is Some(object) {
+  for import_ in header.imports {
+    if find_module_object(objects, import_.module_path_text) is Some(object) {
       imported.push(object.interface)
     }
   }
@@ -85,7 +91,7 @@ fn compile_one_module(
   }
   match (checked.source, checked.module_interface) {
     (Some(checked), Some(interface)) =>
-      Ok({ path: input.path, interface, checked })
+      Ok({ module_path_text: input.header.module_path_text, interface, checked })
     _ => Err([make_error("checked source construction failed", span=None)])
   }
 }
@@ -96,7 +102,7 @@ fn find_module_object(
   path : String,
 ) -> ModuleObject? {
   for object in objects {
-    if object.path == path {
+    if object.module_path_text == path {
       return Some(object)
     }
   }

@@ -48,7 +48,7 @@ pub fn compile_sources(
     Ok(modules) => {
       let lowered = @elaborate.lower_checked_source_files_to_buslane_result(
         modules.root.checked,
-        modules.libraries.map(fn(module_) { module_.checked }),
+        modules.linked_libraries.map(fn(module_) { module_.checked }),
       )
       {
         program: Some(lowered.program),

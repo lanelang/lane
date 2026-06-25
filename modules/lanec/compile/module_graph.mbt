@@ -1,7 +1,8 @@
 ///|
 priv struct ModuleGraph {
-  root_path : String
+  root_module_path_text : String
   modules : Array[ParsedModuleInput]
+  reachable_module_path_texts : Array[String]
 }
 
 ///|
@@ -12,11 +13,24 @@ fn build_module_graph(
   if !graph_diagnostics.is_empty() {
     return Err(graph_diagnostics)
   }
-  let reachable = reachable_modules(inputs.modules, inputs.root_path)
+  let ordered = topological_modules(inputs.modules)
+  if !ordered.diagnostics.is_empty() {
+    return Err(ordered.diagnostics)
+  }
+  let reachable = reachable_modules(
+    inputs.modules,
+    inputs.root_module_path_text,
+  )
   if !reachable.diagnostics.is_empty() {
     return Err(reachable.diagnostics)
   }
-  Ok({ root_path: inputs.root_path, modules: reachable.modules })
+  Ok({
+    root_module_path_text: inputs.root_module_path_text,
+    modules: ordered.modules,
+    reachable_module_path_texts: reachable.modules.map(fn(module_) {
+      module_.header.module_path_text
+    }),
+  })
 }
 
 ///|
@@ -26,44 +40,30 @@ fn validate_module_inputs(
   let diagnostics = []
   for index in 0..<modules.length() {
     for other_index in (index + 1)..<modules.length() {
-      if modules[index].path == modules[other_index].path {
+      if modules[index].header.module_path_text ==
+        modules[other_index].header.module_path_text {
         diagnostics.push(
           make_error(
-            "duplicate module input " + modules[index].path,
-            span=Some(modules[other_index].source.module_path.loc),
+            "duplicate module input " + modules[index].header.module_path_text,
+            span=Some(modules[other_index].header.module_span),
           ),
         )
       }
     }
   }
   for module_ in modules {
-    for import_ in module_import_paths(module_.source) {
-      if find_module(modules, import_.path) is None {
+    for import_ in module_.header.imports {
+      if find_module(modules, import_.module_path_text) is None {
         diagnostics.push(
-          make_error("missing import " + import_.path, span=Some(import_.loc)),
+          make_error(
+            "missing import " + import_.module_path_text,
+            span=Some(import_.import_span),
+          ),
         )
       }
     }
   }
   diagnostics
-}
-
-///|
-priv struct ImportPath {
-  path : String
-  loc : @basic.SourceSpan
-}
-
-///|
-fn module_import_paths(source : @syntax.SourceFile) -> Array[ImportPath] {
-  source.imports.map(fn(import_) {
-    let path = match import_ {
-      Qualified(module_path~, ..)
-      | Open(module_path~, ..)
-      | Selective(module_path~, ..) => module_path
-    }
-    { path: module_path_text(path), loc: import_.loc() }
-  })
 }
 
 ///|
@@ -73,15 +73,44 @@ priv struct ReachableModulesResult {
 }
 
 ///|
+priv struct OrderedModulesResult {
+  modules : Array[ParsedModuleInput]
+  diagnostics : Array[CompileDiagnostic]
+}
+
+///|
+fn topological_modules(
+  modules : Array[ParsedModuleInput],
+) -> OrderedModulesResult {
+  let ordered = []
+  let visiting : Array[String] = []
+  let visited : Array[String] = []
+  let diagnostics = []
+  for module_ in modules {
+    visit_module(
+      modules,
+      module_.header.module_path_text,
+      visiting,
+      visited,
+      ordered,
+      diagnostics,
+    )
+  }
+  { modules: ordered, diagnostics }
+}
+
+///|
 fn reachable_modules(
   modules : Array[ParsedModuleInput],
-  root_path : String,
+  root_module_path_text : String,
 ) -> ReachableModulesResult {
   let ordered = []
   let visiting : Array[String] = []
   let visited : Array[String] = []
   let diagnostics = []
-  visit_module(modules, root_path, visiting, visited, ordered, diagnostics)
+  visit_module(
+    modules, root_module_path_text, visiting, visited, ordered, diagnostics,
+  )
   { modules: ordered, diagnostics }
 }
 
@@ -106,8 +135,15 @@ fn visit_module(
     return
   }
   visiting.push(path)
-  for import_ in module_import_paths(module_.source) {
-    visit_module(modules, import_.path, visiting, visited, ordered, diagnostics)
+  for import_ in module_.header.imports {
+    visit_module(
+      modules,
+      import_.module_path_text,
+      visiting,
+      visited,
+      ordered,
+      diagnostics,
+    )
   }
   ignore(visiting.pop())
   visited.push(path)
@@ -120,7 +156,7 @@ fn find_module(
   path : String,
 ) -> ParsedModuleInput? {
   for module_ in modules {
-    if module_.path == path {
+    if module_.header.module_path_text == path {
       return Some(module_)
     }
   }

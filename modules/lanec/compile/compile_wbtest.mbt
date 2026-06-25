@@ -81,6 +81,33 @@ test "compile sources exposes only root public entries" {
 }
 
 ///|
+test "compile sources links only root reachable library modules" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = value
+    ),
+    [
+      (
+        #|module Lib
+        #|pub let value : Int = 42
+      ),
+      (
+        #|module Extra
+        #|pub let extra : (Int, Int) -> Int = builtin("%i64_add")
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(result.externals.builtins.length(), content="0")
+  inspect(
+    result.entries.map(fn(entry) { entry.name }).join(","),
+    content="answer",
+  )
+}
+
+///|
 test "check sources does not expose private imported values" {
   let result = check_sources(
     (
@@ -197,6 +224,48 @@ test "check sources rejects duplicate module input" {
   )
   inspect(result.diagnostics.length(), content="1")
   inspect(result.diagnostics[0].message, content="duplicate module input Main")
+}
+
+///|
+test "check sources checks unimported library modules" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|pub let answer : Int = 42
+    ),
+    [
+      (
+        #|module Extra
+        #|pub let extra : Int = missing
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="unresolved_value missing")
+}
+
+///|
+test "check sources rejects unimported library import cycle" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|pub let answer : Int = 42
+    ),
+    [
+      (
+        #|module ExtraA
+        #|import ExtraB
+        #|pub let value : Int = 1
+      ),
+      (
+        #|module ExtraB
+        #|import ExtraA
+        #|pub let value : Int = 2
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="import cycle ExtraA")
 }
 
 ///|
