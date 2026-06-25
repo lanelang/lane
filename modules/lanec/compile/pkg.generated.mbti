@@ -37,6 +37,7 @@ pub(all) struct AnalysisResult {
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
+  semantic_tokens : Array[SemanticTokenEntry]
 } derive(Eq, @debug.Debug)
 pub fn AnalysisResult::definition_at(Self, String, Int, Int) -> AnalysisLocation?
 pub fn AnalysisResult::hover_at(Self, String, Int, Int) -> HoverEntry?
@@ -92,6 +93,16 @@ pub(all) struct ReferenceEntry {
   location : AnalysisLocation
   symbol : AnalysisSymbol
   hover : String?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SemanticTokenEntry {
+  location : AnalysisLocation
+  kind : SemanticTokenKind
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SemanticTokenKind {
+  VariableToken
+  ParameterToken
 } derive(Eq, @debug.Debug)
 
 pub(all) struct SourceInput {

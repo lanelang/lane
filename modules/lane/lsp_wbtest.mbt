@@ -39,8 +39,66 @@ async test "initialize returns full document sync capability" {
           "textDocumentSync": 1,
           "definitionProvider": true,
           "hoverProvider": true,
+          "semanticTokensProvider": {
+            "legend": {
+              "tokenTypes": ["variable", "parameter"],
+              "tokenModifiers": [],
+            },
+            "full": true,
+          },
         },
         "serverInfo": { "name": "lane", "version": "0.1.0" },
+      },
+    },
+  ])
+}
+
+///|
+async test "semantic tokens full returns variables and parameters" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub fn choose(first : Bool, second : Bool) -> Int {
+            #|  let result = first
+            #|  if second {
+            #|    result
+            #|  } else {
+            #|    0
+            #|  }
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/semanticTokens/full",
+      Json::object({
+        "textDocument": Json::object({
+          "uri": Json::string("file:///Main.lane"),
+        }),
+      }),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "data": [
+          2, 14, 5, 1, 0, 0, 14, 6, 1, 0, 1, 6, 6, 0, 0, 0, 9, 5, 1, 0, 1, 5, 6,
+          1, 0, 1, 4, 6, 0, 0,
+        ],
       },
     },
   ])

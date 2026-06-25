@@ -67,6 +67,8 @@ async fn ServerState::handle_request(
     "textDocument/didClose" => self.handle_did_close(request)
     "textDocument/definition" => self.handle_definition(request)
     "textDocument/hover" => self.handle_hover(request)
+    "textDocument/semanticTokens/full" =>
+      self.handle_semantic_tokens_full(request)
     method_name => self.method_not_found(request, method_name)
   }
 }
@@ -87,6 +89,16 @@ fn initialize_result() -> Json {
       "textDocumentSync": int_json(1),
       "definitionProvider": Json::boolean(true),
       "hoverProvider": Json::boolean(true),
+      "semanticTokensProvider": Json::object({
+        "legend": Json::object({
+          "tokenTypes": Json::array([
+            Json::string("variable"),
+            Json::string("parameter"),
+          ]),
+          "tokenModifiers": Json::array([]),
+        }),
+        "full": Json::boolean(true),
+      }),
     }),
     "serverInfo": Json::object({
       "name": Json::string(server_name),
@@ -189,6 +201,24 @@ async fn ServerState::handle_hover(
     Some(hover) => respond(request, Ok(hover_json(hover)))
     None => respond(request, Ok(Json::null()))
   }
+}
+
+///|
+async fn ServerState::handle_semantic_tokens_full(
+  self : ServerState,
+  request : @jsonrpc.Request,
+) -> HandlerResult {
+  guard uri_from_text_document_params(request.params) is Some(uri) else {
+    return respond(
+      request,
+      Err(invalid_params("invalid semantic tokens params")),
+    )
+  }
+  guard self.document_for_uri(uri) is Some(document) else {
+    return respond(request, Ok(semantic_tokens_json([], uri)))
+  }
+  let analysis = self.analyze(document)
+  respond(request, Ok(semantic_tokens_json(analysis.semantic_tokens, uri)))
 }
 
 ///|
@@ -496,6 +526,93 @@ fn hover_json(hover : @compile.HoverEntry) -> Json {
     }),
     "range": range_json(hover.location.span),
   })
+}
+
+///|
+fn semantic_tokens_json(
+  tokens : Array[@compile.SemanticTokenEntry],
+  uri : String,
+) -> Json {
+  Json::object({
+    "data": Json::array(semantic_token_data(tokens, uri).map(int_json)),
+  })
+}
+
+///|
+fn semantic_token_data(
+  tokens : Array[@compile.SemanticTokenEntry],
+  uri : String,
+) -> Array[Int] {
+  let sorted = tokens.filter(fn(token) {
+    token.location.source_id == uri && semantic_token_has_valid_span(token)
+  })
+  sorted.sort_by(compare_semantic_token_entry)
+  let data : Array[Int] = []
+  let mut last_line = 0
+  let mut last_start = 0
+  let mut previous = None
+  for token in sorted {
+    if previous is Some(previous) && same_semantic_token(previous, token) {
+      continue
+    }
+    let span = token.location.span
+    let line = span.start_line - 1
+    let start = span.start_column - 1
+    let delta_line = line - last_line
+    let delta_start = if delta_line == 0 { start - last_start } else { start }
+    data.push(delta_line)
+    data.push(delta_start)
+    data.push(span.end_column - span.start_column)
+    data.push(semantic_token_type_index(token.kind))
+    data.push(0)
+    last_line = line
+    last_start = start
+    previous = Some(token)
+  }
+  data
+}
+
+///|
+fn semantic_token_has_valid_span(token : @compile.SemanticTokenEntry) -> Bool {
+  let span = token.location.span
+  span.start_line == span.end_line &&
+  span.start_line > 0 &&
+  span.start_column > 0 &&
+  span.end_column > span.start_column
+}
+
+///|
+fn compare_semantic_token_entry(
+  left : @compile.SemanticTokenEntry,
+  right : @compile.SemanticTokenEntry,
+) -> Int {
+  let left_span = left.location.span
+  let right_span = right.location.span
+  if left_span.start_line != right_span.start_line {
+    left_span.start_line - right_span.start_line
+  } else if left_span.start_column != right_span.start_column {
+    left_span.start_column - right_span.start_column
+  } else if left_span.end_column != right_span.end_column {
+    left_span.end_column - right_span.end_column
+  } else {
+    semantic_token_type_index(left.kind) - semantic_token_type_index(right.kind)
+  }
+}
+
+///|
+fn same_semantic_token(
+  left : @compile.SemanticTokenEntry,
+  right : @compile.SemanticTokenEntry,
+) -> Bool {
+  left.location == right.location && left.kind == right.kind
+}
+
+///|
+fn semantic_token_type_index(kind : @compile.SemanticTokenKind) -> Int {
+  match kind {
+    VariableToken => 0
+    ParameterToken => 1
+  }
 }
 
 ///|

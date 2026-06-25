@@ -123,7 +123,7 @@ fn collect_checked_top_level_declaration(
           hovers,
           source_id,
           Value(parameter.symbol),
-          parameter.loc,
+          name_span(source_text, parameter.name, parameter.loc),
           parameter.name,
           parameter.name + " : " + type_text(parameter.type_),
         )
@@ -253,7 +253,7 @@ fn collect_checked_expr(
           hovers,
           source_id,
           Value(parameter.symbol),
-          parameter.loc,
+          name_span(source_text, parameter.name, parameter.loc),
           parameter.name,
           parameter.name + " : " + type_text(parameter.type_),
         )

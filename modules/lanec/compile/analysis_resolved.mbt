@@ -139,7 +139,7 @@ fn collect_resolved_top_level_declaration(
           hovers,
           source_id,
           Value(parameter.symbol),
-          parameter.loc,
+          name_span(source_text, parameter.name, parameter.loc),
           parameter.name,
           parameter.name,
         )
@@ -436,7 +436,7 @@ fn collect_resolved_expr(
           hovers,
           source_id,
           Value(parameter.symbol),
-          parameter.loc,
+          name_span(source_text, parameter.name, parameter.loc),
           parameter.name,
           parameter.name,
         )

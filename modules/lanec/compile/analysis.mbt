@@ -36,11 +36,24 @@ pub(all) struct HoverEntry {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum SemanticTokenKind {
+  VariableToken
+  ParameterToken
+} derive(Debug, Eq)
+
+///|
+pub(all) struct SemanticTokenEntry {
+  location : AnalysisLocation
+  kind : SemanticTokenKind
+} derive(Debug, Eq)
+
+///|
 pub(all) struct AnalysisResult {
   diagnostics : Array[CompileDiagnostic]
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
+  semantic_tokens : Array[SemanticTokenEntry]
 } derive(Debug, Eq)
 
 ///|
@@ -65,11 +78,23 @@ pub fn analyze_source_inputs(
 ) -> AnalysisResult {
   match parse_module_input_set_from_inputs(root_source, library_sources) {
     Err(diagnostics) =>
-      { diagnostics, definitions: [], references: [], hovers: [] }
+      {
+        diagnostics,
+        definitions: [],
+        references: [],
+        hovers: [],
+        semantic_tokens: [],
+      }
     Ok(inputs) =>
       match build_module_graph(inputs) {
         Err(diagnostics) =>
-          { diagnostics, definitions: [], references: [], hovers: [] }
+          {
+            diagnostics,
+            definitions: [],
+            references: [],
+            hovers: [],
+            semantic_tokens: [],
+          }
         Ok(graph) => analyze_module_graph(graph)
       }
   }
@@ -163,5 +188,62 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
         )
     }
   }
-  { diagnostics, definitions, references, hovers }
+  let semantic_tokens = build_semantic_tokens(definitions, references, registry)
+  { diagnostics, definitions, references, hovers, semantic_tokens }
+}
+
+///|
+fn build_semantic_tokens(
+  definitions : Array[DefinitionEntry],
+  references : Array[ReferenceEntry],
+  registry : @symbol.SymbolRegistry,
+) -> Array[SemanticTokenEntry] {
+  let tokens = []
+  for definition in definitions {
+    add_value_semantic_token(
+      tokens,
+      registry,
+      definition.symbol,
+      definition.location,
+    )
+  }
+  for reference in references {
+    add_value_semantic_token(
+      tokens,
+      registry,
+      reference.symbol,
+      reference.location,
+    )
+  }
+  tokens
+}
+
+///|
+fn add_value_semantic_token(
+  tokens : Array[SemanticTokenEntry],
+  registry : @symbol.SymbolRegistry,
+  symbol : AnalysisSymbol,
+  location : AnalysisLocation,
+) -> Unit {
+  match symbol {
+    Value(symbol) =>
+      match semantic_token_kind_for_value(registry, symbol) {
+        Some(kind) => tokens.push({ location, kind })
+        None => ()
+      }
+    _ => ()
+  }
+}
+
+///|
+fn semantic_token_kind_for_value(
+  registry : @symbol.SymbolRegistry,
+  symbol : @symbol.ValueSymbolId,
+) -> SemanticTokenKind? {
+  guard registry.value_metadata(symbol) is Some(metadata) else { return None }
+  match metadata.kind {
+    Parameter => Some(ParameterToken)
+    TopLevelValue | LocalBinding | PatternBinder => Some(VariableToken)
+    TopLevelFunction | LocalFunction => None
+  }
 }
