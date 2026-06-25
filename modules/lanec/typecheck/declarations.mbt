@@ -193,6 +193,46 @@ fn check_resolved_type(
 }
 
 ///|
+fn check_resolved_type_with_kind(
+  source : @resolve.ResolvedSourceFile,
+  diagnostics : Array[TypeCheckDiagnostic],
+  type_ : @resolve.ResolvedType,
+  expected : @types.Kind,
+) -> @types.Type {
+  let checker = TypeExpressionChecker::{ source, diagnostics, expanding: [] }
+  checker.expect_kind(type_, expected).type_.normalize()
+}
+
+///|
+fn check_resolved_type_arguments(
+  source : @resolve.ResolvedSourceFile,
+  diagnostics : Array[TypeCheckDiagnostic],
+  parameters : Array[@types.TypeParameter],
+  arguments : Array[@resolve.ResolvedType],
+) -> Array[@types.Type] {
+  let checked = []
+  for index in 0..<arguments.length() {
+    let type_ = if index < parameters.length() {
+      check_resolved_type_with_kind(
+        source,
+        diagnostics,
+        arguments[index],
+        parameters[index].kind,
+      )
+    } else {
+      let checker = TypeExpressionChecker::{
+        source,
+        diagnostics,
+        expanding: [],
+      }
+      checker.synthesize_type(arguments[index]).type_.normalize()
+    }
+    checked.push(type_)
+  }
+  checked
+}
+
+///|
 priv struct TypeExpressionChecker {
   source : @resolve.ResolvedSourceFile
   diagnostics : Array[TypeCheckDiagnostic]

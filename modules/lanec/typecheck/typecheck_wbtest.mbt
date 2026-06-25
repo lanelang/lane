@@ -1788,6 +1788,96 @@ test "typecheck accepts higher-kinded alias parameter" {
 }
 
 ///|
+test "typecheck accepts higher-kinded struct literal type argument" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[T] {
+      #|  some(T)
+      #|  none
+      #|}
+      #|fn[T, R] map_option(val : Option[T], f : (T) -> R) -> Option[R] {
+      #|  match val {
+      #|    Option::some(v) => Option::some(f(v))
+      #|    Option::none => Option::none
+      #|  }
+      #|}
+      #|struct Mappable[U : [Type] -> Type] {
+      #|  map : [A, B](U[A], (A) -> B) -> U[B]
+      #|}
+      #|let option_mappable : Mappable[Option] = Mappable[Option]::{
+      #|  map: map_option
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck reports kind mismatch for higher-kinded struct literal type argument" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[T] {
+      #|  some(T)
+      #|  none
+      #|}
+      #|fn[T, R] map_option(val : Option[T], f : (T) -> R) -> Option[R] {
+      #|  match val {
+      #|    Option::some(v) => Option::some(f(v))
+      #|    Option::none => Option::none
+      #|  }
+      #|}
+      #|struct Mappable[U : [Type] -> Type] {
+      #|  map : [A, B](U[A], (A) -> B) -> U[B]
+      #|}
+      #|let bad : Mappable[Option] = Mappable[Int]::{
+      #|  map: map_option
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="kind_mismatch expected=[Type] -> Type actual=Type",
+  )
+}
+
+///|
+test "typecheck accepts higher-kinded qualified variant type argument" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[T] {
+      #|  some(T)
+      #|  none
+      #|}
+      #|enum Box[F : [Type] -> Type] {
+      #|  wrap(F[Int])
+      #|}
+      #|let boxed : Box[Option] = Box[Option]::wrap(Option::some(1))
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck reports kind mismatch for higher-kinded qualified variant type argument" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[T] {
+      #|  some(T)
+      #|  none
+      #|}
+      #|enum Box[F : [Type] -> Type] {
+      #|  wrap(F[Int])
+      #|}
+      #|let boxed : Box[Option] = Box[Int]::wrap(Option::some(1))
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="kind_mismatch expected=[Type] -> Type actual=Type",
+  )
+}
+
+///|
 test "typecheck defaults unannotated alias header parameter kind to Type" {
   let result = expect_typecheck_result(
     (

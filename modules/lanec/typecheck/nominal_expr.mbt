@@ -58,20 +58,14 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  let checked_arguments = type_arguments.map(fn(type_) {
-    self.check_type(type_)
-  })
-  let checked_variant_arguments = variant_type_arguments.map(fn(type_) {
-    self.check_type(type_)
-  })
   match reference {
     Symbol(symbol) =>
       self.synthesize_checked_variant_symbol(
         scope,
         symbol,
         type_name + "::" + variant,
-        checked_arguments,
-        checked_variant_arguments,
+        type_arguments,
+        variant_type_arguments,
         arguments,
         expected_result,
         loc,
@@ -150,8 +144,8 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   scope : TypeScope,
   symbol : VariantSymbolId,
   display_name : String,
-  explicit_type_arguments : Array[@types.Type],
-  explicit_variant_type_arguments : Array[@types.Type],
+  explicit_type_arguments : Array[@resolve.ResolvedType],
+  explicit_variant_type_arguments : Array[@resolve.ResolvedType],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
@@ -177,6 +171,24 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     })
     return checked_expression_none_reported(Error)
   }
+  let explicit_type_arguments = if explicit_type_arguments.is_empty() {
+    []
+  } else {
+    check_type_arity(
+      self.source.symbols,
+      self.diagnostics,
+      metadata.owner,
+      display_name,
+      explicit_type_arguments.length(),
+      loc,
+    )
+    check_resolved_type_arguments(
+      self.resolved_source,
+      self.diagnostics,
+      declaration.type_parameters,
+      explicit_type_arguments,
+    )
+  }
   if variant_declaration.payload.length() != arguments.length() {
     self.diagnostics.push({ kind: CannotInferExpression("variant arity"), loc })
     return checked_expression_none_reported(
@@ -193,14 +205,6 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     }
     type_arguments
   } else {
-    check_type_arity(
-      self.source.symbols,
-      self.diagnostics,
-      metadata.owner,
-      display_name,
-      explicit_type_arguments.length(),
-      loc,
-    )
     explicit_type_arguments
   }
   let nominal_substitution = variant_type_substitution(
@@ -257,7 +261,7 @@ fn SemanticChecker::variant_hidden_type_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   variant : CheckedVariantDeclaration,
-  explicit : Array[@types.Type],
+  explicit : Array[@resolve.ResolvedType],
   arguments : Array[@desugar.DesugaredExpr],
   nominal_substitution : @types.TypeSubstitution,
   display_name : String,
@@ -274,7 +278,14 @@ fn SemanticChecker::variant_hidden_type_arguments(
         loc,
       })
     }
-    return Some(explicit)
+    return Some(
+      check_resolved_type_arguments(
+        self.resolved_source,
+        self.diagnostics,
+        variant.type_parameters,
+        explicit,
+      ),
+    )
   }
   if variant.type_parameters.is_empty() {
     return Some([])
@@ -388,8 +399,26 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return checked_expression_none_reported(Error)
   }
+  guard self.declarations.checked_struct(symbol) is Some(struct_declaration) else {
+    let parameters = match self.declarations.checked_enum(symbol) {
+      Some(declaration) => declaration.type_parameters
+      None => []
+    }
+    let arguments = check_resolved_type_arguments(
+      self.resolved_source,
+      self.diagnostics,
+      parameters,
+      type_arguments,
+    )
+    let type_ = @types.nominal_type(symbol, arguments)
+    self.diagnostics.push({ kind: NotAStruct(type_), loc })
+    return checked_expression_none_reported(Error)
+  }
   let arguments = self.struct_literal_type_arguments(
-    symbol, type_arguments, expected,
+    symbol,
+    struct_declaration.type_parameters,
+    type_arguments,
+    expected,
   )
   check_type_arity(
     self.source.symbols,
@@ -400,10 +429,6 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     loc,
   )
   let type_ = @types.nominal_type(symbol, arguments)
-  guard self.declarations.checked_struct(symbol) is Some(struct_declaration) else {
-    self.diagnostics.push({ kind: NotAStruct(type_), loc })
-    return checked_expression_none_reported(Error)
-  }
   let witnesses = self.check_struct_type_witnesses(
     struct_declaration, fields, loc,
   )
@@ -471,6 +496,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
 fn SemanticChecker::struct_literal_type_arguments(
   self : SemanticChecker,
   symbol : @symbol.TypeSymbolId,
+  parameters : Array[@types.TypeParameter],
   type_arguments : Array[@resolve.ResolvedType],
   expected : @types.Type?,
 ) -> Array[@types.Type] {
@@ -485,7 +511,12 @@ fn SemanticChecker::struct_literal_type_arguments(
       _ => ()
     }
   }
-  type_arguments.map(fn(type_) { self.check_type(type_) })
+  check_resolved_type_arguments(
+    self.resolved_source,
+    self.diagnostics,
+    parameters,
+    type_arguments,
+  )
 }
 
 ///|
