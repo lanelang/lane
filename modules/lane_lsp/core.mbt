@@ -11,6 +11,7 @@ pub(all) struct DocumentSnapshot {
 ///|
 pub struct ServerState {
   documents : Map[String, DocumentSnapshot]
+  mut workspace_root : String?
   mut shutdown_requested : Bool
 }
 
@@ -22,7 +23,7 @@ pub(all) struct HandlerResult {
 
 ///|
 pub fn ServerState::ServerState() -> ServerState {
-  { documents: {}, shutdown_requested: false }
+  { documents: {}, workspace_root: None, shutdown_requested: false }
 }
 
 ///|
@@ -70,9 +71,10 @@ fn ServerState::handle_request(
 
 ///|
 fn ServerState::handle_initialize(
-  _self : ServerState,
+  self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
+  self.workspace_root = workspace_root_from_initialize_params(request.params)
   respond(request, Ok(initialize_result()))
 }
 
@@ -111,7 +113,7 @@ fn ServerState::handle_did_open(
   }
   self.documents[document.uri] = document
   {
-    outgoing: [publish_diagnostics(document.uri, self.check(document.text))],
+    outgoing: [publish_diagnostics(document.uri, self.check(document))],
     exit_requested: false,
   }
 }
@@ -126,7 +128,7 @@ fn ServerState::handle_did_change(
   }
   self.documents[document.uri] = document
   {
-    outgoing: [publish_diagnostics(document.uri, self.check(document.text))],
+    outgoing: [publish_diagnostics(document.uri, self.check(document))],
     exit_requested: false,
   }
 }
@@ -161,10 +163,105 @@ fn ServerState::method_not_found(
 
 ///|
 fn ServerState::check(
-  _self : ServerState,
-  text : String,
+  self : ServerState,
+  document : DocumentSnapshot,
 ) -> Array[@compile.CompileDiagnostic] {
-  @compile.check_source(text).diagnostics
+  @compile.check_sources(
+    document.text,
+    self.workspace_library_sources(document.uri),
+  ).diagnostics
+}
+
+///|
+fn ServerState::workspace_library_sources(
+  self : ServerState,
+  current_uri : String,
+) -> Array[String] {
+  guard self.workspace_root is Some(root) else { return [] }
+  let current_path = file_uri_to_path(current_uri)
+  discover_lane_sources(root, current_path) catch {
+    _ => []
+  }
+}
+
+///|
+fn workspace_root_from_initialize_params(params : Json) -> String? {
+  match workspace_root_uri(params) {
+    Some(uri) => file_uri_to_path(uri)
+    None => None
+  }
+}
+
+///|
+fn workspace_root_uri(params : Json) -> String? {
+  guard params is Object(fields) else { return None }
+  match fields.get("rootUri") {
+    Some(String(uri)) => Some(uri)
+    _ =>
+      match fields.get("workspaceFolders") {
+        Some(Array(folders)) =>
+          match folders.get(0) {
+            Some(Object(folder_fields)) =>
+              match folder_fields.get("uri") {
+                Some(String(uri)) => Some(uri)
+                _ => None
+              }
+            _ => None
+          }
+        _ => None
+      }
+  }
+}
+
+///|
+fn file_uri_to_path(uri : String) -> String? {
+  let prefix = "file://"
+  if uri.has_prefix(prefix) {
+    Some(uri.unsafe_substring(start=prefix.length(), end=uri.length()))
+  } else {
+    None
+  }
+}
+
+///|
+fn discover_lane_sources(
+  root : String,
+  excluded_path : String?,
+) -> Array[String] raise @fs.IOError {
+  let sources = []
+  append_lane_sources(root, excluded_path, sources)
+  sources
+}
+
+///|
+fn append_lane_sources(
+  path : String,
+  excluded_path : String?,
+  sources : Array[String],
+) -> Unit raise @fs.IOError {
+  let entries = @fs.read_dir(path)
+  entries.sort()
+  for entry in entries {
+    if should_skip_workspace_entry(entry) {
+      continue
+    }
+    let child = path + "/" + entry
+    if @fs.is_dir(child) {
+      append_lane_sources(child, excluded_path, sources)
+    } else if @fs.is_file(child) && child.has_suffix(".lane") {
+      if Some(child) != excluded_path {
+        sources.push(@fs.read_file_to_string(child, encoding="utf8"))
+      }
+    }
+  }
+}
+
+///|
+fn should_skip_workspace_entry(entry : String) -> Bool {
+  entry.has_prefix(".") ||
+  entry == "_build" ||
+  entry == "build" ||
+  entry == "dist"
 }
 
 ///|

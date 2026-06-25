@@ -28,6 +28,7 @@ pub(all) struct HandlerResult {
 
 pub struct ServerState {
   documents : Map[String, DocumentSnapshot]
+  mut workspace_root : String?
   mut shutdown_requested : Bool
 }
 pub fn ServerState::ServerState() -> Self
