@@ -20,6 +20,8 @@ type LaneCommandOutcome
 
 type ServerState
 
+type TextDocumentPositionParams derive(Eq, @debug.Debug)
+
 // Type aliases
 
 // Traits

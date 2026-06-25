@@ -6,11 +6,16 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/symbol",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
 // Values
+pub fn analyze_source_inputs(SourceInput, Array[SourceInput]) -> AnalysisResult
+
+pub fn analyze_sources(String, Array[String]) -> AnalysisResult
+
 pub fn check_source(String) -> CheckResult
 
 pub fn check_sources(String, Array[String]) -> CheckResult
@@ -22,6 +27,29 @@ pub fn compile_sources(String, Array[String]) -> CompileResult
 // Errors
 
 // Types and methods
+pub(all) struct AnalysisLocation {
+  source_id : String
+  span : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct AnalysisResult {
+  diagnostics : Array[CompileDiagnostic]
+  definitions : Array[DefinitionEntry]
+  references : Array[ReferenceEntry]
+  hovers : Array[HoverEntry]
+} derive(Eq, @debug.Debug)
+pub fn AnalysisResult::definition_at(Self, String, Int, Int) -> AnalysisLocation?
+pub fn AnalysisResult::hover_at(Self, String, Int, Int) -> HoverEntry?
+
+pub(all) enum AnalysisSymbol {
+  Value(@symbol.ValueSymbolId)
+  Type(@symbol.TypeSymbolId)
+  Field(@symbol.FieldSymbolId)
+  Variant(@symbol.VariantSymbolId)
+  TypeParameter(@symbol.TypeParameterId)
+  TypeMember(@symbol.TypeMemberSymbolId)
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckResult {
   source : @checked.CheckedSourceFile?
   diagnostics : Array[CompileDiagnostic]
@@ -47,6 +75,29 @@ pub(all) struct CompileResult {
   diagnostics : Array[CompileDiagnostic]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CompileResult
+
+pub(all) struct DefinitionEntry {
+  symbol : AnalysisSymbol
+  location : AnalysisLocation
+  label : String
+  detail : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct HoverEntry {
+  location : AnalysisLocation
+  contents : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ReferenceEntry {
+  location : AnalysisLocation
+  symbol : AnalysisSymbol
+  hover : String?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SourceInput {
+  source_id : String
+  text : String
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 

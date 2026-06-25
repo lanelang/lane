@@ -129,6 +129,10 @@ _Avoid_: opaque type, abstract type, private alias
 A type that can appear in a **Module Interface** because it is exported or imported from another **Module Interface**.
 _Avoid_: private representation type, local type, hidden implementation detail
 
+**Interface-Visible Effect**:
+An effect that can appear in a **Module Interface** because it is exported or imported from another **Module Interface**.
+_Avoid_: private effect leak, implementation-only operation, runtime capability
+
 **Library Input**:
 Explicitly supplied library source files or library directories made available to a **Build Workflow** or **Direct File Run**.
 _Avoid_: implicit prelude, textual include, mandatory project manifest
@@ -201,33 +205,77 @@ _Avoid_: unchecked exception, runtime panic, implicit IO
 A top-level nominal declaration that owns effect operations.
 _Avoid_: value declaration, operation namespace, runtime plugin
 
+**Effect Type Parameter**:
+A type parameter declared on an effect declaration and shared by all of its operations.
+_Avoid_: operation-local type parameter, value parameter, effect variable
+
 **Effect Handler**:
 A source-language construct that implements effect operations and discharges their tracked effect requirements.
 _Avoid_: catch block, runtime error handler, builtin plugin
 
 **Handler Expression**:
-An expression of the form `handle expression with { ... }` that evaluates a computation under effect operation arms and a return arm.
+An expression of the form `handle expression with { ... } with { ... }* final binder { ... }` that evaluates a computation under handler with blocks and one final branch.
 _Avoid_: statement handler, implicit dynamic scope, exception try block
 
+**Handler With Block**:
+One `with { ... }` block in a handler expression.
+_Avoid_: mixed-effect handler block, implicit global handler, exception catch group
+
 **Handler Operation Arm**:
-A handler arm that implements one effect operation and binds an explicit resume continuation.
-_Avoid_: catch clause, method override, ordinary function clause
+A handler pattern arm that matches one effect operation invocation and binds an explicit resume continuation.
+_Avoid_: catch clause, method override, single-arm operation implementation
 
 **Effect Handler Exhaustiveness Check**:
-The static check that a handler covers every operation of each effect it handles.
+The static check that a handler covers every operation of each handled effect and covers each handled operation's argument patterns exhaustively.
 _Avoid_: partial handler, operation-level effect removal, runtime missing-operation failure
 
+**Handler Operation Pattern Matrix**:
+The pattern matrix formed by all handler operation arms for one effect operation.
+_Avoid_: duplicate-arm rejection, operation overloading, unordered handler cases
+
+**Handler Operation Argument Pattern**:
+A normal Lane pattern used to match one argument of an effect operation in a handler operation arm.
+_Avoid_: handler-only pattern, guard pattern, operation overload case
+
+**Handler Arm Order**:
+The source-order matching rule for handler operation arms targeting the same effect operation.
+_Avoid_: unordered handler cases, type-directed arm selection, duplicate-arm rejection
+
 **Handled Effect Set**:
-The effect set discharged by a handler, inferred from the effects named by its operation arms.
+The effect set discharged by a handler, inferred from the effects named by its handler with blocks.
 _Avoid_: explicit handler effect list, operation-level residual set, runtime handler registry
 
-**Handler Return Arm**:
-A handler arm that maps the normally returned value of the handled expression to the handler result.
-_Avoid_: finally block, default exception case, implicit identity result
+**Residual Effect Set**:
+The effect set that remains on a handler expression after handled effects are removed and handler-arm effects are added.
+_Avoid_: swallowed handler effects, unchecked escape, operation-level leftovers
+
+**Expression Effect Propagation**:
+The static propagation of expression effect sets outward through blocks, lets, calls, and handlers.
+_Avoid_: let-level effect annotation, inferred function effect signature, runtime-only effect tracking
+
+**Callee Effect Set**:
+The effect set on a function type that becomes the effect set of a function call expression.
+_Avoid_: callee body rechecking, dynamic effect discovery, implicit call-site widening
+
+**Handler Final Branch**:
+The required handler branch that binds the normally returned value of the handled expression and computes the handler result.
+_Avoid_: operation arm, implicit identity result, per-effect return branch
+
+**Handler Final Branch Requirement**:
+The rule that every handler expression has exactly one explicit final branch after all handler with blocks.
+_Avoid_: implicit identity final branch, missing final branch, per-with-block final branch
 
 **Resume Continuation**:
 The explicit continuation binder in a handler operation arm.
 _Avoid_: implicit resume keyword, unchecked jump, ordinary recursive function
+
+**Resume Continuation Type**:
+The function type of a resume continuation from an operation result to the handler result with the handler residual effect set.
+_Avoid_: pure continuation type, operation argument type, unchecked jump target
+
+**Resume Binder Position**:
+The rule that a handler operation arm's resume continuation binder is the final parameter and must be a value binder.
+_Avoid_: resume pattern, implicit continuation, non-final resume parameter
 
 **Multi-Shot Resume Continuation**:
 A resume continuation that may be invoked multiple times without linear or affine use restrictions.
@@ -245,9 +293,25 @@ _Avoid_: shallow handler, one-shot catch, dynamic exception handler
 A member of an effect declaration with a Lane function type signature such as `(String) -> Unit` or `() -> String`.
 _Avoid_: top-level function, arbitrary expression payload, unchecked command
 
+**Effect Operation Visibility**:
+The rule that effect operations inherit the visibility of their owning effect declaration.
+_Avoid_: operation-level export, private operation in public effect, partial public effect surface
+
+**Effect Operation Name Uniqueness**:
+The rule that one effect declaration cannot contain two operations with the same name.
+_Avoid_: operation overloading, type-directed operation selection, duplicate operation arm
+
+**Operation-Level Generic Effect Operation**:
+An effect operation that declares its own type parameters independently of the owning effect declaration.
+_Avoid_: effect type parameter, ordinary generic function, handler-polymorphic operation
+
 **Effect Operation Call**:
 An effectful operation invocation written with `!`, such as `Console::print!("hi")` or an unambiguous `print!("hi")`.
 _Avoid_: ordinary function call, implicit perform expression, unchecked command dispatch
+
+**Qualified Effect Operation Syntax**:
+The use of `Effect::operation` in an effect operation call or handler operation arm.
+_Avoid_: new operation separator, enum variant syntax, ordinary module-qualified value access
 
 **Effect Operation Lookup**:
 The name-resolution process for effect operation calls, separate from ordinary value lookup.
@@ -257,17 +321,53 @@ _Avoid_: ordinary function lookup, contextual offer lookup, implicit handler sea
 The finite set of typed algebraic effects that an expression or function may perform.
 _Avoid_: exception list, runtime capability bag, implicit ambient state
 
+**Braced Effect Set**:
+An effect set surface syntax written with braces when multiple effects or row extensions are present.
+_Avoid_: exception tuple, unordered runtime list, implicit ambient scope
+
+**Single-Effect Sugar**:
+The syntax that lets `! E` stand for `! { E }` when the effect annotation contains one effect or effect variable.
+_Avoid_: special effect kind, singleton runtime wrapper, non-set effect
+
 **Effect Variable**:
 A type-level variable ranging over effect sets in an effect-polymorphic function type.
 _Avoid_: value parameter, contextual offer, dynamic capability token
+
+**Effect Kind**:
+The kind `Effect` whose inhabitants are effect sets and effect variables.
+_Avoid_: value-level type, ordinary nominal type kind, runtime capability object
+
+**Effect Union**:
+The type-level union operation for inhabitants of the effect kind.
+_Avoid_: value-level union, subtyping join, ordered effect list
 
 **Effect Polymorphism**:
 The ability for a function type to quantify over an effect set and propagate it through calls.
 _Avoid_: effect subtyping, unchecked effect escape, implicit handler search
 
+**Effect Row Unification**:
+The equality-based inference process that solves effect variables inside effect sets.
+_Avoid_: effect subtyping, implicit widening, containment constraint solving
+
+**Effect Row Tail**:
+The single optional effect variable that may appear inside an effect set.
+_Avoid_: multiple row variables, unordered row-variable bag, non-unique effect split
+
+**Effect Set Normalization**:
+The set-style normalization of effect sets before comparison or row unification.
+_Avoid_: ordered effect list, duplicate-sensitive effects, syntactic equality only
+
 **Function Effect Annotation**:
 The optional `!` suffix after a function result type that states a function's non-empty effect set.
 _Avoid_: prefix effect marker, unchecked throws clause, handler declaration
+
+**Explicit Function Effect**:
+A non-empty function effect set that must be written in the source signature.
+_Avoid_: inferred effectful named function, implicit throws, body-only effect discovery
+
+**Expected Function Effect**:
+An effect set supplied by an expected function type when checking a function literal.
+_Avoid_: body-inferred effect, ambient handler assumption, unchecked effect escape
 
 **Unchecked Runtime Exception**:
 A catchable language-level failure that can escape static effect tracking.
@@ -341,16 +441,44 @@ _Avoid_: VS Code extension, compiler front end
 - The left side of module-qualified access must be an imported complete **Module Path**.
 - **Typed Algebraic Effects** are the only planned language-level effect mechanism.
 - An **Effect Declaration** owns one or more **Effect Operations**.
+- An **Effect Declaration** may declare **Effect Type Parameters**.
+- Public **Effect Declarations** and their operation signatures enter **Module Interfaces**.
+- Exported function signatures may mention only **Interface-Visible Effects**.
+- **Effect Operation Visibility** follows the owning **Effect Declaration**.
+- **Effect Operation Name Uniqueness** rejects overloaded operations inside one effect declaration.
+- **Operation-Level Generic Effect Operations** are not part of the first effect design.
 - An **Effect Operation Call** invokes an **Effect Operation** and contributes the owning **Typed Algebraic Effect** to the surrounding **Effect Set**.
+- **Qualified Effect Operation Syntax** is distinguished from nominal `::` syntax by `!` in calls and by handler-arm syntactic position.
 - **Effect Operation Lookup** resolves `name!` only against visible **Effect Operations**, not ordinary values.
+- **Handler Operation Arms** use **Effect Operation Lookup** for unqualified operation names.
 - A **Function Effect Annotation** names an **Effect Set**.
+- A non-empty function **Effect Set** is an **Explicit Function Effect**.
+- A function literal's non-empty **Effect Set** must come from an explicit annotation or an **Expected Function Effect**.
+- A **Single-Effect Sugar** annotation is equivalent to a singleton **Braced Effect Set**.
+- **Effect Variables** use ordinary type parameter binding syntax with the **Effect Kind**.
+- The **Effect Kind** supports **Effect Union** and set-style normalization.
+- **Effect Union** is expressed with **Braced Effect Set** syntax rather than a separate operator.
 - **Effect Polymorphism** uses **Effect Variables** to propagate effect sets through higher-order function types.
-- A **Handler Expression** contains one **Handler Return Arm** and zero or more **Handler Operation Arms**.
+- **Effect Row Unification** solves effect flexibility without **Effect Subtyping**.
+- Each **Effect Set** may contain at most one **Effect Row Tail**.
+- **Effect Set Normalization** removes duplicates, ignores order, expands singleton sugar, and allows an **Effect Row Tail** to solve to the empty effect set.
+- **Expression Effect Propagation** requires expression effects to be covered by the surrounding function effect annotation or discharged by handlers.
+- A function call expression uses the **Callee Effect Set** from the callee's function type.
+- A **Handler Expression** contains one or more **Handler With Blocks**.
+- A **Handler With Block** handles one effect; multiple handled effects use multiple **Handler With Blocks**.
+- A **Handler Final Branch Requirement** requires exactly one explicit **Handler Final Branch**.
 - A **Handler Operation Arm** binds a **Resume Continuation** explicitly.
-- A handler's **Handled Effect Set** is inferred from its **Handler Operation Arms**.
-- An **Effect Handler Exhaustiveness Check** rejects handlers that do not cover every operation of each handled effect.
+- **Resume Binder Position** fixes the **Resume Continuation** as the final handler operation arm parameter.
+- A handler's **Handled Effect Set** is inferred from its **Handler With Blocks**.
+- A handler's **Residual Effect Set** keeps unhandled effects from the handled expression and effects produced by handler arms.
+- Multiple **Handler Operation Arms** may target the same **Effect Operation** when their argument patterns distinguish cases.
+- **Handler Arm Order** follows the existing first-match rule for pattern matching.
+- **Handler Operation Argument Patterns** use the existing Lane pattern language.
+- **Handler Operation Pattern Matrices** use existing pattern usefulness and exhaustiveness checks.
+- An **Effect Handler Exhaustiveness Check** checks each **Handler Operation Pattern Matrix**.
 - A **Resume Continuation** is a **Multi-Shot Resume Continuation**.
 - A **Resume Continuation** is a **First-Class Resume Continuation**.
+- A **Resume Continuation Type** carries the handler's **Residual Effect Set**.
 - **Effect Handlers** are **Deep Effect Handlers** by default.
 - **Effect Handlers** discharge **Typed Algebraic Effects**.
 - **Unchecked Runtime Exceptions** are permanently outside the Lane language design.

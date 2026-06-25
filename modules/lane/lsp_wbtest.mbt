@@ -16,6 +16,17 @@ fn open_params(uri : String, text : String) -> Json {
 }
 
 ///|
+fn position_params(uri : String, line : Int, character : Int) -> Json {
+  Json::object({
+    "textDocument": Json::object({ "uri": Json::string(uri) }),
+    "position": Json::object({
+      "line": int_json(line),
+      "character": int_json(character),
+    }),
+  })
+}
+
+///|
 async test "initialize returns full document sync capability" {
   let state = ServerState::ServerState()
   let result = state.handle_message(request(1, "initialize", Json::null()))
@@ -24,7 +35,11 @@ async test "initialize returns full document sync capability" {
       "jsonrpc": "2.0",
       "id": 1,
       "result": {
-        "capabilities": { "textDocumentSync": 1 },
+        "capabilities": {
+          "textDocumentSync": 1,
+          "definitionProvider": true,
+          "hoverProvider": true,
+        },
         "serverInfo": { "name": "lane", "version": "0.1.0" },
       },
     },
@@ -146,6 +161,14 @@ test "file URI paths are percent decoded" {
 }
 
 ///|
+test "file URI paths are percent encoded" {
+  inspect(
+    path_to_file_uri("/tmp/Lane Workspace/中.lane"),
+    content="file:///tmp/Lane%20Workspace/%E4%B8%AD.lane",
+  )
+}
+
+///|
 async test "workspace libraries prefer unsaved open document snapshots" {
   let workspace = ".tmp-lsp workspace"
   let main_path = workspace + "/Main.lane"
@@ -222,6 +245,359 @@ async test "workspace libraries prefer unsaved open document snapshots" {
       "params": {
         "uri": "file://.tmp-lsp%20workspace/Main.lane",
         "diagnostics": [],
+      },
+    },
+  ])
+}
+
+///|
+async test "definition returns encoded URI for discovered library source" {
+  let workspace = ".tmp-lsp encoded-中"
+  let main_path = workspace + "/Main.lane"
+  let lib_path = workspace + "/Lib File 中.lane"
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let value : Int = 42
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "initialize",
+        Json::object({ "rootUri": Json::string(path_to_file_uri(workspace)) }),
+      ),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
+        2,
+        "textDocument/didOpen",
+        open_params(
+          path_to_file_uri(main_path),
+          (
+            #|module Main
+            #|
+            #|import Lib.*
+            #|
+            #|pub let answer : Int = value
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      3,
+      "textDocument/definition",
+      position_params(path_to_file_uri(main_path), 4, 23),
+    ),
+  )
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": {
+        "uri": "file://.tmp-lsp%20encoded-%E4%B8%AD/Lib%20File%20%E4%B8%AD.lane",
+        "range": {
+          "start": { "line": 2, "character": 8 },
+          "end": { "line": 2, "character": 13 },
+        },
+      },
+    },
+  ])
+}
+
+///|
+async test "definition resolves same-file value references" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub let value : Int = 42
+            #|
+            #|pub let answer : Int = value
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/definition",
+      position_params("file:///Main.lane", 4, 23),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "uri": "file:///Main.lane",
+        "range": {
+          "start": { "line": 2, "character": 8 },
+          "end": { "line": 2, "character": 13 },
+        },
+      },
+    },
+  ])
+}
+
+///|
+async test "hover returns checked value type" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub let value : Int = 42
+            #|
+            #|pub let answer : Int = value
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/hover",
+      position_params("file:///Main.lane", 4, 23),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "contents": { "kind": "markdown", "value": "```lane\nvalue : Int\n```" },
+        "range": {
+          "start": { "line": 4, "character": 23 },
+          "end": { "line": 4, "character": 28 },
+        },
+      },
+    },
+  ])
+}
+
+///|
+async test "hover returns declaration detail" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub let value : Int = 42
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/hover",
+      position_params("file:///Main.lane", 2, 10),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "contents": { "kind": "markdown", "value": "```lane\nvalue : Int\n```" },
+        "range": {
+          "start": { "line": 2, "character": 8 },
+          "end": { "line": 2, "character": 13 },
+        },
+      },
+    },
+  ])
+}
+
+///|
+async test "hover returns type reference summary" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|struct Point {
+            #|  x : Int
+            #|}
+            #|
+            #|pub let point : Point = Point::{ x: 1 }
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/hover",
+      position_params("file:///Main.lane", 6, 17),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "contents": { "kind": "markdown", "value": "```lane\ntype Point\n```" },
+        "range": {
+          "start": { "line": 6, "character": 16 },
+          "end": { "line": 6, "character": 21 },
+        },
+      },
+    },
+  ])
+}
+
+///|
+async test "definition resolves workspace library references" {
+  let workspace = ".tmp-lsp-definition"
+  let main_path = workspace + "/Main.lane"
+  let lib_path = workspace + "/Lib.lane"
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let value : Int = 42
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "initialize",
+        Json::object({ "rootUri": Json::string("file://" + workspace) }),
+      ),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
+        2,
+        "textDocument/didOpen",
+        open_params(
+          "file://" + main_path,
+          (
+            #|module Main
+            #|
+            #|import Lib.*
+            #|
+            #|pub let answer : Int = value
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      3,
+      "textDocument/definition",
+      position_params("file://" + main_path, 4, 23),
+    ),
+  )
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": {
+        "uri": "file://.tmp-lsp-definition/Lib.lane",
+        "range": {
+          "start": { "line": 2, "character": 8 },
+          "end": { "line": 2, "character": 13 },
+        },
+      },
+    },
+  ])
+}
+
+///|
+async test "definition uses partial analysis when unrelated diagnostics exist" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub let value : Int = 42
+            #|
+            #|pub let answer : Int = value
+            #|
+            #|pub let bad : Int = missing
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/definition",
+      position_params("file:///Main.lane", 4, 23),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "uri": "file:///Main.lane",
+        "range": {
+          "start": { "line": 2, "character": 8 },
+          "end": { "line": 2, "character": 13 },
+        },
       },
     },
   ])

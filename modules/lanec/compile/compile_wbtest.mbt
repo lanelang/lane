@@ -287,3 +287,203 @@ test "check sources rejects import cycle" {
   inspect(result.diagnostics.length(), content="1")
   inspect(result.diagnostics[0].message, content="import cycle Main")
 }
+
+///|
+test "analysis resolves same-file definition and hover" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub let value : Int = 42
+        #|
+        #|pub let answer : Int = value
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  match result.definition_at("file:///Main.lane", 5, 24) {
+    Some(location) => {
+      inspect(location.source_id, content="file:///Main.lane")
+      inspect(location.span.start_line, content="3")
+    }
+    None => abort("expected definition")
+  }
+  match result.hover_at("file:///Main.lane", 5, 24) {
+    Some(hover) => inspect(hover.contents, content="value : Int")
+    None => abort("expected hover")
+  }
+  match result.hover_at("file:///Main.lane", 3, 10) {
+    Some(hover) => inspect(hover.contents, content="value : Int")
+    None => abort("expected definition hover")
+  }
+  inspect(
+    result.definition_at("file:///Main.lane", 5, 29) is None,
+    content="true",
+  )
+}
+
+///|
+test "analysis resolves cross-module definition by source identity" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|import Lib.*
+        #|
+        #|pub let answer : Int = value
+      ),
+    },
+    [
+      {
+        source_id: "file:///Lib.lane",
+        text: (
+          #|module Lib
+          #|
+          #|pub let value : Int = 42
+        ),
+      },
+    ],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  match result.definition_at("file:///Main.lane", 5, 24) {
+    Some(location) => {
+      inspect(location.source_id, content="file:///Lib.lane")
+      inspect(location.span.start_line, content="3")
+    }
+    None => abort("expected cross-module definition")
+  }
+}
+
+///|
+test "analysis resolves types fields and variants" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|struct Point {
+        #|  x : Int
+        #|}
+        #|
+        #|enum Option {
+        #|  some(Point)
+        #|  none
+        #|}
+        #|
+        #|pub let point : Point = Point::{ x: 1 }
+        #|
+        #|pub let field_value : Int = point.x
+        #|
+        #|pub let wrapped : Option = some(point)
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  match result.definition_at("file:///Main.lane", 12, 18) {
+    Some(location) => inspect(location.span.start_line, content="3")
+    None => abort("expected type definition")
+  }
+  match result.definition_at("file:///Main.lane", 12, 26) {
+    Some(location) => inspect(location.span.start_line, content="3")
+    None => abort("expected struct literal type definition")
+  }
+  inspect(
+    result.definition_at("file:///Main.lane", 12, 32) is None,
+    content="true",
+  )
+  inspect(
+    result.definition_at("file:///Main.lane", 12, 38) is None,
+    content="true",
+  )
+  inspect(
+    result.definition_at("file:///Main.lane", 12, 39) is None,
+    content="true",
+  )
+  match result.hover_at("file:///Main.lane", 3, 9) {
+    Some(hover) => inspect(hover.contents, content="type Point : Type")
+    None => abort("expected type definition hover")
+  }
+  match result.definition_at("file:///Main.lane", 14, 35) {
+    Some(location) => inspect(location.span.start_line, content="4")
+    None => abort("expected field definition")
+  }
+  match result.hover_at("file:///Main.lane", 4, 3) {
+    Some(hover) => inspect(hover.contents, content="x : Int")
+    None => abort("expected field definition hover")
+  }
+  match result.definition_at("file:///Main.lane", 16, 29) {
+    Some(location) => inspect(location.span.start_line, content="8")
+    None => abort("expected variant definition")
+  }
+  match result.hover_at("file:///Main.lane", 16, 29) {
+    Some(hover) => inspect(hover.contents, content="some(type#0)")
+    None => abort("expected variant hover")
+  }
+}
+
+///|
+test "analysis narrows struct pattern type references" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|struct Point {
+        #|  x : Int
+        #|}
+        #|
+        #|pub fn get_x(point : Point) -> Int {
+        #|  match point {
+        #|    Point::{ x } => x
+        #|  }
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  match result.definition_at("file:///Main.lane", 9, 6) {
+    Some(location) => inspect(location.span.start_line, content="3")
+    None => abort("expected pattern type definition")
+  }
+  inspect(
+    result.definition_at("file:///Main.lane", 9, 13) is None,
+    content="true",
+  )
+}
+
+///|
+test "analysis keeps partial definitions when unrelated diagnostics exist" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub let value : Int = 42
+        #|
+        #|pub let answer : Int = value
+        #|
+        #|pub let bad : Int = missing
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="unresolved_value missing")
+  match result.definition_at("file:///Main.lane", 5, 24) {
+    Some(location) => {
+      inspect(location.source_id, content="file:///Main.lane")
+      inspect(location.span.start_line, content="3")
+    }
+    None => abort("expected partial definition")
+  }
+}

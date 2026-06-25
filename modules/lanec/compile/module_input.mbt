@@ -1,5 +1,7 @@
 ///|
 priv struct ParsedModuleInput {
+  source_id : String
+  text : String
   header : ModuleHeader
   source : @syntax.SourceFile
 }
@@ -24,9 +26,30 @@ priv struct ImportHeader {
 }
 
 ///|
+pub(all) struct SourceInput {
+  source_id : String
+  text : String
+} derive(Debug, Eq)
+
+///|
 fn parse_module_input_set(
   root_source : String,
   library_sources : Array[String],
+) -> Result[ModuleInputSet, Array[CompileDiagnostic]] {
+  let library_inputs = []
+  for index, source in library_sources {
+    library_inputs.push({ source_id: "<library:\{index}>", text: source })
+  }
+  parse_module_input_set_from_inputs(
+    { source_id: "<root>", text: root_source },
+    library_inputs,
+  )
+}
+
+///|
+fn parse_module_input_set_from_inputs(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
 ) -> Result[ModuleInputSet, Array[CompileDiagnostic]] {
   let parsed = parse_module_inputs(root_source, library_sources)
   if !parsed.diagnostics.is_empty() {
@@ -49,19 +72,24 @@ priv struct ParseModuleInputsResult {
 
 ///|
 fn parse_module_inputs(
-  root_source : String,
-  library_sources : Array[String],
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
 ) -> ParseModuleInputsResult {
   let modules = []
   let diagnostics = []
   let sources = [root_source] + library_sources
   for source in sources {
-    let parsed = @parser.parse_string(source)
+    let parsed = @parser.parse_string(source.text)
     let source_diagnostics = parse_diagnostics(parsed)
     if source_diagnostics.is_empty() {
       match parsed.source {
         Some(file) =>
-          modules.push({ header: module_header(file), source: file })
+          modules.push({
+            source_id: source.source_id,
+            text: source.text,
+            header: module_header(file),
+            source: file,
+          })
         None =>
           diagnostics.push(
             make_error("parser produced no source file", span=None),

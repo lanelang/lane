@@ -65,6 +65,8 @@ async fn ServerState::handle_request(
     "textDocument/didOpen" => self.handle_did_open(request)
     "textDocument/didChange" => self.handle_did_change(request)
     "textDocument/didClose" => self.handle_did_close(request)
+    "textDocument/definition" => self.handle_definition(request)
+    "textDocument/hover" => self.handle_hover(request)
     method_name => self.method_not_found(request, method_name)
   }
 }
@@ -81,7 +83,11 @@ fn ServerState::handle_initialize(
 ///|
 fn initialize_result() -> Json {
   Json::object({
-    "capabilities": Json::object({ "textDocumentSync": int_json(1) }),
+    "capabilities": Json::object({
+      "textDocumentSync": int_json(1),
+      "definitionProvider": Json::boolean(true),
+      "hoverProvider": Json::boolean(true),
+    }),
     "serverInfo": Json::object({
       "name": Json::string(server_name),
       "version": Json::string("0.1.0"),
@@ -146,6 +152,57 @@ fn ServerState::handle_did_close(
 }
 
 ///|
+async fn ServerState::handle_definition(
+  self : ServerState,
+  request : @jsonrpc.Request,
+) -> HandlerResult {
+  guard text_document_position_params(request.params) is Some(params) else {
+    return respond(request, Err(invalid_params("invalid definition params")))
+  }
+  guard self.document_for_uri(params.uri) is Some(document) else {
+    return respond(request, Ok(Json::null()))
+  }
+  let analysis = self.analyze(document)
+  let line = params.line + 1
+  let column = params.character + 1
+  match analysis.definition_at(params.uri, line, column) {
+    Some(location) => respond(request, Ok(location_json(location)))
+    None => respond(request, Ok(Json::null()))
+  }
+}
+
+///|
+async fn ServerState::handle_hover(
+  self : ServerState,
+  request : @jsonrpc.Request,
+) -> HandlerResult {
+  guard text_document_position_params(request.params) is Some(params) else {
+    return respond(request, Err(invalid_params("invalid hover params")))
+  }
+  guard self.document_for_uri(params.uri) is Some(document) else {
+    return respond(request, Ok(Json::null()))
+  }
+  let analysis = self.analyze(document)
+  let line = params.line + 1
+  let column = params.character + 1
+  match analysis.hover_at(params.uri, line, column) {
+    Some(hover) => respond(request, Ok(hover_json(hover)))
+    None => respond(request, Ok(Json::null()))
+  }
+}
+
+///|
+fn ServerState::document_for_uri(
+  self : ServerState,
+  uri : String,
+) -> DocumentSnapshot? {
+  match self.documents.get(uri) {
+    Some(document) => Some(document)
+    None => None
+  }
+}
+
+///|
 fn ServerState::method_not_found(
   _self : ServerState,
   request : @jsonrpc.Request,
@@ -166,17 +223,25 @@ async fn ServerState::check(
   self : ServerState,
   document : DocumentSnapshot,
 ) -> Array[@compile.CompileDiagnostic] {
-  @compile.check_sources(
-    document.text,
+  self.analyze(document).diagnostics
+}
+
+///|
+async fn ServerState::analyze(
+  self : ServerState,
+  document : DocumentSnapshot,
+) -> @compile.AnalysisResult {
+  @compile.analyze_source_inputs(
+    { source_id: document.uri, text: document.text },
     self.workspace_library_sources(document.uri),
-  ).diagnostics
+  )
 }
 
 ///|
 async fn ServerState::workspace_library_sources(
   self : ServerState,
   current_uri : String,
-) -> Array[String] {
+) -> Array[@compile.SourceInput] {
   guard self.workspace_root is Some(root) else { return [] }
   let current_path = file_uri_to_path(current_uri)
   let opened_paths = []
@@ -194,15 +259,15 @@ fn ServerState::open_document_library_sources(
   root : String,
   current_path : String?,
   opened_paths : Array[String],
-) -> Array[String] {
-  let sources = []
+) -> Array[@compile.SourceInput] {
+  let sources : Array[@compile.SourceInput] = []
   for _, document in self.documents {
     guard file_uri_to_path(document.uri) is Some(path) else { continue }
     if Some(path) != current_path &&
       path.has_suffix(".lane") &&
       path_is_under_workspace(path, root) {
       opened_paths.push(path)
-      sources.push(document.text)
+      sources.push({ source_id: document.uri, text: document.text })
     }
   }
   sources
@@ -248,6 +313,50 @@ fn file_uri_to_path(uri : String) -> String? {
     path
   }
   percent_decode_path(path)
+}
+
+///|
+fn path_to_file_uri(path : String) -> String {
+  "file://" + percent_encode_path(path)
+}
+
+///|
+fn percent_encode_path(path : String) -> String {
+  let output = []
+  for byte in @utf8.encode(path) {
+    if is_file_uri_path_byte(byte) {
+      output.push(byte)
+    } else {
+      output.push(b'%')
+      output.push(hex_digit(byte.to_int() >> 4))
+      output.push(hex_digit(byte.to_int() & 0xF))
+    }
+  }
+  @utf8.decode(Bytes::from_array(output)) catch {
+    _ => path
+  }
+}
+
+///|
+fn is_file_uri_path_byte(byte : Byte) -> Bool {
+  let code = byte.to_int()
+  (code >= b'a'.to_int() && code <= b'z'.to_int()) ||
+  (code >= b'A'.to_int() && code <= b'Z'.to_int()) ||
+  (code >= b'0'.to_int() && code <= b'9'.to_int()) ||
+  byte == b'/' ||
+  byte == b'-' ||
+  byte == b'.' ||
+  byte == b'_' ||
+  byte == b'~'
+}
+
+///|
+fn hex_digit(value : Int) -> Byte {
+  if value < 10 {
+    (b'0'.to_int() + value).to_byte()
+  } else {
+    (b'A'.to_int() + value - 10).to_byte()
+  }
 }
 
 ///|
@@ -297,8 +406,8 @@ async fn discover_lane_sources(
   root : String,
   excluded_path : String?,
   opened_paths : Array[String],
-  sources : Array[String],
-) -> Array[String] {
+  sources : Array[@compile.SourceInput],
+) -> Array[@compile.SourceInput] {
   append_lane_sources(root, excluded_path, opened_paths, sources)
   sources
 }
@@ -308,7 +417,7 @@ async fn append_lane_sources(
   path : String,
   excluded_path : String?,
   opened_paths : Array[String],
-  sources : Array[String],
+  sources : Array[@compile.SourceInput],
 ) -> Unit {
   let entries = @fs.readdir(path, sort=true)
   for entry in entries {
@@ -321,7 +430,10 @@ async fn append_lane_sources(
         append_lane_sources(child, excluded_path, opened_paths, sources)
       Regular if child.has_suffix(".lane") =>
         if Some(child) != excluded_path && !opened_paths.contains(child) {
-          sources.push(@fs.read_file(child).text())
+          sources.push({
+            source_id: path_to_file_uri(child),
+            text: @fs.read_file(child).text(),
+          })
         }
       _ => ()
     }
@@ -365,6 +477,25 @@ fn publish_diagnostics(
       "diagnostics": Json::array(diagnostics.map(compile_diagnostic_json)),
     }),
   )
+}
+
+///|
+fn location_json(location : @compile.AnalysisLocation) -> Json {
+  Json::object({
+    "uri": Json::string(location.source_id),
+    "range": range_json(location.span),
+  })
+}
+
+///|
+fn hover_json(hover : @compile.HoverEntry) -> Json {
+  Json::object({
+    "contents": Json::object({
+      "kind": Json::string("markdown"),
+      "value": Json::string("```lane\n" + hover.contents + "\n```"),
+    }),
+    "range": range_json(hover.location.span),
+  })
 }
 
 ///|

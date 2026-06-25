@@ -60,3 +60,25 @@ fn uri_from_text_document_params(params : Json) -> String? {
   }
   json_string_field(text_document, "uri")
 }
+
+///|
+struct TextDocumentPositionParams {
+  uri : String
+  line : Int
+  character : Int
+} derive(Debug, Eq)
+
+///|
+fn text_document_position_params(params : Json) -> TextDocumentPositionParams? {
+  guard json_field(params, "textDocument") is Some(text_document) else {
+    return None
+  }
+  guard json_field(params, "position") is Some(position) else { return None }
+  let uri = json_string_field(text_document, "uri")
+  let line = json_int_field(position, "line")
+  let character = json_int_field(position, "character")
+  guard uri is Some(uri) && line is Some(line) && character is Some(character) else {
+    return None
+  }
+  Some({ uri, line, character })
+}
