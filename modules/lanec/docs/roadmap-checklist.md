@@ -264,6 +264,19 @@ and unresolved or ambiguous states before Buslane lowering.
 - [ ] Run parser, type checker, elaborator, and interpreter tests over shared
   fixtures where practical.
 
+## 9. IDE Tooling And LSP
+
+- [ ] LSP: preserve source identity in analysis inputs so compiler spans can
+  become editor locations. (ISS-005)
+- [ ] LSP: build a semantic index for definitions, references, and hover
+  payloads from resolved and checked source data. (ISS-006)
+- [ ] LSP: implement `textDocument/definition` through the semantic index
+  rather than source-text matching. (ISS-007)
+- [ ] LSP: implement `textDocument/hover` using checked types, kinds, and
+  declaration summaries. (ISS-008)
+- [ ] LSP: support partial semantic analysis so navigation and hover remain
+  useful when unrelated diagnostics exist. (ISS-009)
+
 ## Later Execution Work
 
 - [ ] Lowered IR for closure conversion, decision trees, and execution layout.
