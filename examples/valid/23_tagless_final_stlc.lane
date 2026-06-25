@@ -1,0 +1,156 @@
+module Examples.Valid23
+
+import Ops.*
+
+pub struct Stlc[R : [Type] -> Type] {
+  int_lit : (Int) -> R[Int]
+  bool_lit : (Bool) -> R[Bool]
+  add : (R[Int], R[Int]) -> R[Int]
+  eq_int : (R[Int], R[Int]) -> R[Bool]
+  if_int : (R[Bool], R[Int], R[Int]) -> R[Int]
+  lam_int : ((R[Int]) -> R[Int]) -> R[(Int) -> Int]
+  app_int : (R[(Int) -> Int], R[Int]) -> R[Int]
+}
+
+pub struct Eval[A] {
+  value : A
+}
+
+pub struct Size[A] {
+  size : Int
+}
+
+pub fn eval_int_lit(value : Int) -> Eval[Int] {
+  Eval::{
+    value: value
+  }
+}
+
+pub fn eval_bool_lit(value : Bool) -> Eval[Bool] {
+  Eval::{
+    value: value
+  }
+}
+
+pub fn eval_add(left : Eval[Int], right : Eval[Int]) -> Eval[Int] {
+  Eval::{
+    value: left.value + right.value
+  }
+}
+
+pub fn eval_eq_int(left : Eval[Int], right : Eval[Int]) -> Eval[Bool] {
+  Eval::{
+    value: left.value == right.value
+  }
+}
+
+pub fn eval_if_int(condition : Eval[Bool], then_branch : Eval[Int], else_branch : Eval[Int]) -> Eval[Int] {
+  if condition.value {
+    then_branch
+  } else {
+    else_branch
+  }
+}
+
+pub fn eval_lam_int(body : (Eval[Int]) -> Eval[Int]) -> Eval[(Int) -> Int] {
+  Eval::{
+    value: fn (input : Int) {
+      body(
+        Eval::{
+          value: input
+        }
+      ).value
+    }
+  }
+}
+
+pub fn eval_app_int(function : Eval[(Int) -> Int], argument : Eval[Int]) -> Eval[Int] {
+  Eval::{
+    value: function.value(argument.value)
+  }
+}
+
+pub fn size_int_lit(_value : Int) -> Size[Int] {
+  Size::{
+    size: 1
+  }
+}
+
+pub fn size_bool_lit(_value : Bool) -> Size[Bool] {
+  Size::{
+    size: 1
+  }
+}
+
+pub fn size_add(left : Size[Int], right : Size[Int]) -> Size[Int] {
+  Size::{
+    size: 1 + left.size + right.size
+  }
+}
+
+pub fn size_eq_int(left : Size[Int], right : Size[Int]) -> Size[Bool] {
+  Size::{
+    size: 1 + left.size + right.size
+  }
+}
+
+pub fn size_if_int(condition : Size[Bool], then_branch : Size[Int], else_branch : Size[Int]) -> Size[Int] {
+  Size::{
+    size: 1 + condition.size + then_branch.size + else_branch.size
+  }
+}
+
+pub fn size_lam_int(body : (Size[Int]) -> Size[Int]) -> Size[(Int) -> Int] {
+  let body_size = body(
+    Size::{
+      size: 1
+    }
+  )
+  Size::{
+    size: 1 + body_size.size
+  }
+}
+
+pub fn size_app_int(function : Size[(Int) -> Int], argument : Size[Int]) -> Size[Int] {
+  Size::{
+    size: 1 + function.size + argument.size
+  }
+}
+
+pub let eval_stlc : Stlc[Eval] = Stlc::{
+  int_lit: eval_int_lit,
+  bool_lit: eval_bool_lit,
+  add: eval_add,
+  eq_int: eval_eq_int,
+  if_int: eval_if_int,
+  lam_int: eval_lam_int,
+  app_int: eval_app_int
+}
+
+pub let size_stlc : Stlc[Size] = Stlc::{
+  int_lit: size_int_lit,
+  bool_lit: size_bool_lit,
+  add: size_add,
+  eq_int: size_eq_int,
+  if_int: size_if_int,
+  lam_int: size_lam_int,
+  app_int: size_app_int
+}
+
+pub fn[R : [Type] -> Type] object_program(stlc : Stlc[R]) -> R[Int] {
+  let inc : R[(Int) -> Int] = stlc.lam_int(
+    fn (x) {
+      stlc.add(x, stlc.int_lit(1))
+    }
+  )
+  let result : R[Int] = stlc.app_int(inc, stlc.int_lit(41))
+  stlc.if_int(stlc.eq_int(result, stlc.int_lit(42)), result, stlc.int_lit(0))
+}
+
+pub let evaluated : Eval[Int] = object_program(eval_stlc)
+
+pub let measured : Size[Int] = object_program(size_stlc)
+
+pub let measured_size : Int = measured.size
+
+pub let answer : Int = evaluated.value
