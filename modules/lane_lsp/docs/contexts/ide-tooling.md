@@ -36,10 +36,11 @@ returns parse, resolution, type checking, diagnostics, and semantic artifacts
 without performing file or process IO.
 _Avoid_: LSP handler, filesystem service
 
-**Single-File Analysis**:
-The v1 compiler-analysis mode that checks one Lane source text as a complete
-module, without project discovery or filesystem-derived dependency analysis.
-_Avoid_: project compilation, workspace analysis
+**Workspace Library Analysis**:
+The diagnostics-first compiler-analysis mode that checks the current Lane
+document together with other Lane library sources discovered from the editor
+workspace. Open document snapshots take precedence over on-disk files.
+_Avoid_: build-system compilation, linked-program analysis
 
 **Document Snapshot**:
 The text and version of one editor document as seen by the Lane LSP Server.
@@ -53,6 +54,12 @@ _Avoid_: incremental text edit, range patching
 **Workspace Document Store**:
 The Lane LSP Server state that maps open document URIs to Document Snapshots.
 _Avoid_: compiler symbol table, project module graph
+
+**Workspace Library Source**:
+A `.lane` source used as an imported library input while checking the current
+document. It may come from an open Document Snapshot or, if not open, from the
+workspace filesystem.
+_Avoid_: module object, build artifact, prelude
 
 **Editor Diagnostic**:
 A source-location diagnostic reported through LSP after converting compiler
@@ -106,12 +113,13 @@ _Avoid_: VS Code Web extension, WASM language server
   a custom JSON-RPC client.
 - The first supported deployment target is **Desktop Native LSP**.
 - The first supported feature scope is **Diagnostics-First LSP**.
-- v1 **Compiler Analysis API** uses **Single-File Analysis**.
+- v1 **Compiler Analysis API** uses **Workspace Library Analysis**.
 - The **LSP Protocol Layer** uses the **JSON-RPC Framing Library** for wire
   framing and keeps Lane-specific method dispatch in the Lane LSP Server.
 - **Editor Intelligence** is a later feature layer built on compiler-analysis
   artifacts and stable editor document state.
-- **Document Snapshots** are passed to `lanec` as in-memory source text.
+- **Document Snapshots** are passed to `lanec` as in-memory source text and
+  override matching on-disk **Workspace Library Sources**.
 - v1 **Document Snapshots** are maintained through **Full Document Sync**.
 - **Editor Diagnostics** are derived from **Structured Compiler Diagnostics**;
   they do not define separate language semantics.
@@ -131,8 +139,9 @@ _Avoid_: VS Code Web extension, WASM language server
 > **Domain expert:** "No. v1 is **Diagnostics-First LSP**; completion and hover
 > belong to **Editor Intelligence** after the diagnostic loop is stable."
 
-> **Dev:** "Should the first LSP implementation discover projects?"
-> **Domain expert:** "No. v1 uses **Single-File Analysis** over the current document."
+> **Dev:** "Should the LSP derive build rules from the workspace?"
+> **Domain expert:** "No. It uses **Workspace Library Analysis** for editor
+> diagnostics, not build-system compilation."
 
 > **Dev:** "Should the LSP parse compiler diagnostic strings to recover ranges?"
 > **Domain expert:** "No. `lanec` produces **Structured Compiler Diagnostics**."

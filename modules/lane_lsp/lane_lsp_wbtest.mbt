@@ -136,6 +136,98 @@ test "didOpen checks against workspace library sources" {
 }
 
 ///|
+test "file URI paths are percent decoded" {
+  debug_inspect(
+    file_uri_to_path("file:///tmp/Lane%20Workspace/%E4%B8%AD.lane"),
+    content=(
+      #|Some("/tmp/Lane Workspace/中.lane")
+    ),
+  )
+}
+
+///|
+test "workspace libraries prefer unsaved open document snapshots" {
+  let workspace = ".tmp-lsp workspace"
+  let main_path = workspace + "/Main.lane"
+  let lib_path = workspace + "/Lib.lane"
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  @fs.create_dir(workspace)
+  @fs.write_string_to_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let stale : Int = 0
+      #|
+    ),
+    encoding="utf8",
+  )
+  @fs.write_string_to_file(
+    main_path,
+    (
+      #|module Main
+      #|
+      #|pub let stale : Int = 0
+      #|
+    ),
+    encoding="utf8",
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "initialize",
+        Json::object({ "rootUri": Json::string("file://.tmp-lsp%20workspace") }),
+      ),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
+        2,
+        "textDocument/didOpen",
+        open_params(
+          "file://.tmp-lsp%20workspace/Lib.lane",
+          (
+            #|module Lib
+            #|
+            #|pub let value : Int = 42
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      3,
+      "textDocument/didOpen",
+      open_params(
+        "file://.tmp-lsp%20workspace/Main.lane",
+        (
+          #|module Main
+          #|
+          #|import Lib.*
+          #|
+          #|pub let answer : Int = value
+        ),
+      ),
+    ),
+  )
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp%20workspace/Main.lane",
+        "diagnostics": [],
+      },
+    },
+  ])
+}
+
+///|
 fn cleanup_workspace_fixture(
   workspace : String,
   main_path : String,

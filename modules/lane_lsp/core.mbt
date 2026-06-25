@@ -179,9 +179,33 @@ fn ServerState::workspace_library_sources(
 ) -> Array[String] {
   guard self.workspace_root is Some(root) else { return [] }
   let current_path = file_uri_to_path(current_uri)
-  discover_lane_sources(root, current_path) catch {
-    _ => []
+  let opened_paths = []
+  let sources = self.open_document_library_sources(
+    root, current_path, opened_paths,
+  )
+  discover_lane_sources(root, current_path, opened_paths, sources) catch {
+    _ => sources
   }
+}
+
+///|
+fn ServerState::open_document_library_sources(
+  self : ServerState,
+  root : String,
+  current_path : String?,
+  opened_paths : Array[String],
+) -> Array[String] {
+  let sources = []
+  for _, document in self.documents {
+    guard file_uri_to_path(document.uri) is Some(path) else { continue }
+    if Some(path) != current_path &&
+      path.has_suffix(".lane") &&
+      path_is_under_workspace(path, root) {
+      opened_paths.push(path)
+      sources.push(document.text)
+    }
+  }
+  sources
 }
 
 ///|
@@ -216,20 +240,66 @@ fn workspace_root_uri(params : Json) -> String? {
 ///|
 fn file_uri_to_path(uri : String) -> String? {
   let prefix = "file://"
-  if uri.has_prefix(prefix) {
-    Some(uri.unsafe_substring(start=prefix.length(), end=uri.length()))
+  guard uri.has_prefix(prefix) else { return None }
+  let path = uri.unsafe_substring(start=prefix.length(), end=uri.length())
+  let path = if path.has_prefix("localhost/") {
+    path.unsafe_substring(start="localhost".length(), end=path.length())
+  } else {
+    path
+  }
+  percent_decode_path(path)
+}
+
+///|
+fn percent_decode_path(path : String) -> String? {
+  let input = @utf8.encode(path)
+  let output = []
+  let mut index = 0
+  while index < input.length() {
+    let byte = input[index]
+    if byte == b'%' {
+      guard index + 2 < input.length() else { return None }
+      guard hex_byte_value(input[index + 1]) is Some(high) else { return None }
+      guard hex_byte_value(input[index + 2]) is Some(low) else { return None }
+      output.push(((high << 4) | low).to_byte())
+      index = index + 3
+    } else {
+      output.push(byte)
+      index = index + 1
+    }
+  }
+  Some(@utf8.decode(Bytes::from_array(output))) catch {
+    _ => None
+  }
+}
+
+///|
+fn hex_byte_value(byte : Byte) -> Int? {
+  let code = byte.to_int()
+  if code >= b'0'.to_int() && code <= b'9'.to_int() {
+    Some(code - b'0'.to_int())
+  } else if code >= b'a'.to_int() && code <= b'f'.to_int() {
+    Some(code - b'a'.to_int() + 10)
+  } else if code >= b'A'.to_int() && code <= b'F'.to_int() {
+    Some(code - b'A'.to_int() + 10)
   } else {
     None
   }
 }
 
 ///|
+fn path_is_under_workspace(path : String, root : String) -> Bool {
+  path == root || path.has_prefix(root + "/")
+}
+
+///|
 fn discover_lane_sources(
   root : String,
   excluded_path : String?,
+  opened_paths : Array[String],
+  sources : Array[String],
 ) -> Array[String] raise @fs.IOError {
-  let sources = []
-  append_lane_sources(root, excluded_path, sources)
+  append_lane_sources(root, excluded_path, opened_paths, sources)
   sources
 }
 
@@ -237,6 +307,7 @@ fn discover_lane_sources(
 fn append_lane_sources(
   path : String,
   excluded_path : String?,
+  opened_paths : Array[String],
   sources : Array[String],
 ) -> Unit raise @fs.IOError {
   let entries = @fs.read_dir(path)
@@ -247,9 +318,9 @@ fn append_lane_sources(
     }
     let child = path + "/" + entry
     if @fs.is_dir(child) {
-      append_lane_sources(child, excluded_path, sources)
+      append_lane_sources(child, excluded_path, opened_paths, sources)
     } else if @fs.is_file(child) && child.has_suffix(".lane") {
-      if Some(child) != excluded_path {
+      if Some(child) != excluded_path && !opened_paths.contains(child) {
         sources.push(@fs.read_file_to_string(child, encoding="utf8"))
       }
     }
