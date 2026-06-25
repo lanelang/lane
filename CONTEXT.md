@@ -197,9 +197,41 @@ _Avoid_: opaque representation, private constructor, hidden variant set
 A declared source-language operation whose use is statically tracked and handled by an effect handler.
 _Avoid_: unchecked exception, runtime panic, implicit IO
 
+**Effect Declaration**:
+A top-level nominal declaration that owns effect operations.
+_Avoid_: value declaration, operation namespace, runtime plugin
+
 **Effect Handler**:
 A source-language construct that implements effect operations and discharges their tracked effect requirements.
 _Avoid_: catch block, runtime error handler, builtin plugin
+
+**Effect Operation**:
+A member of an effect declaration with a Lane function type signature such as `(String) -> Unit` or `() -> String`.
+_Avoid_: top-level function, arbitrary expression payload, unchecked command
+
+**Effect Operation Call**:
+An effectful operation invocation written with `!`, such as `Console::print!("hi")` or an unambiguous `print!("hi")`.
+_Avoid_: ordinary function call, implicit perform expression, unchecked command dispatch
+
+**Effect Operation Lookup**:
+The name-resolution process for effect operation calls, separate from ordinary value lookup.
+_Avoid_: ordinary function lookup, contextual offer lookup, implicit handler search
+
+**Effect Set**:
+The finite set of typed algebraic effects that an expression or function may perform.
+_Avoid_: exception list, runtime capability bag, implicit ambient state
+
+**Effect Variable**:
+A type-level variable ranging over effect sets in an effect-polymorphic function type.
+_Avoid_: value parameter, contextual offer, dynamic capability token
+
+**Effect Polymorphism**:
+The ability for a function type to quantify over an effect set and propagate it through calls.
+_Avoid_: effect subtyping, unchecked effect escape, implicit handler search
+
+**Function Effect Annotation**:
+The optional `!` suffix after a function result type that states a function's non-empty effect set.
+_Avoid_: prefix effect marker, unchecked throws clause, handler declaration
 
 **Unchecked Runtime Exception**:
 A catchable language-level failure that can escape static effect tracking.
@@ -276,6 +308,11 @@ _Avoid_: VS Code extension, compiler front end
 - Module-qualified access is written as `Module.Path::name`.
 - The left side of module-qualified access must be an imported complete **Module Path**.
 - **Typed Algebraic Effects** are the only planned language-level effect mechanism.
+- An **Effect Declaration** owns one or more **Effect Operations**.
+- An **Effect Operation Call** invokes an **Effect Operation** and contributes the owning **Typed Algebraic Effect** to the surrounding **Effect Set**.
+- **Effect Operation Lookup** resolves `name!` only against visible **Effect Operations**, not ordinary values.
+- A **Function Effect Annotation** names an **Effect Set**.
+- **Effect Polymorphism** uses **Effect Variables** to propagate effect sets through higher-order function types.
 - **Effect Handlers** discharge **Typed Algebraic Effects**.
 - **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
 - Importing a module does not implicitly import its dotted child module paths.
