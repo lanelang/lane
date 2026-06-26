@@ -155,44 +155,12 @@ fn find_object_artifact(
 ///|
 async fn read_module_interface_artifacts(
   interfaces : Array[String],
-  interface_dirs : Array[String],
 ) -> Array[@compile.ModuleInterfaceArtifact] {
   let artifacts = []
   for interface in interfaces {
     artifacts.push(read_module_interface_artifact(interface))
   }
-  for dir in interface_dirs {
-    append_module_interface_dir_artifacts(dir, artifacts)
-  }
   artifacts
-}
-
-///|
-async fn append_module_interface_dir_artifacts(
-  path : String,
-  artifacts : Array[@compile.ModuleInterfaceArtifact],
-) -> Unit {
-  append_scanned_module_interfaces(path, artifacts)
-}
-
-///|
-async fn append_scanned_module_interfaces(
-  path : String,
-  artifacts : Array[@compile.ModuleInterfaceArtifact],
-) -> Unit {
-  let entries = @fs.readdir(path, sort=true)
-  for entry in entries {
-    if should_skip_library_entry(entry) {
-      continue
-    }
-    let child = path + "/" + entry
-    match @fs.kind(child) {
-      Directory => append_scanned_module_interfaces(child, artifacts)
-      Regular if child.has_suffix(".lmi") =>
-        artifacts.push(read_module_interface_artifact(child))
-      _ => ()
-    }
-  }
 }
 
 ///|

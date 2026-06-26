@@ -4,8 +4,11 @@ import {
   "moonbitlang/async@0.19.1/io",
   "moonbitlang/core/json",
   "moonbitlang/x@0.4.45/fs",
-  "moonbitlang/x@0.4.45/sys",
 }
+
+priv suberror FixtureRunFailure {
+  FixtureRunFailure(String)
+} derive(Debug)
 
 struct FixtureManifest {
   lib_dirs : Array[String]
@@ -13,8 +16,6 @@ struct FixtureManifest {
 }
 
 let fixture_timeout_ms : Int = 60000
-
-let lane_executable : String = "_build/native/debug/build/Milky2018/lane/lane.exe"
 
 struct FixtureCase {
   name : String
@@ -33,7 +34,7 @@ enum FixtureExpectation {
   Contains(Array[String])
 }
 
-async fn main {
+async fn main raise {
   let manifest = read_fixture_manifest("examples/fixtures/lane-run.json")
   let mut failure_count = 0
   for case in manifest.cases {
@@ -49,7 +50,7 @@ async fn main {
       println("  error: timed out after " + fixture_timeout_ms.to_string() + "ms")
       continue
     }
-    if result.code != 0 || !matches_expectation(result.output, case.expectation) {
+    if !matches_case_result(case, result) {
       failure_count += 1
       println("FAILED " + case.name)
       println("  file: " + case.file)
@@ -63,30 +64,30 @@ async fn main {
     fixture_timeout_ms,
     run_separate_compile_smoke,
   )
-  guard separate_result is Some(separate_result) else {
-    failure_count += 1
-    println("FAILED separate module artifact compile/link")
-    println(
-      "  error: timed out after " + fixture_timeout_ms.to_string() + "ms",
-    )
-    if failure_count != 0 {
-      println("lane run fixture failures: " + failure_count.to_string())
-      @sys.exit(1)
+  match separate_result {
+    None => {
+      failure_count += 1
+      println("FAILED separate module artifact compile/link")
+      println(
+        "  error: timed out after " + fixture_timeout_ms.to_string() + "ms",
+      )
     }
-    return
-  }
-  let separate_expectation = Contains(["linked root C", "linked entries answer"])
-  if separate_result.code != 0 ||
-    !matches_expectation(separate_result.output, separate_expectation) {
-    failure_count += 1
-    println("FAILED separate module artifact compile/link")
-    println("  exit: " + separate_result.code.to_string())
-    println("  actual: " + separate_result.output)
-    print_expectation(separate_expectation)
+    Some(separate_result) => {
+      let separate_expectation = Contains(["linked root C", "linked entries answer"])
+      if separate_result.code != 0 ||
+        !matches_expectation(separate_result.output, separate_expectation) {
+        failure_count += 1
+        println("FAILED separate module artifact compile/link")
+        println("  exit: " + separate_result.code.to_string())
+        println("  actual: " + separate_result.output)
+        print_expectation(separate_expectation)
+      }
+    }
   }
   if failure_count != 0 {
-    println("lane run fixture failures: " + failure_count.to_string())
-    @sys.exit(1)
+    raise FixtureRunFailure(
+      "lane run fixture failures: " + failure_count.to_string(),
+    )
   }
 }
 
@@ -156,10 +157,7 @@ fn decode_string(json : Json, path : String) -> String {
 async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult {
   ignore(read_text(case.file))
   let fmt_args = ["fmt", "--deny", case.file]
-  let (fmt_code, fmt_output) = @process.collect_output_merged(
-    lane_executable,
-    fmt_args,
-  )
+  let (fmt_code, fmt_output) = run_lane_process(fmt_args)
   let fmt_output = fmt_output.text().trim_end(chars="\n\r").to_owned()
   if fmt_code != 0 {
     return { code: fmt_code, output: fmt_output }
@@ -174,10 +172,7 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
     check_args.push("--lib-dir")
     check_args.push(lib_dir)
   }
-  let (check_code, check_output) = @process.collect_output_merged(
-    lane_executable,
-    check_args,
-  )
+  let (check_code, check_output) = run_lane_process(check_args)
   let check_output = check_output.text().trim_end(chars="\n\r").to_owned()
   if check_code != 0 {
     return { code: check_code, output: check_output }
@@ -185,41 +180,12 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
   if !check_output.is_empty() {
     return { code: 0, output: check_output }
   }
-  if case.file.has_prefix("examples/valid/") {
-    let artifact_path = "_build/lane-run-artifacts"
-    let compile_args = [
-      "compile", case.file, "--out-dir", artifact_path,
-    ]
-    for lib_dir in lib_dirs {
-      compile_args.push("--lib-dir")
-      compile_args.push(lib_dir)
-    }
-    let (compile_code, compile_output) = @process.collect_output_merged(
-      lane_executable,
-      compile_args,
-    )
-    let compile_output = compile_output.text().trim_end(chars="\n\r").to_owned()
-    if compile_code != 0 {
-      return { code: compile_code, output: compile_output }
-    }
-    let link_args = [
-      "link", "--artifact-dir", artifact_path,
-    ]
-    let (link_code, link_output) = @process.collect_output_merged(
-      lane_executable,
-      link_args,
-    )
-    let link_output = link_output.text().trim_end(chars="\n\r").to_owned()
-    if link_code != 0 {
-      return { code: link_code, output: link_output }
-    }
-  }
   let args = ["run", case.file + ":" + case.entry]
   for lib_dir in lib_dirs {
     args.push("--lib-dir")
     args.push(lib_dir)
   }
-  let (code, output) = @process.collect_output_merged(lane_executable, args)
+  let (code, output) = run_lane_process(args)
   { code, output: output.text().trim_end(chars="\n\r").to_owned() }
 }
 
@@ -269,6 +235,8 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
     (
       #|module C
       #|
+      #|import A.*
+      #|
       #|import B.*
       #|
       #|pub let answer : Int = forwarded.value
@@ -278,49 +246,78 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   let extra_artifacts = workspace + "/extra-artifacts"
   let b_artifacts = workspace + "/b-artifacts"
   let c_artifacts = workspace + "/c-artifacts"
+  ensure_dir(a_artifacts)
+  ensure_dir(extra_artifacts)
+  ensure_dir(b_artifacts)
+  ensure_dir(c_artifacts)
+  let a_interface = a_artifacts + "/A.lmi"
+  let a_object = a_artifacts + "/A.lmo"
+  let extra_interface = extra_artifacts + "/Extra.lmi"
+  let extra_object = extra_artifacts + "/Extra.lmo"
+  let b_interface = b_artifacts + "/B.lmi"
+  let b_object = b_artifacts + "/B.lmo"
+  let c_interface = c_artifacts + "/C.lmi"
+  let c_object = c_artifacts + "/C.lmo"
   let a_compile = run_moon_lane([
-    "compile", a_path, "--out-dir", a_artifacts,
+    "compile", a_path, "--emit-interface", a_interface, "--emit-object",
+    a_object,
   ])
   if a_compile.code != 0 {
     return a_compile
   }
   let extra_compile = run_moon_lane([
-    "compile", extra_path, "--out-dir", extra_artifacts,
+    "compile", extra_path, "--emit-interface", extra_interface, "--emit-object",
+    extra_object,
   ])
   if extra_compile.code != 0 {
     return extra_compile
   }
   let b_compile = run_moon_lane([
-    "compile", b_path, "--interface-dir", extra_artifacts, "--interface-dir",
-    a_artifacts, "--out-dir", b_artifacts,
+    "compile", b_path, "--interface", extra_interface, "--interface",
+    a_interface, "--emit-interface", b_interface, "--emit-object", b_object,
   ])
   if b_compile.code != 0 {
     return b_compile
   }
   let c_check = run_moon_lane([
-    "check", "--deny", c_path, "--interface-dir", b_artifacts,
-    "--interface-dir", a_artifacts,
+    "check", "--deny", c_path, "--lib", b_path, "--lib", a_path,
   ])
   if c_check.code != 0 {
     return c_check
   }
   let c_compile = run_moon_lane([
-    "compile", c_path, "--interface-dir", b_artifacts, "--interface-dir",
-    a_artifacts, "--out-dir", c_artifacts,
+    "compile", c_path, "--interface", b_interface, "--interface",
+    a_interface, "--emit-interface", c_interface, "--emit-object", c_object,
   ])
   if c_compile.code != 0 {
     return c_compile
   }
   run_moon_lane([
-    "link", "--root", "C", "--artifact-dir", c_artifacts, "--artifact-dir",
-    b_artifacts, "--artifact-dir", a_artifacts,
+    "link", "--root", "C", "--interface", c_interface, "--interface",
+    b_interface, "--interface", a_interface, "--object", c_object, "--object",
+    b_object, "--object", a_object,
   ])
 }
 
+fn ensure_dir(path : String) -> Unit raise {
+  if !@fs.path_exists(path) {
+    @fs.create_dir(path)
+  }
+}
+
 async fn run_moon_lane(lane_args : Array[String]) -> LaneRunResult {
-  let args = lane_args.copy()
-  let (code, output) = @process.collect_output_merged(lane_executable, args)
+  let (code, output) = run_lane_process(lane_args)
   { code, output: output.text().trim_end(chars="\n\r").to_owned() }
+}
+
+async fn run_lane_process(
+  lane_args : Array[String],
+) -> (Int, &@io.Data) {
+  let args = ["run", "--target", "native", "modules/lane", "--"]
+  for arg in lane_args {
+    args.push(arg)
+  }
+  @process.collect_output_merged("moon", args)
 }
 
 fn matches_expectation(output : String, expectation : FixtureExpectation) -> Bool {
@@ -334,6 +331,15 @@ fn matches_expectation(output : String, expectation : FixtureExpectation) -> Boo
       }
       true
     }
+  }
+}
+
+fn matches_case_result(case : FixtureCase, result : LaneRunResult) -> Bool {
+  let expectation_matched = matches_expectation(result.output, case.expectation)
+  if case.file.has_prefix("examples/invalid/") {
+    result.code != 0 && expectation_matched
+  } else {
+    result.code == 0 && expectation_matched
   }
 }
 

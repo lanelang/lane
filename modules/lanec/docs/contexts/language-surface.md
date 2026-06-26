@@ -15,7 +15,7 @@ _Avoid_: variable, mutable binding
 
 **Offered Value Definition**:
 A value definition that defines a named value and immediately adds it to the contextual offer environment.
-_Avoid_: anonymous offer, open binding, standalone offer form, unnamed prelude entry
+_Avoid_: anonymous offer, open binding, standalone offer form, implicit library entry
 
 **Recursive Definition Group**:
 A set of top-level functions or types that may refer to one another regardless of textual order.

@@ -10,13 +10,12 @@ async fn main {
     Ok(command) => command
     Err(message) => {
       println(message)
-      println("lane command failed")
-      return
+      fail("lane command failed")
     }
   }
   let outcome = match command {
-    Check(file~, libs~, lib_dirs~, interfaces~, interface_dirs~, deny~) =>
-      lane_check(file, libs, lib_dirs, interfaces, interface_dirs, deny)
+    Check(file~, libs~, lib_dirs~, deny~) =>
+      lane_check(file, libs, lib_dirs, deny)
     Compile(file~, interfaces~, emit_interface~, emit_object~) =>
       lane_compile(file, interfaces, emit_interface, emit_object)
     Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
@@ -27,7 +26,7 @@ async fn main {
   }
   match outcome {
     Succeeded => ()
-    UserFailure => println("lane command failed")
+    UserFailure => fail("lane command failed")
   }
 }
 
@@ -101,42 +100,21 @@ async fn lane_check(
   file : String,
   libs : Array[String],
   lib_dirs : Array[String],
-  interfaces : Array[String],
-  interface_dirs : Array[String],
   deny : Bool,
 ) -> LaneCommandOutcome {
-  if (!libs.is_empty() || !lib_dirs.is_empty()) &&
-    (!interfaces.is_empty() || !interface_dirs.is_empty()) {
-    println(
-      "check inputs must be either source libraries or module interfaces, not both",
-    )
-    return UserFailure
-  }
   let source = read_source_file(file) catch {
     error => {
       println("failed to read source: \{error}")
       return UserFailure
     }
   }
-  let result = if !interfaces.is_empty() || !interface_dirs.is_empty() {
-    let imported_interfaces = read_module_interface_artifacts(
-      interfaces, interface_dirs,
-    ) catch {
-      error => {
-        println("failed to read module interface artifact: \{error}")
-        return UserFailure
-      }
+  let libraries = read_library_sources(libs, lib_dirs) catch {
+    error => {
+      println("failed to read library source: \{error}")
+      return UserFailure
     }
-    @compile.check_source_with_interface_artifacts(source, imported_interfaces)
-  } else {
-    let libraries = read_library_sources(libs, lib_dirs) catch {
-      error => {
-        println("failed to read library source: \{error}")
-        return UserFailure
-      }
-    }
-    @compile.check_sources(source, libraries)
   }
+  let result = @compile.check_sources(source, libraries)
   let failures = denied_diagnostics(result.diagnostics, deny)
   if !failures.is_empty() {
     print_diagnostics(result.diagnostics)
@@ -170,7 +148,7 @@ async fn lane_compile(
       return UserFailure
     }
   }
-  let imported_interfaces = read_module_interface_artifacts(interfaces, []) catch {
+  let imported_interfaces = read_module_interface_artifacts(interfaces) catch {
     error => {
       println("failed to read module interface artifact: \{error}")
       return UserFailure

@@ -59,7 +59,7 @@ _Avoid_: compiler symbol table, project module graph
 A `.lane` source used as an imported library input while checking the current
 document. It may come from an open Document Snapshot or, if not open, from the
 workspace filesystem.
-_Avoid_: module object, build artifact, prelude
+_Avoid_: module object, build artifact, implicit library
 
 **Editor Diagnostic**:
 A source-location diagnostic reported through LSP after converting compiler

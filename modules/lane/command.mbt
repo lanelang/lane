@@ -7,8 +7,6 @@ enum LaneCommand {
     file~ : String,
     libs~ : Array[String],
     lib_dirs~ : Array[String],
-    interfaces~ : Array[String],
-    interface_dirs~ : Array[String],
     deny~ : Bool
   )
   Compile(
@@ -38,12 +36,7 @@ fn lane_command_spec() -> Command {
       Command(
         "check",
         about="Check a single Lane source file.",
-        options=[
-          lib_option(),
-          lib_dir_option(),
-          interface_option(),
-          interface_dir_option(),
-        ],
+        options=[lib_option(), lib_dir_option()],
         flags=[
           FlagArg(
             "deny",
@@ -117,8 +110,6 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
               file~,
               libs=values(child, "lib"),
               lib_dirs=values(child, "lib-dir"),
-              interfaces=values(child, "interface"),
-              interface_dirs=values(child, "interface-dir"),
               deny=flag(child, "deny"),
             ),
           )
@@ -217,16 +208,6 @@ fn interface_option() -> @argparse.OptionArg {
     long="interface",
     action=Append,
     about="Compiled Lane module interface artifact to import.",
-  )
-}
-
-///|
-fn interface_dir_option() -> @argparse.OptionArg {
-  OptionArg(
-    "interface-dir",
-    long="interface-dir",
-    action=Append,
-    about="Directory containing compiled Lane module interface artifacts.",
   )
 }
 

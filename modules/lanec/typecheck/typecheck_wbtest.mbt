@@ -275,7 +275,7 @@ test "typecheck builds checked builtin call from expected result" {
 }
 
 ///|
-test "typecheck prelude primitive operation fragment" {
+test "typecheck builtin primitive operation fragment" {
   let result = expect_checked_source_result(
     (
       #|struct Add[T] {
@@ -297,7 +297,7 @@ test "typecheck prelude primitive operation fragment" {
   )
   inspect(result.diagnostics.length(), content="0")
   guard result.source is Some(_) else {
-    abort("expected checked prelude fragment")
+    abort("expected checked builtin fragment")
   }
 }
 
