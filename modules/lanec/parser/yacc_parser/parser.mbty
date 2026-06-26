@@ -51,9 +51,11 @@
 %token RBRACKET "]"
 %token COMMA ","
 %token DOTSTAR ".*"
+%token DOTLBRACE ".{"
 %token DOT "."
 %token COLON ":"
 %token COLONCOLON "::"
+%token TIGHT_COLONCOLON "tight ::"
 %token THIN_ARROW "->"
 %token FAT_ARROW "=>"
 %token EQUAL "="
@@ -67,7 +69,7 @@
 %left "+" "-"
 %left "*" "/" "%"
 %right UNARY
-%left "." "(" "::"
+%left "." "(" "::" "tight ::"
 
 %%
 
@@ -102,8 +104,8 @@ import_declaration -> ImportDeclaration
   | "import" module_path ".*" {
     Open(module_path=$2, loc=span($sloc))
   }
-  | "import" module_path "::" "{" import_item_list "}" {
-    Selective(module_path=$2, items=$5, loc=span($sloc))
+  | "import" module_path ".{" import_item_list "}" {
+    Selective(module_path=$2, items=$4, loc=span($sloc))
   }
   ;
 
@@ -476,16 +478,16 @@ expression -> Expr
   | expression "." IDENT {
     Field(base=$1, name=$3, loc=span($sloc))
   }
-  | expression "::" "{" struct_literal_fields "}" %prec "::" {
+  | expression "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
     StructLiteral(type_name=expression_type_name_text($1), type_arguments=[], fields=$4, loc=span($sloc))
   }
-  | expression "[" type_list "]" "::" "{" struct_literal_fields "}" %prec "::" {
+  | expression "[" type_list "]" "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
     StructLiteral(type_name=expression_type_name_text($1), type_arguments=$3, fields=$7, loc=span($sloc))
   }
-  | expression "::" IDENT variant_type_arguments variant_arguments %prec "::" {
+  | expression "tight ::" IDENT variant_type_arguments variant_arguments %prec "tight ::" {
     QualifiedVariant(type_name=expression_type_name_text($1), type_arguments=[], variant=$3, variant_type_arguments=$4, arguments=$5, loc=span($sloc))
   }
-  | expression "[" type_list "]" "::" IDENT variant_type_arguments variant_arguments %prec "::" {
+  | expression "[" type_list "]" "tight ::" IDENT variant_type_arguments variant_arguments %prec "tight ::" {
     QualifiedVariant(type_name=expression_type_name_text($1), type_arguments=$3, variant=$6, variant_type_arguments=$7, arguments=$8, loc=span($sloc))
   }
   | primary_expression { $1 }
@@ -658,13 +660,22 @@ pattern -> Pattern
   | "false" { BoolLiteral(false, loc=span($sloc)) }
   | IDENT { Binding($1, loc=span($sloc)) }
   | struct_pattern { $1 }
-  | nominal_type_name "::" IDENT variant_type_binders pattern_arguments {
-    QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=$5, loc=span($sloc))
+  | "::" IDENT variant_type_binders {
+    ShorthandVariant(variant=$2, type_binders=$3, arguments=[], loc=span($sloc))
+  }
+  | "::" IDENT variant_type_binders "(" pattern_list ")" {
+    ShorthandVariant(variant=$2, type_binders=$3, arguments=$5, loc=span($sloc))
+  }
+  | nominal_type_name "tight ::" IDENT variant_type_binders {
+    QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=[], loc=span($sloc))
+  }
+  | nominal_type_name "tight ::" IDENT variant_type_binders "(" pattern_list ")" {
+    QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=$6, loc=span($sloc))
   }
   ;
 
 struct_pattern -> Pattern
-  : nominal_type_name "::" "{" struct_pattern_fields "}" {
+  : nominal_type_name "tight ::" "{" struct_pattern_fields "}" {
     Struct(type_name=$1, fields=$4, loc=span($sloc))
   }
   ;
@@ -678,11 +689,6 @@ non_empty_ident_list -> Array[String]
   : IDENT { [ $1 ] }
   | non_empty_ident_list "," IDENT { comma_push($1, $3) }
   | non_empty_ident_list "," { $1 }
-  ;
-
-pattern_arguments -> Array[Pattern]
-  : { [] }
-  | "(" pattern_list ")" { $2 }
   ;
 
 pattern_list -> Array[Pattern]

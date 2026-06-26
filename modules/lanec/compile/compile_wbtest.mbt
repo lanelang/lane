@@ -81,6 +81,28 @@ test "compile sources exposes only root public entries" {
 }
 
 ///|
+test "compile sources accepts selective import with module dot syntax" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import Lib.{ value }
+      #|pub let answer : Int = value
+    ),
+    [
+      (
+        #|module Lib
+        #|pub let value : Int = 42
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.entries.map(fn(entry) { entry.name }).join(","),
+    content="answer",
+  )
+}
+
+///|
 test "compile sources links only root reachable library modules" {
   let result = compile_sources(
     (

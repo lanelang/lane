@@ -637,6 +637,12 @@ fn collect_resolved_pattern(
           source_id, argument, definitions, references, hovers,
         )
       }
+    ShorthandVariant(arguments~, ..) =>
+      for argument in arguments {
+        collect_resolved_pattern(
+          source_id, argument, definitions, references, hovers,
+        )
+      }
     Struct(fields~, ..) =>
       for field in fields {
         match field {

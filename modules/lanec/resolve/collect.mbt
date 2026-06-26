@@ -1764,6 +1764,20 @@ fn @syntax.Pattern::resolve_pattern(
         loc~,
       )
     }
+    ShorthandVariant(variant~, type_binders~, arguments~, loc~) => {
+      let type_binders = resolver.resolve_type_parameter_names(
+        type_binders, loc,
+      )
+      scope.type_parameters.append(type_binders)
+      ShorthandVariant(
+        variant~,
+        type_binders~,
+        arguments=arguments.map(fn(argument) {
+          argument.resolve_pattern(resolver, scope)
+        }),
+        loc~,
+      )
+    }
     Struct(type_name~, fields~, loc~) =>
       Struct(
         type_name~,

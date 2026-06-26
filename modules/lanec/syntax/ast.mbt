@@ -335,6 +335,12 @@ pub(all) enum Pattern {
     arguments~ : Array[Pattern],
     loc~ : SourceSpan
   )
+  ShorthandVariant(
+    variant~ : String,
+    type_binders~ : Array[String],
+    arguments~ : Array[Pattern],
+    loc~ : SourceSpan
+  )
   Struct(
     type_name~ : String,
     fields~ : Array[StructPatternField],
@@ -352,6 +358,7 @@ pub fn Pattern::loc(self : Pattern) -> SourceSpan {
     | StringLiteral(_, loc~)
     | BoolLiteral(_, loc~)
     | QualifiedVariant(loc~, ..)
+    | ShorthandVariant(loc~, ..)
     | Struct(loc~, ..) => loc
   }
 }

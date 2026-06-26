@@ -4,6 +4,8 @@ priv struct LexEnv {
   errors : Array[LexError]
   mut current_line : Int
   mut current_bol : Int
+  mut last_token : Token?
+  mut last_token_end : Int
 }
 
 ///|
@@ -35,6 +37,8 @@ fn LexEnv::add_token(
   end~ : Int,
 ) -> Unit {
   self.tokens.push((token, self.span(start~, end~)))
+  self.last_token = Some(token)
+  self.last_token_end = end
 }
 
 ///|
@@ -51,4 +55,13 @@ fn LexEnv::add_error(
 fn LexEnv::newline(self : LexEnv, end~ : Int) -> Unit {
   self.current_line += 1
   self.current_bol = end
+}
+
+///|
+fn LexEnv::has_tight_left_operand(self : LexEnv, start : Int) -> Bool {
+  guard self.last_token_end == start else { return false }
+  match self.last_token {
+    Some(IDENT(_)) | Some(RBRACKET) | Some(RPAREN) => true
+    _ => false
+  }
 }

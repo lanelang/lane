@@ -2177,6 +2177,69 @@ test "typecheck exhaustive enum match" {
 }
 
 ///|
+test "typecheck shorthand enum variant patterns from expected type" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Left {
+      #|  same(Int)
+      #|}
+      #|enum Right {
+      #|  same(Bool)
+      #|}
+      #|fn left(value : Left) -> Int {
+      #|  match value {
+      #|    ::same(x) => x
+      #|  }
+      #|}
+      #|fn right(value : Right) -> Int {
+      #|  match value {
+      #|    ::same(_) => 1
+      #|  }
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="0")
+}
+
+///|
+test "typecheck shorthand enum variant patterns in adjacent match arms" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none
+      #|  some(A)
+      #|}
+      #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
+      #|  match value {
+      #|    ::none => fallback
+      #|    ::some(x) => x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="0")
+}
+
+///|
+test "typecheck rejects shorthand enum variant without enum expected type" {
+  let result = expect_typecheck_result(
+    (
+      #|fn bad(value : Int) -> Int {
+      #|  match value {
+      #|    ::some(x) => x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content=(
+      #|cannot_infer shorthand variant pattern requires enum expected type ::some @ 4:13-4:14
+    ),
+  )
+}
+
+///|
 test "typecheck reports non-exhaustive bool match" {
   let result = expect_typecheck_result(
     (

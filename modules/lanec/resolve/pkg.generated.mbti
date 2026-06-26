@@ -185,6 +185,7 @@ pub(all) enum ResolvedPattern {
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, variant~ : String, type_binders~ : Array[ResolvedTypeParameter], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
+  ShorthandVariant(variant~ : String, type_binders~ : Array[ResolvedTypeParameter], arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
   Struct(type_name~ : String, fields~ : Array[ResolvedStructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedPattern

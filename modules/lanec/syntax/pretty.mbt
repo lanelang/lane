@@ -721,6 +721,19 @@ fn Pattern::to_doc(self : Pattern) -> Document {
         head + parenthesized(arguments.map(Pattern::to_doc))
       }
     }
+    ShorthandVariant(variant~, type_binders~, arguments~, ..) => {
+      let binders_doc = if type_binders.is_empty() {
+        empty
+      } else {
+        brackets(join_comma(type_binders.map(text)))
+      }
+      let head = text("::") + text(variant) + binders_doc
+      if arguments.is_empty() {
+        head
+      } else {
+        head + parenthesized(arguments.map(Pattern::to_doc))
+      }
+    }
     Struct(type_name~, fields~, ..) =>
       text(type_name) +
       text("::") +

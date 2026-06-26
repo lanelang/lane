@@ -177,6 +177,10 @@ fn SemanticChecker::check_pattern(
         scope, type_name, variant, type_binders, reference, arguments, expected,
         binders, loc,
       )
+    ShorthandVariant(variant~, type_binders~, arguments~, loc~) =>
+      self.check_shorthand_variant_pattern(
+        scope, variant, type_binders, arguments, expected, binders, loc,
+      )
     Struct(type_name~, fields~, loc~) =>
       self.check_struct_pattern(
         scope, type_name, fields, expected, binders, loc,
@@ -347,6 +351,51 @@ fn SemanticChecker::check_variant_symbol_pattern(
     arguments=checked_arguments,
     type_=expected,
     loc~,
+  )
+}
+
+///|
+fn SemanticChecker::check_shorthand_variant_pattern(
+  self : SemanticChecker,
+  scope : TypeScope,
+  variant : String,
+  type_binders : Array[@resolve.ResolvedTypeParameter],
+  arguments : Array[@resolve.ResolvedPattern],
+  expected : @types.Type,
+  binders : Array[String],
+  loc : SourceSpan,
+) -> @checked.CheckedPattern {
+  let display_name = "::" + variant
+  guard expected.decompose_nominal() is Some((owner, _)) else {
+    if !(expected is Error) {
+      self.diagnostics.push({
+        kind: CannotInferExpression(
+          "shorthand variant pattern requires enum expected type " +
+          display_name,
+        ),
+        loc,
+      })
+    }
+    return Wildcard(type_=Error, loc~)
+  }
+  guard self.declarations.checked_enum(owner) is Some(_) else {
+    self.diagnostics.push({
+      kind: CannotInferExpression(
+        "shorthand variant pattern requires enum expected type " + display_name,
+      ),
+      loc,
+    })
+    return Wildcard(type_=Error, loc~)
+  }
+  guard self.source.symbols.variant_named(owner, variant) is Some(symbol) else {
+    self.diagnostics.push({
+      kind: CannotInferExpression("unknown variant " + display_name),
+      loc,
+    })
+    return Wildcard(type_=Error, loc~)
+  }
+  self.check_variant_symbol_pattern(
+    scope, "", variant, symbol, type_binders, arguments, expected, binders, loc,
   )
 }
 

@@ -1,0 +1,23 @@
+module Examples.Valid.ShorthandVariantPatterns
+
+enum Left {
+  same(Int)
+}
+
+enum Right {
+  same(Bool)
+}
+
+fn read_left(value : Left) -> Int {
+  match value {
+    ::same(x) => x
+  }
+}
+
+fn read_right(value : Right) -> Int {
+  match value {
+    ::same(_) => 1
+  }
+}
+
+pub let answer : Int = read_left(Left::same(42))

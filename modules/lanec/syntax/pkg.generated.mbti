@@ -185,6 +185,7 @@ pub(all) enum Pattern {
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
+  ShorthandVariant(variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
   Struct(type_name~ : String, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Pattern::loc(Self) -> @basic.SourceSpan

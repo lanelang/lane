@@ -41,7 +41,9 @@ test "trait interface and mut are identifiers" {
 
 ///|
 test "tokenize maximal munch operators and punctuation" {
-  let tokens = token_values("a == b != c <= d >= e && f || g |> h :: _")
+  let tokens = token_values(
+    "a == b != c <= d >= e && f || g |> h :: k::. (::x) .{ _",
+  )
   assert_true(
     tokens ==
     [
@@ -60,7 +62,16 @@ test "tokenize maximal munch operators and punctuation" {
       IDENT("g"),
       PIPE,
       IDENT("h"),
+      COLON,
+      COLON,
+      IDENT("k"),
+      TIGHT_COLONCOLON,
+      DOT,
+      LPAREN,
       COLONCOLON,
+      IDENT("x"),
+      RPAREN,
+      DOTLBRACE,
       UNDERSCORE,
       EOF,
     ],

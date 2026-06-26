@@ -380,6 +380,12 @@ pub(all) enum ResolvedPattern {
     arguments~ : Array[ResolvedPattern],
     loc~ : SourceSpan
   )
+  ShorthandVariant(
+    variant~ : String,
+    type_binders~ : Array[ResolvedTypeParameter],
+    arguments~ : Array[ResolvedPattern],
+    loc~ : SourceSpan
+  )
   Struct(
     type_name~ : String,
     fields~ : Array[ResolvedStructPatternField],

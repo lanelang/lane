@@ -2,7 +2,9 @@
 fn expect_parse_ok(source : String) -> @syntax.SourceFile {
   let result = parse_string("module Test\n" + source)
   if !result.lexical_errors.is_empty() || !result.parse_errors.is_empty() {
-    abort("expected parse success")
+    abort(
+      "expected parse success, got lexical_errors=\{to_repr(result.lexical_errors)} parse_errors=\{to_repr(result.parse_errors)}",
+    )
   }
   guard result.source is Some(file) else { abort("expected source file") }
   file
@@ -36,8 +38,8 @@ test "parse nominal declarations and match" {
       #|}
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    Option::none => fallback
-      #|    Option::some(x) => x
+      #|    ::none => fallback
+      #|    ::some(x) => x
       #|  }
       #|}
     ),
@@ -59,10 +61,131 @@ test "parse nominal declarations and match" {
       #|
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    Option::none => fallback
-      #|    Option::some(x) => x
+      #|    ::none => fallback
+      #|    ::some(x) => x
       #|  }
       #|}
+    ),
+  )
+}
+
+///|
+test "parse shorthand enum variant pattern" {
+  let file = expect_parse_ok(
+    (
+      #|enum Single {
+      #|  wrap(Int)
+      #|}
+      #|fn unwrap(value : Single) -> Int {
+      #|  match value {
+      #|    ::wrap(x) => x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|enum Single {
+      #|  wrap(Int)
+      #|}
+      #|
+      #|fn unwrap(value : Single) -> Int {
+      #|  match value {
+      #|    ::wrap(x) => x
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse does not recognize spaced double colon as qualified variant pattern" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|enum Option[A] {
+        #|  none
+        #|  some(A)
+        #|}
+        #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
+        #|  match value {
+        #|    Option :: none => fallback
+        #|  }
+        #|}
+      ),
+    ),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`:`" },
+      #|    [{ label: "`.`" }, { label: "`::`" }, { label: "`=>`" }],
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
+test "parse does not recognize right-spaced double colon as variant pattern" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|enum Option[A] {
+        #|  none
+        #|  some(A)
+        #|}
+        #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
+        #|  match value {
+        #|    Option:: none => fallback
+        #|  }
+        #|}
+      ),
+    ),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`:`" },
+      #|    [{ label: "`.`" }, { label: "`::`" }, { label: "`=>`" }],
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
+test "parse does not recognize right-spaced shorthand variant pattern" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|enum Single {
+        #|  wrap(Int)
+        #|}
+        #|fn unwrap(value : Single) -> Int {
+        #|  match value {
+        #|    :: wrap(x) => x
+        #|  }
+        #|}
+      ),
+    ),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`:`" },
+      #|    [
+      #|      { label: "integer literal" },
+      #|      { label: "string literal" },
+      #|      { label: "identifier" },
+      #|      { label: "`false`" },
+      #|      { label: "`true`" },
+      #|      { label: "`}`" },
+      #|      { label: "`::`" },
+      #|      { label: "`_`" },
+      #|    ],
+      #|  ),
+      #|]
     ),
   )
 }

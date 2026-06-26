@@ -114,9 +114,11 @@ fn token_label(token : @yacc_parser.Token) -> String {
     RBRACKET => "`]`"
     COMMA => "`,`"
     DOTSTAR => "`.*`"
+    DOTLBRACE => "`.{`"
     DOT => "`.`"
     COLON => "`:`"
     COLONCOLON => "`::`"
+    TIGHT_COLONCOLON => "`::`"
     THIN_ARROW => "`->`"
     FAT_ARROW => "`=>`"
     EQUAL => "`=`"
@@ -171,9 +173,11 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_RBRACKET => "`]`"
     TK_COMMA => "`,`"
     TK_DOTSTAR => "`.*`"
+    TK_DOTLBRACE => "`.{`"
     TK_DOT => "`.`"
     TK_COLON => "`:`"
     TK_COLONCOLON => "`::`"
+    TK_TIGHT_COLONCOLON => "`::`"
     TK_THIN_ARROW => "`->`"
     TK_FAT_ARROW => "`=>`"
     TK_EQUAL => "`=`"
@@ -228,9 +232,11 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     RBRACKET => RBRACKET
     COMMA => COMMA
     DOTSTAR => DOTSTAR
+    DOTLBRACE => DOTLBRACE
     DOT => DOT
     COLON => COLON
     COLONCOLON => COLONCOLON
+    TIGHT_COLONCOLON => TIGHT_COLONCOLON
     THIN_ARROW => THIN_ARROW
     FAT_ARROW => FAT_ARROW
     EQUAL => EQUAL

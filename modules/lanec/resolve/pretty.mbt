@@ -623,6 +623,15 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
         @pretty.parenthesized_inline(arguments.map(ResolvedPattern::pretty))
       }
     }
+    ShorthandVariant(variant~, type_binders~, arguments~, ..) => {
+      let head = text("::") + text(variant) + type_parameters_doc(type_binders)
+      if arguments.is_empty() {
+        head
+      } else {
+        head +
+        @pretty.parenthesized_inline(arguments.map(ResolvedPattern::pretty))
+      }
+    }
     Struct(type_name~, fields~, ..) =>
       text(type_name) +
       @pretty.braced_block(fields.map(ResolvedStructPatternField::pretty))

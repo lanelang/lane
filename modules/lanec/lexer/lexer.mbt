@@ -1,7 +1,14 @@
 ///|
 /// Lexes a Lane2 source string into tokens and lexical diagnostics.
 pub fn tokens_from_string(source : String) -> LexResult {
-  let env = LexEnv::{ tokens: [], errors: [], current_line: 1, current_bol: 0 }
+  let env = LexEnv::{
+    tokens: [],
+    errors: [],
+    current_line: 1,
+    current_bol: 0,
+    last_token: None,
+    last_token_end: -1,
+  }
   lex_tokens(source, base=source, env~)
   { tokens: env.tokens, errors: env.errors }
 }
@@ -36,11 +43,17 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       lex_tokens(rest, base~, env~)
     }
     ("::", rest) => {
-      env.add_token(
-        COLONCOLON,
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
+      let start = env.calc_offset(input, base~)
+      let right_tight = starts_with_non_whitespace(rest)
+      let end = env.calc_offset(rest, base~)
+      if env.has_tight_left_operand(start) && right_tight {
+        env.add_token(TIGHT_COLONCOLON, start~, end~)
+      } else if right_tight {
+        env.add_token(COLONCOLON, start~, end~)
+      } else {
+        env.add_token(COLON, start~, end=start + 1)
+        env.add_token(COLON, start=start + 1, end~)
+      }
       lex_tokens(rest, base~, env~)
     }
     ("==", rest) => {
@@ -137,6 +150,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
     ("\]", rest) => add_simple_token(RBRACKET, input, rest, base~, env~)
     (",", rest) => add_simple_token(COMMA, input, rest, base~, env~)
     ("\.\*", rest) => add_simple_token(DOTSTAR, input, rest, base~, env~)
+    ("\.[{]", rest) => add_simple_token(DOTLBRACE, input, rest, base~, env~)
     ("\.", rest) => add_simple_token(DOT, input, rest, base~, env~)
     (":", rest) => add_simple_token(COLON, input, rest, base~, env~)
     ("\+", rest) => add_simple_token(PLUS, input, rest, base~, env~)
@@ -179,6 +193,21 @@ fn add_simple_token(
     end=env.calc_offset(rest, base~),
   )
   lex_tokens(rest, base~, env~)
+}
+
+///|
+fn starts_with_non_whitespace(input : StringView) -> Bool {
+  if input.is_empty() {
+    false
+  } else {
+    let unit = input.unsafe_get(0)
+    unit != 0x09 &&
+    unit != 0x0A &&
+    unit != 0x0B &&
+    unit != 0x0C &&
+    unit != 0x0D &&
+    unit != 0x20
+  }
 }
 
 ///|
