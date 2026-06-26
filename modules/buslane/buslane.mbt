@@ -1,28 +1,28 @@
 ///|
 pub(all) struct TypeId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
 pub(all) struct TypeParameterId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
 pub(all) struct ValueId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
 pub(all) struct DataConId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
 pub(all) enum Kind {
   Type
   Function(Array[Kind], Kind)
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum PrimitiveType {
@@ -30,7 +30,7 @@ pub(all) enum PrimitiveType {
   Bool
   Int
   String
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum Type {
@@ -41,7 +41,7 @@ pub(all) enum Type {
   TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type)
   Forall(Array[TypeParameterId], Type)
-} derive(Debug, FromJson, ToJson)
+} derive(Debug)
 
 ///|
 pub(all) enum Literal {
@@ -49,7 +49,7 @@ pub(all) enum Literal {
   Bool(Bool)
   Int(Int64)
   String(String)
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum ValueKind {
@@ -59,65 +59,65 @@ pub(all) enum ValueKind {
   Parameter
   Local
   MatchBinder
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct TypeInfo {
   parameters : Array[TypeParameterId]
   constructors : Array[DataConId]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct TypeParameterInfo {
   kind : Kind
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ValueInfo {
   kind : ValueKind
   type_ : Type
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct DataConInfo {
   owner : TypeId
   hidden_type_parameters : Array[TypeParameterId]
   payload_types : Array[Type]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
-pub struct MetadataRegistry {
+pub(all) struct MetadataRegistry {
   types : Array[TypeInfo]
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
   data_constructors : Array[DataConInfo]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct Program {
   metadata : MetadataRegistry
   terms : Array[TopTerm]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum TopTerm {
   Let(ValueId, Expr)
   LetRec(Array[RecursiveBinding])
   External(ValueId)
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct RecursiveBinding {
   id : ValueId
   rhs : Expr
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct FunctionExpr {
   parameters : Array[ValueId]
   result_type : Type
   body : Expr
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ConstructExpr {
@@ -125,7 +125,7 @@ pub(all) struct ConstructExpr {
   type_arguments : Array[Type]
   hidden_witnesses : Array[Type]
   payloads : Array[Expr]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct MatchExpr {
@@ -133,7 +133,7 @@ pub(all) struct MatchExpr {
   binder : ValueId
   result_type : Type
   alternatives : Array[Alternative]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct Alternative {
@@ -141,14 +141,14 @@ pub(all) struct Alternative {
   type_binders : Array[TypeParameterId]
   value_binders : Array[ValueId]
   body : Expr
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum AltCon {
   Default
   Literal(Literal)
   DataCon(DataConId)
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum Expr {
@@ -162,7 +162,7 @@ pub(all) enum Expr {
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
   Match(MatchExpr)
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 /// Creates an empty Buslane metadata registry.

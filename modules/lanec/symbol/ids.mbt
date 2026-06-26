@@ -1,29 +1,29 @@
 ///|
-pub struct TypeSymbolId {
+pub(all) struct TypeSymbolId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
-pub struct TypeParameterId {
+pub(all) struct TypeParameterId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
-pub struct TypeMemberSymbolId {
+pub(all) struct TypeMemberSymbolId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
-pub struct ValueSymbolId {
+pub(all) struct ValueSymbolId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
-pub struct FieldSymbolId {
+pub(all) struct FieldSymbolId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)
 
 ///|
-pub struct VariantSymbolId {
+pub(all) struct VariantSymbolId {
   index : Int
-} derive(Debug, Eq, Compare, FromJson, ToJson)
+} derive(Debug, Eq, Compare)

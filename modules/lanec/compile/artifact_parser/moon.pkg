@@ -1,0 +1,17 @@
+import {
+  "Milky2018/lanec/basic",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/list",
+  "moonbitlang/core/string",
+}
+
+rule(
+  name: "moonyacc",
+  command: "mkdir -p .tmp-yacc && tmp=\".tmp-yacc/generated_parser.$$.mbt\" && rm -f \"$tmp\" \"$tmp.map.json\" && moon runwasm moonbitlang/yacc@0.7.14 --no-comments $input -o \"$tmp\" && moonfmt -w \"$tmp\" && moonfmt -w \"$tmp\" && mv \"$tmp\" $output && rm -f \"$tmp.map.json\"",
+)
+
+dev_build(
+  rule: "moonyacc",
+  input: "parser.mbty",
+  output: "generated_parser.mbt",
+)

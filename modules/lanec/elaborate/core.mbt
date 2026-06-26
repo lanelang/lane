@@ -21,19 +21,19 @@ pub(all) struct BuslaneBuiltinExternal {
   value : @buslane.ValueId
   name : String
   type_ : @buslane.Type
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneExternalMap {
   builtins : Array[BuslaneBuiltinExternal]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneEntry {
   name : String
   value : @buslane.ValueId
   type_ : @buslane.Type
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum BuslaneModuleExportKind {
@@ -41,7 +41,7 @@ pub(all) enum BuslaneModuleExportKind {
   DataConstructor
   FieldSelector
   Value
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneModuleExport {
@@ -50,7 +50,7 @@ pub(all) struct BuslaneModuleExport {
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
   value : @buslane.ValueId?
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneModuleImport {
@@ -60,14 +60,14 @@ pub(all) struct BuslaneModuleImport {
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
   value : @buslane.ValueId?
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneLowerResult {
   program : @buslane.Program
   externals : BuslaneExternalMap
   entries : Array[BuslaneEntry]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneModuleObject {
@@ -78,12 +78,12 @@ pub(all) struct BuslaneModuleObject {
   entries : Array[BuslaneEntry]
   exports : Array[BuslaneModuleExport]
   imports : Array[BuslaneModuleImport]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneModuleObjectSet {
   objects : Array[BuslaneModuleObject]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 /// Elaborates a resolved source file into Checked Source AST when type checking

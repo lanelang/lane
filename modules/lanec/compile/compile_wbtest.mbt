@@ -230,7 +230,7 @@ test "link modules produces Buslane program from reachable module objects" {
 }
 
 ///|
-test "module artifacts roundtrip through json and link" {
+test "module artifacts roundtrip through text and link" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -252,9 +252,34 @@ test "module artifacts roundtrip through json and link" {
     abort("expected compiled modules")
   }
   let artifact = compiled_module_set_artifact(modules)
-  let decoded : CompiledModuleSetArtifact = @json.from_json(artifact.to_json())
-  let linked = link_module_artifacts(decoded)
-  inspect(linked.diagnostics.length(), content="0")
+  let decoded_modules = []
+  for module_ in artifact.modules {
+    let interface_text = module_interface_artifact_to_text(module_.interface)
+    let object_text = module_object_artifact_to_text(module_.object)
+    let interface = match parse_module_interface_artifact_text(interface_text) {
+      Ok(interface) => interface
+      Err(message) => abort(message)
+    }
+    let object = match parse_module_object_artifact_text(object_text) {
+      Ok(object) => object
+      Err(message) => abort(message)
+    }
+    decoded_modules.push({
+      schema_version: module_.schema_version,
+      module_path_text: module_.module_path_text,
+      interface,
+      object,
+      module_fingerprint: module_.module_fingerprint,
+      imported_interface_fingerprints: module_.imported_interface_fingerprints,
+    })
+  }
+  let linked = link_module_artifacts({
+    schema_version: artifact.schema_version,
+    root_module_path_text: artifact.root_module_path_text,
+    modules: decoded_modules,
+    reachable_module_path_texts: artifact.reachable_module_path_texts,
+  })
+  inspect(@prettyprinter.render(linked.diagnostics, width=100), content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }

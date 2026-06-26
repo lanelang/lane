@@ -2,5 +2,4 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/pretty",
   "moonbit-community/prettyprinter",
-  "moonbitlang/core/json",
 }

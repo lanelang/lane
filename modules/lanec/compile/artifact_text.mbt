@@ -1,0 +1,1409 @@
+///|
+priv suberror ArtifactTextError {
+  ArtifactTextError(String)
+} derive(Debug)
+
+///|
+priv struct ArtifactTextReader {
+  entries : Array[@artifact_parser.ArtifactEntry]
+  mut index : Int
+}
+
+///|
+pub fn module_interface_artifact_to_text(
+  artifact : ModuleInterfaceArtifact,
+) -> String {
+  let lines = ["lane-artifact-text-v1 interface {"]
+  write_module_interface_artifact(lines, artifact)
+  lines.push("}")
+  lines.join("\n") + "\n"
+}
+
+///|
+pub fn parse_module_interface_artifact_text(
+  text : String,
+) -> Result[ModuleInterfaceArtifact, String] {
+  try {
+    let document = match @artifact_parser.parse_text(text) {
+      Ok(document) => document
+      Err(message) => return Err(message)
+    }
+    if document.kind != "interface" {
+      return Err("expected interface artifact, got " + document.kind)
+    }
+    let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
+    let artifact = reader.read_module_interface_artifact()
+    reader.expect_end()
+    Ok(artifact)
+  } catch {
+    ArtifactTextError(message) => Err(message)
+  }
+}
+
+///|
+pub fn module_object_artifact_to_text(
+  artifact : ModuleObjectArtifact,
+) -> String {
+  let lines = ["lane-artifact-text-v1 object {"]
+  write_module_object_artifact(lines, artifact)
+  lines.push("}")
+  lines.join("\n") + "\n"
+}
+
+///|
+pub fn parse_module_object_artifact_text(
+  text : String,
+) -> Result[ModuleObjectArtifact, String] {
+  try {
+    let document = match @artifact_parser.parse_text(text) {
+      Ok(document) => document
+      Err(message) => return Err(message)
+    }
+    if document.kind != "object" {
+      return Err("expected object artifact, got " + document.kind)
+    }
+    let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
+    let artifact = reader.read_module_object_artifact()
+    reader.expect_end()
+    Ok(artifact)
+  } catch {
+    ArtifactTextError(message) => Err(message)
+  }
+}
+
+///|
+fn[T] fail(message : String) -> T raise ArtifactTextError {
+  raise ArtifactTextError(message)
+}
+
+///|
+fn ArtifactTextReader::expect_end(
+  self : ArtifactTextReader,
+) -> Unit raise ArtifactTextError {
+  if self.index != self.entries.length() {
+    fail("unexpected trailing artifact entry")
+  }
+}
+
+///|
+fn ArtifactTextReader::expect_tag(
+  self : ArtifactTextReader,
+  tag : String,
+) -> Unit raise ArtifactTextError {
+  match self.take_entry() {
+    Tag(actual) if actual == tag => ()
+    _ => fail("expected tag " + tag)
+  }
+}
+
+///|
+fn ArtifactTextReader::expect_atom(
+  self : ArtifactTextReader,
+  tag : String,
+) -> String raise ArtifactTextError {
+  match self.take_entry() {
+    Value(actual, Atom(value)) if actual == tag => value
+    _ => fail("expected atom field " + tag)
+  }
+}
+
+///|
+fn ArtifactTextReader::expect_string(
+  self : ArtifactTextReader,
+  tag : String,
+) -> String raise ArtifactTextError {
+  match self.take_entry() {
+    Value(actual, Text(value)) if actual == tag => value
+    _ => fail("expected string field " + tag)
+  }
+}
+
+///|
+fn ArtifactTextReader::expect_int(
+  self : ArtifactTextReader,
+  tag : String,
+) -> Int raise ArtifactTextError {
+  let text = self.expect_atom(tag)
+  @string.parse_int(text, base=10) catch {
+    _ => fail("invalid integer for " + tag + ": " + text)
+  }
+}
+
+///|
+fn ArtifactTextReader::expect_bool(
+  self : ArtifactTextReader,
+  tag : String,
+) -> Bool raise ArtifactTextError {
+  match self.expect_atom(tag) {
+    "true" => true
+    "false" => false
+    value => fail("invalid boolean for " + tag + ": " + value)
+  }
+}
+
+///|
+fn write_atom(lines : Array[String], tag : String, atom : String) -> Unit {
+  lines.push("  " + tag + ": " + atom + ";")
+}
+
+///|
+fn write_string(lines : Array[String], tag : String, value : String) -> Unit {
+  lines.push("  " + tag + ": " + quote_string(value) + ";")
+}
+
+///|
+fn write_int(lines : Array[String], tag : String, value : Int) -> Unit {
+  write_atom(lines, tag, "\{value}")
+}
+
+///|
+fn write_bool(lines : Array[String], tag : String, value : Bool) -> Unit {
+  write_atom(lines, tag, if value { "true" } else { "false" })
+}
+
+///|
+fn write_tag(lines : Array[String], tag : String) -> Unit {
+  lines.push("  " + tag + ";")
+}
+
+///|
+fn ArtifactTextReader::take_entry(
+  self : ArtifactTextReader,
+) -> @artifact_parser.ArtifactEntry raise ArtifactTextError {
+  guard self.index < self.entries.length() else {
+    fail("unexpected end of artifact")
+  }
+  let entry = self.entries[self.index]
+  self.index = self.index + 1
+  entry
+}
+
+///|
+fn write_buslane_program_block(
+  lines : Array[String],
+  program : @buslane.Program,
+) -> Unit {
+  let text = @text.program_to_text(program)
+  for line in text.split("\n") {
+    lines.push("  " + line.to_owned())
+  }
+}
+
+///|
+fn ArtifactTextReader::read_buslane_program_block(
+  self : ArtifactTextReader,
+) -> @buslane.Program raise ArtifactTextError {
+  match self.take_entry() {
+    Block("buslane", text) =>
+      match @text.parse_program_text(text) {
+        Ok(program) => program
+        Err(message) => fail("invalid Buslane block: " + message)
+      }
+    Block(name, _) => fail("expected buslane block, got block " + name)
+    Tag(name) => fail("expected buslane block, got tag " + name)
+    Value(name, _) => fail("expected buslane block, got field " + name)
+  }
+}
+
+///|
+fn quote_string(value : String) -> String {
+  let output = [b'"']
+  for byte in @utf8.encode(value) {
+    match byte {
+      b'"' => {
+        output.push(b'\\')
+        output.push(b'"')
+      }
+      b'\\' => {
+        output.push(b'\\')
+        output.push(b'\\')
+      }
+      b'\n' => {
+        output.push(b'\\')
+        output.push(b'n')
+      }
+      b'\r' => {
+        output.push(b'\\')
+        output.push(b'r')
+      }
+      b'\t' => {
+        output.push(b'\\')
+        output.push(b't')
+      }
+      _ => output.push(byte)
+    }
+  }
+  output.push(b'"')
+  @utf8.decode(Bytes::from_array(output)) catch {
+    _ => "\"\""
+  }
+}
+
+///|
+
+///|
+fn write_module_interface_artifact(
+  lines : Array[String],
+  artifact : ModuleInterfaceArtifact,
+) -> Unit {
+  write_int(lines, "schema_version", artifact.schema_version)
+  write_string(lines, "module_path_text", artifact.module_path_text)
+  write_module_interface(lines, artifact.interface)
+  write_compilation_fingerprint(
+    lines,
+    "interface_fingerprint",
+    artifact.interface_fingerprint,
+  )
+  write_compilation_fingerprint(
+    lines,
+    "module_fingerprint",
+    artifact.module_fingerprint,
+  )
+  write_imported_interface_fingerprints(
+    lines,
+    artifact.imported_interface_fingerprints,
+  )
+}
+
+///|
+fn ArtifactTextReader::read_module_interface_artifact(
+  self : ArtifactTextReader,
+) -> ModuleInterfaceArtifact raise ArtifactTextError {
+  let schema_version = self.expect_int("schema_version")
+  let module_path_text = self.expect_string("module_path_text")
+  let interface = self.read_module_interface()
+  let interface_fingerprint = self.read_compilation_fingerprint(
+    "interface_fingerprint",
+  )
+  let module_fingerprint = self.read_compilation_fingerprint(
+    "module_fingerprint",
+  )
+  let imported_interface_fingerprints = self.read_imported_interface_fingerprints()
+  {
+    schema_version,
+    module_path_text,
+    interface,
+    interface_fingerprint,
+    module_fingerprint,
+    imported_interface_fingerprints,
+  }
+}
+
+///|
+fn write_module_object_artifact(
+  lines : Array[String],
+  artifact : ModuleObjectArtifact,
+) -> Unit {
+  write_int(lines, "schema_version", artifact.schema_version)
+  write_string(lines, "module_path_text", artifact.module_path_text)
+  write_buslane_program_block(lines, {
+    metadata: artifact.metadata,
+    terms: artifact.terms,
+  })
+  write_externals(lines, artifact.externals)
+  write_entries(lines, artifact.entries)
+  write_exports(lines, artifact.exports)
+  write_imports(lines, artifact.imports)
+  write_compilation_fingerprint(
+    lines,
+    "module_fingerprint",
+    artifact.module_fingerprint,
+  )
+  write_imported_interface_fingerprints(
+    lines,
+    artifact.imported_interface_fingerprints,
+  )
+}
+
+///|
+fn ArtifactTextReader::read_module_object_artifact(
+  self : ArtifactTextReader,
+) -> ModuleObjectArtifact raise ArtifactTextError {
+  let schema_version = self.expect_int("schema_version")
+  let module_path_text = self.expect_string("module_path_text")
+  let program = self.read_buslane_program_block()
+  let metadata = program.metadata
+  let terms = program.terms
+  let externals = self.read_externals()
+  let entries = self.read_entries()
+  let exports = self.read_exports()
+  let imports = self.read_imports()
+  let module_fingerprint = self.read_compilation_fingerprint(
+    "module_fingerprint",
+  )
+  let imported_interface_fingerprints = self.read_imported_interface_fingerprints()
+  {
+    schema_version,
+    module_path_text,
+    metadata,
+    terms,
+    externals,
+    entries,
+    exports,
+    imports,
+    module_fingerprint,
+    imported_interface_fingerprints,
+  }
+}
+
+///|
+fn write_compilation_fingerprint(
+  lines : Array[String],
+  tag : String,
+  fingerprint : CompilationFingerprint,
+) -> Unit {
+  write_string(lines, tag, fingerprint.value)
+}
+
+///|
+fn ArtifactTextReader::read_compilation_fingerprint(
+  self : ArtifactTextReader,
+  tag : String,
+) -> CompilationFingerprint raise ArtifactTextError {
+  { value: self.expect_string(tag) }
+}
+
+///|
+fn write_imported_interface_fingerprints(
+  lines : Array[String],
+  fingerprints : Array[ImportedInterfaceFingerprint],
+) -> Unit {
+  write_int(lines, "imported_interface_fingerprints", fingerprints.length())
+  for fingerprint in fingerprints {
+    write_string(lines, "imported_module_path", fingerprint.module_path_text)
+    write_compilation_fingerprint(
+      lines,
+      "imported_fingerprint",
+      fingerprint.fingerprint,
+    )
+  }
+}
+
+///|
+fn ArtifactTextReader::read_imported_interface_fingerprints(
+  self : ArtifactTextReader,
+) -> Array[ImportedInterfaceFingerprint] raise ArtifactTextError {
+  let count = self.expect_int("imported_interface_fingerprints")
+  let fingerprints = []
+  for _ in 0..<count {
+    let module_path_text = self.expect_string("imported_module_path")
+    let fingerprint = self.read_compilation_fingerprint("imported_fingerprint")
+    fingerprints.push({ module_path_text, fingerprint })
+  }
+  fingerprints
+}
+
+///|
+fn write_module_interface(
+  lines : Array[String],
+  interface : @module_interface.ModuleInterface,
+) -> Unit {
+  write_string(lines, "interface.module_path", interface.module_path)
+  write_int(lines, "interface.types", interface.types.length())
+  for type_ in interface.types {
+    write_module_interface_type(lines, type_)
+  }
+  write_int(lines, "interface.type_aliases", interface.type_aliases.length())
+  for alias_ in interface.type_aliases {
+    write_type_alias(lines, alias_)
+  }
+  write_int(lines, "interface.values", interface.values.length())
+  for value in interface.values {
+    write_interface_value(lines, value)
+  }
+  write_int(
+    lines,
+    "interface.optimization_hints",
+    interface.optimization_hints.length(),
+  )
+  for hint in interface.optimization_hints {
+    write_string(lines, "optimization_hint.name", hint.name)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_module_interface(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterface raise ArtifactTextError {
+  let module_path = self.expect_string("interface.module_path")
+  let types = []
+  for _ in 0..<self.expect_int("interface.types") {
+    types.push(self.read_module_interface_type())
+  }
+  let type_aliases = []
+  for _ in 0..<self.expect_int("interface.type_aliases") {
+    type_aliases.push(self.read_type_alias())
+  }
+  let values = []
+  for _ in 0..<self.expect_int("interface.values") {
+    values.push(self.read_interface_value())
+  }
+  let optimization_hints : Array[@module_interface.OptimizationHint] = []
+  for _ in 0..<self.expect_int("interface.optimization_hints") {
+    optimization_hints.push({
+      name: self.expect_string("optimization_hint.name"),
+    })
+  }
+  { module_path, types, type_aliases, values, optimization_hints }
+}
+
+///|
+fn write_module_interface_type(
+  lines : Array[String],
+  type_ : @module_interface.ModuleInterfaceType,
+) -> Unit {
+  match type_ {
+    Struct(declaration) => {
+      write_tag(lines, "interface_type.struct")
+      write_type_symbol_id(lines, "type.symbol", declaration.symbol)
+      write_string(lines, "type.name", declaration.name)
+      write_type_parameters(
+        lines,
+        "type.type_parameters",
+        declaration.type_parameters,
+      )
+      write_int(lines, "type.type_members", declaration.type_members.length())
+      for member_ in declaration.type_members {
+        write_type_member(lines, member_)
+      }
+      write_int(lines, "type.fields", declaration.fields.length())
+      for field in declaration.fields {
+        write_field(lines, field)
+      }
+      write_source_span(lines, "type.loc", declaration.loc)
+    }
+    Enum(declaration) => {
+      write_tag(lines, "interface_type.enum")
+      write_type_symbol_id(lines, "type.symbol", declaration.symbol)
+      write_string(lines, "type.name", declaration.name)
+      write_type_parameters(
+        lines,
+        "type.type_parameters",
+        declaration.type_parameters,
+      )
+      write_int(lines, "type.variants", declaration.variants.length())
+      for variant in declaration.variants {
+        write_variant(lines, variant)
+      }
+      write_source_span(lines, "type.loc", declaration.loc)
+    }
+  }
+}
+
+///|
+fn ArtifactTextReader::read_module_interface_type(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceType raise ArtifactTextError {
+  let tag = self.next_tag()
+  match tag {
+    "interface_type.struct" => {
+      let symbol = self.read_type_symbol_id("type.symbol")
+      let name = self.expect_string("type.name")
+      let type_parameters = self.read_type_parameters("type.type_parameters")
+      let type_members = []
+      for _ in 0..<self.expect_int("type.type_members") {
+        type_members.push(self.read_type_member())
+      }
+      let fields = []
+      for _ in 0..<self.expect_int("type.fields") {
+        fields.push(self.read_field())
+      }
+      let loc = self.read_source_span("type.loc")
+      Struct({ symbol, name, type_parameters, type_members, fields, loc })
+    }
+    "interface_type.enum" => {
+      let symbol = self.read_type_symbol_id("type.symbol")
+      let name = self.expect_string("type.name")
+      let type_parameters = self.read_type_parameters("type.type_parameters")
+      let variants = []
+      for _ in 0..<self.expect_int("type.variants") {
+        variants.push(self.read_variant())
+      }
+      let loc = self.read_source_span("type.loc")
+      Enum({ symbol, name, type_parameters, variants, loc })
+    }
+    _ => fail("unknown interface type tag " + tag)
+  }
+}
+
+///|
+fn ArtifactTextReader::next_tag(
+  self : ArtifactTextReader,
+) -> String raise ArtifactTextError {
+  match self.take_entry() {
+    Tag(name) => name
+    Value(name, _) => fail("expected tag-only entry, got value field " + name)
+    Block(name, _) => fail("expected tag-only entry, got block " + name)
+  }
+}
+
+///|
+fn write_type_member(
+  lines : Array[String],
+  member_ : @module_interface.ModuleInterfaceTypeMember,
+) -> Unit {
+  write_type_member_symbol_id(lines, "type_member.symbol", member_.symbol)
+  write_type_parameter(
+    lines,
+    "type_member.type_parameter",
+    member_.type_parameter,
+  )
+  write_string(lines, "type_member.name", member_.name)
+  write_lane_kind(lines, "type_member.kind", member_.kind)
+  write_int(lines, "type_member.index", member_.index)
+  write_source_span(lines, "type_member.loc", member_.loc)
+}
+
+///|
+fn ArtifactTextReader::read_type_member(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceTypeMember raise ArtifactTextError {
+  let symbol = self.read_type_member_symbol_id("type_member.symbol")
+  let type_parameter = self.read_type_parameter("type_member.type_parameter")
+  let name = self.expect_string("type_member.name")
+  let kind = self.read_lane_kind("type_member.kind")
+  let index = self.expect_int("type_member.index")
+  let loc = self.read_source_span("type_member.loc")
+  { symbol, type_parameter, name, kind, index, loc }
+}
+
+///|
+fn write_field(
+  lines : Array[String],
+  field : @module_interface.ModuleInterfaceField,
+) -> Unit {
+  write_field_symbol_id(lines, "field.symbol", field.symbol)
+  write_bool(lines, "field.is_offered", field.is_offered)
+  write_string(lines, "field.name", field.name)
+  write_int(lines, "field.index", field.index)
+  write_lane_type(lines, field.type_)
+  write_source_span(lines, "field.loc", field.loc)
+}
+
+///|
+fn ArtifactTextReader::read_field(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceField raise ArtifactTextError {
+  let symbol = self.read_field_symbol_id("field.symbol")
+  let is_offered = self.expect_bool("field.is_offered")
+  let name = self.expect_string("field.name")
+  let index = self.expect_int("field.index")
+  let type_ = self.read_lane_type()
+  let loc = self.read_source_span("field.loc")
+  { symbol, is_offered, name, index, type_, loc }
+}
+
+///|
+fn write_variant(
+  lines : Array[String],
+  variant : @module_interface.ModuleInterfaceVariant,
+) -> Unit {
+  write_variant_symbol_id(lines, "variant.symbol", variant.symbol)
+  write_string(lines, "variant.name", variant.name)
+  write_int(lines, "variant.index", variant.index)
+  write_type_parameters(
+    lines,
+    "variant.type_parameters",
+    variant.type_parameters,
+  )
+  write_lane_types(lines, "variant.payload", variant.payload)
+  write_source_span(lines, "variant.loc", variant.loc)
+}
+
+///|
+fn ArtifactTextReader::read_variant(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceVariant raise ArtifactTextError {
+  let symbol = self.read_variant_symbol_id("variant.symbol")
+  let name = self.expect_string("variant.name")
+  let index = self.expect_int("variant.index")
+  let type_parameters = self.read_type_parameters("variant.type_parameters")
+  let payload = self.read_lane_types("variant.payload")
+  let loc = self.read_source_span("variant.loc")
+  { symbol, name, index, type_parameters, payload, loc }
+}
+
+///|
+fn write_type_alias(
+  lines : Array[String],
+  alias_ : @module_interface.ModuleInterfaceTypeAlias,
+) -> Unit {
+  write_string(lines, "type_alias.name", alias_.name)
+  write_lane_type(lines, alias_.body)
+  write_lane_kind(lines, "type_alias.kind", alias_.kind)
+  write_source_span(lines, "type_alias.loc", alias_.loc)
+}
+
+///|
+fn ArtifactTextReader::read_type_alias(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceTypeAlias raise ArtifactTextError {
+  let name = self.expect_string("type_alias.name")
+  let body = self.read_lane_type()
+  let kind = self.read_lane_kind("type_alias.kind")
+  let loc = self.read_source_span("type_alias.loc")
+  { name, body, kind, loc }
+}
+
+///|
+fn write_interface_value(
+  lines : Array[String],
+  value : @module_interface.ModuleInterfaceValue,
+) -> Unit {
+  write_value_symbol_id(lines, "value.symbol", value.symbol)
+  write_interface_value_kind(lines, value.kind)
+  write_string(lines, "value.name", value.name)
+  write_lane_type(lines, value.type_)
+  match value.parameters {
+    None => write_tag(lines, "value.parameters.none")
+    Some(parameters) => {
+      write_int(lines, "value.parameters", parameters.length())
+      for parameter in parameters {
+        write_value_parameter(lines, parameter)
+      }
+    }
+  }
+  write_source_span(lines, "value.loc", value.loc)
+}
+
+///|
+fn ArtifactTextReader::read_interface_value(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceValue raise ArtifactTextError {
+  let symbol = self.read_value_symbol_id("value.symbol")
+  let kind = self.read_interface_value_kind()
+  let name = self.expect_string("value.name")
+  let type_ = self.read_lane_type()
+  let parameters = match self.peek_tag() {
+    "value.parameters.none" => {
+      self.expect_tag("value.parameters.none")
+      None
+    }
+    "value.parameters" => {
+      let items = []
+      for _ in 0..<self.expect_int("value.parameters") {
+        items.push(self.read_value_parameter())
+      }
+      Some(items)
+    }
+    tag => fail("expected value parameters, got " + tag)
+  }
+  let loc = self.read_source_span("value.loc")
+  { symbol, kind, name, type_, parameters, loc }
+}
+
+///|
+fn ArtifactTextReader::peek_tag(
+  self : ArtifactTextReader,
+) -> String raise ArtifactTextError {
+  guard self.index < self.entries.length() else {
+    fail("expected tag, reached end of artifact")
+  }
+  match self.entries[self.index] {
+    Tag(name) => name
+    Value(name, _) => name
+    Block(name, _) => name
+  }
+}
+
+///|
+fn write_interface_value_kind(
+  lines : Array[String],
+  kind : @module_interface.ModuleInterfaceValueKind,
+) -> Unit {
+  write_atom(
+    lines,
+    "value.kind",
+    match kind {
+      Function => "function"
+      Let => "let"
+      Offer => "offer"
+    },
+  )
+}
+
+///|
+fn ArtifactTextReader::read_interface_value_kind(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceValueKind raise ArtifactTextError {
+  match self.expect_atom("value.kind") {
+    "function" => Function
+    "let" => Let
+    "offer" => Offer
+    value => fail("unknown interface value kind " + value)
+  }
+}
+
+///|
+fn write_value_parameter(
+  lines : Array[String],
+  parameter : @module_interface.ModuleInterfaceValueParameter,
+) -> Unit {
+  write_value_symbol_id(lines, "value_parameter.symbol", parameter.symbol)
+  write_bool(lines, "value_parameter.is_auto", parameter.is_auto)
+  write_bool(lines, "value_parameter.is_offered", parameter.is_offered)
+  write_string(lines, "value_parameter.name", parameter.name)
+  write_lane_type(lines, parameter.type_)
+  write_source_span(lines, "value_parameter.loc", parameter.loc)
+}
+
+///|
+fn ArtifactTextReader::read_value_parameter(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceValueParameter raise ArtifactTextError {
+  let symbol = self.read_value_symbol_id("value_parameter.symbol")
+  let is_auto = self.expect_bool("value_parameter.is_auto")
+  let is_offered = self.expect_bool("value_parameter.is_offered")
+  let name = self.expect_string("value_parameter.name")
+  let type_ = self.read_lane_type()
+  let loc = self.read_source_span("value_parameter.loc")
+  { symbol, is_auto, is_offered, name, type_, loc }
+}
+
+///|
+fn write_lane_kind(
+  lines : Array[String],
+  tag : String,
+  kind : @types.Kind,
+) -> Unit {
+  match kind {
+    Type => write_atom(lines, tag, "type")
+    Function(parameters, result) => {
+      write_atom(lines, tag, "function")
+      write_int(lines, tag + ".parameters", parameters.length())
+      for parameter in parameters {
+        write_lane_kind(lines, tag + ".parameter", parameter)
+      }
+      write_lane_kind(lines, tag + ".result", result)
+    }
+  }
+}
+
+///|
+fn ArtifactTextReader::read_lane_kind(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @types.Kind raise ArtifactTextError {
+  match self.expect_atom(tag) {
+    "type" => Type
+    "function" => {
+      let parameters = []
+      for _ in 0..<self.expect_int(tag + ".parameters") {
+        parameters.push(self.read_lane_kind(tag + ".parameter"))
+      }
+      let result = self.read_lane_kind(tag + ".result")
+      Function(parameters, result)
+    }
+    value => fail("unknown Lane kind " + value)
+  }
+}
+
+///|
+fn write_type_parameters(
+  lines : Array[String],
+  tag : String,
+  parameters : Array[@types.TypeParameter],
+) -> Unit {
+  write_int(lines, tag, parameters.length())
+  for parameter in parameters {
+    write_type_parameter(lines, tag + ".item", parameter)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_type_parameters(
+  self : ArtifactTextReader,
+  tag : String,
+) -> Array[@types.TypeParameter] raise ArtifactTextError {
+  let parameters = []
+  for _ in 0..<self.expect_int(tag) {
+    parameters.push(self.read_type_parameter(tag + ".item"))
+  }
+  parameters
+}
+
+///|
+fn write_type_parameter(
+  lines : Array[String],
+  tag : String,
+  parameter : @types.TypeParameter,
+) -> Unit {
+  write_type_parameter_id(lines, tag + ".id", parameter.id)
+  write_string(lines, tag + ".name", parameter.name)
+  write_lane_kind(lines, tag + ".kind", parameter.kind)
+}
+
+///|
+fn ArtifactTextReader::read_type_parameter(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @types.TypeParameter raise ArtifactTextError {
+  let id = self.read_type_parameter_id(tag + ".id")
+  let name = self.expect_string(tag + ".name")
+  let kind = self.read_lane_kind(tag + ".kind")
+  { id, name, kind }
+}
+
+///|
+fn write_lane_types(
+  lines : Array[String],
+  tag : String,
+  types : Array[@types.Type],
+) -> Unit {
+  write_int(lines, tag, types.length())
+  for type_ in types {
+    write_lane_type(lines, type_)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_lane_types(
+  self : ArtifactTextReader,
+  tag : String,
+) -> Array[@types.Type] raise ArtifactTextError {
+  let types = []
+  for _ in 0..<self.expect_int(tag) {
+    types.push(self.read_lane_type())
+  }
+  types
+}
+
+///|
+fn write_lane_type(lines : Array[String], type_ : @types.Type) -> Unit {
+  match type_ {
+    Error => write_tag(lines, "lane_type.error")
+    Primitive(primitive) => {
+      write_tag(lines, "lane_type.primitive")
+      write_lane_primitive_type(lines, primitive)
+    }
+    Constructor(symbol) => {
+      write_tag(lines, "lane_type.constructor")
+      write_type_symbol_id(lines, "lane_type.constructor.symbol", symbol)
+    }
+    Apply(callee, arguments) => {
+      write_tag(lines, "lane_type.apply")
+      write_lane_type(lines, callee)
+      write_lane_types(lines, "lane_type.apply.arguments", arguments)
+    }
+    TypeLambda(parameters, body) => {
+      write_tag(lines, "lane_type.type_lambda")
+      write_type_parameters(lines, "lane_type.binders", parameters)
+      write_lane_type(lines, body)
+    }
+    Parameter(id) => {
+      write_tag(lines, "lane_type.parameter")
+      write_type_parameter_id(lines, "lane_type.parameter.id", id)
+    }
+    Function(parameters, result) => {
+      write_tag(lines, "lane_type.function")
+      write_lane_types(lines, "lane_type.function.parameters", parameters)
+      write_lane_type(lines, result)
+    }
+    Forall(parameters, body) => {
+      write_tag(lines, "lane_type.forall")
+      write_type_parameters(lines, "lane_type.binders", parameters)
+      write_lane_type(lines, body)
+    }
+  }
+}
+
+///|
+fn ArtifactTextReader::read_lane_type(
+  self : ArtifactTextReader,
+) -> @types.Type raise ArtifactTextError {
+  match self.next_tag() {
+    "lane_type.error" => Error
+    "lane_type.primitive" => Primitive(self.read_lane_primitive_type())
+    "lane_type.constructor" =>
+      Constructor(self.read_type_symbol_id("lane_type.constructor.symbol"))
+    "lane_type.apply" => {
+      let callee = self.read_lane_type()
+      let arguments = self.read_lane_types("lane_type.apply.arguments")
+      Apply(callee, arguments)
+    }
+    "lane_type.type_lambda" => {
+      let parameters = self.read_type_parameters("lane_type.binders")
+      let body = self.read_lane_type()
+      TypeLambda(parameters, body)
+    }
+    "lane_type.parameter" =>
+      Parameter(self.read_type_parameter_id("lane_type.parameter.id"))
+    "lane_type.function" => {
+      let parameters = self.read_lane_types("lane_type.function.parameters")
+      let result = self.read_lane_type()
+      Function(parameters, result)
+    }
+    "lane_type.forall" => {
+      let parameters = self.read_type_parameters("lane_type.binders")
+      let body = self.read_lane_type()
+      Forall(parameters, body)
+    }
+    tag => fail("unknown Lane type tag " + tag)
+  }
+}
+
+///|
+fn write_lane_primitive_type(
+  lines : Array[String],
+  primitive : @types.PrimitiveType,
+) -> Unit {
+  write_atom(
+    lines,
+    "lane_primitive",
+    match primitive {
+      Int => "int"
+      Bool => "bool"
+      String => "string"
+      Unit => "unit"
+    },
+  )
+}
+
+///|
+fn ArtifactTextReader::read_lane_primitive_type(
+  self : ArtifactTextReader,
+) -> @types.PrimitiveType raise ArtifactTextError {
+  match self.expect_atom("lane_primitive") {
+    "int" => Int
+    "bool" => Bool
+    "string" => String
+    "unit" => Unit
+    value => fail("unknown Lane primitive type " + value)
+  }
+}
+
+///|
+fn write_source_span(
+  lines : Array[String],
+  tag : String,
+  span : @basic.SourceSpan,
+) -> Unit {
+  write_int(lines, tag + ".start_offset", span.start_offset)
+  write_int(lines, tag + ".end_offset", span.end_offset)
+  write_int(lines, tag + ".start_line", span.start_line)
+  write_int(lines, tag + ".start_column", span.start_column)
+  write_int(lines, tag + ".end_line", span.end_line)
+  write_int(lines, tag + ".end_column", span.end_column)
+}
+
+///|
+fn ArtifactTextReader::read_source_span(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @basic.SourceSpan raise ArtifactTextError {
+  {
+    start_offset: self.expect_int(tag + ".start_offset"),
+    end_offset: self.expect_int(tag + ".end_offset"),
+    start_line: self.expect_int(tag + ".start_line"),
+    start_column: self.expect_int(tag + ".start_column"),
+    end_line: self.expect_int(tag + ".end_line"),
+    end_column: self.expect_int(tag + ".end_column"),
+  }
+}
+
+///|
+fn write_type_symbol_id(
+  lines : Array[String],
+  tag : String,
+  id : @symbol.TypeSymbolId,
+) -> Unit {
+  write_int(lines, tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_type_symbol_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.TypeSymbolId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn write_type_parameter_id(
+  lines : Array[String],
+  tag : String,
+  id : @symbol.TypeParameterId,
+) -> Unit {
+  write_int(lines, tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_type_parameter_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.TypeParameterId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn write_type_member_symbol_id(
+  lines : Array[String],
+  tag : String,
+  id : @symbol.TypeMemberSymbolId,
+) -> Unit {
+  write_int(lines, tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_type_member_symbol_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.TypeMemberSymbolId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn write_value_symbol_id(
+  lines : Array[String],
+  tag : String,
+  id : @symbol.ValueSymbolId,
+) -> Unit {
+  write_int(lines, tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_value_symbol_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.ValueSymbolId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn write_field_symbol_id(
+  lines : Array[String],
+  tag : String,
+  id : @symbol.FieldSymbolId,
+) -> Unit {
+  write_int(lines, tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_field_symbol_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.FieldSymbolId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn write_variant_symbol_id(
+  lines : Array[String],
+  tag : String,
+  id : @symbol.VariantSymbolId,
+) -> Unit {
+  write_int(lines, tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_variant_symbol_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.VariantSymbolId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn write_buslane_type(
+  lines : Array[String],
+  tag : String,
+  type_ : @buslane.Type,
+) -> Unit {
+  write_string(lines, tag, @text.type_to_text(type_))
+}
+
+///|
+fn ArtifactTextReader::read_buslane_type(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.Type raise ArtifactTextError {
+  let text = self.expect_string(tag)
+  match @text.parse_type_text(text) {
+    Ok(type_) => type_
+    Err(message) => fail("invalid Buslane type for " + tag + ": " + message)
+  }
+}
+
+///|
+fn write_buslane_value_id(
+  lines : Array[String],
+  tag : String,
+  id : @buslane.ValueId,
+) -> Unit {
+  write_int(lines, tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_buslane_value_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.ValueId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn write_optional_type_id(
+  lines : Array[String],
+  tag : String,
+  id : @buslane.TypeId?,
+) -> Unit {
+  match id {
+    None => write_atom(lines, tag, "none")
+    Some(id) => write_atom(lines, tag, "some_" + "\{id.index}")
+  }
+}
+
+///|
+fn ArtifactTextReader::read_optional_type_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.TypeId? raise ArtifactTextError {
+  let atom = self.expect_atom(tag)
+  if atom == "none" {
+    None
+  } else if atom.has_prefix("some_") {
+    let value = atom.unsafe_substring(start=5, end=atom.length())
+    Some({ index: parse_atom_int(tag, value) })
+  } else {
+    fail("invalid optional type id for " + tag)
+  }
+}
+
+///|
+fn write_optional_data_con_id(
+  lines : Array[String],
+  tag : String,
+  id : @buslane.DataConId?,
+) -> Unit {
+  match id {
+    None => write_atom(lines, tag, "none")
+    Some(id) => write_atom(lines, tag, "some_" + "\{id.index}")
+  }
+}
+
+///|
+fn ArtifactTextReader::read_optional_data_con_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.DataConId? raise ArtifactTextError {
+  let atom = self.expect_atom(tag)
+  if atom == "none" {
+    None
+  } else if atom.has_prefix("some_") {
+    let value = atom.unsafe_substring(start=5, end=atom.length())
+    Some({ index: parse_atom_int(tag, value) })
+  } else {
+    fail("invalid optional data constructor id for " + tag)
+  }
+}
+
+///|
+fn write_optional_value_id(
+  lines : Array[String],
+  tag : String,
+  id : @buslane.ValueId?,
+) -> Unit {
+  match id {
+    None => write_atom(lines, tag, "none")
+    Some(id) => write_atom(lines, tag, "some_" + "\{id.index}")
+  }
+}
+
+///|
+fn ArtifactTextReader::read_optional_value_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.ValueId? raise ArtifactTextError {
+  let atom = self.expect_atom(tag)
+  if atom == "none" {
+    None
+  } else if atom.has_prefix("some_") {
+    let value = atom.unsafe_substring(start=5, end=atom.length())
+    Some({ index: parse_atom_int(tag, value) })
+  } else {
+    fail("invalid optional value id for " + tag)
+  }
+}
+
+///|
+fn parse_atom_int(tag : String, value : String) -> Int raise ArtifactTextError {
+  @string.parse_int(value, base=10) catch {
+    _ => fail("invalid integer for " + tag + ": " + value)
+  }
+}
+
+///|
+fn write_externals(
+  lines : Array[String],
+  externals : @elaborate.BuslaneExternalMap,
+) -> Unit {
+  write_int(lines, "externals.builtins", externals.builtins.length())
+  for external in externals.builtins {
+    write_buslane_value_id(lines, "external.value", external.value)
+    write_string(lines, "external.name", external.name)
+    write_buslane_type(lines, "external.type", external.type_)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_externals(
+  self : ArtifactTextReader,
+) -> @elaborate.BuslaneExternalMap raise ArtifactTextError {
+  let builtins : Array[@elaborate.BuslaneBuiltinExternal] = []
+  for _ in 0..<self.expect_int("externals.builtins") {
+    let value = self.read_buslane_value_id("external.value")
+    let name = self.expect_string("external.name")
+    let type_ = self.read_buslane_type("external.type")
+    builtins.push({ value, name, type_ })
+  }
+  { builtins, }
+}
+
+///|
+fn write_entries(
+  lines : Array[String],
+  entries : Array[@elaborate.BuslaneEntry],
+) -> Unit {
+  write_int(lines, "entries", entries.length())
+  for entry in entries {
+    write_string(lines, "entry.name", entry.name)
+    write_buslane_value_id(lines, "entry.value", entry.value)
+    write_buslane_type(lines, "entry.type", entry.type_)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_entries(
+  self : ArtifactTextReader,
+) -> Array[@elaborate.BuslaneEntry] raise ArtifactTextError {
+  let entries : Array[@elaborate.BuslaneEntry] = []
+  for _ in 0..<self.expect_int("entries") {
+    let name = self.expect_string("entry.name")
+    let value = self.read_buslane_value_id("entry.value")
+    let type_ = self.read_buslane_type("entry.type")
+    entries.push({ name, value, type_ })
+  }
+  entries
+}
+
+///|
+fn write_exports(
+  lines : Array[String],
+  exports : Array[@elaborate.BuslaneModuleExport],
+) -> Unit {
+  write_int(lines, "exports", exports.length())
+  for export_ in exports {
+    write_export_kind(lines, "export.kind", export_.kind)
+    write_string(lines, "export.name", export_.name)
+    write_optional_type_id(lines, "export.type_id", export_.type_id)
+    write_optional_data_con_id(
+      lines,
+      "export.data_constructor",
+      export_.data_constructor,
+    )
+    write_optional_value_id(lines, "export.value", export_.value)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_exports(
+  self : ArtifactTextReader,
+) -> Array[@elaborate.BuslaneModuleExport] raise ArtifactTextError {
+  let exports : Array[@elaborate.BuslaneModuleExport] = []
+  for _ in 0..<self.expect_int("exports") {
+    let kind = self.read_export_kind("export.kind")
+    let name = self.expect_string("export.name")
+    let type_id = self.read_optional_type_id("export.type_id")
+    let data_constructor = self.read_optional_data_con_id(
+      "export.data_constructor",
+    )
+    let value = self.read_optional_value_id("export.value")
+    exports.push({ kind, name, type_id, data_constructor, value })
+  }
+  exports
+}
+
+///|
+fn write_imports(
+  lines : Array[String],
+  imports : Array[ModuleImportedReference],
+) -> Unit {
+  write_int(lines, "imports", imports.length())
+  for import_ in imports {
+    write_string(lines, "import.module_path_text", import_.module_path_text)
+    write_export_kind(lines, "import.kind", import_.kind)
+    write_string(lines, "import.name", import_.name)
+    write_compilation_fingerprint(
+      lines,
+      "import.fingerprint",
+      import_.fingerprint,
+    )
+    write_optional_type_id(lines, "import.type_id", import_.type_id)
+    write_optional_data_con_id(
+      lines,
+      "import.data_constructor",
+      import_.data_constructor,
+    )
+    write_optional_value_id(lines, "import.value", import_.value)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_imports(
+  self : ArtifactTextReader,
+) -> Array[ModuleImportedReference] raise ArtifactTextError {
+  let imports : Array[ModuleImportedReference] = []
+  for _ in 0..<self.expect_int("imports") {
+    let module_path_text = self.expect_string("import.module_path_text")
+    let kind = self.read_export_kind("import.kind")
+    let name = self.expect_string("import.name")
+    let fingerprint = self.read_compilation_fingerprint("import.fingerprint")
+    let type_id = self.read_optional_type_id("import.type_id")
+    let data_constructor = self.read_optional_data_con_id(
+      "import.data_constructor",
+    )
+    let value = self.read_optional_value_id("import.value")
+    imports.push({
+      module_path_text,
+      kind,
+      name,
+      fingerprint,
+      type_id,
+      data_constructor,
+      value,
+    })
+  }
+  imports
+}
+
+///|
+fn write_export_kind(
+  lines : Array[String],
+  tag : String,
+  kind : @elaborate.BuslaneModuleExportKind,
+) -> Unit {
+  write_atom(
+    lines,
+    tag,
+    match kind {
+      Type => "type"
+      DataConstructor => "data_constructor"
+      FieldSelector => "field_selector"
+      Value => "value"
+    },
+  )
+}
+
+///|
+fn ArtifactTextReader::read_export_kind(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @elaborate.BuslaneModuleExportKind raise ArtifactTextError {
+  match self.expect_atom(tag) {
+    "type" => Type
+    "data_constructor" => DataConstructor
+    "field_selector" => FieldSelector
+    "value" => Value
+    value => fail("unknown export kind " + value)
+  }
+}

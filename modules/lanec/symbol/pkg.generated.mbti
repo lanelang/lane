@@ -5,7 +5,6 @@ import {
   "Milky2018/lanec/basic",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
-  "moonbitlang/core/json",
 }
 
 // Values
@@ -13,9 +12,9 @@ import {
 // Errors
 
 // Types and methods
-pub struct FieldSymbolId {
+pub(all) struct FieldSymbolId {
   index : Int
-} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Compare, Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for FieldSymbolId
 
 pub(all) struct FieldSymbolMetadata {
@@ -63,9 +62,9 @@ pub fn SymbolRegistry::variant_named(Self, TypeSymbolId, String) -> VariantSymbo
 pub fn SymbolRegistry::variants_named(Self, String) -> Array[VariantSymbolId]
 pub impl @prettyprinter.Pretty for SymbolRegistry
 
-pub struct TypeMemberSymbolId {
+pub(all) struct TypeMemberSymbolId {
   index : Int
-} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Compare, Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeMemberSymbolId
 
 pub(all) struct TypeMemberSymbolMetadata {
@@ -78,9 +77,9 @@ pub(all) struct TypeMemberSymbolMetadata {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeMemberSymbolMetadata
 
-pub struct TypeParameterId {
+pub(all) struct TypeParameterId {
   index : Int
-} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Compare, Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeParameterId
 
 pub(all) struct TypeParameterMetadata {
@@ -90,9 +89,9 @@ pub(all) struct TypeParameterMetadata {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeParameterMetadata
 
-pub struct TypeSymbolId {
+pub(all) struct TypeSymbolId {
   index : Int
-} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Compare, Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeSymbolId
 
 pub(all) struct TypeSymbolMetadata {
@@ -104,9 +103,9 @@ pub(all) struct TypeSymbolMetadata {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeSymbolMetadata
 
-pub struct ValueSymbolId {
+pub(all) struct ValueSymbolId {
   index : Int
-} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Compare, Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ValueSymbolId
 
 pub(all) enum ValueSymbolKind {
@@ -127,9 +126,9 @@ pub(all) struct ValueSymbolMetadata {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ValueSymbolMetadata
 
-pub struct VariantSymbolId {
+pub(all) struct VariantSymbolId {
   index : Int
-} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Compare, Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for VariantSymbolId
 
 pub(all) struct VariantSymbolMetadata {

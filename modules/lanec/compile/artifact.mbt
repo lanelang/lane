@@ -6,7 +6,7 @@ pub(all) struct ModuleInterfaceArtifact {
   interface_fingerprint : CompilationFingerprint
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleObjectArtifact {
@@ -20,7 +20,7 @@ pub(all) struct ModuleObjectArtifact {
   imports : Array[ModuleImportedReference]
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct CompiledModuleArtifact {
@@ -30,7 +30,7 @@ pub(all) struct CompiledModuleArtifact {
   object : ModuleObjectArtifact
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct CompiledModuleSetArtifact {
@@ -38,7 +38,7 @@ pub(all) struct CompiledModuleSetArtifact {
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
   reachable_module_path_texts : Array[String]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleArtifactManifestEntry {
@@ -47,7 +47,7 @@ pub(all) struct ModuleArtifactManifestEntry {
   object_file : String
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct CompiledModuleSetManifestArtifact {
@@ -55,7 +55,7 @@ pub(all) struct CompiledModuleSetManifestArtifact {
   root_module_path_text : String
   modules : Array[ModuleArtifactManifestEntry]
   reachable_module_path_texts : Array[String]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub fn compiled_module_set_artifact(
@@ -79,8 +79,8 @@ pub fn compiled_module_set_manifest_artifact(
     modules: modules.modules.map(fn(module_) {
       {
         module_path_text: module_.module_path_text,
-        interface_file: module_.module_path_text + ".lmi.json",
-        object_file: module_.module_path_text + ".lmo.json",
+        interface_file: module_.module_path_text + ".lmi",
+        object_file: module_.module_path_text + ".lmo",
         module_fingerprint: module_.fingerprint,
         imported_interface_fingerprints: module_.imported_interface_fingerprints,
       }

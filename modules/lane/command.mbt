@@ -13,22 +13,12 @@ enum LaneCommand {
   )
   Compile(
     file~ : String,
-    libs~ : Array[String],
-    lib_dirs~ : Array[String],
     interfaces~ : Array[String],
-    interface_dirs~ : Array[String],
-    out~ : String?,
-    out_dir~ : String?
+    emit_interface~ : String?,
+    emit_object~ : String?
   )
   Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
-  Link(
-    file~ : String?,
-    artifacts~ : Array[String],
-    artifact_dirs~ : Array[String],
-    root~ : String?,
-    libs~ : Array[String],
-    lib_dirs~ : Array[String]
-  )
+  Link(interfaces~ : Array[String], objects~ : Array[String], root~ : String?)
   Lsp(stdio~ : Bool)
   Run(
     file~ : String,
@@ -71,29 +61,19 @@ fn lane_command_spec() -> Command {
       ),
       Command(
         "compile",
-        about="Compile a Lane source file and its explicit library modules.",
+        about="Compile one Lane source file into module interface/object artifacts.",
         options=[
-          lib_option(),
-          lib_dir_option(),
           interface_option(),
-          interface_dir_option(),
-          out_option(),
-          out_dir_option(),
+          emit_interface_option(),
+          emit_object_option(),
         ],
         positionals=[PositionArg("file")],
       ),
-      Command(
-        "link",
-        about="Link a Lane source file or a compiled module artifact.",
-        options=[
-          lib_option(),
-          lib_dir_option(),
-          artifact_option(),
-          artifact_dir_option(),
-          root_option(),
-        ],
-        positionals=[PositionArg("file", num_args=ValueRange(lower=0, upper=1))],
-      ),
+      Command("link", about="Link compiled Lane module object artifacts.", options=[
+        interface_option(),
+        object_option(),
+        root_option(),
+      ]),
       Command(
         "fmt",
         about="Format Lane source files.",
@@ -167,31 +147,21 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
           Ok(
             Compile(
               file~,
-              libs=values(child, "lib"),
-              lib_dirs=values(child, "lib-dir"),
               interfaces=values(child, "interface"),
-              interface_dirs=values(child, "interface-dir"),
-              out=optional_value(child, "out"),
-              out_dir=optional_value(child, "out-dir"),
+              emit_interface=optional_value(child, "emit-interface"),
+              emit_object=optional_value(child, "emit-object"),
             ),
           )
         Err(message) => Err(message)
       }
     Some(("link", child)) =>
-      match optional_single_value(child, "file") {
-        Ok(file) =>
-          Ok(
-            Link(
-              file~,
-              artifacts=values(child, "artifact"),
-              artifact_dirs=values(child, "artifact-dir"),
-              root=optional_value(child, "root"),
-              libs=values(child, "lib"),
-              lib_dirs=values(child, "lib-dir"),
-            ),
-          )
-        Err(message) => Err(message)
-      }
+      Ok(
+        Link(
+          interfaces=values(child, "interface"),
+          objects=values(child, "object"),
+          root=optional_value(child, "root"),
+        ),
+      )
     Some(("fmt", child)) =>
       Ok(
         Fmt(
@@ -261,36 +231,30 @@ fn interface_dir_option() -> @argparse.OptionArg {
 }
 
 ///|
-fn out_option() -> @argparse.OptionArg {
-  OptionArg("out", long="out", about="Write compiled module artifact JSON.")
-}
-
-///|
-fn out_dir_option() -> @argparse.OptionArg {
+fn emit_interface_option() -> @argparse.OptionArg {
   OptionArg(
-    "out-dir",
-    long="out-dir",
-    about="Write separate module interface/object artifacts into DIR.",
+    "emit-interface",
+    long="emit-interface",
+    about="Write module interface text artifact.",
   )
 }
 
 ///|
-fn artifact_option() -> @argparse.OptionArg {
+fn emit_object_option() -> @argparse.OptionArg {
   OptionArg(
-    "artifact",
-    long="artifact",
-    action=Append,
-    about="Compiled module artifact JSON to link.",
+    "emit-object",
+    long="emit-object",
+    about="Write module object text artifact.",
   )
 }
 
 ///|
-fn artifact_dir_option() -> @argparse.OptionArg {
+fn object_option() -> @argparse.OptionArg {
   OptionArg(
-    "artifact-dir",
-    long="artifact-dir",
+    "object",
+    long="object",
     action=Append,
-    about="Directory containing compiled module interface/object artifacts.",
+    about="Compiled Lane module object text artifact to link.",
   )
 }
 
@@ -323,18 +287,6 @@ fn values(matches : @argparse.Matches, name : String) -> Array[String] {
 fn optional_value(matches : @argparse.Matches, name : String) -> String? {
   guard matches.values.get(name) is Some(values) else { return None }
   values.get(0)
-}
-
-///|
-fn optional_single_value(
-  matches : @argparse.Matches,
-  name : String,
-) -> Result[String?, String] {
-  guard matches.values.get(name) is Some(values) else { return Ok(None) }
-  if values.length() > 1 {
-    return Err("too many values for: " + name)
-  }
-  Ok(values.get(0))
 }
 
 ///|

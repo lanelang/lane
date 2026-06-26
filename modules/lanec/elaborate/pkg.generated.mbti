@@ -10,7 +10,6 @@ import {
   "Milky2018/lanec/typecheck",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
-  "moonbitlang/core/json",
 }
 
 // Values
@@ -43,7 +42,7 @@ pub(all) struct BuslaneBuiltinExternal {
   value : @buslane.ValueId
   name : String
   type_ : @buslane.Type
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneElaborateResult {
   program : @buslane.Program?
@@ -55,17 +54,17 @@ pub(all) struct BuslaneEntry {
   name : String
   value : @buslane.ValueId
   type_ : @buslane.Type
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneExternalMap {
   builtins : Array[BuslaneBuiltinExternal]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneLowerResult {
   program : @buslane.Program
   externals : BuslaneExternalMap
   entries : Array[BuslaneEntry]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleExport {
   kind : BuslaneModuleExportKind
@@ -73,14 +72,14 @@ pub(all) struct BuslaneModuleExport {
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
   value : @buslane.ValueId?
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) enum BuslaneModuleExportKind {
   Type
   DataConstructor
   FieldSelector
   Value
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleImport {
   module_path_text : String
@@ -89,7 +88,7 @@ pub(all) struct BuslaneModuleImport {
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
   value : @buslane.ValueId?
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleObject {
   module_path_text : String
@@ -99,11 +98,11 @@ pub(all) struct BuslaneModuleObject {
   entries : Array[BuslaneEntry]
   exports : Array[BuslaneModuleExport]
   imports : Array[BuslaneModuleImport]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleObjectSet {
   objects : Array[BuslaneModuleObject]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ElaborateResult {
   source : @checked.CheckedSourceFile?

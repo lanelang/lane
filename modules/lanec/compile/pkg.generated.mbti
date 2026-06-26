@@ -10,7 +10,6 @@ import {
   "Milky2018/lanec/symbol",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
-  "moonbitlang/core/json",
 }
 
 // Values
@@ -46,7 +45,15 @@ pub fn link_modules(CompiledModuleSet) -> LinkResult
 
 pub fn module_interface_artifact(CompiledModule) -> ModuleInterfaceArtifact
 
+pub fn module_interface_artifact_to_text(ModuleInterfaceArtifact) -> String
+
 pub fn module_object_artifact(ModuleObject) -> ModuleObjectArtifact
+
+pub fn module_object_artifact_to_text(ModuleObjectArtifact) -> String
+
+pub fn parse_module_interface_artifact_text(String) -> Result[ModuleInterfaceArtifact, String]
+
+pub fn parse_module_object_artifact_text(String) -> Result[ModuleObjectArtifact, String]
 
 // Errors
 
@@ -83,7 +90,7 @@ pub impl @prettyprinter.Pretty for CheckResult
 
 pub(all) struct CompilationFingerprint {
   value : String
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct CompileDiagnostic {
   message : String
@@ -125,7 +132,7 @@ pub(all) struct CompiledModuleArtifact {
   object : ModuleObjectArtifact
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct CompiledModuleSet {
   root_module_path_text : String
@@ -138,14 +145,14 @@ pub(all) struct CompiledModuleSetArtifact {
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
   reachable_module_path_texts : Array[String]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct CompiledModuleSetManifestArtifact {
   schema_version : Int
   root_module_path_text : String
   modules : Array[ModuleArtifactManifestEntry]
   reachable_module_path_texts : Array[String]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct DefinitionEntry {
   symbol : AnalysisSymbol
@@ -162,7 +169,7 @@ pub(all) struct HoverEntry {
 pub(all) struct ImportedInterfaceFingerprint {
   module_path_text : String
   fingerprint : CompilationFingerprint
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct LinkResult {
   program : LinkedProgram?
@@ -182,7 +189,7 @@ pub(all) struct ModuleArtifactManifestEntry {
   object_file : String
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleImportedReference {
   module_path_text : String
@@ -192,7 +199,7 @@ pub(all) struct ModuleImportedReference {
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
   value : @buslane.ValueId?
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int
@@ -201,7 +208,7 @@ pub(all) struct ModuleInterfaceArtifact {
   interface_fingerprint : CompilationFingerprint
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleObject {
   module_path_text : String
@@ -227,7 +234,7 @@ pub(all) struct ModuleObjectArtifact {
   imports : Array[ModuleImportedReference]
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ReferenceEntry {
   location : AnalysisLocation

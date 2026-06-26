@@ -5,7 +5,6 @@ import {
   "Milky2018/lanec/symbol",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
-  "moonbitlang/core/json",
 }
 
 // Values
@@ -17,7 +16,7 @@ pub fn nominal_type(@symbol.TypeSymbolId, Array[Type]) -> Type
 pub(all) enum Kind {
   Type
   Function(Array[Kind], Kind)
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Kind
 
 pub(all) enum PrimitiveType {
@@ -25,7 +24,7 @@ pub(all) enum PrimitiveType {
   Bool
   String
   Unit
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for PrimitiveType
 
 pub(all) enum Type {
@@ -37,7 +36,7 @@ pub(all) enum Type {
   Parameter(@symbol.TypeParameterId)
   Function(Array[Type], Type)
   Forall(Array[TypeParameter], Type)
-} derive(ToJson, @debug.Debug, @json.FromJson)
+} derive(@debug.Debug)
 pub fn Type::alpha_equal(Self, Self) -> Bool
 pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[Self])?
 pub fn Type::equals(Self, Self) -> Bool
@@ -50,7 +49,7 @@ pub(all) struct TypeParameter {
   id : @symbol.TypeParameterId
   name : String
   kind : Kind
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+} derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeParameter
 
 pub struct TypeSubstitution {

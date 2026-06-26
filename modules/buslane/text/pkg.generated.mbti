@@ -1,0 +1,162 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/buslane/text"
+
+import {
+  "Milky2018/buslane",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn buslane_program(Array[(Token, Unit, Unit)], initial_pos? : Unit) -> @buslane.Program raise ParseError
+
+pub fn buslane_type(Array[(Token, Unit, Unit)], initial_pos? : Unit) -> @buslane.Type raise ParseError
+
+pub fn parse_program_text(String) -> Result[@buslane.Program, String]
+
+pub fn parse_type_text(String) -> Result[@buslane.Type, String]
+
+pub fn program_to_text(@buslane.Program) -> String
+
+pub fn type_to_text(@buslane.Type) -> String
+
+// Errors
+pub suberror ParseError {
+  UnexpectedToken(Token, (Unit, Unit), Array[TokenKind])
+  UnexpectedEndOfInput(Unit, Array[TokenKind])
+} derive(@debug.Debug)
+
+// Types and methods
+pub(all) enum Token {
+  INT(String)
+  STRING(String)
+  TYPE_ID(Int)
+  TPARAM_ID(Int)
+  VALUE_ID(Int)
+  DATACON_ID(Int)
+  EOF
+  BUSLANE
+  METADATA
+  TYPE
+  TYPE_PARAMETER
+  VALUE
+  DATACON
+  PARAMETERS
+  CONSTRUCTORS
+  OWNER
+  HIDDEN
+  PAYLOAD
+  FUNCTION_KIND
+  PARAMETER_KIND
+  LOCAL_KIND
+  MATCH_BINDER_KIND
+  TYPE_KIND
+  UNIT_TYPE
+  BOOL_TYPE
+  INT_TYPE
+  STRING_TYPE
+  KIND_FN
+  APPLY
+  TYPE_FN
+  FN_TYPE
+  FORALL
+  LET
+  LETREC
+  EXTERNAL
+  FN
+  CALL
+  TYPE_APPLY
+  CONSTRUCT
+  LET_IN
+  LETREC_IN
+  MATCH
+  ALT
+  DEFAULT
+  LITERAL_ALT
+  TRUE
+  FALSE
+  INT_LITERAL
+  STRING_LITERAL
+  UNIT_LITERAL
+  LBRACE
+  RBRACE
+  LBRACKET
+  RBRACKET
+  LPAREN
+  RPAREN
+  COMMA
+  COLON
+  SEMI
+  EQUAL
+  FAT_ARROW
+} derive(@debug.Debug)
+pub fn Token::kind(Self) -> TokenKind
+
+pub(all) enum TokenKind {
+  TK_INT
+  TK_STRING
+  TK_TYPE_ID
+  TK_TPARAM_ID
+  TK_VALUE_ID
+  TK_DATACON_ID
+  TK_EOF
+  TK_BUSLANE
+  TK_METADATA
+  TK_TYPE
+  TK_TYPE_PARAMETER
+  TK_VALUE
+  TK_DATACON
+  TK_PARAMETERS
+  TK_CONSTRUCTORS
+  TK_OWNER
+  TK_HIDDEN
+  TK_PAYLOAD
+  TK_FUNCTION_KIND
+  TK_PARAMETER_KIND
+  TK_LOCAL_KIND
+  TK_MATCH_BINDER_KIND
+  TK_TYPE_KIND
+  TK_UNIT_TYPE
+  TK_BOOL_TYPE
+  TK_INT_TYPE
+  TK_STRING_TYPE
+  TK_KIND_FN
+  TK_APPLY
+  TK_TYPE_FN
+  TK_FN_TYPE
+  TK_FORALL
+  TK_LET
+  TK_LETREC
+  TK_EXTERNAL
+  TK_FN
+  TK_CALL
+  TK_TYPE_APPLY
+  TK_CONSTRUCT
+  TK_LET_IN
+  TK_LETREC_IN
+  TK_MATCH
+  TK_ALT
+  TK_DEFAULT
+  TK_LITERAL_ALT
+  TK_TRUE
+  TK_FALSE
+  TK_INT_LITERAL
+  TK_STRING_LITERAL
+  TK_UNIT_LITERAL
+  TK_LBRACE
+  TK_RBRACE
+  TK_LBRACKET
+  TK_RBRACKET
+  TK_LPAREN
+  TK_RPAREN
+  TK_COMMA
+  TK_COLON
+  TK_SEMI
+  TK_EQUAL
+  TK_FAT_ARROW
+} derive(Compare, Eq, Hash)
+pub impl Show for TokenKind
+pub impl @debug.Debug for TokenKind
+
+// Type aliases
+
+// Traits

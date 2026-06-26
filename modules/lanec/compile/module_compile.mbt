@@ -1,13 +1,13 @@
 ///|
 pub(all) struct CompilationFingerprint {
   value : String
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ImportedInterfaceFingerprint {
   module_path_text : String
   fingerprint : CompilationFingerprint
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleImportedReference {
@@ -18,7 +18,7 @@ pub(all) struct ModuleImportedReference {
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
   value : @buslane.ValueId?
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleObject {

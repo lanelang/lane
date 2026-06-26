@@ -1,7 +1,7 @@
 ///|
 pub(all) struct ImportedEnvironment {
   modules : Array[ModuleInterface]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterface {
@@ -10,13 +10,13 @@ pub(all) struct ModuleInterface {
   type_aliases : Array[ModuleInterfaceTypeAlias]
   values : Array[ModuleInterfaceValue]
   optimization_hints : Array[OptimizationHint]
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum ModuleInterfaceType {
   Struct(ModuleInterfaceStruct)
   Enum(ModuleInterfaceEnum)
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceStruct {
@@ -26,7 +26,7 @@ pub(all) struct ModuleInterfaceStruct {
   type_members : Array[ModuleInterfaceTypeMember]
   fields : Array[ModuleInterfaceField]
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceTypeMember {
@@ -36,7 +36,7 @@ pub(all) struct ModuleInterfaceTypeMember {
   kind : @types.Kind
   index : Int
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceField {
@@ -46,7 +46,7 @@ pub(all) struct ModuleInterfaceField {
   index : Int
   type_ : @types.Type
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceEnum {
@@ -55,7 +55,7 @@ pub(all) struct ModuleInterfaceEnum {
   type_parameters : Array[@types.TypeParameter]
   variants : Array[ModuleInterfaceVariant]
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceVariant {
@@ -65,7 +65,7 @@ pub(all) struct ModuleInterfaceVariant {
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceTypeAlias {
@@ -73,7 +73,7 @@ pub(all) struct ModuleInterfaceTypeAlias {
   body : @types.Type
   kind : @types.Kind
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceValue {
@@ -83,14 +83,14 @@ pub(all) struct ModuleInterfaceValue {
   type_ : @types.Type
   parameters : Array[ModuleInterfaceValueParameter]?
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum ModuleInterfaceValueKind {
   Function
   Let
   Offer
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct ModuleInterfaceValueParameter {
@@ -100,12 +100,12 @@ pub(all) struct ModuleInterfaceValueParameter {
   name : String
   type_ : @types.Type
   loc : SourceSpan
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct OptimizationHint {
   name : String
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub fn ImportedEnvironment::ImportedEnvironment() -> ImportedEnvironment {

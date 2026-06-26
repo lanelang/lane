@@ -4,20 +4,20 @@ pub(all) enum PrimitiveType {
   Bool
   String
   Unit
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum Kind {
   Type
   Function(Array[Kind], Kind)
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct TypeParameter {
   id : TypeParameterId
   name : String
   kind : Kind
-} derive(Debug, Eq, FromJson, ToJson)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum Type {
@@ -29,7 +29,7 @@ pub(all) enum Type {
   Parameter(TypeParameterId)
   Function(Array[Type], Type)
   Forall(Array[TypeParameter], Type)
-} derive(Debug, FromJson, ToJson)
+} derive(Debug)
 
 ///|
 pub struct TypeSubstitutionEntry {

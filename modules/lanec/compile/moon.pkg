@@ -1,5 +1,7 @@
 import {
   "Milky2018/buslane",
+  "Milky2018/buslane/text",
+  "Milky2018/lanec/compile/artifact_parser",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/elaborate",
@@ -12,5 +14,6 @@ import {
   "Milky2018/lanec/typecheck",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
-  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/string",
 }

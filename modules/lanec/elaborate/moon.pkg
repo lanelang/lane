@@ -10,7 +10,6 @@ import {
   "Milky2018/lanec/typecheck",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
-  "moonbitlang/core/json",
 }
 
 import {
