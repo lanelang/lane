@@ -295,7 +295,12 @@ test "parse rejects equals function body syntax" {
       #|[
       #|  UnexpectedToken(
       #|    { label: "`=`" },
-      #|    [{ label: "`{`" }, { label: "`[`" }, { label: "`->`" }],
+      #|    [
+      #|      { label: "`{`" },
+      #|      { label: "`[`" },
+      #|      { label: "`.`" },
+      #|      { label: "`->`" },
+      #|    ],
       #|  ),
       #|]
     ),

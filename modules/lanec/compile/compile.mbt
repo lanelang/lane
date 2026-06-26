@@ -13,6 +13,12 @@ pub(all) struct CompileResult {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CompileModulesResult {
+  modules : CompiledModuleSet?
+  diagnostics : Array[CompileDiagnostic]
+} derive(Debug, Eq)
+
+///|
 /// Checks one Lane source module.
 pub fn check_source(source : String) -> CheckResult {
   check_sources(source, [])
@@ -25,9 +31,69 @@ pub fn check_sources(
   library_sources : Array[String],
 ) -> CheckResult {
   match compile_module_set_from_inputs(root_source, library_sources) {
-    Ok(modules) => { source: Some(modules.root.checked), diagnostics: [] }
+    Ok(modules) =>
+      match
+        find_compiled_module(modules.modules, modules.root_module_path_text) {
+        Some(root) => { source: Some(root.object.checked), diagnostics: [] }
+        None =>
+          {
+            source: None,
+            diagnostics: [make_error("no root source module", span=None)],
+          }
+      }
     Err(diagnostics) => { source: None, diagnostics }
   }
+}
+
+///|
+/// Checks one Lane source module against already compiled module interfaces.
+pub fn check_source_with_interface_artifacts(
+  root_source : String,
+  interfaces : Array[ModuleInterfaceArtifact],
+) -> CheckResult {
+  match compile_module_from_interface_artifacts(root_source, interfaces) {
+    Ok(modules) =>
+      match
+        find_compiled_module(modules.modules, modules.root_module_path_text) {
+        Some(root) => { source: Some(root.object.checked), diagnostics: [] }
+        None =>
+          {
+            source: None,
+            diagnostics: [make_error("no root source module", span=None)],
+          }
+      }
+    Err(diagnostics) => { source: None, diagnostics }
+  }
+}
+
+///|
+/// Compiles source modules into separate module artifacts without linking them.
+pub fn compile_modules(
+  root_source : String,
+  library_sources : Array[String],
+) -> CompileModulesResult {
+  match compile_module_set_from_inputs(root_source, library_sources) {
+    Ok(modules) => { modules: Some(modules), diagnostics: [] }
+    Err(diagnostics) => { modules: None, diagnostics }
+  }
+}
+
+///|
+/// Compiles one Lane source module against already compiled module interfaces.
+pub fn compile_module_with_interface_artifacts(
+  root_source : String,
+  interfaces : Array[ModuleInterfaceArtifact],
+) -> CompileModulesResult {
+  match compile_module_from_interface_artifacts(root_source, interfaces) {
+    Ok(modules) => { modules: Some(modules), diagnostics: [] }
+    Err(diagnostics) => { modules: None, diagnostics }
+  }
+}
+
+///|
+/// Links a compiled module set into a Buslane program.
+pub fn link_modules(modules : CompiledModuleSet) -> LinkResult {
+  link_compiled_module_set(modules)
 }
 
 ///|
@@ -46,15 +112,22 @@ pub fn compile_sources(
 ) -> CompileResult {
   match compile_module_set_from_inputs(root_source, library_sources) {
     Ok(modules) => {
-      let lowered = @elaborate.lower_checked_source_files_to_buslane_result(
-        modules.root.checked,
-        modules.linked_libraries.map(fn(module_) { module_.checked }),
-      )
-      {
-        program: Some(lowered.program),
-        externals: lowered.externals,
-        entries: lowered.entries,
-        diagnostics: [],
+      let linked = link_compiled_module_set(modules)
+      match linked.program {
+        Some(program) =>
+          {
+            program: Some(program.program),
+            externals: program.externals,
+            entries: program.entries,
+            diagnostics: linked.diagnostics,
+          }
+        None =>
+          {
+            program: None,
+            externals: { builtins: [] },
+            entries: [],
+            diagnostics: linked.diagnostics,
+          }
       }
     }
     Err(diagnostics) =>

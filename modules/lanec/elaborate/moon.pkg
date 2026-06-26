@@ -3,12 +3,14 @@ import {
   "Milky2018/lanec/anf",
   "Milky2018/buslane",
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/module_interface",
   "Milky2018/lanec/pretty",
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/typecheck",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
+  "moonbitlang/core/json",
 }
 
 import {

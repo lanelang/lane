@@ -4,6 +4,7 @@ package "Milky2018/buslane"
 import {
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -16,7 +17,7 @@ pub(all) enum AltCon {
   Default
   Literal(Literal)
   DataCon(DataConId)
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for AltCon
 
 pub(all) struct Alternative {
@@ -24,7 +25,7 @@ pub(all) struct Alternative {
   type_binders : Array[TypeParameterId]
   value_binders : Array[ValueId]
   body : Expr
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for Alternative
 
 pub(all) struct ConstructExpr {
@@ -32,19 +33,19 @@ pub(all) struct ConstructExpr {
   type_arguments : Array[Type]
   hidden_witnesses : Array[Type]
   payloads : Array[Expr]
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for ConstructExpr
 
 pub(all) struct DataConId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for DataConId
 
 pub(all) struct DataConInfo {
   owner : TypeId
   hidden_type_parameters : Array[TypeParameterId]
   payload_types : Array[Type]
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for DataConInfo
 
 pub(all) enum Expr {
@@ -58,20 +59,20 @@ pub(all) enum Expr {
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
   Match(MatchExpr)
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for Expr
 
 pub(all) struct FunctionExpr {
   parameters : Array[ValueId]
   result_type : Type
   body : Expr
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for FunctionExpr
 
 pub(all) enum Kind {
   Type
   Function(Array[Kind], Kind)
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for Kind
 
 pub(all) enum Literal {
@@ -79,7 +80,7 @@ pub(all) enum Literal {
   Bool(Bool)
   Int(Int64)
   String(String)
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for Literal
 
 pub(all) struct MatchExpr {
@@ -87,7 +88,7 @@ pub(all) struct MatchExpr {
   binder : ValueId
   result_type : Type
   alternatives : Array[Alternative]
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for MatchExpr
 
 pub struct MetadataRegistry {
@@ -95,7 +96,7 @@ pub struct MetadataRegistry {
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
   data_constructors : Array[DataConInfo]
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub fn MetadataRegistry::MetadataRegistry() -> Self
 pub fn MetadataRegistry::data_constructor_info(Self, DataConId) -> DataConInfo?
 pub fn MetadataRegistry::define_data_constructor(Self, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
@@ -112,26 +113,26 @@ pub(all) enum PrimitiveType {
   Bool
   Int
   String
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for PrimitiveType
 
 pub(all) struct Program {
   metadata : MetadataRegistry
   terms : Array[TopTerm]
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for Program
 
 pub(all) struct RecursiveBinding {
   id : ValueId
   rhs : Expr
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for RecursiveBinding
 
 pub(all) enum TopTerm {
   Let(ValueId, Expr)
   LetRec(Array[RecursiveBinding])
   External(ValueId)
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TopTerm
 
 pub(all) enum Type {
@@ -142,7 +143,7 @@ pub(all) enum Type {
   TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type)
   Forall(Array[TypeParameterId], Type)
-} derive(@debug.Debug)
+} derive(ToJson, @debug.Debug, @json.FromJson)
 pub fn Type::equals(Self, Self) -> Bool
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Type
@@ -150,23 +151,23 @@ pub impl Eq for Type
 
 pub(all) struct TypeId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TypeId
 
 pub(all) struct TypeInfo {
   parameters : Array[TypeParameterId]
   constructors : Array[DataConId]
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TypeInfo
 
 pub(all) struct TypeParameterId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TypeParameterId
 
 pub(all) struct TypeParameterInfo {
   kind : Kind
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TypeParameterInfo
 
 pub struct TypeSubstitution {
@@ -182,13 +183,13 @@ pub struct TypeSubstitutionEntry {
 
 pub(all) struct ValueId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for ValueId
 
 pub(all) struct ValueInfo {
   kind : ValueKind
   type_ : Type
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for ValueInfo
 
 pub(all) enum ValueKind {
@@ -198,7 +199,7 @@ pub(all) enum ValueKind {
   Parameter
   Local
   MatchBinder
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for ValueKind
 
 pub(all) struct VerifyDiagnostic {

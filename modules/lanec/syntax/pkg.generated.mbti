@@ -245,6 +245,7 @@ pub impl @prettyprinter.Pretty for TopLevelDeclaration
 
 pub(all) enum Type {
   Name(name~ : String, loc~ : @basic.SourceSpan)
+  QualifiedName(module_path~ : ModulePath, name~ : String, loc~ : @basic.SourceSpan)
   Apply(callee~ : Type, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[TypeParameter], body~ : Type, loc~ : @basic.SourceSpan)
   Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, loc~ : @basic.SourceSpan)

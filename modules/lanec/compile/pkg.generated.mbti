@@ -6,9 +6,11 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/module_interface",
   "Milky2018/lanec/symbol",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -18,11 +20,33 @@ pub fn analyze_sources(String, Array[String]) -> AnalysisResult
 
 pub fn check_source(String) -> CheckResult
 
+pub fn check_source_with_interface_artifacts(String, Array[ModuleInterfaceArtifact]) -> CheckResult
+
 pub fn check_sources(String, Array[String]) -> CheckResult
+
+pub fn compile_module_with_interface_artifacts(String, Array[ModuleInterfaceArtifact]) -> CompileModulesResult
+
+pub fn compile_modules(String, Array[String]) -> CompileModulesResult
 
 pub fn compile_source(String) -> CompileResult
 
 pub fn compile_sources(String, Array[String]) -> CompileResult
+
+pub fn compiled_module_artifact(CompiledModule) -> CompiledModuleArtifact
+
+pub fn compiled_module_set_artifact(CompiledModuleSet) -> CompiledModuleSetArtifact
+
+pub fn compiled_module_set_manifest_artifact(CompiledModuleSet) -> CompiledModuleSetManifestArtifact
+
+pub fn link_module_artifact_parts(CompiledModuleSetManifestArtifact, Array[ModuleInterfaceArtifact], Array[ModuleObjectArtifact]) -> LinkResult
+
+pub fn link_module_artifacts(CompiledModuleSetArtifact) -> LinkResult
+
+pub fn link_modules(CompiledModuleSet) -> LinkResult
+
+pub fn module_interface_artifact(CompiledModule) -> ModuleInterfaceArtifact
+
+pub fn module_object_artifact(ModuleObject) -> ModuleObjectArtifact
 
 // Errors
 
@@ -57,6 +81,10 @@ pub(all) struct CheckResult {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckResult
 
+pub(all) struct CompilationFingerprint {
+  value : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
 pub(all) struct CompileDiagnostic {
   message : String
   span : @basic.SourceSpan?
@@ -69,6 +97,11 @@ pub(all) enum CompileDiagnosticSeverity {
   Warning
 } derive(Eq, @debug.Debug)
 
+pub(all) struct CompileModulesResult {
+  modules : CompiledModuleSet?
+  diagnostics : Array[CompileDiagnostic]
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CompileResult {
   program : @buslane.Program?
   externals : @elaborate.BuslaneExternalMap
@@ -76,6 +109,43 @@ pub(all) struct CompileResult {
   diagnostics : Array[CompileDiagnostic]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CompileResult
+
+pub(all) struct CompiledModule {
+  module_path_text : String
+  interface : @module_interface.ModuleInterface
+  object : ModuleObject
+  fingerprint : CompilationFingerprint
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompiledModuleArtifact {
+  schema_version : Int
+  module_path_text : String
+  interface : ModuleInterfaceArtifact
+  object : ModuleObjectArtifact
+  module_fingerprint : CompilationFingerprint
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct CompiledModuleSet {
+  root_module_path_text : String
+  modules : Array[CompiledModule]
+  reachable_module_path_texts : Array[String]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompiledModuleSetArtifact {
+  schema_version : Int
+  root_module_path_text : String
+  modules : Array[CompiledModuleArtifact]
+  reachable_module_path_texts : Array[String]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct CompiledModuleSetManifestArtifact {
+  schema_version : Int
+  root_module_path_text : String
+  modules : Array[ModuleArtifactManifestEntry]
+  reachable_module_path_texts : Array[String]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 
 pub(all) struct DefinitionEntry {
   symbol : AnalysisSymbol
@@ -88,6 +158,76 @@ pub(all) struct HoverEntry {
   location : AnalysisLocation
   contents : String
 } derive(Eq, @debug.Debug)
+
+pub(all) struct ImportedInterfaceFingerprint {
+  module_path_text : String
+  fingerprint : CompilationFingerprint
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct LinkResult {
+  program : LinkedProgram?
+  diagnostics : Array[CompileDiagnostic]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LinkedProgram {
+  root_module_path_text : String
+  program : @buslane.Program
+  externals : @elaborate.BuslaneExternalMap
+  entries : Array[@elaborate.BuslaneEntry]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleArtifactManifestEntry {
+  module_path_text : String
+  interface_file : String
+  object_file : String
+  module_fingerprint : CompilationFingerprint
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct ModuleImportedReference {
+  module_path_text : String
+  kind : @elaborate.BuslaneModuleExportKind
+  name : String
+  fingerprint : CompilationFingerprint
+  type_id : @buslane.TypeId?
+  data_constructor : @buslane.DataConId?
+  value : @buslane.ValueId?
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct ModuleInterfaceArtifact {
+  schema_version : Int
+  module_path_text : String
+  interface : @module_interface.ModuleInterface
+  interface_fingerprint : CompilationFingerprint
+  module_fingerprint : CompilationFingerprint
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct ModuleObject {
+  module_path_text : String
+  checked : @checked.CheckedSourceFile
+  metadata : @buslane.MetadataRegistry
+  terms : Array[@buslane.TopTerm]
+  externals : @elaborate.BuslaneExternalMap
+  entries : Array[@elaborate.BuslaneEntry]
+  exports : Array[@elaborate.BuslaneModuleExport]
+  imports : Array[ModuleImportedReference]
+  fingerprint : CompilationFingerprint
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleObjectArtifact {
+  schema_version : Int
+  module_path_text : String
+  metadata : @buslane.MetadataRegistry
+  terms : Array[@buslane.TopTerm]
+  externals : @elaborate.BuslaneExternalMap
+  entries : Array[@elaborate.BuslaneEntry]
+  exports : Array[@elaborate.BuslaneModuleExport]
+  imports : Array[ModuleImportedReference]
+  module_fingerprint : CompilationFingerprint
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 
 pub(all) struct ReferenceEntry {
   location : AnalysisLocation

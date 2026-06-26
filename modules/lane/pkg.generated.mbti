@@ -10,6 +10,8 @@ import {
 // Errors
 
 // Types and methods
+type CompiledModuleArtifactDir
+
 type DocumentSnapshot derive(Eq, @debug.Debug)
 
 type HandlerResult derive(Eq, @debug.Debug)

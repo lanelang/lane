@@ -218,6 +218,22 @@
       }
     },
     {
+      "name": "26 module qualified access",
+      "file": "examples/valid/26_module_qualified_access.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
+      "name": "27 module qualified type access",
+      "file": "examples/valid/27_module_qualified_type_access.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",
@@ -262,7 +278,7 @@
       "file": "examples/invalid/06_unqualified_variant_pattern.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `(`", "expected `::`, `=>`"]
+        "contains": ["parse error", "unexpected `(`", "expected `.`, `::`, `=>`"]
       }
     },
     {
@@ -294,7 +310,7 @@
       "file": "examples/invalid/10_function_equals_body.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `=`, expected `{`, `[`, `->`"]
+        "contains": ["parse error", "unexpected `=`, expected `{`, `[`, `.`, `->`"]
       }
     },
     {

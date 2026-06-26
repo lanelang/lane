@@ -15,9 +15,23 @@ async fn main {
     }
   }
   let outcome = match command {
-    Check(file~, libs~, lib_dirs~, deny~) =>
-      lane_check(file, libs, lib_dirs, deny)
+    Check(file~, libs~, lib_dirs~, interfaces~, interface_dirs~, deny~) =>
+      lane_check(file, libs, lib_dirs, interfaces, interface_dirs, deny)
+    Compile(
+      file~,
+      libs~,
+      lib_dirs~,
+      interfaces~,
+      interface_dirs~,
+      out~,
+      out_dir~
+    ) =>
+      lane_compile(
+        file, libs, lib_dirs, interfaces, interface_dirs, out, out_dir,
+      )
     Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
+    Link(file~, artifacts~, artifact_dirs~, root~, libs~, lib_dirs~) =>
+      lane_link(file, artifacts, artifact_dirs, root, libs, lib_dirs)
     Lsp(stdio~) => lsp_command(stdio)
     Run(file~, entry~, libs~, lib_dirs~) =>
       lane_run(file, entry, libs, lib_dirs)
@@ -98,7 +112,174 @@ async fn lane_check(
   file : String,
   libs : Array[String],
   lib_dirs : Array[String],
+  interfaces : Array[String],
+  interface_dirs : Array[String],
   deny : Bool,
+) -> LaneCommandOutcome {
+  if (!libs.is_empty() || !lib_dirs.is_empty()) &&
+    (!interfaces.is_empty() || !interface_dirs.is_empty()) {
+    println(
+      "check inputs must be either source libraries or module interfaces, not both",
+    )
+    return UserFailure
+  }
+  let source = read_source_file(file) catch {
+    error => {
+      println("failed to read source: \{error}")
+      return UserFailure
+    }
+  }
+  let result = if !interfaces.is_empty() || !interface_dirs.is_empty() {
+    let imported_interfaces = read_module_interface_artifacts(
+      interfaces, interface_dirs,
+    ) catch {
+      error => {
+        println("failed to read module interface artifact: \{error}")
+        return UserFailure
+      }
+    }
+    @compile.check_source_with_interface_artifacts(source, imported_interfaces)
+  } else {
+    let libraries = read_library_sources(libs, lib_dirs) catch {
+      error => {
+        println("failed to read library source: \{error}")
+        return UserFailure
+      }
+    }
+    @compile.check_sources(source, libraries)
+  }
+  let failures = denied_diagnostics(result.diagnostics, deny)
+  if !failures.is_empty() {
+    print_diagnostics(result.diagnostics)
+    UserFailure
+  } else if !result.diagnostics.is_empty() {
+    print_diagnostics(result.diagnostics)
+    Succeeded
+  } else {
+    Succeeded
+  }
+}
+
+///|
+async fn lane_compile(
+  file : String,
+  libs : Array[String],
+  lib_dirs : Array[String],
+  interfaces : Array[String],
+  interface_dirs : Array[String],
+  out : String?,
+  out_dir : String?,
+) -> LaneCommandOutcome {
+  if out is Some(_) && out_dir is Some(_) {
+    println("compile output must be either --out or --out-dir, not both")
+    return UserFailure
+  }
+  if (!libs.is_empty() || !lib_dirs.is_empty()) &&
+    (!interfaces.is_empty() || !interface_dirs.is_empty()) {
+    println(
+      "compile inputs must be either source libraries or module interfaces, not both",
+    )
+    return UserFailure
+  }
+  let source = read_source_file(file) catch {
+    error => {
+      println("failed to read source: \{error}")
+      return UserFailure
+    }
+  }
+  let result = if !interfaces.is_empty() || !interface_dirs.is_empty() {
+    let imported_interfaces = read_module_interface_artifacts(
+      interfaces, interface_dirs,
+    ) catch {
+      error => {
+        println("failed to read module interface artifact: \{error}")
+        return UserFailure
+      }
+    }
+    @compile.compile_module_with_interface_artifacts(
+      source, imported_interfaces,
+    )
+  } else {
+    let libraries = read_library_sources(libs, lib_dirs) catch {
+      error => {
+        println("failed to read library source: \{error}")
+        return UserFailure
+      }
+    }
+    @compile.compile_modules(source, libraries)
+  }
+  if !result.diagnostics.is_empty() {
+    print_diagnostics(result.diagnostics)
+    return UserFailure
+  }
+  guard result.modules is Some(modules) else {
+    internal_error("compiler produced no compiled modules")
+  }
+  if out is Some(path) {
+    write_compiled_module_artifact(path, modules) catch {
+      error => {
+        println("failed to write module artifact: \{error}")
+        return UserFailure
+      }
+    }
+    println("wrote artifact " + path)
+  }
+  if out_dir is Some(path) {
+    write_compiled_module_artifact_dir(path, modules) catch {
+      error => {
+        println("failed to write module artifact directory: \{error}")
+        return UserFailure
+      }
+    }
+    println("wrote artifact directory " + path)
+  }
+  println("compiled root " + modules.root_module_path_text)
+  println("compiled modules " + module_names(modules.modules).join(","))
+  Succeeded
+}
+
+///|
+async fn lane_link(
+  file : String?,
+  artifacts : Array[String],
+  artifact_dirs : Array[String],
+  root : String?,
+  libs : Array[String],
+  lib_dirs : Array[String],
+) -> LaneCommandOutcome {
+  let artifact_count = artifacts.length() + artifact_dirs.length()
+  if file is Some(_) && artifact_count != 0 {
+    println("link target must be either FILE or module artifacts, not both")
+    return UserFailure
+  }
+  match file {
+    Some(path) => {
+      if root is Some(_) {
+        println("--root is only valid when linking module artifacts")
+        return UserFailure
+      }
+      lane_link_source(path, libs, lib_dirs)
+    }
+    None =>
+      if artifact_count == 0 {
+        println("link target must be FILE, --artifact, or --artifact-dir")
+        UserFailure
+      } else if artifact_count > 1 && root is None {
+        println(
+          "link root required when linking multiple module artifact inputs",
+        )
+        UserFailure
+      } else {
+        lane_link_artifacts(artifacts, artifact_dirs, root)
+      }
+  }
+}
+
+///|
+async fn lane_link_source(
+  file : String,
+  libs : Array[String],
+  lib_dirs : Array[String],
 ) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
     error => {
@@ -112,17 +293,52 @@ async fn lane_check(
       return UserFailure
     }
   }
-  let result = @compile.check_sources(source, libraries)
-  let failures = denied_diagnostics(result.diagnostics, deny)
-  if !failures.is_empty() {
-    print_diagnostics(result.diagnostics)
-    UserFailure
-  } else if !result.diagnostics.is_empty() {
-    print_diagnostics(result.diagnostics)
-    Succeeded
-  } else {
-    Succeeded
+  let compiled = @compile.compile_modules(source, libraries)
+  if !compiled.diagnostics.is_empty() {
+    print_diagnostics(compiled.diagnostics)
+    return UserFailure
   }
+  guard compiled.modules is Some(modules) else {
+    internal_error("compiler produced no compiled modules")
+  }
+  let linked = @compile.link_modules(modules)
+  if !linked.diagnostics.is_empty() {
+    print_diagnostics(linked.diagnostics)
+    return UserFailure
+  }
+  guard linked.program is Some(program) else {
+    internal_error("linker produced no program")
+  }
+  println("linked root " + program.root_module_path_text)
+  println("linked entries " + entry_names(program.entries).join(","))
+  Succeeded
+}
+
+///|
+async fn lane_link_artifacts(
+  artifacts : Array[String],
+  artifact_dirs : Array[String],
+  root : String?,
+) -> LaneCommandOutcome {
+  let artifact = match
+    read_link_artifact_inputs(artifacts, artifact_dirs, root) {
+    Ok(artifact) => artifact
+    Err(message) => {
+      println(message)
+      return UserFailure
+    }
+  }
+  let linked = @compile.link_module_artifacts(artifact)
+  if !linked.diagnostics.is_empty() {
+    print_diagnostics(linked.diagnostics)
+    return UserFailure
+  }
+  guard linked.program is Some(program) else {
+    internal_error("linker produced no program")
+  }
+  println("linked root " + program.root_module_path_text)
+  println("linked entries " + entry_names(program.entries).join(","))
+  Succeeded
 }
 
 ///|
@@ -191,6 +407,16 @@ fn find_entry(
     0 => Err("entry not found: " + name)
     _ => Err("ambiguous entry: " + name)
   }
+}
+
+///|
+fn module_names(modules : Array[@compile.CompiledModule]) -> Array[String] {
+  modules.map(fn(module_) { module_.module_path_text })
+}
+
+///|
+fn entry_names(entries : Array[@elaborate.BuslaneEntry]) -> Array[String] {
+  entries.map(fn(entry) { entry.name })
 }
 
 ///|

@@ -103,13 +103,13 @@ pub fn analyze_source_inputs(
 ///|
 fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let objects : Array[ModuleObject] = []
+  let modules : Array[CompiledModule] = []
   let diagnostics = []
   let definitions = []
   let references = []
   let hovers = []
   for input in graph.modules {
-    let imported = imported_objects(input.header, objects)
+    let imported = imported_interfaces(input.header, modules)
     let resolved = @resolve.resolve_source_file_with_imports_result(
       input.source,
       registry,
@@ -145,10 +145,30 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
         )
         match (checked.source, checked.module_interface) {
           (Some(source), Some(interface)) if checked.diagnostics.is_empty() => {
-            objects.push({
+            let imported_fingerprints = imported_environment_fingerprints(
+              imported,
+            )
+            let fingerprint = module_fingerprint(
+              interface, imported_fingerprints,
+            )
+            let object : ModuleObject = {
+              module_path_text: input.header.module_path_text,
+              checked: source,
+              metadata: MetadataRegistry(),
+              terms: [],
+              externals: { builtins: [] },
+              entries: [],
+              exports: [],
+              imports: [],
+              fingerprint,
+              imported_interface_fingerprints: imported_fingerprints,
+            }
+            modules.push({
               module_path_text: input.header.module_path_text,
               interface,
-              checked: source,
+              object,
+              fingerprint,
+              imported_interface_fingerprints: imported_fingerprints,
             })
             collect_checked_source_analysis(
               input.source_id,

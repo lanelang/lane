@@ -36,6 +36,7 @@ pub(all) enum ResolveDiagnosticKind {
     existing~ : String,
     incoming~ : String
   )
+  AmbiguousModuleValue(String)
   AmbiguousUnqualifiedVariant(
     name~ : String,
     candidates~ : Array[ResolveVariantCandidate]

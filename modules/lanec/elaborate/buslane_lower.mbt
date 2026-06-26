@@ -35,6 +35,18 @@ priv struct FieldSelectorMapEntry {
 }
 
 ///|
+priv struct SelectorTermEntry {
+  module_path_text : String
+  term : @buslane.TopTerm
+}
+
+///|
+priv struct ModuleEntries {
+  module_path_text : String
+  entries : Array[BuslaneEntry]
+}
+
+///|
 priv struct BuslaneLowerer {
   metadata : @buslane.MetadataRegistry
   type_symbols : Array[TypeMapEntry]
@@ -43,10 +55,11 @@ priv struct BuslaneLowerer {
   data_constructors : Array[DataConMapEntry]
   struct_constructors : Array[StructConMapEntry]
   field_selectors : Array[FieldSelectorMapEntry]
-  selector_terms : Array[@buslane.TopTerm]
+  selector_terms : Array[SelectorTermEntry]
   external_terms : Array[@buslane.TopTerm]
   builtin_externals : Array[BuslaneBuiltinExternal]
   entries : Array[BuslaneEntry]
+  imports : Array[BuslaneModuleImport]
 }
 
 ///|
@@ -76,6 +89,7 @@ fn BuslaneLowerer::BuslaneLowerer() -> BuslaneLowerer {
     external_terms: [],
     builtin_externals: [],
     entries: [],
+    imports: [],
   }
 }
 
@@ -102,8 +116,33 @@ pub fn lower_checked_source_files_to_buslane_result(
   root : @checked.CheckedSourceFile,
   libraries : Array[@checked.CheckedSourceFile],
 ) -> BuslaneLowerResult {
+  let object_set = lower_checked_source_files_to_buslane_objects(
+    libraries + [root],
+  )
+  let root_module_path_text = checked_module_path_text(root)
+  let terms = []
+  let builtins = []
+  let mut entries : Array[BuslaneEntry] = []
+  for object in object_set.objects {
+    terms.append(object.terms)
+    builtins.append(object.externals.builtins)
+    if object.module_path_text == root_module_path_text {
+      entries = object.entries
+    }
+  }
+  {
+    program: { metadata: object_set.objects[0].metadata, terms },
+    externals: { builtins, },
+    entries,
+  }
+}
+
+///|
+pub fn lower_checked_source_files_to_buslane_objects(
+  sources : Array[@checked.CheckedSourceFile],
+) -> BuslaneModuleObjectSet {
   let lowerer = BuslaneLowerer::BuslaneLowerer()
-  let sources = libraries + [root]
+  let module_entries : Array[ModuleEntries] = []
   for source in sources {
     lowerer.collect_type_headers(source)
   }
@@ -113,22 +152,415 @@ pub fn lower_checked_source_files_to_buslane_result(
   for source in sources {
     lowerer.collect_field_selectors(source)
   }
-  for source in libraries {
-    lowerer.collect_top_values(source, include_entries=false)
-  }
-  lowerer.collect_top_values(root, include_entries=true)
-  let terms = []
   for source in sources {
-    terms.append(lowerer.lower_top_terms(source))
+    let entry_start = lowerer.entries.length()
+    lowerer.collect_top_values(source, include_entries=true)
+    module_entries.push({
+      module_path_text: checked_module_path_text(source),
+      entries: buslane_entries_from(lowerer.entries, entry_start),
+    })
   }
-  {
-    program: {
+  let objects = []
+  for source in sources {
+    let external_start = lowerer.external_terms.length()
+    let builtin_start = lowerer.builtin_externals.length()
+    let terms = lowerer.lower_top_terms(source)
+    let external_terms = buslane_top_terms_from(
+      lowerer.external_terms,
+      external_start,
+    )
+    external_terms.append(terms)
+    let module_path_text = checked_module_path_text(source)
+    objects.push({
+      module_path_text,
       metadata: lowerer.metadata,
-      terms: lowerer.external_terms + terms,
-    },
-    externals: { builtins: lowerer.builtin_externals },
-    entries: lowerer.entries,
+      terms: external_terms,
+      externals: {
+        builtins: buslane_builtins_from(
+          lowerer.builtin_externals,
+          builtin_start,
+        ),
+      },
+      entries: find_module_entries(module_entries, module_path_text),
+      exports: lowerer.module_exports(source),
+      imports: [],
+    })
   }
+  { objects, }
+}
+
+///|
+pub fn lower_checked_source_file_to_buslane_object_with_imports(
+  source : @checked.CheckedSourceFile,
+  imported : @module_interface.ImportedEnvironment,
+) -> BuslaneModuleObject {
+  let lowerer = BuslaneLowerer::BuslaneLowerer()
+  lowerer.seed_imported_interfaces(imported)
+  lowerer.collect_type_headers(source)
+  lowerer.collect_data_constructors(source)
+  lowerer.collect_field_selectors(source)
+  lowerer.collect_top_values(source, include_entries=true)
+  let external_start = lowerer.external_terms.length()
+  let builtin_start = lowerer.builtin_externals.length()
+  let terms = lowerer.lower_top_terms(source)
+  let external_terms = buslane_top_terms_from(
+    lowerer.external_terms,
+    external_start,
+  )
+  external_terms.append(terms)
+  {
+    module_path_text: checked_module_path_text(source),
+    metadata: lowerer.metadata,
+    terms: external_terms,
+    externals: {
+      builtins: buslane_builtins_from(lowerer.builtin_externals, builtin_start),
+    },
+    entries: lowerer.entries,
+    exports: lowerer.module_exports(source),
+    imports: lowerer.imports,
+  }
+}
+
+///|
+fn checked_module_path_text(source : @checked.CheckedSourceFile) -> String {
+  source.module_path.components.join(".")
+}
+
+///|
+fn find_module_entries(
+  module_entries : Array[ModuleEntries],
+  module_path_text : String,
+) -> Array[BuslaneEntry] {
+  for entries in module_entries {
+    if entries.module_path_text == module_path_text {
+      return entries.entries
+    }
+  }
+  []
+}
+
+///|
+fn buslane_entries_from(
+  entries : Array[BuslaneEntry],
+  start : Int,
+) -> Array[BuslaneEntry] {
+  let result = []
+  for index in start..<entries.length() {
+    result.push(entries[index])
+  }
+  result
+}
+
+///|
+fn buslane_top_terms_from(
+  terms : Array[@buslane.TopTerm],
+  start : Int,
+) -> Array[@buslane.TopTerm] {
+  let result = []
+  for index in start..<terms.length() {
+    result.push(terms[index])
+  }
+  result
+}
+
+///|
+fn buslane_builtins_from(
+  builtins : Array[BuslaneBuiltinExternal],
+  start : Int,
+) -> Array[BuslaneBuiltinExternal] {
+  let result = []
+  for index in start..<builtins.length() {
+    result.push(builtins[index])
+  }
+  result
+}
+
+///|
+fn BuslaneLowerer::module_exports(
+  self : BuslaneLowerer,
+  source : @checked.CheckedSourceFile,
+) -> Array[BuslaneModuleExport] {
+  let exports = []
+  for declaration in source.declarations {
+    match declaration {
+      Struct(declaration) if declaration.is_public => {
+        exports.push({
+          kind: Type,
+          name: declaration.name,
+          type_id: Some(self.type_id(declaration.symbol)),
+          data_constructor: None,
+          value: None,
+        })
+        exports.push({
+          kind: DataConstructor,
+          name: declaration.name,
+          type_id: None,
+          data_constructor: Some(self.struct_constructor_id(declaration.symbol)),
+          value: None,
+        })
+        for field in declaration.fields {
+          exports.push({
+            kind: FieldSelector,
+            name: field_selector_export_name(declaration.name, field.name),
+            type_id: None,
+            data_constructor: None,
+            value: Some(self.field_selector_id(field.symbol)),
+          })
+        }
+      }
+      Enum(declaration) if declaration.is_public => {
+        exports.push({
+          kind: Type,
+          name: declaration.name,
+          type_id: Some(self.type_id(declaration.symbol)),
+          data_constructor: None,
+          value: None,
+        })
+        for variant in declaration.variants {
+          exports.push({
+            kind: DataConstructor,
+            name: variant.name,
+            type_id: None,
+            data_constructor: Some(self.data_constructor_id(variant.symbol)),
+            value: None,
+          })
+        }
+      }
+      Function(declaration) if declaration.is_public =>
+        exports.push({
+          kind: Value,
+          name: declaration.name,
+          type_id: None,
+          data_constructor: None,
+          value: Some(self.value_id(declaration.symbol)),
+        })
+      Let(declaration) if declaration.is_public &&
+        declaration.name is Some(name) =>
+        exports.push({
+          kind: Value,
+          name,
+          type_id: None,
+          data_constructor: None,
+          value: Some(self.value_id(declaration.symbol)),
+        })
+      _ => ()
+    }
+  }
+  exports
+}
+
+///|
+fn field_selector_export_name(
+  type_name : String,
+  field_name : String,
+) -> String {
+  type_name + "." + field_name
+}
+
+///|
+fn BuslaneLowerer::seed_imported_interfaces(
+  self : BuslaneLowerer,
+  imported : @module_interface.ImportedEnvironment,
+) -> Unit {
+  for interface in imported.modules {
+    for type_ in interface.types {
+      self.seed_imported_type_header(interface.module_path, type_)
+    }
+  }
+  for interface in imported.modules {
+    for type_ in interface.types {
+      self.seed_imported_type_constructors(interface.module_path, type_)
+    }
+  }
+  for interface in imported.modules {
+    for value in interface.values {
+      self.seed_imported_value(interface.module_path, value)
+    }
+  }
+}
+
+///|
+fn BuslaneLowerer::seed_imported_type_header(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  type_ : @module_interface.ModuleInterfaceType,
+) -> Unit {
+  match type_ {
+    Struct(declaration) => {
+      let parameters = declaration.type_parameters.map(fn(parameter) {
+        self.define_type_parameter(parameter)
+      })
+      for type_member in declaration.type_members {
+        ignore(self.define_type_parameter(type_member.type_parameter))
+      }
+      let target = self.metadata.define_type(parameters)
+      self.type_symbols.push({ source: declaration.symbol, target })
+      self.imports.push({
+        module_path_text,
+        kind: Type,
+        name: declaration.name,
+        type_id: Some(target),
+        data_constructor: None,
+        value: None,
+      })
+    }
+    Enum(declaration) => {
+      let parameters = declaration.type_parameters.map(fn(parameter) {
+        self.define_type_parameter(parameter)
+      })
+      for variant in declaration.variants {
+        for parameter in variant.type_parameters {
+          ignore(self.define_type_parameter(parameter))
+        }
+      }
+      let target = self.metadata.define_type(parameters)
+      self.type_symbols.push({ source: declaration.symbol, target })
+      self.imports.push({
+        module_path_text,
+        kind: Type,
+        name: declaration.name,
+        type_id: Some(target),
+        data_constructor: None,
+        value: None,
+      })
+    }
+  }
+}
+
+///|
+fn BuslaneLowerer::seed_imported_type_constructors(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  type_ : @module_interface.ModuleInterfaceType,
+) -> Unit {
+  match type_ {
+    Struct(declaration) => {
+      let owner = self.type_id(declaration.symbol)
+      let hidden_type_parameters = declaration.type_members.map(fn(
+        type_member,
+      ) {
+        self.define_type_parameter(type_member.type_parameter)
+      })
+      let payload_types = declaration.fields.map(fn(field) {
+        self.lower_type(field.type_)
+      })
+      let data_constructor = self.metadata.define_data_constructor(
+        owner, hidden_type_parameters, payload_types,
+      )
+      self.struct_constructors.push({
+        source: declaration.symbol,
+        target: data_constructor,
+      })
+      self.imports.push({
+        module_path_text,
+        kind: DataConstructor,
+        name: declaration.name,
+        type_id: None,
+        data_constructor: Some(data_constructor),
+        value: None,
+      })
+      for field in declaration.fields {
+        self.seed_imported_field_selector(module_path_text, declaration, field)
+      }
+    }
+    Enum(declaration) => {
+      let owner = self.type_id(declaration.symbol)
+      for variant in declaration.variants {
+        let hidden_type_parameters = variant.type_parameters.map(fn(parameter) {
+          self.define_type_parameter(parameter)
+        })
+        let payload_types = variant.payload.map(fn(type_) {
+          self.lower_type(type_)
+        })
+        let data_constructor = self.metadata.define_data_constructor(
+          owner, hidden_type_parameters, payload_types,
+        )
+        self.data_constructors.push({
+          source: variant.symbol,
+          target: data_constructor,
+        })
+        self.imports.push({
+          module_path_text,
+          kind: DataConstructor,
+          name: variant.name,
+          type_id: None,
+          data_constructor: Some(data_constructor),
+          value: None,
+        })
+      }
+    }
+  }
+}
+
+///|
+fn BuslaneLowerer::seed_imported_field_selector(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  declaration : @module_interface.ModuleInterfaceStruct,
+  field : @module_interface.ModuleInterfaceField,
+) -> Unit {
+  let selector_type = self.imported_selector_type(declaration, field)
+  let selector = self.metadata.define_value(Function, selector_type)
+  self.field_selectors.push({ source: field.symbol, target: selector })
+  self.imports.push({
+    module_path_text,
+    kind: FieldSelector,
+    name: field_selector_export_name(declaration.name, field.name),
+    type_id: None,
+    data_constructor: None,
+    value: Some(selector),
+  })
+}
+
+///|
+fn BuslaneLowerer::imported_selector_type(
+  self : BuslaneLowerer,
+  declaration : @module_interface.ModuleInterfaceStruct,
+  field : @module_interface.ModuleInterfaceField,
+) -> @buslane.Type {
+  let type_parameters = declaration.type_parameters.map(fn(parameter) {
+    self.define_type_parameter(parameter)
+  })
+  for type_member in declaration.type_members {
+    type_parameters.push(self.define_type_parameter(type_member.type_parameter))
+  }
+  let receiver = buslane_nominal_type(
+    self.type_id(declaration.symbol),
+    declaration.type_parameters.map(fn(parameter) {
+      Parameter(self.type_parameter_id(parameter.id))
+    }),
+  )
+  let function = @buslane.Type::Function(
+    [receiver],
+    self.lower_type(field.type_),
+  )
+  if type_parameters.is_empty() {
+    function
+  } else {
+    Forall(type_parameters, function)
+  }
+}
+
+///|
+fn BuslaneLowerer::seed_imported_value(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  value : @module_interface.ModuleInterfaceValue,
+) -> Unit {
+  let type_ = self.lower_type(value.type_)
+  let kind : @buslane.ValueKind = match value.kind {
+    Function => Function
+    Let | Offer => Value
+  }
+  let target = self.define_value(value.symbol, kind, type_)
+  self.imports.push({
+    module_path_text,
+    kind: Value,
+    name: value.name,
+    type_id: None,
+    data_constructor: None,
+    value: Some(target),
+  })
 }
 
 ///|
@@ -242,10 +674,11 @@ fn BuslaneLowerer::collect_field_selectors(
   self : BuslaneLowerer,
   source : @checked.CheckedSourceFile,
 ) -> Unit {
+  let module_path_text = checked_module_path_text(source)
   for declaration in source.declarations {
     if declaration is Struct(declaration) {
       for index in 0..<declaration.fields.length() {
-        self.collect_field_selector(declaration, index)
+        self.collect_field_selector(module_path_text, declaration, index)
       }
     }
   }
@@ -254,6 +687,7 @@ fn BuslaneLowerer::collect_field_selectors(
 ///|
 fn BuslaneLowerer::collect_field_selector(
   self : BuslaneLowerer,
+  module_path_text : String,
   declaration : @checked.CheckedStructDeclaration,
   field_index : Int,
 ) -> Unit {
@@ -262,9 +696,13 @@ fn BuslaneLowerer::collect_field_selector(
   let selector_type = self.selector_type(declaration, field)
   let selector = self.metadata.define_value(Function, selector_type)
   self.field_selectors.push({ source: field.symbol, target: selector })
-  self.selector_terms.push(
-    Let(selector, self.selector_body(declaration, field_index, type_parameters)),
-  )
+  self.selector_terms.push({
+    module_path_text,
+    term: Let(
+      selector,
+      self.selector_body(declaration, field_index, type_parameters),
+    ),
+  })
 }
 
 ///|
@@ -393,7 +831,9 @@ fn BuslaneLowerer::lower_top_terms(
 ) -> Array[@buslane.TopTerm] {
   let terms : Array[@buslane.TopTerm] = []
   for selector in self.selector_terms {
-    terms.push(selector)
+    if selector.module_path_text == checked_module_path_text(source) {
+      terms.push(selector.term)
+    }
   }
   let recursive_functions : Array[@buslane.RecursiveBinding] = []
   for declaration in source.declarations {

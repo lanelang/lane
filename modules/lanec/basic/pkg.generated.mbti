@@ -3,6 +3,7 @@ package "Milky2018/lanec/basic"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -17,7 +18,7 @@ pub(all) struct SourceSpan {
   start_column : Int
   end_line : Int
   end_column : Int
-} derive(Eq, @debug.Debug)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub fn SourceSpan::dummy() -> Self
 pub fn SourceSpan::join(Self, Self) -> Self
 

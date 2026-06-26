@@ -21,26 +21,69 @@ pub(all) struct BuslaneBuiltinExternal {
   value : @buslane.ValueId
   name : String
   type_ : @buslane.Type
-} derive(Debug, Eq)
+} derive(Debug, Eq, FromJson, ToJson)
 
 ///|
 pub(all) struct BuslaneExternalMap {
   builtins : Array[BuslaneBuiltinExternal]
-} derive(Debug, Eq)
+} derive(Debug, Eq, FromJson, ToJson)
 
 ///|
 pub(all) struct BuslaneEntry {
   name : String
   value : @buslane.ValueId
   type_ : @buslane.Type
-} derive(Debug, Eq)
+} derive(Debug, Eq, FromJson, ToJson)
+
+///|
+pub(all) enum BuslaneModuleExportKind {
+  Type
+  DataConstructor
+  FieldSelector
+  Value
+} derive(Debug, Eq, FromJson, ToJson)
+
+///|
+pub(all) struct BuslaneModuleExport {
+  kind : BuslaneModuleExportKind
+  name : String
+  type_id : @buslane.TypeId?
+  data_constructor : @buslane.DataConId?
+  value : @buslane.ValueId?
+} derive(Debug, Eq, FromJson, ToJson)
+
+///|
+pub(all) struct BuslaneModuleImport {
+  module_path_text : String
+  kind : BuslaneModuleExportKind
+  name : String
+  type_id : @buslane.TypeId?
+  data_constructor : @buslane.DataConId?
+  value : @buslane.ValueId?
+} derive(Debug, Eq, FromJson, ToJson)
 
 ///|
 pub(all) struct BuslaneLowerResult {
   program : @buslane.Program
   externals : BuslaneExternalMap
   entries : Array[BuslaneEntry]
-} derive(Debug, Eq)
+} derive(Debug, Eq, FromJson, ToJson)
+
+///|
+pub(all) struct BuslaneModuleObject {
+  module_path_text : String
+  metadata : @buslane.MetadataRegistry
+  terms : Array[@buslane.TopTerm]
+  externals : BuslaneExternalMap
+  entries : Array[BuslaneEntry]
+  exports : Array[BuslaneModuleExport]
+  imports : Array[BuslaneModuleImport]
+} derive(Debug, Eq, FromJson, ToJson)
+
+///|
+pub(all) struct BuslaneModuleObjectSet {
+  objects : Array[BuslaneModuleObject]
+} derive(Debug, Eq, FromJson, ToJson)
 
 ///|
 /// Elaborates a resolved source file into Checked Source AST when type checking

@@ -44,3 +44,45 @@ fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
   items.push(item)
   items
 }
+
+///|
+fn extend_qualified_type_name(
+  type_ : Type,
+  name : String,
+  loc : SourceSpan,
+) -> Type {
+  match type_ {
+    QualifiedName(module_path~, name=previous_name, ..) => {
+      let components = module_path.components.copy()
+      components.push(previous_name)
+      QualifiedName(module_path={ components, loc }, name~, loc~)
+    }
+    _ => type_
+  }
+}
+
+///|
+fn type_name_text(type_ : Type) -> String {
+  match type_ {
+    Name(name~, ..) => name
+    QualifiedName(module_path~, name~, ..) =>
+      module_path.components.join(".") + "." + name
+    _ => ""
+  }
+}
+
+///|
+fn expression_type_name_text(expr : Expr) -> String {
+  match expr {
+    Var(name, ..) => name
+    Field(base~, name~, ..) => {
+      let base_name = expression_type_name_text(base)
+      if base_name == "" {
+        ""
+      } else {
+        base_name + "." + name
+      }
+    }
+    _ => ""
+  }
+}

@@ -369,7 +369,7 @@ fn SemanticChecker::check_struct_pattern(
   // Source field order is ignored after checking. The checked struct pattern is
   // emitted in declaration order so ANF and later execution lowering do
   // not depend on source spelling order.
-  guard self.source.symbols.type_named(type_name) is Some(symbol) else {
+  guard self.type_symbol_for_name(type_name) is Some(symbol) else {
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return Wildcard(type_=Error, loc~)
   }

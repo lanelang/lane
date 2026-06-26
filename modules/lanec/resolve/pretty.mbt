@@ -80,6 +80,8 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       space +
       text("incoming=") +
       text(incoming)
+    AmbiguousModuleValue(name) =>
+      text("ambiguous_module_value") + space + text(name)
     AmbiguousUnqualifiedVariant(name~, candidates~) =>
       text("ambiguous_variant") +
       space +

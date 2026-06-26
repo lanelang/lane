@@ -34,6 +34,7 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
   PayloadlessVariantCall(String)
   ConflictingTopLevelValue(name~ : String, existing~ : String, incoming~ : String)
+  AmbiguousModuleValue(String)
   AmbiguousUnqualifiedVariant(name~ : String, candidates~ : Array[ResolveVariantCandidate])
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolveDiagnosticKind

@@ -101,6 +101,38 @@ test "format source keeps struct literal and pattern fields parseable" {
 }
 
 ///|
+test "format source keeps struct literals tighter than binary operators" {
+  let source =
+    #|module Test
+    #|struct Meter {
+    #|  value : Int
+    #|}
+    #|pub let answer : Bool = Meter::{ value: 1 } == Meter::{ value: 1 }
+  let result = format_source(source)
+  guard result is Ok(formatted) else { abort("expected formatted source") }
+  inspect(
+    formatted,
+    content=(
+      #|module Test
+      #|
+      #|struct Meter {
+      #|  value : Int
+      #|}
+      #|
+      #|pub let answer : Bool = Meter::{
+      #|  value: 1
+      #|} == Meter::{
+      #|  value: 1
+      #|}
+      #|
+    ),
+  )
+  guard format_source(formatted) is Ok(_) else {
+    abort("expected formatted source to parse")
+  }
+}
+
+///|
 test "format source keeps else-if chains parseable" {
   let source =
     #|module Test

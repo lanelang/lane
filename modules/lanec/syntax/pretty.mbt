@@ -418,6 +418,8 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
 fn Type::to_doc(self : Type) -> Document {
   match self {
     Name(name~, ..) => text(name)
+    QualifiedName(module_path~, name~, ..) =>
+      module_path.to_doc() + text(".") + text(name)
     Apply(callee~, arguments~, ..) =>
       callee.to_doc() + bracketed_type_arguments(arguments)
     TypeLambda(parameters~, body~, ..) =>

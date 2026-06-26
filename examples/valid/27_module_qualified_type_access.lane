@@ -1,0 +1,11 @@
+module Examples.Valid.ModuleQualifiedTypeAccess
+
+import Builtins
+
+import Ops
+
+let add_ops : Ops.Add[Int] = Ops.Add::{
+  add: Builtins.int_add
+}
+
+pub let answer : Int = add_ops.add(20, 22)

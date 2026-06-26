@@ -6,7 +6,7 @@ pub(all) struct SourceSpan {
   start_column : Int
   end_line : Int
   end_column : Int
-} derive(Debug, Eq)
+} derive(Debug, Eq, FromJson, ToJson)
 
 ///|
 /// Returns a source span that starts at `start` and ends at `end`.

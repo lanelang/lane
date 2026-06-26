@@ -1,11 +1,18 @@
 ///|
 priv struct Resolver {
   registry : SymbolRegistry
+  modules : Array[ModuleBinding]
   types : Array[TypeBinding]
   type_aliases : Array[TypeAliasBinding]
   top_values : Array[ValueBinding]
   ordered_top_values : Array[ValueBinding]
   diagnostics : Array[ResolveDiagnostic]
+}
+
+///|
+priv struct ModuleBinding {
+  path_text : String
+  interface : @module_interface.ModuleInterface
 }
 
 ///|
@@ -16,6 +23,12 @@ priv struct TypeBinding {
 
 ///|
 priv struct TypeAliasBinding {
+  name : String
+}
+
+///|
+priv struct QualifiedNameText {
+  module_path : String
   name : String
 }
 
@@ -76,6 +89,7 @@ fn Resolver::resolve_source_file_result(
 fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
   {
     registry,
+    modules: [],
     types: [],
     type_aliases: [],
     top_values: [],
@@ -92,13 +106,17 @@ fn Resolver::publish_imported_bindings(
 ) -> Unit {
   for import_ in source.imports {
     match import_ {
-      Qualified(_) => ()
+      Qualified(module_path~, ..) =>
+        self.publish_imported_module_binding(module_path, imported_environment)
       Open(module_path~, loc~) =>
         match
           imported_environment.find(
             @module_interface.module_path_text(module_path),
           ) {
           Some(imported) => {
+            self.publish_imported_module_binding(
+              module_path, imported_environment,
+            )
             self.publish_imported_public_types(imported)
             self.publish_imported_public_values(imported, loc)
           }
@@ -110,6 +128,9 @@ fn Resolver::publish_imported_bindings(
             @module_interface.module_path_text(module_path),
           ) {
           Some(imported) => {
+            self.publish_imported_module_binding(
+              module_path, imported_environment,
+            )
             self.publish_imported_selected_types(imported, items)
             self.publish_imported_selected_values(imported, items)
           }
@@ -117,6 +138,20 @@ fn Resolver::publish_imported_bindings(
         }
     }
   }
+}
+
+///|
+fn Resolver::publish_imported_module_binding(
+  self : Resolver,
+  module_path : @syntax.ModulePath,
+  imported_environment : @module_interface.ImportedEnvironment,
+) -> Unit {
+  let path_text = @module_interface.module_path_text(module_path)
+  guard imported_environment.find(path_text) is Some(interface) else { return }
+  if self.modules.any(fn(binding) { binding.path_text == path_text }) {
+    return
+  }
+  self.modules.push({ path_text, interface })
 }
 
 ///|
@@ -892,6 +927,8 @@ fn @syntax.Type::resolve_type(
               }
           }
       }
+    QualifiedName(module_path~, name~, loc~) =>
+      resolver.resolve_module_qualified_type(module_path, name, loc)
     Apply(callee~, arguments~, loc~) =>
       Apply(
         callee=callee.resolve_type(resolver, scope),
@@ -927,6 +964,66 @@ fn @syntax.Type::resolve_type(
         loc~,
       )
     }
+  }
+}
+
+///|
+fn Resolver::resolve_module_qualified_type(
+  self : Resolver,
+  module_path : @syntax.ModulePath,
+  name : String,
+  loc : SourceSpan,
+) -> ResolvedType {
+  let full_name = module_qualified_name(module_path, name)
+  match self.module_binding(@module_interface.module_path_text(module_path)) {
+    Some(module_) => {
+      for type_ in module_.interface.types {
+        if interface_type_name(type_) == name {
+          return Constructor(
+            symbol=interface_type_symbol(type_),
+            name=full_name,
+            loc~,
+          )
+        }
+      }
+      for type_alias in module_.interface.type_aliases {
+        if type_alias.name == name {
+          return Alias(name=full_name, loc~)
+        }
+      }
+      self.report(UnresolvedType(full_name), loc)
+      Unresolved(name=full_name, arguments=[], loc~)
+    }
+    None => {
+      self.report(UnresolvedType(full_name), loc)
+      Unresolved(name=full_name, arguments=[], loc~)
+    }
+  }
+}
+
+///|
+fn module_qualified_name(
+  module_path : @syntax.ModulePath,
+  name : String,
+) -> String {
+  @module_interface.module_path_text(module_path) + "." + name
+}
+
+///|
+fn interface_type_name(type_ : @module_interface.ModuleInterfaceType) -> String {
+  match type_ {
+    Struct(declaration) => declaration.name
+    Enum(declaration) => declaration.name
+  }
+}
+
+///|
+fn interface_type_symbol(
+  type_ : @module_interface.ModuleInterfaceType,
+) -> TypeSymbolId {
+  match type_ {
+    Struct(declaration) => declaration.symbol
+    Enum(declaration) => declaration.symbol
   }
 }
 
@@ -1034,15 +1131,22 @@ fn @syntax.Expr::resolve_expr(
       )
     Call(callee~, arguments~, loc~) =>
       callee.resolve_call(resolver, scope, arguments, loc)
-    Field(base~, name~, loc~) => {
-      let base = base.resolve_expr(resolver, scope)
-      Field(
-        base~,
-        name~,
-        reference=resolver.field_reference(scope, base, name, loc),
-        loc~,
-      )
-    }
+    Field(loc~, ..) as field =>
+      match resolver.resolve_module_value_field_chain(scope, field, loc) {
+        Some(expr) => expr
+        None => {
+          guard field is Field(base~, name~, ..) else {
+            abort("expected field")
+          }
+          let base = base.resolve_expr(resolver, scope)
+          Field(
+            base~,
+            name~,
+            reference=resolver.field_reference(scope, base, name, loc),
+            loc~,
+          )
+        }
+      }
     Unary(operator~, operand~, loc~) => {
       let reference = resolver.operator_reference(
         scope,
@@ -1227,6 +1331,95 @@ fn Resolver::resolve_unqualified_variant_use(
 }
 
 ///|
+fn Resolver::resolve_module_value_field_chain(
+  self : Resolver,
+  scope : ResolveScope,
+  expr : @syntax.Expr,
+  loc : SourceSpan,
+) -> ResolvedExpr? {
+  guard dotted_segments(expr) is Some(segments) else { return None }
+  if segments.length() < 2 {
+    return None
+  }
+  let full_name = segments.join(".")
+  let module_path_text = dotted_prefix_text(segments, segments.length() - 1)
+  let value_name = segments[segments.length() - 1]
+  match self.module_binding(module_path_text) {
+    Some(module_) => {
+      if scope.value_reference(segments[0]) is Symbol(_) {
+        self.report(AmbiguousModuleValue(full_name), loc)
+        return Some(Var(name=full_name, reference=Unresolved(full_name), loc~))
+      }
+      for value in module_.interface.values {
+        if value.name == value_name {
+          return Some(Var(name=full_name, reference=Symbol(value.symbol), loc~))
+        }
+      }
+      self.report(UnresolvedValue(full_name), loc)
+      Some(Var(name=full_name, reference=Unresolved(full_name), loc~))
+    }
+    None =>
+      if self.has_imported_module_prefix(segments) {
+        self.report(UnresolvedValue(full_name), loc)
+        Some(Var(name=full_name, reference=Unresolved(full_name), loc~))
+      } else {
+        None
+      }
+  }
+}
+
+///|
+fn dotted_segments(expr : @syntax.Expr) -> Array[String]? {
+  match expr {
+    Var(name, ..) => Some([name])
+    Field(base~, name~, ..) =>
+      match dotted_segments(base) {
+        Some(segments) => {
+          segments.push(name)
+          Some(segments)
+        }
+        None => None
+      }
+    _ => None
+  }
+}
+
+///|
+fn dotted_prefix_text(segments : Array[String], end : Int) -> String {
+  let prefix = []
+  for index in 0..<end {
+    prefix.push(segments[index])
+  }
+  prefix.join(".")
+}
+
+///|
+fn Resolver::module_binding(
+  self : Resolver,
+  path_text : String,
+) -> ModuleBinding? {
+  for binding in self.modules {
+    if binding.path_text == path_text {
+      return Some(binding)
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::has_imported_module_prefix(
+  self : Resolver,
+  segments : Array[String],
+) -> Bool {
+  for end in 1..<(segments.length() - 1) {
+    if self.module_binding(dotted_prefix_text(segments, end)) is Some(_) {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn UnqualifiedNameUse::resolve_as_value(
   self : UnqualifiedNameUse,
   resolver : Resolver,
@@ -1328,6 +1521,25 @@ fn @syntax.Expr::resolve_call(
         name_loc,
         CallUse(arguments~, loc~),
       )
+    Field(..) =>
+      match resolver.resolve_module_value_field_chain(scope, self, self.loc()) {
+        Some(callee) =>
+          Call(
+            callee~,
+            arguments=arguments.map(fn(argument) {
+              argument.resolve_call_argument(resolver, scope)
+            }),
+            loc~,
+          )
+        None =>
+          Call(
+            callee=self.resolve_expr(resolver, scope),
+            arguments=arguments.map(fn(argument) {
+              argument.resolve_call_argument(resolver, scope)
+            }),
+            loc~,
+          )
+      }
     _ =>
       Call(
         callee=self.resolve_expr(resolver, scope),
@@ -1679,7 +1891,58 @@ fn Resolver::type_symbol(self : Resolver, name : String) -> TypeSymbolId {
 
 ///|
 fn Resolver::type_symbol_opt(self : Resolver, name : String) -> TypeSymbolId? {
-  self.type_binding(name).map(fn(binding) { binding.symbol })
+  match self.type_binding(name) {
+    Some(binding) => Some(binding.symbol)
+    None => self.qualified_type_symbol_opt(name)
+  }
+}
+
+///|
+fn Resolver::qualified_type_symbol_opt(
+  self : Resolver,
+  name : String,
+) -> TypeSymbolId? {
+  match qualified_name_text(name) {
+    Some(qualified) =>
+      match self.module_binding(qualified.module_path) {
+        Some(module_) => module_.interface.type_symbol_named(qualified.name)
+        None => None
+      }
+    None => None
+  }
+}
+
+///|
+fn @module_interface.ModuleInterface::type_symbol_named(
+  self : @module_interface.ModuleInterface,
+  name : String,
+) -> TypeSymbolId? {
+  for type_ in self.types {
+    match type_ {
+      Struct(declaration) if declaration.name == name =>
+        return Some(declaration.symbol)
+      Enum(declaration) if declaration.name == name =>
+        return Some(declaration.symbol)
+      _ => ()
+    }
+  }
+  None
+}
+
+///|
+fn qualified_name_text(name : String) -> QualifiedNameText? {
+  let parts = name.split(".").map(StringView::to_owned).collect()
+  if parts.length() < 2 {
+    return None
+  }
+  let module_segments = []
+  for index in 0..<(parts.length() - 1) {
+    module_segments.push(parts[index])
+  }
+  Some({
+    module_path: module_segments.join("."),
+    name: parts[parts.length() - 1],
+  })
 }
 
 ///|
@@ -1804,6 +2067,9 @@ fn Resolver::variant_reference(
   variant : String,
   loc : SourceSpan,
 ) -> ResolvedVariantReference {
+  if self.qualified_variant_symbol(type_name, variant) is Some(symbol) {
+    return Symbol(symbol)
+  }
   if self.type_symbol_opt(type_name) is Some(owner) {
     if self.registry.variant_named(owner, variant) is Some(symbol) {
       Symbol(symbol)
@@ -1815,6 +2081,43 @@ fn Resolver::variant_reference(
     resolver_report_qualified_variant(self, type_name, variant, loc)
     Unresolved(type_name~, variant~)
   }
+}
+
+///|
+fn Resolver::qualified_variant_symbol(
+  self : Resolver,
+  type_name : String,
+  variant : String,
+) -> VariantSymbolId? {
+  match qualified_name_text(type_name) {
+    Some(qualified) =>
+      match self.module_binding(qualified.module_path) {
+        Some(module_) =>
+          module_.interface.variant_symbol_named(qualified.name, variant)
+        None => None
+      }
+    None => None
+  }
+}
+
+///|
+fn @module_interface.ModuleInterface::variant_symbol_named(
+  self : @module_interface.ModuleInterface,
+  type_name : String,
+  variant : String,
+) -> VariantSymbolId? {
+  for type_ in self.types {
+    match type_ {
+      Enum(declaration) if declaration.name == type_name =>
+        for item in declaration.variants {
+          if item.name == variant {
+            return Some(item.symbol)
+          }
+        }
+      _ => ()
+    }
+  }
+  None
 }
 
 ///|

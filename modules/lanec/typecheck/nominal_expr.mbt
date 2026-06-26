@@ -395,7 +395,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   expected : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  guard self.source.symbols.type_named(type_name) is Some(symbol) else {
+  guard self.type_symbol_for_name(type_name) is Some(symbol) else {
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return checked_expression_none_reported(Error)
   }

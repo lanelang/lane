@@ -170,6 +170,7 @@ pub(all) struct OfferDeclaration {
 ///|
 pub(all) enum Type {
   Name(name~ : String, loc~ : SourceSpan)
+  QualifiedName(module_path~ : ModulePath, name~ : String, loc~ : SourceSpan)
   Apply(callee~ : Type, arguments~ : Array[Type], loc~ : SourceSpan)
   TypeLambda(
     parameters~ : Array[TypeParameter],
@@ -189,6 +190,7 @@ pub(all) enum Type {
 pub fn Type::loc(self : Type) -> SourceSpan {
   match self {
     Name(loc~, ..)
+    | QualifiedName(loc~, ..)
     | Apply(loc~, ..)
     | TypeLambda(loc~, ..)
     | Function(loc~, ..) => loc

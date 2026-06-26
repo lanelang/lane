@@ -5,6 +5,7 @@ import {
   "Milky2018/lanec/basic",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -14,7 +15,7 @@ import {
 // Types and methods
 pub struct FieldSymbolId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for FieldSymbolId
 
 pub(all) struct FieldSymbolMetadata {
@@ -64,7 +65,7 @@ pub impl @prettyprinter.Pretty for SymbolRegistry
 
 pub struct TypeMemberSymbolId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TypeMemberSymbolId
 
 pub(all) struct TypeMemberSymbolMetadata {
@@ -79,7 +80,7 @@ pub impl @prettyprinter.Pretty for TypeMemberSymbolMetadata
 
 pub struct TypeParameterId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TypeParameterId
 
 pub(all) struct TypeParameterMetadata {
@@ -91,7 +92,7 @@ pub impl @prettyprinter.Pretty for TypeParameterMetadata
 
 pub struct TypeSymbolId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for TypeSymbolId
 
 pub(all) struct TypeSymbolMetadata {
@@ -105,7 +106,7 @@ pub impl @prettyprinter.Pretty for TypeSymbolMetadata
 
 pub struct ValueSymbolId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for ValueSymbolId
 
 pub(all) enum ValueSymbolKind {
@@ -128,7 +129,7 @@ pub impl @prettyprinter.Pretty for ValueSymbolMetadata
 
 pub struct VariantSymbolId {
   index : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl @prettyprinter.Pretty for VariantSymbolId
 
 pub(all) struct VariantSymbolMetadata {

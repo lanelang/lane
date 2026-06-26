@@ -367,6 +367,12 @@ priv struct TypeExpressionChecker {
 }
 
 ///|
+priv struct QualifiedAliasName {
+  module_path : String
+  name : String
+}
+
+///|
 fn TypeExpressionChecker::check_value_type(
   self : TypeExpressionChecker,
   type_ : @resolve.ResolvedType,
@@ -563,6 +569,21 @@ fn TypeExpressionChecker::find_interface_alias(
   self : TypeExpressionChecker,
   name : String,
 ) -> @module_interface.ModuleInterfaceTypeAlias? {
+  match qualified_alias_name(name) {
+    Some(qualified) =>
+      match self.imported_environment.find(qualified.module_path) {
+        Some(module_) => {
+          for type_alias in module_.type_aliases {
+            if type_alias.name == qualified.name {
+              return Some(type_alias)
+            }
+          }
+          return None
+        }
+        None => return None
+      }
+    None => ()
+  }
   for module_ in self.imported_environment.modules {
     for type_alias in module_.type_aliases {
       if type_alias.name == name {
@@ -571,6 +592,22 @@ fn TypeExpressionChecker::find_interface_alias(
     }
   }
   None
+}
+
+///|
+fn qualified_alias_name(name : String) -> QualifiedAliasName? {
+  let parts = name.split(".").map(StringView::to_owned).collect()
+  if parts.length() < 2 {
+    return None
+  }
+  let module_segments = []
+  for index in 0..<(parts.length() - 1) {
+    module_segments.push(parts[index])
+  }
+  Some({
+    module_path: module_segments.join("."),
+    name: parts[parts.length() - 1],
+  })
 }
 
 ///|
