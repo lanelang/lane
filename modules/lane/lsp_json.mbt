@@ -12,10 +12,19 @@ fn json_string_field(json : Json, name : String) -> String? {
 
 ///|
 fn json_int_field(json : Json, name : String) -> Int? {
-  guard json_field(json, name) is Some(Number(_, repr~)) else { return None }
-  guard repr is Some(text) else { return None }
-  Some(@string.parse_int(text, base=10)) catch {
-    _ => None
+  guard json_field(json, name) is Some(Number(value, repr~)) else {
+    return None
+  }
+  match repr {
+    Some(text) => Some(@string.parse_int(text, base=10)) catch { _ => None }
+    None => {
+      let int_value = value.to_int()
+      if int_value.to_double() == value {
+        Some(int_value)
+      } else {
+        None
+      }
+    }
   }
 }
 

@@ -54,6 +54,21 @@ async test "initialize returns full document sync capability" {
 }
 
 ///|
+test "position params accept parsed json numbers" {
+  let text =
+    #|{"textDocument":{"uri":"file:///Main.lane"},"position":{"line":4,"character":23}}
+  let params = @json.parse(text)
+  match text_document_position_params(params) {
+    Some(params) => {
+      inspect(params.uri, content="file:///Main.lane")
+      inspect(params.line, content="4")
+      inspect(params.character, content="23")
+    }
+    None => abort("expected position params")
+  }
+}
+
+///|
 async test "semantic tokens full returns variables and parameters" {
   let state = ServerState::ServerState()
   ignore(
