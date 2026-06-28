@@ -205,6 +205,7 @@ fn lib_dir_option() -> @argparse.OptionArg {
 fn interface_option() -> @argparse.OptionArg {
   OptionArg(
     "interface",
+    short='i',
     long="interface",
     action=Append,
     about="Compiled Lane module interface artifact to import.",
@@ -215,6 +216,7 @@ fn interface_option() -> @argparse.OptionArg {
 fn emit_interface_option() -> @argparse.OptionArg {
   OptionArg(
     "emit-interface",
+    short='t',
     long="emit-interface",
     about="Write module interface text artifact.",
   )
@@ -224,6 +226,7 @@ fn emit_interface_option() -> @argparse.OptionArg {
 fn emit_object_option() -> @argparse.OptionArg {
   OptionArg(
     "emit-object",
+    short='o',
     long="emit-object",
     about="Write module object text artifact.",
   )
