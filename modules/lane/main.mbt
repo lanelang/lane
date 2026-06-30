@@ -19,8 +19,9 @@ async fn main {
     Compile(file~, interfaces~, emit_interface~, emit_object~) =>
       lane_compile(file, interfaces, emit_interface, emit_object)
     Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
-    Link(interfaces~, objects~, root~) => lane_link(interfaces, objects, root)
+    Link(objects~, output~) => lane_link(objects, output)
     Lsp(stdio~) => lsp_command(stdio)
+    RunLinked(program~, entry~) => lane_runlinked(program, entry)
     Run(file~, entry~, libs~, lib_dirs~) =>
       lane_run(file, entry, libs, lib_dirs)
   }
@@ -173,7 +174,7 @@ async fn lane_compile(
       return UserFailure
     }
   }
-  write_module_object_artifact(object_path, module_.object) catch {
+  write_module_object_artifact(object_path, module_) catch {
     error => {
       println("failed to write module object artifact: \{error}")
       return UserFailure
@@ -187,30 +188,17 @@ async fn lane_compile(
 
 ///|
 async fn lane_link(
-  interfaces : Array[String],
   objects : Array[String],
-  root : String?,
+  output : String,
 ) -> LaneCommandOutcome {
-  if interfaces.is_empty() || objects.is_empty() {
-    println("link requires --interface and --object")
-    return UserFailure
-  }
-  if objects.length() > 1 && root is None {
-    println("link root required when linking multiple module object inputs")
-    return UserFailure
-  }
-  let inputs = match read_link_artifact_inputs(interfaces, objects, root) {
-    Ok(inputs) => inputs
+  let object_artifacts = match read_module_object_artifacts(objects) {
+    Ok(objects) => objects
     Err(message) => {
       println(message)
       return UserFailure
     }
   }
-  let linked = @compile.link_module_artifact_parts(
-    inputs.manifest,
-    inputs.interfaces,
-    inputs.objects,
-  )
+  let linked = @compile.link_module_object_artifacts(object_artifacts)
   if !linked.diagnostics.is_empty() {
     print_diagnostics(linked.diagnostics)
     return UserFailure
@@ -218,8 +206,46 @@ async fn lane_link(
   guard linked.program is Some(program) else {
     internal_error("linker produced no program")
   }
-  println("linked root " + program.root_module_path_text)
+  write_linked_program_artifact(output, program) catch {
+    error => {
+      println("failed to write linked program artifact: \{error}")
+      return UserFailure
+    }
+  }
+  println("linked program " + output)
+  println("linked modules " + program.module_path_texts.join(","))
   println("linked entries " + entry_names(program.entries).join(","))
+  Succeeded
+}
+
+///|
+async fn lane_runlinked(
+  path : String,
+  entry_name : String,
+) -> LaneCommandOutcome {
+  let program = read_linked_program_artifact(path) catch {
+    error => {
+      println("failed to read linked program artifact: \{error}")
+      return UserFailure
+    }
+  }
+  let runtime = @buslane_interpreter.evaluate_buslane_program(
+    program.program,
+    @intrinsics.standard_external_runtime(program.externals),
+  ) catch {
+    error => internal_error(@prettyprinter.render(error, width=100))
+  }
+  let entry = match find_entry(program.entries, entry_name) {
+    Ok(entry) => entry
+    Err(message) => {
+      println(message)
+      return UserFailure
+    }
+  }
+  let value = runtime.lookup(entry.value) catch {
+    error => internal_error(@prettyprinter.render(error, width=100))
+  }
+  println(render_entry_value(value, entry.type_))
   Succeeded
 }
 

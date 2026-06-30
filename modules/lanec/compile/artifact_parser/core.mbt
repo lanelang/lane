@@ -33,7 +33,9 @@ pub fn parse_text(text : String) -> Result[ArtifactDocument, String] {
   }
   if document.version != "lane-artifact-text-v1" {
     Err("unsupported artifact text version " + document.version)
-  } else if document.kind != "interface" && document.kind != "object" {
+  } else if document.kind != "interface" &&
+    document.kind != "object" &&
+    document.kind != "program" {
     Err("unknown artifact kind " + document.kind)
   } else {
     Ok(document)

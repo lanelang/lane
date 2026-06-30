@@ -16,8 +16,9 @@ enum LaneCommand {
     emit_object~ : String?
   )
   Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
-  Link(interfaces~ : Array[String], objects~ : Array[String], root~ : String?)
+  Link(objects~ : Array[String], output~ : String)
   Lsp(stdio~ : Bool)
+  RunLinked(program~ : String, entry~ : String)
   Run(
     file~ : String,
     entry~ : String,
@@ -62,11 +63,18 @@ fn lane_command_spec() -> Command {
         ],
         positionals=[PositionArg("file")],
       ),
-      Command("link", about="Link compiled Lane module object artifacts.", options=[
-        interface_option(),
-        object_option(),
-        root_option(),
-      ]),
+      Command(
+        "link",
+        about="Link compiled Lane module object artifacts.",
+        options=[output_option()],
+        positionals=[PositionArg("objects", num_args=ValueRange(lower=1))],
+      ),
+      Command(
+        "runlinked",
+        about="Run an entry from a linked Lane program artifact.",
+        options=[entry_option()],
+        positionals=[PositionArg("program")],
+      ),
       Command(
         "fmt",
         about="Format Lane source files.",
@@ -146,13 +154,19 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
         Err(message) => Err(message)
       }
     Some(("link", child)) =>
-      Ok(
-        Link(
-          interfaces=values(child, "interface"),
-          objects=values(child, "object"),
-          root=optional_value(child, "root"),
-        ),
-      )
+      match required_value(child, "output") {
+        Ok(output) => Ok(Link(objects=values(child, "objects"), output~))
+        Err(message) => Err(message)
+      }
+    Some(("runlinked", child)) =>
+      match required_value(child, "program") {
+        Ok(program) =>
+          match required_value(child, "entry") {
+            Ok(entry) => Ok(RunLinked(program~, entry~))
+            Err(message) => Err(message)
+          }
+        Err(message) => Err(message)
+      }
     Some(("fmt", child)) =>
       Ok(
         Fmt(
@@ -233,18 +247,18 @@ fn emit_object_option() -> @argparse.OptionArg {
 }
 
 ///|
-fn object_option() -> @argparse.OptionArg {
+fn entry_option() -> @argparse.OptionArg {
   OptionArg(
-    "object",
-    long="object",
-    action=Append,
-    about="Compiled Lane module object text artifact to link.",
+    "entry",
+    short='e',
+    long="entry",
+    about="Program entry in Module::value form.",
   )
 }
 
 ///|
-fn root_option() -> @argparse.OptionArg {
-  OptionArg("root", long="root", about="Root module for artifact linking.")
+fn output_option() -> @argparse.OptionArg {
+  OptionArg("output", short='o', long="output", about="Write output artifact.")
 }
 
 ///|

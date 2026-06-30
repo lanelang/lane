@@ -9,9 +9,14 @@ pub(all) struct ModuleInterfaceArtifact {
 } derive(Debug, Eq)
 
 ///|
+let module_object_artifact_schema_version = 2
+
+///|
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
+  interface : @module_interface.ModuleInterface
+  interface_fingerprint : CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @elaborate.BuslaneExternalMap
@@ -20,6 +25,15 @@ pub(all) struct ModuleObjectArtifact {
   imports : Array[ModuleImportedReference]
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LinkedProgramArtifact {
+  schema_version : Int
+  module_path_texts : Array[String]
+  program : @buslane.Program
+  externals : @elaborate.BuslaneExternalMap
+  entries : Array[@elaborate.BuslaneEntry]
 } derive(Debug, Eq)
 
 ///|
@@ -41,23 +55,6 @@ pub(all) struct CompiledModuleSetArtifact {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct ModuleArtifactManifestEntry {
-  module_path_text : String
-  interface_file : String
-  object_file : String
-  module_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CompiledModuleSetManifestArtifact {
-  schema_version : Int
-  root_module_path_text : String
-  modules : Array[ModuleArtifactManifestEntry]
-  reachable_module_path_texts : Array[String]
-} derive(Debug, Eq)
-
-///|
 pub fn compiled_module_set_artifact(
   modules : CompiledModuleSet,
 ) -> CompiledModuleSetArtifact {
@@ -70,26 +67,6 @@ pub fn compiled_module_set_artifact(
 }
 
 ///|
-pub fn compiled_module_set_manifest_artifact(
-  modules : CompiledModuleSet,
-) -> CompiledModuleSetManifestArtifact {
-  {
-    schema_version: 1,
-    root_module_path_text: modules.root_module_path_text,
-    modules: modules.modules.map(fn(module_) {
-      {
-        module_path_text: module_.module_path_text,
-        interface_file: module_.module_path_text + ".lmi",
-        object_file: module_.module_path_text + ".lmo",
-        module_fingerprint: module_.fingerprint,
-        imported_interface_fingerprints: module_.imported_interface_fingerprints,
-      }
-    }),
-    reachable_module_path_texts: modules.reachable_module_path_texts,
-  }
-}
-
-///|
 pub fn compiled_module_artifact(
   module_ : CompiledModule,
 ) -> CompiledModuleArtifact {
@@ -97,7 +74,7 @@ pub fn compiled_module_artifact(
     schema_version: 1,
     module_path_text: module_.module_path_text,
     interface: module_interface_artifact(module_),
-    object: module_object_artifact(module_.object),
+    object: module_object_artifact(module_),
     module_fingerprint: module_.fingerprint,
     imported_interface_fingerprints: module_.imported_interface_fingerprints,
   }
@@ -118,10 +95,13 @@ pub fn module_interface_artifact(
 }
 
 ///|
-pub fn module_object_artifact(object : ModuleObject) -> ModuleObjectArtifact {
+pub fn module_object_artifact(module_ : CompiledModule) -> ModuleObjectArtifact {
+  let object = module_.object
   {
-    schema_version: 1,
+    schema_version: module_object_artifact_schema_version,
     module_path_text: object.module_path_text,
+    interface: module_.interface,
+    interface_fingerprint: interface_fingerprint(module_.interface),
     metadata: object.metadata,
     terms: object.terms,
     externals: object.externals,
@@ -130,6 +110,46 @@ pub fn module_object_artifact(object : ModuleObject) -> ModuleObjectArtifact {
     imports: object.imports,
     module_fingerprint: object.fingerprint,
     imported_interface_fingerprints: object.imported_interface_fingerprints,
+  }
+}
+
+///|
+pub fn linked_program_artifact(
+  program : LinkedProgram,
+) -> LinkedProgramArtifact {
+  {
+    schema_version: 1,
+    module_path_texts: program.module_path_texts,
+    program: program.program,
+    externals: program.externals,
+    entries: program.entries,
+  }
+}
+
+///|
+pub fn linked_program_from_artifact(
+  artifact : LinkedProgramArtifact,
+) -> Result[LinkedProgram, Array[CompileDiagnostic]] {
+  let diagnostics = validate_linked_program_artifact(artifact)
+  if !diagnostics.is_empty() {
+    Err(diagnostics)
+  } else {
+    Ok({
+      module_path_texts: artifact.module_path_texts,
+      program: artifact.program,
+      externals: artifact.externals,
+      entries: artifact.entries,
+    })
+  }
+}
+
+///|
+pub fn link_module_object_artifacts(
+  objects : Array[ModuleObjectArtifact],
+) -> LinkResult {
+  match compiled_modules_from_object_artifacts(objects) {
+    Err(diagnostics) => { program: None, diagnostics }
+    Ok(modules) => link_compiled_modules(modules)
   }
 }
 
@@ -145,88 +165,149 @@ pub fn link_module_artifacts(
 }
 
 ///|
-pub fn link_module_artifact_parts(
-  manifest : CompiledModuleSetManifestArtifact,
-  interfaces : Array[ModuleInterfaceArtifact],
+fn compiled_modules_from_object_artifacts(
   objects : Array[ModuleObjectArtifact],
-) -> LinkResult {
-  match compiled_module_set_artifact_from_parts(manifest, interfaces, objects) {
-    Err(diagnostics) => { program: None, diagnostics }
-    Ok(artifact) => link_module_artifacts(artifact)
+) -> Result[Array[CompiledModule], Array[CompileDiagnostic]] {
+  let diagnostics = validate_object_artifacts(objects)
+  if !diagnostics.is_empty() {
+    return Err(diagnostics)
   }
+  Ok(objects.map(compiled_module_from_object_artifact))
 }
 
 ///|
-fn compiled_module_set_artifact_from_parts(
-  manifest : CompiledModuleSetManifestArtifact,
-  interfaces : Array[ModuleInterfaceArtifact],
+fn validate_object_artifacts(
   objects : Array[ModuleObjectArtifact],
-) -> Result[CompiledModuleSetArtifact, Array[CompileDiagnostic]] {
-  if manifest.schema_version != 1 {
-    return Err([
-      make_error("unsupported module artifact manifest schema", span=None),
-    ])
-  }
-  let modules = []
-  for entry in manifest.modules {
-    guard find_interface_artifact(interfaces, entry.module_path_text)
-      is Some(interface) else {
-      return Err([
-        make_error(
-          "missing module interface artifact " + entry.module_path_text,
-          span=None,
-        ),
-      ])
-    }
-    guard find_object_artifact(objects, entry.module_path_text) is Some(object) else {
-      return Err([
-        make_error(
-          "missing module object artifact " + entry.module_path_text,
-          span=None,
-        ),
-      ])
-    }
-    modules.push({
-      schema_version: 1,
-      module_path_text: entry.module_path_text,
-      interface,
-      object,
-      module_fingerprint: entry.module_fingerprint,
-      imported_interface_fingerprints: entry.imported_interface_fingerprints,
-    })
-  }
-  Ok({
-    schema_version: 1,
-    root_module_path_text: manifest.root_module_path_text,
-    modules,
-    reachable_module_path_texts: manifest.reachable_module_path_texts,
-  })
-}
-
-///|
-fn find_interface_artifact(
-  interfaces : Array[ModuleInterfaceArtifact],
-  module_path_text : String,
-) -> ModuleInterfaceArtifact? {
-  for interface in interfaces {
-    if interface.module_path_text == module_path_text {
-      return Some(interface)
-    }
-  }
-  None
-}
-
-///|
-fn find_object_artifact(
-  objects : Array[ModuleObjectArtifact],
-  module_path_text : String,
-) -> ModuleObjectArtifact? {
+) -> Array[CompileDiagnostic] {
+  let diagnostics = []
   for object in objects {
-    if object.module_path_text == module_path_text {
-      return Some(object)
+    match validate_module_object_artifact(object) {
+      Some(diagnostic) => diagnostics.push(diagnostic)
+      None => ()
     }
   }
+  for index in 0..<objects.length() {
+    for other_index in (index + 1)..<objects.length() {
+      if objects[index].module_path_text ==
+        objects[other_index].module_path_text {
+        diagnostics.push(
+          make_error(
+            "duplicate module object artifact " +
+            objects[index].module_path_text,
+            span=None,
+          ),
+        )
+      }
+    }
+  }
+  diagnostics
+}
+
+///|
+fn validate_module_object_artifact(
+  object : ModuleObjectArtifact,
+) -> CompileDiagnostic? {
+  if object.schema_version != module_object_artifact_schema_version {
+    return Some(
+      make_error(
+        "unsupported module object artifact schema " +
+        object.schema_version.to_string() +
+        " for " +
+        object.module_path_text,
+        span=None,
+      ),
+    )
+  }
+  if object.interface.module_path != object.module_path_text {
+    return Some(
+      make_error(
+        "module object artifact interface name mismatch " +
+        object.module_path_text,
+        span=None,
+      ),
+    )
+  }
+  if object.interface_fingerprint != interface_fingerprint(object.interface) {
+    return Some(
+      make_error(
+        "module object artifact interface fingerprint mismatch " +
+        object.module_path_text,
+        span=None,
+      ),
+    )
+  }
+  if object.module_fingerprint !=
+    module_fingerprint(object.interface, object.imported_interface_fingerprints) {
+    return Some(
+      make_error(
+        "module object artifact module fingerprint mismatch " +
+        object.module_path_text,
+        span=None,
+      ),
+    )
+  }
   None
+}
+
+///|
+fn validate_linked_program_artifact(
+  artifact : LinkedProgramArtifact,
+) -> Array[CompileDiagnostic] {
+  let diagnostics = []
+  if artifact.schema_version != 1 {
+    diagnostics.push(
+      make_error("unsupported linked program artifact schema", span=None),
+    )
+  }
+  let verify_result = @buslane.verify_program(artifact.program)
+  if !verify_result.is_ok() {
+    diagnostics.push(make_error("invalid linked Buslane program", span=None))
+  }
+  validate_linked_program_modules(artifact, diagnostics)
+  validate_linked_program_entries(artifact, diagnostics)
+  diagnostics
+}
+
+///|
+fn validate_linked_program_modules(
+  artifact : LinkedProgramArtifact,
+  diagnostics : Array[CompileDiagnostic],
+) -> Unit {
+  for index in 0..<artifact.module_path_texts.length() {
+    for other_index in (index + 1)..<artifact.module_path_texts.length() {
+      if artifact.module_path_texts[index] ==
+        artifact.module_path_texts[other_index] {
+        diagnostics.push(
+          make_error(
+            "duplicate linked module " + artifact.module_path_texts[index],
+            span=None,
+          ),
+        )
+      }
+    }
+  }
+}
+
+///|
+fn validate_linked_program_entries(
+  artifact : LinkedProgramArtifact,
+  diagnostics : Array[CompileDiagnostic],
+) -> Unit {
+  for index in 0..<artifact.entries.length() {
+    let entry = artifact.entries[index]
+    if artifact.program.metadata.value_info(entry.value) is None {
+      diagnostics.push(
+        make_error("linked entry has unknown value " + entry.name, span=None),
+      )
+    }
+    for other_index in (index + 1)..<artifact.entries.length() {
+      if entry.name == artifact.entries[other_index].name {
+        diagnostics.push(
+          make_error("duplicate linked entry " + entry.name, span=None),
+        )
+      }
+    }
+  }
 }
 
 ///|
@@ -258,10 +339,12 @@ fn validate_artifact_schema(
       Some(diagnostic) => return Some(diagnostic)
       None => ()
     }
-    if module_.object.schema_version != 1 {
+    if module_.object.schema_version != module_object_artifact_schema_version {
       return Some(
         make_error(
           "unsupported module object artifact schema " +
+          module_.object.schema_version.to_string() +
+          " for " +
           module_.module_path_text,
           span=None,
         ),
@@ -342,6 +425,19 @@ fn compiled_module_from_artifact(
     module_path_text: artifact.module_path_text,
     interface: artifact.interface.interface,
     object: module_object_from_artifact(artifact.object),
+    fingerprint: artifact.module_fingerprint,
+    imported_interface_fingerprints: artifact.imported_interface_fingerprints,
+  }
+}
+
+///|
+fn compiled_module_from_object_artifact(
+  artifact : ModuleObjectArtifact,
+) -> CompiledModule {
+  {
+    module_path_text: artifact.module_path_text,
+    interface: artifact.interface,
+    object: module_object_from_artifact(artifact),
     fingerprint: artifact.module_fingerprint,
     imported_interface_fingerprints: artifact.imported_interface_fingerprints,
   }

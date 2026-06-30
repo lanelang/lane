@@ -33,3 +33,16 @@ test "reject unsupported artifact text version" {
   guard parsed is Err(message) else { abort("expected parse failure") }
   assert_eq(message, "unsupported artifact text version lane-artifact-text-v0")
 }
+
+///|
+test "parse linked program artifact kind" {
+  let parsed = parse_text(
+    (
+      #|lane-artifact-text-v1 program {
+      #|  schema_version: 1;
+      #|}
+    ),
+  )
+  guard parsed is Ok(document) else { abort("expected parsed artifact") }
+  assert_eq(document.kind, "program")
+}

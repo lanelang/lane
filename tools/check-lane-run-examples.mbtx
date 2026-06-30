@@ -73,7 +73,7 @@ async fn main raise {
       )
     }
     Some(separate_result) => {
-      let separate_expectation = Contains(["linked root C", "linked entries answer"])
+      let separate_expectation = Equals("42 : Int")
       if separate_result.code != 0 ||
         !matches_expectation(separate_result.output, separate_expectation) {
         failure_count += 1
@@ -258,6 +258,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   let b_object = b_artifacts + "/B.lmo"
   let c_interface = c_artifacts + "/C.lmi"
   let c_object = c_artifacts + "/C.lmo"
+  let linked_program = c_artifacts + "/program.lbp"
   let a_compile = run_moon_lane([
     "compile", a_path, "--emit-interface", a_interface, "--emit-object",
     a_object,
@@ -292,11 +293,13 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   if c_compile.code != 0 {
     return c_compile
   }
-  run_moon_lane([
-    "link", "--root", "C", "--interface", c_interface, "--interface",
-    b_interface, "--interface", a_interface, "--object", c_object, "--object",
-    b_object, "--object", a_object,
+  let link = run_moon_lane([
+    "link", "--output", linked_program, c_object, b_object, a_object,
   ])
+  if link.code != 0 {
+    return link
+  }
+  run_moon_lane(["runlinked", linked_program, "--entry", "C::answer"])
 }
 
 fn ensure_dir(path : String) -> Unit raise {

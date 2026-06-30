@@ -204,7 +204,7 @@ test "link modules produces Buslane program from reachable module objects" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  inspect(program.root_module_path_text, content="Main")
+  inspect(program.module_path_texts.join(","), content="Lib,Main")
   inspect(program.externals.builtins.length(), content="0")
   inspect(
     program.entries.map(fn(entry) { entry.name }).join(","),
@@ -283,13 +283,109 @@ test "module artifacts roundtrip through text and link" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
+  let linked_text = linked_program_artifact_to_text(
+    linked_program_artifact(program),
+  )
+  let linked_decoded = match parse_linked_program_artifact_text(linked_text) {
+    Ok(artifact) => artifact
+    Err(message) => abort(message)
+  }
+  let linked_program = match linked_program_from_artifact(linked_decoded) {
+    Ok(program) => program
+    Err(diagnostics) => abort(@prettyprinter.render(diagnostics, width=100))
+  }
   inspect(
-    program.entries.map(fn(entry) { entry.name }).join(","),
+    linked_program.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
+  )
+  let duplicated_entries = linked_decoded.entries.copy()
+  duplicated_entries.push(linked_decoded.entries[0])
+  let duplicate_entry_artifact : LinkedProgramArtifact = {
+    schema_version: linked_decoded.schema_version,
+    module_path_texts: linked_decoded.module_path_texts,
+    program: linked_decoded.program,
+    externals: linked_decoded.externals,
+    entries: duplicated_entries,
+  }
+  guard linked_program_from_artifact(duplicate_entry_artifact)
+    is Err(duplicate_entry_diagnostics) else {
+    abort("expected duplicate linked entry diagnostic")
+  }
+  inspect(
+    duplicate_entry_diagnostics
+    .map(fn(diagnostic) { diagnostic.message })
+    .join(","),
+    content="duplicate linked entry answer",
+  )
+  let unknown_entry_artifact : LinkedProgramArtifact = {
+    schema_version: linked_decoded.schema_version,
+    module_path_texts: linked_decoded.module_path_texts,
+    program: linked_decoded.program,
+    externals: linked_decoded.externals,
+    entries: [
+      {
+        name: "missing",
+        value: { index: 999 },
+        type_: linked_decoded.entries[0].type_,
+      },
+    ],
+  }
+  guard linked_program_from_artifact(unknown_entry_artifact)
+    is Err(unknown_entry_diagnostics) else {
+    abort("expected unknown linked entry diagnostic")
+  }
+  inspect(
+    unknown_entry_diagnostics
+    .map(fn(diagnostic) { diagnostic.message })
+    .join(","),
+    content="linked entry has unknown value missing",
+  )
+  let invalid_program_artifact : LinkedProgramArtifact = {
+    schema_version: linked_decoded.schema_version,
+    module_path_texts: linked_decoded.module_path_texts,
+    program: {
+      metadata: linked_decoded.program.metadata,
+      terms: [External({ index: 999 })],
+    },
+    externals: linked_decoded.externals,
+    entries: [],
+  }
+  guard linked_program_from_artifact(invalid_program_artifact)
+    is Err(invalid_program_diagnostics) else {
+    abort("expected invalid linked program diagnostic")
+  }
+  inspect(
+    invalid_program_diagnostics
+    .map(fn(diagnostic) { diagnostic.message })
+    .join(","),
+    content="invalid linked Buslane program",
   )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
     content="verify_result {}",
+  )
+}
+
+///|
+test "module object text rejects old schema one artifact" {
+  let parsed = parse_module_object_artifact_text(
+    (
+      #|lane-artifact-text-v1 object {
+      #|  schema_version: 1;
+      #|  module_path_text: "Old";
+      #|  buslane {
+      #|    metadata {
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
+  guard parsed is Err(message) else {
+    abort("expected old object schema failure")
+  }
+  inspect(
+    message,
+    content="unsupported module object artifact schema 1 for Old",
   )
 }
 
@@ -345,7 +441,7 @@ test "link module artifacts orders reachable modules by imports" {
 }
 
 ///|
-test "compile module with interface artifact then link with object artifact" {
+test "compile module with interface artifact then link object artifacts" {
   let lib_compiled = compile_modules(
     (
       #|module Lib
@@ -380,19 +476,17 @@ test "compile module with interface artifact then link with object artifact" {
     abort("expected Main module")
   }
   let main_artifact = compiled_module_artifact(main_module)
-  let linked = link_module_artifacts({
-    schema_version: 1,
-    root_module_path_text: "Main",
-    modules: [lib_artifact, main_artifact],
-    reachable_module_path_texts: ["Lib", "Main"],
-  })
+  let linked = link_module_object_artifacts([
+    lib_artifact.object,
+    main_artifact.object,
+  ])
   inspect(linked.diagnostics.length(), content="0")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
   inspect(
     program.entries.map(fn(entry) { entry.name }).join(","),
-    content="answer",
+    content="Lib::box,Main::answer",
   )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
@@ -751,6 +845,8 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
       let object : ModuleObjectArtifact = {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
+        interface: module_.object.interface,
+        interface_fingerprint: module_.object.interface_fingerprint,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
         externals: module_.object.externals,

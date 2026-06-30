@@ -24,12 +24,12 @@ async fn write_module_interface_artifact(
 ///|
 async fn write_module_object_artifact(
   path : String,
-  object : @compile.ModuleObject,
+  module_ : @compile.CompiledModule,
 ) -> Unit {
   write_source_file(
     path,
     @compile.module_object_artifact_to_text(
-      @compile.module_object_artifact(object),
+      @compile.module_object_artifact(module_),
     ),
   )
 }
@@ -57,31 +57,36 @@ async fn read_module_object_artifact(
 }
 
 ///|
-priv struct LinkArtifactInputs {
-  manifest : @compile.CompiledModuleSetManifestArtifact
-  interfaces : Array[@compile.ModuleInterfaceArtifact]
-  objects : Array[@compile.ModuleObjectArtifact]
+async fn write_linked_program_artifact(
+  path : String,
+  program : @compile.LinkedProgram,
+) -> Unit {
+  write_source_file(
+    path,
+    @compile.linked_program_artifact_to_text(
+      @compile.linked_program_artifact(program),
+    ),
+  )
 }
 
 ///|
-async fn read_link_artifact_inputs(
-  interface_paths : Array[String],
-  object_paths : Array[String],
-  root : String?,
-) -> Result[LinkArtifactInputs, String] {
-  let interfaces = []
-  let objects = []
-  for path in interface_paths {
-    let artifact = read_module_interface_artifact(path) catch {
-      error => return Err("failed to read module interface artifact: \{error}")
-    }
-    if find_interface_artifact(interfaces, artifact.module_path_text) is Some(_) {
-      return Err(
-        "duplicate module interface artifact " + artifact.module_path_text,
-      )
-    }
-    interfaces.push(artifact)
+async fn read_linked_program_artifact(path : String) -> @compile.LinkedProgram {
+  let source = read_source_file(path)
+  let artifact = match @compile.parse_linked_program_artifact_text(source) {
+    Ok(artifact) => artifact
+    Err(message) => fail(message)
   }
+  match @compile.linked_program_from_artifact(artifact) {
+    Ok(program) => program
+    Err(diagnostics) => fail(@prettyprinter.render(diagnostics, width=100))
+  }
+}
+
+///|
+async fn read_module_object_artifacts(
+  object_paths : Array[String],
+) -> Result[Array[@compile.ModuleObjectArtifact], String] {
+  let objects = []
   for path in object_paths {
     let artifact = read_module_object_artifact(path) catch {
       error => return Err("failed to read module object artifact: \{error}")
@@ -93,50 +98,7 @@ async fn read_link_artifact_inputs(
     }
     objects.push(artifact)
   }
-  let root_module_path_text = match root {
-    Some(root) => root
-    None =>
-      match objects.get(0) {
-        Some(object) => object.module_path_text
-        None => return Err("link requires --object")
-      }
-  }
-  let reachable_module_path_texts : Array[String] = []
-  let modules = objects.map(fn(object) {
-    if !reachable_module_path_texts.contains(object.module_path_text) {
-      reachable_module_path_texts.push(object.module_path_text)
-    }
-    @compile.ModuleArtifactManifestEntry::{
-      module_path_text: object.module_path_text,
-      interface_file: object.module_path_text + ".lmi",
-      object_file: object.module_path_text + ".lmo",
-      module_fingerprint: object.module_fingerprint,
-      imported_interface_fingerprints: object.imported_interface_fingerprints,
-    }
-  })
-  Ok({
-    manifest: {
-      schema_version: 1,
-      root_module_path_text,
-      modules,
-      reachable_module_path_texts,
-    },
-    interfaces,
-    objects,
-  })
-}
-
-///|
-fn find_interface_artifact(
-  interfaces : Array[@compile.ModuleInterfaceArtifact],
-  module_path_text : String,
-) -> @compile.ModuleInterfaceArtifact? {
-  for interface in interfaces {
-    if interface.module_path_text == module_path_text {
-      return Some(interface)
-    }
-  }
-  None
+  Ok(objects)
 }
 
 ///|

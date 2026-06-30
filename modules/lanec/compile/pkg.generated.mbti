@@ -35,21 +35,27 @@ pub fn compiled_module_artifact(CompiledModule) -> CompiledModuleArtifact
 
 pub fn compiled_module_set_artifact(CompiledModuleSet) -> CompiledModuleSetArtifact
 
-pub fn compiled_module_set_manifest_artifact(CompiledModuleSet) -> CompiledModuleSetManifestArtifact
-
-pub fn link_module_artifact_parts(CompiledModuleSetManifestArtifact, Array[ModuleInterfaceArtifact], Array[ModuleObjectArtifact]) -> LinkResult
-
 pub fn link_module_artifacts(CompiledModuleSetArtifact) -> LinkResult
 
+pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> LinkResult
+
 pub fn link_modules(CompiledModuleSet) -> LinkResult
+
+pub fn linked_program_artifact(LinkedProgram) -> LinkedProgramArtifact
+
+pub fn linked_program_artifact_to_text(LinkedProgramArtifact) -> String
+
+pub fn linked_program_from_artifact(LinkedProgramArtifact) -> Result[LinkedProgram, Array[CompileDiagnostic]]
 
 pub fn module_interface_artifact(CompiledModule) -> ModuleInterfaceArtifact
 
 pub fn module_interface_artifact_to_text(ModuleInterfaceArtifact) -> String
 
-pub fn module_object_artifact(ModuleObject) -> ModuleObjectArtifact
+pub fn module_object_artifact(CompiledModule) -> ModuleObjectArtifact
 
 pub fn module_object_artifact_to_text(ModuleObjectArtifact) -> String
+
+pub fn parse_linked_program_artifact_text(String) -> Result[LinkedProgramArtifact, String]
 
 pub fn parse_module_interface_artifact_text(String) -> Result[ModuleInterfaceArtifact, String]
 
@@ -147,13 +153,6 @@ pub(all) struct CompiledModuleSetArtifact {
   reachable_module_path_texts : Array[String]
 } derive(Eq, @debug.Debug)
 
-pub(all) struct CompiledModuleSetManifestArtifact {
-  schema_version : Int
-  root_module_path_text : String
-  modules : Array[ModuleArtifactManifestEntry]
-  reachable_module_path_texts : Array[String]
-} derive(Eq, @debug.Debug)
-
 pub(all) struct DefinitionEntry {
   symbol : AnalysisSymbol
   location : AnalysisLocation
@@ -177,18 +176,18 @@ pub(all) struct LinkResult {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkedProgram {
-  root_module_path_text : String
+  module_path_texts : Array[String]
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
 } derive(Eq, @debug.Debug)
 
-pub(all) struct ModuleArtifactManifestEntry {
-  module_path_text : String
-  interface_file : String
-  object_file : String
-  module_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+pub(all) struct LinkedProgramArtifact {
+  schema_version : Int
+  module_path_texts : Array[String]
+  program : @buslane.Program
+  externals : @elaborate.BuslaneExternalMap
+  entries : Array[@elaborate.BuslaneEntry]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleImportedReference {
@@ -226,6 +225,8 @@ pub(all) struct ModuleObject {
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
+  interface : @module_interface.ModuleInterface
+  interface_fingerprint : CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @elaborate.BuslaneExternalMap

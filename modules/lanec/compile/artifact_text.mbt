@@ -72,6 +72,37 @@ pub fn parse_module_object_artifact_text(
 }
 
 ///|
+pub fn linked_program_artifact_to_text(
+  artifact : LinkedProgramArtifact,
+) -> String {
+  let lines = ["lane-artifact-text-v1 program {"]
+  write_linked_program_artifact(lines, artifact)
+  lines.push("}")
+  lines.join("\n") + "\n"
+}
+
+///|
+pub fn parse_linked_program_artifact_text(
+  text : String,
+) -> Result[LinkedProgramArtifact, String] {
+  try {
+    let document = match @artifact_parser.parse_text(text) {
+      Ok(document) => document
+      Err(message) => return Err(message)
+    }
+    if document.kind != "program" {
+      return Err("expected program artifact, got " + document.kind)
+    }
+    let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
+    let artifact = reader.read_linked_program_artifact()
+    reader.expect_end()
+    Ok(artifact)
+  } catch {
+    ArtifactTextError(message) => Err(message)
+  }
+}
+
+///|
 fn[T] fail(message : String) -> T raise ArtifactTextError {
   raise ArtifactTextError(message)
 }
@@ -296,6 +327,12 @@ fn write_module_object_artifact(
 ) -> Unit {
   write_int(lines, "schema_version", artifact.schema_version)
   write_string(lines, "module_path_text", artifact.module_path_text)
+  write_module_interface(lines, artifact.interface)
+  write_compilation_fingerprint(
+    lines,
+    "interface_fingerprint",
+    artifact.interface_fingerprint,
+  )
   write_buslane_program_block(lines, {
     metadata: artifact.metadata,
     terms: artifact.terms,
@@ -321,6 +358,18 @@ fn ArtifactTextReader::read_module_object_artifact(
 ) -> ModuleObjectArtifact raise ArtifactTextError {
   let schema_version = self.expect_int("schema_version")
   let module_path_text = self.expect_string("module_path_text")
+  if schema_version != module_object_artifact_schema_version {
+    fail(
+      "unsupported module object artifact schema " +
+      schema_version.to_string() +
+      " for " +
+      module_path_text,
+    )
+  }
+  let interface = self.read_module_interface()
+  let interface_fingerprint = self.read_compilation_fingerprint(
+    "interface_fingerprint",
+  )
   let program = self.read_buslane_program_block()
   let metadata = program.metadata
   let terms = program.terms
@@ -335,6 +384,8 @@ fn ArtifactTextReader::read_module_object_artifact(
   {
     schema_version,
     module_path_text,
+    interface,
+    interface_fingerprint,
     metadata,
     terms,
     externals,
@@ -344,6 +395,36 @@ fn ArtifactTextReader::read_module_object_artifact(
     module_fingerprint,
     imported_interface_fingerprints,
   }
+}
+
+///|
+fn write_linked_program_artifact(
+  lines : Array[String],
+  artifact : LinkedProgramArtifact,
+) -> Unit {
+  write_int(lines, "schema_version", artifact.schema_version)
+  write_int(lines, "module_path_texts", artifact.module_path_texts.length())
+  for module_path_text in artifact.module_path_texts {
+    write_string(lines, "module_path_text", module_path_text)
+  }
+  write_buslane_program_block(lines, artifact.program)
+  write_externals(lines, artifact.externals)
+  write_entries(lines, artifact.entries)
+}
+
+///|
+fn ArtifactTextReader::read_linked_program_artifact(
+  self : ArtifactTextReader,
+) -> LinkedProgramArtifact raise ArtifactTextError {
+  let schema_version = self.expect_int("schema_version")
+  let module_path_texts = []
+  for _ in 0..<self.expect_int("module_path_texts") {
+    module_path_texts.push(self.expect_string("module_path_text"))
+  }
+  let program = self.read_buslane_program_block()
+  let externals = self.read_externals()
+  let entries = self.read_entries()
+  { schema_version, module_path_texts, program, externals, entries }
 }
 
 ///|

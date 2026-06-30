@@ -52,7 +52,7 @@ pub(all) struct CompiledModuleSet {
 
 ///|
 pub(all) struct LinkedProgram {
-  root_module_path_text : String
+  module_path_texts : Array[String]
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
@@ -126,6 +126,12 @@ priv struct LinkedModuleExport {
 priv struct OrderedCompiledModulesResult {
   modules : Array[CompiledModule]
   diagnostics : Array[CompileDiagnostic]
+}
+
+///|
+priv enum LinkedEntryMode {
+  RootEntries(String)
+  QualifiedEntries
 }
 
 ///|
@@ -537,36 +543,71 @@ fn compile_one_module(
 fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
   match linked_module_objects(modules) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(objects) => {
-      if find_module_object(objects, modules.root_module_path_text) is None {
-        return {
-          program: None,
-          diagnostics: [make_error("no root source module", span=None)],
+    Ok(objects) =>
+      link_ordered_module_objects(
+        objects,
+        RootEntries(modules.root_module_path_text),
+      )
+  }
+}
+
+///|
+fn link_compiled_modules(modules : Array[CompiledModule]) -> LinkResult {
+  match linked_all_module_objects(modules) {
+    Err(diagnostics) => { program: None, diagnostics }
+    Ok(objects) => link_ordered_module_objects(objects, QualifiedEntries)
+  }
+}
+
+///|
+fn link_ordered_module_objects(
+  objects : Array[ModuleObject],
+  entry_mode : LinkedEntryMode,
+) -> LinkResult {
+  let remapper = BuslaneLinker::BuslaneLinker()
+  let remapped_objects = remapper.remap_module_objects(objects)
+  let module_path_texts = []
+  let terms = []
+  let builtins = []
+  let entries : Array[@elaborate.BuslaneEntry] = []
+  for object in remapped_objects {
+    module_path_texts.push(object.module_path_text)
+    terms.append(object.terms)
+    builtins.append(object.externals.builtins)
+    match entry_mode {
+      RootEntries(root) =>
+        if object.module_path_text == root {
+          entries.append(object.entries)
         }
-      }
-      let remapper = BuslaneLinker::BuslaneLinker()
-      let remapped_objects = remapper.remap_module_objects(objects)
-      let terms = []
-      let builtins = []
-      let mut entries : Array[@elaborate.BuslaneEntry] = []
-      for object in remapped_objects {
-        terms.append(object.terms)
-        builtins.append(object.externals.builtins)
-        if object.module_path_text == modules.root_module_path_text {
-          entries = object.entries
-        }
-      }
-      {
-        program: Some({
-          root_module_path_text: modules.root_module_path_text,
-          program: { metadata: remapper.metadata, terms },
-          externals: { builtins, },
-          entries,
-        }),
-        diagnostics: [],
-      }
+      QualifiedEntries =>
+        entries.append(
+          qualified_entries(object.module_path_text, object.entries),
+        )
     }
   }
+  {
+    program: Some({
+      module_path_texts,
+      program: { metadata: remapper.metadata, terms },
+      externals: { builtins, },
+      entries,
+    }),
+    diagnostics: [],
+  }
+}
+
+///|
+fn qualified_entries(
+  module_path_text : String,
+  entries : Array[@elaborate.BuslaneEntry],
+) -> Array[@elaborate.BuslaneEntry] {
+  entries.map(fn(entry) {
+    {
+      name: module_path_text + "::" + entry.name,
+      value: entry.value,
+      type_: entry.type_,
+    }
+  })
 }
 
 ///|
@@ -677,6 +718,30 @@ fn linked_module_objects(
 }
 
 ///|
+fn linked_all_module_objects(
+  modules : Array[CompiledModule],
+) -> Result[Array[ModuleObject], Array[CompileDiagnostic]] {
+  let module_diagnostics = validate_compiled_modules(modules)
+  if !module_diagnostics.is_empty() {
+    return Err(module_diagnostics)
+  }
+  let ordered = all_compiled_modules(modules)
+  if !ordered.diagnostics.is_empty() {
+    return Err(ordered.diagnostics)
+  }
+  let objects = []
+  for module_ in ordered.modules {
+    let object = module_.object
+    let diagnostics = validate_link_object(modules, module_, object)
+    if !diagnostics.is_empty() {
+      return Err(diagnostics)
+    }
+    objects.push(object)
+  }
+  Ok(objects)
+}
+
+///|
 fn validate_compiled_modules(
   modules : Array[CompiledModule],
 ) -> Array[CompileDiagnostic] {
@@ -695,6 +760,27 @@ fn validate_compiled_modules(
     }
   }
   diagnostics
+}
+
+///|
+fn all_compiled_modules(
+  modules : Array[CompiledModule],
+) -> OrderedCompiledModulesResult {
+  let ordered = []
+  let visiting : Array[String] = []
+  let visited : Array[String] = []
+  let diagnostics = []
+  for module_ in modules {
+    visit_compiled_module(
+      modules,
+      module_.module_path_text,
+      visiting,
+      visited,
+      ordered,
+      diagnostics,
+    )
+  }
+  { modules: ordered, diagnostics }
 }
 
 ///|
@@ -1045,19 +1131,6 @@ fn BuslaneLinker::remap_data_constructor_id(
     target,
   })
   target
-}
-
-///|
-fn find_module_object(
-  objects : Array[ModuleObject],
-  path : String,
-) -> ModuleObject? {
-  for object in objects {
-    if object.module_path_text == path {
-      return Some(object)
-    }
-  }
-  None
 }
 
 ///|
