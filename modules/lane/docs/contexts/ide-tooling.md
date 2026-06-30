@@ -97,6 +97,28 @@ Post-v1 editor features such as completion, hover, go-to-definition,
 find-references, and document symbols.
 _Avoid_: diagnostics, compiler checking
 
+**Editor Inlay Hint**:
+An inline editor annotation produced by the Lane LSP Server from compiler
+analysis without changing source text.
+_Avoid_: formatter output, diagnostic, syntax highlight
+
+**Type Inlay Hint**:
+An Editor Inlay Hint that shows an inferred value or binder type when the source
+does not already carry an explicit type annotation.
+_Avoid_: hover type, required source annotation
+
+**Parameter Name Hint**:
+An Editor Inlay Hint that shows the callee parameter name at a call argument
+with `name=` label text. Constructor call arguments use the same hint rule as
+ordinary function call arguments.
+_Avoid_: argument label syntax, named argument
+
+**Implicit Argument Hint**:
+An Editor Inlay Hint that shows an automatically supplied contextual argument
+selected through Lane's `auto` parameter and `offer` value mechanism, using
+`name=offer` label text.
+_Avoid_: default argument, hidden import
+
 **Desktop Native LSP**:
 The v1 deployment model where the Lane VS Code Extension runs on VS Code
 Desktop and launches `lane lsp`.
@@ -123,6 +145,15 @@ _Avoid_: VS Code Web extension, WASM language server
   framing and keeps Lane-specific method dispatch in the Lane LSP Server.
 - **Editor Intelligence** is a later feature layer built on compiler-analysis
   artifacts and stable editor document state.
+- **Editor Inlay Hints** include **Type Inlay Hints**, **Parameter Name Hints**,
+  and **Implicit Argument Hints**.
+- **Editor Inlay Hints** are derived from target-independent compiler-analysis
+  entries; the Lane LSP Server only converts them into LSP responses.
+- The Lane LSP Server produces all supported **Editor Inlay Hints** by default;
+  editor clients and user settings decide whether to render them.
+- Source-form operator calls do not produce **Parameter Name Hints**, but may
+  still produce **Implicit Argument Hints** for auto arguments supplied through
+  contextual resolution.
 - **Document Snapshots** are passed to `lanec` as in-memory source text and
   override matching on-disk **Workspace Library Sources**.
 - v1 **Document Snapshots** are maintained through **Full Document Sync**.

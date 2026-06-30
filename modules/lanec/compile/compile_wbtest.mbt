@@ -1854,6 +1854,34 @@ test "analysis keeps partial definitions when unrelated diagnostics exist" {
 }
 
 ///|
+test "analysis produces type inlay hints for inferred binders" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub fn answer(seed : Int) -> Int {
+        #|  let local = seed
+        #|  match local {
+        #|    value => value
+        #|  }
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(result.inlay_hints.length(), content="2")
+  inspect(result.inlay_hints[0].label, content=": Int")
+  inspect(result.inlay_hints[0].location.span.start_line, content="4")
+  inspect(result.inlay_hints[0].location.span.start_column, content="7")
+  inspect(result.inlay_hints[1].label, content=": Int")
+  inspect(result.inlay_hints[1].location.span.start_line, content="6")
+  inspect(result.inlay_hints[1].location.span.start_column, content="5")
+}
+
+///|
 fn find_artifact_module(
   modules : Array[CompiledModuleArtifact],
   module_path_text : String,

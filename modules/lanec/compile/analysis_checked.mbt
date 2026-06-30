@@ -6,10 +6,13 @@ fn collect_checked_source_analysis(
   definitions : Array[DefinitionEntry],
   references : Array[ReferenceEntry],
   hovers : Array[HoverEntry],
+  inlay_hints : Array[InlayHintEntry],
+  annotated_values : Array[@symbol.ValueSymbolId],
 ) -> Unit {
   for declaration in source.declarations {
     collect_checked_top_level_declaration(
-      source_id, source_text, declaration, definitions, references, hovers,
+      source_id, source_text, declaration, definitions, references, hovers, inlay_hints,
+      annotated_values,
     )
   }
 }
@@ -22,6 +25,8 @@ fn collect_checked_top_level_declaration(
   definitions : Array[DefinitionEntry],
   references : Array[ReferenceEntry],
   hovers : Array[HoverEntry],
+  inlay_hints : Array[InlayHintEntry],
+  annotated_values : Array[@symbol.ValueSymbolId],
 ) -> Unit {
   match declaration {
     Struct(declaration) => {
@@ -135,20 +140,32 @@ fn collect_checked_top_level_declaration(
         definitions,
         references,
         hovers,
+        inlay_hints,
+        annotated_values,
       )
     }
     Let(declaration) => {
       match declaration.name {
-        Some(name) =>
+        Some(name) => {
+          let name_loc = name_span(source_text, name, declaration.loc)
           add_definition(
             definitions,
             hovers,
             source_id,
             Value(declaration.symbol),
-            name_span(source_text, name, declaration.loc),
+            name_loc,
             name,
             name + " : " + type_text(declaration.type_),
           )
+          if !annotated_values.contains(declaration.symbol) {
+            add_type_inlay_hint(
+              inlay_hints,
+              source_id,
+              name_loc,
+              declaration.type_,
+            )
+          }
+        }
         None => ()
       }
       collect_checked_expr(
@@ -158,6 +175,8 @@ fn collect_checked_top_level_declaration(
         definitions,
         references,
         hovers,
+        inlay_hints,
+        annotated_values,
       )
     }
   }
@@ -171,20 +190,32 @@ fn collect_checked_local_item(
   definitions : Array[DefinitionEntry],
   references : Array[ReferenceEntry],
   hovers : Array[HoverEntry],
+  inlay_hints : Array[InlayHintEntry],
+  annotated_values : Array[@symbol.ValueSymbolId],
 ) -> Unit {
   match item {
     Let(declaration) => {
       match declaration.name {
-        Some(name) =>
+        Some(name) => {
+          let name_loc = name_span(source_text, name, declaration.loc)
           add_definition(
             definitions,
             hovers,
             source_id,
             Value(declaration.symbol),
-            name_span(source_text, name, declaration.loc),
+            name_loc,
             name,
             name + " : " + type_text(declaration.type_),
           )
+          if !annotated_values.contains(declaration.symbol) {
+            add_type_inlay_hint(
+              inlay_hints,
+              source_id,
+              name_loc,
+              declaration.type_,
+            )
+          }
+        }
         None => ()
       }
       collect_checked_expr(
@@ -194,6 +225,8 @@ fn collect_checked_local_item(
         definitions,
         references,
         hovers,
+        inlay_hints,
+        annotated_values,
       )
     }
     PatternLet(declaration) => {
@@ -204,6 +237,8 @@ fn collect_checked_local_item(
         definitions,
         references,
         hovers,
+        inlay_hints,
+        annotated_values,
       )
       collect_checked_pattern(
         source_id,
@@ -212,6 +247,8 @@ fn collect_checked_local_item(
         definitions,
         references,
         hovers,
+        inlay_hints,
+        annotated_values,
       )
     }
     Function(declaration) =>
@@ -222,6 +259,8 @@ fn collect_checked_local_item(
         definitions,
         references,
         hovers,
+        inlay_hints,
+        annotated_values,
       )
   }
 }
@@ -234,6 +273,8 @@ fn collect_checked_expr(
   definitions : Array[DefinitionEntry],
   references : Array[ReferenceEntry],
   hovers : Array[HoverEntry],
+  inlay_hints : Array[InlayHintEntry],
+  annotated_values : Array[@symbol.ValueSymbolId],
 ) -> Unit {
   match expr {
     Literal(..) | UnsafeBuiltin(..) => ()
@@ -248,48 +289,60 @@ fn collect_checked_expr(
       )
     FunctionLiteral(parameters~, body~, ..) => {
       for parameter in parameters {
+        let name_loc = name_span(source_text, parameter.name, parameter.loc)
         add_definition(
           definitions,
           hovers,
           source_id,
           Value(parameter.symbol),
-          name_span(source_text, parameter.name, parameter.loc),
+          name_loc,
           parameter.name,
           parameter.name + " : " + type_text(parameter.type_),
         )
+        if !annotated_values.contains(parameter.symbol) {
+          add_type_inlay_hint(inlay_hints, source_id, name_loc, parameter.type_)
+        }
       }
       collect_checked_expr(
-        source_id, source_text, body, definitions, references, hovers,
+        source_id, source_text, body, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
     }
     TypeApplication(callee~, ..) =>
       collect_checked_expr(
-        source_id, source_text, callee, definitions, references, hovers,
+        source_id, source_text, callee, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
     Block(items~, result~, ..) => {
       for item in items {
         collect_checked_local_item(
-          source_id, source_text, item, definitions, references, hovers,
+          source_id, source_text, item, definitions, references, hovers, inlay_hints,
+          annotated_values,
         )
       }
       collect_checked_expr(
-        source_id, source_text, result, definitions, references, hovers,
+        source_id, source_text, result, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
     }
     If(condition~, then_branch~, else_branch~, ..) => {
       collect_checked_expr(
-        source_id, source_text, condition, definitions, references, hovers,
+        source_id, source_text, condition, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
       collect_checked_expr(
-        source_id, source_text, then_branch, definitions, references, hovers,
+        source_id, source_text, then_branch, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
       collect_checked_expr(
-        source_id, source_text, else_branch, definitions, references, hovers,
+        source_id, source_text, else_branch, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
     }
     Match(scrutinee~, arms~, ..) => {
       collect_checked_expr(
-        source_id, source_text, scrutinee, definitions, references, hovers,
+        source_id, source_text, scrutinee, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
       for arm in arms {
         collect_checked_pattern(
@@ -299,6 +352,8 @@ fn collect_checked_expr(
           definitions,
           references,
           hovers,
+          inlay_hints,
+          annotated_values,
         )
         collect_checked_expr(
           source_id,
@@ -307,22 +362,27 @@ fn collect_checked_expr(
           definitions,
           references,
           hovers,
+          inlay_hints,
+          annotated_values,
         )
       }
     }
     Call(callee~, arguments~, ..) => {
       collect_checked_expr(
-        source_id, source_text, callee, definitions, references, hovers,
+        source_id, source_text, callee, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
       for argument in arguments {
         collect_checked_expr(
-          source_id, source_text, argument, definitions, references, hovers,
+          source_id, source_text, argument, definitions, references, hovers, inlay_hints,
+          annotated_values,
         )
       }
     }
     Field(base~, field~, name~, type_~, loc~) => {
       collect_checked_expr(
-        source_id, source_text, base, definitions, references, hovers,
+        source_id, source_text, base, definitions, references, hovers, inlay_hints,
+        annotated_values,
       )
       add_reference(
         references,
@@ -374,6 +434,8 @@ fn collect_checked_expr(
           definitions,
           references,
           hovers,
+          inlay_hints,
+          annotated_values,
         )
       }
     }
@@ -392,7 +454,8 @@ fn collect_checked_expr(
       )
       for argument in arguments {
         collect_checked_expr(
-          source_id, source_text, argument, definitions, references, hovers,
+          source_id, source_text, argument, definitions, references, hovers, inlay_hints,
+          annotated_values,
         )
       }
     }
@@ -407,10 +470,12 @@ fn collect_checked_pattern(
   definitions : Array[DefinitionEntry],
   references : Array[ReferenceEntry],
   hovers : Array[HoverEntry],
+  inlay_hints : Array[InlayHintEntry],
+  annotated_values : Array[@symbol.ValueSymbolId],
 ) -> Unit {
   match pattern {
     Wildcard(..) | Literal(..) => ()
-    Binding(name~, symbol~, type_~, loc~) =>
+    Binding(name~, symbol~, type_~, loc~) => {
       add_definition(
         definitions,
         hovers,
@@ -420,6 +485,10 @@ fn collect_checked_pattern(
         name,
         name + " : " + type_text(type_),
       )
+      if !annotated_values.contains(symbol) {
+        add_type_inlay_hint(inlay_hints, source_id, loc, type_)
+      }
+    }
     Variant(symbol~, arguments~, loc~, ..) => {
       add_reference(
         references,
@@ -436,7 +505,8 @@ fn collect_checked_pattern(
       )
       for argument in arguments {
         collect_checked_pattern(
-          source_id, source_text, argument, definitions, references, hovers,
+          source_id, source_text, argument, definitions, references, hovers, inlay_hints,
+          annotated_values,
         )
       }
     }
@@ -486,6 +556,8 @@ fn collect_checked_pattern(
           definitions,
           references,
           hovers,
+          inlay_hints,
+          annotated_values,
         )
       }
     }

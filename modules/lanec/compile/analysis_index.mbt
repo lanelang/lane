@@ -30,6 +30,23 @@ pub fn AnalysisResult::hover_at(
 }
 
 ///|
+pub fn AnalysisResult::inlay_hints_in_range(
+  self : AnalysisResult,
+  source_id : String,
+  start_line : Int,
+  start_column : Int,
+  end_line : Int,
+  end_column : Int,
+) -> Array[InlayHintEntry] {
+  self.inlay_hints.filter(fn(hint) {
+    hint.location.source_id == source_id &&
+    hint.location.span.overlaps_range(
+      start_line, start_column, end_line, end_column,
+    )
+  })
+}
+
+///|
 fn AnalysisResult::reference_at(
   self : AnalysisResult,
   source_id : String,
@@ -120,6 +137,21 @@ fn @basic.SourceSpan::contains_position(
     (line == self.start_line && column >= self.start_column)
   ) &&
   (line < self.end_line || (line == self.end_line && column < self.end_column))
+}
+
+///|
+fn @basic.SourceSpan::overlaps_range(
+  self : @basic.SourceSpan,
+  start_line : Int,
+  start_column : Int,
+  end_line : Int,
+  end_column : Int,
+) -> Bool {
+  let starts_before_range_end = self.start_line < end_line ||
+    (self.start_line == end_line && self.start_column < end_column)
+  let ends_after_range_start = self.end_line > start_line ||
+    (self.end_line == start_line && self.end_column > start_column)
+  starts_before_range_end && ends_after_range_start
 }
 
 ///|
@@ -236,6 +268,33 @@ fn line_start_offset(lines : Array[StringView], line : Int) -> Int {
     }
   }
   offset
+}
+
+///|
+fn add_inlay_hint(
+  inlay_hints : Array[InlayHintEntry],
+  source_id : String,
+  kind : InlayHintKind,
+  span : @basic.SourceSpan,
+  label : String,
+) -> Unit {
+  inlay_hints.push({ location: location(source_id, span), kind, label })
+}
+
+///|
+fn add_type_inlay_hint(
+  inlay_hints : Array[InlayHintEntry],
+  source_id : String,
+  span : @basic.SourceSpan,
+  type_ : @types.Type,
+) -> Unit {
+  add_inlay_hint(
+    inlay_hints,
+    source_id,
+    TypeHint,
+    span,
+    ": " + type_text(type_),
+  )
 }
 
 ///|

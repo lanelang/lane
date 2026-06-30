@@ -48,12 +48,27 @@ pub(all) struct SemanticTokenEntry {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum InlayHintKind {
+  TypeHint
+  ParameterHint
+  ImplicitArgumentHint
+} derive(Debug, Eq)
+
+///|
+pub(all) struct InlayHintEntry {
+  location : AnalysisLocation
+  kind : InlayHintKind
+  label : String
+} derive(Debug, Eq)
+
+///|
 pub(all) struct AnalysisResult {
   diagnostics : Array[CompileDiagnostic]
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
   semantic_tokens : Array[SemanticTokenEntry]
+  inlay_hints : Array[InlayHintEntry]
 } derive(Debug, Eq)
 
 ///|
@@ -84,6 +99,7 @@ pub fn analyze_source_inputs(
         references: [],
         hovers: [],
         semantic_tokens: [],
+        inlay_hints: [],
       }
     Ok(inputs) =>
       match build_module_graph(inputs) {
@@ -94,6 +110,7 @@ pub fn analyze_source_inputs(
             references: [],
             hovers: [],
             semantic_tokens: [],
+            inlay_hints: [],
           }
         Ok(graph) => analyze_module_graph(graph)
       }
@@ -108,6 +125,7 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
   let definitions = []
   let references = []
   let hovers = []
+  let inlay_hints = []
   for input in graph.modules {
     let imported = imported_interfaces(input.header, modules)
     let resolved = @resolve.resolve_source_file_with_imports_result(
@@ -129,6 +147,7 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
     match checked {
       Some(checked) => {
         diagnostics.append(checked.diagnostics.map(typecheck_diagnostic))
+        let annotated_values = annotated_value_symbols(resolved.source)
         match (checked.source, checked.module_interface) {
           (Some(source), Some(interface)) if checked.diagnostics.is_empty() => {
             let imported_fingerprints = imported_environment_fingerprints(
@@ -163,6 +182,8 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
               definitions,
               references,
               hovers,
+              inlay_hints,
+              annotated_values,
             )
             collect_resolved_type_references(
               input.source_id,
@@ -195,7 +216,7 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
     }
   }
   let semantic_tokens = build_semantic_tokens(definitions, references, registry)
-  { diagnostics, definitions, references, hovers, semantic_tokens }
+  { diagnostics, definitions, references, hovers, semantic_tokens, inlay_hints }
 }
 
 ///|

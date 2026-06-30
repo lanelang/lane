@@ -63,9 +63,11 @@ pub(all) struct AnalysisResult {
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
   semantic_tokens : Array[SemanticTokenEntry]
+  inlay_hints : Array[InlayHintEntry]
 } derive(Eq, @debug.Debug)
 pub fn AnalysisResult::definition_at(Self, String, Int, Int) -> AnalysisLocation?
 pub fn AnalysisResult::hover_at(Self, String, Int, Int) -> HoverEntry?
+pub fn AnalysisResult::inlay_hints_in_range(Self, String, Int, Int, Int, Int) -> Array[InlayHintEntry]
 
 pub(all) enum AnalysisSymbol {
   Value(@symbol.ValueSymbolId)
@@ -175,6 +177,18 @@ pub(all) struct HoverEntry {
 pub(all) struct ImportedInterfaceFingerprint {
   module_path_text : String
   fingerprint : CompilationFingerprint
+} derive(Eq, @debug.Debug)
+
+pub(all) struct InlayHintEntry {
+  location : AnalysisLocation
+  kind : InlayHintKind
+  label : String
+} derive(Eq, @debug.Debug)
+
+pub(all) enum InlayHintKind {
+  TypeHint
+  ParameterHint
+  ImplicitArgumentHint
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkResult {

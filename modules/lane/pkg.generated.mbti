@@ -18,9 +18,13 @@ type LaneCommand
 
 type LaneCommandOutcome
 
+type LspPosition derive(Eq, @debug.Debug)
+
 type ServerState
 
 type TextDocumentPositionParams derive(Eq, @debug.Debug)
+
+type TextDocumentRangeParams derive(Eq, @debug.Debug)
 
 // Type aliases
 

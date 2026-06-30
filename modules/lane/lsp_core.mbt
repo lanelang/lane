@@ -67,6 +67,7 @@ async fn ServerState::handle_request(
     "textDocument/didClose" => self.handle_did_close(request)
     "textDocument/definition" => self.handle_definition(request)
     "textDocument/hover" => self.handle_hover(request)
+    "textDocument/inlayHint" => self.handle_inlay_hint(request)
     method_name => self.method_not_found(request, method_name)
   }
 }
@@ -87,6 +88,7 @@ fn initialize_result() -> Json {
       "textDocumentSync": int_json(1),
       "definitionProvider": Json::boolean(true),
       "hoverProvider": Json::boolean(true),
+      "inlayHintProvider": Json::boolean(true),
     }),
     "serverInfo": Json::object({
       "name": Json::string(server_name),
@@ -198,6 +200,31 @@ async fn ServerState::handle_hover(
 }
 
 ///|
+async fn ServerState::handle_inlay_hint(
+  self : ServerState,
+  request : @jsonrpc.Request,
+) -> HandlerResult {
+  guard text_document_range_params(request.params) is Some(params) else {
+    return respond(
+      request,
+      Err(invalid_params(invalid_range_params("textDocument/inlayHint"))),
+    )
+  }
+  guard self.document_for_uri(params.uri) is Some(document) else {
+    return respond(request, Ok(Json::array([])))
+  }
+  let analysis = self.analyze(document)
+  let hints = analysis.inlay_hints_in_range(
+    params.uri,
+    params.start.line + 1,
+    params.start.character + 1,
+    params.end.line + 1,
+    params.end.character + 1,
+  )
+  respond(request, Ok(Json::array(hints.map(inlay_hint_json))))
+}
+
+///|
 fn ServerState::document_for_uri(
   self : ServerState,
   uri : String,
@@ -245,8 +272,13 @@ fn invalid_position_params(method_name : String) -> String {
 }
 
 ///|
+fn invalid_range_params(method_name : String) -> String {
+  "invalid \{method_name} params: expected `textDocument.uri`, `range.start.line`, `range.start.character`, `range.end.line`, and `range.end.character`; this is an LSP client request shape error, not a Lane source error"
+}
+
+///|
 fn method_not_found_message(method_name : String) -> String {
-  "method not found: \{method_name}; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, and textDocument/hover"
+  "method not found: \{method_name}; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, and textDocument/inlayHint"
 }
 
 ///|
@@ -541,6 +573,26 @@ fn hover_json(hover : @compile.HoverEntry) -> Json {
     }),
     "range": range_json(hover.location.span),
   })
+}
+
+///|
+fn inlay_hint_json(hint : @compile.InlayHintEntry) -> Json {
+  Json::object({
+    "position": position_json(
+      hint.location.span.end_line,
+      hint.location.span.end_column,
+    ),
+    "label": Json::string(hint.label),
+    "kind": inlay_hint_kind_json(hint.kind),
+  })
+}
+
+///|
+fn inlay_hint_kind_json(kind : @compile.InlayHintKind) -> Json {
+  match kind {
+    TypeHint => int_json(1)
+    ParameterHint | ImplicitArgumentHint => int_json(2)
+  }
 }
 
 ///|

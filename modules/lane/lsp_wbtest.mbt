@@ -27,6 +27,29 @@ fn position_params(uri : String, line : Int, character : Int) -> Json {
 }
 
 ///|
+fn range_params(
+  uri : String,
+  start_line : Int,
+  start_character : Int,
+  end_line : Int,
+  end_character : Int,
+) -> Json {
+  Json::object({
+    "textDocument": Json::object({ "uri": Json::string(uri) }),
+    "range": Json::object({
+      "start": Json::object({
+        "line": int_json(start_line),
+        "character": int_json(start_character),
+      }),
+      "end": Json::object({
+        "line": int_json(end_line),
+        "character": int_json(end_character),
+      }),
+    }),
+  })
+}
+
+///|
 async test "initialize returns full document sync capability" {
   let state = ServerState::ServerState()
   let result = state.handle_message(request(1, "initialize", Json::null()))
@@ -39,6 +62,7 @@ async test "initialize returns full document sync capability" {
           "textDocumentSync": 1,
           "definitionProvider": true,
           "hoverProvider": true,
+          "inlayHintProvider": true,
         },
         "serverInfo": { "name": "lane", "version": "0.1.0" },
       },
@@ -75,6 +99,57 @@ async test "hover reports invalid params as an LSP request shape error" {
         "code": -32602,
         "message": "invalid textDocument/hover params: expected `textDocument.uri`, `position.line`, and `position.character`; this is an LSP client request shape error, not a Lane source error",
       },
+    },
+  ])
+}
+
+///|
+async test "inlay hint returns inferred binder type hints" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub fn answer(seed : Int) -> Int {
+            #|  let local = seed
+            #|  match local {
+            #|    value => value
+            #|  }
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/inlayHint",
+      range_params("file:///Main.lane", 0, 0, 8, 0),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": [
+        {
+          "position": { "line": 3, "character": 11 },
+          "label": ": Int",
+          "kind": 1,
+        },
+        {
+          "position": { "line": 5, "character": 9 },
+          "label": ": Int",
+          "kind": 1,
+        },
+      ],
     },
   ])
 }
@@ -122,7 +197,7 @@ async test "semantic tokens full is not provided by lane lsp" {
       "id": 2,
       "error": {
         "code": -32601,
-        "message": "method not found: textDocument/semanticTokens/full; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, and textDocument/hover",
+        "message": "method not found: textDocument/semanticTokens/full; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, and textDocument/inlayHint",
       },
     },
   ])

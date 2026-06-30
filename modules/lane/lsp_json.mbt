@@ -78,16 +78,51 @@ struct TextDocumentPositionParams {
 } derive(Debug, Eq)
 
 ///|
+struct LspPosition {
+  line : Int
+  character : Int
+} derive(Debug, Eq)
+
+///|
+struct TextDocumentRangeParams {
+  uri : String
+  start : LspPosition
+  end : LspPosition
+} derive(Debug, Eq)
+
+///|
 fn text_document_position_params(params : Json) -> TextDocumentPositionParams? {
   guard json_field(params, "textDocument") is Some(text_document) else {
     return None
   }
-  guard json_field(params, "position") is Some(position) else { return None }
-  let uri = json_string_field(text_document, "uri")
-  let line = json_int_field(position, "line")
-  let character = json_int_field(position, "character")
-  guard uri is Some(uri) && line is Some(line) && character is Some(character) else {
+  guard json_position_field(params, "position") is Some(position) else {
     return None
   }
-  Some({ uri, line, character })
+  let uri = json_string_field(text_document, "uri")
+  guard uri is Some(uri) else { return None }
+  Some({ uri, line: position.line, character: position.character })
+}
+
+///|
+fn text_document_range_params(params : Json) -> TextDocumentRangeParams? {
+  guard json_field(params, "textDocument") is Some(text_document) else {
+    return None
+  }
+  guard json_field(params, "range") is Some(range) else { return None }
+  let uri = json_string_field(text_document, "uri")
+  let start = json_position_field(range, "start")
+  let end = json_position_field(range, "end")
+  guard uri is Some(uri) && start is Some(start) && end is Some(end) else {
+    return None
+  }
+  Some({ uri, start, end })
+}
+
+///|
+fn json_position_field(json : Json, name : String) -> LspPosition? {
+  guard json_field(json, name) is Some(position) else { return None }
+  let line = json_int_field(position, "line")
+  let character = json_int_field(position, "character")
+  guard line is Some(line) && character is Some(character) else { return None }
+  Some({ line, character })
 }
