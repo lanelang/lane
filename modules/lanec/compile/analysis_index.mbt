@@ -298,6 +298,16 @@ fn add_type_inlay_hint(
 }
 
 ///|
+fn add_parameter_inlay_hint(
+  inlay_hints : Array[InlayHintEntry],
+  source_id : String,
+  span : @basic.SourceSpan,
+  name : String,
+) -> Unit {
+  add_inlay_hint(inlay_hints, source_id, ParameterHint, span, name + "=")
+}
+
+///|
 fn add_definition(
   definitions : Array[DefinitionEntry],
   hovers : Array[HoverEntry],

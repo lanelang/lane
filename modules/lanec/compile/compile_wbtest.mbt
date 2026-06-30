@@ -1882,6 +1882,76 @@ test "analysis produces type inlay hints for inferred binders" {
 }
 
 ///|
+test "analysis produces parameter name inlay hints for calls" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub enum Option {
+        #|  some(Int, Bool)
+        #|  none
+        #|}
+        #|
+        #|pub fn choose(left : Int, right : Int) -> Int {
+        #|  left
+        #|}
+        #|
+        #|pub fn answer(seed : Int) -> Int {
+        #|  let local = choose(seed, 1)
+        #|  match some(local, true) {
+        #|    ::some(value, flag) => value
+        #|    ::none => 0
+        #|  }
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
+    content=": Int,left=,right=,arg0=,arg1=,: Int,: Bool",
+  )
+  inspect(
+    result.inlay_hints.filter(fn(hint) { hint.label == "left=" }).length(),
+    content="1",
+  )
+  inspect(
+    result.inlay_hints.filter(fn(hint) { hint.label == "arg0=" }).length(),
+    content="1",
+  )
+}
+
+///|
+test "analysis skips parameter name inlay hints for source operators" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub fn op_add(left : Int, right : Int) -> Int {
+        #|  left
+        #|}
+        #|
+        #|pub fn answer(seed : Int) -> Int {
+        #|  let local = seed + 1
+        #|  local
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
+    content=": Int",
+  )
+}
+
+///|
 fn find_artifact_module(
   modules : Array[CompiledModuleArtifact],
   module_path_text : String,

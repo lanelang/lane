@@ -155,6 +155,64 @@ async test "inlay hint returns inferred binder type hints" {
 }
 
 ///|
+async test "inlay hint returns parameter name hints at argument starts" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub fn choose(left : Int, right : Int) -> Int {
+            #|  left
+            #|}
+            #|
+            #|pub fn answer(seed : Int) -> Int {
+            #|  let local = choose(seed, 1)
+            #|  local
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/inlayHint",
+      range_params("file:///Main.lane", 0, 0, 10, 0),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": [
+        {
+          "position": { "line": 7, "character": 11 },
+          "label": ": Int",
+          "kind": 1,
+        },
+        {
+          "position": { "line": 7, "character": 21 },
+          "label": "left=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 7, "character": 27 },
+          "label": "right=",
+          "kind": 2,
+        },
+      ],
+    },
+  ])
+}
+
+///|
 async test "semantic tokens full is not provided by lane lsp" {
   let state = ServerState::ServerState()
   ignore(

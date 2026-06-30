@@ -578,13 +578,23 @@ fn hover_json(hover : @compile.HoverEntry) -> Json {
 ///|
 fn inlay_hint_json(hint : @compile.InlayHintEntry) -> Json {
   Json::object({
-    "position": position_json(
-      hint.location.span.end_line,
-      hint.location.span.end_column,
-    ),
+    "position": inlay_hint_position_json(hint),
     "label": Json::string(hint.label),
     "kind": inlay_hint_kind_json(hint.kind),
   })
+}
+
+///|
+fn inlay_hint_position_json(hint : @compile.InlayHintEntry) -> Json {
+  match hint.kind {
+    TypeHint | ImplicitArgumentHint =>
+      position_json(hint.location.span.end_line, hint.location.span.end_column)
+    ParameterHint =>
+      position_json(
+        hint.location.span.start_line,
+        hint.location.span.start_column,
+      )
+  }
 }
 
 ///|
