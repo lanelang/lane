@@ -482,12 +482,7 @@ fn compile_one_module(
     registry,
     imported,
   )
-  let resolve_diagnostics = resolved.diagnostics.map(fn(diagnostic) {
-    make_error(
-      @prettyprinter.render(diagnostic.kind, width=100),
-      span=Some(diagnostic.loc),
-    )
-  })
+  let resolve_diagnostics = resolved.diagnostics.map(resolve_diagnostic)
   if !resolve_diagnostics.is_empty() {
     return Err(resolve_diagnostics)
   }

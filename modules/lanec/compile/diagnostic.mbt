@@ -84,6 +84,174 @@ fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompileDiagnostic] {
 }
 
 ///|
+fn resolve_diagnostic(
+  diagnostic_ : @resolve.ResolveDiagnostic,
+) -> CompileDiagnostic {
+  let span = Some(diagnostic_.loc)
+  match diagnostic_.kind {
+    UnresolvedType(name) =>
+      diagnostic(
+        "cannot find type `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E2000"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "no type named `\{name}` is visible here",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "Lane resolves type names from the current module and explicitly imported public types",
+        ],
+        helps=[
+          "declare `\{name}`, import the module that exports it, or qualify the type as `Module.\{name}`",
+        ],
+      )
+    UnresolvedValue(name) =>
+      diagnostic(
+        "cannot find value `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E2001"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "no value named `\{name}` is visible here",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "Lane value lookup uses local bindings, top-level values, and explicitly imported public values",
+        ],
+        helps=[
+          "define `\{name}` before this use, import it, or qualify it with its module path",
+        ],
+      )
+    UnresolvedField(type_name~, field~) =>
+      diagnostic(
+        "cannot find field `\{field}` on `\{type_name}`",
+        span~,
+        severity=Error,
+        code=Some("E2002"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "`\{type_name}` has no visible field named `\{field}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "field lookup only sees fields declared by the resolved struct type",
+        ],
+        helps=[
+          "check the field spelling or change the expression to a struct type that declares `\{field}`",
+        ],
+      )
+    UnresolvedQualifiedVariant(type_name~, variant~) =>
+      diagnostic(
+        "cannot find variant `\{type_name}::\{variant}`",
+        span~,
+        severity=Error,
+        code=Some("E2003"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "this enum type does not expose a variant named `\{variant}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "qualified variant lookup first resolves the enum type, then its variants",
+        ],
+        helps=[
+          "check the variant spelling or use a variant declared by `\{type_name}`",
+        ],
+      )
+    PayloadlessVariantCall(name) =>
+      diagnostic(
+        "payloadless variant `\{name}` is not callable",
+        span~,
+        severity=Error,
+        code=Some("E2004"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "`\{name}` has no payload, so it is already a value",
+            style: Primary,
+          },
+        ],
+        notes=["only variants with payload fields are called with arguments"],
+        helps=["remove the call syntax and use `\{name}` directly"],
+      )
+    ConflictingTopLevelValue(name~, existing~, incoming~) =>
+      diagnostic(
+        "conflicting top-level value `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E2005"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "`\{incoming}` conflicts with an existing value named `\{existing}`",
+            style: Primary,
+          },
+        ],
+        notes=["a Lane module has one top-level value namespace"],
+        helps=["rename one of the declarations or remove the duplicate import"],
+      )
+    AmbiguousModuleValue(name) =>
+      diagnostic(
+        "ambiguous module-qualified value `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E2006"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "`\{name}` can refer to more than one imported value",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "Lane does not choose between ambiguous imports because doing so would make name resolution order-dependent",
+        ],
+        helps=[
+          "import only one matching module or use a more specific module path before the value name",
+        ],
+      )
+    AmbiguousUnqualifiedVariant(name~, candidates~) =>
+      diagnostic(
+        "ambiguous variant `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E2007"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "`\{name}` matches more than one visible enum variant",
+            style: Primary,
+          },
+        ],
+        notes=["candidates: " + resolve_variant_candidates_text(candidates)],
+        helps=[
+          "qualify the variant with its enum type, for example `Enum::\{name}`",
+        ],
+      )
+  }
+}
+
+///|
+fn resolve_variant_candidates_text(
+  candidates : Array[@resolve.ResolveVariantCandidate],
+) -> String {
+  candidates
+  .map(fn(candidate) { candidate.owner + "::" + candidate.variant })
+  .join(", ")
+}
+
+///|
 fn lex_diagnostic(error : @lexer.LexError) -> CompileDiagnostic {
   let span = Some(error.span)
   diagnostic(

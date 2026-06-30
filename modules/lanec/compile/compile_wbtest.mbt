@@ -32,7 +32,7 @@ test "check reports payloadless variant call" {
   inspect(result.diagnostics.length(), content="1")
   inspect(
     result.diagnostics[0].message,
-    content="payloadless_variant_call none",
+    content="payloadless variant `none` is not callable",
   )
 }
 
@@ -1200,7 +1200,7 @@ test "check sources does not expose private imported values" {
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="unresolved_value value")
+  inspect(result.diagnostics[0].message, content="cannot find value `value`")
 }
 
 ///|
@@ -1221,7 +1221,7 @@ test "check sources does not expose private imported types" {
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="unresolved_type Hidden")
+  inspect(result.diagnostics[0].message, content="cannot find type `Hidden`")
 }
 
 ///|
@@ -1419,7 +1419,10 @@ test "check sources does not import child module through parent module" {
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="unresolved_value Core.Int.id")
+  inspect(
+    result.diagnostics[0].message,
+    content="cannot find value `Core.Int.id`",
+  )
 }
 
 ///|
@@ -1520,7 +1523,10 @@ test "check sources does not import child module qualified type through parent m
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="unresolved_type Core.Int.Box")
+  inspect(
+    result.diagnostics[0].message,
+    content="cannot find type `Core.Int.Box`",
+  )
 }
 
 ///|
@@ -1548,7 +1554,7 @@ test "check sources rejects ambiguous module qualified field chain" {
   inspect(result.diagnostics.length(), content="1")
   inspect(
     result.diagnostics[0].message,
-    content="ambiguous_module_value core.int.add",
+    content="ambiguous module-qualified value `core.int.add`",
   )
 }
 
@@ -1585,7 +1591,7 @@ test "check sources checks unimported library modules" {
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="unresolved_value missing")
+  inspect(result.diagnostics[0].message, content="cannot find value `missing`")
 }
 
 ///|

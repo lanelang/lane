@@ -254,7 +254,7 @@
       "file": "examples/invalid/02_top_level_let_forward_value.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["unresolved_value x"]
+        "contains": ["error[E2001]", "cannot find value `x`", "no value named `x` is visible here"]
       }
     },
     {
