@@ -385,7 +385,12 @@ test "module object text rejects old schema one artifact" {
   }
   inspect(
     message,
-    content="unsupported module object artifact schema 1 for Old",
+    content=(
+      #|error[E5016]: unsupported artifact schema
+      #|  = label: unsupported module object artifact schema 1 for Old
+      #|  = note: this artifact was produced by an incompatible Lane compiler or old schema
+      #|  = help: regenerate the artifact with the current Lane compiler
+    ),
   )
 }
 

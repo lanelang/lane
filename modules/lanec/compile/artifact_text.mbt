@@ -29,7 +29,7 @@ pub fn parse_module_interface_artifact_text(
       Err(message) => return Err(message)
     }
     if document.kind != "interface" {
-      return Err("expected interface artifact, got \{document.kind}")
+      return Err(artifact_kind_error("interface", document.kind))
     }
     let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
     let artifact = reader.read_module_interface_artifact()
@@ -60,7 +60,7 @@ pub fn parse_module_object_artifact_text(
       Err(message) => return Err(message)
     }
     if document.kind != "object" {
-      return Err("expected object artifact, got \{document.kind}")
+      return Err(artifact_kind_error("object", document.kind))
     }
     let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
     let artifact = reader.read_module_object_artifact()
@@ -91,7 +91,7 @@ pub fn parse_linked_program_artifact_text(
       Err(message) => return Err(message)
     }
     if document.kind != "program" {
-      return Err("expected program artifact, got \{document.kind}")
+      return Err(artifact_kind_error("program", document.kind))
     }
     let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
     let artifact = reader.read_linked_program_artifact()
@@ -104,7 +104,86 @@ pub fn parse_linked_program_artifact_text(
 
 ///|
 fn[T] fail(message : String) -> T raise ArtifactTextError {
-  raise ArtifactTextError(message)
+  raise ArtifactTextError(artifact_text_error(message))
+}
+
+///|
+fn artifact_kind_error(expected : String, actual : String) -> String {
+  artifact_error(
+    "E5005",
+    "wrong artifact kind",
+    "expected `\{expected}` artifact, got `\{actual}`",
+    "different Lane commands consume different artifact kinds",
+    artifact_kind_help(expected),
+  )
+}
+
+///|
+fn artifact_kind_help(expected : String) -> String {
+  if expected == "interface" {
+    "pass an `.lmi` file produced by `lane compile --emit-interface`"
+  } else if expected == "object" {
+    "pass an `.lmo` file produced by `lane compile --emit-object`"
+  } else {
+    "pass an `.lbp` file produced by `lane link`"
+  }
+}
+
+///|
+fn artifact_text_error(message : String) -> String {
+  if message.has_prefix("invalid Buslane block: ") {
+    artifact_error(
+      "E5010",
+      "invalid embedded Buslane block",
+      strip_prefix(message, "invalid Buslane block: "),
+      "module object and linked program artifacts embed Buslane text blocks",
+      "regenerate the artifact from Lane source instead of editing the Buslane block",
+    )
+  } else if message.has_prefix("expected ") {
+    artifact_error(
+      "E5011", "missing or misplaced artifact field", message, "the artifact reader expected a specific field, tag, or block at this position",
+      "regenerate the artifact with the current Lane compiler",
+    )
+  } else if message.has_prefix("invalid ") {
+    artifact_error(
+      "E5012", "invalid artifact field value", message, "one field has the right name but a value that cannot be decoded",
+      "regenerate the artifact or restore the field value emitted by Lane",
+    )
+  } else if message.has_prefix("unknown ") {
+    artifact_error(
+      "E5013", "unknown artifact field value", message, "the artifact contains a tag or enum value not understood by this compiler",
+      "recompile with the current Lane compiler and avoid mixing artifact versions",
+    )
+  } else if message.has_prefix("unsupported ") {
+    artifact_error(
+      "E5016", "unsupported artifact schema", message, "this artifact was produced by an incompatible Lane compiler or old schema",
+      "regenerate the artifact with the current Lane compiler",
+    )
+  } else if message.has_prefix("unexpected ") {
+    artifact_error(
+      "E5014", "unexpected artifact entry", message, "the artifact contains extra data or ended while a required entry was being read",
+      "regenerate the artifact instead of editing it by hand",
+    )
+  } else {
+    artifact_error(
+      "E5015", "invalid artifact text", message, "the artifact reader rejected this text artifact",
+      "regenerate the artifact with the current Lane compiler",
+    )
+  }
+}
+
+///|
+fn artifact_error(
+  code : String,
+  title : String,
+  label : String,
+  note : String,
+  help : String,
+) -> String {
+  "error[\{code}]: \{title}\n" +
+  "  = label: \{label}\n" +
+  "  = note: \{note}\n" +
+  "  = help: \{help}"
 }
 
 ///|
