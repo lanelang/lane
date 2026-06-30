@@ -170,3 +170,73 @@ test "check deny controls warning failures" {
   inspect(denied_diagnostics([warning], true).length(), content="1")
   inspect(denied_diagnostics([error], false).length(), content="1")
 }
+
+///|
+async test "lib-dir excludes root source and deduplicates libraries" {
+  let workspace = ".tmp-lane-library-sources"
+  let root = "\{workspace}/Main.lane"
+  let lib = "\{workspace}/Lib.lane"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  @fs.write_file(root, "root", create_mode=CreateOrTruncate)
+  @fs.write_file(lib, "lib", create_mode=CreateOrTruncate)
+  guard read_library_sources(root, [lib], [workspace]) is Ok(sources) else {
+    cleanup_library_fixture(workspace)
+    abort("expected normalized library sources")
+  }
+  cleanup_library_fixture(workspace)
+  inspect(sources.length(), content="1")
+  inspect(sources[0], content="lib")
+}
+
+///|
+async test "explicit lib cannot be the root source" {
+  let workspace = ".tmp-lane-root-lib"
+  let root = "\{workspace}/Main.lane"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  @fs.write_file(root, "root", create_mode=CreateOrTruncate)
+  guard read_library_sources(root, [root], []) is Err(message) else {
+    cleanup_library_fixture(workspace)
+    abort("expected explicit root library error")
+  }
+  cleanup_library_fixture(workspace)
+  inspect(
+    message,
+    content=(
+      #|error[E6008]: root source was also passed as an explicit library
+      #|  = label: `.tmp-lane-root-lib/Main.lane` resolves to the same source file as the root source `.tmp-lane-root-lib/Main.lane`
+      #|  = note: `lane check` and `lane run` compile the root source separately from library inputs
+      #|  = note: `--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible
+      #|  = help: remove the duplicate `--lib .tmp-lane-root-lib/Main.lane` argument
+    ),
+  )
+}
+
+///|
+#cfg(not(platform="windows"))
+async test "library source identity resolves symlinks" {
+  let workspace = ".tmp-lane-library-symlinks"
+  let root = "\{workspace}/Main.lane"
+  let lib = "\{workspace}/Lib.lane"
+  let lib_alias = "\{workspace}/LibAlias.lane"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  @fs.write_file(root, "root", create_mode=CreateOrTruncate)
+  @fs.write_file(lib, "lib", create_mode=CreateOrTruncate)
+  @fs.symlink(lib_alias, target="Lib.lane")
+  guard read_library_sources(root, [lib_alias, lib], []) is Ok(sources) else {
+    cleanup_library_fixture(workspace)
+    abort("expected symlinked duplicate library to be deduped")
+  }
+  cleanup_library_fixture(workspace)
+  inspect(sources.length(), content="1")
+  inspect(sources[0], content="lib")
+}
+
+///|
+async fn cleanup_library_fixture(workspace : String) -> Unit {
+  @fs.rmdir(workspace, recursive=true) catch {
+    _ => ()
+  }
+}

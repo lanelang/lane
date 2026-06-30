@@ -61,6 +61,11 @@ document. It may come from an open Document Snapshot or, if not open, from the
 workspace filesystem.
 _Avoid_: module object, build artifact, implicit library
 
+**Workspace Library Source Normalization**:
+The Lane LSP Server rule that excludes the current document source identity and
+deduplicates workspace library sources before calling compiler analysis.
+_Avoid_: build graph, import resolution, module discovery
+
 **Editor Diagnostic**:
 A source-location diagnostic reported through LSP after converting compiler
 diagnostics into editor ranges and severities.

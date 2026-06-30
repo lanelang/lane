@@ -132,18 +132,25 @@ async fn read_module_interface_artifacts(
 
 ///|
 async fn read_library_sources(
+  root : String,
   libs : Array[String],
   lib_dirs : Array[String],
 ) -> Result[Array[String], String] {
+  let root_identity = match library_source_identity(root) {
+    Ok(identity) => identity
+    Err(message) => return Err(message)
+  }
+  let identities = []
   let sources = []
   for lib in libs {
-    let source = read_source_file(lib) catch {
-      error => return Err(read_file_error(lib, "\{error}"))
+    match
+      append_library_source(Some(root), root_identity, lib, identities, sources) {
+      Ok(_) => ()
+      Err(message) => return Err(message)
     }
-    sources.push(source)
   }
   for dir in lib_dirs {
-    match append_library_dir_sources(dir, sources) {
+    match append_library_dir_sources(root_identity, dir, identities, sources) {
       Ok(_) => ()
       Err(message) => return Err(message)
     }
@@ -152,8 +159,47 @@ async fn read_library_sources(
 }
 
 ///|
-async fn append_library_dir_sources(
+async fn library_source_identity(path : String) -> Result[String, String] {
+  let identity = @fs.realpath(path) catch {
+    error => return Err(resolve_file_error(path, "\{error}"))
+  }
+  Ok(identity)
+}
+
+///|
+async fn append_library_source(
+  explicit_root : String?,
+  root_identity : String,
   path : String,
+  identities : Array[String],
+  sources : Array[String],
+) -> Result[Unit, String] {
+  let identity = match library_source_identity(path) {
+    Ok(identity) => identity
+    Err(message) => return Err(message)
+  }
+  if identity == root_identity {
+    match explicit_root {
+      Some(root) => return Err(root_library_input_error(root, path))
+      None => return Ok(())
+    }
+  }
+  if identities.contains(identity) {
+    return Ok(())
+  }
+  let source = read_source_file(path) catch {
+    error => return Err(read_file_error(path, "\{error}"))
+  }
+  identities.push(identity)
+  sources.push(source)
+  Ok(())
+}
+
+///|
+async fn append_library_dir_sources(
+  root_identity : String,
+  path : String,
+  identities : Array[String],
   sources : Array[String],
 ) -> Result[Unit, String] {
   let entries = @fs.readdir(path, sort=true) catch {
@@ -164,18 +210,22 @@ async fn append_library_dir_sources(
       continue
     }
     let child = "\{path}/\{entry}"
-    match @fs.kind(child) {
+    let kind = @fs.kind(child) catch {
+      error => return Err(read_file_error(child, "\{error}"))
+    }
+    match kind {
       Directory =>
-        match append_library_dir_sources(child, sources) {
+        match
+          append_library_dir_sources(root_identity, child, identities, sources) {
           Ok(_) => ()
           Err(message) => return Err(message)
         }
-      Regular if child.has_suffix(".lane") => {
-        let source = read_source_file(child) catch {
-          error => return Err(read_file_error(child, "\{error}"))
+      Regular if child.has_suffix(".lane") =>
+        match
+          append_library_source(None, root_identity, child, identities, sources) {
+          Ok(_) => ()
+          Err(message) => return Err(message)
         }
-        sources.push(source)
-      }
       _ => ()
     }
   }

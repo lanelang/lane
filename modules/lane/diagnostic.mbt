@@ -156,6 +156,27 @@ fn write_file_error(path : String, error : String) -> String {
 }
 
 ///|
+fn resolve_file_error(path : String, error : String) -> String {
+  file_io_error("E6102", "could not resolve file path", path, "resolve", error)
+}
+
+///|
+fn root_library_input_error(root : String, library : String) -> String {
+  lane_boundary_error(
+    "E6008",
+    "root source was also passed as an explicit library",
+    [
+      "`\{library}` resolves to the same source file as the root source `\{root}`",
+    ],
+    [
+      "`lane check` and `lane run` compile the root source separately from library inputs",
+      "`--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible",
+    ],
+    ["remove the duplicate `--lib \{library}` argument"],
+  )
+}
+
+///|
 fn internal_compiler_error(message : String) -> String {
   lane_boundary_error(
     "E6200",

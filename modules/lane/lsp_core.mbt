@@ -275,29 +275,36 @@ async fn ServerState::workspace_library_sources(
 ) -> Array[@compile.SourceInput] {
   guard self.workspace_root is Some(root) else { return [] }
   let current_path = file_uri_to_path(current_uri)
-  let opened_paths = []
-  let sources = self.open_document_library_sources(
-    root, current_path, opened_paths,
-  )
-  discover_lane_sources(root, current_path, opened_paths, sources) catch {
-    _ => sources
+  let current_identity = match current_path {
+    Some(path) => Some(lsp_source_identity(path))
+    None => None
   }
+  let library_identities = []
+  let sources = self.open_document_library_sources(
+    root, current_identity, library_identities,
+  )
+  append_lane_sources(root, current_identity, library_identities, sources) catch {
+    _ => ()
+  }
+  sources
 }
 
 ///|
-fn ServerState::open_document_library_sources(
+async fn ServerState::open_document_library_sources(
   self : ServerState,
   root : String,
-  current_path : String?,
-  opened_paths : Array[String],
+  current_identity : String?,
+  library_identities : Array[String],
 ) -> Array[@compile.SourceInput] {
   let sources : Array[@compile.SourceInput] = []
   for _, document in self.documents {
     guard file_uri_to_path(document.uri) is Some(path) else { continue }
-    if Some(path) != current_path &&
+    let identity = lsp_source_identity(path)
+    if Some(identity) != current_identity &&
+      !library_identities.contains(identity) &&
       path.has_suffix(".lane") &&
       path_is_under_workspace(path, root) {
-      opened_paths.push(path)
+      library_identities.push(identity)
       sources.push({ source_id: document.uri, text: document.text })
     }
   }
@@ -433,21 +440,17 @@ fn path_is_under_workspace(path : String, root : String) -> Bool {
 }
 
 ///|
-async fn discover_lane_sources(
-  root : String,
-  excluded_path : String?,
-  opened_paths : Array[String],
-  sources : Array[@compile.SourceInput],
-) -> Array[@compile.SourceInput] {
-  append_lane_sources(root, excluded_path, opened_paths, sources)
-  sources
+async fn lsp_source_identity(path : String) -> String {
+  @fs.realpath(path) catch {
+    _ => path
+  }
 }
 
 ///|
 async fn append_lane_sources(
   path : String,
-  excluded_path : String?,
-  opened_paths : Array[String],
+  current_identity : String?,
+  library_identities : Array[String],
   sources : Array[@compile.SourceInput],
 ) -> Unit {
   let entries = @fs.readdir(path, sort=true)
@@ -455,17 +458,24 @@ async fn append_lane_sources(
     if should_skip_workspace_entry(entry) {
       continue
     }
-    let child = path + "/" + entry
+    let child = "\{path}/\{entry}"
     match @fs.kind(child) {
       Directory =>
-        append_lane_sources(child, excluded_path, opened_paths, sources)
-      Regular if child.has_suffix(".lane") =>
-        if Some(child) != excluded_path && !opened_paths.contains(child) {
-          sources.push({
-            source_id: path_to_file_uri(child),
-            text: @fs.read_file(child).text(),
-          })
+        append_lane_sources(
+          child, current_identity, library_identities, sources,
+        )
+      Regular if child.has_suffix(".lane") => {
+        let identity = lsp_source_identity(child)
+        if Some(identity) == current_identity ||
+          library_identities.contains(identity) {
+          continue
         }
+        library_identities.push(identity)
+        sources.push({
+          source_id: path_to_file_uri(child),
+          text: @fs.read_file(child).text(),
+        })
+      }
       _ => ()
     }
   }

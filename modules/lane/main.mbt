@@ -110,7 +110,7 @@ async fn lane_check(
       return UserFailure
     }
   }
-  let libraries = match read_library_sources(libs, lib_dirs) {
+  let libraries = match read_library_sources(file, libs, lib_dirs) {
     Ok(libraries) => libraries
     Err(message) => {
       println(message)
@@ -267,7 +267,7 @@ async fn lane_run(
       return UserFailure
     }
   }
-  let libraries = match read_library_sources(libs, lib_dirs) {
+  let libraries = match read_library_sources(file, libs, lib_dirs) {
     Ok(libraries) => libraries
     Err(message) => {
       println(message)

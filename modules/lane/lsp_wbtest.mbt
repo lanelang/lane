@@ -366,6 +366,63 @@ async test "workspace libraries prefer unsaved open document snapshots" {
 }
 
 ///|
+#cfg(not(platform="windows"))
+async test "workspace libraries exclude current document by realpath" {
+  let workspace = ".tmp-lsp-realpath-workspace"
+  let main_path = "\{workspace}/Main.lane"
+  let main_alias_path = "\{workspace}/MainAlias.lane"
+  cleanup_workspace_fixture(workspace, main_path, main_alias_path)
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    main_path,
+    (
+      #|module Main
+      #|
+      #|pub let stale : Int = 0
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.symlink(main_alias_path, target="Main.lane")
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "initialize",
+        Json::object({ "rootUri": Json::string("file://\{workspace}") }),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/didOpen",
+      open_params(
+        "file://\{main_alias_path}",
+        (
+          #|module Main
+          #|
+          #|pub let answer : Int = 42
+          #|
+        ),
+      ),
+    ),
+  )
+  cleanup_workspace_fixture(workspace, main_path, main_alias_path)
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp-realpath-workspace/MainAlias.lane",
+        "diagnostics": [],
+      },
+    },
+  ])
+}
+
+///|
 async test "definition returns encoded URI for discovered library source" {
   let workspace = ".tmp-lsp encoded-中"
   let main_path = workspace + "/Main.lane"
