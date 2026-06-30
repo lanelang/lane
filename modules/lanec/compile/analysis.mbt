@@ -115,14 +115,7 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
       registry,
       imported,
     )
-    diagnostics.append(
-      resolved.diagnostics.map(fn(diagnostic) {
-        make_error(
-          @prettyprinter.render(diagnostic.kind, width=100),
-          span=Some(diagnostic.loc),
-        )
-      }),
-    )
+    diagnostics.append(resolved.diagnostics.map(resolve_diagnostic))
     let checked = if resolved.diagnostics.is_empty() {
       Some(
         @typecheck.typecheck_checked_source_file_with_imported_environment(
@@ -135,14 +128,7 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
     }
     match checked {
       Some(checked) => {
-        diagnostics.append(
-          checked.diagnostics.map(fn(diagnostic) {
-            make_error(
-              @prettyprinter.render(diagnostic.kind, width=100),
-              span=Some(diagnostic.loc),
-            )
-          }),
-        )
+        diagnostics.append(checked.diagnostics.map(typecheck_diagnostic))
         match (checked.source, checked.module_interface) {
           (Some(source), Some(interface)) if checked.diagnostics.is_empty() => {
             let imported_fingerprints = imported_environment_fingerprints(

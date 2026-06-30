@@ -315,7 +315,7 @@ test "module artifacts roundtrip through text and link" {
     duplicate_entry_diagnostics
     .map(fn(diagnostic) { diagnostic.message })
     .join(","),
-    content="duplicate linked entry answer",
+    content="duplicate linked entry `answer`",
   )
   let unknown_entry_artifact : LinkedProgramArtifact = {
     schema_version: linked_decoded.schema_version,
@@ -338,7 +338,7 @@ test "module artifacts roundtrip through text and link" {
     unknown_entry_diagnostics
     .map(fn(diagnostic) { diagnostic.message })
     .join(","),
-    content="linked entry has unknown value missing",
+    content="linked entry `missing` points to an unknown value",
   )
   let invalid_program_artifact : LinkedProgramArtifact = {
     schema_version: linked_decoded.schema_version,
@@ -358,7 +358,7 @@ test "module artifacts roundtrip through text and link" {
     invalid_program_diagnostics
     .map(fn(diagnostic) { diagnostic.message })
     .join(","),
-    content="invalid linked Buslane program",
+    content="linked program contains invalid Buslane",
   )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
@@ -693,7 +693,10 @@ test "compile module reports missing transitive interface dependency" {
     [b_artifact.interface],
   )
   inspect(c_compiled.diagnostics.length(), content="1")
-  inspect(c_compiled.diagnostics[0].message, content="missing import A")
+  inspect(
+    c_compiled.diagnostics[0].message,
+    content="missing imported module `A`",
+  )
 }
 
 ///|
@@ -739,7 +742,7 @@ test "compile module rejects interface artifact name mismatch" {
   inspect(compiled.diagnostics.length(), content="1")
   inspect(
     compiled.diagnostics[0].message,
-    content="module interface artifact name mismatch Lib",
+    content="invalid module interface artifact",
   )
 }
 
@@ -778,7 +781,7 @@ test "compile module rejects stale interface artifact fingerprint" {
   inspect(compiled.diagnostics.length(), content="1")
   inspect(
     compiled.diagnostics[0].message,
-    content="module interface artifact fingerprint mismatch Lib",
+    content="invalid module interface artifact",
   )
 }
 
@@ -817,7 +820,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
   inspect(compiled.diagnostics.length(), content="1")
   inspect(
     compiled.diagnostics[0].message,
-    content="module interface artifact module fingerprint mismatch Lib",
+    content="invalid module interface artifact",
   )
 }
 
@@ -877,7 +880,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
   inspect(linked.diagnostics.length(), content="1")
   inspect(
     linked.diagnostics[0].message,
-    content="module artifact fingerprint mismatch Lib",
+    content="invalid compiled module artifact",
   )
 }
 
@@ -931,7 +934,7 @@ test "link module artifacts rejects interface object name mismatch" {
   inspect(linked.diagnostics.length(), content="1")
   inspect(
     linked.diagnostics[0].message,
-    content="module interface artifact name mismatch Other",
+    content="invalid module interface artifact",
   )
 }
 
@@ -984,10 +987,7 @@ test "link modules rejects stale module object fingerprint" {
     reachable_module_path_texts: modules.reachable_module_path_texts,
   })
   inspect(linked.diagnostics.length(), content="1")
-  inspect(
-    linked.diagnostics[0].message,
-    content="module fingerprint mismatch Lib",
-  )
+  inspect(linked.diagnostics[0].message, content="stale module object")
 }
 
 ///|
@@ -1049,10 +1049,7 @@ test "link modules rejects stale imported reference fingerprint" {
     reachable_module_path_texts: modules.reachable_module_path_texts,
   })
   inspect(linked.diagnostics.length(), content="1")
-  inspect(
-    linked.diagnostics[0].message,
-    content="imported reference fingerprint mismatch Main -> Lib::value",
-  )
+  inspect(linked.diagnostics[0].message, content="stale imported reference")
 }
 
 ///|
@@ -1106,7 +1103,7 @@ test "link modules rejects missing exported object value" {
   inspect(linked.diagnostics.length(), content="1")
   inspect(
     linked.diagnostics[0].message,
-    content="missing exported value Lib::value imported by Main",
+    content="object artifact does not satisfy its interface",
   )
 }
 
@@ -1156,7 +1153,7 @@ test "link modules rejects compiled artifact import cycle" {
     reachable_module_path_texts: ["A", "B"],
   })
   inspect(linked.diagnostics.length(), content="1")
-  inspect(linked.diagnostics[0].message, content="import cycle A")
+  inspect(linked.diagnostics[0].message, content="import cycle involving `A`")
 }
 
 ///|
@@ -1181,7 +1178,10 @@ test "link modules rejects missing compiled artifact import" {
     reachable_module_path_texts: ["Main"],
   })
   inspect(linked.diagnostics.length(), content="1")
-  inspect(linked.diagnostics[0].message, content="missing object Missing")
+  inspect(
+    linked.diagnostics[0].message,
+    content="missing object artifact for `Missing`",
+  )
 }
 
 ///|
@@ -1370,7 +1370,10 @@ test "check sources rejects missing import" {
     [],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="missing import Missing")
+  inspect(
+    result.diagnostics[0].message,
+    content="missing imported module `Missing`",
+  )
 }
 
 ///|
@@ -1573,7 +1576,10 @@ test "check sources rejects duplicate module input" {
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="duplicate module input Main")
+  inspect(
+    result.diagnostics[0].message,
+    content="duplicate module input `Main`",
+  )
 }
 
 ///|
@@ -1615,7 +1621,10 @@ test "check sources rejects unimported library import cycle" {
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="import cycle ExtraA")
+  inspect(
+    result.diagnostics[0].message,
+    content="import cycle involving `ExtraA`",
+  )
 }
 
 ///|
@@ -1635,7 +1644,10 @@ test "check sources rejects import cycle" {
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="import cycle Main")
+  inspect(
+    result.diagnostics[0].message,
+    content="import cycle involving `Main`",
+  )
 }
 
 ///|
@@ -1828,7 +1840,7 @@ test "analysis keeps partial definitions when unrelated diagnostics exist" {
     [],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="unresolved_value missing")
+  inspect(result.diagnostics[0].message, content="cannot find value `missing`")
   match result.definition_at("file:///Main.lane", 5, 24) {
     Some(location) => {
       inspect(location.source_id, content="file:///Main.lane")
