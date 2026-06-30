@@ -15,13 +15,17 @@ priv struct ArtifactTextReader {
 }
 
 ///|
+priv struct ArtifactTextWriter {
+  lines : Array[String]
+}
+
+///|
 pub fn module_interface_artifact_to_text(
   artifact : ModuleInterfaceArtifact,
 ) -> String {
-  let lines = ["lane-artifact-text-v1 interface {"]
-  write_module_interface_artifact(lines, artifact)
-  lines.push("}")
-  lines.join("\n") + "\n"
+  let writer = ArtifactTextWriter::start("interface")
+  writer.write_module_interface_artifact(artifact)
+  writer.finish()
 }
 
 ///|
@@ -49,10 +53,9 @@ pub fn parse_module_interface_artifact_text(
 pub fn module_object_artifact_to_text(
   artifact : ModuleObjectArtifact,
 ) -> String {
-  let lines = ["lane-artifact-text-v1 object {"]
-  write_module_object_artifact(lines, artifact)
-  lines.push("}")
-  lines.join("\n") + "\n"
+  let writer = ArtifactTextWriter::start("object")
+  writer.write_module_object_artifact(artifact)
+  writer.finish()
 }
 
 ///|
@@ -80,10 +83,9 @@ pub fn parse_module_object_artifact_text(
 pub fn linked_program_artifact_to_text(
   artifact : LinkedProgramArtifact,
 ) -> String {
-  let lines = ["lane-artifact-text-v1 program {"]
-  write_linked_program_artifact(lines, artifact)
-  lines.push("}")
-  lines.join("\n") + "\n"
+  let writer = ArtifactTextWriter::start("program")
+  writer.write_linked_program_artifact(artifact)
+  writer.finish()
 }
 
 ///|
@@ -203,10 +205,7 @@ fn artifact_error(
   note : String,
   help : String,
 ) -> String {
-  "error[\{code}]: \{title}\n" +
-  "  = label: \{label}\n" +
-  "  = note: \{note}\n" +
-  "  = help: \{help}"
+  "error[\{code}]: \{title}\n  = label: \{label}\n  = note: \{note}\n  = help: \{help}"
 }
 
 ///|
@@ -275,28 +274,58 @@ fn ArtifactTextReader::expect_bool(
 }
 
 ///|
-fn write_atom(lines : Array[String], tag : String, atom : String) -> Unit {
-  lines.push("  " + tag + ": " + atom + ";")
+fn ArtifactTextWriter::start(kind : String) -> ArtifactTextWriter {
+  { lines: ["lane-artifact-text-v1 \{kind} {"] }
 }
 
 ///|
-fn write_string(lines : Array[String], tag : String, value : String) -> Unit {
-  lines.push("  " + tag + ": " + quote_string(value) + ";")
+fn ArtifactTextWriter::finish(self : ArtifactTextWriter) -> String {
+  self.lines.push("}")
+  "\{self.lines.join("\n")}\n"
 }
 
 ///|
-fn write_int(lines : Array[String], tag : String, value : Int) -> Unit {
-  write_atom(lines, tag, "\{value}")
+fn ArtifactTextWriter::write_atom(
+  self : ArtifactTextWriter,
+  tag : String,
+  atom : String,
+) -> Unit {
+  self.lines.push("  \{tag}: \{atom};")
 }
 
 ///|
-fn write_bool(lines : Array[String], tag : String, value : Bool) -> Unit {
-  write_atom(lines, tag, if value { "true" } else { "false" })
+fn ArtifactTextWriter::write_string(
+  self : ArtifactTextWriter,
+  tag : String,
+  value : String,
+) -> Unit {
+  self.lines.push("  \{tag}: \{quote_string(value)};")
 }
 
 ///|
-fn write_tag(lines : Array[String], tag : String) -> Unit {
-  lines.push("  " + tag + ";")
+fn ArtifactTextWriter::write_int(
+  self : ArtifactTextWriter,
+  tag : String,
+  value : Int,
+) -> Unit {
+  self.write_atom(tag, "\{value}")
+}
+
+///|
+fn ArtifactTextWriter::write_bool(
+  self : ArtifactTextWriter,
+  tag : String,
+  value : Bool,
+) -> Unit {
+  self.write_atom(tag, if value { "true" } else { "false" })
+}
+
+///|
+fn ArtifactTextWriter::write_tag(
+  self : ArtifactTextWriter,
+  tag : String,
+) -> Unit {
+  self.lines.push("  \{tag};")
 }
 
 ///|
@@ -312,13 +341,13 @@ fn ArtifactTextReader::take_entry(
 }
 
 ///|
-fn write_buslane_program_block(
-  lines : Array[String],
+fn ArtifactTextWriter::write_buslane_program_block(
+  self : ArtifactTextWriter,
   program : @buslane.Program,
 ) -> Unit {
   let text = @text.program_to_text(program)
   for line in text.split("\n") {
-    lines.push("  " + line.to_owned())
+    self.lines.push("  \{line}")
   }
 }
 
@@ -375,25 +404,22 @@ fn quote_string(value : String) -> String {
 ///|
 
 ///|
-fn write_module_interface_artifact(
-  lines : Array[String],
+fn ArtifactTextWriter::write_module_interface_artifact(
+  self : ArtifactTextWriter,
   artifact : ModuleInterfaceArtifact,
 ) -> Unit {
-  write_int(lines, "schema_version", artifact.schema_version)
-  write_string(lines, "module_path_text", artifact.module_path_text)
-  write_module_interface(lines, artifact.interface)
-  write_compilation_fingerprint(
-    lines,
+  self.write_int("schema_version", artifact.schema_version)
+  self.write_string("module_path_text", artifact.module_path_text)
+  self.write_module_interface(artifact.interface)
+  self.write_compilation_fingerprint(
     "interface_fingerprint",
     artifact.interface_fingerprint,
   )
-  write_compilation_fingerprint(
-    lines,
+  self.write_compilation_fingerprint(
     "module_fingerprint",
     artifact.module_fingerprint,
   )
-  write_imported_interface_fingerprints(
-    lines,
+  self.write_imported_interface_fingerprints(
     artifact.imported_interface_fingerprints,
   )
 }
@@ -423,33 +449,30 @@ fn ArtifactTextReader::read_module_interface_artifact(
 }
 
 ///|
-fn write_module_object_artifact(
-  lines : Array[String],
+fn ArtifactTextWriter::write_module_object_artifact(
+  self : ArtifactTextWriter,
   artifact : ModuleObjectArtifact,
 ) -> Unit {
-  write_int(lines, "schema_version", artifact.schema_version)
-  write_string(lines, "module_path_text", artifact.module_path_text)
-  write_module_interface(lines, artifact.interface)
-  write_compilation_fingerprint(
-    lines,
+  self.write_int("schema_version", artifact.schema_version)
+  self.write_string("module_path_text", artifact.module_path_text)
+  self.write_module_interface(artifact.interface)
+  self.write_compilation_fingerprint(
     "interface_fingerprint",
     artifact.interface_fingerprint,
   )
-  write_buslane_program_block(lines, {
+  self.write_buslane_program_block({
     metadata: artifact.metadata,
     terms: artifact.terms,
   })
-  write_externals(lines, artifact.externals)
-  write_entries(lines, artifact.entries)
-  write_exports(lines, artifact.exports)
-  write_imports(lines, artifact.imports)
-  write_compilation_fingerprint(
-    lines,
+  self.write_externals(artifact.externals)
+  self.write_entries(artifact.entries)
+  self.write_exports(artifact.exports)
+  self.write_imports(artifact.imports)
+  self.write_compilation_fingerprint(
     "module_fingerprint",
     artifact.module_fingerprint,
   )
-  write_imported_interface_fingerprints(
-    lines,
+  self.write_imported_interface_fingerprints(
     artifact.imported_interface_fingerprints,
   )
 }
@@ -497,18 +520,18 @@ fn ArtifactTextReader::read_module_object_artifact(
 }
 
 ///|
-fn write_linked_program_artifact(
-  lines : Array[String],
+fn ArtifactTextWriter::write_linked_program_artifact(
+  self : ArtifactTextWriter,
   artifact : LinkedProgramArtifact,
 ) -> Unit {
-  write_int(lines, "schema_version", artifact.schema_version)
-  write_int(lines, "module_path_texts", artifact.module_path_texts.length())
+  self.write_int("schema_version", artifact.schema_version)
+  self.write_int("module_path_texts", artifact.module_path_texts.length())
   for module_path_text in artifact.module_path_texts {
-    write_string(lines, "module_path_text", module_path_text)
+    self.write_string("module_path_text", module_path_text)
   }
-  write_buslane_program_block(lines, artifact.program)
-  write_externals(lines, artifact.externals)
-  write_entries(lines, artifact.entries)
+  self.write_buslane_program_block(artifact.program)
+  self.write_externals(artifact.externals)
+  self.write_entries(artifact.entries)
 }
 
 ///|
@@ -527,12 +550,12 @@ fn ArtifactTextReader::read_linked_program_artifact(
 }
 
 ///|
-fn write_compilation_fingerprint(
-  lines : Array[String],
+fn ArtifactTextWriter::write_compilation_fingerprint(
+  self : ArtifactTextWriter,
   tag : String,
   fingerprint : CompilationFingerprint,
 ) -> Unit {
-  write_string(lines, tag, fingerprint.value)
+  self.write_string(tag, fingerprint.value)
 }
 
 ///|
@@ -544,15 +567,14 @@ fn ArtifactTextReader::read_compilation_fingerprint(
 }
 
 ///|
-fn write_imported_interface_fingerprints(
-  lines : Array[String],
+fn ArtifactTextWriter::write_imported_interface_fingerprints(
+  self : ArtifactTextWriter,
   fingerprints : Array[ImportedInterfaceFingerprint],
 ) -> Unit {
-  write_int(lines, "imported_interface_fingerprints", fingerprints.length())
+  self.write_int("imported_interface_fingerprints", fingerprints.length())
   for fingerprint in fingerprints {
-    write_string(lines, "imported_module_path", fingerprint.module_path_text)
-    write_compilation_fingerprint(
-      lines,
+    self.write_string("imported_module_path", fingerprint.module_path_text)
+    self.write_compilation_fingerprint(
       "imported_fingerprint",
       fingerprint.fingerprint,
     )
@@ -574,30 +596,29 @@ fn ArtifactTextReader::read_imported_interface_fingerprints(
 }
 
 ///|
-fn write_module_interface(
-  lines : Array[String],
+fn ArtifactTextWriter::write_module_interface(
+  self : ArtifactTextWriter,
   interface : @module_interface.ModuleInterface,
 ) -> Unit {
-  write_string(lines, "interface.module_path", interface.module_path)
-  write_int(lines, "interface.types", interface.types.length())
+  self.write_string("interface.module_path", interface.module_path)
+  self.write_int("interface.types", interface.types.length())
   for type_ in interface.types {
-    write_module_interface_type(lines, type_)
+    self.write_module_interface_type(type_)
   }
-  write_int(lines, "interface.type_aliases", interface.type_aliases.length())
+  self.write_int("interface.type_aliases", interface.type_aliases.length())
   for alias_ in interface.type_aliases {
-    write_type_alias(lines, alias_)
+    self.write_type_alias(alias_)
   }
-  write_int(lines, "interface.values", interface.values.length())
+  self.write_int("interface.values", interface.values.length())
   for value in interface.values {
-    write_interface_value(lines, value)
+    self.write_interface_value(value)
   }
-  write_int(
-    lines,
+  self.write_int(
     "interface.optimization_hints",
     interface.optimization_hints.length(),
   )
   for hint in interface.optimization_hints {
-    write_string(lines, "optimization_hint.name", hint.name)
+    self.write_string("optimization_hint.name", hint.name)
   }
 }
 
@@ -628,44 +649,42 @@ fn ArtifactTextReader::read_module_interface(
 }
 
 ///|
-fn write_module_interface_type(
-  lines : Array[String],
+fn ArtifactTextWriter::write_module_interface_type(
+  self : ArtifactTextWriter,
   type_ : @module_interface.ModuleInterfaceType,
 ) -> Unit {
   match type_ {
     Struct(declaration) => {
-      write_tag(lines, "interface_type.struct")
-      write_type_symbol_id(lines, "type.symbol", declaration.symbol)
-      write_string(lines, "type.name", declaration.name)
-      write_type_parameters(
-        lines,
+      self.write_tag("interface_type.struct")
+      self.write_type_symbol_id("type.symbol", declaration.symbol)
+      self.write_string("type.name", declaration.name)
+      self.write_type_parameters(
         "type.type_parameters",
         declaration.type_parameters,
       )
-      write_int(lines, "type.type_members", declaration.type_members.length())
+      self.write_int("type.type_members", declaration.type_members.length())
       for member_ in declaration.type_members {
-        write_type_member(lines, member_)
+        self.write_type_member(member_)
       }
-      write_int(lines, "type.fields", declaration.fields.length())
+      self.write_int("type.fields", declaration.fields.length())
       for field in declaration.fields {
-        write_field(lines, field)
+        self.write_field(field)
       }
-      write_source_span(lines, "type.loc", declaration.loc)
+      self.write_source_span("type.loc", declaration.loc)
     }
     Enum(declaration) => {
-      write_tag(lines, "interface_type.enum")
-      write_type_symbol_id(lines, "type.symbol", declaration.symbol)
-      write_string(lines, "type.name", declaration.name)
-      write_type_parameters(
-        lines,
+      self.write_tag("interface_type.enum")
+      self.write_type_symbol_id("type.symbol", declaration.symbol)
+      self.write_string("type.name", declaration.name)
+      self.write_type_parameters(
         "type.type_parameters",
         declaration.type_parameters,
       )
-      write_int(lines, "type.variants", declaration.variants.length())
+      self.write_int("type.variants", declaration.variants.length())
       for variant in declaration.variants {
-        write_variant(lines, variant)
+        self.write_variant(variant)
       }
-      write_source_span(lines, "type.loc", declaration.loc)
+      self.write_source_span("type.loc", declaration.loc)
     }
   }
 }
@@ -720,20 +739,19 @@ fn ArtifactTextReader::next_tag(
 }
 
 ///|
-fn write_type_member(
-  lines : Array[String],
+fn ArtifactTextWriter::write_type_member(
+  self : ArtifactTextWriter,
   member_ : @module_interface.ModuleInterfaceTypeMember,
 ) -> Unit {
-  write_type_member_symbol_id(lines, "type_member.symbol", member_.symbol)
-  write_type_parameter(
-    lines,
+  self.write_type_member_symbol_id("type_member.symbol", member_.symbol)
+  self.write_type_parameter(
     "type_member.type_parameter",
     member_.type_parameter,
   )
-  write_string(lines, "type_member.name", member_.name)
-  write_lane_kind(lines, "type_member.kind", member_.kind)
-  write_int(lines, "type_member.index", member_.index)
-  write_source_span(lines, "type_member.loc", member_.loc)
+  self.write_string("type_member.name", member_.name)
+  self.write_lane_kind("type_member.kind", member_.kind)
+  self.write_int("type_member.index", member_.index)
+  self.write_source_span("type_member.loc", member_.loc)
 }
 
 ///|
@@ -750,16 +768,16 @@ fn ArtifactTextReader::read_type_member(
 }
 
 ///|
-fn write_field(
-  lines : Array[String],
+fn ArtifactTextWriter::write_field(
+  self : ArtifactTextWriter,
   field : @module_interface.ModuleInterfaceField,
 ) -> Unit {
-  write_field_symbol_id(lines, "field.symbol", field.symbol)
-  write_bool(lines, "field.is_offered", field.is_offered)
-  write_string(lines, "field.name", field.name)
-  write_int(lines, "field.index", field.index)
-  write_lane_type(lines, field.type_)
-  write_source_span(lines, "field.loc", field.loc)
+  self.write_field_symbol_id("field.symbol", field.symbol)
+  self.write_bool("field.is_offered", field.is_offered)
+  self.write_string("field.name", field.name)
+  self.write_int("field.index", field.index)
+  self.write_lane_type(field.type_)
+  self.write_source_span("field.loc", field.loc)
 }
 
 ///|
@@ -776,20 +794,16 @@ fn ArtifactTextReader::read_field(
 }
 
 ///|
-fn write_variant(
-  lines : Array[String],
+fn ArtifactTextWriter::write_variant(
+  self : ArtifactTextWriter,
   variant : @module_interface.ModuleInterfaceVariant,
 ) -> Unit {
-  write_variant_symbol_id(lines, "variant.symbol", variant.symbol)
-  write_string(lines, "variant.name", variant.name)
-  write_int(lines, "variant.index", variant.index)
-  write_type_parameters(
-    lines,
-    "variant.type_parameters",
-    variant.type_parameters,
-  )
-  write_lane_types(lines, "variant.payload", variant.payload)
-  write_source_span(lines, "variant.loc", variant.loc)
+  self.write_variant_symbol_id("variant.symbol", variant.symbol)
+  self.write_string("variant.name", variant.name)
+  self.write_int("variant.index", variant.index)
+  self.write_type_parameters("variant.type_parameters", variant.type_parameters)
+  self.write_lane_types("variant.payload", variant.payload)
+  self.write_source_span("variant.loc", variant.loc)
 }
 
 ///|
@@ -806,14 +820,14 @@ fn ArtifactTextReader::read_variant(
 }
 
 ///|
-fn write_type_alias(
-  lines : Array[String],
+fn ArtifactTextWriter::write_type_alias(
+  self : ArtifactTextWriter,
   alias_ : @module_interface.ModuleInterfaceTypeAlias,
 ) -> Unit {
-  write_string(lines, "type_alias.name", alias_.name)
-  write_lane_type(lines, alias_.body)
-  write_lane_kind(lines, "type_alias.kind", alias_.kind)
-  write_source_span(lines, "type_alias.loc", alias_.loc)
+  self.write_string("type_alias.name", alias_.name)
+  self.write_lane_type(alias_.body)
+  self.write_lane_kind("type_alias.kind", alias_.kind)
+  self.write_source_span("type_alias.loc", alias_.loc)
 }
 
 ///|
@@ -828,24 +842,24 @@ fn ArtifactTextReader::read_type_alias(
 }
 
 ///|
-fn write_interface_value(
-  lines : Array[String],
+fn ArtifactTextWriter::write_interface_value(
+  self : ArtifactTextWriter,
   value : @module_interface.ModuleInterfaceValue,
 ) -> Unit {
-  write_value_symbol_id(lines, "value.symbol", value.symbol)
-  write_interface_value_kind(lines, value.kind)
-  write_string(lines, "value.name", value.name)
-  write_lane_type(lines, value.type_)
+  self.write_value_symbol_id("value.symbol", value.symbol)
+  self.write_interface_value_kind(value.kind)
+  self.write_string("value.name", value.name)
+  self.write_lane_type(value.type_)
   match value.parameters {
-    None => write_tag(lines, "value.parameters.none")
+    None => self.write_tag("value.parameters.none")
     Some(parameters) => {
-      write_int(lines, "value.parameters", parameters.length())
+      self.write_int("value.parameters", parameters.length())
       for parameter in parameters {
-        write_value_parameter(lines, parameter)
+        self.write_value_parameter(parameter)
       }
     }
   }
-  write_source_span(lines, "value.loc", value.loc)
+  self.write_source_span("value.loc", value.loc)
 }
 
 ///|
@@ -889,12 +903,11 @@ fn ArtifactTextReader::peek_tag(
 }
 
 ///|
-fn write_interface_value_kind(
-  lines : Array[String],
+fn ArtifactTextWriter::write_interface_value_kind(
+  self : ArtifactTextWriter,
   kind : @module_interface.ModuleInterfaceValueKind,
 ) -> Unit {
-  write_atom(
-    lines,
+  self.write_atom(
     "value.kind",
     match kind {
       Function => "function"
@@ -917,16 +930,16 @@ fn ArtifactTextReader::read_interface_value_kind(
 }
 
 ///|
-fn write_value_parameter(
-  lines : Array[String],
+fn ArtifactTextWriter::write_value_parameter(
+  self : ArtifactTextWriter,
   parameter : @module_interface.ModuleInterfaceValueParameter,
 ) -> Unit {
-  write_value_symbol_id(lines, "value_parameter.symbol", parameter.symbol)
-  write_bool(lines, "value_parameter.is_auto", parameter.is_auto)
-  write_bool(lines, "value_parameter.is_offered", parameter.is_offered)
-  write_string(lines, "value_parameter.name", parameter.name)
-  write_lane_type(lines, parameter.type_)
-  write_source_span(lines, "value_parameter.loc", parameter.loc)
+  self.write_value_symbol_id("value_parameter.symbol", parameter.symbol)
+  self.write_bool("value_parameter.is_auto", parameter.is_auto)
+  self.write_bool("value_parameter.is_offered", parameter.is_offered)
+  self.write_string("value_parameter.name", parameter.name)
+  self.write_lane_type(parameter.type_)
+  self.write_source_span("value_parameter.loc", parameter.loc)
 }
 
 ///|
@@ -943,20 +956,20 @@ fn ArtifactTextReader::read_value_parameter(
 }
 
 ///|
-fn write_lane_kind(
-  lines : Array[String],
+fn ArtifactTextWriter::write_lane_kind(
+  self : ArtifactTextWriter,
   tag : String,
   kind : @types.Kind,
 ) -> Unit {
   match kind {
-    Type => write_atom(lines, tag, "type")
+    Type => self.write_atom(tag, "type")
     Function(parameters, result) => {
-      write_atom(lines, tag, "function")
-      write_int(lines, tag + ".parameters", parameters.length())
+      self.write_atom(tag, "function")
+      self.write_int("\{tag}.parameters", parameters.length())
       for parameter in parameters {
-        write_lane_kind(lines, tag + ".parameter", parameter)
+        self.write_lane_kind("\{tag}.parameter", parameter)
       }
-      write_lane_kind(lines, tag + ".result", result)
+      self.write_lane_kind("\{tag}.result", result)
     }
   }
 }
@@ -970,10 +983,10 @@ fn ArtifactTextReader::read_lane_kind(
     "type" => Type
     "function" => {
       let parameters = []
-      for _ in 0..<self.expect_int(tag + ".parameters") {
-        parameters.push(self.read_lane_kind(tag + ".parameter"))
+      for _ in 0..<self.expect_int("\{tag}.parameters") {
+        parameters.push(self.read_lane_kind("\{tag}.parameter"))
       }
-      let result = self.read_lane_kind(tag + ".result")
+      let result = self.read_lane_kind("\{tag}.result")
       Function(parameters, result)
     }
     value => fail_unknown("unknown Lane kind \{value}")
@@ -981,14 +994,14 @@ fn ArtifactTextReader::read_lane_kind(
 }
 
 ///|
-fn write_type_parameters(
-  lines : Array[String],
+fn ArtifactTextWriter::write_type_parameters(
+  self : ArtifactTextWriter,
   tag : String,
   parameters : Array[@types.TypeParameter],
 ) -> Unit {
-  write_int(lines, tag, parameters.length())
+  self.write_int(tag, parameters.length())
   for parameter in parameters {
-    write_type_parameter(lines, tag + ".item", parameter)
+    self.write_type_parameter("\{tag}.item", parameter)
   }
 }
 
@@ -999,20 +1012,20 @@ fn ArtifactTextReader::read_type_parameters(
 ) -> Array[@types.TypeParameter] raise ArtifactTextError {
   let parameters = []
   for _ in 0..<self.expect_int(tag) {
-    parameters.push(self.read_type_parameter(tag + ".item"))
+    parameters.push(self.read_type_parameter("\{tag}.item"))
   }
   parameters
 }
 
 ///|
-fn write_type_parameter(
-  lines : Array[String],
+fn ArtifactTextWriter::write_type_parameter(
+  self : ArtifactTextWriter,
   tag : String,
   parameter : @types.TypeParameter,
 ) -> Unit {
-  write_type_parameter_id(lines, tag + ".id", parameter.id)
-  write_string(lines, tag + ".name", parameter.name)
-  write_lane_kind(lines, tag + ".kind", parameter.kind)
+  self.write_type_parameter_id("\{tag}.id", parameter.id)
+  self.write_string("\{tag}.name", parameter.name)
+  self.write_lane_kind("\{tag}.kind", parameter.kind)
 }
 
 ///|
@@ -1020,21 +1033,21 @@ fn ArtifactTextReader::read_type_parameter(
   self : ArtifactTextReader,
   tag : String,
 ) -> @types.TypeParameter raise ArtifactTextError {
-  let id = self.read_type_parameter_id(tag + ".id")
-  let name = self.expect_string(tag + ".name")
-  let kind = self.read_lane_kind(tag + ".kind")
+  let id = self.read_type_parameter_id("\{tag}.id")
+  let name = self.expect_string("\{tag}.name")
+  let kind = self.read_lane_kind("\{tag}.kind")
   { id, name, kind }
 }
 
 ///|
-fn write_lane_types(
-  lines : Array[String],
+fn ArtifactTextWriter::write_lane_types(
+  self : ArtifactTextWriter,
   tag : String,
   types : Array[@types.Type],
 ) -> Unit {
-  write_int(lines, tag, types.length())
+  self.write_int(tag, types.length())
   for type_ in types {
-    write_lane_type(lines, type_)
+    self.write_lane_type(type_)
   }
 }
 
@@ -1051,40 +1064,43 @@ fn ArtifactTextReader::read_lane_types(
 }
 
 ///|
-fn write_lane_type(lines : Array[String], type_ : @types.Type) -> Unit {
+fn ArtifactTextWriter::write_lane_type(
+  self : ArtifactTextWriter,
+  type_ : @types.Type,
+) -> Unit {
   match type_ {
-    Error => write_tag(lines, "lane_type.error")
+    Error => self.write_tag("lane_type.error")
     Primitive(primitive) => {
-      write_tag(lines, "lane_type.primitive")
-      write_lane_primitive_type(lines, primitive)
+      self.write_tag("lane_type.primitive")
+      self.write_lane_primitive_type(primitive)
     }
     Constructor(symbol) => {
-      write_tag(lines, "lane_type.constructor")
-      write_type_symbol_id(lines, "lane_type.constructor.symbol", symbol)
+      self.write_tag("lane_type.constructor")
+      self.write_type_symbol_id("lane_type.constructor.symbol", symbol)
     }
     Apply(callee, arguments) => {
-      write_tag(lines, "lane_type.apply")
-      write_lane_type(lines, callee)
-      write_lane_types(lines, "lane_type.apply.arguments", arguments)
+      self.write_tag("lane_type.apply")
+      self.write_lane_type(callee)
+      self.write_lane_types("lane_type.apply.arguments", arguments)
     }
     TypeLambda(parameters, body) => {
-      write_tag(lines, "lane_type.type_lambda")
-      write_type_parameters(lines, "lane_type.binders", parameters)
-      write_lane_type(lines, body)
+      self.write_tag("lane_type.type_lambda")
+      self.write_type_parameters("lane_type.binders", parameters)
+      self.write_lane_type(body)
     }
     Parameter(id) => {
-      write_tag(lines, "lane_type.parameter")
-      write_type_parameter_id(lines, "lane_type.parameter.id", id)
+      self.write_tag("lane_type.parameter")
+      self.write_type_parameter_id("lane_type.parameter.id", id)
     }
     Function(parameters, result) => {
-      write_tag(lines, "lane_type.function")
-      write_lane_types(lines, "lane_type.function.parameters", parameters)
-      write_lane_type(lines, result)
+      self.write_tag("lane_type.function")
+      self.write_lane_types("lane_type.function.parameters", parameters)
+      self.write_lane_type(result)
     }
     Forall(parameters, body) => {
-      write_tag(lines, "lane_type.forall")
-      write_type_parameters(lines, "lane_type.binders", parameters)
-      write_lane_type(lines, body)
+      self.write_tag("lane_type.forall")
+      self.write_type_parameters("lane_type.binders", parameters)
+      self.write_lane_type(body)
     }
   }
 }
@@ -1125,12 +1141,11 @@ fn ArtifactTextReader::read_lane_type(
 }
 
 ///|
-fn write_lane_primitive_type(
-  lines : Array[String],
+fn ArtifactTextWriter::write_lane_primitive_type(
+  self : ArtifactTextWriter,
   primitive : @types.PrimitiveType,
 ) -> Unit {
-  write_atom(
-    lines,
+  self.write_atom(
     "lane_primitive",
     match primitive {
       Int => "int"
@@ -1155,17 +1170,17 @@ fn ArtifactTextReader::read_lane_primitive_type(
 }
 
 ///|
-fn write_source_span(
-  lines : Array[String],
+fn ArtifactTextWriter::write_source_span(
+  self : ArtifactTextWriter,
   tag : String,
   span : @basic.SourceSpan,
 ) -> Unit {
-  write_int(lines, tag + ".start_offset", span.start_offset)
-  write_int(lines, tag + ".end_offset", span.end_offset)
-  write_int(lines, tag + ".start_line", span.start_line)
-  write_int(lines, tag + ".start_column", span.start_column)
-  write_int(lines, tag + ".end_line", span.end_line)
-  write_int(lines, tag + ".end_column", span.end_column)
+  self.write_int("\{tag}.start_offset", span.start_offset)
+  self.write_int("\{tag}.end_offset", span.end_offset)
+  self.write_int("\{tag}.start_line", span.start_line)
+  self.write_int("\{tag}.start_column", span.start_column)
+  self.write_int("\{tag}.end_line", span.end_line)
+  self.write_int("\{tag}.end_column", span.end_column)
 }
 
 ///|
@@ -1174,22 +1189,22 @@ fn ArtifactTextReader::read_source_span(
   tag : String,
 ) -> @basic.SourceSpan raise ArtifactTextError {
   {
-    start_offset: self.expect_int(tag + ".start_offset"),
-    end_offset: self.expect_int(tag + ".end_offset"),
-    start_line: self.expect_int(tag + ".start_line"),
-    start_column: self.expect_int(tag + ".start_column"),
-    end_line: self.expect_int(tag + ".end_line"),
-    end_column: self.expect_int(tag + ".end_column"),
+    start_offset: self.expect_int("\{tag}.start_offset"),
+    end_offset: self.expect_int("\{tag}.end_offset"),
+    start_line: self.expect_int("\{tag}.start_line"),
+    start_column: self.expect_int("\{tag}.start_column"),
+    end_line: self.expect_int("\{tag}.end_line"),
+    end_column: self.expect_int("\{tag}.end_column"),
   }
 }
 
 ///|
-fn write_type_symbol_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_type_symbol_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @symbol.TypeSymbolId,
 ) -> Unit {
-  write_int(lines, tag, id.index)
+  self.write_int(tag, id.index)
 }
 
 ///|
@@ -1201,12 +1216,12 @@ fn ArtifactTextReader::read_type_symbol_id(
 }
 
 ///|
-fn write_type_parameter_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_type_parameter_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @symbol.TypeParameterId,
 ) -> Unit {
-  write_int(lines, tag, id.index)
+  self.write_int(tag, id.index)
 }
 
 ///|
@@ -1218,12 +1233,12 @@ fn ArtifactTextReader::read_type_parameter_id(
 }
 
 ///|
-fn write_type_member_symbol_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_type_member_symbol_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @symbol.TypeMemberSymbolId,
 ) -> Unit {
-  write_int(lines, tag, id.index)
+  self.write_int(tag, id.index)
 }
 
 ///|
@@ -1235,12 +1250,12 @@ fn ArtifactTextReader::read_type_member_symbol_id(
 }
 
 ///|
-fn write_value_symbol_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_value_symbol_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @symbol.ValueSymbolId,
 ) -> Unit {
-  write_int(lines, tag, id.index)
+  self.write_int(tag, id.index)
 }
 
 ///|
@@ -1252,12 +1267,12 @@ fn ArtifactTextReader::read_value_symbol_id(
 }
 
 ///|
-fn write_field_symbol_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_field_symbol_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @symbol.FieldSymbolId,
 ) -> Unit {
-  write_int(lines, tag, id.index)
+  self.write_int(tag, id.index)
 }
 
 ///|
@@ -1269,12 +1284,12 @@ fn ArtifactTextReader::read_field_symbol_id(
 }
 
 ///|
-fn write_variant_symbol_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_variant_symbol_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @symbol.VariantSymbolId,
 ) -> Unit {
-  write_int(lines, tag, id.index)
+  self.write_int(tag, id.index)
 }
 
 ///|
@@ -1286,12 +1301,12 @@ fn ArtifactTextReader::read_variant_symbol_id(
 }
 
 ///|
-fn write_buslane_type(
-  lines : Array[String],
+fn ArtifactTextWriter::write_buslane_type(
+  self : ArtifactTextWriter,
   tag : String,
   type_ : @buslane.Type,
 ) -> Unit {
-  write_string(lines, tag, @text.type_to_text(type_))
+  self.write_string(tag, @text.type_to_text(type_))
 }
 
 ///|
@@ -1307,12 +1322,12 @@ fn ArtifactTextReader::read_buslane_type(
 }
 
 ///|
-fn write_buslane_value_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_buslane_value_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @buslane.ValueId,
 ) -> Unit {
-  write_int(lines, tag, id.index)
+  self.write_int(tag, id.index)
 }
 
 ///|
@@ -1324,14 +1339,14 @@ fn ArtifactTextReader::read_buslane_value_id(
 }
 
 ///|
-fn write_optional_type_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_optional_type_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @buslane.TypeId?,
 ) -> Unit {
   match id {
-    None => write_atom(lines, tag, "none")
-    Some(id) => write_atom(lines, tag, "some_" + "\{id.index}")
+    None => self.write_atom(tag, "none")
+    Some(id) => self.write_atom(tag, "some_\{id.index}")
   }
 }
 
@@ -1352,14 +1367,14 @@ fn ArtifactTextReader::read_optional_type_id(
 }
 
 ///|
-fn write_optional_data_con_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_optional_data_con_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @buslane.DataConId?,
 ) -> Unit {
   match id {
-    None => write_atom(lines, tag, "none")
-    Some(id) => write_atom(lines, tag, "some_" + "\{id.index}")
+    None => self.write_atom(tag, "none")
+    Some(id) => self.write_atom(tag, "some_\{id.index}")
   }
 }
 
@@ -1380,14 +1395,14 @@ fn ArtifactTextReader::read_optional_data_con_id(
 }
 
 ///|
-fn write_optional_value_id(
-  lines : Array[String],
+fn ArtifactTextWriter::write_optional_value_id(
+  self : ArtifactTextWriter,
   tag : String,
   id : @buslane.ValueId?,
 ) -> Unit {
   match id {
-    None => write_atom(lines, tag, "none")
-    Some(id) => write_atom(lines, tag, "some_" + "\{id.index}")
+    None => self.write_atom(tag, "none")
+    Some(id) => self.write_atom(tag, "some_\{id.index}")
   }
 }
 
@@ -1415,15 +1430,15 @@ fn parse_atom_int(tag : String, value : String) -> Int raise ArtifactTextError {
 }
 
 ///|
-fn write_externals(
-  lines : Array[String],
+fn ArtifactTextWriter::write_externals(
+  self : ArtifactTextWriter,
   externals : @elaborate.BuslaneExternalMap,
 ) -> Unit {
-  write_int(lines, "externals.builtins", externals.builtins.length())
+  self.write_int("externals.builtins", externals.builtins.length())
   for external in externals.builtins {
-    write_buslane_value_id(lines, "external.value", external.value)
-    write_string(lines, "external.name", external.name)
-    write_buslane_type(lines, "external.type", external.type_)
+    self.write_buslane_value_id("external.value", external.value)
+    self.write_string("external.name", external.name)
+    self.write_buslane_type("external.type", external.type_)
   }
 }
 
@@ -1442,15 +1457,15 @@ fn ArtifactTextReader::read_externals(
 }
 
 ///|
-fn write_entries(
-  lines : Array[String],
+fn ArtifactTextWriter::write_entries(
+  self : ArtifactTextWriter,
   entries : Array[@elaborate.BuslaneEntry],
 ) -> Unit {
-  write_int(lines, "entries", entries.length())
+  self.write_int("entries", entries.length())
   for entry in entries {
-    write_string(lines, "entry.name", entry.name)
-    write_buslane_value_id(lines, "entry.value", entry.value)
-    write_buslane_type(lines, "entry.type", entry.type_)
+    self.write_string("entry.name", entry.name)
+    self.write_buslane_value_id("entry.value", entry.value)
+    self.write_buslane_type("entry.type", entry.type_)
   }
 }
 
@@ -1469,21 +1484,20 @@ fn ArtifactTextReader::read_entries(
 }
 
 ///|
-fn write_exports(
-  lines : Array[String],
+fn ArtifactTextWriter::write_exports(
+  self : ArtifactTextWriter,
   exports : Array[@elaborate.BuslaneModuleExport],
 ) -> Unit {
-  write_int(lines, "exports", exports.length())
+  self.write_int("exports", exports.length())
   for export_ in exports {
-    write_export_kind(lines, "export.kind", export_.kind)
-    write_string(lines, "export.name", export_.name)
-    write_optional_type_id(lines, "export.type_id", export_.type_id)
-    write_optional_data_con_id(
-      lines,
+    self.write_export_kind("export.kind", export_.kind)
+    self.write_string("export.name", export_.name)
+    self.write_optional_type_id("export.type_id", export_.type_id)
+    self.write_optional_data_con_id(
       "export.data_constructor",
       export_.data_constructor,
     )
-    write_optional_value_id(lines, "export.value", export_.value)
+    self.write_optional_value_id("export.value", export_.value)
   }
 }
 
@@ -1506,27 +1520,25 @@ fn ArtifactTextReader::read_exports(
 }
 
 ///|
-fn write_imports(
-  lines : Array[String],
+fn ArtifactTextWriter::write_imports(
+  self : ArtifactTextWriter,
   imports : Array[ModuleImportedReference],
 ) -> Unit {
-  write_int(lines, "imports", imports.length())
+  self.write_int("imports", imports.length())
   for import_ in imports {
-    write_string(lines, "import.module_path_text", import_.module_path_text)
-    write_export_kind(lines, "import.kind", import_.kind)
-    write_string(lines, "import.name", import_.name)
-    write_compilation_fingerprint(
-      lines,
+    self.write_string("import.module_path_text", import_.module_path_text)
+    self.write_export_kind("import.kind", import_.kind)
+    self.write_string("import.name", import_.name)
+    self.write_compilation_fingerprint(
       "import.fingerprint",
       import_.fingerprint,
     )
-    write_optional_type_id(lines, "import.type_id", import_.type_id)
-    write_optional_data_con_id(
-      lines,
+    self.write_optional_type_id("import.type_id", import_.type_id)
+    self.write_optional_data_con_id(
       "import.data_constructor",
       import_.data_constructor,
     )
-    write_optional_value_id(lines, "import.value", import_.value)
+    self.write_optional_value_id("import.value", import_.value)
   }
 }
 
@@ -1559,13 +1571,12 @@ fn ArtifactTextReader::read_imports(
 }
 
 ///|
-fn write_export_kind(
-  lines : Array[String],
+fn ArtifactTextWriter::write_export_kind(
+  self : ArtifactTextWriter,
   tag : String,
   kind : @elaborate.BuslaneModuleExportKind,
 ) -> Unit {
-  write_atom(
-    lines,
+  self.write_atom(
     tag,
     match kind {
       Type => "type"

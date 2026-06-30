@@ -43,7 +43,7 @@ fn validate_module_inputs(
       if modules[index].header.module_path_text ==
         modules[other_index].header.module_path_text {
         diagnostics.push(
-          compile_error(
+          CompileErrorKind::to_diagnostic(
             DuplicateModuleInput(modules[index].header.module_path_text),
             Some(modules[other_index].header.module_span),
           ),
@@ -55,7 +55,7 @@ fn validate_module_inputs(
     for import_ in module_.header.imports {
       if find_module(modules, import_.module_path_text) is None {
         diagnostics.push(
-          compile_error(
+          CompileErrorKind::to_diagnostic(
             MissingImport(import_.module_path_text),
             Some(import_.import_span),
           ),
@@ -127,11 +127,11 @@ fn visit_module(
     return
   }
   if visiting.contains(path) {
-    diagnostics.push(compile_error(ImportCycle(path), None))
+    diagnostics.push(CompileErrorKind::to_diagnostic(ImportCycle(path), None))
     return
   }
   guard find_module(modules, path) is Some(module_) else {
-    diagnostics.push(compile_error(MissingImport(path), None))
+    diagnostics.push(CompileErrorKind::to_diagnostic(MissingImport(path), None))
     return
   }
   visiting.push(path)

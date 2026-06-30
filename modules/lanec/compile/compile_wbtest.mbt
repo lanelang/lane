@@ -251,7 +251,7 @@ test "module artifacts roundtrip through text and link" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let artifact = compiled_module_set_artifact(modules)
+  let artifact = modules.to_artifact()
   let decoded_modules = []
   for module_ in artifact.modules {
     let interface_text = module_interface_artifact_to_text(module_.interface)
@@ -283,14 +283,12 @@ test "module artifacts roundtrip through text and link" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let linked_text = linked_program_artifact_to_text(
-    linked_program_artifact(program),
-  )
+  let linked_text = linked_program_artifact_to_text(program.to_artifact())
   let linked_decoded = match parse_linked_program_artifact_text(linked_text) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
-  let linked_program = match linked_program_from_artifact(linked_decoded) {
+  let linked_program = match linked_decoded.to_linked_program() {
     Ok(program) => program
     Err(diagnostics) => abort(@prettyprinter.render(diagnostics, width=100))
   }
@@ -307,7 +305,7 @@ test "module artifacts roundtrip through text and link" {
     externals: linked_decoded.externals,
     entries: duplicated_entries,
   }
-  guard linked_program_from_artifact(duplicate_entry_artifact)
+  guard duplicate_entry_artifact.to_linked_program()
     is Err(duplicate_entry_diagnostics) else {
     abort("expected duplicate linked entry diagnostic")
   }
@@ -330,7 +328,7 @@ test "module artifacts roundtrip through text and link" {
       },
     ],
   }
-  guard linked_program_from_artifact(unknown_entry_artifact)
+  guard unknown_entry_artifact.to_linked_program()
     is Err(unknown_entry_diagnostics) else {
     abort("expected unknown linked entry diagnostic")
   }
@@ -350,7 +348,7 @@ test "module artifacts roundtrip through text and link" {
     externals: linked_decoded.externals,
     entries: [],
   }
-  guard linked_program_from_artifact(invalid_program_artifact)
+  guard invalid_program_artifact.to_linked_program()
     is Err(invalid_program_diagnostics) else {
     abort("expected invalid linked program diagnostic")
   }
@@ -413,7 +411,7 @@ test "link module artifacts orders reachable modules by imports" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let artifact = compiled_module_set_artifact(modules)
+  let artifact = modules.to_artifact()
   guard find_artifact_module(artifact.modules, "Main") is Some(main) else {
     abort("expected Main artifact")
   }
@@ -464,7 +462,7 @@ test "compile module with interface artifact then link object artifacts" {
   guard lib_modules.modules.get(0) is Some(lib_module) else {
     abort("expected Lib module")
   }
-  let lib_artifact = compiled_module_artifact(lib_module)
+  let lib_artifact = lib_module.to_artifact()
   let main_compiled = compile_module_with_interface_artifacts(
     (
       #|module Main
@@ -480,7 +478,7 @@ test "compile module with interface artifact then link object artifacts" {
   guard main_modules.modules.get(0) is Some(main_module) else {
     abort("expected Main module")
   }
-  let main_artifact = compiled_module_artifact(main_module)
+  let main_artifact = main_module.to_artifact()
   let linked = link_module_object_artifacts([
     lib_artifact.object,
     main_artifact.object,
@@ -518,7 +516,7 @@ test "compile module freshens independently compiled interface symbols" {
   guard left_modules.modules.get(0) is Some(left_module) else {
     abort("expected Left module")
   }
-  let left_artifact = compiled_module_artifact(left_module)
+  let left_artifact = left_module.to_artifact()
   let right_compiled = compile_modules(
     (
       #|module Right
@@ -536,7 +534,7 @@ test "compile module freshens independently compiled interface symbols" {
   guard right_modules.modules.get(0) is Some(right_module) else {
     abort("expected Right module")
   }
-  let right_artifact = compiled_module_artifact(right_module)
+  let right_artifact = right_module.to_artifact()
   let main_compiled = compile_module_with_interface_artifacts(
     (
       #|module Main
@@ -553,7 +551,7 @@ test "compile module freshens independently compiled interface symbols" {
   guard main_modules.modules.get(0) is Some(main_module) else {
     abort("expected Main module")
   }
-  let main_artifact = compiled_module_artifact(main_module)
+  let main_artifact = main_module.to_artifact()
   let linked = link_module_artifacts({
     schema_version: 1,
     root_module_path_text: "Main",
@@ -588,7 +586,7 @@ test "compile module follows transitive interface dependencies without extra pol
   guard extra_modules.modules.get(0) is Some(extra_module) else {
     abort("expected Extra module")
   }
-  let extra_artifact = compiled_module_artifact(extra_module)
+  let extra_artifact = extra_module.to_artifact()
   let a_compiled = compile_modules(
     (
       #|module A
@@ -606,7 +604,7 @@ test "compile module follows transitive interface dependencies without extra pol
   guard a_modules.modules.get(0) is Some(a_module) else {
     abort("expected A module")
   }
-  let a_artifact = compiled_module_artifact(a_module)
+  let a_artifact = a_module.to_artifact()
   let b_compiled = compile_module_with_interface_artifacts(
     (
       #|module B
@@ -622,7 +620,7 @@ test "compile module follows transitive interface dependencies without extra pol
   guard b_modules.modules.get(0) is Some(b_module) else {
     abort("expected B module")
   }
-  let b_artifact = compiled_module_artifact(b_module)
+  let b_artifact = b_module.to_artifact()
   let c_compiled = compile_module_with_interface_artifacts(
     (
       #|module C
@@ -638,7 +636,7 @@ test "compile module follows transitive interface dependencies without extra pol
   guard c_modules.modules.get(0) is Some(c_module) else {
     abort("expected C module")
   }
-  let c_artifact = compiled_module_artifact(c_module)
+  let c_artifact = c_module.to_artifact()
   let linked = link_module_artifacts({
     schema_version: 1,
     root_module_path_text: "C",
@@ -673,7 +671,7 @@ test "compile module reports missing transitive interface dependency" {
   guard a_modules.modules.get(0) is Some(a_module) else {
     abort("expected A module")
   }
-  let a_artifact = compiled_module_artifact(a_module)
+  let a_artifact = a_module.to_artifact()
   let b_compiled = compile_module_with_interface_artifacts(
     (
       #|module B
@@ -688,7 +686,7 @@ test "compile module reports missing transitive interface dependency" {
   guard b_modules.modules.get(0) is Some(b_module) else {
     abort("expected B module")
   }
-  let b_artifact = compiled_module_artifact(b_module)
+  let b_artifact = b_module.to_artifact()
   let c_compiled = compile_module_with_interface_artifacts(
     (
       #|module C
@@ -719,7 +717,7 @@ test "compile module rejects interface artifact name mismatch" {
   guard lib_modules.modules.get(0) is Some(lib_module) else {
     abort("expected Lib module")
   }
-  let lib_artifact = compiled_module_artifact(lib_module)
+  let lib_artifact = lib_module.to_artifact()
   let interface = lib_artifact.interface.interface
   let damaged_interface : @module_interface.ModuleInterface = {
     module_path: "Other",
@@ -766,7 +764,7 @@ test "compile module rejects stale interface artifact fingerprint" {
   guard lib_modules.modules.get(0) is Some(lib_module) else {
     abort("expected Lib module")
   }
-  let lib_artifact = compiled_module_artifact(lib_module)
+  let lib_artifact = lib_module.to_artifact()
   let damaged : ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
@@ -805,7 +803,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
   guard lib_modules.modules.get(0) is Some(lib_module) else {
     abort("expected Lib module")
   }
-  let lib_artifact = compiled_module_artifact(lib_module)
+  let lib_artifact = lib_module.to_artifact()
   let damaged : ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
@@ -847,7 +845,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let artifact = compiled_module_set_artifact(modules)
+  let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
       let object : ModuleObjectArtifact = {
@@ -907,7 +905,7 @@ test "link module artifacts rejects interface object name mismatch" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let artifact = compiled_module_set_artifact(modules)
+  let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
       let interface : ModuleInterfaceArtifact = {

@@ -15,9 +15,7 @@ async fn write_module_interface_artifact(
 ) -> Unit {
   write_source_file(
     path,
-    @compile.module_interface_artifact_to_text(
-      @compile.module_interface_artifact(module_),
-    ),
+    @compile.module_interface_artifact_to_text(module_.to_interface_artifact()),
   )
 }
 
@@ -28,9 +26,7 @@ async fn write_module_object_artifact(
 ) -> Unit {
   write_source_file(
     path,
-    @compile.module_object_artifact_to_text(
-      @compile.module_object_artifact(module_),
-    ),
+    @compile.module_object_artifact_to_text(module_.to_object_artifact()),
   )
 }
 
@@ -63,9 +59,7 @@ async fn write_linked_program_artifact(
 ) -> Unit {
   write_source_file(
     path,
-    @compile.linked_program_artifact_to_text(
-      @compile.linked_program_artifact(program),
-    ),
+    @compile.linked_program_artifact_to_text(program.to_artifact()),
   )
 }
 
@@ -76,7 +70,7 @@ async fn read_linked_program_artifact(path : String) -> @compile.LinkedProgram {
     Ok(artifact) => artifact
     Err(message) => fail(message)
   }
-  match @compile.linked_program_from_artifact(artifact) {
+  match artifact.to_linked_program() {
     Ok(program) => program
     Err(diagnostics) => fail(@prettyprinter.render(diagnostics, width=100))
   }
@@ -169,7 +163,7 @@ async fn append_library_dir_sources(
     if should_skip_library_entry(entry) {
       continue
     }
-    let child = path + "/" + entry
+    let child = "\{path}/\{entry}"
     match @fs.kind(child) {
       Directory =>
         match append_library_dir_sources(child, sources) {

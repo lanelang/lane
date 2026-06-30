@@ -8,7 +8,9 @@ No ready issues.
 
 ## Unresolved Issues
 
-No unresolved issues.
+| ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| [ISS-026](ISS-026.md) | deferred | 3 | task | unassigned | none | none | Decide Buslane canonical text method or trait shape |
 
 ## Dependency Graph
 
@@ -34,6 +36,12 @@ graph TD
   ISS_018["ISS-018: Rewrite artifact text parser diagnostics"]
   ISS_019["ISS-019: Rewrite CLI, LSP, and runtime boundary errors"]
   ISS_020["ISS-020: Add golden tests for Rust-style diagnostics"]
+  ISS_021["ISS-021: Move compiler helper behavior onto owning methods"]
+  ISS_022["ISS-022: Convert artifact text writing to ArtifactTextWriter methods"]
+  ISS_023["ISS-023: Convert compile diagnostics rendering helpers to methods"]
+  ISS_024["ISS-024: Move artifact model validation and conversion onto artifact methods"]
+  ISS_025["ISS-025: Move analysis span helpers onto span-oriented methods"]
+  ISS_026["ISS-026: Decide Buslane canonical text method or trait shape"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -55,6 +63,7 @@ graph TD
   ISS_017 --> ISS_020
   ISS_018 --> ISS_020
   ISS_019 --> ISS_020
+  ISS_022 --> ISS_024
 ```
 
 ## Warnings

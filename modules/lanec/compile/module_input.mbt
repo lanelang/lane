@@ -56,7 +56,7 @@ fn parse_module_input_set_from_inputs(
     return Err(parsed.diagnostics)
   }
   guard parsed.modules.get(0) is Some(root) else {
-    return Err([compile_error(NoRootSourceModule, None)])
+    return Err([CompileErrorKind::to_diagnostic(NoRootSourceModule, None)])
   }
   Ok({
     root_module_path_text: root.header.module_path_text,
@@ -91,7 +91,9 @@ fn parse_module_inputs(
             source: file,
           })
         None =>
-          diagnostics.push(compile_error(ParserProducedNoSourceFile, None))
+          diagnostics.push(
+            CompileErrorKind::to_diagnostic(ParserProducedNoSourceFile, None),
+          )
       }
     } else {
       diagnostics.append(source_diagnostics)

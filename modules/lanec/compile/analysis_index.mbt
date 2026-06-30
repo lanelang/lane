@@ -24,7 +24,7 @@ pub fn AnalysisResult::hover_at(
 ) -> HoverEntry? {
   let hovers = self.hovers.filter(fn(hover) {
     hover.location.source_id == source_id &&
-    span_contains(hover.location.span, line, column)
+    hover.location.span.contains_position(line, column)
   })
   smallest_hover(hovers)
 }
@@ -38,7 +38,7 @@ fn AnalysisResult::reference_at(
 ) -> ReferenceEntry? {
   let references = self.references.filter(fn(reference) {
     reference.location.source_id == source_id &&
-    span_contains(reference.location.span, line, column)
+    reference.location.span.contains_position(line, column)
   })
   smallest_reference(references)
 }
@@ -52,7 +52,7 @@ fn AnalysisResult::definition_entry_at(
 ) -> DefinitionEntry? {
   let definitions = self.definitions.filter(fn(definition) {
     definition.location.source_id == source_id &&
-    span_contains(definition.location.span, line, column)
+    definition.location.span.contains_position(line, column)
   })
   smallest_definition(definitions)
 }
@@ -110,17 +110,21 @@ fn definition_reference_span(
 }
 
 ///|
-fn span_contains(span : @basic.SourceSpan, line : Int, column : Int) -> Bool {
+fn @basic.SourceSpan::contains_position(
+  self : @basic.SourceSpan,
+  line : Int,
+  column : Int,
+) -> Bool {
   (
-    line > span.start_line ||
-    (line == span.start_line && column >= span.start_column)
+    line > self.start_line ||
+    (line == self.start_line && column >= self.start_column)
   ) &&
-  (line < span.end_line || (line == span.end_line && column < span.end_column))
+  (line < self.end_line || (line == self.end_line && column < self.end_column))
 }
 
 ///|
-fn span_size(span : @basic.SourceSpan) -> Int {
-  span.end_offset - span.start_offset
+fn @basic.SourceSpan::size(self : @basic.SourceSpan) -> Int {
+  self.end_offset - self.start_offset
 }
 
 ///|
@@ -130,7 +134,7 @@ fn smallest_reference(references : Array[ReferenceEntry]) -> ReferenceEntry? {
     match best {
       None => best = Some(reference)
       Some(current) =>
-        if span_size(reference.location.span) < span_size(current.location.span) {
+        if reference.location.span.size() < current.location.span.size() {
           best = Some(reference)
         }
     }
@@ -145,7 +149,7 @@ fn smallest_hover(hovers : Array[HoverEntry]) -> HoverEntry? {
     match best {
       None => best = Some(hover)
       Some(current) =>
-        if span_size(hover.location.span) < span_size(current.location.span) {
+        if hover.location.span.size() < current.location.span.size() {
           best = Some(hover)
         }
     }
@@ -162,8 +166,7 @@ fn smallest_definition(
     match best {
       None => best = Some(definition)
       Some(current) =>
-        if span_size(definition.location.span) <
-          span_size(current.location.span) {
+        if definition.location.span.size() < current.location.span.size() {
           best = Some(definition)
         }
     }

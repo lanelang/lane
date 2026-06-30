@@ -103,11 +103,11 @@ fn primary_label(
 }
 
 ///|
-fn compile_error(
-  kind : CompileErrorKind,
+fn CompileErrorKind::to_diagnostic(
+  self : CompileErrorKind,
   span : @basic.SourceSpan?,
 ) -> CompileDiagnostic {
-  match kind {
+  match self {
     NoRootSourceModule =>
       compile_report(
         "no root source module",
@@ -545,7 +545,7 @@ fn resolve_diagnostic(
             style: Primary,
           },
         ],
-        notes=["candidates: " + resolve_variant_candidates_text(candidates)],
+        notes=["candidates: \{resolve_variant_candidates_text(candidates)}"],
         helps=[
           "qualify the variant with its enum type, for example `Enum::\{name}`",
         ],
@@ -558,7 +558,7 @@ fn resolve_variant_candidates_text(
   candidates : Array[@resolve.ResolveVariantCandidate],
 ) -> String {
   candidates
-  .map(fn(candidate) { candidate.owner + "::" + candidate.variant })
+  .map(fn(candidate) { "\{candidate.owner}::\{candidate.variant}" })
   .join(", ")
 }
 
@@ -1152,7 +1152,7 @@ fn parse_error_title(error : @parser.ParseErrorKind) -> String {
 ///|
 fn parse_error_label(error : @parser.ParseErrorKind) -> String {
   match error {
-    UnexpectedToken(token, _) => "the parser did not expect " + token.label
+    UnexpectedToken(token, _) => "the parser did not expect \{token.label}"
     UnexpectedEndOfInput(_) =>
       "the source file ended while parsing this construct"
   }
@@ -1165,7 +1165,7 @@ fn parse_error_notes(error : @parser.ParseErrorKind) -> Array[String] {
       if expected.is_empty() {
         []
       } else {
-        ["expected one of: " + expected_list(expected)]
+        ["expected one of: \{expected_list(expected)}"]
       }
   }
 }
@@ -1178,8 +1178,7 @@ fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
         ["remove the unexpected token or rewrite the surrounding expression"]
       } else {
         [
-          "rewrite this position so it starts with one of: " +
-          expected_list(expected),
+          "rewrite this position so it starts with one of: \{expected_list(expected)}",
         ]
       }
     UnexpectedEndOfInput(expected) =>
@@ -1187,8 +1186,7 @@ fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
         ["finish the incomplete construct before the end of file"]
       } else {
         [
-          "add the missing syntax before the end of file; expected one of: " +
-          expected_list(expected),
+          "add the missing syntax before the end of file; expected one of: \{expected_list(expected)}",
         ]
       }
   }
@@ -1201,25 +1199,15 @@ fn expected_list(expected : Array[@parser.ExpectedSyntax]) -> String {
 
 ///|
 fn span_text(span : @basic.SourceSpan) -> String {
-  span.start_line.to_string() +
-  ":" +
-  span.start_column.to_string() +
-  "-" +
-  span.end_line.to_string() +
-  ":" +
-  span.end_column.to_string()
+  "\{span.start_line}:\{span.start_column}-\{span.end_line}:\{span.end_column}"
 }
 
 ///|
 pub impl @prettyprinter.Pretty for CompileDiagnostic with fn pretty(
   diagnostic : CompileDiagnostic,
 ) -> Document {
-  let header = severity_doc(diagnostic.severity) +
-    code_doc(diagnostic.code) +
-    text(":") +
-    space +
-    text(diagnostic.message)
-  let body = diagnostic_body_doc(diagnostic)
+  let header = diagnostic.header_doc()
+  let body = diagnostic.body_doc()
   if body is Some(body) {
     header + line + body
   } else {
@@ -1228,35 +1216,46 @@ pub impl @prettyprinter.Pretty for CompileDiagnostic with fn pretty(
 }
 
 ///|
-fn severity_doc(severity : CompileDiagnosticSeverity) -> Document {
-  match severity {
+fn CompileDiagnostic::header_doc(self : CompileDiagnostic) -> Document {
+  self.severity.to_doc() +
+  self.code_doc() +
+  text(":") +
+  space +
+  text(self.message)
+}
+
+///|
+fn CompileDiagnosticSeverity::to_doc(
+  self : CompileDiagnosticSeverity,
+) -> Document {
+  match self {
     Error => text("error")
     Warning => text("warning")
   }
 }
 
 ///|
-fn code_doc(code : String?) -> Document {
-  match code {
+fn CompileDiagnostic::code_doc(self : CompileDiagnostic) -> Document {
+  match self.code {
     Some(code) => text("[") + text(code) + text("]")
     None => text("")
   }
 }
 
 ///|
-fn diagnostic_body_doc(diagnostic : CompileDiagnostic) -> Document? {
+fn CompileDiagnostic::body_doc(self : CompileDiagnostic) -> Document? {
   let docs : Array[Document] = []
-  match diagnostic.span {
+  match self.span {
     Some(span) => docs.push(text("  -->") + space + text(span_text(span)))
     None => ()
   }
-  for label in diagnostic.labels {
-    docs.push(label_doc(label))
+  for label in self.labels {
+    docs.push(label.to_doc())
   }
-  for note in diagnostic.notes {
+  for note in self.notes {
     docs.push(text("  = note:") + space + text(note))
   }
-  for help in diagnostic.helps {
+  for help in self.helps {
     docs.push(text("  = help:") + space + text(help))
   }
   if docs.is_empty() {
@@ -1267,30 +1266,32 @@ fn diagnostic_body_doc(diagnostic : CompileDiagnostic) -> Document? {
 }
 
 ///|
-fn label_doc(label : CompileDiagnosticLabel) -> Document {
-  let prefix = match label.style {
+fn CompileDiagnosticLabel::to_doc(self : CompileDiagnosticLabel) -> Document {
+  let prefix = match self.style {
     Primary => text("  = label:")
     Secondary => text("  = note:")
   }
-  prefix + space + text(span_text(label.span)) + space + text(label.message)
+  prefix + space + text(span_text(self.span)) + space + text(self.message)
 }
 
 ///|
 pub impl @prettyprinter.Pretty for CheckResult with fn pretty(
   result : CheckResult,
 ) -> Document {
-  diagnostics_doc(result.diagnostics)
+  CompileDiagnostic::list_doc(result.diagnostics)
 }
 
 ///|
 pub impl @prettyprinter.Pretty for CompileResult with fn pretty(
   result : CompileResult,
 ) -> Document {
-  diagnostics_doc(result.diagnostics)
+  CompileDiagnostic::list_doc(result.diagnostics)
 }
 
 ///|
-fn diagnostics_doc(diagnostics : Array[CompileDiagnostic]) -> Document {
+fn CompileDiagnostic::list_doc(
+  diagnostics : Array[CompileDiagnostic],
+) -> Document {
   if diagnostics.is_empty() {
     text("diagnostics") + space + text("{}")
   } else {
