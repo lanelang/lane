@@ -102,8 +102,23 @@ pub(all) struct CompileDiagnostic {
   message : String
   span : @basic.SourceSpan?
   severity : CompileDiagnosticSeverity
+  code : String?
+  labels : Array[CompileDiagnosticLabel]
+  notes : Array[String]
+  helps : Array[String]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CompileDiagnostic
+
+pub(all) struct CompileDiagnosticLabel {
+  span : @basic.SourceSpan
+  message : String
+  style : CompileDiagnosticLabelStyle
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CompileDiagnosticLabelStyle {
+  Primary
+  Secondary
+} derive(Eq, @debug.Debug)
 
 pub(all) enum CompileDiagnosticSeverity {
   Error

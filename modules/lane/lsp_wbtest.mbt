@@ -150,6 +150,18 @@ async test "didOpen publishes compiler diagnostics" {
             "severity": 1,
             "source": "lane",
             "message": "unresolved_type Missing",
+            "relatedInformation": [
+              {
+                "location": {
+                  "uri": "file:///bad.lane",
+                  "range": {
+                    "start": { "line": 1, "character": 13 },
+                    "end": { "line": 1, "character": 20 },
+                  },
+                },
+                "message": "unresolved_type Missing",
+              },
+            ],
           },
         ],
       },

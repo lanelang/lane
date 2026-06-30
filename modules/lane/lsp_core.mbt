@@ -504,7 +504,11 @@ fn publish_diagnostics(
     "textDocument/publishDiagnostics",
     Json::object({
       "uri": Json::string(uri),
-      "diagnostics": Json::array(diagnostics.map(compile_diagnostic_json)),
+      "diagnostics": Json::array(
+        diagnostics.map(fn(diagnostic) {
+          compile_diagnostic_json(uri, diagnostic)
+        }),
+      ),
     }),
   )
 }
@@ -616,13 +620,67 @@ fn semantic_token_type_index(kind : @compile.SemanticTokenKind) -> Int {
 }
 
 ///|
-fn compile_diagnostic_json(diagnostic : @compile.CompileDiagnostic) -> Json {
-  Json::object({
+fn compile_diagnostic_json(
+  uri : String,
+  diagnostic : @compile.CompileDiagnostic,
+) -> Json {
+  let fields = {
     "range": diagnostic_range_json(diagnostic.span),
     "severity": diagnostic_severity_json(diagnostic.severity),
     "source": Json::string("lane"),
     "message": Json::string(diagnostic.message),
-  })
+  }
+  match diagnostic.code {
+    Some(code) => fields["code"] = Json::string(code)
+    None => ()
+  }
+  let related = related_information_json(uri, diagnostic)
+  if !related.is_empty() {
+    fields["relatedInformation"] = Json::array(related)
+  }
+  Json::object(fields)
+}
+
+///|
+fn related_information_json(
+  uri : String,
+  diagnostic : @compile.CompileDiagnostic,
+) -> Array[Json] {
+  let items : Array[Json] = []
+  for label in diagnostic.labels {
+    items.push(
+      Json::object({
+        "location": Json::object({
+          "uri": Json::string(uri),
+          "range": range_json(label.span),
+        }),
+        "message": Json::string(label.message),
+      }),
+    )
+  }
+  for note in diagnostic.notes {
+    items.push(
+      Json::object({
+        "location": Json::object({
+          "uri": Json::string(uri),
+          "range": diagnostic_range_json(diagnostic.span),
+        }),
+        "message": Json::string("note: " + note),
+      }),
+    )
+  }
+  for help in diagnostic.helps {
+    items.push(
+      Json::object({
+        "location": Json::object({
+          "uri": Json::string(uri),
+          "range": diagnostic_range_json(diagnostic.span),
+        }),
+        "message": Json::string("help: " + help),
+      }),
+    )
+  }
+  items
 }
 
 ///|

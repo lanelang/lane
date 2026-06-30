@@ -6,6 +6,10 @@ pub(all) struct CompileDiagnostic {
   message : String
   span : @basic.SourceSpan?
   severity : CompileDiagnosticSeverity
+  code : String?
+  labels : Array[CompileDiagnosticLabel]
+  notes : Array[String]
+  helps : Array[String]
 } derive(Debug, Eq)
 
 ///|
@@ -15,11 +19,56 @@ pub(all) enum CompileDiagnosticSeverity {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CompileDiagnosticLabel {
+  span : @basic.SourceSpan
+  message : String
+  style : CompileDiagnosticLabelStyle
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CompileDiagnosticLabelStyle {
+  Primary
+  Secondary
+} derive(Debug, Eq)
+
+///|
 fn make_error(
   message : String,
   span~ : @basic.SourceSpan?,
 ) -> CompileDiagnostic {
-  { message, span, severity: Error }
+  diagnostic(
+    message,
+    span~,
+    severity=Error,
+    code=None,
+    labels=primary_label(span, message),
+    notes=[],
+    helps=[],
+  )
+}
+
+///|
+fn diagnostic(
+  message : String,
+  span~ : @basic.SourceSpan?,
+  severity~ : CompileDiagnosticSeverity,
+  code~ : String?,
+  labels~ : Array[CompileDiagnosticLabel],
+  notes~ : Array[String],
+  helps~ : Array[String],
+) -> CompileDiagnostic {
+  { message, span, severity, code, labels, notes, helps }
+}
+
+///|
+fn primary_label(
+  span : @basic.SourceSpan?,
+  message : String,
+) -> Array[CompileDiagnosticLabel] {
+  match span {
+    Some(span) => [{ span, message, style: Primary }]
+    None => []
+  }
 }
 
 ///|
@@ -97,11 +146,65 @@ fn span_text(span : @basic.SourceSpan) -> String {
 pub impl @prettyprinter.Pretty for CompileDiagnostic with fn pretty(
   diagnostic : CompileDiagnostic,
 ) -> Document {
-  let message = text(diagnostic.message)
-  match diagnostic.span {
-    Some(span) => text(span_text(span)) + text(":") + space + message
-    None => message
+  let header = severity_doc(diagnostic.severity) +
+    code_doc(diagnostic.code) +
+    text(":") +
+    space +
+    text(diagnostic.message)
+  let body = diagnostic_body_doc(diagnostic)
+  if body is Some(body) {
+    header + line + body
+  } else {
+    header
   }
+}
+
+///|
+fn severity_doc(severity : CompileDiagnosticSeverity) -> Document {
+  match severity {
+    Error => text("error")
+    Warning => text("warning")
+  }
+}
+
+///|
+fn code_doc(code : String?) -> Document {
+  match code {
+    Some(code) => text("[") + text(code) + text("]")
+    None => text("")
+  }
+}
+
+///|
+fn diagnostic_body_doc(diagnostic : CompileDiagnostic) -> Document? {
+  let docs : Array[Document] = []
+  match diagnostic.span {
+    Some(span) => docs.push(text("  -->") + space + text(span_text(span)))
+    None => ()
+  }
+  for label in diagnostic.labels {
+    docs.push(label_doc(label))
+  }
+  for note in diagnostic.notes {
+    docs.push(text("  = note:") + space + text(note))
+  }
+  for help in diagnostic.helps {
+    docs.push(text("  = help:") + space + text(help))
+  }
+  if docs.is_empty() {
+    None
+  } else {
+    Some(separate(line, docs))
+  }
+}
+
+///|
+fn label_doc(label : CompileDiagnosticLabel) -> Document {
+  let prefix = match label.style {
+    Primary => text("  = label:")
+    Secondary => text("  = note:")
+  }
+  prefix + space + text(span_text(label.span)) + space + text(label.message)
 }
 
 ///|

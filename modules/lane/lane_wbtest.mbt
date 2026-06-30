@@ -95,11 +95,19 @@ test "check deny controls warning failures" {
     message: "example warning",
     span: None,
     severity: Warning,
+    code: None,
+    labels: [],
+    notes: [],
+    helps: [],
   }
   let error : @compile.CompileDiagnostic = {
     message: "example error",
     span: None,
     severity: Error,
+    code: None,
+    labels: [],
+    notes: [],
+    helps: [],
   }
   inspect(denied_diagnostics([warning], false).length(), content="0")
   inspect(denied_diagnostics([warning], true).length(), content="1")
