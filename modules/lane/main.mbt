@@ -61,7 +61,7 @@ async fn lane_fmt(
   for file in files {
     let source = read_source_file(file) catch {
       error => {
-        println("failed to read source: \{error}")
+        println(read_file_error(file, "\{error}"))
         failed = true
         continue
       }
@@ -75,7 +75,7 @@ async fn lane_fmt(
           } else {
             write_source_file(file, formatted) catch {
               error => {
-                println("failed to write source: \{error}")
+                println(write_file_error(file, "\{error}"))
                 failed = true
               }
             }
@@ -106,13 +106,14 @@ async fn lane_check(
 ) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
     error => {
-      println("failed to read source: \{error}")
+      println(read_file_error(file, "\{error}"))
       return UserFailure
     }
   }
-  let libraries = read_library_sources(libs, lib_dirs) catch {
-    error => {
-      println("failed to read library source: \{error}")
+  let libraries = match read_library_sources(libs, lib_dirs) {
+    Ok(libraries) => libraries
+    Err(message) => {
+      println(message)
       return UserFailure
     }
   }
@@ -137,22 +138,23 @@ async fn lane_compile(
   emit_object : String?,
 ) -> LaneCommandOutcome {
   guard emit_interface is Some(interface_path) else {
-    println("compile requires --emit-interface")
+    println(missing_compile_output_error("--emit-interface", "-t"))
     return UserFailure
   }
   guard emit_object is Some(object_path) else {
-    println("compile requires --emit-object")
+    println(missing_compile_output_error("--emit-object", "-o"))
     return UserFailure
   }
   let source = read_source_file(file) catch {
     error => {
-      println("failed to read source: \{error}")
+      println(read_file_error(file, "\{error}"))
       return UserFailure
     }
   }
-  let imported_interfaces = read_module_interface_artifacts(interfaces) catch {
-    error => {
-      println("failed to read module interface artifact: \{error}")
+  let imported_interfaces = match read_module_interface_artifacts(interfaces) {
+    Ok(imported_interfaces) => imported_interfaces
+    Err(message) => {
+      println(message)
       return UserFailure
     }
   }
@@ -171,13 +173,13 @@ async fn lane_compile(
   }
   write_module_interface_artifact(interface_path, module_) catch {
     error => {
-      println("failed to write module interface artifact: \{error}")
+      println(write_file_error(interface_path, "\{error}"))
       return UserFailure
     }
   }
   write_module_object_artifact(object_path, module_) catch {
     error => {
-      println("failed to write module object artifact: \{error}")
+      println(write_file_error(object_path, "\{error}"))
       return UserFailure
     }
   }
@@ -209,7 +211,7 @@ async fn lane_link(
   }
   write_linked_program_artifact(output, program) catch {
     error => {
-      println("failed to write linked program artifact: \{error}")
+      println(write_file_error(output, "\{error}"))
       return UserFailure
     }
   }
@@ -228,7 +230,7 @@ async fn lane_runlinked(
 ) -> LaneCommandOutcome {
   let program = read_linked_program_artifact(path) catch {
     error => {
-      println("failed to read linked program artifact: \{error}")
+      println(read_file_error(path, "\{error}"))
       return UserFailure
     }
   }
@@ -261,13 +263,14 @@ async fn lane_run(
 ) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
     error => {
-      println("failed to read source: \{error}")
+      println(read_file_error(file, "\{error}"))
       return UserFailure
     }
   }
-  let libraries = read_library_sources(libs, lib_dirs) catch {
-    error => {
-      println("failed to read library source: \{error}")
+  let libraries = match read_library_sources(libs, lib_dirs) {
+    Ok(libraries) => libraries
+    Err(message) => {
+      println(message)
       return UserFailure
     }
   }
@@ -315,8 +318,8 @@ fn find_entry(
   let matched = entries.filter(entry => entry.name == name)
   match matched.length() {
     1 => Ok(matched[0])
-    0 => Err("entry not found: \{name}")
-    _ => Err("ambiguous entry: \{name}")
+    0 => Err(entry_lookup_error(name, entries))
+    _ => Err(ambiguous_entry_error(name, entries))
   }
 }
 

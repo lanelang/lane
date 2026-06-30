@@ -107,7 +107,7 @@ fn lane_command_spec() -> Command {
 ///|
 fn parse_lane_command() -> Result[LaneCommand, String] {
   let matches = lane_command_spec().parse() catch {
-    error => return Err("\{error}")
+    error => return Err(cli_parse_error("\{error}"))
   }
   match matches.subcommand {
     Some(("check", child)) =>
@@ -176,7 +176,7 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
         ),
       )
     Some(("lsp", child)) => Ok(Lsp(stdio=flag(child, "stdio")))
-    _ => Err("unknown lane command")
+    _ => Err(unknown_command_error())
   }
 }
 
@@ -190,7 +190,7 @@ priv struct RunTarget {
 fn parse_run_target(target : String) -> Result[RunTarget, String] {
   let parts = target.split(":").collect()
   if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-    return Err("run target must be FILE:ENTRY")
+    return Err(run_target_error(target))
   }
   Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned() })
 }
@@ -267,10 +267,10 @@ fn required_value(
   name : String,
 ) -> Result[String, String] {
   guard matches.values.get(name) is Some(values) else {
-    return Err("missing argument: \{name}")
+    return Err(missing_argument_error(name))
   }
   guard values.get(0) is Some(value) else {
-    return Err("missing argument: \{name}")
+    return Err(missing_argument_error(name))
   }
   Ok(value)
 }

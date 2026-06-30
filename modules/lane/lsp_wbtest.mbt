@@ -69,6 +69,24 @@ test "position params accept parsed json numbers" {
 }
 
 ///|
+async test "hover reports invalid params as an LSP request shape error" {
+  let state = ServerState::ServerState()
+  let result = state.handle_message(
+    request(7, "textDocument/hover", Json::object({})),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 7,
+      "error": {
+        "code": -32602,
+        "message": "invalid textDocument/hover params: expected `textDocument.uri`, `position.line`, and `position.character`; this is an LSP client request shape error, not a Lane source error",
+      },
+    },
+  ])
+}
+
+///|
 async test "semantic tokens full returns variables and parameters" {
   let state = ServerState::ServerState()
   ignore(

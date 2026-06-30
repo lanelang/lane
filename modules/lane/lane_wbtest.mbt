@@ -12,7 +12,29 @@ test "reject run target without entry suffix" {
   guard parse_run_target("examples/main.lane") is Err(message) else {
     abort("expected run target error")
   }
-  inspect(message, content="run target must be FILE:ENTRY")
+  inspect(
+    message,
+    content=(
+      #|error[E6002]: invalid run target
+      #|  = label: expected `FILE:ENTRY`, got `examples/main.lane`
+      #|  = note: `lane run` compiles one source file and then selects a public entry from it
+      #|  = help: try: lane run Main.lane:main
+    ),
+  )
+}
+
+///|
+test "compile output errors explain both long and short flags" {
+  inspect(
+    missing_compile_output_error("--emit-interface", "-t"),
+    content=(
+      #|error[E6004]: missing compile output path
+      #|  = label: `lane compile` requires `--emit-interface` to choose where to write an artifact
+      #|  = note: compile writes a module interface and a module object as separate artifacts
+      #|  = help: try: lane compile Main.lane -t Main.lmi -o Main.lmo
+      #|  = help: short form: `-t <path>`
+    ),
+  )
 }
 
 ///|
@@ -65,6 +87,28 @@ test "selected public function entry renders as function" {
 }
 
 ///|
+test "missing entry error lists available public entries" {
+  let result = @compile.compile_source(
+    (
+      #|module Test
+      #|pub let answer : Int = 42
+    ),
+  )
+  guard find_entry(result.entries, "main") is Err(message) else {
+    abort("expected missing entry")
+  }
+  inspect(
+    message,
+    content=(
+      #|error[E6005]: entry was not found in the linked program
+      #|  = label: requested entry `main` does not exist
+      #|  = note: available public entries: answer
+      #|  = help: use one of the listed public entries, or export the value with `pub` before compiling
+    ),
+  )
+}
+
+///|
 test "render primitive entry values with source type annotations" {
   inspect(
     render_entry_value(
@@ -86,6 +130,19 @@ test "render primitive entry values with source type annotations" {
       Primitive(Unit),
     ),
     content="() : Unit",
+  )
+}
+
+///|
+test "internal compiler error is marked as a compiler bug" {
+  inspect(
+    internal_compiler_error("callee is not callable"),
+    content=(
+      #|error[E6200]: internal Lane compiler/runtime error
+      #|  = label: compiler/runtime invariant failed: callee is not callable
+      #|  = note: this is not expected after a successful Lane typecheck
+      #|  = help: please file a compiler bug with the source file, command, and this diagnostic
+    ),
   )
 }
 

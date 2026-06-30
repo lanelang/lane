@@ -127,7 +127,7 @@ async fn ServerState::handle_did_open(
   request : @jsonrpc.Request,
 ) -> HandlerResult {
   guard document_from_did_open(request.params) is Some(document) else {
-    return respond(request, Err(invalid_params("invalid didOpen params")))
+    return respond(request, Err(invalid_params(invalid_did_open_params())))
   }
   self.documents[document.uri] = document
   {
@@ -142,7 +142,7 @@ async fn ServerState::handle_did_change(
   request : @jsonrpc.Request,
 ) -> HandlerResult {
   guard document_from_did_change(request.params) is Some(document) else {
-    return respond(request, Err(invalid_params("invalid didChange params")))
+    return respond(request, Err(invalid_params(invalid_did_change_params())))
   }
   self.documents[document.uri] = document
   {
@@ -157,7 +157,7 @@ fn ServerState::handle_did_close(
   request : @jsonrpc.Request,
 ) -> HandlerResult {
   guard uri_from_text_document_params(request.params) is Some(uri) else {
-    return respond(request, Err(invalid_params("invalid didClose params")))
+    return respond(request, Err(invalid_params(invalid_did_close_params())))
   }
   self.documents.remove(uri)
   { outgoing: [publish_diagnostics(uri, [])], exit_requested: false }
@@ -169,7 +169,10 @@ async fn ServerState::handle_definition(
   request : @jsonrpc.Request,
 ) -> HandlerResult {
   guard text_document_position_params(request.params) is Some(params) else {
-    return respond(request, Err(invalid_params("invalid definition params")))
+    return respond(
+      request,
+      Err(invalid_params(invalid_position_params("textDocument/definition"))),
+    )
   }
   guard self.document_for_uri(params.uri) is Some(document) else {
     return respond(request, Ok(Json::null()))
@@ -189,7 +192,10 @@ async fn ServerState::handle_hover(
   request : @jsonrpc.Request,
 ) -> HandlerResult {
   guard text_document_position_params(request.params) is Some(params) else {
-    return respond(request, Err(invalid_params("invalid hover params")))
+    return respond(
+      request,
+      Err(invalid_params(invalid_position_params("textDocument/hover"))),
+    )
   }
   guard self.document_for_uri(params.uri) is Some(document) else {
     return respond(request, Ok(Json::null()))
@@ -211,7 +217,11 @@ async fn ServerState::handle_semantic_tokens_full(
   guard uri_from_text_document_params(request.params) is Some(uri) else {
     return respond(
       request,
-      Err(invalid_params("invalid semantic tokens params")),
+      Err(
+        invalid_params(
+          invalid_text_document_params("textDocument/semanticTokens/full"),
+        ),
+      ),
     )
   }
   guard self.document_for_uri(uri) is Some(document) else {
@@ -242,10 +252,40 @@ fn ServerState::method_not_found(
     request,
     Err({
       code: -32601,
-      message: "method not found: " + method_name,
+      message: method_not_found_message(method_name),
       data: None,
     }),
   )
+}
+
+///|
+fn invalid_did_open_params() -> String {
+  "invalid textDocument/didOpen params: expected `textDocument.uri` and `textDocument.text`; this is an LSP client request shape error, not a Lane source error"
+}
+
+///|
+fn invalid_did_change_params() -> String {
+  "invalid textDocument/didChange params: expected `textDocument.uri` and `contentChanges[0].text`; this is an LSP client request shape error, not a Lane source error"
+}
+
+///|
+fn invalid_did_close_params() -> String {
+  "invalid textDocument/didClose params: expected `textDocument.uri`; this is an LSP client request shape error, not a Lane source error"
+}
+
+///|
+fn invalid_position_params(method_name : String) -> String {
+  "invalid \{method_name} params: expected `textDocument.uri`, `position.line`, and `position.character`; this is an LSP client request shape error, not a Lane source error"
+}
+
+///|
+fn invalid_text_document_params(method_name : String) -> String {
+  "invalid \{method_name} params: expected `textDocument.uri`; this is an LSP client request shape error, not a Lane source error"
+}
+
+///|
+fn method_not_found_message(method_name : String) -> String {
+  "method not found: \{method_name}; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, and textDocument/semanticTokens/full"
 }
 
 ///|
