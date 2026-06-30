@@ -5,25 +5,22 @@ fn request(id : Int, method_name : String, params : Json) -> @jsonrpc.Message {
 
 ///|
 fn open_params(uri : String, text : String) -> Json {
-  Json::object({
-    "textDocument": Json::object({
-      "uri": Json::string(uri),
-      "languageId": Json::string("lane"),
-      "version": int_json(1),
-      "text": Json::string(text),
-    }),
-  })
+  {
+    "textDocument": {
+      "uri": uri,
+      "languageId": "lane",
+      "version": 1,
+      "text": text,
+    },
+  }
 }
 
 ///|
 fn position_params(uri : String, line : Int, character : Int) -> Json {
-  Json::object({
-    "textDocument": Json::object({ "uri": Json::string(uri) }),
-    "position": Json::object({
-      "line": int_json(line),
-      "character": int_json(character),
-    }),
-  })
+  {
+    "textDocument": { "uri": uri },
+    "position": { "line": line, "character": character },
+  }
 }
 
 ///|
@@ -34,25 +31,19 @@ fn range_params(
   end_line : Int,
   end_character : Int,
 ) -> Json {
-  Json::object({
-    "textDocument": Json::object({ "uri": Json::string(uri) }),
-    "range": Json::object({
-      "start": Json::object({
-        "line": int_json(start_line),
-        "character": int_json(start_character),
-      }),
-      "end": Json::object({
-        "line": int_json(end_line),
-        "character": int_json(end_character),
-      }),
-    }),
-  })
+  {
+    "textDocument": { "uri": uri },
+    "range": {
+      "start": { "line": start_line, "character": start_character },
+      "end": { "line": end_line, "character": end_character },
+    },
+  }
 }
 
 ///|
 async test "initialize returns full document sync capability" {
   let state = ServerState::ServerState()
-  let result = state.handle_message(request(1, "initialize", Json::null()))
+  let result = state.handle_message(request(1, "initialize", null))
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
     {
       "jsonrpc": "2.0",
@@ -88,9 +79,7 @@ test "position params accept parsed json numbers" {
 ///|
 async test "hover reports invalid params as an LSP request shape error" {
   let state = ServerState::ServerState()
-  let result = state.handle_message(
-    request(7, "textDocument/hover", Json::object({})),
-  )
+  let result = state.handle_message(request(7, "textDocument/hover", {}))
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
     {
       "jsonrpc": "2.0",
@@ -298,15 +287,9 @@ async test "semantic tokens full is not provided by lane lsp" {
     ),
   )
   let result = state.handle_message(
-    request(
-      2,
-      "textDocument/semanticTokens/full",
-      Json::object({
-        "textDocument": Json::object({
-          "uri": Json::string("file:///Main.lane"),
-        }),
-      }),
-    ),
+    request(2, "textDocument/semanticTokens/full", {
+      "textDocument": { "uri": "file:///Main.lane" },
+    }),
   )
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
     {
@@ -421,11 +404,7 @@ async test "didOpen checks against workspace library sources" {
   let state = ServerState::ServerState()
   ignore(
     state.handle_message(
-      request(
-        1,
-        "initialize",
-        Json::object({ "rootUri": Json::string("file://" + workspace) }),
-      ),
+      request(1, "initialize", { "rootUri": "file://\{workspace}" }),
     ),
   )
   let result = state.handle_message(
@@ -505,11 +484,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
   let state = ServerState::ServerState()
   ignore(
     state.handle_message(
-      request(
-        1,
-        "initialize",
-        Json::object({ "rootUri": Json::string("file://.tmp-lsp%20workspace") }),
-      ),
+      request(1, "initialize", { "rootUri": "file://.tmp-lsp%20workspace" }),
     ),
   )
   ignore(
@@ -579,11 +554,7 @@ async test "workspace libraries exclude current document by realpath" {
   let state = ServerState::ServerState()
   ignore(
     state.handle_message(
-      request(
-        1,
-        "initialize",
-        Json::object({ "rootUri": Json::string("file://\{workspace}") }),
-      ),
+      request(1, "initialize", { "rootUri": "file://\{workspace}" }),
     ),
   )
   let result = state.handle_message(
@@ -634,11 +605,7 @@ async test "definition returns encoded URI for discovered library source" {
   let state = ServerState::ServerState()
   ignore(
     state.handle_message(
-      request(
-        1,
-        "initialize",
-        Json::object({ "rootUri": Json::string(path_to_file_uri(workspace)) }),
-      ),
+      request(1, "initialize", { "rootUri": path_to_file_uri(workspace) }),
     ),
   )
   ignore(
@@ -874,11 +841,7 @@ async test "definition resolves workspace library references" {
   let state = ServerState::ServerState()
   ignore(
     state.handle_message(
-      request(
-        1,
-        "initialize",
-        Json::object({ "rootUri": Json::string("file://" + workspace) }),
-      ),
+      request(1, "initialize", { "rootUri": "file://\{workspace}" }),
     ),
   )
   ignore(

@@ -83,18 +83,15 @@ fn ServerState::handle_initialize(
 
 ///|
 fn initialize_result() -> Json {
-  Json::object({
-    "capabilities": Json::object({
-      "textDocumentSync": int_json(1),
-      "definitionProvider": Json::boolean(true),
-      "hoverProvider": Json::boolean(true),
-      "inlayHintProvider": Json::boolean(true),
-    }),
-    "serverInfo": Json::object({
-      "name": Json::string(server_name),
-      "version": Json::string("0.1.0"),
-    }),
-  })
+  {
+    "capabilities": {
+      "textDocumentSync": 1,
+      "definitionProvider": true,
+      "hoverProvider": true,
+      "inlayHintProvider": true,
+    },
+    "serverInfo": { "name": server_name, "version": "0.1.0" },
+  }
 }
 
 ///|
@@ -103,7 +100,7 @@ fn ServerState::handle_shutdown(
   request : @jsonrpc.Request,
 ) -> HandlerResult {
   self.shutdown_requested = true
-  respond(request, Ok(Json::null()))
+  respond(request, Ok(null))
 }
 
 ///|
@@ -165,14 +162,14 @@ async fn ServerState::handle_definition(
     )
   }
   guard self.document_for_uri(params.uri) is Some(document) else {
-    return respond(request, Ok(Json::null()))
+    return respond(request, Ok(null))
   }
   let analysis = self.analyze(document)
   let line = params.line + 1
   let column = params.character + 1
   match analysis.definition_at(params.uri, line, column) {
     Some(location) => respond(request, Ok(location_json(location)))
-    None => respond(request, Ok(Json::null()))
+    None => respond(request, Ok(null))
   }
 }
 
@@ -188,14 +185,14 @@ async fn ServerState::handle_hover(
     )
   }
   guard self.document_for_uri(params.uri) is Some(document) else {
-    return respond(request, Ok(Json::null()))
+    return respond(request, Ok(null))
   }
   let analysis = self.analyze(document)
   let line = params.line + 1
   let column = params.character + 1
   match analysis.hover_at(params.uri, line, column) {
     Some(hover) => respond(request, Ok(hover_json(hover)))
-    None => respond(request, Ok(Json::null()))
+    None => respond(request, Ok(null))
   }
 }
 
@@ -211,7 +208,7 @@ async fn ServerState::handle_inlay_hint(
     )
   }
   guard self.document_for_uri(params.uri) is Some(document) else {
-    return respond(request, Ok(Json::array([])))
+    return respond(request, Ok(([] : Array[Json]).to_json()))
   }
   let analysis = self.analyze(document)
   let hints = analysis.inlay_hints_in_range(
@@ -221,7 +218,7 @@ async fn ServerState::handle_inlay_hint(
     params.end.line + 1,
     params.end.character + 1,
   )
-  respond(request, Ok(Json::array(hints.map(inlay_hint_json))))
+  respond(request, Ok(hints.map(inlay_hint_json).to_json()))
 }
 
 ///|
@@ -543,45 +540,37 @@ fn publish_diagnostics(
   uri : String,
   diagnostics : Array[@compile.CompileDiagnostic],
 ) -> @jsonrpc.Message {
-  @jsonrpc.new_notification(
-    "textDocument/publishDiagnostics",
-    Json::object({
-      "uri": Json::string(uri),
-      "diagnostics": Json::array(
-        diagnostics.map(fn(diagnostic) {
-          compile_diagnostic_json(uri, diagnostic)
-        }),
-      ),
+  @jsonrpc.new_notification("textDocument/publishDiagnostics", {
+    "uri": uri,
+    "diagnostics": diagnostics.map(fn(diagnostic) {
+      compile_diagnostic_json(uri, diagnostic)
     }),
-  )
+  })
 }
 
 ///|
 fn location_json(location : @compile.AnalysisLocation) -> Json {
-  Json::object({
-    "uri": Json::string(location.source_id),
-    "range": range_json(location.span),
-  })
+  { "uri": location.source_id, "range": range_json(location.span) }
 }
 
 ///|
 fn hover_json(hover : @compile.HoverEntry) -> Json {
-  Json::object({
-    "contents": Json::object({
-      "kind": Json::string("markdown"),
-      "value": Json::string("```lane\n" + hover.contents + "\n```"),
-    }),
+  {
+    "contents": {
+      "kind": "markdown",
+      "value": "```lane\n\{hover.contents}\n```",
+    },
     "range": range_json(hover.location.span),
-  })
+  }
 }
 
 ///|
 fn inlay_hint_json(hint : @compile.InlayHintEntry) -> Json {
-  Json::object({
+  {
     "position": inlay_hint_position_json(hint),
-    "label": Json::string(hint.label),
+    "label": hint.label,
     "kind": inlay_hint_kind_json(hint.kind),
-  })
+  }
 }
 
 ///|
@@ -600,8 +589,8 @@ fn inlay_hint_position_json(hint : @compile.InlayHintEntry) -> Json {
 ///|
 fn inlay_hint_kind_json(kind : @compile.InlayHintKind) -> Json {
   match kind {
-    TypeHint => int_json(1)
-    ParameterHint | ImplicitArgumentHint => int_json(2)
+    TypeHint => 1
+    ParameterHint | ImplicitArgumentHint => 2
   }
 }
 
@@ -610,21 +599,21 @@ fn compile_diagnostic_json(
   uri : String,
   diagnostic : @compile.CompileDiagnostic,
 ) -> Json {
-  let fields = {
+  let fields : Map[String, Json] = {
     "range": diagnostic_range_json(diagnostic.span),
     "severity": diagnostic_severity_json(diagnostic.severity),
-    "source": Json::string("lane"),
-    "message": Json::string(diagnostic.message),
+    "source": "lane",
+    "message": diagnostic.message,
   }
   match diagnostic.code {
-    Some(code) => fields["code"] = Json::string(code)
+    Some(code) => fields["code"] = code.to_json()
     None => ()
   }
   let related = related_information_json(uri, diagnostic)
   if !related.is_empty() {
-    fields["relatedInformation"] = Json::array(related)
+    fields["relatedInformation"] = related.to_json()
   }
-  Json::object(fields)
+  fields.to_json()
 }
 
 ///|
@@ -634,37 +623,28 @@ fn related_information_json(
 ) -> Array[Json] {
   let items : Array[Json] = []
   for label in diagnostic.labels {
-    items.push(
-      Json::object({
-        "location": Json::object({
-          "uri": Json::string(uri),
-          "range": range_json(label.span),
-        }),
-        "message": Json::string(label.message),
-      }),
-    )
+    items.push({
+      "location": { "uri": uri, "range": range_json(label.span) },
+      "message": label.message,
+    })
   }
   for note in diagnostic.notes {
-    items.push(
-      Json::object({
-        "location": Json::object({
-          "uri": Json::string(uri),
-          "range": diagnostic_range_json(diagnostic.span),
-        }),
-        "message": Json::string("note: " + note),
-      }),
-    )
+    items.push({
+      "location": {
+        "uri": uri,
+        "range": diagnostic_range_json(diagnostic.span),
+      },
+      "message": "note: \{note}",
+    })
   }
   for help in diagnostic.helps {
-    items.push(
-      Json::object({
-        "location": Json::object({
-          "uri": Json::string(uri),
-          "range": diagnostic_range_json(diagnostic.span),
-        }),
-        "message": Json::string("help: " + help),
-      }),
-    )
+    items.push({
+      "location": {
+        "uri": uri,
+        "range": diagnostic_range_json(diagnostic.span),
+      },
+      "message": "help: \{help}",
+    })
   }
   items
 }
@@ -679,18 +659,26 @@ fn diagnostic_range_json(span : @basic.SourceSpan?) -> Json {
 
 ///|
 fn range_json(span : @basic.SourceSpan) -> Json {
-  Json::object({
+  {
     "start": position_json(span.start_line, span.start_column),
     "end": position_json(span.end_line, span.end_column),
-  })
+  }
 }
 
 ///|
 fn position_json(line : Int, column : Int) -> Json {
-  Json::object({
-    "line": int_json(if line > 0 { line - 1 } else { 0 }),
-    "character": int_json(if column > 0 { column - 1 } else { 0 }),
-  })
+  {
+    "line": if line > 0 {
+      line - 1
+    } else {
+      0
+    },
+    "character": if column > 0 {
+      column - 1
+    } else {
+      0
+    },
+  }
 }
 
 ///|
@@ -698,12 +686,7 @@ fn diagnostic_severity_json(
   severity : @compile.CompileDiagnosticSeverity,
 ) -> Json {
   match severity {
-    Error => int_json(1)
-    Warning => int_json(2)
+    Error => 1
+    Warning => 2
   }
-}
-
-///|
-fn int_json(value : Int) -> Json {
-  Json::number(value.to_double(), repr=value.to_string())
 }

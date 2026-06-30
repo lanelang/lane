@@ -1872,13 +1872,43 @@ test "analysis produces type inlay hints for inferred binders" {
     [],
   )
   inspect(result.diagnostics.length(), content="0")
-  inspect(result.inlay_hints.length(), content="2")
-  inspect(result.inlay_hints[0].label, content=": Int")
-  inspect(result.inlay_hints[0].location.span.start_line, content="4")
-  inspect(result.inlay_hints[0].location.span.start_column, content="7")
-  inspect(result.inlay_hints[1].label, content=": Int")
-  inspect(result.inlay_hints[1].location.span.start_line, content="6")
-  inspect(result.inlay_hints[1].location.span.start_column, content="5")
+  debug_inspect(
+    result.inlay_hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 54,
+      #|        end_offset: 59,
+      #|        start_line: 4,
+      #|        start_column: 7,
+      #|        end_line: 4,
+      #|        end_column: 12,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Int",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 87,
+      #|        end_offset: 92,
+      #|        start_line: 6,
+      #|        start_column: 5,
+      #|        end_line: 6,
+      #|        end_column: 10,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Int",
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|
@@ -1910,17 +1940,117 @@ test "analysis produces parameter name inlay hints for calls" {
     [],
   )
   inspect(result.diagnostics.length(), content="0")
-  inspect(
-    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
-    content=": Int,left=,right=,arg0=,arg1=,: Int,: Bool",
-  )
-  inspect(
-    result.inlay_hints.filter(fn(hint) { hint.label == "left=" }).length(),
-    content="1",
-  )
-  inspect(
-    result.inlay_hints.filter(fn(hint) { hint.label == "arg0=" }).length(),
-    content="1",
+  debug_inspect(
+    result.inlay_hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 158,
+      #|        end_offset: 163,
+      #|        start_line: 13,
+      #|        start_column: 7,
+      #|        end_line: 13,
+      #|        end_column: 12,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Int",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 173,
+      #|        end_offset: 177,
+      #|        start_line: 13,
+      #|        start_column: 22,
+      #|        end_line: 13,
+      #|        end_column: 26,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "left=",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 179,
+      #|        end_offset: 180,
+      #|        start_line: 13,
+      #|        start_column: 28,
+      #|        end_line: 13,
+      #|        end_column: 29,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "right=",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 195,
+      #|        end_offset: 200,
+      #|        start_line: 14,
+      #|        start_column: 14,
+      #|        end_line: 14,
+      #|        end_column: 19,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "arg0=",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 202,
+      #|        end_offset: 206,
+      #|        start_line: 14,
+      #|        start_column: 21,
+      #|        end_line: 14,
+      #|        end_column: 25,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "arg1=",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 221,
+      #|        end_offset: 226,
+      #|        start_line: 15,
+      #|        start_column: 12,
+      #|        end_line: 15,
+      #|        end_column: 17,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Int",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 228,
+      #|        end_offset: 232,
+      #|        start_line: 15,
+      #|        start_column: 19,
+      #|        end_line: 15,
+      #|        end_column: 23,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Bool",
+      #|  },
+      #|]
+    ),
   )
 }
 
@@ -1945,9 +2075,27 @@ test "analysis skips parameter name inlay hints for source operators" {
     [],
   )
   inspect(result.diagnostics.length(), content="0")
-  inspect(
-    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
-    content=": Int",
+  debug_inspect(
+    result.inlay_hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 112,
+      #|        end_offset: 117,
+      #|        start_line: 8,
+      #|        start_column: 7,
+      #|        end_line: 8,
+      #|        end_column: 12,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Int",
+      #|  },
+      #|]
+    ),
   )
 }
 
@@ -1978,9 +2126,42 @@ test "analysis produces implicit argument inlay hints for auto offers" {
     [],
   )
   inspect(result.diagnostics.length(), content="0")
-  inspect(
-    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
-    content=": Int,, op=int_add_ops",
+  debug_inspect(
+    result.inlay_hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 227,
+      #|        end_offset: 232,
+      #|        start_line: 14,
+      #|        start_column: 7,
+      #|        end_line: 14,
+      #|        end_column: 12,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Int",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 242,
+      #|        end_offset: 243,
+      #|        start_line: 14,
+      #|        start_column: 22,
+      #|        end_line: 14,
+      #|        end_column: 23,
+      #|      },
+      #|    },
+      #|    kind: ImplicitArgumentHint,
+      #|    label: ", op=int_add_ops",
+      #|  },
+      #|]
+    ),
   )
 }
 
@@ -2011,9 +2192,57 @@ test "analysis does not mark explicit named auto arguments as implicit" {
     [],
   )
   inspect(result.diagnostics.length(), content="0")
-  inspect(
-    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
-    content=": Int,a=,b=",
+  debug_inspect(
+    result.inlay_hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 225,
+      #|        end_offset: 230,
+      #|        start_line: 14,
+      #|        start_column: 7,
+      #|        end_line: 14,
+      #|        end_column: 12,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Int",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 240,
+      #|        end_offset: 244,
+      #|        start_line: 14,
+      #|        start_column: 22,
+      #|        end_line: 14,
+      #|        end_column: 26,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "a=",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 246,
+      #|        end_offset: 247,
+      #|        start_line: 14,
+      #|        start_column: 28,
+      #|        end_line: 14,
+      #|        end_column: 29,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "b=",
+      #|  },
+      #|]
+    ),
   )
 }
 
