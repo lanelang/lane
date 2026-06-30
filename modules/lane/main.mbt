@@ -70,7 +70,7 @@ async fn lane_fmt(
       Ok(formatted) =>
         if formatted != source {
           if check || deny {
-            println(file + ": not formatted")
+            println("\{file}: not formatted")
             failed = true
           } else {
             write_source_file(file, formatted) catch {
@@ -84,7 +84,8 @@ async fn lane_fmt(
       Err(diagnostics) => {
         failed = true
         for diagnostic in diagnostics {
-          println(file + ": " + @prettyprinter.render(diagnostic, width=100))
+          let rendered = @prettyprinter.render(diagnostic, width=100)
+          println("\{file}: \{rendered}")
         }
       }
     }
@@ -180,9 +181,9 @@ async fn lane_compile(
       return UserFailure
     }
   }
-  println("compiled module " + module_.module_path_text)
-  println("wrote interface " + interface_path)
-  println("wrote object " + object_path)
+  println("compiled module \{module_.module_path_text}")
+  println("wrote interface \{interface_path}")
+  println("wrote object \{object_path}")
   Succeeded
 }
 
@@ -212,9 +213,11 @@ async fn lane_link(
       return UserFailure
     }
   }
-  println("linked program " + output)
-  println("linked modules " + program.module_path_texts.join(","))
-  println("linked entries " + entry_names(program.entries).join(","))
+  let linked_modules = program.module_path_texts.join(",")
+  let linked_entries = entry_names(program.entries).join(",")
+  println("linked program \{output}")
+  println("linked modules \{linked_modules}")
+  println("linked entries \{linked_entries}")
   Succeeded
 }
 
@@ -312,8 +315,8 @@ fn find_entry(
   let matched = entries.filter(entry => entry.name == name)
   match matched.length() {
     1 => Ok(matched[0])
-    0 => Err("entry not found: " + name)
-    _ => Err("ambiguous entry: " + name)
+    0 => Err("entry not found: \{name}")
+    _ => Err("ambiguous entry: \{name}")
   }
 }
 

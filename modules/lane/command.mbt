@@ -267,10 +267,10 @@ fn required_value(
   name : String,
 ) -> Result[String, String] {
   guard matches.values.get(name) is Some(values) else {
-    return Err("missing argument: " + name)
+    return Err("missing argument: \{name}")
   }
   guard values.get(0) is Some(value) else {
-    return Err("missing argument: " + name)
+    return Err("missing argument: \{name}")
   }
   Ok(value)
 }

@@ -291,8 +291,7 @@ fn validate_interface_artifacts(
         interfaces[other_index].module_path_text {
         diagnostics.push(
           make_error(
-            "duplicate module interface artifact " +
-            interfaces[index].module_path_text,
+            "duplicate module interface artifact \{interfaces[index].module_path_text}",
             span=None,
           ),
         )
@@ -309,8 +308,7 @@ fn validate_module_interface_artifact(
   if interface.schema_version != 1 {
     return Some(
       make_error(
-        "unsupported module interface artifact schema " +
-        interface.module_path_text,
+        "unsupported module interface artifact schema \{interface.module_path_text}",
         span=None,
       ),
     )
@@ -318,7 +316,7 @@ fn validate_module_interface_artifact(
   if interface.interface.module_path != interface.module_path_text {
     return Some(
       make_error(
-        "module interface artifact name mismatch " + interface.module_path_text,
+        "module interface artifact name mismatch \{interface.module_path_text}",
         span=None,
       ),
     )
@@ -331,8 +329,7 @@ fn validate_module_interface_artifact(
     interface_fingerprint(interface.interface) {
     return Some(
       make_error(
-        "module interface artifact fingerprint mismatch " +
-        interface.module_path_text,
+        "module interface artifact fingerprint mismatch \{interface.module_path_text}",
         span=None,
       ),
     )
@@ -340,8 +337,7 @@ fn validate_module_interface_artifact(
   if interface.module_fingerprint != fingerprint {
     return Some(
       make_error(
-        "module interface artifact module fingerprint mismatch " +
-        interface.module_path_text,
+        "module interface artifact module fingerprint mismatch \{interface.module_path_text}",
         span=None,
       ),
     )
@@ -365,12 +361,12 @@ fn visit_interface_artifact(
     return
   }
   if visiting.contains(module_path_text) {
-    diagnostics.push(make_error("import cycle " + module_path_text, span=None))
+    diagnostics.push(make_error("import cycle \{module_path_text}", span=None))
     return
   }
   guard find_module_interface_artifact(interfaces, module_path_text)
     is Some(interface) else {
-    diagnostics.push(make_error("missing import " + module_path_text, span~))
+    diagnostics.push(make_error("missing import \{module_path_text}", span~))
     return
   }
   match expected_fingerprint {
@@ -378,10 +374,7 @@ fn visit_interface_artifact(
       fingerprint =>
       diagnostics.push(
         make_error(
-          "imported interface fingerprint mismatch " +
-          importer_path_text +
-          " -> " +
-          module_path_text,
+          "imported interface fingerprint mismatch \{importer_path_text} -> \{module_path_text}",
           span=None,
         ),
       )
@@ -752,7 +745,7 @@ fn validate_compiled_modules(
         modules[other_index].module_path_text {
         diagnostics.push(
           make_error(
-            "duplicate module artifact " + modules[index].module_path_text,
+            "duplicate module artifact \{modules[index].module_path_text}",
             span=None,
           ),
         )
@@ -811,12 +804,12 @@ fn visit_compiled_module(
     return
   }
   if visiting.contains(module_path_text) {
-    diagnostics.push(make_error("import cycle " + module_path_text, span=None))
+    diagnostics.push(make_error("import cycle \{module_path_text}", span=None))
     return
   }
   guard find_compiled_module(modules, module_path_text) is Some(module_) else {
     diagnostics.push(
-      make_error("missing object " + module_path_text, span=None),
+      make_error("missing object \{module_path_text}", span=None),
     )
     return
   }
@@ -1143,7 +1136,7 @@ fn validate_link_object(
   if module_.module_path_text != object.module_path_text {
     diagnostics.push(
       make_error(
-        "module object mismatch " + module_.module_path_text,
+        "module object mismatch \{module_.module_path_text}",
         span=None,
       ),
     )
@@ -1151,7 +1144,7 @@ fn validate_link_object(
   if module_.fingerprint != object.fingerprint {
     diagnostics.push(
       make_error(
-        "module fingerprint mismatch " + module_.module_path_text,
+        "module fingerprint mismatch \{module_.module_path_text}",
         span=None,
       ),
     )
@@ -1163,10 +1156,7 @@ fn validate_link_object(
           imported.fingerprint {
           diagnostics.push(
             make_error(
-              "imported interface fingerprint mismatch " +
-              module_.module_path_text +
-              " -> " +
-              imported.module_path_text,
+              "imported interface fingerprint mismatch \{module_.module_path_text} -> \{imported.module_path_text}",
               span=None,
             ),
           )
@@ -1176,7 +1166,7 @@ fn validate_link_object(
       None =>
         diagnostics.push(
           make_error(
-            "missing imported object " + imported.module_path_text,
+            "missing imported object \{imported.module_path_text}",
             span=None,
           ),
         )
@@ -1199,12 +1189,7 @@ fn validate_imported_references(
         if imported.fingerprint != imported_module.fingerprint {
           diagnostics.push(
             make_error(
-              "imported reference fingerprint mismatch " +
-              module_.module_path_text +
-              " -> " +
-              imported.module_path_text +
-              "::" +
-              imported.name,
+              "imported reference fingerprint mismatch \{module_.module_path_text} -> \{imported.module_path_text}::\{imported.name}",
               span=None,
             ),
           )
@@ -1219,12 +1204,7 @@ fn validate_imported_references(
               if !imported_reference_shape_matches_export(imported, item) {
                 diagnostics.push(
                   make_error(
-                    "imported reference mismatch " +
-                    module_.module_path_text +
-                    " -> " +
-                    imported.module_path_text +
-                    "::" +
-                    imported.name,
+                    "imported reference mismatch \{module_.module_path_text} -> \{imported.module_path_text}::\{imported.name}",
                     span=None,
                   ),
                 )
@@ -1235,7 +1215,7 @@ fn validate_imported_references(
       None =>
         diagnostics.push(
           make_error(
-            "missing imported object " + imported.module_path_text,
+            "missing imported object \{imported.module_path_text}",
             span=None,
           ),
         )
@@ -1270,12 +1250,7 @@ fn validate_imported_exports(
     if !module_exports_value(imported.object.exports, value.name) {
       diagnostics.push(
         make_error(
-          "missing exported value " +
-          imported.module_path_text +
-          "::" +
-          value.name +
-          " imported by " +
-          module_.module_path_text,
+          "missing exported value \{imported.module_path_text}::\{value.name} imported by \{module_.module_path_text}",
           span=None,
         ),
       )
@@ -1286,12 +1261,7 @@ fn validate_imported_exports(
     if !module_exports_type(imported.object.exports, name) {
       diagnostics.push(
         make_error(
-          "missing exported type " +
-          imported.module_path_text +
-          "::" +
-          name +
-          " imported by " +
-          module_.module_path_text,
+          "missing exported type \{imported.module_path_text}::\{name} imported by \{module_.module_path_text}",
           span=None,
         ),
       )
@@ -1304,12 +1274,7 @@ fn validate_imported_exports(
         ) {
         diagnostics.push(
           make_error(
-            "missing exported constructor " +
-            imported.module_path_text +
-            "::" +
-            constructor_name +
-            " imported by " +
-            module_.module_path_text,
+            "missing exported constructor \{imported.module_path_text}::\{constructor_name} imported by \{module_.module_path_text}",
             span=None,
           ),
         )
@@ -1322,12 +1287,7 @@ fn validate_imported_exports(
         ) {
         diagnostics.push(
           make_error(
-            "missing exported field selector " +
-            imported.module_path_text +
-            "::" +
-            field_selector_name +
-            " imported by " +
-            module_.module_path_text,
+            "missing exported field selector \{imported.module_path_text}::\{field_selector_name} imported by \{module_.module_path_text}",
             span=None,
           ),
         )
@@ -1517,10 +1477,7 @@ fn module_imported_references_from_lowered(
       Some(module_) => module_.fingerprint
       None =>
         abort(
-          "missing imported module fingerprint " +
-          module_path_text +
-          " -> " +
-          item.module_path_text,
+          "missing imported module fingerprint \{module_path_text} -> \{item.module_path_text}",
         )
     }
     {
@@ -1547,10 +1504,7 @@ fn module_imported_references_from_interface_artifacts(
       Some(interface) => interface.module_fingerprint
       None =>
         abort(
-          "missing imported module fingerprint " +
-          module_path_text +
-          " -> " +
-          item.module_path_text,
+          "missing imported module fingerprint \{module_path_text} -> \{item.module_path_text}",
         )
     }
     {

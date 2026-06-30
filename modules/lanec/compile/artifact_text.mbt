@@ -29,7 +29,7 @@ pub fn parse_module_interface_artifact_text(
       Err(message) => return Err(message)
     }
     if document.kind != "interface" {
-      return Err("expected interface artifact, got " + document.kind)
+      return Err("expected interface artifact, got \{document.kind}")
     }
     let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
     let artifact = reader.read_module_interface_artifact()
@@ -60,7 +60,7 @@ pub fn parse_module_object_artifact_text(
       Err(message) => return Err(message)
     }
     if document.kind != "object" {
-      return Err("expected object artifact, got " + document.kind)
+      return Err("expected object artifact, got \{document.kind}")
     }
     let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
     let artifact = reader.read_module_object_artifact()
@@ -91,7 +91,7 @@ pub fn parse_linked_program_artifact_text(
       Err(message) => return Err(message)
     }
     if document.kind != "program" {
-      return Err("expected program artifact, got " + document.kind)
+      return Err("expected program artifact, got \{document.kind}")
     }
     let reader = ArtifactTextReader::{ entries: document.entries, index: 0 }
     let artifact = reader.read_linked_program_artifact()
@@ -123,7 +123,7 @@ fn ArtifactTextReader::expect_tag(
 ) -> Unit raise ArtifactTextError {
   match self.take_entry() {
     Tag(actual) if actual == tag => ()
-    _ => fail("expected tag " + tag)
+    _ => fail("expected tag \{tag}")
   }
 }
 
@@ -134,7 +134,7 @@ fn ArtifactTextReader::expect_atom(
 ) -> String raise ArtifactTextError {
   match self.take_entry() {
     Value(actual, Atom(value)) if actual == tag => value
-    _ => fail("expected atom field " + tag)
+    _ => fail("expected atom field \{tag}")
   }
 }
 
@@ -145,7 +145,7 @@ fn ArtifactTextReader::expect_string(
 ) -> String raise ArtifactTextError {
   match self.take_entry() {
     Value(actual, Text(value)) if actual == tag => value
-    _ => fail("expected string field " + tag)
+    _ => fail("expected string field \{tag}")
   }
 }
 
@@ -156,7 +156,7 @@ fn ArtifactTextReader::expect_int(
 ) -> Int raise ArtifactTextError {
   let text = self.expect_atom(tag)
   @string.parse_int(text, base=10) catch {
-    _ => fail("invalid integer for " + tag + ": " + text)
+    _ => fail("invalid integer for \{tag}: \{text}")
   }
 }
 
@@ -168,7 +168,7 @@ fn ArtifactTextReader::expect_bool(
   match self.expect_atom(tag) {
     "true" => true
     "false" => false
-    value => fail("invalid boolean for " + tag + ": " + value)
+    value => fail("invalid boolean for \{tag}: \{value}")
   }
 }
 
@@ -228,11 +228,11 @@ fn ArtifactTextReader::read_buslane_program_block(
     Block("buslane", text) =>
       match @text.parse_program_text(text) {
         Ok(program) => program
-        Err(message) => fail("invalid Buslane block: " + message)
+        Err(message) => fail("invalid Buslane block: \{message}")
       }
-    Block(name, _) => fail("expected buslane block, got block " + name)
-    Tag(name) => fail("expected buslane block, got tag " + name)
-    Value(name, _) => fail("expected buslane block, got field " + name)
+    Block(name, _) => fail("expected buslane block, got block \{name}")
+    Tag(name) => fail("expected buslane block, got tag \{name}")
+    Value(name, _) => fail("expected buslane block, got field \{name}")
   }
 }
 
@@ -360,10 +360,7 @@ fn ArtifactTextReader::read_module_object_artifact(
   let module_path_text = self.expect_string("module_path_text")
   if schema_version != module_object_artifact_schema_version {
     fail(
-      "unsupported module object artifact schema " +
-      schema_version.to_string() +
-      " for " +
-      module_path_text,
+      "unsupported module object artifact schema \{schema_version} for \{module_path_text}",
     )
   }
   let interface = self.read_module_interface()
@@ -603,7 +600,7 @@ fn ArtifactTextReader::read_module_interface_type(
       let loc = self.read_source_span("type.loc")
       Enum({ symbol, name, type_parameters, variants, loc })
     }
-    _ => fail("unknown interface type tag " + tag)
+    _ => fail("unknown interface type tag \{tag}")
   }
 }
 
@@ -613,8 +610,8 @@ fn ArtifactTextReader::next_tag(
 ) -> String raise ArtifactTextError {
   match self.take_entry() {
     Tag(name) => name
-    Value(name, _) => fail("expected tag-only entry, got value field " + name)
-    Block(name, _) => fail("expected tag-only entry, got block " + name)
+    Value(name, _) => fail("expected tag-only entry, got value field \{name}")
+    Block(name, _) => fail("expected tag-only entry, got block \{name}")
   }
 }
 
@@ -767,7 +764,7 @@ fn ArtifactTextReader::read_interface_value(
       }
       Some(items)
     }
-    tag => fail("expected value parameters, got " + tag)
+    tag => fail("expected value parameters, got \{tag}")
   }
   let loc = self.read_source_span("value.loc")
   { symbol, kind, name, type_, parameters, loc }
@@ -811,7 +808,7 @@ fn ArtifactTextReader::read_interface_value_kind(
     "function" => Function
     "let" => Let
     "offer" => Offer
-    value => fail("unknown interface value kind " + value)
+    value => fail("unknown interface value kind \{value}")
   }
 }
 
@@ -875,7 +872,7 @@ fn ArtifactTextReader::read_lane_kind(
       let result = self.read_lane_kind(tag + ".result")
       Function(parameters, result)
     }
-    value => fail("unknown Lane kind " + value)
+    value => fail("unknown Lane kind \{value}")
   }
 }
 
@@ -1019,7 +1016,7 @@ fn ArtifactTextReader::read_lane_type(
       let body = self.read_lane_type()
       Forall(parameters, body)
     }
-    tag => fail("unknown Lane type tag " + tag)
+    tag => fail("unknown Lane type tag \{tag}")
   }
 }
 
@@ -1049,7 +1046,7 @@ fn ArtifactTextReader::read_lane_primitive_type(
     "bool" => Bool
     "string" => String
     "unit" => Unit
-    value => fail("unknown Lane primitive type " + value)
+    value => fail("unknown Lane primitive type \{value}")
   }
 }
 
@@ -1201,7 +1198,7 @@ fn ArtifactTextReader::read_buslane_type(
   let text = self.expect_string(tag)
   match @text.parse_type_text(text) {
     Ok(type_) => type_
-    Err(message) => fail("invalid Buslane type for " + tag + ": " + message)
+    Err(message) => fail("invalid Buslane type for \{tag}: \{message}")
   }
 }
 
@@ -1246,7 +1243,7 @@ fn ArtifactTextReader::read_optional_type_id(
     let value = atom.unsafe_substring(start=5, end=atom.length())
     Some({ index: parse_atom_int(tag, value) })
   } else {
-    fail("invalid optional type id for " + tag)
+    fail("invalid optional type id for \{tag}")
   }
 }
 
@@ -1274,7 +1271,7 @@ fn ArtifactTextReader::read_optional_data_con_id(
     let value = atom.unsafe_substring(start=5, end=atom.length())
     Some({ index: parse_atom_int(tag, value) })
   } else {
-    fail("invalid optional data constructor id for " + tag)
+    fail("invalid optional data constructor id for \{tag}")
   }
 }
 
@@ -1302,14 +1299,14 @@ fn ArtifactTextReader::read_optional_value_id(
     let value = atom.unsafe_substring(start=5, end=atom.length())
     Some({ index: parse_atom_int(tag, value) })
   } else {
-    fail("invalid optional value id for " + tag)
+    fail("invalid optional value id for \{tag}")
   }
 }
 
 ///|
 fn parse_atom_int(tag : String, value : String) -> Int raise ArtifactTextError {
   @string.parse_int(value, base=10) catch {
-    _ => fail("invalid integer for " + tag + ": " + value)
+    _ => fail("invalid integer for \{tag}: \{value}")
   }
 }
 
@@ -1485,6 +1482,6 @@ fn ArtifactTextReader::read_export_kind(
     "data_constructor" => DataConstructor
     "field_selector" => FieldSelector
     "value" => Value
-    value => fail("unknown export kind " + value)
+    value => fail("unknown export kind \{value}")
   }
 }

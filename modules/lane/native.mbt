@@ -93,7 +93,7 @@ async fn read_module_object_artifacts(
     }
     if find_object_artifact(objects, artifact.module_path_text) is Some(_) {
       return Err(
-        "duplicate module object artifact " + artifact.module_path_text,
+        "duplicate module object artifact \{artifact.module_path_text}",
       )
     }
     objects.push(artifact)
