@@ -1952,6 +1952,72 @@ test "analysis skips parameter name inlay hints for source operators" {
 }
 
 ///|
+test "analysis produces implicit argument inlay hints for auto offers" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub struct Add[A] {
+        #|  add : (A, A) -> A
+        #|}
+        #|
+        #|pub fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+        #|  op.add(a, b)
+        #|}
+        #|
+        #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+        #|
+        #|pub fn answer(seed : Int) -> Int {
+        #|  let local = seed + 1
+        #|  local
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
+    content=": Int,, op=int_add_ops",
+  )
+}
+
+///|
+test "analysis does not mark explicit named auto arguments as implicit" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub struct Add[A] {
+        #|  add : (A, A) -> A
+        #|}
+        #|
+        #|pub fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+        #|  op.add(a, b)
+        #|}
+        #|
+        #|let int_add_ops : Add[Int] = builtin("%int_add_ops")
+        #|
+        #|pub fn answer(seed : Int) -> Int {
+        #|  let local = op_add(seed, 1, op=int_add_ops)
+        #|  local
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.inlay_hints.map(fn(hint) { hint.label }).join(","),
+    content=": Int,a=,b=",
+  )
+}
+
+///|
 fn find_artifact_module(
   modules : Array[CompiledModuleArtifact],
   module_path_text : String,

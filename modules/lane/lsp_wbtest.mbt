@@ -213,6 +213,65 @@ async test "inlay hint returns parameter name hints at argument starts" {
 }
 
 ///|
+async test "inlay hint returns implicit auto offer hints at call end" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub struct Add[A] {
+            #|  add : (A, A) -> A
+            #|}
+            #|
+            #|pub fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+            #|  op.add(a, b)
+            #|}
+            #|
+            #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+            #|
+            #|pub fn answer(seed : Int) -> Int {
+            #|  let local = seed + 1
+            #|  local
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/inlayHint",
+      range_params("file:///Main.lane", 0, 0, 16, 0),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": [
+        {
+          "position": { "line": 13, "character": 11 },
+          "label": ": Int",
+          "kind": 1,
+        },
+        {
+          "position": { "line": 13, "character": 22 },
+          "label": ", op=int_add_ops",
+          "kind": 2,
+        },
+      ],
+    },
+  ])
+}
+
+///|
 async test "semantic tokens full is not provided by lane lsp" {
   let state = ServerState::ServerState()
   ignore(

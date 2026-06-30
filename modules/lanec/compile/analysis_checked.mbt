@@ -8,7 +8,13 @@ priv struct CheckedAnalysisContext {
 ///|
 priv struct ParameterHintSignature {
   symbol : AnalysisSymbol
-  names : Array[String]
+  parameters : Array[ParameterHintParameter]
+}
+
+///|
+priv struct ParameterHintParameter {
+  name : String
+  is_auto : Bool
 }
 
 ///|
@@ -55,7 +61,7 @@ fn collect_checked_top_level_parameter_signatures(
       add_parameter_hint_signature(
         signatures,
         Value(declaration.symbol),
-        declaration.parameters.map(fn(parameter) { parameter.name }),
+        declaration.parameters.map(checked_parameter_hint_parameter),
       )
       collect_checked_expr_parameter_signatures(declaration.body, signatures)
     }
@@ -64,7 +70,7 @@ fn collect_checked_top_level_parameter_signatures(
         add_parameter_hint_signature(
           signatures,
           Variant(variant.symbol),
-          generated_constructor_parameter_names(variant.payload.length()),
+          generated_constructor_parameters(variant.payload.length()),
         )
       }
     Let(declaration) =>
@@ -151,20 +157,29 @@ fn collect_checked_expr_parameter_signatures(
 fn add_parameter_hint_signature(
   signatures : Array[ParameterHintSignature],
   symbol : AnalysisSymbol,
-  names : Array[String],
+  parameters : Array[ParameterHintParameter],
 ) -> Unit {
-  if !names.is_empty() {
-    signatures.push({ symbol, names })
+  if !parameters.is_empty() {
+    signatures.push({ symbol, parameters })
   }
 }
 
 ///|
-fn generated_constructor_parameter_names(count : Int) -> Array[String] {
-  let names = []
+fn checked_parameter_hint_parameter(
+  parameter : @checked.CheckedValueParameter,
+) -> ParameterHintParameter {
+  { name: parameter.name, is_auto: parameter.is_auto }
+}
+
+///|
+fn generated_constructor_parameters(
+  count : Int,
+) -> Array[ParameterHintParameter] {
+  let parameters = []
   for index in 0..<count {
-    names.push("arg\{index}")
+    parameters.push({ name: "arg\{index}", is_auto: false })
   }
-  names
+  parameters
 }
 
 ///|
@@ -507,7 +522,7 @@ fn collect_checked_expr(
       collect_checked_expr(
         source_id, source_text, callee, definitions, references, hovers, context,
       )
-      add_call_parameter_name_hints(
+      add_call_inlay_hints(
         context.inlay_hints,
         source_id,
         callee,
@@ -609,7 +624,7 @@ fn collect_checked_expr(
 }
 
 ///|
-fn add_call_parameter_name_hints(
+fn add_call_inlay_hints(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
   callee : @checked.CheckedExpr,
@@ -617,13 +632,33 @@ fn add_call_parameter_name_hints(
   call_loc : @basic.SourceSpan,
   context : CheckedAnalysisContext,
 ) -> Unit {
-  if callee.loc() == call_loc {
-    return
-  }
   match parameter_names_for_callee(callee, context.parameter_signatures) {
-    Some(names) =>
-      add_parameter_name_hints(inlay_hints, source_id, arguments, names)
+    Some(parameters) =>
+      add_argument_inlay_hints(
+        inlay_hints,
+        source_id,
+        arguments,
+        parameters,
+        call_loc,
+        is_source_operator_call(callee, call_loc),
+      )
     None => ()
+  }
+}
+
+///|
+fn is_source_operator_call(
+  callee : @checked.CheckedExpr,
+  call_loc : @basic.SourceSpan,
+) -> Bool {
+  callee_origin_loc(callee) == call_loc
+}
+
+///|
+fn callee_origin_loc(callee : @checked.CheckedExpr) -> @basic.SourceSpan {
+  match callee {
+    TypeApplication(callee~, ..) => callee_origin_loc(callee)
+    _ => callee.loc()
   }
 }
 
@@ -637,31 +672,56 @@ fn add_variant_parameter_name_hints(
 ) -> Unit {
   match
     parameter_names_for_symbol(Variant(symbol), context.parameter_signatures) {
-    Some(names) =>
-      add_parameter_name_hints(inlay_hints, source_id, arguments, names)
+    Some(parameters) =>
+      add_argument_inlay_hints(
+        inlay_hints,
+        source_id,
+        arguments,
+        parameters,
+        loc_for_arguments(arguments),
+        false,
+      )
     None => ()
   }
 }
 
 ///|
-fn add_parameter_name_hints(
+fn add_argument_inlay_hints(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
   arguments : Array[@checked.CheckedExpr],
-  names : Array[String],
+  parameters : Array[ParameterHintParameter],
+  call_loc : @basic.SourceSpan,
+  skip_parameter_hints : Bool,
 ) -> Unit {
-  let count = if arguments.length() < names.length() {
+  let count = if arguments.length() < parameters.length() {
     arguments.length()
   } else {
-    names.length()
+    parameters.length()
   }
   for index in 0..<count {
-    add_parameter_inlay_hint(
-      inlay_hints,
-      source_id,
-      arguments[index].loc(),
-      names[index],
-    )
+    let argument = arguments[index]
+    let parameter = parameters[index]
+    if parameter.is_auto && !call_loc.contains_span(argument.loc()) {
+      match implicit_argument_name(argument) {
+        Some(name) =>
+          add_implicit_argument_inlay_hint(
+            inlay_hints,
+            source_id,
+            call_loc,
+            parameter.name,
+            name,
+          )
+        None => ()
+      }
+    } else if !skip_parameter_hints && !parameter.is_auto {
+      add_parameter_inlay_hint(
+        inlay_hints,
+        source_id,
+        argument.loc(),
+        parameter.name,
+      )
+    }
   }
 }
 
@@ -669,7 +729,7 @@ fn add_parameter_name_hints(
 fn parameter_names_for_callee(
   callee : @checked.CheckedExpr,
   signatures : Array[ParameterHintSignature],
-) -> Array[String]? {
+) -> Array[ParameterHintParameter]? {
   match callee {
     Value(symbol~, ..) => parameter_names_for_symbol(Value(symbol), signatures)
     TypeApplication(callee~, ..) =>
@@ -682,13 +742,44 @@ fn parameter_names_for_callee(
 fn parameter_names_for_symbol(
   symbol : AnalysisSymbol,
   signatures : Array[ParameterHintSignature],
-) -> Array[String]? {
+) -> Array[ParameterHintParameter]? {
   for signature in signatures {
     if signature.symbol == symbol {
-      return Some(signature.names)
+      return Some(signature.parameters)
     }
   }
   None
+}
+
+///|
+fn implicit_argument_name(argument : @checked.CheckedExpr) -> String? {
+  match argument {
+    Value(name~, ..) => Some(name)
+    Field(base~, name~, ..) =>
+      match implicit_argument_name(base) {
+        Some(base) => Some(base + "." + name)
+        None => Some(name)
+      }
+    _ => None
+  }
+}
+
+///|
+fn @basic.SourceSpan::contains_span(
+  self : @basic.SourceSpan,
+  inner : @basic.SourceSpan,
+) -> Bool {
+  inner.start_offset >= self.start_offset && inner.end_offset <= self.end_offset
+}
+
+///|
+fn loc_for_arguments(
+  arguments : Array[@checked.CheckedExpr],
+) -> @basic.SourceSpan {
+  match arguments.get(0) {
+    Some(argument) => argument.loc()
+    None => @basic.SourceSpan::dummy()
+  }
 }
 
 ///|
