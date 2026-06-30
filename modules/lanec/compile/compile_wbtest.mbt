@@ -1225,7 +1225,7 @@ test "check sources does not expose private imported types" {
 }
 
 ///|
-test "check sources does not expose private imported nominal shape through public value" {
+test "check sources rejects private nominal type escape through public function" {
   let result = check_sources(
     (
       #|module Main
@@ -1245,7 +1245,80 @@ test "check sources does not expose private imported nominal shape through publi
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="not_a_struct type#0")
+  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+  match result.diagnostics[0].span {
+    Some(span) => {
+      inspect(span.start_line, content="5")
+      inspect(span.start_column, content="18")
+      inspect(span.end_line, content="5")
+      inspect(span.end_column, content="24")
+    }
+    None => abort("expected diagnostic span")
+  }
+}
+
+///|
+test "check source rejects private nominal type escape through public let" {
+  let result = check_source(
+    (
+      #|module Test
+      #|struct Hidden {
+      #|  value : Int
+      #|}
+      #|pub let answer : Hidden = Hidden::{ value: 42 }
+    ),
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+}
+
+///|
+test "check source rejects private nominal type escape through public struct field" {
+  let result = check_source(
+    (
+      #|module Test
+      #|struct Hidden {
+      #|  value : Int
+      #|}
+      #|pub struct Box {
+      #|  hidden : Hidden
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+}
+
+///|
+test "check source rejects private nominal type escape through public enum payload" {
+  let result = check_source(
+    (
+      #|module Test
+      #|struct Hidden {
+      #|  value : Int
+      #|}
+      #|pub enum Box {
+      #|  boxed(Hidden)
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+}
+
+///|
+test "check source rejects private nominal type escape through public type alias" {
+  let result = check_source(
+    (
+      #|module Test
+      #|struct Hidden {
+      #|  value : Int
+      #|}
+      #|pub type Exposed = Hidden
+    ),
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
 }
 
 ///|
@@ -1623,11 +1696,11 @@ test "analysis resolves types fields and variants" {
       text: (
         #|module Main
         #|
-        #|struct Point {
+        #|pub struct Point {
         #|  x : Int
         #|}
         #|
-        #|enum Option {
+        #|pub enum Option {
         #|  some(Point)
         #|  none
         #|}
@@ -1662,7 +1735,7 @@ test "analysis resolves types fields and variants" {
     result.definition_at("file:///Main.lane", 12, 39) is None,
     content="true",
   )
-  match result.hover_at("file:///Main.lane", 3, 9) {
+  match result.hover_at("file:///Main.lane", 3, 13) {
     Some(hover) => inspect(hover.contents, content="type Point : Type")
     None => abort("expected type definition hover")
   }
@@ -1692,7 +1765,7 @@ test "analysis narrows struct pattern type references" {
       text: (
         #|module Main
         #|
-        #|struct Point {
+        #|pub struct Point {
         #|  x : Int
         #|}
         #|

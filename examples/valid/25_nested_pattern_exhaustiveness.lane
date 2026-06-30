@@ -1,11 +1,11 @@
 module Examples.Valid.NestedPatternExhaustiveness
 
-enum Option[A] {
+pub enum Option[A] {
   none
   some(A)
 }
 
-struct Box[A] {
+pub struct Box[A] {
   value : A
 }
 
