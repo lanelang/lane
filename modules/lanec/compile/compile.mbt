@@ -38,7 +38,7 @@ pub fn check_sources(
         None =>
           {
             source: None,
-            diagnostics: [make_error("no root source module", span=None)],
+            diagnostics: [compile_error(NoRootSourceModule, None)],
           }
       }
     Err(diagnostics) => { source: None, diagnostics }
@@ -59,7 +59,7 @@ pub fn check_source_with_interface_artifacts(
         None =>
           {
             source: None,
-            diagnostics: [make_error("no root source module", span=None)],
+            diagnostics: [compile_error(NoRootSourceModule, None)],
           }
       }
     Err(diagnostics) => { source: None, diagnostics }

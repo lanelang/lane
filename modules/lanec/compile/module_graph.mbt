@@ -43,9 +43,9 @@ fn validate_module_inputs(
       if modules[index].header.module_path_text ==
         modules[other_index].header.module_path_text {
         diagnostics.push(
-          make_error(
-            "duplicate module input " + modules[index].header.module_path_text,
-            span=Some(modules[other_index].header.module_span),
+          compile_error(
+            DuplicateModuleInput(modules[index].header.module_path_text),
+            Some(modules[other_index].header.module_span),
           ),
         )
       }
@@ -55,9 +55,9 @@ fn validate_module_inputs(
     for import_ in module_.header.imports {
       if find_module(modules, import_.module_path_text) is None {
         diagnostics.push(
-          make_error(
-            "missing import " + import_.module_path_text,
-            span=Some(import_.import_span),
+          compile_error(
+            MissingImport(import_.module_path_text),
+            Some(import_.import_span),
           ),
         )
       }
@@ -127,11 +127,11 @@ fn visit_module(
     return
   }
   if visiting.contains(path) {
-    diagnostics.push(make_error("import cycle " + path, span=None))
+    diagnostics.push(compile_error(ImportCycle(path), None))
     return
   }
   guard find_module(modules, path) is Some(module_) else {
-    diagnostics.push(make_error("missing import " + path, span=None))
+    diagnostics.push(compile_error(MissingImport(path), None))
     return
   }
   visiting.push(path)

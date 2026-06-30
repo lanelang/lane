@@ -191,9 +191,9 @@ fn validate_object_artifacts(
       if objects[index].module_path_text ==
         objects[other_index].module_path_text {
         diagnostics.push(
-          make_error(
-            "duplicate module object artifact \{objects[index].module_path_text}",
-            span=None,
+          compile_error(
+            DuplicateModuleObjectArtifact(objects[index].module_path_text),
+            None,
           ),
         )
       }
@@ -208,34 +208,46 @@ fn validate_module_object_artifact(
 ) -> CompileDiagnostic? {
   if object.schema_version != module_object_artifact_schema_version {
     return Some(
-      make_error(
-        "unsupported module object artifact schema \{object.schema_version} for \{object.module_path_text}",
-        span=None,
+      compile_error(
+        UnsupportedModuleObjectArtifactSchema(
+          schema=object.schema_version,
+          module_path_text=object.module_path_text,
+        ),
+        None,
       ),
     )
   }
   if object.interface.module_path != object.module_path_text {
     return Some(
-      make_error(
-        "module object artifact interface name mismatch \{object.module_path_text}",
-        span=None,
+      compile_error(
+        InvalidModuleObjectArtifact(
+          module_path_text=object.module_path_text,
+          reason="interface name mismatch",
+        ),
+        None,
       ),
     )
   }
   if object.interface_fingerprint != interface_fingerprint(object.interface) {
     return Some(
-      make_error(
-        "module object artifact interface fingerprint mismatch \{object.module_path_text}",
-        span=None,
+      compile_error(
+        InvalidModuleObjectArtifact(
+          module_path_text=object.module_path_text,
+          reason="interface fingerprint mismatch",
+        ),
+        None,
       ),
     )
   }
   if object.module_fingerprint !=
     module_fingerprint(object.interface, object.imported_interface_fingerprints) {
     return Some(
-      make_error(
-        "module object artifact module fingerprint mismatch \{object.module_path_text}",
-        span=None,
+      compile_error(
+        InvalidModuleObjectArtifact(
+          module_path_text=object.module_path_text,
+          reason="module fingerprint mismatch",
+        ),
+        None,
       ),
     )
   }
@@ -249,12 +261,12 @@ fn validate_linked_program_artifact(
   let diagnostics = []
   if artifact.schema_version != 1 {
     diagnostics.push(
-      make_error("unsupported linked program artifact schema", span=None),
+      compile_error(UnsupportedLinkedProgramArtifactSchema, None),
     )
   }
   let verify_result = @buslane.verify_program(artifact.program)
   if !verify_result.is_ok() {
-    diagnostics.push(make_error("invalid linked Buslane program", span=None))
+    diagnostics.push(compile_error(InvalidLinkedBuslaneProgram, None))
   }
   validate_linked_program_modules(artifact, diagnostics)
   validate_linked_program_entries(artifact, diagnostics)
@@ -271,9 +283,9 @@ fn validate_linked_program_modules(
       if artifact.module_path_texts[index] ==
         artifact.module_path_texts[other_index] {
         diagnostics.push(
-          make_error(
-            "duplicate linked module \{artifact.module_path_texts[index]}",
-            span=None,
+          compile_error(
+            DuplicateLinkedModule(artifact.module_path_texts[index]),
+            None,
           ),
         )
       }
@@ -289,15 +301,11 @@ fn validate_linked_program_entries(
   for index in 0..<artifact.entries.length() {
     let entry = artifact.entries[index]
     if artifact.program.metadata.value_info(entry.value) is None {
-      diagnostics.push(
-        make_error("linked entry has unknown value \{entry.name}", span=None),
-      )
+      diagnostics.push(compile_error(LinkedEntryUnknownValue(entry.name), None))
     }
     for other_index in (index + 1)..<artifact.entries.length() {
       if entry.name == artifact.entries[other_index].name {
-        diagnostics.push(
-          make_error("duplicate linked entry \{entry.name}", span=None),
-        )
+        diagnostics.push(compile_error(DuplicateLinkedEntry(entry.name), None))
       }
     }
   }
@@ -308,22 +316,22 @@ fn validate_artifact_schema(
   artifact : CompiledModuleSetArtifact,
 ) -> CompileDiagnostic? {
   if artifact.schema_version != 1 {
-    return Some(make_error("unsupported module artifact schema", span=None))
+    return Some(compile_error(UnsupportedModuleArtifactSchema(None), None))
   }
   for module_ in artifact.modules {
     if module_.schema_version != 1 {
       return Some(
-        make_error(
-          "unsupported module artifact schema \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          UnsupportedModuleArtifactSchema(Some(module_.module_path_text)),
+          None,
         ),
       )
     }
     if module_.interface.schema_version != 1 {
       return Some(
-        make_error(
-          "unsupported module interface artifact schema \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          UnsupportedModuleInterfaceArtifactSchema(module_.module_path_text),
+          None,
         ),
       )
     }
@@ -333,18 +341,24 @@ fn validate_artifact_schema(
     }
     if module_.object.schema_version != module_object_artifact_schema_version {
       return Some(
-        make_error(
-          "unsupported module object artifact schema \{module_.object.schema_version} for \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          UnsupportedModuleObjectArtifactSchema(
+            schema=module_.object.schema_version,
+            module_path_text=module_.module_path_text,
+          ),
+          None,
         ),
       )
     }
     if module_.interface.module_path_text != module_.module_path_text ||
       module_.object.module_path_text != module_.module_path_text {
       return Some(
-        make_error(
-          "module artifact name mismatch \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          InvalidModuleArtifact(
+            module_path_text=module_.module_path_text,
+            reason="name mismatch",
+          ),
+          None,
         ),
       )
     }
@@ -353,27 +367,36 @@ fn validate_artifact_schema(
       module_.object.imported_interface_fingerprints !=
       module_.imported_interface_fingerprints {
       return Some(
-        make_error(
-          "module artifact imported interface mismatch \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          InvalidModuleArtifact(
+            module_path_text=module_.module_path_text,
+            reason="imported interface mismatch",
+          ),
+          None,
         ),
       )
     }
     if module_.interface.module_fingerprint != module_.module_fingerprint ||
       module_.object.module_fingerprint != module_.module_fingerprint {
       return Some(
-        make_error(
-          "module artifact fingerprint mismatch \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          InvalidModuleArtifact(
+            module_path_text=module_.module_path_text,
+            reason="fingerprint mismatch",
+          ),
+          None,
         ),
       )
     }
     if module_.interface.interface_fingerprint !=
       interface_fingerprint(module_.interface.interface) {
       return Some(
-        make_error(
-          "module interface artifact fingerprint mismatch \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          InvalidModuleInterfaceArtifact(
+            module_path_text=module_.module_path_text,
+            reason="fingerprint mismatch",
+          ),
+          None,
         ),
       )
     }
@@ -383,9 +406,12 @@ fn validate_artifact_schema(
         module_.imported_interface_fingerprints,
       ) {
       return Some(
-        make_error(
-          "module artifact fingerprint mismatch \{module_.module_path_text}",
-          span=None,
+        compile_error(
+          InvalidModuleArtifact(
+            module_path_text=module_.module_path_text,
+            reason="fingerprint mismatch",
+          ),
+          None,
         ),
       )
     }

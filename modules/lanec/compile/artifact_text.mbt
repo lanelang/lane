@@ -1,6 +1,11 @@
 ///|
 priv suberror ArtifactTextError {
-  ArtifactTextError(String)
+  InvalidBuslaneBlock(String)
+  ExpectedArtifactEntry(String)
+  InvalidArtifactValue(String)
+  UnknownArtifactValue(String)
+  UnsupportedArtifactSchema(String)
+  UnexpectedArtifactEntry(String)
 } derive(Debug)
 
 ///|
@@ -36,7 +41,7 @@ pub fn parse_module_interface_artifact_text(
     reader.expect_end()
     Ok(artifact)
   } catch {
-    ArtifactTextError(message) => Err(message)
+    error => Err(artifact_text_error(error))
   }
 }
 
@@ -67,7 +72,7 @@ pub fn parse_module_object_artifact_text(
     reader.expect_end()
     Ok(artifact)
   } catch {
-    ArtifactTextError(message) => Err(message)
+    error => Err(artifact_text_error(error))
   }
 }
 
@@ -98,13 +103,38 @@ pub fn parse_linked_program_artifact_text(
     reader.expect_end()
     Ok(artifact)
   } catch {
-    ArtifactTextError(message) => Err(message)
+    error => Err(artifact_text_error(error))
   }
 }
 
 ///|
-fn[T] fail(message : String) -> T raise ArtifactTextError {
-  raise ArtifactTextError(artifact_text_error(message))
+fn[T] fail_invalid_buslane_block(message : String) -> T raise ArtifactTextError {
+  raise InvalidBuslaneBlock(message)
+}
+
+///|
+fn[T] fail_expected(message : String) -> T raise ArtifactTextError {
+  raise ExpectedArtifactEntry(message)
+}
+
+///|
+fn[T] fail_invalid(message : String) -> T raise ArtifactTextError {
+  raise InvalidArtifactValue(message)
+}
+
+///|
+fn[T] fail_unknown(message : String) -> T raise ArtifactTextError {
+  raise UnknownArtifactValue(message)
+}
+
+///|
+fn[T] fail_unsupported(message : String) -> T raise ArtifactTextError {
+  raise UnsupportedArtifactSchema(message)
+}
+
+///|
+fn[T] fail_unexpected(message : String) -> T raise ArtifactTextError {
+  raise UnexpectedArtifactEntry(message)
 }
 
 ///|
@@ -130,45 +160,38 @@ fn artifact_kind_help(expected : String) -> String {
 }
 
 ///|
-fn artifact_text_error(message : String) -> String {
-  if message.has_prefix("invalid Buslane block: ") {
-    artifact_error(
-      "E5010",
-      "invalid embedded Buslane block",
-      strip_prefix(message, "invalid Buslane block: "),
-      "module object and linked program artifacts embed Buslane text blocks",
-      "regenerate the artifact from Lane source instead of editing the Buslane block",
-    )
-  } else if message.has_prefix("expected ") {
-    artifact_error(
-      "E5011", "missing or misplaced artifact field", message, "the artifact reader expected a specific field, tag, or block at this position",
-      "regenerate the artifact with the current Lane compiler",
-    )
-  } else if message.has_prefix("invalid ") {
-    artifact_error(
-      "E5012", "invalid artifact field value", message, "one field has the right name but a value that cannot be decoded",
-      "regenerate the artifact or restore the field value emitted by Lane",
-    )
-  } else if message.has_prefix("unknown ") {
-    artifact_error(
-      "E5013", "unknown artifact field value", message, "the artifact contains a tag or enum value not understood by this compiler",
-      "recompile with the current Lane compiler and avoid mixing artifact versions",
-    )
-  } else if message.has_prefix("unsupported ") {
-    artifact_error(
-      "E5016", "unsupported artifact schema", message, "this artifact was produced by an incompatible Lane compiler or old schema",
-      "regenerate the artifact with the current Lane compiler",
-    )
-  } else if message.has_prefix("unexpected ") {
-    artifact_error(
-      "E5014", "unexpected artifact entry", message, "the artifact contains extra data or ended while a required entry was being read",
-      "regenerate the artifact instead of editing it by hand",
-    )
-  } else {
-    artifact_error(
-      "E5015", "invalid artifact text", message, "the artifact reader rejected this text artifact",
-      "regenerate the artifact with the current Lane compiler",
-    )
+fn artifact_text_error(error : ArtifactTextError) -> String {
+  match error {
+    InvalidBuslaneBlock(message) =>
+      artifact_error(
+        "E5010", "invalid embedded Buslane block", message, "module object and linked program artifacts embed Buslane text blocks",
+        "regenerate the artifact from Lane source instead of editing the Buslane block",
+      )
+    ExpectedArtifactEntry(message) =>
+      artifact_error(
+        "E5011", "missing or misplaced artifact field", message, "the artifact reader expected a specific field, tag, or block at this position",
+        "regenerate the artifact with the current Lane compiler",
+      )
+    InvalidArtifactValue(message) =>
+      artifact_error(
+        "E5012", "invalid artifact field value", message, "one field has the right name but a value that cannot be decoded",
+        "regenerate the artifact or restore the field value emitted by Lane",
+      )
+    UnknownArtifactValue(message) =>
+      artifact_error(
+        "E5013", "unknown artifact field value", message, "the artifact contains a tag or enum value not understood by this compiler",
+        "recompile with the current Lane compiler and avoid mixing artifact versions",
+      )
+    UnsupportedArtifactSchema(message) =>
+      artifact_error(
+        "E5016", "unsupported artifact schema", message, "this artifact was produced by an incompatible Lane compiler or old schema",
+        "regenerate the artifact with the current Lane compiler",
+      )
+    UnexpectedArtifactEntry(message) =>
+      artifact_error(
+        "E5014", "unexpected artifact entry", message, "the artifact contains extra data or ended while a required entry was being read",
+        "regenerate the artifact instead of editing it by hand",
+      )
   }
 }
 
@@ -191,7 +214,7 @@ fn ArtifactTextReader::expect_end(
   self : ArtifactTextReader,
 ) -> Unit raise ArtifactTextError {
   if self.index != self.entries.length() {
-    fail("unexpected trailing artifact entry")
+    fail_unexpected("unexpected trailing artifact entry")
   }
 }
 
@@ -202,7 +225,7 @@ fn ArtifactTextReader::expect_tag(
 ) -> Unit raise ArtifactTextError {
   match self.take_entry() {
     Tag(actual) if actual == tag => ()
-    _ => fail("expected tag \{tag}")
+    _ => fail_expected("expected tag \{tag}")
   }
 }
 
@@ -213,7 +236,7 @@ fn ArtifactTextReader::expect_atom(
 ) -> String raise ArtifactTextError {
   match self.take_entry() {
     Value(actual, Atom(value)) if actual == tag => value
-    _ => fail("expected atom field \{tag}")
+    _ => fail_expected("expected atom field \{tag}")
   }
 }
 
@@ -224,7 +247,7 @@ fn ArtifactTextReader::expect_string(
 ) -> String raise ArtifactTextError {
   match self.take_entry() {
     Value(actual, Text(value)) if actual == tag => value
-    _ => fail("expected string field \{tag}")
+    _ => fail_expected("expected string field \{tag}")
   }
 }
 
@@ -235,7 +258,7 @@ fn ArtifactTextReader::expect_int(
 ) -> Int raise ArtifactTextError {
   let text = self.expect_atom(tag)
   @string.parse_int(text, base=10) catch {
-    _ => fail("invalid integer for \{tag}: \{text}")
+    _ => fail_invalid("invalid integer for \{tag}: \{text}")
   }
 }
 
@@ -247,7 +270,7 @@ fn ArtifactTextReader::expect_bool(
   match self.expect_atom(tag) {
     "true" => true
     "false" => false
-    value => fail("invalid boolean for \{tag}: \{value}")
+    value => fail_invalid("invalid boolean for \{tag}: \{value}")
   }
 }
 
@@ -281,7 +304,7 @@ fn ArtifactTextReader::take_entry(
   self : ArtifactTextReader,
 ) -> @artifact_parser.ArtifactEntry raise ArtifactTextError {
   guard self.index < self.entries.length() else {
-    fail("unexpected end of artifact")
+    fail_unexpected("unexpected end of artifact")
   }
   let entry = self.entries[self.index]
   self.index = self.index + 1
@@ -307,11 +330,11 @@ fn ArtifactTextReader::read_buslane_program_block(
     Block("buslane", text) =>
       match @text.parse_program_text(text) {
         Ok(program) => program
-        Err(message) => fail("invalid Buslane block: \{message}")
+        Err(message) => fail_invalid_buslane_block(message)
       }
-    Block(name, _) => fail("expected buslane block, got block \{name}")
-    Tag(name) => fail("expected buslane block, got tag \{name}")
-    Value(name, _) => fail("expected buslane block, got field \{name}")
+    Block(name, _) => fail_expected("expected buslane block, got block \{name}")
+    Tag(name) => fail_expected("expected buslane block, got tag \{name}")
+    Value(name, _) => fail_expected("expected buslane block, got field \{name}")
   }
 }
 
@@ -438,7 +461,7 @@ fn ArtifactTextReader::read_module_object_artifact(
   let schema_version = self.expect_int("schema_version")
   let module_path_text = self.expect_string("module_path_text")
   if schema_version != module_object_artifact_schema_version {
-    fail(
+    fail_unsupported(
       "unsupported module object artifact schema \{schema_version} for \{module_path_text}",
     )
   }
@@ -679,7 +702,7 @@ fn ArtifactTextReader::read_module_interface_type(
       let loc = self.read_source_span("type.loc")
       Enum({ symbol, name, type_parameters, variants, loc })
     }
-    _ => fail("unknown interface type tag \{tag}")
+    _ => fail_unknown("unknown interface type tag \{tag}")
   }
 }
 
@@ -689,8 +712,10 @@ fn ArtifactTextReader::next_tag(
 ) -> String raise ArtifactTextError {
   match self.take_entry() {
     Tag(name) => name
-    Value(name, _) => fail("expected tag-only entry, got value field \{name}")
-    Block(name, _) => fail("expected tag-only entry, got block \{name}")
+    Value(name, _) =>
+      fail_expected("expected tag-only entry, got value field \{name}")
+    Block(name, _) =>
+      fail_expected("expected tag-only entry, got block \{name}")
   }
 }
 
@@ -843,7 +868,7 @@ fn ArtifactTextReader::read_interface_value(
       }
       Some(items)
     }
-    tag => fail("expected value parameters, got \{tag}")
+    tag => fail_expected("expected value parameters, got \{tag}")
   }
   let loc = self.read_source_span("value.loc")
   { symbol, kind, name, type_, parameters, loc }
@@ -854,7 +879,7 @@ fn ArtifactTextReader::peek_tag(
   self : ArtifactTextReader,
 ) -> String raise ArtifactTextError {
   guard self.index < self.entries.length() else {
-    fail("expected tag, reached end of artifact")
+    fail_expected("expected tag, reached end of artifact")
   }
   match self.entries[self.index] {
     Tag(name) => name
@@ -887,7 +912,7 @@ fn ArtifactTextReader::read_interface_value_kind(
     "function" => Function
     "let" => Let
     "offer" => Offer
-    value => fail("unknown interface value kind \{value}")
+    value => fail_unknown("unknown interface value kind \{value}")
   }
 }
 
@@ -951,7 +976,7 @@ fn ArtifactTextReader::read_lane_kind(
       let result = self.read_lane_kind(tag + ".result")
       Function(parameters, result)
     }
-    value => fail("unknown Lane kind \{value}")
+    value => fail_unknown("unknown Lane kind \{value}")
   }
 }
 
@@ -1095,7 +1120,7 @@ fn ArtifactTextReader::read_lane_type(
       let body = self.read_lane_type()
       Forall(parameters, body)
     }
-    tag => fail("unknown Lane type tag \{tag}")
+    tag => fail_unknown("unknown Lane type tag \{tag}")
   }
 }
 
@@ -1125,7 +1150,7 @@ fn ArtifactTextReader::read_lane_primitive_type(
     "bool" => Bool
     "string" => String
     "unit" => Unit
-    value => fail("unknown Lane primitive type \{value}")
+    value => fail_unknown("unknown Lane primitive type \{value}")
   }
 }
 
@@ -1277,7 +1302,7 @@ fn ArtifactTextReader::read_buslane_type(
   let text = self.expect_string(tag)
   match @text.parse_type_text(text) {
     Ok(type_) => type_
-    Err(message) => fail("invalid Buslane type for \{tag}: \{message}")
+    Err(message) => fail_invalid("invalid Buslane type for \{tag}: \{message}")
   }
 }
 
@@ -1322,7 +1347,7 @@ fn ArtifactTextReader::read_optional_type_id(
     let value = atom.unsafe_substring(start=5, end=atom.length())
     Some({ index: parse_atom_int(tag, value) })
   } else {
-    fail("invalid optional type id for \{tag}")
+    fail_invalid("invalid optional type id for \{tag}")
   }
 }
 
@@ -1350,7 +1375,7 @@ fn ArtifactTextReader::read_optional_data_con_id(
     let value = atom.unsafe_substring(start=5, end=atom.length())
     Some({ index: parse_atom_int(tag, value) })
   } else {
-    fail("invalid optional data constructor id for \{tag}")
+    fail_invalid("invalid optional data constructor id for \{tag}")
   }
 }
 
@@ -1378,14 +1403,14 @@ fn ArtifactTextReader::read_optional_value_id(
     let value = atom.unsafe_substring(start=5, end=atom.length())
     Some({ index: parse_atom_int(tag, value) })
   } else {
-    fail("invalid optional value id for \{tag}")
+    fail_invalid("invalid optional value id for \{tag}")
   }
 }
 
 ///|
 fn parse_atom_int(tag : String, value : String) -> Int raise ArtifactTextError {
   @string.parse_int(value, base=10) catch {
-    _ => fail("invalid integer for \{tag}: \{value}")
+    _ => fail_invalid("invalid integer for \{tag}: \{value}")
   }
 }
 
@@ -1561,6 +1586,6 @@ fn ArtifactTextReader::read_export_kind(
     "data_constructor" => DataConstructor
     "field_selector" => FieldSelector
     "value" => Value
-    value => fail("unknown export kind \{value}")
+    value => fail_unknown("unknown export kind \{value}")
   }
 }

@@ -32,11 +32,50 @@ pub(all) enum CompileDiagnosticLabelStyle {
 } derive(Debug, Eq)
 
 ///|
-fn make_error(
-  message : String,
-  span~ : @basic.SourceSpan?,
-) -> CompileDiagnostic {
-  classified_compile_error(message, span)
+priv enum CompileErrorKind {
+  NoRootSourceModule
+  DuplicateModuleInput(String)
+  MissingImport(String)
+  ImportCycle(String)
+  DuplicateModuleInterfaceArtifact(String)
+  UnsupportedModuleInterfaceArtifactSchema(String)
+  InvalidModuleInterfaceArtifact(module_path_text~ : String, reason~ : String)
+  DuplicateModuleObjectArtifact(String)
+  UnsupportedModuleObjectArtifactSchema(
+    schema~ : Int,
+    module_path_text~ : String
+  )
+  InvalidModuleObjectArtifact(module_path_text~ : String, reason~ : String)
+  DuplicateModuleArtifact(String)
+  UnsupportedModuleArtifactSchema(String?)
+  InvalidModuleArtifact(module_path_text~ : String, reason~ : String)
+  MissingObject(String)
+  MissingImportedObject(String)
+  ImportedInterfaceFingerprintMismatch(importer~ : String, imported~ : String)
+  ImportedReferenceFingerprintMismatch(
+    importer~ : String,
+    imported~ : String,
+    name~ : String
+  )
+  ImportedReferenceMismatch(
+    importer~ : String,
+    imported~ : String,
+    name~ : String
+  )
+  MissingExported(
+    kind~ : String,
+    provider~ : String,
+    name~ : String,
+    importer~ : String
+  )
+  StaleModuleObject(module_path_text~ : String, reason~ : String)
+  UnsupportedLinkedProgramArtifactSchema
+  InvalidLinkedBuslaneProgram
+  DuplicateLinkedModule(String)
+  LinkedEntryUnknownValue(String)
+  DuplicateLinkedEntry(String)
+  CheckedSourceConstructionFailed
+  ParserProducedNoSourceFile
 }
 
 ///|
@@ -64,266 +103,262 @@ fn primary_label(
 }
 
 ///|
-fn classified_compile_error(
-  message : String,
+fn compile_error(
+  kind : CompileErrorKind,
   span : @basic.SourceSpan?,
 ) -> CompileDiagnostic {
-  if message == "no root source module" {
-    compile_report(
-      "no root source module",
-      span,
-      code="E4000",
-      label="the compiler did not receive a root Lane module",
-      note="Lane compile/check needs exactly one root source module",
-      help="pass a source file that starts with a `module` declaration",
-    )
-  } else if message.has_prefix("duplicate module input ") {
-    let module_ = strip_prefix(message, "duplicate module input ")
-    compile_report(
-      "duplicate module input `\{module_}`",
-      span,
-      code="E4001",
-      label="this module was supplied more than once",
-      note="a module input set cannot contain two sources with the same module name",
-      help="remove one source file or rename one of the modules",
-    )
-  } else if message.has_prefix("missing import ") {
-    let module_ = strip_prefix(message, "missing import ")
-    compile_report(
-      "missing imported module `\{module_}`",
-      span,
-      code="E4002",
-      label="this import has no matching module input or interface artifact",
-      note="Lane does not search the file system by module name during compilation",
-      help="pass the imported module as a library source or compiled interface",
-    )
-  } else if message.has_prefix("import cycle ") {
-    let module_ = strip_prefix(message, "import cycle ")
-    compile_report(
-      "import cycle involving `\{module_}`",
-      span,
-      code="E4003",
-      label="module imports must form an acyclic graph",
-      note="cyclic module dependencies cannot be typechecked in a stable order",
-      help="move shared declarations into a separate module imported by both sides",
-    )
-  } else if message.has_prefix("duplicate module interface artifact ") {
-    let module_ = strip_prefix(message, "duplicate module interface artifact ")
-    compile_report(
-      "duplicate interface artifact for `\{module_}`",
-      span,
-      code="E4100",
-      label="two interface artifacts describe the same module",
-      note="compile uses one interface per imported module",
-      help="remove the duplicate `--interface` input",
-    )
-  } else if message.has_prefix("unsupported module interface artifact schema ") {
-    compile_report(
-      "unsupported module interface artifact schema",
-      span,
-      code="E4101",
-      label=message,
-      note="this `.lmi` was produced by an incompatible Lane compiler or edited by hand",
-      help="recompile the provider module with the current `lane compile`",
-    )
-  } else if message.has_prefix("module interface artifact ") {
-    compile_report(
-      "invalid module interface artifact",
-      span,
-      code="E4102",
-      label=message,
-      note="the interface artifact metadata does not match its embedded module interface",
-      help="recompile the provider module and pass the fresh `.lmi` file",
-    )
-  } else if message.has_prefix("duplicate module object artifact ") {
-    let module_ = strip_prefix(message, "duplicate module object artifact ")
-    compile_report(
-      "duplicate object artifact for `\{module_}`",
-      span,
-      code="E4200",
-      label="two object artifacts define the same module",
-      note="linking requires one object artifact per module",
-      help="remove the duplicate `.lmo` input",
-    )
-  } else if message.has_prefix("unsupported module object artifact schema ") {
-    compile_report(
-      "unsupported module object artifact schema",
-      span,
-      code="E4201",
-      label=message,
-      note="this `.lmo` was produced by an incompatible Lane compiler or edited by hand",
-      help="recompile the module with the current `lane compile`",
-    )
-  } else if message.has_prefix("module object artifact ") {
-    compile_report(
-      "invalid module object artifact",
-      span,
-      code="E4202",
-      label=message,
-      note="the object artifact metadata does not match its embedded interface or fingerprints",
-      help="recompile the module and pass the fresh `.lmo` file",
-    )
-  } else if message.has_prefix("duplicate module artifact ") {
-    let module_ = strip_prefix(message, "duplicate module artifact ")
-    compile_report(
-      "duplicate compiled module `\{module_}`",
-      span,
-      code="E4300",
-      label="two compiled modules have the same module name",
-      note="linking requires one compiled module for each module name",
-      help="remove the duplicate module artifact",
-    )
-  } else if message.has_prefix("unsupported module artifact schema") {
-    compile_report(
-      "unsupported compiled module artifact schema",
-      span,
-      code="E4301",
-      label=message,
-      note="this compiled module artifact is not compatible with the current compiler",
-      help="recompile all modules with the current compiler",
-    )
-  } else if message.has_prefix("module artifact ") {
-    compile_report(
-      "invalid compiled module artifact",
-      span,
-      code="E4302",
-      label=message,
-      note="the compiled module artifact has inconsistent interface/object metadata",
-      help="recompile the module instead of mixing old interface and object files",
-    )
-  } else if message.has_prefix("missing object ") {
-    let module_ = strip_prefix(message, "missing object ")
-    compile_report(
-      "missing object artifact for `\{module_}`",
-      span,
-      code="E4203",
-      label="the linker needs this module object but it was not provided",
-      note="module objects contain the compiled Buslane terms used by the linker",
-      help="compile `\{module_}` and pass its `.lmo` to `lane link`",
-    )
-  } else if message.has_prefix("missing imported object ") {
-    let module_ = strip_prefix(message, "missing imported object ")
-    compile_report(
-      "missing imported object artifact for `\{module_}`",
-      span,
-      code="E4204",
-      label="an object imports this module but the linker cannot find its object",
-      note="linking follows object dependencies recorded during compile",
-      help="pass the missing module's `.lmo` to `lane link`",
-    )
-  } else if message.has_prefix("imported interface fingerprint mismatch ") {
-    compile_report(
-      "stale imported interface",
-      span,
-      code="E4103",
-      label=message,
-      note="the importer was compiled against a different interface fingerprint",
-      help="recompile the importer and provider modules together",
-    )
-  } else if message.has_prefix("imported reference fingerprint mismatch ") ||
-    message.has_prefix("imported reference mismatch ") {
-    compile_report(
-      "stale imported reference",
-      span,
-      code="E4205",
-      label=message,
-      note="an object refers to an exported symbol shape that no longer matches its provider",
-      help="recompile the importing module against the current provider object",
-    )
-  } else if message.has_prefix("missing exported ") {
-    compile_report(
-      "object artifact does not satisfy its interface",
-      span,
-      code="E4206",
-      label=message,
-      note="the imported interface advertises a public item that the object does not export",
-      help="recompile the provider module and use matching `.lmi` and `.lmo` artifacts",
-    )
-  } else if message.has_prefix("module fingerprint mismatch ") ||
-    message.has_prefix("module object mismatch ") {
-    compile_report(
-      "stale module object",
-      span,
-      code="E4207",
-      label=message,
-      note="the compiled object fingerprint does not match the module interface metadata",
-      help="recompile the module before linking",
-    )
-  } else if message.has_prefix("unsupported linked program artifact schema") {
-    compile_report(
-      "unsupported linked program artifact schema",
-      span,
-      code="E4400",
-      label=message,
-      note="this linked program artifact is not compatible with the current runtime",
-      help="link the program again with the current `lane link`",
-    )
-  } else if message.has_prefix("invalid linked Buslane program") {
-    compile_report(
-      "linked program contains invalid Buslane",
-      span,
-      code="E4401",
-      label="the Buslane verifier rejected the linked program",
-      note="this usually means the compiler or linker emitted inconsistent core terms",
-      help="recompile and relink; if the error remains, report it as a compiler bug",
-    )
-  } else if message.has_prefix("duplicate linked module ") {
-    let module_ = strip_prefix(message, "duplicate linked module ")
-    compile_report(
-      "duplicate linked module `\{module_}`",
-      span,
-      code="E4402",
-      label="the linked program lists this module more than once",
-      note="linked program metadata must contain each module once",
-      help="relink from a deduplicated object input set",
-    )
-  } else if message.has_prefix("linked entry has unknown value ") {
-    let entry = strip_prefix(message, "linked entry has unknown value ")
-    compile_report(
-      "linked entry `\{entry}` points to an unknown value",
-      span,
-      code="E4403",
-      label="entry metadata references a value that is not in the Buslane program",
-      note="entry metadata is produced by the linker from public Lane entries",
-      help="relink the program; if the error remains, report it as a compiler bug",
-    )
-  } else if message.has_prefix("duplicate linked entry ") {
-    let entry = strip_prefix(message, "duplicate linked entry ")
-    compile_report(
-      "duplicate linked entry `\{entry}`",
-      span,
-      code="E4404",
-      label="the linked program exports this entry name more than once",
-      note="entry lookup must resolve to exactly one linked value",
-      help="rename one of the public entries or relink from a consistent object set",
-    )
-  } else if message.has_prefix("checked source construction failed") {
-    compile_report(
-      "compiler produced no checked source",
-      span,
-      code="E4500",
-      label=message,
-      note="type checking finished without a checked source tree",
-      help="report this as a compiler bug with the input that triggered it",
-    )
-  } else if message.has_prefix("parser produced no source file") {
-    compile_report(
-      "parser produced no source file",
-      span,
-      code="E1102",
-      label=message,
-      note="the parser returned neither a source tree nor a concrete parse error",
-      help="report this as a compiler bug with the input that triggered it",
-    )
-  } else {
-    compile_report(
-      message,
-      span,
-      code="E4999",
-      label=message,
-      note="this compile diagnostic has not yet been assigned a more specific category",
-      help="use the diagnostic text above to fix the input or report a missing diagnostic specialization",
-    )
+  match kind {
+    NoRootSourceModule =>
+      compile_report(
+        "no root source module",
+        span,
+        code="E4000",
+        label="the compiler did not receive a root Lane module",
+        note="Lane compile/check needs exactly one root source module",
+        help="pass a source file that starts with a `module` declaration",
+      )
+    DuplicateModuleInput(module_) =>
+      compile_report(
+        "duplicate module input `\{module_}`",
+        span,
+        code="E4001",
+        label="this module was supplied more than once",
+        note="a module input set cannot contain two sources with the same module name",
+        help="remove one source file or rename one of the modules",
+      )
+    MissingImport(module_) =>
+      compile_report(
+        "missing imported module `\{module_}`",
+        span,
+        code="E4002",
+        label="this import has no matching module input or interface artifact",
+        note="Lane does not search the file system by module name during compilation",
+        help="pass the imported module as a library source or compiled interface",
+      )
+    ImportCycle(module_) =>
+      compile_report(
+        "import cycle involving `\{module_}`",
+        span,
+        code="E4003",
+        label="module imports must form an acyclic graph",
+        note="cyclic module dependencies cannot be typechecked in a stable order",
+        help="move shared declarations into a separate module imported by both sides",
+      )
+    DuplicateModuleInterfaceArtifact(module_) =>
+      compile_report(
+        "duplicate interface artifact for `\{module_}`",
+        span,
+        code="E4100",
+        label="two interface artifacts describe the same module",
+        note="compile uses one interface per imported module",
+        help="remove the duplicate `--interface` input",
+      )
+    UnsupportedModuleInterfaceArtifactSchema(module_) =>
+      compile_report(
+        "unsupported module interface artifact schema",
+        span,
+        code="E4101",
+        label="unsupported module interface artifact schema \{module_}",
+        note="this `.lmi` was produced by an incompatible Lane compiler or edited by hand",
+        help="recompile the provider module with the current `lane compile`",
+      )
+    InvalidModuleInterfaceArtifact(module_path_text~, reason~) =>
+      compile_report(
+        "invalid module interface artifact",
+        span,
+        code="E4102",
+        label="module interface artifact \{reason} \{module_path_text}",
+        note="the interface artifact metadata does not match its embedded module interface",
+        help="recompile the provider module and pass the fresh `.lmi` file",
+      )
+    DuplicateModuleObjectArtifact(module_) =>
+      compile_report(
+        "duplicate object artifact for `\{module_}`",
+        span,
+        code="E4200",
+        label="two object artifacts define the same module",
+        note="linking requires one object artifact per module",
+        help="remove the duplicate `.lmo` input",
+      )
+    UnsupportedModuleObjectArtifactSchema(schema~, module_path_text~) =>
+      compile_report(
+        "unsupported module object artifact schema",
+        span,
+        code="E4201",
+        label="unsupported module object artifact schema \{schema} for \{module_path_text}",
+        note="this `.lmo` was produced by an incompatible Lane compiler or edited by hand",
+        help="recompile the module with the current `lane compile`",
+      )
+    InvalidModuleObjectArtifact(module_path_text~, reason~) =>
+      compile_report(
+        "invalid module object artifact",
+        span,
+        code="E4202",
+        label="module object artifact \{reason} \{module_path_text}",
+        note="the object artifact metadata does not match its embedded interface or fingerprints",
+        help="recompile the module and pass the fresh `.lmo` file",
+      )
+    DuplicateModuleArtifact(module_) =>
+      compile_report(
+        "duplicate compiled module `\{module_}`",
+        span,
+        code="E4300",
+        label="two compiled modules have the same module name",
+        note="linking requires one compiled module for each module name",
+        help="remove the duplicate module artifact",
+      )
+    UnsupportedModuleArtifactSchema(module_) =>
+      compile_report(
+        "unsupported compiled module artifact schema",
+        span,
+        code="E4301",
+        label=unsupported_module_artifact_schema_label(module_),
+        note="this compiled module artifact is not compatible with the current compiler",
+        help="recompile all modules with the current compiler",
+      )
+    InvalidModuleArtifact(module_path_text~, reason~) =>
+      compile_report(
+        "invalid compiled module artifact",
+        span,
+        code="E4302",
+        label="module artifact \{reason} \{module_path_text}",
+        note="the compiled module artifact has inconsistent interface/object metadata",
+        help="recompile the module instead of mixing old interface and object files",
+      )
+    MissingObject(module_) =>
+      compile_report(
+        "missing object artifact for `\{module_}`",
+        span,
+        code="E4203",
+        label="the linker needs this module object but it was not provided",
+        note="module objects contain the compiled Buslane terms used by the linker",
+        help="compile `\{module_}` and pass its `.lmo` to `lane link`",
+      )
+    MissingImportedObject(module_) =>
+      compile_report(
+        "missing imported object artifact for `\{module_}`",
+        span,
+        code="E4204",
+        label="an object imports this module but the linker cannot find its object",
+        note="linking follows object dependencies recorded during compile",
+        help="pass the missing module's `.lmo` to `lane link`",
+      )
+    ImportedInterfaceFingerprintMismatch(importer~, imported~) =>
+      compile_report(
+        "stale imported interface",
+        span,
+        code="E4103",
+        label="imported interface fingerprint mismatch \{importer} -> \{imported}",
+        note="the importer was compiled against a different interface fingerprint",
+        help="recompile the importer and provider modules together",
+      )
+    ImportedReferenceFingerprintMismatch(importer~, imported~, name~) =>
+      compile_report(
+        "stale imported reference",
+        span,
+        code="E4205",
+        label="imported reference fingerprint mismatch \{importer} -> \{imported}::\{name}",
+        note="an object refers to an exported symbol shape that no longer matches its provider",
+        help="recompile the importing module against the current provider object",
+      )
+    ImportedReferenceMismatch(importer~, imported~, name~) =>
+      compile_report(
+        "stale imported reference",
+        span,
+        code="E4205",
+        label="imported reference mismatch \{importer} -> \{imported}::\{name}",
+        note="an object refers to an exported symbol shape that no longer matches its provider",
+        help="recompile the importing module against the current provider object",
+      )
+    MissingExported(kind~, provider~, name~, importer~) =>
+      compile_report(
+        "object artifact does not satisfy its interface",
+        span,
+        code="E4206",
+        label="missing exported \{kind} \{provider}::\{name} imported by \{importer}",
+        note="the imported interface advertises a public item that the object does not export",
+        help="recompile the provider module and use matching `.lmi` and `.lmo` artifacts",
+      )
+    StaleModuleObject(module_path_text~, reason~) =>
+      compile_report(
+        "stale module object",
+        span,
+        code="E4207",
+        label="\{reason} \{module_path_text}",
+        note="the compiled object fingerprint does not match the module interface metadata",
+        help="recompile the module before linking",
+      )
+    UnsupportedLinkedProgramArtifactSchema =>
+      compile_report(
+        "unsupported linked program artifact schema",
+        span,
+        code="E4400",
+        label="unsupported linked program artifact schema",
+        note="this linked program artifact is not compatible with the current runtime",
+        help="link the program again with the current `lane link`",
+      )
+    InvalidLinkedBuslaneProgram =>
+      compile_report(
+        "linked program contains invalid Buslane",
+        span,
+        code="E4401",
+        label="the Buslane verifier rejected the linked program",
+        note="this usually means the compiler or linker emitted inconsistent core terms",
+        help="recompile and relink; if the error remains, report it as a compiler bug",
+      )
+    DuplicateLinkedModule(module_) =>
+      compile_report(
+        "duplicate linked module `\{module_}`",
+        span,
+        code="E4402",
+        label="the linked program lists this module more than once",
+        note="linked program metadata must contain each module once",
+        help="relink from a deduplicated object input set",
+      )
+    LinkedEntryUnknownValue(entry) =>
+      compile_report(
+        "linked entry `\{entry}` points to an unknown value",
+        span,
+        code="E4403",
+        label="entry metadata references a value that is not in the Buslane program",
+        note="entry metadata is produced by the linker from public Lane entries",
+        help="relink the program; if the error remains, report it as a compiler bug",
+      )
+    DuplicateLinkedEntry(entry) =>
+      compile_report(
+        "duplicate linked entry `\{entry}`",
+        span,
+        code="E4404",
+        label="the linked program exports this entry name more than once",
+        note="entry lookup must resolve to exactly one linked value",
+        help="rename one of the public entries or relink from a consistent object set",
+      )
+    CheckedSourceConstructionFailed =>
+      compile_report(
+        "compiler produced no checked source",
+        span,
+        code="E4500",
+        label="checked source construction failed",
+        note="type checking finished without a checked source tree",
+        help="report this as a compiler bug with the input that triggered it",
+      )
+    ParserProducedNoSourceFile =>
+      compile_report(
+        "parser produced no source file",
+        span,
+        code="E1102",
+        label="parser produced no source file",
+        note="the parser returned neither a source tree nor a concrete parse error",
+        help="report this as a compiler bug with the input that triggered it",
+      )
+  }
+}
+
+///|
+fn unsupported_module_artifact_schema_label(module_ : String?) -> String {
+  match module_ {
+    Some(module_) => "unsupported module artifact schema \{module_}"
+    None => "unsupported module artifact schema"
   }
 }
 
@@ -345,11 +380,6 @@ fn compile_report(
     notes=[note],
     helps=[help],
   )
-}
-
-///|
-fn strip_prefix(value : String, prefix : String) -> String {
-  value.unsafe_substring(start=prefix.length(), end=value.length())
 }
 
 ///|
