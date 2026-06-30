@@ -1245,7 +1245,10 @@ test "check sources rejects private nominal type escape through public function"
     ],
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+  inspect(
+    result.diagnostics[0].message,
+    content="private type `Hidden` in public interface",
+  )
   match result.diagnostics[0].span {
     Some(span) => {
       inspect(span.start_line, content="5")
@@ -1269,7 +1272,10 @@ test "check source rejects private nominal type escape through public let" {
     ),
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+  inspect(
+    result.diagnostics[0].message,
+    content="private type `Hidden` in public interface",
+  )
 }
 
 ///|
@@ -1286,7 +1292,10 @@ test "check source rejects private nominal type escape through public struct fie
     ),
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+  inspect(
+    result.diagnostics[0].message,
+    content="private type `Hidden` in public interface",
+  )
 }
 
 ///|
@@ -1303,7 +1312,10 @@ test "check source rejects private nominal type escape through public enum paylo
     ),
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+  inspect(
+    result.diagnostics[0].message,
+    content="private type `Hidden` in public interface",
+  )
 }
 
 ///|
@@ -1318,7 +1330,10 @@ test "check source rejects private nominal type escape through public type alias
     ),
   )
   inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="private_type_escape Hidden")
+  inspect(
+    result.diagnostics[0].message,
+    content="private type `Hidden` in public interface",
+  )
 }
 
 ///|
