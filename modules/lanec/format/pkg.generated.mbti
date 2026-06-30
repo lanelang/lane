@@ -25,8 +25,23 @@ pub fn format_source_with_options(String, FormatOptions) -> Result[String, Array
 pub(all) struct FormatDiagnostic {
   message : String
   span : @basic.SourceSpan?
+  code : String?
+  labels : Array[FormatDiagnosticLabel]
+  notes : Array[String]
+  helps : Array[String]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for FormatDiagnostic
+
+pub(all) struct FormatDiagnosticLabel {
+  span : @basic.SourceSpan
+  message : String
+  style : FormatDiagnosticLabelStyle
+} derive(Eq, @debug.Debug)
+
+pub(all) enum FormatDiagnosticLabelStyle {
+  Primary
+  Secondary
+} derive(Eq, @debug.Debug)
 
 pub(all) struct FormatOptions {
   width : Int

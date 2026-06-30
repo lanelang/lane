@@ -246,7 +246,7 @@
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `=`, expected `:`"]
+        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `:`"]
       }
     },
     {
@@ -262,7 +262,7 @@
       "file": "examples/invalid/03_offer_missing_type_annotation.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `=`, expected `:`"]
+        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `:`"]
       }
     },
     {
@@ -270,7 +270,7 @@
       "file": "examples/invalid/04_empty_block_no_implicit_unit.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `}`"]
+        "contains": ["error[E1100]", "the parser did not expect `}`"]
       }
     },
     {
@@ -278,7 +278,7 @@
       "file": "examples/invalid/05_multiple_expression_statements.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected identifier `x`"]
+        "contains": ["error[E1100]", "the parser did not expect identifier `x`"]
       }
     },
     {
@@ -286,7 +286,7 @@
       "file": "examples/invalid/06_unqualified_variant_pattern.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `(`", "expected `.`, `::`, `=>`"]
+        "contains": ["error[E1100]", "the parser did not expect `(`", "expected one of: `.`, `::`, `=>`"]
       }
     },
     {
@@ -294,7 +294,7 @@
       "file": "examples/invalid/07_payloadless_variant_call.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `)`"]
+        "contains": ["error[E1100]", "the parser did not expect `)`"]
       }
     },
     {
@@ -310,7 +310,7 @@
       "file": "examples/invalid/09_struct_update_spread.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `.`"]
+        "contains": ["error[E1100]", "the parser did not expect `.`"]
       }
     },
     {
@@ -318,7 +318,7 @@
       "file": "examples/invalid/10_function_equals_body.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `=`, expected `{`, `[`, `.`, `->`"]
+        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `{`, `[`, `.`, `->`"]
       }
     },
     {
@@ -326,7 +326,7 @@
       "file": "examples/invalid/11_named_function_missing_result_type.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `{`, expected `->`"]
+        "contains": ["error[E1100]", "the parser did not expect `{`", "expected one of: `->`"]
       }
     },
     {
@@ -334,7 +334,7 @@
       "file": "examples/invalid/12_local_function_forward_reference.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `fn`"]
+        "contains": ["error[E1100]", "the parser did not expect `fn`"]
       }
     },
     {
@@ -366,7 +366,7 @@
       "file": "examples/invalid/16_tuple_type.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `=`, expected `->`"]
+        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `->`"]
       }
     },
     {
@@ -406,7 +406,7 @@
       "file": "examples/invalid/21_type_alias_empty_parameter_header.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `]`"]
+        "contains": ["error[E1100]", "the parser did not expect `]`"]
       }
     },
     {
@@ -414,7 +414,7 @@
       "file": "examples/invalid/22_type_alias_multi_layer_parameter_header.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `[`", "expected `=`"]
+        "contains": ["error[E1100]", "the parser did not expect `[`", "expected one of: `=`"]
       }
     },
     {
@@ -438,7 +438,7 @@
       "file": "examples/invalid/25_else_if_missing_final_else.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["parse error", "unexpected `}`", "expected `else`"]
+        "contains": ["error[E1100]", "the parser did not expect `}`", "expected one of: `else`"]
       }
     },
     {

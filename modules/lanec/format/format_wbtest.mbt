@@ -23,7 +23,13 @@ test "format source reports parse diagnostics" {
   inspect(diagnostics.length(), content="1")
   inspect(
     @prettyprinter.render(diagnostics[0]),
-    content="2:18-2:19: parse error: unexpected `=`, expected identifier, `type`, `(`, `[`",
+    content=(
+      #|error[E1100]: unexpected token
+      #|  --> 2:18-2:19
+      #|  = label: 2:18-2:19 the parser did not expect `=`
+      #|  = note: expected one of: identifier, `type`, `(`, `[`
+      #|  = help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
+    ),
   )
 }
 

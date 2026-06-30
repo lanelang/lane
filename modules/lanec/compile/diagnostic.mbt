@@ -85,50 +85,173 @@ fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompileDiagnostic] {
 
 ///|
 fn lex_diagnostic(error : @lexer.LexError) -> CompileDiagnostic {
-  make_error(
-    "lexical error: " + lex_error_text(error.error),
-    span=Some(error.span),
+  let span = Some(error.span)
+  diagnostic(
+    lex_error_title(error.error),
+    span~,
+    severity=Error,
+    code=Some(lex_error_code(error.error)),
+    labels=[
+      {
+        span: error.span,
+        message: lex_error_label(error.error),
+        style: Primary,
+      },
+    ],
+    notes=lex_error_notes(error.error),
+    helps=lex_error_helps(error.error),
   )
 }
 
 ///|
-fn lex_error_text(error : @lexer.LexicalError) -> String {
+fn lex_error_code(error : @lexer.LexicalError) -> String {
   match error {
-    IllegalCharacter(value) => "illegal character " + value
+    IllegalCharacter(_) => "E1000"
+    UnterminatedBlockComment => "E1001"
+    UnterminatedString => "E1002"
+    InvalidStringEscape(_) => "E1003"
+    InvalidHexEscape(_) => "E1004"
+    NonAsciiStringCharacter => "E1005"
+  }
+}
+
+///|
+fn lex_error_title(error : @lexer.LexicalError) -> String {
+  match error {
+    IllegalCharacter(_) => "illegal character in source"
     UnterminatedBlockComment => "unterminated block comment"
-    UnterminatedString => "unterminated string"
-    InvalidStringEscape(value) => "invalid string escape " + value
-    InvalidHexEscape(value) => "invalid hex escape " + value
-    NonAsciiStringCharacter => "non-ascii string character"
+    UnterminatedString => "unterminated string literal"
+    InvalidStringEscape(_) => "invalid string escape"
+    InvalidHexEscape(_) => "invalid hexadecimal escape"
+    NonAsciiStringCharacter => "non-ASCII character in string literal"
+  }
+}
+
+///|
+fn lex_error_label(error : @lexer.LexicalError) -> String {
+  match error {
+    IllegalCharacter(value) => "`\{value}` is not valid Lane syntax"
+    UnterminatedBlockComment => "this block comment is never closed"
+    UnterminatedString => "this string literal is never closed"
+    InvalidStringEscape(value) =>
+      "`\{value}` is not a supported escape sequence"
+    InvalidHexEscape(value) => "`\{value}` is not a valid hexadecimal escape"
+    NonAsciiStringCharacter =>
+      "Lane string literals currently accept ASCII characters only"
+  }
+}
+
+///|
+fn lex_error_notes(error : @lexer.LexicalError) -> Array[String] {
+  match error {
+    NonAsciiStringCharacter =>
+      [
+        "the lexer rejects non-ASCII bytes inside string literals in the current language version",
+      ]
+    _ => []
+  }
+}
+
+///|
+fn lex_error_helps(error : @lexer.LexicalError) -> Array[String] {
+  match error {
+    IllegalCharacter(_) =>
+      ["remove this character or replace it with a valid Lane token"]
+    UnterminatedBlockComment => ["add a closing `*/` before the end of file"]
+    UnterminatedString => ["add a closing `\"` before the end of the line"]
+    InvalidStringEscape(_) =>
+      ["use a supported escape such as `\\n`, `\\t`, `\\\"`, or `\\\\`"]
+    InvalidHexEscape(_) =>
+      ["write hexadecimal escapes with exactly two hexadecimal digits"]
+    NonAsciiStringCharacter =>
+      ["replace the character with ASCII text or an explicit supported escape"]
   }
 }
 
 ///|
 fn parse_diagnostic(error : @parser.ParseError) -> CompileDiagnostic {
-  make_error(
-    "parse error: " + parse_error_text(error.kind),
-    span=Some(error.loc),
+  let span = Some(error.loc)
+  diagnostic(
+    parse_error_title(error.kind),
+    span~,
+    severity=Error,
+    code=Some(parse_error_code(error.kind)),
+    labels=[
+      {
+        span: error.loc,
+        message: parse_error_label(error.kind),
+        style: Primary,
+      },
+    ],
+    notes=parse_error_notes(error.kind),
+    helps=parse_error_helps(error.kind),
   )
 }
 
 ///|
-fn parse_error_text(error : @parser.ParseErrorKind) -> String {
+fn parse_error_code(error : @parser.ParseErrorKind) -> String {
   match error {
-    UnexpectedToken(token, expected) =>
-      "unexpected " + token.label + expected_text(expected)
-    UnexpectedEndOfInput(expected) =>
-      "unexpected end of input" + expected_text(expected)
+    UnexpectedToken(_, _) => "E1100"
+    UnexpectedEndOfInput(_) => "E1101"
   }
 }
 
 ///|
-fn expected_text(expected : Array[@parser.ExpectedSyntax]) -> String {
-  if expected.is_empty() {
-    ""
-  } else {
-    let labels = expected.map(fn(item) { item.label })
-    ", expected " + labels.join(", ")
+fn parse_error_title(error : @parser.ParseErrorKind) -> String {
+  match error {
+    UnexpectedToken(_, _) => "unexpected token"
+    UnexpectedEndOfInput(_) => "unexpected end of input"
   }
+}
+
+///|
+fn parse_error_label(error : @parser.ParseErrorKind) -> String {
+  match error {
+    UnexpectedToken(token, _) => "the parser did not expect " + token.label
+    UnexpectedEndOfInput(_) =>
+      "the source file ended while parsing this construct"
+  }
+}
+
+///|
+fn parse_error_notes(error : @parser.ParseErrorKind) -> Array[String] {
+  match error {
+    UnexpectedToken(_, expected) | UnexpectedEndOfInput(expected) =>
+      if expected.is_empty() {
+        []
+      } else {
+        ["expected one of: " + expected_list(expected)]
+      }
+  }
+}
+
+///|
+fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
+  match error {
+    UnexpectedToken(_, expected) =>
+      if expected.is_empty() {
+        ["remove the unexpected token or rewrite the surrounding expression"]
+      } else {
+        [
+          "rewrite this position so it starts with one of: " +
+          expected_list(expected),
+        ]
+      }
+    UnexpectedEndOfInput(expected) =>
+      if expected.is_empty() {
+        ["finish the incomplete construct before the end of file"]
+      } else {
+        [
+          "add the missing syntax before the end of file; expected one of: " +
+          expected_list(expected),
+        ]
+      }
+  }
+}
+
+///|
+fn expected_list(expected : Array[@parser.ExpectedSyntax]) -> String {
+  expected.map(fn(item) { item.label }).join(", ")
 }
 
 ///|
