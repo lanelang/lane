@@ -490,12 +490,7 @@ fn compile_one_module(
     resolved.source,
     imported,
   )
-  let typecheck_diagnostics = checked.diagnostics.map(fn(diagnostic) {
-    make_error(
-      @prettyprinter.render(diagnostic.kind, width=100),
-      span=Some(diagnostic.loc),
-    )
-  })
+  let typecheck_diagnostics = checked.diagnostics.map(typecheck_diagnostic)
   if !typecheck_diagnostics.is_empty() {
     return Err(typecheck_diagnostics)
   }

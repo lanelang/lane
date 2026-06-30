@@ -302,7 +302,7 @@
       "file": "examples/invalid/08_struct_missing_field.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["missing_field y"]
+        "contains": ["error[E3101]", "missing field `y`", "omits required field `y`"]
       }
     },
     {
@@ -342,7 +342,7 @@
       "file": "examples/invalid/13_function_literal_missing_parameter_type.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["cannot_infer function literal parameter"]
+        "contains": ["error[E3010]", "cannot infer expression type", "function literal parameter"]
       }
     },
     {
@@ -350,7 +350,7 @@
       "file": "examples/invalid/14_builtin_without_expected_type.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["cannot_infer builtin"]
+        "contains": ["error[E3010]", "cannot infer expression type", "builtin"]
       }
     },
     {
@@ -358,7 +358,7 @@
       "file": "examples/invalid/15_method_call_syntax.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["not_callable Int"]
+        "contains": ["error[E3007]", "value is not callable", "`Int` is not a function type"]
       }
     },
     {
@@ -374,7 +374,7 @@
       "file": "examples/invalid/17_existential_struct_missing_witness.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["missing_type_member T"]
+        "contains": ["error[E3104]", "missing type member `T`", "omits required type member `T`"]
       }
     },
     {
@@ -382,7 +382,7 @@
       "file": "examples/invalid/18_existential_hidden_type_escape.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["type_mismatch expected=Int actual=tparam#"]
+        "contains": ["error[E3006]", "type mismatch", "expected `Int`, found `tparam#"]
       }
     },
     {
@@ -390,7 +390,7 @@
       "file": "examples/invalid/19_ambiguous_contextual_offer.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["cannot_infer ambiguous contextual offer"]
+        "contains": ["error[E3010]", "cannot infer expression type", "ambiguous contextual offer"]
       }
     },
     {
@@ -398,7 +398,7 @@
       "file": "examples/invalid/20_type_alias_cycle.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["type_alias_cycle A"]
+        "contains": ["error[E3004]", "type alias `A` is recursive"]
       }
     },
     {
@@ -422,7 +422,7 @@
       "file": "examples/invalid/23_type_alias_unannotated_higher_kind_parameter.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["kind_mismatch expected=[] -> Type actual=Type"]
+        "contains": ["error[E3005]", "kind mismatch", "expected kind `[] -> Type`, found `Type`"]
       }
     },
     {
@@ -430,7 +430,7 @@
       "file": "examples/invalid/24_type_alias_duplicate_parameter.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["duplicate_type_parameter A"]
+        "contains": ["error[E3106]", "duplicate type parameter `A`"]
       }
     },
     {
@@ -446,7 +446,7 @@
       "file": "examples/invalid/26_nested_pattern_non_exhaustive.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["non_exhaustive_match"]
+        "contains": ["error[E3200]", "non-exhaustive match"]
       }
     },
     {
@@ -454,7 +454,7 @@
       "file": "examples/invalid/27_shorthand_variant_without_enum_expected_type.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["cannot_infer shorthand variant pattern requires enum expected type ::some"]
+        "contains": ["error[E3010]", "cannot infer expression type", "shorthand variant pattern requires enum expected type ::some"]
       }
     }
   ]
