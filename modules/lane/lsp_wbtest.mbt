@@ -754,6 +754,64 @@ async test "workspace diagnostics ignore modules outside import closure" {
 }
 
 ///|
+async test "workspace analysis selects root import closure without json rpc" {
+  let workspace = ".tmp-lsp-analysis-input-workspace"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
+  let unrelated_path = "\{workspace}/Unrelated.lane"
+  @fs.remove(main_path) catch {
+    _ => ()
+  }
+  @fs.remove(lib_path) catch {
+    _ => ()
+  }
+  @fs.remove(unrelated_path) catch {
+    _ => ()
+  }
+  @fs.rmdir(workspace) catch {
+    _ => ()
+  }
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let value : Int = 42
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.write_file(
+    unrelated_path,
+    (
+      #|module Unrelated
+      #|
+      #|pub let broken : =
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let main_text =
+    #|module Main
+    #|
+    #|import Lib.*
+    #|
+    #|pub let answer : Int = value
+  let document = { uri: "file://\{main_path}", version: 1, text: main_text }
+  let analysis = LspWorkspaceAnalysis(Some(workspace), {})
+  let inputs = analysis.analysis_inputs(document)
+  @fs.remove(unrelated_path) catch {
+    _ => ()
+  }
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  inspect(
+    inputs.map(fn(input) { input.source_id }).join(","),
+    content="file://.tmp-lsp-analysis-input-workspace/Main.lane,file://.tmp-lsp-analysis-input-workspace/Lib.lane",
+  )
+}
+
+///|
 test "file URI paths are percent decoded" {
   debug_inspect(
     file_uri_to_path("file:///tmp/Lane%20Workspace/%E4%B8%AD.lane"),

@@ -22,12 +22,6 @@ struct HandlerResult {
 } derive(Debug, Eq)
 
 ///|
-priv struct DiagnosticPublication {
-  uri : String
-  diagnostics : Array[@compile.CompileDiagnostic]
-}
-
-///|
 fn ServerState::ServerState() -> ServerState {
   { documents: {}, workspace_root: None, shutdown_requested: false }
 }
@@ -125,6 +119,7 @@ async fn ServerState::handle_did_open(
   self.documents[document.uri] = document
   {
     outgoing: self
+    .workspace_analysis()
     .check(document)
     .map(fn(publication) {
       publish_diagnostics(publication.uri, publication.diagnostics)
@@ -144,6 +139,7 @@ async fn ServerState::handle_did_change(
   self.documents[document.uri] = document
   {
     outgoing: self
+    .workspace_analysis()
     .check(document)
     .map(fn(publication) {
       publish_diagnostics(publication.uri, publication.diagnostics)
@@ -178,7 +174,7 @@ async fn ServerState::handle_definition(
   guard self.document_for_uri(params.uri) is Some(document) else {
     return respond(request, Ok(null))
   }
-  let analysis = self.analyze(document)
+  let analysis = self.workspace_analysis().analyze(document)
   let line = params.line + 1
   let column = params.character + 1
   match analysis.definition_at(params.uri, line, column) {
@@ -201,7 +197,7 @@ async fn ServerState::handle_hover(
   guard self.document_for_uri(params.uri) is Some(document) else {
     return respond(request, Ok(null))
   }
-  let analysis = self.analyze(document)
+  let analysis = self.workspace_analysis().analyze(document)
   let line = params.line + 1
   let column = params.character + 1
   match analysis.hover_at(params.uri, line, column) {
@@ -224,7 +220,7 @@ async fn ServerState::handle_inlay_hint(
   guard self.document_for_uri(params.uri) is Some(document) else {
     return respond(request, Ok(([] : Array[Json]).to_json()))
   }
-  let analysis = self.analyze(document)
+  let analysis = self.workspace_analysis().analyze(document)
   let hints = analysis.inlay_hints_in_range(
     params.uri,
     params.start.line + 1,
@@ -248,6 +244,11 @@ fn ServerState::document_for_uri(
     Some(document) => Some(document)
     None => None
   }
+}
+
+///|
+fn ServerState::workspace_analysis(self : ServerState) -> LspWorkspaceAnalysis {
+  LspWorkspaceAnalysis(self.workspace_root, self.documents)
 }
 
 ///|
@@ -294,99 +295,6 @@ fn invalid_range_params(method_name : String) -> String {
 ///|
 fn method_not_found_message(method_name : String) -> String {
   "method not found: \{method_name}; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, and textDocument/inlayHint"
-}
-
-///|
-async fn ServerState::check(
-  self : ServerState,
-  document : DocumentSnapshot,
-) -> Array[DiagnosticPublication] {
-  let inputs = self.analysis_inputs(document)
-  let analysis = @compile.analyze_source_inputs(
-    inputs[0],
-    inputs[1:].to_owned(),
-  )
-  diagnostic_publications(
-    inputs,
-    analysis.diagnostics,
-    fallback_uri=document.uri,
-  )
-}
-
-///|
-async fn ServerState::analyze(
-  self : ServerState,
-  document : DocumentSnapshot,
-) -> @compile.AnalysisResult {
-  let inputs = self.analysis_inputs(document)
-  @compile.analyze_source_inputs(inputs[0], inputs[1:].to_owned())
-}
-
-///|
-async fn ServerState::analysis_inputs(
-  self : ServerState,
-  document : DocumentSnapshot,
-) -> Array[@compile.SourceInput] {
-  let root_input : @compile.SourceInput = {
-    source_id: document.uri,
-    text: document.text,
-  }
-  match self.workspace_root {
-    Some(root) => {
-      let libraries = self
-        .workspace_sources(root)
-        .without_source_id(document.uri)
-      match @compile.import_reachable_source_inputs(root_input, libraries) {
-        Ok(inputs) => inputs
-        Err(_) => [root_input]
-      }
-    }
-    None => [root_input]
-  }
-}
-
-///|
-async fn ServerState::workspace_sources(
-  self : ServerState,
-  root : String,
-) -> Array[@compile.SourceInput] {
-  let library_identities = []
-  let sources = self.open_document_library_sources(root, library_identities)
-  append_lane_sources(root, library_identities, sources) catch {
-    _ => ()
-  }
-  sources.sort_by(fn(left, right) {
-    String::compare(left.source_id, right.source_id)
-  })
-  sources
-}
-
-///|
-async fn ServerState::open_document_library_sources(
-  self : ServerState,
-  root : String,
-  library_identities : Array[String],
-) -> Array[@compile.SourceInput] {
-  let sources : Array[@compile.SourceInput] = []
-  for _, document in self.documents {
-    guard file_uri_to_path(document.uri) is Some(path) else { continue }
-    let identity = lsp_source_identity(path)
-    if !library_identities.contains(identity) &&
-      path.has_suffix(".lane") &&
-      path_is_under_workspace(path, root) {
-      library_identities.push(identity)
-      sources.push({ source_id: document.uri, text: document.text })
-    }
-  }
-  sources
-}
-
-///|
-fn Array::without_source_id(
-  self : Array[@compile.SourceInput],
-  source_id : String,
-) -> Array[@compile.SourceInput] {
-  self.filter(fn(input) { input.source_id != source_id })
 }
 
 ///|
@@ -515,51 +423,6 @@ fn hex_byte_value(byte : Byte) -> Int? {
 ///|
 fn path_is_under_workspace(path : String, root : String) -> Bool {
   path == root || path.has_prefix("\{root}/")
-}
-
-///|
-async fn lsp_source_identity(path : String) -> String {
-  @fs.realpath(path) catch {
-    _ => path
-  }
-}
-
-///|
-async fn append_lane_sources(
-  path : String,
-  library_identities : Array[String],
-  sources : Array[@compile.SourceInput],
-) -> Unit {
-  let entries = @fs.readdir(path, sort=true)
-  for entry in entries {
-    if should_skip_workspace_entry(entry) {
-      continue
-    }
-    let child = "\{path}/\{entry}"
-    match @fs.kind(child) {
-      Directory => append_lane_sources(child, library_identities, sources)
-      Regular if child.has_suffix(".lane") => {
-        let identity = lsp_source_identity(child)
-        if library_identities.contains(identity) {
-          continue
-        }
-        library_identities.push(identity)
-        sources.push({
-          source_id: path_to_file_uri(child),
-          text: @fs.read_file(child).text(),
-        })
-      }
-      _ => ()
-    }
-  }
-}
-
-///|
-fn should_skip_workspace_entry(entry : String) -> Bool {
-  entry.has_prefix(".") ||
-  entry == "_build" ||
-  entry == "build" ||
-  entry == "dist"
 }
 
 ///|
