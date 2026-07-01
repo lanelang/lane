@@ -23,6 +23,18 @@ priv struct DataConMapEntry {
 }
 
 ///|
+priv struct EffectMapEntry {
+  source : @symbol.EffectSymbolId
+  target : @buslane.EffectId
+}
+
+///|
+priv struct OperationMapEntry {
+  source : @symbol.OperationSymbolId
+  target : @buslane.OperationId
+}
+
+///|
 priv struct StructConMapEntry {
   source : @symbol.TypeSymbolId
   target : @buslane.DataConId
@@ -53,6 +65,8 @@ priv struct BuslaneLowerer {
   type_parameters : Array[TypeParameterMapEntry]
   values : Array[ValueMapEntry]
   data_constructors : Array[DataConMapEntry]
+  effects : Array[EffectMapEntry]
+  operations : Array[OperationMapEntry]
   struct_constructors : Array[StructConMapEntry]
   field_selectors : Array[FieldSelectorMapEntry]
   selector_terms : Array[SelectorTermEntry]
@@ -105,6 +119,8 @@ fn BuslaneLowerer::BuslaneLowerer() -> BuslaneLowerer {
     type_parameters: [],
     values: [],
     data_constructors: [],
+    effects: [],
+    operations: [],
     struct_constructors: [],
     field_selectors: [],
     selector_terms: [],
@@ -169,7 +185,13 @@ pub fn lower_checked_source_files_to_buslane_objects(
     lowerer.collect_type_headers(source)
   }
   for source in sources {
+    lowerer.collect_effect_headers(source)
+  }
+  for source in sources {
     lowerer.collect_data_constructors(source)
+  }
+  for source in sources {
+    lowerer.collect_effect_operations(source)
   }
   for source in sources {
     lowerer.collect_field_selectors(source)
@@ -219,7 +241,9 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
   let lowerer = BuslaneLowerer::BuslaneLowerer()
   lowerer.seed_imported_interfaces(imported)
   lowerer.collect_type_headers(source)
+  lowerer.collect_effect_headers(source)
   lowerer.collect_data_constructors(source)
+  lowerer.collect_effect_operations(source)
   lowerer.collect_field_selectors(source)
   lowerer.collect_top_values(source, include_entries=true)
   let external_start = lowerer.external_terms.length()
@@ -395,6 +419,16 @@ fn BuslaneLowerer::seed_imported_interfaces(
     }
   }
   for interface in imported.modules {
+    for effect in interface.effects {
+      self.seed_imported_effect_header(interface.module_path, effect)
+    }
+  }
+  for interface in imported.modules {
+    for effect in interface.effects {
+      self.seed_imported_effect_operations(interface.module_path, effect)
+    }
+  }
+  for interface in imported.modules {
     for value in interface.values {
       self.seed_imported_value(interface.module_path, value)
     }
@@ -565,6 +599,41 @@ fn BuslaneLowerer::imported_selector_type(
 }
 
 ///|
+fn BuslaneLowerer::seed_imported_effect_header(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> Unit {
+  let parameters = effect.type_parameters.map(fn(parameter) {
+    self.define_type_parameter(parameter)
+  })
+  let target = self.metadata.define_effect(parameters)
+  self.effects.push({ source: effect.symbol, target })
+  ignore(module_path_text)
+}
+
+///|
+fn BuslaneLowerer::seed_imported_effect_operations(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> Unit {
+  let owner = self.effect_id(effect.symbol)
+  for operation in effect.operations {
+    ignore(
+      self.define_operation(
+        operation.symbol,
+        owner,
+        operation.type_parameters,
+        operation.payload,
+        operation.result,
+      ),
+    )
+  }
+  ignore(module_path_text)
+}
+
+///|
 fn BuslaneLowerer::seed_imported_value(
   self : BuslaneLowerer,
   module_path_text : String,
@@ -643,6 +712,30 @@ fn BuslaneLowerer::collect_enum_header(
 }
 
 ///|
+fn BuslaneLowerer::collect_effect_headers(
+  self : BuslaneLowerer,
+  source : @checked.CheckedSourceFile,
+) -> Unit {
+  for declaration in source.declarations {
+    if declaration is Effect(declaration) {
+      self.collect_effect_header(declaration)
+    }
+  }
+}
+
+///|
+fn BuslaneLowerer::collect_effect_header(
+  self : BuslaneLowerer,
+  declaration : @checked.CheckedEffectDeclaration,
+) -> Unit {
+  let parameters = declaration.type_parameters.map(fn(parameter) {
+    self.define_type_parameter(parameter)
+  })
+  let target = self.metadata.define_effect(parameters)
+  self.effects.push({ source: declaration.symbol, target })
+}
+
+///|
 fn BuslaneLowerer::collect_data_constructors(
   self : BuslaneLowerer,
   source : @checked.CheckedSourceFile,
@@ -689,6 +782,37 @@ fn BuslaneLowerer::collect_enum_constructors(
       owner, hidden_type_parameters, payload_types,
     )
     self.data_constructors.push({ source: variant.symbol, target })
+  }
+}
+
+///|
+fn BuslaneLowerer::collect_effect_operations(
+  self : BuslaneLowerer,
+  source : @checked.CheckedSourceFile,
+) -> Unit {
+  for declaration in source.declarations {
+    if declaration is Effect(declaration) {
+      self.collect_effect_operation_declarations(declaration)
+    }
+  }
+}
+
+///|
+fn BuslaneLowerer::collect_effect_operation_declarations(
+  self : BuslaneLowerer,
+  declaration : @checked.CheckedEffectDeclaration,
+) -> Unit {
+  let owner = self.effect_id(declaration.symbol)
+  for operation in declaration.operations {
+    ignore(
+      self.define_operation(
+        operation.symbol,
+        owner,
+        operation.type_parameters,
+        operation.payload,
+        operation.result,
+      ),
+    )
   }
 }
 
@@ -1861,6 +1985,32 @@ fn BuslaneLowerer::define_value(
 }
 
 ///|
+fn BuslaneLowerer::define_operation(
+  self : BuslaneLowerer,
+  source : @symbol.OperationSymbolId,
+  owner : @buslane.EffectId,
+  type_parameters : Array[@types.TypeParameter],
+  payload : Array[@types.Type],
+  result : @types.Type,
+) -> @buslane.OperationId {
+  for entry in self.operations {
+    if entry.source == source {
+      return entry.target
+    }
+  }
+  for parameter in type_parameters {
+    ignore(self.define_type_parameter(parameter))
+  }
+  let target = self.metadata.define_operation(
+    owner,
+    payload.map(fn(type_) { self.lower_type(type_) }),
+    self.lower_type(result),
+  )
+  self.operations.push({ source, target })
+  target
+}
+
+///|
 fn BuslaneLowerer::bind_value_alias(
   self : BuslaneLowerer,
   source : @symbol.ValueSymbolId,
@@ -1948,6 +2098,19 @@ fn BuslaneLowerer::data_constructor_id(
     }
   }
   abort("unknown Buslane data constructor id")
+}
+
+///|
+fn BuslaneLowerer::effect_id(
+  self : BuslaneLowerer,
+  source : @symbol.EffectSymbolId,
+) -> @buslane.EffectId {
+  for entry in self.effects {
+    if entry.source == source {
+      return entry.target
+    }
+  }
+  abort("unknown Buslane effect id")
 }
 
 ///|

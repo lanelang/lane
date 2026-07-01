@@ -298,6 +298,38 @@ test "elaborate generic enum variant into verifiable buslane" {
 }
 
 ///|
+test "elaborate lowers effect metadata into buslane metadata" {
+  let result = elaborate_buslane_source(
+    (
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|}
+      #|let answer : Int = 1
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|buslane_elaborate_result {
+      #|  buslane {
+      #|    metadata {
+      #|      type_parameter tparam#0 : Type
+      #|      value value#0 : Int
+      #|      effect effect#0[tparam#0] {
+      #|        operation#0() -> tparam#0
+      #|        operation#1(tparam#0) -> Unit
+      #|      }
+      #|    }
+      #|    let value#0 = 1
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
 test "elaborate type aliases into alias-free buslane types" {
   let result = elaborate_buslane_source(
     (
