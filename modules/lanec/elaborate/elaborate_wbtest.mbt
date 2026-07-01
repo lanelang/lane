@@ -330,6 +330,62 @@ test "elaborate lowers effect metadata into buslane metadata" {
 }
 
 ///|
+test "elaborate lowers latent effects into buslane function types" {
+  let result = elaborate_buslane_source(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn run_console(f : () -> Int ! Console) -> Int ! Console {
+      #|  f()
+      #|}
+      #|fn[E : Effect] run_row(f : () -> Unit ! E) -> Unit ! E {
+      #|  f()
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|buslane_elaborate_result {
+      #|  buslane {
+      #|    metadata {
+      #|      type_parameter tparam#0 : Effect
+      #|      function value#0 : (() -> Int ! effect#0) -> Int ! effect#0
+      #|      function value#1 : forall [tparam#0]. (() -> Unit ! tparam#0) -> Unit ! tparam#0
+      #|      parameter value#2 : () -> Int ! effect#0
+      #|      parameter value#3 : () -> Unit ! tparam#0
+      #|      effect effect#0 {
+      #|        operation#0() -> Int
+      #|      }
+      #|    }
+      #|    letrec {
+      #|      value#0 = fn(value#2) -> Int {
+      #|        value#2()
+      #|      }
+      #|      value#1 = fn[tparam#0] {
+      #|        fn(value#3) -> Unit {
+      #|          value#3()
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
 test "elaborate type aliases into alias-free buslane types" {
   let result = elaborate_buslane_source(
     (

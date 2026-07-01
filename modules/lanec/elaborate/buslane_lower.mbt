@@ -1873,7 +1873,7 @@ fn BuslaneLowerer::lower_type(
       Function(
         parameters.map(fn(parameter) { self.lower_type(parameter) }),
         self.lower_type(result),
-        lower_effect(effect),
+        self.lower_effect(effect),
       )
     Forall(parameters, body) =>
       Forall(
@@ -1884,10 +1884,20 @@ fn BuslaneLowerer::lower_type(
 }
 
 ///|
-fn lower_effect(effect : @types.Effect) -> @buslane.Effect {
+fn BuslaneLowerer::lower_effect(
+  self : BuslaneLowerer,
+  effect : @types.Effect,
+) -> @buslane.Effect {
   match effect {
     Empty => Empty
-    _ => abort("Lane effect lowering to Buslane is not implemented yet")
+    Singleton(symbol, arguments) =>
+      Singleton(
+        self.effect_id(symbol),
+        arguments.map(fn(argument) { self.lower_type(argument) }),
+      )
+    Parameter(parameter) => Parameter(self.type_parameter_id(parameter))
+    Union(effects) =>
+      Union(effects.map(fn(effect) { self.lower_effect(effect) }))
   }
 }
 
