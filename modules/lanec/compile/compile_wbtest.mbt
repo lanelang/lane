@@ -2095,6 +2095,35 @@ test "analysis does not synthesize constructor parameter hints from payload type
 }
 
 ///|
+test "analysis keeps nested call parameter hints at distinct positions" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub fn append(left : Int, right : Int) -> Int {
+        #|  left
+        #|}
+        #|
+        #|pub fn apply(f : (Int) -> Int, value : Int) -> Int {
+        #|  f(value)
+        #|}
+        #|
+        #|pub fn inc(value : Int) -> Int {
+        #|  value
+        #|}
+        #|
+        #|pub let answer : Int = append(1, apply(inc, 2))
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  assert_no_duplicate_parameter_hint_positions(result.inlay_hints)
+}
+
+///|
 test "analysis skips parameter name inlay hints for source operators" {
   let result = analyze_source_inputs(
     {
@@ -2351,6 +2380,21 @@ fn implicit_inlay_hint_labels(hints : Array[InlayHintEntry]) -> Array[String] {
     }
   }
   labels
+}
+
+///|
+fn assert_no_duplicate_parameter_hint_positions(
+  hints : Array[InlayHintEntry],
+) -> Unit {
+  let positions = []
+  for hint in hints {
+    guard hint.kind is ParameterHint else { continue }
+    let position = "\{hint.location.source_id}:\{hint.location.span.start_line}:\{hint.location.span.start_column}"
+    if positions.contains(position) {
+      abort("duplicate parameter inlay hint position: \{position}")
+    }
+    positions.push(position)
+  }
 }
 
 ///|

@@ -672,7 +672,7 @@ fn add_argument_inlay_hints(
       add_parameter_inlay_hint(
         inlay_hints,
         source_id,
-        argument.loc(),
+        parameter_hint_span(argument),
         parameter.name,
       )
     }
@@ -681,6 +681,15 @@ fn add_argument_inlay_hints(
     add_implicit_argument_inlay_hint(
       inlay_hints, source_id, call_loc, implicit_arguments,
     )
+  }
+}
+
+///|
+fn parameter_hint_span(argument : @checked.CheckedExpr) -> @basic.SourceSpan {
+  match argument {
+    Call(callee~, ..) => callee_origin_loc(callee)
+    TypeApplication(callee~, ..) => parameter_hint_span(callee)
+    _ => argument.loc()
   }
 }
 

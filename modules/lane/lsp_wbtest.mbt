@@ -117,6 +117,26 @@ async test "hover reports invalid params as an LSP request shape error" {
 }
 
 ///|
+test "inlay hint validation reports duplicate positions as compiler bugs" {
+  let location : @compile.AnalysisLocation = {
+    source_id: "file:///Main.lane",
+    span: @basic.SourceSpan::dummy(),
+  }
+  let hints : Array[@compile.InlayHintEntry] = [
+    { location, kind: TypeHint, label: ": Int" },
+    { location, kind: ParameterHint, label: "value=" },
+  ]
+  match validate_inlay_hint_positions(hints) {
+    Err(message) =>
+      inspect(
+        message,
+        content="internal Lane compiler bug: multiple inlay hints were produced at file:///Main.lane:1:1 (`: Int` and `value=`)",
+      )
+    Ok(_) => abort("expected duplicate inlay hint validation failure")
+  }
+}
+
+///|
 async test "inlay hint returns inferred binder type hints" {
   let state = ServerState::ServerState()
   ignore(
@@ -453,7 +473,7 @@ async test "didOpen checks against workspace library sources" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp-workspace/Lib.lane",
+        "uri": "file://.tmp-lsp-workspace/Main.lane",
         "diagnostics": [],
       },
     },
@@ -461,7 +481,7 @@ async test "didOpen checks against workspace library sources" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp-workspace/Main.lane",
+        "uri": "file://.tmp-lsp-workspace/Lib.lane",
         "diagnostics": [],
       },
     },
@@ -510,6 +530,8 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
         (
           #|module Main
           #|
+          #|import Lib.*
+          #|
           #|pub let answer : Int = 1
         ),
       ),
@@ -517,6 +539,14 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
   )
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp-diagnostic-workspace/Main.lane",
+        "diagnostics": [],
+      },
+    },
     {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
@@ -566,14 +596,6 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
             ],
           },
         ],
-      },
-    },
-    {
-      "jsonrpc": "2.0",
-      "method": "textDocument/publishDiagnostics",
-      "params": {
-        "uri": "file://.tmp-lsp-diagnostic-workspace/Main.lane",
-        "diagnostics": [],
       },
     },
   ])
@@ -649,11 +671,85 @@ async test "workspace diagnostics are independent of triggering document" {
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   inspect(
     diagnostic_publication_uris(main_result),
-    content="file://.tmp-lsp-stable-workspace/Lib.lane,file://.tmp-lsp-stable-workspace/Main.lane",
+    content="file://.tmp-lsp-stable-workspace/Main.lane,file://.tmp-lsp-stable-workspace/Lib.lane",
   )
   inspect(
     diagnostic_publication_uris(lib_result),
-    content="file://.tmp-lsp-stable-workspace/Lib.lane,file://.tmp-lsp-stable-workspace/Main.lane",
+    content="file://.tmp-lsp-stable-workspace/Lib.lane",
+  )
+}
+
+///|
+async test "workspace diagnostics ignore modules outside import closure" {
+  let workspace = ".tmp-lsp-import-closure-workspace"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
+  let unrelated_path = "\{workspace}/Unrelated.lane"
+  @fs.remove(main_path) catch {
+    _ => ()
+  }
+  @fs.remove(lib_path) catch {
+    _ => ()
+  }
+  @fs.remove(unrelated_path) catch {
+    _ => ()
+  }
+  @fs.rmdir(workspace) catch {
+    _ => ()
+  }
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let value : Int = 42
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.write_file(
+    unrelated_path,
+    (
+      #|module Unrelated
+      #|
+      #|pub let broken : =
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.write_file(
+    main_path,
+    (
+      #|module Main
+      #|
+      #|import Lib.*
+      #|
+      #|pub let answer : Int = value
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(1, "initialize", { "rootUri": "file://\{workspace}" }),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/didOpen",
+      open_params("file://\{main_path}", @fs.read_file(main_path).text()),
+    ),
+  )
+  @fs.remove(unrelated_path) catch {
+    _ => ()
+  }
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  inspect(
+    diagnostic_publication_uris(result),
+    content="file://.tmp-lsp-import-closure-workspace/Main.lane,file://.tmp-lsp-import-closure-workspace/Lib.lane",
   )
 }
 
@@ -746,7 +842,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp%20workspace/Lib.lane",
+        "uri": "file://.tmp-lsp%20workspace/Main.lane",
         "diagnostics": [],
       },
     },
@@ -754,7 +850,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp%20workspace/Main.lane",
+        "uri": "file://.tmp-lsp%20workspace/Lib.lane",
         "diagnostics": [],
       },
     },

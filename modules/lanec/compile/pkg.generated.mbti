@@ -31,6 +31,8 @@ pub fn compile_source(String) -> CompileResult
 
 pub fn compile_sources(String, Array[String]) -> CompileResult
 
+pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[CompileDiagnostic]]
+
 pub fn link_module_artifacts(CompiledModuleSetArtifact) -> LinkResult
 
 pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> LinkResult

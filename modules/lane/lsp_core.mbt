@@ -232,6 +232,10 @@ async fn ServerState::handle_inlay_hint(
     params.end.line + 1,
     params.end.character + 1,
   )
+  match validate_inlay_hint_positions(hints) {
+    Err(message) => return respond(request, Err(internal_lsp_error(message)))
+    Ok(_) => ()
+  }
   respond(request, Ok(hints.map(inlay_hint_json).to_json()))
 }
 
@@ -323,16 +327,21 @@ async fn ServerState::analysis_inputs(
   self : ServerState,
   document : DocumentSnapshot,
 ) -> Array[@compile.SourceInput] {
+  let root_input : @compile.SourceInput = {
+    source_id: document.uri,
+    text: document.text,
+  }
   match self.workspace_root {
     Some(root) => {
-      let inputs = self.workspace_sources(root)
-      if inputs.contains_source_id(document.uri) {
-        inputs
-      } else {
-        [{ source_id: document.uri, text: document.text }] + inputs
+      let libraries = self
+        .workspace_sources(root)
+        .without_source_id(document.uri)
+      match @compile.import_reachable_source_inputs(root_input, libraries) {
+        Ok(inputs) => inputs
+        Err(_) => [root_input]
       }
     }
-    None => [{ source_id: document.uri, text: document.text }]
+    None => [root_input]
   }
 }
 
@@ -373,16 +382,11 @@ async fn ServerState::open_document_library_sources(
 }
 
 ///|
-fn Array::contains_source_id(
+fn Array::without_source_id(
   self : Array[@compile.SourceInput],
   source_id : String,
-) -> Bool {
-  for input in self {
-    if input.source_id == source_id {
-      return true
-    }
-  }
-  false
+) -> Array[@compile.SourceInput] {
+  self.filter(fn(input) { input.source_id != source_id })
 }
 
 ///|
@@ -576,6 +580,11 @@ fn invalid_params(message : String) -> @jsonrpc.WireError {
 }
 
 ///|
+fn internal_lsp_error(message : String) -> @jsonrpc.WireError {
+  { code: -32603, message, data: None }
+}
+
+///|
 fn publish_diagnostics(
   uri : String,
   diagnostics : Array[@compile.CompileDiagnostic],
@@ -648,16 +657,58 @@ fn inlay_hint_json(hint : @compile.InlayHintEntry) -> Json {
 }
 
 ///|
-fn inlay_hint_position_json(hint : @compile.InlayHintEntry) -> Json {
-  match hint.kind {
-    TypeHint | ImplicitArgumentHint =>
-      position_json(hint.location.span.end_line, hint.location.span.end_column)
-    ParameterHint =>
-      position_json(
-        hint.location.span.start_line,
-        hint.location.span.start_column,
-      )
+fn validate_inlay_hint_positions(
+  hints : Array[@compile.InlayHintEntry],
+) -> Result[Unit, String] {
+  for index in 0..<hints.length() {
+    for other_index in (index + 1)..<hints.length() {
+      if inlay_hint_same_position(hints[index], hints[other_index]) {
+        return Err(
+          inlay_hint_position_bug_message(hints[index], hints[other_index]),
+        )
+      }
+    }
   }
+  Ok(())
+}
+
+///|
+fn inlay_hint_same_position(
+  left : @compile.InlayHintEntry,
+  right : @compile.InlayHintEntry,
+) -> Bool {
+  left.location.source_id == right.location.source_id &&
+  inlay_hint_line(left) == inlay_hint_line(right) &&
+  inlay_hint_column(left) == inlay_hint_column(right)
+}
+
+///|
+fn inlay_hint_position_bug_message(
+  left : @compile.InlayHintEntry,
+  right : @compile.InlayHintEntry,
+) -> String {
+  "internal Lane compiler bug: multiple inlay hints were produced at \{left.location.source_id}:\{inlay_hint_line(left)}:\{inlay_hint_column(left)} (`\{left.label}` and `\{right.label}`)"
+}
+
+///|
+fn inlay_hint_line(hint : @compile.InlayHintEntry) -> Int {
+  match hint.kind {
+    TypeHint | ImplicitArgumentHint => hint.location.span.end_line
+    ParameterHint => hint.location.span.start_line
+  }
+}
+
+///|
+fn inlay_hint_column(hint : @compile.InlayHintEntry) -> Int {
+  match hint.kind {
+    TypeHint | ImplicitArgumentHint => hint.location.span.end_column
+    ParameterHint => hint.location.span.start_column
+  }
+}
+
+///|
+fn inlay_hint_position_json(hint : @compile.InlayHintEntry) -> Json {
+  position_json(inlay_hint_line(hint), inlay_hint_column(hint))
 }
 
 ///|

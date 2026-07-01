@@ -65,6 +65,34 @@ fn parse_module_input_set_from_inputs(
 }
 
 ///|
+pub fn import_reachable_source_inputs(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
+) -> Result[Array[SourceInput], Array[CompileDiagnostic]] {
+  let parsed = parse_module_inputs(root_source, library_sources)
+  let root_diagnostics = parsed.diagnostics.filter(fn(diagnostic) {
+    diagnostic.source_id == Some(root_source.source_id)
+  })
+  if !root_diagnostics.is_empty() {
+    return Err(root_diagnostics)
+  }
+  guard parsed.modules.get(0) is Some(root) else {
+    return Err([CompileErrorKind::to_diagnostic(NoRootSourceModule, None)])
+  }
+  let reachable = reachable_modules(
+    parsed.modules,
+    root.header.module_path_text,
+  )
+  let inputs = [{ source_id: root.source_id, text: root.text }]
+  for module_ in reachable.modules {
+    if module_.source_id != root.source_id {
+      inputs.push({ source_id: module_.source_id, text: module_.text })
+    }
+  }
+  Ok(inputs)
+}
+
+///|
 priv struct ParseModuleInputsResult {
   modules : Array[ParsedModuleInput]
   diagnostics : Array[CompileDiagnostic]
