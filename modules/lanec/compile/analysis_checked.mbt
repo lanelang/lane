@@ -659,19 +659,13 @@ fn add_argument_inlay_hints(
   } else {
     parameters.length()
   }
+  let implicit_arguments = []
   for index in 0..<count {
     let argument = arguments[index]
     let parameter = parameters[index]
     if parameter.is_auto && !call_loc.contains_span(argument.loc()) {
       match implicit_argument_name(argument) {
-        Some(name) =>
-          add_implicit_argument_inlay_hint(
-            inlay_hints,
-            source_id,
-            call_loc,
-            parameter.name,
-            name,
-          )
+        Some(name) => implicit_arguments.push("\{parameter.name}=\{name}")
         None => ()
       }
     } else if !skip_parameter_hints && !parameter.is_auto {
@@ -682,6 +676,11 @@ fn add_argument_inlay_hints(
         parameter.name,
       )
     }
+  }
+  if !implicit_arguments.is_empty() {
+    add_implicit_argument_inlay_hint(
+      inlay_hints, source_id, call_loc, implicit_arguments,
+    )
   }
 }
 

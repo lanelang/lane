@@ -313,15 +313,14 @@ fn add_implicit_argument_inlay_hint(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
   span : @basic.SourceSpan,
-  parameter_name : String,
-  argument_name : String,
+  arguments : Array[String],
 ) -> Unit {
   add_inlay_hint(
     inlay_hints,
     source_id,
     ImplicitArgumentHint,
     span,
-    ", \{parameter_name}=\{argument_name}",
+    ", \{arguments.join(", ")}",
   )
 }
 

@@ -2206,6 +2206,48 @@ test "analysis produces implicit argument inlay hints for auto offers" {
 }
 
 ///|
+test "analysis combines implicit argument inlay hints at the call end" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub struct Add[A] {
+        #|  add : (A, A) -> A
+        #|}
+        #|
+        #|pub struct Eq[A] {
+        #|  eq : (A, A) -> Bool
+        #|}
+        #|
+        #|pub fn[A] choose(a : A, b : A, auto op : Add[A], auto eq : Eq[A]) -> A {
+        #|  if eq.eq(a, b) {
+        #|    op.add(a, b)
+        #|  } else {
+        #|    a
+        #|  }
+        #|}
+        #|
+        #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+        #|offer int_eq_ops : Eq[Int] = builtin("%int_eq_ops")
+        #|
+        #|pub fn answer(seed : Int) -> Int {
+        #|  let local = choose(seed, 1)
+        #|  local
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    implicit_inlay_hint_labels(result.inlay_hints).join("\n"),
+    content=", op=int_add_ops, eq=int_eq_ops",
+  )
+}
+
+///|
 test "analysis does not mark explicit named auto arguments as implicit" {
   let result = analyze_source_inputs(
     {
@@ -2297,6 +2339,18 @@ fn find_artifact_module(
     }
   }
   None
+}
+
+///|
+fn implicit_inlay_hint_labels(hints : Array[InlayHintEntry]) -> Array[String] {
+  let labels = []
+  for hint in hints {
+    match hint.kind {
+      ImplicitArgumentHint => labels.push(hint.label)
+      _ => ()
+    }
+  }
+  labels
 }
 
 ///|
