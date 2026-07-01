@@ -79,29 +79,29 @@ coordination and independent work items can still live in the issue tracker.
 
 ## 4. Lanec Lowering Integration
 
-- [ ] Extend checked-source or lowering input data with effect declarations and
+- [x] Extend checked-source or lowering input data with effect declarations and
   operation signatures once the source layer is ready.
-- [ ] Lower effect metadata into Buslane `EffectId` and `OperationId` entries.
-- [ ] Lower source-level operation calls into Buslane `perform`.
-- [ ] Lower source-level handlers into Buslane handler tables grouped by effect.
-- [ ] Lower source payload patterns before Buslane so operation alternatives
+- [x] Lower effect metadata into Buslane `EffectId` and `OperationId` entries.
+- [x] Lower source-level operation calls into Buslane `perform`.
+- [x] Lower source-level handlers into Buslane handler tables grouped by effect.
+- [x] Lower source payload patterns before Buslane so operation alternatives
   only bind positional payload values.
-- [ ] Preserve source presentation and spans for diagnostics outside Buslane;
+- [x] Preserve source presentation and spans for diagnostics outside Buslane;
   do not add source spans to Buslane nodes.
-- [ ] Add integration snapshots from Lane source through checked source into
+- [x] Add integration snapshots from Lane source through checked source into
   Buslane effect core.
 
 ## 5. V1 Completion Gates
 
-- [ ] `moon test modules/buslane`
-- [ ] `moon test modules/buslane/text`
-- [ ] `moon test modules/buslane/interpreter`
-- [ ] `moon test modules/lanec`
-- [ ] `moon info && moon fmt`
-- [ ] Buslane text can roundtrip every effect-core form used by lowering.
-- [ ] The verifier accepts and rejects effect programs according to the
+- [x] `moon test modules/buslane`
+- [x] `moon test modules/buslane/text`
+- [x] `moon test modules/buslane/interpreter`
+- [x] `moon test modules/lanec`
+- [x] `moon info && moon fmt`
+- [x] Buslane text can roundtrip every effect-core form used by lowering.
+- [x] The verifier accepts and rejects effect programs according to the
   canonical effect model.
-- [ ] The interpreter demonstrates deep handler resume behavior, including
+- [x] The interpreter demonstrates deep handler resume behavior, including
   multi-shot resume.
-- [ ] Lanec lowering can emit Buslane effect metadata, `perform`, and handler
+- [x] Lanec lowering can emit Buslane effect metadata, `perform`, and handler
   terms without leaking source syntax into Buslane.
