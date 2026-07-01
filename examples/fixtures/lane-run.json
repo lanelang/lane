@@ -382,7 +382,7 @@
       "file": "examples/invalid/18_existential_hidden_type_escape.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["error[E3006]", "type mismatch", "expected `Int`, found `tparam#"]
+        "contains": ["error[E3006]", "type mismatch", "expected `Int`, found `T`"]
       }
     },
     {

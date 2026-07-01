@@ -345,7 +345,9 @@ fn ArtifactTextWriter::write_buslane_program_block(
   self : ArtifactTextWriter,
   program : @buslane.Program,
 ) -> Unit {
-  let text = @text.program_to_text(program)
+  let text = @text.CanonicalTextWriter::CanonicalTextWriter().write_program(
+    program,
+  )
   for line in text.split("\n") {
     self.lines.push("  \{line}")
   }
@@ -1306,7 +1308,10 @@ fn ArtifactTextWriter::write_buslane_type(
   tag : String,
   type_ : @buslane.Type,
 ) -> Unit {
-  self.write_string(tag, @text.type_to_text(type_))
+  self.write_string(
+    tag,
+    @text.CanonicalTextWriter::CanonicalTextWriter().write_type(type_),
+  )
 }
 
 ///|

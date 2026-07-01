@@ -15,10 +15,6 @@ pub fn parse_program_text(String) -> Result[@buslane.Program, String]
 
 pub fn parse_type_text(String) -> Result[@buslane.Type, String]
 
-pub fn program_to_text(@buslane.Program) -> String
-
-pub fn type_to_text(@buslane.Type) -> String
-
 // Errors
 pub suberror ParseError {
   UnexpectedToken(Token, (Unit, Unit), Array[TokenKind])
@@ -26,6 +22,13 @@ pub suberror ParseError {
 } derive(@debug.Debug)
 
 // Types and methods
+pub struct CanonicalTextWriter {
+  // private fields
+}
+pub fn CanonicalTextWriter::CanonicalTextWriter() -> Self
+pub fn CanonicalTextWriter::write_program(Self, @buslane.Program) -> String
+pub fn CanonicalTextWriter::write_type(Self, @buslane.Type) -> String
+
 pub(all) enum Token {
   INT(String)
   STRING(String)

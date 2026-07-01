@@ -1,12 +1,33 @@
 ///|
-pub fn program_to_text(program : @buslane.Program) -> String {
-  let lines = ["buslane {"]
-  write_metadata(lines, program.metadata)
-  for term in program.terms {
-    write_top_term(lines, term, indent=1)
-  }
-  lines.push("}")
-  lines.join("\n")
+using @prettyprinter {
+  type Document,
+  char,
+  hardline,
+  nest,
+  render,
+  separate,
+  space,
+  surround,
+  text,
+}
+
+///|
+pub struct CanonicalTextWriter {
+  priv marker : Unit
+}
+
+///|
+pub fn CanonicalTextWriter::CanonicalTextWriter() -> CanonicalTextWriter {
+  { marker: () }
+}
+
+///|
+pub fn CanonicalTextWriter::write_program(
+  self : CanonicalTextWriter,
+  program : @buslane.Program,
+) -> String {
+  ignore(self.marker)
+  render(program_doc(program), width=100)
 }
 
 ///|
@@ -27,8 +48,12 @@ pub fn parse_program_text(text : String) -> Result[@buslane.Program, String] {
 }
 
 ///|
-pub fn type_to_text(type_ : @buslane.Type) -> String {
-  type_text(type_)
+pub fn CanonicalTextWriter::write_type(
+  self : CanonicalTextWriter,
+  type_ : @buslane.Type,
+) -> String {
+  ignore(self.marker)
+  render(type_doc(type_), width=100)
 }
 
 ///|
@@ -116,311 +141,331 @@ fn token_label(token : Token) -> String {
 }
 
 ///|
-fn write_metadata(
-  lines : Array[String],
-  metadata : @buslane.MetadataRegistry,
-) -> Unit {
-  lines.push("  metadata {")
+fn program_doc(program : @buslane.Program) -> Document {
+  text("buslane") +
+  space +
+  canonical_block(
+    [metadata_doc(program.metadata)] + program.terms.map(top_term_doc),
+  )
+}
+
+///|
+fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
+  let docs = []
   for index in 0..<metadata.types.length() {
     let info = metadata.types[index]
-    lines.push(
-      "    type " +
-      type_id_text({ index, }) +
-      " parameters " +
-      type_parameter_ids_text(info.parameters) +
-      " constructors " +
-      data_con_ids_text(info.constructors) +
-      ";",
+    docs.push(
+      text("type") +
+      space +
+      type_id_doc({ index, }) +
+      space +
+      text("parameters") +
+      space +
+      type_parameter_ids_doc(info.parameters) +
+      space +
+      text("constructors") +
+      space +
+      data_con_ids_doc(info.constructors) +
+      text(";"),
     )
   }
   for index in 0..<metadata.type_parameters.length() {
     let info = metadata.type_parameters[index]
-    lines.push(
-      "    type_parameter " +
-      type_parameter_id_text({ index, }) +
-      " : " +
-      kind_text(info.kind) +
-      ";",
+    docs.push(
+      text("type_parameter") +
+      space +
+      type_parameter_id_doc({ index, }) +
+      space +
+      text(":") +
+      space +
+      kind_doc(info.kind) +
+      text(";"),
     )
   }
   for index in 0..<metadata.values.length() {
     let info = metadata.values[index]
-    lines.push(
-      "    value " +
-      value_id_text({ index, }) +
-      " " +
-      value_kind_text(info.kind) +
-      " : " +
-      type_text(info.type_) +
-      ";",
+    docs.push(
+      text("value") +
+      space +
+      value_id_doc({ index, }) +
+      space +
+      value_kind_doc(info.kind) +
+      space +
+      text(":") +
+      space +
+      type_doc(info.type_) +
+      text(";"),
     )
   }
   for index in 0..<metadata.data_constructors.length() {
     let info = metadata.data_constructors[index]
-    lines.push(
-      "    datacon " +
-      data_con_id_text({ index, }) +
-      " owner " +
-      type_id_text(info.owner) +
-      " hidden " +
-      type_parameter_ids_text(info.hidden_type_parameters) +
-      " payload " +
-      types_text(info.payload_types) +
-      ";",
+    docs.push(
+      text("datacon") +
+      space +
+      data_con_id_doc({ index, }) +
+      space +
+      text("owner") +
+      space +
+      type_id_doc(info.owner) +
+      space +
+      text("hidden") +
+      space +
+      type_parameter_ids_doc(info.hidden_type_parameters) +
+      space +
+      text("payload") +
+      space +
+      types_doc(info.payload_types) +
+      text(";"),
     )
   }
-  lines.push("  }")
+  text("metadata") + space + canonical_block(docs)
 }
 
 ///|
-fn write_top_term(
-  lines : Array[String],
-  term : @buslane.TopTerm,
-  indent~ : Int,
-) -> Unit {
-  let pad = spaces(indent)
+fn top_term_doc(term : @buslane.TopTerm) -> Document {
   match term {
     Let(id, expr) =>
-      lines.push(
-        pad + "let " + value_id_text(id) + " = " + expr_text(expr) + ";",
-      )
-    LetRec(bindings) => {
-      lines.push(pad + "letrec {")
-      for binding in bindings {
-        lines.push(
-          spaces(indent + 1) +
-          value_id_text(binding.id) +
-          " = " +
-          expr_text(binding.rhs) +
-          ";",
-        )
-      }
-      lines.push(pad + "}")
-    }
-    External(id) => lines.push(pad + "external " + value_id_text(id) + ";")
+      text("let") +
+      space +
+      value_id_doc(id) +
+      space +
+      text("=") +
+      space +
+      expr_doc(expr) +
+      text(";")
+    LetRec(bindings) =>
+      text("letrec") + space + canonical_block(bindings.map(binding_doc))
+    External(id) => text("external") + space + value_id_doc(id) + text(";")
   }
 }
 
 ///|
-fn spaces(indent : Int) -> String {
-  let chunks = []
-  for _ in 0..<indent {
-    chunks.push("  ")
-  }
-  chunks.join("")
-}
-
-///|
-fn kind_text(kind : @buslane.Kind) -> String {
-  match kind {
-    Type => "Type"
-    Function(parameters, result) =>
-      "kind_fn(" + kinds_text(parameters) + ", " + kind_text(result) + ")"
-  }
-}
-
-///|
-fn kinds_text(kinds : Array[@buslane.Kind]) -> String {
-  "[" + kinds.map(kind_text).join(", ") + "]"
-}
-
-///|
-fn type_text(type_ : @buslane.Type) -> String {
-  match type_ {
-    Primitive(primitive) => primitive_text(primitive)
-    Parameter(id) => type_parameter_id_text(id)
-    Constructor(id) => type_id_text(id)
-    Apply(callee, arguments) =>
-      "apply(" + type_text(callee) + ", " + types_text(arguments) + ")"
-    TypeLambda(parameters, body) =>
-      "type_fn(" +
-      type_parameter_ids_text(parameters) +
-      ", " +
-      type_text(body) +
-      ")"
-    Function(parameters, result) =>
-      "fn_type(" + types_text(parameters) + ", " + type_text(result) + ")"
-    Forall(parameters, body) =>
-      "forall(" +
-      type_parameter_ids_text(parameters) +
-      ", " +
-      type_text(body) +
-      ")"
-  }
-}
-
-///|
-fn types_text(types : Array[@buslane.Type]) -> String {
-  "[" + types.map(type_text).join(", ") + "]"
-}
-
-///|
-fn primitive_text(primitive : @buslane.PrimitiveType) -> String {
-  match primitive {
-    Unit => "Unit"
-    Bool => "Bool"
-    Int => "Int"
-    String => "String"
-  }
-}
-
-///|
-fn expr_text(expr : @buslane.Expr) -> String {
-  match expr {
-    Ref(id) => value_id_text(id)
-    Literal(literal) => literal_text(literal)
-    Function(function) =>
-      "fn(" +
-      value_ids_text(function.parameters) +
-      ", " +
-      type_text(function.result_type) +
-      ") { " +
-      expr_text(function.body) +
-      " }"
-    Call(callee, arguments) =>
-      "call(" + expr_text(callee) + ", " + exprs_text(arguments) + ")"
-    TypeLambda(parameters, body) =>
-      "type_fn(" +
-      type_parameter_ids_text(parameters) +
-      ") { " +
-      expr_text(body) +
-      " }"
-    TypeApply(callee, arguments) =>
-      "type_apply(" + expr_text(callee) + ", " + types_text(arguments) + ")"
-    Construct(construct) =>
-      "construct(" +
-      data_con_id_text(construct.data_constructor) +
-      ", " +
-      types_text(construct.type_arguments) +
-      ", " +
-      types_text(construct.hidden_witnesses) +
-      ", " +
-      exprs_text(construct.payloads) +
-      ")"
-    Let(id, initializer, body) =>
-      "let_in(" +
-      value_id_text(id) +
-      ", " +
-      expr_text(initializer) +
-      ", " +
-      expr_text(body) +
-      ")"
-    LetRec(bindings, body) =>
-      "letrec_in(" + bindings_text(bindings) + ", " + expr_text(body) + ")"
-    Match(match_) =>
-      "match(" +
-      expr_text(match_.scrutinee) +
-      ", " +
-      value_id_text(match_.binder) +
-      ", " +
-      type_text(match_.result_type) +
-      ") { " +
-      alternatives_text(match_.alternatives) +
-      " }"
-  }
-}
-
-///|
-fn exprs_text(exprs : Array[@buslane.Expr]) -> String {
-  "[" + exprs.map(expr_text).join(", ") + "]"
-}
-
-///|
-fn bindings_text(bindings : Array[@buslane.RecursiveBinding]) -> String {
-  "{" +
-  bindings
-  .map(fn(binding) {
-    value_id_text(binding.id) + " = " + expr_text(binding.rhs)
-  })
-  .join("; ") +
-  "}"
-}
-
-///|
-fn alternatives_text(alternatives : Array[@buslane.Alternative]) -> String {
-  if alternatives.is_empty() {
-    ""
+fn canonical_block(docs : Array[Document]) -> Document {
+  if docs.is_empty() {
+    text("{") + hardline + text("}")
   } else {
-    alternatives
-    .map(fn(alternative) {
-      "alt(" +
-      alt_con_text(alternative.alt_constructor) +
-      ", " +
-      type_parameter_ids_text(alternative.type_binders) +
-      ", " +
-      value_ids_text(alternative.value_binders) +
-      ") => " +
-      expr_text(alternative.body)
-    })
-    .join("; ") +
-    ";"
+    text("{") + nest(hardline + separate(hardline, docs)) + hardline + text("}")
   }
 }
 
 ///|
-fn alt_con_text(alt : @buslane.AltCon) -> String {
-  match alt {
-    Default => "default"
-    Literal(literal) => "literal(" + literal_text(literal) + ")"
-    DataCon(id) => "datacon(" + data_con_id_text(id) + ")"
-  }
-}
-
-///|
-fn literal_text(literal : @buslane.Literal) -> String {
-  match literal {
-    Unit => "unit()"
-    Bool(value) => if value { "true" } else { "false" }
-    Int(value) => "int(" + value.to_string() + ")"
-    String(value) => "string(" + quote_string(value) + ")"
-  }
-}
-
-///|
-fn type_id_text(id : @buslane.TypeId) -> String {
-  "type#" + id.index.to_string()
-}
-
-///|
-fn type_parameter_id_text(id : @buslane.TypeParameterId) -> String {
-  "tparam#" + id.index.to_string()
-}
-
-///|
-fn value_id_text(id : @buslane.ValueId) -> String {
-  "value#" + id.index.to_string()
-}
-
-///|
-fn data_con_id_text(id : @buslane.DataConId) -> String {
-  "datacon#" + id.index.to_string()
-}
-
-///|
-fn type_parameter_ids_text(ids : Array[@buslane.TypeParameterId]) -> String {
-  "[" + ids.map(type_parameter_id_text).join(", ") + "]"
-}
-
-///|
-fn value_ids_text(ids : Array[@buslane.ValueId]) -> String {
-  "[" + ids.map(value_id_text).join(", ") + "]"
-}
-
-///|
-fn data_con_ids_text(ids : Array[@buslane.DataConId]) -> String {
-  "[" + ids.map(data_con_id_text).join(", ") + "]"
-}
-
-///|
-fn value_kind_text(kind : @buslane.ValueKind) -> String {
+fn kind_doc(kind : @buslane.Kind) -> Document {
   match kind {
-    Function => "function"
-    Value => "value"
-    External => "external"
-    Parameter => "parameter"
-    Local => "local"
-    MatchBinder => "match_binder"
+    Type => text("Type")
+    Function(parameters, result) =>
+      call_doc("kind_fn", [kinds_doc(parameters), kind_doc(result)])
   }
+}
+
+///|
+fn kinds_doc(kinds : Array[@buslane.Kind]) -> Document {
+  bracketed(kinds.map(kind_doc))
+}
+
+///|
+fn type_doc(type_ : @buslane.Type) -> Document {
+  match type_ {
+    Primitive(primitive) => primitive_doc(primitive)
+    Parameter(id) => type_parameter_id_doc(id)
+    Constructor(id) => type_id_doc(id)
+    Apply(callee, arguments) =>
+      call_doc("apply", [type_doc(callee), types_doc(arguments)])
+    TypeLambda(parameters, body) =>
+      call_doc("type_fn", [type_parameter_ids_doc(parameters), type_doc(body)])
+    Function(parameters, result) =>
+      call_doc("fn_type", [types_doc(parameters), type_doc(result)])
+    Forall(parameters, body) =>
+      call_doc("forall", [type_parameter_ids_doc(parameters), type_doc(body)])
+  }
+}
+
+///|
+fn types_doc(types : Array[@buslane.Type]) -> Document {
+  bracketed(types.map(type_doc))
+}
+
+///|
+fn primitive_doc(primitive : @buslane.PrimitiveType) -> Document {
+  match primitive {
+    Unit => text("Unit")
+    Bool => text("Bool")
+    Int => text("Int")
+    String => text("String")
+  }
+}
+
+///|
+fn expr_doc(expr : @buslane.Expr) -> Document {
+  match expr {
+    Ref(id) => value_id_doc(id)
+    Literal(literal) => literal_doc(literal)
+    Function(function) =>
+      call_doc("fn", [
+        value_ids_doc(function.parameters),
+        type_doc(function.result_type),
+      ]) +
+      space +
+      inline_block(expr_doc(function.body))
+    Call(callee, arguments) =>
+      call_doc("call", [expr_doc(callee), exprs_doc(arguments)])
+    TypeLambda(parameters, body) =>
+      call_doc("type_fn", [type_parameter_ids_doc(parameters)]) +
+      space +
+      inline_block(expr_doc(body))
+    TypeApply(callee, arguments) =>
+      call_doc("type_apply", [expr_doc(callee), types_doc(arguments)])
+    Construct(construct) =>
+      call_doc("construct", [
+        data_con_id_doc(construct.data_constructor),
+        types_doc(construct.type_arguments),
+        types_doc(construct.hidden_witnesses),
+        exprs_doc(construct.payloads),
+      ])
+    Let(id, initializer, body) =>
+      call_doc("let_in", [
+        value_id_doc(id),
+        expr_doc(initializer),
+        expr_doc(body),
+      ])
+    LetRec(bindings, body) =>
+      call_doc("letrec_in", [bindings_doc(bindings), expr_doc(body)])
+    Match(match_) =>
+      call_doc("match", [
+        expr_doc(match_.scrutinee),
+        value_id_doc(match_.binder),
+        type_doc(match_.result_type),
+      ]) +
+      space +
+      inline_block(alternatives_doc(match_.alternatives))
+  }
+}
+
+///|
+fn exprs_doc(exprs : Array[@buslane.Expr]) -> Document {
+  bracketed(exprs.map(expr_doc))
+}
+
+///|
+fn bindings_doc(bindings : Array[@buslane.RecursiveBinding]) -> Document {
+  surround(char('{'), char('}'), separate(space, bindings.map(binding_doc)))
+}
+
+///|
+fn binding_doc(binding : @buslane.RecursiveBinding) -> Document {
+  value_id_doc(binding.id) +
+  space +
+  text("=") +
+  space +
+  expr_doc(binding.rhs) +
+  text(";")
+}
+
+///|
+fn alternatives_doc(alternatives : Array[@buslane.Alternative]) -> Document {
+  if alternatives.is_empty() {
+    text("")
+  } else {
+    separate(text(";") + space, alternatives.map(alternative_doc)) + text(";")
+  }
+}
+
+///|
+fn alternative_doc(alternative : @buslane.Alternative) -> Document {
+  call_doc("alt", [
+    alt_con_doc(alternative.alt_constructor),
+    type_parameter_ids_doc(alternative.type_binders),
+    value_ids_doc(alternative.value_binders),
+  ]) +
+  space +
+  text("=>") +
+  space +
+  expr_doc(alternative.body)
+}
+
+///|
+fn alt_con_doc(alt : @buslane.AltCon) -> Document {
+  match alt {
+    Default => text("default")
+    Literal(literal) => call_doc("literal", [literal_doc(literal)])
+    DataCon(id) => call_doc("datacon", [data_con_id_doc(id)])
+  }
+}
+
+///|
+fn literal_doc(literal : @buslane.Literal) -> Document {
+  match literal {
+    Unit => call_doc("unit", [])
+    Bool(value) => text(if value { "true" } else { "false" })
+    Int(value) => call_doc("int", [text(value.to_string())])
+    String(value) => call_doc("string", [text(quote_string(value))])
+  }
+}
+
+///|
+fn type_id_doc(id : @buslane.TypeId) -> Document {
+  text("type#") + text(id.index.to_string())
+}
+
+///|
+fn type_parameter_id_doc(id : @buslane.TypeParameterId) -> Document {
+  text("tparam#") + text(id.index.to_string())
+}
+
+///|
+fn value_id_doc(id : @buslane.ValueId) -> Document {
+  text("value#") + text(id.index.to_string())
+}
+
+///|
+fn data_con_id_doc(id : @buslane.DataConId) -> Document {
+  text("datacon#") + text(id.index.to_string())
+}
+
+///|
+fn type_parameter_ids_doc(ids : Array[@buslane.TypeParameterId]) -> Document {
+  bracketed(ids.map(type_parameter_id_doc))
+}
+
+///|
+fn value_ids_doc(ids : Array[@buslane.ValueId]) -> Document {
+  bracketed(ids.map(value_id_doc))
+}
+
+///|
+fn data_con_ids_doc(ids : Array[@buslane.DataConId]) -> Document {
+  bracketed(ids.map(data_con_id_doc))
+}
+
+///|
+fn value_kind_doc(kind : @buslane.ValueKind) -> Document {
+  match kind {
+    Function => text("function")
+    Value => text("value")
+    External => text("external")
+    Parameter => text("parameter")
+    Local => text("local")
+    MatchBinder => text("match_binder")
+  }
+}
+
+///|
+fn call_doc(name : String, arguments : Array[Document]) -> Document {
+  text(name) + surround(char('('), char(')'), comma_separated(arguments))
+}
+
+///|
+fn bracketed(docs : Array[Document]) -> Document {
+  surround(char('['), char(']'), comma_separated(docs))
+}
+
+///|
+fn comma_separated(docs : Array[Document]) -> Document {
+  separate(text(",") + space, docs)
+}
+
+///|
+fn inline_block(doc : Document) -> Document {
+  surround(text("{ "), text(" }"), doc)
 }
 
 ///|

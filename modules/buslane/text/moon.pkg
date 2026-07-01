@@ -1,5 +1,6 @@
 import {
   "Milky2018/buslane",
+  "moonbit-community/prettyprinter",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/list",
   "moonbitlang/core/string",

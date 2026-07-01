@@ -28,7 +28,7 @@ test "buslane text roundtrips function call program" {
       Let(value, Call(Ref(function), [Literal(Int(42L))])),
     ],
   }
-  let text = program_to_text(program)
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
   let decoded = match parse_program_text(text) {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
@@ -48,7 +48,7 @@ test "buslane text roundtrips standalone type" {
       Primitive(String),
     ),
   )
-  let text = type_to_text(type_)
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_type(type_)
   let decoded = match parse_type_text(text) {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
@@ -103,7 +103,7 @@ test "buslane text roundtrips construct and match" {
       ),
     ],
   }
-  let text = program_to_text(program)
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
   let decoded = match parse_program_text(text) {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)

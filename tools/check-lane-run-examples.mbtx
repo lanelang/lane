@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.19.1/io",
   "moonbitlang/core/json",
   "moonbitlang/x@0.4.45/fs",
+  "moonbitlang/x@0.4.45/sys",
 }
 
 priv suberror FixtureRunFailure {
@@ -316,11 +317,14 @@ async fn run_moon_lane(lane_args : Array[String]) -> LaneRunResult {
 async fn run_lane_process(
   lane_args : Array[String],
 ) -> (Int, &@io.Data) {
-  let args = ["run", "--target", "native", "modules/lane", "--"]
+  guard @sys.get_env_var("LANE_SMOKE_BIN") is Some(lane_bin) else {
+    abort("LANE_SMOKE_BIN is not set")
+  }
+  let args = []
   for arg in lane_args {
     args.push(arg)
   }
-  @process.collect_output_merged("moon", args)
+  @process.collect_output_merged(lane_bin, args)
 }
 
 fn matches_expectation(output : String, expectation : FixtureExpectation) -> Bool {
