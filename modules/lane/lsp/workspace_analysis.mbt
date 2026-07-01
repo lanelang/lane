@@ -5,12 +5,6 @@ priv struct LspWorkspaceAnalysis {
 }
 
 ///|
-priv struct DiagnosticPublication {
-  uri : String
-  diagnostics : Array[@compile.CompileDiagnostic]
-}
-
-///|
 priv struct LspAnalysisSources {
   root : @compile.SourceInput
   libraries : Array[@compile.SourceInput]
