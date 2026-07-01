@@ -13,6 +13,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeMismatch(expected~ : Type, actual~ : Type)
+  EffectMismatch(expected~ : Effect, actual~ : Effect)
   NotFunction(Type)
   NotForall(Type)
   ArityMismatch(expected~ : Int, actual~ : Int)
@@ -44,6 +45,12 @@ priv struct ValueScope {
 ///|
 priv struct TypeScope {
   parameters : Array[TypeParameterId]
+}
+
+///|
+priv struct SynthesizedExpr {
+  type_ : Type
+  effect : Effect
 }
 
 ///|
@@ -176,7 +183,10 @@ fn VerifyContext::verify_top_let(
     self.report(UnknownValue(id))
     return
   }
-  self.check_expr(initializer, info.type_, scope, { parameters: [] })
+  let effect = self.check_expr(initializer, info.type_, scope, {
+    parameters: [],
+  })
+  self.require_effect_equals(Empty, effect)
 }
 
 ///|
@@ -193,7 +203,10 @@ fn VerifyContext::verify_top_letrec(
       self.report(UnknownValue(binding.id))
       continue
     }
-    self.check_expr(binding.rhs, info.type_, scope, { parameters: [] })
+    let effect = self.check_expr(binding.rhs, info.type_, scope, {
+      parameters: [],
+    })
+    self.require_effect_equals(Empty, effect)
   }
 }
 
@@ -204,11 +217,12 @@ fn VerifyContext::check_expr(
   expected : Type,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Unit {
+) -> Effect {
   let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if actual != expected {
-    self.report(TypeMismatch(expected~, actual~))
+  if actual.type_ != expected {
+    self.report(TypeMismatch(expected~, actual=actual.type_))
   }
+  actual.effect
 }
 
 ///|
@@ -217,10 +231,10 @@ fn VerifyContext::synthesize_expr(
   expr : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
+) -> SynthesizedExpr {
   match expr {
     Ref(id) => self.synthesize_ref(id, value_scope)
-    Literal(literal) => literal.type_()
+    Literal(literal) => pure_expr(literal.type_())
     Function(function) =>
       self.synthesize_function(function, value_scope, type_scope)
     Call(callee, arguments) =>
@@ -248,15 +262,15 @@ fn VerifyContext::synthesize_ref(
   self : VerifyContext,
   id : ValueId,
   scope : ValueScope,
-) -> Type {
+) -> SynthesizedExpr {
   guard self.program.metadata.value_info(id) is Some(info) else {
     self.report(UnknownValue(id))
-    return Primitive(Unit)
+    return pure_expr(Primitive(Unit))
   }
   if !scope.contains(id) {
     self.report(UnknownValue(id))
   }
-  info.type_
+  pure_expr(info.type_)
 }
 
 ///|
@@ -265,7 +279,7 @@ fn VerifyContext::synthesize_function(
   function : FunctionExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
+) -> SynthesizedExpr {
   let parameters : Array[Type] = []
   let body_scope = value_scope.copy()
   for parameter in function.parameters {
@@ -277,8 +291,13 @@ fn VerifyContext::synthesize_function(
     body_scope.values.push(parameter)
   }
   self.verify_value_type(function.result_type, type_scope)
-  self.check_expr(function.body, function.result_type, body_scope, type_scope)
-  Function(parameters, function.result_type, Empty)
+  let latent_effect = self.check_expr(
+    function.body,
+    function.result_type,
+    body_scope,
+    type_scope,
+  )
+  pure_expr(Function(parameters, function.result_type, latent_effect))
 }
 
 ///|
@@ -288,12 +307,14 @@ fn VerifyContext::synthesize_call(
   arguments : Array[Expr],
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
-  let callee_type = self.synthesize_expr(callee, value_scope, type_scope)
-  guard callee_type is Function(parameter_types, result_type, _) else {
-    self.report(NotFunction(callee_type))
-    return Primitive(Unit)
+) -> SynthesizedExpr {
+  let callee_result = self.synthesize_expr(callee, value_scope, type_scope)
+  guard callee_result.type_
+    is Function(parameter_types, result_type, latent_effect) else {
+    self.report(NotFunction(callee_result.type_))
+    return { type_: Primitive(Unit), effect: callee_result.effect }
   }
+  let effects = [callee_result.effect]
   if parameter_types.length() != arguments.length() {
     self.report(
       ArityMismatch(
@@ -301,17 +322,22 @@ fn VerifyContext::synthesize_call(
         actual=arguments.length(),
       ),
     )
-    return result_type
+    return {
+      type_: result_type,
+      effect: effect_union(effects + [latent_effect]),
+    }
   }
   for index in 0..<arguments.length() {
-    self.check_expr(
+    let argument_effect = self.check_expr(
       arguments[index],
       parameter_types[index],
       value_scope,
       type_scope,
     )
+    effects.push(argument_effect)
   }
-  result_type
+  effects.push(latent_effect)
+  { type_: result_type, effect: effect_union(effects) }
 }
 
 ///|
@@ -321,13 +347,17 @@ fn VerifyContext::synthesize_type_lambda(
   body : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
+) -> SynthesizedExpr {
   let body_scope = type_scope.copy()
   for parameter in parameters {
     self.require_type_parameter(parameter)
     body_scope.parameters.push(parameter)
   }
-  Forall(parameters, self.synthesize_expr(body, value_scope, body_scope))
+  let body_result = self.synthesize_expr(body, value_scope, body_scope)
+  if body_result.effect != Empty {
+    self.report(EffectMismatch(expected=Empty, actual=body_result.effect))
+  }
+  pure_expr(Forall(parameters, body_result.type_))
 }
 
 ///|
@@ -337,17 +367,17 @@ fn VerifyContext::synthesize_type_apply(
   arguments : Array[Type],
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
-  let callee_type = self.synthesize_expr(callee, value_scope, type_scope)
-  guard callee_type is Forall(parameters, body) else {
-    self.report(NotForall(callee_type))
-    return Primitive(Unit)
+) -> SynthesizedExpr {
+  let callee_result = self.synthesize_expr(callee, value_scope, type_scope)
+  guard callee_result.type_ is Forall(parameters, body) else {
+    self.report(NotForall(callee_result.type_))
+    return { type_: Primitive(Unit), effect: callee_result.effect }
   }
   if parameters.length() != arguments.length() {
     self.report(
       ArityMismatch(expected=parameters.length(), actual=arguments.length()),
     )
-    return body
+    return { type_: body, effect: callee_result.effect }
   }
   let substitution = TypeSubstitution::TypeSubstitution()
   for index in 0..<parameters.length() {
@@ -359,7 +389,7 @@ fn VerifyContext::synthesize_type_apply(
     self.verify_type_kind(arguments[index], info.kind, type_scope)
     substitution.insert(parameters[index], arguments[index])
   }
-  body.substitute(substitution)
+  { type_: body.substitute(substitution), effect: callee_result.effect }
 }
 
 ///|
@@ -368,15 +398,15 @@ fn VerifyContext::synthesize_construct(
   construct : ConstructExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
+) -> SynthesizedExpr {
   guard self.program.metadata.data_constructor_info(construct.data_constructor)
     is Some(info) else {
     self.report(UnknownDataConstructor(construct.data_constructor))
-    return Primitive(Unit)
+    return pure_expr(Primitive(Unit))
   }
   guard self.program.metadata.type_info(info.owner) is Some(owner) else {
     self.report(UnknownType(info.owner))
-    return Primitive(Unit)
+    return pure_expr(Primitive(Unit))
   }
   if owner.parameters.length() != construct.type_arguments.length() {
     self.report(
@@ -431,15 +461,20 @@ fn VerifyContext::synthesize_construct(
     self.verify_type_kind(witness, parameter_info.kind, type_scope)
     substitution.insert(info.hidden_type_parameters[index], witness)
   }
+  let effects = []
   for index in 0..<info.payload_types.length().min(construct.payloads.length()) {
-    self.check_expr(
+    let payload_effect = self.check_expr(
       construct.payloads[index],
       info.payload_types[index].substitute(substitution),
       value_scope,
       type_scope,
     )
+    effects.push(payload_effect)
   }
-  nominal_type(info.owner, construct.type_arguments)
+  {
+    type_: nominal_type(info.owner, construct.type_arguments),
+    effect: effect_union(effects),
+  }
 }
 
 ///|
@@ -448,14 +483,14 @@ fn VerifyContext::synthesize_perform(
   perform : PerformExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
+) -> SynthesizedExpr {
   guard self.program.metadata.operation_info(perform.operation) is Some(info) else {
     self.report(UnknownOperation(perform.operation))
-    return Primitive(Unit)
+    return pure_expr(Primitive(Unit))
   }
   guard self.program.metadata.effect_info(info.owner) is Some(owner) else {
     self.report(UnknownEffect(info.owner))
-    return info.result_type
+    return pure_expr(info.result_type)
   }
   if owner.parameters.length() != perform.type_arguments.length() {
     self.report(
@@ -480,10 +515,29 @@ fn VerifyContext::synthesize_perform(
     )
     substitution.insert(owner.parameters[index], perform.type_arguments[index])
   }
-  for payload in perform.payloads {
-    ignore(self.synthesize_expr(payload, value_scope, type_scope))
+  if info.payload_types.length() != perform.payloads.length() {
+    self.report(
+      ArityMismatch(
+        expected=info.payload_types.length(),
+        actual=perform.payloads.length(),
+      ),
+    )
   }
-  info.result_type.substitute(substitution)
+  let effects = []
+  for index in 0..<info.payload_types.length().min(perform.payloads.length()) {
+    let payload_effect = self.check_expr(
+      perform.payloads[index],
+      info.payload_types[index].substitute(substitution),
+      value_scope,
+      type_scope,
+    )
+    effects.push(payload_effect)
+  }
+  effects.push(Singleton(info.owner, perform.type_arguments))
+  {
+    type_: info.result_type.substitute(substitution),
+    effect: effect_union(effects),
+  }
 }
 
 ///|
@@ -492,21 +546,141 @@ fn VerifyContext::synthesize_handle(
   handle : HandleExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
-  ignore(self.synthesize_expr(handle.body, value_scope, type_scope))
-  ignore(self.synthesize_expr(handle.final_body, value_scope, type_scope))
+) -> SynthesizedExpr {
+  let body_result = self.synthesize_expr(handle.body, value_scope, type_scope)
+  let handled_effects = handle.handlers.map(fn(table) { table.handled_effect })
+  let residual_body_effect = self.remove_handled_effects(
+    body_result.effect,
+    handled_effects,
+  )
+  let effects = [residual_body_effect]
+  guard self.program.metadata.value_info(handle.result_binder)
+    is Some(result_info) else {
+    self.report(UnknownValue(handle.result_binder))
+    return { type_: handle.result_type, effect: effect_union(effects) }
+  }
+  if result_info.type_ != body_result.type_ {
+    self.report(
+      TypeMismatch(expected=body_result.type_, actual=result_info.type_),
+    )
+  }
+  let final_scope = value_scope.copy()
+  final_scope.values.push(handle.result_binder)
+  let final_effect = self.check_expr(
+    handle.final_body,
+    handle.result_type,
+    final_scope,
+    type_scope,
+  )
+  effects.push(final_effect)
   for table in handle.handlers {
     self.verify_effect(table.handled_effect, type_scope)
     for alternative in table.operations {
-      self.require_operation(alternative.operation)
-      for binder in alternative.payload_binders {
-        self.require_value(binder)
-      }
-      self.require_value(alternative.resume_binder)
-      ignore(self.synthesize_expr(alternative.body, value_scope, type_scope))
+      let arm_effect = self.verify_operation_alternative(
+        table.handled_effect,
+        alternative,
+        handle.result_type,
+        value_scope,
+        type_scope,
+      )
+      effects.push(arm_effect)
     }
   }
-  handle.result_type
+  { type_: handle.result_type, effect: effect_union(effects) }
+}
+
+///|
+fn VerifyContext::verify_operation_alternative(
+  self : VerifyContext,
+  handled_effect : Effect,
+  alternative : OperationAlternative,
+  handler_result : Type,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> Effect {
+  guard self.program.metadata.operation_info(alternative.operation)
+    is Some(info) else {
+    self.report(UnknownOperation(alternative.operation))
+    return Empty
+  }
+  let substitution = TypeSubstitution::TypeSubstitution()
+  match handled_effect {
+    Singleton(owner, arguments) => {
+      if owner != info.owner {
+        self.report(
+          EffectMismatch(
+            expected=handled_effect,
+            actual=Singleton(info.owner, []),
+          ),
+        )
+      }
+      if self.program.metadata.effect_info(info.owner) is Some(effect_info) {
+        for index in 0..<effect_info.parameters.length().min(arguments.length()) {
+          substitution.insert(effect_info.parameters[index], arguments[index])
+        }
+      }
+    }
+    _ => self.report(EffectMismatch(expected=handled_effect, actual=Empty))
+  }
+  if alternative.payload_binders.length() != info.payload_types.length() {
+    self.report(
+      ArityMismatch(
+        expected=info.payload_types.length(),
+        actual=alternative.payload_binders.length(),
+      ),
+    )
+  }
+  let arm_scope = value_scope.copy()
+  for
+    index in 0..<alternative.payload_binders
+    .length()
+    .min(info.payload_types.length()) {
+    let binder = alternative.payload_binders[index]
+    guard self.program.metadata.value_info(binder) is Some(binder_info) else {
+      self.report(UnknownValue(binder))
+      continue
+    }
+    let expected = info.payload_types[index].substitute(substitution)
+    if binder_info.type_ != expected {
+      self.report(TypeMismatch(expected~, actual=binder_info.type_))
+    }
+    arm_scope.values.push(binder)
+  }
+  let resume_result = info.result_type.substitute(substitution)
+  self.verify_resume_binder(
+    alternative.resume_binder,
+    resume_result,
+    handler_result,
+    arm_scope,
+  )
+  self.check_expr(alternative.body, handler_result, arm_scope, type_scope)
+}
+
+///|
+fn VerifyContext::verify_resume_binder(
+  self : VerifyContext,
+  binder : ValueId,
+  parameter : Type,
+  result : Type,
+  scope : ValueScope,
+) -> Unit {
+  guard self.program.metadata.value_info(binder) is Some(info) else {
+    self.report(UnknownValue(binder))
+    return
+  }
+  scope.values.push(binder)
+  guard info.type_ is Function(parameters, actual_result, _) else {
+    self.report(NotFunction(info.type_))
+    return
+  }
+  if parameters.length() != 1 {
+    self.report(ArityMismatch(expected=1, actual=parameters.length()))
+  } else if parameters[0] != parameter {
+    self.report(TypeMismatch(expected=parameter, actual=parameters[0]))
+  }
+  if actual_result != result {
+    self.report(TypeMismatch(expected=result, actual=actual_result))
+  }
 }
 
 ///|
@@ -517,15 +691,24 @@ fn VerifyContext::synthesize_let(
   body : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
+) -> SynthesizedExpr {
   guard self.program.metadata.value_info(id) is Some(info) else {
     self.report(UnknownValue(id))
     return self.synthesize_expr(body, value_scope, type_scope)
   }
-  self.check_expr(initializer, info.type_, value_scope, type_scope)
+  let initializer_effect = self.check_expr(
+    initializer,
+    info.type_,
+    value_scope,
+    type_scope,
+  )
   let body_scope = value_scope.copy()
   body_scope.values.push(id)
-  self.synthesize_expr(body, body_scope, type_scope)
+  let body_result = self.synthesize_expr(body, body_scope, type_scope)
+  {
+    type_: body_result.type_,
+    effect: effect_union([initializer_effect, body_result.effect]),
+  }
 }
 
 ///|
@@ -535,7 +718,7 @@ fn VerifyContext::synthesize_letrec(
   body : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
+) -> SynthesizedExpr {
   let body_scope = value_scope.copy()
   for binding in bindings {
     body_scope.values.push(binding.id)
@@ -548,7 +731,15 @@ fn VerifyContext::synthesize_letrec(
       self.report(UnknownValue(binding.id))
       continue
     }
-    self.check_expr(binding.rhs, info.type_, body_scope, type_scope)
+    let rhs_effect = self.check_expr(
+      binding.rhs,
+      info.type_,
+      body_scope,
+      type_scope,
+    )
+    if rhs_effect != Empty {
+      self.report(EffectMismatch(expected=Empty, actual=rhs_effect))
+    }
   }
   self.synthesize_expr(body, body_scope, type_scope)
 }
@@ -559,30 +750,34 @@ fn VerifyContext::synthesize_match(
   match_ : MatchExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Type {
-  let scrutinee_type = self.synthesize_expr(
+) -> SynthesizedExpr {
+  let scrutinee_result = self.synthesize_expr(
     match_.scrutinee,
     value_scope,
     type_scope,
   )
   guard self.program.metadata.value_info(match_.binder) is Some(binder_info) else {
     self.report(UnknownValue(match_.binder))
-    return match_.result_type
+    return pure_expr(match_.result_type)
   }
-  if binder_info.type_ != scrutinee_type {
-    self.report(TypeMismatch(expected=scrutinee_type, actual=binder_info.type_))
+  if binder_info.type_ != scrutinee_result.type_ {
+    self.report(
+      TypeMismatch(expected=scrutinee_result.type_, actual=binder_info.type_),
+    )
   }
-  self.verify_match_shape(match_, scrutinee_type)
+  self.verify_match_shape(match_, scrutinee_result.type_)
+  let effects = [scrutinee_result.effect]
   for alternative in match_.alternatives {
-    self.verify_alternative(
+    let alternative_effect = self.verify_alternative(
       alternative,
-      scrutinee_type,
+      scrutinee_result.type_,
       match_.result_type,
       value_scope,
       type_scope,
     )
+    effects.push(alternative_effect)
   }
-  match_.result_type
+  { type_: match_.result_type, effect: effect_union(effects) }
 }
 
 ///|
@@ -593,7 +788,7 @@ fn VerifyContext::verify_alternative(
   result_type : Type,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> Unit {
+) -> Effect {
   let body_scope = value_scope.copy()
   let alternative_type_scope = type_scope.copy()
   match alternative.alt_constructor {
@@ -1001,6 +1196,66 @@ fn TypeScope::contains(self : TypeScope, id : TypeParameterId) -> Bool {
 ///|
 fn TypeScope::copy(self : TypeScope) -> TypeScope {
   { parameters: self.parameters.copy() }
+}
+
+///|
+fn pure_expr(type_ : Type) -> SynthesizedExpr {
+  { type_, effect: Empty }
+}
+
+///|
+fn effect_union(effects : Array[Effect]) -> Effect {
+  Union(effects).canonicalize()
+}
+
+///|
+fn VerifyContext::require_effect_equals(
+  self : VerifyContext,
+  expected : Effect,
+  actual : Effect,
+) -> Unit {
+  if actual != expected {
+    self.report(EffectMismatch(expected~, actual~))
+  }
+}
+
+///|
+fn VerifyContext::remove_handled_effects(
+  self : VerifyContext,
+  effect : Effect,
+  handled : Array[Effect],
+) -> Effect {
+  let residual : Array[Effect] = []
+  let mut has_open_row = false
+  for term in effect_terms(effect) {
+    match term {
+      Parameter(_) => {
+        has_open_row = true
+        residual.push(term)
+      }
+      _ =>
+        if !handled.any(fn(handled_effect) { term == handled_effect }) {
+          residual.push(term)
+        }
+    }
+  }
+  if !has_open_row {
+    for handled_effect in handled {
+      if !effect_terms(effect).any(fn(term) { term == handled_effect }) {
+        self.report(EffectMismatch(expected=handled_effect, actual=effect))
+      }
+    }
+  }
+  effect_union(residual)
+}
+
+///|
+fn effect_terms(effect : Effect) -> Array[Effect] {
+  match effect.canonicalize() {
+    Empty => []
+    Union(effects) => effects
+    effect => [effect]
+  }
 }
 
 ///|

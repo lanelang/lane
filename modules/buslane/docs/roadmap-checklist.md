@@ -46,20 +46,20 @@ coordination and independent work items can still live in the issue tracker.
   order-insensitive singleton comparison, and row-variable preservation.
 - [x] Add effect well-formedness checking against Buslane metadata and kind
   information.
-- [ ] Change expression synthesis to produce both a value type and an effect.
-- [ ] Verify calls by combining callee latent effects with argument effects.
-- [ ] Verify `perform` by checking the operation payloads and producing the
+- [x] Change expression synthesis to produce both a value type and an effect.
+- [x] Verify calls by combining callee latent effects with argument effects.
+- [x] Verify `perform` by checking the operation payloads and producing the
   operation result type plus its singleton effect.
-- [ ] Verify handlers by checking return clauses, operation alternatives, and
+- [x] Verify handlers by checking return clauses, operation alternatives, and
   resume usage under the handled effect.
-- [ ] Implement effect removal or unification for handled singleton effects in
+- [x] Implement effect removal or unification for handled singleton effects in
   the presence of optional residual effect rows.
-- [ ] Reject operations used outside their owning effect metadata.
-- [ ] Reject operation alternatives whose payload or resume arity does not match
+- [x] Reject operations used outside their owning effect metadata.
+- [x] Reject operation alternatives whose payload or resume arity does not match
   the operation signature.
-- [ ] Report unhandled verifier cases as Buslane diagnostics, not source
+- [x] Report unhandled verifier cases as Buslane diagnostics, not source
   diagnostics.
-- [ ] Add verifier tests for closed effect sets, open effect rows, duplicate
+- [x] Add verifier tests for closed effect sets, open effect rows, duplicate
   effects, missing handlers, wrong operation payloads, and invalid resume types.
 
 ## 3. Interpreter Deep Handlers

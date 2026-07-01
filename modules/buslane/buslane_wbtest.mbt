@@ -204,6 +204,314 @@ test "verify buslane reports malformed effect terms" {
 }
 
 ///|
+test "verify buslane reports unhandled perform effect" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Perform({
+          operation: print,
+          type_arguments: [],
+          payloads: [Literal(Int(1L))],
+        }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  effect_mismatch {
+      #|    expected {}
+      #|    actual effect#0
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "verify buslane handler removes handled perform effect" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let final_binder = metadata.define_value(Local, int_type())
+  let payload = metadata.define_value(Parameter, int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([int_type()], int_type(), Empty),
+  )
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Perform({
+            operation: print,
+            type_arguments: [],
+            payloads: [Literal(Int(1L))],
+          }),
+          result_binder: final_binder,
+          result_type: int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(console, []),
+              operations: [
+                {
+                  operation: print,
+                  payload_binders: [payload],
+                  resume_binder,
+                  body: Ref(payload),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
+test "verify buslane handler preserves open residual effect row" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let row = metadata.define_type_parameter(Effect)
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let external = metadata.define_value(
+    External,
+    Forall([row], Function([], int_type(), Parameter(row))),
+  )
+  let function = metadata.define_value(
+    Function,
+    Forall([row], Function([], int_type(), Parameter(row))),
+  )
+  let final_binder = metadata.define_value(Local, int_type())
+  let payload = metadata.define_value(Parameter, int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([int_type()], int_type(), Parameter(row)),
+  )
+  let program = Program::{
+    metadata,
+    terms: [
+      External(external),
+      LetRec([
+        {
+          id: function,
+          rhs: TypeLambda(
+            [row],
+            Function({
+              parameters: [],
+              result_type: int_type(),
+              body: Handle({
+                body: Call(TypeApply(Ref(external), [Parameter(row)]), []),
+                result_binder: final_binder,
+                result_type: int_type(),
+                final_body: Ref(final_binder),
+                handlers: [
+                  {
+                    handled_effect: Singleton(console, []),
+                    operations: [
+                      {
+                        operation: print,
+                        payload_binders: [payload],
+                        resume_binder,
+                        body: Ref(payload),
+                      },
+                    ],
+                  },
+                ],
+              }),
+            }),
+          ),
+        },
+      ]),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
+test "verify buslane reports invalid perform payload and resume types" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let final_binder = metadata.define_value(Local, int_type())
+  let payload = metadata.define_value(Parameter, bool_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([bool_type()], int_type(), Empty),
+  )
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Perform({
+            operation: print,
+            type_arguments: [],
+            payloads: [Literal(Bool(true))],
+          }),
+          result_binder: final_binder,
+          result_type: int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(console, []),
+              operations: [
+                {
+                  operation: print,
+                  payload_binders: [payload],
+                  resume_binder,
+                  body: Literal(Int(1L)),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  type_mismatch {
+      #|    expected Int
+      #|    actual Bool
+      #|  }
+      #|  type_mismatch {
+      #|    expected Int
+      #|    actual Bool
+      #|  }
+      #|  type_mismatch {
+      #|    expected Int
+      #|    actual Bool
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "verify buslane reports perform payload arity mismatch" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Perform({ operation: print, type_arguments: [], payloads: [] }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  arity_mismatch {
+      #|    expected 1
+      #|    actual 0
+      #|  }
+      #|  effect_mismatch {
+      #|    expected {}
+      #|    actual effect#0
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "verify buslane reports operation ownership and resume arity errors" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let state = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let final_binder = metadata.define_value(Local, int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([], int_type(), Empty),
+  )
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Literal(Int(1L)),
+          result_binder: final_binder,
+          result_type: int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(state, []),
+              operations: [
+                {
+                  operation: print,
+                  payload_binders: [],
+                  resume_binder,
+                  body: Literal(Int(1L)),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  effect_mismatch {
+      #|    expected effect#1
+      #|    actual {}
+      #|  }
+      #|  effect_mismatch {
+      #|    expected effect#1
+      #|    actual effect#0
+      #|  }
+      #|  arity_mismatch {
+      #|    expected 1
+      #|    actual 0
+      #|  }
+      #|  arity_mismatch {
+      #|    expected 1
+      #|    actual 0
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "pretty buslane expression tree core" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let value = metadata.define_value(Value, int_type())

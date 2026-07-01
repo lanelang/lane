@@ -289,6 +289,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeMismatch(expected~ : Type, actual~ : Type)
+  EffectMismatch(expected~ : Effect, actual~ : Effect)
   NotFunction(Type)
   NotForall(Type)
   ArityMismatch(expected~ : Int, actual~ : Int)

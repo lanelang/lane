@@ -432,6 +432,13 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
         text("expected ") + expected.pretty(),
         text("actual ") + actual.pretty(),
       ])
+    EffectMismatch(expected~, actual~) =>
+      text("effect_mismatch") +
+      space +
+      braced_block([
+        text("expected ") + expected.pretty(),
+        text("actual ") + actual.pretty(),
+      ])
     NotFunction(type_) => text("not_function") + space + type_.pretty()
     NotForall(type_) => text("not_forall") + space + type_.pretty()
     ArityMismatch(expected~, actual~) =>
