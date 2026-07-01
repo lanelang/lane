@@ -16,7 +16,6 @@ priv struct ParameterHintSignature {
 priv struct ParameterHintParameter {
   name : String
   is_auto : Bool
-  is_synthetic : Bool
 }
 
 ///|
@@ -69,14 +68,7 @@ fn collect_checked_top_level_parameter_signatures(
       )
       collect_checked_expr_parameter_signatures(declaration.body, signatures)
     }
-    Enum(declaration) =>
-      for variant in declaration.variants {
-        add_parameter_hint_signature(
-          signatures,
-          Variant(variant.symbol),
-          generated_constructor_parameters(variant.payload.length()),
-        )
-      }
+    Enum(_) => ()
     Let(declaration) =>
       collect_checked_expr_parameter_signatures(
         declaration.initializer,
@@ -172,18 +164,7 @@ fn add_parameter_hint_signature(
 fn checked_parameter_hint_parameter(
   parameter : @checked.CheckedValueParameter,
 ) -> ParameterHintParameter {
-  { name: parameter.name, is_auto: parameter.is_auto, is_synthetic: false }
-}
-
-///|
-fn generated_constructor_parameters(
-  count : Int,
-) -> Array[ParameterHintParameter] {
-  let parameters = []
-  for index in 0..<count {
-    parameters.push({ name: "arg\{index}", is_auto: false, is_synthetic: true })
-  }
-  parameters
+  { name: parameter.name, is_auto: parameter.is_auto }
 }
 
 ///|
@@ -616,13 +597,6 @@ fn collect_checked_expr(
         reference_loc,
         definition_detail(definitions, Variant(symbol)),
       )
-      add_variant_parameter_name_hints(
-        context.inlay_hints,
-        source_id,
-        symbol,
-        arguments,
-        context,
-      )
       for argument in arguments {
         collect_checked_expr(
           source_id, source_text, argument, definitions, references, hovers, context,
@@ -672,29 +646,6 @@ fn callee_origin_loc(callee : @checked.CheckedExpr) -> @basic.SourceSpan {
 }
 
 ///|
-fn add_variant_parameter_name_hints(
-  inlay_hints : Array[InlayHintEntry],
-  source_id : String,
-  symbol : @symbol.VariantSymbolId,
-  arguments : Array[@checked.CheckedExpr],
-  context : CheckedAnalysisContext,
-) -> Unit {
-  match
-    parameter_names_for_symbol(Variant(symbol), context.parameter_signatures) {
-    Some(parameters) =>
-      add_argument_inlay_hints(
-        inlay_hints,
-        source_id,
-        arguments,
-        parameters,
-        loc_for_arguments(arguments),
-        false,
-      )
-    None => ()
-  }
-}
-
-///|
 fn add_argument_inlay_hints(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
@@ -723,9 +674,7 @@ fn add_argument_inlay_hints(
           )
         None => ()
       }
-    } else if !skip_parameter_hints &&
-      !parameter.is_auto &&
-      !parameter.is_synthetic {
+    } else if !skip_parameter_hints && !parameter.is_auto {
       add_parameter_inlay_hint(
         inlay_hints,
         source_id,
@@ -781,16 +730,6 @@ fn @basic.SourceSpan::contains_span(
   inner : @basic.SourceSpan,
 ) -> Bool {
   inner.start_offset >= self.start_offset && inner.end_offset <= self.end_offset
-}
-
-///|
-fn loc_for_arguments(
-  arguments : Array[@checked.CheckedExpr],
-) -> @basic.SourceSpan {
-  match arguments.get(0) {
-    Some(argument) => argument.loc()
-    None => @basic.SourceSpan::dummy()
-  }
 }
 
 ///|

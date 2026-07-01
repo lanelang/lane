@@ -2071,6 +2071,30 @@ test "analysis produces parameter name inlay hints for calls" {
 }
 
 ///|
+test "analysis does not synthesize constructor parameter hints from payload types" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub enum List[A] {
+        #|  nil
+        #|  cons(A, List[A])
+        #|}
+        #|
+        #|pub fn answer(hd : Int, tl : List[Int]) -> List[Int] {
+        #|  List::cons(hd, tl)
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  inspect(result.inlay_hints.length(), content="0")
+}
+
+///|
 test "analysis skips parameter name inlay hints for source operators" {
   let result = analyze_source_inputs(
     {
