@@ -262,6 +262,9 @@ pub impl @prettyprinter.Pretty for Expr with fn pretty(expr : Expr) {
       line +
       body.pretty()
     Match(match_) => match_.pretty()
+    Perform(perform) => perform.pretty()
+    Handle(handle) => handle.pretty()
+    Resume(id) => text("resume") + space + id.pretty()
   }
 }
 
@@ -306,6 +309,64 @@ pub impl @prettyprinter.Pretty for MatchExpr with fn pretty(match_ : MatchExpr) 
   match_.result_type.pretty() +
   space +
   braced_block(match_.alternatives.map(Alternative::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for PerformExpr with fn pretty(
+  perform : PerformExpr,
+) {
+  text("perform") +
+  space +
+  perform.operation.pretty() +
+  type_arguments_doc(perform.type_arguments) +
+  parenthesized_inline(perform.payloads.map(Expr::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for HandleExpr with fn pretty(
+  handle : HandleExpr,
+) {
+  text("handle") +
+  space +
+  handle.body.pretty() +
+  space +
+  text("as") +
+  space +
+  handle.result_binder.pretty() +
+  space +
+  text("->") +
+  space +
+  handle.result_type.pretty() +
+  space +
+  braced_block(
+    handle.handlers.map(HandlerTable::pretty) +
+    [text("final") + space + text("=>") + space + handle.final_body.pretty()],
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for HandlerTable with fn pretty(
+  table : HandlerTable,
+) {
+  table.handled_effect.pretty() +
+  space +
+  braced_block(table.operations.map(OperationAlternative::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationAlternative with fn pretty(
+  alternative : OperationAlternative,
+) {
+  alternative.operation.pretty() +
+  parenthesized_inline(alternative.payload_binders.map(ValueId::pretty)) +
+  space +
+  text("resume") +
+  space +
+  alternative.resume_binder.pretty() +
+  space +
+  text("=>") +
+  space +
+  alternative.body.pretty()
 }
 
 ///|

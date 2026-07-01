@@ -213,6 +213,10 @@ fn VerifyContext::synthesize_expr(
     LetRec(bindings, body) =>
       self.synthesize_letrec(bindings, body, value_scope, type_scope)
     Match(match_) => self.synthesize_match(match_, value_scope, type_scope)
+    Perform(perform) =>
+      self.synthesize_perform(perform, value_scope, type_scope)
+    Handle(handle) => self.synthesize_handle(handle, value_scope, type_scope)
+    Resume(id) => self.synthesize_ref(id, value_scope)
   }
 }
 
@@ -413,6 +417,42 @@ fn VerifyContext::synthesize_construct(
     )
   }
   nominal_type(info.owner, construct.type_arguments)
+}
+
+///|
+fn VerifyContext::synthesize_perform(
+  self : VerifyContext,
+  perform : PerformExpr,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> Type {
+  guard self.program.metadata.operation_info(perform.operation) is Some(info) else {
+    return Primitive(Unit)
+  }
+  guard self.program.metadata.effect_info(info.owner) is Some(owner) else {
+    return info.result_type
+  }
+  let substitution = TypeSubstitution::TypeSubstitution()
+  for
+    index in 0..<owner.parameters.length().min(perform.type_arguments.length()) {
+    substitution.insert(owner.parameters[index], perform.type_arguments[index])
+  }
+  for payload in perform.payloads {
+    ignore(self.synthesize_expr(payload, value_scope, type_scope))
+  }
+  info.result_type.substitute(substitution)
+}
+
+///|
+fn VerifyContext::synthesize_handle(
+  self : VerifyContext,
+  handle : HandleExpr,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> Type {
+  ignore(self.synthesize_expr(handle.body, value_scope, type_scope))
+  ignore(self.synthesize_expr(handle.final_body, value_scope, type_scope))
+  handle.result_type
 }
 
 ///|

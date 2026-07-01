@@ -122,6 +122,11 @@ fn evaluate_buslane_expr(
       evaluate_buslane_expr(body, frame, externals)
     }
     Match(match_) => evaluate_buslane_match(match_, environment, externals)
+    Perform(_) =>
+      raise InvalidValue(message="perform evaluation is not implemented yet")
+    Handle(_) =>
+      raise InvalidValue(message="handler evaluation is not implemented yet")
+    Resume(id) => environment.lookup(id)
   }
 }
 

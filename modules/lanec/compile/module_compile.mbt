@@ -1008,6 +1008,57 @@ fn BuslaneLinker::remap_expr(
           }
         }),
       })
+    Perform(perform) =>
+      Perform({
+        operation: self.remap_operation_id(object, perform.operation),
+        type_arguments: perform.type_arguments.map(fn(argument) {
+          self.remap_type(object, argument)
+        }),
+        payloads: perform.payloads.map(fn(payload) {
+          self.remap_expr(object, payload)
+        }),
+      })
+    Handle(handle) =>
+      Handle({
+        body: self.remap_expr(object, handle.body),
+        result_binder: self.remap_value_id(object, handle.result_binder),
+        result_type: self.remap_type(object, handle.result_type),
+        final_body: self.remap_expr(object, handle.final_body),
+        handlers: handle.handlers.map(fn(table) {
+          self.remap_handler_table(object, table)
+        }),
+      })
+    Resume(id) => Resume(self.remap_value_id(object, id))
+  }
+}
+
+///|
+fn BuslaneLinker::remap_handler_table(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  table : @buslane.HandlerTable,
+) -> @buslane.HandlerTable {
+  {
+    handled_effect: self.remap_effect(object, table.handled_effect),
+    operations: table.operations.map(fn(alternative) {
+      self.remap_operation_alternative(object, alternative)
+    }),
+  }
+}
+
+///|
+fn BuslaneLinker::remap_operation_alternative(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  alternative : @buslane.OperationAlternative,
+) -> @buslane.OperationAlternative {
+  {
+    operation: self.remap_operation_id(object, alternative.operation),
+    payload_binders: alternative.payload_binders.map(fn(id) {
+      self.remap_value_id(object, id)
+    }),
+    resume_binder: self.remap_value_id(object, alternative.resume_binder),
+    body: self.remap_expr(object, alternative.body),
   }
 }
 

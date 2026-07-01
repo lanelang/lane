@@ -77,6 +77,9 @@ pub(all) enum Expr {
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
   Match(MatchExpr)
+  Perform(PerformExpr)
+  Handle(HandleExpr)
+  Resume(ValueId)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Expr
 
@@ -86,6 +89,21 @@ pub(all) struct FunctionExpr {
   body : Expr
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for FunctionExpr
+
+pub(all) struct HandleExpr {
+  body : Expr
+  result_binder : ValueId
+  result_type : Type
+  final_body : Expr
+  handlers : Array[HandlerTable]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for HandleExpr
+
+pub(all) struct HandlerTable {
+  handled_effect : Effect
+  operations : Array[OperationAlternative]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for HandlerTable
 
 pub(all) enum Kind {
   Type
@@ -133,6 +151,14 @@ pub fn MetadataRegistry::type_parameter_info(Self, TypeParameterId) -> TypeParam
 pub fn MetadataRegistry::value_info(Self, ValueId) -> ValueInfo?
 pub impl @prettyprinter.Pretty for MetadataRegistry
 
+pub(all) struct OperationAlternative {
+  operation : OperationId
+  payload_binders : Array[ValueId]
+  resume_binder : ValueId
+  body : Expr
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationAlternative
+
 pub(all) struct OperationId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -144,6 +170,13 @@ pub(all) struct OperationInfo {
   result_type : Type
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for OperationInfo
+
+pub(all) struct PerformExpr {
+  operation : OperationId
+  type_arguments : Array[Type]
+  payloads : Array[Expr]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for PerformExpr
 
 pub(all) enum PrimitiveType {
   Unit

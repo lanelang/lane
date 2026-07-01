@@ -170,6 +170,36 @@ pub(all) struct MatchExpr {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct PerformExpr {
+  operation : OperationId
+  type_arguments : Array[Type]
+  payloads : Array[Expr]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandleExpr {
+  body : Expr
+  result_binder : ValueId
+  result_type : Type
+  final_body : Expr
+  handlers : Array[HandlerTable]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerTable {
+  handled_effect : Effect
+  operations : Array[OperationAlternative]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct OperationAlternative {
+  operation : OperationId
+  payload_binders : Array[ValueId]
+  resume_binder : ValueId
+  body : Expr
+} derive(Debug, Eq)
+
+///|
 pub(all) struct Alternative {
   alt_constructor : AltCon
   type_binders : Array[TypeParameterId]
@@ -196,6 +226,9 @@ pub(all) enum Expr {
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
   Match(MatchExpr)
+  Perform(PerformExpr)
+  Handle(HandleExpr)
+  Resume(ValueId)
 } derive(Debug, Eq)
 
 ///|

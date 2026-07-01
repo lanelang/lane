@@ -115,6 +115,10 @@ fn BuslaneAnfLowerer::lower_to_atom(
           }),
         })
       })
+    Perform(_) =>
+      abort("Buslane perform lowering to ANF is not implemented yet")
+    Handle(_) => abort("Buslane handler lowering to ANF is not implemented yet")
+    Resume(id) => continuation(Ref(id))
   }
 }
 

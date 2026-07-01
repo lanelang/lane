@@ -15,6 +15,7 @@
 %token<Int> VALUE_ID
 %token<Int> DATACON_ID
 %token<Int> EFFECT_ID
+%token<Int> OPERATION_ID
 %token EOF
 %token BUSLANE "buslane"
 %token METADATA "metadata"
@@ -22,11 +23,15 @@
 %token TYPE_PARAMETER "type_parameter"
 %token VALUE "value"
 %token DATACON "datacon"
+%token EFFECT_DECL "effect"
+%token OPERATION "operation"
 %token PARAMETERS "parameters"
 %token CONSTRUCTORS "constructors"
+%token OPERATIONS "operations"
 %token OWNER "owner"
 %token HIDDEN "hidden"
 %token PAYLOAD "payload"
+%token RESULT "result"
 %token FUNCTION_KIND "function"
 %token PARAMETER_KIND "parameter"
 %token LOCAL_KIND "local"
@@ -50,6 +55,12 @@
 %token EXTERNAL "external"
 %token FN "fn"
 %token CALL "call"
+%token PERFORM "perform"
+%token HANDLE "handle"
+%token RESUME "resume"
+%token HANDLER "handler"
+%token OP_ALT "op_alt"
+%token FINAL "final"
 %token TYPE_APPLY "type_apply"
 %token CONSTRUCT "construct"
 %token LET_IN "let_in"
@@ -111,6 +122,12 @@ metadata_declaration -> MetadataDeclaration
   | "datacon" data_con_id "owner" type_id "hidden" type_parameter_id_list "payload" type_list ";" {
     DataConInfoDecl($2, { owner: $4, hidden_type_parameters: $6, payload_types: $8 })
   }
+  | "effect" effect_id "parameters" type_parameter_id_list "operations" operation_id_list ";" {
+    EffectInfoDecl($2, { parameters: $4, operations: $6 })
+  }
+  | "operation" operation_id "owner" effect_id "payload" type_list "result" type ";" {
+    OperationInfoDecl($2, { owner: $4, payload_types: $6, result_type: $8 })
+  }
   ;
 
 top_terms -> Array[TopTerm]
@@ -140,6 +157,10 @@ expr -> Expr
     Function({ parameters: $3, result_type: $5, body: $8 })
   }
   | "call" "(" expr "," expr_list ")" { Call($3, $5) }
+  | "perform" "(" operation_id "," type_list "," expr_list ")" {
+    Perform({ operation: $3, type_arguments: $5, payloads: $7 })
+  }
+  | "resume" "(" value_id ")" { Resume($3) }
   | "type_fn" "(" type_parameter_id_list ")" "{" expr "}" {
     TypeLambda($3, $6)
   }
@@ -158,6 +179,37 @@ expr -> Expr
   }
   | "match" "(" expr "," value_id "," type ")" "{" alternatives "}" {
     Match({ scrutinee: $3, binder: $5, result_type: $7, alternatives: $10 })
+  }
+  | "handle" "(" expr "," value_id "," type "," expr ")" "{" handler_tables "}" {
+    Handle({
+      body: $3,
+      result_binder: $5,
+      result_type: $7,
+      final_body: $9,
+      handlers: $12,
+    })
+  }
+  ;
+
+handler_tables -> Array[HandlerTable]
+  : { [] }
+  | handler_tables handler_table { comma_push($1, $2) }
+  ;
+
+handler_table -> HandlerTable
+  : "handler" "(" effect ")" "{" operation_alternatives "}" {
+    { handled_effect: $3, operations: $6 }
+  }
+  ;
+
+operation_alternatives -> Array[OperationAlternative]
+  : { [] }
+  | operation_alternatives operation_alternative { comma_push($1, $2) }
+  ;
+
+operation_alternative -> OperationAlternative
+  : "op_alt" "(" operation_id "," value_id_list "," value_id ")" "=>" expr ";" {
+    { operation: $3, payload_binders: $5, resume_binder: $7, body: $10 }
   }
   ;
 
@@ -296,6 +348,16 @@ non_empty_data_con_id_list -> Array[DataConId]
   | non_empty_data_con_id_list "," data_con_id { comma_push($1, $3) }
   ;
 
+operation_id_list -> Array[OperationId]
+  : "[" "]" { [] }
+  | "[" non_empty_operation_id_list "]" { $2 }
+  ;
+
+non_empty_operation_id_list -> Array[OperationId]
+  : operation_id { [ $1 ] }
+  | non_empty_operation_id_list "," operation_id { comma_push($1, $3) }
+  ;
+
 type_id -> TypeId
   : TYPE_ID { { index: $1 } }
   ;
@@ -314,4 +376,8 @@ data_con_id -> DataConId
 
 effect_id -> EffectId
   : EFFECT_ID { { index: $1 } }
+  ;
+
+operation_id -> OperationId
+  : OPERATION_ID { { index: $1 } }
   ;

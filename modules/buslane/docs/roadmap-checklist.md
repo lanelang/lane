@@ -29,15 +29,15 @@ coordination and independent work items can still live in the issue tracker.
   effect.
 - [x] Update type equality, substitution, and metadata lookup helpers for
   effect-aware function types.
-- [ ] Add Buslane expressions for `perform`, handler tables, operation
+- [x] Add Buslane expressions for `perform`, handler tables, operation
   alternatives, and resume values.
-- [ ] Keep handler tables grouped by singleton effect before operation
+- [x] Keep handler tables grouped by singleton effect before operation
   alternatives.
-- [ ] Make operation alternatives bind evaluated payload values positionally.
-- [ ] Update Buslane pretty output for effect metadata, function latent effects,
+- [x] Make operation alternatives bind evaluated payload values positionally.
+- [x] Update Buslane pretty output for effect metadata, function latent effects,
   `perform`, handlers, and resume values.
-- [ ] Update Buslane text parsing and import/export for the effect core.
-- [ ] Add text roundtrip tests for pure function types, open effect rows,
+- [x] Update Buslane text parsing and import/export for the effect core.
+- [x] Add text roundtrip tests for pure function types, open effect rows,
   `perform`, and deep handlers.
 
 ## 2. Verifier Effect Judgment
