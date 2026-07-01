@@ -50,6 +50,9 @@ pub(all) enum Token {
   IF
   ELSE
   MATCH
+  HANDLE
+  WITH
+  FINAL
   BUILTIN
   MODULE
   IMPORT

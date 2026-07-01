@@ -41,6 +41,7 @@ pub(all) enum ResolveDiagnosticKind {
     name~ : String,
     candidates~ : Array[ResolveVariantCandidate]
   )
+  UnsupportedHandlerExpression
 } derive(Debug, Eq)
 
 ///|

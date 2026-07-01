@@ -89,6 +89,7 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       text(name) +
       space +
       @pretty.bracketed_inline(candidates.map(ResolveVariantCandidate::pretty))
+    UnsupportedHandlerExpression => text("unsupported_handler_expression")
   }
 }
 

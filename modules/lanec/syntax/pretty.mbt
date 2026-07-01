@@ -580,6 +580,14 @@ fn Expr::to_doc_with_precedence(
         10,
         name.to_doc() + text("!") + parenthesized(arguments.map(Expr::to_doc)),
       )
+    Handler(body~, handlers~, final_branch~, ..) => {
+      let docs = [keyword("handle") + space + body.to_doc()]
+      for handler in handlers {
+        docs.push(handler.to_doc())
+      }
+      docs.push(final_branch.to_doc())
+      (10, separate(hardline, docs))
+    }
     Block(items~, result~, ..) => {
       let docs = items.map(LocalItem::to_doc)
       docs.push(result.to_doc())
@@ -653,6 +661,30 @@ fn EffectOperationName::to_doc(self : EffectOperationName) -> Document {
     Shorthand(operation~, ..) => text("::") + text(operation)
     Unqualified(operation~, ..) => text(operation)
   }
+}
+
+///|
+fn HandlerWithBlock::to_doc(self : HandlerWithBlock) -> Document {
+  keyword("with") +
+  space +
+  brace_block(self.arms.map(HandlerOperationArm::to_doc))
+}
+
+///|
+fn HandlerOperationArm::to_doc(self : HandlerOperationArm) -> Document {
+  let parameters = self.payload_patterns.map(Pattern::to_doc)
+  parameters.push(text(self.resume_binder))
+  let head = self.name.to_doc() + parenthesized(parameters) + space + text("=>")
+  if self.body.breaks_after_match_arrow() {
+    head + nest(hardline + self.body.to_doc())
+  } else {
+    head + space + self.body.to_doc()
+  }
+}
+
+///|
+fn HandlerFinalBranch::to_doc(self : HandlerFinalBranch) -> Document {
+  keyword("final") + space + text(self.binder) + space + self.body.to_doc()
 }
 
 ///|
@@ -771,7 +803,7 @@ fn MatchArm::to_doc(self : MatchArm) -> Document {
 ///|
 fn Expr::breaks_after_match_arrow(self : Expr) -> Bool {
   match self {
-    If(..) | Match(..) => true
+    If(..) | Match(..) | Handler(..) => true
     _ => false
   }
 }

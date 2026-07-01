@@ -7,11 +7,15 @@ using @syntax {
   type EnumVariant,
   type EffectDeclaration,
   type EffectOperationDeclaration,
+  type EffectOperationName,
   type EffectTerm,
   type Expr,
   type FieldDeclaration,
   type FunctionDeclaration,
   type FunctionLiteralParameter,
+  type HandlerFinalBranch,
+  type HandlerOperationArm,
+  type HandlerWithBlock,
   type ImportDeclaration,
   type ImportItem,
   type Kind,
@@ -41,6 +45,13 @@ using @syntax {
 priv struct ReturnAnnotation {
   return_type : Type?
   effect : EffectTerm?
+}
+
+///|
+priv struct HandlerOperationArmParameters {
+  payload_patterns : Array[Pattern]
+  resume_binder : String
+  resume_loc : SourceSpan
 }
 
 ///|

@@ -36,6 +36,7 @@ pub(all) enum ResolveDiagnosticKind {
   ConflictingTopLevelValue(name~ : String, existing~ : String, incoming~ : String)
   AmbiguousModuleValue(String)
   AmbiguousUnqualifiedVariant(name~ : String, candidates~ : Array[ResolveVariantCandidate])
+  UnsupportedHandlerExpression
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolveDiagnosticKind
 

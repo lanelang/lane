@@ -36,6 +36,9 @@ pub(all) enum Token {
   IF
   ELSE
   MATCH
+  HANDLE
+  WITH
+  FINAL
   BUILTIN
   MODULE
   IMPORT
@@ -94,6 +97,9 @@ pub(all) enum TokenKind {
   TK_IF
   TK_ELSE
   TK_MATCH
+  TK_HANDLE
+  TK_WITH
+  TK_FINAL
   TK_BUILTIN
   TK_MODULE
   TK_IMPORT

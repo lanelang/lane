@@ -389,6 +389,72 @@ test "parse effect operation calls" {
 }
 
 ///|
+test "parse handler expressions" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  read() -> String
+      #|  write(String) -> Unit
+      #|}
+      #|fn program() -> String ! Console {
+      #|  handle Console::read!() with {
+      #|    Console::write(message, resume) => resume(())
+      #|    Console::read(resume) => "fallback"
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Console {
+      #|  read() -> String
+      #|  write(String) -> Unit
+      #|}
+      #|
+      #|fn program() -> String ! Console {
+      #|  handle Console::read!()
+      #|  with {
+      #|    Console::write(message, resume) => resume(())
+      #|    Console::read(resume) => "fallback"
+      #|  }
+      #|  final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse rejects malformed handler expressions" {
+  let empty_with_errors = parse_error_kinds(
+    (
+      #|fn bad() -> Unit {
+      #|  handle () with {} final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  assert_true(!empty_with_errors.is_empty())
+  let missing_final_errors = parse_error_kinds(
+    (
+      #|fn bad() -> Unit {
+      #|  handle () with {
+      #|    op(resume) => ()
+      #|  }
+      #|}
+    ),
+  )
+  assert_true(!missing_final_errors.is_empty())
+}
+
+///|
 test "parse existential surface syntax" {
   let file = expect_parse_ok(
     (
@@ -550,6 +616,7 @@ test "parse rejects empty qualified variant argument syntax" {
       #|      { label: "`fn`" },
       #|      { label: "`if`" },
       #|      { label: "`match`" },
+      #|      { label: "`handle`" },
       #|      { label: "`builtin`" },
       #|      { label: "`-`" },
       #|      { label: "`!`" },

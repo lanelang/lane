@@ -268,6 +268,12 @@ pub(all) enum Expr {
     arguments~ : Array[Expr],
     loc~ : SourceSpan
   )
+  Handler(
+    body~ : Expr,
+    handlers~ : Array[HandlerWithBlock],
+    final_branch~ : HandlerFinalBranch,
+    loc~ : SourceSpan
+  )
   Block(items~ : Array[LocalItem], result~ : Expr, loc~ : SourceSpan)
   If(
     condition~ : Expr,
@@ -302,6 +308,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
+    | Handler(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)
@@ -326,6 +333,30 @@ pub(all) enum EffectOperationName {
   Qualified(owner~ : Type, operation~ : String, loc~ : SourceSpan)
   Shorthand(operation~ : String, loc~ : SourceSpan)
   Unqualified(operation~ : String, loc~ : SourceSpan)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerWithBlock {
+  arms : Array[HandlerOperationArm]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerOperationArm {
+  name : EffectOperationName
+  payload_patterns : Array[Pattern]
+  resume_binder : String
+  resume_loc : SourceSpan
+  body : Expr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerFinalBranch {
+  binder : String
+  binder_loc : SourceSpan
+  body : Expr
+  loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|

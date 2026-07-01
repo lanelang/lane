@@ -25,6 +25,9 @@
 %token IF "if"
 %token ELSE "else"
 %token MATCH "match"
+%token HANDLE "handle"
+%token WITH "with"
+%token FINAL "final"
 %token BUILTIN "builtin"
 %token MODULE "module"
 %token IMPORT "import"
@@ -585,6 +588,7 @@ primary_expression -> Expr
   | block_expression { $1 }
   | if_expression { $1 }
   | match_expression { $1 }
+  | handler_expression { $1 }
   | function_literal { $1 }
   | effect_operation_call { $1 }
   | builtin_expression { $1 }
@@ -715,6 +719,73 @@ match_arms -> Array[MatchArm]
 match_arm -> MatchArm
   : pattern "=>" expression {
     { pattern: $1, body: $3, loc: span($sloc) }
+  }
+  ;
+
+handler_expression -> Expr
+  : "handle" expression handler_with_blocks handler_final_branch {
+    Handler(body=$2, handlers=$3, final_branch=$4, loc=span($sloc))
+  }
+  ;
+
+handler_with_blocks -> Array[HandlerWithBlock]
+  : handler_with_block { [ $1 ] }
+  | handler_with_blocks handler_with_block { comma_push($1, $2) }
+  ;
+
+handler_with_block -> HandlerWithBlock
+  : "with" "{" handler_operation_arms "}" {
+    { arms: $3, loc: span($sloc) }
+  }
+  ;
+
+handler_operation_arms -> Array[HandlerOperationArm]
+  : handler_operation_arm { [ $1 ] }
+  | handler_operation_arms handler_operation_arm { comma_push($1, $2) }
+  ;
+
+handler_operation_arm -> HandlerOperationArm
+  : handler_operation_name "(" handler_operation_arm_parameters ")" "=>" expression {
+    {
+      name: $1,
+      payload_patterns: $3.payload_patterns,
+      resume_binder: $3.resume_binder,
+      resume_loc: $3.resume_loc,
+      body: $6,
+      loc: span($sloc)
+    }
+  }
+  ;
+
+handler_operation_name -> EffectOperationName
+  : type_application "tight ::" IDENT {
+    Qualified(owner=$1, operation=$3, loc=span($sloc))
+  }
+  | "::" IDENT {
+    Shorthand(operation=$2, loc=span($sloc))
+  }
+  | IDENT {
+    Unqualified(operation=$1, loc=span($sloc))
+  }
+  ;
+
+handler_operation_arm_parameters -> HandlerOperationArmParameters
+  : IDENT {
+    { payload_patterns: [], resume_binder: $1, resume_loc: span($sloc) }
+  }
+  | handler_payload_patterns "," IDENT {
+    { payload_patterns: $1, resume_binder: $3, resume_loc: span($sloc) }
+  }
+  ;
+
+handler_payload_patterns -> Array[Pattern]
+  : pattern { [ $1 ] }
+  | handler_payload_patterns "," pattern { comma_push($1, $3) }
+  ;
+
+handler_final_branch -> HandlerFinalBranch
+  : "final" IDENT block_expression {
+    { binder: $2, binder_loc: span($sloc), body: $3, loc: span($sloc) }
   }
   ;
 

@@ -1279,6 +1279,10 @@ fn @syntax.Expr::resolve_expr(
         }),
         loc~,
       )
+    Handler(loc~, ..) => {
+      resolver.report(UnsupportedHandlerExpression, loc)
+      UnitLiteral(loc~)
+    }
     FunctionLiteral(
       type_parameters~,
       parameters~,

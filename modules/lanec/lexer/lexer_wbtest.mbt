@@ -12,7 +12,9 @@ fn token_values(source : String) -> Array[Token] {
 
 ///|
 test "tokenize keywords identifiers and literals" {
-  let tokens = token_values("fn add(value : Int) -> Bool { true }")
+  let tokens = token_values(
+    "fn add(value : Int) -> Bool { handle true with final false }",
+  )
   assert_true(
     tokens ==
     [
@@ -26,7 +28,11 @@ test "tokenize keywords identifiers and literals" {
       THIN_ARROW,
       IDENT("Bool"),
       LBRACE,
+      HANDLE,
       TRUE,
+      WITH,
+      FINAL,
+      FALSE,
       RBRACE,
       EOF,
     ],
