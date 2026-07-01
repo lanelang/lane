@@ -98,6 +98,120 @@ fn expect_checked_let_initializer(
 }
 
 ///|
+fn expect_first_handler_resume_callee_type(source : String) -> @types.Type {
+  let result = expect_checked_source_result(source)
+  guard result.source is Some(source_file) else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  for declaration in source_file.declarations {
+    if declaration is Function(declaration) {
+      if find_first_handler_resume_callee_type(declaration.body) is Some(type_) {
+        return type_
+      }
+    }
+  }
+  abort("expected handler resume call")
+}
+
+///|
+fn find_first_handler_resume_callee_type(
+  expression : @checked.CheckedExpr,
+) -> @types.Type? {
+  match expression {
+    Handler(handlers~, ..) =>
+      for handler in handlers {
+        for operation in handler.operations {
+          if operation.body is Some(body) {
+            if find_first_handler_resume_callee_type(body) is Some(type_) {
+              return Some(type_)
+            }
+          }
+        }
+      } nobreak {
+        None
+      }
+    Call(callee~, arguments~, ..) => {
+      if callee is Value(type_~, ..) {
+        return Some(type_)
+      }
+      if find_first_handler_resume_callee_type(callee) is Some(type_) {
+        return Some(type_)
+      }
+      for argument in arguments {
+        if find_first_handler_resume_callee_type(argument) is Some(type_) {
+          return Some(type_)
+        }
+      } nobreak {
+        None
+      }
+    }
+    Block(items~, result~, ..) => {
+      for item in items {
+        match item {
+          Let(declaration) =>
+            if find_first_handler_resume_callee_type(declaration.initializer)
+              is Some(type_) {
+              return Some(type_)
+            }
+          PatternLet(declaration) =>
+            if find_first_handler_resume_callee_type(declaration.initializer)
+              is Some(type_) {
+              return Some(type_)
+            }
+          Function(declaration) =>
+            if find_first_handler_resume_callee_type(declaration.body)
+              is Some(type_) {
+              return Some(type_)
+            }
+        }
+      }
+      find_first_handler_resume_callee_type(result)
+    }
+    If(condition~, then_branch~, else_branch~, ..) =>
+      match find_first_handler_resume_callee_type(condition) {
+        Some(type_) => Some(type_)
+        None =>
+          match find_first_handler_resume_callee_type(then_branch) {
+            Some(type_) => Some(type_)
+            None => find_first_handler_resume_callee_type(else_branch)
+          }
+      }
+    Match(scrutinee~, arms~, ..) =>
+      match find_first_handler_resume_callee_type(scrutinee) {
+        Some(type_) => Some(type_)
+        None => {
+          for arm in arms {
+            if find_first_handler_resume_callee_type(arm.body) is Some(type_) {
+              return Some(type_)
+            }
+          }
+          None
+        }
+      }
+    TypeApplication(callee~, ..) =>
+      find_first_handler_resume_callee_type(callee)
+    OperationCall(arguments~, ..) | Variant(arguments~, ..) =>
+      for argument in arguments {
+        if find_first_handler_resume_callee_type(argument) is Some(type_) {
+          return Some(type_)
+        }
+      } nobreak {
+        None
+      }
+    Field(base~, ..) => find_first_handler_resume_callee_type(base)
+    StructLiteral(fields~, ..) =>
+      for field in fields {
+        if find_first_handler_resume_callee_type(field.value) is Some(type_) {
+          return Some(type_)
+        }
+      } nobreak {
+        None
+      }
+    Literal(..) | Value(..) | UnsafeBuiltin(..) | FunctionLiteral(..) => None
+  }
+}
+
+///|
 fn expect_first_checked_match_pattern(
   source : String,
   name : String,
@@ -2765,17 +2879,167 @@ test "typecheck checks handler operation tables" {
       #|      {
       #|        handle operation#0!()
       #|        with effect#0 {
-      #|          operation#0(resume#1) => <unchecked>
-      #|          operation#1(message#2, resume2#3) => <unchecked>
-      #|          operation#2(variant#0(), resume3#4) => <unchecked>
-      #|          operation#2(variant#1(), resume4#5) => <unchecked>
+      #|          operation#0(resume#1) => 0
+      #|          operation#1(message#2, resume2#3) => resume2#3(())
+      #|          operation#2(variant#0(), resume3#4) => resume3#4(())
+      #|          operation#2(variant#1(), resume4#5) => resume4#5(())
       #|        }
-      #|        final value#6 <unchecked>
+      #|        final value#6 {
+      #|          value#6
+      #|        }
       #|      }
       #|    }
       #|  }
       #|  diagnostics {}
       #|}
+    ),
+  )
+}
+
+///|
+test "typecheck assigns resume binder function type" {
+  let type_ = expect_first_handler_resume_callee_type(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect State {
+      #|  get() -> Int
+      #|}
+      #|fn program() -> Int ! State {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => resume(0)
+      #|  } final value {
+      #|    State::get!()
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(type_, width=100),
+    content=(
+      #|(Int) -> Int ! effect#1
+    ),
+  )
+}
+
+///|
+test "typecheck rejects handler resume argument mismatch" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => resume("bad")
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[type_mismatch expected=Int actual=String @ 7:37-7:42]
+    ),
+  )
+}
+
+///|
+test "typecheck rejects handler arm result mismatch" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn program() -> String {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => 0
+      #|  } final value {
+      #|    "done"
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[type_mismatch expected=String actual=Int @ 7:30-7:31]
+    ),
+  )
+}
+
+///|
+test "typecheck removes handled effect from handler residual effect" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => 0
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck preserves unhandled residual effect" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect State {
+      #|  get() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle State::get!() with {
+      #|    Console::read(resume) => 0
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[effect_mismatch expected={} actual=effect#1 @ 9:3-14:2]
+    ),
+  )
+}
+
+///|
+test "typecheck preserves handler arm direct effects" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect State {
+      #|  get() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => State::get!()
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[effect_mismatch expected={} actual=effect#1 @ 9:3-14:2]
     ),
   )
 }

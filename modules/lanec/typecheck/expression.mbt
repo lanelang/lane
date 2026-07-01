@@ -259,7 +259,8 @@ fn SemanticChecker::synthesize_expr_effect(
   match expr {
     Literal(..) | Var(..) | Builtin(_, ..) => Empty
     FunctionLiteral(..) => Empty
-    Handler(..) => Empty
+    Handler(body~, handlers~, final_branch~, ..) =>
+      self.synthesize_handler_effect(scope, body, handlers, final_branch)
     Field(base~, ..) => self.synthesize_expr_effect(scope, base)
     StructLiteral(fields~, ..) => {
       let effects = []
