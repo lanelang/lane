@@ -872,7 +872,7 @@ async test "workspace analysis selects root import closure without json rpc" {
     #|import Lib.*
     #|
     #|pub let answer : Int = value
-  let document = { uri: "file://\{main_path}", version: 1, text: main_text }
+  let document = { uri: "file://\{main_path}", text: main_text }
   let analysis = LspWorkspaceAnalysis(Some(workspace), {})
   let sources = analysis.analysis_sources(document)
   let inputs = match

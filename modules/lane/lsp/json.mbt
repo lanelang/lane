@@ -36,11 +36,7 @@ fn document_from_did_open(params : Json) -> DocumentSnapshot? {
   let uri = json_string_field(text_document, "uri")
   let text = json_string_field(text_document, "text")
   guard uri is Some(uri) && text is Some(text) else { return None }
-  Some({
-    uri,
-    text,
-    version: json_int_field(text_document, "version").unwrap_or(0),
-  })
+  Some({ uri, text })
 }
 
 ///|
@@ -55,11 +51,7 @@ fn document_from_did_change(params : Json) -> DocumentSnapshot? {
   let uri = json_string_field(text_document, "uri")
   let text = json_string_field(change, "text")
   guard uri is Some(uri) && text is Some(text) else { return None }
-  Some({
-    uri,
-    text,
-    version: json_int_field(text_document, "version").unwrap_or(0),
-  })
+  Some({ uri, text })
 }
 
 ///|
@@ -71,24 +63,24 @@ fn uri_from_text_document_params(params : Json) -> String? {
 }
 
 ///|
-struct TextDocumentPositionParams {
+priv struct TextDocumentPositionParams {
   uri : String
   line : Int
   character : Int
-} derive(Debug, Eq)
+}
 
 ///|
-struct LspPosition {
+priv struct LspPosition {
   line : Int
   character : Int
-} derive(Debug, Eq)
+}
 
 ///|
-struct TextDocumentRangeParams {
+priv struct TextDocumentRangeParams {
   uri : String
   start : LspPosition
   end : LspPosition
-} derive(Debug, Eq)
+}
 
 ///|
 fn text_document_position_params(params : Json) -> TextDocumentPositionParams? {

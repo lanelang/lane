@@ -2,24 +2,23 @@
 let server_name : String = "lane"
 
 ///|
-struct DocumentSnapshot {
+priv struct DocumentSnapshot {
   uri : String
-  version : Int
   text : String
-} derive(Debug, Eq)
+}
 
 ///|
-struct ServerState {
+priv struct ServerState {
   documents : Map[String, DocumentSnapshot]
   mut workspace_root : String?
   mut shutdown_requested : Bool
 }
 
 ///|
-struct HandlerResult {
+priv struct HandlerResult {
   outgoing : Array[@jsonrpc.Message]
   exit_requested : Bool
-} derive(Debug, Eq)
+}
 
 ///|
 fn ServerState::ServerState() -> ServerState {

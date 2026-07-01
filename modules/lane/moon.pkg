@@ -1,12 +1,11 @@
 import {
   "Milky2018/buslane",
   "Milky2018/buslane/interpreter" @buslane_interpreter,
-  "Milky2018/lanec/basic",
   "Milky2018/lanec/compile",
   "Milky2018/lanec/elaborate",
   "Milky2018/lanec/format",
   "Milky2018/lanec/intrinsics",
-  "gmlewis/jsonrpc2" @jsonrpc,
+  "Milky2018/lane/lsp",
   "moonbit-community/prettyprinter",
   "moonbitlang/async",
   "moonbitlang/async/fs",

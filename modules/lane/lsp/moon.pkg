@@ -1,0 +1,16 @@
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/compile",
+  "gmlewis/jsonrpc2" @jsonrpc,
+  "moonbitlang/async/fs",
+  "moonbitlang/async/io",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/async",
+} for "wbtest"
+
+supported_targets = "native"
