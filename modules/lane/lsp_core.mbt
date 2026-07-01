@@ -323,28 +323,32 @@ async fn ServerState::analysis_inputs(
   self : ServerState,
   document : DocumentSnapshot,
 ) -> Array[@compile.SourceInput] {
-  [{ source_id: document.uri, text: document.text }] +
-  self.workspace_library_sources(document.uri)
+  match self.workspace_root {
+    Some(root) => {
+      let inputs = self.workspace_sources(root)
+      if inputs.contains_source_id(document.uri) {
+        inputs
+      } else {
+        [{ source_id: document.uri, text: document.text }] + inputs
+      }
+    }
+    None => [{ source_id: document.uri, text: document.text }]
+  }
 }
 
 ///|
-async fn ServerState::workspace_library_sources(
+async fn ServerState::workspace_sources(
   self : ServerState,
-  current_uri : String,
+  root : String,
 ) -> Array[@compile.SourceInput] {
-  guard self.workspace_root is Some(root) else { return [] }
-  let current_path = file_uri_to_path(current_uri)
-  let current_identity = match current_path {
-    Some(path) => Some(lsp_source_identity(path))
-    None => None
-  }
   let library_identities = []
-  let sources = self.open_document_library_sources(
-    root, current_identity, library_identities,
-  )
-  append_lane_sources(root, current_identity, library_identities, sources) catch {
+  let sources = self.open_document_library_sources(root, library_identities)
+  append_lane_sources(root, library_identities, sources) catch {
     _ => ()
   }
+  sources.sort_by(fn(left, right) {
+    String::compare(left.source_id, right.source_id)
+  })
   sources
 }
 
@@ -352,15 +356,13 @@ async fn ServerState::workspace_library_sources(
 async fn ServerState::open_document_library_sources(
   self : ServerState,
   root : String,
-  current_identity : String?,
   library_identities : Array[String],
 ) -> Array[@compile.SourceInput] {
   let sources : Array[@compile.SourceInput] = []
   for _, document in self.documents {
     guard file_uri_to_path(document.uri) is Some(path) else { continue }
     let identity = lsp_source_identity(path)
-    if Some(identity) != current_identity &&
-      !library_identities.contains(identity) &&
+    if !library_identities.contains(identity) &&
       path.has_suffix(".lane") &&
       path_is_under_workspace(path, root) {
       library_identities.push(identity)
@@ -368,6 +370,19 @@ async fn ServerState::open_document_library_sources(
     }
   }
   sources
+}
+
+///|
+fn Array::contains_source_id(
+  self : Array[@compile.SourceInput],
+  source_id : String,
+) -> Bool {
+  for input in self {
+    if input.source_id == source_id {
+      return true
+    }
+  }
+  false
 }
 
 ///|
@@ -508,7 +523,6 @@ async fn lsp_source_identity(path : String) -> String {
 ///|
 async fn append_lane_sources(
   path : String,
-  current_identity : String?,
   library_identities : Array[String],
   sources : Array[@compile.SourceInput],
 ) -> Unit {
@@ -519,14 +533,10 @@ async fn append_lane_sources(
     }
     let child = "\{path}/\{entry}"
     match @fs.kind(child) {
-      Directory =>
-        append_lane_sources(
-          child, current_identity, library_identities, sources,
-        )
+      Directory => append_lane_sources(child, library_identities, sources)
       Regular if child.has_suffix(".lane") => {
         let identity = lsp_source_identity(child)
-        if Some(identity) == current_identity ||
-          library_identities.contains(identity) {
+        if library_identities.contains(identity) {
           continue
         }
         library_identities.push(identity)

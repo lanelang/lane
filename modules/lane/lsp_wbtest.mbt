@@ -16,6 +16,14 @@ fn open_params(uri : String, text : String) -> Json {
 }
 
 ///|
+fn change_params(uri : String, text : String) -> Json {
+  {
+    "textDocument": { "uri": uri, "version": 2 },
+    "contentChanges": [{ "text": text }],
+  }
+}
+
+///|
 fn position_params(uri : String, line : Int, character : Int) -> Json {
   {
     "textDocument": { "uri": uri },
@@ -38,6 +46,22 @@ fn range_params(
       "end": { "line": end_line, "character": end_character },
     },
   }
+}
+
+///|
+fn diagnostic_publication_uris(result : HandlerResult) -> String {
+  let uris = []
+  for message in result.outgoing {
+    match message.to_json() {
+      {
+        "method": String("textDocument/publishDiagnostics"),
+        "params": { "uri": String(uri), .. },
+        ..
+      } => uris.push(uri)
+      _ => ()
+    }
+  }
+  uris.join(",")
 }
 
 ///|
@@ -429,7 +453,7 @@ async test "didOpen checks against workspace library sources" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp-workspace/Main.lane",
+        "uri": "file://.tmp-lsp-workspace/Lib.lane",
         "diagnostics": [],
       },
     },
@@ -437,7 +461,7 @@ async test "didOpen checks against workspace library sources" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp-workspace/Lib.lane",
+        "uri": "file://.tmp-lsp-workspace/Main.lane",
         "diagnostics": [],
       },
     },
@@ -497,14 +521,6 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp-diagnostic-workspace/Main.lane",
-        "diagnostics": [],
-      },
-    },
-    {
-      "jsonrpc": "2.0",
-      "method": "textDocument/publishDiagnostics",
-      "params": {
         "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
         "diagnostics": [
           {
@@ -552,7 +568,93 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
         ],
       },
     },
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp-diagnostic-workspace/Main.lane",
+        "diagnostics": [],
+      },
+    },
   ])
+}
+
+///|
+async test "workspace diagnostics are independent of triggering document" {
+  let workspace = ".tmp-lsp-stable-workspace"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let value : Missing = 42
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.write_file(
+    main_path,
+    (
+      #|module Main
+      #|
+      #|import Lib.*
+      #|
+      #|pub let answer : Int = value
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(1, "initialize", { "rootUri": "file://\{workspace}" }),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
+        2,
+        "textDocument/didOpen",
+        open_params("file://\{main_path}", @fs.read_file(main_path).text()),
+      ),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
+        3,
+        "textDocument/didOpen",
+        open_params("file://\{lib_path}", @fs.read_file(lib_path).text()),
+      ),
+    ),
+  )
+  let main_result = state.handle_message(
+    request(
+      4,
+      "textDocument/didChange",
+      change_params("file://\{main_path}", @fs.read_file(main_path).text()),
+    ),
+  )
+  let lib_result = state.handle_message(
+    request(
+      5,
+      "textDocument/didChange",
+      change_params("file://\{lib_path}", @fs.read_file(lib_path).text()),
+    ),
+  )
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  inspect(
+    diagnostic_publication_uris(main_result),
+    content="file://.tmp-lsp-stable-workspace/Lib.lane,file://.tmp-lsp-stable-workspace/Main.lane",
+  )
+  inspect(
+    diagnostic_publication_uris(lib_result),
+    content="file://.tmp-lsp-stable-workspace/Lib.lane,file://.tmp-lsp-stable-workspace/Main.lane",
+  )
 }
 
 ///|
@@ -644,7 +746,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp%20workspace/Main.lane",
+        "uri": "file://.tmp-lsp%20workspace/Lib.lane",
         "diagnostics": [],
       },
     },
@@ -652,7 +754,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
       "jsonrpc": "2.0",
       "method": "textDocument/publishDiagnostics",
       "params": {
-        "uri": "file://.tmp-lsp%20workspace/Lib.lane",
+        "uri": "file://.tmp-lsp%20workspace/Main.lane",
         "diagnostics": [],
       },
     },
