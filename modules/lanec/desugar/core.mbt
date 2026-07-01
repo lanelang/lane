@@ -82,6 +82,32 @@ pub(all) struct DesugaredMatchArm {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct DesugaredHandlerWithBlock {
+  arms : Array[DesugaredHandlerOperationArm]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct DesugaredHandlerOperationArm {
+  name : @resolve.ResolvedEffectOperationName
+  payload_patterns : Array[@resolve.ResolvedPattern]
+  resume_symbol : @symbol.ValueSymbolId
+  resume_binder : String
+  resume_loc : SourceSpan
+  body : DesugaredExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct DesugaredHandlerFinalBranch {
+  binder_symbol : @symbol.ValueSymbolId
+  binder : String
+  binder_loc : SourceSpan
+  body : DesugaredExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) enum DesugaredCallArgument {
   Positional(DesugaredExpr)
   Named(name~ : String, value~ : DesugaredExpr, loc~ : SourceSpan)
@@ -132,6 +158,12 @@ pub(all) enum DesugaredExpr {
     arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )
+  Handler(
+    body~ : DesugaredExpr,
+    handlers~ : Array[DesugaredHandlerWithBlock],
+    final_branch~ : DesugaredHandlerFinalBranch,
+    loc~ : SourceSpan
+  )
   Block(
     items~ : Array[DesugaredLocalItem],
     result~ : DesugaredExpr,
@@ -172,6 +204,7 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
+    | Handler(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)

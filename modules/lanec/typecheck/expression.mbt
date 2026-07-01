@@ -193,6 +193,13 @@ fn SemanticChecker::synthesize_expr(
       let operation = self.check_operation_call(scope, name, arguments, loc)
       operation.result
     }
+    Handler(loc~, ..) => {
+      self.diagnostics.push({
+        kind: CannotInferExpression("handler expression"),
+        loc,
+      })
+      Error
+    }
     Field(base~, name~, reference~, loc~) =>
       self.synthesize_field(scope, base, name, reference, loc)
     StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
@@ -257,6 +264,7 @@ fn SemanticChecker::synthesize_expr_effect(
   match expr {
     Literal(..) | Var(..) | Builtin(_, ..) => Empty
     FunctionLiteral(..) => Empty
+    Handler(..) => Empty
     Field(base~, ..) => self.synthesize_expr_effect(scope, base)
     StructLiteral(fields~, ..) => {
       let effects = []

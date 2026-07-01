@@ -41,7 +41,6 @@ pub(all) enum ResolveDiagnosticKind {
     name~ : String,
     candidates~ : Array[ResolveVariantCandidate]
   )
-  UnsupportedHandlerExpression
 } derive(Debug, Eq)
 
 ///|
@@ -332,6 +331,32 @@ pub(all) struct ResolvedMatchArm {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct ResolvedHandlerWithBlock {
+  arms : Array[ResolvedHandlerOperationArm]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedHandlerOperationArm {
+  name : ResolvedEffectOperationName
+  payload_patterns : Array[ResolvedPattern]
+  resume_symbol : ValueSymbolId
+  resume_binder : String
+  resume_loc : SourceSpan
+  body : ResolvedExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedHandlerFinalBranch {
+  binder_symbol : ValueSymbolId
+  binder : String
+  binder_loc : SourceSpan
+  body : ResolvedExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) enum ResolvedStructPatternField {
   Value(name~ : String, pattern~ : ResolvedPattern, loc~ : SourceSpan)
   TypeBinder(
@@ -397,6 +422,12 @@ pub(all) enum ResolvedExpr {
   EffectOperationCall(
     name~ : ResolvedEffectOperationName,
     arguments~ : Array[ResolvedExpr],
+    loc~ : SourceSpan
+  )
+  Handler(
+    body~ : ResolvedExpr,
+    handlers~ : Array[ResolvedHandlerWithBlock],
+    final_branch~ : ResolvedHandlerFinalBranch,
     loc~ : SourceSpan
   )
   Block(

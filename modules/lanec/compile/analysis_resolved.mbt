@@ -525,6 +525,60 @@ fn collect_resolved_expr(
         )
       }
     }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      collect_resolved_expr(
+        source_id, source_text, body, definitions, references, hovers,
+      )
+      for handler in handlers {
+        for arm in handler.arms {
+          collect_resolved_effect_operation_name(
+            source_id,
+            arm.name,
+            references,
+            hovers,
+          )
+          for pattern in arm.payload_patterns {
+            collect_resolved_pattern(
+              source_id, pattern, definitions, references, hovers,
+            )
+          }
+          add_definition(
+            definitions,
+            hovers,
+            source_id,
+            Value(arm.resume_symbol),
+            name_span(source_text, arm.resume_binder, arm.resume_loc),
+            arm.resume_binder,
+            arm.resume_binder,
+          )
+          collect_resolved_expr(
+            source_id,
+            source_text,
+            arm.body,
+            definitions,
+            references,
+            hovers,
+          )
+        }
+      }
+      add_definition(
+        definitions,
+        hovers,
+        source_id,
+        Value(final_branch.binder_symbol),
+        name_span(source_text, final_branch.binder, final_branch.binder_loc),
+        final_branch.binder,
+        final_branch.binder,
+      )
+      collect_resolved_expr(
+        source_id,
+        source_text,
+        final_branch.body,
+        definitions,
+        references,
+        hovers,
+      )
+    }
     Call(callee~, arguments~, ..) => {
       collect_resolved_expr(
         source_id, source_text, callee, definitions, references, hovers,
@@ -623,6 +677,7 @@ fn resolved_expr_loc(expr : @resolve.ResolvedExpr) -> @basic.SourceSpan {
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)
+    | Handler(loc~, ..)
     | Call(loc~, ..)
     | EffectOperationCall(loc~, ..)
     | Field(loc~, ..)

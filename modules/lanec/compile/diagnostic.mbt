@@ -560,26 +560,6 @@ fn resolve_diagnostic(
           "qualify the variant with its enum type, for example `Enum::\{name}`",
         ],
       )
-    UnsupportedHandlerExpression =>
-      diagnostic(
-        "handler expressions are not semantically supported yet",
-        span~,
-        severity=Error,
-        code=Some("E2008"),
-        labels=[
-          {
-            span: diagnostic_.loc,
-            message: "this handler syntax parsed successfully but is not resolved yet",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "Lane handler source syntax is staged before handler name resolution and type checking",
-        ],
-        helps=[
-          "finish the handler resolve/desugar task before compiling handlers",
-        ],
-      )
   }
 }
 

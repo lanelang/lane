@@ -30,6 +30,7 @@ pub(all) enum DesugaredExpr {
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@resolve.ResolvedTypeParameter], parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter], return_type~ : @resolve.ResolvedType?, effect~ : @resolve.ResolvedEffectTerm?, body~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : @resolve.ResolvedEffectOperationName, arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
+  Handler(body~ : DesugaredExpr, handlers~ : Array[DesugaredHandlerWithBlock], final_branch~ : DesugaredHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[DesugaredLocalItem], result~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   If(condition~ : DesugaredExpr, then_branch~ : DesugaredExpr, else_branch~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : DesugaredExpr, arms~ : Array[DesugaredMatchArm], loc~ : @basic.SourceSpan)
@@ -51,6 +52,32 @@ pub(all) struct DesugaredFunctionDeclaration {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DesugaredFunctionDeclaration
+
+pub(all) struct DesugaredHandlerFinalBranch {
+  binder_symbol : @symbol.ValueSymbolId
+  binder : String
+  binder_loc : @basic.SourceSpan
+  body : DesugaredExpr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for DesugaredHandlerFinalBranch
+
+pub(all) struct DesugaredHandlerOperationArm {
+  name : @resolve.ResolvedEffectOperationName
+  payload_patterns : Array[@resolve.ResolvedPattern]
+  resume_symbol : @symbol.ValueSymbolId
+  resume_binder : String
+  resume_loc : @basic.SourceSpan
+  body : DesugaredExpr
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for DesugaredHandlerOperationArm
+
+pub(all) struct DesugaredHandlerWithBlock {
+  arms : Array[DesugaredHandlerOperationArm]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for DesugaredHandlerWithBlock
 
 pub(all) struct DesugaredLetDeclaration {
   is_public : Bool

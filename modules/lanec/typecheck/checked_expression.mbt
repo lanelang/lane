@@ -53,6 +53,13 @@ fn SemanticChecker::check_checked_expr(
       self.expect_type(expected, checked.type_, loc)
       checked
     }
+    Handler(loc~, ..) => {
+      self.diagnostics.push({
+        kind: CannotInferExpression("handler expression"),
+        loc,
+      })
+      checked_expression_none_reported(Error)
+    }
     StructLiteral(type_name~, type_arguments~, fields~, loc~) => {
       let checked = self.synthesize_checked_struct_literal(
         scope,
@@ -154,6 +161,13 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_call(scope, callee, arguments, loc)
     EffectOperationCall(name~, arguments~, loc~) =>
       self.synthesize_checked_operation_call(scope, name, arguments, loc)
+    Handler(loc~, ..) => {
+      self.diagnostics.push({
+        kind: CannotInferExpression("handler expression"),
+        loc,
+      })
+      checked_expression_none_reported(Error)
+    }
     StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
       self.synthesize_checked_struct_literal(
         scope,

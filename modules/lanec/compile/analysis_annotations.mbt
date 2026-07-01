@@ -114,6 +114,15 @@ fn collect_annotated_expr_values(
         collect_annotated_expr_values(arm.body, symbols)
       }
     }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      collect_annotated_expr_values(body, symbols)
+      for handler in handlers {
+        for arm in handler.arms {
+          collect_annotated_expr_values(arm.body, symbols)
+        }
+      }
+      collect_annotated_expr_values(final_branch.body, symbols)
+    }
     Call(callee~, arguments~, ..) => {
       collect_annotated_expr_values(callee, symbols)
       for argument in arguments {

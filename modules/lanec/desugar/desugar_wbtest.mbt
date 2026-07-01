@@ -176,3 +176,54 @@ test "desugar qualified and unqualified variant calls into one expression shape"
     ),
   )
 }
+
+///|
+test "desugar preserves handler operation arms and binders" {
+  let source = desugar_source(
+    (
+      #|effect Console {
+      #|  read() -> String
+      #|  write(String) -> Unit
+      #|  choose() -> Unit
+      #|}
+      #|fn program() -> String ! Console {
+      #|  handle Console::read!() with {
+      #|    Console::write(message, resume) => resume(())
+      #|    ::read(resume2) => "fallback"
+      #|    choose(resume3) => resume3(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(source, width=100),
+    content=(
+      #|desugared_source {
+      #|  effect effect#0 Console {
+      #|    operation operation#0 read index=0 -> String
+      #|    operation operation#1 write index=1(String) -> Unit
+      #|    operation operation#2 choose index=2 -> Unit
+      #|  }
+      #|  fn value#0 program ! effect#0 Console {
+      #|    body {
+      #|      {
+      #|        {
+      #|          handle effect#0 Console::read@operation#0!()
+      #|          with {
+      #|            effect#0 Console::write@operation#1(bind value#1 message, value#2 resume) => var value#2 resume(())
+      #|            ::read@operation#0(value#3 resume2) => "fallback"
+      #|            choose@operation#2(value#4 resume3) => var value#4 resume3(())
+      #|          }
+      #|          final value#5 value {
+      #|            var value#5 value
+      #|          }
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
+}

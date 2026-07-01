@@ -89,7 +89,6 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       text(name) +
       space +
       @pretty.bracketed_inline(candidates.map(ResolveVariantCandidate::pretty))
-    UnsupportedHandlerExpression => text("unsupported_handler_expression")
   }
 }
 
@@ -577,6 +576,42 @@ pub impl @prettyprinter.Pretty for ResolvedMatchArm with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for ResolvedHandlerWithBlock with fn pretty(
+  handler : ResolvedHandlerWithBlock,
+) {
+  text("with") +
+  space +
+  @pretty.braced_block(handler.arms.map(ResolvedHandlerOperationArm::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedHandlerOperationArm with fn pretty(
+  arm : ResolvedHandlerOperationArm,
+) {
+  let parameters = arm.payload_patterns.map(ResolvedPattern::pretty)
+  parameters.push(arm.resume_symbol.pretty() + space + text(arm.resume_binder))
+  arm.name.pretty() +
+  @pretty.parenthesized_inline(parameters) +
+  space +
+  text("=>") +
+  space +
+  arm.body.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedHandlerFinalBranch with fn pretty(
+  branch : ResolvedHandlerFinalBranch,
+) {
+  text("final") +
+  space +
+  branch.binder_symbol.pretty() +
+  space +
+  text(branch.binder) +
+  space +
+  branch.body.pretty()
+}
+
+///|
 pub impl @prettyprinter.Pretty for ResolvedStructPatternField with fn pretty(
   field : ResolvedStructPatternField,
 ) {
@@ -657,6 +692,14 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       name.pretty() +
       text("!") +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
+    Handler(body~, handlers~, final_branch~, ..) => {
+      let docs = [text("handle") + space + body.pretty()]
+      for handler in handlers {
+        docs.push(handler.pretty())
+      }
+      docs.push(final_branch.pretty())
+      @pretty.braced_block(docs)
+    }
     Block(items~, result~, ..) => {
       let docs = items.map(ResolvedLocalItem::pretty)
       docs.push(result.pretty())

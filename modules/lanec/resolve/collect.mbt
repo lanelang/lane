@@ -1279,10 +1279,15 @@ fn @syntax.Expr::resolve_expr(
         }),
         loc~,
       )
-    Handler(loc~, ..) => {
-      resolver.report(UnsupportedHandlerExpression, loc)
-      UnitLiteral(loc~)
-    }
+    Handler(body~, handlers~, final_branch~, loc~) =>
+      Handler(
+        body=body.resolve_expr(resolver, scope),
+        handlers=handlers.map(fn(handler) {
+          handler.resolve_handler_with_block(resolver, scope)
+        }),
+        final_branch=final_branch.resolve_handler_final_branch(resolver, scope),
+        loc~,
+      )
     FunctionLiteral(
       type_parameters~,
       parameters~,
@@ -1966,6 +1971,69 @@ fn @syntax.MatchArm::resolve_match_arm(
   {
     pattern: self.pattern.resolve_pattern(resolver, arm_scope),
     body: self.body.resolve_expr(resolver, arm_scope),
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.HandlerWithBlock::resolve_handler_with_block(
+  self : @syntax.HandlerWithBlock,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedHandlerWithBlock {
+  {
+    arms: self.arms.map(fn(arm) {
+      arm.resolve_handler_operation_arm(resolver, scope)
+    }),
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.HandlerOperationArm::resolve_handler_operation_arm(
+  self : @syntax.HandlerOperationArm,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedHandlerOperationArm {
+  let arm_scope = scope.copy()
+  let payload_patterns = self.payload_patterns.map(fn(pattern) {
+    pattern.resolve_pattern(resolver, arm_scope)
+  })
+  let resume_symbol = resolver.registry.define_value(
+    self.resume_binder,
+    PatternBinder,
+    self.resume_loc,
+  )
+  arm_scope.define_value(self.resume_binder, resume_symbol, None)
+  {
+    name: self.name.resolve_effect_operation_name(resolver, scope),
+    payload_patterns,
+    resume_symbol,
+    resume_binder: self.resume_binder,
+    resume_loc: self.resume_loc,
+    body: self.body.resolve_expr(resolver, arm_scope),
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.HandlerFinalBranch::resolve_handler_final_branch(
+  self : @syntax.HandlerFinalBranch,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedHandlerFinalBranch {
+  let branch_scope = scope.copy()
+  let binder_symbol = resolver.registry.define_value(
+    self.binder,
+    PatternBinder,
+    self.binder_loc,
+  )
+  branch_scope.define_value(self.binder, binder_symbol, None)
+  {
+    binder_symbol,
+    binder: self.binder,
+    binder_loc: self.binder_loc,
+    body: self.body.resolve_expr(resolver, branch_scope),
     loc: self.loc,
   }
 }
