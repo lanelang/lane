@@ -4,6 +4,8 @@ using @buslane {
   type Alternative,
   type DataConId,
   type DataConInfo,
+  type Effect,
+  type EffectId,
   type Expr,
   type Kind,
   type Literal,

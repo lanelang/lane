@@ -178,7 +178,7 @@ pub(all) enum Type {
   Constructor(TypeId)
   Apply(Type, Array[Type])
   TypeLambda(Array[TypeParameterId], Type)
-  Function(Array[Type], Type)
+  Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
 } derive(@debug.Debug)
 pub fn Type::equals(Self, Self) -> Bool

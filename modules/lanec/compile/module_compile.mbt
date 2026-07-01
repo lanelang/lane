@@ -93,12 +93,28 @@ priv struct LinkDataConMapEntry {
 }
 
 ///|
+priv struct LinkEffectMapEntry {
+  module_path_text : String
+  source : @buslane.EffectId
+  target : @buslane.EffectId
+}
+
+///|
+priv struct LinkOperationMapEntry {
+  module_path_text : String
+  source : @buslane.OperationId
+  target : @buslane.OperationId
+}
+
+///|
 priv struct BuslaneLinker {
   metadata : @buslane.MetadataRegistry
   types : Array[LinkTypeMapEntry]
   type_parameters : Array[LinkTypeParameterMapEntry]
   values : Array[LinkValueMapEntry]
   data_constructors : Array[LinkDataConMapEntry]
+  effects : Array[LinkEffectMapEntry]
+  operations : Array[LinkOperationMapEntry]
 }
 
 ///|
@@ -167,6 +183,8 @@ fn BuslaneLinker::BuslaneLinker() -> BuslaneLinker {
     type_parameters: [],
     values: [],
     data_constructors: [],
+    effects: [],
+    operations: [],
   }
 }
 
@@ -1026,16 +1044,37 @@ fn BuslaneLinker::remap_type(
         parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
         self.remap_type(object, body),
       )
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { self.remap_type(object, parameter) }),
         self.remap_type(object, result),
+        self.remap_effect(object, effect),
       )
     Forall(parameters, body) =>
       Forall(
         parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
         self.remap_type(object, body),
       )
+  }
+}
+
+///|
+fn BuslaneLinker::remap_effect(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  effect : @buslane.Effect,
+) -> @buslane.Effect {
+  match effect {
+    Empty => Empty
+    Singleton(id, arguments) =>
+      Singleton(
+        self.remap_effect_id(object, id),
+        arguments.map(fn(argument) { self.remap_type(object, argument) }),
+      )
+    Parameter(parameter) =>
+      Parameter(self.remap_type_parameter_id(object, parameter))
+    Union(effects) =>
+      Union(effects.map(fn(effect) { self.remap_effect(object, effect) }))
   }
 }
 
@@ -1085,6 +1124,63 @@ fn BuslaneLinker::remap_type_id(
   for data_constructor in info.constructors {
     ignore(self.remap_data_constructor_id(object, data_constructor))
   }
+  target
+}
+
+///|
+fn BuslaneLinker::remap_effect_id(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  source : @buslane.EffectId,
+) -> @buslane.EffectId {
+  for entry in self.effects {
+    if entry.module_path_text == object.module_path_text &&
+      entry.source == source {
+      return entry.target
+    }
+  }
+  guard object.metadata.effect_info(source) is Some(info) else {
+    abort("unknown Buslane effect id")
+  }
+  let target = self.metadata.define_effect(
+    info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+  )
+  self.effects.push({
+    module_path_text: object.module_path_text,
+    source,
+    target,
+  })
+  for operation in info.operations {
+    ignore(self.remap_operation_id(object, operation))
+  }
+  target
+}
+
+///|
+fn BuslaneLinker::remap_operation_id(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  source : @buslane.OperationId,
+) -> @buslane.OperationId {
+  for entry in self.operations {
+    if entry.module_path_text == object.module_path_text &&
+      entry.source == source {
+      return entry.target
+    }
+  }
+  guard object.metadata.operation_info(source) is Some(info) else {
+    abort("unknown Buslane operation id")
+  }
+  let target = self.metadata.define_operation(
+    self.remap_effect_id(object, info.owner),
+    info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
+    self.remap_type(object, info.result_type),
+  )
+  self.operations.push({
+    module_path_text: object.module_path_text,
+    source,
+    target,
+  })
   target
 }
 

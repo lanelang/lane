@@ -36,7 +36,7 @@ test "external callable call invokes resolved native function" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let external = metadata.define_value(
     External,
-    Function([int_type()], int_type()),
+    Function([int_type()], int_type(), Empty),
   )
   let result = metadata.define_value(Value, int_type())
   let program = @buslane.Program::{
@@ -83,7 +83,7 @@ test "external callable call invokes resolved native function" {
 test "pretty recursive closure environment stays finite" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let box_type = metadata.define_type([])
-  let function_type = @buslane.Type::Function([], int_type())
+  let function_type = @buslane.Type::Function([], int_type(), Empty)
   let box = metadata.define_data_constructor(box_type, [], [function_type])
   let function = metadata.define_value(Function, function_type)
   let boxed = metadata.define_value(Value, Constructor(box_type))
@@ -125,7 +125,7 @@ test "pretty recursive closure environment stays finite" {
 ///|
 test "recursive group closures see later bindings from same group" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let function_type = @buslane.Type::Function([], int_type())
+  let function_type = @buslane.Type::Function([], int_type(), Empty)
   let first = metadata.define_value(Function, function_type)
   let second = metadata.define_value(Function, function_type)
   let result = metadata.define_value(Value, int_type())
@@ -165,7 +165,7 @@ test "recursive group closures see later bindings from same group" {
 test "closure capture ignores later child frame shadowing" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let first = metadata.define_value(Local, int_type())
-  let captured = metadata.define_value(Local, Function([], int_type()))
+  let captured = metadata.define_value(Local, Function([], int_type(), Empty))
   let shadow = metadata.define_value(Local, int_type())
   let result = metadata.define_value(Value, int_type())
   let program = @buslane.Program::{

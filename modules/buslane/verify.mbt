@@ -251,7 +251,7 @@ fn VerifyContext::synthesize_function(
   }
   self.verify_value_type(function.result_type, type_scope)
   self.check_expr(function.body, function.result_type, body_scope, type_scope)
-  Function(parameters, function.result_type)
+  Function(parameters, function.result_type, Empty)
 }
 
 ///|
@@ -263,7 +263,7 @@ fn VerifyContext::synthesize_call(
   type_scope : TypeScope,
 ) -> Type {
   let callee_type = self.synthesize_expr(callee, value_scope, type_scope)
-  guard callee_type is Function(parameter_types, result_type) else {
+  guard callee_type is Function(parameter_types, result_type, _) else {
     self.report(NotFunction(callee_type))
     return Primitive(Unit)
   }
@@ -761,7 +761,7 @@ fn VerifyContext::synthesize_type_kind(
       }
       Function(parameter_kinds, self.synthesize_type_kind(body, body_scope))
     }
-    Function(parameters, result) => {
+    Function(parameters, result, _) => {
       for parameter in parameters {
         self.verify_type_kind(parameter, Type, scope)
       }

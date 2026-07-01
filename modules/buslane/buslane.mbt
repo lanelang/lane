@@ -50,7 +50,7 @@ pub(all) enum Type {
   Constructor(TypeId)
   Apply(Type, Array[Type])
   TypeLambda(Array[TypeParameterId], Type)
-  Function(Array[Type], Type)
+  Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
 } derive(Debug)
 
@@ -375,15 +375,55 @@ fn alpha_equal_with(
       alpha_equal_binders(
         bindings, left_params, right_params, left_body, right_body,
       )
-    (Function(left_params, left_result), Function(right_params, right_result)) =>
+    (
+      Function(left_params, left_result, left_effect),
+      Function(right_params, right_result, right_effect),
+    ) =>
       same_length_alpha_equal(bindings, left_params, right_params) &&
-      alpha_equal_with(bindings, left_result, right_result)
+      alpha_equal_with(bindings, left_result, right_result) &&
+      alpha_equal_effect_with(bindings, left_effect, right_effect)
     (Forall(left_params, left_body), Forall(right_params, right_body)) =>
       alpha_equal_binders(
         bindings, left_params, right_params, left_body, right_body,
       )
     _ => false
   }
+}
+
+///|
+fn alpha_equal_effect_with(
+  bindings : Array[AlphaBinding],
+  left : Effect,
+  right : Effect,
+) -> Bool {
+  match (left, right) {
+    (Empty, Empty) => true
+    (Singleton(left_id, left_arguments), Singleton(right_id, right_arguments)) =>
+      left_id == right_id &&
+      same_length_alpha_equal(bindings, left_arguments, right_arguments)
+    (Parameter(left), Parameter(right)) =>
+      alpha_equal_parameter(bindings, left, right)
+    (Union(left_effects), Union(right_effects)) =>
+      same_length_alpha_equal_effect(bindings, left_effects, right_effects)
+    _ => false
+  }
+}
+
+///|
+fn same_length_alpha_equal_effect(
+  bindings : Array[AlphaBinding],
+  left : Array[Effect],
+  right : Array[Effect],
+) -> Bool {
+  if left.length() != right.length() {
+    return false
+  }
+  for index in 0..<left.length() {
+    if !alpha_equal_effect_with(bindings, left[index], right[index]) {
+      return false
+    }
+  }
+  true
 }
 
 ///|
@@ -513,13 +553,31 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
     }
     TypeLambda(parameters, body) =>
       TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { parameter.normalize_with_fuel(fuel - 1) }),
         result.normalize_with_fuel(fuel - 1),
+        effect.normalize_with_fuel(fuel - 1),
       )
     Forall(parameters, body) =>
       Forall(parameters, body.normalize_with_fuel(fuel - 1))
+  }
+}
+
+///|
+fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
+  if fuel <= 0 {
+    abort("Buslane effect normalization fuel exhausted")
+  }
+  match self {
+    Empty | Parameter(_) => self
+    Singleton(id, arguments) =>
+      Singleton(
+        id,
+        arguments.map(fn(argument) { argument.normalize_with_fuel(fuel - 1) }),
+      )
+    Union(effects) =>
+      Union(effects.map(fn(effect) { effect.normalize_with_fuel(fuel - 1) }))
   }
 }
 
@@ -558,12 +616,13 @@ fn Type::substitute_with_bound(
         body.substitute_with_bound(substitution, next_bound),
       )
     }
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) {
           parameter.substitute_with_bound(substitution, bound)
         }),
         result.substitute_with_bound(substitution, bound),
+        effect.substitute_types_with_bound(substitution, bound),
       )
     Forall(parameters, body) => {
       let next_bound = bound.copy()
@@ -572,5 +631,29 @@ fn Type::substitute_with_bound(
       }
       Forall(parameters, body.substitute_with_bound(substitution, next_bound))
     }
+  }
+}
+
+///|
+fn Effect::substitute_types_with_bound(
+  self : Effect,
+  substitution : TypeSubstitution,
+  bound : Array[TypeParameterId],
+) -> Effect {
+  match self {
+    Empty | Parameter(_) => self
+    Singleton(id, arguments) =>
+      Singleton(
+        id,
+        arguments.map(fn(argument) {
+          argument.substitute_with_bound(substitution, bound)
+        }),
+      )
+    Union(effects) =>
+      Union(
+        effects.map(fn(effect) {
+          effect.substitute_types_with_bound(substitution, bound)
+        }),
+      )
   }
 }

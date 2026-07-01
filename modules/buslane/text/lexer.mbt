@@ -82,6 +82,10 @@ fn tokens_from_string(
       let (id, next) = read_prefixed_id(input, index, "datacon#")
       tokens.push((DATACON_ID(id), ()))
       index = next
+    } else if starts_with(input, index, "effect#") {
+      let (id, next) = read_prefixed_id(input, index, "effect#")
+      tokens.push((EFFECT_ID(id), ()))
+      index = next
     } else if is_name_start(byte) {
       let (name, next) = read_name(input, index)
       tokens.push((keyword_token(name), ()))
@@ -120,6 +124,9 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "Int" => INT_TYPE
     "String" => STRING_TYPE
     "kind_fn" => KIND_FN
+    "empty_effect" => EMPTY_EFFECT
+    "effect_singleton" => EFFECT_SINGLETON
+    "effect_union" => EFFECT_UNION
     "apply" => APPLY
     "type_fn" => TYPE_FN
     "fn_type" => FN_TYPE

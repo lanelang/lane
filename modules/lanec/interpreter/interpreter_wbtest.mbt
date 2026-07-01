@@ -241,7 +241,10 @@ test "evaluate existential struct pattern opening and repack" {
 ///|
 test "evaluate buslane external call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let external = metadata.define_value(External, Function([], Primitive(Int)))
+  let external = metadata.define_value(
+    External,
+    Function([], Primitive(Int), Empty),
+  )
   let result = metadata.define_value(Value, Primitive(Int))
   let program = @buslane.Program::{
     metadata,

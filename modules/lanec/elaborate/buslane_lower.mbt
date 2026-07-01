@@ -533,6 +533,7 @@ fn BuslaneLowerer::imported_selector_type(
   let function = @buslane.Type::Function(
     [receiver],
     self.lower_type(field.type_),
+    Empty,
   )
   if type_parameters.is_empty() {
     function
@@ -728,6 +729,7 @@ fn BuslaneLowerer::selector_type(
   let function = @buslane.Type::Function(
     [self.selector_receiver_type(declaration)],
     self.lower_type(field.type_),
+    Empty,
   )
   let type_parameters = self.selector_type_parameters(declaration)
   if type_parameters.is_empty() {
@@ -1606,6 +1608,7 @@ fn BuslaneLowerer::lower_type(
       Function(
         parameters.map(fn(parameter) { self.lower_type(parameter) }),
         self.lower_type(result),
+        Empty,
       )
     Forall(parameters, body) =>
       Forall(

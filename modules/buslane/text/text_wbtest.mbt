@@ -9,7 +9,7 @@ test "buslane text roundtrips function call program" {
   let value = metadata.define_value(Value, int_type())
   let function = metadata.define_value(
     Function,
-    Function([int_type()], int_type()),
+    Function([int_type()], int_type(), Empty),
   )
   let parameter = metadata.define_value(Parameter, int_type())
   let program = @buslane.Program::{
@@ -43,10 +43,26 @@ test "buslane text roundtrips standalone type" {
     Function(
       [
         Apply(Constructor({ index: 0 }), [Parameter({ index: 0 })]),
-        Function([Primitive(Int)], Primitive(Bool)),
+        Function([Primitive(Int)], Primitive(Bool), Empty),
       ],
       Primitive(String),
+      Empty,
     ),
+  )
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_type(type_)
+  let decoded = match parse_type_text(text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + text)
+  }
+  assert_true(decoded == type_)
+}
+
+///|
+test "buslane text roundtrips effectful function type" {
+  let type_ : @buslane.Type = Function(
+    [Primitive(String)],
+    Primitive(Unit),
+    Singleton({ index: 0 }, [Primitive(Int)]),
   )
   let text = CanonicalTextWriter::CanonicalTextWriter().write_type(type_)
   let decoded = match parse_type_text(text) {

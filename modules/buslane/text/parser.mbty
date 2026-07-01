@@ -14,6 +14,7 @@
 %token<Int> TPARAM_ID
 %token<Int> VALUE_ID
 %token<Int> DATACON_ID
+%token<Int> EFFECT_ID
 %token EOF
 %token BUSLANE "buslane"
 %token METADATA "metadata"
@@ -37,6 +38,9 @@
 %token INT_TYPE "Int"
 %token STRING_TYPE "String"
 %token KIND_FN "kind_fn"
+%token EMPTY_EFFECT "empty_effect"
+%token EFFECT_SINGLETON "effect_singleton"
+%token EFFECT_UNION "effect_union"
 %token APPLY "apply"
 %token TYPE_FN "type_fn"
 %token FN_TYPE "fn_type"
@@ -194,8 +198,16 @@ type -> Type
   | type_id { Constructor($1) }
   | "apply" "(" type "," type_list ")" { Apply($3, $5) }
   | "type_fn" "(" type_parameter_id_list "," type ")" { TypeLambda($3, $5) }
-  | "fn_type" "(" type_list "," type ")" { Function($3, $5) }
+  | "fn_type" "(" type_list "," type ")" { Function($3, $5, Empty) }
+  | "fn_type" "(" type_list "," type "," effect ")" { Function($3, $5, $7) }
   | "forall" "(" type_parameter_id_list "," type ")" { Forall($3, $5) }
+  ;
+
+effect -> Effect
+  : "empty_effect" "(" ")" { Empty }
+  | type_parameter_id { Parameter($1) }
+  | "effect_singleton" "(" effect_id "," type_list ")" { Singleton($3, $5) }
+  | "effect_union" "(" effect_list ")" { Union($3) }
   ;
 
 primitive_type -> PrimitiveType
@@ -232,6 +244,16 @@ type_list -> Array[Type]
 non_empty_type_list -> Array[Type]
   : type { [ $1 ] }
   | non_empty_type_list "," type { comma_push($1, $3) }
+  ;
+
+effect_list -> Array[Effect]
+  : "[" "]" { [] }
+  | "[" non_empty_effect_list "]" { $2 }
+  ;
+
+non_empty_effect_list -> Array[Effect]
+  : effect { [ $1 ] }
+  | non_empty_effect_list "," effect { comma_push($1, $3) }
   ;
 
 expr_list -> Array[Expr]
@@ -288,4 +310,8 @@ value_id -> ValueId
 
 data_con_id -> DataConId
   : DATACON_ID { { index: $1 } }
+  ;
+
+effect_id -> EffectId
+  : EFFECT_ID { { index: $1 } }
   ;

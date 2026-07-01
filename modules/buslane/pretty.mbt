@@ -84,12 +84,8 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
       text("=>") +
       space +
       body.pretty()
-    Function(parameters, result) =>
-      parenthesized_inline(parameters.map(Type::pretty)) +
-      space +
-      text("->") +
-      space +
-      result.pretty()
+    Function(parameters, result, effect) =>
+      function_type_doc(parameters, result, effect)
     Forall(parameters, body) =>
       text("forall") +
       space +
@@ -395,6 +391,23 @@ fn type_arguments_doc(arguments : Array[Type]) -> Document {
     empty
   } else {
     bracketed_inline(arguments.map(Type::pretty))
+  }
+}
+
+///|
+fn function_type_doc(
+  parameters : Array[Type],
+  result : Type,
+  effect : Effect,
+) -> Document {
+  let base = parenthesized_inline(parameters.map(Type::pretty)) +
+    space +
+    text("->") +
+    space +
+    result.pretty()
+  match effect {
+    Empty => base
+    _ => base + space + text("!") + space + effect.pretty()
   }
 }
 

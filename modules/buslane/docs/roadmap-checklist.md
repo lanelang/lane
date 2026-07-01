@@ -25,9 +25,9 @@ coordination and independent work items can still live in the issue tracker.
 - [x] Represent effect terms with empty effects, singleton effects, effect row
   variables, and unions.
 - [x] Reuse `TypeParameterId` with `Kind::Effect` for effect row variables.
-- [ ] Attach a latent effect to function types; pure functions use the empty
+- [x] Attach a latent effect to function types; pure functions use the empty
   effect.
-- [ ] Update type equality, substitution, and metadata lookup helpers for
+- [x] Update type equality, substitution, and metadata lookup helpers for
   effect-aware function types.
 - [ ] Add Buslane expressions for `perform`, handler tables, operation
   alternatives, and resume values.

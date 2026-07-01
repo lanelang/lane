@@ -80,6 +80,7 @@ fn token_label(token : Token) -> String {
     TPARAM_ID(index) => "tparam#\{index}"
     VALUE_ID(index) => "value#\{index}"
     DATACON_ID(index) => "datacon#\{index}"
+    EFFECT_ID(index) => "effect#\{index}"
     INT(value) => value
     STRING(_) => "string"
     EOF => "eof"
@@ -105,6 +106,9 @@ fn token_label(token : Token) -> String {
     INT_TYPE => "Int"
     STRING_TYPE => "String"
     KIND_FN => "kind_fn"
+    EMPTY_EFFECT => "empty_effect"
+    EFFECT_SINGLETON => "effect_singleton"
+    EFFECT_UNION => "effect_union"
     APPLY => "apply"
     TYPE_FN => "type_fn"
     FN_TYPE => "fn_type"
@@ -274,11 +278,35 @@ fn type_doc(type_ : @buslane.Type) -> Document {
       call_doc("apply", [type_doc(callee), types_doc(arguments)])
     TypeLambda(parameters, body) =>
       call_doc("type_fn", [type_parameter_ids_doc(parameters), type_doc(body)])
-    Function(parameters, result) =>
-      call_doc("fn_type", [types_doc(parameters), type_doc(result)])
+    Function(parameters, result, effect) =>
+      match effect {
+        Empty => call_doc("fn_type", [types_doc(parameters), type_doc(result)])
+        _ =>
+          call_doc("fn_type", [
+            types_doc(parameters),
+            type_doc(result),
+            effect_doc(effect),
+          ])
+      }
     Forall(parameters, body) =>
       call_doc("forall", [type_parameter_ids_doc(parameters), type_doc(body)])
   }
+}
+
+///|
+fn effect_doc(effect : @buslane.Effect) -> Document {
+  match effect {
+    Empty => call_doc("empty_effect", [])
+    Singleton(id, arguments) =>
+      call_doc("effect_singleton", [effect_id_doc(id), types_doc(arguments)])
+    Parameter(id) => type_parameter_id_doc(id)
+    Union(effects) => call_doc("effect_union", [effects_doc(effects)])
+  }
+}
+
+///|
+fn effects_doc(effects : Array[@buslane.Effect]) -> Document {
+  bracketed(effects.map(effect_doc))
 }
 
 ///|
@@ -421,6 +449,11 @@ fn value_id_doc(id : @buslane.ValueId) -> Document {
 ///|
 fn data_con_id_doc(id : @buslane.DataConId) -> Document {
   text("datacon#\{id.index}")
+}
+
+///|
+fn effect_id_doc(id : @buslane.EffectId) -> Document {
+  text("effect#\{id.index}")
 }
 
 ///|

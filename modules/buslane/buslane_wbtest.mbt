@@ -91,12 +91,56 @@ test "buslane type equality beta normalizes type lambdas" {
 }
 
 ///|
+test "buslane function latent effects participate in type equality and substitution" {
+  let left_param = TypeParameterId::{ index: 0 }
+  let right_param = TypeParameterId::{ index: 1 }
+  let effect_id = EffectId::{ index: 0 }
+  let left = Type::Forall(
+    [left_param],
+    Function(
+      [],
+      Parameter(left_param),
+      Singleton(effect_id, [Parameter(left_param)]),
+    ),
+  )
+  let right = Type::Forall(
+    [right_param],
+    Function(
+      [],
+      Parameter(right_param),
+      Singleton(effect_id, [Parameter(right_param)]),
+    ),
+  )
+  assert_true(left == right)
+  let left_row : Type = Forall(
+    [left_param],
+    Function([], int_type(), Parameter(left_param)),
+  )
+  let right_row : Type = Forall(
+    [right_param],
+    Function([], int_type(), Parameter(right_param)),
+  )
+  assert_true(left_row == right_row)
+  let substitution = TypeSubstitution::TypeSubstitution()
+  substitution.insert(left_param, int_type())
+  let effectful : Type = Function(
+    [],
+    Parameter(left_param),
+    Singleton(effect_id, [Parameter(left_param)]),
+  )
+  inspect(
+    @prettyprinter.render(effectful.substitute(substitution), width=100),
+    content="() -> Int ! effect#0[Int]",
+  )
+}
+
+///|
 test "pretty buslane expression tree core" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let value = metadata.define_value(Value, int_type())
   let function = metadata.define_value(
     Function,
-    Function([int_type()], int_type()),
+    Function([int_type()], int_type(), Empty),
   )
   let parameter = metadata.define_value(Parameter, int_type())
   let program = Program::{
@@ -198,7 +242,7 @@ test "verify buslane function call program" {
   let value = metadata.define_value(Value, int_type())
   let function = metadata.define_value(
     Function,
-    Function([int_type()], int_type()),
+    Function([int_type()], int_type(), Empty),
   )
   let parameter = metadata.define_value(Parameter, int_type())
   let program = Program::{
@@ -233,7 +277,7 @@ test "verify buslane generic function parameter scope" {
     Function,
     Forall(
       [parameter_type],
-      Function([Parameter(parameter_type)], Parameter(parameter_type)),
+      Function([Parameter(parameter_type)], Parameter(parameter_type), Empty),
     ),
   )
   let parameter = metadata.define_value(Parameter, Parameter(parameter_type))
