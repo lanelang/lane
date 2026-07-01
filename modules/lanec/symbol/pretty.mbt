@@ -1,6 +1,6 @@
 ///|
 fn id_doc(prefix : String, index : Int) -> Document {
-  text(prefix) + text("#") + text(index.to_string())
+  text("\{prefix}#\{index}")
 }
 
 ///|
@@ -77,9 +77,7 @@ pub impl @prettyprinter.Pretty for TypeSymbolMetadata with fn pretty(
   space +
   metadata.kind.pretty() +
   space +
-  text(metadata.name) +
-  text("/") +
-  text(metadata.arity.to_string())
+  text("\{metadata.name}/\{metadata.arity}")
 }
 
 ///|
@@ -103,8 +101,7 @@ pub impl @prettyprinter.Pretty for TypeMemberSymbolMetadata with fn pretty(
   space +
   text(metadata.name) +
   space +
-  text("index=") +
-  text(metadata.index.to_string())
+  text("index=\{metadata.index}")
 }
 
 ///|
@@ -129,8 +126,7 @@ pub impl @prettyprinter.Pretty for FieldSymbolMetadata with fn pretty(
   space +
   text(metadata.name) +
   space +
-  text("index=") +
-  text(metadata.index.to_string())
+  text("index=\{metadata.index}")
 }
 
 ///|
@@ -144,11 +140,9 @@ pub impl @prettyprinter.Pretty for VariantSymbolMetadata with fn pretty(
   space +
   text(metadata.name) +
   space +
-  text("index=") +
-  text(metadata.index.to_string()) +
+  text("index=\{metadata.index}") +
   space +
-  text("payloads=") +
-  text(metadata.payload_count.to_string())
+  text("payloads=\{metadata.payload_count}")
 }
 
 ///|

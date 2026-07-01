@@ -403,22 +403,22 @@ fn literal_doc(literal : @buslane.Literal) -> Document {
 
 ///|
 fn type_id_doc(id : @buslane.TypeId) -> Document {
-  text("type#") + text(id.index.to_string())
+  text("type#\{id.index}")
 }
 
 ///|
 fn type_parameter_id_doc(id : @buslane.TypeParameterId) -> Document {
-  text("tparam#") + text(id.index.to_string())
+  text("tparam#\{id.index}")
 }
 
 ///|
 fn value_id_doc(id : @buslane.ValueId) -> Document {
-  text("value#") + text(id.index.to_string())
+  text("value#\{id.index}")
 }
 
 ///|
 fn data_con_id_doc(id : @buslane.DataConId) -> Document {
-  text("datacon#") + text(id.index.to_string())
+  text("datacon#\{id.index}")
 }
 
 ///|

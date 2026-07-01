@@ -13,24 +13,24 @@ using @prettyprinter {
 
 ///|
 pub impl @prettyprinter.Pretty for TypeId with fn pretty(id : TypeId) {
-  text("type#") + text(id.index.to_string())
+  text("type#\{id.index}")
 }
 
 ///|
 pub impl @prettyprinter.Pretty for TypeParameterId with fn pretty(
   id : TypeParameterId,
 ) {
-  text("tparam#") + text(id.index.to_string())
+  text("tparam#\{id.index}")
 }
 
 ///|
 pub impl @prettyprinter.Pretty for ValueId with fn pretty(id : ValueId) {
-  text("value#") + text(id.index.to_string())
+  text("value#\{id.index}")
 }
 
 ///|
 pub impl @prettyprinter.Pretty for DataConId with fn pretty(id : DataConId) {
-  text("datacon#") + text(id.index.to_string())
+  text("datacon#\{id.index}")
 }
 
 ///|
@@ -333,10 +333,7 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
     ArityMismatch(expected~, actual~) =>
       text("arity_mismatch") +
       space +
-      braced_block([
-        text("expected ") + text(expected.to_string()),
-        text("actual ") + text(actual.to_string()),
-      ])
+      braced_block([text("expected \{expected}"), text("actual \{actual}")])
     InvalidExternal(id) => text("invalid_external") + space + id.pretty()
     InvalidLetRecRhs(id) => text("invalid_letrec_rhs") + space + id.pretty()
     InvalidAlternativeBinderCount => text("invalid_alternative_binder_count")

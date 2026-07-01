@@ -221,11 +221,9 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text(name) +
       space +
-      text("expected=") +
-      text(expected.to_string()) +
+      text("expected=\{expected}") +
       space +
-      text("actual=") +
-      text(actual.to_string())
+      text("actual=\{actual}")
     TypeAliasCycle(name~) => text("type_alias_cycle") + space + text(name)
     KindMismatch(expected~, actual~) =>
       text("kind_mismatch") +
@@ -264,11 +262,9 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text(name) +
       space +
-      text("expected=") +
-      text(expected.to_string()) +
+      text("expected=\{expected}") +
       space +
-      text("actual=") +
-      text(actual.to_string())
+      text("actual=\{actual}")
     HiddenTypeEscape(type_~) =>
       text("hidden_type_escape") + space + type_.pretty()
     PrivateTypeEscape(name~) =>
@@ -324,32 +320,32 @@ fn variant_name_doc(name : String, symbol : VariantSymbolId) -> Document {
 
 ///|
 fn value_suffix(symbol : ValueSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn type_suffix(symbol : TypeSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn type_member_suffix(symbol : TypeMemberSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn type_parameter_suffix(symbol : TypeParameterId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn field_suffix(symbol : FieldSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn variant_suffix(symbol : VariantSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|

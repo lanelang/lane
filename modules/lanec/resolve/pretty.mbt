@@ -138,8 +138,7 @@ pub impl @prettyprinter.Pretty for ResolvedTypeMemberDeclaration with fn pretty(
   space +
   type_member.kind.pretty() +
   space +
-  text("index=") +
-  text(type_member.index.to_string())
+  text("index=\{type_member.index}")
 }
 
 ///|
@@ -173,8 +172,7 @@ pub impl @prettyprinter.Pretty for ResolvedFieldDeclaration with fn pretty(
   space +
   field.type_.pretty() +
   space +
-  text("index=") +
-  text(field.index.to_string())
+  text("index=\{field.index}")
 }
 
 ///|
@@ -201,11 +199,9 @@ pub impl @prettyprinter.Pretty for ResolvedEnumVariant with fn pretty(
   space +
   text(variant.name) +
   space +
-  text("index=") +
-  text(variant.index.to_string()) +
+  text("index=\{variant.index}") +
   space +
-  text("payloads=") +
-  text(variant.payload.length().to_string()) +
+  text("payloads=\{variant.payload.length()}") +
   type_parameters_doc(variant.type_parameters) +
   payload_doc(variant.payload)
 }

@@ -401,32 +401,32 @@ fn type_parameter_ref_doc(parameter : @types.TypeParameter) -> Document {
 
 ///|
 fn type_suffix(symbol : TypeSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn type_member_suffix(symbol : TypeMemberSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn value_suffix(symbol : ValueSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn field_suffix(symbol : FieldSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn variant_suffix(symbol : VariantSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn type_parameter_suffix(symbol : TypeParameterId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|

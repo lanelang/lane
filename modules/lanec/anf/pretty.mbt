@@ -139,7 +139,7 @@ pub impl @prettyprinter.Pretty for AnfMatchArm with fn pretty(arm : AnfMatchArm)
 
 ///|
 pub impl @prettyprinter.Pretty for AnfTempId with fn pretty(id : AnfTempId) {
-  text("temp#") + text(id.index.to_string())
+  text("temp#\{id.index}")
 }
 
 ///|
@@ -275,22 +275,22 @@ fn variant_symbol_doc(symbol : VariantSymbolId) -> Document {
 
 ///|
 fn value_suffix(symbol : ValueSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn field_suffix(symbol : FieldSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn type_suffix(symbol : TypeSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
 fn variant_suffix(symbol : VariantSymbolId) -> Document {
-  text("#") + text(symbol.index.to_string())
+  text("#\{symbol.index}")
 }
 
 ///|
