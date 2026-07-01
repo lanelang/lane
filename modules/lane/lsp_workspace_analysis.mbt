@@ -11,6 +11,12 @@ priv struct DiagnosticPublication {
 }
 
 ///|
+priv struct LspAnalysisSources {
+  root : @compile.SourceInput
+  libraries : Array[@compile.SourceInput]
+}
+
+///|
 fn LspWorkspaceAnalysis::LspWorkspaceAnalysis(
   workspace_root : String?,
   documents : Map[String, DocumentSnapshot],
@@ -23,13 +29,10 @@ async fn LspWorkspaceAnalysis::check(
   self : LspWorkspaceAnalysis,
   document : DocumentSnapshot,
 ) -> Array[DiagnosticPublication] {
-  let inputs = self.analysis_inputs(document)
-  let analysis = @compile.analyze_source_inputs(
-    inputs[0],
-    inputs[1:].to_owned(),
-  )
+  let sources = self.analysis_sources(document)
+  let analysis = self.analyze_sources(sources)
   diagnostic_publications(
-    inputs,
+    self.diagnostic_publication_inputs(sources, analysis.diagnostics),
     analysis.diagnostics,
     fallback_uri=document.uri,
   )
@@ -40,15 +43,58 @@ async fn LspWorkspaceAnalysis::analyze(
   self : LspWorkspaceAnalysis,
   document : DocumentSnapshot,
 ) -> @compile.AnalysisResult {
-  let inputs = self.analysis_inputs(document)
-  @compile.analyze_source_inputs(inputs[0], inputs[1:].to_owned())
+  self.analyze_sources(self.analysis_sources(document))
 }
 
 ///|
-async fn LspWorkspaceAnalysis::analysis_inputs(
+fn LspWorkspaceAnalysis::analyze_sources(
+  self : LspWorkspaceAnalysis,
+  sources : LspAnalysisSources,
+) -> @compile.AnalysisResult {
+  match self.workspace_root {
+    Some(_) =>
+      @compile.analyze_import_reachable_source_inputs(
+        sources.root,
+        sources.libraries,
+      )
+    None => @compile.analyze_source_inputs(sources.root, sources.libraries)
+  }
+}
+
+///|
+fn LspWorkspaceAnalysis::diagnostic_publication_inputs(
+  self : LspWorkspaceAnalysis,
+  sources : LspAnalysisSources,
+  diagnostics : Array[@compile.CompileDiagnostic],
+) -> Array[@compile.SourceInput] {
+  match self.workspace_root {
+    Some(_) =>
+      match
+        @compile.import_reachable_source_inputs(sources.root, sources.libraries) {
+        Ok(inputs) => inputs
+        Err(_) => sources.inputs_with_diagnostics(diagnostics)
+      }
+    None => [sources.root]
+  }
+}
+
+///|
+fn LspAnalysisSources::inputs_with_diagnostics(
+  self : LspAnalysisSources,
+  diagnostics : Array[@compile.CompileDiagnostic],
+) -> Array[@compile.SourceInput] {
+  let source_ids = diagnostics.filter_map(fn(diagnostic) {
+    diagnostic.source_id
+  })
+  [self.root] +
+  self.libraries.filter(fn(input) { source_ids.contains(input.source_id) })
+}
+
+///|
+async fn LspWorkspaceAnalysis::analysis_sources(
   self : LspWorkspaceAnalysis,
   document : DocumentSnapshot,
-) -> Array[@compile.SourceInput] {
+) -> LspAnalysisSources {
   let root_input : @compile.SourceInput = {
     source_id: document.uri,
     text: document.text,
@@ -58,12 +104,9 @@ async fn LspWorkspaceAnalysis::analysis_inputs(
       let libraries = self
         .workspace_sources(root)
         .without_source_id(document.uri)
-      match @compile.import_reachable_source_inputs(root_input, libraries) {
-        Ok(inputs) => inputs
-        Err(_) => [root_input]
-      }
+      { root: root_input, libraries }
     }
-    None => [root_input]
+    None => { root: root_input, libraries: [] }
   }
 }
 

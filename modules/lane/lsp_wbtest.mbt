@@ -754,6 +754,80 @@ async test "workspace diagnostics ignore modules outside import closure" {
 }
 
 ///|
+async test "workspace diagnostics keep reachable parse errors" {
+  let workspace = ".tmp-lsp-reachable-parse-workspace"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
+  let unrelated_path = "\{workspace}/Unrelated.lane"
+  @fs.remove(main_path) catch {
+    _ => ()
+  }
+  @fs.remove(lib_path) catch {
+    _ => ()
+  }
+  @fs.remove(unrelated_path) catch {
+    _ => ()
+  }
+  @fs.rmdir(workspace) catch {
+    _ => ()
+  }
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let broken : =
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.write_file(
+    unrelated_path,
+    (
+      #|module Unrelated
+      #|
+      #|pub let also_broken : =
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.write_file(
+    main_path,
+    (
+      #|module Main
+      #|
+      #|import Lib.*
+      #|
+      #|pub let answer : Int = value
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(1, "initialize", { "rootUri": "file://\{workspace}" }),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/didOpen",
+      open_params("file://\{main_path}", @fs.read_file(main_path).text()),
+    ),
+  )
+  @fs.remove(unrelated_path) catch {
+    _ => ()
+  }
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  inspect(
+    diagnostic_publication_uris(result),
+    content="file://.tmp-lsp-reachable-parse-workspace/Main.lane,file://.tmp-lsp-reachable-parse-workspace/Lib.lane",
+  )
+}
+
+///|
 async test "workspace analysis selects root import closure without json rpc" {
   let workspace = ".tmp-lsp-analysis-input-workspace"
   let main_path = "\{workspace}/Main.lane"
@@ -800,7 +874,12 @@ async test "workspace analysis selects root import closure without json rpc" {
     #|pub let answer : Int = value
   let document = { uri: "file://\{main_path}", version: 1, text: main_text }
   let analysis = LspWorkspaceAnalysis(Some(workspace), {})
-  let inputs = analysis.analysis_inputs(document)
+  let sources = analysis.analysis_sources(document)
+  let inputs = match
+    @compile.import_reachable_source_inputs(sources.root, sources.libraries) {
+    Ok(inputs) => inputs
+    Err(_) => abort("expected import-reachable inputs")
+  }
   @fs.remove(unrelated_path) catch {
     _ => ()
   }

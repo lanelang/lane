@@ -92,28 +92,44 @@ pub fn analyze_source_inputs(
   library_sources : Array[SourceInput],
 ) -> AnalysisResult {
   match parse_module_input_set_from_inputs(root_source, library_sources) {
-    Err(diagnostics) =>
-      {
-        diagnostics,
-        definitions: [],
-        references: [],
-        hovers: [],
-        semantic_tokens: [],
-        inlay_hints: [],
-      }
+    Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
     Ok(inputs) =>
       match build_module_graph(inputs) {
-        Err(diagnostics) =>
-          {
-            diagnostics,
-            definitions: [],
-            references: [],
-            hovers: [],
-            semantic_tokens: [],
-            inlay_hints: [],
-          }
+        Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
         Ok(graph) => analyze_module_graph(graph)
       }
+  }
+}
+
+///|
+pub fn analyze_import_reachable_source_inputs(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
+) -> AnalysisResult {
+  match
+    parse_import_reachable_module_input_set_from_inputs(
+      root_source, library_sources,
+    ) {
+    Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
+    Ok(inputs) =>
+      match build_module_graph(inputs) {
+        Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
+        Ok(graph) => analyze_module_graph(graph)
+      }
+  }
+}
+
+///|
+fn AnalysisResult::from_diagnostics(
+  diagnostics : Array[CompileDiagnostic],
+) -> AnalysisResult {
+  {
+    diagnostics,
+    definitions: [],
+    references: [],
+    hovers: [],
+    semantic_tokens: [],
+    inlay_hints: [],
   }
 }
 

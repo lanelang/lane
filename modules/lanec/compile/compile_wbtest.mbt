@@ -1586,6 +1586,85 @@ test "check sources rejects duplicate module input" {
 }
 
 ///|
+test "import reachable source inputs ignore unrelated parse diagnostics" {
+  let result = import_reachable_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|import Lib.*
+        #|pub let answer : Int = value
+      ),
+    },
+    [
+      {
+        source_id: "file:///Lib.lane",
+        text: (
+          #|module Lib
+          #|pub let value : Int = 42
+        ),
+      },
+      {
+        source_id: "file:///Unrelated.lane",
+        text: (
+          #|module Unrelated
+          #|pub let broken : =
+        ),
+      },
+    ],
+  )
+  match result {
+    Ok(inputs) =>
+      inspect(
+        inputs.map(fn(input) { input.source_id }).join(","),
+        content="file:///Main.lane,file:///Lib.lane",
+      )
+    Err(diagnostics) => {
+      inspect(diagnostics.map(fn(diagnostic) { diagnostic.message }).join("\n"))
+      fail("expected unrelated parse diagnostics to be ignored")
+    }
+  }
+}
+
+///|
+test "import reachable analysis reports reachable parse diagnostics" {
+  let result = analyze_import_reachable_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|import Lib.*
+        #|pub let answer : Int = value
+      ),
+    },
+    [
+      {
+        source_id: "file:///Lib.lane",
+        text: (
+          #|module Lib
+          #|pub let broken : =
+        ),
+      },
+      {
+        source_id: "file:///Unrelated.lane",
+        text: (
+          #|module Unrelated
+          #|pub let also_broken : =
+        ),
+      },
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  debug_inspect(
+    result.diagnostics[0].source_id,
+    content=(
+      #|Some("file:///Lib.lane")
+    ),
+  )
+  inspect(result.diagnostics[0].message, content="unexpected token")
+}
+
+///|
 test "check sources checks unimported library modules" {
   let result = check_sources(
     (

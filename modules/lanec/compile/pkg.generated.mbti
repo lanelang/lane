@@ -13,6 +13,8 @@ import {
 }
 
 // Values
+pub fn analyze_import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> AnalysisResult
+
 pub fn analyze_source_inputs(SourceInput, Array[SourceInput]) -> AnalysisResult
 
 pub fn analyze_sources(String, Array[String]) -> AnalysisResult
