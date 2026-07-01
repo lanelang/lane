@@ -60,7 +60,7 @@ pub(all) enum Effect {
   Singleton(EffectId, Array[Type])
   Parameter(TypeParameterId)
   Union(Array[Effect])
-} derive(Debug, Eq)
+} derive(Debug)
 
 ///|
 pub(all) enum Literal {
@@ -380,8 +380,30 @@ pub fn Type::equals(self : Type, other : Type) -> Bool {
 }
 
 ///|
+/// Returns whether two Buslane effects are canonically equal.
+pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
+  alpha_equal_effect_with([], self, other)
+}
+
+///|
 pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
   self.equals(other)
+}
+
+///|
+pub impl Eq for Effect with fn equal(self : Effect, other : Effect) -> Bool {
+  self.equals(other)
+}
+
+///|
+/// Returns the canonical effect shape used for equality and diagnostics.
+pub fn Effect::canonicalize(self : Effect) -> Effect {
+  let terms = canonical_effect_terms([], self)
+  match terms {
+    [] => Empty
+    [term] => term
+    terms => Union(terms)
+  }
 }
 
 ///|
@@ -429,34 +451,82 @@ fn alpha_equal_effect_with(
   left : Effect,
   right : Effect,
 ) -> Bool {
+  let left_terms = canonical_effect_terms(bindings, left)
+  let right_terms = canonical_effect_terms(bindings, right)
+  if left_terms.length() != right_terms.length() {
+    return false
+  }
+  for left_term in left_terms {
+    if !right_terms.any(fn(right_term) {
+        alpha_equal_effect_term_with(bindings, left_term, right_term)
+      }) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn canonical_effect_terms(
+  bindings : Array[AlphaBinding],
+  effect : Effect,
+) -> Array[Effect] {
+  let terms : Array[Effect] = []
+  collect_effect_terms(bindings, effect, terms)
+  terms
+}
+
+///|
+fn collect_effect_terms(
+  bindings : Array[AlphaBinding],
+  effect : Effect,
+  terms : Array[Effect],
+) -> Unit {
+  match effect {
+    Empty => ()
+    Singleton(id, arguments) => {
+      let term = Singleton(
+        id,
+        arguments.map(fn(argument) { argument.normalize() }),
+      )
+      push_unique_effect_term(bindings, terms, term)
+    }
+    Parameter(_) => push_unique_effect_term(bindings, terms, effect)
+    Union(effects) =>
+      for nested in effects {
+        collect_effect_terms(bindings, nested, terms)
+      }
+  }
+}
+
+///|
+fn push_unique_effect_term(
+  bindings : Array[AlphaBinding],
+  terms : Array[Effect],
+  term : Effect,
+) -> Unit {
+  if terms.any(fn(existing) {
+      alpha_equal_effect_term_with(bindings, existing, term)
+    }) {
+    return
+  }
+  terms.push(term)
+}
+
+///|
+fn alpha_equal_effect_term_with(
+  bindings : Array[AlphaBinding],
+  left : Effect,
+  right : Effect,
+) -> Bool {
   match (left, right) {
-    (Empty, Empty) => true
     (Singleton(left_id, left_arguments), Singleton(right_id, right_arguments)) =>
       left_id == right_id &&
       same_length_alpha_equal(bindings, left_arguments, right_arguments)
     (Parameter(left), Parameter(right)) =>
       alpha_equal_parameter(bindings, left, right)
-    (Union(left_effects), Union(right_effects)) =>
-      same_length_alpha_equal_effect(bindings, left_effects, right_effects)
     _ => false
   }
-}
-
-///|
-fn same_length_alpha_equal_effect(
-  bindings : Array[AlphaBinding],
-  left : Array[Effect],
-  right : Array[Effect],
-) -> Bool {
-  if left.length() != right.length() {
-    return false
-  }
-  for index in 0..<left.length() {
-    if !alpha_equal_effect_with(bindings, left[index], right[index]) {
-      return false
-    }
-  }
-  true
 }
 
 ///|

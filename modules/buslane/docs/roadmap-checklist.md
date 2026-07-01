@@ -42,9 +42,9 @@ coordination and independent work items can still live in the issue tracker.
 
 ## 2. Verifier Effect Judgment
 
-- [ ] Add canonical effect normalization for union flattening, deduplication,
+- [x] Add canonical effect normalization for union flattening, deduplication,
   order-insensitive singleton comparison, and row-variable preservation.
-- [ ] Add effect well-formedness checking against Buslane metadata and kind
+- [x] Add effect well-formedness checking against Buslane metadata and kind
   information.
 - [ ] Change expression synthesis to produce both a value type and an effect.
 - [ ] Verify calls by combining callee latent effects with argument effects.

@@ -9,6 +9,8 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownTypeParameter(TypeParameterId)
   UnknownValue(ValueId)
   UnknownDataConstructor(DataConId)
+  UnknownEffect(EffectId)
+  UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeMismatch(expected~ : Type, actual~ : Type)
   NotFunction(Type)
@@ -99,6 +101,27 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
     for payload_type in data_constructor.payload_types {
       self.verify_value_type(payload_type, scope)
     }
+  }
+  for effect in self.program.metadata.effects {
+    for parameter in effect.parameters {
+      self.require_type_parameter(parameter)
+    }
+    for operation in effect.operations {
+      self.require_operation(operation)
+    }
+  }
+  for operation in self.program.metadata.operations {
+    self.require_effect(operation.owner)
+    let scope = TypeScope::{ parameters: [] }
+    if self.program.metadata.effect_info(operation.owner) is Some(owner) {
+      for parameter in owner.parameters {
+        scope.parameters.push(parameter)
+      }
+    }
+    for payload_type in operation.payload_types {
+      self.verify_value_type(payload_type, scope)
+    }
+    self.verify_value_type(operation.result_type, scope)
   }
 }
 
@@ -427,14 +450,34 @@ fn VerifyContext::synthesize_perform(
   type_scope : TypeScope,
 ) -> Type {
   guard self.program.metadata.operation_info(perform.operation) is Some(info) else {
+    self.report(UnknownOperation(perform.operation))
     return Primitive(Unit)
   }
   guard self.program.metadata.effect_info(info.owner) is Some(owner) else {
+    self.report(UnknownEffect(info.owner))
     return info.result_type
+  }
+  if owner.parameters.length() != perform.type_arguments.length() {
+    self.report(
+      ArityMismatch(
+        expected=owner.parameters.length(),
+        actual=perform.type_arguments.length(),
+      ),
+    )
   }
   let substitution = TypeSubstitution::TypeSubstitution()
   for
     index in 0..<owner.parameters.length().min(perform.type_arguments.length()) {
+    guard self.program.metadata.type_parameter_info(owner.parameters[index])
+      is Some(parameter_info) else {
+      self.report(UnknownTypeParameter(owner.parameters[index]))
+      continue
+    }
+    self.verify_type_kind(
+      perform.type_arguments[index],
+      parameter_info.kind,
+      type_scope,
+    )
     substitution.insert(owner.parameters[index], perform.type_arguments[index])
   }
   for payload in perform.payloads {
@@ -452,6 +495,17 @@ fn VerifyContext::synthesize_handle(
 ) -> Type {
   ignore(self.synthesize_expr(handle.body, value_scope, type_scope))
   ignore(self.synthesize_expr(handle.final_body, value_scope, type_scope))
+  for table in handle.handlers {
+    self.verify_effect(table.handled_effect, type_scope)
+    for alternative in table.operations {
+      self.require_operation(alternative.operation)
+      for binder in alternative.payload_binders {
+        self.require_value(binder)
+      }
+      self.require_value(alternative.resume_binder)
+      ignore(self.synthesize_expr(alternative.body, value_scope, type_scope))
+    }
+  }
   handle.result_type
 }
 
@@ -801,11 +855,12 @@ fn VerifyContext::synthesize_type_kind(
       }
       Function(parameter_kinds, self.synthesize_type_kind(body, body_scope))
     }
-    Function(parameters, result, _) => {
+    Function(parameters, result, effect) => {
       for parameter in parameters {
         self.verify_type_kind(parameter, Type, scope)
       }
       self.verify_type_kind(result, Type, scope)
+      self.verify_effect(effect, scope)
       Type
     }
     Forall(parameters, body) => {
@@ -817,6 +872,63 @@ fn VerifyContext::synthesize_type_kind(
       self.verify_type_kind(body, Type, body_scope)
       Type
     }
+  }
+}
+
+///|
+fn VerifyContext::verify_effect(
+  self : VerifyContext,
+  effect : Effect,
+  scope : TypeScope,
+) -> Unit {
+  match effect {
+    Empty => ()
+    Singleton(id, arguments) => {
+      guard self.program.metadata.effect_info(id) is Some(info) else {
+        self.report(UnknownEffect(id))
+        return
+      }
+      if info.parameters.length() != arguments.length() {
+        self.report(
+          ArityMismatch(
+            expected=info.parameters.length(),
+            actual=arguments.length(),
+          ),
+        )
+      }
+      for index in 0..<info.parameters.length().min(arguments.length()) {
+        guard self.program.metadata.type_parameter_info(info.parameters[index])
+          is Some(parameter_info) else {
+          self.report(UnknownTypeParameter(info.parameters[index]))
+          continue
+        }
+        self.verify_type_kind(arguments[index], parameter_info.kind, scope)
+      }
+    }
+    Parameter(parameter) => self.verify_effect_parameter(parameter, scope)
+    Union(effects) =>
+      for nested in effects {
+        self.verify_effect(nested, scope)
+      }
+  }
+}
+
+///|
+fn VerifyContext::verify_effect_parameter(
+  self : VerifyContext,
+  parameter : TypeParameterId,
+  scope : TypeScope,
+) -> Unit {
+  if !scope.contains(parameter) {
+    self.report(UnknownTypeParameter(parameter))
+    return
+  }
+  guard self.program.metadata.type_parameter_info(parameter) is Some(info) else {
+    self.report(UnknownTypeParameter(parameter))
+    return
+  }
+  if info.kind != Effect {
+    self.report(KindMismatch(expected=Effect, actual=info.kind))
   }
 }
 
@@ -851,6 +963,23 @@ fn VerifyContext::require_data_constructor(
 ) -> Unit {
   if self.program.metadata.data_constructor_info(id) is None {
     self.report(UnknownDataConstructor(id))
+  }
+}
+
+///|
+fn VerifyContext::require_effect(self : VerifyContext, id : EffectId) -> Unit {
+  if self.program.metadata.effect_info(id) is None {
+    self.report(UnknownEffect(id))
+  }
+}
+
+///|
+fn VerifyContext::require_operation(
+  self : VerifyContext,
+  id : OperationId,
+) -> Unit {
+  if self.program.metadata.operation_info(id) is None {
+    self.report(UnknownOperation(id))
   }
 }
 

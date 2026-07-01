@@ -416,6 +416,8 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
     UnknownValue(id) => text("unknown_value") + space + id.pretty()
     UnknownDataConstructor(id) =>
       text("unknown_data_constructor") + space + id.pretty()
+    UnknownEffect(id) => text("unknown_effect") + space + id.pretty()
+    UnknownOperation(id) => text("unknown_operation") + space + id.pretty()
     KindMismatch(expected~, actual~) =>
       text("kind_mismatch") +
       space +

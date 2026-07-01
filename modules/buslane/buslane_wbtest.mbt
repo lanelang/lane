@@ -135,6 +135,75 @@ test "buslane function latent effects participate in type equality and substitut
 }
 
 ///|
+test "buslane canonical effect equality ignores ordering and duplicates" {
+  let console = EffectId::{ index: 0 }
+  let state = EffectId::{ index: 1 }
+  let row = TypeParameterId::{ index: 2 }
+  let left = Effect::Union([
+    Singleton(state, []),
+    Empty,
+    Singleton(console, [int_type()]),
+    Singleton(state, []),
+    Parameter(row),
+  ])
+  let right = Effect::Union([
+    Parameter(row),
+    Singleton(console, [int_type()]),
+    Singleton(state, []),
+  ])
+  assert_true(left == right)
+  inspect(
+    @prettyprinter.render(left.canonicalize(), width=100),
+    content="{effect#1, effect#0[Int], tparam#2}",
+  )
+}
+
+///|
+test "verify buslane reports malformed effect terms" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let ordinary_parameter = metadata.define_type_parameter(Type)
+  let bad_function = metadata.define_value(
+    Value,
+    Forall(
+      [ordinary_parameter],
+      Function(
+        [],
+        int_type(),
+        Union([Singleton({ index: 9 }, []), Parameter(ordinary_parameter)]),
+      ),
+    ),
+  )
+  let result = metadata.define_value(Value, int_type())
+  let program = Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Perform({ operation: { index: 8 }, type_arguments: [], payloads: [] }),
+      ),
+    ],
+  }
+  ignore(bad_function)
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  unknown_effect effect#9
+      #|  kind_mismatch {
+      #|    expected Effect
+      #|    actual Type
+      #|  }
+      #|  unknown_operation operation#8
+      #|  type_mismatch {
+      #|    expected Int
+      #|    actual Unit
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "pretty buslane expression tree core" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let value = metadata.define_value(Value, int_type())
