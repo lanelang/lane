@@ -269,8 +269,10 @@ pub(all) struct CheckedHandlerTable {
 ///|
 pub(all) struct CheckedHandlerOperationArm {
   operation : OperationSymbolId
+  payload_types : Array[@types.Type]
   payload_patterns : Array[CheckedPattern]
   resume_symbol : ValueSymbolId
+  resume_type : @types.Type
   resume_binder : String
   resume_loc : SourceSpan
   body : CheckedExpr?

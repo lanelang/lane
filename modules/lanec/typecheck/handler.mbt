@@ -134,8 +134,14 @@ fn SemanticChecker::synthesize_checked_handler(
         Some(body) =>
           checked_operations.push({
             operation: operation.checked.operation,
+            payload_types: operation.checked.payload_types,
             payload_patterns: operation.checked.payload_patterns,
             resume_symbol: operation.checked.resume_symbol,
+            resume_type: handler_resume_type(
+              operation.signature,
+              result_type,
+              residual_effect,
+            ),
             resume_binder: operation.checked.resume_binder,
             resume_loc: operation.checked.resume_loc,
             body: Some(body),
@@ -200,7 +206,7 @@ fn handler_operation_scope(
   }
   arm_scope.bind(
     checked.resume_symbol,
-    Function([signature.result], result_type, residual_effect),
+    handler_resume_type(signature, result_type, residual_effect),
   )
   arm_scope
 }
@@ -448,13 +454,24 @@ fn SemanticChecker::check_handler_operation_arm(
   }
   {
     operation: signature.operation,
+    payload_types: signature.payload,
     payload_patterns,
     resume_symbol: arm.resume_symbol,
+    resume_type: Error,
     resume_binder: arm.resume_binder,
     resume_loc: arm.resume_loc,
     body: None,
     loc: arm.loc,
   }
+}
+
+///|
+fn handler_resume_type(
+  signature : OperationCallSignature,
+  result_type : @types.Type,
+  residual_effect : @types.Effect,
+) -> @types.Type {
+  Function([signature.result], result_type, residual_effect)
 }
 
 ///|

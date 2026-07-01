@@ -69,6 +69,28 @@ priv struct LowerPatternRow {
 }
 
 ///|
+priv struct LoweredHandlerTable {
+  handled_effect : @types.Effect
+  operations : Array[LoweredOperationAlternative]
+}
+
+///|
+priv struct LoweredOperationAlternative {
+  operation : @symbol.OperationSymbolId
+  payload_binders : Array[@buslane.ValueId]
+  resume_binder : @buslane.ValueId
+  body : @buslane.Expr
+}
+
+///|
+priv struct LowerHandlerOperationGroup {
+  operation : @symbol.OperationSymbolId
+  payload_types : Array[@types.Type]
+  resume_type : @types.Type
+  arms : Array[@checked.CheckedHandlerOperationArm]
+}
+
+///|
 priv struct LowerConstructorSignature {
   alt_constructor : @buslane.AltCon
   argument_types : Array[@types.Type]
@@ -930,8 +952,12 @@ fn BuslaneLowerer::lower_expr(
       )
     OperationCall(..) =>
       abort("Lane effect operation lowering to Buslane is not implemented yet")
-    Handler(..) =>
+    Handler(handlers~, type_~, ..) => {
+      lower_handler_tables_boundary(
+        self.lower_handler_tables_for_alternatives(handlers, type_),
+      )
       abort("Lane handler lowering to Buslane is not implemented yet")
+    }
     Field(base~, field~, ..) => self.lower_field(base, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
       Construct({
@@ -953,6 +979,117 @@ fn BuslaneLowerer::lower_expr(
         }),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
+  }
+}
+
+///|
+fn BuslaneLowerer::lower_handler_tables_for_alternatives(
+  self : BuslaneLowerer,
+  handlers : Array[@checked.CheckedHandlerTable],
+  result_type : @types.Type,
+) -> Array[LoweredHandlerTable] {
+  handlers.map(fn(handler) {
+    {
+      handled_effect: handler.handled_effect,
+      operations: self.lower_handler_operation_groups(
+        lower_handler_operation_groups(handler.operations),
+        result_type,
+      ),
+    }
+  })
+}
+
+///|
+fn lower_handler_tables_boundary(tables : Array[LoweredHandlerTable]) -> Unit {
+  for table in tables {
+    ignore(table.handled_effect)
+    for operation in table.operations {
+      ignore(operation.operation)
+      ignore(operation.payload_binders)
+      ignore(operation.resume_binder)
+      ignore(operation.body)
+    }
+  }
+}
+
+///|
+fn lower_handler_operation_groups(
+  operations : Array[@checked.CheckedHandlerOperationArm],
+) -> Array[LowerHandlerOperationGroup] {
+  let groups = []
+  for operation in operations {
+    match lower_handler_operation_group_index(groups, operation.operation) {
+      Some(index) => groups[index].arms.push(operation)
+      None =>
+        groups.push({
+          operation: operation.operation,
+          payload_types: operation.payload_types,
+          resume_type: operation.resume_type,
+          arms: [operation],
+        })
+    }
+  }
+  groups
+}
+
+///|
+fn lower_handler_operation_group_index(
+  groups : Array[LowerHandlerOperationGroup],
+  operation : @symbol.OperationSymbolId,
+) -> Int? {
+  for index in 0..<groups.length() {
+    if groups[index].operation == operation {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLowerer::lower_handler_operation_groups(
+  self : BuslaneLowerer,
+  groups : Array[LowerHandlerOperationGroup],
+  result_type : @types.Type,
+) -> Array[LoweredOperationAlternative] {
+  groups.map(fn(group) {
+    self.lower_handler_operation_group(group, result_type)
+  })
+}
+
+///|
+fn BuslaneLowerer::lower_handler_operation_group(
+  self : BuslaneLowerer,
+  group : LowerHandlerOperationGroup,
+  result_type : @types.Type,
+) -> LoweredOperationAlternative {
+  let payload_binders = group.payload_types.map(fn(type_) {
+    self.define_fresh_value(Parameter, self.lower_type(type_))
+  })
+  let resume_binder = self.define_fresh_value(
+    Parameter,
+    self.lower_type(group.resume_type),
+  )
+  let rows = group.arms.map(fn(arm) {
+    self.bind_value_alias(arm.resume_symbol, resume_binder)
+    for pattern in arm.payload_patterns {
+      self.define_pattern_binders(pattern)
+    }
+    guard arm.body is Some(body) else {
+      abort("unchecked handler operation body")
+    }
+    { patterns: arm.payload_patterns, body: self.lower_expr(body) }
+  })
+  {
+    operation: group.operation,
+    payload_binders,
+    resume_binder,
+    body: self.lower_pattern_decision(
+      payload_binders.map(fn(binder) { Ref(binder) }),
+      payload_binders,
+      rows,
+      group.payload_types,
+      self.lower_type(result_type),
+    ),
   }
 }
 
@@ -1721,6 +1858,20 @@ fn BuslaneLowerer::define_value(
   let target = self.metadata.define_value(kind, type_)
   self.values.push({ source, target })
   target
+}
+
+///|
+fn BuslaneLowerer::bind_value_alias(
+  self : BuslaneLowerer,
+  source : @symbol.ValueSymbolId,
+  target : @buslane.ValueId,
+) -> Unit {
+  for entry in self.values {
+    if entry.source == source {
+      return
+    }
+  }
+  self.values.push({ source, target })
 }
 
 ///|

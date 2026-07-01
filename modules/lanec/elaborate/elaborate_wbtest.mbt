@@ -30,6 +30,142 @@ fn elaborate_anf_source(source : String) -> AnfElaborateResult {
 }
 
 ///|
+fn checked_source_for_elaborate_test(
+  source : String,
+) -> @checked.CheckedSourceFile {
+  let file = expect_parse_ok(source)
+  let resolved = @resolve.resolve_source_file(file)
+  let result = @typecheck.typecheck_checked_source_file(resolved)
+  guard result.source is Some(source) else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  source
+}
+
+///|
+fn lower_first_handler_for_elaborate_test(
+  source_text : String,
+) -> Array[LoweredHandlerTable] {
+  let source = checked_source_for_elaborate_test(source_text)
+  let lowerer = BuslaneLowerer::BuslaneLowerer()
+  lowerer.collect_type_headers(source)
+  lowerer.collect_data_constructors(source)
+  lowerer.collect_field_selectors(source)
+  guard first_checked_handler_for_elaborate_test(source)
+    is Some((handlers, result_type)) else {
+    abort("expected checked handler")
+  }
+  lowerer.lower_handler_tables_for_alternatives(handlers, result_type)
+}
+
+///|
+fn first_checked_handler_for_elaborate_test(
+  source : @checked.CheckedSourceFile,
+) -> (Array[@checked.CheckedHandlerTable], @types.Type)? {
+  for declaration in source.declarations {
+    if declaration is Function(declaration) {
+      if first_checked_handler_expr_for_elaborate_test(declaration.body)
+        is Some(handler) {
+        return Some(handler)
+      }
+    }
+  }
+  None
+}
+
+///|
+fn first_checked_handler_expr_for_elaborate_test(
+  expression : @checked.CheckedExpr,
+) -> (Array[@checked.CheckedHandlerTable], @types.Type)? {
+  match expression {
+    Handler(handlers~, type_~, ..) => Some((handlers, type_))
+    Block(items~, result~, ..) => {
+      for item in items {
+        match item {
+          Let(declaration) =>
+            if first_checked_handler_expr_for_elaborate_test(
+                declaration.initializer,
+              )
+              is Some(handler) {
+              return Some(handler)
+            }
+          PatternLet(declaration) =>
+            if first_checked_handler_expr_for_elaborate_test(
+                declaration.initializer,
+              )
+              is Some(handler) {
+              return Some(handler)
+            }
+          Function(declaration) =>
+            if first_checked_handler_expr_for_elaborate_test(declaration.body)
+              is Some(handler) {
+              return Some(handler)
+            }
+        }
+      }
+      first_checked_handler_expr_for_elaborate_test(result)
+    }
+    If(condition~, then_branch~, else_branch~, ..) =>
+      match first_checked_handler_expr_for_elaborate_test(condition) {
+        Some(handler) => Some(handler)
+        None =>
+          match first_checked_handler_expr_for_elaborate_test(then_branch) {
+            Some(handler) => Some(handler)
+            None => first_checked_handler_expr_for_elaborate_test(else_branch)
+          }
+      }
+    Match(scrutinee~, arms~, ..) =>
+      match first_checked_handler_expr_for_elaborate_test(scrutinee) {
+        Some(handler) => Some(handler)
+        None => {
+          for arm in arms {
+            if first_checked_handler_expr_for_elaborate_test(arm.body)
+              is Some(handler) {
+              return Some(handler)
+            }
+          }
+          None
+        }
+      }
+    Call(callee~, arguments~, ..) => {
+      if first_checked_handler_expr_for_elaborate_test(callee) is Some(handler) {
+        return Some(handler)
+      }
+      for argument in arguments {
+        if first_checked_handler_expr_for_elaborate_test(argument)
+          is Some(handler) {
+          return Some(handler)
+        }
+      } nobreak {
+        None
+      }
+    }
+    TypeApplication(callee~, ..) =>
+      first_checked_handler_expr_for_elaborate_test(callee)
+    OperationCall(arguments~, ..) | Variant(arguments~, ..) =>
+      for argument in arguments {
+        if first_checked_handler_expr_for_elaborate_test(argument)
+          is Some(handler) {
+          return Some(handler)
+        }
+      } nobreak {
+        None
+      }
+    Field(base~, ..) => first_checked_handler_expr_for_elaborate_test(base)
+    StructLiteral(fields~, ..) =>
+      for field in fields {
+        if first_checked_handler_expr_for_elaborate_test(field.value)
+          is Some(handler) {
+          return Some(handler)
+        }
+      } nobreak {
+        None
+      }
+    Literal(..) | Value(..) | UnsafeBuiltin(..) | FunctionLiteral(..) => None
+  }
+}
+
+///|
 test "elaborate resolved source into checked source" {
   let result = elaborate_source(
     (
@@ -56,6 +192,51 @@ test "elaborate resolved source into checked source" {
       #|    let answer#1 : Int = 42
       #|  }
       #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "elaborate lowers handler payload binders before alternatives" {
+  let tables = lower_first_handler_for_elaborate_test(
+    (
+      #|enum Choice {
+      #|  left
+      #|  right
+      #|}
+      #|effect Console {
+      #|  write(String) -> Int
+      #|  choose(Choice) -> Int
+      #|}
+      #|fn program() -> Int ! Console {
+      #|  handle Console::write!("hi") with {
+      #|    Console::write(message, resume) => 0
+      #|    Console::choose(Choice::left, resume2) => 1
+      #|    Console::choose(_, resume3) => 2
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(tables.length(), content="1")
+  inspect(tables[0].operations.length(), content="2")
+  inspect(tables[0].operations[0].payload_binders.length(), content="1")
+  inspect(tables[0].operations[1].payload_binders.length(), content="1")
+  inspect(
+    @prettyprinter.render(tables[0].operations[0].body, width=100),
+    content=(
+      #|let value#2 = value#0 in
+      #|0
+    ),
+  )
+  inspect(
+    @prettyprinter.render(tables[0].operations[1].body, width=100),
+    content=(
+      #|match value#3 as value#3 -> Int {
+      #|  datacon#0() => 1
+      #|  _ => 2
       #|}
     ),
   )

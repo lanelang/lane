@@ -100,8 +100,10 @@ pub impl @prettyprinter.Pretty for CheckedHandlerFinalBranch
 
 pub(all) struct CheckedHandlerOperationArm {
   operation : @symbol.OperationSymbolId
+  payload_types : Array[@types.Type]
   payload_patterns : Array[CheckedPattern]
   resume_symbol : @symbol.ValueSymbolId
+  resume_type : @types.Type
   resume_binder : String
   resume_loc : @basic.SourceSpan
   body : CheckedExpr?
