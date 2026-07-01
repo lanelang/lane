@@ -85,8 +85,5 @@ fn artifact_error(
   note : String,
   help : String,
 ) -> String {
-  "error[\{code}]: \{title}\n" +
-  "  = label: \{label}\n" +
-  "  = note: \{note}\n" +
-  "  = help: \{help}"
+  "error[\{code}]: \{title}\n  = label: \{label}\n  = note: \{note}\n  = help: \{help}"
 }

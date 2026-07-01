@@ -3,6 +3,7 @@ using @prettyprinter {type Document, line, separate, space, text}
 
 ///|
 pub(all) struct CompileDiagnostic {
+  source_id : String?
   message : String
   span : @basic.SourceSpan?
   severity : CompileDiagnosticSeverity
@@ -88,7 +89,15 @@ fn diagnostic(
   notes~ : Array[String],
   helps~ : Array[String],
 ) -> CompileDiagnostic {
-  { message, span, severity, code, labels, notes, helps }
+  { source_id: None, message, span, severity, code, labels, notes, helps }
+}
+
+///|
+fn CompileDiagnostic::with_source_id(
+  self : CompileDiagnostic,
+  source_id : String,
+) -> CompileDiagnostic {
+  { ..self, source_id: Some(source_id) }
 }
 
 ///|
@@ -397,6 +406,7 @@ fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompileDiagnostic] {
 ///|
 fn resolve_diagnostic(
   diagnostic_ : @resolve.ResolveDiagnostic,
+  _display : TypeDisplayContext,
 ) -> CompileDiagnostic {
   let span = Some(diagnostic_.loc)
   match diagnostic_.kind {
@@ -565,6 +575,7 @@ fn resolve_variant_candidates_text(
 ///|
 fn typecheck_diagnostic(
   diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  display : TypeDisplayContext,
 ) -> CompileDiagnostic {
   let span = Some(diagnostic_.loc)
   match diagnostic_.kind {
@@ -665,7 +676,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: diagnostic_.loc,
-            message: "expected kind `\{diagnostic_kind_text(expected)}`, found `\{diagnostic_kind_text(actual)}`",
+            message: "expected kind `\{display.kind_text(expected)}`, found `\{display.kind_text(actual)}`",
             style: Primary,
           },
         ],
@@ -685,7 +696,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: diagnostic_.loc,
-            message: "expected `\{diagnostic_type_text(expected)}`, found `\{diagnostic_type_text(actual)}`",
+            message: "expected `\{display.type_text(expected)}`, found `\{display.type_text(actual)}`",
             style: Primary,
           },
         ],
@@ -705,7 +716,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: diagnostic_.loc,
-            message: "`\{diagnostic_type_text(type_)}` is not a function type",
+            message: "`\{display.type_text(type_)}` is not a function type",
             style: Primary,
           },
         ],
@@ -845,7 +856,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: diagnostic_.loc,
-            message: "`\{diagnostic_type_text(type_)}` is not a struct type",
+            message: "`\{display.type_text(type_)}` is not a struct type",
             style: Primary,
           },
         ],
@@ -865,7 +876,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: diagnostic_.loc,
-            message: "patterns do not cover every `\{diagnostic_type_text(type_)}` value",
+            message: "patterns do not cover every `\{display.type_text(type_)}` value",
             style: Primary,
           },
         ],
@@ -933,7 +944,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: diagnostic_.loc,
-            message: "this expression exposes hidden type `\{diagnostic_type_text(type_)}` outside its unpacking scope",
+            message: "this expression exposes hidden type `\{display.type_text(type_)}` outside its unpacking scope",
             style: Primary,
           },
         ],
@@ -999,16 +1010,6 @@ fn typecheck_diagnostic(
         helps=[cannot_infer_help(label)],
       )
   }
-}
-
-///|
-fn diagnostic_type_text(type_ : @types.Type) -> String {
-  @prettyprinter.render(type_, width=100)
-}
-
-///|
-fn diagnostic_kind_text(kind : @types.Kind) -> String {
-  @prettyprinter.render(kind, width=100)
 }
 
 ///|

@@ -286,6 +286,7 @@ fn add_type_inlay_hint(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
   span : @basic.SourceSpan,
+  display : TypeDisplayContext,
   type_ : @types.Type,
 ) -> Unit {
   add_inlay_hint(
@@ -293,7 +294,7 @@ fn add_type_inlay_hint(
     source_id,
     TypeHint,
     span,
-    ": " + type_text(type_),
+    ": \{display.type_text(type_)}",
   )
 }
 
@@ -304,7 +305,7 @@ fn add_parameter_inlay_hint(
   span : @basic.SourceSpan,
   name : String,
 ) -> Unit {
-  add_inlay_hint(inlay_hints, source_id, ParameterHint, span, name + "=")
+  add_inlay_hint(inlay_hints, source_id, ParameterHint, span, "\{name}=")
 }
 
 ///|
@@ -320,7 +321,7 @@ fn add_implicit_argument_inlay_hint(
     source_id,
     ImplicitArgumentHint,
     span,
-    ", " + parameter_name + "=" + argument_name,
+    ", \{parameter_name}=\{argument_name}",
   )
 }
 
@@ -357,11 +358,3 @@ fn add_reference(
 }
 
 ///|
-fn type_text(type_ : @types.Type) -> String {
-  @prettyprinter.render(type_.pretty(), width=80)
-}
-
-///|
-fn kind_text(kind : @types.Kind) -> String {
-  @prettyprinter.render(kind.pretty(), width=80)
-}

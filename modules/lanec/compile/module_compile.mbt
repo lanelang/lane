@@ -492,12 +492,15 @@ fn compile_one_module(
   registry : @symbol.SymbolRegistry,
   imported : @module_interface.ImportedEnvironment,
 ) -> Result[CompiledModule, Array[CompileDiagnostic]] {
+  let display = TypeDisplayContext::from_registry(registry)
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
     registry,
     imported,
   )
-  let resolve_diagnostics = resolved.diagnostics.map(resolve_diagnostic)
+  let resolve_diagnostics = resolved.diagnostics.map(fn(diagnostic) {
+    resolve_diagnostic(diagnostic, display)
+  })
   if !resolve_diagnostics.is_empty() {
     return Err(resolve_diagnostics)
   }
@@ -505,7 +508,9 @@ fn compile_one_module(
     resolved.source,
     imported,
   )
-  let typecheck_diagnostics = checked.diagnostics.map(typecheck_diagnostic)
+  let typecheck_diagnostics = checked.diagnostics.map(fn(diagnostic) {
+    typecheck_diagnostic(diagnostic, display)
+  })
   if !typecheck_diagnostics.is_empty() {
     return Err(typecheck_diagnostics)
   }
@@ -604,7 +609,7 @@ fn qualified_entries(
 ) -> Array[@elaborate.BuslaneEntry] {
   entries.map(fn(entry) {
     {
-      name: module_path_text + "::" + entry.name,
+      name: "\{module_path_text}::\{entry.name}",
       value: entry.value,
       type_: entry.type_,
     }
@@ -1412,7 +1417,7 @@ fn field_selector_export_name(
   type_name : String,
   field_name : String,
 ) -> String {
-  type_name + "." + field_name
+  "\{type_name}.\{field_name}"
 }
 
 ///|
@@ -1611,9 +1616,9 @@ fn module_fingerprint(
   imported : Array[ImportedInterfaceFingerprint],
 ) -> CompilationFingerprint {
   let imports = imported
-    .map(fn(entry) { entry.module_path_text + "=" + entry.fingerprint.value })
+    .map(fn(entry) { "\{entry.module_path_text}=\{entry.fingerprint.value}" })
     .join(";")
-  { value: interface_fingerprint(interface).value + "|imports:" + imports }
+  { value: "\{interface_fingerprint(interface).value}|imports:\{imports}" }
 }
 
 ///|
@@ -1621,22 +1626,20 @@ fn interface_fingerprint(
   interface : @module_interface.ModuleInterface,
 ) -> CompilationFingerprint {
   let context = fingerprint_type_context(interface)
-  {
-    value: interface.module_path +
-    "|types:" +
-    interface.types
+  let type_fingerprints = interface.types
     .map(fn(type_) { interface_type_fingerprint(context, type_) })
-    .join(",") +
-    "|aliases:" +
-    interface.type_aliases
+    .join(",")
+  let alias_fingerprints = interface.type_aliases
     .map(fn(type_alias) { interface_alias_fingerprint(context, type_alias) })
-    .join(",") +
-    "|values:" +
-    interface.values
+    .join(",")
+  let value_fingerprints = interface.values
     .map(fn(value) { interface_value_fingerprint(context, value) })
-    .join(",") +
-    "|hints:" +
-    interface.optimization_hints.map(fn(hint) { hint.name }).join(","),
+    .join(",")
+  let hint_fingerprints = interface.optimization_hints
+    .map(fn(hint) { hint.name })
+    .join(",")
+  {
+    value: "\{interface.module_path}|types:\{type_fingerprints}|aliases:\{alias_fingerprints}|values:\{value_fingerprints}|hints:\{hint_fingerprints}",
   }
 }
 
@@ -1675,29 +1678,26 @@ fn interface_type_fingerprint(
           type_member.type_parameter
         }),
       )
-      "struct " +
-      declaration.name +
-      "[" +
-      declaration.type_parameters.map(type_parameter_fingerprint).join(",") +
-      "]{" +
-      declaration.type_members.map(interface_type_member_fingerprint).join(",") +
-      "|" +
-      declaration.fields
-      .map(fn(field) { interface_field_fingerprint(context, field) })
-      .join(",") +
-      "}"
+      let type_parameters = declaration.type_parameters
+        .map(type_parameter_fingerprint)
+        .join(",")
+      let type_members = declaration.type_members
+        .map(interface_type_member_fingerprint)
+        .join(",")
+      let fields = declaration.fields
+        .map(fn(field) { interface_field_fingerprint(context, field) })
+        .join(",")
+      "struct \{declaration.name}[\{type_parameters}]{\{type_members}|\{fields}}"
     }
     Enum(declaration) => {
       let context = context.with_type_parameters(declaration.type_parameters)
-      "enum " +
-      declaration.name +
-      "[" +
-      declaration.type_parameters.map(type_parameter_fingerprint).join(",") +
-      "]{" +
-      declaration.variants
-      .map(fn(variant) { interface_variant_fingerprint(context, variant) })
-      .join(",") +
-      "}"
+      let type_parameters = declaration.type_parameters
+        .map(type_parameter_fingerprint)
+        .join(",")
+      let variants = declaration.variants
+        .map(fn(variant) { interface_variant_fingerprint(context, variant) })
+        .join(",")
+      "enum \{declaration.name}[\{type_parameters}]{\{variants}}"
     }
   }
 }
@@ -1706,11 +1706,7 @@ fn interface_type_fingerprint(
 fn interface_type_member_fingerprint(
   type_member : @module_interface.ModuleInterfaceTypeMember,
 ) -> String {
-  type_member.name +
-  ":" +
-  kind_fingerprint(type_member.kind) +
-  "#" +
-  type_member.index.to_string()
+  "\{type_member.name}:\{kind_fingerprint(type_member.kind)}#\{type_member.index}"
 }
 
 ///|
@@ -1719,12 +1715,7 @@ fn interface_field_fingerprint(
   field : @module_interface.ModuleInterfaceField,
 ) -> String {
   let offered = if field.is_offered { ":offer" } else { "" }
-  field.name +
-  ":" +
-  context.type_fingerprint(field.type_) +
-  "#" +
-  field.index.to_string() +
-  offered
+  "\{field.name}:\{context.type_fingerprint(field.type_)}#\{field.index}\{offered}"
 }
 
 ///|
@@ -1733,13 +1724,13 @@ fn interface_variant_fingerprint(
   variant : @module_interface.ModuleInterfaceVariant,
 ) -> String {
   let context = context.with_type_parameters(variant.type_parameters)
-  variant.name +
-  "[" +
-  variant.type_parameters.map(type_parameter_fingerprint).join(",") +
-  "](" +
-  variant.payload.map(fn(type_) { context.type_fingerprint(type_) }).join(",") +
-  ")#" +
-  variant.index.to_string()
+  let type_parameters = variant.type_parameters
+    .map(type_parameter_fingerprint)
+    .join(",")
+  let payload = variant.payload
+    .map(fn(type_) { context.type_fingerprint(type_) })
+    .join(",")
+  "\{variant.name}[\{type_parameters}](\{payload})#\{variant.index}"
 }
 
 ///|
@@ -1747,11 +1738,7 @@ fn interface_alias_fingerprint(
   context : FingerprintTypeContext,
   type_alias : @module_interface.ModuleInterfaceTypeAlias,
 ) -> String {
-  type_alias.name +
-  ":" +
-  kind_fingerprint(type_alias.kind) +
-  "=" +
-  context.type_fingerprint(type_alias.body)
+  "\{type_alias.name}:\{kind_fingerprint(type_alias.kind)}=\{context.type_fingerprint(type_alias.body)}"
 }
 
 ///|
@@ -1759,14 +1746,13 @@ fn interface_value_fingerprint(
   context : FingerprintTypeContext,
   value : @module_interface.ModuleInterfaceValue,
 ) -> String {
-  value.name +
-  ":" +
-  module_value_kind_fingerprint(value.kind) +
-  ":" +
-  context.type_fingerprint(value.type_) +
-  "(" +
-  interface_value_parameters_fingerprint(context, value.parameters) +
-  ")"
+  let kind = module_value_kind_fingerprint(value.kind)
+  let type_ = context.type_fingerprint(value.type_)
+  let parameters = interface_value_parameters_fingerprint(
+    context,
+    value.parameters,
+  )
+  "\{value.name}:\{kind}:\{type_}(\{parameters})"
 }
 
 ///|
@@ -1780,11 +1766,7 @@ fn interface_value_parameters_fingerprint(
       .map(fn(parameter) {
         let auto = if parameter.is_auto { ":auto" } else { "" }
         let offered = if parameter.is_offered { ":offer" } else { "" }
-        parameter.name +
-        ":" +
-        context.type_fingerprint(parameter.type_) +
-        auto +
-        offered
+        "\{parameter.name}:\{context.type_fingerprint(parameter.type_)}\{auto}\{offered}"
       })
       .join(",")
     None => ""
@@ -1832,32 +1814,36 @@ fn FingerprintTypeContext::type_fingerprint(
     Error => "<error>"
     Primitive(primitive) => @prettyprinter.render(primitive.pretty(), width=100)
     Constructor(symbol) => self.type_name(symbol)
-    Apply(callee, arguments) =>
-      self.type_fingerprint(callee) +
-      "[" +
-      arguments.map(fn(argument) { self.type_fingerprint(argument) }).join(",") +
-      "]"
+    Apply(callee, arguments) => {
+      let callee_fingerprint = self.type_fingerprint(callee)
+      let arguments = arguments
+        .map(fn(argument) { self.type_fingerprint(argument) })
+        .join(",")
+      "\{callee_fingerprint}[\{arguments}]"
+    }
     TypeLambda(parameters, body) => {
       let context = self.with_type_parameters(parameters)
-      "type[" +
-      parameters.map(type_parameter_fingerprint).join(",") +
-      "]=>" +
-      context.type_fingerprint(body)
+      let parameter_fingerprints = parameters
+        .map(type_parameter_fingerprint)
+        .join(",")
+      let body_fingerprint = context.type_fingerprint(body)
+      "type[\{parameter_fingerprints}]=>\{body_fingerprint}"
     }
     Parameter(symbol) => self.type_parameter_name(symbol)
-    Function(parameters, result) =>
-      "(" +
-      parameters
-      .map(fn(parameter) { self.type_fingerprint(parameter) })
-      .join(",") +
-      ")->" +
-      self.type_fingerprint(result)
+    Function(parameters, result) => {
+      let parameters = parameters
+        .map(fn(parameter) { self.type_fingerprint(parameter) })
+        .join(",")
+      let result = self.type_fingerprint(result)
+      "(\{parameters})->\{result}"
+    }
     Forall(parameters, body) => {
       let context = self.with_type_parameters(parameters)
-      "forall[" +
-      parameters.map(type_parameter_fingerprint).join(",") +
-      "]." +
-      context.type_fingerprint(body)
+      let parameter_fingerprints = parameters
+        .map(type_parameter_fingerprint)
+        .join(",")
+      let body_fingerprint = context.type_fingerprint(body)
+      "forall[\{parameter_fingerprints}].\{body_fingerprint}"
     }
   }
 }
@@ -1882,7 +1868,7 @@ fn FingerprintTypeContext::type_parameter_name(
 ) -> String {
   for item in self.type_parameters {
     if item.symbol == symbol {
-      return item.name + ":" + kind_fingerprint(item.kind)
+      return "\{item.name}:\{kind_fingerprint(item.kind)}"
     }
   }
   @prettyprinter.render(symbol.pretty(), width=100)

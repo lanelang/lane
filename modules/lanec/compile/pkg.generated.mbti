@@ -89,6 +89,7 @@ pub(all) struct CompilationFingerprint {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CompileDiagnostic {
+  source_id : String?
   message : String
   span : @basic.SourceSpan?
   severity : CompileDiagnosticSeverity

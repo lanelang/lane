@@ -42,24 +42,22 @@ fn validate_module_inputs(
     for other_index in (index + 1)..<modules.length() {
       if modules[index].header.module_path_text ==
         modules[other_index].header.module_path_text {
-        diagnostics.push(
-          CompileErrorKind::to_diagnostic(
-            DuplicateModuleInput(modules[index].header.module_path_text),
-            Some(modules[other_index].header.module_span),
-          ),
-        )
+        let diagnostic = CompileErrorKind::to_diagnostic(
+          DuplicateModuleInput(modules[index].header.module_path_text),
+          Some(modules[other_index].header.module_span),
+        ).with_source_id(modules[other_index].source_id)
+        diagnostics.push(diagnostic)
       }
     }
   }
   for module_ in modules {
     for import_ in module_.header.imports {
       if find_module(modules, import_.module_path_text) is None {
-        diagnostics.push(
-          CompileErrorKind::to_diagnostic(
-            MissingImport(import_.module_path_text),
-            Some(import_.import_span),
-          ),
-        )
+        let diagnostic = CompileErrorKind::to_diagnostic(
+          MissingImport(import_.module_path_text),
+          Some(import_.import_span),
+        ).with_source_id(module_.source_id)
+        diagnostics.push(diagnostic)
       }
     }
   }
@@ -126,12 +124,15 @@ fn visit_module(
   if visited.contains(path) {
     return
   }
-  if visiting.contains(path) {
-    diagnostics.push(CompileErrorKind::to_diagnostic(ImportCycle(path), None))
-    return
-  }
   guard find_module(modules, path) is Some(module_) else {
     diagnostics.push(CompileErrorKind::to_diagnostic(MissingImport(path), None))
+    return
+  }
+  if visiting.contains(path) {
+    let diagnostic = CompileErrorKind::to_diagnostic(ImportCycle(path), None).with_source_id(
+      module_.source_id,
+    )
+    diagnostics.push(diagnostic)
     return
   }
   visiting.push(path)

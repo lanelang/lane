@@ -22,6 +22,12 @@ struct HandlerResult {
 } derive(Debug, Eq)
 
 ///|
+priv struct DiagnosticPublication {
+  uri : String
+  diagnostics : Array[@compile.CompileDiagnostic]
+}
+
+///|
 fn ServerState::ServerState() -> ServerState {
   { documents: {}, workspace_root: None, shutdown_requested: false }
 }
@@ -118,7 +124,11 @@ async fn ServerState::handle_did_open(
   }
   self.documents[document.uri] = document
   {
-    outgoing: [publish_diagnostics(document.uri, self.check(document))],
+    outgoing: self
+    .check(document)
+    .map(fn(publication) {
+      publish_diagnostics(publication.uri, publication.diagnostics)
+    }),
     exit_requested: false,
   }
 }
@@ -133,7 +143,11 @@ async fn ServerState::handle_did_change(
   }
   self.documents[document.uri] = document
   {
-    outgoing: [publish_diagnostics(document.uri, self.check(document))],
+    outgoing: self
+    .check(document)
+    .map(fn(publication) {
+      publish_diagnostics(publication.uri, publication.diagnostics)
+    }),
     exit_requested: false,
   }
 }
@@ -282,8 +296,17 @@ fn method_not_found_message(method_name : String) -> String {
 async fn ServerState::check(
   self : ServerState,
   document : DocumentSnapshot,
-) -> Array[@compile.CompileDiagnostic] {
-  self.analyze(document).diagnostics
+) -> Array[DiagnosticPublication] {
+  let inputs = self.analysis_inputs(document)
+  let analysis = @compile.analyze_source_inputs(
+    inputs[0],
+    inputs[1:].to_owned(),
+  )
+  diagnostic_publications(
+    inputs,
+    analysis.diagnostics,
+    fallback_uri=document.uri,
+  )
 }
 
 ///|
@@ -291,10 +314,17 @@ async fn ServerState::analyze(
   self : ServerState,
   document : DocumentSnapshot,
 ) -> @compile.AnalysisResult {
-  @compile.analyze_source_inputs(
-    { source_id: document.uri, text: document.text },
-    self.workspace_library_sources(document.uri),
-  )
+  let inputs = self.analysis_inputs(document)
+  @compile.analyze_source_inputs(inputs[0], inputs[1:].to_owned())
+}
+
+///|
+async fn ServerState::analysis_inputs(
+  self : ServerState,
+  document : DocumentSnapshot,
+) -> Array[@compile.SourceInput] {
+  [{ source_id: document.uri, text: document.text }] +
+  self.workspace_library_sources(document.uri)
 }
 
 ///|
@@ -384,7 +414,7 @@ fn file_uri_to_path(uri : String) -> String? {
 
 ///|
 fn path_to_file_uri(path : String) -> String {
-  "file://" + percent_encode_path(path)
+  "file://\{percent_encode_path(path)}"
 }
 
 ///|
@@ -465,7 +495,7 @@ fn hex_byte_value(byte : Byte) -> Int? {
 
 ///|
 fn path_is_under_workspace(path : String, root : String) -> Bool {
-  path == root || path.has_prefix(root + "/")
+  path == root || path.has_prefix("\{root}/")
 }
 
 ///|
@@ -546,6 +576,40 @@ fn publish_diagnostics(
       compile_diagnostic_json(uri, diagnostic)
     }),
   })
+}
+
+///|
+fn diagnostic_publications(
+  inputs : Array[@compile.SourceInput],
+  diagnostics : Array[@compile.CompileDiagnostic],
+  fallback_uri~ : String,
+) -> Array[DiagnosticPublication] {
+  let publications = inputs.map(fn(input) {
+    { uri: input.source_id, diagnostics: [] }
+  })
+  for diagnostic in diagnostics {
+    let uri = match diagnostic.source_id {
+      Some(source_id) => source_id
+      None => fallback_uri
+    }
+    add_diagnostic(publications, uri, diagnostic)
+  }
+  publications
+}
+
+///|
+fn add_diagnostic(
+  publications : Array[DiagnosticPublication],
+  uri : String,
+  diagnostic : @compile.CompileDiagnostic,
+) -> Unit {
+  for publication in publications {
+    if publication.uri == uri {
+      publication.diagnostics.push(diagnostic)
+      return
+    }
+  }
+  publications.push({ uri, diagnostics: [diagnostic] })
 }
 
 ///|

@@ -377,8 +377,8 @@ async test "didOpen publishes compiler diagnostics" {
 ///|
 async test "didOpen checks against workspace library sources" {
   let workspace = ".tmp-lsp-workspace"
-  let main_path = workspace + "/Main.lane"
-  let lib_path = workspace + "/Lib.lane"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   @fs.mkdir(workspace)
   @fs.write_file(
@@ -412,7 +412,7 @@ async test "didOpen checks against workspace library sources" {
       2,
       "textDocument/didOpen",
       open_params(
-        "file://" + main_path,
+        "file://\{main_path}",
         (
           #|module Main
           #|
@@ -431,6 +431,125 @@ async test "didOpen checks against workspace library sources" {
       "params": {
         "uri": "file://.tmp-lsp-workspace/Main.lane",
         "diagnostics": [],
+      },
+    },
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp-workspace/Lib.lane",
+        "diagnostics": [],
+      },
+    },
+  ])
+}
+
+///|
+async test "didOpen publishes workspace diagnostics to their source URI" {
+  let workspace = ".tmp-lsp-diagnostic-workspace"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub let value : Missing = 42
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  @fs.write_file(
+    main_path,
+    (
+      #|module Main
+      #|
+      #|pub let stale : Int = 0
+      #|
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(1, "initialize", { "rootUri": "file://\{workspace}" }),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/didOpen",
+      open_params(
+        "file://\{main_path}",
+        (
+          #|module Main
+          #|
+          #|pub let answer : Int = 1
+        ),
+      ),
+    ),
+  )
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp-diagnostic-workspace/Main.lane",
+        "diagnostics": [],
+      },
+    },
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
+        "diagnostics": [
+          {
+            "range": {
+              "start": { "line": 2, "character": 16 },
+              "end": { "line": 2, "character": 23 },
+            },
+            "severity": 1,
+            "source": "lane",
+            "message": "cannot find type `Missing`",
+            "code": "E2000",
+            "relatedInformation": [
+              {
+                "location": {
+                  "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
+                  "range": {
+                    "start": { "line": 2, "character": 16 },
+                    "end": { "line": 2, "character": 23 },
+                  },
+                },
+                "message": "no type named `Missing` is visible here",
+              },
+              {
+                "location": {
+                  "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
+                  "range": {
+                    "start": { "line": 2, "character": 16 },
+                    "end": { "line": 2, "character": 23 },
+                  },
+                },
+                "message": "note: Lane resolves type names from the current module and explicitly imported public types",
+              },
+              {
+                "location": {
+                  "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
+                  "range": {
+                    "start": { "line": 2, "character": 16 },
+                    "end": { "line": 2, "character": 23 },
+                  },
+                },
+                "message": "help: declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
+              },
+            ],
+          },
+        ],
       },
     },
   ])
@@ -457,8 +576,8 @@ test "file URI paths are percent encoded" {
 ///|
 async test "workspace libraries prefer unsaved open document snapshots" {
   let workspace = ".tmp-lsp workspace"
-  let main_path = workspace + "/Main.lane"
-  let lib_path = workspace + "/Lib.lane"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   @fs.mkdir(workspace)
   @fs.write_file(
@@ -529,6 +648,14 @@ async test "workspace libraries prefer unsaved open document snapshots" {
         "diagnostics": [],
       },
     },
+    {
+      "jsonrpc": "2.0",
+      "method": "textDocument/publishDiagnostics",
+      "params": {
+        "uri": "file://.tmp-lsp%20workspace/Lib.lane",
+        "diagnostics": [],
+      },
+    },
   ])
 }
 
@@ -588,8 +715,8 @@ async test "workspace libraries exclude current document by realpath" {
 ///|
 async test "definition returns encoded URI for discovered library source" {
   let workspace = ".tmp-lsp encoded-中"
-  let main_path = workspace + "/Main.lane"
-  let lib_path = workspace + "/Lib File 中.lane"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib File 中.lane"
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   @fs.mkdir(workspace)
   @fs.write_file(
@@ -824,8 +951,8 @@ async test "hover returns type reference summary" {
 ///|
 async test "definition resolves workspace library references" {
   let workspace = ".tmp-lsp-definition"
-  let main_path = workspace + "/Main.lane"
-  let lib_path = workspace + "/Lib.lane"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   @fs.mkdir(workspace)
   @fs.write_file(
@@ -850,7 +977,7 @@ async test "definition resolves workspace library references" {
         2,
         "textDocument/didOpen",
         open_params(
-          "file://" + main_path,
+          "file://\{main_path}",
           (
             #|module Main
             #|
@@ -866,7 +993,7 @@ async test "definition resolves workspace library references" {
     request(
       3,
       "textDocument/definition",
-      position_params("file://" + main_path, 4, 23),
+      position_params("file://\{main_path}", 4, 23),
     ),
   )
   cleanup_workspace_fixture(workspace, main_path, lib_path)

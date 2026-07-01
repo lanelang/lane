@@ -18,5 +18,5 @@ fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
 
 ///|
 fn extend_name(prefix : String, name : String) -> String {
-  prefix + "." + name
+  "\{prefix}.\{name}"
 }

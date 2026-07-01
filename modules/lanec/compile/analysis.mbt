@@ -120,6 +120,7 @@ pub fn analyze_source_inputs(
 ///|
 fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let display = TypeDisplayContext::from_registry(registry)
   let modules : Array[CompiledModule] = []
   let diagnostics = []
   let definitions = []
@@ -133,7 +134,11 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
       registry,
       imported,
     )
-    diagnostics.append(resolved.diagnostics.map(resolve_diagnostic))
+    diagnostics.append(
+      resolved.diagnostics.map(fn(diagnostic) {
+        resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)
+      }),
+    )
     let checked = if resolved.diagnostics.is_empty() {
       Some(
         @typecheck.typecheck_checked_source_file_with_imported_environment(
@@ -146,7 +151,13 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
     }
     match checked {
       Some(checked) => {
-        diagnostics.append(checked.diagnostics.map(typecheck_diagnostic))
+        diagnostics.append(
+          checked.diagnostics.map(fn(diagnostic) {
+            typecheck_diagnostic(diagnostic, display).with_source_id(
+              input.source_id,
+            )
+          }),
+        )
         let annotated_values = annotated_value_symbols(resolved.source)
         match (checked.source, checked.module_interface) {
           (Some(source), Some(interface)) if checked.diagnostics.is_empty() => {
@@ -179,6 +190,7 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
               input.source_id,
               input.text,
               source,
+              display,
               definitions,
               references,
               hovers,

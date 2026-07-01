@@ -149,6 +149,7 @@ test "internal compiler error is marked as a compiler bug" {
 ///|
 test "check deny controls warning failures" {
   let warning : @compile.CompileDiagnostic = {
+    source_id: None,
     message: "example warning",
     span: None,
     severity: Warning,
@@ -158,6 +159,7 @@ test "check deny controls warning failures" {
     helps: [],
   }
   let error : @compile.CompileDiagnostic = {
+    source_id: None,
     message: "example error",
     span: None,
     severity: Error,

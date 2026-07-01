@@ -131,7 +131,7 @@ test "golden pattern diagnostic includes code headline label note and help" {
     content=(
       #|error[E3200]: non-exhaustive match
       #|  --> 7:16-9:4
-      #|  = label: 7:16-9:4 patterns do not cover every `type#0` value
+      #|  = label: 7:16-9:4 patterns do not cover every `Option` value
       #|  = note: Lane checks match coverage statically using the pattern matrix
       #|  = help: add a missing constructor case or a final `_` wildcard arm
     ),

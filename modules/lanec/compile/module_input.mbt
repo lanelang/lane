@@ -90,13 +90,20 @@ fn parse_module_inputs(
             header: module_header(file),
             source: file,
           })
-        None =>
-          diagnostics.push(
-            CompileErrorKind::to_diagnostic(ParserProducedNoSourceFile, None),
-          )
+        None => {
+          let diagnostic = CompileErrorKind::to_diagnostic(
+            ParserProducedNoSourceFile,
+            None,
+          ).with_source_id(source.source_id)
+          diagnostics.push(diagnostic)
+        }
       }
     } else {
-      diagnostics.append(source_diagnostics)
+      diagnostics.append(
+        source_diagnostics.map(fn(diagnostic) {
+          diagnostic.with_source_id(source.source_id)
+        }),
+      )
     }
   }
   { modules, diagnostics }

@@ -48,7 +48,7 @@ fn collect_resolved_top_level_declaration(
         Type(declaration.symbol),
         name_span(source_text, declaration.name, declaration.loc),
         declaration.name,
-        "type " + declaration.name,
+        "type \{declaration.name}",
       )
       for struct_member in declaration.members {
         match struct_member {
@@ -60,7 +60,7 @@ fn collect_resolved_top_level_declaration(
               TypeMember(type_member.symbol),
               name_span(source_text, type_member.name, type_member.loc),
               type_member.name,
-              "type " + type_member.name,
+              "type \{type_member.name}",
             )
             collect_resolved_type_parameter_definition(
               source_id,
@@ -97,7 +97,7 @@ fn collect_resolved_top_level_declaration(
         Type(declaration.symbol),
         name_span(source_text, declaration.name, declaration.loc),
         declaration.name,
-        "type " + declaration.name,
+        "type \{declaration.name}",
       )
       for variant in declaration.variants {
         add_definition(
@@ -679,7 +679,7 @@ fn collect_resolved_type_reference(
         source_id,
         Type(symbol),
         loc,
-        Some("type " + name),
+        Some("type \{name}"),
       )
     Apply(callee~, arguments~, ..) => {
       collect_resolved_type_reference(source_id, callee, references, hovers)
@@ -701,7 +701,7 @@ fn collect_resolved_type_reference(
         source_id,
         TypeParameter(symbol),
         loc,
-        Some("type " + name),
+        Some("type \{name}"),
       )
     Function(type_parameters~, parameters~, result~, ..) => {
       for parameter in type_parameters {

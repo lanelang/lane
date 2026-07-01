@@ -170,7 +170,7 @@ test "compile modules returns separate module objects and interfaces" {
   )
   inspect(
     main.object.imports
-    .map(fn(item) { item.module_path_text + "::" + item.name })
+    .map(fn(item) { "\{item.module_path_text}::\{item.name}" })
     .join(","),
     content="Lib::Box,Lib::Box,Lib::Box.value,Lib::value",
   )
@@ -1788,7 +1788,7 @@ test "analysis resolves types fields and variants" {
     None => abort("expected variant definition")
   }
   match result.hover_at("file:///Main.lane", 16, 29) {
-    Some(hover) => inspect(hover.contents, content="some(type#0)")
+    Some(hover) => inspect(hover.contents, content="some(Point)")
     None => abort("expected variant hover")
   }
 }
@@ -1912,6 +1912,52 @@ test "analysis produces type inlay hints for inferred binders" {
 }
 
 ///|
+test "analysis renders user-facing type names in type inlay hints" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub enum Option[T] {
+        #|  some(T)
+        #|  none
+        #|}
+        #|
+        #|pub fn answer(seed : Int) -> Int {
+        #|  let boxed = some(seed)
+        #|  seed
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(
+    result.inlay_hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 95,
+      #|        end_offset: 100,
+      #|        start_line: 9,
+      #|        start_column: 7,
+      #|        end_line: 9,
+      #|        end_column: 12,
+      #|      },
+      #|    },
+      #|    kind: TypeHint,
+      #|    label: ": Option[Int]",
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "analysis produces parameter name inlay hints for calls" {
   let result = analyze_source_inputs(
     {
@@ -1988,36 +2034,6 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    },
       #|    kind: ParameterHint,
       #|    label: "right=",
-      #|  },
-      #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 195,
-      #|        end_offset: 200,
-      #|        start_line: 14,
-      #|        start_column: 14,
-      #|        end_line: 14,
-      #|        end_column: 19,
-      #|      },
-      #|    },
-      #|    kind: ParameterHint,
-      #|    label: "arg0=",
-      #|  },
-      #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 202,
-      #|        end_offset: 206,
-      #|        start_line: 14,
-      #|        start_column: 21,
-      #|        end_line: 14,
-      #|        end_column: 25,
-      #|      },
-      #|    },
-      #|    kind: ParameterHint,
-      #|    label: "arg1=",
       #|  },
       #|  {
       #|    location: {
