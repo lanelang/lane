@@ -14,6 +14,262 @@ fn expect_ok(program : @buslane.Program) -> Unit raise {
 }
 
 ///|
+test "handler operation arm can directly produce a result" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let final_binder = metadata.define_value(Local, int_type())
+  let payload = metadata.define_value(Parameter, int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([int_type()], int_type(), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Perform({
+            operation: print,
+            type_arguments: [],
+            payloads: [Literal(Int(41L))],
+          }),
+          result_binder: final_binder,
+          result_type: int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(console, []),
+              operations: [
+                {
+                  operation: print,
+                  payload_binders: [payload],
+                  resume_binder,
+                  body: Ref(payload),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 41",
+  )
+}
+
+///|
+test "nested handlers dispatch to the nearest matching operation" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let outer_effect = metadata.define_effect([])
+  let inner_effect = metadata.define_effect([])
+  let outer_operation = metadata.define_operation(
+    outer_effect,
+    [int_type()],
+    int_type(),
+  )
+  let inner_operation = metadata.define_operation(
+    inner_effect,
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value(Value, int_type())
+  let outer_final = metadata.define_value(Local, int_type())
+  let inner_final = metadata.define_value(Local, int_type())
+  let outer_payload = metadata.define_value(Parameter, int_type())
+  let inner_payload = metadata.define_value(Parameter, int_type())
+  let outer_resume = metadata.define_value(
+    Parameter,
+    Function([int_type()], int_type(), Empty),
+  )
+  let inner_resume = metadata.define_value(
+    Parameter,
+    Function([int_type()], int_type(), Singleton(outer_effect, [])),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Handle({
+            body: Perform({
+              operation: inner_operation,
+              type_arguments: [],
+              payloads: [Literal(Int(17L))],
+            }),
+            result_binder: inner_final,
+            result_type: int_type(),
+            final_body: Ref(inner_final),
+            handlers: [
+              {
+                handled_effect: Singleton(inner_effect, []),
+                operations: [
+                  {
+                    operation: inner_operation,
+                    payload_binders: [inner_payload],
+                    resume_binder: inner_resume,
+                    body: Perform({
+                      operation: outer_operation,
+                      type_arguments: [],
+                      payloads: [Ref(inner_payload)],
+                    }),
+                  },
+                ],
+              },
+            ],
+          }),
+          result_binder: outer_final,
+          result_type: int_type(),
+          final_body: Ref(outer_final),
+          handlers: [
+            {
+              handled_effect: Singleton(outer_effect, []),
+              operations: [
+                {
+                  operation: outer_operation,
+                  payload_binders: [outer_payload],
+                  resume_binder: outer_resume,
+                  body: Ref(outer_payload),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 17",
+  )
+}
+
+///|
+test "resume reinstalls the same deep handler" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let first = metadata.define_value(Local, int_type())
+  let final_binder = metadata.define_value(Local, int_type())
+  let payload = metadata.define_value(Parameter, int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([int_type()], int_type(), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Let(
+            first,
+            Perform({
+              operation: print,
+              type_arguments: [],
+              payloads: [Literal(Int(1L))],
+            }),
+            Perform({
+              operation: print,
+              type_arguments: [],
+              payloads: [Ref(first)],
+            }),
+          ),
+          result_binder: final_binder,
+          result_type: int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(console, []),
+              operations: [
+                {
+                  operation: print,
+                  payload_binders: [payload],
+                  resume_binder,
+                  body: Call(Resume(resume_binder), [Ref(payload)]),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 1",
+  )
+}
+
+///|
+test "resume continuation is multi-shot" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let console = metadata.define_effect([])
+  let print = metadata.define_operation(console, [int_type()], int_type())
+  let result = metadata.define_value(Value, int_type())
+  let ignored = metadata.define_value(Local, int_type())
+  let final_binder = metadata.define_value(Local, int_type())
+  let payload = metadata.define_value(Parameter, int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([int_type()], int_type(), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Perform({
+            operation: print,
+            type_arguments: [],
+            payloads: [Literal(Int(0L))],
+          }),
+          result_binder: final_binder,
+          result_type: int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(console, []),
+              operations: [
+                {
+                  operation: print,
+                  payload_binders: [payload],
+                  resume_binder,
+                  body: Let(
+                    ignored,
+                    Call(Resume(resume_binder), [Literal(Int(1L))]),
+                    Call(Resume(resume_binder), [Literal(Int(2L))]),
+                  ),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 2",
+  )
+}
+
+///|
 test "external value reference stays opaque" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let external = metadata.define_value(External, int_type())

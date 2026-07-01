@@ -28,6 +28,7 @@ pub impl @prettyprinter.Pretty for BuslaneRuntimeValue with fn pretty(
       braced_block(arguments.map(BuslaneRuntimeValue::pretty))
     Closure(..) | NativeFunction(_) => text("<function>")
     TypeClosure(..) => text("<type-function>")
+    ResumeContinuation(_) => text("<resume-continuation>")
     External(id) => text("external_value") + space + id.pretty()
   }
 }
@@ -49,7 +50,8 @@ fn runtime_value_source_doc(value : BuslaneRuntimeValue) -> Document {
     Bool(value) => text(value.to_string())
     String(value) => quoted(value)
     Unit => text("()")
-    Closure(..) | TypeClosure(..) | NativeFunction(_) => text("<function>")
+    Closure(..) | TypeClosure(..) | NativeFunction(_) | ResumeContinuation(_) =>
+      text("<function>")
     _ => value.pretty()
   }
 }
@@ -94,6 +96,7 @@ pub impl @prettyprinter.Pretty for BuslaneRuntimeError with fn pretty(
       braced_block(diagnostics.map(@buslane.VerifyDiagnostic::pretty))
     UnboundValue(id) => text("unbound_value") + space + id.pretty()
     MissingExternal(id) => text("missing_external") + space + id.pretty()
+    UnhandledOperation(id) => text("unhandled_operation") + space + id.pretty()
     ExternalFailure(id~, message~) =>
       text("external_failure") + space + id.pretty() + space + quoted(message)
     InvalidValue(message~) => text("invalid_value") + space + quoted(message)
