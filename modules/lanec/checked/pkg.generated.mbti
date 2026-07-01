@@ -15,6 +15,27 @@ import {
 // Errors
 
 // Types and methods
+pub(all) struct CheckedEffectDeclaration {
+  is_public : Bool
+  symbol : @symbol.EffectSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  operations : Array[CheckedEffectOperationDeclaration]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedEffectDeclaration
+
+pub(all) struct CheckedEffectOperationDeclaration {
+  symbol : @symbol.OperationSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[@types.TypeParameter]
+  payload : Array[@types.Type]
+  result : @types.Type
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedEffectOperationDeclaration
+
 pub(all) struct CheckedEnumDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
@@ -173,6 +194,7 @@ pub impl @prettyprinter.Pretty for CheckedStructTypeWitness
 pub(all) enum CheckedTopLevelDeclaration {
   Struct(CheckedStructDeclaration)
   Enum(CheckedEnumDeclaration)
+  Effect(CheckedEffectDeclaration)
   Function(CheckedFunctionDeclaration)
   Let(CheckedLetDeclaration)
 } derive(Eq, @debug.Debug)

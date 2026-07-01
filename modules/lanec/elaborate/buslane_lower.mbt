@@ -1658,6 +1658,7 @@ fn lower_primitive_type(
 fn lower_kind(kind : @types.Kind) -> @buslane.Kind {
   match kind {
     Type => Type
+    Effect => Effect
     Function(parameters, result) =>
       Function(parameters.map(lower_kind), lower_kind(result))
   }

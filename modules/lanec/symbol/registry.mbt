@@ -6,6 +6,8 @@ pub struct SymbolRegistry {
   values : Array[ValueSymbolMetadata]
   fields : Array[FieldSymbolMetadata]
   variants : Array[VariantSymbolMetadata]
+  effects : Array[EffectSymbolMetadata]
+  operations : Array[OperationSymbolMetadata]
 } derive(Debug, Eq)
 
 ///|
@@ -18,6 +20,8 @@ pub fn SymbolRegistry::SymbolRegistry() -> SymbolRegistry {
     values: [],
     fields: [],
     variants: [],
+    effects: [],
+    operations: [],
   }
 }
 
@@ -105,6 +109,34 @@ pub fn SymbolRegistry::define_variant(
 }
 
 ///|
+/// Defines an effect constructor symbol and returns its identity.
+pub fn SymbolRegistry::define_effect(
+  self : SymbolRegistry,
+  name : String,
+  arity : Int,
+  loc : SourceSpan,
+) -> EffectSymbolId {
+  let id = EffectSymbolId::{ index: self.effects.length() }
+  self.effects.push({ id, name, arity, loc })
+  id
+}
+
+///|
+/// Defines an effect operation symbol and returns its identity.
+pub fn SymbolRegistry::define_operation(
+  self : SymbolRegistry,
+  owner : EffectSymbolId,
+  name : String,
+  index : Int,
+  payload_count : Int,
+  loc : SourceSpan,
+) -> OperationSymbolId {
+  let id = OperationSymbolId::{ index: self.operations.length() }
+  self.operations.push({ id, owner, name, index, payload_count, loc })
+  id
+}
+
+///|
 /// Returns metadata for a nominal type symbol.
 pub fn SymbolRegistry::type_metadata(
   self : SymbolRegistry,
@@ -159,12 +191,44 @@ pub fn SymbolRegistry::variant_metadata(
 }
 
 ///|
+/// Returns metadata for an effect constructor symbol.
+pub fn SymbolRegistry::effect_metadata(
+  self : SymbolRegistry,
+  id : EffectSymbolId,
+) -> EffectSymbolMetadata? {
+  self.effects.get(id.index)
+}
+
+///|
+/// Returns metadata for an effect operation symbol.
+pub fn SymbolRegistry::operation_metadata(
+  self : SymbolRegistry,
+  id : OperationSymbolId,
+) -> OperationSymbolMetadata? {
+  self.operations.get(id.index)
+}
+
+///|
 /// Looks up a nominal type symbol by source name.
 pub fn SymbolRegistry::type_named(
   self : SymbolRegistry,
   name : String,
 ) -> TypeSymbolId? {
   for metadata in self.types {
+    if metadata.name == name {
+      return Some(metadata.id)
+    }
+  }
+  None
+}
+
+///|
+/// Looks up an effect constructor symbol by source name.
+pub fn SymbolRegistry::effect_named(
+  self : SymbolRegistry,
+  name : String,
+) -> EffectSymbolId? {
+  for metadata in self.effects {
     if metadata.name == name {
       return Some(metadata.id)
     }
@@ -200,6 +264,51 @@ pub fn SymbolRegistry::variants_named(
     }
   }
   variants
+}
+
+///|
+/// Looks up an effect operation symbol by owner effect and source name.
+pub fn SymbolRegistry::operation_named(
+  self : SymbolRegistry,
+  owner : EffectSymbolId,
+  name : String,
+) -> OperationSymbolId? {
+  for metadata in self.operations {
+    if metadata.owner == owner && metadata.name == name {
+      return Some(metadata.id)
+    }
+  }
+  None
+}
+
+///|
+/// Returns all effect operation symbols with the given source name.
+pub fn SymbolRegistry::operations_named(
+  self : SymbolRegistry,
+  name : String,
+) -> Array[OperationSymbolId] {
+  let operations = []
+  for metadata in self.operations {
+    if metadata.name == name {
+      operations.push(metadata.id)
+    }
+  }
+  operations
+}
+
+///|
+/// Returns all effect operation metadata entries declared by an effect.
+pub fn SymbolRegistry::operations_of(
+  self : SymbolRegistry,
+  owner : EffectSymbolId,
+) -> Array[OperationSymbolMetadata] {
+  let operations = []
+  for metadata in self.operations {
+    if metadata.owner == owner {
+      operations.push(metadata)
+    }
+  }
+  operations
 }
 
 ///|

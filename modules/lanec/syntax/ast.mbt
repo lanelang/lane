@@ -40,6 +40,7 @@ pub fn ImportDeclaration::loc(self : ImportDeclaration) -> SourceSpan {
 pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)
   Enum(EnumDeclaration)
+  Effect(EffectDeclaration)
   TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)
@@ -78,6 +79,7 @@ pub(all) struct TypeMemberDeclaration {
 ///|
 pub(all) enum Kind {
   Type(loc~ : SourceSpan)
+  Effect(loc~ : SourceSpan)
   Function(parameters~ : Array[Kind], result~ : Kind, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
@@ -85,7 +87,7 @@ pub(all) enum Kind {
 /// Returns the source span covered by this kind syntax node.
 pub fn Kind::loc(self : Kind) -> SourceSpan {
   match self {
-    Type(loc~) | Function(loc~, ..) => loc
+    Type(loc~) | Effect(loc~) | Function(loc~, ..) => loc
   }
 }
 
@@ -111,6 +113,24 @@ pub(all) struct EnumVariant {
   name : String
   type_parameters : Array[TypeParameter]
   payload : Array[Type]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct EffectDeclaration {
+  is_public : Bool
+  name : String
+  type_parameters : Array[TypeParameter]
+  operations : Array[EffectOperationDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct EffectOperationDeclaration {
+  name : String
+  type_parameters : Array[TypeParameter]
+  payload : Array[Type]
+  result : Type
   loc : SourceSpan
 } derive(Debug, Eq)
 

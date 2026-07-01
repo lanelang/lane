@@ -36,9 +36,11 @@ fn typecheck_declarations_with_imported_environment(
   let type_members = []
   let fields = []
   let variants = []
+  let effects = []
+  let operations = []
   for module_ in imported_environment.modules {
     append_interface_declarations(
-      types, type_members, fields, variants, module_,
+      types, type_members, fields, variants, effects, operations, module_,
     )
   }
   for declaration in source.declarations {
@@ -60,12 +62,19 @@ fn typecheck_declarations_with_imported_environment(
         }
         types.push(Enum(checked))
       }
+      Effect(declaration) => {
+        let checked = checker.check_effect(declaration)
+        for operation in checked.operations {
+          operations.push(operation)
+        }
+        effects.push(checked)
+      }
       TypeAlias(declaration) => checker.check_type_alias(declaration)
       _ => ()
     }
   }
   {
-    declarations: { types, type_members, fields, variants },
+    declarations: { types, type_members, fields, variants, effects, operations },
     diagnostics: checker.diagnostics,
   }
 }
@@ -76,6 +85,8 @@ fn append_interface_declarations(
   type_members : Array[CheckedTypeMemberDeclaration],
   fields : Array[CheckedFieldDeclaration],
   variants : Array[CheckedVariantDeclaration],
+  effects : Array[CheckedEffectDeclaration],
+  operations : Array[CheckedEffectOperationDeclaration],
   interface : @module_interface.ModuleInterface,
 ) -> Unit {
   for type_ in interface.types {
@@ -98,6 +109,13 @@ fn append_interface_declarations(
         types.push(Enum(checked))
       }
     }
+  }
+  for effect in interface.effects {
+    let checked = interface_effect_declaration(effect)
+    for operation in checked.operations {
+      operations.push(operation)
+    }
+    effects.push(checked)
   }
 }
 
@@ -158,6 +176,30 @@ fn interface_enum_declaration(
 }
 
 ///|
+fn interface_effect_declaration(
+  declaration : @module_interface.ModuleInterfaceEffect,
+) -> CheckedEffectDeclaration {
+  {
+    is_public: true,
+    symbol: declaration.symbol,
+    name: declaration.name,
+    type_parameters: declaration.type_parameters,
+    operations: declaration.operations.map(fn(operation) {
+      {
+        symbol: operation.symbol,
+        name: operation.name,
+        index: operation.index,
+        type_parameters: operation.type_parameters,
+        payload: operation.payload,
+        result: operation.result,
+        loc: operation.loc,
+      }
+    }),
+    loc: declaration.loc,
+  }
+}
+
+///|
 fn DeclarationChecker::check_type_alias(
   self : DeclarationChecker,
   declaration : @resolve.ResolvedTypeAliasDeclaration,
@@ -170,6 +212,42 @@ fn DeclarationChecker::check_type_alias(
       expanding: [declaration.name],
     }.synthesize_type(declaration.body),
   )
+}
+
+///|
+fn DeclarationChecker::check_effect(
+  self : DeclarationChecker,
+  declaration : @resolve.ResolvedEffectDeclaration,
+) -> CheckedEffectDeclaration {
+  let type_parameters = self.check_type_parameters(declaration.type_parameters)
+  let operations = declaration.operations.map(fn(operation) {
+    self.check_operation(operation)
+  })
+  {
+    is_public: declaration.is_public,
+    symbol: declaration.symbol,
+    name: declaration.name,
+    type_parameters,
+    operations,
+    loc: declaration.loc,
+  }
+}
+
+///|
+fn DeclarationChecker::check_operation(
+  self : DeclarationChecker,
+  operation : @resolve.ResolvedEffectOperationDeclaration,
+) -> CheckedEffectOperationDeclaration {
+  let type_parameters = self.check_type_parameters(operation.type_parameters)
+  {
+    symbol: operation.symbol,
+    name: operation.name,
+    index: operation.index,
+    type_parameters,
+    payload: operation.payload.map(fn(type_) { self.check_type(type_) }),
+    result: self.check_type(operation.result),
+    loc: operation.loc,
+  }
 }
 
 ///|
@@ -689,6 +767,26 @@ fn TypeExpressionChecker::find_type_parameter_kind(
         if find_kind_in_type(type_alias.body, symbol) is Some(kind) {
           return Some(kind)
         }
+      Effect(declaration) => {
+        if find_kind_in_parameters(declaration.type_parameters, symbol)
+          is Some(kind) {
+          return Some(kind)
+        }
+        for operation in declaration.operations {
+          if find_kind_in_parameters(operation.type_parameters, symbol)
+            is Some(kind) {
+            return Some(kind)
+          }
+          for payload in operation.payload {
+            if find_kind_in_type(payload, symbol) is Some(kind) {
+              return Some(kind)
+            }
+          }
+          if find_kind_in_type(operation.result, symbol) is Some(kind) {
+            return Some(kind)
+          }
+        }
+      }
       Let(_) | Offer(_) => ()
     }
   }
@@ -811,6 +909,7 @@ fn resolve_type_parameter_kind(
 fn check_resolved_kind(kind : @resolve.ResolvedKind) -> @types.Kind {
   match kind {
     Type(..) => Type
+    Effect(..) => Effect
     Function(parameters~, result~, ..) =>
       Function(parameters.map(check_resolved_kind), check_resolved_kind(result))
   }

@@ -123,6 +123,31 @@ fn collect_resolved_top_level_declaration(
         references,
         hovers,
       )
+    Effect(declaration) => {
+      for parameter in declaration.type_parameters {
+        collect_resolved_type_parameter_definition(
+          source_id, parameter, definitions, hovers,
+        )
+      }
+      for operation in declaration.operations {
+        for parameter in operation.type_parameters {
+          collect_resolved_type_parameter_definition(
+            source_id, parameter, definitions, hovers,
+          )
+        }
+        for payload in operation.payload {
+          collect_resolved_type_reference(
+            source_id, payload, references, hovers,
+          )
+        }
+        collect_resolved_type_reference(
+          source_id,
+          operation.result,
+          references,
+          hovers,
+        )
+      }
+    }
     Function(declaration) => {
       add_definition(
         definitions,

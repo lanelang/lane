@@ -332,6 +332,35 @@ test "parse offered value definitions and contextual parameter syntax" {
 }
 
 ///|
+test "parse effect declarations and effect kind" {
+  let file = expect_parse_ok(
+    (
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|  choose[A](A, A) -> A
+      #|}
+      #|struct Runner[F : Effect] {
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|  choose[A](A, A) -> A
+      #|}
+      #|
+      #|struct Runner[F : Effect] {}
+    ),
+  )
+}
+
+///|
 test "parse existential surface syntax" {
   let file = expect_parse_ok(
     (

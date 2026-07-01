@@ -79,6 +79,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     TRUE => "`true`"
     STRUCT => "`struct`"
     ENUM => "`enum`"
+    EFFECT => "`effect`"
     FN => "`fn`"
     LET => "`let`"
     TYPE => "`type`"
@@ -138,6 +139,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_TRUE => "`true`"
     TK_STRUCT => "`struct`"
     TK_ENUM => "`enum`"
+    TK_EFFECT => "`effect`"
     TK_FN => "`fn`"
     TK_LET => "`let`"
     TK_TYPE => "`type`"
@@ -197,6 +199,7 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     TRUE => TRUE
     STRUCT => STRUCT
     ENUM => ENUM
+    EFFECT => EFFECT
     FN => FN
     LET => LET
     TYPE => TYPE

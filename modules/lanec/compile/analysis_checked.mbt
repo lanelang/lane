@@ -68,7 +68,7 @@ fn collect_checked_top_level_parameter_signatures(
       )
       collect_checked_expr_parameter_signatures(declaration.body, signatures)
     }
-    Enum(_) => ()
+    Enum(_) | Effect(_) => ()
     Let(declaration) =>
       collect_checked_expr_parameter_signatures(
         declaration.initializer,
@@ -263,6 +263,7 @@ fn collect_checked_top_level_declaration(
         )
       }
     }
+    Effect(_) => ()
     Function(declaration) => {
       add_definition(
         definitions,

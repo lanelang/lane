@@ -27,6 +27,7 @@ pub(all) enum Token {
   TRUE
   STRUCT
   ENUM
+  EFFECT
   FN
   LET
   TYPE
@@ -84,6 +85,7 @@ pub(all) enum TokenKind {
   TK_TRUE
   TK_STRUCT
   TK_ENUM
+  TK_EFFECT
   TK_FN
   TK_LET
   TK_TYPE

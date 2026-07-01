@@ -9,6 +9,7 @@ pub(all) struct CheckedSourceFile {
 pub(all) enum CheckedTopLevelDeclaration {
   Struct(CheckedStructDeclaration)
   Enum(CheckedEnumDeclaration)
+  Effect(CheckedEffectDeclaration)
   Function(CheckedFunctionDeclaration)
   Let(CheckedLetDeclaration)
 } derive(Debug, Eq)
@@ -61,6 +62,27 @@ pub(all) struct CheckedVariantDeclaration {
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedEffectDeclaration {
+  is_public : Bool
+  symbol : EffectSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  operations : Array[CheckedEffectOperationDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedEffectOperationDeclaration {
+  symbol : OperationSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[@types.TypeParameter]
+  payload : Array[@types.Type]
+  result : @types.Type
   loc : SourceSpan
 } derive(Debug, Eq)
 

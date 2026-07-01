@@ -5,6 +5,8 @@ using @basic {type SourceSpan}
 using @syntax {
   type EnumDeclaration,
   type EnumVariant,
+  type EffectDeclaration,
+  type EffectOperationDeclaration,
   type Expr,
   type FieldDeclaration,
   type FunctionDeclaration,

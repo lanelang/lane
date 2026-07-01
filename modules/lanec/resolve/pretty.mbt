@@ -20,6 +20,7 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    Effect(declaration) => declaration.pretty()
     TypeAlias(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
@@ -147,6 +148,7 @@ pub impl @prettyprinter.Pretty for ResolvedKind with fn pretty(
 ) {
   match kind {
     Type(..) => text("Type")
+    Effect(..) => text("Effect")
     Function(parameters~, result~, ..) =>
       @pretty.bracketed_inline(parameters.map(ResolvedKind::pretty)) +
       space +
@@ -217,6 +219,41 @@ pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration with fn pretty(
   text("=") +
   space +
   declaration.body.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectDeclaration with fn pretty(
+  declaration : ResolvedEffectDeclaration,
+) {
+  text("effect") +
+  space +
+  declaration.symbol.pretty() +
+  space +
+  text(declaration.name) +
+  type_parameters_doc(declaration.type_parameters) +
+  space +
+  @pretty.braced_block(
+    declaration.operations.map(ResolvedEffectOperationDeclaration::pretty),
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectOperationDeclaration with fn pretty(
+  operation : ResolvedEffectOperationDeclaration,
+) {
+  text("operation") +
+  space +
+  operation.symbol.pretty() +
+  space +
+  text(operation.name) +
+  space +
+  text("index=\{operation.index}") +
+  type_parameters_doc(operation.type_parameters) +
+  payload_doc(operation.payload) +
+  space +
+  text("->") +
+  space +
+  operation.result.pretty()
 }
 
 ///|

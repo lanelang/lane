@@ -11,10 +11,17 @@ priv struct TypeParameterMapEntry {
 }
 
 ///|
+priv struct EffectSymbolMapEntry {
+  source : @symbol.EffectSymbolId
+  target : @symbol.EffectSymbolId
+}
+
+///|
 priv struct InterfaceSymbolFreshener {
   registry : @symbol.SymbolRegistry
   types : Array[TypeSymbolMapEntry]
   type_parameters : Array[TypeParameterMapEntry]
+  effects : Array[EffectSymbolMapEntry]
 }
 
 ///|
@@ -36,9 +43,13 @@ fn freshen_module_interface(
 ) -> @module_interface.ModuleInterface {
   let freshener = InterfaceSymbolFreshener::InterfaceSymbolFreshener(registry)
   freshener.predeclare_nominal_types(interface)
+  freshener.predeclare_effects(interface)
   {
     module_path: interface.module_path,
     types: interface.types.map(fn(type_) { freshener.freshen_type(type_) }),
+    effects: interface.effects.map(fn(effect) {
+      freshener.freshen_effect(effect)
+    }),
     type_aliases: interface.type_aliases.map(fn(type_alias) {
       freshener.freshen_type_alias(type_alias)
     }),
@@ -51,7 +62,7 @@ fn freshen_module_interface(
 fn InterfaceSymbolFreshener::InterfaceSymbolFreshener(
   registry : @symbol.SymbolRegistry,
 ) -> InterfaceSymbolFreshener {
-  { registry, types: [], type_parameters: [] }
+  { registry, types: [], type_parameters: [], effects: [] }
 }
 
 ///|
@@ -82,6 +93,23 @@ fn InterfaceSymbolFreshener::predeclare_nominal_types(
           ),
         )
     }
+  }
+}
+
+///|
+fn InterfaceSymbolFreshener::predeclare_effects(
+  self : InterfaceSymbolFreshener,
+  interface : @module_interface.ModuleInterface,
+) -> Unit {
+  for effect in interface.effects {
+    ignore(
+      self.define_effect(
+        effect.symbol,
+        effect.name,
+        effect.type_parameters.length(),
+        effect.loc,
+      ),
+    )
   }
 }
 
@@ -211,6 +239,48 @@ fn InterfaceSymbolFreshener::freshen_variant(
     type_parameters,
     payload: variant.payload.map(fn(type_) { self.freshen_lane_type(type_) }),
     loc: variant.loc,
+  }
+}
+
+///|
+fn InterfaceSymbolFreshener::freshen_effect(
+  self : InterfaceSymbolFreshener,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> @module_interface.ModuleInterfaceEffect {
+  let symbol = self.remap_effect_symbol(effect.symbol)
+  let type_parameters = effect.type_parameters.map(fn(parameter) {
+    self.freshen_type_parameter(parameter)
+  })
+  let operations = effect.operations.map(fn(operation) {
+    self.freshen_operation(symbol, operation)
+  })
+  { symbol, name: effect.name, type_parameters, operations, loc: effect.loc }
+}
+
+///|
+fn InterfaceSymbolFreshener::freshen_operation(
+  self : InterfaceSymbolFreshener,
+  owner : @symbol.EffectSymbolId,
+  operation : @module_interface.ModuleInterfaceOperation,
+) -> @module_interface.ModuleInterfaceOperation {
+  let type_parameters = operation.type_parameters.map(fn(parameter) {
+    self.freshen_type_parameter(parameter)
+  })
+  let symbol = self.registry.define_operation(
+    owner,
+    operation.name,
+    operation.index,
+    operation.payload.length(),
+    operation.loc,
+  )
+  {
+    symbol,
+    name: operation.name,
+    index: operation.index,
+    type_parameters,
+    payload: operation.payload.map(fn(type_) { self.freshen_lane_type(type_) }),
+    result: self.freshen_lane_type(operation.result),
+    loc: operation.loc,
   }
 }
 
@@ -352,6 +422,24 @@ fn InterfaceSymbolFreshener::define_type(
 }
 
 ///|
+fn InterfaceSymbolFreshener::define_effect(
+  self : InterfaceSymbolFreshener,
+  source : @symbol.EffectSymbolId,
+  name : String,
+  arity : Int,
+  loc : @basic.SourceSpan,
+) -> @symbol.EffectSymbolId {
+  match self.lookup_effect_symbol(source) {
+    Some(symbol) => symbol
+    None => {
+      let target = self.registry.define_effect(name, arity, loc)
+      self.effects.push({ source, target })
+      target
+    }
+  }
+}
+
+///|
 fn InterfaceSymbolFreshener::remap_type_symbol(
   self : InterfaceSymbolFreshener,
   source : @symbol.TypeSymbolId,
@@ -374,11 +462,35 @@ fn InterfaceSymbolFreshener::remap_type_parameter(
 }
 
 ///|
+fn InterfaceSymbolFreshener::remap_effect_symbol(
+  self : InterfaceSymbolFreshener,
+  source : @symbol.EffectSymbolId,
+) -> @symbol.EffectSymbolId {
+  match self.lookup_effect_symbol(source) {
+    Some(target) => target
+    None => source
+  }
+}
+
+///|
 fn InterfaceSymbolFreshener::lookup_type_symbol(
   self : InterfaceSymbolFreshener,
   source : @symbol.TypeSymbolId,
 ) -> @symbol.TypeSymbolId? {
   for entry in self.types {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn InterfaceSymbolFreshener::lookup_effect_symbol(
+  self : InterfaceSymbolFreshener,
+  source : @symbol.EffectSymbolId,
+) -> @symbol.EffectSymbolId? {
+  for entry in self.effects {
     if entry.source == source {
       return Some(entry.target)
     }

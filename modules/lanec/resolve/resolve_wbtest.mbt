@@ -84,6 +84,52 @@ test "collect top level declaration symbols" {
 }
 
 ///|
+test "resolve effect declarations and operation symbols" {
+  let file = expect_parse_ok(
+    (
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|  choose[A](A, A) -> A
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(resolve_source_file(file), width=100),
+    content=(
+      #|resolved {
+      #|  symbols {
+      #|    types {}
+      #|    type_parameters {
+      #|      tparam#0 S
+      #|      tparam#1 A
+      #|    }
+      #|    type_members {}
+      #|    values {}
+      #|    fields {}
+      #|    variants {}
+      #|    effects {
+      #|      effect#0 State/1
+      #|    }
+      #|    operations {
+      #|      operation#0 owner=effect#0 get index=0 payloads=0
+      #|      operation#1 owner=effect#0 put index=1 payloads=1
+      #|      operation#2 owner=effect#0 choose index=2 payloads=2
+      #|    }
+      #|  }
+      #|  declarations {
+      #|    effect effect#0 State[tparam#0 S] {
+      #|      operation operation#0 get index=0 -> tparam#0 S
+      #|      operation operation#1 put index=1(tparam#0 S) -> Unit
+      #|      operation operation#2 choose index=2[tparam#1 A](tparam#1 A, tparam#1 A) -> tparam#1 A
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "resolve unqualified variant calls after nominal member collection" {
   let file = expect_parse_ok(
     (

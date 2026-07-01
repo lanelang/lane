@@ -10,6 +10,7 @@ pub(all) struct DesugaredSourceFile {
 pub(all) enum DesugaredTopLevelDeclaration {
   Struct(@resolve.ResolvedStructDeclaration)
   Enum(@resolve.ResolvedEnumDeclaration)
+  Effect(@resolve.ResolvedEffectDeclaration)
   Function(DesugaredFunctionDeclaration)
   Let(DesugaredLetDeclaration)
   Offer(DesugaredOfferDeclaration)

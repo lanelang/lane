@@ -241,6 +241,84 @@ test "typecheck preserves existential declaration metadata" {
 }
 
 ///|
+test "typecheck effect declaration environment and public interface" {
+  let result = expect_declaration_typecheck_result(
+    (
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|}
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|declaration_typecheck_result {
+      #|  checked_declarations {
+      #|    types {}
+      #|    type_members {}
+      #|    fields {}
+      #|    variants {}
+      #|    effects {
+      #|      effect effect#0 State[S#0 : Type] {
+      #|        operation operation#0 get -> tparam#0
+      #|        operation operation#1 put(tparam#0) -> Unit
+      #|      }
+      #|      effect effect#1 Console {
+      #|        operation operation#2 write(String) -> Unit
+      #|      }
+      #|    }
+      #|    operations {
+      #|      operation operation#0 get -> tparam#0
+      #|      operation operation#1 put(tparam#0) -> Unit
+      #|      operation operation#2 write(String) -> Unit
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+  let checked = expect_checked_source_result(
+    (
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|}
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+    ),
+  )
+  guard checked.module_interface is Some(interface) else {
+    abort("expected module interface")
+  }
+  inspect(
+    module_interface_effect_signatures(interface),
+    content="State[1]{get/0->tparam#0,put/1->Unit}",
+  )
+}
+
+///|
+fn module_interface_effect_signatures(
+  interface : @module_interface.ModuleInterface,
+) -> String {
+  interface.effects
+  .map(fn(effect) {
+    let operations = effect.operations
+      .map(fn(operation) {
+        let result = @prettyprinter.render(operation.result.pretty(), width=100)
+        "\{operation.name}/\{operation.payload.length()}->\{result}"
+      })
+      .join(",")
+    "\{effect.name}[\{effect.type_parameters.length()}]{\{operations}}"
+  })
+  .join(";")
+}
+
+///|
 test "typecheck builds checked builtin from direct expected type" {
   let expression = expect_checked_let_initializer(
     (

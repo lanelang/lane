@@ -9,6 +9,7 @@ pub(all) enum PrimitiveType {
 ///|
 pub(all) enum Kind {
   Type
+  Effect
   Function(Array[Kind], Kind)
 } derive(Debug, Eq)
 

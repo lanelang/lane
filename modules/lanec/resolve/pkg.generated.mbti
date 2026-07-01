@@ -57,6 +57,27 @@ pub(all) enum ResolvedCallArgument {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedCallArgument
 
+pub(all) struct ResolvedEffectDeclaration {
+  is_public : Bool
+  symbol : @symbol.EffectSymbolId
+  name : String
+  type_parameters : Array[ResolvedTypeParameter]
+  operations : Array[ResolvedEffectOperationDeclaration]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedEffectDeclaration
+
+pub(all) struct ResolvedEffectOperationDeclaration {
+  symbol : @symbol.OperationSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[ResolvedTypeParameter]
+  payload : Array[ResolvedType]
+  result : ResolvedType
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedEffectOperationDeclaration
+
 pub(all) struct ResolvedEnumDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
@@ -139,6 +160,7 @@ pub impl @prettyprinter.Pretty for ResolvedFunctionLiteralParameter
 
 pub(all) enum ResolvedKind {
   Type(loc~ : @basic.SourceSpan)
+  Effect(loc~ : @basic.SourceSpan)
   Function(parameters~ : Array[ResolvedKind], result~ : ResolvedKind, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedKind
@@ -237,6 +259,7 @@ pub impl @prettyprinter.Pretty for ResolvedStructPatternField
 pub(all) enum ResolvedTopLevelDeclaration {
   Struct(ResolvedStructDeclaration)
   Enum(ResolvedEnumDeclaration)
+  Effect(ResolvedEffectDeclaration)
   TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)

@@ -16,6 +16,7 @@ pub impl @prettyprinter.Pretty for CheckedTopLevelDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    Effect(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
   }
@@ -83,6 +84,33 @@ pub impl @prettyprinter.Pretty for CheckedVariantDeclaration with fn pretty(
   variant_name_doc(variant.name, variant.symbol) +
   type_parameters_doc(variant.type_parameters) +
   payload_doc(variant.payload)
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedEffectDeclaration with fn pretty(
+  declaration : CheckedEffectDeclaration,
+) {
+  text("effect") +
+  space +
+  effect_name_doc(declaration.name, declaration.symbol) +
+  type_parameters_doc(declaration.type_parameters) +
+  space +
+  @pretty.braced_block(
+    declaration.operations.map(CheckedEffectOperationDeclaration::pretty),
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedEffectOperationDeclaration with fn pretty(
+  operation : CheckedEffectOperationDeclaration,
+) {
+  operation_name_doc(operation.name, operation.symbol) +
+  type_parameters_doc(operation.type_parameters) +
+  payload_doc(operation.payload) +
+  space +
+  text("->") +
+  space +
+  operation.result.pretty()
 }
 
 ///|
@@ -375,6 +403,16 @@ fn variant_name_doc(name : String, symbol : VariantSymbolId) -> Document {
 }
 
 ///|
+fn effect_name_doc(name : String, symbol : EffectSymbolId) -> Document {
+  text(name) + effect_suffix(symbol)
+}
+
+///|
+fn operation_name_doc(name : String, symbol : OperationSymbolId) -> Document {
+  text(name) + operation_suffix(symbol)
+}
+
+///|
 fn type_symbol_doc(symbol : TypeSymbolId) -> Document {
   text("type") + type_suffix(symbol)
 }
@@ -421,6 +459,16 @@ fn field_suffix(symbol : FieldSymbolId) -> Document {
 
 ///|
 fn variant_suffix(symbol : VariantSymbolId) -> Document {
+  text("#\{symbol.index}")
+}
+
+///|
+fn effect_suffix(symbol : EffectSymbolId) -> Document {
+  text("#\{symbol.index}")
+}
+
+///|
+fn operation_suffix(symbol : OperationSymbolId) -> Document {
   text("#\{symbol.index}")
 }
 

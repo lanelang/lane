@@ -14,6 +14,7 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
 pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
   match kind {
     Type => text("Type")
+    Effect => text("Effect")
     Function(parameters, result) =>
       group(
         bracketed(parameters.map(Kind::pretty)) +

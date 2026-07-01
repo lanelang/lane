@@ -2,6 +2,7 @@
 let keyword_table : @hashmap.HashMap[String, Token] = [
     ("struct", STRUCT),
     ("enum", ENUM),
+    ("effect", EFFECT),
     ("fn", FN),
     ("let", LET),
     ("type", TYPE),
@@ -21,7 +22,5 @@ let keyword_table : @hashmap.HashMap[String, Token] = [
   |> @hashmap.from_array()
 
 ///|
-let reserved_word_table : @hashset.HashSet[String] = [
-    "effect", "handler", "return",
-  ]
+let reserved_word_table : @hashset.HashSet[String] = ["handler", "return"]
   |> @hashset.from_array()

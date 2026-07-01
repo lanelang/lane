@@ -3,6 +3,7 @@ priv struct Resolver {
   registry : SymbolRegistry
   modules : Array[ModuleBinding]
   types : Array[TypeBinding]
+  effects : Array[EffectBinding]
   type_aliases : Array[TypeAliasBinding]
   top_values : Array[ValueBinding]
   ordered_top_values : Array[ValueBinding]
@@ -19,6 +20,12 @@ priv struct ModuleBinding {
 priv struct TypeBinding {
   name : String
   symbol : TypeSymbolId
+}
+
+///|
+priv struct EffectBinding {
+  name : String
+  symbol : EffectSymbolId
 }
 
 ///|
@@ -91,6 +98,7 @@ fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
     registry,
     modules: [],
     types: [],
+    effects: [],
     type_aliases: [],
     top_values: [],
     ordered_top_values: [],
@@ -118,6 +126,7 @@ fn Resolver::publish_imported_bindings(
               module_path, imported_environment,
             )
             self.publish_imported_public_types(imported)
+            self.publish_imported_public_effects(imported)
             self.publish_imported_public_values(imported, loc)
           }
           None => ()
@@ -132,6 +141,7 @@ fn Resolver::publish_imported_bindings(
               module_path, imported_environment,
             )
             self.publish_imported_selected_types(imported, items)
+            self.publish_imported_selected_effects(imported, items)
             self.publish_imported_selected_values(imported, items)
           }
           None => ignore(loc)
@@ -173,6 +183,16 @@ fn Resolver::publish_imported_public_types(
 }
 
 ///|
+fn Resolver::publish_imported_public_effects(
+  self : Resolver,
+  interface : @module_interface.ModuleInterface,
+) -> Unit {
+  for effect in interface.effects {
+    self.publish_effect_binding(effect.name, effect.symbol)
+  }
+}
+
+///|
 fn Resolver::publish_imported_selected_types(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
@@ -191,6 +211,21 @@ fn Resolver::publish_imported_selected_types(
     for type_alias in interface.type_aliases {
       if type_alias.name == item.name {
         self.type_aliases.push({ name: type_alias.name })
+      }
+    }
+  }
+}
+
+///|
+fn Resolver::publish_imported_selected_effects(
+  self : Resolver,
+  interface : @module_interface.ModuleInterface,
+  items : Array[@syntax.ImportItem],
+) -> Unit {
+  for item in items {
+    for effect in interface.effects {
+      if effect.name == item.name {
+        self.publish_effect_binding(effect.name, effect.symbol)
       }
     }
   }
@@ -261,6 +296,15 @@ fn Resolver::collect_top_level_headers(
           self.registry.define_type(
             declaration.name,
             Enum,
+            declaration.type_parameters.length(),
+            declaration.loc,
+          ),
+        )
+      Effect(declaration) =>
+        self.publish_effect_binding(
+          declaration.name,
+          self.registry.define_effect(
+            declaration.name,
             declaration.type_parameters.length(),
             declaration.loc,
           ),
@@ -358,6 +402,20 @@ fn Resolver::collect_nominal_members(
           |> ignore
         }
       }
+      Effect(declaration) => {
+        let owner = self.effect_symbol(declaration.name)
+        for index in 0..<declaration.operations.length() {
+          let operation = declaration.operations[index]
+          self.registry.define_operation(
+            owner,
+            operation.name,
+            index,
+            operation.payload.length(),
+            operation.loc,
+          )
+          |> ignore
+        }
+      }
       TypeAlias(_) | Function(_) | Let(_) | Offer(_) => ()
     }
   }
@@ -376,6 +434,7 @@ fn @syntax.TopLevelDeclaration::resolve_top_level(
   match self {
     Struct(declaration) => Struct(declaration.resolve_struct(resolver))
     Enum(declaration) => Enum(declaration.resolve_enum(resolver))
+    Effect(declaration) => Effect(declaration.resolve_effect(resolver))
     TypeAlias(declaration) =>
       TypeAlias(declaration.resolve_type_alias(resolver))
     Function(declaration) =>
@@ -478,6 +537,7 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
 fn @syntax.Kind::resolve_kind(self : @syntax.Kind) -> ResolvedKind {
   match self {
     Type(loc~) => Type(loc~)
+    Effect(loc~) => Effect(loc~)
     Function(parameters~, result~, loc~) =>
       Function(
         parameters=parameters.map(fn(parameter) { parameter.resolve_kind() }),
@@ -627,6 +687,57 @@ fn @syntax.EnumVariant::resolve_variant(
     payload: self.payload.map(fn(type_) {
       type_.resolve_type(resolver, variant_scope)
     }),
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.EffectDeclaration::resolve_effect(
+  self : @syntax.EffectDeclaration,
+  resolver : Resolver,
+) -> ResolvedEffectDeclaration {
+  let symbol = resolver.effect_symbol(self.name)
+  let type_parameters = resolver.resolve_type_parameters(
+    self.type_parameters,
+    self.loc,
+  )
+  let scope = resolver.scope(type_parameters)
+  let operations = self.operations.mapi(fn(index, operation) {
+    operation.resolve_operation(resolver, scope, symbol, index)
+  })
+  {
+    is_public: self.is_public,
+    symbol,
+    name: self.name,
+    type_parameters,
+    operations,
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.EffectOperationDeclaration::resolve_operation(
+  self : @syntax.EffectOperationDeclaration,
+  resolver : Resolver,
+  scope : ResolveScope,
+  owner : EffectSymbolId,
+  index : Int,
+) -> ResolvedEffectOperationDeclaration {
+  let type_parameters = resolver.resolve_type_parameters(
+    self.type_parameters,
+    self.loc,
+  )
+  let operation_scope = scope.enter_scope()
+  operation_scope.type_parameters.append(type_parameters)
+  {
+    symbol: resolver.operation_symbol(owner, self.name),
+    name: self.name,
+    index,
+    type_parameters,
+    payload: self.payload.map(fn(type_) {
+      type_.resolve_type(resolver, operation_scope)
+    }),
+    result: self.result.resolve_type(resolver, operation_scope),
     loc: self.loc,
   }
 }
@@ -1977,6 +2088,40 @@ fn Resolver::publish_type_binding(
   symbol : TypeSymbolId,
 ) -> Unit {
   self.types.push({ name, symbol })
+}
+
+///|
+fn Resolver::effect_symbol(self : Resolver, name : String) -> EffectSymbolId {
+  self.effect_binding(name).unwrap().symbol
+}
+
+///|
+fn Resolver::effect_binding(self : Resolver, name : String) -> EffectBinding? {
+  for index = self.effects.length(); index > 0; index = index - 1 {
+    let binding = self.effects[index - 1]
+    if binding.name == name {
+      return Some(binding)
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::publish_effect_binding(
+  self : Resolver,
+  name : String,
+  symbol : EffectSymbolId,
+) -> Unit {
+  self.effects.push({ name, symbol })
+}
+
+///|
+fn Resolver::operation_symbol(
+  self : Resolver,
+  owner : EffectSymbolId,
+  name : String,
+) -> OperationSymbolId {
+  self.registry.operation_named(owner, name).unwrap()
 }
 
 ///|

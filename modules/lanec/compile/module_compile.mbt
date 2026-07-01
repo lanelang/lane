@@ -1779,6 +1779,9 @@ fn interface_fingerprint(
   let alias_fingerprints = interface.type_aliases
     .map(fn(type_alias) { interface_alias_fingerprint(context, type_alias) })
     .join(",")
+  let effect_fingerprints = interface.effects
+    .map(fn(effect) { interface_effect_fingerprint(context, effect) })
+    .join(",")
   let value_fingerprints = interface.values
     .map(fn(value) { interface_value_fingerprint(context, value) })
     .join(",")
@@ -1786,7 +1789,7 @@ fn interface_fingerprint(
     .map(fn(hint) { hint.name })
     .join(",")
   {
-    value: "\{interface.module_path}|types:\{type_fingerprints}|aliases:\{alias_fingerprints}|values:\{value_fingerprints}|hints:\{hint_fingerprints}",
+    value: "\{interface.module_path}|types:\{type_fingerprints}|aliases:\{alias_fingerprints}|effects:\{effect_fingerprints}|values:\{value_fingerprints}|hints:\{hint_fingerprints}",
   }
 }
 
@@ -1886,6 +1889,37 @@ fn interface_alias_fingerprint(
   type_alias : @module_interface.ModuleInterfaceTypeAlias,
 ) -> String {
   "\{type_alias.name}:\{kind_fingerprint(type_alias.kind)}=\{context.type_fingerprint(type_alias.body)}"
+}
+
+///|
+fn interface_effect_fingerprint(
+  context : FingerprintTypeContext,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> String {
+  let context = context.with_type_parameters(effect.type_parameters)
+  let type_parameters = effect.type_parameters
+    .map(type_parameter_fingerprint)
+    .join(",")
+  let operations = effect.operations
+    .map(fn(operation) { interface_operation_fingerprint(context, operation) })
+    .join(",")
+  "effect \{effect.name}[\{type_parameters}]{\{operations}}"
+}
+
+///|
+fn interface_operation_fingerprint(
+  context : FingerprintTypeContext,
+  operation : @module_interface.ModuleInterfaceOperation,
+) -> String {
+  let context = context.with_type_parameters(operation.type_parameters)
+  let type_parameters = operation.type_parameters
+    .map(type_parameter_fingerprint)
+    .join(",")
+  let payload = operation.payload
+    .map(fn(type_) { context.type_fingerprint(type_) })
+    .join(",")
+  let result = context.type_fingerprint(operation.result)
+  "\{operation.name}[\{type_parameters}](\{payload})->\{result}#\{operation.index}"
 }
 
 ///|

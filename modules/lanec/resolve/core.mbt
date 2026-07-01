@@ -47,6 +47,7 @@ pub(all) enum ResolveDiagnosticKind {
 pub(all) enum ResolvedTopLevelDeclaration {
   Struct(ResolvedStructDeclaration)
   Enum(ResolvedEnumDeclaration)
+  Effect(ResolvedEffectDeclaration)
   TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
@@ -110,6 +111,27 @@ pub(all) struct ResolvedEnumVariant {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct ResolvedEffectDeclaration {
+  is_public : Bool
+  symbol : EffectSymbolId
+  name : String
+  type_parameters : Array[ResolvedTypeParameter]
+  operations : Array[ResolvedEffectOperationDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedEffectOperationDeclaration {
+  symbol : OperationSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[ResolvedTypeParameter]
+  payload : Array[ResolvedType]
+  result : ResolvedType
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
@@ -160,6 +182,7 @@ pub(all) struct ResolvedTypeParameter {
 ///|
 pub(all) enum ResolvedKind {
   Type(loc~ : SourceSpan)
+  Effect(loc~ : SourceSpan)
   Function(
     parameters~ : Array[ResolvedKind],
     result~ : ResolvedKind,

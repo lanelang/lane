@@ -68,6 +68,7 @@ fn SemanticChecker::check_checked_top_level_declaration(
   match declaration {
     Struct(declaration) => self.checked_top_level_struct(declaration)
     Enum(declaration) => self.checked_top_level_enum(declaration)
+    Effect(declaration) => self.checked_top_level_effect(declaration)
     Function(declaration) => self.checked_top_level_function(declaration)
     Let(declaration) => self.checked_top_level_let(declaration)
     Offer(declaration) => self.checked_top_level_offer(declaration)
@@ -102,6 +103,21 @@ fn SemanticChecker::checked_top_level_enum(
     return None
   }
   Some(Enum(checked.to_checked_enum_declaration()))
+}
+
+///|
+fn SemanticChecker::checked_top_level_effect(
+  self : SemanticChecker,
+  declaration : @resolve.ResolvedEffectDeclaration,
+) -> @checked.CheckedTopLevelDeclaration? {
+  guard self.declarations.checked_effect(declaration.symbol) is Some(checked) else {
+    self.diagnostics.push({
+      kind: CannotInferExpression("checked effect " + declaration.name),
+      loc: declaration.loc,
+    })
+    return None
+  }
+  Some(Effect(checked.to_checked_effect_declaration()))
 }
 
 ///|
@@ -509,6 +525,37 @@ fn CheckedVariantDeclaration::to_checked_variant_declaration(
     index: self.index,
     type_parameters: self.type_parameters,
     payload: self.payload,
+    loc: self.loc,
+  }
+}
+
+///|
+fn CheckedEffectDeclaration::to_checked_effect_declaration(
+  self : CheckedEffectDeclaration,
+) -> @checked.CheckedEffectDeclaration {
+  {
+    symbol: self.symbol,
+    is_public: self.is_public,
+    name: self.name,
+    type_parameters: self.type_parameters,
+    operations: self.operations.map(
+      CheckedEffectOperationDeclaration::to_checked_effect_operation_declaration,
+    ),
+    loc: self.loc,
+  }
+}
+
+///|
+fn CheckedEffectOperationDeclaration::to_checked_effect_operation_declaration(
+  self : CheckedEffectOperationDeclaration,
+) -> @checked.CheckedEffectOperationDeclaration {
+  {
+    symbol: self.symbol,
+    name: self.name,
+    index: self.index,
+    type_parameters: self.type_parameters,
+    payload: self.payload,
+    result: self.result,
     loc: self.loc,
   }
 }

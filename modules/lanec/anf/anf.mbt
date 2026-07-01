@@ -24,6 +24,7 @@ pub(all) struct AnfProgram {
 pub(all) enum AnfTopLevelDeclaration {
   Struct(@checked.CheckedStructDeclaration)
   Enum(@checked.CheckedEnumDeclaration)
+  Effect(@checked.CheckedEffectDeclaration)
   Function(AnfFunctionDeclaration)
   Let(AnfLetDeclaration)
 } derive(Debug, Eq)

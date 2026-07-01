@@ -365,6 +365,70 @@ test "module artifacts roundtrip through text and link" {
 }
 
 ///|
+test "compile module interface preserves public effects across artifact import" {
+  let lib_compiled = compile_modules(
+    (
+      #|module Lib
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|}
+      #|pub let value : Int = 42
+    ),
+    [],
+  )
+  inspect(
+    @prettyprinter.render(lib_compiled.diagnostics, width=100),
+    content="[]",
+  )
+  guard lib_compiled.modules is Some(lib_modules) else {
+    abort("expected Lib modules")
+  }
+  guard lib_modules.modules.get(0) is Some(lib_module) else {
+    abort("expected Lib module")
+  }
+  let lib_artifact = lib_module.to_artifact()
+  let interface_text = module_interface_artifact_to_text(lib_artifact.interface)
+  let decoded = match parse_module_interface_artifact_text(interface_text) {
+    Ok(interface) => interface
+    Err(message) => abort(message)
+  }
+  inspect(
+    interface_effect_signatures(decoded.interface),
+    content="State[1]{get/0->tparam#0,put/1->Unit}",
+  )
+  let main_compiled = compile_module_with_interface_artifacts(
+    (
+      #|module Main
+      #|import Lib.{State}
+      #|pub let answer : Int = 42
+    ),
+    [lib_artifact.interface],
+  )
+  inspect(
+    @prettyprinter.render(main_compiled.diagnostics, width=100),
+    content="[]",
+  )
+}
+
+///|
+fn interface_effect_signatures(
+  interface : @module_interface.ModuleInterface,
+) -> String {
+  interface.effects
+  .map(fn(effect) {
+    let operations = effect.operations
+      .map(fn(operation) {
+        let result = @prettyprinter.render(operation.result.pretty(), width=100)
+        "\{operation.name}/\{operation.payload.length()}->\{result}"
+      })
+      .join(",")
+    "\{effect.name}[\{effect.type_parameters.length()}]{\{operations}}"
+  })
+  .join(";")
+}
+
+///|
 test "module object text rejects old schema one artifact" {
   let parsed = parse_module_object_artifact_text(
     (
@@ -722,6 +786,7 @@ test "compile module rejects interface artifact name mismatch" {
   let damaged_interface : @module_interface.ModuleInterface = {
     module_path: "Other",
     types: interface.types,
+    effects: interface.effects,
     type_aliases: interface.type_aliases,
     values: interface.values,
     optimization_hints: interface.optimization_hints,

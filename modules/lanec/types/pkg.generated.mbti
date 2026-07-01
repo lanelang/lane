@@ -15,6 +15,7 @@ pub fn nominal_type(@symbol.TypeSymbolId, Array[Type]) -> Type
 // Types and methods
 pub(all) enum Kind {
   Type
+  Effect
   Function(Array[Kind], Kind)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Kind

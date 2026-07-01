@@ -158,6 +158,7 @@ fn TopLevelDeclaration::to_doc(self : TopLevelDeclaration) -> Document {
   match self {
     Struct(declaration) => declaration.to_doc()
     Enum(declaration) => declaration.to_doc()
+    Effect(declaration) => declaration.to_doc()
     TypeAlias(declaration) => declaration.to_doc()
     Function(declaration) => declaration.to_doc()
     Let(declaration) => declaration.to_doc()
@@ -240,6 +241,7 @@ pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
 fn Kind::to_doc(self : Kind) -> Document {
   match self {
     Type(..) => text("Type")
+    Effect(..) => text("Effect")
     Function(parameters~, result~, ..) =>
       brackets(join_comma(parameters.map(Kind::to_doc))) +
       space +
@@ -247,6 +249,44 @@ fn Kind::to_doc(self : Kind) -> Document {
       space +
       result.to_doc()
   }
+}
+
+///|
+pub impl @prettyprinter.Pretty for EffectDeclaration with fn pretty(
+  declaration : EffectDeclaration,
+) {
+  declaration.to_doc()
+}
+
+///|
+fn EffectDeclaration::to_doc(self : EffectDeclaration) -> Document {
+  public_prefix(self.is_public) +
+  keyword("effect") +
+  space +
+  text(self.name) +
+  bracketed_type_parameters(self.type_parameters) +
+  space +
+  brace_block(self.operations.map(EffectOperationDeclaration::to_doc))
+}
+
+///|
+pub impl @prettyprinter.Pretty for EffectOperationDeclaration with fn pretty(
+  declaration : EffectOperationDeclaration,
+) {
+  declaration.to_doc()
+}
+
+///|
+fn EffectOperationDeclaration::to_doc(
+  self : EffectOperationDeclaration,
+) -> Document {
+  text(self.name) +
+  bracketed_type_parameters(self.type_parameters) +
+  parenthesized(self.payload.map(Type::to_doc)) +
+  space +
+  text("->") +
+  space +
+  self.result.to_doc()
 }
 
 ///|

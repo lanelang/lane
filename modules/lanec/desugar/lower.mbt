@@ -24,6 +24,7 @@ fn desugar_top_level_declaration(
   match declaration {
     Struct(declaration) => Some(Struct(declaration))
     Enum(declaration) => Some(Enum(declaration))
+    Effect(declaration) => Some(Effect(declaration))
     TypeAlias(_) => None
     Function(declaration) =>
       Some(Function(desugar_function_declaration(declaration)))

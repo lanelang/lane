@@ -31,7 +31,7 @@ fn collect_annotated_top_level_values(
       symbols.push(declaration.symbol)
       collect_annotated_expr_values(declaration.initializer, symbols)
     }
-    Struct(_) | Enum(_) | TypeAlias(_) => ()
+    Struct(_) | Enum(_) | Effect(_) | TypeAlias(_) => ()
   }
 }
 

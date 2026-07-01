@@ -9,6 +9,7 @@ pub(all) enum Token {
   TRUE
   STRUCT
   ENUM
+  EFFECT
   FN
   LET
   TYPE

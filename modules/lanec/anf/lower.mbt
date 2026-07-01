@@ -32,6 +32,7 @@ fn AnfLowerer::lower_top_level_declaration(
   match declaration {
     Struct(declaration) => Struct(declaration)
     Enum(declaration) => Enum(declaration)
+    Effect(declaration) => Effect(declaration)
     Function(declaration) =>
       Function(self.lower_function_declaration(declaration))
     Let(declaration) => Let(self.lower_let_declaration(declaration))

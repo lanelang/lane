@@ -16,6 +16,7 @@
 %token TRUE "true"
 %token STRUCT "struct"
 %token ENUM "enum"
+%token EFFECT "effect"
 %token FN "fn"
 %token LET "let"
 %token TYPE "type"
@@ -132,6 +133,7 @@ top_level_declarations -> Array[TopLevelDeclaration]
 top_level_declaration -> TopLevelDeclaration
   : struct_declaration { Struct($1) }
   | enum_declaration { Enum($1) }
+  | effect_declaration { Effect($1) }
   | type_alias_declaration { TypeAlias($1) }
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
@@ -142,6 +144,7 @@ top_level_declaration -> TopLevelDeclaration
 public_top_level_declaration -> TopLevelDeclaration
   : public_struct_declaration { Struct($1) }
   | public_enum_declaration { Enum($1) }
+  | public_effect_declaration { Effect($1) }
   | public_type_alias_declaration { TypeAlias($1) }
   | public_function_declaration { Function($1) }
   | public_top_level_let_declaration { Let($1) }
@@ -190,7 +193,14 @@ type_member_declaration -> TypeMemberDeclaration
 
 kind -> Kind
   : IDENT {
-    Type(loc=span($sloc))
+    if $1 == "Effect" {
+      Effect(loc=span($sloc))
+    } else {
+      Type(loc=span($sloc))
+    }
+  }
+  | "effect" {
+    Effect(loc=span($sloc))
   }
   | "[" kind_list "]" "->" kind {
     Function(parameters=$2, result=$5, loc=span($sloc))
@@ -249,6 +259,29 @@ enum_variant -> EnumVariant
   }
   | IDENT type_parameters "(" non_empty_type_list ")" {
     { name: $1, type_parameters: $2, payload: $4, loc: span($sloc) }
+  }
+  ;
+
+effect_declaration -> EffectDeclaration
+  : "effect" IDENT type_parameters "{" effect_operations "}" {
+    { is_public: false, name: $2, type_parameters: $3, operations: $5, loc: span($sloc) }
+  }
+  ;
+
+public_effect_declaration -> EffectDeclaration
+  : "effect" IDENT type_parameters "{" effect_operations "}" {
+    { is_public: true, name: $2, type_parameters: $3, operations: $5, loc: span($sloc) }
+  }
+  ;
+
+effect_operations -> Array[EffectOperationDeclaration]
+  : { [] }
+  | effect_operations effect_operation { comma_push($1, $2) }
+  ;
+
+effect_operation -> EffectOperationDeclaration
+  : IDENT type_parameters "(" type_list ")" "->" type {
+    { name: $1, type_parameters: $2, payload: $4, result: $7, loc: span($sloc) }
   }
   ;
 

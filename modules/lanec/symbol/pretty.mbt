@@ -46,6 +46,20 @@ pub impl @prettyprinter.Pretty for VariantSymbolId with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for EffectSymbolId with fn pretty(
+  id : EffectSymbolId,
+) {
+  id_doc("effect", id.index)
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationSymbolId with fn pretty(
+  id : OperationSymbolId,
+) {
+  id_doc("operation", id.index)
+}
+
+///|
 pub impl @prettyprinter.Pretty for NominalTypeKind with fn pretty(
   kind : NominalTypeKind,
 ) {
@@ -146,6 +160,29 @@ pub impl @prettyprinter.Pretty for VariantSymbolMetadata with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for EffectSymbolMetadata with fn pretty(
+  metadata : EffectSymbolMetadata,
+) {
+  metadata.id.pretty() + space + text("\{metadata.name}/\{metadata.arity}")
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationSymbolMetadata with fn pretty(
+  metadata : OperationSymbolMetadata,
+) {
+  metadata.id.pretty() +
+  space +
+  text("owner=") +
+  metadata.owner.pretty() +
+  space +
+  text(metadata.name) +
+  space +
+  text("index=\{metadata.index}") +
+  space +
+  text("payloads=\{metadata.payload_count}")
+}
+
+///|
 pub impl @prettyprinter.Pretty for SymbolRegistry with fn pretty(
   registry : SymbolRegistry,
 ) {
@@ -166,5 +203,21 @@ pub impl @prettyprinter.Pretty for SymbolRegistry with fn pretty(
       registry.variants.map(VariantSymbolMetadata::pretty),
     ),
   ]
+  if !registry.effects.is_empty() {
+    sections.push(
+      @pretty.section(
+        "effects",
+        registry.effects.map(EffectSymbolMetadata::pretty),
+      ),
+    )
+  }
+  if !registry.operations.is_empty() {
+    sections.push(
+      @pretty.section(
+        "operations",
+        registry.operations.map(OperationSymbolMetadata::pretty),
+      ),
+    )
+  }
   text("symbols") + space + @pretty.braced_block(sections)
 }
