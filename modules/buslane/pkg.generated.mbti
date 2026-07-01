@@ -47,6 +47,25 @@ pub(all) struct DataConInfo {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DataConInfo
 
+pub(all) enum Effect {
+  Empty
+  Singleton(EffectId, Array[Type])
+  Parameter(TypeParameterId)
+  Union(Array[Effect])
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for Effect
+
+pub(all) struct EffectId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EffectId
+
+pub(all) struct EffectInfo {
+  parameters : Array[TypeParameterId]
+  operations : Array[OperationId]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EffectInfo
+
 pub(all) enum Expr {
   Ref(ValueId)
   Literal(Literal)
@@ -70,6 +89,7 @@ pub impl @prettyprinter.Pretty for FunctionExpr
 
 pub(all) enum Kind {
   Type
+  Effect
   Function(Array[Kind], Kind)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Kind
@@ -95,17 +115,35 @@ pub(all) struct MetadataRegistry {
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
   data_constructors : Array[DataConInfo]
+  effects : Array[EffectInfo]
+  operations : Array[OperationInfo]
 } derive(Eq, @debug.Debug)
 pub fn MetadataRegistry::MetadataRegistry() -> Self
 pub fn MetadataRegistry::data_constructor_info(Self, DataConId) -> DataConInfo?
 pub fn MetadataRegistry::define_data_constructor(Self, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
+pub fn MetadataRegistry::define_effect(Self, Array[TypeParameterId]) -> EffectId
+pub fn MetadataRegistry::define_operation(Self, EffectId, Array[Type], Type) -> OperationId
 pub fn MetadataRegistry::define_type(Self, Array[TypeParameterId]) -> TypeId
 pub fn MetadataRegistry::define_type_parameter(Self, Kind) -> TypeParameterId
 pub fn MetadataRegistry::define_value(Self, ValueKind, Type) -> ValueId
+pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
+pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
 pub fn MetadataRegistry::type_parameter_info(Self, TypeParameterId) -> TypeParameterInfo?
 pub fn MetadataRegistry::value_info(Self, ValueId) -> ValueInfo?
 pub impl @prettyprinter.Pretty for MetadataRegistry
+
+pub(all) struct OperationId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationId
+
+pub(all) struct OperationInfo {
+  owner : EffectId
+  payload_types : Array[Type]
+  result_type : Type
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationInfo
 
 pub(all) enum PrimitiveType {
   Unit

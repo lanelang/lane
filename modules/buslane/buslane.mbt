@@ -19,8 +19,19 @@ pub(all) struct DataConId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) struct EffectId {
+  index : Int
+} derive(Debug, Eq, Compare)
+
+///|
+pub(all) struct OperationId {
+  index : Int
+} derive(Debug, Eq, Compare)
+
+///|
 pub(all) enum Kind {
   Type
+  Effect
   Function(Array[Kind], Kind)
 } derive(Debug, Eq)
 
@@ -42,6 +53,14 @@ pub(all) enum Type {
   Function(Array[Type], Type)
   Forall(Array[TypeParameterId], Type)
 } derive(Debug)
+
+///|
+pub(all) enum Effect {
+  Empty
+  Singleton(EffectId, Array[Type])
+  Parameter(TypeParameterId)
+  Union(Array[Effect])
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum Literal {
@@ -86,11 +105,26 @@ pub(all) struct DataConInfo {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct EffectInfo {
+  parameters : Array[TypeParameterId]
+  operations : Array[OperationId]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct OperationInfo {
+  owner : EffectId
+  payload_types : Array[Type]
+  result_type : Type
+} derive(Debug, Eq)
+
+///|
 pub(all) struct MetadataRegistry {
   types : Array[TypeInfo]
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
   data_constructors : Array[DataConInfo]
+  effects : Array[EffectInfo]
+  operations : Array[OperationInfo]
 } derive(Debug, Eq)
 
 ///|
@@ -167,7 +201,14 @@ pub(all) enum Expr {
 ///|
 /// Creates an empty Buslane metadata registry.
 pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
-  { types: [], type_parameters: [], values: [], data_constructors: [] }
+  {
+    types: [],
+    type_parameters: [],
+    values: [],
+    data_constructors: [],
+    effects: [],
+    operations: [],
+  }
 }
 
 ///|
@@ -204,6 +245,32 @@ pub fn MetadataRegistry::define_data_constructor(
   self.data_constructors.push({ owner, hidden_type_parameters, payload_types })
   guard self.types.get(owner.index) is Some(info) else { return id }
   info.constructors.push(id)
+  id
+}
+
+///|
+/// Defines a Buslane effect constructor and returns its identity.
+pub fn MetadataRegistry::define_effect(
+  self : MetadataRegistry,
+  parameters : Array[TypeParameterId],
+) -> EffectId {
+  let id = EffectId::{ index: self.effects.length() }
+  self.effects.push({ parameters, operations: [] })
+  id
+}
+
+///|
+/// Defines a Buslane effect operation and attaches it to its owner effect.
+pub fn MetadataRegistry::define_operation(
+  self : MetadataRegistry,
+  owner : EffectId,
+  payload_types : Array[Type],
+  result_type : Type,
+) -> OperationId {
+  let id = OperationId::{ index: self.operations.length() }
+  self.operations.push({ owner, payload_types, result_type })
+  guard self.effects.get(owner.index) is Some(info) else { return id }
+  info.operations.push(id)
   id
 }
 
@@ -253,6 +320,24 @@ pub fn MetadataRegistry::data_constructor_info(
   id : DataConId,
 ) -> DataConInfo? {
   self.data_constructors.get(id.index)
+}
+
+///|
+/// Looks up metadata for a Buslane effect constructor.
+pub fn MetadataRegistry::effect_info(
+  self : MetadataRegistry,
+  id : EffectId,
+) -> EffectInfo? {
+  self.effects.get(id.index)
+}
+
+///|
+/// Looks up metadata for a Buslane effect operation.
+pub fn MetadataRegistry::operation_info(
+  self : MetadataRegistry,
+  id : OperationId,
+) -> OperationInfo? {
+  self.operations.get(id.index)
 }
 
 ///|

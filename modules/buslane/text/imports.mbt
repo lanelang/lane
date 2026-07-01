@@ -37,6 +37,8 @@ fn make_metadata(declarations : Array[MetadataDeclaration]) -> MetadataRegistry 
   let type_parameters : Array[TypeParameterInfo] = []
   let values : Array[ValueInfo] = []
   let data_constructors : Array[DataConInfo] = []
+  let effects = []
+  let operations = []
   for declaration in declarations {
     match declaration {
       TypeInfoDecl(id, info) => set_at(types, id.index, info)
@@ -45,7 +47,7 @@ fn make_metadata(declarations : Array[MetadataDeclaration]) -> MetadataRegistry 
       DataConInfoDecl(id, info) => set_at(data_constructors, id.index, info)
     }
   }
-  { types, type_parameters, values, data_constructors }
+  { types, type_parameters, values, data_constructors, effects, operations }
 }
 
 ///|

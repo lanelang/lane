@@ -114,6 +114,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "local" => LOCAL_KIND
     "match_binder" => MATCH_BINDER_KIND
     "Type" => TYPE_KIND
+    "Effect" => EFFECT_KIND
     "Unit" => UNIT_TYPE
     "Bool" => BOOL_TYPE
     "Int" => INT_TYPE

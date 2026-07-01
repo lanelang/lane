@@ -31,6 +31,7 @@
 %token LOCAL_KIND "local"
 %token MATCH_BINDER_KIND "match_binder"
 %token TYPE_KIND "Type"
+%token EFFECT_KIND "Effect"
 %token UNIT_TYPE "Unit"
 %token BOOL_TYPE "Bool"
 %token INT_TYPE "Int"
@@ -183,6 +184,7 @@ literal -> Literal
 
 kind -> Kind
   : "Type" { Type }
+  | "Effect" { Effect }
   | "kind_fn" "(" kind_list "," kind ")" { Function($3, $5) }
   ;
 

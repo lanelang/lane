@@ -38,6 +38,43 @@ test "buslane metadata owns nominal data shape" {
 }
 
 ///|
+test "buslane metadata owns effect operation shape" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let state_param = metadata.define_type_parameter(Type)
+  let row_param = metadata.define_type_parameter(Effect)
+  let state = metadata.define_effect([state_param])
+  let get = metadata.define_operation(state, [], Parameter(state_param))
+  let put = metadata.define_operation(
+    state,
+    [Parameter(state_param)],
+    Primitive(Unit),
+  )
+  inspect(
+    @prettyprinter.render(metadata, width=100),
+    content=(
+      #|metadata {
+      #|  type_parameter tparam#0 : Type
+      #|  type_parameter tparam#1 : Effect
+      #|  effect effect#0[tparam#0] {
+      #|    operation#0() -> tparam#0
+      #|    operation#1(tparam#0) -> Unit
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      Effect::Union([Singleton(state, [int_type()]), Parameter(row_param)]),
+      width=100,
+    ),
+    content="{effect#0[Int], tparam#1}",
+  )
+  assert_true(metadata.effect_info(state).unwrap().operations == [get, put])
+  assert_true(metadata.operation_info(get).unwrap().owner == state)
+  assert_true(metadata.operation_info(put).unwrap().owner == state)
+}
+
+///|
 test "buslane forall equality is alpha equivalent" {
   let left_param = TypeParameterId::{ index: 0 }
   let right_param = TypeParameterId::{ index: 1 }

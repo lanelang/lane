@@ -99,6 +99,7 @@ fn token_label(token : Token) -> String {
     LOCAL_KIND => "local"
     MATCH_BINDER_KIND => "match_binder"
     TYPE_KIND => "Type"
+    EFFECT_KIND => "Effect"
     UNIT_TYPE => "Unit"
     BOOL_TYPE => "Bool"
     INT_TYPE => "Int"
@@ -252,6 +253,7 @@ fn canonical_block(docs : Array[Document]) -> Document {
 fn kind_doc(kind : @buslane.Kind) -> Document {
   match kind {
     Type => text("Type")
+    Effect => text("Effect")
     Function(parameters, result) =>
       call_doc("kind_fn", [kinds_doc(parameters), kind_doc(result)])
   }

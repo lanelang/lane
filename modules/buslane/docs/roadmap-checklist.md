@@ -18,13 +18,13 @@ coordination and independent work items can still live in the issue tracker.
 
 ## 1. Effect Core Data Model And Text
 
-- [ ] Add Buslane identities for effects and operations: `EffectId` and
+- [x] Add Buslane identities for effects and operations: `EffectId` and
   `OperationId`.
-- [ ] Add metadata records for effect constructors and operation signatures.
-- [ ] Extend kinds with `Effect`.
-- [ ] Represent effect terms with empty effects, singleton effects, effect row
+- [x] Add metadata records for effect constructors and operation signatures.
+- [x] Extend kinds with `Effect`.
+- [x] Represent effect terms with empty effects, singleton effects, effect row
   variables, and unions.
-- [ ] Reuse `TypeParameterId` with `Kind::Effect` for effect row variables.
+- [x] Reuse `TypeParameterId` with `Kind::Effect` for effect row variables.
 - [ ] Attach a latent effect to function types; pure functions use the empty
   effect.
 - [ ] Update type equality, substitution, and metadata lookup helpers for

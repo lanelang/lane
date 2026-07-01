@@ -34,9 +34,20 @@ pub impl @prettyprinter.Pretty for DataConId with fn pretty(id : DataConId) {
 }
 
 ///|
+pub impl @prettyprinter.Pretty for EffectId with fn pretty(id : EffectId) {
+  text("effect#\{id.index}")
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationId with fn pretty(id : OperationId) {
+  text("operation#\{id.index}")
+}
+
+///|
 pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
   match kind {
     Type => text("Type")
+    Effect => text("Effect")
     Function(parameters, result) =>
       bracketed_inline(parameters.map(Kind::pretty)) +
       space +
@@ -90,6 +101,16 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
 }
 
 ///|
+pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
+  match effect {
+    Empty => text("{}")
+    Singleton(id, arguments) => id.pretty() + type_arguments_doc(arguments)
+    Parameter(parameter) => parameter.pretty()
+    Union(effects) => braced_inline(effects.map(Effect::pretty))
+  }
+}
+
+///|
 pub impl @prettyprinter.Pretty for Literal with fn pretty(literal : Literal) {
   match literal {
     Unit => text("()")
@@ -138,6 +159,30 @@ pub impl @prettyprinter.Pretty for DataConInfo with fn pretty(
   text("datacon") +
   type_parameters_doc(info.hidden_type_parameters) +
   parenthesized_inline(info.payload_types.map(Type::pretty)) +
+  space +
+  text(":") +
+  space +
+  info.owner.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for EffectInfo with fn pretty(info : EffectInfo) {
+  text("effect") +
+  type_parameters_doc(info.parameters) +
+  space +
+  braced_block(info.operations.map(OperationId::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationInfo with fn pretty(
+  info : OperationInfo,
+) {
+  text("operation") +
+  parenthesized_inline(info.payload_types.map(Type::pretty)) +
+  space +
+  text("->") +
+  space +
+  info.result_type.pretty() +
   space +
   text(":") +
   space +
@@ -399,6 +444,11 @@ fn metadata_declarations(metadata : MetadataRegistry) -> Array[Document] {
   for index in 0..<metadata.values.length() {
     declarations.push(value_declaration({ index, }, metadata.values[index]))
   }
+  for index in 0..<metadata.effects.length() {
+    declarations.push(
+      effect_declaration(metadata, { index, }, metadata.effects[index]),
+    )
+  }
   declarations
 }
 
@@ -456,6 +506,37 @@ fn data_constructor_declaration(id : DataConId, info : DataConInfo) -> Document 
 }
 
 ///|
+fn effect_declaration(
+  metadata : MetadataRegistry,
+  id : EffectId,
+  info : EffectInfo,
+) -> Document {
+  text("effect") +
+  space +
+  id.pretty() +
+  type_parameters_doc(info.parameters) +
+  space +
+  braced_block(
+    info.operations.map(fn(operation) {
+      match metadata.operation_info(operation) {
+        Some(info) => operation_declaration(operation, info)
+        None => operation.pretty()
+      }
+    }),
+  )
+}
+
+///|
+fn operation_declaration(id : OperationId, info : OperationInfo) -> Document {
+  id.pretty() +
+  parenthesized_inline(info.payload_types.map(Type::pretty)) +
+  space +
+  text("->") +
+  space +
+  info.result_type.pretty()
+}
+
+///|
 fn alternative_pattern_doc(alternative : Alternative) -> Document {
   match alternative.alt_constructor {
     Default => text("_")
@@ -475,6 +556,11 @@ fn parenthesized_inline(docs : Array[Document]) -> Document {
 ///|
 fn bracketed_inline(docs : Array[Document]) -> Document {
   surround(char('['), char(']'), join_comma(docs))
+}
+
+///|
+fn braced_inline(docs : Array[Document]) -> Document {
+  surround(char('{'), char('}'), join_comma(docs))
 }
 
 ///|
