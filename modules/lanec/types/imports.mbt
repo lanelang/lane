@@ -2,6 +2,7 @@
 using @prettyprinter {
   type Document,
   char,
+  empty,
   group,
   line,
   nest,
@@ -13,4 +14,4 @@ using @prettyprinter {
 }
 
 ///|
-using @symbol {type TypeParameterId, type TypeSymbolId}
+using @symbol {type EffectSymbolId, type TypeParameterId, type TypeSymbolId}

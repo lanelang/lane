@@ -136,6 +136,10 @@ fn collect_checked_expr_parameter_signatures(
         collect_checked_expr_parameter_signatures(argument, signatures)
       }
     }
+    OperationCall(arguments~, ..) =>
+      for argument in arguments {
+        collect_checked_expr_parameter_signatures(argument, signatures)
+      }
     Field(base~, ..) =>
       collect_checked_expr_parameter_signatures(base, signatures)
     StructLiteral(fields~, ..) =>
@@ -527,6 +531,12 @@ fn collect_checked_expr(
         )
       }
     }
+    OperationCall(arguments~, ..) =>
+      for argument in arguments {
+        collect_checked_expr(
+          source_id, source_text, argument, definitions, references, hovers, context,
+        )
+      }
     Field(base~, field~, name~, type_~, loc~) => {
       collect_checked_expr(
         source_id, source_text, base, definitions, references, hovers, context,

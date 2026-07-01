@@ -2631,3 +2631,105 @@ test "typecheck keeps unresolved type as error type" {
     ),
   )
 }
+
+///|
+test "typecheck accepts annotated effect operation call" {
+  let result = expect_checked_source_result(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn write_hello() -> Unit ! Console {
+      #|  Console::write!("hi")
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    effect Console#0 {
+      #|      write#0(String) -> Unit
+      #|    }
+      #|    fn write_hello#0() -> Unit {
+      #|      operation#0!("hi")
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck rejects operation call in pure function" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn bad() -> Unit {
+      #|  Console::write!("hi")
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content=(
+      #|effect_mismatch expected={} actual=effect#0
+    ),
+  )
+}
+
+///|
+test "typecheck checks operation payload type" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn bad() -> Unit ! Console {
+      #|  Console::write!(1)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content=(
+      #|type_mismatch expected=String actual=Int
+    ),
+  )
+}
+
+///|
+test "typecheck checks operation payload arity" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn bad() -> Unit ! Console {
+      #|  Console::write!()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content=(
+      #|cannot_infer effect operation arity
+    ),
+  )
+}
+
+///|
+test "typecheck represents effect row variables" {
+  let result = expect_typecheck_result(
+    (
+      #|fn[E : Effect] run(f : () -> Unit ! E) -> Unit ! E {
+      #|  f()
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}

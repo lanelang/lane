@@ -73,14 +73,20 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
         body.pretty(),
       )
     Parameter(id) => id.pretty()
-    Function(parameters, result) =>
+    Function(parameters, result, effect) => {
+      let effect_doc = match effect {
+        Empty => empty
+        _ => space + text("!") + space + effect.pretty()
+      }
       group(
         parenthesized(parameters.map(Type::pretty)) +
         space +
         text("->") +
         space +
-        result.pretty(),
+        result.pretty() +
+        effect_doc,
       )
+    }
     Forall(parameters, body) =>
       group(
         text("forall") +
@@ -89,6 +95,26 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
         text(".") +
         space +
         body.pretty(),
+      )
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
+  match effect {
+    Empty => text("{}")
+    Singleton(symbol, arguments) =>
+      if arguments.is_empty() {
+        symbol.pretty()
+      } else {
+        group(symbol.pretty() + bracketed(arguments.map(Type::pretty)))
+      }
+    Parameter(id) => id.pretty()
+    Union(effects) =>
+      surround(
+        char('{'),
+        char('}'),
+        nest(softline + comma_list(effects.map(Effect::pretty))) + softline,
       )
   }
 }

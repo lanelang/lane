@@ -15,6 +15,7 @@ priv struct InstantiatedCallableType {
   type_arguments : Array[@types.Type]
   parameters : Array[@types.Type]
   result : @types.Type
+  effect : @types.Effect
 }
 
 ///|
@@ -77,11 +78,12 @@ fn TypeArgumentInference::collect(
         self.remember(parameter, actual)
       }
     (
-      Function(left_parameters, left_result),
-      Function(right_parameters, right_result),
+      Function(left_parameters, left_result, left_effect),
+      Function(right_parameters, right_result, right_effect),
     ) => {
       self.collect_array(left_parameters, right_parameters)
       self.collect(left_result, right_result)
+      self.collect_effect(left_effect, right_effect)
     }
     _ =>
       match (template.decompose_nominal(), actual.decompose_nominal()) {
@@ -94,6 +96,43 @@ fn TypeArgumentInference::collect(
           }
         _ => ()
       }
+  }
+}
+
+///|
+fn TypeArgumentInference::collect_effect(
+  self : TypeArgumentInference,
+  template : @types.Effect,
+  actual : @types.Effect,
+) -> Unit {
+  match (template, actual) {
+    (Empty, Empty) => ()
+    (Parameter(parameter), _) =>
+      if self.tracks(parameter) {
+        self.remember(parameter, effect_as_type(actual))
+      }
+    (
+      Singleton(left_symbol, left_arguments),
+      Singleton(right_symbol, right_arguments),
+    ) =>
+      if left_symbol == right_symbol {
+        self.collect_array(left_arguments, right_arguments)
+      }
+    (Union(left), Union(right)) =>
+      if left.length() == right.length() {
+        for index in 0..<left.length() {
+          self.collect_effect(left[index], right[index])
+        }
+      }
+    _ => ()
+  }
+}
+
+///|
+fn effect_as_type(effect : @types.Effect) -> @types.Type {
+  match effect {
+    Parameter(id) => Parameter(id)
+    _ => Error
   }
 }
 
@@ -172,7 +211,7 @@ fn SemanticChecker::instantiate_generic_callable(
   //   2. collect result constraints from a checking context, if present;
   //   3. substitute only when every A_i is known;
   //   4. let normal argument/result checking report concrete mismatches.
-  guard body is Function(parameters, result) else {
+  guard body is Function(parameters, result, effect) else {
     if report_failure {
       self.diagnostics.push({
         kind: NotCallable(Forall(type_parameters, body)),
@@ -224,6 +263,7 @@ fn SemanticChecker::instantiate_generic_callable(
       parameter.substitute(substitution)
     }),
     result: result.substitute(substitution),
+    effect: effect.substitute(substitution),
   })
 }
 

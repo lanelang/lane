@@ -361,6 +361,34 @@ test "parse effect declarations and effect kind" {
 }
 
 ///|
+test "parse effect operation calls" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn write_hello() -> Unit ! Console {
+      #|  Console::write!("hi")
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|
+      #|fn write_hello() -> Unit ! Console {
+      #|  Console::write!("hi")
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse existential surface syntax" {
   let file = expect_parse_ok(
     (
@@ -448,6 +476,7 @@ test "parse rejects equals function body syntax" {
       #|  UnexpectedToken(
       #|    { label: "`=`" },
       #|    [
+      #|      { label: "`!`" },
       #|      { label: "`{`" },
       #|      { label: "`[`" },
       #|      { label: "`.`" },
@@ -526,6 +555,7 @@ test "parse rejects empty qualified variant argument syntax" {
       #|      { label: "`!`" },
       #|      { label: "`(`" },
       #|      { label: "`{`" },
+      #|      { label: "`::`" },
       #|    ],
       #|  ),
       #|]

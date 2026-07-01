@@ -16,6 +16,7 @@ test "pretty prints checked type objects" {
     Function(
       [nominal_type(option, [Parameter(a.id)]), Primitive(Int)],
       Parameter(a.id),
+      Empty,
     ),
   )
   inspect(
@@ -38,8 +39,8 @@ test "pretty prints arrow kinds" {
 test "substitutes free type parameters but not forall-bound parameters" {
   let (_, a, b) = test_symbols()
   let substitution = TypeSubstitution::single(a.id, Primitive(Int))
-  let free = Type::Function([Parameter(a.id)], Parameter(b.id))
-  let bound = Forall([a], Function([Parameter(a.id)], Parameter(b.id)))
+  let free = Type::Function([Parameter(a.id)], Parameter(b.id), Empty)
+  let bound = Forall([a], Function([Parameter(a.id)], Parameter(b.id), Empty))
   inspect(
     @prettyprinter.render(free.substitute(substitution)),
     content="(Int) -> tparam#1",
@@ -53,11 +54,22 @@ test "substitutes free type parameters but not forall-bound parameters" {
 ///|
 test "forall equality is alpha-equivalent" {
   let (_, a, b) = test_symbols()
-  let left = Forall([a], Function([Parameter(a.id)], Parameter(a.id)))
-  let right = Forall([b], Function([Parameter(b.id)], Parameter(b.id)))
-  let free_mismatch = Forall([a], Function([Parameter(a.id)], Parameter(b.id)))
+  let left = Forall([a], Function([Parameter(a.id)], Parameter(a.id), Empty))
+  let right = Forall([b], Function([Parameter(b.id)], Parameter(b.id), Empty))
+  let free_mismatch = Forall(
+    [a],
+    Function([Parameter(a.id)], Parameter(b.id), Empty),
+  )
   assert_true(left.alpha_equal(right))
   assert_true(left == right)
   assert_false(left.alpha_equal(free_mismatch))
   assert_false(left == free_mismatch)
+}
+
+///|
+test "pretty prints effectful function type" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())
+  let type_ = Type::Function([], Primitive(Unit), Singleton(console, []))
+  inspect(@prettyprinter.render(type_), content="() -> Unit ! effect#0")
 }

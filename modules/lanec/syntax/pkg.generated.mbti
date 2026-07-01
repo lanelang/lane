@@ -56,6 +56,19 @@ pub(all) struct EffectOperationDeclaration {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for EffectOperationDeclaration
 
+pub(all) enum EffectOperationName {
+  Qualified(owner~ : Type, operation~ : String, loc~ : @basic.SourceSpan)
+  Shorthand(operation~ : String, loc~ : @basic.SourceSpan)
+  Unqualified(operation~ : String, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum EffectTerm {
+  Empty(loc~ : @basic.SourceSpan)
+  Term(type_~ : Type, loc~ : @basic.SourceSpan)
+  Union(items~ : Array[Type], loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub fn EffectTerm::loc(Self) -> @basic.SourceSpan
+
 pub(all) struct EnumDeclaration {
   is_public : Bool
   name : String
@@ -82,7 +95,8 @@ pub(all) enum Expr {
   QualifiedVariant(type_name~ : String, type_arguments~ : Array[Type], variant~ : String, variant_type_arguments~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, type_arguments~ : Array[Type], fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
-  FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, body~ : Expr, loc~ : @basic.SourceSpan)
+  FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : EffectOperationName, arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   Block(items~ : Array[LocalItem], result~ : Expr, loc~ : @basic.SourceSpan)
   If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : @basic.SourceSpan)
@@ -109,6 +123,7 @@ pub(all) struct FunctionDeclaration {
   name : String
   parameters : Array[Parameter]
   return_type : Type
+  effect : EffectTerm
   body : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -269,7 +284,7 @@ pub(all) enum Type {
   QualifiedName(module_path~ : ModulePath, name~ : String, loc~ : @basic.SourceSpan)
   Apply(callee~ : Type, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[TypeParameter], body~ : Type, loc~ : @basic.SourceSpan)
-  Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, loc~ : @basic.SourceSpan)
+  Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, effect~ : EffectTerm, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Type::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for Type

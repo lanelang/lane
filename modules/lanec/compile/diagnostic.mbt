@@ -707,6 +707,24 @@ fn typecheck_diagnostic(
           "change the expression type or adjust the annotation/expected type",
         ],
       )
+    EffectMismatch(expected~, actual~) =>
+      diagnostic(
+        "effect mismatch",
+        span~,
+        severity=Error,
+        code=Some("E3007"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "expected effect `\{display.effect_text(expected)}`, found `\{display.effect_text(actual)}`",
+            style: Primary,
+          },
+        ],
+        notes=["Lane functions without an effect annotation are pure"],
+        helps=[
+          "add the required effect annotation or remove the effectful operation",
+        ],
+      )
     NotCallable(type_) =>
       diagnostic(
         "value is not callable",

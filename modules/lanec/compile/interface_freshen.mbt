@@ -388,10 +388,11 @@ fn InterfaceSymbolFreshener::freshen_lane_type(
       TypeLambda(parameters, self.freshen_lane_type(body))
     }
     Parameter(id) => Parameter(self.remap_type_parameter(id))
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { self.freshen_lane_type(parameter) }),
         self.freshen_lane_type(result),
+        self.freshen_lane_effect(effect),
       )
     Forall(parameters, body) => {
       let parameters = parameters.map(fn(parameter) {
@@ -399,6 +400,24 @@ fn InterfaceSymbolFreshener::freshen_lane_type(
       })
       Forall(parameters, self.freshen_lane_type(body))
     }
+  }
+}
+
+///|
+fn InterfaceSymbolFreshener::freshen_lane_effect(
+  self : InterfaceSymbolFreshener,
+  effect : @types.Effect,
+) -> @types.Effect {
+  match effect {
+    Empty => Empty
+    Singleton(symbol, arguments) =>
+      Singleton(
+        self.remap_effect_symbol(symbol),
+        arguments.map(fn(argument) { self.freshen_lane_type(argument) }),
+      )
+    Parameter(id) => Parameter(self.remap_type_parameter(id))
+    Union(effects) =>
+      Union(effects.map(fn(effect) { self.freshen_lane_effect(effect) }))
   }
 }
 

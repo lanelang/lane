@@ -44,6 +44,7 @@ fn desugar_function_declaration(
     type_parameters: declaration.type_parameters,
     parameters: declaration.parameters,
     return_type: declaration.return_type,
+    effect: declaration.effect,
     body: desugar_expr(declaration.body),
     loc: declaration.loc,
   }
@@ -169,14 +170,24 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         loc~,
       )
     Builtin(name, loc~) => Builtin(name, loc~)
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, loc~) =>
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      loc~
+    ) =>
       FunctionLiteral(
         type_parameters~,
         parameters~,
         return_type~,
+        effect~,
         body=desugar_expr(body),
         loc~,
       )
+    EffectOperationCall(name~, arguments~, loc~) =>
+      EffectOperationCall(name~, arguments=arguments.map(desugar_expr), loc~)
     Block(items~, result~, loc~) =>
       Block(items=desugar_local_items(items), result=desugar_expr(result), loc~)
     If(condition~, then_branch~, else_branch~, loc~) =>
@@ -306,6 +317,7 @@ fn desugar_bool_thunk(
     type_parameters=[],
     parameters=[],
     return_type=Some(Primitive(Bool, loc~)),
+    effect=None,
     body=desugar_expr(body),
     loc~,
   )

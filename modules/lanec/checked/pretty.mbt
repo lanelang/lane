@@ -327,6 +327,10 @@ fn expression_doc(expression : CheckedExpr) -> Document {
     Call(callee~, arguments~, ..) =>
       expression_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
+    OperationCall(operation~, arguments~, ..) =>
+      operation.pretty() +
+      text("!") +
+      @pretty.parenthesized_inline(arguments.map(expression_doc))
     Field(base~, field~, name~, ..) =>
       expression_doc(base) + text(".") + field_name_doc(name, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>

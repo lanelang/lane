@@ -169,13 +169,13 @@ fn SemanticChecker::direct_parameter_types(
   loc : SourceSpan,
 ) -> Array[@types.Type]? {
   match callee_type {
-    Function(parameter_types, _) =>
+    Function(parameter_types, _, _) =>
       if parameter_types.length() == parameters.length() {
         Some(parameter_types)
       } else {
         None
       }
-    Forall(type_parameters, Function(parameter_types, result)) => {
+    Forall(type_parameters, Function(parameter_types, result, _)) => {
       if parameter_types.length() != parameters.length() {
         return None
       }

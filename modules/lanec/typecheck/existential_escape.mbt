@@ -78,11 +78,12 @@ fn @types.Type::mentions_any_type_parameter_with_bound(
       body.mentions_any_type_parameter_with_bound(parameters, next_bound)
     }
     Parameter(id) => parameters.contains(id) && !bound.contains(id)
-    Function(function_parameters, result) =>
+    Function(function_parameters, result, effect) =>
       function_parameters.any(fn(parameter) {
         parameter.mentions_any_type_parameter_with_bound(parameters, bound)
       }) ||
-      result.mentions_any_type_parameter_with_bound(parameters, bound)
+      result.mentions_any_type_parameter_with_bound(parameters, bound) ||
+      effect.mentions_any_type_parameter_with_bound(parameters, bound)
     Forall(type_parameters, body) => {
       let next_bound = bound.copy()
       for parameter in type_parameters {
@@ -90,5 +91,25 @@ fn @types.Type::mentions_any_type_parameter_with_bound(
       }
       body.mentions_any_type_parameter_with_bound(parameters, next_bound)
     }
+  }
+}
+
+///|
+fn @types.Effect::mentions_any_type_parameter_with_bound(
+  self : @types.Effect,
+  parameters : Array[TypeParameterId],
+  bound : Array[TypeParameterId],
+) -> Bool {
+  match self {
+    Empty => false
+    Singleton(_, arguments) =>
+      arguments.any(fn(argument) {
+        argument.mentions_any_type_parameter_with_bound(parameters, bound)
+      })
+    Parameter(id) => parameters.contains(id) && !bound.contains(id)
+    Union(effects) =>
+      effects.any(fn(effect) {
+        effect.mentions_any_type_parameter_with_bound(parameters, bound)
+      })
   }
 }

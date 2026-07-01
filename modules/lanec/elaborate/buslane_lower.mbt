@@ -928,6 +928,8 @@ fn BuslaneLowerer::lower_expr(
         self.lower_expr(callee),
         arguments.map(fn(argument) { self.lower_expr(argument) }),
       )
+    OperationCall(..) =>
+      abort("Lane effect operation lowering to Buslane is not implemented yet")
     Field(base~, field~, ..) => self.lower_field(base, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
       Construct({
@@ -1604,17 +1606,25 @@ fn BuslaneLowerer::lower_type(
         self.lower_type(body),
       )
     Parameter(parameter) => Parameter(self.type_parameter_id(parameter))
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { self.lower_type(parameter) }),
         self.lower_type(result),
-        Empty,
+        lower_effect(effect),
       )
     Forall(parameters, body) =>
       Forall(
         parameters.map(fn(parameter) { self.define_type_parameter(parameter) }),
         self.lower_type(body),
       )
+  }
+}
+
+///|
+fn lower_effect(effect : @types.Effect) -> @buslane.Effect {
+  match effect {
+    Empty => Empty
+    _ => abort("Lane effect lowering to Buslane is not implemented yet")
   }
 }
 

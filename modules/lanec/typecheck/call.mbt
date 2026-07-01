@@ -34,7 +34,7 @@ fn SemanticChecker::synthesize_callable_call(
   loc : SourceSpan,
 ) -> @types.Type {
   match callee_type {
-    Function(parameters, result) => {
+    Function(parameters, result, _) => {
       self.check_call_arguments(scope, parameters, arguments, loc)
       result
     }

@@ -147,6 +147,7 @@ pub(all) struct ResolvedFunctionDeclaration {
   type_parameters : Array[ResolvedTypeParameter]
   parameters : Array[ResolvedValueParameter]
   return_type : ResolvedType
+  effect : ResolvedEffectTerm
   body : ResolvedExpr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -220,8 +221,27 @@ pub(all) enum ResolvedType {
     type_parameters~ : Array[ResolvedTypeParameter],
     parameters~ : Array[ResolvedType],
     result~ : ResolvedType,
+    effect~ : ResolvedEffectTerm,
     loc~ : SourceSpan
   )
+  Unresolved(
+    name~ : String,
+    arguments~ : Array[ResolvedType],
+    loc~ : SourceSpan
+  )
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedEffectTerm {
+  Empty(loc~ : SourceSpan)
+  Singleton(
+    symbol~ : EffectSymbolId,
+    name~ : String,
+    arguments~ : Array[ResolvedType],
+    loc~ : SourceSpan
+  )
+  Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)
+  Union(items~ : Array[ResolvedEffectTerm], loc~ : SourceSpan)
   Unresolved(
     name~ : String,
     arguments~ : Array[ResolvedType],
@@ -248,6 +268,33 @@ pub(all) enum ResolvedVariantReference {
   Unresolved(type_name~ : String, variant~ : String)
   UnresolvedUnqualified(String)
   Ambiguous(name~ : String, candidates~ : Array[VariantSymbolId])
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedOperationReference {
+  Symbol(OperationSymbolId)
+  Unresolved(String)
+  Ambiguous(name~ : String, candidates~ : Array[OperationSymbolId])
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedEffectOperationName {
+  Qualified(
+    owner~ : ResolvedEffectTerm,
+    operation~ : String,
+    reference~ : ResolvedOperationReference,
+    loc~ : SourceSpan
+  )
+  Shorthand(
+    operation~ : String,
+    reference~ : ResolvedOperationReference,
+    loc~ : SourceSpan
+  )
+  Unqualified(
+    operation~ : String,
+    reference~ : ResolvedOperationReference,
+    loc~ : SourceSpan
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -342,7 +389,13 @@ pub(all) enum ResolvedExpr {
     type_parameters~ : Array[ResolvedTypeParameter],
     parameters~ : Array[ResolvedFunctionLiteralParameter],
     return_type~ : ResolvedType?,
+    effect~ : ResolvedEffectTerm?,
     body~ : ResolvedExpr,
+    loc~ : SourceSpan
+  )
+  EffectOperationCall(
+    name~ : ResolvedEffectOperationName,
+    arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan
   )
   Block(

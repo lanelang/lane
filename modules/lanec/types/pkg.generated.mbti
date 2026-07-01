@@ -13,6 +13,18 @@ pub fn nominal_type(@symbol.TypeSymbolId, Array[Type]) -> Type
 // Errors
 
 // Types and methods
+pub(all) enum Effect {
+  Empty
+  Singleton(@symbol.EffectSymbolId, Array[Type])
+  Parameter(@symbol.TypeParameterId)
+  Union(Array[Effect])
+} derive(@debug.Debug)
+pub fn Effect::equals(Self, Self) -> Bool
+pub fn Effect::normalize(Self) -> Self
+pub fn Effect::substitute(Self, TypeSubstitution) -> Self
+pub impl @prettyprinter.Pretty for Effect
+pub impl Eq for Effect
+
 pub(all) enum Kind {
   Type
   Effect
@@ -35,7 +47,7 @@ pub(all) enum Type {
   Apply(Type, Array[Type])
   TypeLambda(Array[TypeParameter], Type)
   Parameter(@symbol.TypeParameterId)
-  Function(Array[Type], Type)
+  Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameter], Type)
 } derive(@debug.Debug)
 pub fn Type::alpha_equal(Self, Self) -> Bool

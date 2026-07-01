@@ -38,6 +38,19 @@ fn CheckedDeclarationEnvironment::checked_effect(
 }
 
 ///|
+fn CheckedDeclarationEnvironment::checked_operation(
+  self : CheckedDeclarationEnvironment,
+  symbol : OperationSymbolId,
+) -> CheckedEffectOperationDeclaration? {
+  for declaration in self.operations {
+    if declaration.symbol == symbol {
+      return Some(declaration)
+    }
+  }
+  None
+}
+
+///|
 fn CheckedDeclarationEnvironment::field_type(
   self : CheckedDeclarationEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],

@@ -18,7 +18,7 @@ fn function_type(
   parameters : Array[@types.Type],
   result : @types.Type,
 ) -> @types.Type {
-  Function(parameters, result)
+  Function(parameters, result, Empty)
 }
 
 ///|

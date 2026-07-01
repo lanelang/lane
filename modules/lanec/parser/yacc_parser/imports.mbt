@@ -7,6 +7,7 @@ using @syntax {
   type EnumVariant,
   type EffectDeclaration,
   type EffectOperationDeclaration,
+  type EffectTerm,
   type Expr,
   type FieldDeclaration,
   type FunctionDeclaration,
@@ -37,6 +38,12 @@ using @syntax {
 }
 
 ///|
+priv struct ReturnAnnotation {
+  return_type : Type?
+  effect : EffectTerm?
+}
+
+///|
 fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
   SourceSpan::join(loc.0, loc.1)
 }
@@ -45,6 +52,14 @@ fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
 fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
   items.push(item)
   items
+}
+
+///|
+fn effect_or_empty(effect : EffectTerm?, result : Type) -> EffectTerm {
+  match effect {
+    Some(effect) => effect
+    None => Empty(loc=result.loc())
+  }
 }
 
 ///|

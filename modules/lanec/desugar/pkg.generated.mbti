@@ -28,7 +28,8 @@ pub(all) enum DesugaredExpr {
   VariantCall(type_name~ : String?, type_arguments~ : Array[@resolve.ResolvedType], variant~ : String, variant_type_arguments~ : Array[@resolve.ResolvedType], reference~ : @resolve.ResolvedVariantReference, arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, type_arguments~ : Array[@resolve.ResolvedType], fields~ : Array[DesugaredStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
-  FunctionLiteral(type_parameters~ : Array[@resolve.ResolvedTypeParameter], parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter], return_type~ : @resolve.ResolvedType?, body~ : DesugaredExpr, loc~ : @basic.SourceSpan)
+  FunctionLiteral(type_parameters~ : Array[@resolve.ResolvedTypeParameter], parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter], return_type~ : @resolve.ResolvedType?, effect~ : @resolve.ResolvedEffectTerm?, body~ : DesugaredExpr, loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : @resolve.ResolvedEffectOperationName, arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
   Block(items~ : Array[DesugaredLocalItem], result~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   If(condition~ : DesugaredExpr, then_branch~ : DesugaredExpr, else_branch~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : DesugaredExpr, arms~ : Array[DesugaredMatchArm], loc~ : @basic.SourceSpan)
@@ -45,6 +46,7 @@ pub(all) struct DesugaredFunctionDeclaration {
   type_parameters : Array[@resolve.ResolvedTypeParameter]
   parameters : Array[@resolve.ResolvedValueParameter]
   return_type : @resolve.ResolvedType
+  effect : @resolve.ResolvedEffectTerm
   body : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

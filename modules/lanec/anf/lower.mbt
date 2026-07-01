@@ -161,6 +161,15 @@ fn AnfLowerer::lower_to_atom(
           )
         })
       })
+    OperationCall(operation~, arguments~, type_~, loc~, ..) =>
+      self.lower_exprs_to_atoms(arguments, 0, [], fn(arguments) {
+        self.bind_temp(
+          OperationCall(operation~, arguments~, type_~, loc~),
+          type_,
+          loc,
+          continuation,
+        )
+      })
     Field(base~, field~, name~, type_~, loc~) =>
       self.lower_to_atom(base, fn(base) {
         self.bind_temp(
@@ -215,9 +224,15 @@ fn AnfLowerer::lower_function_atom(
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> AnfAtom {
+  let effect = match type_ {
+    Function(_, _, effect) => effect
+    Forall(_, Function(_, _, effect)) => effect
+    _ => Empty
+  }
   let function_type = @types.Type::Function(
     parameters.map(fn(parameter) { parameter.type_ }),
     return_type,
+    effect,
   )
   let function = AnfAtom::Function(
     parameters~,

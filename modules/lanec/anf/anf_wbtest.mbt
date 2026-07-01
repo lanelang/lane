@@ -159,7 +159,7 @@ test "pretty prints ANF existential package and opening" {
         ],
         return_type: hide_type,
         body,
-        type_: Function([hide_type], hide_type),
+        type_: Function([hide_type], hide_type, Empty),
         loc: loc(),
       }),
     ],

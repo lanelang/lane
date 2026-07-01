@@ -198,6 +198,10 @@ fn anf_rhs_doc(rhs : AnfRhs) -> Document {
     Call(callee~, arguments~, ..) =>
       anf_atom_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
+    OperationCall(operation~, arguments~, ..) =>
+      operation.pretty() +
+      text("!") +
+      @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
     TypeApplication(callee~, arguments~, ..) =>
       anf_atom_doc(callee) + type_arguments_doc(arguments)
     Field(base~, field~, name~, ..) =>

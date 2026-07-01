@@ -223,6 +223,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     hidden_type_arguments,
   )
   let checked_arguments = []
+  let effects = []
   let mut complete = true
   for index in 0..<variant_declaration.payload.length() {
     let expected = variant_declaration.payload[index]
@@ -238,10 +239,11 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
       Some(argument) => checked_arguments.push(argument)
       None => complete = false
     }
+    effects.push(checked.effect)
   }
   let type_ = @types.nominal_type(metadata.owner, type_arguments)
   if complete {
-    checked_expression(
+    checked_expression_with_effect(
       Variant(
         symbol~,
         type_arguments=hidden_type_arguments,
@@ -250,6 +252,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
         loc~,
       ),
       type_,
+      effect_union(effects),
     )
   } else {
     checked_expression_none_reported(type_)
@@ -438,6 +441,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   )
   let seen = []
   let checked_fields : Array[@checked.CheckedStructLiteralField] = []
+  let effects = []
   let mut complete = true
   for field in fields {
     guard field is Value(name~, value~, loc=field_loc) else { continue }
@@ -457,13 +461,15 @@ fn SemanticChecker::synthesize_checked_struct_literal(
       let checked = self.check_checked_expr(scope, value, expected)
       match
         self.require_checked_expression(checked, field_loc, "struct field") {
-        Some(value) =>
+        Some(value) => {
+          effects.push(checked.effect)
           checked_fields.push({
             symbol: field_symbol,
             name,
             value,
             loc: field_loc,
           })
+        }
         None => complete = false
       }
     } else {
@@ -476,7 +482,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     }
   }
   if complete {
-    checked_expression(
+    checked_expression_with_effect(
       StructLiteral(
         symbol~,
         type_arguments=arguments,
@@ -486,6 +492,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
         loc~,
       ),
       type_,
+      effect_union(effects),
     )
   } else {
     checked_expression_none_reported(type_)

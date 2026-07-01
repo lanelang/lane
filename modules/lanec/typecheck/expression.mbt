@@ -61,9 +61,17 @@ fn SemanticChecker::check_expr(
         ).type_
       self.expect_type(expected, actual, loc)
     }
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, loc~) =>
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      loc~
+    ) =>
       self.check_function_literal(
-        scope, type_parameters, parameters, return_type, body, expected, loc,
+        scope, type_parameters, parameters, return_type, effect, body, expected,
+        loc,
       )
     _ => {
       let actual = self.synthesize_expr(scope, expr)
@@ -143,9 +151,16 @@ fn SemanticChecker::synthesize_expr(
     }
     Var(name~, reference~, loc~) =>
       self.synthesize_value_reference(scope, reference, name, loc)
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, loc~) =>
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      loc~
+    ) =>
       self.synthesize_function_literal(
-        scope, type_parameters, parameters, return_type, body, loc,
+        scope, type_parameters, parameters, return_type, effect, body, loc,
       )
     Block(items~, result~, ..) => self.synthesize_block(scope, items, result)
     If(condition~, then_branch~, else_branch~, loc~) =>
@@ -174,6 +189,10 @@ fn SemanticChecker::synthesize_expr(
       )
     Call(callee~, arguments~, loc~) =>
       self.synthesize_call(scope, callee, arguments, loc)
+    EffectOperationCall(name~, arguments~, loc~) => {
+      let operation = self.check_operation_call(scope, name, arguments, loc)
+      operation.result
+    }
     Field(base~, name~, reference~, loc~) =>
       self.synthesize_field(scope, base, name, reference, loc)
     StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
@@ -227,6 +246,132 @@ fn SemanticChecker::synthesize_if(
   let else_type = self.synthesize_expr(scope, else_branch)
   self.expect_type(then_type, else_type, loc)
   then_type
+}
+
+///|
+fn SemanticChecker::synthesize_expr_effect(
+  self : SemanticChecker,
+  scope : TypeScope,
+  expr : @desugar.DesugaredExpr,
+) -> @types.Effect {
+  match expr {
+    Literal(..) | Var(..) | Builtin(_, ..) => Empty
+    FunctionLiteral(..) => Empty
+    Field(base~, ..) => self.synthesize_expr_effect(scope, base)
+    StructLiteral(fields~, ..) => {
+      let effects = []
+      for field in fields {
+        if field is Value(value~, ..) {
+          effects.push(self.synthesize_expr_effect(scope, value))
+        }
+      }
+      effect_union(effects)
+    }
+    VariantCall(arguments~, ..) =>
+      effect_union(
+        arguments.map(fn(argument) {
+          self.synthesize_expr_effect(scope, argument)
+        }),
+      )
+    Block(items~, result~, ..) => {
+      let next_scope = scope.copy()
+      let effects = []
+      for item in items {
+        match item {
+          Let(declaration) => {
+            effects.push(
+              self.synthesize_expr_effect(next_scope, declaration.initializer),
+            )
+            if declaration.type_annotation is Some(type_annotation) {
+              next_scope.bind(
+                declaration.symbol,
+                self.check_type(type_annotation),
+              )
+            }
+          }
+          Function(declaration) =>
+            next_scope.bind_function(
+              declaration.symbol,
+              self.function_type(
+                declaration.type_parameters,
+                declaration.parameters,
+                declaration.return_type,
+                declaration.effect,
+              ),
+              declaration.parameters.map(fn(parameter) {
+                self.checked_value_parameter(parameter)
+              }),
+            )
+          Offer(declaration) => {
+            effects.push(
+              self.synthesize_expr_effect(next_scope, declaration.initializer),
+            )
+            let type_ = self.check_type(declaration.type_annotation)
+            next_scope.bind(declaration.symbol, type_)
+            self.offer_symbol(
+              next_scope.offers,
+              declaration.symbol,
+              type_,
+              declaration.loc,
+            )
+          }
+          PatternLet(declaration) =>
+            effects.push(
+              self.synthesize_expr_effect(next_scope, declaration.initializer),
+            )
+        }
+      }
+      effects.push(self.synthesize_expr_effect(next_scope, result))
+      effect_union(effects)
+    }
+    If(condition~, then_branch~, else_branch~, ..) =>
+      effect_union([
+        self.synthesize_expr_effect(scope, condition),
+        self.synthesize_expr_effect(scope, then_branch),
+        self.synthesize_expr_effect(scope, else_branch),
+      ])
+    Match(scrutinee~, arms~, ..) => {
+      let effects = [self.synthesize_expr_effect(scope, scrutinee)]
+      for arm in arms {
+        effects.push(self.synthesize_expr_effect(scope, arm.body))
+      }
+      effect_union(effects)
+    }
+    Call(callee~, arguments~, ..) => {
+      let callee_type = self.synthesize_expr(scope, callee)
+      let effects = [self.synthesize_expr_effect(scope, callee)]
+      for argument in arguments {
+        effects.push(self.synthesize_expr_effect(scope, argument.value_expr()))
+      }
+      match callee_type {
+        Function(_, _, effect) => effects.push(effect)
+        Forall(type_parameters, body) =>
+          match
+            self.instantiate_generic_callable(
+              scope,
+              type_parameters,
+              body,
+              arguments,
+              None,
+              callee.loc(),
+              false,
+            ) {
+            Some(instantiated) => effects.push(instantiated.effect)
+            None => ()
+          }
+        _ => ()
+      }
+      effect_union(effects)
+    }
+    EffectOperationCall(name~, arguments~, loc~) => {
+      let operation = self.check_operation_call(scope, name, arguments, loc)
+      let effects = [operation.effect]
+      for argument in arguments {
+        effects.push(self.synthesize_expr_effect(scope, argument))
+      }
+      effect_union(effects)
+    }
+  }
 }
 
 ///|

@@ -146,6 +146,8 @@ fn SemanticChecker::checked_top_level_function(
     declaration.body,
     return_type,
   )
+  let effect = self.check_effect(declaration.effect)
+  self.expect_effect(effect, checked_body.effect, declaration.body.loc())
   guard self.require_checked_expression(
       checked_body,
       declaration.body.loc(),
@@ -167,6 +169,7 @@ fn SemanticChecker::checked_top_level_function(
         declaration.type_parameters,
         declaration.parameters,
         declaration.return_type,
+        declaration.effect,
       ),
       loc: declaration.loc,
     }),
@@ -194,6 +197,11 @@ fn SemanticChecker::checked_top_level_let(
     self.ordered_root_scope(),
     declaration.initializer,
     type_,
+  )
+  self.expect_effect(
+    Empty,
+    checked_initializer.effect,
+    declaration.initializer.loc(),
   )
   self.ordered_value_types.push({
     symbol: declaration.symbol,
@@ -242,6 +250,11 @@ fn SemanticChecker::checked_top_level_offer(
     self.ordered_root_scope(),
     declaration.initializer,
     type_,
+  )
+  self.expect_effect(
+    Empty,
+    checked_initializer.effect,
+    declaration.initializer.loc(),
   )
   self.ordered_value_types.push({
     symbol: declaration.symbol,
@@ -387,6 +400,7 @@ fn SemanticChecker::check_checked_local_function(
     declaration.type_parameters,
     declaration.parameters,
     declaration.return_type,
+    declaration.effect,
   )
   scope.bind_function(
     declaration.symbol,
@@ -416,6 +430,8 @@ fn SemanticChecker::check_checked_local_function(
     declaration.body,
     return_type,
   )
+  let effect = self.check_effect(declaration.effect)
+  self.expect_effect(effect, checked_body.effect, declaration.body.loc())
   guard self.require_checked_expression(
       checked_body,
       declaration.body.loc(),

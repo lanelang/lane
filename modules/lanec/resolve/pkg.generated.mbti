@@ -78,6 +78,22 @@ pub(all) struct ResolvedEffectOperationDeclaration {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedEffectOperationDeclaration
 
+pub(all) enum ResolvedEffectOperationName {
+  Qualified(owner~ : ResolvedEffectTerm, operation~ : String, reference~ : ResolvedOperationReference, loc~ : @basic.SourceSpan)
+  Shorthand(operation~ : String, reference~ : ResolvedOperationReference, loc~ : @basic.SourceSpan)
+  Unqualified(operation~ : String, reference~ : ResolvedOperationReference, loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedEffectOperationName
+
+pub(all) enum ResolvedEffectTerm {
+  Empty(loc~ : @basic.SourceSpan)
+  Singleton(symbol~ : @symbol.EffectSymbolId, name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
+  Union(items~ : Array[ResolvedEffectTerm], loc~ : @basic.SourceSpan)
+  Unresolved(name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedEffectTerm
+
 pub(all) struct ResolvedEnumDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
@@ -108,7 +124,8 @@ pub(all) enum ResolvedExpr {
   UnqualifiedVariant(variant~ : String, reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, type_arguments~ : Array[ResolvedType], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
-  FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
+  FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : ResolvedEffectOperationName, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   Block(items~ : Array[ResolvedLocalItem], result~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   If(condition~ : ResolvedExpr, then_branch~ : ResolvedExpr, else_branch~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : ResolvedExpr, arms~ : Array[ResolvedMatchArm], loc~ : @basic.SourceSpan)
@@ -144,6 +161,7 @@ pub(all) struct ResolvedFunctionDeclaration {
   type_parameters : Array[ResolvedTypeParameter]
   parameters : Array[ResolvedValueParameter]
   return_type : ResolvedType
+  effect : ResolvedEffectTerm
   body : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -199,6 +217,12 @@ pub(all) struct ResolvedOfferDeclaration {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedOfferDeclaration
+
+pub(all) enum ResolvedOperationReference {
+  Symbol(@symbol.OperationSymbolId)
+  Unresolved(String)
+  Ambiguous(name~ : String, candidates~ : Array[@symbol.OperationSymbolId])
+} derive(Eq, @debug.Debug)
 
 pub(all) enum ResolvedPattern {
   Wildcard(@basic.SourceSpan)
@@ -274,7 +298,7 @@ pub(all) enum ResolvedType {
   Apply(callee~ : ResolvedType, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[ResolvedTypeParameter], body~ : ResolvedType, loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
-  Function(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedType], result~ : ResolvedType, loc~ : @basic.SourceSpan)
+  Function(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedType], result~ : ResolvedType, effect~ : ResolvedEffectTerm, loc~ : @basic.SourceSpan)
   Unresolved(name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedType

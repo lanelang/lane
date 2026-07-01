@@ -271,6 +271,7 @@ pub impl @prettyprinter.Pretty for ResolvedFunctionDeclaration with fn pretty(
   text("->") +
   space +
   declaration.return_type.pretty() +
+  declaration.effect.annotation_doc() +
   space +
   declaration.body.pretty()
 }
@@ -382,14 +383,15 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
       space +
       body.pretty()
     Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
-    Function(type_parameters~, parameters~, result~, ..) => {
+    Function(type_parameters~, parameters~, result~, effect~, ..) => {
       let forall = type_parameters_doc(type_parameters)
       forall +
       @pretty.parenthesized_inline(parameters.map(ResolvedType::pretty)) +
       space +
       text("->") +
       space +
-      result.pretty()
+      result.pretty() +
+      effect.annotation_doc()
     }
     Unresolved(name~, arguments~, ..) =>
       if arguments.is_empty() {
@@ -399,6 +401,68 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
         text(name) +
         @pretty.bracketed_inline(arguments.map(ResolvedType::pretty))
       }
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
+  effect : ResolvedEffectTerm,
+) {
+  match effect {
+    Empty(..) => text("{}")
+    Singleton(symbol~, name~, arguments~, ..) =>
+      symbol.pretty() + space + text(name) + type_arguments_doc(arguments)
+    Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
+    Union(items~, ..) =>
+      @pretty.braced_block(items.map(ResolvedEffectTerm::pretty))
+    Unresolved(name~, arguments~, ..) =>
+      if arguments.is_empty() {
+        text("<unresolved-effect ") + text(name) + text(">")
+      } else {
+        text("<unresolved-effect ") +
+        text(name) +
+        type_arguments_doc(arguments) +
+        text(">")
+      }
+  }
+}
+
+///|
+fn ResolvedEffectTerm::annotation_doc(self : ResolvedEffectTerm) -> Document {
+  match self {
+    Empty(..) => empty
+    _ => space + text("!") + space + self.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectOperationName with fn pretty(
+  name : ResolvedEffectOperationName,
+) {
+  match name {
+    Qualified(owner~, operation~, reference~, ..) =>
+      owner.pretty() +
+      text("::") +
+      text(operation) +
+      operation_reference_doc(reference)
+    Shorthand(operation~, reference~, ..) =>
+      text("::") + text(operation) + operation_reference_doc(reference)
+    Unqualified(operation~, reference~, ..) =>
+      text(operation) + operation_reference_doc(reference)
+  }
+}
+
+///|
+fn operation_reference_doc(reference : ResolvedOperationReference) -> Document {
+  match reference {
+    Symbol(symbol) => text("@") + symbol.pretty()
+    Unresolved(name) => text("@<unresolved ") + text(name) + text(">")
+    Ambiguous(name~, candidates~) =>
+      text("@<ambiguous ") +
+      text(name) +
+      text(" ") +
+      @pretty.bracketed_inline(candidates.map(OperationSymbolId::pretty)) +
+      text(">")
   }
 }
 
@@ -564,18 +628,34 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       text("::") +
       @pretty.braced_block(fields.map(ResolvedStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) => {
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) => {
       let result = match return_type {
         Some(type_) => space + text("->") + space + type_.pretty()
+        None => empty
+      }
+      let effect = match effect {
+        Some(effect) => effect.annotation_doc()
         None => empty
       }
       text("fn") +
       type_parameters_doc(type_parameters) +
       function_literal_parameters_doc(parameters) +
       result +
+      effect +
       space +
       body.pretty()
     }
+    EffectOperationCall(name~, arguments~, ..) =>
+      name.pretty() +
+      text("!") +
+      @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     Block(items~, result~, ..) => {
       let docs = items.map(ResolvedLocalItem::pretty)
       docs.push(result.pretty())

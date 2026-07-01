@@ -198,6 +198,13 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
+  OperationCall(
+    operation~ : OperationSymbolId,
+    arguments~ : Array[CheckedExpr],
+    effect~ : @types.Effect,
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
   Field(
     base~ : CheckedExpr,
     field~ : FieldSymbolId,
@@ -300,6 +307,7 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
     | If(type_~, ..)
     | Match(type_~, ..)
     | Call(type_~, ..)
+    | OperationCall(type_~, ..)
     | Field(type_~, ..)
     | StructLiteral(type_~, ..)
     | Variant(type_~, ..) => type_
@@ -319,6 +327,7 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | If(loc~, ..)
     | Match(loc~, ..)
     | Call(loc~, ..)
+    | OperationCall(loc~, ..)
     | Field(loc~, ..)
     | StructLiteral(loc~, ..)
     | Variant(loc~, ..) => loc

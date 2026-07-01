@@ -24,6 +24,7 @@ pub(all) struct DesugaredFunctionDeclaration {
   type_parameters : Array[@resolve.ResolvedTypeParameter]
   parameters : Array[@resolve.ResolvedValueParameter]
   return_type : @resolve.ResolvedType
+  effect : @resolve.ResolvedEffectTerm
   body : DesugaredExpr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -122,7 +123,13 @@ pub(all) enum DesugaredExpr {
     type_parameters~ : Array[@resolve.ResolvedTypeParameter],
     parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter],
     return_type~ : @resolve.ResolvedType?,
+    effect~ : @resolve.ResolvedEffectTerm?,
     body~ : DesugaredExpr,
+    loc~ : SourceSpan
+  )
+  EffectOperationCall(
+    name~ : @resolve.ResolvedEffectOperationName,
+    arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )
   Block(
@@ -164,6 +171,7 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | StructLiteral(loc~, ..)
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
+    | EffectOperationCall(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)

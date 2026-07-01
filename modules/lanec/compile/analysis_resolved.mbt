@@ -542,6 +542,16 @@ fn collect_resolved_expr(
         }
       }
     }
+    EffectOperationCall(name~, arguments~, ..) => {
+      collect_resolved_effect_operation_name(
+        source_id, name, references, hovers,
+      )
+      for argument in arguments {
+        collect_resolved_expr(
+          source_id, source_text, argument, definitions, references, hovers,
+        )
+      }
+    }
     Field(base~, reference=Symbol(symbol), loc~, name~) => {
       collect_resolved_expr(
         source_id, source_text, base, definitions, references, hovers,
@@ -614,6 +624,7 @@ fn resolved_expr_loc(expr : @resolve.ResolvedExpr) -> @basic.SourceSpan {
     | If(loc~, ..)
     | Match(loc~, ..)
     | Call(loc~, ..)
+    | EffectOperationCall(loc~, ..)
     | Field(loc~, ..)
     | Unary(loc~, ..)
     | Binary(loc~, ..)
@@ -728,7 +739,7 @@ fn collect_resolved_type_reference(
         loc,
         Some("type \{name}"),
       )
-    Function(type_parameters~, parameters~, result~, ..) => {
+    Function(type_parameters~, parameters~, result~, effect~, ..) => {
       for parameter in type_parameters {
         ignore(parameter)
       }
@@ -738,6 +749,48 @@ fn collect_resolved_type_reference(
         )
       }
       collect_resolved_type_reference(source_id, result, references, hovers)
+      collect_resolved_effect_reference(source_id, effect, references, hovers)
     }
+  }
+}
+
+///|
+fn collect_resolved_effect_operation_name(
+  source_id : String,
+  name : @resolve.ResolvedEffectOperationName,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  if name is Qualified(owner~, ..) {
+    collect_resolved_effect_reference(source_id, owner, references, hovers)
+  }
+}
+
+///|
+fn collect_resolved_effect_reference(
+  source_id : String,
+  effect : @resolve.ResolvedEffectTerm,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match effect {
+    Empty(..) | Unresolved(..) => ()
+    Singleton(arguments~, ..) =>
+      for argument in arguments {
+        collect_resolved_type_reference(source_id, argument, references, hovers)
+      }
+    Parameter(symbol~, name~, loc~) =>
+      add_reference(
+        references,
+        hovers,
+        source_id,
+        TypeParameter(symbol),
+        loc,
+        Some("effect \{name}"),
+      )
+    Union(items~, ..) =>
+      for item in items {
+        collect_resolved_effect_reference(source_id, item, references, hovers)
+      }
   }
 }

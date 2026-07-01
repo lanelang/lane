@@ -785,7 +785,7 @@ fn complete_constructor_signatures(
     | Constructor(_)
     | Apply(_, _)
     | TypeLambda(_, _)
-    | Function(_, _)
+    | Function(_, _, _)
     | Forall(_, _) => None
   }
 }

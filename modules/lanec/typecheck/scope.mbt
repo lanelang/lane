@@ -232,6 +232,7 @@ fn SemanticChecker::check_local_function(
     declaration.type_parameters,
     declaration.parameters,
     declaration.return_type,
+    declaration.effect,
   )
   let parameters = declaration.parameters.map(fn(parameter) {
     self.checked_value_parameter(parameter)
@@ -253,5 +254,10 @@ fn SemanticChecker::check_local_function(
     body_scope,
     declaration.body,
     self.check_type(declaration.return_type),
+  )
+  self.expect_effect(
+    self.check_effect(declaration.effect),
+    self.synthesize_expr_effect(body_scope, declaration.body),
+    declaration.body.loc(),
   )
 }

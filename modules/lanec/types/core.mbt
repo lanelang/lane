@@ -28,8 +28,16 @@ pub(all) enum Type {
   Apply(Type, Array[Type])
   TypeLambda(Array[TypeParameter], Type)
   Parameter(TypeParameterId)
-  Function(Array[Type], Type)
+  Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameter], Type)
+} derive(Debug)
+
+///|
+pub(all) enum Effect {
+  Empty
+  Singleton(EffectSymbolId, Array[Type])
+  Parameter(TypeParameterId)
+  Union(Array[Effect])
 } derive(Debug)
 
 ///|
@@ -123,12 +131,13 @@ fn Type::substitute_with_bound(
         Some(replacement) => replacement
         None => self
       }
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) {
           parameter.substitute_with_bound(substitution, bound)
         }),
         result.substitute_with_bound(substitution, bound),
+        effect.substitute_with_bound(substitution, bound),
       )
     Forall(type_parameters, body) => {
       let next_bound = bound.copy()
@@ -140,6 +149,44 @@ fn Type::substitute_with_bound(
         body.substitute_with_bound(substitution, next_bound),
       )
     }
+  }
+}
+
+///|
+pub fn Effect::substitute(
+  self : Effect,
+  substitution : TypeSubstitution,
+) -> Effect {
+  self.substitute_with_bound(substitution, [])
+}
+
+///|
+fn Effect::substitute_with_bound(
+  self : Effect,
+  substitution : TypeSubstitution,
+  bound : Array[TypeParameterId],
+) -> Effect {
+  match self {
+    Empty => Empty
+    Singleton(symbol, arguments) =>
+      Singleton(
+        symbol,
+        arguments.map(fn(argument) {
+          argument.substitute_with_bound(substitution, bound)
+        }),
+      )
+    Parameter(id) =>
+      match substitution.lookup(id, bound) {
+        Some(Parameter(id)) => Parameter(id)
+        Some(_) => self
+        None => self
+      }
+    Union(effects) =>
+      Union(
+        effects.map(fn(effect) {
+          effect.substitute_with_bound(substitution, bound)
+        }),
+      )
   }
 }
 
@@ -167,6 +214,17 @@ pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
 }
 
 ///|
+/// Returns whether two effects are equal under Lane2 effect equality.
+pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
+  effect_alpha_equal_with([], self.normalize(), other.normalize())
+}
+
+///|
+pub impl Eq for Effect with fn equal(self : Effect, other : Effect) -> Bool {
+  self.equals(other)
+}
+
+///|
 fn alpha_equal_with(
   bindings : Array[AlphaBinding],
   left : Type,
@@ -186,13 +244,48 @@ fn alpha_equal_with(
       )
     (Parameter(left), Parameter(right)) =>
       alpha_equal_parameter(bindings, left, right)
-    (Function(left_params, left_result), Function(right_params, right_result)) =>
+    (
+      Function(left_params, left_result, left_effect),
+      Function(right_params, right_result, right_effect),
+    ) =>
       same_length_alpha_equal(bindings, left_params, right_params) &&
-      alpha_equal_with(bindings, left_result, right_result)
+      alpha_equal_with(bindings, left_result, right_result) &&
+      effect_alpha_equal_with(bindings, left_effect, right_effect)
     (Forall(left_params, left_body), Forall(right_params, right_body)) =>
       alpha_equal_type_parameters(
         bindings, left_params, right_params, left_body, right_body,
       )
+    _ => false
+  }
+}
+
+///|
+fn effect_alpha_equal_with(
+  bindings : Array[AlphaBinding],
+  left : Effect,
+  right : Effect,
+) -> Bool {
+  match (left, right) {
+    (Empty, Empty) => true
+    (
+      Singleton(left_symbol, left_arguments),
+      Singleton(right_symbol, right_arguments),
+    ) =>
+      left_symbol == right_symbol &&
+      same_length_alpha_equal(bindings, left_arguments, right_arguments)
+    (Parameter(left), Parameter(right)) =>
+      alpha_equal_parameter(bindings, left, right)
+    (Union(left), Union(right)) => {
+      if left.length() != right.length() {
+        return false
+      }
+      for index in 0..<left.length() {
+        if !effect_alpha_equal_with(bindings, left[index], right[index]) {
+          return false
+        }
+      }
+      true
+    }
     _ => false
   }
 }
@@ -288,13 +381,36 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
     }
     TypeLambda(parameters, body) =>
       TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { parameter.normalize_with_fuel(fuel - 1) }),
         result.normalize_with_fuel(fuel - 1),
+        effect.normalize_with_fuel(fuel - 1),
       )
     Forall(parameters, body) =>
       Forall(parameters, body.normalize_with_fuel(fuel - 1))
+  }
+}
+
+///|
+pub fn Effect::normalize(self : Effect) -> Effect {
+  self.normalize_with_fuel(1024)
+}
+
+///|
+fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
+  if fuel <= 0 {
+    abort("Lane effect normalization fuel exhausted")
+  }
+  match self {
+    Empty | Parameter(_) => self
+    Singleton(symbol, arguments) =>
+      Singleton(
+        symbol,
+        arguments.map(fn(argument) { argument.normalize_with_fuel(fuel - 1) }),
+      )
+    Union(effects) =>
+      Union(effects.map(fn(effect) { effect.normalize_with_fuel(fuel - 1) }))
   }
 }
 

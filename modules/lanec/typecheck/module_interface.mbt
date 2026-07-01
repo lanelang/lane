@@ -333,17 +333,38 @@ fn SemanticChecker::check_public_interface_type_fallback_with_seen(
     }
     TypeLambda(_, body) =>
       self.check_public_interface_type_fallback_with_seen(body, loc, seen)
-    Function(parameters, result) => {
+    Function(parameters, result, effect) => {
       for parameter in parameters {
         self.check_public_interface_type_fallback_with_seen(
           parameter, loc, seen,
         )
       }
       self.check_public_interface_type_fallback_with_seen(result, loc, seen)
+      self.check_public_interface_effect_fallback_with_seen(effect, loc, seen)
     }
     Forall(_, body) =>
       self.check_public_interface_type_fallback_with_seen(body, loc, seen)
     Error | Primitive(_) | Parameter(_) => ()
+  }
+}
+
+///|
+fn SemanticChecker::check_public_interface_effect_fallback_with_seen(
+  self : SemanticChecker,
+  effect : @types.Effect,
+  loc : SourceSpan,
+  seen : Array[@symbol.TypeSymbolId],
+) -> Unit {
+  match effect {
+    Empty | Parameter(_) => ()
+    Singleton(_, arguments) =>
+      for argument in arguments {
+        self.check_public_interface_type_fallback_with_seen(argument, loc, seen)
+      }
+    Union(effects) =>
+      for item in effects {
+        self.check_public_interface_effect_fallback_with_seen(item, loc, seen)
+      }
   }
 }
 

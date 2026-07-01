@@ -551,7 +551,7 @@ fn TypeExpressionChecker::synthesize_type(
       }
       { type_: Parameter(symbol), kind }
     }
-    Function(type_parameters~, parameters~, result~, ..) => {
+    Function(type_parameters~, parameters~, result~, effect~, ..) => {
       let checked_type_parameters = check_type_parameters(
         self.diagnostics,
         type_parameters,
@@ -560,8 +560,9 @@ fn TypeExpressionChecker::synthesize_type(
         self.expect_kind(parameter, Type).type_
       })
       let checked_result = self.expect_kind(result, Type).type_
+      let checked_effect = self.check_effect(effect)
       let function_type = @types.Type::Function(
-        checked_parameters, checked_result,
+        checked_parameters, checked_result, checked_effect,
       )
       if checked_type_parameters.is_empty() {
         { type_: function_type, kind: Type }
@@ -829,7 +830,7 @@ fn find_kind_in_type(
       }
       None
     }
-    Function(type_parameters~, parameters~, result~, ..) => {
+    Function(type_parameters~, parameters~, result~, effect~, ..) => {
       for parameter in parameters {
         if find_kind_in_type(parameter, symbol) is Some(kind) {
           return Some(kind)
@@ -839,9 +840,52 @@ fn find_kind_in_type(
         Some(kind) => return Some(kind)
         None => ()
       }
-      find_kind_in_type(result, symbol)
+      match find_kind_in_type(result, symbol) {
+        Some(kind) => Some(kind)
+        None => find_kind_in_effect(effect, symbol)
+      }
     }
     _ => None
+  }
+}
+
+///|
+fn find_kind_in_effect(
+  effect : @resolve.ResolvedEffectTerm,
+  symbol : TypeParameterId,
+) -> @types.Kind? {
+  match effect {
+    Empty(..) => None
+    Singleton(arguments~, ..) => {
+      for argument in arguments {
+        if find_kind_in_type(argument, symbol) is Some(kind) {
+          return Some(kind)
+        }
+      }
+      None
+    }
+    Parameter(symbol=effect_symbol, ..) =>
+      if effect_symbol == symbol {
+        Some(Effect)
+      } else {
+        None
+      }
+    Union(items~, ..) => {
+      for item in items {
+        if find_kind_in_effect(item, symbol) is Some(kind) {
+          return Some(kind)
+        }
+      }
+      None
+    }
+    Unresolved(arguments~, ..) => {
+      for argument in arguments {
+        if find_kind_in_type(argument, symbol) is Some(kind) {
+          return Some(kind)
+        }
+      }
+      None
+    }
   }
 }
 

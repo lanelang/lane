@@ -75,10 +75,18 @@ fn ResolveScope::type_parameter(
   self : ResolveScope,
   name : String,
 ) -> TypeParameterId? {
+  self.type_parameter_info(name).map(fn(parameter) { parameter.symbol })
+}
+
+///|
+fn ResolveScope::type_parameter_info(
+  self : ResolveScope,
+  name : String,
+) -> ResolvedTypeParameter? {
   for index = self.type_parameters.length(); index > 0; index = index - 1 {
     let parameter = self.type_parameters[index - 1]
     if parameter.name == name {
-      return Some(parameter.symbol)
+      return Some(parameter)
     }
   }
   None

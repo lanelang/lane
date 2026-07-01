@@ -286,28 +286,30 @@ effect_operation -> EffectOperationDeclaration
   ;
 
 function_declaration -> FunctionDeclaration
-  : "fn" type_parameters IDENT parameters "->" type block_expression {
+  : "fn" type_parameters IDENT parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: false,
       type_parameters: $2,
       name: $3,
       parameters: $4,
       return_type: $6,
-      body: $7,
+      effect: effect_or_empty($7, $6),
+      body: $8,
       loc: span($sloc),
     }
   }
   ;
 
 public_function_declaration -> FunctionDeclaration
-  : "fn" type_parameters IDENT parameters "->" type block_expression {
+  : "fn" type_parameters IDENT parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: true,
       type_parameters: $2,
       name: $3,
       parameters: $4,
       return_type: $6,
-      body: $7,
+      effect: effect_or_empty($7, $6),
+      body: $8,
       loc: span($sloc),
     }
   }
@@ -401,7 +403,7 @@ type_parameter -> TypeParameter
 type -> Type
   : type_lambda { $1 }
   | type_application "->" type {
-    Function(type_parameters=[], parameters=[$1], result=$3, loc=span($sloc))
+    Function(type_parameters=[], parameters=[$1], result=$3, effect=Empty(loc=$3.loc()), loc=span($sloc))
   }
   | function_type { $1 }
   | type_application { $1 }
@@ -438,11 +440,31 @@ qualified_type_name -> Type
   ;
 
 function_type -> Type
-  : "(" type_list ")" "->" type {
-    Function(type_parameters=[], parameters=$2, result=$5, loc=span($sloc))
+  : "(" type_list ")" "->" type effect_annotation_opt {
+    Function(type_parameters=[], parameters=$2, result=$5, effect=effect_or_empty($6, $5), loc=span($sloc))
   }
-  | "[" non_empty_type_parameter_list "]" "(" type_list ")" "->" type {
-    Function(type_parameters=$2, parameters=$5, result=$8, loc=span($sloc))
+  | "[" non_empty_type_parameter_list "]" "(" type_list ")" "->" type effect_annotation_opt {
+    Function(type_parameters=$2, parameters=$5, result=$8, effect=effect_or_empty($9, $8), loc=span($sloc))
+  }
+  ;
+
+effect_annotation_opt -> EffectTerm?
+  : { None }
+  | effect_annotation { Some($1) }
+  ;
+
+effect_annotation -> EffectTerm
+  : "!" effect_set { $2 }
+  ;
+
+effect_set -> EffectTerm
+  : type_application { Term(type_=$1, loc=span($sloc)) }
+  | "{" type_list "}" {
+    if $2.is_empty() {
+      Empty(loc=span($sloc))
+    } else {
+      Union(items=$2, loc=span($sloc))
+    }
   }
   ;
 
@@ -511,6 +533,32 @@ expression -> Expr
   | expression "." IDENT {
     Field(base=$1, name=$3, loc=span($sloc))
   }
+  | expression "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
+    EffectOperationCall(
+      name=Qualified(
+        owner=Name(name=expression_type_name_text($1), loc=span($sloc)),
+        operation=$3,
+        loc=span($sloc)
+      ),
+      arguments=$6,
+      loc=span($sloc)
+    )
+  }
+  | expression "[" type_list "]" "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
+    EffectOperationCall(
+      name=Qualified(
+        owner=Apply(
+          callee=Name(name=expression_type_name_text($1), loc=span($sloc)),
+          arguments=$3,
+          loc=span($sloc)
+        ),
+        operation=$6,
+        loc=span($sloc)
+      ),
+      arguments=$9,
+      loc=span($sloc)
+    )
+  }
   | expression "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
     StructLiteral(type_name=expression_type_name_text($1), type_arguments=[], fields=$4, loc=span($sloc))
   }
@@ -538,7 +586,25 @@ primary_expression -> Expr
   | if_expression { $1 }
   | match_expression { $1 }
   | function_literal { $1 }
+  | effect_operation_call { $1 }
   | builtin_expression { $1 }
+  ;
+
+effect_operation_call -> Expr
+  : "::" IDENT "!" "(" positional_argument_list ")" {
+    EffectOperationCall(
+      name=Shorthand(operation=$2, loc=span($sloc)),
+      arguments=$5,
+      loc=span($sloc)
+    )
+  }
+  | IDENT "!" "(" positional_argument_list ")" {
+    EffectOperationCall(
+      name=Unqualified(operation=$1, loc=span($sloc)),
+      arguments=$4,
+      loc=span($sloc)
+    )
+  }
   ;
 
 nominal_type_name -> String
@@ -577,6 +643,11 @@ struct_literal_field -> StructLiteralField
 variant_arguments -> Array[Expr]
   : { [] }
   | "(" non_empty_positional_argument_list ")" { $2 }
+  ;
+
+positional_argument_list -> Array[Expr]
+  : { [] }
+  | non_empty_positional_argument_list { $1 }
   ;
 
 argument_list -> Array[CallArgument]
@@ -648,8 +719,8 @@ match_arm -> MatchArm
   ;
 
 function_literal -> Expr
-  : "fn" type_parameters "(" function_literal_parameters ")" return_type_annotation block_expression {
-    FunctionLiteral(type_parameters=$2, parameters=$4, return_type=$6, body=$7, loc=span($sloc))
+  : "fn" type_parameters "(" function_literal_parameters ")" return_annotation block_expression {
+    FunctionLiteral(type_parameters=$2, parameters=$4, return_type=$6.return_type, effect=$6.effect, body=$7, loc=span($sloc))
   }
   ;
 
@@ -674,9 +745,11 @@ function_literal_parameter_modifiers -> Bool
   | "offer" { true }
   ;
 
-return_type_annotation -> Type?
-  : { None }
-  | "->" type { Some($2) }
+return_annotation -> ReturnAnnotation
+  : { { return_type: None, effect: None } }
+  | "->" type effect_annotation_opt {
+    { return_type: Some($2), effect: $3 }
+  }
   ;
 
 builtin_expression -> Expr

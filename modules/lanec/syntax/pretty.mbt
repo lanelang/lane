@@ -378,6 +378,7 @@ fn FunctionDeclaration::to_doc(self : FunctionDeclaration) -> Document {
   text("->") +
   space +
   self.return_type.to_doc() +
+  self.effect.to_annotation_doc() +
   space +
   self.body.to_doc()
 }
@@ -469,13 +470,31 @@ fn Type::to_doc(self : Type) -> Document {
       text("=>") +
       space +
       body.to_doc()
-    Function(type_parameters~, parameters~, result~, ..) =>
+    Function(type_parameters~, parameters~, result~, effect~, ..) =>
       bracketed_type_parameters(type_parameters) +
       parenthesized(parameters.map(Type::to_doc)) +
       space +
       text("->") +
       space +
-      result.to_doc()
+      result.to_doc() +
+      effect.to_annotation_doc()
+  }
+}
+
+///|
+fn EffectTerm::to_doc(self : EffectTerm) -> Document {
+  match self {
+    Empty(..) => text("{}")
+    Term(type_~, ..) => type_.to_doc()
+    Union(items~, ..) => brace_comma_block(items.map(Type::to_doc))
+  }
+}
+
+///|
+fn EffectTerm::to_annotation_doc(self : EffectTerm) -> Document {
+  match self {
+    Empty(..) => empty
+    _ => space + text("!") + space + self.to_doc()
   }
 }
 
@@ -528,9 +547,20 @@ fn Expr::to_doc_with_precedence(
     }
     Builtin(name, ..) =>
       (10, keyword("builtin") + parenthesized([source_string(name)]))
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) => {
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) => {
       let return_doc = match return_type {
         Some(type_) => space + text("->") + space + type_.to_doc()
+        None => empty
+      }
+      let effect_doc = match effect {
+        Some(effect) => effect.to_annotation_doc()
         None => empty
       }
       (
@@ -540,10 +570,16 @@ fn Expr::to_doc_with_precedence(
         space +
         parenthesized(parameters.map(FunctionLiteralParameter::to_doc)) +
         return_doc +
+        effect_doc +
         space +
         body.to_doc(),
       )
     }
+    EffectOperationCall(name~, arguments~, ..) =>
+      (
+        10,
+        name.to_doc() + text("!") + parenthesized(arguments.map(Expr::to_doc)),
+      )
     Block(items~, result~, ..) => {
       let docs = items.map(LocalItem::to_doc)
       docs.push(result.to_doc())
@@ -606,6 +642,16 @@ fn Expr::to_doc_with_precedence(
     parens(doc)
   } else {
     doc
+  }
+}
+
+///|
+fn EffectOperationName::to_doc(self : EffectOperationName) -> Document {
+  match self {
+    Qualified(owner~, operation~, ..) =>
+      owner.to_doc() + text("::") + text(operation)
+    Shorthand(operation~, ..) => text("::") + text(operation)
+    Unqualified(operation~, ..) => text(operation)
   }
 }
 

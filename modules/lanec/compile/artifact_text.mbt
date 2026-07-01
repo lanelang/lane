@@ -1165,10 +1165,11 @@ fn ArtifactTextWriter::write_lane_type(
       self.write_tag("lane_type.parameter")
       self.write_type_parameter_id("lane_type.parameter.id", id)
     }
-    Function(parameters, result) => {
+    Function(parameters, result, effect) => {
       self.write_tag("lane_type.function")
       self.write_lane_types("lane_type.function.parameters", parameters)
       self.write_lane_type(result)
+      self.write_lane_effect(effect)
     }
     Forall(parameters, body) => {
       self.write_tag("lane_type.forall")
@@ -1202,7 +1203,8 @@ fn ArtifactTextReader::read_lane_type(
     "lane_type.function" => {
       let parameters = self.read_lane_types("lane_type.function.parameters")
       let result = self.read_lane_type()
-      Function(parameters, result)
+      let effect = self.read_lane_effect()
+      Function(parameters, result, effect)
     }
     "lane_type.forall" => {
       let parameters = self.read_type_parameters("lane_type.binders")
@@ -1210,6 +1212,56 @@ fn ArtifactTextReader::read_lane_type(
       Forall(parameters, body)
     }
     tag => fail_unknown("unknown Lane type tag \{tag}")
+  }
+}
+
+///|
+fn ArtifactTextWriter::write_lane_effect(
+  self : ArtifactTextWriter,
+  effect : @types.Effect,
+) -> Unit {
+  match effect {
+    Empty => self.write_tag("lane_effect.empty")
+    Singleton(symbol, arguments) => {
+      self.write_tag("lane_effect.singleton")
+      self.write_effect_symbol_id("lane_effect.singleton.symbol", symbol)
+      self.write_lane_types("lane_effect.singleton.arguments", arguments)
+    }
+    Parameter(id) => {
+      self.write_tag("lane_effect.parameter")
+      self.write_type_parameter_id("lane_effect.parameter.id", id)
+    }
+    Union(effects) => {
+      self.write_tag("lane_effect.union")
+      self.write_int("lane_effect.union.items", effects.length())
+      for effect in effects {
+        self.write_lane_effect(effect)
+      }
+    }
+  }
+}
+
+///|
+fn ArtifactTextReader::read_lane_effect(
+  self : ArtifactTextReader,
+) -> @types.Effect raise ArtifactTextError {
+  match self.next_tag() {
+    "lane_effect.empty" => Empty
+    "lane_effect.singleton" => {
+      let symbol = self.read_effect_symbol_id("lane_effect.singleton.symbol")
+      let arguments = self.read_lane_types("lane_effect.singleton.arguments")
+      Singleton(symbol, arguments)
+    }
+    "lane_effect.parameter" =>
+      Parameter(self.read_type_parameter_id("lane_effect.parameter.id"))
+    "lane_effect.union" => {
+      let effects = []
+      for _ in 0..<self.expect_int("lane_effect.union.items") {
+        effects.push(self.read_lane_effect())
+      }
+      Union(effects)
+    }
+    tag => fail_unknown("unknown Lane effect tag \{tag}")
   }
 }
 

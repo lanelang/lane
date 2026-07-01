@@ -290,6 +290,14 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text("actual=") +
       actual.pretty()
+    EffectMismatch(expected~, actual~) =>
+      text("effect_mismatch") +
+      space +
+      text("expected=") +
+      expected.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty()
     NotCallable(type_) => text("not_callable") + space + type_.pretty()
     UnknownField(name~) => text("unknown_field") + space + text(name)
     MissingField(name~) => text("missing_field") + space + text(name)

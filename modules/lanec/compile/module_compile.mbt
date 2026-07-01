@@ -2011,12 +2011,13 @@ fn FingerprintTypeContext::type_fingerprint(
       "type[\{parameter_fingerprints}]=>\{body_fingerprint}"
     }
     Parameter(symbol) => self.type_parameter_name(symbol)
-    Function(parameters, result) => {
+    Function(parameters, result, effect) => {
       let parameters = parameters
         .map(fn(parameter) { self.type_fingerprint(parameter) })
         .join(",")
       let result = self.type_fingerprint(result)
-      "(\{parameters})->\{result}"
+      let effect = self.effect_fingerprint(effect)
+      "(\{parameters})->\{result}!\{effect}"
     }
     Forall(parameters, body) => {
       let context = self.with_type_parameters(parameters)
@@ -2026,6 +2027,25 @@ fn FingerprintTypeContext::type_fingerprint(
       let body_fingerprint = context.type_fingerprint(body)
       "forall[\{parameter_fingerprints}].\{body_fingerprint}"
     }
+  }
+}
+
+///|
+fn FingerprintTypeContext::effect_fingerprint(
+  self : FingerprintTypeContext,
+  effect : @types.Effect,
+) -> String {
+  match effect {
+    Empty => "{}"
+    Singleton(symbol, arguments) => {
+      let arguments = arguments
+        .map(fn(argument) { self.type_fingerprint(argument) })
+        .join(",")
+      "\{@prettyprinter.render(symbol.pretty(), width=100)}[\{arguments}]"
+    }
+    Parameter(symbol) => self.type_parameter_name(symbol)
+    Union(effects) =>
+      "{\{effects.map(fn(effect) { self.effect_fingerprint(effect) }).join(",")}}"
   }
 }
 

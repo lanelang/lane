@@ -32,8 +32,19 @@ pub impl @prettyprinter.Pretty for DesugaredFunctionDeclaration with fn pretty(
   declaration.symbol.pretty() +
   space +
   text(declaration.name) +
+  declaration.effect.annotation_doc() +
   space +
   @pretty.braced_block([@pretty.section("body", [declaration.body.pretty()])])
+}
+
+///|
+fn @resolve.ResolvedEffectTerm::annotation_doc(
+  self : @resolve.ResolvedEffectTerm,
+) -> Document {
+  match self {
+    Empty(..) => empty
+    _ => space + text("!") + space + self.pretty()
+  }
 }
 
 ///|
@@ -156,18 +167,34 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       text("::") +
       @pretty.braced_block(fields.map(DesugaredStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) => {
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) => {
       let result = match return_type {
         Some(type_) => space + text("->") + space + type_.pretty()
+        None => empty
+      }
+      let effect = match effect {
+        Some(effect) => space + text("!") + space + effect.pretty()
         None => empty
       }
       text("fn") +
       type_parameters_doc(type_parameters) +
       function_literal_parameters_doc(parameters) +
       result +
+      effect +
       space +
       body.pretty()
     }
+    EffectOperationCall(name~, arguments~, ..) =>
+      name.pretty() +
+      text("!") +
+      @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
     Block(items~, result~, ..) => {
       let docs = items.map(DesugaredLocalItem::pretty)
       docs.push(result.pretty())
