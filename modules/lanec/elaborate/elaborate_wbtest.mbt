@@ -386,6 +386,64 @@ test "elaborate lowers latent effects into buslane function types" {
 }
 
 ///|
+test "elaborate lowers operation calls into buslane perform" {
+  let result = elaborate_buslane_source(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|effect State[S] {
+      #|  get() -> S
+      #|}
+      #|fn write_hello() -> Unit ! Console {
+      #|  Console::write!("hi")
+      #|}
+      #|fn read_int() -> Int ! State[Int] {
+      #|  State[Int]::get!()
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|buslane_elaborate_result {
+      #|  buslane {
+      #|    metadata {
+      #|      type_parameter tparam#0 : Type
+      #|      function value#0 : () -> Unit ! effect#0
+      #|      function value#1 : () -> Int ! effect#1[Int]
+      #|      effect effect#0 {
+      #|        operation#0(String) -> Unit
+      #|      }
+      #|      effect effect#1[tparam#0] {
+      #|        operation#1() -> tparam#0
+      #|      }
+      #|    }
+      #|    letrec {
+      #|      value#0 = fn() -> Unit {
+      #|        perform operation#0("hi")
+      #|      }
+      #|      value#1 = fn() -> Int {
+      #|        perform operation#1[Int]()
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
 test "elaborate type aliases into alias-free buslane types" {
   let result = elaborate_buslane_source(
     (

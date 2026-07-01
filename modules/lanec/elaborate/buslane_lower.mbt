@@ -1074,8 +1074,12 @@ fn BuslaneLowerer::lower_expr(
         self.lower_expr(callee),
         arguments.map(fn(argument) { self.lower_expr(argument) }),
       )
-    OperationCall(..) =>
-      abort("Lane effect operation lowering to Buslane is not implemented yet")
+    OperationCall(operation~, arguments~, effect~, ..) =>
+      Perform({
+        operation: self.operation_id(operation),
+        type_arguments: self.perform_type_arguments(effect),
+        payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
+      })
     Handler(handlers~, type_~, ..) => {
       lower_handler_tables_boundary(
         self.lower_handler_tables_for_alternatives(handlers, type_),
@@ -1902,6 +1906,17 @@ fn BuslaneLowerer::lower_effect(
 }
 
 ///|
+fn BuslaneLowerer::perform_type_arguments(
+  self : BuslaneLowerer,
+  effect : @types.Effect,
+) -> Array[@buslane.Type] {
+  guard effect is Singleton(_, arguments) else {
+    abort("checked effect operation call must carry singleton owner effect")
+  }
+  arguments.map(fn(argument) { self.lower_type(argument) })
+}
+
+///|
 fn BuslaneLowerer::nominal_type_arguments(
   self : BuslaneLowerer,
   type_ : @types.Type,
@@ -2121,6 +2136,19 @@ fn BuslaneLowerer::effect_id(
     }
   }
   abort("unknown Buslane effect id")
+}
+
+///|
+fn BuslaneLowerer::operation_id(
+  self : BuslaneLowerer,
+  source : @symbol.OperationSymbolId,
+) -> @buslane.OperationId {
+  for entry in self.operations {
+    if entry.source == source {
+      return entry.target
+    }
+  }
+  abort("unknown Buslane operation id")
 }
 
 ///|
