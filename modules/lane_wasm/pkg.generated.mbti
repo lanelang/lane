@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lane_wasm"
+
+// Values
+pub fn arena_alloc(Int) -> Int
+
+pub fn arena_capacity() -> Int
+
+pub fn arena_reset() -> Unit
+
+pub fn explore(Int, Int) -> Int
+
+pub fn last_result_len() -> Int
+
+pub fn last_result_ptr() -> Int
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+
