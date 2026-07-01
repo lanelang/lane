@@ -64,17 +64,17 @@ coordination and independent work items can still live in the issue tracker.
 
 ## 3. Interpreter Deep Handlers
 
-- [ ] Move the interpreter internals to an explicit evaluation-continuation
+- [x] Move the interpreter internals to an explicit evaluation-continuation
   model while keeping the public interpreter API stable where possible.
-- [ ] Represent runtime resume values as captured continuations under a deep
+- [x] Represent runtime resume values as captured continuations under a deep
   handler.
-- [ ] Dispatch `perform` to the nearest matching handler table entry.
-- [ ] Reinstall the same deep handler when a resume value is invoked.
-- [ ] Support multi-shot resume according to the Buslane runtime semantics.
-- [ ] Preserve strict left-to-right evaluation of callee, arguments, operation
+- [x] Dispatch `perform` to the nearest matching handler table entry.
+- [x] Reinstall the same deep handler when a resume value is invoked.
+- [x] Support multi-shot resume according to the Buslane runtime semantics.
+- [x] Preserve strict left-to-right evaluation of callee, arguments, operation
   payloads, and handler clauses.
-- [ ] Treat unhandled `perform` as a Buslane runtime error.
-- [ ] Add interpreter tests for direct handling, nested handlers, resumed
+- [x] Treat unhandled `perform` as a Buslane runtime error.
+- [x] Add interpreter tests for direct handling, nested handlers, resumed
   continuations, multi-shot resume, and unhandled operations.
 
 ## 4. Lanec Lowering Integration
