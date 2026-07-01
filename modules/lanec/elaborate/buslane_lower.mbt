@@ -1080,12 +1080,8 @@ fn BuslaneLowerer::lower_expr(
         type_arguments: self.perform_type_arguments(effect),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
-    Handler(handlers~, type_~, ..) => {
-      lower_handler_tables_boundary(
-        self.lower_handler_tables_for_alternatives(handlers, type_),
-      )
-      abort("Lane handler lowering to Buslane is not implemented yet")
-    }
+    Handler(body~, handlers~, final_branch~, type_~, ..) =>
+      self.lower_handler(body, handlers, final_branch, type_)
     Field(base~, field~, ..) => self.lower_field(base, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
       Construct({
@@ -1111,6 +1107,62 @@ fn BuslaneLowerer::lower_expr(
 }
 
 ///|
+fn BuslaneLowerer::lower_handler(
+  self : BuslaneLowerer,
+  body : @checked.CheckedExpr?,
+  handlers : Array[@checked.CheckedHandlerTable],
+  final_branch : @checked.CheckedHandlerFinalBranch,
+  result_type : @types.Type,
+) -> @buslane.Expr {
+  guard body is Some(body) else { abort("unchecked handler body") }
+  guard final_branch.body is Some(final_body) else {
+    abort("unchecked handler final branch")
+  }
+  let result_binder = self.define_value(
+    final_branch.binder_symbol,
+    MatchBinder,
+    self.lower_type(body.type_()),
+  )
+  Handle({
+    body: self.lower_expr(body),
+    result_binder,
+    result_type: self.lower_type(result_type),
+    final_body: self.lower_expr(final_body),
+    handlers: self.lower_handler_tables(
+      self.lower_handler_tables_for_alternatives(handlers, result_type),
+    ),
+  })
+}
+
+///|
+fn BuslaneLowerer::lower_handler_tables(
+  self : BuslaneLowerer,
+  tables : Array[LoweredHandlerTable],
+) -> Array[@buslane.HandlerTable] {
+  tables.map(fn(table) {
+    {
+      handled_effect: self.lower_effect(table.handled_effect),
+      operations: table.operations.map(fn(operation) {
+        self.lower_operation_alternative(operation)
+      }),
+    }
+  })
+}
+
+///|
+fn BuslaneLowerer::lower_operation_alternative(
+  self : BuslaneLowerer,
+  operation : LoweredOperationAlternative,
+) -> @buslane.OperationAlternative {
+  {
+    operation: self.operation_id(operation.operation),
+    payload_binders: operation.payload_binders,
+    resume_binder: operation.resume_binder,
+    body: operation.body,
+  }
+}
+
+///|
 fn BuslaneLowerer::lower_handler_tables_for_alternatives(
   self : BuslaneLowerer,
   handlers : Array[@checked.CheckedHandlerTable],
@@ -1125,19 +1177,6 @@ fn BuslaneLowerer::lower_handler_tables_for_alternatives(
       ),
     }
   })
-}
-
-///|
-fn lower_handler_tables_boundary(tables : Array[LoweredHandlerTable]) -> Unit {
-  for table in tables {
-    ignore(table.handled_effect)
-    for operation in table.operations {
-      ignore(operation.operation)
-      ignore(operation.payload_binders)
-      ignore(operation.resume_binder)
-      ignore(operation.body)
-    }
-  }
 }
 
 ///|

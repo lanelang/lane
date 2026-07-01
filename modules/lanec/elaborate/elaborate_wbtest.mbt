@@ -444,6 +444,66 @@ test "elaborate lowers operation calls into buslane perform" {
 }
 
 ///|
+test "elaborate lowers handlers into buslane handler tables" {
+  let result = elaborate_buslane_source(
+    (
+      #|effect Console {
+      #|  choose(Bool) -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle Console::choose!(true) with {
+      #|    Console::choose(true, resume) => resume(10)
+      #|    Console::choose(_, resume2) => 2
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|buslane_elaborate_result {
+      #|  buslane {
+      #|    metadata {
+      #|      function value#0 : () -> Int
+      #|      match_binder value#1 : Int
+      #|      parameter value#2 : Bool
+      #|      parameter value#3 : (Int) -> Int
+      #|      effect effect#0 {
+      #|        operation#0(Bool) -> Int
+      #|      }
+      #|    }
+      #|    letrec {
+      #|      value#0 = fn() -> Int {
+      #|        handle perform operation#0(true) as value#1 -> Int {
+      #|          effect#0 {
+      #|            operation#0(value#2) resume value#3 => match value#2 as value#2 -> Int {
+      #|              true => value#3(10)
+      #|              _ => 2
+      #|            }
+      #|          }
+      #|          final => value#1
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
 test "elaborate type aliases into alias-free buslane types" {
   let result = elaborate_buslane_source(
     (
