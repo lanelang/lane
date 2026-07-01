@@ -919,6 +919,58 @@ fn typecheck_diagnostic(
         ],
         helps=["remove this arm or make the earlier patterns more specific"],
       )
+    MixedHandlerEffects =>
+      diagnostic(
+        "handler block mixes effects",
+        span~,
+        severity=Error,
+        code=Some("E3202"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "all operation arms in one `with` block must belong to the same effect",
+            style: Primary,
+          },
+        ],
+        notes=["Lane handlers group operation alternatives by concrete effect"],
+        helps=[
+          "split operations from different effects into separate `with` blocks",
+        ],
+      )
+    DuplicateHandledEffect(effect) =>
+      diagnostic(
+        "duplicate handled effect",
+        span~,
+        severity=Error,
+        code=Some("E3203"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "this handler already has a `with` block for `\{display.effect_text(effect)}`",
+            style: Primary,
+          },
+        ],
+        notes=["a handler expression may handle each concrete effect once"],
+        helps=["merge these operation arms into the existing `with` block"],
+      )
+    MissingHandlerOperation(operation) =>
+      diagnostic(
+        "missing handler operation",
+        span~,
+        severity=Error,
+        code=Some("E3204"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "this handler does not cover operation `operation#\{operation.index}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "every operation declared by a handled effect must have exhaustive handler arms",
+        ],
+        helps=["add an arm for the missing operation"],
+      )
     DuplicatePatternBinder(name~) =>
       diagnostic(
         "duplicate pattern binder `\{name}`",

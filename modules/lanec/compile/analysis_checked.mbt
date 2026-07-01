@@ -140,6 +140,21 @@ fn collect_checked_expr_parameter_signatures(
       for argument in arguments {
         collect_checked_expr_parameter_signatures(argument, signatures)
       }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      if body is Some(body) {
+        collect_checked_expr_parameter_signatures(body, signatures)
+      }
+      for handler in handlers {
+        for arm in handler.operations {
+          if arm.body is Some(body) {
+            collect_checked_expr_parameter_signatures(body, signatures)
+          }
+        }
+      }
+      if final_branch.body is Some(body) {
+        collect_checked_expr_parameter_signatures(body, signatures)
+      }
+    }
     Field(base~, ..) =>
       collect_checked_expr_parameter_signatures(base, signatures)
     StructLiteral(fields~, ..) =>
@@ -537,6 +552,50 @@ fn collect_checked_expr(
           source_id, source_text, argument, definitions, references, hovers, context,
         )
       }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      if body is Some(body) {
+        collect_checked_expr(
+          source_id, source_text, body, definitions, references, hovers, context,
+        )
+      }
+      for handler in handlers {
+        for arm in handler.operations {
+          for pattern in arm.payload_patterns {
+            collect_checked_pattern(
+              source_id, source_text, pattern, definitions, references, hovers, context,
+            )
+          }
+          add_definition(
+            definitions,
+            hovers,
+            source_id,
+            Value(arm.resume_symbol),
+            arm.resume_loc,
+            arm.resume_binder,
+            "\{arm.resume_binder} : <unchecked>",
+          )
+          if arm.body is Some(body) {
+            collect_checked_expr(
+              source_id, source_text, body, definitions, references, hovers, context,
+            )
+          }
+        }
+      }
+      add_definition(
+        definitions,
+        hovers,
+        source_id,
+        Value(final_branch.binder_symbol),
+        final_branch.binder_loc,
+        final_branch.binder,
+        "\{final_branch.binder} : <unchecked>",
+      )
+      if final_branch.body is Some(body) {
+        collect_checked_expr(
+          source_id, source_text, body, definitions, references, hovers, context,
+        )
+      }
+    }
     Field(base~, field~, name~, type_~, loc~) => {
       collect_checked_expr(
         source_id, source_text, base, definitions, references, hovers, context,

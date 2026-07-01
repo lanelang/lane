@@ -2723,6 +2723,173 @@ test "typecheck checks operation payload arity" {
 }
 
 ///|
+test "typecheck checks handler operation tables" {
+  let result = expect_checked_source_result(
+    (
+      #|enum Choice {
+      #|  left
+      #|  right
+      #|}
+      #|effect Console {
+      #|  read() -> Int
+      #|  write(String) -> Unit
+      #|  choose(Choice) -> Unit
+      #|}
+      #|fn program() -> Int ! Console {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => 0
+      #|    Console::write(message, resume2) => resume2(())
+      #|    Console::choose(Choice::left, resume3) => resume3(())
+      #|    Console::choose(Choice::right, resume4) => resume4(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    enum Choice#0 {
+      #|      left#0
+      #|      right#1
+      #|    }
+      #|    effect Console#0 {
+      #|      read#0 -> Int
+      #|      write#1(String) -> Unit
+      #|      choose#2(type#0) -> Unit
+      #|    }
+      #|    fn program#0() -> Int {
+      #|      {
+      #|        handle operation#0!()
+      #|        with effect#0 {
+      #|          operation#0(resume#1) => <unchecked>
+      #|          operation#1(message#2, resume2#3) => <unchecked>
+      #|          operation#2(variant#0(), resume3#4) => <unchecked>
+      #|          operation#2(variant#1(), resume4#5) => <unchecked>
+      #|        }
+      #|        final value#6 <unchecked>
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck rejects mixed handler effects" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect State {
+      #|  get() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle 0 with {
+      #|    Console::read(resume) => 0
+      #|    State::get(resume2) => 1
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[mixed_handler_effects @ 11:5-11:29]
+    ),
+  )
+}
+
+///|
+test "typecheck rejects duplicate handled effects" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle 0 with {
+      #|    Console::read(resume) => 0
+      #|  } with {
+      #|    Console::read(resume2) => 1
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[duplicate_handled_effect effect#0 @ 9:5-10:4]
+    ),
+  )
+}
+
+///|
+test "typecheck rejects missing handler operation coverage" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Choice {
+      #|  left
+      #|  right
+      #|}
+      #|effect Console {
+      #|  read() -> Int
+      #|  choose(Choice) -> Unit
+      #|}
+      #|fn program() -> Int {
+      #|  handle 0 with {
+      #|    Console::read(resume) => 0
+      #|    Console::choose(Choice::left, resume2) => resume2(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[missing_handler_operation operation#1 @ 12:5-14:4]
+    ),
+  )
+}
+
+///|
+test "typecheck rejects redundant handler operation arms" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn program() -> Int {
+      #|  handle 0 with {
+      #|    Console::write(_, resume) => resume(())
+      #|    Console::write(message, resume2) => resume2(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[unreachable_match_arm @ 8:5-8:52]
+    ),
+  )
+}
+
+///|
 test "typecheck represents effect row variables" {
   let result = expect_typecheck_result(
     (

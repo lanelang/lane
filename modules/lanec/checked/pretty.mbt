@@ -231,6 +231,50 @@ pub impl @prettyprinter.Pretty for CheckedMatchArm with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for CheckedHandlerTable with fn pretty(
+  table : CheckedHandlerTable,
+) {
+  text("with") +
+  space +
+  table.handled_effect.pretty() +
+  space +
+  @pretty.braced_block(table.operations.map(CheckedHandlerOperationArm::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedHandlerOperationArm with fn pretty(
+  arm : CheckedHandlerOperationArm,
+) {
+  let parameters = arm.payload_patterns.map(CheckedPattern::pretty)
+  parameters.push(value_name_doc(arm.resume_binder, arm.resume_symbol))
+  let body = match arm.body {
+    Some(body) => expression_doc(body)
+    None => text("<unchecked>")
+  }
+  operation_symbol_doc(arm.operation) +
+  @pretty.parenthesized_inline(parameters) +
+  space +
+  text("=>") +
+  space +
+  body
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedHandlerFinalBranch with fn pretty(
+  branch : CheckedHandlerFinalBranch,
+) {
+  let body = match branch.body {
+    Some(body) => expression_doc(body)
+    None => text("<unchecked>")
+  }
+  text("final") +
+  space +
+  value_name_doc(branch.binder, branch.binder_symbol) +
+  space +
+  body
+}
+
+///|
 pub impl @prettyprinter.Pretty for CheckedPattern with fn pretty(
   pattern : CheckedPattern,
 ) {
@@ -331,6 +375,18 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       operation.pretty() +
       text("!") +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
+    Handler(body~, handlers~, final_branch~, ..) => {
+      let body_doc = match body {
+        Some(body) => expression_doc(body)
+        None => text("<unchecked>")
+      }
+      let docs = [text("handle") + space + body_doc]
+      for handler in handlers {
+        docs.push(handler.pretty())
+      }
+      docs.push(final_branch.pretty())
+      @pretty.braced_block(docs)
+    }
     Field(base~, field~, name~, ..) =>
       expression_doc(base) + text(".") + field_name_doc(name, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
@@ -424,6 +480,11 @@ fn type_symbol_doc(symbol : TypeSymbolId) -> Document {
 ///|
 fn variant_symbol_doc(symbol : VariantSymbolId) -> Document {
   text("variant") + variant_suffix(symbol)
+}
+
+///|
+fn operation_symbol_doc(symbol : OperationSymbolId) -> Document {
+  text("operation") + operation_suffix(symbol)
 }
 
 ///|

@@ -312,6 +312,11 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     NonExhaustiveMatch(type_) =>
       text("non_exhaustive_match") + space + type_.pretty()
     UnreachableMatchArm => text("unreachable_match_arm")
+    MixedHandlerEffects => text("mixed_handler_effects")
+    DuplicateHandledEffect(effect) =>
+      text("duplicate_handled_effect") + space + effect.pretty()
+    MissingHandlerOperation(operation) =>
+      text("missing_handler_operation") + space + operation.pretty()
     DuplicatePatternBinder(name~) =>
       text("duplicate_pattern_binder") + space + text(name)
     PatternArityMismatch(name~, expected~, actual~) =>

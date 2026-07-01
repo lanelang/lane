@@ -205,6 +205,13 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
+  Handler(
+    body~ : CheckedExpr?,
+    handlers~ : Array[CheckedHandlerTable],
+    final_branch~ : CheckedHandlerFinalBranch,
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
   Field(
     base~ : CheckedExpr,
     field~ : FieldSymbolId,
@@ -249,6 +256,33 @@ pub(all) struct CheckedStructLiteralField {
 pub(all) struct CheckedMatchArm {
   pattern : CheckedPattern
   body : CheckedExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedHandlerTable {
+  handled_effect : @types.Effect
+  operations : Array[CheckedHandlerOperationArm]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedHandlerOperationArm {
+  operation : OperationSymbolId
+  payload_patterns : Array[CheckedPattern]
+  resume_symbol : ValueSymbolId
+  resume_binder : String
+  resume_loc : SourceSpan
+  body : CheckedExpr?
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedHandlerFinalBranch {
+  binder_symbol : ValueSymbolId
+  binder : String
+  binder_loc : SourceSpan
+  body : CheckedExpr?
   loc : SourceSpan
 } derive(Debug, Eq)
 
@@ -308,6 +342,7 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
     | Match(type_~, ..)
     | Call(type_~, ..)
     | OperationCall(type_~, ..)
+    | Handler(type_~, ..)
     | Field(type_~, ..)
     | StructLiteral(type_~, ..)
     | Variant(type_~, ..) => type_
@@ -328,6 +363,7 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | Match(loc~, ..)
     | Call(loc~, ..)
     | OperationCall(loc~, ..)
+    | Handler(loc~, ..)
     | Field(loc~, ..)
     | StructLiteral(loc~, ..)
     | Variant(loc~, ..) => loc

@@ -930,6 +930,8 @@ fn BuslaneLowerer::lower_expr(
       )
     OperationCall(..) =>
       abort("Lane effect operation lowering to Buslane is not implemented yet")
+    Handler(..) =>
+      abort("Lane handler lowering to Buslane is not implemented yet")
     Field(base~, field~, ..) => self.lower_field(base, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
       Construct({

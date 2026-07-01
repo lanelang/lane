@@ -164,6 +164,9 @@ pub(all) enum TypeCheckDiagnosticKind {
   NotAStruct(@types.Type)
   NonExhaustiveMatch(@types.Type)
   UnreachableMatchArm
+  MixedHandlerEffects
+  DuplicateHandledEffect(@types.Effect)
+  MissingHandlerOperation(OperationSymbolId)
   DuplicatePatternBinder(name~ : String)
   PatternArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
   HiddenTypeEscape(type_~ : @types.Type)

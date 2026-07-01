@@ -170,6 +170,7 @@ fn AnfLowerer::lower_to_atom(
           continuation,
         )
       })
+    Handler(..) => abort("Lane handler lowering to ANF is not implemented yet")
     Field(base~, field~, name~, type_~, loc~) =>
       self.lower_to_atom(base, fn(base) {
         self.bind_temp(
