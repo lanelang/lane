@@ -48,6 +48,7 @@ pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact with fn pretty(
       artifact.module_path_text,
       artifact.interface_fingerprint,
       artifact.module_fingerprint,
+      None,
     ),
     imported_fingerprints_doc(artifact.imported_interface_fingerprints),
     interface_summary_doc(artifact.interface),
@@ -65,6 +66,7 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact with fn pretty(
       artifact.module_path_text,
       artifact.interface_fingerprint,
       artifact.module_fingerprint,
+      Some(artifact.object_fingerprint),
     ),
     imported_fingerprints_doc(artifact.imported_interface_fingerprints),
     interface_summary_doc(artifact.interface),
@@ -79,14 +81,19 @@ fn artifact_header_doc(
   module_path_text : String,
   interface_fingerprint : CompilationFingerprint,
   module_fingerprint : CompilationFingerprint,
+  object_fingerprint : CompilationFingerprint?,
 ) -> Document {
-  separate(@prettyprinter.hardline, [
+  let fields = [
     text("Lane \{kind} artifact"),
     text("module: \{module_path_text}"),
     text("schema: \{schema_version}"),
     text("interface fingerprint: \{interface_fingerprint.value}"),
     text("module fingerprint: \{module_fingerprint.value}"),
-  ])
+  ]
+  if object_fingerprint is Some(fingerprint) {
+    fields.push(text("object fingerprint: \{fingerprint.value}"))
+  }
+  separate(@prettyprinter.hardline, fields)
 }
 
 ///|

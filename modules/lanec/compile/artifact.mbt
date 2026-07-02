@@ -9,7 +9,7 @@ pub(all) struct ModuleInterfaceArtifact {
 } derive(Debug, Eq)
 
 ///|
-let module_object_artifact_schema_version = 3
+let module_object_artifact_schema_version = 4
 
 ///|
 pub(all) struct ModuleObjectArtifact {
@@ -24,6 +24,7 @@ pub(all) struct ModuleObjectArtifact {
   exports : Array[@elaborate.BuslaneModuleExport]
   imports : Array[ModuleImportedReference]
   module_fingerprint : CompilationFingerprint
+  object_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
 } derive(Debug, Eq)
 
@@ -111,6 +112,7 @@ pub fn CompiledModule::to_object_artifact(
     exports: object.exports,
     imports: object.imports,
     module_fingerprint: object.fingerprint,
+    object_fingerprint: object.object_fingerprint,
     imported_interface_fingerprints: object.imported_interface_fingerprints,
   }
 }
@@ -247,6 +249,27 @@ fn ModuleObjectArtifact::validate(
         InvalidModuleObjectArtifact(
           module_path_text=self.module_path_text,
           reason="module fingerprint mismatch",
+        ),
+        None,
+      ),
+    )
+  }
+  if self.object_fingerprint !=
+    module_object_fingerprint(
+      self.module_fingerprint,
+      self.metadata,
+      self.terms,
+      self.externals,
+      self.entries,
+      self.exports,
+      self.imports,
+      self.imported_interface_fingerprints,
+    ) {
+    return Some(
+      CompileErrorKind::to_diagnostic(
+        InvalidModuleObjectArtifact(
+          module_path_text=self.module_path_text,
+          reason="object fingerprint mismatch",
         ),
         None,
       ),
@@ -435,6 +458,27 @@ fn CompiledModuleSetArtifact::validate_schema(
         ),
       )
     }
+    if module_.object.object_fingerprint !=
+      module_object_fingerprint(
+        module_.module_fingerprint,
+        module_.object.metadata,
+        module_.object.terms,
+        module_.object.externals,
+        module_.object.entries,
+        module_.object.exports,
+        module_.object.imports,
+        module_.object.imported_interface_fingerprints,
+      ) {
+      return Some(
+        CompileErrorKind::to_diagnostic(
+          InvalidModuleArtifact(
+            module_path_text=module_.module_path_text,
+            reason="object fingerprint mismatch",
+          ),
+          None,
+        ),
+      )
+    }
   }
   None
 }
@@ -490,6 +534,7 @@ fn ModuleObjectArtifact::to_module_object(
     exports: self.exports,
     imports: self.imports,
     fingerprint: self.module_fingerprint,
+    object_fingerprint: self.object_fingerprint,
     imported_interface_fingerprints: self.imported_interface_fingerprints,
   }
 }

@@ -562,7 +562,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 3
+      #|schema: 4
       #|
       #|imported interfaces:
       #|  (none)
@@ -1127,6 +1127,87 @@ test "compile module rejects stale interface artifact module fingerprint" {
 }
 
 ///|
+test "module object fingerprint changes on implementation-only changes" {
+  let first_compiled = compile_modules(
+    (
+      #|module Lib
+      #|pub let value : Int = 1
+    ),
+    [],
+  )
+  let second_compiled = compile_modules(
+    (
+      #|module Lib
+      #|pub let value : Int = 2
+    ),
+    [],
+  )
+  guard first_compiled.modules is Some(first_modules) else {
+    abort("expected first modules")
+  }
+  guard second_compiled.modules is Some(second_modules) else {
+    abort("expected second modules")
+  }
+  guard first_modules.modules.get(0) is Some(first_module) else {
+    abort("expected first module")
+  }
+  guard second_modules.modules.get(0) is Some(second_module) else {
+    abort("expected second module")
+  }
+  let first_artifact = first_module.to_artifact()
+  let second_artifact = second_module.to_artifact()
+  debug_inspect(
+    [
+      first_artifact.interface.interface_fingerprint ==
+      second_artifact.interface.interface_fingerprint,
+      first_artifact.module_fingerprint == second_artifact.module_fingerprint,
+      first_artifact.object.object_fingerprint ==
+      second_artifact.object.object_fingerprint,
+    ],
+    content="[true, true, false]",
+  )
+}
+
+///|
+test "link object artifacts rejects stale object fingerprint" {
+  let compiled = compile_modules(
+    (
+      #|module Lib
+      #|pub let value : Int = 42
+    ),
+    [],
+  )
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  guard modules.modules.get(0) is Some(module_) else {
+    abort("expected module")
+  }
+  let object = module_.to_object_artifact()
+  let damaged : ModuleObjectArtifact = {
+    schema_version: object.schema_version,
+    module_path_text: object.module_path_text,
+    interface: object.interface,
+    interface_fingerprint: object.interface_fingerprint,
+    metadata: object.metadata,
+    terms: object.terms,
+    externals: object.externals,
+    entries: object.entries,
+    exports: object.exports,
+    imports: object.imports,
+    module_fingerprint: object.module_fingerprint,
+    object_fingerprint: { value: "stale" },
+    imported_interface_fingerprints: object.imported_interface_fingerprints,
+  }
+  let linked = link_module_object_artifacts([damaged])
+  inspect(linked.diagnostics.length(), content="1")
+  inspect(
+    linked.diagnostics[0].message,
+    content="invalid module object artifact",
+  )
+}
+
+///|
 test "link module artifacts rejects interface object fingerprint mismatch" {
   let compiled = compile_modules(
     (
@@ -1159,6 +1240,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         exports: module_.object.exports,
         imports: module_.object.imports,
         module_fingerprint: { value: "stale" },
+        object_fingerprint: module_.object.object_fingerprint,
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
       {
@@ -1260,6 +1342,7 @@ test "link modules rejects stale module object fingerprint" {
   }
   let stale_modules = modules.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
+      let fingerprint = { value: "stale" }
       let object : ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
@@ -1269,7 +1352,17 @@ test "link modules rejects stale module object fingerprint" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports: module_.object.imports,
-        fingerprint: { value: "stale" },
+        fingerprint,
+        object_fingerprint: module_object_fingerprint(
+          fingerprint,
+          module_.object.metadata,
+          module_.object.terms,
+          module_.object.externals,
+          module_.object.entries,
+          module_.object.exports,
+          module_.object.imports,
+          module_.object.imported_interface_fingerprints,
+        ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
       {
@@ -1312,15 +1405,9 @@ test "link modules rejects stale imported reference fingerprint" {
   }
   let damaged_modules = modules.modules.map(fn(module_) {
     if module_.module_path_text == "Main" {
-      let object : ModuleObject = {
-        module_path_text: module_.object.module_path_text,
-        checked: module_.object.checked,
-        metadata: module_.object.metadata,
-        terms: module_.object.terms,
-        externals: module_.object.externals,
-        entries: module_.object.entries,
-        exports: module_.object.exports,
-        imports: module_.object.imports.map(fn(imported) {
+      let imports : Array[ModuleImportedReference] = module_.object.imports.map(fn(
+          imported,
+        ) {
           {
             module_path_text: imported.module_path_text,
             kind: imported.kind,
@@ -1332,8 +1419,28 @@ test "link modules rejects stale imported reference fingerprint" {
             operation: imported.operation,
             value: imported.value,
           }
-        }),
+        },
+      )
+      let object : ModuleObject = {
+        module_path_text: module_.object.module_path_text,
+        checked: module_.object.checked,
+        metadata: module_.object.metadata,
+        terms: module_.object.terms,
+        externals: module_.object.externals,
+        entries: module_.object.entries,
+        exports: module_.object.exports,
+        imports,
         fingerprint: module_.object.fingerprint,
+        object_fingerprint: module_object_fingerprint(
+          module_.object.fingerprint,
+          module_.object.metadata,
+          module_.object.terms,
+          module_.object.externals,
+          module_.object.entries,
+          module_.object.exports,
+          imports,
+          module_.object.imported_interface_fingerprints,
+        ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
       {
@@ -1376,6 +1483,7 @@ test "link modules rejects missing exported object value" {
   }
   let damaged_modules = modules.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
+      let exports = []
       let object : ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
@@ -1383,9 +1491,19 @@ test "link modules rejects missing exported object value" {
         terms: module_.object.terms,
         externals: module_.object.externals,
         entries: module_.object.entries,
-        exports: [],
+        exports,
         imports: module_.object.imports,
         fingerprint: module_.object.fingerprint,
+        object_fingerprint: module_object_fingerprint(
+          module_.object.fingerprint,
+          module_.object.metadata,
+          module_.object.terms,
+          module_.object.externals,
+          module_.object.entries,
+          exports,
+          module_.object.imports,
+          module_.object.imported_interface_fingerprints,
+        ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
       {
@@ -2793,7 +2911,8 @@ fn artifact_inspect_without_fingerprints(text : String) -> String {
   for line in text.split("\n") {
     let line = line.to_owned()
     if !line.has_prefix("interface fingerprint:") &&
-      !line.has_prefix("module fingerprint:") {
+      !line.has_prefix("module fingerprint:") &&
+      !line.has_prefix("object fingerprint:") {
       lines.push(line)
     }
   }
@@ -2815,6 +2934,16 @@ fn module_with_imported_interfaces(
     exports: module_.object.exports,
     imports: module_.object.imports,
     fingerprint: module_.object.fingerprint,
+    object_fingerprint: module_object_fingerprint(
+      module_.object.fingerprint,
+      module_.object.metadata,
+      module_.object.terms,
+      module_.object.externals,
+      module_.object.entries,
+      module_.object.exports,
+      module_.object.imports,
+      imported,
+    ),
     imported_interface_fingerprints: imported,
   }
   {

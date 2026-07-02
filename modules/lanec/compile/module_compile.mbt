@@ -33,6 +33,7 @@ pub(all) struct ModuleObject {
   exports : Array[@elaborate.BuslaneModuleExport]
   imports : Array[ModuleImportedReference]
   fingerprint : CompilationFingerprint
+  object_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
 } derive(Debug, Eq)
 

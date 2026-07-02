@@ -34,16 +34,79 @@ fn module_fingerprint(
   interface : @module_interface.ModuleInterface,
   imported : Array[ImportedInterfaceFingerprint],
 ) -> CompilationFingerprint {
+  fingerprint_hash(
+    "lane-module-fingerprint-v1",
+    module_fingerprint_payload(interface, imported),
+  )
+}
+
+///|
+fn module_fingerprint_payload(
+  interface : @module_interface.ModuleInterface,
+  imported : Array[ImportedInterfaceFingerprint],
+) -> String {
   let imports = imported
     .map(fn(entry) { "\{entry.module_path_text}=\{entry.fingerprint.value}" })
     .join(";")
-  { value: "\{interface_fingerprint(interface).value}|imports:\{imports}" }
+  "\{interface_fingerprint(interface).value}|imports:\{imports}"
+}
+
+///|
+fn module_object_fingerprint(
+  module_fingerprint : CompilationFingerprint,
+  metadata : @buslane.MetadataRegistry,
+  terms : Array[@buslane.TopTerm],
+  externals : @elaborate.BuslaneExternalMap,
+  entries : Array[@elaborate.BuslaneEntry],
+  exports : Array[@elaborate.BuslaneModuleExport],
+  imports : Array[ModuleImportedReference],
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint],
+) -> CompilationFingerprint {
+  fingerprint_hash(
+    "lane-object-fingerprint-v1",
+    module_object_fingerprint_payload(
+      module_fingerprint, metadata, terms, externals, entries, exports, imports,
+      imported_interface_fingerprints,
+    ),
+  )
+}
+
+///|
+fn module_object_fingerprint_payload(
+  module_fingerprint : CompilationFingerprint,
+  metadata : @buslane.MetadataRegistry,
+  terms : Array[@buslane.TopTerm],
+  externals : @elaborate.BuslaneExternalMap,
+  entries : Array[@elaborate.BuslaneEntry],
+  exports : Array[@elaborate.BuslaneModuleExport],
+  imports : Array[ModuleImportedReference],
+  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint],
+) -> String {
+  let writer = ArtifactTextWriter::start("object-fingerprint")
+  writer.write_compilation_fingerprint("module_fingerprint", module_fingerprint)
+  writer.write_buslane_program_block({ metadata, terms })
+  writer.write_externals(externals)
+  writer.write_entries(entries)
+  writer.write_exports(exports)
+  writer.write_imports(imports)
+  writer.write_imported_interface_fingerprints(imported_interface_fingerprints)
+  writer.finish()
 }
 
 ///|
 fn interface_fingerprint(
   interface : @module_interface.ModuleInterface,
 ) -> CompilationFingerprint {
+  fingerprint_hash(
+    "lane-interface-fingerprint-v1",
+    interface_fingerprint_payload(interface),
+  )
+}
+
+///|
+fn interface_fingerprint_payload(
+  interface : @module_interface.ModuleInterface,
+) -> String {
   let context = fingerprint_type_context(interface)
   let type_fingerprints = interface.types
     .map(fn(type_) { interface_type_fingerprint(context, type_) })
@@ -60,8 +123,13 @@ fn interface_fingerprint(
   let hint_fingerprints = interface.optimization_hints
     .map(fn(hint) { hint.name })
     .join(",")
+  "\{interface.module_path}|types:\{type_fingerprints}|aliases:\{alias_fingerprints}|effects:\{effect_fingerprints}|values:\{value_fingerprints}|hints:\{hint_fingerprints}"
+}
+
+///|
+fn fingerprint_hash(tag : String, payload : String) -> CompilationFingerprint {
   {
-    value: "\{interface.module_path}|types:\{type_fingerprints}|aliases:\{alias_fingerprints}|effects:\{effect_fingerprints}|values:\{value_fingerprints}|hints:\{hint_fingerprints}",
+    value: "sha256:\{@crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode("\{tag}\n\{payload}")))}",
   }
 }
 

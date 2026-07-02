@@ -44,6 +44,16 @@ fn compile_one_module(
     (Some(checked), Some(interface)) => {
       let imported_fingerprints = imported_environment_fingerprints(imported)
       let fingerprint = module_fingerprint(interface, imported_fingerprints)
+      let object_fingerprint = module_object_fingerprint(
+        fingerprint,
+        MetadataRegistry(),
+        [],
+        { builtins: [] },
+        [],
+        [],
+        [],
+        imported_fingerprints,
+      )
       let object : ModuleObject = {
         module_path_text: input.header.module_path_text,
         checked,
@@ -54,6 +64,7 @@ fn compile_one_module(
         exports: [],
         imports: [],
         fingerprint,
+        object_fingerprint,
         imported_interface_fingerprints: imported_fingerprints,
       }
       Ok({

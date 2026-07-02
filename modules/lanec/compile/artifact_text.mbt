@@ -474,6 +474,10 @@ fn ArtifactTextWriter::write_module_object_artifact(
     "module_fingerprint",
     artifact.module_fingerprint,
   )
+  self.write_compilation_fingerprint(
+    "object_fingerprint",
+    artifact.object_fingerprint,
+  )
   self.write_imported_interface_fingerprints(
     artifact.imported_interface_fingerprints,
   )
@@ -504,6 +508,9 @@ fn ArtifactTextReader::read_module_object_artifact(
   let module_fingerprint = self.read_compilation_fingerprint(
     "module_fingerprint",
   )
+  let object_fingerprint = self.read_compilation_fingerprint(
+    "object_fingerprint",
+  )
   let imported_interface_fingerprints = self.read_imported_interface_fingerprints()
   {
     schema_version,
@@ -517,6 +524,7 @@ fn ArtifactTextReader::read_module_object_artifact(
     exports,
     imports,
     module_fingerprint,
+    object_fingerprint,
     imported_interface_fingerprints,
   }
 }

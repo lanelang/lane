@@ -39,6 +39,11 @@ fn attach_lowered_object(
   lowered : @elaborate.BuslaneModuleObject,
   imported_modules : Array[CompiledModule],
 ) -> CompiledModule {
+  let imports = module_imported_references_from_lowered(
+    lowered.imports,
+    imported_modules,
+    module_.module_path_text,
+  )
   let object : ModuleObject = {
     module_path_text: module_.object.module_path_text,
     checked: module_.object.checked,
@@ -47,12 +52,18 @@ fn attach_lowered_object(
     externals: lowered.externals,
     entries: lowered.entries,
     exports: lowered.exports,
-    imports: module_imported_references_from_lowered(
-      lowered.imports,
-      imported_modules,
-      module_.module_path_text,
-    ),
+    imports,
     fingerprint: module_.object.fingerprint,
+    object_fingerprint: module_object_fingerprint(
+      module_.object.fingerprint,
+      lowered.metadata,
+      lowered.terms,
+      lowered.externals,
+      lowered.entries,
+      lowered.exports,
+      imports,
+      module_.object.imported_interface_fingerprints,
+    ),
     imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
   }
   {
@@ -70,6 +81,11 @@ fn attach_lowered_object_from_interfaces(
   lowered : @elaborate.BuslaneModuleObject,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> CompiledModule {
+  let imports = module_imported_references_from_interface_artifacts(
+    lowered.imports,
+    interfaces,
+    module_.module_path_text,
+  )
   let object : ModuleObject = {
     module_path_text: module_.object.module_path_text,
     checked: module_.object.checked,
@@ -78,12 +94,18 @@ fn attach_lowered_object_from_interfaces(
     externals: lowered.externals,
     entries: lowered.entries,
     exports: lowered.exports,
-    imports: module_imported_references_from_interface_artifacts(
-      lowered.imports,
-      interfaces,
-      module_.module_path_text,
-    ),
+    imports,
     fingerprint: module_.object.fingerprint,
+    object_fingerprint: module_object_fingerprint(
+      module_.object.fingerprint,
+      lowered.metadata,
+      lowered.terms,
+      lowered.externals,
+      lowered.entries,
+      lowered.exports,
+      imports,
+      module_.object.imported_interface_fingerprints,
+    ),
     imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
   }
   {

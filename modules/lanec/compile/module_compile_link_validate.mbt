@@ -27,6 +27,27 @@ fn validate_link_object(
       ),
     )
   }
+  if object.object_fingerprint !=
+    module_object_fingerprint(
+      object.fingerprint,
+      object.metadata,
+      object.terms,
+      object.externals,
+      object.entries,
+      object.exports,
+      object.imports,
+      object.imported_interface_fingerprints,
+    ) {
+    diagnostics.push(
+      CompileErrorKind::to_diagnostic(
+        StaleModuleObject(
+          module_path_text=module_.module_path_text,
+          reason="object fingerprint mismatch",
+        ),
+        None,
+      ),
+    )
+  }
   for imported in object.imported_interface_fingerprints {
     match find_compiled_module(modules, imported.module_path_text) {
       Some(imported_module) => {

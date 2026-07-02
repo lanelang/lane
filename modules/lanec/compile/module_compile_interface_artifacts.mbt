@@ -219,6 +219,16 @@ fn CompiledModule::with_imported_interface_fingerprints(
     exports: self.object.exports,
     imports: self.object.imports,
     fingerprint,
+    object_fingerprint: module_object_fingerprint(
+      fingerprint,
+      self.object.metadata,
+      self.object.terms,
+      self.object.externals,
+      self.object.entries,
+      self.object.exports,
+      self.object.imports,
+      imported,
+    ),
     imported_interface_fingerprints: imported,
   }
   {
