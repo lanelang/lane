@@ -9,6 +9,16 @@ fn expect_parse_ok(source : String) -> @syntax.SourceFile {
 }
 
 ///|
+fn expect_parse_module_ok(source : String) -> @syntax.SourceFile {
+  let result = @parser.parse_string(source)
+  if !result.lexical_errors.is_empty() || !result.parse_errors.is_empty() {
+    abort("expected parse success")
+  }
+  guard result.source is Some(file) else { abort("expected source file") }
+  file
+}
+
+///|
 fn elaborate_source(source : String) -> ElaborateResult {
   let file = expect_parse_ok(source)
   let resolved = @resolve.resolve_source_file(file)
@@ -40,6 +50,18 @@ fn checked_source_for_elaborate_test(
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
   source
+}
+
+///|
+fn checked_module_for_elaborate_test(
+  source : String,
+  imported : @module_interface.ImportedEnvironment,
+) -> @typecheck.CheckedSourceTypeCheckResult {
+  let file = expect_parse_module_ok(source)
+  let resolved = @resolve.resolve_source_file(file)
+  @typecheck.typecheck_checked_source_file_with_imported_environment(
+    resolved, imported,
+  )
 }
 
 ///|
@@ -295,6 +317,114 @@ test "elaborate generic enum variant into verifiable buslane" {
       #|verify_result {}
     ),
   )
+}
+
+///|
+test "buslane lowering registry covers nominal and effect declarations" {
+  let source = checked_source_for_elaborate_test(
+    (
+      #|pub struct Box {
+      #|  value : Int
+      #|}
+      #|pub effect Console {
+      #|  read() -> Int
+      #|}
+      #|pub fn read_int() -> Int ! Console {
+      #|  Console::read!()
+      #|}
+    ),
+  )
+  let objects = lower_checked_source_files_to_buslane_objects([source])
+  guard objects.objects.get(0) is Some(object) else {
+    abort("expected lowered object")
+  }
+  assert_eq(object.metadata.types.length(), 1)
+  assert_eq(object.metadata.data_constructors.length(), 1)
+  assert_eq(object.metadata.effects.length(), 1)
+  assert_eq(object.metadata.operations.length(), 1)
+  guard object.exports.any(fn(item) {
+    item.kind is Type && item.type_id is Some(_)
+  }) else {
+    abort("expected type export")
+  }
+  guard object.exports.any(fn(item) {
+    item.kind is Effect && item.effect_id is Some(_)
+  }) else {
+    abort("expected effect export")
+  }
+  guard object.exports.any(fn(item) {
+    item.kind is Operation && item.operation is Some(_)
+  }) else {
+    abort("expected operation export")
+  }
+}
+
+///|
+test "buslane lowering registry covers imported references" {
+  let lib = checked_module_for_elaborate_test(
+    (
+      #|module Lib
+      #|pub struct Box {
+      #|  value : Int
+      #|}
+      #|pub effect Console {
+      #|  read() -> Int
+      #|}
+      #|pub fn read_int() -> Int ! Console {
+      #|  Console::read!()
+      #|}
+    ),
+    { modules: [] },
+  )
+  if lib.diagnostics.length() != 0 {
+    abort(@prettyprinter.render(lib.diagnostics, width=100))
+  }
+  guard lib.source is Some(_) else { abort("expected checked lib") }
+  guard lib.module_interface is Some(lib_interface) else {
+    abort("expected lib interface")
+  }
+  let imported : @module_interface.ImportedEnvironment = {
+    modules: [lib_interface],
+  }
+  let main = checked_module_for_elaborate_test(
+    (
+      #|module Main
+      #|pub let answer : Int = 1
+    ),
+    imported,
+  )
+  if main.diagnostics.length() != 0 {
+    abort(@prettyprinter.render(main.diagnostics, width=100))
+  }
+  guard main.source is Some(main_source) else { abort("expected checked main") }
+  let object = lower_checked_source_file_to_buslane_object_with_imports(
+    main_source, imported,
+  )
+  guard object.imports.any(fn(item) {
+    item.kind is Type && item.type_id is Some(_)
+  }) else {
+    abort("expected imported type")
+  }
+  guard object.imports.any(fn(item) {
+    item.kind is FieldSelector && item.value is Some(_)
+  }) else {
+    abort("expected imported field selector")
+  }
+  guard object.imports.any(fn(item) {
+    item.kind is Effect && item.effect_id is Some(_)
+  }) else {
+    abort("expected imported effect")
+  }
+  guard object.imports.any(fn(item) {
+    item.kind is Operation && item.operation is Some(_)
+  }) else {
+    abort("expected imported operation")
+  }
+  guard object.imports.any(fn(item) {
+    item.kind is Value && item.value is Some(_)
+  }) else {
+    abort("expected imported value")
+  }
 }
 
 ///|

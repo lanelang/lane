@@ -61,6 +61,16 @@ priv struct ModuleEntries {
 ///|
 priv struct BuslaneLowerer {
   metadata : @buslane.MetadataRegistry
+  registry : BuslaneLoweringRegistry
+  selector_terms : Array[SelectorTermEntry]
+  external_terms : Array[@buslane.TopTerm]
+  builtin_externals : Array[BuslaneBuiltinExternal]
+  entries : Array[BuslaneEntry]
+  imports : Array[BuslaneModuleImport]
+}
+
+///|
+priv struct BuslaneLoweringRegistry {
   type_symbols : Array[TypeMapEntry]
   type_parameters : Array[TypeParameterMapEntry]
   values : Array[ValueMapEntry]
@@ -69,11 +79,6 @@ priv struct BuslaneLowerer {
   operations : Array[OperationMapEntry]
   struct_constructors : Array[StructConMapEntry]
   field_selectors : Array[FieldSelectorMapEntry]
-  selector_terms : Array[SelectorTermEntry]
-  external_terms : Array[@buslane.TopTerm]
-  builtin_externals : Array[BuslaneBuiltinExternal]
-  entries : Array[BuslaneEntry]
-  imports : Array[BuslaneModuleImport]
 }
 
 ///|
@@ -115,6 +120,18 @@ priv struct LowerConstructorSignature {
 fn BuslaneLowerer::BuslaneLowerer() -> BuslaneLowerer {
   {
     metadata: MetadataRegistry(),
+    registry: BuslaneLoweringRegistry(),
+    selector_terms: [],
+    external_terms: [],
+    builtin_externals: [],
+    entries: [],
+    imports: [],
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::BuslaneLoweringRegistry() -> BuslaneLoweringRegistry {
+  {
     type_symbols: [],
     type_parameters: [],
     values: [],
@@ -123,11 +140,310 @@ fn BuslaneLowerer::BuslaneLowerer() -> BuslaneLowerer {
     operations: [],
     struct_constructors: [],
     field_selectors: [],
-    selector_terms: [],
-    external_terms: [],
-    builtin_externals: [],
-    entries: [],
-    imports: [],
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_type(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeSymbolId,
+) -> @buslane.TypeId? {
+  for entry in self.type_symbols {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_type(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeSymbolId,
+  target : @buslane.TypeId,
+) -> @buslane.TypeId {
+  if self.find_type(source) is Some(existing) {
+    existing
+  } else {
+    self.type_symbols.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_type(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeSymbolId,
+) -> @buslane.TypeId {
+  match self.find_type(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing type id")
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_type_parameter(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeParameterId,
+) -> @buslane.TypeParameterId? {
+  for entry in self.type_parameters {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_type_parameter(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeParameterId,
+  target : @buslane.TypeParameterId,
+) -> @buslane.TypeParameterId {
+  if self.find_type_parameter(source) is Some(existing) {
+    existing
+  } else {
+    self.type_parameters.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_type_parameter(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeParameterId,
+) -> @buslane.TypeParameterId {
+  match self.find_type_parameter(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing type parameter id")
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_value(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.ValueSymbolId,
+) -> @buslane.ValueId? {
+  for entry in self.values {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_value(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.ValueSymbolId,
+  target : @buslane.ValueId,
+) -> @buslane.ValueId {
+  if self.find_value(source) is Some(existing) {
+    existing
+  } else {
+    self.values.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_value(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.ValueSymbolId,
+) -> @buslane.ValueId {
+  match self.find_value(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing value id")
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_data_constructor(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.VariantSymbolId,
+) -> @buslane.DataConId? {
+  for entry in self.data_constructors {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_data_constructor(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.VariantSymbolId,
+  target : @buslane.DataConId,
+) -> @buslane.DataConId {
+  if self.find_data_constructor(source) is Some(existing) {
+    existing
+  } else {
+    self.data_constructors.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_data_constructor(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.VariantSymbolId,
+) -> @buslane.DataConId {
+  match self.find_data_constructor(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing data constructor id")
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_effect(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.EffectSymbolId,
+) -> @buslane.EffectId? {
+  for entry in self.effects {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_effect(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.EffectSymbolId,
+  target : @buslane.EffectId,
+) -> @buslane.EffectId {
+  if self.find_effect(source) is Some(existing) {
+    existing
+  } else {
+    self.effects.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_effect(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.EffectSymbolId,
+) -> @buslane.EffectId {
+  match self.find_effect(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing effect id")
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_operation(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.OperationSymbolId,
+) -> @buslane.OperationId? {
+  for entry in self.operations {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_operation(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.OperationSymbolId,
+  target : @buslane.OperationId,
+) -> @buslane.OperationId {
+  if self.find_operation(source) is Some(existing) {
+    existing
+  } else {
+    self.operations.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_operation(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.OperationSymbolId,
+) -> @buslane.OperationId {
+  match self.find_operation(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing operation id")
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_struct_constructor(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeSymbolId,
+) -> @buslane.DataConId? {
+  for entry in self.struct_constructors {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_struct_constructor(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeSymbolId,
+  target : @buslane.DataConId,
+) -> @buslane.DataConId {
+  if self.find_struct_constructor(source) is Some(existing) {
+    existing
+  } else {
+    self.struct_constructors.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_struct_constructor(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.TypeSymbolId,
+) -> @buslane.DataConId {
+  match self.find_struct_constructor(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing struct constructor id")
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::find_field_selector(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.FieldSymbolId,
+) -> @buslane.ValueId? {
+  for entry in self.field_selectors {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLoweringRegistry::register_field_selector(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.FieldSymbolId,
+  target : @buslane.ValueId,
+) -> @buslane.ValueId {
+  if self.find_field_selector(source) is Some(existing) {
+    existing
+  } else {
+    self.field_selectors.push({ source, target })
+    target
+  }
+}
+
+///|
+fn BuslaneLoweringRegistry::require_field_selector(
+  self : BuslaneLoweringRegistry,
+  source : @symbol.FieldSymbolId,
+) -> @buslane.ValueId {
+  match self.find_field_selector(source) {
+    Some(target) => target
+    None => abort("Buslane lowering registry missing field selector id")
   }
 }
 
@@ -494,7 +810,7 @@ fn BuslaneLowerer::seed_imported_type_header(
         ignore(self.define_type_parameter(type_member.type_parameter))
       }
       let target = self.metadata.define_type(parameters)
-      self.type_symbols.push({ source: declaration.symbol, target })
+      ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
         kind: Type,
@@ -516,7 +832,7 @@ fn BuslaneLowerer::seed_imported_type_header(
         }
       }
       let target = self.metadata.define_type(parameters)
-      self.type_symbols.push({ source: declaration.symbol, target })
+      ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
         kind: Type,
@@ -551,10 +867,12 @@ fn BuslaneLowerer::seed_imported_type_constructors(
       let data_constructor = self.metadata.define_data_constructor(
         owner, hidden_type_parameters, payload_types,
       )
-      self.struct_constructors.push({
-        source: declaration.symbol,
-        target: data_constructor,
-      })
+      ignore(
+        self.registry.register_struct_constructor(
+          declaration.symbol,
+          data_constructor,
+        ),
+      )
       self.imports.push({
         module_path_text,
         kind: DataConstructor,
@@ -581,10 +899,12 @@ fn BuslaneLowerer::seed_imported_type_constructors(
         let data_constructor = self.metadata.define_data_constructor(
           owner, hidden_type_parameters, payload_types,
         )
-        self.data_constructors.push({
-          source: variant.symbol,
-          target: data_constructor,
-        })
+        ignore(
+          self.registry.register_data_constructor(
+            variant.symbol,
+            data_constructor,
+          ),
+        )
         self.imports.push({
           module_path_text,
           kind: DataConstructor,
@@ -609,7 +929,7 @@ fn BuslaneLowerer::seed_imported_field_selector(
 ) -> Unit {
   let selector_type = self.imported_selector_type(declaration, field)
   let selector = self.metadata.define_value(Function, selector_type)
-  self.field_selectors.push({ source: field.symbol, target: selector })
+  ignore(self.registry.register_field_selector(field.symbol, selector))
   self.imports.push({
     module_path_text,
     kind: FieldSelector,
@@ -662,7 +982,7 @@ fn BuslaneLowerer::seed_imported_effect_header(
     self.define_type_parameter(parameter)
   })
   let target = self.metadata.define_effect(parameters)
-  self.effects.push({ source: effect.symbol, target })
+  ignore(self.registry.register_effect(effect.symbol, target))
   self.imports.push({
     module_path_text,
     kind: Effect,
@@ -763,7 +1083,7 @@ fn BuslaneLowerer::collect_struct_header(
     ignore(self.define_type_parameter(type_member.type_parameter))
   }
   let target = self.metadata.define_type(parameters)
-  self.type_symbols.push({ source: declaration.symbol, target })
+  ignore(self.registry.register_type(declaration.symbol, target))
 }
 
 ///|
@@ -780,7 +1100,7 @@ fn BuslaneLowerer::collect_enum_header(
     }
   }
   let target = self.metadata.define_type(parameters)
-  self.type_symbols.push({ source: declaration.symbol, target })
+  ignore(self.registry.register_type(declaration.symbol, target))
 }
 
 ///|
@@ -804,7 +1124,7 @@ fn BuslaneLowerer::collect_effect_header(
     self.define_type_parameter(parameter)
   })
   let target = self.metadata.define_effect(parameters)
-  self.effects.push({ source: declaration.symbol, target })
+  ignore(self.registry.register_effect(declaration.symbol, target))
 }
 
 ///|
@@ -836,7 +1156,7 @@ fn BuslaneLowerer::collect_struct_constructor(
   let target = self.metadata.define_data_constructor(
     owner, hidden_type_parameters, payload_types,
   )
-  self.struct_constructors.push({ source: declaration.symbol, target })
+  ignore(self.registry.register_struct_constructor(declaration.symbol, target))
 }
 
 ///|
@@ -853,7 +1173,7 @@ fn BuslaneLowerer::collect_enum_constructors(
     let target = self.metadata.define_data_constructor(
       owner, hidden_type_parameters, payload_types,
     )
-    self.data_constructors.push({ source: variant.symbol, target })
+    ignore(self.registry.register_data_constructor(variant.symbol, target))
   }
 }
 
@@ -914,7 +1234,7 @@ fn BuslaneLowerer::collect_field_selector(
   let type_parameters = self.selector_type_parameters(declaration)
   let selector_type = self.selector_type(declaration, field)
   let selector = self.metadata.define_value(Function, selector_type)
-  self.field_selectors.push({ source: field.symbol, target: selector })
+  ignore(self.registry.register_field_selector(field.symbol, selector))
   self.selector_terms.push({
     module_path_text,
     term: Let(
@@ -2110,14 +2430,11 @@ fn BuslaneLowerer::define_value(
   kind : @buslane.ValueKind,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId {
-  for entry in self.values {
-    if entry.source == source {
-      return entry.target
-    }
+  if self.registry.find_value(source) is Some(target) {
+    return target
   }
   let target = self.metadata.define_value(kind, type_)
-  self.values.push({ source, target })
-  target
+  self.registry.register_value(source, target)
 }
 
 ///|
@@ -2129,10 +2446,8 @@ fn BuslaneLowerer::define_operation(
   payload : Array[@types.Type],
   result : @types.Type,
 ) -> @buslane.OperationId {
-  for entry in self.operations {
-    if entry.source == source {
-      return entry.target
-    }
+  if self.registry.find_operation(source) is Some(target) {
+    return target
   }
   for parameter in type_parameters {
     ignore(self.define_type_parameter(parameter))
@@ -2142,8 +2457,7 @@ fn BuslaneLowerer::define_operation(
     payload.map(fn(type_) { self.lower_type(type_) }),
     self.lower_type(result),
   )
-  self.operations.push({ source, target })
-  target
+  self.registry.register_operation(source, target)
 }
 
 ///|
@@ -2152,12 +2466,7 @@ fn BuslaneLowerer::bind_value_alias(
   source : @symbol.ValueSymbolId,
   target : @buslane.ValueId,
 ) -> Unit {
-  for entry in self.values {
-    if entry.source == source {
-      return
-    }
-  }
-  self.values.push({ source, target })
+  ignore(self.registry.register_value(source, target))
 }
 
 ///|
@@ -2174,14 +2483,11 @@ fn BuslaneLowerer::define_type_parameter_with_kind(
   source : @symbol.TypeParameterId,
   kind : @buslane.Kind,
 ) -> @buslane.TypeParameterId {
-  for entry in self.type_parameters {
-    if entry.source == source {
-      return entry.target
-    }
+  if self.registry.find_type_parameter(source) is Some(target) {
+    return target
   }
   let target = self.metadata.define_type_parameter(kind)
-  self.type_parameters.push({ source, target })
-  target
+  self.registry.register_type_parameter(source, target)
 }
 
 ///|
@@ -2189,12 +2495,7 @@ fn BuslaneLowerer::type_id(
   self : BuslaneLowerer,
   source : @symbol.TypeSymbolId,
 ) -> @buslane.TypeId {
-  for entry in self.type_symbols {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane type id")
+  self.registry.require_type(source)
 }
 
 ///|
@@ -2202,12 +2503,7 @@ fn BuslaneLowerer::type_parameter_id(
   self : BuslaneLowerer,
   source : @symbol.TypeParameterId,
 ) -> @buslane.TypeParameterId {
-  for entry in self.type_parameters {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane type parameter id")
+  self.registry.require_type_parameter(source)
 }
 
 ///|
@@ -2215,12 +2511,7 @@ fn BuslaneLowerer::value_id(
   self : BuslaneLowerer,
   source : @symbol.ValueSymbolId,
 ) -> @buslane.ValueId {
-  for entry in self.values {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane value id")
+  self.registry.require_value(source)
 }
 
 ///|
@@ -2228,12 +2519,7 @@ fn BuslaneLowerer::data_constructor_id(
   self : BuslaneLowerer,
   source : @symbol.VariantSymbolId,
 ) -> @buslane.DataConId {
-  for entry in self.data_constructors {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane data constructor id")
+  self.registry.require_data_constructor(source)
 }
 
 ///|
@@ -2241,12 +2527,7 @@ fn BuslaneLowerer::effect_id(
   self : BuslaneLowerer,
   source : @symbol.EffectSymbolId,
 ) -> @buslane.EffectId {
-  for entry in self.effects {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane effect id")
+  self.registry.require_effect(source)
 }
 
 ///|
@@ -2254,12 +2535,7 @@ fn BuslaneLowerer::operation_id(
   self : BuslaneLowerer,
   source : @symbol.OperationSymbolId,
 ) -> @buslane.OperationId {
-  for entry in self.operations {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane operation id")
+  self.registry.require_operation(source)
 }
 
 ///|
@@ -2267,12 +2543,7 @@ fn BuslaneLowerer::struct_constructor_id(
   self : BuslaneLowerer,
   source : @symbol.TypeSymbolId,
 ) -> @buslane.DataConId {
-  for entry in self.struct_constructors {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane struct constructor id")
+  self.registry.require_struct_constructor(source)
 }
 
 ///|
@@ -2280,10 +2551,5 @@ fn BuslaneLowerer::field_selector_id(
   self : BuslaneLowerer,
   source : @symbol.FieldSymbolId,
 ) -> @buslane.ValueId {
-  for entry in self.field_selectors {
-    if entry.source == source {
-      return entry.target
-    }
-  }
-  abort("unknown Buslane field selector id")
+  self.registry.require_field_selector(source)
 }
