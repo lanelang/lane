@@ -1,0 +1,54 @@
+module Examples.Valid.FlipEffect
+
+import Ops.*
+
+pub enum BoolList {
+  nil
+  cons(Bool, BoolList)
+}
+
+pub fn append(left : BoolList, right : BoolList) -> BoolList {
+  match left {
+    BoolList::nil => right
+    BoolList::cons(head, tail) => BoolList::cons(head, append(tail, right))
+  }
+}
+
+pub fn length(list : BoolList) -> Int {
+  match list {
+    BoolList::nil => 0
+    BoolList::cons(_, tail) => 1 + length(tail)
+  }
+}
+
+pub fn count_true(list : BoolList) -> Int {
+  match list {
+    BoolList::nil => 0
+    BoolList::cons(head, tail) =>
+      if head {
+        1 + count_true(tail)
+      } else {
+        count_true(tail)
+      }
+  }
+}
+
+effect Flip {
+  flip() -> Bool
+}
+
+fn flip_twice() -> Bool ! Flip {
+  let p : Bool = Flip::flip!()
+  let q : Bool = Flip::flip!()
+  p || q
+}
+
+pub let choices : BoolList = {
+  handle flip_twice() with {
+    Flip::flip(resume) => append(resume(true), resume(false))
+  } final value {
+    BoolList::cons(value, BoolList::nil)
+  }
+}
+
+pub let answer : Int = count_true(choices) * 10 + length(choices)

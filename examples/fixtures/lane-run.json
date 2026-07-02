@@ -250,6 +250,38 @@
       }
     },
     {
+      "name": "30 yield effect",
+      "file": "examples/valid/30_yield_effect.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
+      "name": "31 flip effect",
+      "file": "examples/valid/31_flip_effect.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "34 : Int"
+      }
+    },
+    {
+      "name": "32 state effect",
+      "file": "examples/valid/32_state_effect.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
+      "name": "33 exception effect",
+      "file": "examples/valid/33_exception_effect.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",

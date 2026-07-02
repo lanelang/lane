@@ -1,0 +1,35 @@
+module Examples.Valid.YieldEffect
+
+import Ops.*
+
+pub enum IntList {
+  nil
+  cons(Int, IntList)
+}
+
+pub fn sum(list : IntList) -> Int {
+  match list {
+    IntList::nil => 0
+    IntList::cons(head, tail) => head + sum(tail)
+  }
+}
+
+effect Yield {
+  emit(Int) -> Unit
+}
+
+fn produce() -> Int ! Yield {
+  let first : Unit = Yield::emit!(10)
+  let second : Unit = Yield::emit!(20)
+  12
+}
+
+pub let emitted : IntList = {
+  handle produce() with {
+    Yield::emit(value, resume) => IntList::cons(value, resume(()))
+  } final value {
+    IntList::cons(value, IntList::nil)
+  }
+}
+
+pub let answer : Int = sum(emitted)

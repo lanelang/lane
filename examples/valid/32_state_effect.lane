@@ -1,0 +1,41 @@
+module Examples.Valid.StateEffect
+
+import Ops.*
+
+pub struct StateResult {
+  value : Int
+  state : Int
+}
+
+effect State {
+  get() -> Int
+  put(Int) -> Unit
+}
+
+fn tick() -> Int ! State {
+  let current : Int = State::get!()
+  let updated : Unit = State::put!(current + 1)
+  State::get!()
+}
+
+fn run_tick() -> (Int) -> StateResult {
+  handle tick() with {
+    State::get(resume) => fn (state : Int) -> StateResult {
+      resume(state)(state)
+    }
+    State::put(next, resume) => fn (state : Int) -> StateResult {
+      resume(())(next)
+    }
+  } final value {
+    fn (state : Int) -> StateResult {
+      StateResult::{
+        value,
+        state
+      }
+    }
+  }
+}
+
+pub let result : StateResult = run_tick()(41)
+
+pub let answer : Int = result.value

@@ -1,0 +1,17 @@
+module Examples.Valid.ExceptionEffect
+
+effect Exception {
+  raise(Int) -> Int
+}
+
+fn fail_with_answer() -> Int ! Exception {
+  Exception::raise!(42)
+}
+
+pub let answer : Int = {
+  handle fail_with_answer() with {
+    Exception::raise(code, resume) => code
+  } final value {
+    value
+  }
+}
