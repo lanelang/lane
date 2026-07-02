@@ -16,6 +16,7 @@ enum LaneCommand {
     emit_object~ : String?
   )
   Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
+  Inspect(artifact~ : String)
   Link(objects~ : Array[String], output~ : String)
   Lsp(stdio~ : Bool)
   RunLinked(program~ : String, entry~ : String)
@@ -63,6 +64,9 @@ fn lane_command_spec() -> Command {
         ],
         positionals=[PositionArg("file")],
       ),
+      Command("inspect", about="Dump a compiled Lane module artifact.", positionals=[
+        PositionArg("artifact"),
+      ]),
       Command(
         "link",
         about="Link compiled Lane module object artifacts.",
@@ -153,6 +157,11 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
           )
         Err(message) => Err(message)
       }
+    Some(("inspect", child)) =>
+      match required_value(child, "artifact") {
+        Ok(artifact) => Ok(Inspect(artifact~))
+        Err(message) => Err(message)
+      }
     Some(("link", child)) =>
       match required_value(child, "output") {
         Ok(output) => Ok(Link(objects=values(child, "objects"), output~))
@@ -232,7 +241,7 @@ fn emit_interface_option() -> @argparse.OptionArg {
     "emit-interface",
     short='t',
     long="emit-interface",
-    about="Write module interface text artifact.",
+    about="Write module interface binary artifact.",
   )
 }
 
@@ -242,7 +251,7 @@ fn emit_object_option() -> @argparse.OptionArg {
     "emit-object",
     short='o',
     long="emit-object",
-    about="Write module object text artifact.",
+    about="Write module object binary artifact.",
   )
 }
 

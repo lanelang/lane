@@ -37,7 +37,7 @@ fn unknown_command_error() -> String {
     "unknown lane command",
     ["the requested subcommand is not supported by this `lane` binary"],
     [
-      "available commands include check, run, compile, link, runlinked, fmt, and lsp",
+      "available commands include check, run, compile, inspect, link, runlinked, fmt, and lsp",
     ],
     ["try: lane check Main.lane"],
   )
@@ -65,22 +65,6 @@ fn missing_argument_error(name : String) -> String {
     ["this is a CLI usage error, not a Lane source error"],
     [
       "run `lane --help` or `lane <command> --help` to see the required arguments",
-    ],
-  )
-}
-
-///|
-fn missing_compile_output_error(option : String, short : String) -> String {
-  lane_boundary_error(
-    "E6004",
-    "missing compile output path",
-    ["`lane compile` requires `\{option}` to choose where to write an artifact"],
-    [
-      "compile writes a module interface and a module object as separate artifacts",
-    ],
-    [
-      "try: lane compile Main.lane -t Main.lmi -o Main.lmo",
-      "short form: `\{short} <path>`",
     ],
   )
 }

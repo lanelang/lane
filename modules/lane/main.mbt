@@ -19,6 +19,7 @@ async fn main {
     Compile(file~, interfaces~, emit_interface~, emit_object~) =>
       lane_compile(file, interfaces, emit_interface, emit_object)
     Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
+    Inspect(artifact~) => lane_inspect(artifact)
     Link(objects~, output~) => lane_link(objects, output)
     Lsp(stdio~) => lsp_command(stdio)
     RunLinked(program~, entry~) => lane_runlinked(program, entry)

@@ -9,13 +9,25 @@ async fn write_source_file(path : String, source : String) -> Unit {
 }
 
 ///|
+async fn read_binary_file(path : String) -> Bytes {
+  @fs.read_file(path).binary()
+}
+
+///|
+async fn write_binary_file(path : String, bytes : Bytes) -> Unit {
+  @fs.write_file(path, bytes, create_mode=CreateOrTruncate)
+}
+
+///|
 async fn write_module_interface_artifact(
   path : String,
   module_ : @compile.CompiledModule,
 ) -> Unit {
-  write_source_file(
+  write_binary_file(
     path,
-    @compile.module_interface_artifact_to_text(module_.to_interface_artifact()),
+    @compile.module_interface_artifact_to_binary(
+      module_.to_interface_artifact(),
+    ),
   )
 }
 
@@ -24,9 +36,9 @@ async fn write_module_object_artifact(
   path : String,
   module_ : @compile.CompiledModule,
 ) -> Unit {
-  write_source_file(
+  write_binary_file(
     path,
-    @compile.module_object_artifact_to_text(module_.to_object_artifact()),
+    @compile.module_object_artifact_to_binary(module_.to_object_artifact()),
   )
 }
 
@@ -34,8 +46,8 @@ async fn write_module_object_artifact(
 async fn read_module_interface_artifact(
   path : String,
 ) -> @compile.ModuleInterfaceArtifact {
-  let source = read_source_file(path)
-  match @compile.parse_module_interface_artifact_text(source) {
+  let bytes = read_binary_file(path)
+  match @compile.parse_module_interface_artifact_binary(bytes) {
     Ok(artifact) => artifact
     Err(message) => fail(message)
   }
@@ -45,8 +57,8 @@ async fn read_module_interface_artifact(
 async fn read_module_object_artifact(
   path : String,
 ) -> @compile.ModuleObjectArtifact {
-  let source = read_source_file(path)
-  match @compile.parse_module_object_artifact_text(source) {
+  let bytes = read_binary_file(path)
+  match @compile.parse_module_object_artifact_binary(bytes) {
     Ok(artifact) => artifact
     Err(message) => fail(message)
   }

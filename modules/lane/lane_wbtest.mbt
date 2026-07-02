@@ -24,17 +24,88 @@ test "reject run target without entry suffix" {
 }
 
 ///|
-test "compile output errors explain both long and short flags" {
+test "default compile artifact path replaces input suffix" {
   inspect(
-    missing_compile_output_error("--emit-interface", "-t"),
-    content=(
-      #|error[E6004]: missing compile output path
-      #|  = label: `lane compile` requires `--emit-interface` to choose where to write an artifact
-      #|  = note: compile writes a module interface and a module object as separate artifacts
-      #|  = help: try: lane compile Main.lane -t Main.lmi -o Main.lmo
-      #|  = help: short form: `-t <path>`
+    default_compile_artifact_path("Main.lane", ".lmi"),
+    content="Main.lmi",
+  )
+  inspect(
+    default_compile_artifact_path("src/Main.lane", ".lmo"),
+    content="src/Main.lmo",
+  )
+  inspect(
+    default_compile_artifact_path("src/Main.test.lane", ".lmi"),
+    content="src/Main.test.lmi",
+  )
+  inspect(default_compile_artifact_path("Main", ".lmo"), content="Main.lmo")
+}
+
+///|
+async test "compile writes default module artifacts beside source" {
+  let workspace = ".tmp-lane-default-compile-artifacts"
+  let source_path = "\{workspace}/Main.lane"
+  let interface_path = "\{workspace}/Main.lmi"
+  let object_path = "\{workspace}/Main.lmo"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  write_source_file(
+    source_path,
+    (
+      #|module Main
+      #|pub let answer : Int = 42
     ),
   )
+  let outcome = lane_compile(source_path, [], None, None)
+  guard outcome is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected compile to succeed")
+  }
+  let interface_bytes = @fs.read_file(interface_path).binary()
+  let object_bytes = @fs.read_file(object_path).binary()
+  cleanup_library_fixture(workspace)
+  inspect(
+    byte_prefix_text(interface_bytes, 8),
+    content="76,65,78,69,65,82,84,0",
+  )
+  inspect(byte_prefix_text(object_bytes, 8), content="76,65,78,69,65,82,84,0")
+}
+
+///|
+async test "native module artifacts are binary and readable" {
+  let workspace = ".tmp-lane-binary-artifacts"
+  let interface_path = "\{workspace}/Main.lmi"
+  let object_path = "\{workspace}/Main.lmo"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  let compiled = @compile.compile_module_with_interface_artifacts(
+    (
+      #|module Main
+      #|pub let answer : Int = 42
+    ),
+    [],
+  )
+  guard compiled.modules is Some(modules) else {
+    cleanup_library_fixture(workspace)
+    abort("expected compiled modules")
+  }
+  guard modules.modules.get(0) is Some(module_) else {
+    cleanup_library_fixture(workspace)
+    abort("expected compiled module")
+  }
+  write_module_interface_artifact(interface_path, module_)
+  write_module_object_artifact(object_path, module_)
+  let interface_bytes = @fs.read_file(interface_path).binary()
+  let object_bytes = @fs.read_file(object_path).binary()
+  inspect(
+    byte_prefix_text(interface_bytes, 8),
+    content="76,65,78,69,65,82,84,0",
+  )
+  inspect(byte_prefix_text(object_bytes, 8), content="76,65,78,69,65,82,84,0")
+  let interface = read_module_interface_artifact(interface_path)
+  let object = read_module_object_artifact(object_path)
+  cleanup_library_fixture(workspace)
+  inspect(interface.module_path_text, content="Main")
+  inspect(object.module_path_text, content="Main")
 }
 
 ///|
@@ -275,4 +346,14 @@ async fn cleanup_library_fixture(workspace : String) -> Unit {
   @fs.rmdir(workspace, recursive=true) catch {
     _ => ()
   }
+}
+
+///|
+fn byte_prefix_text(bytes : Bytes, count : Int) -> String {
+  let values = []
+  let length = if bytes.length() < count { bytes.length() } else { count }
+  for index in 0..<length {
+    values.push(bytes[index].to_int().to_string())
+  }
+  values.join(",")
 }

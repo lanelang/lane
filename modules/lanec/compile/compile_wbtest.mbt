@@ -338,7 +338,7 @@ test "link modules remaps data constructors through one identity" {
 }
 
 ///|
-test "module artifacts roundtrip through text and link" {
+test "module artifacts roundtrip through binary and link" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -362,13 +362,16 @@ test "module artifacts roundtrip through text and link" {
   let artifact = modules.to_artifact()
   let decoded_modules = []
   for module_ in artifact.modules {
-    let interface_text = module_interface_artifact_to_text(module_.interface)
-    let object_text = module_object_artifact_to_text(module_.object)
-    let interface = match parse_module_interface_artifact_text(interface_text) {
+    let interface_binary = module_interface_artifact_to_binary(
+      module_.interface,
+    )
+    let object_binary = module_object_artifact_to_binary(module_.object)
+    let interface = match
+      parse_module_interface_artifact_binary(interface_binary) {
       Ok(interface) => interface
       Err(message) => abort(message)
     }
-    let object = match parse_module_object_artifact_text(object_text) {
+    let object = match parse_module_object_artifact_binary(object_binary) {
       Ok(object) => object
       Err(message) => abort(message)
     }
@@ -470,6 +473,36 @@ test "module artifacts roundtrip through text and link" {
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
     content="verify_result {}",
   )
+}
+
+///|
+test "module artifact binary rejects wrong kind" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|pub let answer : Int = 42
+    ),
+    [],
+  )
+  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  guard modules.modules.get(0) is Some(module_) else {
+    abort("expected compiled module")
+  }
+  let object_binary = module_object_artifact_to_binary(
+    module_.to_object_artifact(),
+  )
+  inspect(byte_prefix_text(object_binary, 8), content="76,65,78,69,65,82,84,0")
+  if parse_module_interface_artifact_binary(object_binary) is Err(message) {
+    inspect(
+      message,
+      content="wrong artifact binary kind: expected interface, got object",
+    )
+  } else {
+    abort("expected wrong artifact binary kind")
+  }
 }
 
 ///|
@@ -2649,6 +2682,16 @@ fn assert_no_duplicate_parameter_hint_positions(
     }
     positions.push(position)
   }
+}
+
+///|
+fn byte_prefix_text(bytes : Bytes, count : Int) -> String {
+  let values = []
+  let length = if bytes.length() < count { bytes.length() } else { count }
+  for index in 0..<length {
+    values.push(bytes[index].to_int().to_string())
+  }
+  values.join(",")
 }
 
 ///|
