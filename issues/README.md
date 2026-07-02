@@ -73,6 +73,9 @@ graph TD
   ISS_057["ISS-057: Consolidate typecheck application inference"]
   ISS_058["ISS-058: Split Buslane lowering into local phases"]
   ISS_059["ISS-059: Separate module compilation orchestration phases"]
+  ISS_060["ISS-060: Add effect and operation symbols to LSP analysis"]
+  ISS_061["ISS-061: Add LSP references for operation calls and handler arms"]
+  ISS_062["ISS-062: Cover effect editor intelligence with LSP tests"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -132,6 +135,9 @@ graph TD
   ISS_049 --> ISS_050
   ISS_050 --> ISS_051
   ISS_051 --> ISS_052
+  ISS_060 --> ISS_061
+  ISS_060 --> ISS_062
+  ISS_061 --> ISS_062
 ```
 
 ## Warnings

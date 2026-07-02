@@ -78,6 +78,8 @@ pub(all) enum AnalysisSymbol {
   Type(@symbol.TypeSymbolId)
   Field(@symbol.FieldSymbolId)
   Variant(@symbol.VariantSymbolId)
+  Effect(@symbol.EffectSymbolId)
+  Operation(@symbol.OperationSymbolId)
   TypeParameter(@symbol.TypeParameterId)
   TypeMember(@symbol.TypeMemberSymbolId)
 } derive(Eq, @debug.Debug)

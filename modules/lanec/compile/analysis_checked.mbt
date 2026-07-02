@@ -3,7 +3,15 @@ priv struct CheckedAnalysisContext {
   inlay_hints : Array[InlayHintEntry]
   annotated_values : Array[@symbol.ValueSymbolId]
   parameter_signatures : Array[ParameterHintSignature]
+  operation_details : Array[OperationDetail]
   display : TypeDisplayContext
+}
+
+///|
+priv struct OperationDetail {
+  symbol : @symbol.OperationSymbolId
+  name : String
+  detail : String
 }
 
 ///|
@@ -34,6 +42,7 @@ fn collect_checked_source_analysis(
     inlay_hints,
     annotated_values,
     parameter_signatures: checked_parameter_hint_signatures(source),
+    operation_details: checked_operation_details(source, display),
     display,
   }
   for declaration in source.declarations {
@@ -52,6 +61,26 @@ fn checked_parameter_hint_signatures(
     collect_checked_top_level_parameter_signatures(declaration, signatures)
   }
   signatures
+}
+
+///|
+fn checked_operation_details(
+  source : @checked.CheckedSourceFile,
+  display : TypeDisplayContext,
+) -> Array[OperationDetail] {
+  let details = []
+  for declaration in source.declarations {
+    if declaration is Effect(effect) {
+      for operation in effect.operations {
+        details.push({
+          symbol: operation.symbol,
+          name: operation.name,
+          detail: checked_operation_detail(effect.name, operation, display),
+        })
+      }
+    }
+  }
+  details
 }
 
 ///|
@@ -282,7 +311,50 @@ fn collect_checked_top_level_declaration(
         )
       }
     }
-    Effect(_) => ()
+    Effect(declaration) => {
+      add_definition(
+        definitions,
+        hovers,
+        source_id,
+        Effect(declaration.symbol),
+        name_span(source_text, declaration.name, declaration.loc),
+        declaration.name,
+        checked_effect_detail(declaration, context.display),
+      )
+      for parameter in declaration.type_parameters {
+        add_definition(
+          definitions,
+          hovers,
+          source_id,
+          TypeParameter(parameter.id),
+          name_span(source_text, parameter.name, declaration.loc),
+          parameter.name,
+          "\{parameter.name} : \{context.display.kind_text(parameter.kind)}",
+        )
+      }
+      for operation in declaration.operations {
+        add_definition(
+          definitions,
+          hovers,
+          source_id,
+          Operation(operation.symbol),
+          name_span(source_text, operation.name, operation.loc),
+          operation.name,
+          checked_operation_detail(declaration.name, operation, context.display),
+        )
+        for parameter in operation.type_parameters {
+          add_definition(
+            definitions,
+            hovers,
+            source_id,
+            TypeParameter(parameter.id),
+            name_span(source_text, parameter.name, operation.loc),
+            parameter.name,
+            "\{parameter.name} : \{context.display.kind_text(parameter.kind)}",
+          )
+        }
+      }
+    }
     Function(declaration) => {
       add_definition(
         definitions,
@@ -546,12 +618,16 @@ fn collect_checked_expr(
         )
       }
     }
-    OperationCall(arguments~, ..) =>
+    OperationCall(operation~, arguments~, loc~, ..) => {
+      add_operation_reference(
+        references, hovers, source_id, source_text, operation, loc, context,
+      )
       for argument in arguments {
         collect_checked_expr(
           source_id, source_text, argument, definitions, references, hovers, context,
         )
       }
+    }
     Handler(body~, handlers~, final_branch~, ..) => {
       if body is Some(body) {
         collect_checked_expr(
@@ -560,6 +636,26 @@ fn collect_checked_expr(
       }
       for handler in handlers {
         for arm in handler.operations {
+          add_operation_reference(
+            references,
+            hovers,
+            source_id,
+            source_text,
+            arm.operation,
+            arm.loc,
+            context,
+          )
+          for binder in arm.type_binders {
+            add_definition(
+              definitions,
+              hovers,
+              source_id,
+              TypeParameter(binder.id),
+              name_span(source_text, binder.name, arm.loc),
+              binder.name,
+              "\{binder.name} : \{context.display.kind_text(binder.kind)}",
+            )
+          }
           for pattern in arm.payload_patterns {
             collect_checked_pattern(
               source_id, source_text, pattern, definitions, references, hovers, context,
@@ -674,6 +770,121 @@ fn collect_checked_expr(
       }
     }
   }
+}
+
+///|
+fn checked_effect_detail(
+  declaration : @checked.CheckedEffectDeclaration,
+  display : TypeDisplayContext,
+) -> String {
+  let parameters = checked_type_parameters_text(
+    declaration.type_parameters,
+    display,
+  )
+  "effect \{declaration.name}\{parameters}"
+}
+
+///|
+fn checked_operation_detail(
+  owner : String,
+  operation : @checked.CheckedEffectOperationDeclaration,
+  display : TypeDisplayContext,
+) -> String {
+  let parameters = checked_type_parameters_text(
+    operation.type_parameters,
+    display,
+  )
+  let payload = operation.payload
+    .map(fn(type_) { display.type_text(type_) })
+    .join(", ")
+  let result = display.type_text(operation.result)
+  "operation \{owner}::\{operation.name}\{parameters}(\{payload}) -> \{result}"
+}
+
+///|
+fn checked_type_parameters_text(
+  parameters : Array[@types.TypeParameter],
+  display : TypeDisplayContext,
+) -> String {
+  if parameters.is_empty() {
+    ""
+  } else {
+    let text = parameters
+      .map(fn(parameter) { display.type_parameter_binding_text(parameter) })
+      .join(", ")
+    "[\{text}]"
+  }
+}
+
+///|
+fn add_operation_reference(
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+  source_id : String,
+  source_text : String,
+  operation : @symbol.OperationSymbolId,
+  loc : @basic.SourceSpan,
+  context : CheckedAnalysisContext,
+) -> Unit {
+  match operation_detail(operation, context.operation_details) {
+    Some(detail) =>
+      add_reference(
+        references,
+        hovers,
+        source_id,
+        Operation(operation),
+        operation_reference_span(source_text, operation, loc, context),
+        Some(detail),
+      )
+    None =>
+      add_reference(
+        references,
+        hovers,
+        source_id,
+        Operation(operation),
+        loc,
+        None,
+      )
+  }
+}
+
+///|
+fn operation_reference_span(
+  source_text : String,
+  operation : @symbol.OperationSymbolId,
+  fallback : @basic.SourceSpan,
+  context : CheckedAnalysisContext,
+) -> @basic.SourceSpan {
+  match operation_name(operation, context.operation_details) {
+    Some(name) => name_span(source_text, name, fallback)
+    None => fallback
+  }
+}
+
+///|
+fn operation_detail(
+  symbol : @symbol.OperationSymbolId,
+  details : Array[OperationDetail],
+) -> String? {
+  for detail in details {
+    if detail.symbol == symbol {
+      return Some(detail.detail)
+    }
+  }
+  None
+}
+
+///|
+fn operation_name(
+  symbol : @symbol.OperationSymbolId,
+  details : Array[OperationDetail],
+) -> String? {
+  for detail in details {
+    if detail.symbol == symbol {
+      return Some(detail.name)
+    }
+  }
+  None
 }
 
 ///|

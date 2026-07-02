@@ -64,7 +64,7 @@ fn TypeDisplayContext::effect_text(
   match effect {
     Empty => "{}"
     Singleton(symbol, arguments) => {
-      let name = @prettyprinter.render(symbol.pretty(), width=100)
+      let name = self.effect_symbol_text(symbol)
       if arguments.is_empty() {
         name
       } else {
@@ -94,6 +94,17 @@ fn TypeDisplayContext::type_symbol_text(
   symbol : @symbol.TypeSymbolId,
 ) -> String {
   match self.registry.type_metadata(symbol) {
+    Some(metadata) => metadata.name
+    None => @prettyprinter.render(symbol.pretty(), width=80)
+  }
+}
+
+///|
+fn TypeDisplayContext::effect_symbol_text(
+  self : TypeDisplayContext,
+  symbol : @symbol.EffectSymbolId,
+) -> String {
+  match self.registry.effect_metadata(symbol) {
     Some(metadata) => metadata.name
     None => @prettyprinter.render(symbol.pretty(), width=80)
   }

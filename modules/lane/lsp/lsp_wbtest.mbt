@@ -1239,6 +1239,166 @@ async test "hover returns declaration detail" {
 }
 
 ///|
+async test "hover returns effect and operation declaration detail" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|effect Prompt {
+            #|  choose[A](A, A) -> A
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let effect_result = state.handle_message(
+    request(2, "textDocument/hover", position_params("file:///Main.lane", 2, 8)),
+  )
+  json_inspect(effect_result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "contents": {
+          "kind": "markdown",
+          "value": "```lane\neffect Prompt\n```",
+        },
+        "range": {
+          "start": { "line": 2, "character": 7 },
+          "end": { "line": 2, "character": 13 },
+        },
+      },
+    },
+  ])
+  let operation_result = state.handle_message(
+    request(3, "textDocument/hover", position_params("file:///Main.lane", 3, 4)),
+  )
+  json_inspect(
+    operation_result.outgoing.map(fn(message) { message.to_json() }),
+    content=[
+      {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "contents": {
+            "kind": "markdown",
+            "value": "```lane\noperation Prompt::choose[A : Type](A, A) -> A\n```",
+          },
+          "range": {
+            "start": { "line": 3, "character": 2 },
+            "end": { "line": 3, "character": 8 },
+          },
+        },
+      },
+    ],
+  )
+}
+
+///|
+async test "definition resolves operation call references" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|effect Prompt {
+            #|  choose[A](A, A) -> A
+            #|}
+            #|
+            #|fn pick() -> Int ! Prompt {
+            #|  Prompt::choose![Int](1, 2)
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/definition",
+      position_params("file:///Main.lane", 7, 12),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "uri": "file:///Main.lane",
+        "range": {
+          "start": { "line": 3, "character": 2 },
+          "end": { "line": 3, "character": 8 },
+        },
+      },
+    },
+  ])
+}
+
+///|
+async test "definition resolves handler operation arm references" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|effect Prompt {
+            #|  choose[A](A, A) -> A
+            #|}
+            #|
+            #|fn handled() -> Int {
+            #|  handle Prompt::choose![Int](1, 2) with {
+            #|    Prompt::choose[A](left, right, resume) => resume(left)
+            #|  } final value { value }
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/definition",
+      position_params("file:///Main.lane", 8, 14),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "uri": "file:///Main.lane",
+        "range": {
+          "start": { "line": 3, "character": 2 },
+          "end": { "line": 3, "character": 8 },
+        },
+      },
+    },
+  ])
+}
+
+///|
 async test "hover returns type reference summary" {
   let state = ServerState::ServerState()
   ignore(
