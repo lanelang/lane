@@ -3,7 +3,6 @@ using @buslane {
   type AltCon,
   type Alternative,
   type BuslaneName,
-  type BuslaneUnique,
   type DataConId,
   type DataConInfo,
   type Effect,
@@ -89,7 +88,7 @@ fn parsed_name(
   occurrence : String,
   index : Int,
 ) -> BuslaneName {
-  { name_space, occurrence, unique: BuslaneUnique::{ value: index } }
+  { name_space, occurrence, unique: { value: index } }
 }
 
 ///|

@@ -189,12 +189,12 @@ expr -> Expr
     Function({ parameters: $3, result_type: $5, body: $8 })
   }
   | "call" "(" expr "," expr_list ")" { Call($3, $5) }
-  | "perform" "(" operation_id "," type_list "," expr_list ")" {
+  | "perform" "(" operation_id "," type_list "," type_list "," expr_list ")" {
     Perform({
       operation: $3,
       effect_arguments: $5,
-      hidden_witnesses: [],
-      payloads: $7,
+      hidden_witnesses: $7,
+      payloads: $9,
     })
   }
   | "resume" "(" value_id ")" { Resume($3) }
@@ -245,13 +245,13 @@ operation_alternatives -> Array[OperationAlternative]
   ;
 
 operation_alternative -> OperationAlternative
-  : "op_alt" "(" operation_id "," value_id_list "," value_id ")" "=>" expr ";" {
+  : "op_alt" "(" operation_id "," type_parameter_id_list "," value_id_list "," value_id ")" "=>" expr ";" {
     {
       operation: $3,
-      type_binders: [],
-      payload_binders: $5,
-      resume_binder: $7,
-      body: $10,
+      type_binders: $5,
+      payload_binders: $7,
+      resume_binder: $9,
+      body: $12,
     }
   }
   ;

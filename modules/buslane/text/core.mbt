@@ -420,6 +420,7 @@ fn expr_doc(expr : @buslane.Expr) -> Document {
       call_doc("perform", [
         operation_id_doc(perform.operation),
         types_doc(perform.effect_arguments),
+        types_doc(perform.hidden_witnesses),
         exprs_doc(perform.payloads),
       ])
     Resume(id) => call_doc("resume", [value_id_doc(id)])
@@ -518,6 +519,7 @@ fn operation_alternative_doc(
 ) -> Document {
   call_doc("op_alt", [
     operation_id_doc(alternative.operation),
+    type_parameter_ids_doc(alternative.type_binders),
     value_ids_doc(alternative.payload_binders),
     value_id_doc(alternative.resume_binder),
   ]) +

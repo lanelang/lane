@@ -134,6 +134,79 @@ test "buslane text roundtrips perform and deep handler syntax" {
 }
 
 ///|
+test "buslane text roundtrips polymorphic operation witnesses" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let operation_type_parameter = metadata.define_type_parameter("T", Type)
+  let prompt = metadata.define_effect("Prompt", [])
+  let choose = metadata.define_operation(
+    "choose",
+    prompt,
+    [operation_type_parameter],
+    [Parameter(operation_type_parameter), Parameter(operation_type_parameter)],
+    Parameter(operation_type_parameter),
+  )
+  let result = metadata.define_value("result", Value, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let arm_type_binder = metadata.define_type_parameter("T", Type)
+  let left = metadata.define_value(
+    "left",
+    Parameter,
+    Parameter(arm_type_binder),
+  )
+  let right = metadata.define_value(
+    "right",
+    Parameter,
+    Parameter(arm_type_binder),
+  )
+  let resume_binder = metadata.define_value(
+    "resume",
+    Parameter,
+    Function([Parameter(arm_type_binder)], int_type(), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Perform({
+            operation: choose,
+            effect_arguments: [],
+            hidden_witnesses: [int_type()],
+            payloads: [Literal(Int(40L)), Literal(Int(41L))],
+          }),
+          result_binder: final_binder,
+          result_type: int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(prompt, []),
+              operations: [
+                {
+                  operation: choose,
+                  type_binders: [arm_type_binder],
+                  payload_binders: [left, right],
+                  resume_binder,
+                  body: Call(Resume(resume_binder), [Ref(left)]),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(program).is_ok())
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
+  let decoded = match parse_program_text(text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + text)
+  }
+  assert_true(decoded == program)
+  assert_true(@buslane.verify_program(decoded).is_ok())
+}
+
+///|
 test "buslane text roundtrips construct and match" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let option_type_parameter = metadata.define_type_parameter("T", Type)
