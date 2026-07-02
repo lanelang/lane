@@ -16,6 +16,7 @@ pub impl @prettyprinter.Pretty for CheckedTopLevelDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    Effect(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
   }
@@ -83,6 +84,33 @@ pub impl @prettyprinter.Pretty for CheckedVariantDeclaration with fn pretty(
   variant_name_doc(variant.name, variant.symbol) +
   type_parameters_doc(variant.type_parameters) +
   payload_doc(variant.payload)
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedEffectDeclaration with fn pretty(
+  declaration : CheckedEffectDeclaration,
+) {
+  text("effect") +
+  space +
+  effect_name_doc(declaration.name, declaration.symbol) +
+  type_parameters_doc(declaration.type_parameters) +
+  space +
+  @pretty.braced_block(
+    declaration.operations.map(CheckedEffectOperationDeclaration::pretty),
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedEffectOperationDeclaration with fn pretty(
+  operation : CheckedEffectOperationDeclaration,
+) {
+  operation_name_doc(operation.name, operation.symbol) +
+  type_parameters_doc(operation.type_parameters) +
+  payload_doc(operation.payload) +
+  space +
+  text("->") +
+  space +
+  operation.result.pretty()
 }
 
 ///|
@@ -203,6 +231,50 @@ pub impl @prettyprinter.Pretty for CheckedMatchArm with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for CheckedHandlerTable with fn pretty(
+  table : CheckedHandlerTable,
+) {
+  text("with") +
+  space +
+  table.handled_effect.pretty() +
+  space +
+  @pretty.braced_block(table.operations.map(CheckedHandlerOperationArm::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedHandlerOperationArm with fn pretty(
+  arm : CheckedHandlerOperationArm,
+) {
+  let parameters = arm.payload_patterns.map(CheckedPattern::pretty)
+  parameters.push(value_name_doc(arm.resume_binder, arm.resume_symbol))
+  let body = match arm.body {
+    Some(body) => expression_doc(body)
+    None => text("<unchecked>")
+  }
+  operation_symbol_doc(arm.operation) +
+  @pretty.parenthesized_inline(parameters) +
+  space +
+  text("=>") +
+  space +
+  body
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedHandlerFinalBranch with fn pretty(
+  branch : CheckedHandlerFinalBranch,
+) {
+  let body = match branch.body {
+    Some(body) => expression_doc(body)
+    None => text("<unchecked>")
+  }
+  text("final") +
+  space +
+  value_name_doc(branch.binder, branch.binder_symbol) +
+  space +
+  body
+}
+
+///|
 pub impl @prettyprinter.Pretty for CheckedPattern with fn pretty(
   pattern : CheckedPattern,
 ) {
@@ -299,6 +371,22 @@ fn expression_doc(expression : CheckedExpr) -> Document {
     Call(callee~, arguments~, ..) =>
       expression_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
+    OperationCall(operation~, arguments~, ..) =>
+      operation.pretty() +
+      text("!") +
+      @pretty.parenthesized_inline(arguments.map(expression_doc))
+    Handler(body~, handlers~, final_branch~, ..) => {
+      let body_doc = match body {
+        Some(body) => expression_doc(body)
+        None => text("<unchecked>")
+      }
+      let docs = [text("handle") + space + body_doc]
+      for handler in handlers {
+        docs.push(handler.pretty())
+      }
+      docs.push(final_branch.pretty())
+      @pretty.braced_block(docs)
+    }
     Field(base~, field~, name~, ..) =>
       expression_doc(base) + text(".") + field_name_doc(name, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
@@ -375,6 +463,16 @@ fn variant_name_doc(name : String, symbol : VariantSymbolId) -> Document {
 }
 
 ///|
+fn effect_name_doc(name : String, symbol : EffectSymbolId) -> Document {
+  text(name) + effect_suffix(symbol)
+}
+
+///|
+fn operation_name_doc(name : String, symbol : OperationSymbolId) -> Document {
+  text(name) + operation_suffix(symbol)
+}
+
+///|
 fn type_symbol_doc(symbol : TypeSymbolId) -> Document {
   text("type") + type_suffix(symbol)
 }
@@ -382,6 +480,11 @@ fn type_symbol_doc(symbol : TypeSymbolId) -> Document {
 ///|
 fn variant_symbol_doc(symbol : VariantSymbolId) -> Document {
   text("variant") + variant_suffix(symbol)
+}
+
+///|
+fn operation_symbol_doc(symbol : OperationSymbolId) -> Document {
+  text("operation") + operation_suffix(symbol)
 }
 
 ///|
@@ -421,6 +524,16 @@ fn field_suffix(symbol : FieldSymbolId) -> Document {
 
 ///|
 fn variant_suffix(symbol : VariantSymbolId) -> Document {
+  text("#\{symbol.index}")
+}
+
+///|
+fn effect_suffix(symbol : EffectSymbolId) -> Document {
+  text("#\{symbol.index}")
+}
+
+///|
+fn operation_suffix(symbol : OperationSymbolId) -> Document {
   text("#\{symbol.index}")
 }
 

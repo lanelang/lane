@@ -84,6 +84,124 @@ test "collect top level declaration symbols" {
 }
 
 ///|
+test "resolve effect declarations and operation symbols" {
+  let file = expect_parse_ok(
+    (
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|  choose[A](A, A) -> A
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(resolve_source_file(file), width=100),
+    content=(
+      #|resolved {
+      #|  symbols {
+      #|    types {}
+      #|    type_parameters {
+      #|      tparam#0 S
+      #|      tparam#1 A
+      #|    }
+      #|    type_members {}
+      #|    values {}
+      #|    fields {}
+      #|    variants {}
+      #|    effects {
+      #|      effect#0 State/1
+      #|    }
+      #|    operations {
+      #|      operation#0 owner=effect#0 get index=0 payloads=0
+      #|      operation#1 owner=effect#0 put index=1 payloads=1
+      #|      operation#2 owner=effect#0 choose index=2 payloads=2
+      #|    }
+      #|  }
+      #|  declarations {
+      #|    effect effect#0 State[tparam#0 S] {
+      #|      operation operation#0 get index=0 -> tparam#0 S
+      #|      operation operation#1 put index=1(tparam#0 S) -> Unit
+      #|      operation operation#2 choose index=2[tparam#1 A](tparam#1 A, tparam#1 A) -> tparam#1 A
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "resolve handler operation arms and binders" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  read() -> String
+      #|  write(String) -> Unit
+      #|  choose() -> Unit
+      #|}
+      #|fn program() -> String ! Console {
+      #|  handle Console::read!() with {
+      #|    Console::write(message, resume) => resume(())
+      #|    ::read(resume2) => "fallback"
+      #|    choose(resume3) => resume3(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(resolve_source_file(file), width=100),
+    content=(
+      #|resolved {
+      #|  symbols {
+      #|    types {}
+      #|    type_parameters {}
+      #|    type_members {}
+      #|    values {
+      #|      value#0 top_function program
+      #|      value#1 pattern_binder message
+      #|      value#2 pattern_binder resume
+      #|      value#3 pattern_binder resume2
+      #|      value#4 pattern_binder resume3
+      #|      value#5 pattern_binder value
+      #|    }
+      #|    fields {}
+      #|    variants {}
+      #|    effects {
+      #|      effect#0 Console/0
+      #|    }
+      #|    operations {
+      #|      operation#0 owner=effect#0 read index=0 payloads=0
+      #|      operation#1 owner=effect#0 write index=1 payloads=1
+      #|      operation#2 owner=effect#0 choose index=2 payloads=0
+      #|    }
+      #|  }
+      #|  declarations {
+      #|    effect effect#0 Console {
+      #|      operation operation#0 read index=0 -> String
+      #|      operation operation#1 write index=1(String) -> Unit
+      #|      operation operation#2 choose index=2 -> Unit
+      #|    }
+      #|    fn value#0 program() -> String ! effect#0 Console {
+      #|      {
+      #|        handle effect#0 Console::read@operation#0!()
+      #|        with {
+      #|          effect#0 Console::write@operation#1(bind value#1 message, value#2 resume) => var value#2 resume(())
+      #|          ::read@operation#0(value#3 resume2) => "fallback"
+      #|          choose@operation#2(value#4 resume3) => var value#4 resume3(())
+      #|        }
+      #|        final value#5 value {
+      #|          var value#5 value
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "resolve unqualified variant calls after nominal member collection" {
   let file = expect_parse_ok(
     (

@@ -31,7 +31,7 @@ fn collect_annotated_top_level_values(
       symbols.push(declaration.symbol)
       collect_annotated_expr_values(declaration.initializer, symbols)
     }
-    Struct(_) | Enum(_) | TypeAlias(_) => ()
+    Struct(_) | Enum(_) | Effect(_) | TypeAlias(_) => ()
   }
 }
 
@@ -114,6 +114,15 @@ fn collect_annotated_expr_values(
         collect_annotated_expr_values(arm.body, symbols)
       }
     }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      collect_annotated_expr_values(body, symbols)
+      for handler in handlers {
+        for arm in handler.arms {
+          collect_annotated_expr_values(arm.body, symbols)
+        }
+      }
+      collect_annotated_expr_values(final_branch.body, symbols)
+    }
     Call(callee~, arguments~, ..) => {
       collect_annotated_expr_values(callee, symbols)
       for argument in arguments {
@@ -124,6 +133,10 @@ fn collect_annotated_expr_values(
         }
       }
     }
+    EffectOperationCall(arguments~, ..) =>
+      for argument in arguments {
+        collect_annotated_expr_values(argument, symbols)
+      }
     Field(base~, ..) => collect_annotated_expr_values(base, symbols)
     Unary(operand~, ..) => collect_annotated_expr_values(operand, symbols)
     Binary(left~, right~, ..) | Pipeline(left~, right~, ..) => {

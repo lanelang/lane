@@ -44,6 +44,28 @@ graph TD
   ISS_028["ISS-028: Clarify module input set error modes"]
   ISS_029["ISS-029: Concentrate lane command workflow locality"]
   ISS_030["ISS-030: Separate diagnostic presentation targets"]
+  ISS_031["ISS-031: Add Buslane effect identities and effect terms"]
+  ISS_032["ISS-032: Attach latent effects to Buslane function types"]
+  ISS_033["ISS-033: Add Buslane perform and handler syntax to text roundtrip"]
+  ISS_034["ISS-034: Implement canonical Buslane effect normalization"]
+  ISS_035["ISS-035: Add Buslane verifier rules for effects and handlers"]
+  ISS_036["ISS-036: Implement Buslane interpreter deep handlers"]
+  ISS_037["ISS-037: Lower Lane effects into Buslane effect core"]
+  ISS_038["ISS-038: Complete Buslane effect v1 validation gates"]
+  ISS_039["ISS-039: Add Lane effect syntax and symbol namespaces"]
+  ISS_040["ISS-040: Add Lane expression effect checking and operation calls"]
+  ISS_041["ISS-041: Complete Lane handler checking and payload pattern lowering"]
+  ISS_042["ISS-042: Add Lane handler source syntax"]
+  ISS_043["ISS-043: Resolve and desugar Lane handler binders"]
+  ISS_044["ISS-044: Check handler operation tables and payload patterns"]
+  ISS_045["ISS-045: Check Lane handler result and resume types"]
+  ISS_046["ISS-046: Lower handler payload patterns before Buslane alternatives"]
+  ISS_047["ISS-047: Validate Lane handler checking end to end"]
+  ISS_048["ISS-048: Lower Lane effect metadata to Buslane metadata"]
+  ISS_049["ISS-049: Lower Lane effect terms and latent function effects"]
+  ISS_050["ISS-050: Lower Lane operation calls to Buslane perform"]
+  ISS_051["ISS-051: Lower Lane handlers to Buslane handler tables"]
+  ISS_052["ISS-052: Validate Lane effect lowering end to end"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -66,6 +88,43 @@ graph TD
   ISS_018 --> ISS_020
   ISS_019 --> ISS_020
   ISS_022 --> ISS_024
+  ISS_031 --> ISS_032
+  ISS_031 --> ISS_033
+  ISS_032 --> ISS_033
+  ISS_031 --> ISS_034
+  ISS_032 --> ISS_034
+  ISS_033 --> ISS_035
+  ISS_034 --> ISS_035
+  ISS_035 --> ISS_036
+  ISS_048 --> ISS_037
+  ISS_049 --> ISS_037
+  ISS_050 --> ISS_037
+  ISS_051 --> ISS_037
+  ISS_052 --> ISS_037
+  ISS_036 --> ISS_038
+  ISS_037 --> ISS_038
+  ISS_035 --> ISS_039
+  ISS_039 --> ISS_040
+  ISS_042 --> ISS_041
+  ISS_043 --> ISS_041
+  ISS_044 --> ISS_041
+  ISS_045 --> ISS_041
+  ISS_046 --> ISS_041
+  ISS_047 --> ISS_041
+  ISS_040 --> ISS_042
+  ISS_042 --> ISS_043
+  ISS_043 --> ISS_044
+  ISS_044 --> ISS_045
+  ISS_045 --> ISS_046
+  ISS_046 --> ISS_047
+  ISS_035 --> ISS_048
+  ISS_039 --> ISS_048
+  ISS_040 --> ISS_048
+  ISS_041 --> ISS_048
+  ISS_048 --> ISS_049
+  ISS_049 --> ISS_050
+  ISS_050 --> ISS_051
+  ISS_051 --> ISS_052
 ```
 
 ## Warnings

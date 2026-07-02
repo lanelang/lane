@@ -16,6 +16,7 @@
 %token TRUE "true"
 %token STRUCT "struct"
 %token ENUM "enum"
+%token EFFECT "effect"
 %token FN "fn"
 %token LET "let"
 %token TYPE "type"
@@ -24,6 +25,9 @@
 %token IF "if"
 %token ELSE "else"
 %token MATCH "match"
+%token HANDLE "handle"
+%token WITH "with"
+%token FINAL "final"
 %token BUILTIN "builtin"
 %token MODULE "module"
 %token IMPORT "import"
@@ -132,6 +136,7 @@ top_level_declarations -> Array[TopLevelDeclaration]
 top_level_declaration -> TopLevelDeclaration
   : struct_declaration { Struct($1) }
   | enum_declaration { Enum($1) }
+  | effect_declaration { Effect($1) }
   | type_alias_declaration { TypeAlias($1) }
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
@@ -142,6 +147,7 @@ top_level_declaration -> TopLevelDeclaration
 public_top_level_declaration -> TopLevelDeclaration
   : public_struct_declaration { Struct($1) }
   | public_enum_declaration { Enum($1) }
+  | public_effect_declaration { Effect($1) }
   | public_type_alias_declaration { TypeAlias($1) }
   | public_function_declaration { Function($1) }
   | public_top_level_let_declaration { Let($1) }
@@ -190,7 +196,14 @@ type_member_declaration -> TypeMemberDeclaration
 
 kind -> Kind
   : IDENT {
-    Type(loc=span($sloc))
+    if $1 == "Effect" {
+      Effect(loc=span($sloc))
+    } else {
+      Type(loc=span($sloc))
+    }
+  }
+  | "effect" {
+    Effect(loc=span($sloc))
   }
   | "[" kind_list "]" "->" kind {
     Function(parameters=$2, result=$5, loc=span($sloc))
@@ -252,29 +265,54 @@ enum_variant -> EnumVariant
   }
   ;
 
+effect_declaration -> EffectDeclaration
+  : "effect" IDENT type_parameters "{" effect_operations "}" {
+    { is_public: false, name: $2, type_parameters: $3, operations: $5, loc: span($sloc) }
+  }
+  ;
+
+public_effect_declaration -> EffectDeclaration
+  : "effect" IDENT type_parameters "{" effect_operations "}" {
+    { is_public: true, name: $2, type_parameters: $3, operations: $5, loc: span($sloc) }
+  }
+  ;
+
+effect_operations -> Array[EffectOperationDeclaration]
+  : { [] }
+  | effect_operations effect_operation { comma_push($1, $2) }
+  ;
+
+effect_operation -> EffectOperationDeclaration
+  : IDENT type_parameters "(" type_list ")" "->" type {
+    { name: $1, type_parameters: $2, payload: $4, result: $7, loc: span($sloc) }
+  }
+  ;
+
 function_declaration -> FunctionDeclaration
-  : "fn" type_parameters IDENT parameters "->" type block_expression {
+  : "fn" type_parameters IDENT parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: false,
       type_parameters: $2,
       name: $3,
       parameters: $4,
       return_type: $6,
-      body: $7,
+      effect: effect_or_empty($7, $6),
+      body: $8,
       loc: span($sloc),
     }
   }
   ;
 
 public_function_declaration -> FunctionDeclaration
-  : "fn" type_parameters IDENT parameters "->" type block_expression {
+  : "fn" type_parameters IDENT parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: true,
       type_parameters: $2,
       name: $3,
       parameters: $4,
       return_type: $6,
-      body: $7,
+      effect: effect_or_empty($7, $6),
+      body: $8,
       loc: span($sloc),
     }
   }
@@ -368,7 +406,7 @@ type_parameter -> TypeParameter
 type -> Type
   : type_lambda { $1 }
   | type_application "->" type {
-    Function(type_parameters=[], parameters=[$1], result=$3, loc=span($sloc))
+    Function(type_parameters=[], parameters=[$1], result=$3, effect=Empty(loc=$3.loc()), loc=span($sloc))
   }
   | function_type { $1 }
   | type_application { $1 }
@@ -405,11 +443,31 @@ qualified_type_name -> Type
   ;
 
 function_type -> Type
-  : "(" type_list ")" "->" type {
-    Function(type_parameters=[], parameters=$2, result=$5, loc=span($sloc))
+  : "(" type_list ")" "->" type effect_annotation_opt {
+    Function(type_parameters=[], parameters=$2, result=$5, effect=effect_or_empty($6, $5), loc=span($sloc))
   }
-  | "[" non_empty_type_parameter_list "]" "(" type_list ")" "->" type {
-    Function(type_parameters=$2, parameters=$5, result=$8, loc=span($sloc))
+  | "[" non_empty_type_parameter_list "]" "(" type_list ")" "->" type effect_annotation_opt {
+    Function(type_parameters=$2, parameters=$5, result=$8, effect=effect_or_empty($9, $8), loc=span($sloc))
+  }
+  ;
+
+effect_annotation_opt -> EffectTerm?
+  : { None }
+  | effect_annotation { Some($1) }
+  ;
+
+effect_annotation -> EffectTerm
+  : "!" effect_set { $2 }
+  ;
+
+effect_set -> EffectTerm
+  : type_application { Term(type_=$1, loc=span($sloc)) }
+  | "{" type_list "}" {
+    if $2.is_empty() {
+      Empty(loc=span($sloc))
+    } else {
+      Union(items=$2, loc=span($sloc))
+    }
   }
   ;
 
@@ -478,6 +536,32 @@ expression -> Expr
   | expression "." IDENT {
     Field(base=$1, name=$3, loc=span($sloc))
   }
+  | expression "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
+    EffectOperationCall(
+      name=Qualified(
+        owner=Name(name=expression_type_name_text($1), loc=span($sloc)),
+        operation=$3,
+        loc=span($sloc)
+      ),
+      arguments=$6,
+      loc=span($sloc)
+    )
+  }
+  | expression "[" type_list "]" "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
+    EffectOperationCall(
+      name=Qualified(
+        owner=Apply(
+          callee=Name(name=expression_type_name_text($1), loc=span($sloc)),
+          arguments=$3,
+          loc=span($sloc)
+        ),
+        operation=$6,
+        loc=span($sloc)
+      ),
+      arguments=$9,
+      loc=span($sloc)
+    )
+  }
   | expression "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
     StructLiteral(type_name=expression_type_name_text($1), type_arguments=[], fields=$4, loc=span($sloc))
   }
@@ -504,8 +588,27 @@ primary_expression -> Expr
   | block_expression { $1 }
   | if_expression { $1 }
   | match_expression { $1 }
+  | handler_expression { $1 }
   | function_literal { $1 }
+  | effect_operation_call { $1 }
   | builtin_expression { $1 }
+  ;
+
+effect_operation_call -> Expr
+  : "::" IDENT "!" "(" positional_argument_list ")" {
+    EffectOperationCall(
+      name=Shorthand(operation=$2, loc=span($sloc)),
+      arguments=$5,
+      loc=span($sloc)
+    )
+  }
+  | IDENT "!" "(" positional_argument_list ")" {
+    EffectOperationCall(
+      name=Unqualified(operation=$1, loc=span($sloc)),
+      arguments=$4,
+      loc=span($sloc)
+    )
+  }
   ;
 
 nominal_type_name -> String
@@ -544,6 +647,11 @@ struct_literal_field -> StructLiteralField
 variant_arguments -> Array[Expr]
   : { [] }
   | "(" non_empty_positional_argument_list ")" { $2 }
+  ;
+
+positional_argument_list -> Array[Expr]
+  : { [] }
+  | non_empty_positional_argument_list { $1 }
   ;
 
 argument_list -> Array[CallArgument]
@@ -614,9 +722,76 @@ match_arm -> MatchArm
   }
   ;
 
+handler_expression -> Expr
+  : "handle" expression handler_with_blocks handler_final_branch {
+    Handler(body=$2, handlers=$3, final_branch=$4, loc=span($sloc))
+  }
+  ;
+
+handler_with_blocks -> Array[HandlerWithBlock]
+  : handler_with_block { [ $1 ] }
+  | handler_with_blocks handler_with_block { comma_push($1, $2) }
+  ;
+
+handler_with_block -> HandlerWithBlock
+  : "with" "{" handler_operation_arms "}" {
+    { arms: $3, loc: span($sloc) }
+  }
+  ;
+
+handler_operation_arms -> Array[HandlerOperationArm]
+  : handler_operation_arm { [ $1 ] }
+  | handler_operation_arms handler_operation_arm { comma_push($1, $2) }
+  ;
+
+handler_operation_arm -> HandlerOperationArm
+  : handler_operation_name "(" handler_operation_arm_parameters ")" "=>" expression {
+    {
+      name: $1,
+      payload_patterns: $3.payload_patterns,
+      resume_binder: $3.resume_binder,
+      resume_loc: $3.resume_loc,
+      body: $6,
+      loc: span($sloc)
+    }
+  }
+  ;
+
+handler_operation_name -> EffectOperationName
+  : type_application "tight ::" IDENT {
+    Qualified(owner=$1, operation=$3, loc=span($sloc))
+  }
+  | "::" IDENT {
+    Shorthand(operation=$2, loc=span($sloc))
+  }
+  | IDENT {
+    Unqualified(operation=$1, loc=span($sloc))
+  }
+  ;
+
+handler_operation_arm_parameters -> HandlerOperationArmParameters
+  : IDENT {
+    { payload_patterns: [], resume_binder: $1, resume_loc: span($sloc) }
+  }
+  | handler_payload_patterns "," IDENT {
+    { payload_patterns: $1, resume_binder: $3, resume_loc: span($sloc) }
+  }
+  ;
+
+handler_payload_patterns -> Array[Pattern]
+  : pattern { [ $1 ] }
+  | handler_payload_patterns "," pattern { comma_push($1, $3) }
+  ;
+
+handler_final_branch -> HandlerFinalBranch
+  : "final" IDENT block_expression {
+    { binder: $2, binder_loc: span($sloc), body: $3, loc: span($sloc) }
+  }
+  ;
+
 function_literal -> Expr
-  : "fn" type_parameters "(" function_literal_parameters ")" return_type_annotation block_expression {
-    FunctionLiteral(type_parameters=$2, parameters=$4, return_type=$6, body=$7, loc=span($sloc))
+  : "fn" type_parameters "(" function_literal_parameters ")" return_annotation block_expression {
+    FunctionLiteral(type_parameters=$2, parameters=$4, return_type=$6.return_type, effect=$6.effect, body=$7, loc=span($sloc))
   }
   ;
 
@@ -641,9 +816,11 @@ function_literal_parameter_modifiers -> Bool
   | "offer" { true }
   ;
 
-return_type_annotation -> Type?
-  : { None }
-  | "->" type { Some($2) }
+return_annotation -> ReturnAnnotation
+  : { { return_type: None, effect: None } }
+  | "->" type effect_annotation_opt {
+    { return_type: Some($2), effect: $3 }
+  }
   ;
 
 builtin_expression -> Expr

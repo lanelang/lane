@@ -158,6 +158,7 @@ fn TopLevelDeclaration::to_doc(self : TopLevelDeclaration) -> Document {
   match self {
     Struct(declaration) => declaration.to_doc()
     Enum(declaration) => declaration.to_doc()
+    Effect(declaration) => declaration.to_doc()
     TypeAlias(declaration) => declaration.to_doc()
     Function(declaration) => declaration.to_doc()
     Let(declaration) => declaration.to_doc()
@@ -240,6 +241,7 @@ pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
 fn Kind::to_doc(self : Kind) -> Document {
   match self {
     Type(..) => text("Type")
+    Effect(..) => text("Effect")
     Function(parameters~, result~, ..) =>
       brackets(join_comma(parameters.map(Kind::to_doc))) +
       space +
@@ -247,6 +249,44 @@ fn Kind::to_doc(self : Kind) -> Document {
       space +
       result.to_doc()
   }
+}
+
+///|
+pub impl @prettyprinter.Pretty for EffectDeclaration with fn pretty(
+  declaration : EffectDeclaration,
+) {
+  declaration.to_doc()
+}
+
+///|
+fn EffectDeclaration::to_doc(self : EffectDeclaration) -> Document {
+  public_prefix(self.is_public) +
+  keyword("effect") +
+  space +
+  text(self.name) +
+  bracketed_type_parameters(self.type_parameters) +
+  space +
+  brace_block(self.operations.map(EffectOperationDeclaration::to_doc))
+}
+
+///|
+pub impl @prettyprinter.Pretty for EffectOperationDeclaration with fn pretty(
+  declaration : EffectOperationDeclaration,
+) {
+  declaration.to_doc()
+}
+
+///|
+fn EffectOperationDeclaration::to_doc(
+  self : EffectOperationDeclaration,
+) -> Document {
+  text(self.name) +
+  bracketed_type_parameters(self.type_parameters) +
+  parenthesized(self.payload.map(Type::to_doc)) +
+  space +
+  text("->") +
+  space +
+  self.result.to_doc()
 }
 
 ///|
@@ -338,6 +378,7 @@ fn FunctionDeclaration::to_doc(self : FunctionDeclaration) -> Document {
   text("->") +
   space +
   self.return_type.to_doc() +
+  self.effect.to_annotation_doc() +
   space +
   self.body.to_doc()
 }
@@ -429,13 +470,31 @@ fn Type::to_doc(self : Type) -> Document {
       text("=>") +
       space +
       body.to_doc()
-    Function(type_parameters~, parameters~, result~, ..) =>
+    Function(type_parameters~, parameters~, result~, effect~, ..) =>
       bracketed_type_parameters(type_parameters) +
       parenthesized(parameters.map(Type::to_doc)) +
       space +
       text("->") +
       space +
-      result.to_doc()
+      result.to_doc() +
+      effect.to_annotation_doc()
+  }
+}
+
+///|
+fn EffectTerm::to_doc(self : EffectTerm) -> Document {
+  match self {
+    Empty(..) => text("{}")
+    Term(type_~, ..) => type_.to_doc()
+    Union(items~, ..) => brace_comma_block(items.map(Type::to_doc))
+  }
+}
+
+///|
+fn EffectTerm::to_annotation_doc(self : EffectTerm) -> Document {
+  match self {
+    Empty(..) => empty
+    _ => space + text("!") + space + self.to_doc()
   }
 }
 
@@ -488,9 +547,20 @@ fn Expr::to_doc_with_precedence(
     }
     Builtin(name, ..) =>
       (10, keyword("builtin") + parenthesized([source_string(name)]))
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) => {
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) => {
       let return_doc = match return_type {
         Some(type_) => space + text("->") + space + type_.to_doc()
+        None => empty
+      }
+      let effect_doc = match effect {
+        Some(effect) => effect.to_annotation_doc()
         None => empty
       }
       (
@@ -500,9 +570,23 @@ fn Expr::to_doc_with_precedence(
         space +
         parenthesized(parameters.map(FunctionLiteralParameter::to_doc)) +
         return_doc +
+        effect_doc +
         space +
         body.to_doc(),
       )
+    }
+    EffectOperationCall(name~, arguments~, ..) =>
+      (
+        10,
+        name.to_doc() + text("!") + parenthesized(arguments.map(Expr::to_doc)),
+      )
+    Handler(body~, handlers~, final_branch~, ..) => {
+      let docs = [keyword("handle") + space + body.to_doc()]
+      for handler in handlers {
+        docs.push(handler.to_doc())
+      }
+      docs.push(final_branch.to_doc())
+      (10, separate(hardline, docs))
     }
     Block(items~, result~, ..) => {
       let docs = items.map(LocalItem::to_doc)
@@ -567,6 +651,40 @@ fn Expr::to_doc_with_precedence(
   } else {
     doc
   }
+}
+
+///|
+fn EffectOperationName::to_doc(self : EffectOperationName) -> Document {
+  match self {
+    Qualified(owner~, operation~, ..) =>
+      owner.to_doc() + text("::") + text(operation)
+    Shorthand(operation~, ..) => text("::") + text(operation)
+    Unqualified(operation~, ..) => text(operation)
+  }
+}
+
+///|
+fn HandlerWithBlock::to_doc(self : HandlerWithBlock) -> Document {
+  keyword("with") +
+  space +
+  brace_block(self.arms.map(HandlerOperationArm::to_doc))
+}
+
+///|
+fn HandlerOperationArm::to_doc(self : HandlerOperationArm) -> Document {
+  let parameters = self.payload_patterns.map(Pattern::to_doc)
+  parameters.push(text(self.resume_binder))
+  let head = self.name.to_doc() + parenthesized(parameters) + space + text("=>")
+  if self.body.breaks_after_match_arrow() {
+    head + nest(hardline + self.body.to_doc())
+  } else {
+    head + space + self.body.to_doc()
+  }
+}
+
+///|
+fn HandlerFinalBranch::to_doc(self : HandlerFinalBranch) -> Document {
+  keyword("final") + space + text(self.binder) + space + self.body.to_doc()
 }
 
 ///|
@@ -685,7 +803,7 @@ fn MatchArm::to_doc(self : MatchArm) -> Document {
 ///|
 fn Expr::breaks_after_match_arrow(self : Expr) -> Bool {
   match self {
-    If(..) | Match(..) => true
+    If(..) | Match(..) | Handler(..) => true
     _ => false
   }
 }

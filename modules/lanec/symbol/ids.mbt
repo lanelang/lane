@@ -27,3 +27,13 @@ pub(all) struct FieldSymbolId {
 pub(all) struct VariantSymbolId {
   index : Int
 } derive(Debug, Eq, Compare)
+
+///|
+pub(all) struct EffectSymbolId {
+  index : Int
+} derive(Debug, Eq, Compare)
+
+///|
+pub(all) struct OperationSymbolId {
+  index : Int
+} derive(Debug, Eq, Compare)

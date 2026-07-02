@@ -40,6 +40,7 @@ pub fn ImportDeclaration::loc(self : ImportDeclaration) -> SourceSpan {
 pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)
   Enum(EnumDeclaration)
+  Effect(EffectDeclaration)
   TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)
@@ -78,6 +79,7 @@ pub(all) struct TypeMemberDeclaration {
 ///|
 pub(all) enum Kind {
   Type(loc~ : SourceSpan)
+  Effect(loc~ : SourceSpan)
   Function(parameters~ : Array[Kind], result~ : Kind, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
@@ -85,7 +87,7 @@ pub(all) enum Kind {
 /// Returns the source span covered by this kind syntax node.
 pub fn Kind::loc(self : Kind) -> SourceSpan {
   match self {
-    Type(loc~) | Function(loc~, ..) => loc
+    Type(loc~) | Effect(loc~) | Function(loc~, ..) => loc
   }
 }
 
@@ -115,6 +117,24 @@ pub(all) struct EnumVariant {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct EffectDeclaration {
+  is_public : Bool
+  name : String
+  type_parameters : Array[TypeParameter]
+  operations : Array[EffectOperationDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct EffectOperationDeclaration {
+  name : String
+  type_parameters : Array[TypeParameter]
+  payload : Array[Type]
+  result : Type
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
@@ -130,6 +150,7 @@ pub(all) struct FunctionDeclaration {
   name : String
   parameters : Array[Parameter]
   return_type : Type
+  effect : EffectTerm
   body : Expr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -181,9 +202,24 @@ pub(all) enum Type {
     type_parameters~ : Array[TypeParameter],
     parameters~ : Array[Type],
     result~ : Type,
+    effect~ : EffectTerm,
     loc~ : SourceSpan
   )
 } derive(Debug, Eq)
+
+///|
+pub(all) enum EffectTerm {
+  Empty(loc~ : SourceSpan)
+  Term(type_~ : Type, loc~ : SourceSpan)
+  Union(items~ : Array[Type], loc~ : SourceSpan)
+} derive(Debug, Eq)
+
+///|
+pub fn EffectTerm::loc(self : EffectTerm) -> SourceSpan {
+  match self {
+    Empty(loc~) | Term(loc~, ..) | Union(loc~, ..) => loc
+  }
+}
 
 ///|
 /// Returns the source span covered by this type syntax node.
@@ -223,7 +259,19 @@ pub(all) enum Expr {
     type_parameters~ : Array[TypeParameter],
     parameters~ : Array[FunctionLiteralParameter],
     return_type~ : Type?,
+    effect~ : EffectTerm?,
     body~ : Expr,
+    loc~ : SourceSpan
+  )
+  EffectOperationCall(
+    name~ : EffectOperationName,
+    arguments~ : Array[Expr],
+    loc~ : SourceSpan
+  )
+  Handler(
+    body~ : Expr,
+    handlers~ : Array[HandlerWithBlock],
+    final_branch~ : HandlerFinalBranch,
     loc~ : SourceSpan
   )
   Block(items~ : Array[LocalItem], result~ : Expr, loc~ : SourceSpan)
@@ -259,6 +307,8 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | StructLiteral(loc~, ..)
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
+    | EffectOperationCall(loc~, ..)
+    | Handler(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)
@@ -276,6 +326,37 @@ pub(all) enum LocalItem {
   PatternLet(PatternLetDeclaration)
   Function(FunctionDeclaration)
   Offer(OfferDeclaration)
+} derive(Debug, Eq)
+
+///|
+pub(all) enum EffectOperationName {
+  Qualified(owner~ : Type, operation~ : String, loc~ : SourceSpan)
+  Shorthand(operation~ : String, loc~ : SourceSpan)
+  Unqualified(operation~ : String, loc~ : SourceSpan)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerWithBlock {
+  arms : Array[HandlerOperationArm]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerOperationArm {
+  name : EffectOperationName
+  payload_patterns : Array[Pattern]
+  resume_binder : String
+  resume_loc : SourceSpan
+  body : Expr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerFinalBranch {
+  binder : String
+  binder_loc : SourceSpan
+  body : Expr
+  loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|

@@ -20,6 +20,7 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    Effect(declaration) => declaration.pretty()
     TypeAlias(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
@@ -147,6 +148,7 @@ pub impl @prettyprinter.Pretty for ResolvedKind with fn pretty(
 ) {
   match kind {
     Type(..) => text("Type")
+    Effect(..) => text("Effect")
     Function(parameters~, result~, ..) =>
       @pretty.bracketed_inline(parameters.map(ResolvedKind::pretty)) +
       space +
@@ -220,6 +222,41 @@ pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for ResolvedEffectDeclaration with fn pretty(
+  declaration : ResolvedEffectDeclaration,
+) {
+  text("effect") +
+  space +
+  declaration.symbol.pretty() +
+  space +
+  text(declaration.name) +
+  type_parameters_doc(declaration.type_parameters) +
+  space +
+  @pretty.braced_block(
+    declaration.operations.map(ResolvedEffectOperationDeclaration::pretty),
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectOperationDeclaration with fn pretty(
+  operation : ResolvedEffectOperationDeclaration,
+) {
+  text("operation") +
+  space +
+  operation.symbol.pretty() +
+  space +
+  text(operation.name) +
+  space +
+  text("index=\{operation.index}") +
+  type_parameters_doc(operation.type_parameters) +
+  payload_doc(operation.payload) +
+  space +
+  text("->") +
+  space +
+  operation.result.pretty()
+}
+
+///|
 pub impl @prettyprinter.Pretty for ResolvedFunctionDeclaration with fn pretty(
   declaration : ResolvedFunctionDeclaration,
 ) {
@@ -234,6 +271,7 @@ pub impl @prettyprinter.Pretty for ResolvedFunctionDeclaration with fn pretty(
   text("->") +
   space +
   declaration.return_type.pretty() +
+  declaration.effect.annotation_doc() +
   space +
   declaration.body.pretty()
 }
@@ -345,14 +383,15 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
       space +
       body.pretty()
     Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
-    Function(type_parameters~, parameters~, result~, ..) => {
+    Function(type_parameters~, parameters~, result~, effect~, ..) => {
       let forall = type_parameters_doc(type_parameters)
       forall +
       @pretty.parenthesized_inline(parameters.map(ResolvedType::pretty)) +
       space +
       text("->") +
       space +
-      result.pretty()
+      result.pretty() +
+      effect.annotation_doc()
     }
     Unresolved(name~, arguments~, ..) =>
       if arguments.is_empty() {
@@ -362,6 +401,68 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
         text(name) +
         @pretty.bracketed_inline(arguments.map(ResolvedType::pretty))
       }
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
+  effect : ResolvedEffectTerm,
+) {
+  match effect {
+    Empty(..) => text("{}")
+    Singleton(symbol~, name~, arguments~, ..) =>
+      symbol.pretty() + space + text(name) + type_arguments_doc(arguments)
+    Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
+    Union(items~, ..) =>
+      @pretty.braced_block(items.map(ResolvedEffectTerm::pretty))
+    Unresolved(name~, arguments~, ..) =>
+      if arguments.is_empty() {
+        text("<unresolved-effect ") + text(name) + text(">")
+      } else {
+        text("<unresolved-effect ") +
+        text(name) +
+        type_arguments_doc(arguments) +
+        text(">")
+      }
+  }
+}
+
+///|
+fn ResolvedEffectTerm::annotation_doc(self : ResolvedEffectTerm) -> Document {
+  match self {
+    Empty(..) => empty
+    _ => space + text("!") + space + self.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectOperationName with fn pretty(
+  name : ResolvedEffectOperationName,
+) {
+  match name {
+    Qualified(owner~, operation~, reference~, ..) =>
+      owner.pretty() +
+      text("::") +
+      text(operation) +
+      operation_reference_doc(reference)
+    Shorthand(operation~, reference~, ..) =>
+      text("::") + text(operation) + operation_reference_doc(reference)
+    Unqualified(operation~, reference~, ..) =>
+      text(operation) + operation_reference_doc(reference)
+  }
+}
+
+///|
+fn operation_reference_doc(reference : ResolvedOperationReference) -> Document {
+  match reference {
+    Symbol(symbol) => text("@") + symbol.pretty()
+    Unresolved(name) => text("@<unresolved ") + text(name) + text(">")
+    Ambiguous(name~, candidates~) =>
+      text("@<ambiguous ") +
+      text(name) +
+      text(" ") +
+      @pretty.bracketed_inline(candidates.map(OperationSymbolId::pretty)) +
+      text(">")
   }
 }
 
@@ -475,6 +576,42 @@ pub impl @prettyprinter.Pretty for ResolvedMatchArm with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for ResolvedHandlerWithBlock with fn pretty(
+  handler : ResolvedHandlerWithBlock,
+) {
+  text("with") +
+  space +
+  @pretty.braced_block(handler.arms.map(ResolvedHandlerOperationArm::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedHandlerOperationArm with fn pretty(
+  arm : ResolvedHandlerOperationArm,
+) {
+  let parameters = arm.payload_patterns.map(ResolvedPattern::pretty)
+  parameters.push(arm.resume_symbol.pretty() + space + text(arm.resume_binder))
+  arm.name.pretty() +
+  @pretty.parenthesized_inline(parameters) +
+  space +
+  text("=>") +
+  space +
+  arm.body.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedHandlerFinalBranch with fn pretty(
+  branch : ResolvedHandlerFinalBranch,
+) {
+  text("final") +
+  space +
+  branch.binder_symbol.pretty() +
+  space +
+  text(branch.binder) +
+  space +
+  branch.body.pretty()
+}
+
+///|
 pub impl @prettyprinter.Pretty for ResolvedStructPatternField with fn pretty(
   field : ResolvedStructPatternField,
 ) {
@@ -527,17 +664,41 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       text("::") +
       @pretty.braced_block(fields.map(ResolvedStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) => {
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) => {
       let result = match return_type {
         Some(type_) => space + text("->") + space + type_.pretty()
+        None => empty
+      }
+      let effect = match effect {
+        Some(effect) => effect.annotation_doc()
         None => empty
       }
       text("fn") +
       type_parameters_doc(type_parameters) +
       function_literal_parameters_doc(parameters) +
       result +
+      effect +
       space +
       body.pretty()
+    }
+    EffectOperationCall(name~, arguments~, ..) =>
+      name.pretty() +
+      text("!") +
+      @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
+    Handler(body~, handlers~, final_branch~, ..) => {
+      let docs = [text("handle") + space + body.pretty()]
+      for handler in handlers {
+        docs.push(handler.pretty())
+      }
+      docs.push(final_branch.pretty())
+      @pretty.braced_block(docs)
     }
     Block(items~, result~, ..) => {
       let docs = items.map(ResolvedLocalItem::pretty)

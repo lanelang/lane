@@ -111,6 +111,10 @@ fn evaluate_rhs(
     Atom(atom) => evaluate_atom(atom, environment, builtins)
     Call(callee~, arguments~, ..) =>
       evaluate_call(callee, arguments, environment, builtins)
+    OperationCall(..) =>
+      raise InvalidRuntimeValue(
+        message="effect operation evaluation is not implemented yet",
+      )
     TypeApplication(callee~, ..) => {
       let callee_value = evaluate_atom(callee, environment, builtins)
       erase_type_application(callee_value, builtins)

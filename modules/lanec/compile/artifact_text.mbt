@@ -607,6 +607,10 @@ fn ArtifactTextWriter::write_module_interface(
   for type_ in interface.types {
     self.write_module_interface_type(type_)
   }
+  self.write_int("interface.effects", interface.effects.length())
+  for effect in interface.effects {
+    self.write_interface_effect(effect)
+  }
   self.write_int("interface.type_aliases", interface.type_aliases.length())
   for alias_ in interface.type_aliases {
     self.write_type_alias(alias_)
@@ -633,6 +637,10 @@ fn ArtifactTextReader::read_module_interface(
   for _ in 0..<self.expect_int("interface.types") {
     types.push(self.read_module_interface_type())
   }
+  let effects = []
+  for _ in 0..<self.expect_int("interface.effects") {
+    effects.push(self.read_interface_effect())
+  }
   let type_aliases = []
   for _ in 0..<self.expect_int("interface.type_aliases") {
     type_aliases.push(self.read_type_alias())
@@ -647,7 +655,7 @@ fn ArtifactTextReader::read_module_interface(
       name: self.expect_string("optimization_hint.name"),
     })
   }
-  { module_path, types, type_aliases, values, optimization_hints }
+  { module_path, types, effects, type_aliases, values, optimization_hints }
 }
 
 ///|
@@ -725,6 +733,67 @@ fn ArtifactTextReader::read_module_interface_type(
     }
     _ => fail_unknown("unknown interface type tag \{tag}")
   }
+}
+
+///|
+fn ArtifactTextWriter::write_interface_effect(
+  self : ArtifactTextWriter,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> Unit {
+  self.write_effect_symbol_id("effect.symbol", effect.symbol)
+  self.write_string("effect.name", effect.name)
+  self.write_type_parameters("effect.type_parameters", effect.type_parameters)
+  self.write_int("effect.operations", effect.operations.length())
+  for operation in effect.operations {
+    self.write_interface_operation(operation)
+  }
+  self.write_source_span("effect.loc", effect.loc)
+}
+
+///|
+fn ArtifactTextReader::read_interface_effect(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceEffect raise ArtifactTextError {
+  let symbol = self.read_effect_symbol_id("effect.symbol")
+  let name = self.expect_string("effect.name")
+  let type_parameters = self.read_type_parameters("effect.type_parameters")
+  let operations = []
+  for _ in 0..<self.expect_int("effect.operations") {
+    operations.push(self.read_interface_operation())
+  }
+  let loc = self.read_source_span("effect.loc")
+  { symbol, name, type_parameters, operations, loc }
+}
+
+///|
+fn ArtifactTextWriter::write_interface_operation(
+  self : ArtifactTextWriter,
+  operation : @module_interface.ModuleInterfaceOperation,
+) -> Unit {
+  self.write_operation_symbol_id("operation.symbol", operation.symbol)
+  self.write_string("operation.name", operation.name)
+  self.write_int("operation.index", operation.index)
+  self.write_type_parameters(
+    "operation.type_parameters",
+    operation.type_parameters,
+  )
+  self.write_lane_types("operation.payload", operation.payload)
+  self.write_lane_type(operation.result)
+  self.write_source_span("operation.loc", operation.loc)
+}
+
+///|
+fn ArtifactTextReader::read_interface_operation(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceOperation raise ArtifactTextError {
+  let symbol = self.read_operation_symbol_id("operation.symbol")
+  let name = self.expect_string("operation.name")
+  let index = self.expect_int("operation.index")
+  let type_parameters = self.read_type_parameters("operation.type_parameters")
+  let payload = self.read_lane_types("operation.payload")
+  let result = self.read_lane_type()
+  let loc = self.read_source_span("operation.loc")
+  { symbol, name, index, type_parameters, payload, result, loc }
 }
 
 ///|
@@ -965,6 +1034,7 @@ fn ArtifactTextWriter::write_lane_kind(
 ) -> Unit {
   match kind {
     Type => self.write_atom(tag, "type")
+    Effect => self.write_atom(tag, "effect")
     Function(parameters, result) => {
       self.write_atom(tag, "function")
       self.write_int("\{tag}.parameters", parameters.length())
@@ -983,6 +1053,7 @@ fn ArtifactTextReader::read_lane_kind(
 ) -> @types.Kind raise ArtifactTextError {
   match self.expect_atom(tag) {
     "type" => Type
+    "effect" => Effect
     "function" => {
       let parameters = []
       for _ in 0..<self.expect_int("\{tag}.parameters") {
@@ -1094,10 +1165,11 @@ fn ArtifactTextWriter::write_lane_type(
       self.write_tag("lane_type.parameter")
       self.write_type_parameter_id("lane_type.parameter.id", id)
     }
-    Function(parameters, result) => {
+    Function(parameters, result, effect) => {
       self.write_tag("lane_type.function")
       self.write_lane_types("lane_type.function.parameters", parameters)
       self.write_lane_type(result)
+      self.write_lane_effect(effect)
     }
     Forall(parameters, body) => {
       self.write_tag("lane_type.forall")
@@ -1131,7 +1203,8 @@ fn ArtifactTextReader::read_lane_type(
     "lane_type.function" => {
       let parameters = self.read_lane_types("lane_type.function.parameters")
       let result = self.read_lane_type()
-      Function(parameters, result)
+      let effect = self.read_lane_effect()
+      Function(parameters, result, effect)
     }
     "lane_type.forall" => {
       let parameters = self.read_type_parameters("lane_type.binders")
@@ -1139,6 +1212,56 @@ fn ArtifactTextReader::read_lane_type(
       Forall(parameters, body)
     }
     tag => fail_unknown("unknown Lane type tag \{tag}")
+  }
+}
+
+///|
+fn ArtifactTextWriter::write_lane_effect(
+  self : ArtifactTextWriter,
+  effect : @types.Effect,
+) -> Unit {
+  match effect {
+    Empty => self.write_tag("lane_effect.empty")
+    Singleton(symbol, arguments) => {
+      self.write_tag("lane_effect.singleton")
+      self.write_effect_symbol_id("lane_effect.singleton.symbol", symbol)
+      self.write_lane_types("lane_effect.singleton.arguments", arguments)
+    }
+    Parameter(id) => {
+      self.write_tag("lane_effect.parameter")
+      self.write_type_parameter_id("lane_effect.parameter.id", id)
+    }
+    Union(effects) => {
+      self.write_tag("lane_effect.union")
+      self.write_int("lane_effect.union.items", effects.length())
+      for effect in effects {
+        self.write_lane_effect(effect)
+      }
+    }
+  }
+}
+
+///|
+fn ArtifactTextReader::read_lane_effect(
+  self : ArtifactTextReader,
+) -> @types.Effect raise ArtifactTextError {
+  match self.next_tag() {
+    "lane_effect.empty" => Empty
+    "lane_effect.singleton" => {
+      let symbol = self.read_effect_symbol_id("lane_effect.singleton.symbol")
+      let arguments = self.read_lane_types("lane_effect.singleton.arguments")
+      Singleton(symbol, arguments)
+    }
+    "lane_effect.parameter" =>
+      Parameter(self.read_type_parameter_id("lane_effect.parameter.id"))
+    "lane_effect.union" => {
+      let effects = []
+      for _ in 0..<self.expect_int("lane_effect.union.items") {
+        effects.push(self.read_lane_effect())
+      }
+      Union(effects)
+    }
+    tag => fail_unknown("unknown Lane effect tag \{tag}")
   }
 }
 
@@ -1299,6 +1422,40 @@ fn ArtifactTextReader::read_variant_symbol_id(
   self : ArtifactTextReader,
   tag : String,
 ) -> @symbol.VariantSymbolId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn ArtifactTextWriter::write_effect_symbol_id(
+  self : ArtifactTextWriter,
+  tag : String,
+  id : @symbol.EffectSymbolId,
+) -> Unit {
+  self.write_int(tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_effect_symbol_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.EffectSymbolId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
+fn ArtifactTextWriter::write_operation_symbol_id(
+  self : ArtifactTextWriter,
+  tag : String,
+  id : @symbol.OperationSymbolId,
+) -> Unit {
+  self.write_int(tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_operation_symbol_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @symbol.OperationSymbolId raise ArtifactTextError {
   { index: self.expect_int(tag) }
 }
 

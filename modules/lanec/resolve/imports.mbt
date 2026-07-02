@@ -6,7 +6,9 @@ using @prettyprinter {type Document, empty, space, text}
 
 ///|
 using @symbol {
+  type EffectSymbolId,
   type FieldSymbolId,
+  type OperationSymbolId,
   type SymbolRegistry,
   type TypeMemberSymbolId,
   type TypeParameterId,

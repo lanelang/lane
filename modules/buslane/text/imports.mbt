@@ -4,10 +4,17 @@ using @buslane {
   type Alternative,
   type DataConId,
   type DataConInfo,
+  type Effect,
+  type EffectId,
+  type EffectInfo,
   type Expr,
+  type HandlerTable,
   type Kind,
   type Literal,
   type MetadataRegistry,
+  type OperationAlternative,
+  type OperationId,
+  type OperationInfo,
   type PrimitiveType,
   type Program,
   type RecursiveBinding,
@@ -37,15 +44,19 @@ fn make_metadata(declarations : Array[MetadataDeclaration]) -> MetadataRegistry 
   let type_parameters : Array[TypeParameterInfo] = []
   let values : Array[ValueInfo] = []
   let data_constructors : Array[DataConInfo] = []
+  let effects = []
+  let operations = []
   for declaration in declarations {
     match declaration {
       TypeInfoDecl(id, info) => set_at(types, id.index, info)
       TypeParameterInfoDecl(id, info) => set_at(type_parameters, id.index, info)
       ValueInfoDecl(id, info) => set_at(values, id.index, info)
       DataConInfoDecl(id, info) => set_at(data_constructors, id.index, info)
+      EffectInfoDecl(id, info) => set_at(effects, id.index, info)
+      OperationInfoDecl(id, info) => set_at(operations, id.index, info)
     }
   }
-  { types, type_parameters, values, data_constructors }
+  { types, type_parameters, values, data_constructors, effects, operations }
 }
 
 ///|
@@ -62,4 +73,6 @@ priv enum MetadataDeclaration {
   TypeParameterInfoDecl(TypeParameterId, TypeParameterInfo)
   ValueInfoDecl(ValueId, ValueInfo)
   DataConInfoDecl(DataConId, DataConInfo)
+  EffectInfoDecl(EffectId, EffectInfo)
+  OperationInfoDecl(OperationId, OperationInfo)
 }

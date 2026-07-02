@@ -66,3 +66,21 @@ pub(all) struct VariantSymbolMetadata {
   payload_count : Int
   loc : SourceSpan
 } derive(Debug, Eq)
+
+///|
+pub(all) struct EffectSymbolMetadata {
+  id : EffectSymbolId
+  name : String
+  arity : Int
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct OperationSymbolMetadata {
+  id : OperationSymbolId
+  owner : EffectSymbolId
+  name : String
+  index : Int
+  payload_count : Int
+  loc : SourceSpan
+} derive(Debug, Eq)

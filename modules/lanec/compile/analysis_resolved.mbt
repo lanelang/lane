@@ -123,6 +123,31 @@ fn collect_resolved_top_level_declaration(
         references,
         hovers,
       )
+    Effect(declaration) => {
+      for parameter in declaration.type_parameters {
+        collect_resolved_type_parameter_definition(
+          source_id, parameter, definitions, hovers,
+        )
+      }
+      for operation in declaration.operations {
+        for parameter in operation.type_parameters {
+          collect_resolved_type_parameter_definition(
+            source_id, parameter, definitions, hovers,
+          )
+        }
+        for payload in operation.payload {
+          collect_resolved_type_reference(
+            source_id, payload, references, hovers,
+          )
+        }
+        collect_resolved_type_reference(
+          source_id,
+          operation.result,
+          references,
+          hovers,
+        )
+      }
+    }
     Function(declaration) => {
       add_definition(
         definitions,
@@ -500,6 +525,60 @@ fn collect_resolved_expr(
         )
       }
     }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      collect_resolved_expr(
+        source_id, source_text, body, definitions, references, hovers,
+      )
+      for handler in handlers {
+        for arm in handler.arms {
+          collect_resolved_effect_operation_name(
+            source_id,
+            arm.name,
+            references,
+            hovers,
+          )
+          for pattern in arm.payload_patterns {
+            collect_resolved_pattern(
+              source_id, pattern, definitions, references, hovers,
+            )
+          }
+          add_definition(
+            definitions,
+            hovers,
+            source_id,
+            Value(arm.resume_symbol),
+            name_span(source_text, arm.resume_binder, arm.resume_loc),
+            arm.resume_binder,
+            arm.resume_binder,
+          )
+          collect_resolved_expr(
+            source_id,
+            source_text,
+            arm.body,
+            definitions,
+            references,
+            hovers,
+          )
+        }
+      }
+      add_definition(
+        definitions,
+        hovers,
+        source_id,
+        Value(final_branch.binder_symbol),
+        name_span(source_text, final_branch.binder, final_branch.binder_loc),
+        final_branch.binder,
+        final_branch.binder,
+      )
+      collect_resolved_expr(
+        source_id,
+        source_text,
+        final_branch.body,
+        definitions,
+        references,
+        hovers,
+      )
+    }
     Call(callee~, arguments~, ..) => {
       collect_resolved_expr(
         source_id, source_text, callee, definitions, references, hovers,
@@ -515,6 +594,16 @@ fn collect_resolved_expr(
               source_id, source_text, value, definitions, references, hovers,
             )
         }
+      }
+    }
+    EffectOperationCall(name~, arguments~, ..) => {
+      collect_resolved_effect_operation_name(
+        source_id, name, references, hovers,
+      )
+      for argument in arguments {
+        collect_resolved_expr(
+          source_id, source_text, argument, definitions, references, hovers,
+        )
       }
     }
     Field(base~, reference=Symbol(symbol), loc~, name~) => {
@@ -588,7 +677,9 @@ fn resolved_expr_loc(expr : @resolve.ResolvedExpr) -> @basic.SourceSpan {
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)
+    | Handler(loc~, ..)
     | Call(loc~, ..)
+    | EffectOperationCall(loc~, ..)
     | Field(loc~, ..)
     | Unary(loc~, ..)
     | Binary(loc~, ..)
@@ -703,7 +794,7 @@ fn collect_resolved_type_reference(
         loc,
         Some("type \{name}"),
       )
-    Function(type_parameters~, parameters~, result~, ..) => {
+    Function(type_parameters~, parameters~, result~, effect~, ..) => {
       for parameter in type_parameters {
         ignore(parameter)
       }
@@ -713,6 +804,48 @@ fn collect_resolved_type_reference(
         )
       }
       collect_resolved_type_reference(source_id, result, references, hovers)
+      collect_resolved_effect_reference(source_id, effect, references, hovers)
     }
+  }
+}
+
+///|
+fn collect_resolved_effect_operation_name(
+  source_id : String,
+  name : @resolve.ResolvedEffectOperationName,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  if name is Qualified(owner~, ..) {
+    collect_resolved_effect_reference(source_id, owner, references, hovers)
+  }
+}
+
+///|
+fn collect_resolved_effect_reference(
+  source_id : String,
+  effect : @resolve.ResolvedEffectTerm,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match effect {
+    Empty(..) | Unresolved(..) => ()
+    Singleton(arguments~, ..) =>
+      for argument in arguments {
+        collect_resolved_type_reference(source_id, argument, references, hovers)
+      }
+    Parameter(symbol~, name~, loc~) =>
+      add_reference(
+        references,
+        hovers,
+        source_id,
+        TypeParameter(symbol),
+        loc,
+        Some("effect \{name}"),
+      )
+    Union(items~, ..) =>
+      for item in items {
+        collect_resolved_effect_reference(source_id, item, references, hovers)
+      }
   }
 }

@@ -3,6 +3,7 @@ priv struct Resolver {
   registry : SymbolRegistry
   modules : Array[ModuleBinding]
   types : Array[TypeBinding]
+  effects : Array[EffectBinding]
   type_aliases : Array[TypeAliasBinding]
   top_values : Array[ValueBinding]
   ordered_top_values : Array[ValueBinding]
@@ -19,6 +20,12 @@ priv struct ModuleBinding {
 priv struct TypeBinding {
   name : String
   symbol : TypeSymbolId
+}
+
+///|
+priv struct EffectBinding {
+  name : String
+  symbol : EffectSymbolId
 }
 
 ///|
@@ -91,6 +98,7 @@ fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
     registry,
     modules: [],
     types: [],
+    effects: [],
     type_aliases: [],
     top_values: [],
     ordered_top_values: [],
@@ -118,6 +126,7 @@ fn Resolver::publish_imported_bindings(
               module_path, imported_environment,
             )
             self.publish_imported_public_types(imported)
+            self.publish_imported_public_effects(imported)
             self.publish_imported_public_values(imported, loc)
           }
           None => ()
@@ -132,6 +141,7 @@ fn Resolver::publish_imported_bindings(
               module_path, imported_environment,
             )
             self.publish_imported_selected_types(imported, items)
+            self.publish_imported_selected_effects(imported, items)
             self.publish_imported_selected_values(imported, items)
           }
           None => ignore(loc)
@@ -173,6 +183,16 @@ fn Resolver::publish_imported_public_types(
 }
 
 ///|
+fn Resolver::publish_imported_public_effects(
+  self : Resolver,
+  interface : @module_interface.ModuleInterface,
+) -> Unit {
+  for effect in interface.effects {
+    self.publish_effect_binding(effect.name, effect.symbol)
+  }
+}
+
+///|
 fn Resolver::publish_imported_selected_types(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
@@ -191,6 +211,21 @@ fn Resolver::publish_imported_selected_types(
     for type_alias in interface.type_aliases {
       if type_alias.name == item.name {
         self.type_aliases.push({ name: type_alias.name })
+      }
+    }
+  }
+}
+
+///|
+fn Resolver::publish_imported_selected_effects(
+  self : Resolver,
+  interface : @module_interface.ModuleInterface,
+  items : Array[@syntax.ImportItem],
+) -> Unit {
+  for item in items {
+    for effect in interface.effects {
+      if effect.name == item.name {
+        self.publish_effect_binding(effect.name, effect.symbol)
       }
     }
   }
@@ -261,6 +296,15 @@ fn Resolver::collect_top_level_headers(
           self.registry.define_type(
             declaration.name,
             Enum,
+            declaration.type_parameters.length(),
+            declaration.loc,
+          ),
+        )
+      Effect(declaration) =>
+        self.publish_effect_binding(
+          declaration.name,
+          self.registry.define_effect(
+            declaration.name,
             declaration.type_parameters.length(),
             declaration.loc,
           ),
@@ -358,6 +402,20 @@ fn Resolver::collect_nominal_members(
           |> ignore
         }
       }
+      Effect(declaration) => {
+        let owner = self.effect_symbol(declaration.name)
+        for index in 0..<declaration.operations.length() {
+          let operation = declaration.operations[index]
+          self.registry.define_operation(
+            owner,
+            operation.name,
+            index,
+            operation.payload.length(),
+            operation.loc,
+          )
+          |> ignore
+        }
+      }
       TypeAlias(_) | Function(_) | Let(_) | Offer(_) => ()
     }
   }
@@ -376,6 +434,7 @@ fn @syntax.TopLevelDeclaration::resolve_top_level(
   match self {
     Struct(declaration) => Struct(declaration.resolve_struct(resolver))
     Enum(declaration) => Enum(declaration.resolve_enum(resolver))
+    Effect(declaration) => Effect(declaration.resolve_effect(resolver))
     TypeAlias(declaration) =>
       TypeAlias(declaration.resolve_type_alias(resolver))
     Function(declaration) =>
@@ -478,6 +537,7 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
 fn @syntax.Kind::resolve_kind(self : @syntax.Kind) -> ResolvedKind {
   match self {
     Type(loc~) => Type(loc~)
+    Effect(loc~) => Effect(loc~)
     Function(parameters~, result~, loc~) =>
       Function(
         parameters=parameters.map(fn(parameter) { parameter.resolve_kind() }),
@@ -632,6 +692,57 @@ fn @syntax.EnumVariant::resolve_variant(
 }
 
 ///|
+fn @syntax.EffectDeclaration::resolve_effect(
+  self : @syntax.EffectDeclaration,
+  resolver : Resolver,
+) -> ResolvedEffectDeclaration {
+  let symbol = resolver.effect_symbol(self.name)
+  let type_parameters = resolver.resolve_type_parameters(
+    self.type_parameters,
+    self.loc,
+  )
+  let scope = resolver.scope(type_parameters)
+  let operations = self.operations.mapi(fn(index, operation) {
+    operation.resolve_operation(resolver, scope, symbol, index)
+  })
+  {
+    is_public: self.is_public,
+    symbol,
+    name: self.name,
+    type_parameters,
+    operations,
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.EffectOperationDeclaration::resolve_operation(
+  self : @syntax.EffectOperationDeclaration,
+  resolver : Resolver,
+  scope : ResolveScope,
+  owner : EffectSymbolId,
+  index : Int,
+) -> ResolvedEffectOperationDeclaration {
+  let type_parameters = resolver.resolve_type_parameters(
+    self.type_parameters,
+    self.loc,
+  )
+  let operation_scope = scope.enter_scope()
+  operation_scope.type_parameters.append(type_parameters)
+  {
+    symbol: resolver.operation_symbol(owner, self.name),
+    name: self.name,
+    index,
+    type_parameters,
+    payload: self.payload.map(fn(type_) {
+      type_.resolve_type(resolver, operation_scope)
+    }),
+    result: self.result.resolve_type(resolver, operation_scope),
+    loc: self.loc,
+  }
+}
+
+///|
 /// Resolves a top-level function using its pre-collected value symbol.
 ///
 /// Example: `fn even(...)` can refer to `odd(...)` because both top-level
@@ -668,6 +779,7 @@ fn @syntax.FunctionDeclaration::resolve_function_with_symbol(
     parameter.resolve_parameter(resolver, parameter_scope)
   })
   let return_type = self.return_type.resolve_type(resolver, parameter_scope)
+  let effect = self.effect.resolve_effect_term(resolver, parameter_scope)
   // Parameters are inserted into `parameter_scope` while they are resolved. The
   // return type can use type parameters, and the body can use both type and
   // value parameters.
@@ -678,6 +790,7 @@ fn @syntax.FunctionDeclaration::resolve_function_with_symbol(
     type_parameters,
     parameters,
     return_type,
+    effect,
     body: self.body.resolve_expr(resolver, parameter_scope),
     loc: self.loc,
   }
@@ -949,7 +1062,7 @@ fn @syntax.Type::resolve_type(
         loc~,
       )
     }
-    Function(type_parameters~, parameters~, result~, loc~) => {
+    Function(type_parameters~, parameters~, result~, effect~, loc~) => {
       let resolved_type_parameters = resolver.resolve_type_parameters(
         type_parameters, loc,
       )
@@ -961,9 +1074,85 @@ fn @syntax.Type::resolve_type(
           type_.resolve_type(resolver, next_scope)
         }),
         result=result.resolve_type(resolver, next_scope),
+        effect=effect.resolve_effect_term(resolver, next_scope),
         loc~,
       )
     }
+  }
+}
+
+///|
+fn @syntax.EffectTerm::resolve_effect_term(
+  self : @syntax.EffectTerm,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedEffectTerm {
+  match self {
+    Empty(loc~) => Empty(loc~)
+    Term(type_~, loc~) => type_.resolve_effect_type(resolver, scope, loc)
+    Union(items~, loc~) =>
+      Union(
+        items=items.map(fn(item) {
+          item.resolve_effect_type(resolver, scope, item.loc())
+        }),
+        loc~,
+      )
+  }
+}
+
+///|
+fn @syntax.Type::resolve_effect_type(
+  self : @syntax.Type,
+  resolver : Resolver,
+  scope : ResolveScope,
+  loc : SourceSpan,
+) -> ResolvedEffectTerm {
+  let (base, arguments) = self.effect_type_parts()
+  let resolved_arguments = arguments.map(fn(argument) {
+    argument.resolve_type(resolver, scope)
+  })
+  match base {
+    Name(name~, ..) =>
+      match scope.type_parameter_info(name) {
+        Some(parameter) =>
+          Parameter(symbol=parameter.symbol, name=parameter.name, loc~)
+        None =>
+          match resolver.effect_symbol_opt(name) {
+            Some(symbol) =>
+              Singleton(symbol~, name~, arguments=resolved_arguments, loc~)
+            None => {
+              resolver.report(UnresolvedType(name), loc)
+              Unresolved(name~, arguments=resolved_arguments, loc~)
+            }
+          }
+      }
+    QualifiedName(module_path~, name~, ..) =>
+      match resolver.qualified_effect_symbol_opt(module_path, name) {
+        Some(symbol) =>
+          Singleton(symbol~, name~, arguments=resolved_arguments, loc~)
+        None => {
+          resolver.report(UnresolvedType(name), loc)
+          Unresolved(name~, arguments=resolved_arguments, loc~)
+        }
+      }
+    _ => {
+      let resolved = self.resolve_type(resolver, scope)
+      Unresolved(
+        name=@prettyprinter.render(resolved.pretty(), width=100),
+        arguments=[],
+        loc~,
+      )
+    }
+  }
+}
+
+///|
+fn @syntax.Type::effect_type_parts(
+  self : @syntax.Type,
+) -> (@syntax.Type, Array[@syntax.Type]) {
+  match self {
+    Apply(callee~, arguments~, ..) => (callee, arguments)
+    _ => (self, [])
   }
 }
 
@@ -1082,7 +1271,31 @@ fn @syntax.Expr::resolve_expr(
         loc~,
       )
     Builtin(name, loc~) => Builtin(name, loc~)
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, loc~) => {
+    EffectOperationCall(name~, arguments~, loc~) =>
+      EffectOperationCall(
+        name=name.resolve_effect_operation_name(resolver, scope),
+        arguments=arguments.map(fn(argument) {
+          argument.resolve_expr(resolver, scope)
+        }),
+        loc~,
+      )
+    Handler(body~, handlers~, final_branch~, loc~) =>
+      Handler(
+        body=body.resolve_expr(resolver, scope),
+        handlers=handlers.map(fn(handler) {
+          handler.resolve_handler_with_block(resolver, scope)
+        }),
+        final_branch=final_branch.resolve_handler_final_branch(resolver, scope),
+        loc~,
+      )
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      loc~
+    ) => {
       let resolved_type_parameters = resolver.resolve_type_parameters(
         type_parameters, loc,
       )
@@ -1098,6 +1311,9 @@ fn @syntax.Expr::resolve_expr(
         parameters=resolved_parameters,
         return_type=return_type.map(fn(type_) {
           type_.resolve_type(resolver, next_scope)
+        }),
+        effect=effect.map(fn(effect) {
+          effect.resolve_effect_term(resolver, next_scope)
         }),
         body=body.resolve_expr(resolver, next_scope),
         loc~,
@@ -1178,6 +1394,37 @@ fn @syntax.Expr::resolve_expr(
       Pipeline(
         left=left.resolve_expr(resolver, scope),
         right=right.resolve_expr(resolver, scope),
+        loc~,
+      )
+  }
+}
+
+///|
+fn @syntax.EffectOperationName::resolve_effect_operation_name(
+  self : @syntax.EffectOperationName,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedEffectOperationName {
+  match self {
+    Qualified(owner~, operation~, loc~) => {
+      let owner = owner.resolve_effect_type(resolver, scope, owner.loc())
+      let reference = match owner {
+        Singleton(symbol~, ..) =>
+          resolver.operation_reference(symbol, operation)
+        _ => Unresolved(operation)
+      }
+      Qualified(owner~, operation~, reference~, loc~)
+    }
+    Shorthand(operation~, loc~) =>
+      Shorthand(
+        operation~,
+        reference=resolver.unqualified_operation_reference(operation),
+        loc~,
+      )
+    Unqualified(operation~, loc~) =>
+      Unqualified(
+        operation~,
+        reference=resolver.unqualified_operation_reference(operation),
         loc~,
       )
   }
@@ -1729,6 +1976,69 @@ fn @syntax.MatchArm::resolve_match_arm(
 }
 
 ///|
+fn @syntax.HandlerWithBlock::resolve_handler_with_block(
+  self : @syntax.HandlerWithBlock,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedHandlerWithBlock {
+  {
+    arms: self.arms.map(fn(arm) {
+      arm.resolve_handler_operation_arm(resolver, scope)
+    }),
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.HandlerOperationArm::resolve_handler_operation_arm(
+  self : @syntax.HandlerOperationArm,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedHandlerOperationArm {
+  let arm_scope = scope.copy()
+  let payload_patterns = self.payload_patterns.map(fn(pattern) {
+    pattern.resolve_pattern(resolver, arm_scope)
+  })
+  let resume_symbol = resolver.registry.define_value(
+    self.resume_binder,
+    PatternBinder,
+    self.resume_loc,
+  )
+  arm_scope.define_value(self.resume_binder, resume_symbol, None)
+  {
+    name: self.name.resolve_effect_operation_name(resolver, scope),
+    payload_patterns,
+    resume_symbol,
+    resume_binder: self.resume_binder,
+    resume_loc: self.resume_loc,
+    body: self.body.resolve_expr(resolver, arm_scope),
+    loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.HandlerFinalBranch::resolve_handler_final_branch(
+  self : @syntax.HandlerFinalBranch,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedHandlerFinalBranch {
+  let branch_scope = scope.copy()
+  let binder_symbol = resolver.registry.define_value(
+    self.binder,
+    PatternBinder,
+    self.binder_loc,
+  )
+  branch_scope.define_value(self.binder, binder_symbol, None)
+  {
+    binder_symbol,
+    binder: self.binder,
+    binder_loc: self.binder_loc,
+    body: self.body.resolve_expr(resolver, branch_scope),
+    loc: self.loc,
+  }
+}
+
+///|
 /// Resolves a pattern and binds any pattern variables into the current arm scope.
 ///
 /// Example: `Point::{ x }` resolves a struct pattern field, while `x` alone
@@ -1977,6 +2287,99 @@ fn Resolver::publish_type_binding(
   symbol : TypeSymbolId,
 ) -> Unit {
   self.types.push({ name, symbol })
+}
+
+///|
+fn Resolver::effect_symbol(self : Resolver, name : String) -> EffectSymbolId {
+  self.effect_binding(name).unwrap().symbol
+}
+
+///|
+fn Resolver::effect_symbol_opt(
+  self : Resolver,
+  name : String,
+) -> EffectSymbolId? {
+  self.effect_binding(name).map(fn(binding) { binding.symbol })
+}
+
+///|
+fn Resolver::qualified_effect_symbol_opt(
+  self : Resolver,
+  module_path : @syntax.ModulePath,
+  name : String,
+) -> EffectSymbolId? {
+  let module_path = @module_interface.module_path_text(module_path)
+  match self.module_binding(module_path) {
+    Some(module_) => module_.interface.effect_symbol_named(name)
+    None => None
+  }
+}
+
+///|
+fn Resolver::effect_binding(self : Resolver, name : String) -> EffectBinding? {
+  for index = self.effects.length(); index > 0; index = index - 1 {
+    let binding = self.effects[index - 1]
+    if binding.name == name {
+      return Some(binding)
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::publish_effect_binding(
+  self : Resolver,
+  name : String,
+  symbol : EffectSymbolId,
+) -> Unit {
+  self.effects.push({ name, symbol })
+}
+
+///|
+fn @module_interface.ModuleInterface::effect_symbol_named(
+  self : @module_interface.ModuleInterface,
+  name : String,
+) -> EffectSymbolId? {
+  for effect in self.effects {
+    if effect.name == name {
+      return Some(effect.symbol)
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::operation_reference(
+  self : Resolver,
+  owner : EffectSymbolId,
+  name : String,
+) -> ResolvedOperationReference {
+  match self.registry.operation_named(owner, name) {
+    Some(symbol) => Symbol(symbol)
+    None => Unresolved(name)
+  }
+}
+
+///|
+fn Resolver::unqualified_operation_reference(
+  self : Resolver,
+  name : String,
+) -> ResolvedOperationReference {
+  let candidates = self.registry.operations_named(name)
+  match candidates.length() {
+    0 => Unresolved(name)
+    1 => Symbol(candidates[0])
+    _ => Ambiguous(name~, candidates~)
+  }
+}
+
+///|
+fn Resolver::operation_symbol(
+  self : Resolver,
+  owner : EffectSymbolId,
+  name : String,
+) -> OperationSymbolId {
+  self.registry.operation_named(owner, name).unwrap()
 }
 
 ///|

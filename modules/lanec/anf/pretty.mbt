@@ -17,6 +17,7 @@ pub impl @prettyprinter.Pretty for AnfTopLevelDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    Effect(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
   }
@@ -196,6 +197,10 @@ fn anf_rhs_doc(rhs : AnfRhs) -> Document {
     Atom(atom) => anf_atom_doc(atom)
     Call(callee~, arguments~, ..) =>
       anf_atom_doc(callee) +
+      @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
+    OperationCall(operation~, arguments~, ..) =>
+      operation.pretty() +
+      text("!") +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
     TypeApplication(callee~, arguments~, ..) =>
       anf_atom_doc(callee) + type_arguments_doc(arguments)

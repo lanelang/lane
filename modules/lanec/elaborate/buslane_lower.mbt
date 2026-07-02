@@ -23,6 +23,18 @@ priv struct DataConMapEntry {
 }
 
 ///|
+priv struct EffectMapEntry {
+  source : @symbol.EffectSymbolId
+  target : @buslane.EffectId
+}
+
+///|
+priv struct OperationMapEntry {
+  source : @symbol.OperationSymbolId
+  target : @buslane.OperationId
+}
+
+///|
 priv struct StructConMapEntry {
   source : @symbol.TypeSymbolId
   target : @buslane.DataConId
@@ -53,6 +65,8 @@ priv struct BuslaneLowerer {
   type_parameters : Array[TypeParameterMapEntry]
   values : Array[ValueMapEntry]
   data_constructors : Array[DataConMapEntry]
+  effects : Array[EffectMapEntry]
+  operations : Array[OperationMapEntry]
   struct_constructors : Array[StructConMapEntry]
   field_selectors : Array[FieldSelectorMapEntry]
   selector_terms : Array[SelectorTermEntry]
@@ -66,6 +80,28 @@ priv struct BuslaneLowerer {
 priv struct LowerPatternRow {
   patterns : Array[@checked.CheckedPattern]
   body : @buslane.Expr
+}
+
+///|
+priv struct LoweredHandlerTable {
+  handled_effect : @types.Effect
+  operations : Array[LoweredOperationAlternative]
+}
+
+///|
+priv struct LoweredOperationAlternative {
+  operation : @symbol.OperationSymbolId
+  payload_binders : Array[@buslane.ValueId]
+  resume_binder : @buslane.ValueId
+  body : @buslane.Expr
+}
+
+///|
+priv struct LowerHandlerOperationGroup {
+  operation : @symbol.OperationSymbolId
+  payload_types : Array[@types.Type]
+  resume_type : @types.Type
+  arms : Array[@checked.CheckedHandlerOperationArm]
 }
 
 ///|
@@ -83,6 +119,8 @@ fn BuslaneLowerer::BuslaneLowerer() -> BuslaneLowerer {
     type_parameters: [],
     values: [],
     data_constructors: [],
+    effects: [],
+    operations: [],
     struct_constructors: [],
     field_selectors: [],
     selector_terms: [],
@@ -147,7 +185,13 @@ pub fn lower_checked_source_files_to_buslane_objects(
     lowerer.collect_type_headers(source)
   }
   for source in sources {
+    lowerer.collect_effect_headers(source)
+  }
+  for source in sources {
     lowerer.collect_data_constructors(source)
+  }
+  for source in sources {
+    lowerer.collect_effect_operations(source)
   }
   for source in sources {
     lowerer.collect_field_selectors(source)
@@ -197,7 +241,9 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
   let lowerer = BuslaneLowerer::BuslaneLowerer()
   lowerer.seed_imported_interfaces(imported)
   lowerer.collect_type_headers(source)
+  lowerer.collect_effect_headers(source)
   lowerer.collect_data_constructors(source)
+  lowerer.collect_effect_operations(source)
   lowerer.collect_field_selectors(source)
   lowerer.collect_top_values(source, include_entries=true)
   let external_start = lowerer.external_terms.length()
@@ -373,6 +419,16 @@ fn BuslaneLowerer::seed_imported_interfaces(
     }
   }
   for interface in imported.modules {
+    for effect in interface.effects {
+      self.seed_imported_effect_header(interface.module_path, effect)
+    }
+  }
+  for interface in imported.modules {
+    for effect in interface.effects {
+      self.seed_imported_effect_operations(interface.module_path, effect)
+    }
+  }
+  for interface in imported.modules {
     for value in interface.values {
       self.seed_imported_value(interface.module_path, value)
     }
@@ -533,12 +589,48 @@ fn BuslaneLowerer::imported_selector_type(
   let function = @buslane.Type::Function(
     [receiver],
     self.lower_type(field.type_),
+    Empty,
   )
   if type_parameters.is_empty() {
     function
   } else {
     Forall(type_parameters, function)
   }
+}
+
+///|
+fn BuslaneLowerer::seed_imported_effect_header(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> Unit {
+  let parameters = effect.type_parameters.map(fn(parameter) {
+    self.define_type_parameter(parameter)
+  })
+  let target = self.metadata.define_effect(parameters)
+  self.effects.push({ source: effect.symbol, target })
+  ignore(module_path_text)
+}
+
+///|
+fn BuslaneLowerer::seed_imported_effect_operations(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> Unit {
+  let owner = self.effect_id(effect.symbol)
+  for operation in effect.operations {
+    ignore(
+      self.define_operation(
+        operation.symbol,
+        owner,
+        operation.type_parameters,
+        operation.payload,
+        operation.result,
+      ),
+    )
+  }
+  ignore(module_path_text)
 }
 
 ///|
@@ -620,6 +712,30 @@ fn BuslaneLowerer::collect_enum_header(
 }
 
 ///|
+fn BuslaneLowerer::collect_effect_headers(
+  self : BuslaneLowerer,
+  source : @checked.CheckedSourceFile,
+) -> Unit {
+  for declaration in source.declarations {
+    if declaration is Effect(declaration) {
+      self.collect_effect_header(declaration)
+    }
+  }
+}
+
+///|
+fn BuslaneLowerer::collect_effect_header(
+  self : BuslaneLowerer,
+  declaration : @checked.CheckedEffectDeclaration,
+) -> Unit {
+  let parameters = declaration.type_parameters.map(fn(parameter) {
+    self.define_type_parameter(parameter)
+  })
+  let target = self.metadata.define_effect(parameters)
+  self.effects.push({ source: declaration.symbol, target })
+}
+
+///|
 fn BuslaneLowerer::collect_data_constructors(
   self : BuslaneLowerer,
   source : @checked.CheckedSourceFile,
@@ -666,6 +782,37 @@ fn BuslaneLowerer::collect_enum_constructors(
       owner, hidden_type_parameters, payload_types,
     )
     self.data_constructors.push({ source: variant.symbol, target })
+  }
+}
+
+///|
+fn BuslaneLowerer::collect_effect_operations(
+  self : BuslaneLowerer,
+  source : @checked.CheckedSourceFile,
+) -> Unit {
+  for declaration in source.declarations {
+    if declaration is Effect(declaration) {
+      self.collect_effect_operation_declarations(declaration)
+    }
+  }
+}
+
+///|
+fn BuslaneLowerer::collect_effect_operation_declarations(
+  self : BuslaneLowerer,
+  declaration : @checked.CheckedEffectDeclaration,
+) -> Unit {
+  let owner = self.effect_id(declaration.symbol)
+  for operation in declaration.operations {
+    ignore(
+      self.define_operation(
+        operation.symbol,
+        owner,
+        operation.type_parameters,
+        operation.payload,
+        operation.result,
+      ),
+    )
   }
 }
 
@@ -728,6 +875,7 @@ fn BuslaneLowerer::selector_type(
   let function = @buslane.Type::Function(
     [self.selector_receiver_type(declaration)],
     self.lower_type(field.type_),
+    Empty,
   )
   let type_parameters = self.selector_type_parameters(declaration)
   if type_parameters.is_empty() {
@@ -926,6 +1074,14 @@ fn BuslaneLowerer::lower_expr(
         self.lower_expr(callee),
         arguments.map(fn(argument) { self.lower_expr(argument) }),
       )
+    OperationCall(operation~, arguments~, effect~, ..) =>
+      Perform({
+        operation: self.operation_id(operation),
+        type_arguments: self.perform_type_arguments(effect),
+        payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
+      })
+    Handler(body~, handlers~, final_branch~, type_~, ..) =>
+      self.lower_handler(body, handlers, final_branch, type_)
     Field(base~, field~, ..) => self.lower_field(base, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
       Construct({
@@ -947,6 +1103,160 @@ fn BuslaneLowerer::lower_expr(
         }),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
+  }
+}
+
+///|
+fn BuslaneLowerer::lower_handler(
+  self : BuslaneLowerer,
+  body : @checked.CheckedExpr?,
+  handlers : Array[@checked.CheckedHandlerTable],
+  final_branch : @checked.CheckedHandlerFinalBranch,
+  result_type : @types.Type,
+) -> @buslane.Expr {
+  guard body is Some(body) else { abort("unchecked handler body") }
+  guard final_branch.body is Some(final_body) else {
+    abort("unchecked handler final branch")
+  }
+  let result_binder = self.define_value(
+    final_branch.binder_symbol,
+    MatchBinder,
+    self.lower_type(body.type_()),
+  )
+  Handle({
+    body: self.lower_expr(body),
+    result_binder,
+    result_type: self.lower_type(result_type),
+    final_body: self.lower_expr(final_body),
+    handlers: self.lower_handler_tables(
+      self.lower_handler_tables_for_alternatives(handlers, result_type),
+    ),
+  })
+}
+
+///|
+fn BuslaneLowerer::lower_handler_tables(
+  self : BuslaneLowerer,
+  tables : Array[LoweredHandlerTable],
+) -> Array[@buslane.HandlerTable] {
+  tables.map(fn(table) {
+    {
+      handled_effect: self.lower_effect(table.handled_effect),
+      operations: table.operations.map(fn(operation) {
+        self.lower_operation_alternative(operation)
+      }),
+    }
+  })
+}
+
+///|
+fn BuslaneLowerer::lower_operation_alternative(
+  self : BuslaneLowerer,
+  operation : LoweredOperationAlternative,
+) -> @buslane.OperationAlternative {
+  {
+    operation: self.operation_id(operation.operation),
+    payload_binders: operation.payload_binders,
+    resume_binder: operation.resume_binder,
+    body: operation.body,
+  }
+}
+
+///|
+fn BuslaneLowerer::lower_handler_tables_for_alternatives(
+  self : BuslaneLowerer,
+  handlers : Array[@checked.CheckedHandlerTable],
+  result_type : @types.Type,
+) -> Array[LoweredHandlerTable] {
+  handlers.map(fn(handler) {
+    {
+      handled_effect: handler.handled_effect,
+      operations: self.lower_handler_operation_groups(
+        lower_handler_operation_groups(handler.operations),
+        result_type,
+      ),
+    }
+  })
+}
+
+///|
+fn lower_handler_operation_groups(
+  operations : Array[@checked.CheckedHandlerOperationArm],
+) -> Array[LowerHandlerOperationGroup] {
+  let groups = []
+  for operation in operations {
+    match lower_handler_operation_group_index(groups, operation.operation) {
+      Some(index) => groups[index].arms.push(operation)
+      None =>
+        groups.push({
+          operation: operation.operation,
+          payload_types: operation.payload_types,
+          resume_type: operation.resume_type,
+          arms: [operation],
+        })
+    }
+  }
+  groups
+}
+
+///|
+fn lower_handler_operation_group_index(
+  groups : Array[LowerHandlerOperationGroup],
+  operation : @symbol.OperationSymbolId,
+) -> Int? {
+  for index in 0..<groups.length() {
+    if groups[index].operation == operation {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn BuslaneLowerer::lower_handler_operation_groups(
+  self : BuslaneLowerer,
+  groups : Array[LowerHandlerOperationGroup],
+  result_type : @types.Type,
+) -> Array[LoweredOperationAlternative] {
+  groups.map(fn(group) {
+    self.lower_handler_operation_group(group, result_type)
+  })
+}
+
+///|
+fn BuslaneLowerer::lower_handler_operation_group(
+  self : BuslaneLowerer,
+  group : LowerHandlerOperationGroup,
+  result_type : @types.Type,
+) -> LoweredOperationAlternative {
+  let payload_binders = group.payload_types.map(fn(type_) {
+    self.define_fresh_value(Parameter, self.lower_type(type_))
+  })
+  let resume_binder = self.define_fresh_value(
+    Parameter,
+    self.lower_type(group.resume_type),
+  )
+  let rows = group.arms.map(fn(arm) {
+    self.bind_value_alias(arm.resume_symbol, resume_binder)
+    for pattern in arm.payload_patterns {
+      self.define_pattern_binders(pattern)
+    }
+    guard arm.body is Some(body) else {
+      abort("unchecked handler operation body")
+    }
+    { patterns: arm.payload_patterns, body: self.lower_expr(body) }
+  })
+  {
+    operation: group.operation,
+    payload_binders,
+    resume_binder,
+    body: self.lower_pattern_decision(
+      payload_binders.map(fn(binder) { Ref(binder) }),
+      payload_binders,
+      rows,
+      group.payload_types,
+      self.lower_type(result_type),
+    ),
   }
 }
 
@@ -1602,10 +1912,11 @@ fn BuslaneLowerer::lower_type(
         self.lower_type(body),
       )
     Parameter(parameter) => Parameter(self.type_parameter_id(parameter))
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { self.lower_type(parameter) }),
         self.lower_type(result),
+        self.lower_effect(effect),
       )
     Forall(parameters, body) =>
       Forall(
@@ -1613,6 +1924,35 @@ fn BuslaneLowerer::lower_type(
         self.lower_type(body),
       )
   }
+}
+
+///|
+fn BuslaneLowerer::lower_effect(
+  self : BuslaneLowerer,
+  effect : @types.Effect,
+) -> @buslane.Effect {
+  match effect {
+    Empty => Empty
+    Singleton(symbol, arguments) =>
+      Singleton(
+        self.effect_id(symbol),
+        arguments.map(fn(argument) { self.lower_type(argument) }),
+      )
+    Parameter(parameter) => Parameter(self.type_parameter_id(parameter))
+    Union(effects) =>
+      Union(effects.map(fn(effect) { self.lower_effect(effect) }))
+  }
+}
+
+///|
+fn BuslaneLowerer::perform_type_arguments(
+  self : BuslaneLowerer,
+  effect : @types.Effect,
+) -> Array[@buslane.Type] {
+  guard effect is Singleton(_, arguments) else {
+    abort("checked effect operation call must carry singleton owner effect")
+  }
+  arguments.map(fn(argument) { self.lower_type(argument) })
 }
 
 ///|
@@ -1655,6 +1995,7 @@ fn lower_primitive_type(
 fn lower_kind(kind : @types.Kind) -> @buslane.Kind {
   match kind {
     Type => Type
+    Effect => Effect
     Function(parameters, result) =>
       Function(parameters.map(lower_kind), lower_kind(result))
   }
@@ -1705,6 +2046,46 @@ fn BuslaneLowerer::define_value(
   let target = self.metadata.define_value(kind, type_)
   self.values.push({ source, target })
   target
+}
+
+///|
+fn BuslaneLowerer::define_operation(
+  self : BuslaneLowerer,
+  source : @symbol.OperationSymbolId,
+  owner : @buslane.EffectId,
+  type_parameters : Array[@types.TypeParameter],
+  payload : Array[@types.Type],
+  result : @types.Type,
+) -> @buslane.OperationId {
+  for entry in self.operations {
+    if entry.source == source {
+      return entry.target
+    }
+  }
+  for parameter in type_parameters {
+    ignore(self.define_type_parameter(parameter))
+  }
+  let target = self.metadata.define_operation(
+    owner,
+    payload.map(fn(type_) { self.lower_type(type_) }),
+    self.lower_type(result),
+  )
+  self.operations.push({ source, target })
+  target
+}
+
+///|
+fn BuslaneLowerer::bind_value_alias(
+  self : BuslaneLowerer,
+  source : @symbol.ValueSymbolId,
+  target : @buslane.ValueId,
+) -> Unit {
+  for entry in self.values {
+    if entry.source == source {
+      return
+    }
+  }
+  self.values.push({ source, target })
 }
 
 ///|
@@ -1781,6 +2162,32 @@ fn BuslaneLowerer::data_constructor_id(
     }
   }
   abort("unknown Buslane data constructor id")
+}
+
+///|
+fn BuslaneLowerer::effect_id(
+  self : BuslaneLowerer,
+  source : @symbol.EffectSymbolId,
+) -> @buslane.EffectId {
+  for entry in self.effects {
+    if entry.source == source {
+      return entry.target
+    }
+  }
+  abort("unknown Buslane effect id")
+}
+
+///|
+fn BuslaneLowerer::operation_id(
+  self : BuslaneLowerer,
+  source : @symbol.OperationSymbolId,
+) -> @buslane.OperationId {
+  for entry in self.operations {
+    if entry.source == source {
+      return entry.target
+    }
+  }
+  abort("unknown Buslane operation id")
 }
 
 ///|

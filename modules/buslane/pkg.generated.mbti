@@ -47,6 +47,28 @@ pub(all) struct DataConInfo {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DataConInfo
 
+pub(all) enum Effect {
+  Empty
+  Singleton(EffectId, Array[Type])
+  Parameter(TypeParameterId)
+  Union(Array[Effect])
+} derive(@debug.Debug)
+pub fn Effect::canonicalize(Self) -> Self
+pub fn Effect::equals(Self, Self) -> Bool
+pub impl @prettyprinter.Pretty for Effect
+pub impl Eq for Effect
+
+pub(all) struct EffectId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EffectId
+
+pub(all) struct EffectInfo {
+  parameters : Array[TypeParameterId]
+  operations : Array[OperationId]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EffectInfo
+
 pub(all) enum Expr {
   Ref(ValueId)
   Literal(Literal)
@@ -58,6 +80,9 @@ pub(all) enum Expr {
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
   Match(MatchExpr)
+  Perform(PerformExpr)
+  Handle(HandleExpr)
+  Resume(ValueId)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Expr
 
@@ -68,8 +93,24 @@ pub(all) struct FunctionExpr {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for FunctionExpr
 
+pub(all) struct HandleExpr {
+  body : Expr
+  result_binder : ValueId
+  result_type : Type
+  final_body : Expr
+  handlers : Array[HandlerTable]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for HandleExpr
+
+pub(all) struct HandlerTable {
+  handled_effect : Effect
+  operations : Array[OperationAlternative]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for HandlerTable
+
 pub(all) enum Kind {
   Type
+  Effect
   Function(Array[Kind], Kind)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Kind
@@ -95,17 +136,50 @@ pub(all) struct MetadataRegistry {
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
   data_constructors : Array[DataConInfo]
+  effects : Array[EffectInfo]
+  operations : Array[OperationInfo]
 } derive(Eq, @debug.Debug)
 pub fn MetadataRegistry::MetadataRegistry() -> Self
 pub fn MetadataRegistry::data_constructor_info(Self, DataConId) -> DataConInfo?
 pub fn MetadataRegistry::define_data_constructor(Self, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
+pub fn MetadataRegistry::define_effect(Self, Array[TypeParameterId]) -> EffectId
+pub fn MetadataRegistry::define_operation(Self, EffectId, Array[Type], Type) -> OperationId
 pub fn MetadataRegistry::define_type(Self, Array[TypeParameterId]) -> TypeId
 pub fn MetadataRegistry::define_type_parameter(Self, Kind) -> TypeParameterId
 pub fn MetadataRegistry::define_value(Self, ValueKind, Type) -> ValueId
+pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
+pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
 pub fn MetadataRegistry::type_parameter_info(Self, TypeParameterId) -> TypeParameterInfo?
 pub fn MetadataRegistry::value_info(Self, ValueId) -> ValueInfo?
 pub impl @prettyprinter.Pretty for MetadataRegistry
+
+pub(all) struct OperationAlternative {
+  operation : OperationId
+  payload_binders : Array[ValueId]
+  resume_binder : ValueId
+  body : Expr
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationAlternative
+
+pub(all) struct OperationId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationId
+
+pub(all) struct OperationInfo {
+  owner : EffectId
+  payload_types : Array[Type]
+  result_type : Type
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationInfo
+
+pub(all) struct PerformExpr {
+  operation : OperationId
+  type_arguments : Array[Type]
+  payloads : Array[Expr]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for PerformExpr
 
 pub(all) enum PrimitiveType {
   Unit
@@ -140,7 +214,7 @@ pub(all) enum Type {
   Constructor(TypeId)
   Apply(Type, Array[Type])
   TypeLambda(Array[TypeParameterId], Type)
-  Function(Array[Type], Type)
+  Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
 } derive(@debug.Debug)
 pub fn Type::equals(Self, Self) -> Bool
@@ -211,8 +285,11 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownTypeParameter(TypeParameterId)
   UnknownValue(ValueId)
   UnknownDataConstructor(DataConId)
+  UnknownEffect(EffectId)
+  UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeMismatch(expected~ : Type, actual~ : Type)
+  EffectMismatch(expected~ : Effect, actual~ : Effect)
   NotFunction(Type)
   NotForall(Type)
   ArityMismatch(expected~ : Int, actual~ : Int)

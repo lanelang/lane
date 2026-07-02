@@ -19,6 +19,7 @@ pub suberror BuslaneRuntimeError {
   InvalidProgram(Array[@buslane.VerifyDiagnostic])
   UnboundValue(@buslane.ValueId)
   MissingExternal(@buslane.ValueId)
+  UnhandledOperation(@buslane.OperationId)
   ExternalFailure(id~ : @buslane.ValueId, message~ : String)
   InvalidValue(message~ : String)
 } derive(Eq, @debug.Debug)

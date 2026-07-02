@@ -12,6 +12,19 @@ import {
 // Errors
 
 // Types and methods
+pub(all) struct EffectSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EffectSymbolId
+
+pub(all) struct EffectSymbolMetadata {
+  id : EffectSymbolId
+  name : String
+  arity : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EffectSymbolMetadata
+
 pub(all) struct FieldSymbolId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -32,6 +45,21 @@ pub(all) enum NominalTypeKind {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for NominalTypeKind
 
+pub(all) struct OperationSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationSymbolId
+
+pub(all) struct OperationSymbolMetadata {
+  id : OperationSymbolId
+  owner : EffectSymbolId
+  name : String
+  index : Int
+  payload_count : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for OperationSymbolMetadata
+
 pub struct SymbolRegistry {
   types : Array[TypeSymbolMetadata]
   type_parameters : Array[TypeParameterMetadata]
@@ -39,17 +67,27 @@ pub struct SymbolRegistry {
   values : Array[ValueSymbolMetadata]
   fields : Array[FieldSymbolMetadata]
   variants : Array[VariantSymbolMetadata]
+  effects : Array[EffectSymbolMetadata]
+  operations : Array[OperationSymbolMetadata]
 } derive(Eq, @debug.Debug)
 pub fn SymbolRegistry::SymbolRegistry() -> Self
+pub fn SymbolRegistry::define_effect(Self, String, Int, @basic.SourceSpan) -> EffectSymbolId
 pub fn SymbolRegistry::define_field(Self, TypeSymbolId, String, Int, @basic.SourceSpan) -> FieldSymbolId
+pub fn SymbolRegistry::define_operation(Self, EffectSymbolId, String, Int, Int, @basic.SourceSpan) -> OperationSymbolId
 pub fn SymbolRegistry::define_type(Self, String, NominalTypeKind, Int, @basic.SourceSpan) -> TypeSymbolId
 pub fn SymbolRegistry::define_type_member(Self, TypeSymbolId, String, Int, TypeParameterId, @basic.SourceSpan) -> TypeMemberSymbolId
 pub fn SymbolRegistry::define_type_parameter(Self, String, @basic.SourceSpan) -> TypeParameterId
 pub fn SymbolRegistry::define_value(Self, String, ValueSymbolKind, @basic.SourceSpan) -> ValueSymbolId
 pub fn SymbolRegistry::define_variant(Self, TypeSymbolId, String, Int, Int, @basic.SourceSpan) -> VariantSymbolId
+pub fn SymbolRegistry::effect_metadata(Self, EffectSymbolId) -> EffectSymbolMetadata?
+pub fn SymbolRegistry::effect_named(Self, String) -> EffectSymbolId?
 pub fn SymbolRegistry::field_metadata(Self, FieldSymbolId) -> FieldSymbolMetadata?
 pub fn SymbolRegistry::field_named(Self, TypeSymbolId, String) -> FieldSymbolId?
 pub fn SymbolRegistry::fields_of(Self, TypeSymbolId) -> Array[FieldSymbolMetadata]
+pub fn SymbolRegistry::operation_metadata(Self, OperationSymbolId) -> OperationSymbolMetadata?
+pub fn SymbolRegistry::operation_named(Self, EffectSymbolId, String) -> OperationSymbolId?
+pub fn SymbolRegistry::operations_named(Self, String) -> Array[OperationSymbolId]
+pub fn SymbolRegistry::operations_of(Self, EffectSymbolId) -> Array[OperationSymbolMetadata]
 pub fn SymbolRegistry::type_member_metadata(Self, TypeMemberSymbolId) -> TypeMemberSymbolMetadata?
 pub fn SymbolRegistry::type_member_named(Self, TypeSymbolId, String) -> TypeMemberSymbolId?
 pub fn SymbolRegistry::type_members_of(Self, TypeSymbolId) -> Array[TypeMemberSymbolMetadata]

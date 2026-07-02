@@ -79,6 +79,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     TRUE => "`true`"
     STRUCT => "`struct`"
     ENUM => "`enum`"
+    EFFECT => "`effect`"
     FN => "`fn`"
     LET => "`let`"
     TYPE => "`type`"
@@ -87,6 +88,9 @@ fn token_label(token : @yacc_parser.Token) -> String {
     IF => "`if`"
     ELSE => "`else`"
     MATCH => "`match`"
+    HANDLE => "`handle`"
+    WITH => "`with`"
+    FINAL => "`final`"
     BUILTIN => "`builtin`"
     MODULE => "`module`"
     IMPORT => "`import`"
@@ -138,6 +142,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_TRUE => "`true`"
     TK_STRUCT => "`struct`"
     TK_ENUM => "`enum`"
+    TK_EFFECT => "`effect`"
     TK_FN => "`fn`"
     TK_LET => "`let`"
     TK_TYPE => "`type`"
@@ -146,6 +151,9 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_IF => "`if`"
     TK_ELSE => "`else`"
     TK_MATCH => "`match`"
+    TK_HANDLE => "`handle`"
+    TK_WITH => "`with`"
+    TK_FINAL => "`final`"
     TK_BUILTIN => "`builtin`"
     TK_MODULE => "`module`"
     TK_IMPORT => "`import`"
@@ -197,6 +205,7 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     TRUE => TRUE
     STRUCT => STRUCT
     ENUM => ENUM
+    EFFECT => EFFECT
     FN => FN
     LET => LET
     TYPE => TYPE
@@ -205,6 +214,9 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     IF => IF
     ELSE => ELSE
     MATCH => MATCH
+    HANDLE => HANDLE
+    WITH => WITH
+    FINAL => FINAL
     BUILTIN => BUILTIN
     MODULE => MODULE
     IMPORT => IMPORT

@@ -4,6 +4,7 @@ using @basic {type SourceSpan}
 ///|
 using @symbol {
   type FieldSymbolId,
+  type OperationSymbolId,
   type TypeSymbolId,
   type ValueSymbolId,
   type VariantSymbolId,
@@ -24,6 +25,7 @@ pub(all) struct AnfProgram {
 pub(all) enum AnfTopLevelDeclaration {
   Struct(@checked.CheckedStructDeclaration)
   Enum(@checked.CheckedEnumDeclaration)
+  Effect(@checked.CheckedEffectDeclaration)
   Function(AnfFunctionDeclaration)
   Let(AnfLetDeclaration)
 } derive(Debug, Eq)
@@ -100,6 +102,12 @@ pub(all) enum AnfRhs {
   Atom(AnfAtom)
   Call(
     callee~ : AnfAtom,
+    arguments~ : Array[AnfAtom],
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
+  OperationCall(
+    operation~ : OperationSymbolId,
     arguments~ : Array[AnfAtom],
     type_~ : @types.Type,
     loc~ : SourceSpan
@@ -201,6 +209,7 @@ pub fn AnfRhs::type_(self : AnfRhs) -> @types.Type {
   match self {
     Atom(atom) => atom.type_()
     Call(type_~, ..)
+    | OperationCall(type_~, ..)
     | TypeApplication(type_~, ..)
     | Field(type_~, ..)
     | Struct(type_~, ..)
@@ -214,6 +223,7 @@ pub fn AnfRhs::loc(self : AnfRhs) -> SourceSpan {
   match self {
     Atom(atom) => atom.loc()
     Call(loc~, ..)
+    | OperationCall(loc~, ..)
     | TypeApplication(loc~, ..)
     | Field(loc~, ..)
     | Struct(loc~, ..)

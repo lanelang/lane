@@ -80,6 +80,8 @@ fn token_label(token : Token) -> String {
     TPARAM_ID(index) => "tparam#\{index}"
     VALUE_ID(index) => "value#\{index}"
     DATACON_ID(index) => "datacon#\{index}"
+    EFFECT_ID(index) => "effect#\{index}"
+    OPERATION_ID(index) => "operation#\{index}"
     INT(value) => value
     STRING(_) => "string"
     EOF => "eof"
@@ -89,21 +91,29 @@ fn token_label(token : Token) -> String {
     TYPE_PARAMETER => "type_parameter"
     VALUE => "value"
     DATACON => "datacon"
+    EFFECT_DECL => "effect"
+    OPERATION => "operation"
     PARAMETERS => "parameters"
     CONSTRUCTORS => "constructors"
+    OPERATIONS => "operations"
     OWNER => "owner"
     HIDDEN => "hidden"
     PAYLOAD => "payload"
+    RESULT => "result"
     FUNCTION_KIND => "function"
     PARAMETER_KIND => "parameter"
     LOCAL_KIND => "local"
     MATCH_BINDER_KIND => "match_binder"
     TYPE_KIND => "Type"
+    EFFECT_KIND => "Effect"
     UNIT_TYPE => "Unit"
     BOOL_TYPE => "Bool"
     INT_TYPE => "Int"
     STRING_TYPE => "String"
     KIND_FN => "kind_fn"
+    EMPTY_EFFECT => "empty_effect"
+    EFFECT_SINGLETON => "effect_singleton"
+    EFFECT_UNION => "effect_union"
     APPLY => "apply"
     TYPE_FN => "type_fn"
     FN_TYPE => "fn_type"
@@ -113,6 +123,12 @@ fn token_label(token : Token) -> String {
     EXTERNAL => "external"
     FN => "fn"
     CALL => "call"
+    PERFORM => "perform"
+    HANDLE => "handle"
+    RESUME => "resume"
+    HANDLER => "handler"
+    OP_ALT => "op_alt"
+    FINAL => "final"
     TYPE_APPLY => "type_apply"
     CONSTRUCT => "construct"
     LET_IN => "let_in"
@@ -218,6 +234,44 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
       text(";"),
     )
   }
+  for index in 0..<metadata.effects.length() {
+    let info = metadata.effects[index]
+    docs.push(
+      text("effect") +
+      space +
+      effect_id_doc({ index, }) +
+      space +
+      text("parameters") +
+      space +
+      type_parameter_ids_doc(info.parameters) +
+      space +
+      text("operations") +
+      space +
+      operation_ids_doc(info.operations) +
+      text(";"),
+    )
+  }
+  for index in 0..<metadata.operations.length() {
+    let info = metadata.operations[index]
+    docs.push(
+      text("operation") +
+      space +
+      operation_id_doc({ index, }) +
+      space +
+      text("owner") +
+      space +
+      effect_id_doc(info.owner) +
+      space +
+      text("payload") +
+      space +
+      types_doc(info.payload_types) +
+      space +
+      text("result") +
+      space +
+      type_doc(info.result_type) +
+      text(";"),
+    )
+  }
   text("metadata") + space + canonical_block(docs)
 }
 
@@ -252,6 +306,7 @@ fn canonical_block(docs : Array[Document]) -> Document {
 fn kind_doc(kind : @buslane.Kind) -> Document {
   match kind {
     Type => text("Type")
+    Effect => text("Effect")
     Function(parameters, result) =>
       call_doc("kind_fn", [kinds_doc(parameters), kind_doc(result)])
   }
@@ -272,11 +327,35 @@ fn type_doc(type_ : @buslane.Type) -> Document {
       call_doc("apply", [type_doc(callee), types_doc(arguments)])
     TypeLambda(parameters, body) =>
       call_doc("type_fn", [type_parameter_ids_doc(parameters), type_doc(body)])
-    Function(parameters, result) =>
-      call_doc("fn_type", [types_doc(parameters), type_doc(result)])
+    Function(parameters, result, effect) =>
+      match effect {
+        Empty => call_doc("fn_type", [types_doc(parameters), type_doc(result)])
+        _ =>
+          call_doc("fn_type", [
+            types_doc(parameters),
+            type_doc(result),
+            effect_doc(effect),
+          ])
+      }
     Forall(parameters, body) =>
       call_doc("forall", [type_parameter_ids_doc(parameters), type_doc(body)])
   }
+}
+
+///|
+fn effect_doc(effect : @buslane.Effect) -> Document {
+  match effect {
+    Empty => call_doc("empty_effect", [])
+    Singleton(id, arguments) =>
+      call_doc("effect_singleton", [effect_id_doc(id), types_doc(arguments)])
+    Parameter(id) => type_parameter_id_doc(id)
+    Union(effects) => call_doc("effect_union", [effects_doc(effects)])
+  }
+}
+
+///|
+fn effects_doc(effects : Array[@buslane.Effect]) -> Document {
+  bracketed(effects.map(effect_doc))
 }
 
 ///|
@@ -308,6 +387,13 @@ fn expr_doc(expr : @buslane.Expr) -> Document {
       inline_block(expr_doc(function.body))
     Call(callee, arguments) =>
       call_doc("call", [expr_doc(callee), exprs_doc(arguments)])
+    Perform(perform) =>
+      call_doc("perform", [
+        operation_id_doc(perform.operation),
+        types_doc(perform.type_arguments),
+        exprs_doc(perform.payloads),
+      ])
+    Resume(id) => call_doc("resume", [value_id_doc(id)])
     TypeLambda(parameters, body) =>
       call_doc("type_fn", [type_parameter_ids_doc(parameters)]) +
       space +
@@ -337,6 +423,15 @@ fn expr_doc(expr : @buslane.Expr) -> Document {
       ]) +
       space +
       inline_block(alternatives_doc(match_.alternatives))
+    Handle(handle) =>
+      call_doc("handle", [
+        expr_doc(handle.body),
+        value_id_doc(handle.result_binder),
+        type_doc(handle.result_type),
+        expr_doc(handle.final_body),
+      ]) +
+      space +
+      inline_block(handler_tables_doc(handle.handlers))
   }
 }
 
@@ -367,6 +462,41 @@ fn alternatives_doc(alternatives : Array[@buslane.Alternative]) -> Document {
   } else {
     separate(text(";") + space, alternatives.map(alternative_doc)) + text(";")
   }
+}
+
+///|
+fn handler_tables_doc(tables : Array[@buslane.HandlerTable]) -> Document {
+  separate(space, tables.map(handler_table_doc))
+}
+
+///|
+fn handler_table_doc(table : @buslane.HandlerTable) -> Document {
+  call_doc("handler", [effect_doc(table.handled_effect)]) +
+  space +
+  inline_block(operation_alternatives_doc(table.operations))
+}
+
+///|
+fn operation_alternatives_doc(
+  alternatives : Array[@buslane.OperationAlternative],
+) -> Document {
+  separate(space, alternatives.map(operation_alternative_doc))
+}
+
+///|
+fn operation_alternative_doc(
+  alternative : @buslane.OperationAlternative,
+) -> Document {
+  call_doc("op_alt", [
+    operation_id_doc(alternative.operation),
+    value_ids_doc(alternative.payload_binders),
+    value_id_doc(alternative.resume_binder),
+  ]) +
+  space +
+  text("=>") +
+  space +
+  expr_doc(alternative.body) +
+  text(";")
 }
 
 ///|
@@ -422,6 +552,16 @@ fn data_con_id_doc(id : @buslane.DataConId) -> Document {
 }
 
 ///|
+fn effect_id_doc(id : @buslane.EffectId) -> Document {
+  text("effect#\{id.index}")
+}
+
+///|
+fn operation_id_doc(id : @buslane.OperationId) -> Document {
+  text("operation#\{id.index}")
+}
+
+///|
 fn type_parameter_ids_doc(ids : Array[@buslane.TypeParameterId]) -> Document {
   bracketed(ids.map(type_parameter_id_doc))
 }
@@ -434,6 +574,11 @@ fn value_ids_doc(ids : Array[@buslane.ValueId]) -> Document {
 ///|
 fn data_con_ids_doc(ids : Array[@buslane.DataConId]) -> Document {
   bracketed(ids.map(data_con_id_doc))
+}
+
+///|
+fn operation_ids_doc(ids : Array[@buslane.OperationId]) -> Document {
+  bracketed(ids.map(operation_id_doc))
 }
 
 ///|

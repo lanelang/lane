@@ -47,6 +47,7 @@ pub(all) enum ResolveDiagnosticKind {
 pub(all) enum ResolvedTopLevelDeclaration {
   Struct(ResolvedStructDeclaration)
   Enum(ResolvedEnumDeclaration)
+  Effect(ResolvedEffectDeclaration)
   TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
@@ -110,6 +111,27 @@ pub(all) struct ResolvedEnumVariant {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct ResolvedEffectDeclaration {
+  is_public : Bool
+  symbol : EffectSymbolId
+  name : String
+  type_parameters : Array[ResolvedTypeParameter]
+  operations : Array[ResolvedEffectOperationDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedEffectOperationDeclaration {
+  symbol : OperationSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[ResolvedTypeParameter]
+  payload : Array[ResolvedType]
+  result : ResolvedType
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
@@ -125,6 +147,7 @@ pub(all) struct ResolvedFunctionDeclaration {
   type_parameters : Array[ResolvedTypeParameter]
   parameters : Array[ResolvedValueParameter]
   return_type : ResolvedType
+  effect : ResolvedEffectTerm
   body : ResolvedExpr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -160,6 +183,7 @@ pub(all) struct ResolvedTypeParameter {
 ///|
 pub(all) enum ResolvedKind {
   Type(loc~ : SourceSpan)
+  Effect(loc~ : SourceSpan)
   Function(
     parameters~ : Array[ResolvedKind],
     result~ : ResolvedKind,
@@ -197,8 +221,27 @@ pub(all) enum ResolvedType {
     type_parameters~ : Array[ResolvedTypeParameter],
     parameters~ : Array[ResolvedType],
     result~ : ResolvedType,
+    effect~ : ResolvedEffectTerm,
     loc~ : SourceSpan
   )
+  Unresolved(
+    name~ : String,
+    arguments~ : Array[ResolvedType],
+    loc~ : SourceSpan
+  )
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedEffectTerm {
+  Empty(loc~ : SourceSpan)
+  Singleton(
+    symbol~ : EffectSymbolId,
+    name~ : String,
+    arguments~ : Array[ResolvedType],
+    loc~ : SourceSpan
+  )
+  Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)
+  Union(items~ : Array[ResolvedEffectTerm], loc~ : SourceSpan)
   Unresolved(
     name~ : String,
     arguments~ : Array[ResolvedType],
@@ -225,6 +268,33 @@ pub(all) enum ResolvedVariantReference {
   Unresolved(type_name~ : String, variant~ : String)
   UnresolvedUnqualified(String)
   Ambiguous(name~ : String, candidates~ : Array[VariantSymbolId])
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedOperationReference {
+  Symbol(OperationSymbolId)
+  Unresolved(String)
+  Ambiguous(name~ : String, candidates~ : Array[OperationSymbolId])
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedEffectOperationName {
+  Qualified(
+    owner~ : ResolvedEffectTerm,
+    operation~ : String,
+    reference~ : ResolvedOperationReference,
+    loc~ : SourceSpan
+  )
+  Shorthand(
+    operation~ : String,
+    reference~ : ResolvedOperationReference,
+    loc~ : SourceSpan
+  )
+  Unqualified(
+    operation~ : String,
+    reference~ : ResolvedOperationReference,
+    loc~ : SourceSpan
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -256,6 +326,32 @@ pub(all) enum ResolvedStructLiteralField {
 ///|
 pub(all) struct ResolvedMatchArm {
   pattern : ResolvedPattern
+  body : ResolvedExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedHandlerWithBlock {
+  arms : Array[ResolvedHandlerOperationArm]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedHandlerOperationArm {
+  name : ResolvedEffectOperationName
+  payload_patterns : Array[ResolvedPattern]
+  resume_symbol : ValueSymbolId
+  resume_binder : String
+  resume_loc : SourceSpan
+  body : ResolvedExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedHandlerFinalBranch {
+  binder_symbol : ValueSymbolId
+  binder : String
+  binder_loc : SourceSpan
   body : ResolvedExpr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -319,7 +415,19 @@ pub(all) enum ResolvedExpr {
     type_parameters~ : Array[ResolvedTypeParameter],
     parameters~ : Array[ResolvedFunctionLiteralParameter],
     return_type~ : ResolvedType?,
+    effect~ : ResolvedEffectTerm?,
     body~ : ResolvedExpr,
+    loc~ : SourceSpan
+  )
+  EffectOperationCall(
+    name~ : ResolvedEffectOperationName,
+    arguments~ : Array[ResolvedExpr],
+    loc~ : SourceSpan
+  )
+  Handler(
+    body~ : ResolvedExpr,
+    handlers~ : Array[ResolvedHandlerWithBlock],
+    final_branch~ : ResolvedHandlerFinalBranch,
     loc~ : SourceSpan
   )
   Block(

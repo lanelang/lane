@@ -85,6 +85,7 @@ pub impl @prettyprinter.Pretty for AnfProgram
 pub(all) enum AnfRhs {
   Atom(AnfAtom)
   Call(callee~ : AnfAtom, arguments~ : Array[AnfAtom], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  OperationCall(operation~ : @symbol.OperationSymbolId, arguments~ : Array[AnfAtom], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   TypeApplication(callee~ : AnfAtom, arguments~ : Array[@types.Type], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Field(base~ : AnfAtom, field~ : @symbol.FieldSymbolId, name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Struct(symbol~ : @symbol.TypeSymbolId, type_arguments~ : Array[@types.Type], type_witnesses~ : Array[@checked.CheckedStructTypeWitness], fields~ : Array[AnfStructField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
@@ -110,6 +111,7 @@ pub impl @prettyprinter.Pretty for AnfTempId
 pub(all) enum AnfTopLevelDeclaration {
   Struct(@checked.CheckedStructDeclaration)
   Enum(@checked.CheckedEnumDeclaration)
+  Effect(@checked.CheckedEffectDeclaration)
   Function(AnfFunctionDeclaration)
   Let(AnfLetDeclaration)
 } derive(Eq, @debug.Debug)

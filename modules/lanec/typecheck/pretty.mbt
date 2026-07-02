@@ -52,9 +52,7 @@ pub impl @prettyprinter.Pretty for CheckedSourceTypeCheckResult with fn pretty(
 pub impl @prettyprinter.Pretty for CheckedDeclarationEnvironment with fn pretty(
   environment : CheckedDeclarationEnvironment,
 ) {
-  text("checked_declarations") +
-  space +
-  @pretty.braced_block([
+  let sections = [
     @pretty.section(
       "types",
       environment.types.map(CheckedTypeDeclaration::pretty),
@@ -71,7 +69,24 @@ pub impl @prettyprinter.Pretty for CheckedDeclarationEnvironment with fn pretty(
       "variants",
       environment.variants.map(CheckedVariantDeclaration::pretty),
     ),
-  ])
+  ]
+  if !environment.effects.is_empty() {
+    sections.push(
+      @pretty.section(
+        "effects",
+        environment.effects.map(CheckedEffectDeclaration::pretty),
+      ),
+    )
+  }
+  if !environment.operations.is_empty() {
+    sections.push(
+      @pretty.section(
+        "operations",
+        environment.operations.map(CheckedEffectOperationDeclaration::pretty),
+      ),
+    )
+  }
+  text("checked_declarations") + space + @pretty.braced_block(sections)
 }
 
 ///|
@@ -90,6 +105,7 @@ pub impl @prettyprinter.Pretty for CheckedTypeDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    Effect(declaration) => declaration.pretty()
   }
 }
 
@@ -142,6 +158,39 @@ pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration with fn pretty(
   text(":") +
   space +
   declaration.type_.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedEffectDeclaration with fn pretty(
+  declaration : CheckedEffectDeclaration,
+) {
+  text("effect") +
+  space +
+  declaration.symbol.pretty() +
+  space +
+  text(declaration.name) +
+  type_parameters_doc(declaration.type_parameters) +
+  space +
+  @pretty.braced_block(
+    declaration.operations.map(CheckedEffectOperationDeclaration::pretty),
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedEffectOperationDeclaration with fn pretty(
+  operation : CheckedEffectOperationDeclaration,
+) {
+  text("operation") +
+  space +
+  operation.symbol.pretty() +
+  space +
+  text(operation.name) +
+  type_parameters_doc(operation.type_parameters) +
+  payload_doc(operation.payload) +
+  space +
+  text("->") +
+  space +
+  operation.result.pretty()
 }
 
 ///|
@@ -241,6 +290,14 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text("actual=") +
       actual.pretty()
+    EffectMismatch(expected~, actual~) =>
+      text("effect_mismatch") +
+      space +
+      text("expected=") +
+      expected.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty()
     NotCallable(type_) => text("not_callable") + space + type_.pretty()
     UnknownField(name~) => text("unknown_field") + space + text(name)
     MissingField(name~) => text("missing_field") + space + text(name)
@@ -255,6 +312,11 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     NonExhaustiveMatch(type_) =>
       text("non_exhaustive_match") + space + type_.pretty()
     UnreachableMatchArm => text("unreachable_match_arm")
+    MixedHandlerEffects => text("mixed_handler_effects")
+    DuplicateHandledEffect(effect) =>
+      text("duplicate_handled_effect") + space + effect.pretty()
+    MissingHandlerOperation(operation) =>
+      text("missing_handler_operation") + space + operation.pretty()
     DuplicatePatternBinder(name~) =>
       text("duplicate_pattern_binder") + space + text(name)
     PatternArityMismatch(name~, expected~, actual~) =>

@@ -25,6 +25,32 @@ fn CheckedDeclarationEnvironment::checked_enum(
 }
 
 ///|
+fn CheckedDeclarationEnvironment::checked_effect(
+  self : CheckedDeclarationEnvironment,
+  symbol : EffectSymbolId,
+) -> CheckedEffectDeclaration? {
+  for declaration in self.effects {
+    if declaration.symbol == symbol {
+      return Some(declaration)
+    }
+  }
+  None
+}
+
+///|
+fn CheckedDeclarationEnvironment::checked_operation(
+  self : CheckedDeclarationEnvironment,
+  symbol : OperationSymbolId,
+) -> CheckedEffectOperationDeclaration? {
+  for declaration in self.operations {
+    if declaration.symbol == symbol {
+      return Some(declaration)
+    }
+  }
+  None
+}
+
+///|
 fn CheckedDeclarationEnvironment::field_type(
   self : CheckedDeclarationEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],

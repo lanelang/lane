@@ -16,6 +16,7 @@ pub impl @prettyprinter.Pretty for DesugaredTopLevelDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
+    Effect(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
     Offer(declaration) => declaration.pretty()
@@ -31,8 +32,19 @@ pub impl @prettyprinter.Pretty for DesugaredFunctionDeclaration with fn pretty(
   declaration.symbol.pretty() +
   space +
   text(declaration.name) +
+  declaration.effect.annotation_doc() +
   space +
   @pretty.braced_block([@pretty.section("body", [declaration.body.pretty()])])
+}
+
+///|
+fn @resolve.ResolvedEffectTerm::annotation_doc(
+  self : @resolve.ResolvedEffectTerm,
+) -> Document {
+  match self {
+    Empty(..) => empty
+    _ => space + text("!") + space + self.pretty()
+  }
 }
 
 ///|
@@ -109,6 +121,42 @@ pub impl @prettyprinter.Pretty for DesugaredMatchArm with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for DesugaredHandlerWithBlock with fn pretty(
+  handler : DesugaredHandlerWithBlock,
+) {
+  text("with") +
+  space +
+  @pretty.braced_block(handler.arms.map(DesugaredHandlerOperationArm::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for DesugaredHandlerOperationArm with fn pretty(
+  arm : DesugaredHandlerOperationArm,
+) {
+  let parameters = arm.payload_patterns.map(fn(pattern) { pattern.pretty() })
+  parameters.push(arm.resume_symbol.pretty() + space + text(arm.resume_binder))
+  arm.name.pretty() +
+  @pretty.parenthesized_inline(parameters) +
+  space +
+  text("=>") +
+  space +
+  arm.body.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for DesugaredHandlerFinalBranch with fn pretty(
+  branch : DesugaredHandlerFinalBranch,
+) {
+  text("final") +
+  space +
+  branch.binder_symbol.pretty() +
+  space +
+  text(branch.binder) +
+  space +
+  branch.body.pretty()
+}
+
+///|
 pub impl @prettyprinter.Pretty for DesugaredLiteral with fn pretty(
   literal : DesugaredLiteral,
 ) {
@@ -155,17 +203,41 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       text("::") +
       @pretty.braced_block(fields.map(DesugaredStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) => {
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) => {
       let result = match return_type {
         Some(type_) => space + text("->") + space + type_.pretty()
+        None => empty
+      }
+      let effect = match effect {
+        Some(effect) => space + text("!") + space + effect.pretty()
         None => empty
       }
       text("fn") +
       type_parameters_doc(type_parameters) +
       function_literal_parameters_doc(parameters) +
       result +
+      effect +
       space +
       body.pretty()
+    }
+    EffectOperationCall(name~, arguments~, ..) =>
+      name.pretty() +
+      text("!") +
+      @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
+    Handler(body~, handlers~, final_branch~, ..) => {
+      let docs = [text("handle") + space + body.pretty()]
+      for handler in handlers {
+        docs.push(handler.pretty())
+      }
+      docs.push(final_branch.pretty())
+      @pretty.braced_block(docs)
     }
     Block(items~, result~, ..) => {
       let docs = items.map(DesugaredLocalItem::pretty)

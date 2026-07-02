@@ -34,12 +34,17 @@ fn TypeDisplayContext::type_text(
       "type [\{parameter_text}] => \{body_text}"
     }
     Parameter(id) => self.type_parameter_text(id)
-    Function(parameters, result) => {
+    Function(parameters, result, effect) => {
       let parameter_text = parameters
         .map(fn(parameter) { self.type_text(parameter) })
         .join(", ")
       let result_text = self.type_text(result)
-      "(\{parameter_text}) -> \{result_text}"
+      let effect_text = self.effect_text(effect)
+      if effect_text == "{}" {
+        "(\{parameter_text}) -> \{result_text}"
+      } else {
+        "(\{parameter_text}) -> \{result_text} ! \{effect_text}"
+      }
     }
     Forall(parameters, body) => {
       let parameter_text = parameters
@@ -48,6 +53,30 @@ fn TypeDisplayContext::type_text(
       let body_text = self.type_text(body)
       "forall [\{parameter_text}]. \{body_text}"
     }
+  }
+}
+
+///|
+fn TypeDisplayContext::effect_text(
+  self : TypeDisplayContext,
+  effect : @types.Effect,
+) -> String {
+  match effect {
+    Empty => "{}"
+    Singleton(symbol, arguments) => {
+      let name = @prettyprinter.render(symbol.pretty(), width=100)
+      if arguments.is_empty() {
+        name
+      } else {
+        let arguments = arguments
+          .map(fn(argument) { self.type_text(argument) })
+          .join(", ")
+        "\{name}[\{arguments}]"
+      }
+    }
+    Parameter(id) => self.type_parameter_text(id)
+    Union(effects) =>
+      "{ \{effects.map(fn(effect) { self.effect_text(effect) }).join(", ")} }"
   }
 }
 

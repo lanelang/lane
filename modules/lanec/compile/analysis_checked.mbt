@@ -68,7 +68,7 @@ fn collect_checked_top_level_parameter_signatures(
       )
       collect_checked_expr_parameter_signatures(declaration.body, signatures)
     }
-    Enum(_) => ()
+    Enum(_) | Effect(_) => ()
     Let(declaration) =>
       collect_checked_expr_parameter_signatures(
         declaration.initializer,
@@ -134,6 +134,25 @@ fn collect_checked_expr_parameter_signatures(
       collect_checked_expr_parameter_signatures(callee, signatures)
       for argument in arguments {
         collect_checked_expr_parameter_signatures(argument, signatures)
+      }
+    }
+    OperationCall(arguments~, ..) =>
+      for argument in arguments {
+        collect_checked_expr_parameter_signatures(argument, signatures)
+      }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      if body is Some(body) {
+        collect_checked_expr_parameter_signatures(body, signatures)
+      }
+      for handler in handlers {
+        for arm in handler.operations {
+          if arm.body is Some(body) {
+            collect_checked_expr_parameter_signatures(body, signatures)
+          }
+        }
+      }
+      if final_branch.body is Some(body) {
+        collect_checked_expr_parameter_signatures(body, signatures)
       }
     }
     Field(base~, ..) =>
@@ -263,6 +282,7 @@ fn collect_checked_top_level_declaration(
         )
       }
     }
+    Effect(_) => ()
     Function(declaration) => {
       add_definition(
         definitions,
@@ -523,6 +543,56 @@ fn collect_checked_expr(
       for argument in arguments {
         collect_checked_expr(
           source_id, source_text, argument, definitions, references, hovers, context,
+        )
+      }
+    }
+    OperationCall(arguments~, ..) =>
+      for argument in arguments {
+        collect_checked_expr(
+          source_id, source_text, argument, definitions, references, hovers, context,
+        )
+      }
+    Handler(body~, handlers~, final_branch~, ..) => {
+      if body is Some(body) {
+        collect_checked_expr(
+          source_id, source_text, body, definitions, references, hovers, context,
+        )
+      }
+      for handler in handlers {
+        for arm in handler.operations {
+          for pattern in arm.payload_patterns {
+            collect_checked_pattern(
+              source_id, source_text, pattern, definitions, references, hovers, context,
+            )
+          }
+          add_definition(
+            definitions,
+            hovers,
+            source_id,
+            Value(arm.resume_symbol),
+            arm.resume_loc,
+            arm.resume_binder,
+            "\{arm.resume_binder} : <unchecked>",
+          )
+          if arm.body is Some(body) {
+            collect_checked_expr(
+              source_id, source_text, body, definitions, references, hovers, context,
+            )
+          }
+        }
+      }
+      add_definition(
+        definitions,
+        hovers,
+        source_id,
+        Value(final_branch.binder_symbol),
+        final_branch.binder_loc,
+        final_branch.binder,
+        "\{final_branch.binder} : <unchecked>",
+      )
+      if final_branch.body is Some(body) {
+        collect_checked_expr(
+          source_id, source_text, body, definitions, references, hovers, context,
         )
       }
     }

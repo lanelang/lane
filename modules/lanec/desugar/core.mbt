@@ -10,6 +10,7 @@ pub(all) struct DesugaredSourceFile {
 pub(all) enum DesugaredTopLevelDeclaration {
   Struct(@resolve.ResolvedStructDeclaration)
   Enum(@resolve.ResolvedEnumDeclaration)
+  Effect(@resolve.ResolvedEffectDeclaration)
   Function(DesugaredFunctionDeclaration)
   Let(DesugaredLetDeclaration)
   Offer(DesugaredOfferDeclaration)
@@ -23,6 +24,7 @@ pub(all) struct DesugaredFunctionDeclaration {
   type_parameters : Array[@resolve.ResolvedTypeParameter]
   parameters : Array[@resolve.ResolvedValueParameter]
   return_type : @resolve.ResolvedType
+  effect : @resolve.ResolvedEffectTerm
   body : DesugaredExpr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -80,6 +82,32 @@ pub(all) struct DesugaredMatchArm {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct DesugaredHandlerWithBlock {
+  arms : Array[DesugaredHandlerOperationArm]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct DesugaredHandlerOperationArm {
+  name : @resolve.ResolvedEffectOperationName
+  payload_patterns : Array[@resolve.ResolvedPattern]
+  resume_symbol : @symbol.ValueSymbolId
+  resume_binder : String
+  resume_loc : SourceSpan
+  body : DesugaredExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct DesugaredHandlerFinalBranch {
+  binder_symbol : @symbol.ValueSymbolId
+  binder : String
+  binder_loc : SourceSpan
+  body : DesugaredExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) enum DesugaredCallArgument {
   Positional(DesugaredExpr)
   Named(name~ : String, value~ : DesugaredExpr, loc~ : SourceSpan)
@@ -121,7 +149,19 @@ pub(all) enum DesugaredExpr {
     type_parameters~ : Array[@resolve.ResolvedTypeParameter],
     parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter],
     return_type~ : @resolve.ResolvedType?,
+    effect~ : @resolve.ResolvedEffectTerm?,
     body~ : DesugaredExpr,
+    loc~ : SourceSpan
+  )
+  EffectOperationCall(
+    name~ : @resolve.ResolvedEffectOperationName,
+    arguments~ : Array[DesugaredExpr],
+    loc~ : SourceSpan
+  )
+  Handler(
+    body~ : DesugaredExpr,
+    handlers~ : Array[DesugaredHandlerWithBlock],
+    final_branch~ : DesugaredHandlerFinalBranch,
     loc~ : SourceSpan
   )
   Block(
@@ -163,6 +203,8 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | StructLiteral(loc~, ..)
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
+    | EffectOperationCall(loc~, ..)
+    | Handler(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)

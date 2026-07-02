@@ -87,6 +87,7 @@ test "pretty print source file" {
           },
         ],
         return_type: int_type,
+        effect: Empty(loc=test_loc()),
         body: Block(
           items=[],
           result=Match(

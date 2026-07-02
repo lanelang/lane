@@ -332,6 +332,129 @@ test "parse offered value definitions and contextual parameter syntax" {
 }
 
 ///|
+test "parse effect declarations and effect kind" {
+  let file = expect_parse_ok(
+    (
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|  choose[A](A, A) -> A
+      #|}
+      #|struct Runner[F : Effect] {
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|pub effect State[S] {
+      #|  get() -> S
+      #|  put(S) -> Unit
+      #|  choose[A](A, A) -> A
+      #|}
+      #|
+      #|struct Runner[F : Effect] {}
+    ),
+  )
+}
+
+///|
+test "parse effect operation calls" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn write_hello() -> Unit ! Console {
+      #|  Console::write!("hi")
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|
+      #|fn write_hello() -> Unit ! Console {
+      #|  Console::write!("hi")
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse handler expressions" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  read() -> String
+      #|  write(String) -> Unit
+      #|}
+      #|fn program() -> String ! Console {
+      #|  handle Console::read!() with {
+      #|    Console::write(message, resume) => resume(())
+      #|    Console::read(resume) => "fallback"
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Console {
+      #|  read() -> String
+      #|  write(String) -> Unit
+      #|}
+      #|
+      #|fn program() -> String ! Console {
+      #|  handle Console::read!()
+      #|  with {
+      #|    Console::write(message, resume) => resume(())
+      #|    Console::read(resume) => "fallback"
+      #|  }
+      #|  final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse rejects malformed handler expressions" {
+  let empty_with_errors = parse_error_kinds(
+    (
+      #|fn bad() -> Unit {
+      #|  handle () with {} final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  assert_true(!empty_with_errors.is_empty())
+  let missing_final_errors = parse_error_kinds(
+    (
+      #|fn bad() -> Unit {
+      #|  handle () with {
+      #|    op(resume) => ()
+      #|  }
+      #|}
+    ),
+  )
+  assert_true(!missing_final_errors.is_empty())
+}
+
+///|
 test "parse existential surface syntax" {
   let file = expect_parse_ok(
     (
@@ -419,6 +542,7 @@ test "parse rejects equals function body syntax" {
       #|  UnexpectedToken(
       #|    { label: "`=`" },
       #|    [
+      #|      { label: "`!`" },
       #|      { label: "`{`" },
       #|      { label: "`[`" },
       #|      { label: "`.`" },
@@ -492,11 +616,13 @@ test "parse rejects empty qualified variant argument syntax" {
       #|      { label: "`fn`" },
       #|      { label: "`if`" },
       #|      { label: "`match`" },
+      #|      { label: "`handle`" },
       #|      { label: "`builtin`" },
       #|      { label: "`-`" },
       #|      { label: "`!`" },
       #|      { label: "`(`" },
       #|      { label: "`{`" },
+      #|      { label: "`::`" },
       #|    ],
       #|  ),
       #|]

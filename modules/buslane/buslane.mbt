@@ -19,8 +19,19 @@ pub(all) struct DataConId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) struct EffectId {
+  index : Int
+} derive(Debug, Eq, Compare)
+
+///|
+pub(all) struct OperationId {
+  index : Int
+} derive(Debug, Eq, Compare)
+
+///|
 pub(all) enum Kind {
   Type
+  Effect
   Function(Array[Kind], Kind)
 } derive(Debug, Eq)
 
@@ -39,8 +50,16 @@ pub(all) enum Type {
   Constructor(TypeId)
   Apply(Type, Array[Type])
   TypeLambda(Array[TypeParameterId], Type)
-  Function(Array[Type], Type)
+  Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
+} derive(Debug)
+
+///|
+pub(all) enum Effect {
+  Empty
+  Singleton(EffectId, Array[Type])
+  Parameter(TypeParameterId)
+  Union(Array[Effect])
 } derive(Debug)
 
 ///|
@@ -86,11 +105,26 @@ pub(all) struct DataConInfo {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct EffectInfo {
+  parameters : Array[TypeParameterId]
+  operations : Array[OperationId]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct OperationInfo {
+  owner : EffectId
+  payload_types : Array[Type]
+  result_type : Type
+} derive(Debug, Eq)
+
+///|
 pub(all) struct MetadataRegistry {
   types : Array[TypeInfo]
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
   data_constructors : Array[DataConInfo]
+  effects : Array[EffectInfo]
+  operations : Array[OperationInfo]
 } derive(Debug, Eq)
 
 ///|
@@ -136,6 +170,36 @@ pub(all) struct MatchExpr {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct PerformExpr {
+  operation : OperationId
+  type_arguments : Array[Type]
+  payloads : Array[Expr]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandleExpr {
+  body : Expr
+  result_binder : ValueId
+  result_type : Type
+  final_body : Expr
+  handlers : Array[HandlerTable]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct HandlerTable {
+  handled_effect : Effect
+  operations : Array[OperationAlternative]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct OperationAlternative {
+  operation : OperationId
+  payload_binders : Array[ValueId]
+  resume_binder : ValueId
+  body : Expr
+} derive(Debug, Eq)
+
+///|
 pub(all) struct Alternative {
   alt_constructor : AltCon
   type_binders : Array[TypeParameterId]
@@ -162,12 +226,22 @@ pub(all) enum Expr {
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
   Match(MatchExpr)
+  Perform(PerformExpr)
+  Handle(HandleExpr)
+  Resume(ValueId)
 } derive(Debug, Eq)
 
 ///|
 /// Creates an empty Buslane metadata registry.
 pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
-  { types: [], type_parameters: [], values: [], data_constructors: [] }
+  {
+    types: [],
+    type_parameters: [],
+    values: [],
+    data_constructors: [],
+    effects: [],
+    operations: [],
+  }
 }
 
 ///|
@@ -204,6 +278,32 @@ pub fn MetadataRegistry::define_data_constructor(
   self.data_constructors.push({ owner, hidden_type_parameters, payload_types })
   guard self.types.get(owner.index) is Some(info) else { return id }
   info.constructors.push(id)
+  id
+}
+
+///|
+/// Defines a Buslane effect constructor and returns its identity.
+pub fn MetadataRegistry::define_effect(
+  self : MetadataRegistry,
+  parameters : Array[TypeParameterId],
+) -> EffectId {
+  let id = EffectId::{ index: self.effects.length() }
+  self.effects.push({ parameters, operations: [] })
+  id
+}
+
+///|
+/// Defines a Buslane effect operation and attaches it to its owner effect.
+pub fn MetadataRegistry::define_operation(
+  self : MetadataRegistry,
+  owner : EffectId,
+  payload_types : Array[Type],
+  result_type : Type,
+) -> OperationId {
+  let id = OperationId::{ index: self.operations.length() }
+  self.operations.push({ owner, payload_types, result_type })
+  guard self.effects.get(owner.index) is Some(info) else { return id }
+  info.operations.push(id)
   id
 }
 
@@ -256,14 +356,54 @@ pub fn MetadataRegistry::data_constructor_info(
 }
 
 ///|
+/// Looks up metadata for a Buslane effect constructor.
+pub fn MetadataRegistry::effect_info(
+  self : MetadataRegistry,
+  id : EffectId,
+) -> EffectInfo? {
+  self.effects.get(id.index)
+}
+
+///|
+/// Looks up metadata for a Buslane effect operation.
+pub fn MetadataRegistry::operation_info(
+  self : MetadataRegistry,
+  id : OperationId,
+) -> OperationInfo? {
+  self.operations.get(id.index)
+}
+
+///|
 /// Returns whether two Buslane types are definitionally equal.
 pub fn Type::equals(self : Type, other : Type) -> Bool {
   alpha_equal_with([], self.normalize(), other.normalize())
 }
 
 ///|
+/// Returns whether two Buslane effects are canonically equal.
+pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
+  alpha_equal_effect_with([], self, other)
+}
+
+///|
 pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
   self.equals(other)
+}
+
+///|
+pub impl Eq for Effect with fn equal(self : Effect, other : Effect) -> Bool {
+  self.equals(other)
+}
+
+///|
+/// Returns the canonical effect shape used for equality and diagnostics.
+pub fn Effect::canonicalize(self : Effect) -> Effect {
+  let terms = canonical_effect_terms([], self)
+  match terms {
+    [] => Empty
+    [term] => term
+    terms => Union(terms)
+  }
 }
 
 ///|
@@ -290,13 +430,101 @@ fn alpha_equal_with(
       alpha_equal_binders(
         bindings, left_params, right_params, left_body, right_body,
       )
-    (Function(left_params, left_result), Function(right_params, right_result)) =>
+    (
+      Function(left_params, left_result, left_effect),
+      Function(right_params, right_result, right_effect),
+    ) =>
       same_length_alpha_equal(bindings, left_params, right_params) &&
-      alpha_equal_with(bindings, left_result, right_result)
+      alpha_equal_with(bindings, left_result, right_result) &&
+      alpha_equal_effect_with(bindings, left_effect, right_effect)
     (Forall(left_params, left_body), Forall(right_params, right_body)) =>
       alpha_equal_binders(
         bindings, left_params, right_params, left_body, right_body,
       )
+    _ => false
+  }
+}
+
+///|
+fn alpha_equal_effect_with(
+  bindings : Array[AlphaBinding],
+  left : Effect,
+  right : Effect,
+) -> Bool {
+  let left_terms = canonical_effect_terms(bindings, left)
+  let right_terms = canonical_effect_terms(bindings, right)
+  if left_terms.length() != right_terms.length() {
+    return false
+  }
+  for left_term in left_terms {
+    if !right_terms.any(fn(right_term) {
+        alpha_equal_effect_term_with(bindings, left_term, right_term)
+      }) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn canonical_effect_terms(
+  bindings : Array[AlphaBinding],
+  effect : Effect,
+) -> Array[Effect] {
+  let terms : Array[Effect] = []
+  collect_effect_terms(bindings, effect, terms)
+  terms
+}
+
+///|
+fn collect_effect_terms(
+  bindings : Array[AlphaBinding],
+  effect : Effect,
+  terms : Array[Effect],
+) -> Unit {
+  match effect {
+    Empty => ()
+    Singleton(id, arguments) => {
+      let term = Singleton(
+        id,
+        arguments.map(fn(argument) { argument.normalize() }),
+      )
+      push_unique_effect_term(bindings, terms, term)
+    }
+    Parameter(_) => push_unique_effect_term(bindings, terms, effect)
+    Union(effects) =>
+      for nested in effects {
+        collect_effect_terms(bindings, nested, terms)
+      }
+  }
+}
+
+///|
+fn push_unique_effect_term(
+  bindings : Array[AlphaBinding],
+  terms : Array[Effect],
+  term : Effect,
+) -> Unit {
+  if terms.any(fn(existing) {
+      alpha_equal_effect_term_with(bindings, existing, term)
+    }) {
+    return
+  }
+  terms.push(term)
+}
+
+///|
+fn alpha_equal_effect_term_with(
+  bindings : Array[AlphaBinding],
+  left : Effect,
+  right : Effect,
+) -> Bool {
+  match (left, right) {
+    (Singleton(left_id, left_arguments), Singleton(right_id, right_arguments)) =>
+      left_id == right_id &&
+      same_length_alpha_equal(bindings, left_arguments, right_arguments)
+    (Parameter(left), Parameter(right)) =>
+      alpha_equal_parameter(bindings, left, right)
     _ => false
   }
 }
@@ -428,13 +656,31 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
     }
     TypeLambda(parameters, body) =>
       TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { parameter.normalize_with_fuel(fuel - 1) }),
         result.normalize_with_fuel(fuel - 1),
+        effect.normalize_with_fuel(fuel - 1),
       )
     Forall(parameters, body) =>
       Forall(parameters, body.normalize_with_fuel(fuel - 1))
+  }
+}
+
+///|
+fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
+  if fuel <= 0 {
+    abort("Buslane effect normalization fuel exhausted")
+  }
+  match self {
+    Empty | Parameter(_) => self
+    Singleton(id, arguments) =>
+      Singleton(
+        id,
+        arguments.map(fn(argument) { argument.normalize_with_fuel(fuel - 1) }),
+      )
+    Union(effects) =>
+      Union(effects.map(fn(effect) { effect.normalize_with_fuel(fuel - 1) }))
   }
 }
 
@@ -473,12 +719,13 @@ fn Type::substitute_with_bound(
         body.substitute_with_bound(substitution, next_bound),
       )
     }
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) {
           parameter.substitute_with_bound(substitution, bound)
         }),
         result.substitute_with_bound(substitution, bound),
+        effect.substitute_types_with_bound(substitution, bound),
       )
     Forall(parameters, body) => {
       let next_bound = bound.copy()
@@ -487,5 +734,29 @@ fn Type::substitute_with_bound(
       }
       Forall(parameters, body.substitute_with_bound(substitution, next_bound))
     }
+  }
+}
+
+///|
+fn Effect::substitute_types_with_bound(
+  self : Effect,
+  substitution : TypeSubstitution,
+  bound : Array[TypeParameterId],
+) -> Effect {
+  match self {
+    Empty | Parameter(_) => self
+    Singleton(id, arguments) =>
+      Singleton(
+        id,
+        arguments.map(fn(argument) {
+          argument.substitute_with_bound(substitution, bound)
+        }),
+      )
+    Union(effects) =>
+      Union(
+        effects.map(fn(effect) {
+          effect.substitute_types_with_bound(substitution, bound)
+        }),
+      )
   }
 }

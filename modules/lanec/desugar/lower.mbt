@@ -24,6 +24,7 @@ fn desugar_top_level_declaration(
   match declaration {
     Struct(declaration) => Some(Struct(declaration))
     Enum(declaration) => Some(Enum(declaration))
+    Effect(declaration) => Some(Effect(declaration))
     TypeAlias(_) => None
     Function(declaration) =>
       Some(Function(desugar_function_declaration(declaration)))
@@ -43,6 +44,7 @@ fn desugar_function_declaration(
     type_parameters: declaration.type_parameters,
     parameters: declaration.parameters,
     return_type: declaration.return_type,
+    effect: declaration.effect,
     body: desugar_expr(declaration.body),
     loc: declaration.loc,
   }
@@ -125,6 +127,41 @@ fn desugar_match_arm(arm : @resolve.ResolvedMatchArm) -> DesugaredMatchArm {
 }
 
 ///|
+fn desugar_handler_with_block(
+  handler : @resolve.ResolvedHandlerWithBlock,
+) -> DesugaredHandlerWithBlock {
+  { arms: handler.arms.map(desugar_handler_operation_arm), loc: handler.loc }
+}
+
+///|
+fn desugar_handler_operation_arm(
+  arm : @resolve.ResolvedHandlerOperationArm,
+) -> DesugaredHandlerOperationArm {
+  {
+    name: arm.name,
+    payload_patterns: arm.payload_patterns,
+    resume_symbol: arm.resume_symbol,
+    resume_binder: arm.resume_binder,
+    resume_loc: arm.resume_loc,
+    body: desugar_expr(arm.body),
+    loc: arm.loc,
+  }
+}
+
+///|
+fn desugar_handler_final_branch(
+  branch : @resolve.ResolvedHandlerFinalBranch,
+) -> DesugaredHandlerFinalBranch {
+  {
+    binder_symbol: branch.binder_symbol,
+    binder: branch.binder,
+    binder_loc: branch.binder_loc,
+    body: desugar_expr(branch.body),
+    loc: branch.loc,
+  }
+}
+
+///|
 fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
   match expr {
     IntLiteral(value, loc~) => Literal(literal=Int(value), loc~)
@@ -168,12 +205,29 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         loc~,
       )
     Builtin(name, loc~) => Builtin(name, loc~)
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, loc~) =>
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      loc~
+    ) =>
       FunctionLiteral(
         type_parameters~,
         parameters~,
         return_type~,
+        effect~,
         body=desugar_expr(body),
+        loc~,
+      )
+    EffectOperationCall(name~, arguments~, loc~) =>
+      EffectOperationCall(name~, arguments=arguments.map(desugar_expr), loc~)
+    Handler(body~, handlers~, final_branch~, loc~) =>
+      Handler(
+        body=desugar_expr(body),
+        handlers=handlers.map(desugar_handler_with_block),
+        final_branch=desugar_handler_final_branch(final_branch),
         loc~,
       )
     Block(items~, result~, loc~) =>
@@ -305,6 +359,7 @@ fn desugar_bool_thunk(
     type_parameters=[],
     parameters=[],
     return_type=Some(Primitive(Bool, loc~)),
+    effect=None,
     body=desugar_expr(body),
     loc~,
   )

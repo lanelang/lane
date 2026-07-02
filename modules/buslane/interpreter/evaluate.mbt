@@ -74,54 +74,393 @@ fn recursive_runtime_value(
 }
 
 ///|
+type BuslaneHandlerStack = Array[ActiveBuslaneHandler]
+
+///|
+priv struct ActiveBuslaneHandler {
+  id : Int
+  handle : @buslane.HandleExpr
+  environment : BuslaneRuntimeEnvironment
+}
+
+///|
+priv enum Kont {
+  DoneKont
+  LetKont(
+    id~ : @buslane.ValueId,
+    body~ : @buslane.Expr,
+    environment~ : BuslaneRuntimeEnvironment,
+    handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+  CallCalleeKont(
+    arguments~ : Array[@buslane.Expr],
+    environment~ : BuslaneRuntimeEnvironment,
+    handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+  CallArgumentKont(
+    callee~ : BuslaneRuntimeValue,
+    arguments~ : Array[@buslane.Expr],
+    index~ : Int,
+    values~ : Array[BuslaneRuntimeValue],
+    environment~ : BuslaneRuntimeEnvironment,
+    handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+  TypeApplyKont(handlers~ : BuslaneHandlerStack, next~ : Kont)
+  ApplyErasedFunctionKont(
+    arguments~ : Array[BuslaneRuntimeValue],
+    handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+  ConstructKont(
+    construct~ : @buslane.ConstructExpr,
+    index~ : Int,
+    values~ : Array[BuslaneRuntimeValue],
+    environment~ : BuslaneRuntimeEnvironment,
+    handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+  PerformPayloadKont(
+    perform~ : @buslane.PerformExpr,
+    index~ : Int,
+    values~ : Array[BuslaneRuntimeValue],
+    environment~ : BuslaneRuntimeEnvironment,
+    handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+  MatchKont(
+    match_~ : @buslane.MatchExpr,
+    environment~ : BuslaneRuntimeEnvironment,
+    handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+  HandleBodyKont(
+    id~ : Int,
+    handle~ : @buslane.HandleExpr,
+    environment~ : BuslaneRuntimeEnvironment,
+    outer_handlers~ : BuslaneHandlerStack,
+    next~ : Kont
+  )
+}
+
+///|
+priv struct KontSplit {
+  captured : Kont
+  outer : Kont
+}
+
+///|
+priv struct OperationDispatch {
+  handler_index : Int
+  handler : ActiveBuslaneHandler
+  alternative : @buslane.OperationAlternative
+}
+
+///|
 fn evaluate_buslane_expr(
   expr : @buslane.Expr,
   environment : BuslaneRuntimeEnvironment,
   externals : BuslaneExternalRuntime,
 ) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
+  evaluate_buslane_expr_kont(expr, environment, externals, [], DoneKont)
+}
+
+///|
+fn evaluate_buslane_expr_kont(
+  expr : @buslane.Expr,
+  environment : BuslaneRuntimeEnvironment,
+  externals : BuslaneExternalRuntime,
+  handlers : BuslaneHandlerStack,
+  kont : Kont,
+) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
   match expr {
-    Ref(id) => environment.lookup(id)
-    Literal(literal) => evaluate_buslane_literal(literal)
+    Ref(id) => apply_buslane_kont(environment.lookup(id), externals, kont)
+    Literal(literal) =>
+      apply_buslane_kont(evaluate_buslane_literal(literal), externals, kont)
     Function(function) =>
-      BuslaneRuntimeValue::runtime(
-        Closure(
-          parameters=function.parameters,
-          body=function.body,
-          environment~,
+      apply_buslane_kont(
+        BuslaneRuntimeValue::runtime(
+          Closure(
+            parameters=function.parameters,
+            body=function.body,
+            environment~,
+          ),
         ),
+        externals,
+        kont,
       )
     Call(callee, arguments) =>
-      evaluate_buslane_call(callee, arguments, environment, externals)
-    TypeLambda(_, body) =>
-      BuslaneRuntimeValue::runtime(TypeClosure(body~, environment~))
-    TypeApply(callee, _) =>
-      erase_buslane_type_application(
-        evaluate_buslane_expr(callee, environment, externals),
+      evaluate_buslane_expr_kont(
+        callee,
+        environment,
         externals,
+        handlers,
+        CallCalleeKont(arguments~, environment~, handlers~, next=kont),
+      )
+    TypeLambda(_, body) =>
+      apply_buslane_kont(
+        BuslaneRuntimeValue::runtime(TypeClosure(body~, environment~)),
+        externals,
+        kont,
+      )
+    TypeApply(callee, _) =>
+      evaluate_buslane_expr_kont(
+        callee,
+        environment,
+        externals,
+        handlers,
+        TypeApplyKont(handlers~, next=kont),
       )
     Construct(construct) =>
-      BuslaneRuntimeValue::runtime(
-        Data(
-          data_constructor=construct.data_constructor,
-          arguments=construct.payloads.map(fn(
-            payload,
-          ) raise BuslaneRuntimeError {
-            evaluate_buslane_expr(payload, environment, externals)
-          }),
-        ),
+      if construct.payloads.is_empty() {
+        apply_buslane_kont(
+          BuslaneRuntimeValue::runtime(
+            Data(data_constructor=construct.data_constructor, arguments=[]),
+          ),
+          externals,
+          kont,
+        )
+      } else {
+        evaluate_buslane_expr_kont(
+          construct.payloads[0],
+          environment,
+          externals,
+          handlers,
+          ConstructKont(
+            construct~,
+            index=0,
+            values=[],
+            environment~,
+            handlers~,
+            next=kont,
+          ),
+        )
+      }
+    Let(id, initializer, body) =>
+      evaluate_buslane_expr_kont(
+        initializer,
+        environment,
+        externals,
+        handlers,
+        LetKont(id~, body~, environment~, handlers~, next=kont),
       )
-    Let(id, initializer, body) => {
-      let frame = environment.child()
-      let value = evaluate_buslane_expr(initializer, environment, externals)
-      frame.bind(id, value)
-      evaluate_buslane_expr(body, frame, externals)
-    }
     LetRec(bindings, body) => {
       let frame = environment.child()
       bind_buslane_recursive_group(bindings, frame)
-      evaluate_buslane_expr(body, frame, externals)
+      evaluate_buslane_expr_kont(body, frame, externals, handlers, kont)
     }
-    Match(match_) => evaluate_buslane_match(match_, environment, externals)
+    Match(match_) =>
+      evaluate_buslane_expr_kont(
+        match_.scrutinee,
+        environment,
+        externals,
+        handlers,
+        MatchKont(match_~, environment~, handlers~, next=kont),
+      )
+    Perform(perform) =>
+      if perform.payloads.is_empty() {
+        dispatch_buslane_perform(perform, [], externals, handlers, kont)
+      } else {
+        evaluate_buslane_expr_kont(
+          perform.payloads[0],
+          environment,
+          externals,
+          handlers,
+          PerformPayloadKont(
+            perform~,
+            index=0,
+            values=[],
+            environment~,
+            handlers~,
+            next=kont,
+          ),
+        )
+      }
+    Handle(handle) => {
+      let id = handlers.length()
+      let active = ActiveBuslaneHandler::{ id, handle, environment }
+      let next_handlers = handlers.copy()
+      next_handlers.push(active)
+      evaluate_buslane_expr_kont(
+        handle.body,
+        environment,
+        externals,
+        next_handlers,
+        HandleBodyKont(
+          id~,
+          handle~,
+          environment~,
+          outer_handlers=handlers,
+          next=kont,
+        ),
+      )
+    }
+    Resume(id) => apply_buslane_kont(environment.lookup(id), externals, kont)
+  }
+}
+
+///|
+fn apply_buslane_kont(
+  value : BuslaneRuntimeValue,
+  externals : BuslaneExternalRuntime,
+  kont : Kont,
+) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
+  match kont {
+    DoneKont => value
+    LetKont(id~, body~, environment~, handlers~, next~) => {
+      let frame = environment.child()
+      frame.bind(id, value)
+      evaluate_buslane_expr_kont(body, frame, externals, handlers, next)
+    }
+    CallCalleeKont(arguments~, environment~, handlers~, next~) =>
+      if arguments.is_empty() {
+        apply_buslane_function(value, [], externals, handlers, next)
+      } else {
+        evaluate_buslane_expr_kont(
+          arguments[0],
+          environment,
+          externals,
+          handlers,
+          CallArgumentKont(
+            callee=value,
+            arguments~,
+            index=0,
+            values=[],
+            environment~,
+            handlers~,
+            next~,
+          ),
+        )
+      }
+    CallArgumentKont(
+      callee~,
+      arguments~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) => {
+      let next_values = values.copy()
+      next_values.push(value)
+      let next_index = index + 1
+      if next_index == arguments.length() {
+        apply_buslane_function(callee, next_values, externals, handlers, next)
+      } else {
+        evaluate_buslane_expr_kont(
+          arguments[next_index],
+          environment,
+          externals,
+          handlers,
+          CallArgumentKont(
+            callee~,
+            arguments~,
+            index=next_index,
+            values=next_values,
+            environment~,
+            handlers~,
+            next~,
+          ),
+        )
+      }
+    }
+    TypeApplyKont(handlers~, next~) =>
+      erase_buslane_type_application(value, externals, handlers, next)
+    ApplyErasedFunctionKont(arguments~, handlers~, next~) =>
+      apply_buslane_function(value, arguments, externals, handlers, next)
+    ConstructKont(construct~, index~, values~, environment~, handlers~, next~) => {
+      let next_values = values.copy()
+      next_values.push(value)
+      let next_index = index + 1
+      if next_index == construct.payloads.length() {
+        apply_buslane_kont(
+          BuslaneRuntimeValue::runtime(
+            Data(
+              data_constructor=construct.data_constructor,
+              arguments=next_values,
+            ),
+          ),
+          externals,
+          next,
+        )
+      } else {
+        evaluate_buslane_expr_kont(
+          construct.payloads[next_index],
+          environment,
+          externals,
+          handlers,
+          ConstructKont(
+            construct~,
+            index=next_index,
+            values=next_values,
+            environment~,
+            handlers~,
+            next~,
+          ),
+        )
+      }
+    }
+    PerformPayloadKont(
+      perform~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) => {
+      let next_values = values.copy()
+      next_values.push(value)
+      let next_index = index + 1
+      if next_index == perform.payloads.length() {
+        dispatch_buslane_perform(
+          perform, next_values, externals, handlers, next,
+        )
+      } else {
+        evaluate_buslane_expr_kont(
+          perform.payloads[next_index],
+          environment,
+          externals,
+          handlers,
+          PerformPayloadKont(
+            perform~,
+            index=next_index,
+            values=next_values,
+            environment~,
+            handlers~,
+            next~,
+          ),
+        )
+      }
+    }
+    MatchKont(match_~, environment~, handlers~, next~) => {
+      for alternative in match_.alternatives {
+        let branch = environment.child()
+        branch.bind(match_.binder, value)
+        if bind_buslane_alternative(alternative, value, branch) {
+          return evaluate_buslane_expr_kont(
+            alternative.body,
+            branch,
+            externals,
+            handlers,
+            next,
+          )
+        }
+      }
+      raise InvalidValue(message="non-exhaustive Buslane match reached runtime")
+    }
+    HandleBodyKont(handle~, environment~, outer_handlers~, next~, ..) => {
+      let frame = environment.child()
+      frame.bind(handle.result_binder, value)
+      evaluate_buslane_expr_kont(
+        handle.final_body,
+        frame,
+        externals,
+        outer_handlers,
+        next,
+      )
+    }
   }
 }
 
@@ -136,24 +475,12 @@ fn evaluate_buslane_literal(literal : @buslane.Literal) -> BuslaneRuntimeValue {
 }
 
 ///|
-fn evaluate_buslane_call(
-  callee : @buslane.Expr,
-  arguments : Array[@buslane.Expr],
-  environment : BuslaneRuntimeEnvironment,
-  externals : BuslaneExternalRuntime,
-) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
-  let callee_value = evaluate_buslane_expr(callee, environment, externals)
-  let argument_values = arguments.map(fn(argument) raise BuslaneRuntimeError {
-    evaluate_buslane_expr(argument, environment, externals)
-  })
-  apply_buslane_function(callee_value, argument_values, externals)
-}
-
-///|
 fn apply_buslane_function(
   callee : BuslaneRuntimeValue,
   arguments : Array[BuslaneRuntimeValue],
   externals : BuslaneExternalRuntime,
+  handlers : BuslaneHandlerStack,
+  kont : Kont,
 ) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
   match callee.kind {
     Closure(parameters~, body~, environment~) => {
@@ -164,14 +491,105 @@ fn apply_buslane_function(
       for index in 0..<parameters.length() {
         frame.bind(parameters[index], arguments[index])
       }
-      evaluate_buslane_expr(body, frame, externals)
+      evaluate_buslane_expr_kont(body, frame, externals, handlers, kont)
     }
-    TypeClosure(..) => {
-      let erased = erase_buslane_type_application(callee, externals)
-      apply_buslane_function(erased, arguments, externals)
+    TypeClosure(..) =>
+      erase_buslane_type_application(
+        callee,
+        externals,
+        handlers,
+        ApplyErasedFunctionKont(arguments~, handlers~, next=kont),
+      )
+    NativeFunction(handler) =>
+      apply_buslane_kont(handler(arguments), externals, kont)
+    ResumeContinuation(resume_continuation) => {
+      if arguments.length() != 1 {
+        raise InvalidValue(message="resume argument count mismatch")
+      }
+      apply_buslane_kont(
+        arguments[0],
+        externals,
+        append_kont(resume_continuation.kont, kont),
+      )
     }
-    NativeFunction(handler) => handler(arguments)
     _ => raise InvalidValue(message="callee is not callable")
+  }
+}
+
+///|
+fn append_kont(kont : Kont, tail : Kont) -> Kont {
+  match kont {
+    DoneKont => tail
+    LetKont(id~, body~, environment~, handlers~, next~) =>
+      LetKont(id~, body~, environment~, handlers~, next=append_kont(next, tail))
+    CallCalleeKont(arguments~, environment~, handlers~, next~) =>
+      CallCalleeKont(
+        arguments~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    CallArgumentKont(
+      callee~,
+      arguments~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) =>
+      CallArgumentKont(
+        callee~,
+        arguments~,
+        index~,
+        values~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    TypeApplyKont(handlers~, next~) =>
+      TypeApplyKont(handlers~, next=append_kont(next, tail))
+    ApplyErasedFunctionKont(arguments~, handlers~, next~) =>
+      ApplyErasedFunctionKont(
+        arguments~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    ConstructKont(construct~, index~, values~, environment~, handlers~, next~) =>
+      ConstructKont(
+        construct~,
+        index~,
+        values~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    PerformPayloadKont(
+      perform~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) =>
+      PerformPayloadKont(
+        perform~,
+        index~,
+        values~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    MatchKont(match_~, environment~, handlers~, next~) =>
+      MatchKont(match_~, environment~, handlers~, next=append_kont(next, tail))
+    HandleBodyKont(id~, handle~, environment~, outer_handlers~, next~) =>
+      HandleBodyKont(
+        id~,
+        handle~,
+        environment~,
+        outer_handlers~,
+        next=append_kont(next, tail),
+      )
   }
 }
 
@@ -179,34 +597,243 @@ fn apply_buslane_function(
 fn erase_buslane_type_application(
   callee : BuslaneRuntimeValue,
   externals : BuslaneExternalRuntime,
+  handlers : BuslaneHandlerStack,
+  kont : Kont,
 ) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
   match callee.kind {
     TypeClosure(body~, environment~) =>
-      evaluate_buslane_expr(body, environment, externals)
-    Closure(..) | NativeFunction(_) | External(_) => callee
+      evaluate_buslane_expr_kont(body, environment, externals, handlers, kont)
+    Closure(..) | NativeFunction(_) | ResumeContinuation(_) | External(_) =>
+      apply_buslane_kont(callee, externals, kont)
     _ => raise InvalidValue(message="type application target is invalid")
   }
 }
 
 ///|
-fn evaluate_buslane_match(
-  match_ : @buslane.MatchExpr,
-  environment : BuslaneRuntimeEnvironment,
+fn dispatch_buslane_perform(
+  perform : @buslane.PerformExpr,
+  payloads : Array[BuslaneRuntimeValue],
   externals : BuslaneExternalRuntime,
+  handlers : BuslaneHandlerStack,
+  kont : Kont,
 ) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
-  let scrutinee = evaluate_buslane_expr(
-    match_.scrutinee,
-    environment,
-    externals,
+  guard find_operation_dispatch(handlers, perform.operation) is Some(dispatch) else {
+    raise UnhandledOperation(perform.operation)
+  }
+  guard split_kont_at_handler(kont, dispatch.handler.id) is Some(split) else {
+    raise InvalidValue(message="handler delimiter is not in continuation")
+  }
+  let arm_environment = dispatch.handler.environment.child()
+  for index in 0..<dispatch.alternative.payload_binders.length() {
+    arm_environment.bind(
+      dispatch.alternative.payload_binders[index],
+      payloads[index],
+    )
+  }
+  arm_environment.bind(
+    dispatch.alternative.resume_binder,
+    BuslaneRuntimeValue::resume_continuation(split.captured),
   )
-  for alternative in match_.alternatives {
-    let branch = environment.child()
-    branch.bind(match_.binder, scrutinee)
-    if bind_buslane_alternative(alternative, scrutinee, branch) {
-      return evaluate_buslane_expr(alternative.body, branch, externals)
+  evaluate_buslane_expr_kont(
+    dispatch.alternative.body,
+    arm_environment,
+    externals,
+    handler_stack_prefix(handlers, dispatch.handler_index),
+    split.outer,
+  )
+}
+
+///|
+fn split_kont_at_handler(kont : Kont, handler_id : Int) -> KontSplit? {
+  match kont {
+    DoneKont => None
+    LetKont(id~, body~, environment~, handlers~, next~) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: LetKont(
+            id~,
+            body~,
+            environment~,
+            handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    CallCalleeKont(arguments~, environment~, handlers~, next~) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: CallCalleeKont(
+            arguments~,
+            environment~,
+            handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    CallArgumentKont(
+      callee~,
+      arguments~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: CallArgumentKont(
+            callee~,
+            arguments~,
+            index~,
+            values~,
+            environment~,
+            handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    TypeApplyKont(handlers~, next~) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: TypeApplyKont(handlers~, next=split.captured),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    ApplyErasedFunctionKont(arguments~, handlers~, next~) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: ApplyErasedFunctionKont(
+            arguments~,
+            handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    ConstructKont(construct~, index~, values~, environment~, handlers~, next~) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: ConstructKont(
+            construct~,
+            index~,
+            values~,
+            environment~,
+            handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    PerformPayloadKont(
+      perform~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: PerformPayloadKont(
+            perform~,
+            index~,
+            values~,
+            environment~,
+            handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    MatchKont(match_~, environment~, handlers~, next~) =>
+      if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: MatchKont(
+            match_~,
+            environment~,
+            handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+    HandleBodyKont(id~, handle~, environment~, outer_handlers~, next~) =>
+      if id == handler_id {
+        Some({
+          captured: HandleBodyKont(
+            id~,
+            handle~,
+            environment~,
+            outer_handlers~,
+            next=DoneKont,
+          ),
+          outer: next,
+        })
+      } else if split_kont_at_handler(next, handler_id) is Some(split) {
+        Some({
+          captured: HandleBodyKont(
+            id~,
+            handle~,
+            environment~,
+            outer_handlers~,
+            next=split.captured,
+          ),
+          outer: split.outer,
+        })
+      } else {
+        None
+      }
+  }
+}
+
+///|
+fn find_operation_dispatch(
+  handlers : BuslaneHandlerStack,
+  operation : @buslane.OperationId,
+) -> OperationDispatch? {
+  for offset in 0..<handlers.length() {
+    let index = handlers.length() - offset - 1
+    let handler = handlers[index]
+    for table in handler.handle.handlers {
+      for alternative in table.operations {
+        if alternative.operation == operation {
+          return Some({ handler_index: index, handler, alternative })
+        }
+      }
     }
   }
-  raise InvalidValue(message="non-exhaustive Buslane match reached runtime")
+  None
+}
+
+///|
+fn handler_stack_prefix(
+  handlers : BuslaneHandlerStack,
+  length : Int,
+) -> BuslaneHandlerStack {
+  let prefix = []
+  for index in 0..<length {
+    prefix.push(handlers[index])
+  }
+  prefix
 }
 
 ///|

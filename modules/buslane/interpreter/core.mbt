@@ -15,6 +15,7 @@ enum BuslaneRuntimeValueKind {
   )
   TypeClosure(body~ : @buslane.Expr, environment~ : BuslaneRuntimeEnvironment)
   NativeFunction(BuslaneNativeFunction)
+  ResumeContinuation(BuslaneResumeContinuation)
   External(@buslane.ValueId)
 }
 
@@ -43,12 +44,18 @@ pub suberror BuslaneRuntimeError {
   InvalidProgram(Array[@buslane.VerifyDiagnostic])
   UnboundValue(@buslane.ValueId)
   MissingExternal(@buslane.ValueId)
+  UnhandledOperation(@buslane.OperationId)
   ExternalFailure(id~ : @buslane.ValueId, message~ : String)
   InvalidValue(message~ : String)
 } derive(Debug, Eq)
 
 ///|
 pub type BuslaneNativeFunction = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+
+///|
+priv struct BuslaneResumeContinuation {
+  kont : Kont
+}
 
 ///|
 pub type BuslaneExternalResolver = (@buslane.ValueId, @buslane.Type) -> BuslaneRuntimeValue raise BuslaneRuntimeError
@@ -128,7 +135,8 @@ pub fn BuslaneRuntimeValue::as_string(self : BuslaneRuntimeValue) -> String? {
 /// Returns whether this runtime value behaves as a callable value.
 pub fn BuslaneRuntimeValue::is_function(self : BuslaneRuntimeValue) -> Bool {
   match self.kind {
-    Closure(..) | TypeClosure(..) | NativeFunction(_) => true
+    Closure(..) | TypeClosure(..) | NativeFunction(_) | ResumeContinuation(_) =>
+      true
     _ => false
   }
 }
@@ -163,6 +171,11 @@ fn BuslaneRuntimeValue::runtime(
   kind : BuslaneRuntimeValueKind,
 ) -> BuslaneRuntimeValue {
   { kind, }
+}
+
+///|
+fn BuslaneRuntimeValue::resume_continuation(kont : Kont) -> BuslaneRuntimeValue {
+  { kind: ResumeContinuation({ kont, }) }
 }
 
 ///|

@@ -17,6 +17,37 @@ fn PatternMatrix::add(
 }
 
 ///|
+fn PatternMatrix::add_row(
+  self : PatternMatrix,
+  patterns : Array[@checked.CheckedPattern],
+) -> Unit {
+  self.rows.push(patterns)
+}
+
+///|
+fn PatternMatrix::is_row_useful(
+  self : PatternMatrix,
+  declarations : CheckedDeclarationEnvironment,
+  patterns : Array[@checked.CheckedPattern],
+  types : Array[@types.Type],
+) -> Bool {
+  matrix_useful(declarations, self.rows, patterns, types)
+}
+
+///|
+fn PatternMatrix::is_row_exhaustive(
+  self : PatternMatrix,
+  declarations : CheckedDeclarationEnvironment,
+  types : Array[@types.Type],
+) -> Bool {
+  if types.any(fn(type_) { type_ is Error }) {
+    true
+  } else {
+    !matrix_useful(declarations, self.rows, wildcard_patterns(types), types)
+  }
+}
+
+///|
 fn SemanticChecker::check_match(
   self : SemanticChecker,
   scope : TypeScope,
@@ -785,7 +816,7 @@ fn complete_constructor_signatures(
     | Constructor(_)
     | Apply(_, _)
     | TypeLambda(_, _)
-    | Function(_, _)
+    | Function(_, _, _)
     | Forall(_, _) => None
   }
 }

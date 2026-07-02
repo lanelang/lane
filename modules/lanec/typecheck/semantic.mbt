@@ -151,6 +151,7 @@ fn SemanticChecker::collect_top_level_function_type(
     declaration.type_parameters,
     declaration.parameters,
     declaration.return_type,
+    declaration.effect,
   )
   let parameters = declaration.parameters.map(fn(parameter) {
     self.checked_value_parameter(parameter)
@@ -217,6 +218,11 @@ fn SemanticChecker::check_top_level_function(
     declaration.body,
     self.check_type(declaration.return_type),
   )
+  self.expect_effect(
+    self.check_effect(declaration.effect),
+    self.synthesize_expr_effect(scope, declaration.body),
+    declaration.body.loc(),
+  )
 }
 
 ///|
@@ -230,6 +236,14 @@ fn SemanticChecker::check_top_level_let(
       None => self.check_type(type_annotation)
     }
     self.check_expr(self.ordered_root_scope(), declaration.initializer, type_)
+    self.expect_effect(
+      Empty,
+      self.synthesize_expr_effect(
+        self.ordered_root_scope(),
+        declaration.initializer,
+      ),
+      declaration.initializer.loc(),
+    )
     type_
   } else {
     self.diagnostics.push({
@@ -264,6 +278,14 @@ fn SemanticChecker::check_top_level_offer(
     None => self.check_type(declaration.type_annotation)
   }
   self.check_expr(self.ordered_root_scope(), declaration.initializer, type_)
+  self.expect_effect(
+    Empty,
+    self.synthesize_expr_effect(
+      self.ordered_root_scope(),
+      declaration.initializer,
+    ),
+    declaration.initializer.loc(),
+  )
   self.ordered_value_types.push({
     symbol: declaration.symbol,
     type_,
@@ -292,12 +314,17 @@ fn SemanticChecker::function_type(
   type_parameters : Array[@resolve.ResolvedTypeParameter],
   parameters : Array[@resolve.ResolvedValueParameter],
   return_type : @resolve.ResolvedType,
+  effect : @resolve.ResolvedEffectTerm,
 ) -> @types.Type {
   let parameters = parameters.map(fn(parameter) {
     self.check_type(parameter.type_)
   })
   let result = self.check_type(return_type)
-  let type_ = @types.Type::Function(parameters, result)
+  let type_ = @types.Type::Function(
+    parameters,
+    result,
+    self.check_effect(effect),
+  )
   if type_parameters.is_empty() {
     type_
   } else {

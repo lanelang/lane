@@ -159,7 +159,7 @@ test "pretty prints ANF existential package and opening" {
         ],
         return_type: hide_type,
         body,
-        type_: Function([hide_type], hide_type),
+        type_: Function([hide_type], hide_type, Empty),
         loc: loc(),
       }),
     ],
@@ -296,7 +296,7 @@ test "lower buslane function call to ANF" {
   let result = metadata.define_value(Value, Primitive(Int))
   let function = metadata.define_value(
     Function,
-    Function([Primitive(Int)], Primitive(Int)),
+    Function([Primitive(Int)], Primitive(Int), Empty),
   )
   let parameter = metadata.define_value(Parameter, Primitive(Int))
   let program = @buslane.Program::{

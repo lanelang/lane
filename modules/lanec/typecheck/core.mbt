@@ -24,6 +24,8 @@ pub(all) struct CheckedDeclarationEnvironment {
   type_members : Array[CheckedTypeMemberDeclaration]
   fields : Array[CheckedFieldDeclaration]
   variants : Array[CheckedVariantDeclaration]
+  effects : Array[CheckedEffectDeclaration]
+  operations : Array[CheckedEffectOperationDeclaration]
 } derive(Debug, Eq)
 
 ///|
@@ -35,6 +37,7 @@ pub(all) struct CheckedValueEnvironment {
 pub(all) enum CheckedTypeDeclaration {
   Struct(CheckedStructDeclaration)
   Enum(CheckedEnumDeclaration)
+  Effect(CheckedEffectDeclaration)
 } derive(Debug, Eq)
 
 ///|
@@ -95,6 +98,27 @@ pub(all) struct CheckedVariantDeclaration {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CheckedEffectDeclaration {
+  is_public : Bool
+  symbol : EffectSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  operations : Array[CheckedEffectOperationDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedEffectOperationDeclaration {
+  symbol : OperationSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[@types.TypeParameter]
+  payload : Array[@types.Type]
+  result : @types.Type
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct CheckedFunctionDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
@@ -128,6 +152,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   TypeAliasCycle(name~ : String)
   KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)
   TypeMismatch(expected~ : @types.Type, actual~ : @types.Type)
+  EffectMismatch(expected~ : @types.Effect, actual~ : @types.Effect)
   NotCallable(@types.Type)
   UnknownField(name~ : String)
   MissingField(name~ : String)
@@ -139,6 +164,9 @@ pub(all) enum TypeCheckDiagnosticKind {
   NotAStruct(@types.Type)
   NonExhaustiveMatch(@types.Type)
   UnreachableMatchArm
+  MixedHandlerEffects
+  DuplicateHandledEffect(@types.Effect)
+  MissingHandlerOperation(OperationSymbolId)
   DuplicatePatternBinder(name~ : String)
   PatternArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
   HiddenTypeEscape(type_~ : @types.Type)

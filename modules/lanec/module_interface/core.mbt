@@ -7,6 +7,7 @@ pub(all) struct ImportedEnvironment {
 pub(all) struct ModuleInterface {
   module_path : String
   types : Array[ModuleInterfaceType]
+  effects : Array[ModuleInterfaceEffect]
   type_aliases : Array[ModuleInterfaceTypeAlias]
   values : Array[ModuleInterfaceValue]
   optimization_hints : Array[OptimizationHint]
@@ -64,6 +65,26 @@ pub(all) struct ModuleInterfaceVariant {
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleInterfaceEffect {
+  symbol : EffectSymbolId
+  name : String
+  type_parameters : Array[@types.TypeParameter]
+  operations : Array[ModuleInterfaceOperation]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleInterfaceOperation {
+  symbol : OperationSymbolId
+  name : String
+  index : Int
+  type_parameters : Array[@types.TypeParameter]
+  payload : Array[@types.Type]
+  result : @types.Type
   loc : SourceSpan
 } derive(Debug, Eq)
 

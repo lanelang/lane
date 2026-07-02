@@ -68,6 +68,7 @@ fn SemanticChecker::check_checked_top_level_declaration(
   match declaration {
     Struct(declaration) => self.checked_top_level_struct(declaration)
     Enum(declaration) => self.checked_top_level_enum(declaration)
+    Effect(declaration) => self.checked_top_level_effect(declaration)
     Function(declaration) => self.checked_top_level_function(declaration)
     Let(declaration) => self.checked_top_level_let(declaration)
     Offer(declaration) => self.checked_top_level_offer(declaration)
@@ -105,6 +106,21 @@ fn SemanticChecker::checked_top_level_enum(
 }
 
 ///|
+fn SemanticChecker::checked_top_level_effect(
+  self : SemanticChecker,
+  declaration : @resolve.ResolvedEffectDeclaration,
+) -> @checked.CheckedTopLevelDeclaration? {
+  guard self.declarations.checked_effect(declaration.symbol) is Some(checked) else {
+    self.diagnostics.push({
+      kind: CannotInferExpression("checked effect " + declaration.name),
+      loc: declaration.loc,
+    })
+    return None
+  }
+  Some(Effect(checked.to_checked_effect_declaration()))
+}
+
+///|
 fn SemanticChecker::checked_top_level_function(
   self : SemanticChecker,
   declaration : @desugar.DesugaredFunctionDeclaration,
@@ -130,6 +146,8 @@ fn SemanticChecker::checked_top_level_function(
     declaration.body,
     return_type,
   )
+  let effect = self.check_effect(declaration.effect)
+  self.expect_effect(effect, checked_body.effect, declaration.body.loc())
   guard self.require_checked_expression(
       checked_body,
       declaration.body.loc(),
@@ -151,6 +169,7 @@ fn SemanticChecker::checked_top_level_function(
         declaration.type_parameters,
         declaration.parameters,
         declaration.return_type,
+        declaration.effect,
       ),
       loc: declaration.loc,
     }),
@@ -178,6 +197,11 @@ fn SemanticChecker::checked_top_level_let(
     self.ordered_root_scope(),
     declaration.initializer,
     type_,
+  )
+  self.expect_effect(
+    Empty,
+    checked_initializer.effect,
+    declaration.initializer.loc(),
   )
   self.ordered_value_types.push({
     symbol: declaration.symbol,
@@ -226,6 +250,11 @@ fn SemanticChecker::checked_top_level_offer(
     self.ordered_root_scope(),
     declaration.initializer,
     type_,
+  )
+  self.expect_effect(
+    Empty,
+    checked_initializer.effect,
+    declaration.initializer.loc(),
   )
   self.ordered_value_types.push({
     symbol: declaration.symbol,
@@ -371,6 +400,7 @@ fn SemanticChecker::check_checked_local_function(
     declaration.type_parameters,
     declaration.parameters,
     declaration.return_type,
+    declaration.effect,
   )
   scope.bind_function(
     declaration.symbol,
@@ -400,6 +430,8 @@ fn SemanticChecker::check_checked_local_function(
     declaration.body,
     return_type,
   )
+  let effect = self.check_effect(declaration.effect)
+  self.expect_effect(effect, checked_body.effect, declaration.body.loc())
   guard self.require_checked_expression(
       checked_body,
       declaration.body.loc(),
@@ -509,6 +541,37 @@ fn CheckedVariantDeclaration::to_checked_variant_declaration(
     index: self.index,
     type_parameters: self.type_parameters,
     payload: self.payload,
+    loc: self.loc,
+  }
+}
+
+///|
+fn CheckedEffectDeclaration::to_checked_effect_declaration(
+  self : CheckedEffectDeclaration,
+) -> @checked.CheckedEffectDeclaration {
+  {
+    symbol: self.symbol,
+    is_public: self.is_public,
+    name: self.name,
+    type_parameters: self.type_parameters,
+    operations: self.operations.map(
+      CheckedEffectOperationDeclaration::to_checked_effect_operation_declaration,
+    ),
+    loc: self.loc,
+  }
+}
+
+///|
+fn CheckedEffectOperationDeclaration::to_checked_effect_operation_declaration(
+  self : CheckedEffectOperationDeclaration,
+) -> @checked.CheckedEffectOperationDeclaration {
+  {
+    symbol: self.symbol,
+    name: self.name,
+    index: self.index,
+    type_parameters: self.type_parameters,
+    payload: self.payload,
+    result: self.result,
     loc: self.loc,
   }
 }

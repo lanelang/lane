@@ -34,9 +34,20 @@ pub impl @prettyprinter.Pretty for DataConId with fn pretty(id : DataConId) {
 }
 
 ///|
+pub impl @prettyprinter.Pretty for EffectId with fn pretty(id : EffectId) {
+  text("effect#\{id.index}")
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationId with fn pretty(id : OperationId) {
+  text("operation#\{id.index}")
+}
+
+///|
 pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
   match kind {
     Type => text("Type")
+    Effect => text("Effect")
     Function(parameters, result) =>
       bracketed_inline(parameters.map(Kind::pretty)) +
       space +
@@ -73,12 +84,8 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
       text("=>") +
       space +
       body.pretty()
-    Function(parameters, result) =>
-      parenthesized_inline(parameters.map(Type::pretty)) +
-      space +
-      text("->") +
-      space +
-      result.pretty()
+    Function(parameters, result, effect) =>
+      function_type_doc(parameters, result, effect)
     Forall(parameters, body) =>
       text("forall") +
       space +
@@ -86,6 +93,16 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
       text(".") +
       space +
       body.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
+  match effect {
+    Empty => text("{}")
+    Singleton(id, arguments) => id.pretty() + type_arguments_doc(arguments)
+    Parameter(parameter) => parameter.pretty()
+    Union(effects) => braced_inline(effects.map(Effect::pretty))
   }
 }
 
@@ -138,6 +155,30 @@ pub impl @prettyprinter.Pretty for DataConInfo with fn pretty(
   text("datacon") +
   type_parameters_doc(info.hidden_type_parameters) +
   parenthesized_inline(info.payload_types.map(Type::pretty)) +
+  space +
+  text(":") +
+  space +
+  info.owner.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for EffectInfo with fn pretty(info : EffectInfo) {
+  text("effect") +
+  type_parameters_doc(info.parameters) +
+  space +
+  braced_block(info.operations.map(OperationId::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationInfo with fn pretty(
+  info : OperationInfo,
+) {
+  text("operation") +
+  parenthesized_inline(info.payload_types.map(Type::pretty)) +
+  space +
+  text("->") +
+  space +
+  info.result_type.pretty() +
   space +
   text(":") +
   space +
@@ -221,6 +262,9 @@ pub impl @prettyprinter.Pretty for Expr with fn pretty(expr : Expr) {
       line +
       body.pretty()
     Match(match_) => match_.pretty()
+    Perform(perform) => perform.pretty()
+    Handle(handle) => handle.pretty()
+    Resume(id) => text("resume") + space + id.pretty()
   }
 }
 
@@ -265,6 +309,64 @@ pub impl @prettyprinter.Pretty for MatchExpr with fn pretty(match_ : MatchExpr) 
   match_.result_type.pretty() +
   space +
   braced_block(match_.alternatives.map(Alternative::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for PerformExpr with fn pretty(
+  perform : PerformExpr,
+) {
+  text("perform") +
+  space +
+  perform.operation.pretty() +
+  type_arguments_doc(perform.type_arguments) +
+  parenthesized_inline(perform.payloads.map(Expr::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for HandleExpr with fn pretty(
+  handle : HandleExpr,
+) {
+  text("handle") +
+  space +
+  handle.body.pretty() +
+  space +
+  text("as") +
+  space +
+  handle.result_binder.pretty() +
+  space +
+  text("->") +
+  space +
+  handle.result_type.pretty() +
+  space +
+  braced_block(
+    handle.handlers.map(HandlerTable::pretty) +
+    [text("final") + space + text("=>") + space + handle.final_body.pretty()],
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for HandlerTable with fn pretty(
+  table : HandlerTable,
+) {
+  table.handled_effect.pretty() +
+  space +
+  braced_block(table.operations.map(OperationAlternative::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for OperationAlternative with fn pretty(
+  alternative : OperationAlternative,
+) {
+  alternative.operation.pretty() +
+  parenthesized_inline(alternative.payload_binders.map(ValueId::pretty)) +
+  space +
+  text("resume") +
+  space +
+  alternative.resume_binder.pretty() +
+  space +
+  text("=>") +
+  space +
+  alternative.body.pretty()
 }
 
 ///|
@@ -314,6 +416,8 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
     UnknownValue(id) => text("unknown_value") + space + id.pretty()
     UnknownDataConstructor(id) =>
       text("unknown_data_constructor") + space + id.pretty()
+    UnknownEffect(id) => text("unknown_effect") + space + id.pretty()
+    UnknownOperation(id) => text("unknown_operation") + space + id.pretty()
     KindMismatch(expected~, actual~) =>
       text("kind_mismatch") +
       space +
@@ -323,6 +427,13 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
       ])
     TypeMismatch(expected~, actual~) =>
       text("type_mismatch") +
+      space +
+      braced_block([
+        text("expected ") + expected.pretty(),
+        text("actual ") + actual.pretty(),
+      ])
+    EffectMismatch(expected~, actual~) =>
+      text("effect_mismatch") +
       space +
       braced_block([
         text("expected ") + expected.pretty(),
@@ -350,6 +461,23 @@ fn type_arguments_doc(arguments : Array[Type]) -> Document {
     empty
   } else {
     bracketed_inline(arguments.map(Type::pretty))
+  }
+}
+
+///|
+fn function_type_doc(
+  parameters : Array[Type],
+  result : Type,
+  effect : Effect,
+) -> Document {
+  let base = parenthesized_inline(parameters.map(Type::pretty)) +
+    space +
+    text("->") +
+    space +
+    result.pretty()
+  match effect {
+    Empty => base
+    _ => base + space + text("!") + space + effect.pretty()
   }
 }
 
@@ -398,6 +526,11 @@ fn metadata_declarations(metadata : MetadataRegistry) -> Array[Document] {
   }
   for index in 0..<metadata.values.length() {
     declarations.push(value_declaration({ index, }, metadata.values[index]))
+  }
+  for index in 0..<metadata.effects.length() {
+    declarations.push(
+      effect_declaration(metadata, { index, }, metadata.effects[index]),
+    )
   }
   declarations
 }
@@ -456,6 +589,37 @@ fn data_constructor_declaration(id : DataConId, info : DataConInfo) -> Document 
 }
 
 ///|
+fn effect_declaration(
+  metadata : MetadataRegistry,
+  id : EffectId,
+  info : EffectInfo,
+) -> Document {
+  text("effect") +
+  space +
+  id.pretty() +
+  type_parameters_doc(info.parameters) +
+  space +
+  braced_block(
+    info.operations.map(fn(operation) {
+      match metadata.operation_info(operation) {
+        Some(info) => operation_declaration(operation, info)
+        None => operation.pretty()
+      }
+    }),
+  )
+}
+
+///|
+fn operation_declaration(id : OperationId, info : OperationInfo) -> Document {
+  id.pretty() +
+  parenthesized_inline(info.payload_types.map(Type::pretty)) +
+  space +
+  text("->") +
+  space +
+  info.result_type.pretty()
+}
+
+///|
 fn alternative_pattern_doc(alternative : Alternative) -> Document {
   match alternative.alt_constructor {
     Default => text("_")
@@ -475,6 +639,11 @@ fn parenthesized_inline(docs : Array[Document]) -> Document {
 ///|
 fn bracketed_inline(docs : Array[Document]) -> Document {
   surround(char('['), char(']'), join_comma(docs))
+}
+
+///|
+fn braced_inline(docs : Array[Document]) -> Document {
+  surround(char('{'), char('}'), join_comma(docs))
 }
 
 ///|

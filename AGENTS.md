@@ -51,3 +51,16 @@ You can browse and install extra skills here:
   scientific computations), prefer assertion tests. You can use
   `moon coverage analyze > uncovered.log` to see which parts of your code are
   not covered by tests.
+
+- For structured outputs, prefer inspecting the whole value when it implements
+  `Debug` or can be rendered readably as a string. Do not assert structured
+  output by searching rendered strings, such as
+  `inspect(response.contains("\"status\":0"), content="true")`, and avoid
+  splitting a readable result into many narrow field assertions. Use
+  `inspect`, `debug_inspect`, or `json_inspect` on the complete value whenever
+  the whole output is small enough to review.
+
+- Prefer `if value is Pattern(binding)` for one-branch pattern checks whose
+  fallback is `()`. For example, write
+  `if diagnostic.source_id is Some(source_id) { ... }` instead of a `match`
+  with `Some(...) => ...` and `None => ()`.

@@ -82,6 +82,14 @@ fn tokens_from_string(
       let (id, next) = read_prefixed_id(input, index, "datacon#")
       tokens.push((DATACON_ID(id), ()))
       index = next
+    } else if starts_with(input, index, "effect#") {
+      let (id, next) = read_prefixed_id(input, index, "effect#")
+      tokens.push((EFFECT_ID(id), ()))
+      index = next
+    } else if starts_with(input, index, "operation#") {
+      let (id, next) = read_prefixed_id(input, index, "operation#")
+      tokens.push((OPERATION_ID(id), ()))
+      index = next
     } else if is_name_start(byte) {
       let (name, next) = read_name(input, index)
       tokens.push((keyword_token(name), ()))
@@ -103,22 +111,30 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "type_parameter" => TYPE_PARAMETER
     "value" => VALUE
     "datacon" => DATACON
+    "effect" => EFFECT_DECL
+    "operation" => OPERATION
     "parameters" => PARAMETERS
     "constructors" => CONSTRUCTORS
+    "operations" => OPERATIONS
     "owner" => OWNER
     "hidden" => HIDDEN
     "payload" => PAYLOAD
+    "result" => RESULT
     "function" => FUNCTION_KIND
     "external" => EXTERNAL
     "parameter" => PARAMETER_KIND
     "local" => LOCAL_KIND
     "match_binder" => MATCH_BINDER_KIND
     "Type" => TYPE_KIND
+    "Effect" => EFFECT_KIND
     "Unit" => UNIT_TYPE
     "Bool" => BOOL_TYPE
     "Int" => INT_TYPE
     "String" => STRING_TYPE
     "kind_fn" => KIND_FN
+    "empty_effect" => EMPTY_EFFECT
+    "effect_singleton" => EFFECT_SINGLETON
+    "effect_union" => EFFECT_UNION
     "apply" => APPLY
     "type_fn" => TYPE_FN
     "fn_type" => FN_TYPE
@@ -127,6 +143,12 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "letrec" => LETREC
     "fn" => FN
     "call" => CALL
+    "perform" => PERFORM
+    "handle" => HANDLE
+    "resume" => RESUME
+    "handler" => HANDLER
+    "op_alt" => OP_ALT
+    "final" => FINAL
     "type_apply" => TYPE_APPLY
     "construct" => CONSTRUCT
     "let_in" => LET_IN

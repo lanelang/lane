@@ -5,10 +5,17 @@ using @basic {type SourceSpan}
 using @syntax {
   type EnumDeclaration,
   type EnumVariant,
+  type EffectDeclaration,
+  type EffectOperationDeclaration,
+  type EffectOperationName,
+  type EffectTerm,
   type Expr,
   type FieldDeclaration,
   type FunctionDeclaration,
   type FunctionLiteralParameter,
+  type HandlerFinalBranch,
+  type HandlerOperationArm,
+  type HandlerWithBlock,
   type ImportDeclaration,
   type ImportItem,
   type Kind,
@@ -35,6 +42,19 @@ using @syntax {
 }
 
 ///|
+priv struct ReturnAnnotation {
+  return_type : Type?
+  effect : EffectTerm?
+}
+
+///|
+priv struct HandlerOperationArmParameters {
+  payload_patterns : Array[Pattern]
+  resume_binder : String
+  resume_loc : SourceSpan
+}
+
+///|
 fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
   SourceSpan::join(loc.0, loc.1)
 }
@@ -43,6 +63,14 @@ fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
 fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
   items.push(item)
   items
+}
+
+///|
+fn effect_or_empty(effect : EffectTerm?, result : Type) -> EffectTerm {
+  match effect {
+    Some(effect) => effect
+    None => Empty(loc=result.loc())
+  }
 }
 
 ///|

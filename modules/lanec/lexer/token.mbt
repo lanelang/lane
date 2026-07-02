@@ -9,6 +9,7 @@ pub(all) enum Token {
   TRUE
   STRUCT
   ENUM
+  EFFECT
   FN
   LET
   TYPE
@@ -17,6 +18,9 @@ pub(all) enum Token {
   IF
   ELSE
   MATCH
+  HANDLE
+  WITH
+  FINAL
   BUILTIN
   MODULE
   IMPORT

@@ -9,6 +9,9 @@ fn SemanticChecker::module_interface(
     types: checked_source.declarations.filter_map(fn(declaration) {
       self.interface_type(declaration)
     }),
+    effects: checked_source.declarations.filter_map(fn(declaration) {
+      self.interface_effect(declaration)
+    }),
     type_aliases: self.interface_type_aliases(),
     values: checked_source.declarations.filter_map(fn(declaration) {
       self.interface_value(declaration)
@@ -38,6 +41,56 @@ fn SemanticChecker::interface_type(
       Some(Enum(interface_enum(declaration)))
     }
     _ => None
+  }
+}
+
+///|
+fn SemanticChecker::interface_effect(
+  self : SemanticChecker,
+  declaration : @checked.CheckedTopLevelDeclaration,
+) -> @module_interface.ModuleInterfaceEffect? {
+  match declaration {
+    Effect(declaration) if declaration.is_public => {
+      for operation in declaration.operations {
+        for payload in operation.payload {
+          self.check_public_interface_type_fallback(payload, operation.loc)
+        }
+        self.check_public_interface_type_fallback(
+          operation.result,
+          operation.loc,
+        )
+      }
+      Some(interface_effect(declaration))
+    }
+    _ => None
+  }
+}
+
+///|
+fn interface_effect(
+  declaration : @checked.CheckedEffectDeclaration,
+) -> @module_interface.ModuleInterfaceEffect {
+  {
+    symbol: declaration.symbol,
+    name: declaration.name,
+    type_parameters: declaration.type_parameters,
+    operations: declaration.operations.map(interface_operation),
+    loc: declaration.loc,
+  }
+}
+
+///|
+fn interface_operation(
+  operation : @checked.CheckedEffectOperationDeclaration,
+) -> @module_interface.ModuleInterfaceOperation {
+  {
+    symbol: operation.symbol,
+    name: operation.name,
+    index: operation.index,
+    type_parameters: operation.type_parameters,
+    payload: operation.payload,
+    result: operation.result,
+    loc: operation.loc,
   }
 }
 
@@ -197,6 +250,13 @@ fn SemanticChecker::check_public_interface_resolved_declarations(
             self.check_public_interface_resolved_type(payload)
           }
         }
+      Effect(declaration) if declaration.is_public =>
+        for operation in declaration.operations {
+          for payload in operation.payload {
+            self.check_public_interface_resolved_type(payload)
+          }
+          self.check_public_interface_resolved_type(operation.result)
+        }
       TypeAlias(declaration) if declaration.is_public =>
         self.check_public_interface_resolved_type(declaration.body)
       Function(declaration) if declaration.is_public => {
@@ -273,17 +333,38 @@ fn SemanticChecker::check_public_interface_type_fallback_with_seen(
     }
     TypeLambda(_, body) =>
       self.check_public_interface_type_fallback_with_seen(body, loc, seen)
-    Function(parameters, result) => {
+    Function(parameters, result, effect) => {
       for parameter in parameters {
         self.check_public_interface_type_fallback_with_seen(
           parameter, loc, seen,
         )
       }
       self.check_public_interface_type_fallback_with_seen(result, loc, seen)
+      self.check_public_interface_effect_fallback_with_seen(effect, loc, seen)
     }
     Forall(_, body) =>
       self.check_public_interface_type_fallback_with_seen(body, loc, seen)
     Error | Primitive(_) | Parameter(_) => ()
+  }
+}
+
+///|
+fn SemanticChecker::check_public_interface_effect_fallback_with_seen(
+  self : SemanticChecker,
+  effect : @types.Effect,
+  loc : SourceSpan,
+  seen : Array[@symbol.TypeSymbolId],
+) -> Unit {
+  match effect {
+    Empty | Parameter(_) => ()
+    Singleton(_, arguments) =>
+      for argument in arguments {
+        self.check_public_interface_type_fallback_with_seen(argument, loc, seen)
+      }
+    Union(effects) =>
+      for item in effects {
+        self.check_public_interface_effect_fallback_with_seen(item, loc, seen)
+      }
   }
 }
 

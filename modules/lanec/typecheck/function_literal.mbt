@@ -5,6 +5,7 @@ fn SemanticChecker::synthesize_function_literal(
   type_parameters : Array[@resolve.ResolvedTypeParameter],
   parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
   return_type : @resolve.ResolvedType?,
+  effect : @resolve.ResolvedEffectTerm?,
   body : @desugar.DesugaredExpr,
   loc : SourceSpan,
 ) -> @types.Type {
@@ -48,7 +49,16 @@ fn SemanticChecker::synthesize_function_literal(
   } else {
     self.synthesize_expr(body_scope, body)
   }
-  let type_ = @types.Type::Function(parameter_types, result)
+  let checked_effect = match effect {
+    Some(effect) => self.check_effect(effect)
+    None => Empty
+  }
+  self.expect_effect(
+    checked_effect,
+    self.synthesize_expr_effect(body_scope, body),
+    body.loc(),
+  )
+  let type_ = @types.Type::Function(parameter_types, result, checked_effect)
   if type_parameters.is_empty() {
     type_
   } else {
@@ -63,6 +73,7 @@ fn SemanticChecker::check_function_literal(
   type_parameters : Array[@resolve.ResolvedTypeParameter],
   parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
   return_type : @resolve.ResolvedType?,
+  effect : @resolve.ResolvedEffectTerm?,
   body : @desugar.DesugaredExpr,
   expected : @types.Type,
   loc : SourceSpan,
@@ -71,9 +82,9 @@ fn SemanticChecker::check_function_literal(
     Forall(expected_parameters, expected_body) =>
       self.check_generic_function_literal(
         scope, type_parameters, expected_parameters, expected_body, parameters, return_type,
-        body, loc,
+        effect, body, loc,
       )
-    Function(expected_parameters, expected_result) => {
+    Function(expected_parameters, expected_result, expected_effect) => {
       if !type_parameters.is_empty() {
         self.diagnostics.push({
           kind: CannotInferExpression("generic function arity"),
@@ -118,12 +129,20 @@ fn SemanticChecker::check_function_literal(
       if return_type is Some(type_annotation) {
         self.expect_type(expected_result, self.check_type(type_annotation), loc)
       }
+      if effect is Some(effect) {
+        self.expect_effect(expected_effect, self.check_effect(effect), loc)
+      }
       self.check_expr(body_scope, body, expected_result)
+      self.expect_effect(
+        expected_effect,
+        self.synthesize_expr_effect(body_scope, body),
+        body.loc(),
+      )
     }
     Error => ()
     _ => {
       let actual = self.synthesize_function_literal(
-        scope, type_parameters, parameters, return_type, body, loc,
+        scope, type_parameters, parameters, return_type, effect, body, loc,
       )
       self.expect_type(expected, actual, loc)
     }
@@ -139,6 +158,7 @@ fn SemanticChecker::check_generic_function_literal(
   expected_body : @types.Type,
   parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
   return_type : @resolve.ResolvedType?,
+  effect : @resolve.ResolvedEffectTerm?,
   body : @desugar.DesugaredExpr,
   loc : SourceSpan,
 ) -> Unit {
@@ -165,6 +185,7 @@ fn SemanticChecker::check_generic_function_literal(
     [],
     parameters,
     return_type,
+    effect,
     body,
     expected_body.substitute(substitution),
     loc,

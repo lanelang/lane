@@ -93,12 +93,28 @@ priv struct LinkDataConMapEntry {
 }
 
 ///|
+priv struct LinkEffectMapEntry {
+  module_path_text : String
+  source : @buslane.EffectId
+  target : @buslane.EffectId
+}
+
+///|
+priv struct LinkOperationMapEntry {
+  module_path_text : String
+  source : @buslane.OperationId
+  target : @buslane.OperationId
+}
+
+///|
 priv struct BuslaneLinker {
   metadata : @buslane.MetadataRegistry
   types : Array[LinkTypeMapEntry]
   type_parameters : Array[LinkTypeParameterMapEntry]
   values : Array[LinkValueMapEntry]
   data_constructors : Array[LinkDataConMapEntry]
+  effects : Array[LinkEffectMapEntry]
+  operations : Array[LinkOperationMapEntry]
 }
 
 ///|
@@ -167,6 +183,8 @@ fn BuslaneLinker::BuslaneLinker() -> BuslaneLinker {
     type_parameters: [],
     values: [],
     data_constructors: [],
+    effects: [],
+    operations: [],
   }
 }
 
@@ -990,6 +1008,57 @@ fn BuslaneLinker::remap_expr(
           }
         }),
       })
+    Perform(perform) =>
+      Perform({
+        operation: self.remap_operation_id(object, perform.operation),
+        type_arguments: perform.type_arguments.map(fn(argument) {
+          self.remap_type(object, argument)
+        }),
+        payloads: perform.payloads.map(fn(payload) {
+          self.remap_expr(object, payload)
+        }),
+      })
+    Handle(handle) =>
+      Handle({
+        body: self.remap_expr(object, handle.body),
+        result_binder: self.remap_value_id(object, handle.result_binder),
+        result_type: self.remap_type(object, handle.result_type),
+        final_body: self.remap_expr(object, handle.final_body),
+        handlers: handle.handlers.map(fn(table) {
+          self.remap_handler_table(object, table)
+        }),
+      })
+    Resume(id) => Resume(self.remap_value_id(object, id))
+  }
+}
+
+///|
+fn BuslaneLinker::remap_handler_table(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  table : @buslane.HandlerTable,
+) -> @buslane.HandlerTable {
+  {
+    handled_effect: self.remap_effect(object, table.handled_effect),
+    operations: table.operations.map(fn(alternative) {
+      self.remap_operation_alternative(object, alternative)
+    }),
+  }
+}
+
+///|
+fn BuslaneLinker::remap_operation_alternative(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  alternative : @buslane.OperationAlternative,
+) -> @buslane.OperationAlternative {
+  {
+    operation: self.remap_operation_id(object, alternative.operation),
+    payload_binders: alternative.payload_binders.map(fn(id) {
+      self.remap_value_id(object, id)
+    }),
+    resume_binder: self.remap_value_id(object, alternative.resume_binder),
+    body: self.remap_expr(object, alternative.body),
   }
 }
 
@@ -1026,16 +1095,37 @@ fn BuslaneLinker::remap_type(
         parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
         self.remap_type(object, body),
       )
-    Function(parameters, result) =>
+    Function(parameters, result, effect) =>
       Function(
         parameters.map(fn(parameter) { self.remap_type(object, parameter) }),
         self.remap_type(object, result),
+        self.remap_effect(object, effect),
       )
     Forall(parameters, body) =>
       Forall(
         parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
         self.remap_type(object, body),
       )
+  }
+}
+
+///|
+fn BuslaneLinker::remap_effect(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  effect : @buslane.Effect,
+) -> @buslane.Effect {
+  match effect {
+    Empty => Empty
+    Singleton(id, arguments) =>
+      Singleton(
+        self.remap_effect_id(object, id),
+        arguments.map(fn(argument) { self.remap_type(object, argument) }),
+      )
+    Parameter(parameter) =>
+      Parameter(self.remap_type_parameter_id(object, parameter))
+    Union(effects) =>
+      Union(effects.map(fn(effect) { self.remap_effect(object, effect) }))
   }
 }
 
@@ -1085,6 +1175,63 @@ fn BuslaneLinker::remap_type_id(
   for data_constructor in info.constructors {
     ignore(self.remap_data_constructor_id(object, data_constructor))
   }
+  target
+}
+
+///|
+fn BuslaneLinker::remap_effect_id(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  source : @buslane.EffectId,
+) -> @buslane.EffectId {
+  for entry in self.effects {
+    if entry.module_path_text == object.module_path_text &&
+      entry.source == source {
+      return entry.target
+    }
+  }
+  guard object.metadata.effect_info(source) is Some(info) else {
+    abort("unknown Buslane effect id")
+  }
+  let target = self.metadata.define_effect(
+    info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+  )
+  self.effects.push({
+    module_path_text: object.module_path_text,
+    source,
+    target,
+  })
+  for operation in info.operations {
+    ignore(self.remap_operation_id(object, operation))
+  }
+  target
+}
+
+///|
+fn BuslaneLinker::remap_operation_id(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  source : @buslane.OperationId,
+) -> @buslane.OperationId {
+  for entry in self.operations {
+    if entry.module_path_text == object.module_path_text &&
+      entry.source == source {
+      return entry.target
+    }
+  }
+  guard object.metadata.operation_info(source) is Some(info) else {
+    abort("unknown Buslane operation id")
+  }
+  let target = self.metadata.define_operation(
+    self.remap_effect_id(object, info.owner),
+    info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
+    self.remap_type(object, info.result_type),
+  )
+  self.operations.push({
+    module_path_text: object.module_path_text,
+    source,
+    target,
+  })
   target
 }
 
@@ -1632,6 +1779,9 @@ fn interface_fingerprint(
   let alias_fingerprints = interface.type_aliases
     .map(fn(type_alias) { interface_alias_fingerprint(context, type_alias) })
     .join(",")
+  let effect_fingerprints = interface.effects
+    .map(fn(effect) { interface_effect_fingerprint(context, effect) })
+    .join(",")
   let value_fingerprints = interface.values
     .map(fn(value) { interface_value_fingerprint(context, value) })
     .join(",")
@@ -1639,7 +1789,7 @@ fn interface_fingerprint(
     .map(fn(hint) { hint.name })
     .join(",")
   {
-    value: "\{interface.module_path}|types:\{type_fingerprints}|aliases:\{alias_fingerprints}|values:\{value_fingerprints}|hints:\{hint_fingerprints}",
+    value: "\{interface.module_path}|types:\{type_fingerprints}|aliases:\{alias_fingerprints}|effects:\{effect_fingerprints}|values:\{value_fingerprints}|hints:\{hint_fingerprints}",
   }
 }
 
@@ -1742,6 +1892,37 @@ fn interface_alias_fingerprint(
 }
 
 ///|
+fn interface_effect_fingerprint(
+  context : FingerprintTypeContext,
+  effect : @module_interface.ModuleInterfaceEffect,
+) -> String {
+  let context = context.with_type_parameters(effect.type_parameters)
+  let type_parameters = effect.type_parameters
+    .map(type_parameter_fingerprint)
+    .join(",")
+  let operations = effect.operations
+    .map(fn(operation) { interface_operation_fingerprint(context, operation) })
+    .join(",")
+  "effect \{effect.name}[\{type_parameters}]{\{operations}}"
+}
+
+///|
+fn interface_operation_fingerprint(
+  context : FingerprintTypeContext,
+  operation : @module_interface.ModuleInterfaceOperation,
+) -> String {
+  let context = context.with_type_parameters(operation.type_parameters)
+  let type_parameters = operation.type_parameters
+    .map(type_parameter_fingerprint)
+    .join(",")
+  let payload = operation.payload
+    .map(fn(type_) { context.type_fingerprint(type_) })
+    .join(",")
+  let result = context.type_fingerprint(operation.result)
+  "\{operation.name}[\{type_parameters}](\{payload})->\{result}#\{operation.index}"
+}
+
+///|
 fn interface_value_fingerprint(
   context : FingerprintTypeContext,
   value : @module_interface.ModuleInterfaceValue,
@@ -1830,12 +2011,13 @@ fn FingerprintTypeContext::type_fingerprint(
       "type[\{parameter_fingerprints}]=>\{body_fingerprint}"
     }
     Parameter(symbol) => self.type_parameter_name(symbol)
-    Function(parameters, result) => {
+    Function(parameters, result, effect) => {
       let parameters = parameters
         .map(fn(parameter) { self.type_fingerprint(parameter) })
         .join(",")
       let result = self.type_fingerprint(result)
-      "(\{parameters})->\{result}"
+      let effect = self.effect_fingerprint(effect)
+      "(\{parameters})->\{result}!\{effect}"
     }
     Forall(parameters, body) => {
       let context = self.with_type_parameters(parameters)
@@ -1845,6 +2027,25 @@ fn FingerprintTypeContext::type_fingerprint(
       let body_fingerprint = context.type_fingerprint(body)
       "forall[\{parameter_fingerprints}].\{body_fingerprint}"
     }
+  }
+}
+
+///|
+fn FingerprintTypeContext::effect_fingerprint(
+  self : FingerprintTypeContext,
+  effect : @types.Effect,
+) -> String {
+  match effect {
+    Empty => "{}"
+    Singleton(symbol, arguments) => {
+      let arguments = arguments
+        .map(fn(argument) { self.type_fingerprint(argument) })
+        .join(",")
+      "\{@prettyprinter.render(symbol.pretty(), width=100)}[\{arguments}]"
+    }
+    Parameter(symbol) => self.type_parameter_name(symbol)
+    Union(effects) =>
+      "{\{effects.map(fn(effect) { self.effect_fingerprint(effect) }).join(",")}}"
   }
 }
 
