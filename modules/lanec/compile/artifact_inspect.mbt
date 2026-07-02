@@ -165,17 +165,24 @@ fn object_summary_doc(artifact : ModuleObjectArtifact) -> Document {
         text(buslane.external_text(external))
       }),
     ),
-    text("buslane:") +
-    @prettyprinter.hardline +
-    indented_lines_doc([
-      text("types: \{artifact.metadata.type_count()}"),
-      text("data constructors: \{artifact.metadata.data_constructor_count()}"),
-      text("effects: \{artifact.metadata.effect_count()}"),
-      text("operations: \{artifact.metadata.operation_count()}"),
-      text("values: \{artifact.metadata.value_count()}"),
-      text("terms: \{artifact.terms.length()}"),
-    ]),
+    buslane_program_doc(artifact.metadata, artifact.terms),
   ])
+}
+
+///|
+fn buslane_program_doc(
+  metadata : @buslane.MetadataRegistry,
+  terms : Array[@buslane.TopTerm],
+) -> Document {
+  let program_text = @prettyprinter.render(
+    @buslane.Program::{ metadata, terms },
+    width=100,
+  )
+  text("buslane:") +
+  @prettyprinter.hardline +
+  indented_lines_doc(
+    program_text.split("\n").map(fn(line) { text(line.to_owned()) }).collect(),
+  )
 }
 
 ///|
@@ -708,41 +715,6 @@ fn BuslaneInspectContext::effect_id_text(
     Some(info) => info.name.occurrence
     None => "effect#\{id.index}"
   }
-}
-
-///|
-fn @buslane.MetadataRegistry::type_count(
-  self : @buslane.MetadataRegistry,
-) -> Int {
-  self.types.length()
-}
-
-///|
-fn @buslane.MetadataRegistry::data_constructor_count(
-  self : @buslane.MetadataRegistry,
-) -> Int {
-  self.data_constructors.length()
-}
-
-///|
-fn @buslane.MetadataRegistry::effect_count(
-  self : @buslane.MetadataRegistry,
-) -> Int {
-  self.effects.length()
-}
-
-///|
-fn @buslane.MetadataRegistry::operation_count(
-  self : @buslane.MetadataRegistry,
-) -> Int {
-  self.operations.length()
-}
-
-///|
-fn @buslane.MetadataRegistry::value_count(
-  self : @buslane.MetadataRegistry,
-) -> Int {
-  self.values.length()
 }
 
 ///|

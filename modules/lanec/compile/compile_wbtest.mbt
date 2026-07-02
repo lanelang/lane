@@ -587,12 +587,12 @@ test "module artifact binary inspect renders human readable summaries" {
       #|externals:
       #|  (none)
       #|buslane:
-      #|  types: 0
-      #|  data constructors: 0
-      #|  effects: 0
-      #|  operations: 0
-      #|  values: 1
-      #|  terms: 1
+      #|  buslane {
+      #|    metadata {
+      #|      value answer#0 : Int
+      #|    }
+      #|    let value#0 = 42
+      #|  }
       #|
     ),
   )
