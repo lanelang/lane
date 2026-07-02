@@ -113,6 +113,8 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "datacon" => DATACON
     "effect" => EFFECT_DECL
     "operation" => OPERATION
+    "name" => NAME
+    "unique" => UNIQUE
     "parameters" => PARAMETERS
     "constructors" => CONSTRUCTORS
     "operations" => OPERATIONS

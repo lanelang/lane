@@ -11,21 +11,21 @@ fn bool_type() -> Type {
 ///|
 test "buslane metadata owns nominal data shape" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let option_param = metadata.define_type_parameter(Type)
-  let option_type = metadata.define_type([option_param])
-  let none = metadata.define_data_constructor(option_type, [], [])
-  let some = metadata.define_data_constructor(option_type, [], [
+  let option_param = metadata.define_type_parameter("T", Type)
+  let option_type = metadata.define_type("Type", [option_param])
+  let none = metadata.define_data_constructor("Con", option_type, [], [])
+  let some = metadata.define_data_constructor("Con", option_type, [], [
     Parameter(option_param),
   ])
   inspect(
     @prettyprinter.render(metadata, width=100),
     content=(
       #|metadata {
-      #|  type type#0[tparam#0] {
-      #|    datacon#0()
-      #|    datacon#1(tparam#0)
+      #|  type Type#1[tparam#0] {
+      #|    Con#2()
+      #|    Con#3(tparam#0)
       #|  }
-      #|  type_parameter tparam#0 : Type
+      #|  type_parameter T#0 : Type
       #|}
     ),
   )
@@ -40,12 +40,20 @@ test "buslane metadata owns nominal data shape" {
 ///|
 test "buslane metadata owns effect operation shape" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let state_param = metadata.define_type_parameter(Type)
-  let row_param = metadata.define_type_parameter(Effect)
-  let state = metadata.define_effect([state_param])
-  let get = metadata.define_operation(state, [], Parameter(state_param))
-  let put = metadata.define_operation(
+  let state_param = metadata.define_type_parameter("T", Type)
+  let row_param = metadata.define_type_parameter("E", Effect)
+  let state = metadata.define_effect("Effect", [state_param])
+  let get = metadata.define_operation(
+    "op",
     state,
+    [],
+    [],
+    Parameter(state_param),
+  )
+  let put = metadata.define_operation(
+    "op",
+    state,
+    [],
     [Parameter(state_param)],
     Primitive(Unit),
   )
@@ -53,11 +61,11 @@ test "buslane metadata owns effect operation shape" {
     @prettyprinter.render(metadata, width=100),
     content=(
       #|metadata {
-      #|  type_parameter tparam#0 : Type
-      #|  type_parameter tparam#1 : Effect
-      #|  effect effect#0[tparam#0] {
-      #|    operation#0() -> tparam#0
-      #|    operation#1(tparam#0) -> Unit
+      #|  type_parameter T#0 : Type
+      #|  type_parameter E#1 : Effect
+      #|  effect Effect#2[tparam#0] {
+      #|    op#3() -> tparam#0
+      #|    op#4(tparam#0) -> Unit
       #|  }
       #|}
     ),
@@ -161,8 +169,9 @@ test "buslane canonical effect equality ignores ordering and duplicates" {
 ///|
 test "verify buslane reports malformed effect terms" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let ordinary_parameter = metadata.define_type_parameter(Type)
+  let ordinary_parameter = metadata.define_type_parameter("T", Type)
   let bad_function = metadata.define_value(
+    "value",
     Value,
     Forall(
       [ordinary_parameter],
@@ -173,13 +182,18 @@ test "verify buslane reports malformed effect terms" {
       ),
     ),
   )
-  let result = metadata.define_value(Value, int_type())
+  let result = metadata.define_value("value", Value, int_type())
   let program = Program::{
     metadata,
     terms: [
       Let(
         result,
-        Perform({ operation: { index: 8 }, type_arguments: [], payloads: [] }),
+        Perform({
+          operation: { index: 8 },
+          effect_arguments: [],
+          hidden_witnesses: [],
+          payloads: [],
+        }),
       ),
     ],
   }
@@ -206,9 +220,15 @@ test "verify buslane reports malformed effect terms" {
 ///|
 test "verify buslane reports unhandled perform effect" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
   let program = Program::{
     metadata,
     terms: [
@@ -216,7 +236,8 @@ test "verify buslane reports unhandled perform effect" {
         result,
         Perform({
           operation: print,
-          type_arguments: [],
+          effect_arguments: [],
+          hidden_witnesses: [],
           payloads: [Literal(Int(1L))],
         }),
       ),
@@ -238,12 +259,19 @@ test "verify buslane reports unhandled perform effect" {
 ///|
 test "verify buslane handler removes handled perform effect" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
-  let final_binder = metadata.define_value(Local, int_type())
-  let payload = metadata.define_value(Parameter, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Empty),
   )
@@ -255,7 +283,8 @@ test "verify buslane handler removes handled perform effect" {
         Handle({
           body: Perform({
             operation: print,
-            type_arguments: [],
+            effect_arguments: [],
+            hidden_witnesses: [],
             payloads: [Literal(Int(1L))],
           }),
           result_binder: final_binder,
@@ -267,6 +296,7 @@ test "verify buslane handler removes handled perform effect" {
               operations: [
                 {
                   operation: print,
+                  type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
                   body: Ref(payload),
@@ -289,20 +319,29 @@ test "verify buslane handler removes handled perform effect" {
 ///|
 test "verify buslane handler preserves open residual effect row" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let row = metadata.define_type_parameter(Effect)
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
+  let row = metadata.define_type_parameter("E", Effect)
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
   let external = metadata.define_value(
+    "value",
     External,
     Forall([row], Function([], int_type(), Parameter(row))),
   )
   let function = metadata.define_value(
+    "value",
     Function,
     Forall([row], Function([], int_type(), Parameter(row))),
   )
-  let final_binder = metadata.define_value(Local, int_type())
-  let payload = metadata.define_value(Parameter, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Parameter(row)),
   )
@@ -329,6 +368,7 @@ test "verify buslane handler preserves open residual effect row" {
                     operations: [
                       {
                         operation: print,
+                        type_binders: [],
                         payload_binders: [payload],
                         resume_binder,
                         body: Ref(payload),
@@ -354,12 +394,19 @@ test "verify buslane handler preserves open residual effect row" {
 ///|
 test "verify buslane reports invalid perform payload and resume types" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
-  let final_binder = metadata.define_value(Local, int_type())
-  let payload = metadata.define_value(Parameter, bool_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let payload = metadata.define_value("value", Parameter, bool_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([bool_type()], int_type(), Empty),
   )
@@ -371,7 +418,8 @@ test "verify buslane reports invalid perform payload and resume types" {
         Handle({
           body: Perform({
             operation: print,
-            type_arguments: [],
+            effect_arguments: [],
+            hidden_witnesses: [],
             payloads: [Literal(Bool(true))],
           }),
           result_binder: final_binder,
@@ -383,6 +431,7 @@ test "verify buslane reports invalid perform payload and resume types" {
               operations: [
                 {
                   operation: print,
+                  type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
                   body: Literal(Int(1L)),
@@ -418,15 +467,26 @@ test "verify buslane reports invalid perform payload and resume types" {
 ///|
 test "verify buslane reports perform payload arity mismatch" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
   let program = Program::{
     metadata,
     terms: [
       Let(
         result,
-        Perform({ operation: print, type_arguments: [], payloads: [] }),
+        Perform({
+          operation: print,
+          effect_arguments: [],
+          hidden_witnesses: [],
+          payloads: [],
+        }),
       ),
     ],
   }
@@ -450,12 +510,19 @@ test "verify buslane reports perform payload arity mismatch" {
 ///|
 test "verify buslane reports operation ownership and resume arity errors" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let state = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
-  let final_binder = metadata.define_value(Local, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let state = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([], int_type(), Empty),
   )
@@ -475,6 +542,7 @@ test "verify buslane reports operation ownership and resume arity errors" {
               operations: [
                 {
                   operation: print,
+                  type_binders: [],
                   payload_binders: [],
                   resume_binder,
                   body: Literal(Int(1L)),
@@ -514,12 +582,13 @@ test "verify buslane reports operation ownership and resume arity errors" {
 ///|
 test "pretty buslane expression tree core" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value(Value, int_type())
+  let value = metadata.define_value("value", Value, int_type())
   let function = metadata.define_value(
+    "value",
     Function,
     Function([int_type()], int_type(), Empty),
   )
-  let parameter = metadata.define_value(Parameter, int_type())
+  let parameter = metadata.define_value("value", Parameter, int_type())
   let program = Program::{
     metadata,
     terms: [
@@ -559,20 +628,22 @@ test "pretty buslane expression tree core" {
 ///|
 test "pretty buslane construct and one-level match" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let option_type_parameter = metadata.define_type_parameter(Type)
-  let option_type = metadata.define_type([option_type_parameter])
-  let some = metadata.define_data_constructor(option_type, [], [
+  let option_type_parameter = metadata.define_type_parameter("T", Type)
+  let option_type = metadata.define_type("Type", [option_type_parameter])
+  let some = metadata.define_data_constructor("Con", option_type, [], [
     Parameter(option_type_parameter),
   ])
   let scrutinee = metadata.define_value(
+    "value",
     Value,
     Apply(Constructor(option_type), [int_type()]),
   )
   let match_binder = metadata.define_value(
+    "value",
     MatchBinder,
     Apply(Constructor(option_type), [int_type()]),
   )
-  let payload = metadata.define_value(Parameter, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let program = Program::{
     metadata,
     terms: [
@@ -616,12 +687,13 @@ test "pretty buslane construct and one-level match" {
 ///|
 test "verify buslane function call program" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value(Value, int_type())
+  let value = metadata.define_value("value", Value, int_type())
   let function = metadata.define_value(
+    "value",
     Function,
     Function([int_type()], int_type(), Empty),
   )
-  let parameter = metadata.define_value(Parameter, int_type())
+  let parameter = metadata.define_value("value", Parameter, int_type())
   let program = Program::{
     metadata,
     terms: [
@@ -649,15 +721,20 @@ test "verify buslane function call program" {
 ///|
 test "verify buslane generic function parameter scope" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let parameter_type = metadata.define_type_parameter(Type)
+  let parameter_type = metadata.define_type_parameter("T", Type)
   let function = metadata.define_value(
+    "value",
     Function,
     Forall(
       [parameter_type],
       Function([Parameter(parameter_type)], Parameter(parameter_type), Empty),
     ),
   )
-  let parameter = metadata.define_value(Parameter, Parameter(parameter_type))
+  let parameter = metadata.define_value(
+    "value",
+    Parameter,
+    Parameter(parameter_type),
+  )
   let program = Program::{
     metadata,
     terms: [
@@ -687,8 +764,8 @@ test "verify buslane generic function parameter scope" {
 ///|
 test "verify buslane reports structural errors" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value(Value, int_type())
-  let binder = metadata.define_value(MatchBinder, bool_type())
+  let value = metadata.define_value("value", Value, int_type())
+  let binder = metadata.define_value("value", MatchBinder, bool_type())
   let program = Program::{
     metadata,
     terms: [

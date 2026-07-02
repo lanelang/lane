@@ -183,6 +183,7 @@ test "pretty print handler keeps with and final attached" {
               operation="read",
               loc=test_loc(),
             ),
+            type_binders: [],
             payload_patterns: [],
             resume_binder: "resume",
             resume_loc: test_loc(),

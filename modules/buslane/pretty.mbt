@@ -44,6 +44,13 @@ pub impl @prettyprinter.Pretty for OperationId with fn pretty(id : OperationId) 
 }
 
 ///|
+pub impl @prettyprinter.Pretty for BuslaneName with fn pretty(
+  name : BuslaneName,
+) {
+  text("\{name.occurrence}#\{name.unique.value}")
+}
+
+///|
 pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
   match kind {
     Type => text("Type")
@@ -131,6 +138,8 @@ pub impl @prettyprinter.Pretty for ValueKind with fn pretty(kind : ValueKind) {
 ///|
 pub impl @prettyprinter.Pretty for TypeInfo with fn pretty(info : TypeInfo) {
   text("type") +
+  space +
+  info.name.pretty() +
   type_parameters_doc(info.parameters) +
   space +
   braced_block(info.constructors.map(DataConId::pretty))
@@ -140,12 +149,24 @@ pub impl @prettyprinter.Pretty for TypeInfo with fn pretty(info : TypeInfo) {
 pub impl @prettyprinter.Pretty for TypeParameterInfo with fn pretty(
   info : TypeParameterInfo,
 ) {
-  text("type_parameter") + space + text(":") + space + info.kind.pretty()
+  text("type_parameter") +
+  space +
+  info.name.pretty() +
+  space +
+  text(":") +
+  space +
+  info.kind.pretty()
 }
 
 ///|
 pub impl @prettyprinter.Pretty for ValueInfo with fn pretty(info : ValueInfo) {
-  info.kind.pretty() + space + text(":") + space + info.type_.pretty()
+  info.kind.pretty() +
+  space +
+  info.name.pretty() +
+  space +
+  text(":") +
+  space +
+  info.type_.pretty()
 }
 
 ///|
@@ -153,6 +174,8 @@ pub impl @prettyprinter.Pretty for DataConInfo with fn pretty(
   info : DataConInfo,
 ) {
   text("datacon") +
+  space +
+  info.name.pretty() +
   type_parameters_doc(info.hidden_type_parameters) +
   parenthesized_inline(info.payload_types.map(Type::pretty)) +
   space +
@@ -164,6 +187,8 @@ pub impl @prettyprinter.Pretty for DataConInfo with fn pretty(
 ///|
 pub impl @prettyprinter.Pretty for EffectInfo with fn pretty(info : EffectInfo) {
   text("effect") +
+  space +
+  info.name.pretty() +
   type_parameters_doc(info.parameters) +
   space +
   braced_block(info.operations.map(OperationId::pretty))
@@ -174,6 +199,9 @@ pub impl @prettyprinter.Pretty for OperationInfo with fn pretty(
   info : OperationInfo,
 ) {
   text("operation") +
+  space +
+  info.name.pretty() +
+  type_parameters_doc(info.hidden_type_parameters) +
   parenthesized_inline(info.payload_types.map(Type::pretty)) +
   space +
   text("->") +
@@ -318,7 +346,10 @@ pub impl @prettyprinter.Pretty for PerformExpr with fn pretty(
   text("perform") +
   space +
   perform.operation.pretty() +
-  type_arguments_doc(perform.type_arguments) +
+  type_and_witness_arguments_doc(
+    perform.effect_arguments,
+    perform.hidden_witnesses,
+  ) +
   parenthesized_inline(perform.payloads.map(Expr::pretty))
 }
 
@@ -358,6 +389,7 @@ pub impl @prettyprinter.Pretty for OperationAlternative with fn pretty(
   alternative : OperationAlternative,
 ) {
   alternative.operation.pretty() +
+  type_parameters_doc(alternative.type_binders) +
   parenthesized_inline(alternative.payload_binders.map(ValueId::pretty)) +
   space +
   text("resume") +
@@ -538,12 +570,12 @@ fn metadata_declarations(metadata : MetadataRegistry) -> Array[Document] {
 ///|
 fn type_declaration(
   metadata : MetadataRegistry,
-  id : TypeId,
+  _id : TypeId,
   info : TypeInfo,
 ) -> Document {
   text("type") +
   space +
-  id.pretty() +
+  info.name.pretty() +
   type_parameters_doc(info.parameters) +
   space +
   braced_block(
@@ -558,12 +590,12 @@ fn type_declaration(
 
 ///|
 fn type_parameter_declaration(
-  id : TypeParameterId,
+  _id : TypeParameterId,
   info : TypeParameterInfo,
 ) -> Document {
   text("type_parameter") +
   space +
-  id.pretty() +
+  info.name.pretty() +
   space +
   text(":") +
   space +
@@ -571,10 +603,10 @@ fn type_parameter_declaration(
 }
 
 ///|
-fn value_declaration(id : ValueId, info : ValueInfo) -> Document {
+fn value_declaration(_id : ValueId, info : ValueInfo) -> Document {
   info.kind.pretty() +
   space +
-  id.pretty() +
+  info.name.pretty() +
   space +
   text(":") +
   space +
@@ -582,8 +614,11 @@ fn value_declaration(id : ValueId, info : ValueInfo) -> Document {
 }
 
 ///|
-fn data_constructor_declaration(id : DataConId, info : DataConInfo) -> Document {
-  id.pretty() +
+fn data_constructor_declaration(
+  _id : DataConId,
+  info : DataConInfo,
+) -> Document {
+  info.name.pretty() +
   type_parameters_doc(info.hidden_type_parameters) +
   parenthesized_inline(info.payload_types.map(Type::pretty))
 }
@@ -591,12 +626,12 @@ fn data_constructor_declaration(id : DataConId, info : DataConInfo) -> Document 
 ///|
 fn effect_declaration(
   metadata : MetadataRegistry,
-  id : EffectId,
+  _id : EffectId,
   info : EffectInfo,
 ) -> Document {
   text("effect") +
   space +
-  id.pretty() +
+  info.name.pretty() +
   type_parameters_doc(info.parameters) +
   space +
   braced_block(
@@ -610,8 +645,9 @@ fn effect_declaration(
 }
 
 ///|
-fn operation_declaration(id : OperationId, info : OperationInfo) -> Document {
-  id.pretty() +
+fn operation_declaration(_id : OperationId, info : OperationInfo) -> Document {
+  info.name.pretty() +
+  type_parameters_doc(info.hidden_type_parameters) +
   parenthesized_inline(info.payload_types.map(Type::pretty)) +
   space +
   text("->") +

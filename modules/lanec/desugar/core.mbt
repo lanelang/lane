@@ -90,6 +90,7 @@ pub(all) struct DesugaredHandlerWithBlock {
 ///|
 pub(all) struct DesugaredHandlerOperationArm {
   name : @resolve.ResolvedEffectOperationName
+  type_binders : Array[@resolve.ResolvedTypeParameter]
   payload_patterns : Array[@resolve.ResolvedPattern]
   resume_symbol : @symbol.ValueSymbolId
   resume_binder : String
@@ -155,6 +156,7 @@ pub(all) enum DesugaredExpr {
   )
   EffectOperationCall(
     name~ : @resolve.ResolvedEffectOperationName,
+    type_witnesses~ : Array[@resolve.ResolvedType],
     arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )

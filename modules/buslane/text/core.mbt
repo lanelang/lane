@@ -93,6 +93,8 @@ fn token_label(token : Token) -> String {
     DATACON => "datacon"
     EFFECT_DECL => "effect"
     OPERATION => "operation"
+    NAME => "name"
+    UNIQUE => "unique"
     PARAMETERS => "parameters"
     CONSTRUCTORS => "constructors"
     OPERATIONS => "operations"
@@ -175,6 +177,8 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
       space +
       type_id_doc({ index, }) +
       space +
+      name_doc(info.name) +
+      space +
       text("parameters") +
       space +
       type_parameter_ids_doc(info.parameters) +
@@ -192,6 +196,8 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
       space +
       type_parameter_id_doc({ index, }) +
       space +
+      name_doc(info.name) +
+      space +
       text(":") +
       space +
       kind_doc(info.kind) +
@@ -204,6 +210,8 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
       text("value") +
       space +
       value_id_doc({ index, }) +
+      space +
+      name_doc(info.name) +
       space +
       value_kind_doc(info.kind) +
       space +
@@ -219,6 +227,8 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
       text("datacon") +
       space +
       data_con_id_doc({ index, }) +
+      space +
+      name_doc(info.name) +
       space +
       text("owner") +
       space +
@@ -241,6 +251,8 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
       space +
       effect_id_doc({ index, }) +
       space +
+      name_doc(info.name) +
+      space +
       text("parameters") +
       space +
       type_parameter_ids_doc(info.parameters) +
@@ -258,9 +270,15 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
       space +
       operation_id_doc({ index, }) +
       space +
+      name_doc(info.name) +
+      space +
       text("owner") +
       space +
       effect_id_doc(info.owner) +
+      space +
+      text("hidden") +
+      space +
+      type_parameter_ids_doc(info.hidden_type_parameters) +
       space +
       text("payload") +
       space +
@@ -273,6 +291,17 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
     )
   }
   text("metadata") + space + canonical_block(docs)
+}
+
+///|
+fn name_doc(name : @buslane.BuslaneName) -> Document {
+  text("name") +
+  space +
+  text(quote_string(name.occurrence)) +
+  space +
+  text("unique") +
+  space +
+  text(name.unique.value.to_string())
 }
 
 ///|
@@ -390,7 +419,7 @@ fn expr_doc(expr : @buslane.Expr) -> Document {
     Perform(perform) =>
       call_doc("perform", [
         operation_id_doc(perform.operation),
-        types_doc(perform.type_arguments),
+        types_doc(perform.effect_arguments),
         exprs_doc(perform.payloads),
       ])
     Resume(id) => call_doc("resume", [value_id_doc(id)])

@@ -96,6 +96,7 @@ priv struct LoweredHandlerTable {
 ///|
 priv struct LoweredOperationAlternative {
   operation : @symbol.OperationSymbolId
+  type_binders : Array[@buslane.TypeParameterId]
   payload_binders : Array[@buslane.ValueId]
   resume_binder : @buslane.ValueId
   body : @buslane.Expr
@@ -104,6 +105,7 @@ priv struct LoweredOperationAlternative {
 ///|
 priv struct LowerHandlerOperationGroup {
   operation : @symbol.OperationSymbolId
+  type_binders : Array[@types.TypeParameter]
   payload_types : Array[@types.Type]
   resume_type : @types.Type
   arms : Array[@checked.CheckedHandlerOperationArm]

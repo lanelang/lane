@@ -366,9 +366,11 @@ test "parse effect operation calls" {
     (
       #|effect Console {
       #|  write(String) -> Unit
+      #|  choose[A](A, A) -> A
       #|}
-      #|fn write_hello() -> Unit ! Console {
-      #|  Console::write!("hi")
+      #|fn write_hello() -> String ! Console {
+      #|  let ignored : Unit = Console::write!("hi")
+      #|  Console::choose![String]("left", "right")
       #|}
     ),
   )
@@ -379,10 +381,12 @@ test "parse effect operation calls" {
       #|
       #|effect Console {
       #|  write(String) -> Unit
+      #|  choose[A](A, A) -> A
       #|}
       #|
-      #|fn write_hello() -> Unit ! Console {
-      #|  Console::write!("hi")
+      #|fn write_hello() -> String ! Console {
+      #|  let ignored : Unit = Console::write!("hi")
+      #|  Console::choose![String]("left", "right")
       #|}
     ),
   )
@@ -399,6 +403,7 @@ test "parse handler expressions" {
       #|fn program() -> String ! Console {
       #|  handle Console::read!() with {
       #|    Console::write(message, resume) => resume(())
+      #|    Console::choose[A](left, right, resume) => resume(left)
       #|    Console::read(resume) => "fallback"
       #|  } final value {
       #|    value
@@ -417,12 +422,11 @@ test "parse handler expressions" {
       #|}
       #|
       #|fn program() -> String ! Console {
-      #|  handle Console::read!()
-      #|  with {
+      #|  handle Console::read!() with {
       #|    Console::write(message, resume) => resume(())
+      #|    Console::choose[A](left, right, resume) => resume(left)
       #|    Console::read(resume) => "fallback"
-      #|  }
-      #|  final value {
+      #|  } final value {
       #|    value
       #|  }
       #|}
@@ -452,6 +456,70 @@ test "parse rejects malformed handler expressions" {
     ),
   )
   assert_true(!missing_final_errors.is_empty())
+}
+
+///|
+test "parse rejects empty enum and effect operation parameter headers" {
+  debug_inspect(
+    parse_error_kinds("enum Empty[] { value }"),
+    content=(
+      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+    ),
+  )
+  debug_inspect(
+    parse_error_kinds("effect Prompt { choose[](Int, Int) -> Int }"),
+    content=(
+      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+    ),
+  )
+}
+
+///|
+test "parse rejects empty operation witness and handler binder lists" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|effect Prompt {
+        #|  choose[A](A, A) -> A
+        #|}
+        #|fn bad() -> Int ! Prompt {
+        #|  Prompt::choose![](1, 2)
+        #|}
+      ),
+    ),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`]`" },
+      #|    [
+      #|      { label: "identifier" },
+      #|      { label: "`type`" },
+      #|      { label: "`(`" },
+      #|      { label: "`[`" },
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|effect Prompt {
+        #|  choose[A](A, A) -> A
+        #|}
+        #|fn bad() -> Int {
+        #|  handle Prompt::choose![Int](1, 2) with {
+        #|    Prompt::choose[](left, right, resume) => resume(left)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|}
+      ),
+    ),
+    content=(
+      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+    ),
+  )
 }
 
 ///|

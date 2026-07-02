@@ -591,6 +591,7 @@ pub impl @prettyprinter.Pretty for ResolvedHandlerOperationArm with fn pretty(
   let parameters = arm.payload_patterns.map(ResolvedPattern::pretty)
   parameters.push(arm.resume_symbol.pretty() + space + text(arm.resume_binder))
   arm.name.pretty() +
+  type_parameters_doc(arm.type_binders) +
   @pretty.parenthesized_inline(parameters) +
   space +
   text("=>") +
@@ -688,9 +689,10 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       space +
       body.pretty()
     }
-    EffectOperationCall(name~, arguments~, ..) =>
+    EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
       name.pretty() +
       text("!") +
+      type_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]

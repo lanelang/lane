@@ -203,7 +203,7 @@ _Avoid_: unchecked exception, runtime panic, implicit IO
 
 **Effect Declaration**:
 A top-level nominal declaration that owns a complete set of effect operations and any shared effect type parameters.
-_Avoid_: value declaration, operation namespace, runtime plugin, operation-local type parameter
+_Avoid_: value declaration, operation namespace, runtime plugin
 
 **Interface-Visible Effect**:
 An effect that can appear in a module interface because it is exported or imported from another module interface.
@@ -211,7 +211,15 @@ _Avoid_: private effect leak, implementation-only operation, runtime capability
 
 **Effect Operation**:
 A member of an effect declaration with a Lane function type signature such as `(String) -> Unit` or `() -> String`.
-_Avoid_: top-level function, arbitrary expression payload, unchecked command, operation-level generic operation
+_Avoid_: top-level function, arbitrary expression payload, unchecked command
+
+**Operation Type Parameter**:
+A type parameter introduced by an **Effect Operation** and opened by handlers for each performed operation instance.
+_Avoid_: effect type parameter, ordinary value parameter, generic function parameter, runtime tag
+
+**Type Argument List**:
+A non-empty bracketed list of type witnesses supplied to a generic type, nominal member, or effect operation call.
+_Avoid_: empty brackets, omitted type arguments, type parameter binder list
 
 **Effect Operation Call**:
 An effectful operation invocation written with `!`, such as `Console::print!("hi")` or an unambiguous `print!("hi")`.
@@ -356,7 +364,12 @@ _Avoid_: VS Code extension, compiler front end
 - The left side of module-qualified access must be an imported complete **Module Path**.
 - Importing `Module` does not make `Module.Child.name` or `Module.Child.Type` available.
 - **Typed Algebraic Effects** are the only planned language-level effect mechanism; **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
-- An **Effect Declaration** owns uniquely named **Effect Operations**; operation-level generic effect operations are not part of the first effect design.
+- An **Effect Declaration** owns uniquely named **Effect Operations**; an **Effect Operation** may introduce **Operation Type Parameters**.
+- An **Operation Type Parameter** is scoped only to its owning **Effect Operation** signature and may shadow an **Effect Declaration** type parameter by normal innermost-binder lookup.
+- An **Effect Operation Call** may qualify a generic owning **Effect Declaration** with ordinary owner type arguments, and separately supplies **Operation Type Parameter** witnesses at the perform site.
+- An **Effect Handler** must explicitly open **Operation Type Parameters** as fresh type binders for the matching handler arm.
+- **Operation Type Parameters** follow the same witness/opened-binder split as existential enum variant type parameters.
+- A written **Type Argument List** is always non-empty; omitting brackets is the only way to omit type arguments.
 - Public **Effect Declarations** and their operation signatures enter module interfaces; exported function signatures may mention only **Interface-Visible Effects**.
 - An **Effect Operation Call** invokes an **Effect Operation**, keeps ordinary call parentheses even for zero arguments, and contributes the owning **Typed Algebraic Effect** to the surrounding **Effect Set**.
 - Source **Effect Operation Calls** lower to the `perform` part of **Buslane Effect Core**; source **Effect Handlers** lower to the `handle` part.

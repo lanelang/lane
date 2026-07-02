@@ -242,10 +242,11 @@ test "evaluate existential struct pattern opening and repack" {
 test "evaluate buslane external call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let external = metadata.define_value(
+    "value",
     External,
     Function([], Primitive(Int), Empty),
   )
-  let result = metadata.define_value(Value, Primitive(Int))
+  let result = metadata.define_value("value", Value, Primitive(Int))
   let program = @buslane.Program::{
     metadata,
     terms: [External(external), Let(result, Call(Ref(external), []))],
@@ -274,18 +275,18 @@ test "evaluate buslane external call" {
 ///|
 test "evaluate buslane nominal data match" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let option_parameter = metadata.define_type_parameter(Type)
-  let option_type = metadata.define_type([option_parameter])
-  let some = metadata.define_data_constructor(option_type, [], [
+  let option_parameter = metadata.define_type_parameter("T", Type)
+  let option_type = metadata.define_type("Type", [option_parameter])
+  let some = metadata.define_data_constructor("Con", option_type, [], [
     Parameter(option_parameter),
   ])
   let option_int = @buslane.Type::Apply(Constructor(option_type), [
     Primitive(Int),
   ])
-  let scrutinee = metadata.define_value(Value, option_int)
-  let result = metadata.define_value(Value, Primitive(Int))
-  let binder = metadata.define_value(MatchBinder, option_int)
-  let payload = metadata.define_value(MatchBinder, Primitive(Int))
+  let scrutinee = metadata.define_value("value", Value, option_int)
+  let result = metadata.define_value("value", Value, Primitive(Int))
+  let binder = metadata.define_value("value", MatchBinder, option_int)
+  let payload = metadata.define_value("value", MatchBinder, Primitive(Int))
   let program = @buslane.Program::{
     metadata,
     terms: [

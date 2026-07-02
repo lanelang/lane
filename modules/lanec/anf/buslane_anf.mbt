@@ -44,7 +44,8 @@ pub(all) enum BuslaneAnfRhs {
 ///|
 pub(all) struct BuslaneAnfPerform {
   operation : @buslane.OperationId
-  type_arguments : Array[@buslane.Type]
+  effect_arguments : Array[@buslane.Type]
+  hidden_witnesses : Array[@buslane.Type]
   payloads : Array[BuslaneAnfAtom]
 } derive(Debug, Eq)
 
@@ -66,6 +67,7 @@ pub(all) struct BuslaneAnfHandlerTable {
 ///|
 pub(all) struct BuslaneAnfOperationAlternative {
   operation : @buslane.OperationId
+  type_binders : Array[@buslane.TypeParameterId]
   payload_binders : Array[@buslane.ValueId]
   resume_binder : @buslane.ValueId
   body : BuslaneAnfExpr

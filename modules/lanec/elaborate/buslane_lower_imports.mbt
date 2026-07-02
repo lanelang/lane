@@ -44,7 +44,7 @@ fn BuslaneLowerer::seed_imported_type_header(
       for type_member in declaration.type_members {
         ignore(self.define_type_parameter(type_member.type_parameter))
       }
-      let target = self.metadata.define_type(parameters)
+      let target = self.metadata.define_type(declaration.name, parameters)
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
@@ -66,7 +66,7 @@ fn BuslaneLowerer::seed_imported_type_header(
           ignore(self.define_type_parameter(parameter))
         }
       }
-      let target = self.metadata.define_type(parameters)
+      let target = self.metadata.define_type(declaration.name, parameters)
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
@@ -100,7 +100,10 @@ fn BuslaneLowerer::seed_imported_type_constructors(
         self.lower_type(field.type_)
       })
       let data_constructor = self.metadata.define_data_constructor(
-        owner, hidden_type_parameters, payload_types,
+        declaration.name,
+        owner,
+        hidden_type_parameters,
+        payload_types,
       )
       ignore(
         self.registry.register_struct_constructor(
@@ -132,7 +135,10 @@ fn BuslaneLowerer::seed_imported_type_constructors(
           self.lower_type(type_)
         })
         let data_constructor = self.metadata.define_data_constructor(
-          owner, hidden_type_parameters, payload_types,
+          variant.name,
+          owner,
+          hidden_type_parameters,
+          payload_types,
         )
         ignore(
           self.registry.register_data_constructor(
@@ -163,7 +169,7 @@ fn BuslaneLowerer::seed_imported_field_selector(
   field : @module_interface.ModuleInterfaceField,
 ) -> Unit {
   let selector_type = self.imported_selector_type(declaration, field)
-  let selector = self.metadata.define_value(Function, selector_type)
+  let selector = self.metadata.define_value(field.name, Function, selector_type)
   ignore(self.registry.register_field_selector(field.symbol, selector))
   self.imports.push({
     module_path_text,
@@ -216,7 +222,7 @@ fn BuslaneLowerer::seed_imported_effect_header(
   let parameters = effect.type_parameters.map(fn(parameter) {
     self.define_type_parameter(parameter)
   })
-  let target = self.metadata.define_effect(parameters)
+  let target = self.metadata.define_effect(effect.name, parameters)
   ignore(self.registry.register_effect(effect.symbol, target))
   self.imports.push({
     module_path_text,
@@ -240,6 +246,7 @@ fn BuslaneLowerer::seed_imported_effect_operations(
   for operation in effect.operations {
     let target = self.define_operation(
       operation.symbol,
+      operation.name,
       owner,
       operation.type_parameters,
       operation.payload,
@@ -269,7 +276,7 @@ fn BuslaneLowerer::seed_imported_value(
     Function => Function
     Let | Offer => Value
   }
-  let target = self.define_value(value.symbol, kind, type_)
+  let target = self.define_value(value.symbol, value.name, kind, type_)
   self.imports.push({
     module_path_text,
     kind: Value,

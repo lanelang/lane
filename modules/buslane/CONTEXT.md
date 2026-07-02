@@ -14,6 +14,26 @@ _Avoid_: source AST, parser syntax, compiler symbol table
 A metadata registry plus a sequence of top-level value terms.
 _Avoid_: source file, package, module
 
+**Buslane Name**:
+A readable occurrence name attached to a Buslane identity for source-like core
+text and diagnostics.
+_Avoid_: Lane source name, numeric identity alone, display-only label, unnamed fallback
+
+**Buslane Unique**:
+A program-wide disambiguator carried by a **Buslane Name** and used for stable
+identity in text.
+_Avoid_: namespace-local index, source span, occurrence name
+
+**Buslane Name Origin**:
+The producer-side source of a **Buslane Name**, used by the Buslane name system
+to allocate or reuse a **Buslane Unique**.
+_Avoid_: weak display hint, source span alone, array index
+
+**Buslane Identity**:
+The stable internal identity used for Buslane equality, lookup, verification,
+and interpretation.
+_Avoid_: occurrence name, pretty text, source span, namespace-local text suffix
+
 **Buslane Verifier**:
 The pure checker that validates Buslane metadata, scope, and expression typing.
 _Avoid_: Lane source typechecker, parser validation
@@ -70,6 +90,26 @@ A Buslane metadata identity invoked by `perform` within its owning effect
 constructor.
 _Avoid_: value identity, function value, external value
 
+**Effect Owner Argument**:
+A type argument supplied to an effect constructor when forming a singleton
+effect.
+_Avoid_: operation witness, generic perform argument, hidden type binder
+
+**Hidden Type Parameter**:
+A metadata type parameter owned by a data constructor or effect operation, packed
+with a type witness at construction or `perform` and opened by the matching
+alternative.
+_Avoid_: owner type parameter, generic function parameter, standalone exists type
+
+**Hidden Type Witness**:
+The concrete type supplied for a **Hidden Type Parameter** at the pack site.
+_Avoid_: effect owner argument, runtime value, inferred binder
+
+**Opened Type Binder**:
+The fresh type binder introduced by a match or handler alternative when it
+unpacks a **Hidden Type Parameter**.
+_Avoid_: hidden witness, ordinary type alias, owner type parameter
+
 **Effect Kind**:
 The Buslane kind for effect constructors, singleton effect terms, and effect
 row variables.
@@ -95,11 +135,33 @@ _Avoid_: operation set, inferred capability
 - **Canonical Effect** ignores singleton order and duplicate singleton effects.
 - **Buslane Effect Core** must be represented by Buslane text parsing and
   pretty printing.
+- Buslane text is a readable canonical core-language representation; it may use
+  compact syntax, but must preserve Buslane-specific semantic distinctions.
+- Buslane display output and canonical text should share one core-language syntax
+  strategy rather than defining separate expression languages.
+- Buslane text should follow the GHC Core style: readable names for core
+  references, internal identities for disambiguation and semantics.
+- A **Buslane Name** improves readability and text-level references, while a
+  **Buslane Identity** remains the authority for semantic equality.
+- Every **Buslane Identity** has a **Buslane Name**; generated entities receive
+  synthetic names instead of falling back to nameless numeric syntax.
+- A **Buslane Unique** is global within a Buslane program/module text, not local
+  to one identity family such as values or operations.
+- A producer such as `lanec` supplies **Buslane Name Origins**, not weak display
+  hints; the Buslane name system uses origins to allocate or reuse uniques.
 - **Effect Row Variables** have **Effect Kind**.
 - **Effect Row Variables** are type-level parameters, not a separate runtime
   identity family.
 - An **Effect Operation** is not a Buslane value and does not enter the value
   context.
+- Buslane represents existential enum lowering through data-constructor
+  **Hidden Type Parameters**, construct-site **Hidden Type Witnesses**, and
+  match-alternative **Opened Type Binders**; it does not need a standalone
+  `exists` type constructor for this path.
+- Operation-level type parameters should follow the same hidden
+  witness/opened-binder discipline as data constructors.
+- Effect owner type arguments and operation **Hidden Type Witnesses** are
+  separate Buslane concepts and should not share one overloaded argument array.
 - An unhandled **Effect Operation** is not resolved by external runtime plugins.
 - A **Function Latent Effect** is an effect set of singleton effects plus
   optional residual row information, not a flattened operation set.

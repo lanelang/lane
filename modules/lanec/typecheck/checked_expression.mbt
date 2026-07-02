@@ -46,9 +46,14 @@ fn SemanticChecker::check_checked_expr(
       self.check_checked_match(scope, scrutinee, arms, expected, loc)
     Call(callee~, arguments~, loc~) =>
       self.check_checked_call(scope, callee, arguments, expected, loc)
-    EffectOperationCall(name~, arguments~, loc~) => {
+    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) => {
       let checked = self.synthesize_checked_operation_call(
-        scope, name, arguments, loc,
+        scope,
+        name,
+        type_witnesses,
+        arguments,
+        Some(expected),
+        loc,
       )
       self.expect_type(expected, checked.type_, loc)
       checked
@@ -159,8 +164,15 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_match(scope, scrutinee, arms, loc)
     Call(callee~, arguments~, loc~) =>
       self.synthesize_checked_call(scope, callee, arguments, loc)
-    EffectOperationCall(name~, arguments~, loc~) =>
-      self.synthesize_checked_operation_call(scope, name, arguments, loc)
+    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
+      self.synthesize_checked_operation_call(
+        scope,
+        name,
+        type_witnesses,
+        arguments,
+        None,
+        loc,
+      )
     Handler(body~, handlers~, final_branch~, loc~) =>
       self.synthesize_checked_handler(scope, body, handlers, final_branch, loc)
     StructLiteral(type_name~, type_arguments~, fields~, loc~) =>

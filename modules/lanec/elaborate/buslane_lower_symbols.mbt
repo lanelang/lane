@@ -1,9 +1,10 @@
 ///|
 fn BuslaneLowerer::define_external(
   self : BuslaneLowerer,
+  occurrence : String,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId {
-  let id = self.metadata.define_value(External, type_)
+  let id = self.metadata.define_value(occurrence, External, type_)
   self.external_terms.push(External(id))
   id
 }
@@ -14,7 +15,7 @@ fn BuslaneLowerer::define_builtin_external(
   name : String,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId {
-  let value = self.define_external(type_)
+  let value = self.define_external(name, type_)
   self.builtin_externals.push({ value, name, type_ })
   value
 }
@@ -22,23 +23,25 @@ fn BuslaneLowerer::define_builtin_external(
 ///|
 fn BuslaneLowerer::define_fresh_value(
   self : BuslaneLowerer,
+  occurrence : String,
   kind : @buslane.ValueKind,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId {
-  self.metadata.define_value(kind, type_)
+  self.metadata.define_value(occurrence, kind, type_)
 }
 
 ///|
 fn BuslaneLowerer::define_value(
   self : BuslaneLowerer,
   source : @symbol.ValueSymbolId,
+  occurrence : String,
   kind : @buslane.ValueKind,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId {
   if self.registry.find_value(source) is Some(target) {
     return target
   }
-  let target = self.metadata.define_value(kind, type_)
+  let target = self.metadata.define_value(occurrence, kind, type_)
   self.registry.register_value(source, target)
 }
 
@@ -46,6 +49,7 @@ fn BuslaneLowerer::define_value(
 fn BuslaneLowerer::define_operation(
   self : BuslaneLowerer,
   source : @symbol.OperationSymbolId,
+  occurrence : String,
   owner : @buslane.EffectId,
   type_parameters : Array[@types.TypeParameter],
   payload : Array[@types.Type],
@@ -54,11 +58,13 @@ fn BuslaneLowerer::define_operation(
   if self.registry.find_operation(source) is Some(target) {
     return target
   }
-  for parameter in type_parameters {
-    ignore(self.define_type_parameter(parameter))
-  }
+  let hidden_type_parameters = type_parameters.map(fn(parameter) {
+    self.define_type_parameter(parameter)
+  })
   let target = self.metadata.define_operation(
+    occurrence,
     owner,
+    hidden_type_parameters,
     payload.map(fn(type_) { self.lower_type(type_) }),
     self.lower_type(result),
   )
@@ -79,19 +85,24 @@ fn BuslaneLowerer::define_type_parameter(
   self : BuslaneLowerer,
   parameter : @types.TypeParameter,
 ) -> @buslane.TypeParameterId {
-  self.define_type_parameter_with_kind(parameter.id, lower_kind(parameter.kind))
+  self.define_type_parameter_with_kind(
+    parameter.id,
+    parameter.name,
+    lower_kind(parameter.kind),
+  )
 }
 
 ///|
 fn BuslaneLowerer::define_type_parameter_with_kind(
   self : BuslaneLowerer,
   source : @symbol.TypeParameterId,
+  occurrence : String,
   kind : @buslane.Kind,
 ) -> @buslane.TypeParameterId {
   if self.registry.find_type_parameter(source) is Some(target) {
     return target
   }
-  let target = self.metadata.define_type_parameter(kind)
+  let target = self.metadata.define_type_parameter(occurrence, kind)
   self.registry.register_type_parameter(source, target)
 }
 

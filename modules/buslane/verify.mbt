@@ -119,11 +119,16 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
   }
   for operation in self.program.metadata.operations {
     self.require_effect(operation.owner)
-    let scope = TypeScope::{ parameters: [] }
+    let scope = TypeScope::{
+      parameters: operation.hidden_type_parameters.copy(),
+    }
     if self.program.metadata.effect_info(operation.owner) is Some(owner) {
       for parameter in owner.parameters {
         scope.parameters.push(parameter)
       }
+    }
+    for parameter in operation.hidden_type_parameters {
+      self.require_type_parameter(parameter)
     }
     for payload_type in operation.payload_types {
       self.verify_value_type(payload_type, scope)
@@ -492,28 +497,56 @@ fn VerifyContext::synthesize_perform(
     self.report(UnknownEffect(info.owner))
     return pure_expr(info.result_type)
   }
-  if owner.parameters.length() != perform.type_arguments.length() {
+  if owner.parameters.length() != perform.effect_arguments.length() {
     self.report(
       ArityMismatch(
         expected=owner.parameters.length(),
-        actual=perform.type_arguments.length(),
+        actual=perform.effect_arguments.length(),
+      ),
+    )
+  }
+  if info.hidden_type_parameters.length() != perform.hidden_witnesses.length() {
+    self.report(
+      ArityMismatch(
+        expected=info.hidden_type_parameters.length(),
+        actual=perform.hidden_witnesses.length(),
       ),
     )
   }
   let substitution = TypeSubstitution::TypeSubstitution()
   for
-    index in 0..<owner.parameters.length().min(perform.type_arguments.length()) {
+    index in 0..<owner.parameters
+    .length()
+    .min(perform.effect_arguments.length()) {
     guard self.program.metadata.type_parameter_info(owner.parameters[index])
       is Some(parameter_info) else {
       self.report(UnknownTypeParameter(owner.parameters[index]))
       continue
     }
     self.verify_type_kind(
-      perform.type_arguments[index],
+      perform.effect_arguments[index],
       parameter_info.kind,
       type_scope,
     )
-    substitution.insert(owner.parameters[index], perform.type_arguments[index])
+    substitution.insert(
+      owner.parameters[index],
+      perform.effect_arguments[index],
+    )
+  }
+  for
+    index in 0..<info.hidden_type_parameters
+    .length()
+    .min(perform.hidden_witnesses.length()) {
+    let witness = perform.hidden_witnesses[index]
+    guard self.program.metadata.type_parameter_info(
+        info.hidden_type_parameters[index],
+      )
+      is Some(parameter_info) else {
+      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
+      continue
+    }
+    self.verify_type_kind(witness, parameter_info.kind, type_scope)
+    substitution.insert(info.hidden_type_parameters[index], witness)
   }
   if info.payload_types.length() != perform.payloads.length() {
     self.report(
@@ -533,7 +566,7 @@ fn VerifyContext::synthesize_perform(
     )
     effects.push(payload_effect)
   }
-  effects.push(Singleton(info.owner, perform.type_arguments))
+  effects.push(Singleton(info.owner, perform.effect_arguments))
   {
     type_: info.result_type.substitute(substitution),
     effect: effect_union(effects),
@@ -603,6 +636,14 @@ fn VerifyContext::verify_operation_alternative(
     self.report(UnknownOperation(alternative.operation))
     return Empty
   }
+  if alternative.type_binders.length() != info.hidden_type_parameters.length() {
+    self.report(
+      ArityMismatch(
+        expected=info.hidden_type_parameters.length(),
+        actual=alternative.type_binders.length(),
+      ),
+    )
+  }
   let substitution = TypeSubstitution::TypeSubstitution()
   match handled_effect {
     Singleton(owner, arguments) => {
@@ -621,6 +662,31 @@ fn VerifyContext::verify_operation_alternative(
       }
     }
     _ => self.report(EffectMismatch(expected=handled_effect, actual=Empty))
+  }
+  let arm_type_scope = type_scope.copy()
+  for
+    index in 0..<alternative.type_binders
+    .length()
+    .min(info.hidden_type_parameters.length()) {
+    let binder = alternative.type_binders[index]
+    guard self.program.metadata.type_parameter_info(binder) is Some(binder_info) else {
+      self.report(UnknownTypeParameter(binder))
+      continue
+    }
+    guard self.program.metadata.type_parameter_info(
+        info.hidden_type_parameters[index],
+      )
+      is Some(hidden_info) else {
+      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
+      continue
+    }
+    if binder_info.kind != hidden_info.kind {
+      self.report(
+        KindMismatch(expected=hidden_info.kind, actual=binder_info.kind),
+      )
+    }
+    substitution.insert(info.hidden_type_parameters[index], Parameter(binder))
+    arm_type_scope.parameters.push(binder)
   }
   if alternative.payload_binders.length() != info.payload_types.length() {
     self.report(
@@ -653,7 +719,7 @@ fn VerifyContext::verify_operation_alternative(
     handler_result,
     arm_scope,
   )
-  self.check_expr(alternative.body, handler_result, arm_scope, type_scope)
+  self.check_expr(alternative.body, handler_result, arm_scope, arm_type_scope)
 }
 
 ///|

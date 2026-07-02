@@ -575,10 +575,13 @@ fn Expr::to_doc_with_precedence(
         body.to_doc(),
       )
     }
-    EffectOperationCall(name~, arguments~, ..) =>
+    EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
       (
         10,
-        name.to_doc() + text("!") + parenthesized(arguments.map(Expr::to_doc)),
+        name.to_doc() +
+        text("!") +
+        bracketed_type_arguments(type_witnesses) +
+        parenthesized(arguments.map(Expr::to_doc)),
       )
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [keyword("handle") + space + body.to_doc()]
@@ -674,7 +677,16 @@ fn HandlerWithBlock::to_doc(self : HandlerWithBlock) -> Document {
 fn HandlerOperationArm::to_doc(self : HandlerOperationArm) -> Document {
   let parameters = self.payload_patterns.map(Pattern::to_doc)
   parameters.push(text(self.resume_binder))
-  let head = self.name.to_doc() + parenthesized(parameters) + space + text("=>")
+  let binders = if self.type_binders.is_empty() {
+    empty
+  } else {
+    brackets(join_comma(self.type_binders.map(text)))
+  }
+  let head = self.name.to_doc() +
+    binders +
+    parenthesized(parameters) +
+    space +
+    text("=>")
   if self.body.breaks_after_match_arrow() {
     head + nest(hardline + self.body.to_doc())
   } else {

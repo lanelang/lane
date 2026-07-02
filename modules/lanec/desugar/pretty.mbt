@@ -136,6 +136,7 @@ pub impl @prettyprinter.Pretty for DesugaredHandlerOperationArm with fn pretty(
   let parameters = arm.payload_patterns.map(fn(pattern) { pattern.pretty() })
   parameters.push(arm.resume_symbol.pretty() + space + text(arm.resume_binder))
   arm.name.pretty() +
+  type_parameters_doc(arm.type_binders) +
   @pretty.parenthesized_inline(parameters) +
   space +
   text("=>") +
@@ -227,9 +228,10 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       space +
       body.pretty()
     }
-    EffectOperationCall(name~, arguments~, ..) =>
+    EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
       name.pretty() +
       text("!") +
+      type_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]

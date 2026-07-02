@@ -96,7 +96,7 @@ pub(all) enum Expr {
   StructLiteral(type_name~ : String, type_arguments~ : Array[Type], fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
-  EffectOperationCall(name~ : EffectOperationName, arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : EffectOperationName, type_witnesses~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   Handler(body~ : Expr, handlers~ : Array[HandlerWithBlock], final_branch~ : HandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[LocalItem], result~ : Expr, loc~ : @basic.SourceSpan)
   If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
@@ -147,6 +147,7 @@ pub(all) struct HandlerFinalBranch {
 
 pub(all) struct HandlerOperationArm {
   name : EffectOperationName
+  type_binders : Array[String]
   payload_patterns : Array[Pattern]
   resume_binder : String
   resume_loc : @basic.SourceSpan

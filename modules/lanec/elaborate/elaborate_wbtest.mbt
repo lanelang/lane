@@ -280,9 +280,9 @@ test "elaborate resolved source into buslane core" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      function value#0 : (Int) -> Int
-      #|      value value#1 : Int
-      #|      parameter value#2 : Int
+      #|      function identity#0 : (Int) -> Int
+      #|      value answer#1 : Int
+      #|      parameter x#2 : Int
       #|    }
       #|    letrec {
       #|      value#0 = fn(value#2) -> Int {
@@ -444,11 +444,11 @@ test "elaborate lowers effect metadata into buslane metadata" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      type_parameter tparam#0 : Type
-      #|      value value#0 : Int
-      #|      effect effect#0[tparam#0] {
-      #|        operation#0() -> tparam#0
-      #|        operation#1(tparam#0) -> Unit
+      #|      type_parameter S#0 : Type
+      #|      value answer#4 : Int
+      #|      effect State#1[tparam#0] {
+      #|        get#2() -> tparam#0
+      #|        put#3(tparam#0) -> Unit
       #|      }
       #|    }
       #|    let value#0 = 1
@@ -489,13 +489,13 @@ test "elaborate lowers latent effects into buslane function types" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      type_parameter tparam#0 : Effect
-      #|      function value#0 : (() -> Int ! effect#0) -> Int ! effect#0
-      #|      function value#1 : forall [tparam#0]. (() -> Unit ! tparam#0) -> Unit ! tparam#0
-      #|      parameter value#2 : () -> Int ! effect#0
-      #|      parameter value#3 : () -> Unit ! tparam#0
-      #|      effect effect#0 {
-      #|        operation#0() -> Int
+      #|      type_parameter E#3 : Effect
+      #|      function run_console#2 : (() -> Int ! effect#0) -> Int ! effect#0
+      #|      function run_row#4 : forall [tparam#0]. (() -> Unit ! tparam#0) -> Unit ! tparam#0
+      #|      parameter f#5 : () -> Int ! effect#0
+      #|      parameter f#6 : () -> Unit ! tparam#0
+      #|      effect Console#0 {
+      #|        read#1() -> Int
       #|      }
       #|    }
       #|    letrec {
@@ -548,14 +548,14 @@ test "elaborate lowers operation calls into buslane perform" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      type_parameter tparam#0 : Type
-      #|      function value#0 : () -> Unit ! effect#0
-      #|      function value#1 : () -> Int ! effect#1[Int]
-      #|      effect effect#0 {
-      #|        operation#0(String) -> Unit
+      #|      type_parameter S#1 : Type
+      #|      function write_hello#5 : () -> Unit ! effect#0
+      #|      function read_int#6 : () -> Int ! effect#1[Int]
+      #|      effect Console#0 {
+      #|        write#3(String) -> Unit
       #|      }
-      #|      effect effect#1[tparam#0] {
-      #|        operation#1() -> tparam#0
+      #|      effect State#2[tparam#0] {
+      #|        get#4() -> tparam#0
       #|      }
       #|    }
       #|    letrec {
@@ -605,12 +605,12 @@ test "elaborate lowers handlers into buslane handler tables" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      function value#0 : () -> Int
-      #|      match_binder value#1 : Int
-      #|      parameter value#2 : Bool
-      #|      parameter value#3 : (Int) -> Int
-      #|      effect effect#0 {
-      #|        operation#0(Bool) -> Int
+      #|      function program#2 : () -> Int
+      #|      match_binder value#3 : Int
+      #|      parameter payload#4 : Bool
+      #|      parameter resume#5 : (Int) -> Int
+      #|      effect Console#0 {
+      #|        choose#1(Bool) -> Int
       #|      }
       #|    }
       #|    letrec {

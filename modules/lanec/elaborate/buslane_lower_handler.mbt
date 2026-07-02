@@ -12,6 +12,7 @@ fn BuslaneLowerer::lower_handler(
   }
   let result_binder = self.define_value(
     final_branch.binder_symbol,
+    final_branch.binder,
     MatchBinder,
     self.lower_type(body.type_()),
   )
@@ -48,6 +49,7 @@ fn BuslaneLowerer::lower_operation_alternative(
 ) -> @buslane.OperationAlternative {
   {
     operation: self.operation_id(operation.operation),
+    type_binders: operation.type_binders,
     payload_binders: operation.payload_binders,
     resume_binder: operation.resume_binder,
     body: operation.body,
@@ -82,6 +84,7 @@ fn lower_handler_operation_groups(
       None =>
         groups.push({
           operation: operation.operation,
+          type_binders: operation.type_binders,
           payload_types: operation.payload_types,
           resume_type: operation.resume_type,
           arms: [operation],
@@ -121,10 +124,14 @@ fn BuslaneLowerer::lower_handler_operation_group(
   group : LowerHandlerOperationGroup,
   result_type : @types.Type,
 ) -> LoweredOperationAlternative {
+  let type_binders = group.type_binders.map(fn(parameter) {
+    self.define_type_parameter(parameter)
+  })
   let payload_binders = group.payload_types.map(fn(type_) {
-    self.define_fresh_value(Parameter, self.lower_type(type_))
+    self.define_fresh_value("payload", Parameter, self.lower_type(type_))
   })
   let resume_binder = self.define_fresh_value(
+    "resume",
     Parameter,
     self.lower_type(group.resume_type),
   )
@@ -140,6 +147,7 @@ fn BuslaneLowerer::lower_handler_operation_group(
   })
   {
     operation: group.operation,
+    type_binders,
     payload_binders,
     resume_binder,
     body: self.lower_pattern_decision(

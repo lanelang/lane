@@ -339,6 +339,7 @@ pub(all) struct ResolvedHandlerWithBlock {
 ///|
 pub(all) struct ResolvedHandlerOperationArm {
   name : ResolvedEffectOperationName
+  type_binders : Array[ResolvedTypeParameter]
   payload_patterns : Array[ResolvedPattern]
   resume_symbol : ValueSymbolId
   resume_binder : String
@@ -421,6 +422,7 @@ pub(all) enum ResolvedExpr {
   )
   EffectOperationCall(
     name~ : ResolvedEffectOperationName,
+    type_witnesses~ : Array[ResolvedType],
     arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan
   )

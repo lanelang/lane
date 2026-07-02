@@ -246,7 +246,7 @@ test "link modules produces Buslane program from reachable module objects" {
       #|buslane {
       #|  metadata {
       #|    value value#0 : Int
-      #|    value value#1 : Int
+      #|    value answer#1 : Int
       #|  }
       #|  let value#0 = 42
       #|  let value#1 = value#0
@@ -606,7 +606,7 @@ test "link module artifacts orders reachable modules by imports" {
       #|buslane {
       #|  metadata {
       #|    value value#0 : Int
-      #|    value value#1 : Int
+      #|    value answer#1 : Int
       #|  }
       #|  let value#0 = 42
       #|  let value#1 = value#0

@@ -25,6 +25,8 @@
 %token DATACON "datacon"
 %token EFFECT_DECL "effect"
 %token OPERATION "operation"
+%token NAME "name"
+%token UNIQUE "unique"
 %token PARAMETERS "parameters"
 %token CONSTRUCTORS "constructors"
 %token OPERATIONS "operations"
@@ -110,23 +112,53 @@ metadata_declarations -> Array[MetadataDeclaration]
   ;
 
 metadata_declaration -> MetadataDeclaration
-  : "type" type_id "parameters" type_parameter_id_list "constructors" data_con_id_list ";" {
-    TypeInfoDecl($2, { parameters: $4, constructors: $6 })
+  : "type" type_id buslane_type_name "parameters" type_parameter_id_list "constructors" data_con_id_list ";" {
+    TypeInfoDecl($2, { name: $3, parameters: $5, constructors: $7 })
   }
-  | "type_parameter" type_parameter_id ":" kind ";" {
-    TypeParameterInfoDecl($2, { kind: $4 })
+  | "type_parameter" type_parameter_id buslane_type_parameter_name ":" kind ";" {
+    TypeParameterInfoDecl($2, { name: $3, kind: $5 })
   }
-  | "value" value_id value_kind ":" type ";" {
-    ValueInfoDecl($2, { kind: $3, type_: $5 })
+  | "value" value_id buslane_value_name value_kind ":" type ";" {
+    ValueInfoDecl($2, { name: $3, kind: $4, type_: $6 })
   }
-  | "datacon" data_con_id "owner" type_id "hidden" type_parameter_id_list "payload" type_list ";" {
-    DataConInfoDecl($2, { owner: $4, hidden_type_parameters: $6, payload_types: $8 })
+  | "datacon" data_con_id buslane_data_constructor_name "owner" type_id "hidden" type_parameter_id_list "payload" type_list ";" {
+    DataConInfoDecl($2, { name: $3, owner: $5, hidden_type_parameters: $7, payload_types: $9 })
   }
-  | "effect" effect_id "parameters" type_parameter_id_list "operations" operation_id_list ";" {
-    EffectInfoDecl($2, { parameters: $4, operations: $6 })
+  | "effect" effect_id buslane_effect_name "parameters" type_parameter_id_list "operations" operation_id_list ";" {
+    EffectInfoDecl($2, { name: $3, parameters: $5, operations: $7 })
   }
-  | "operation" operation_id "owner" effect_id "payload" type_list "result" type ";" {
-    OperationInfoDecl($2, { owner: $4, payload_types: $6, result_type: $8 })
+  | "operation" operation_id buslane_operation_name "owner" effect_id "hidden" type_parameter_id_list "payload" type_list "result" type ";" {
+    OperationInfoDecl($2, { name: $3, owner: $5, hidden_type_parameters: $7, payload_types: $9, result_type: $11 })
+  }
+  ;
+
+buslane_type_name -> BuslaneName
+  : buslane_name { parsed_name(TypeName, $1.occurrence, $1.unique) }
+  ;
+
+buslane_type_parameter_name -> BuslaneName
+  : buslane_name { parsed_name(TypeParameterName, $1.occurrence, $1.unique) }
+  ;
+
+buslane_value_name -> BuslaneName
+  : buslane_name { parsed_name(ValueName, $1.occurrence, $1.unique) }
+  ;
+
+buslane_data_constructor_name -> BuslaneName
+  : buslane_name { parsed_name(DataConstructorName, $1.occurrence, $1.unique) }
+  ;
+
+buslane_effect_name -> BuslaneName
+  : buslane_name { parsed_name(EffectName, $1.occurrence, $1.unique) }
+  ;
+
+buslane_operation_name -> BuslaneName
+  : buslane_name { parsed_name(OperationName, $1.occurrence, $1.unique) }
+  ;
+
+buslane_name -> ParsedBuslaneName
+  : "name" STRING "unique" INT {
+    { occurrence: $2, unique: parse_text_int($4) }
   }
   ;
 
@@ -158,7 +190,12 @@ expr -> Expr
   }
   | "call" "(" expr "," expr_list ")" { Call($3, $5) }
   | "perform" "(" operation_id "," type_list "," expr_list ")" {
-    Perform({ operation: $3, type_arguments: $5, payloads: $7 })
+    Perform({
+      operation: $3,
+      effect_arguments: $5,
+      hidden_witnesses: [],
+      payloads: $7,
+    })
   }
   | "resume" "(" value_id ")" { Resume($3) }
   | "type_fn" "(" type_parameter_id_list ")" "{" expr "}" {
@@ -209,7 +246,13 @@ operation_alternatives -> Array[OperationAlternative]
 
 operation_alternative -> OperationAlternative
   : "op_alt" "(" operation_id "," value_id_list "," value_id ")" "=>" expr ";" {
-    { operation: $3, payload_binders: $5, resume_binder: $7, body: $10 }
+    {
+      operation: $3,
+      type_binders: [],
+      payload_binders: $5,
+      resume_binder: $7,
+      body: $10,
+    }
   }
   ;
 

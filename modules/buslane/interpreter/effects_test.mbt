@@ -49,17 +49,19 @@ fn effect_plus_runtime(plus : @buslane.ValueId) -> BuslaneExternalRuntime {
 ///|
 test "reader effect supplies the same environment to every ask" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let reader = metadata.define_effect([])
-  let ask = metadata.define_operation(reader, [], effect_int_type())
+  let reader = metadata.define_effect("Effect", [])
+  let ask = metadata.define_operation("op", reader, [], [], effect_int_type())
   let plus = metadata.define_value(
+    "value",
     External,
     Function([effect_int_type(), effect_int_type()], effect_int_type(), Empty),
   )
-  let first = metadata.define_value(Local, effect_int_type())
-  let second = metadata.define_value(Local, effect_int_type())
-  let result = metadata.define_value(Value, effect_int_type())
-  let final_binder = metadata.define_value(Local, effect_int_type())
+  let first = metadata.define_value("value", Local, effect_int_type())
+  let second = metadata.define_value("value", Local, effect_int_type())
+  let result = metadata.define_value("value", Value, effect_int_type())
+  let final_binder = metadata.define_value("value", Local, effect_int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_int_type()], effect_int_type(), Empty),
   )
@@ -72,10 +74,20 @@ test "reader effect supplies the same environment to every ask" {
         Handle({
           body: Let(
             first,
-            Perform({ operation: ask, type_arguments: [], payloads: [] }),
+            Perform({
+              operation: ask,
+              effect_arguments: [],
+              hidden_witnesses: [],
+              payloads: [],
+            }),
             Let(
               second,
-              Perform({ operation: ask, type_arguments: [], payloads: [] }),
+              Perform({
+                operation: ask,
+                effect_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
               Call(Ref(plus), [Ref(first), Ref(second)]),
             ),
           ),
@@ -88,6 +100,7 @@ test "reader effect supplies the same environment to every ask" {
               operations: [
                 {
                   operation: ask,
+                  type_binders: [],
                   payload_binders: [],
                   resume_binder,
                   body: Call(Resume(resume_binder), [Literal(Int(21L))]),
@@ -110,22 +123,26 @@ test "reader effect supplies the same environment to every ask" {
 ///|
 test "writer effect folds tell payloads around the resumed continuation" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let writer = metadata.define_effect([])
+  let writer = metadata.define_effect("Effect", [])
   let tell = metadata.define_operation(
+    "op",
     writer,
+    [],
     [effect_int_type()],
     effect_unit_type(),
   )
   let plus = metadata.define_value(
+    "value",
     External,
     Function([effect_int_type(), effect_int_type()], effect_int_type(), Empty),
   )
-  let first_tell = metadata.define_value(Local, effect_unit_type())
-  let second_tell = metadata.define_value(Local, effect_unit_type())
-  let result = metadata.define_value(Value, effect_int_type())
-  let final_binder = metadata.define_value(Local, effect_int_type())
-  let payload = metadata.define_value(Parameter, effect_int_type())
+  let first_tell = metadata.define_value("value", Local, effect_unit_type())
+  let second_tell = metadata.define_value("value", Local, effect_unit_type())
+  let result = metadata.define_value("value", Value, effect_int_type())
+  let final_binder = metadata.define_value("value", Local, effect_int_type())
+  let payload = metadata.define_value("value", Parameter, effect_int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_unit_type()], effect_int_type(), Empty),
   )
@@ -140,14 +157,16 @@ test "writer effect folds tell payloads around the resumed continuation" {
             first_tell,
             Perform({
               operation: tell,
-              type_arguments: [],
+              effect_arguments: [],
+              hidden_witnesses: [],
               payloads: [Literal(Int(3L))],
             }),
             Let(
               second_tell,
               Perform({
                 operation: tell,
-                type_arguments: [],
+                effect_arguments: [],
+                hidden_witnesses: [],
                 payloads: [Literal(Int(4L))],
               }),
               Literal(Int(10L)),
@@ -162,6 +181,7 @@ test "writer effect folds tell payloads around the resumed continuation" {
               operations: [
                 {
                   operation: tell,
+                  type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
                   body: Call(Ref(plus), [
@@ -187,16 +207,19 @@ test "writer effect folds tell payloads around the resumed continuation" {
 ///|
 test "exception effect aborts the captured continuation with a fallback value" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let exception = metadata.define_effect([])
+  let exception = metadata.define_effect("Effect", [])
   let raise_ = metadata.define_operation(
+    "op",
     exception,
+    [],
     [Primitive(String)],
     effect_int_type(),
   )
-  let result = metadata.define_value(Value, effect_int_type())
-  let final_binder = metadata.define_value(Local, effect_int_type())
-  let message = metadata.define_value(Parameter, Primitive(String))
+  let result = metadata.define_value("value", Value, effect_int_type())
+  let final_binder = metadata.define_value("value", Local, effect_int_type())
+  let message = metadata.define_value("value", Parameter, Primitive(String))
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_int_type()], effect_int_type(), Empty),
   )
@@ -208,7 +231,8 @@ test "exception effect aborts the captured continuation with a fallback value" {
         Handle({
           body: Perform({
             operation: raise_,
-            type_arguments: [],
+            effect_arguments: [],
+            hidden_witnesses: [],
             payloads: [Literal(String("boom"))],
           }),
           result_binder: final_binder,
@@ -220,6 +244,7 @@ test "exception effect aborts the captured continuation with a fallback value" {
               operations: [
                 {
                   operation: raise_,
+                  type_binders: [],
                   payload_binders: [message],
                   resume_binder,
                   body: Literal(Int(42L)),
@@ -242,17 +267,29 @@ test "exception effect aborts the captured continuation with a fallback value" {
 ///|
 test "nondeterminism effect explores both choices with multi-shot resume" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let nondet = metadata.define_effect([])
-  let choose = metadata.define_operation(nondet, [], effect_bool_type())
+  let nondet = metadata.define_effect("Effect", [])
+  let choose = metadata.define_operation(
+    "op",
+    nondet,
+    [],
+    [],
+    effect_bool_type(),
+  )
   let plus = metadata.define_value(
+    "value",
     External,
     Function([effect_int_type(), effect_int_type()], effect_int_type(), Empty),
   )
-  let choice = metadata.define_value(Local, effect_bool_type())
-  let match_binder = metadata.define_value(MatchBinder, effect_bool_type())
-  let result = metadata.define_value(Value, effect_int_type())
-  let final_binder = metadata.define_value(Local, effect_int_type())
+  let choice = metadata.define_value("value", Local, effect_bool_type())
+  let match_binder = metadata.define_value(
+    "value",
+    MatchBinder,
+    effect_bool_type(),
+  )
+  let result = metadata.define_value("value", Value, effect_int_type())
+  let final_binder = metadata.define_value("value", Local, effect_int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_bool_type()], effect_int_type(), Empty),
   )
@@ -265,7 +302,12 @@ test "nondeterminism effect explores both choices with multi-shot resume" {
         Handle({
           body: Let(
             choice,
-            Perform({ operation: choose, type_arguments: [], payloads: [] }),
+            Perform({
+              operation: choose,
+              effect_arguments: [],
+              hidden_witnesses: [],
+              payloads: [],
+            }),
             Match({
               scrutinee: Ref(choice),
               binder: match_binder,
@@ -295,6 +337,7 @@ test "nondeterminism effect explores both choices with multi-shot resume" {
               operations: [
                 {
                   operation: choose,
+                  type_binders: [],
                   payload_binders: [],
                   resume_binder,
                   body: Call(Ref(plus), [
@@ -320,37 +363,43 @@ test "nondeterminism effect explores both choices with multi-shot resume" {
 ///|
 test "state effect threads state through get and put with a state-passing handler" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let pair_type_id = metadata.define_type([])
-  let pair_constructor = metadata.define_data_constructor(pair_type_id, [], [
-    effect_int_type(),
-    effect_int_type(),
-  ])
+  let pair_type_id = metadata.define_type("Type", [])
+  let pair_constructor = metadata.define_data_constructor(
+    "Con",
+    pair_type_id,
+    [],
+    [effect_int_type(), effect_int_type()],
+  )
   let pair_type = @buslane.Type::Constructor(pair_type_id)
   let state_function_type = @buslane.Type::Function(
     [effect_int_type()],
     pair_type,
     Empty,
   )
-  let state = metadata.define_effect([])
-  let get = metadata.define_operation(state, [], effect_int_type())
+  let state = metadata.define_effect("Effect", [])
+  let get = metadata.define_operation("op", state, [], [], effect_int_type())
   let put = metadata.define_operation(
+    "op",
     state,
+    [],
     [effect_int_type()],
     effect_unit_type(),
   )
-  let result = metadata.define_value(Value, pair_type)
-  let old_state = metadata.define_value(Local, effect_int_type())
-  let ignored = metadata.define_value(Local, effect_unit_type())
-  let final_binder = metadata.define_value(Local, effect_int_type())
-  let final_state = metadata.define_value(Parameter, effect_int_type())
-  let get_state = metadata.define_value(Parameter, effect_int_type())
-  let put_state = metadata.define_value(Parameter, effect_int_type())
-  let put_payload = metadata.define_value(Parameter, effect_int_type())
+  let result = metadata.define_value("value", Value, pair_type)
+  let old_state = metadata.define_value("value", Local, effect_int_type())
+  let ignored = metadata.define_value("value", Local, effect_unit_type())
+  let final_binder = metadata.define_value("value", Local, effect_int_type())
+  let final_state = metadata.define_value("value", Parameter, effect_int_type())
+  let get_state = metadata.define_value("value", Parameter, effect_int_type())
+  let put_state = metadata.define_value("value", Parameter, effect_int_type())
+  let put_payload = metadata.define_value("value", Parameter, effect_int_type())
   let get_resume = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_int_type()], state_function_type, Empty),
   )
   let put_resume = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_unit_type()], state_function_type, Empty),
   )
@@ -363,15 +412,26 @@ test "state effect threads state through get and put with a state-passing handle
           Handle({
             body: Let(
               old_state,
-              Perform({ operation: get, type_arguments: [], payloads: [] }),
+              Perform({
+                operation: get,
+                effect_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
               Let(
                 ignored,
                 Perform({
                   operation: put,
-                  type_arguments: [],
+                  effect_arguments: [],
+                  hidden_witnesses: [],
                   payloads: [Literal(Int(7L))],
                 }),
-                Perform({ operation: get, type_arguments: [], payloads: [] }),
+                Perform({
+                  operation: get,
+                  effect_arguments: [],
+                  hidden_witnesses: [],
+                  payloads: [],
+                }),
               ),
             ),
             result_binder: final_binder,
@@ -392,6 +452,7 @@ test "state effect threads state through get and put with a state-passing handle
                 operations: [
                   {
                     operation: get,
+                    type_binders: [],
                     payload_binders: [],
                     resume_binder: get_resume,
                     body: Function({
@@ -404,6 +465,7 @@ test "state effect threads state through get and put with a state-passing handle
                   },
                   {
                     operation: put,
+                    type_binders: [],
                     payload_binders: [put_payload],
                     resume_binder: put_resume,
                     body: Function({
@@ -439,15 +501,17 @@ test "state effect threads state through get and put with a state-passing handle
 ///|
 test "perform in call argument resumes into the pending call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let reader = metadata.define_effect([])
-  let ask = metadata.define_operation(reader, [], effect_int_type())
+  let reader = metadata.define_effect("Effect", [])
+  let ask = metadata.define_operation("op", reader, [], [], effect_int_type())
   let plus = metadata.define_value(
+    "value",
     External,
     Function([effect_int_type(), effect_int_type()], effect_int_type(), Empty),
   )
-  let result = metadata.define_value(Value, effect_int_type())
-  let final_binder = metadata.define_value(Local, effect_int_type())
+  let result = metadata.define_value("value", Value, effect_int_type())
+  let final_binder = metadata.define_value("value", Local, effect_int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_int_type()], effect_int_type(), Empty),
   )
@@ -460,7 +524,12 @@ test "perform in call argument resumes into the pending call" {
         Handle({
           body: Call(Ref(plus), [
             Literal(Int(1L)),
-            Perform({ operation: ask, type_arguments: [], payloads: [] }),
+            Perform({
+              operation: ask,
+              effect_arguments: [],
+              hidden_witnesses: [],
+              payloads: [],
+            }),
           ]),
           result_binder: final_binder,
           result_type: effect_int_type(),
@@ -471,6 +540,7 @@ test "perform in call argument resumes into the pending call" {
               operations: [
                 {
                   operation: ask,
+                  type_binders: [],
                   payload_binders: [],
                   resume_binder,
                   body: Call(Resume(resume_binder), [Literal(Int(41L))]),
@@ -493,13 +563,20 @@ test "perform in call argument resumes into the pending call" {
 ///|
 test "perform in construct payload resumes into the pending constructor" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let box_type = metadata.define_type([])
-  let box = metadata.define_data_constructor(box_type, [], [effect_int_type()])
-  let reader = metadata.define_effect([])
-  let ask = metadata.define_operation(reader, [], effect_int_type())
-  let result = metadata.define_value(Value, Constructor(box_type))
-  let final_binder = metadata.define_value(Local, Constructor(box_type))
+  let box_type = metadata.define_type("Type", [])
+  let box = metadata.define_data_constructor("Con", box_type, [], [
+    effect_int_type(),
+  ])
+  let reader = metadata.define_effect("Effect", [])
+  let ask = metadata.define_operation("op", reader, [], [], effect_int_type())
+  let result = metadata.define_value("value", Value, Constructor(box_type))
+  let final_binder = metadata.define_value(
+    "value",
+    Local,
+    Constructor(box_type),
+  )
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_int_type()], Constructor(box_type), Empty),
   )
@@ -514,7 +591,12 @@ test "perform in construct payload resumes into the pending constructor" {
             type_arguments: [],
             hidden_witnesses: [],
             payloads: [
-              Perform({ operation: ask, type_arguments: [], payloads: [] }),
+              Perform({
+                operation: ask,
+                effect_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
             ],
           }),
           result_binder: final_binder,
@@ -526,6 +608,7 @@ test "perform in construct payload resumes into the pending constructor" {
               operations: [
                 {
                   operation: ask,
+                  type_binders: [],
                   payload_binders: [],
                   resume_binder,
                   body: Call(Resume(resume_binder), [Literal(Int(7L))]),
@@ -552,12 +635,23 @@ test "perform in construct payload resumes into the pending constructor" {
 ///|
 test "perform in match scrutinee resumes into branch selection" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let nondet = metadata.define_effect([])
-  let choose = metadata.define_operation(nondet, [], effect_bool_type())
-  let scrutinee_binder = metadata.define_value(MatchBinder, effect_bool_type())
-  let result = metadata.define_value(Value, effect_int_type())
-  let final_binder = metadata.define_value(Local, effect_int_type())
+  let nondet = metadata.define_effect("Effect", [])
+  let choose = metadata.define_operation(
+    "op",
+    nondet,
+    [],
+    [],
+    effect_bool_type(),
+  )
+  let scrutinee_binder = metadata.define_value(
+    "value",
+    MatchBinder,
+    effect_bool_type(),
+  )
+  let result = metadata.define_value("value", Value, effect_int_type())
+  let final_binder = metadata.define_value("value", Local, effect_int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_bool_type()], effect_int_type(), Empty),
   )
@@ -570,7 +664,8 @@ test "perform in match scrutinee resumes into branch selection" {
           body: Match({
             scrutinee: Perform({
               operation: choose,
-              type_arguments: [],
+              effect_arguments: [],
+              hidden_witnesses: [],
               payloads: [],
             }),
             binder: scrutinee_binder,
@@ -599,6 +694,7 @@ test "perform in match scrutinee resumes into branch selection" {
               operations: [
                 {
                   operation: choose,
+                  type_binders: [],
                   payload_binders: [],
                   resume_binder,
                   body: Call(Resume(resume_binder), [Literal(Bool(true))]),
@@ -621,23 +717,37 @@ test "perform in match scrutinee resumes into branch selection" {
 ///|
 test "inner handler final body performs through the outer handler stack" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let outer_effect = metadata.define_effect([])
+  let outer_effect = metadata.define_effect("Effect", [])
   let echo = metadata.define_operation(
+    "op",
     outer_effect,
+    [],
     [effect_int_type()],
     effect_int_type(),
   )
-  let inner_effect = metadata.define_effect([])
-  let read = metadata.define_operation(inner_effect, [], effect_int_type())
-  let result = metadata.define_value(Value, effect_int_type())
-  let outer_final = metadata.define_value(Local, effect_int_type())
-  let inner_final = metadata.define_value(Local, effect_int_type())
-  let outer_payload = metadata.define_value(Parameter, effect_int_type())
+  let inner_effect = metadata.define_effect("Effect", [])
+  let read = metadata.define_operation(
+    "op",
+    inner_effect,
+    [],
+    [],
+    effect_int_type(),
+  )
+  let result = metadata.define_value("value", Value, effect_int_type())
+  let outer_final = metadata.define_value("value", Local, effect_int_type())
+  let inner_final = metadata.define_value("value", Local, effect_int_type())
+  let outer_payload = metadata.define_value(
+    "value",
+    Parameter,
+    effect_int_type(),
+  )
   let outer_resume = metadata.define_value(
+    "value",
     Parameter,
     Function([effect_int_type()], effect_int_type(), Empty),
   )
   let inner_resume = metadata.define_value(
+    "value",
     Parameter,
     Function(
       [effect_int_type()],
@@ -652,12 +762,18 @@ test "inner handler final body performs through the outer handler stack" {
         result,
         Handle({
           body: Handle({
-            body: Perform({ operation: read, type_arguments: [], payloads: [] }),
+            body: Perform({
+              operation: read,
+              effect_arguments: [],
+              hidden_witnesses: [],
+              payloads: [],
+            }),
             result_binder: inner_final,
             result_type: effect_int_type(),
             final_body: Perform({
               operation: echo,
-              type_arguments: [],
+              effect_arguments: [],
+              hidden_witnesses: [],
               payloads: [Ref(inner_final)],
             }),
             handlers: [
@@ -666,6 +782,7 @@ test "inner handler final body performs through the outer handler stack" {
                 operations: [
                   {
                     operation: read,
+                    type_binders: [],
                     payload_binders: [],
                     resume_binder: inner_resume,
                     body: Call(Resume(inner_resume), [Literal(Int(42L))]),
@@ -683,6 +800,7 @@ test "inner handler final body performs through the outer handler stack" {
               operations: [
                 {
                   operation: echo,
+                  type_binders: [],
                   payload_binders: [outer_payload],
                   resume_binder: outer_resume,
                   body: Ref(outer_payload),

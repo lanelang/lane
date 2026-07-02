@@ -125,7 +125,7 @@ pub(all) enum ResolvedExpr {
   StructLiteral(type_name~ : String, type_arguments~ : Array[ResolvedType], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
-  EffectOperationCall(name~ : ResolvedEffectOperationName, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : ResolvedEffectOperationName, type_witnesses~ : Array[ResolvedType], arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   Handler(body~ : ResolvedExpr, handlers~ : Array[ResolvedHandlerWithBlock], final_branch~ : ResolvedHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[ResolvedLocalItem], result~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   If(condition~ : ResolvedExpr, then_branch~ : ResolvedExpr, else_branch~ : ResolvedExpr, loc~ : @basic.SourceSpan)
@@ -188,6 +188,7 @@ pub impl @prettyprinter.Pretty for ResolvedHandlerFinalBranch
 
 pub(all) struct ResolvedHandlerOperationArm {
   name : ResolvedEffectOperationName
+  type_binders : Array[ResolvedTypeParameter]
   payload_patterns : Array[ResolvedPattern]
   resume_symbol : @symbol.ValueSymbolId
   resume_binder : String

@@ -27,10 +27,13 @@ fn BuslaneLowerer::lower_expr(
         self.lower_expr(callee),
         arguments.map(fn(argument) { self.lower_expr(argument) }),
       )
-    OperationCall(operation~, arguments~, effect~, ..) =>
+    OperationCall(operation~, type_witnesses~, arguments~, effect~, ..) =>
       Perform({
         operation: self.operation_id(operation),
-        type_arguments: self.perform_type_arguments(effect),
+        effect_arguments: self.perform_type_arguments(effect),
+        hidden_witnesses: type_witnesses.map(fn(witness) {
+          self.lower_type(witness)
+        }),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
     Handler(body~, handlers~, final_branch~, type_~, ..) =>
@@ -77,6 +80,7 @@ fn BuslaneLowerer::lower_function_literal(
     parameters: parameters.map(fn(parameter) {
       self.define_value(
         parameter.symbol,
+        parameter.name,
         Local,
         self.lower_type(parameter.type_),
       )
@@ -103,8 +107,13 @@ fn BuslaneLowerer::lower_items(
   } else {
     match items[index] {
       Let(declaration) => {
+        let occurrence = match declaration.name {
+          Some(name) => name
+          None => "let"
+        }
         let id = self.define_value(
           declaration.symbol,
+          occurrence,
           Local,
           self.lower_type(declaration.type_),
         )
@@ -117,6 +126,7 @@ fn BuslaneLowerer::lower_items(
       Function(declaration) => {
         let id = self.define_value(
           declaration.symbol,
+          declaration.name,
           Local,
           self.lower_type(declaration.type_),
         )
@@ -149,7 +159,11 @@ fn BuslaneLowerer::lower_if(
   else_branch : @checked.CheckedExpr,
   result_type : @types.Type,
 ) -> @buslane.Expr {
-  let binder = self.define_fresh_value(MatchBinder, Primitive(Bool))
+  let binder = self.define_fresh_value(
+    "condition",
+    MatchBinder,
+    Primitive(Bool),
+  )
   Match({
     scrutinee: self.lower_expr(condition),
     binder,
@@ -179,6 +193,7 @@ fn BuslaneLowerer::lower_match(
   result_type : @types.Type,
 ) -> @buslane.Expr {
   let binder = self.define_fresh_value(
+    "scrutinee",
     MatchBinder,
     self.lower_type(scrutinee.type_()),
   )
@@ -205,6 +220,7 @@ fn BuslaneLowerer::lower_pattern_as_match(
 ) -> @buslane.Expr {
   self.define_pattern_binders(pattern)
   let binder = self.define_fresh_value(
+    "match",
     MatchBinder,
     self.lower_type(pattern.type_()),
   )

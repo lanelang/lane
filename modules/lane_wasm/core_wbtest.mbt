@@ -24,7 +24,7 @@ test "explore_json returns checked buslane and anf panes" {
       #|        Object(
       #|          {
       #|            "name": String("buslane"),
-      #|            "text": String("buslane {\n  metadata {\n    value value#0 : Int\n  }\n  let value#0 = 42\n}"),
+      #|            "text": String("buslane {\n  metadata {\n    value answer#0 : Int\n  }\n  let value#0 = 42\n}"),
       #|          },
       #|        ),
       #|        Object(

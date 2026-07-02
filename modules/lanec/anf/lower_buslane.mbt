@@ -120,7 +120,8 @@ fn BuslaneAnfLowerer::lower_to_atom(
         self.bind_temp(
           Perform({
             operation: perform.operation,
-            type_arguments: perform.type_arguments,
+            effect_arguments: perform.effect_arguments,
+            hidden_witnesses: perform.hidden_witnesses,
             payloads,
           }),
           continuation,
@@ -163,6 +164,7 @@ fn BuslaneAnfLowerer::lower_operation_alternative(
 ) -> BuslaneAnfOperationAlternative {
   {
     operation: alternative.operation,
+    type_binders: alternative.type_binders,
     payload_binders: alternative.payload_binders,
     resume_binder: alternative.resume_binder,
     body: self.lower_expr(alternative.body),

@@ -293,12 +293,13 @@ test "lower checked source generic call and unsafe builtin to ANF" {
 ///|
 test "lower buslane function call to ANF" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let result = metadata.define_value(Value, Primitive(Int))
+  let result = metadata.define_value("value", Value, Primitive(Int))
   let function = metadata.define_value(
+    "value",
     Function,
     Function([Primitive(Int)], Primitive(Int), Empty),
   )
-  let parameter = metadata.define_value(Parameter, Primitive(Int))
+  let parameter = metadata.define_value("value", Parameter, Primitive(Int))
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -336,22 +337,34 @@ test "lower buslane function call to ANF" {
 ///|
 test "lower buslane handler and perform to ANF" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let effect = metadata.define_effect([])
-  let operation = metadata.define_operation(effect, [], Primitive(Int))
-  let result = metadata.define_value(Value, Primitive(Int))
-  let result_binder = metadata.define_value(Local, Primitive(Int))
+  let effect = metadata.define_effect("Effect", [])
+  let operation = metadata.define_operation(
+    "op",
+    effect,
+    [],
+    [],
+    Primitive(Int),
+  )
+  let result = metadata.define_value("value", Value, Primitive(Int))
+  let result_binder = metadata.define_value("value", Local, Primitive(Int))
   let resume_value = metadata.define_value(
+    "value",
     Parameter,
     Function([Primitive(Int)], Primitive(Int), Empty),
   )
-  let first_resume = metadata.define_value(Local, Primitive(Int))
+  let first_resume = metadata.define_value("value", Local, Primitive(Int))
   let program = @buslane.Program::{
     metadata,
     terms: [
       Let(
         result,
         Handle({
-          body: Perform({ operation, type_arguments: [], payloads: [] }),
+          body: Perform({
+            operation,
+            effect_arguments: [],
+            hidden_witnesses: [],
+            payloads: [],
+          }),
           result_binder,
           result_type: Primitive(Int),
           final_body: Ref(result_binder),
@@ -361,6 +374,7 @@ test "lower buslane handler and perform to ANF" {
               operations: [
                 {
                   operation,
+                  type_binders: [],
                   payload_binders: [],
                   resume_binder: resume_value,
                   body: Let(

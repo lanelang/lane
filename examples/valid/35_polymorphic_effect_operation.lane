@@ -1,0 +1,29 @@
+module Examples.Valid.PolymorphicEffectOperation
+
+import Ops.*
+
+effect Prompt {
+  choose[A](A, A) -> A
+}
+
+fn choose_explicit() -> Int ! Prompt {
+  Prompt::choose![Int](40, 41)
+}
+
+fn choose_inferred() -> Int ! Prompt {
+  Prompt::choose!(1, 2)
+}
+
+pub let answer : Int = {
+  let first : Int = handle choose_explicit() with {
+    Prompt::choose[T](left, right, resume) => resume(left)
+  } final value {
+    value
+  }
+  let second : Int = handle choose_inferred() with {
+    Prompt::choose[T](left, right, resume) => resume(right)
+  } final value {
+    value
+  }
+  first + second
+}

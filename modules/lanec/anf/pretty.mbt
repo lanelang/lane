@@ -414,6 +414,9 @@ pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative with fn pretty
   alternative : BuslaneAnfOperationAlternative,
 ) {
   alternative.operation.pretty() +
+  buslane_type_arguments_doc(
+    alternative.type_binders.map(fn(parameter) { Parameter(parameter) }),
+  ) +
   @pretty.parenthesized_inline(
     alternative.payload_binders.map(@buslane.ValueId::pretty),
   ) +
@@ -544,7 +547,8 @@ fn buslane_anf_perform_doc(perform : BuslaneAnfPerform) -> Document {
   text("perform") +
   space +
   perform.operation.pretty() +
-  buslane_type_arguments_doc(perform.type_arguments) +
+  buslane_type_arguments_doc(perform.effect_arguments) +
+  buslane_hidden_witnesses_doc(perform.hidden_witnesses) +
   @pretty.parenthesized_inline(perform.payloads.map(buslane_anf_atom_doc))
 }
 

@@ -6,14 +6,21 @@ fn int_type() -> @buslane.Type {
 ///|
 test "runtime reports unhandled operation" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
   let error = try {
     ignore(
       evaluate_buslane_expr(
         Perform({
           operation: print,
-          type_arguments: [],
+          effect_arguments: [],
+          hidden_witnesses: [],
           payloads: [Literal(Int(1L))],
         }),
         BuslaneRuntimeEnvironment(),

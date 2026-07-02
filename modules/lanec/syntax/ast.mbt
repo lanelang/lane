@@ -265,6 +265,7 @@ pub(all) enum Expr {
   )
   EffectOperationCall(
     name~ : EffectOperationName,
+    type_witnesses~ : Array[Type],
     arguments~ : Array[Expr],
     loc~ : SourceSpan
   )
@@ -344,6 +345,7 @@ pub(all) struct HandlerWithBlock {
 ///|
 pub(all) struct HandlerOperationArm {
   name : EffectOperationName
+  type_binders : Array[String]
   payload_patterns : Array[Pattern]
   resume_binder : String
   resume_loc : SourceSpan

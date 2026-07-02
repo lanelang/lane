@@ -33,7 +33,7 @@ fn BuslaneLowerer::collect_struct_header(
   for type_member in declaration.type_members {
     ignore(self.define_type_parameter(type_member.type_parameter))
   }
-  let target = self.metadata.define_type(parameters)
+  let target = self.metadata.define_type(declaration.name, parameters)
   ignore(self.registry.register_type(declaration.symbol, target))
 }
 
@@ -50,7 +50,7 @@ fn BuslaneLowerer::collect_enum_header(
       ignore(self.define_type_parameter(parameter))
     }
   }
-  let target = self.metadata.define_type(parameters)
+  let target = self.metadata.define_type(declaration.name, parameters)
   ignore(self.registry.register_type(declaration.symbol, target))
 }
 
@@ -74,7 +74,7 @@ fn BuslaneLowerer::collect_effect_header(
   let parameters = declaration.type_parameters.map(fn(parameter) {
     self.define_type_parameter(parameter)
   })
-  let target = self.metadata.define_effect(parameters)
+  let target = self.metadata.define_effect(declaration.name, parameters)
   ignore(self.registry.register_effect(declaration.symbol, target))
 }
 
@@ -105,7 +105,10 @@ fn BuslaneLowerer::collect_struct_constructor(
     self.lower_type(field.type_)
   })
   let target = self.metadata.define_data_constructor(
-    owner, hidden_type_parameters, payload_types,
+    declaration.name,
+    owner,
+    hidden_type_parameters,
+    payload_types,
   )
   ignore(self.registry.register_struct_constructor(declaration.symbol, target))
 }
@@ -122,7 +125,10 @@ fn BuslaneLowerer::collect_enum_constructors(
     })
     let payload_types = variant.payload.map(fn(type_) { self.lower_type(type_) })
     let target = self.metadata.define_data_constructor(
-      owner, hidden_type_parameters, payload_types,
+      variant.name,
+      owner,
+      hidden_type_parameters,
+      payload_types,
     )
     ignore(self.registry.register_data_constructor(variant.symbol, target))
   }
@@ -150,6 +156,7 @@ fn BuslaneLowerer::collect_effect_operation_declarations(
     ignore(
       self.define_operation(
         operation.symbol,
+        operation.name,
         owner,
         operation.type_parameters,
         operation.payload,
@@ -184,7 +191,7 @@ fn BuslaneLowerer::collect_field_selector(
   let field = declaration.fields[field_index]
   let type_parameters = self.selector_type_parameters(declaration)
   let selector_type = self.selector_type(declaration, field)
-  let selector = self.metadata.define_value(Function, selector_type)
+  let selector = self.metadata.define_value(field.name, Function, selector_type)
   ignore(self.registry.register_field_selector(field.symbol, selector))
   self.selector_terms.push({
     module_path_text,
@@ -249,11 +256,23 @@ fn BuslaneLowerer::selector_body(
   type_parameters : Array[@buslane.TypeParameterId],
 ) -> @buslane.Expr {
   let receiver_type = self.selector_receiver_type(declaration)
-  let receiver = self.metadata.define_value(Parameter, receiver_type)
+  let receiver = self.metadata.define_value(
+    "receiver",
+    Parameter,
+    receiver_type,
+  )
   let result_type = self.lower_type(declaration.fields[field_index].type_)
-  let match_binder = self.metadata.define_value(MatchBinder, receiver_type)
+  let match_binder = self.metadata.define_value(
+    "match",
+    MatchBinder,
+    receiver_type,
+  )
   let value_binders = declaration.fields.map(fn(field) {
-    self.metadata.define_value(MatchBinder, self.lower_type(field.type_))
+    self.metadata.define_value(
+      field.name,
+      MatchBinder,
+      self.lower_type(field.type_),
+    )
   })
   let function = @buslane.Expr::Function({
     parameters: [receiver],
@@ -296,14 +315,28 @@ fn BuslaneLowerer::collect_top_values(
           ignore(self.define_type_parameter(parameter))
         }
         let type_ = self.lower_type(declaration.type_)
-        let value = self.define_value(declaration.symbol, Function, type_)
+        let value = self.define_value(
+          declaration.symbol,
+          declaration.name,
+          Function,
+          type_,
+        )
         if include_entries && declaration.is_public {
           self.add_entry(declaration.name, value, type_)
         }
       }
       Let(declaration) => {
         let type_ = self.lower_type(declaration.type_)
-        let value = self.define_value(declaration.symbol, Value, type_)
+        let occurrence = match declaration.name {
+          Some(name) => name
+          None => "let"
+        }
+        let value = self.define_value(
+          declaration.symbol,
+          occurrence,
+          Value,
+          type_,
+        )
         if include_entries && declaration.is_public {
           if declaration.name is Some(name) {
             self.add_entry(name, value, type_)
@@ -374,6 +407,7 @@ fn BuslaneLowerer::lower_function_declaration(
     parameters: declaration.parameters.map(fn(parameter) {
       self.define_value(
         parameter.symbol,
+        parameter.name,
         Parameter,
         self.lower_type(parameter.type_),
       )

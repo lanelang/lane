@@ -200,6 +200,7 @@ pub(all) enum CheckedExpr {
   )
   OperationCall(
     operation~ : OperationSymbolId,
+    type_witnesses~ : Array[@types.Type],
     arguments~ : Array[CheckedExpr],
     effect~ : @types.Effect,
     type_~ : @types.Type,
@@ -269,6 +270,7 @@ pub(all) struct CheckedHandlerTable {
 ///|
 pub(all) struct CheckedHandlerOperationArm {
   operation : OperationSymbolId
+  type_binders : Array[@types.TypeParameter]
   payload_types : Array[@types.Type]
   payload_patterns : Array[CheckedPattern]
   resume_symbol : ValueSymbolId

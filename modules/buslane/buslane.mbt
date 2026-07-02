@@ -29,6 +29,28 @@ pub(all) struct OperationId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) enum NameNamespace {
+  TypeName
+  TypeParameterName
+  ValueName
+  DataConstructorName
+  EffectName
+  OperationName
+} derive(Debug, Eq)
+
+///|
+pub(all) struct BuslaneUnique {
+  value : Int
+} derive(Debug, Eq, Compare)
+
+///|
+pub(all) struct BuslaneName {
+  name_space : NameNamespace
+  occurrence : String
+  unique : BuslaneUnique
+} derive(Debug, Eq)
+
+///|
 pub(all) enum Kind {
   Type
   Effect
@@ -82,23 +104,27 @@ pub(all) enum ValueKind {
 
 ///|
 pub(all) struct TypeInfo {
+  name : BuslaneName
   parameters : Array[TypeParameterId]
   constructors : Array[DataConId]
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct TypeParameterInfo {
+  name : BuslaneName
   kind : Kind
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct ValueInfo {
+  name : BuslaneName
   kind : ValueKind
   type_ : Type
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct DataConInfo {
+  name : BuslaneName
   owner : TypeId
   hidden_type_parameters : Array[TypeParameterId]
   payload_types : Array[Type]
@@ -106,19 +132,23 @@ pub(all) struct DataConInfo {
 
 ///|
 pub(all) struct EffectInfo {
+  name : BuslaneName
   parameters : Array[TypeParameterId]
   operations : Array[OperationId]
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct OperationInfo {
+  name : BuslaneName
   owner : EffectId
+  hidden_type_parameters : Array[TypeParameterId]
   payload_types : Array[Type]
   result_type : Type
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct MetadataRegistry {
+  mut next_unique : Int
   types : Array[TypeInfo]
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
@@ -172,7 +202,8 @@ pub(all) struct MatchExpr {
 ///|
 pub(all) struct PerformExpr {
   operation : OperationId
-  type_arguments : Array[Type]
+  effect_arguments : Array[Type]
+  hidden_witnesses : Array[Type]
   payloads : Array[Expr]
 } derive(Debug, Eq)
 
@@ -194,6 +225,7 @@ pub(all) struct HandlerTable {
 ///|
 pub(all) struct OperationAlternative {
   operation : OperationId
+  type_binders : Array[TypeParameterId]
   payload_binders : Array[ValueId]
   resume_binder : ValueId
   body : Expr
@@ -235,6 +267,7 @@ pub(all) enum Expr {
 /// Creates an empty Buslane metadata registry.
 pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
   {
+    next_unique: 0,
     types: [],
     type_parameters: [],
     values: [],
@@ -245,13 +278,28 @@ pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
 }
 
 ///|
+fn MetadataRegistry::fresh_name(
+  self : MetadataRegistry,
+  name_space : NameNamespace,
+  occurrence : String,
+) -> BuslaneName {
+  let unique = BuslaneUnique::{ value: self.next_unique }
+  self.next_unique = self.next_unique + 1
+  { name_space, occurrence, unique }
+}
+
+///|
 /// Defines a Buslane type parameter and returns its identity.
 pub fn MetadataRegistry::define_type_parameter(
   self : MetadataRegistry,
+  occurrence : String,
   kind : Kind,
 ) -> TypeParameterId {
   let id = TypeParameterId::{ index: self.type_parameters.length() }
-  self.type_parameters.push({ kind, })
+  self.type_parameters.push({
+    name: self.fresh_name(TypeParameterName, occurrence),
+    kind,
+  })
   id
 }
 
@@ -259,10 +307,15 @@ pub fn MetadataRegistry::define_type_parameter(
 /// Defines a Buslane nominal type and returns its identity.
 pub fn MetadataRegistry::define_type(
   self : MetadataRegistry,
+  occurrence : String,
   parameters : Array[TypeParameterId],
 ) -> TypeId {
   let id = TypeId::{ index: self.types.length() }
-  self.types.push({ parameters, constructors: [] })
+  self.types.push({
+    name: self.fresh_name(TypeName, occurrence),
+    parameters,
+    constructors: [],
+  })
   id
 }
 
@@ -270,12 +323,18 @@ pub fn MetadataRegistry::define_type(
 /// Defines a Buslane data constructor and attaches it to its owner type.
 pub fn MetadataRegistry::define_data_constructor(
   self : MetadataRegistry,
+  occurrence : String,
   owner : TypeId,
   hidden_type_parameters : Array[TypeParameterId],
   payload_types : Array[Type],
 ) -> DataConId {
   let id = DataConId::{ index: self.data_constructors.length() }
-  self.data_constructors.push({ owner, hidden_type_parameters, payload_types })
+  self.data_constructors.push({
+    name: self.fresh_name(DataConstructorName, occurrence),
+    owner,
+    hidden_type_parameters,
+    payload_types,
+  })
   guard self.types.get(owner.index) is Some(info) else { return id }
   info.constructors.push(id)
   id
@@ -285,10 +344,15 @@ pub fn MetadataRegistry::define_data_constructor(
 /// Defines a Buslane effect constructor and returns its identity.
 pub fn MetadataRegistry::define_effect(
   self : MetadataRegistry,
+  occurrence : String,
   parameters : Array[TypeParameterId],
 ) -> EffectId {
   let id = EffectId::{ index: self.effects.length() }
-  self.effects.push({ parameters, operations: [] })
+  self.effects.push({
+    name: self.fresh_name(EffectName, occurrence),
+    parameters,
+    operations: [],
+  })
   id
 }
 
@@ -296,12 +360,20 @@ pub fn MetadataRegistry::define_effect(
 /// Defines a Buslane effect operation and attaches it to its owner effect.
 pub fn MetadataRegistry::define_operation(
   self : MetadataRegistry,
+  occurrence : String,
   owner : EffectId,
+  hidden_type_parameters : Array[TypeParameterId],
   payload_types : Array[Type],
   result_type : Type,
 ) -> OperationId {
   let id = OperationId::{ index: self.operations.length() }
-  self.operations.push({ owner, payload_types, result_type })
+  self.operations.push({
+    name: self.fresh_name(OperationName, occurrence),
+    owner,
+    hidden_type_parameters,
+    payload_types,
+    result_type,
+  })
   guard self.effects.get(owner.index) is Some(info) else { return id }
   info.operations.push(id)
   id
@@ -311,11 +383,12 @@ pub fn MetadataRegistry::define_operation(
 /// Defines a Buslane value and returns its identity.
 pub fn MetadataRegistry::define_value(
   self : MetadataRegistry,
+  occurrence : String,
   kind : ValueKind,
   type_ : Type,
 ) -> ValueId {
   let id = ValueId::{ index: self.values.length() }
-  self.values.push({ kind, type_ })
+  self.values.push({ name: self.fresh_name(ValueName, occurrence), kind, type_ })
   id
 }
 

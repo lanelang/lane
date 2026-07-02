@@ -1271,9 +1271,12 @@ fn @syntax.Expr::resolve_expr(
         loc~,
       )
     Builtin(name, loc~) => Builtin(name, loc~)
-    EffectOperationCall(name~, arguments~, loc~) =>
+    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
       EffectOperationCall(
         name=name.resolve_effect_operation_name(resolver, scope),
+        type_witnesses=type_witnesses.map(fn(type_) {
+          type_.resolve_type(resolver, scope)
+        }),
         arguments=arguments.map(fn(argument) {
           argument.resolve_expr(resolver, scope)
         }),
@@ -1996,6 +1999,11 @@ fn @syntax.HandlerOperationArm::resolve_handler_operation_arm(
   scope : ResolveScope,
 ) -> ResolvedHandlerOperationArm {
   let arm_scope = scope.copy()
+  let type_binders = resolver.resolve_type_parameter_names(
+    self.type_binders,
+    self.loc,
+  )
+  arm_scope.type_parameters.append(type_binders)
   let payload_patterns = self.payload_patterns.map(fn(pattern) {
     pattern.resolve_pattern(resolver, arm_scope)
   })
@@ -2007,6 +2015,7 @@ fn @syntax.HandlerOperationArm::resolve_handler_operation_arm(
   arm_scope.define_value(self.resume_binder, resume_symbol, None)
   {
     name: self.name.resolve_effect_operation_name(resolver, scope),
+    type_binders,
     payload_patterns,
     resume_symbol,
     resume_binder: self.resume_binder,

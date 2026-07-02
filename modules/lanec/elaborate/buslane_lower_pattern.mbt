@@ -65,7 +65,7 @@ fn BuslaneLowerer::lower_constructor_decision_alternative(
     abort("missing constructor binder")
   }
   let value_binders = signature.argument_types.map(fn(type_) {
-    self.define_fresh_value(MatchBinder, self.lower_type(type_))
+    self.define_fresh_value("payload", MatchBinder, self.lower_type(type_))
   })
   let payload_refs = value_binders.map(fn(value) { @buslane.Expr::Ref(value) })
   {
@@ -401,7 +401,9 @@ fn BuslaneLowerer::lower_pattern_type_binders(
           }
         None => Type
       }
-      lowered.push(self.define_type_parameter_with_kind(parameter, kind))
+      lowered.push(
+        self.define_type_parameter_with_kind(parameter, "hidden_\{index}", kind),
+      )
     }
   }
   lowered
@@ -414,8 +416,10 @@ fn BuslaneLowerer::define_pattern_binders(
 ) -> Unit {
   match pattern {
     Wildcard(..) | Literal(..) => ()
-    Binding(symbol~, type_~, ..) =>
-      ignore(self.define_value(symbol, MatchBinder, self.lower_type(type_)))
+    Binding(name~, symbol~, type_~, ..) =>
+      ignore(
+        self.define_value(symbol, name, MatchBinder, self.lower_type(type_)),
+      )
     Variant(symbol~, type_arguments~, arguments~, ..) => {
       ignore(
         self.lower_pattern_type_binders(

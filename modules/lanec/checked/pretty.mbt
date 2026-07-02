@@ -252,6 +252,7 @@ pub impl @prettyprinter.Pretty for CheckedHandlerOperationArm with fn pretty(
     None => text("<unchecked>")
   }
   operation_symbol_doc(arm.operation) +
+  type_parameters_doc(arm.type_binders) +
   @pretty.parenthesized_inline(parameters) +
   space +
   text("=>") +
@@ -371,9 +372,10 @@ fn expression_doc(expression : CheckedExpr) -> Document {
     Call(callee~, arguments~, ..) =>
       expression_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
-    OperationCall(operation~, arguments~, ..) =>
+    OperationCall(operation~, type_witnesses~, arguments~, ..) =>
       operation.pretty() +
       text("!") +
+      type_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
     Handler(body~, handlers~, final_branch~, ..) => {
       let body_doc = match body {

@@ -136,6 +136,7 @@ fn SemanticChecker::synthesize_checked_handler(
         Some(body) =>
           checked_operations.push({
             operation: operation.checked.operation,
+            type_binders: operation.checked.type_binders,
             payload_types: operation.checked.payload_types,
             payload_patterns: operation.checked.payload_patterns,
             resume_symbol: operation.checked.resume_symbol,
@@ -407,7 +408,8 @@ fn SemanticChecker::check_handler_table(
   let operations = []
   let mut handled_effect : @types.Effect? = None
   for arm in handler.arms {
-    guard self.operation_call_signature(arm.name, arm.loc) is Some(signature) else {
+    guard self.handler_operation_signature(arm.name, arm.type_binders, arm.loc)
+      is Some(signature) else {
       continue
     }
     guard signature.effect is Singleton(_, _) else {
@@ -492,6 +494,7 @@ fn SemanticChecker::check_handler_operation_arm(
   }
   {
     operation: signature.operation,
+    type_binders: signature.type_binders,
     payload_types: signature.payload,
     payload_patterns,
     resume_symbol: arm.resume_symbol,

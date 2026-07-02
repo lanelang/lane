@@ -1,0 +1,40 @@
+module Examples.Valid.SimpleCoroutine
+
+import Ops.*
+
+effect Coroutine {
+  yield(Int) -> Int
+}
+
+pub enum CoroutineStep {
+  done(Int)
+  yielded(Int, (Int) -> CoroutineStep)
+}
+
+fn worker() -> Int ! Coroutine {
+  let first : Int = Coroutine::yield!(1)
+  let second : Int = Coroutine::yield!(first + 10)
+  second + 100
+}
+
+fn start() -> CoroutineStep {
+  handle worker() with {
+    Coroutine::yield(value, resume) => CoroutineStep::yielded(
+      value,
+      fn (input : Int) -> CoroutineStep {
+        resume(input)
+      }
+    )
+  } final value {
+    CoroutineStep::done(value)
+  }
+}
+
+fn drive(step : CoroutineStep) -> Int {
+  match step {
+    CoroutineStep::done(value) => value
+    CoroutineStep::yielded(value, resume) => value + drive(resume(value * 2))
+  }
+}
+
+pub let answer : Int = drive(start())

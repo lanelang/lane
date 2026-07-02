@@ -16,12 +16,19 @@ fn expect_ok(program : @buslane.Program) -> Unit raise {
 ///|
 test "handler operation arm can directly produce a result" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
-  let final_binder = metadata.define_value(Local, int_type())
-  let payload = metadata.define_value(Parameter, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Empty),
   )
@@ -33,7 +40,8 @@ test "handler operation arm can directly produce a result" {
         Handle({
           body: Perform({
             operation: print,
-            type_arguments: [],
+            effect_arguments: [],
+            hidden_witnesses: [],
             payloads: [Literal(Int(41L))],
           }),
           result_binder: final_binder,
@@ -45,6 +53,7 @@ test "handler operation arm can directly produce a result" {
               operations: [
                 {
                   operation: print,
+                  type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
                   body: Ref(payload),
@@ -67,28 +76,34 @@ test "handler operation arm can directly produce a result" {
 ///|
 test "nested handlers dispatch to the nearest matching operation" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let outer_effect = metadata.define_effect([])
-  let inner_effect = metadata.define_effect([])
+  let outer_effect = metadata.define_effect("Effect", [])
+  let inner_effect = metadata.define_effect("Effect", [])
   let outer_operation = metadata.define_operation(
+    "op",
     outer_effect,
+    [],
     [int_type()],
     int_type(),
   )
   let inner_operation = metadata.define_operation(
+    "op",
     inner_effect,
+    [],
     [int_type()],
     int_type(),
   )
-  let result = metadata.define_value(Value, int_type())
-  let outer_final = metadata.define_value(Local, int_type())
-  let inner_final = metadata.define_value(Local, int_type())
-  let outer_payload = metadata.define_value(Parameter, int_type())
-  let inner_payload = metadata.define_value(Parameter, int_type())
+  let result = metadata.define_value("value", Value, int_type())
+  let outer_final = metadata.define_value("value", Local, int_type())
+  let inner_final = metadata.define_value("value", Local, int_type())
+  let outer_payload = metadata.define_value("value", Parameter, int_type())
+  let inner_payload = metadata.define_value("value", Parameter, int_type())
   let outer_resume = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Empty),
   )
   let inner_resume = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Singleton(outer_effect, [])),
   )
@@ -101,7 +116,8 @@ test "nested handlers dispatch to the nearest matching operation" {
           body: Handle({
             body: Perform({
               operation: inner_operation,
-              type_arguments: [],
+              effect_arguments: [],
+              hidden_witnesses: [],
               payloads: [Literal(Int(17L))],
             }),
             result_binder: inner_final,
@@ -113,11 +129,13 @@ test "nested handlers dispatch to the nearest matching operation" {
                 operations: [
                   {
                     operation: inner_operation,
+                    type_binders: [],
                     payload_binders: [inner_payload],
                     resume_binder: inner_resume,
                     body: Perform({
                       operation: outer_operation,
-                      type_arguments: [],
+                      effect_arguments: [],
+                      hidden_witnesses: [],
                       payloads: [Ref(inner_payload)],
                     }),
                   },
@@ -134,6 +152,7 @@ test "nested handlers dispatch to the nearest matching operation" {
               operations: [
                 {
                   operation: outer_operation,
+                  type_binders: [],
                   payload_binders: [outer_payload],
                   resume_binder: outer_resume,
                   body: Ref(outer_payload),
@@ -156,13 +175,20 @@ test "nested handlers dispatch to the nearest matching operation" {
 ///|
 test "resume reinstalls the same deep handler" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
-  let first = metadata.define_value(Local, int_type())
-  let final_binder = metadata.define_value(Local, int_type())
-  let payload = metadata.define_value(Parameter, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
+  let first = metadata.define_value("value", Local, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Empty),
   )
@@ -176,12 +202,14 @@ test "resume reinstalls the same deep handler" {
             first,
             Perform({
               operation: print,
-              type_arguments: [],
+              effect_arguments: [],
+              hidden_witnesses: [],
               payloads: [Literal(Int(1L))],
             }),
             Perform({
               operation: print,
-              type_arguments: [],
+              effect_arguments: [],
+              hidden_witnesses: [],
               payloads: [Ref(first)],
             }),
           ),
@@ -194,6 +222,7 @@ test "resume reinstalls the same deep handler" {
               operations: [
                 {
                   operation: print,
+                  type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
                   body: Call(Resume(resume_binder), [Ref(payload)]),
@@ -216,13 +245,20 @@ test "resume reinstalls the same deep handler" {
 ///|
 test "resume continuation is multi-shot" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
-  let ignored = metadata.define_value(Local, int_type())
-  let final_binder = metadata.define_value(Local, int_type())
-  let payload = metadata.define_value(Parameter, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
+  let ignored = metadata.define_value("value", Local, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Empty),
   )
@@ -234,7 +270,8 @@ test "resume continuation is multi-shot" {
         Handle({
           body: Perform({
             operation: print,
-            type_arguments: [],
+            effect_arguments: [],
+            hidden_witnesses: [],
             payloads: [Literal(Int(0L))],
           }),
           result_binder: final_binder,
@@ -246,6 +283,7 @@ test "resume continuation is multi-shot" {
               operations: [
                 {
                   operation: print,
+                  type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
                   body: Let(
@@ -272,8 +310,8 @@ test "resume continuation is multi-shot" {
 ///|
 test "external value reference stays opaque" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let external = metadata.define_value(External, int_type())
-  let result = metadata.define_value(Value, int_type())
+  let external = metadata.define_value("value", External, int_type())
+  let result = metadata.define_value("value", Value, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [External(external), Let(result, Ref(external))],
@@ -291,10 +329,11 @@ test "external value reference stays opaque" {
 test "external callable call invokes resolved native function" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let external = metadata.define_value(
+    "value",
     External,
     Function([int_type()], int_type(), Empty),
   )
-  let result = metadata.define_value(Value, int_type())
+  let result = metadata.define_value("value", Value, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -338,11 +377,13 @@ test "external callable call invokes resolved native function" {
 ///|
 test "pretty recursive closure environment stays finite" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let box_type = metadata.define_type([])
+  let box_type = metadata.define_type("Type", [])
   let function_type = @buslane.Type::Function([], int_type(), Empty)
-  let box = metadata.define_data_constructor(box_type, [], [function_type])
-  let function = metadata.define_value(Function, function_type)
-  let boxed = metadata.define_value(Value, Constructor(box_type))
+  let box = metadata.define_data_constructor("Con", box_type, [], [
+    function_type,
+  ])
+  let function = metadata.define_value("value", Function, function_type)
+  let boxed = metadata.define_value("value", Value, Constructor(box_type))
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -382,9 +423,9 @@ test "pretty recursive closure environment stays finite" {
 test "recursive group closures see later bindings from same group" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let function_type = @buslane.Type::Function([], int_type(), Empty)
-  let first = metadata.define_value(Function, function_type)
-  let second = metadata.define_value(Function, function_type)
-  let result = metadata.define_value(Value, int_type())
+  let first = metadata.define_value("value", Function, function_type)
+  let second = metadata.define_value("value", Function, function_type)
+  let result = metadata.define_value("value", Value, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -420,10 +461,14 @@ test "recursive group closures see later bindings from same group" {
 ///|
 test "closure capture ignores later child frame shadowing" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let first = metadata.define_value(Local, int_type())
-  let captured = metadata.define_value(Local, Function([], int_type(), Empty))
-  let shadow = metadata.define_value(Local, int_type())
-  let result = metadata.define_value(Value, int_type())
+  let first = metadata.define_value("value", Local, int_type())
+  let captured = metadata.define_value(
+    "value",
+    Local,
+    Function([], int_type(), Empty),
+  )
+  let shadow = metadata.define_value("value", Local, int_type())
+  let result = metadata.define_value("value", Value, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -456,15 +501,17 @@ test "closure capture ignores later child frame shadowing" {
 ///|
 test "data constructor match selects matching alternative" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let parameter = metadata.define_type_parameter(Type)
-  let option = metadata.define_type([parameter])
-  let none = metadata.define_data_constructor(option, [], [])
-  let some = metadata.define_data_constructor(option, [], [Parameter(parameter)])
+  let parameter = metadata.define_type_parameter("T", Type)
+  let option = metadata.define_type("Type", [parameter])
+  let none = metadata.define_data_constructor("Con", option, [], [])
+  let some = metadata.define_data_constructor("Con", option, [], [
+    Parameter(parameter),
+  ])
   let option_int = @buslane.Type::Apply(Constructor(option), [int_type()])
-  let scrutinee = metadata.define_value(Value, option_int)
-  let binder = metadata.define_value(MatchBinder, option_int)
-  let payload = metadata.define_value(MatchBinder, int_type())
-  let result = metadata.define_value(Value, int_type())
+  let scrutinee = metadata.define_value("value", Value, option_int)
+  let binder = metadata.define_value("value", MatchBinder, option_int)
+  let payload = metadata.define_value("value", MatchBinder, int_type())
+  let result = metadata.define_value("value", Value, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -521,7 +568,7 @@ test "data constructor match selects matching alternative" {
 ///|
 test "evaluation rejects invalid program" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value(Value, int_type())
+  let value = metadata.define_value("value", Value, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [Let(value, Literal(Bool(true)))],

@@ -29,7 +29,7 @@ pub(all) enum DesugaredExpr {
   StructLiteral(type_name~ : String, type_arguments~ : Array[@resolve.ResolvedType], fields~ : Array[DesugaredStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@resolve.ResolvedTypeParameter], parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter], return_type~ : @resolve.ResolvedType?, effect~ : @resolve.ResolvedEffectTerm?, body~ : DesugaredExpr, loc~ : @basic.SourceSpan)
-  EffectOperationCall(name~ : @resolve.ResolvedEffectOperationName, arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : @resolve.ResolvedEffectOperationName, type_witnesses~ : Array[@resolve.ResolvedType], arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
   Handler(body~ : DesugaredExpr, handlers~ : Array[DesugaredHandlerWithBlock], final_branch~ : DesugaredHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[DesugaredLocalItem], result~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   If(condition~ : DesugaredExpr, then_branch~ : DesugaredExpr, else_branch~ : DesugaredExpr, loc~ : @basic.SourceSpan)
@@ -64,6 +64,7 @@ pub impl @prettyprinter.Pretty for DesugaredHandlerFinalBranch
 
 pub(all) struct DesugaredHandlerOperationArm {
   name : @resolve.ResolvedEffectOperationName
+  type_binders : Array[@resolve.ResolvedTypeParameter]
   payload_patterns : Array[@resolve.ResolvedPattern]
   resume_symbol : @symbol.ValueSymbolId
   resume_binder : String

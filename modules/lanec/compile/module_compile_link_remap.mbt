@@ -153,7 +153,10 @@ fn BuslaneLinker::remap_expr(
     Perform(perform) =>
       Perform({
         operation: self.remap_operation_id(object, perform.operation),
-        type_arguments: perform.type_arguments.map(fn(argument) {
+        effect_arguments: perform.effect_arguments.map(fn(argument) {
+          self.remap_type(object, argument)
+        }),
+        hidden_witnesses: perform.hidden_witnesses.map(fn(argument) {
           self.remap_type(object, argument)
         }),
         payloads: perform.payloads.map(fn(payload) {
@@ -196,6 +199,9 @@ fn BuslaneLinker::remap_operation_alternative(
 ) -> @buslane.OperationAlternative {
   {
     operation: self.remap_operation_id(object, alternative.operation),
+    type_binders: alternative.type_binders.map(fn(id) {
+      self.remap_type_parameter_id(object, id)
+    }),
     payload_binders: alternative.payload_binders.map(fn(id) {
       self.remap_value_id(object, id)
     }),
@@ -284,7 +290,10 @@ fn BuslaneLinker::remap_type_parameter_id(
   guard object.metadata.type_parameter_info(source) is Some(info) else {
     abort("unknown Buslane type parameter id")
   }
-  let target = self.metadata.define_type_parameter(info.kind)
+  let target = self.metadata.define_type_parameter(
+    info.name.occurrence,
+    info.kind,
+  )
   self.identities.bind_type_parameter(object.module_path_text, source, target)
 }
 
@@ -301,6 +310,7 @@ fn BuslaneLinker::remap_type_id(
     abort("unknown Buslane type id")
   }
   let target = self.metadata.define_type(
+    info.name.occurrence,
     info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
   )
   ignore(self.identities.bind_type(object.module_path_text, source, target))
@@ -324,6 +334,7 @@ fn BuslaneLinker::remap_effect_id(
     abort("unknown Buslane effect id")
   }
   let target = self.metadata.define_effect(
+    info.name.occurrence,
     info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
   )
   ignore(self.identities.bind_effect(object.module_path_text, source, target))
@@ -352,7 +363,11 @@ fn BuslaneLinker::remap_operation_id(
     return target
   }
   let target = self.metadata.define_operation(
+    info.name.occurrence,
     owner,
+    info.hidden_type_parameters.map(fn(id) {
+      self.remap_type_parameter_id(object, id)
+    }),
     info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
     self.remap_type(object, info.result_type),
   )
@@ -372,6 +387,7 @@ fn BuslaneLinker::remap_value_id(
     abort("unknown Buslane value id")
   }
   let target = self.metadata.define_value(
+    info.name.occurrence,
     info.kind,
     self.remap_type(object, info.type_),
   )
@@ -397,6 +413,7 @@ fn BuslaneLinker::remap_data_constructor_id(
     return target
   }
   let target = self.metadata.define_data_constructor(
+    info.name.occurrence,
     owner,
     info.hidden_type_parameters.map(fn(id) {
       self.remap_type_parameter_id(object, id)

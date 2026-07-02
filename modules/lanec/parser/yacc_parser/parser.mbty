@@ -543,36 +543,66 @@ expression -> Expr
         operation=$3,
         loc=span($sloc)
       ),
+      type_witnesses=[],
       arguments=$6,
       loc=span($sloc)
     )
   }
-  | expression "[" type_list "]" "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
+  | expression "tight ::" IDENT "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
+    EffectOperationCall(
+      name=Qualified(
+        owner=Name(name=expression_type_name_text($1), loc=span($sloc)),
+        operation=$3,
+        loc=span($sloc)
+      ),
+      type_witnesses=$5,
+      arguments=$7,
+      loc=span($sloc)
+    )
+  }
+  | expression type_arguments "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
     EffectOperationCall(
       name=Qualified(
         owner=Apply(
           callee=Name(name=expression_type_name_text($1), loc=span($sloc)),
-          arguments=$3,
+          arguments=$2,
           loc=span($sloc)
         ),
-        operation=$6,
+        operation=$4,
         loc=span($sloc)
       ),
-      arguments=$9,
+      type_witnesses=[],
+      arguments=$7,
+      loc=span($sloc)
+    )
+  }
+  | expression type_arguments "tight ::" IDENT "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
+    EffectOperationCall(
+      name=Qualified(
+        owner=Apply(
+          callee=Name(name=expression_type_name_text($1), loc=span($sloc)),
+          arguments=$2,
+          loc=span($sloc)
+        ),
+        operation=$4,
+        loc=span($sloc)
+      ),
+      type_witnesses=$6,
+      arguments=$8,
       loc=span($sloc)
     )
   }
   | expression "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
     StructLiteral(type_name=expression_type_name_text($1), type_arguments=[], fields=$4, loc=span($sloc))
   }
-  | expression "[" type_list "]" "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
-    StructLiteral(type_name=expression_type_name_text($1), type_arguments=$3, fields=$7, loc=span($sloc))
+  | expression type_arguments "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
+    StructLiteral(type_name=expression_type_name_text($1), type_arguments=$2, fields=$5, loc=span($sloc))
   }
   | expression "tight ::" IDENT variant_type_arguments variant_arguments %prec "tight ::" {
     QualifiedVariant(type_name=expression_type_name_text($1), type_arguments=[], variant=$3, variant_type_arguments=$4, arguments=$5, loc=span($sloc))
   }
-  | expression "[" type_list "]" "tight ::" IDENT variant_type_arguments variant_arguments %prec "tight ::" {
-    QualifiedVariant(type_name=expression_type_name_text($1), type_arguments=$3, variant=$6, variant_type_arguments=$7, arguments=$8, loc=span($sloc))
+  | expression type_arguments "tight ::" IDENT variant_type_arguments variant_arguments %prec "tight ::" {
+    QualifiedVariant(type_name=expression_type_name_text($1), type_arguments=$2, variant=$4, variant_type_arguments=$5, arguments=$6, loc=span($sloc))
   }
   | primary_expression { $1 }
   ;
@@ -598,17 +628,43 @@ effect_operation_call -> Expr
   : "::" IDENT "!" "(" positional_argument_list ")" {
     EffectOperationCall(
       name=Shorthand(operation=$2, loc=span($sloc)),
+      type_witnesses=[],
       arguments=$5,
+      loc=span($sloc)
+    )
+  }
+  | "::" IDENT "!" operation_type_witnesses "(" positional_argument_list ")" {
+    EffectOperationCall(
+      name=Shorthand(operation=$2, loc=span($sloc)),
+      type_witnesses=$4,
+      arguments=$6,
       loc=span($sloc)
     )
   }
   | IDENT "!" "(" positional_argument_list ")" {
     EffectOperationCall(
       name=Unqualified(operation=$1, loc=span($sloc)),
+      type_witnesses=[],
       arguments=$4,
       loc=span($sloc)
     )
   }
+  | IDENT "!" operation_type_witnesses "(" positional_argument_list ")" {
+    EffectOperationCall(
+      name=Unqualified(operation=$1, loc=span($sloc)),
+      type_witnesses=$3,
+      arguments=$5,
+      loc=span($sloc)
+    )
+  }
+  ;
+
+operation_type_witnesses -> Array[Type]
+  : type_arguments { $1 }
+  ;
+
+type_arguments -> Array[Type]
+  : "[" non_empty_type_list "]" { $2 }
   ;
 
 nominal_type_name -> String
@@ -618,7 +674,7 @@ nominal_type_name -> String
 
 variant_type_arguments -> Array[Type]
   : { [] }
-  | "[" type_list "]" { $2 }
+  | type_arguments { $1 }
   ;
 
 struct_literal_fields -> Array[StructLiteralField]
@@ -745,16 +801,22 @@ handler_operation_arms -> Array[HandlerOperationArm]
   ;
 
 handler_operation_arm -> HandlerOperationArm
-  : handler_operation_name "(" handler_operation_arm_parameters ")" "=>" expression {
+  : handler_operation_name handler_operation_type_binders "(" handler_operation_arm_parameters ")" "=>" expression {
     {
       name: $1,
-      payload_patterns: $3.payload_patterns,
-      resume_binder: $3.resume_binder,
-      resume_loc: $3.resume_loc,
-      body: $6,
+      type_binders: $2,
+      payload_patterns: $4.payload_patterns,
+      resume_binder: $4.resume_binder,
+      resume_loc: $4.resume_loc,
+      body: $7,
       loc: span($sloc)
     }
   }
+  ;
+
+handler_operation_type_binders -> Array[String]
+  : { [] }
+  | "[" non_empty_ident_list "]" { $2 }
   ;
 
 handler_operation_name -> EffectOperationName

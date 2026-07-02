@@ -2777,6 +2777,102 @@ test "typecheck accepts annotated effect operation call" {
 }
 
 ///|
+test "typecheck accepts explicit effect operation type witnesses and handler binders" {
+  let result = expect_checked_source_result(
+    (
+      #|effect Prompt {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|fn program() -> Int {
+      #|  handle Prompt::choose![Int](40, 41) with {
+      #|    Prompt::choose[T](left, right, resume) => resume(left)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    effect Prompt#0 {
+      #|      choose#0[A#0 : Type](tparam#0, tparam#0) -> tparam#0
+      #|    }
+      #|    fn program#0() -> Int {
+      #|      {
+      #|        handle operation#0![Int](40, 41)
+      #|        with effect#0 {
+      #|          operation#0[T#1 : Type](left#1, right#2, resume#3) => resume#3(left#1)
+      #|        }
+      #|        final value#4 {
+      #|          value#4
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck infers effect operation type witnesses from payloads" {
+  let result = expect_checked_source_result(
+    (
+      #|effect Prompt {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|fn choose_int() -> Int ! Prompt {
+      #|  Prompt::choose!(1, 2)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    effect Prompt#0 {
+      #|      choose#0[A#0 : Type](tparam#0, tparam#0) -> tparam#0
+      #|    }
+      #|    fn choose_int#0() -> Int {
+      #|      operation#0![Int](1, 2)
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck rejects effect operation type witness arity mismatch" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|fn bad() -> Int ! Prompt {
+      #|  Prompt::choose![Int, Bool](1, 2)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[
+      #|  cannot_infer effect operation type arguments @ 6:18-6:35,
+      #|  cannot_infer effect operation type arguments @ 6:18-6:35,
+      #|  effect_mismatch expected=effect#0 actual={} @ 6:3-7:2
+      #|]
+    ),
+  )
+}
+
+///|
 test "typecheck rejects operation call in pure function" {
   let result = expect_typecheck_result(
     (

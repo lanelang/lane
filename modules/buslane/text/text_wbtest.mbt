@@ -6,12 +6,13 @@ fn int_type() -> @buslane.Type {
 ///|
 test "buslane text roundtrips function call program" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value(Value, int_type())
+  let value = metadata.define_value("value", Value, int_type())
   let function = metadata.define_value(
+    "value",
     Function,
     Function([int_type()], int_type(), Empty),
   )
-  let parameter = metadata.define_value(Parameter, int_type())
+  let parameter = metadata.define_value("value", Parameter, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -75,12 +76,19 @@ test "buslane text roundtrips effectful function type" {
 ///|
 test "buslane text roundtrips perform and deep handler syntax" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let console = metadata.define_effect([])
-  let print = metadata.define_operation(console, [int_type()], int_type())
-  let result = metadata.define_value(Value, int_type())
-  let final_binder = metadata.define_value(Local, int_type())
-  let payload = metadata.define_value(Parameter, int_type())
+  let console = metadata.define_effect("Effect", [])
+  let print = metadata.define_operation(
+    "op",
+    console,
+    [],
+    [int_type()],
+    int_type(),
+  )
+  let result = metadata.define_value("value", Value, int_type())
+  let final_binder = metadata.define_value("value", Local, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let resume_binder = metadata.define_value(
+    "value",
     Parameter,
     Function([int_type()], int_type(), Empty),
   )
@@ -92,7 +100,8 @@ test "buslane text roundtrips perform and deep handler syntax" {
         Handle({
           body: Perform({
             operation: print,
-            type_arguments: [],
+            effect_arguments: [],
+            hidden_witnesses: [],
             payloads: [Literal(Int(1L))],
           }),
           result_binder: final_binder,
@@ -104,6 +113,7 @@ test "buslane text roundtrips perform and deep handler syntax" {
               operations: [
                 {
                   operation: print,
+                  type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
                   body: Call(Resume(resume_binder), [Ref(payload)]),
@@ -126,20 +136,22 @@ test "buslane text roundtrips perform and deep handler syntax" {
 ///|
 test "buslane text roundtrips construct and match" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let option_type_parameter = metadata.define_type_parameter(Type)
-  let option_type = metadata.define_type([option_type_parameter])
-  let some = metadata.define_data_constructor(option_type, [], [
+  let option_type_parameter = metadata.define_type_parameter("T", Type)
+  let option_type = metadata.define_type("Type", [option_type_parameter])
+  let some = metadata.define_data_constructor("Con", option_type, [], [
     Parameter(option_type_parameter),
   ])
   let scrutinee = metadata.define_value(
+    "value",
     Value,
     Apply(Constructor(option_type), [int_type()]),
   )
   let match_binder = metadata.define_value(
+    "value",
     MatchBinder,
     Apply(Constructor(option_type), [int_type()]),
   )
-  let payload = metadata.define_value(Parameter, int_type())
+  let payload = metadata.define_value("value", Parameter, int_type())
   let program = @buslane.Program::{
     metadata,
     terms: [

@@ -2,6 +2,8 @@
 using @buslane {
   type AltCon,
   type Alternative,
+  type BuslaneName,
+  type BuslaneUnique,
   type DataConId,
   type DataConInfo,
   type Effect,
@@ -12,6 +14,7 @@ using @buslane {
   type Kind,
   type Literal,
   type MetadataRegistry,
+  type NameNamespace,
   type OperationAlternative,
   type OperationId,
   type OperationInfo,
@@ -56,7 +59,61 @@ fn make_metadata(declarations : Array[MetadataDeclaration]) -> MetadataRegistry 
       OperationInfoDecl(id, info) => set_at(operations, id.index, info)
     }
   }
-  { types, type_parameters, values, data_constructors, effects, operations }
+  {
+    next_unique: next_metadata_unique(declarations),
+    types,
+    type_parameters,
+    values,
+    data_constructors,
+    effects,
+    operations,
+  }
+}
+
+///|
+priv struct ParsedBuslaneName {
+  occurrence : String
+  unique : Int
+}
+
+///|
+fn parse_text_int(text : String) -> Int {
+  @string.parse_int(text, base=10) catch {
+    _ => 0
+  }
+}
+
+///|
+fn parsed_name(
+  name_space : NameNamespace,
+  occurrence : String,
+  index : Int,
+) -> BuslaneName {
+  { name_space, occurrence, unique: BuslaneUnique::{ value: index } }
+}
+
+///|
+fn next_metadata_unique(declarations : Array[MetadataDeclaration]) -> Int {
+  let mut next = 0
+  for declaration in declarations {
+    let candidate = declaration.name().unique.value + 1
+    if candidate > next {
+      next = candidate
+    }
+  }
+  next
+}
+
+///|
+fn MetadataDeclaration::name(self : MetadataDeclaration) -> BuslaneName {
+  match self {
+    TypeInfoDecl(_, info) => info.name
+    TypeParameterInfoDecl(_, info) => info.name
+    ValueInfoDecl(_, info) => info.name
+    DataConInfoDecl(_, info) => info.name
+    EffectInfoDecl(_, info) => info.name
+    OperationInfoDecl(_, info) => info.name
+  }
 }
 
 ///|

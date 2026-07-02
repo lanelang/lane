@@ -139,6 +139,7 @@ fn desugar_handler_operation_arm(
 ) -> DesugaredHandlerOperationArm {
   {
     name: arm.name,
+    type_binders: arm.type_binders,
     payload_patterns: arm.payload_patterns,
     resume_symbol: arm.resume_symbol,
     resume_binder: arm.resume_binder,
@@ -221,8 +222,13 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         body=desugar_expr(body),
         loc~,
       )
-    EffectOperationCall(name~, arguments~, loc~) =>
-      EffectOperationCall(name~, arguments=arguments.map(desugar_expr), loc~)
+    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
+      EffectOperationCall(
+        name~,
+        type_witnesses~,
+        arguments=arguments.map(desugar_expr),
+        loc~,
+      )
     Handler(body~, handlers~, final_branch~, loc~) =>
       Handler(
         body=desugar_expr(body),

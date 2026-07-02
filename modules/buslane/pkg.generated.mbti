@@ -27,6 +27,17 @@ pub(all) struct Alternative {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Alternative
 
+pub(all) struct BuslaneName {
+  name_space : NameNamespace
+  occurrence : String
+  unique : BuslaneUnique
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for BuslaneName
+
+pub(all) struct BuslaneUnique {
+  value : Int
+} derive(Compare, Eq, @debug.Debug)
+
 pub(all) struct ConstructExpr {
   data_constructor : DataConId
   type_arguments : Array[Type]
@@ -41,6 +52,7 @@ pub(all) struct DataConId {
 pub impl @prettyprinter.Pretty for DataConId
 
 pub(all) struct DataConInfo {
+  name : BuslaneName
   owner : TypeId
   hidden_type_parameters : Array[TypeParameterId]
   payload_types : Array[Type]
@@ -64,6 +76,7 @@ pub(all) struct EffectId {
 pub impl @prettyprinter.Pretty for EffectId
 
 pub(all) struct EffectInfo {
+  name : BuslaneName
   parameters : Array[TypeParameterId]
   operations : Array[OperationId]
 } derive(Eq, @debug.Debug)
@@ -132,6 +145,7 @@ pub(all) struct MatchExpr {
 pub impl @prettyprinter.Pretty for MatchExpr
 
 pub(all) struct MetadataRegistry {
+  mut next_unique : Int
   types : Array[TypeInfo]
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
@@ -141,12 +155,12 @@ pub(all) struct MetadataRegistry {
 } derive(Eq, @debug.Debug)
 pub fn MetadataRegistry::MetadataRegistry() -> Self
 pub fn MetadataRegistry::data_constructor_info(Self, DataConId) -> DataConInfo?
-pub fn MetadataRegistry::define_data_constructor(Self, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
-pub fn MetadataRegistry::define_effect(Self, Array[TypeParameterId]) -> EffectId
-pub fn MetadataRegistry::define_operation(Self, EffectId, Array[Type], Type) -> OperationId
-pub fn MetadataRegistry::define_type(Self, Array[TypeParameterId]) -> TypeId
-pub fn MetadataRegistry::define_type_parameter(Self, Kind) -> TypeParameterId
-pub fn MetadataRegistry::define_value(Self, ValueKind, Type) -> ValueId
+pub fn MetadataRegistry::define_data_constructor(Self, String, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
+pub fn MetadataRegistry::define_effect(Self, String, Array[TypeParameterId]) -> EffectId
+pub fn MetadataRegistry::define_operation(Self, String, EffectId, Array[TypeParameterId], Array[Type], Type) -> OperationId
+pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId]) -> TypeId
+pub fn MetadataRegistry::define_type_parameter(Self, String, Kind) -> TypeParameterId
+pub fn MetadataRegistry::define_value(Self, String, ValueKind, Type) -> ValueId
 pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
 pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
@@ -154,8 +168,18 @@ pub fn MetadataRegistry::type_parameter_info(Self, TypeParameterId) -> TypeParam
 pub fn MetadataRegistry::value_info(Self, ValueId) -> ValueInfo?
 pub impl @prettyprinter.Pretty for MetadataRegistry
 
+pub(all) enum NameNamespace {
+  TypeName
+  TypeParameterName
+  ValueName
+  DataConstructorName
+  EffectName
+  OperationName
+} derive(Eq, @debug.Debug)
+
 pub(all) struct OperationAlternative {
   operation : OperationId
+  type_binders : Array[TypeParameterId]
   payload_binders : Array[ValueId]
   resume_binder : ValueId
   body : Expr
@@ -168,7 +192,9 @@ pub(all) struct OperationId {
 pub impl @prettyprinter.Pretty for OperationId
 
 pub(all) struct OperationInfo {
+  name : BuslaneName
   owner : EffectId
+  hidden_type_parameters : Array[TypeParameterId]
   payload_types : Array[Type]
   result_type : Type
 } derive(Eq, @debug.Debug)
@@ -176,7 +202,8 @@ pub impl @prettyprinter.Pretty for OperationInfo
 
 pub(all) struct PerformExpr {
   operation : OperationId
-  type_arguments : Array[Type]
+  effect_arguments : Array[Type]
+  hidden_witnesses : Array[Type]
   payloads : Array[Expr]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for PerformExpr
@@ -228,6 +255,7 @@ pub(all) struct TypeId {
 pub impl @prettyprinter.Pretty for TypeId
 
 pub(all) struct TypeInfo {
+  name : BuslaneName
   parameters : Array[TypeParameterId]
   constructors : Array[DataConId]
 } derive(Eq, @debug.Debug)
@@ -239,6 +267,7 @@ pub(all) struct TypeParameterId {
 pub impl @prettyprinter.Pretty for TypeParameterId
 
 pub(all) struct TypeParameterInfo {
+  name : BuslaneName
   kind : Kind
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeParameterInfo
@@ -260,6 +289,7 @@ pub(all) struct ValueId {
 pub impl @prettyprinter.Pretty for ValueId
 
 pub(all) struct ValueInfo {
+  name : BuslaneName
   kind : ValueKind
   type_ : Type
 } derive(Eq, @debug.Debug)

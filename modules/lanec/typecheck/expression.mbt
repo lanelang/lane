@@ -189,8 +189,15 @@ fn SemanticChecker::synthesize_expr(
       )
     Call(callee~, arguments~, loc~) =>
       self.synthesize_call(scope, callee, arguments, loc)
-    EffectOperationCall(name~, arguments~, loc~) => {
-      let operation = self.check_operation_call(scope, name, arguments, loc)
+    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) => {
+      let operation = self.check_operation_call(
+        scope,
+        name,
+        type_witnesses,
+        arguments,
+        None,
+        loc,
+      )
       operation.result
     }
     Handler(body~, handlers~, final_branch~, loc~) =>
@@ -367,8 +374,15 @@ fn SemanticChecker::synthesize_expr_effect(
       }
       effect_union(effects)
     }
-    EffectOperationCall(name~, arguments~, loc~) => {
-      let operation = self.check_operation_call(scope, name, arguments, loc)
+    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) => {
+      let operation = self.check_operation_call(
+        scope,
+        name,
+        type_witnesses,
+        arguments,
+        None,
+        loc,
+      )
       let effects = [operation.effect]
       for argument in arguments {
         effects.push(self.synthesize_expr_effect(scope, argument))
