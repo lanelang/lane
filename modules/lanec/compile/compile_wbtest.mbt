@@ -260,6 +260,84 @@ test "link modules produces Buslane program from reachable module objects" {
 }
 
 ///|
+test "link modules remaps effect operations through one identity" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub fn program() -> Int {
+      #|  handle read_int() with {
+      #|    Console::read(resume) => resume(42)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+    [
+      (
+        #|module Lib
+        #|pub effect Console {
+        #|  read() -> Int
+        #|}
+        #|pub fn read_int() -> Int ! Console {
+        #|  Console::read!()
+        #|}
+      ),
+    ],
+  )
+  assert_eq(compiled.diagnostics.length(), 0)
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  let linked = link_modules(modules)
+  assert_eq(linked.diagnostics.length(), 0)
+  guard linked.program is Some(program) else {
+    abort("expected linked program")
+  }
+  assert_eq(program.program.metadata.effects.length(), 1)
+  assert_eq(program.program.metadata.operations.length(), 1)
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    content="verify_result {}",
+  )
+}
+
+///|
+test "link modules remaps data constructors through one identity" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let main_flag : Flag = flag
+    ),
+    [
+      (
+        #|module Lib
+        #|pub enum Flag {
+        #|  on
+        #|}
+        #|pub let flag : Flag = on
+      ),
+    ],
+  )
+  assert_eq(compiled.diagnostics.length(), 0)
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  let linked = link_modules(modules)
+  assert_eq(linked.diagnostics.length(), 0)
+  guard linked.program is Some(program) else {
+    abort("expected linked program")
+  }
+  assert_eq(program.program.metadata.types.length(), 1)
+  assert_eq(program.program.metadata.data_constructors.length(), 1)
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    content="verify_result {}",
+  )
+}
+
+///|
 test "module artifacts roundtrip through text and link" {
   let compiled = compile_modules(
     (
@@ -1124,6 +1202,8 @@ test "link modules rejects stale imported reference fingerprint" {
             fingerprint: { value: "stale" },
             type_id: imported.type_id,
             data_constructor: imported.data_constructor,
+            effect_id: imported.effect_id,
+            operation: imported.operation,
             value: imported.value,
           }
         }),

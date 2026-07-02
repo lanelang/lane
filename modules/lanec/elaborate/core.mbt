@@ -39,6 +39,8 @@ pub(all) struct BuslaneEntry {
 pub(all) enum BuslaneModuleExportKind {
   Type
   DataConstructor
+  Effect
+  Operation
   FieldSelector
   Value
 } derive(Debug, Eq)
@@ -49,6 +51,8 @@ pub(all) struct BuslaneModuleExport {
   name : String
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
+  effect_id : @buslane.EffectId?
+  operation : @buslane.OperationId?
   value : @buslane.ValueId?
 } derive(Debug, Eq)
 
@@ -59,6 +63,8 @@ pub(all) struct BuslaneModuleImport {
   name : String
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
+  effect_id : @buslane.EffectId?
+  operation : @buslane.OperationId?
   value : @buslane.ValueId?
 } derive(Debug, Eq)
 

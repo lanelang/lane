@@ -1557,6 +1557,62 @@ fn ArtifactTextReader::read_optional_data_con_id(
 }
 
 ///|
+fn ArtifactTextWriter::write_optional_effect_id(
+  self : ArtifactTextWriter,
+  tag : String,
+  id : @buslane.EffectId?,
+) -> Unit {
+  match id {
+    None => self.write_atom(tag, "none")
+    Some(id) => self.write_atom(tag, "some_\{id.index}")
+  }
+}
+
+///|
+fn ArtifactTextReader::read_optional_effect_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.EffectId? raise ArtifactTextError {
+  let atom = self.expect_atom(tag)
+  if atom == "none" {
+    None
+  } else if atom.has_prefix("some_") {
+    let value = atom.unsafe_substring(start=5, end=atom.length())
+    Some({ index: parse_atom_int(tag, value) })
+  } else {
+    fail_invalid("invalid optional effect id for \{tag}")
+  }
+}
+
+///|
+fn ArtifactTextWriter::write_optional_operation_id(
+  self : ArtifactTextWriter,
+  tag : String,
+  id : @buslane.OperationId?,
+) -> Unit {
+  match id {
+    None => self.write_atom(tag, "none")
+    Some(id) => self.write_atom(tag, "some_\{id.index}")
+  }
+}
+
+///|
+fn ArtifactTextReader::read_optional_operation_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.OperationId? raise ArtifactTextError {
+  let atom = self.expect_atom(tag)
+  if atom == "none" {
+    None
+  } else if atom.has_prefix("some_") {
+    let value = atom.unsafe_substring(start=5, end=atom.length())
+    Some({ index: parse_atom_int(tag, value) })
+  } else {
+    fail_invalid("invalid optional operation id for \{tag}")
+  }
+}
+
+///|
 fn ArtifactTextWriter::write_optional_value_id(
   self : ArtifactTextWriter,
   tag : String,
@@ -1659,6 +1715,8 @@ fn ArtifactTextWriter::write_exports(
       "export.data_constructor",
       export_.data_constructor,
     )
+    self.write_optional_effect_id("export.effect_id", export_.effect_id)
+    self.write_optional_operation_id("export.operation", export_.operation)
     self.write_optional_value_id("export.value", export_.value)
   }
 }
@@ -1675,8 +1733,18 @@ fn ArtifactTextReader::read_exports(
     let data_constructor = self.read_optional_data_con_id(
       "export.data_constructor",
     )
+    let effect_id = self.read_optional_effect_id("export.effect_id")
+    let operation = self.read_optional_operation_id("export.operation")
     let value = self.read_optional_value_id("export.value")
-    exports.push({ kind, name, type_id, data_constructor, value })
+    exports.push({
+      kind,
+      name,
+      type_id,
+      data_constructor,
+      effect_id,
+      operation,
+      value,
+    })
   }
   exports
 }
@@ -1700,6 +1768,8 @@ fn ArtifactTextWriter::write_imports(
       "import.data_constructor",
       import_.data_constructor,
     )
+    self.write_optional_effect_id("import.effect_id", import_.effect_id)
+    self.write_optional_operation_id("import.operation", import_.operation)
     self.write_optional_value_id("import.value", import_.value)
   }
 }
@@ -1718,6 +1788,8 @@ fn ArtifactTextReader::read_imports(
     let data_constructor = self.read_optional_data_con_id(
       "import.data_constructor",
     )
+    let effect_id = self.read_optional_effect_id("import.effect_id")
+    let operation = self.read_optional_operation_id("import.operation")
     let value = self.read_optional_value_id("import.value")
     imports.push({
       module_path_text,
@@ -1726,6 +1798,8 @@ fn ArtifactTextReader::read_imports(
       fingerprint,
       type_id,
       data_constructor,
+      effect_id,
+      operation,
       value,
     })
   }
@@ -1743,6 +1817,8 @@ fn ArtifactTextWriter::write_export_kind(
     match kind {
       Type => "type"
       DataConstructor => "data_constructor"
+      Effect => "effect"
+      Operation => "operation"
       FieldSelector => "field_selector"
       Value => "value"
     },
@@ -1757,6 +1833,8 @@ fn ArtifactTextReader::read_export_kind(
   match self.expect_atom(tag) {
     "type" => Type
     "data_constructor" => DataConstructor
+    "effect" => Effect
+    "operation" => Operation
     "field_selector" => FieldSelector
     "value" => Value
     value => fail_unknown("unknown export kind \{value}")

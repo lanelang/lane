@@ -17,6 +17,8 @@ pub(all) struct ModuleImportedReference {
   fingerprint : CompilationFingerprint
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
+  effect_id : @buslane.EffectId?
+  operation : @buslane.OperationId?
   value : @buslane.ValueId?
 } derive(Debug, Eq)
 
@@ -109,6 +111,11 @@ priv struct LinkOperationMapEntry {
 ///|
 priv struct BuslaneLinker {
   metadata : @buslane.MetadataRegistry
+  identities : LinkIdentityMaps
+}
+
+///|
+priv struct LinkIdentityMaps {
   types : Array[LinkTypeMapEntry]
   type_parameters : Array[LinkTypeParameterMapEntry]
   values : Array[LinkValueMapEntry]
@@ -135,6 +142,8 @@ priv struct LinkedModuleExport {
   fingerprint : CompilationFingerprint
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
+  effect_id : @buslane.EffectId?
+  operation : @buslane.OperationId?
   value : @buslane.ValueId?
 }
 
@@ -177,14 +186,192 @@ priv struct FingerprintTypeContext {
 
 ///|
 fn BuslaneLinker::BuslaneLinker() -> BuslaneLinker {
+  { metadata: MetadataRegistry(), identities: LinkIdentityMaps() }
+}
+
+///|
+fn LinkIdentityMaps::LinkIdentityMaps() -> LinkIdentityMaps {
   {
-    metadata: MetadataRegistry(),
     types: [],
     type_parameters: [],
     values: [],
     data_constructors: [],
     effects: [],
     operations: [],
+  }
+}
+
+///|
+fn LinkIdentityMaps::find_type(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.TypeId,
+) -> @buslane.TypeId? {
+  for entry in self.types {
+    if entry.module_path_text == module_path_text && entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn LinkIdentityMaps::bind_type(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.TypeId,
+  target : @buslane.TypeId,
+) -> @buslane.TypeId {
+  if self.find_type(module_path_text, source) is Some(existing) {
+    existing
+  } else {
+    self.types.push({ module_path_text, source, target })
+    target
+  }
+}
+
+///|
+fn LinkIdentityMaps::find_type_parameter(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.TypeParameterId,
+) -> @buslane.TypeParameterId? {
+  for entry in self.type_parameters {
+    if entry.module_path_text == module_path_text && entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn LinkIdentityMaps::bind_type_parameter(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.TypeParameterId,
+  target : @buslane.TypeParameterId,
+) -> @buslane.TypeParameterId {
+  if self.find_type_parameter(module_path_text, source) is Some(existing) {
+    existing
+  } else {
+    self.type_parameters.push({ module_path_text, source, target })
+    target
+  }
+}
+
+///|
+fn LinkIdentityMaps::find_value(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.ValueId,
+) -> @buslane.ValueId? {
+  for entry in self.values {
+    if entry.module_path_text == module_path_text && entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn LinkIdentityMaps::bind_value(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.ValueId,
+  target : @buslane.ValueId,
+) -> @buslane.ValueId {
+  if self.find_value(module_path_text, source) is Some(existing) {
+    existing
+  } else {
+    self.values.push({ module_path_text, source, target })
+    target
+  }
+}
+
+///|
+fn LinkIdentityMaps::find_data_constructor(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.DataConId,
+) -> @buslane.DataConId? {
+  for entry in self.data_constructors {
+    if entry.module_path_text == module_path_text && entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn LinkIdentityMaps::bind_data_constructor(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.DataConId,
+  target : @buslane.DataConId,
+) -> @buslane.DataConId {
+  if self.find_data_constructor(module_path_text, source) is Some(existing) {
+    existing
+  } else {
+    self.data_constructors.push({ module_path_text, source, target })
+    target
+  }
+}
+
+///|
+fn LinkIdentityMaps::find_effect(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.EffectId,
+) -> @buslane.EffectId? {
+  for entry in self.effects {
+    if entry.module_path_text == module_path_text && entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn LinkIdentityMaps::bind_effect(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.EffectId,
+  target : @buslane.EffectId,
+) -> @buslane.EffectId {
+  if self.find_effect(module_path_text, source) is Some(existing) {
+    existing
+  } else {
+    self.effects.push({ module_path_text, source, target })
+    target
+  }
+}
+
+///|
+fn LinkIdentityMaps::find_operation(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.OperationId,
+) -> @buslane.OperationId? {
+  for entry in self.operations {
+    if entry.module_path_text == module_path_text && entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn LinkIdentityMaps::bind_operation(
+  self : LinkIdentityMaps,
+  module_path_text : String,
+  source : @buslane.OperationId,
+  target : @buslane.OperationId,
+) -> @buslane.OperationId {
+  if self.find_operation(module_path_text, source) is Some(existing) {
+    existing
+  } else {
+    self.operations.push({ module_path_text, source, target })
+    target
   }
 }
 
@@ -653,6 +840,8 @@ fn BuslaneLinker::remap_module_objects(
         fingerprint: remapped.fingerprint,
         type_id: item.type_id,
         data_constructor: item.data_constructor,
+        effect_id: item.effect_id,
+        operation: item.operation,
         value: item.value,
       })
     }
@@ -670,29 +859,45 @@ fn BuslaneLinker::seed_imports(
     guard find_linked_export(exports, imported) is Some(item) else { continue }
     match (imported.type_id, item.type_id) {
       (Some(source), Some(target)) =>
-        self.types.push({
-          module_path_text: object.module_path_text,
-          source,
-          target,
-        })
+        ignore(
+          self.identities.bind_type(object.module_path_text, source, target),
+        )
       _ => ()
     }
     match (imported.data_constructor, item.data_constructor) {
       (Some(source), Some(target)) =>
-        self.data_constructors.push({
-          module_path_text: object.module_path_text,
-          source,
-          target,
-        })
+        ignore(
+          self.identities.bind_data_constructor(
+            object.module_path_text,
+            source,
+            target,
+          ),
+        )
       _ => ()
     }
     match (imported.value, item.value) {
       (Some(source), Some(target)) =>
-        self.values.push({
-          module_path_text: object.module_path_text,
-          source,
-          target,
-        })
+        ignore(
+          self.identities.bind_value(object.module_path_text, source, target),
+        )
+      _ => ()
+    }
+    match (imported.effect_id, item.effect_id) {
+      (Some(source), Some(target)) =>
+        ignore(
+          self.identities.bind_effect(object.module_path_text, source, target),
+        )
+      _ => ()
+    }
+    match (imported.operation, item.operation) {
+      (Some(source), Some(target)) =>
+        ignore(
+          self.identities.bind_operation(
+            object.module_path_text,
+            source,
+            target,
+          ),
+        )
       _ => ()
     }
   }
@@ -893,6 +1098,12 @@ fn BuslaneLinker::remap_module_object(
         type_id: item.type_id.map(fn(id) { self.remap_type_id(object, id) }),
         data_constructor: item.data_constructor.map(fn(id) {
           self.remap_data_constructor_id(object, id)
+        }),
+        effect_id: item.effect_id.map(fn(id) {
+          self.remap_effect_id(object, id)
+        }),
+        operation: item.operation.map(fn(id) {
+          self.remap_operation_id(object, id)
         }),
         value: item.value.map(fn(id) { self.remap_value_id(object, id) }),
       }
@@ -1135,22 +1346,15 @@ fn BuslaneLinker::remap_type_parameter_id(
   object : ModuleObject,
   source : @buslane.TypeParameterId,
 ) -> @buslane.TypeParameterId {
-  for entry in self.type_parameters {
-    if entry.module_path_text == object.module_path_text &&
-      entry.source == source {
-      return entry.target
-    }
+  if self.identities.find_type_parameter(object.module_path_text, source)
+    is Some(target) {
+    return target
   }
   guard object.metadata.type_parameter_info(source) is Some(info) else {
     abort("unknown Buslane type parameter id")
   }
   let target = self.metadata.define_type_parameter(info.kind)
-  self.type_parameters.push({
-    module_path_text: object.module_path_text,
-    source,
-    target,
-  })
-  target
+  self.identities.bind_type_parameter(object.module_path_text, source, target)
 }
 
 ///|
@@ -1159,11 +1363,8 @@ fn BuslaneLinker::remap_type_id(
   object : ModuleObject,
   source : @buslane.TypeId,
 ) -> @buslane.TypeId {
-  for entry in self.types {
-    if entry.module_path_text == object.module_path_text &&
-      entry.source == source {
-      return entry.target
-    }
+  if self.identities.find_type(object.module_path_text, source) is Some(target) {
+    return target
   }
   guard object.metadata.type_info(source) is Some(info) else {
     abort("unknown Buslane type id")
@@ -1171,7 +1372,7 @@ fn BuslaneLinker::remap_type_id(
   let target = self.metadata.define_type(
     info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
   )
-  self.types.push({ module_path_text: object.module_path_text, source, target })
+  ignore(self.identities.bind_type(object.module_path_text, source, target))
   for data_constructor in info.constructors {
     ignore(self.remap_data_constructor_id(object, data_constructor))
   }
@@ -1184,11 +1385,9 @@ fn BuslaneLinker::remap_effect_id(
   object : ModuleObject,
   source : @buslane.EffectId,
 ) -> @buslane.EffectId {
-  for entry in self.effects {
-    if entry.module_path_text == object.module_path_text &&
-      entry.source == source {
-      return entry.target
-    }
+  if self.identities.find_effect(object.module_path_text, source)
+    is Some(target) {
+    return target
   }
   guard object.metadata.effect_info(source) is Some(info) else {
     abort("unknown Buslane effect id")
@@ -1196,11 +1395,7 @@ fn BuslaneLinker::remap_effect_id(
   let target = self.metadata.define_effect(
     info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
   )
-  self.effects.push({
-    module_path_text: object.module_path_text,
-    source,
-    target,
-  })
+  ignore(self.identities.bind_effect(object.module_path_text, source, target))
   for operation in info.operations {
     ignore(self.remap_operation_id(object, operation))
   }
@@ -1213,33 +1408,24 @@ fn BuslaneLinker::remap_operation_id(
   object : ModuleObject,
   source : @buslane.OperationId,
 ) -> @buslane.OperationId {
-  for entry in self.operations {
-    if entry.module_path_text == object.module_path_text &&
-      entry.source == source {
-      return entry.target
-    }
+  if self.identities.find_operation(object.module_path_text, source)
+    is Some(target) {
+    return target
   }
   guard object.metadata.operation_info(source) is Some(info) else {
     abort("unknown Buslane operation id")
   }
   let owner = self.remap_effect_id(object, info.owner)
-  for entry in self.operations {
-    if entry.module_path_text == object.module_path_text &&
-      entry.source == source {
-      return entry.target
-    }
+  if self.identities.find_operation(object.module_path_text, source)
+    is Some(target) {
+    return target
   }
   let target = self.metadata.define_operation(
     owner,
     info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
     self.remap_type(object, info.result_type),
   )
-  self.operations.push({
-    module_path_text: object.module_path_text,
-    source,
-    target,
-  })
-  target
+  self.identities.bind_operation(object.module_path_text, source, target)
 }
 
 ///|
@@ -1248,11 +1434,8 @@ fn BuslaneLinker::remap_value_id(
   object : ModuleObject,
   source : @buslane.ValueId,
 ) -> @buslane.ValueId {
-  for entry in self.values {
-    if entry.module_path_text == object.module_path_text &&
-      entry.source == source {
-      return entry.target
-    }
+  if self.identities.find_value(object.module_path_text, source) is Some(target) {
+    return target
   }
   guard object.metadata.value_info(source) is Some(info) else {
     abort("unknown Buslane value id")
@@ -1261,8 +1444,7 @@ fn BuslaneLinker::remap_value_id(
     info.kind,
     self.remap_type(object, info.type_),
   )
-  self.values.push({ module_path_text: object.module_path_text, source, target })
-  target
+  self.identities.bind_value(object.module_path_text, source, target)
 }
 
 ///|
@@ -1271,28 +1453,26 @@ fn BuslaneLinker::remap_data_constructor_id(
   object : ModuleObject,
   source : @buslane.DataConId,
 ) -> @buslane.DataConId {
-  for entry in self.data_constructors {
-    if entry.module_path_text == object.module_path_text &&
-      entry.source == source {
-      return entry.target
-    }
+  if self.identities.find_data_constructor(object.module_path_text, source)
+    is Some(target) {
+    return target
   }
   guard object.metadata.data_constructor_info(source) is Some(info) else {
     abort("unknown Buslane data constructor id")
   }
+  let owner = self.remap_type_id(object, info.owner)
+  if self.identities.find_data_constructor(object.module_path_text, source)
+    is Some(target) {
+    return target
+  }
   let target = self.metadata.define_data_constructor(
-    self.remap_type_id(object, info.owner),
+    owner,
     info.hidden_type_parameters.map(fn(id) {
       self.remap_type_parameter_id(object, id)
     }),
     info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
   )
-  self.data_constructors.push({
-    module_path_text: object.module_path_text,
-    source,
-    target,
-  })
-  target
+  self.identities.bind_data_constructor(object.module_path_text, source, target)
 }
 
 ///|
@@ -1422,6 +1602,8 @@ fn imported_reference_shape_matches_export(
     Type => imported.type_id is Some(_) && item.type_id is Some(_)
     DataConstructor =>
       imported.data_constructor is Some(_) && item.data_constructor is Some(_)
+    Effect => imported.effect_id is Some(_) && item.effect_id is Some(_)
+    Operation => imported.operation is Some(_) && item.operation is Some(_)
     FieldSelector | Value => imported.value is Some(_) && item.value is Some(_)
   }
 }
@@ -1500,6 +1682,40 @@ fn validate_imported_exports(
       }
     }
   }
+  for effect in imported.interface.effects {
+    if !module_exports_effect(imported.object.exports, effect.name) {
+      diagnostics.push(
+        CompileErrorKind::to_diagnostic(
+          MissingExported(
+            kind="effect",
+            provider=imported.module_path_text,
+            name=effect.name,
+            importer=module_.module_path_text,
+          ),
+          None,
+        ),
+      )
+    }
+    for operation in effect.operations {
+      let operation_name = effect_operation_export_name(
+        effect.name,
+        operation.name,
+      )
+      if !module_exports_operation(imported.object.exports, operation_name) {
+        diagnostics.push(
+          CompileErrorKind::to_diagnostic(
+            MissingExported(
+              kind="operation",
+              provider=imported.module_path_text,
+              name=operation_name,
+              importer=module_.module_path_text,
+            ),
+            None,
+          ),
+        )
+      }
+    }
+  }
   diagnostics
 }
 
@@ -1525,6 +1741,22 @@ fn module_exports_data_constructor(
   name : String,
 ) -> Bool {
   exports.any(fn(item) { item.kind is DataConstructor && item.name == name })
+}
+
+///|
+fn module_exports_effect(
+  exports : Array[@elaborate.BuslaneModuleExport],
+  name : String,
+) -> Bool {
+  exports.any(fn(item) { item.kind is Effect && item.name == name })
+}
+
+///|
+fn module_exports_operation(
+  exports : Array[@elaborate.BuslaneModuleExport],
+  name : String,
+) -> Bool {
+  exports.any(fn(item) { item.kind is Operation && item.name == name })
 }
 
 ///|
@@ -1572,6 +1804,14 @@ fn field_selector_export_name(
   field_name : String,
 ) -> String {
   "\{type_name}.\{field_name}"
+}
+
+///|
+fn effect_operation_export_name(
+  effect_name : String,
+  operation_name : String,
+) -> String {
+  "\{effect_name}.\{operation_name}"
 }
 
 ///|
@@ -1693,6 +1933,8 @@ fn module_imported_references_from_lowered(
       fingerprint,
       type_id: item.type_id,
       data_constructor: item.data_constructor,
+      effect_id: item.effect_id,
+      operation: item.operation,
       value: item.value,
     }
   })
@@ -1720,6 +1962,8 @@ fn module_imported_references_from_interface_artifacts(
       fingerprint,
       type_id: item.type_id,
       data_constructor: item.data_constructor,
+      effect_id: item.effect_id,
+      operation: item.operation,
       value: item.value,
     }
   })

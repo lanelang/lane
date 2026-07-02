@@ -335,6 +335,8 @@ fn BuslaneLowerer::module_exports(
           name: declaration.name,
           type_id: Some(self.type_id(declaration.symbol)),
           data_constructor: None,
+          effect_id: None,
+          operation: None,
           value: None,
         })
         exports.push({
@@ -342,6 +344,8 @@ fn BuslaneLowerer::module_exports(
           name: declaration.name,
           type_id: None,
           data_constructor: Some(self.struct_constructor_id(declaration.symbol)),
+          effect_id: None,
+          operation: None,
           value: None,
         })
         for field in declaration.fields {
@@ -350,6 +354,8 @@ fn BuslaneLowerer::module_exports(
             name: field_selector_export_name(declaration.name, field.name),
             type_id: None,
             data_constructor: None,
+            effect_id: None,
+            operation: None,
             value: Some(self.field_selector_id(field.symbol)),
           })
         }
@@ -360,6 +366,8 @@ fn BuslaneLowerer::module_exports(
           name: declaration.name,
           type_id: Some(self.type_id(declaration.symbol)),
           data_constructor: None,
+          effect_id: None,
+          operation: None,
           value: None,
         })
         for variant in declaration.variants {
@@ -368,6 +376,30 @@ fn BuslaneLowerer::module_exports(
             name: variant.name,
             type_id: None,
             data_constructor: Some(self.data_constructor_id(variant.symbol)),
+            effect_id: None,
+            operation: None,
+            value: None,
+          })
+        }
+      }
+      Effect(declaration) if declaration.is_public => {
+        exports.push({
+          kind: Effect,
+          name: declaration.name,
+          type_id: None,
+          data_constructor: None,
+          effect_id: Some(self.effect_id(declaration.symbol)),
+          operation: None,
+          value: None,
+        })
+        for operation in declaration.operations {
+          exports.push({
+            kind: Operation,
+            name: effect_operation_export_name(declaration.name, operation.name),
+            type_id: None,
+            data_constructor: None,
+            effect_id: None,
+            operation: Some(self.operation_id(operation.symbol)),
             value: None,
           })
         }
@@ -378,6 +410,8 @@ fn BuslaneLowerer::module_exports(
           name: declaration.name,
           type_id: None,
           data_constructor: None,
+          effect_id: None,
+          operation: None,
           value: Some(self.value_id(declaration.symbol)),
         })
       Let(declaration) if declaration.is_public &&
@@ -387,6 +421,8 @@ fn BuslaneLowerer::module_exports(
           name,
           type_id: None,
           data_constructor: None,
+          effect_id: None,
+          operation: None,
           value: Some(self.value_id(declaration.symbol)),
         })
       _ => ()
@@ -401,6 +437,14 @@ fn field_selector_export_name(
   field_name : String,
 ) -> String {
   type_name + "." + field_name
+}
+
+///|
+fn effect_operation_export_name(
+  effect_name : String,
+  operation_name : String,
+) -> String {
+  effect_name + "." + operation_name
 }
 
 ///|
@@ -457,6 +501,8 @@ fn BuslaneLowerer::seed_imported_type_header(
         name: declaration.name,
         type_id: Some(target),
         data_constructor: None,
+        effect_id: None,
+        operation: None,
         value: None,
       })
     }
@@ -477,6 +523,8 @@ fn BuslaneLowerer::seed_imported_type_header(
         name: declaration.name,
         type_id: Some(target),
         data_constructor: None,
+        effect_id: None,
+        operation: None,
         value: None,
       })
     }
@@ -513,6 +561,8 @@ fn BuslaneLowerer::seed_imported_type_constructors(
         name: declaration.name,
         type_id: None,
         data_constructor: Some(data_constructor),
+        effect_id: None,
+        operation: None,
         value: None,
       })
       for field in declaration.fields {
@@ -541,6 +591,8 @@ fn BuslaneLowerer::seed_imported_type_constructors(
           name: variant.name,
           type_id: None,
           data_constructor: Some(data_constructor),
+          effect_id: None,
+          operation: None,
           value: None,
         })
       }
@@ -564,6 +616,8 @@ fn BuslaneLowerer::seed_imported_field_selector(
     name: field_selector_export_name(declaration.name, field.name),
     type_id: None,
     data_constructor: None,
+    effect_id: None,
+    operation: None,
     value: Some(selector),
   })
 }
@@ -609,7 +663,16 @@ fn BuslaneLowerer::seed_imported_effect_header(
   })
   let target = self.metadata.define_effect(parameters)
   self.effects.push({ source: effect.symbol, target })
-  ignore(module_path_text)
+  self.imports.push({
+    module_path_text,
+    kind: Effect,
+    name: effect.name,
+    type_id: None,
+    data_constructor: None,
+    effect_id: Some(target),
+    operation: None,
+    value: None,
+  })
 }
 
 ///|
@@ -620,17 +683,24 @@ fn BuslaneLowerer::seed_imported_effect_operations(
 ) -> Unit {
   let owner = self.effect_id(effect.symbol)
   for operation in effect.operations {
-    ignore(
-      self.define_operation(
-        operation.symbol,
-        owner,
-        operation.type_parameters,
-        operation.payload,
-        operation.result,
-      ),
+    let target = self.define_operation(
+      operation.symbol,
+      owner,
+      operation.type_parameters,
+      operation.payload,
+      operation.result,
     )
+    self.imports.push({
+      module_path_text,
+      kind: Operation,
+      name: effect_operation_export_name(effect.name, operation.name),
+      type_id: None,
+      data_constructor: None,
+      effect_id: None,
+      operation: Some(target),
+      value: None,
+    })
   }
-  ignore(module_path_text)
 }
 
 ///|
@@ -651,6 +721,8 @@ fn BuslaneLowerer::seed_imported_value(
     name: value.name,
     type_id: None,
     data_constructor: None,
+    effect_id: None,
+    operation: None,
     value: Some(target),
   })
 }

@@ -9,7 +9,7 @@ pub(all) struct ModuleInterfaceArtifact {
 } derive(Debug, Eq)
 
 ///|
-let module_object_artifact_schema_version = 2
+let module_object_artifact_schema_version = 3
 
 ///|
 pub(all) struct ModuleObjectArtifact {
