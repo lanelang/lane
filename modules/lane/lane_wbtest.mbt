@@ -87,6 +87,40 @@ test "selected public function entry renders as function" {
 }
 
 ///|
+test "run handler body block with effectful local binding" {
+  let result = @compile.compile_source(
+    (
+      #|module Test
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|pub let answer : Int = {
+      #|  handle {
+      #|    let x : Int = Console::read!()
+      #|    x
+      #|  } with {
+      #|    Console::read(resume) => resume(42)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="0")
+  guard result.program is Some(program) else { abort("expected program") }
+  let runtime = @buslane_interpreter.evaluate_buslane_program(
+    program,
+    @intrinsics.standard_external_runtime(result.externals),
+  )
+  let entry = find_entry(result.entries, "answer")
+  guard entry is Ok(entry) else { abort("expected entry") }
+  inspect(
+    render_entry_value(runtime.lookup(entry.value), entry.type_),
+    content="42 : Int",
+  )
+}
+
+///|
 test "missing entry error lists available public entries" {
   let result = @compile.compile_source(
     (

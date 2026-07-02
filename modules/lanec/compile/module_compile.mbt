@@ -1222,8 +1222,15 @@ fn BuslaneLinker::remap_operation_id(
   guard object.metadata.operation_info(source) is Some(info) else {
     abort("unknown Buslane operation id")
   }
+  let owner = self.remap_effect_id(object, info.owner)
+  for entry in self.operations {
+    if entry.module_path_text == object.module_path_text &&
+      entry.source == source {
+      return entry.target
+    }
+  }
   let target = self.metadata.define_operation(
-    self.remap_effect_id(object, info.owner),
+    owner,
     info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
     self.remap_type(object, info.result_type),
   )
