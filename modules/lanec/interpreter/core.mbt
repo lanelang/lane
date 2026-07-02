@@ -57,8 +57,7 @@ pub struct RuntimeProgram {
 } derive(Debug, Eq)
 
 ///|
-#warnings("-unused_constructor")
-pub suberror RuntimeError {
+pub(all) suberror RuntimeError {
   UnboundValue(ValueSymbolId)
   UnboundTemp(@anf.AnfTempId)
   MissingBuiltin(name~ : String, type_~ : @types.Type)

@@ -15,7 +15,7 @@ pub fn external_failure(@buslane.ValueId, String) -> BuslaneRuntimeError
 pub fn missing_external(@buslane.ValueId) -> BuslaneRuntimeError
 
 // Errors
-pub suberror BuslaneRuntimeError {
+pub(all) suberror BuslaneRuntimeError {
   InvalidProgram(Array[@buslane.VerifyDiagnostic])
   UnboundValue(@buslane.ValueId)
   MissingExternal(@buslane.ValueId)

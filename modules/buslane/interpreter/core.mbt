@@ -39,8 +39,7 @@ pub struct BuslaneRuntimeProgram {
 }
 
 ///|
-#warnings("-unused_constructor")
-pub suberror BuslaneRuntimeError {
+pub(all) suberror BuslaneRuntimeError {
   InvalidProgram(Array[@buslane.VerifyDiagnostic])
   UnboundValue(@buslane.ValueId)
   MissingExternal(@buslane.ValueId)

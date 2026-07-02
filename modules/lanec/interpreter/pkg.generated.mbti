@@ -13,7 +13,7 @@ import {
 pub fn evaluate_anf_program(@anf.AnfProgram, BuiltinRuntime) -> RuntimeProgram raise RuntimeError
 
 // Errors
-pub suberror RuntimeError {
+pub(all) suberror RuntimeError {
   UnboundValue(@symbol.ValueSymbolId)
   UnboundTemp(@anf.AnfTempId)
   MissingBuiltin(name~ : String, type_~ : @types.Type)
