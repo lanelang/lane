@@ -202,10 +202,7 @@ fn SemanticChecker::synthesize_expr(
         scope, type_name, type_arguments, fields, loc,
       )
     Builtin(_, loc~) => {
-      self.diagnostics.push({
-        kind: CannotInferExpression(label="builtin", reason=Builtin),
-        loc,
-      })
+      self.report_application_inference_failure("builtin", Builtin, loc)
       Error
     }
   }

@@ -19,6 +19,12 @@ priv struct InstantiatedCallableType {
 }
 
 ///|
+priv struct InferredApplicationTypeArguments {
+  type_arguments : Array[@types.Type]
+  substitution : @types.TypeSubstitution
+}
+
+///|
 fn TypeArgumentInference::TypeArgumentInference(
   parameters : Array[@types.TypeParameter],
 ) -> TypeArgumentInference {
@@ -195,6 +201,113 @@ fn SemanticChecker::synthesize_argument_for_type_arguments(
 }
 
 ///|
+fn SemanticChecker::report_application_inference_failure(
+  self : SemanticChecker,
+  label : String,
+  reason : CannotInferReason,
+  loc : SourceSpan,
+) -> Unit {
+  self.diagnostics.push({ kind: CannotInferExpression(label~, reason~), loc })
+}
+
+///|
+fn SemanticChecker::report_application_arity(
+  self : SemanticChecker,
+  label : String,
+  loc : SourceSpan,
+) -> Unit {
+  self.report_application_inference_failure(label, CallArity, loc)
+}
+
+///|
+fn SemanticChecker::check_application_arity(
+  self : SemanticChecker,
+  expected : Int,
+  actual : Int,
+  label : String,
+  loc : SourceSpan,
+  report_failure : Bool,
+) -> Bool {
+  if expected == actual {
+    true
+  } else {
+    if report_failure {
+      self.report_application_arity(label, loc)
+    }
+    false
+  }
+}
+
+///|
+fn SemanticChecker::infer_application_type_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_parameters : Array[@types.TypeParameter],
+  parameter_templates : Array[@types.Type],
+  argument_expressions : Array[@desugar.DesugaredExpr],
+  result_template : @types.Type?,
+  expected_result : @types.Type?,
+  collect_result_first : Bool,
+  failure_label : String,
+  loc : SourceSpan,
+  report_failure : Bool,
+) -> InferredApplicationTypeArguments? {
+  let inference = TypeArgumentInference::TypeArgumentInference(type_parameters)
+  if collect_result_first &&
+    result_template is Some(template) &&
+    expected_result is Some(expected) {
+    inference.collect(template, expected)
+  }
+  let count = if parameter_templates.length() < argument_expressions.length() {
+    parameter_templates.length()
+  } else {
+    argument_expressions.length()
+  }
+  for index in 0..<count {
+    if self.synthesize_argument_for_type_arguments(
+        scope,
+        argument_expressions[index],
+      )
+      is Some(actual) {
+      inference.collect(parameter_templates[index], actual)
+    }
+  }
+  if !collect_result_first &&
+    result_template is Some(template) &&
+    expected_result is Some(expected) {
+    inference.collect(template, expected)
+  }
+  guard inference.substitution() is Some(substitution) else {
+    if report_failure {
+      self.report_application_inference_failure(
+        failure_label,
+        TypeArguments,
+        loc,
+      )
+    }
+    return None
+  }
+  guard inference.type_arguments() is Some(type_arguments) else {
+    if report_failure {
+      self.report_application_inference_failure(
+        failure_label,
+        TypeArguments,
+        loc,
+      )
+    }
+    return None
+  }
+  Some({ type_arguments, substitution })
+}
+
+///|
+fn call_argument_expressions(
+  arguments : Array[@desugar.DesugaredCallArgument],
+) -> Array[@desugar.DesugaredExpr] {
+  arguments.map(fn(argument) { argument.value_expr() })
+}
+
+///|
 fn SemanticChecker::instantiate_generic_callable(
   self : SemanticChecker,
   scope : TypeScope,
@@ -220,59 +333,37 @@ fn SemanticChecker::instantiate_generic_callable(
     }
     return None
   }
-  if parameters.length() != arguments.length() {
-    if report_failure {
-      self.diagnostics.push({
-        kind: CannotInferExpression(label="call arity", reason=CallArity),
-        loc,
-      })
-    }
+  if !self.check_application_arity(
+      parameters.length(),
+      arguments.length(),
+      "call arity",
+      loc,
+      report_failure,
+    ) {
     return None
   }
-  let inference = TypeArgumentInference::TypeArgumentInference(type_parameters)
-  for index in 0..<parameters.length() {
-    if self.synthesize_argument_for_type_arguments(
-        scope,
-        arguments[index].value_expr(),
-      )
-      is Some(actual) {
-      inference.collect(parameters[index], actual)
-    }
-  }
-  if expected_result is Some(expected) {
-    inference.collect(result, expected)
-  }
-  guard inference.substitution() is Some(substitution) else {
-    if report_failure {
-      self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="type arguments",
-          reason=TypeArguments,
-        ),
-        loc,
-      })
-    }
-    return None
-  }
-  guard inference.type_arguments() is Some(type_arguments) else {
-    if report_failure {
-      self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="type arguments",
-          reason=TypeArguments,
-        ),
-        loc,
-      })
-    }
+  guard self.infer_application_type_arguments(
+      scope,
+      type_parameters,
+      parameters,
+      call_argument_expressions(arguments),
+      Some(result),
+      expected_result,
+      false,
+      "type arguments",
+      loc,
+      report_failure,
+    )
+    is Some(inferred) else {
     return None
   }
   Some({
-    type_arguments,
+    type_arguments: inferred.type_arguments,
     parameters: parameters.map(fn(parameter) {
-      parameter.substitute(substitution)
+      parameter.substitute(inferred.substitution)
     }),
-    result: result.substitute(substitution),
-    effect: effect.substitute(substitution),
+    result: result.substitute(inferred.substitution),
+    effect: effect.substitute(inferred.substitution),
   })
 }
 

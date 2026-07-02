@@ -207,10 +207,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     )
   }
   if variant_declaration.payload.length() != arguments.length() {
-    self.diagnostics.push({
-      kind: CannotInferExpression(label="variant arity", reason=CallArity),
-      loc,
-    })
+    self.report_application_arity("variant arity", loc)
     return checked_expression_none_reported(
       @types.nominal_type(metadata.owner, explicit_type_arguments),
     )
@@ -313,29 +310,25 @@ fn SemanticChecker::variant_hidden_type_arguments(
   if variant.type_parameters.is_empty() {
     return Some([])
   }
-  let inference = TypeArgumentInference::TypeArgumentInference(
-    variant.type_parameters,
-  )
-  for index in 0..<variant.payload.length() {
-    if self.synthesize_argument_for_type_arguments(scope, arguments[index])
-      is Some(actual) {
-      inference.collect(
-        variant.payload[index].substitute(nominal_substitution),
-        actual,
-      )
-    }
-  }
-  guard inference.type_arguments() is Some(type_arguments) else {
-    self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="hidden type arguments",
-        reason=TypeArguments,
-      ),
+  let templates = variant.payload.map(fn(parameter) {
+    parameter.substitute(nominal_substitution)
+  })
+  guard self.infer_application_type_arguments(
+      scope,
+      variant.type_parameters,
+      templates,
+      arguments,
+      None,
+      None,
+      false,
+      "hidden type arguments",
       loc,
-    })
+      true,
+    )
+    is Some(inferred) else {
     return None
   }
-  Some(type_arguments)
+  Some(inferred.type_arguments)
 }
 
 ///|
@@ -348,32 +341,36 @@ fn SemanticChecker::infer_variant_type_arguments(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> Array[@types.Type]? {
-  let inference = TypeArgumentInference::TypeArgumentInference(
-    declaration.type_parameters,
-  )
-  if expected_result is Some(expected) {
-    let result_template = @types.nominal_type(
-      declaration.symbol,
-      declaration.type_parameters.map(fn(parameter) { Parameter(parameter.id) }),
+  let result_template = if expected_result is Some(_) {
+    Some(
+      @types.nominal_type(
+        declaration.symbol,
+        declaration.type_parameters.map(fn(parameter) {
+          Parameter(parameter.id)
+        }),
+      ),
     )
-    inference.collect(result_template, expected)
+  } else {
+    None
   }
-  for index in 0..<variant.payload.length() {
-    if self.synthesize_argument_for_type_arguments(scope, arguments[index])
-      is Some(actual) {
-      inference.collect(variant.payload[index], actual)
-    }
-  }
-  guard inference.substitution() is Some(substitution) else {
-    self.diagnostics.push({
-      kind: CannotInferExpression(label="type arguments", reason=TypeArguments),
+  guard self.infer_application_type_arguments(
+      scope,
+      declaration.type_parameters,
+      variant.payload,
+      arguments,
+      result_template,
+      expected_result,
+      true,
+      "type arguments",
       loc,
-    })
+      true,
+    )
+    is Some(inferred) else {
     return None
   }
   Some(
     declaration.type_parameters.map(fn(parameter) {
-      @types.Type::Parameter(parameter.id).substitute(substitution)
+      @types.Type::Parameter(parameter.id).substitute(inferred.substitution)
     }),
   )
 }

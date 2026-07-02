@@ -193,10 +193,7 @@ fn SemanticChecker::synthesize_checked_expr(
         loc,
       )
     Builtin(_, loc~) => {
-      self.diagnostics.push({
-        kind: CannotInferExpression(label="builtin", reason=Builtin),
-        loc,
-      })
+      self.report_application_inference_failure("builtin", Builtin, loc)
       checked_expression_none_reported(Error)
     }
     _ => checked_expression_none(self.synthesize_expr(scope, expression))
@@ -663,13 +660,11 @@ fn SemanticChecker::synthesize_checked_builtin_callee_call(
         }
       }
       Named(name~, value~, loc~) => {
-        self.diagnostics.push({
-          kind: CannotInferExpression(
-            label="invalid named argument " + name,
-            reason=Generic,
-          ),
+        self.report_application_inference_failure(
+          "invalid named argument " + name,
+          Generic,
           loc,
-        })
+        )
         let checked = self.synthesize_checked_expr(scope, value)
         parameters.push(checked.type_)
         effects.push(checked.effect)
@@ -744,11 +739,13 @@ fn SemanticChecker::check_checked_call_arguments(
   arguments : Array[@desugar.DesugaredCallArgument],
   loc : SourceSpan,
 ) -> CheckedCallArguments? {
-  if parameters.length() != arguments.length() {
-    self.diagnostics.push({
-      kind: CannotInferExpression(label="call arity", reason=CallArity),
+  if !self.check_application_arity(
+      parameters.length(),
+      arguments.length(),
+      "call arity",
       loc,
-    })
+      true,
+    ) {
     return None
   }
   let checked_arguments = []
@@ -789,13 +786,11 @@ fn SemanticChecker::check_checked_call_argument(
     Positional(expression) =>
       self.check_checked_expr(scope, expression, parameter)
     Named(name~, value~, loc~) => {
-      self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="invalid named argument " + name,
-          reason=Generic,
-        ),
+      self.report_application_inference_failure(
+        "invalid named argument " + name,
+        Generic,
         loc,
-      })
+      )
       self.check_checked_expr(scope, value, parameter)
     }
   }
@@ -838,13 +833,11 @@ fn SemanticChecker::synthesize_checked_function_literal(
       })
     } else {
       let type_ : @types.Type = Error
-      self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="function literal parameter",
-          reason=FunctionLiteralParameter,
-        ),
-        loc: parameter.loc,
-      })
+      self.report_application_inference_failure(
+        "function literal parameter",
+        FunctionLiteralParameter,
+        parameter.loc,
+      )
       body_scope.bind(parameter.symbol, type_)
       if parameter.is_offered {
         self.offer_symbol(
@@ -930,13 +923,7 @@ fn SemanticChecker::check_checked_function_literal(
         type_parameters,
       )
       if type_parameters.length() != expected_parameters.length() {
-        self.diagnostics.push({
-          kind: CannotInferExpression(
-            label="generic function arity",
-            reason=CallArity,
-          ),
-          loc,
-        })
+        self.report_application_arity("generic function arity", loc)
         return checked_expression_none_reported(expected)
       }
       let substitution = @types.TypeSubstitution::TypeSubstitution()
@@ -977,20 +964,11 @@ fn SemanticChecker::check_checked_function_literal(
     }
     Function(expected_parameters, expected_result, expected_effect) => {
       if !type_parameters.is_empty() {
-        self.diagnostics.push({
-          kind: CannotInferExpression(
-            label="generic function arity",
-            reason=CallArity,
-          ),
-          loc,
-        })
+        self.report_application_arity("generic function arity", loc)
         return checked_expression_none_reported(expected)
       }
       if expected_parameters.length() != parameters.length() {
-        self.diagnostics.push({
-          kind: CannotInferExpression(label="function arity", reason=CallArity),
-          loc,
-        })
+        self.report_application_arity("function arity", loc)
         return checked_expression_none_reported(expected)
       }
       let body_scope = scope.copy()

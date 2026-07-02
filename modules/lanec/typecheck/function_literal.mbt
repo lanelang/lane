@@ -26,13 +26,11 @@ fn SemanticChecker::synthesize_function_literal(
       }
       parameter_types.push(type_)
     } else {
-      self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="function literal parameter",
-          reason=FunctionLiteralParameter,
-        ),
-        loc: parameter.loc,
-      })
+      self.report_application_inference_failure(
+        "function literal parameter",
+        FunctionLiteralParameter,
+        parameter.loc,
+      )
       body_scope.bind(parameter.symbol, Error)
       if parameter.is_offered {
         self.offer_symbol(
@@ -89,13 +87,7 @@ fn SemanticChecker::check_function_literal(
       )
     Function(expected_parameters, expected_result, expected_effect) => {
       if !type_parameters.is_empty() {
-        self.diagnostics.push({
-          kind: CannotInferExpression(
-            label="generic function arity",
-            reason=CallArity,
-          ),
-          loc,
-        })
+        self.report_application_arity("generic function arity", loc)
         return
       }
       // Gamma, x_1 : P_1, ..., x_n : P_n |- body <= R
@@ -106,10 +98,7 @@ fn SemanticChecker::check_function_literal(
       // parameter annotations are recovered only from the adjacent expected
       // function type.
       if expected_parameters.length() != parameters.length() {
-        self.diagnostics.push({
-          kind: CannotInferExpression(label="function arity", reason=CallArity),
-          loc,
-        })
+        self.report_application_arity("function arity", loc)
         return
       }
       let body_scope = scope.copy()
@@ -173,13 +162,7 @@ fn SemanticChecker::check_generic_function_literal(
   // expected forall parameters with those local parameters.
   ignore(check_type_parameters(self.diagnostics, type_parameters))
   if type_parameters.length() != expected_parameters.length() {
-    self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="generic function arity",
-        reason=CallArity,
-      ),
-      loc,
-    })
+    self.report_application_arity("generic function arity", loc)
     return
   }
   let substitution = @types.TypeSubstitution::TypeSubstitution()

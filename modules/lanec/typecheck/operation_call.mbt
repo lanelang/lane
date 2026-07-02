@@ -21,10 +21,7 @@ fn SemanticChecker::operation_call_signature(
     return None
   }
   guard self.declarations.checked_operation(operation) is Some(declaration) else {
-    self.diagnostics.push({
-      kind: CannotInferExpression(label="effect operation", reason=Generic),
-      loc,
-    })
+    self.report_application_inference_failure("effect operation", Generic, loc)
     return None
   }
   guard self.operation_owner_effect(name, operation, loc) is Some(effect) else {
@@ -54,13 +51,11 @@ fn SemanticChecker::operation_symbol(
       None
     }
     Ambiguous(name~, ..) => {
-      self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="ambiguous effect operation " + name,
-          reason=Generic,
-        ),
+      self.report_application_inference_failure(
+        "ambiguous effect operation " + name,
+        Generic,
         loc,
-      })
+      )
       None
     }
   }
@@ -78,33 +73,27 @@ fn SemanticChecker::operation_owner_effect(
     Shorthand(..) | Unqualified(..) => {
       guard self.resolved_source.symbols.operation_metadata(operation)
         is Some(metadata) else {
-        self.diagnostics.push({
-          kind: CannotInferExpression(
-            label="effect operation owner",
-            reason=Generic,
-          ),
+        self.report_application_inference_failure(
+          "effect operation owner",
+          Generic,
           loc,
-        })
+        )
         return None
       }
       guard self.declarations.checked_effect(metadata.owner) is Some(effect) else {
-        self.diagnostics.push({
-          kind: CannotInferExpression(
-            label="effect operation owner",
-            reason=Generic,
-          ),
+        self.report_application_inference_failure(
+          "effect operation owner",
+          Generic,
           loc,
-        })
+        )
         return None
       }
       if !effect.type_parameters.is_empty() {
-        self.diagnostics.push({
-          kind: CannotInferExpression(
-            label="effect operation owner",
-            reason=Generic,
-          ),
+        self.report_application_inference_failure(
+          "effect operation owner",
+          Generic,
           loc,
-        })
+        )
         return None
       }
       Some(Singleton(metadata.owner, []))
@@ -156,13 +145,7 @@ fn SemanticChecker::check_operation_call(
     }
   }
   if signature.payload.length() != arguments.length() {
-    self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="effect operation arity",
-        reason=CallArity,
-      ),
-      loc,
-    })
+    self.report_application_arity("effect operation arity", loc)
     return signature
   }
   for index in 0..<arguments.length() {
@@ -183,13 +166,7 @@ fn SemanticChecker::synthesize_checked_operation_call(
     return checked_expression_none_reported(Error)
   }
   if signature.payload.length() != arguments.length() {
-    self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="effect operation arity",
-        reason=CallArity,
-      ),
-      loc,
-    })
+    self.report_application_arity("effect operation arity", loc)
     return checked_expression_none_reported(signature.result)
   }
   let checked_arguments = []
