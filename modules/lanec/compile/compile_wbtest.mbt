@@ -506,6 +506,99 @@ test "module artifact binary rejects wrong kind" {
 }
 
 ///|
+test "module artifact binary inspect renders human readable summaries" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|pub let answer : Int = 42
+    ),
+    [],
+  )
+  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  guard modules.modules.get(0) is Some(module_) else {
+    abort("expected compiled module")
+  }
+  let interface_binary = module_interface_artifact_to_binary(
+    module_.to_interface_artifact(),
+  )
+  let object_binary = module_object_artifact_to_binary(
+    module_.to_object_artifact(),
+  )
+  let interface_text = match artifact_binary_to_inspect_text(interface_binary) {
+    Ok(text) => text
+    Err(message) => abort(message)
+  }
+  let object_text = match artifact_binary_to_inspect_text(object_binary) {
+    Ok(text) => text
+    Err(message) => abort(message)
+  }
+  inspect(
+    artifact_inspect_without_fingerprints(interface_text),
+    content=(
+      #|Lane interface artifact
+      #|module: Main
+      #|schema: 1
+      #|
+      #|imported interfaces:
+      #|  (none)
+      #|
+      #|interface Main:
+      #|types:
+      #|  (none)
+      #|effects:
+      #|  (none)
+      #|type aliases:
+      #|  (none)
+      #|values:
+      #|  pub let answer : Int
+      #|
+    ),
+  )
+  inspect(
+    artifact_inspect_without_fingerprints(object_text),
+    content=(
+      #|Lane object artifact
+      #|module: Main
+      #|schema: 3
+      #|
+      #|imported interfaces:
+      #|  (none)
+      #|
+      #|interface Main:
+      #|types:
+      #|  (none)
+      #|effects:
+      #|  (none)
+      #|type aliases:
+      #|  (none)
+      #|values:
+      #|  pub let answer : Int
+      #|
+      #|object:
+      #|imports:
+      #|  (none)
+      #|exports:
+      #|  value answer
+      #|entries:
+      #|  answer : Int
+      #|externals:
+      #|  (none)
+      #|buslane:
+      #|  types: 0
+      #|  data constructors: 0
+      #|  effects: 0
+      #|  operations: 0
+      #|  values: 1
+      #|  terms: 1
+      #|
+    ),
+  )
+}
+
+///|
 test "compile module interface preserves public effects across artifact import" {
   let lib_compiled = compile_modules(
     (
@@ -2692,6 +2785,19 @@ fn byte_prefix_text(bytes : Bytes, count : Int) -> String {
     values.push(bytes[index].to_int().to_string())
   }
   values.join(",")
+}
+
+///|
+fn artifact_inspect_without_fingerprints(text : String) -> String {
+  let lines = []
+  for line in text.split("\n") {
+    let line = line.to_owned()
+    if !line.has_prefix("interface fingerprint:") &&
+      !line.has_prefix("module fingerprint:") {
+      lines.push(line)
+    }
+  }
+  lines.join("\n")
 }
 
 ///|

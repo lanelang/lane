@@ -6,7 +6,7 @@ async fn lane_inspect(artifact : String) -> LaneCommandOutcome {
       return UserFailure
     }
   }
-  match @compile.artifact_binary_to_text(bytes) {
+  match @compile.artifact_binary_to_inspect_text(bytes) {
     Ok(text) => {
       @stdio.stdout.write(text)
       Succeeded

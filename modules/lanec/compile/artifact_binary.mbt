@@ -41,6 +41,29 @@ pub fn artifact_binary_to_text(bytes : Bytes) -> Result[String, String] {
 }
 
 ///|
+pub fn artifact_binary_to_inspect_text(bytes : Bytes) -> Result[String, String] {
+  match decode_binary_artifact_text(bytes, subject="Lane") {
+    Ok(decoded) =>
+      match decoded.kind {
+        kind if kind == artifact_binary_kind_interface =>
+          match parse_module_interface_artifact_text(decoded.text) {
+            Ok(artifact) =>
+              Ok(module_interface_artifact_to_inspect_text(artifact))
+            Err(message) => Err(message)
+          }
+        kind if kind == artifact_binary_kind_object =>
+          match parse_module_object_artifact_text(decoded.text) {
+            Ok(artifact) => Ok(module_object_artifact_to_inspect_text(artifact))
+            Err(message) => Err(message)
+          }
+        kind =>
+          Err("unknown artifact binary kind \{artifact_binary_kind_name(kind)}")
+      }
+    Err(message) => Err(message)
+  }
+}
+
+///|
 pub fn module_interface_artifact_to_binary(
   artifact : ModuleInterfaceArtifact,
 ) -> Bytes {

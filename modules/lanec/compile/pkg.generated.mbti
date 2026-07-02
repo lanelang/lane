@@ -19,6 +19,8 @@ pub fn analyze_source_inputs(SourceInput, Array[SourceInput]) -> AnalysisResult
 
 pub fn analyze_sources(String, Array[String]) -> AnalysisResult
 
+pub fn artifact_binary_to_inspect_text(Bytes) -> Result[String, String]
+
 pub fn artifact_binary_to_text(Bytes) -> Result[String, String]
 
 pub fn check_source(String) -> CheckResult
@@ -250,6 +252,7 @@ pub(all) struct ModuleInterfaceArtifact {
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact
 
 pub(all) struct ModuleObject {
   module_path_text : String
@@ -278,6 +281,7 @@ pub(all) struct ModuleObjectArtifact {
   module_fingerprint : CompilationFingerprint
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ModuleObjectArtifact
 
 pub(all) struct ReferenceEntry {
   location : AnalysisLocation
