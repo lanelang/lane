@@ -506,14 +506,90 @@ fn apply_buslane_function(
       if arguments.length() != 1 {
         raise InvalidValue(message="resume argument count mismatch")
       }
-      let resumed = apply_buslane_kont(
+      apply_buslane_kont(
         arguments[0],
         externals,
-        resume_continuation.kont,
+        append_kont(resume_continuation.kont, kont),
       )
-      apply_buslane_kont(resumed, externals, kont)
     }
     _ => raise InvalidValue(message="callee is not callable")
+  }
+}
+
+///|
+fn append_kont(kont : Kont, tail : Kont) -> Kont {
+  match kont {
+    DoneKont => tail
+    LetKont(id~, body~, environment~, handlers~, next~) =>
+      LetKont(id~, body~, environment~, handlers~, next=append_kont(next, tail))
+    CallCalleeKont(arguments~, environment~, handlers~, next~) =>
+      CallCalleeKont(
+        arguments~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    CallArgumentKont(
+      callee~,
+      arguments~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) =>
+      CallArgumentKont(
+        callee~,
+        arguments~,
+        index~,
+        values~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    TypeApplyKont(handlers~, next~) =>
+      TypeApplyKont(handlers~, next=append_kont(next, tail))
+    ApplyErasedFunctionKont(arguments~, handlers~, next~) =>
+      ApplyErasedFunctionKont(
+        arguments~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    ConstructKont(construct~, index~, values~, environment~, handlers~, next~) =>
+      ConstructKont(
+        construct~,
+        index~,
+        values~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    PerformPayloadKont(
+      perform~,
+      index~,
+      values~,
+      environment~,
+      handlers~,
+      next~
+    ) =>
+      PerformPayloadKont(
+        perform~,
+        index~,
+        values~,
+        environment~,
+        handlers~,
+        next=append_kont(next, tail),
+      )
+    MatchKont(match_~, environment~, handlers~, next~) =>
+      MatchKont(match_~, environment~, handlers~, next=append_kont(next, tail))
+    HandleBodyKont(id~, handle~, environment~, outer_handlers~, next~) =>
+      HandleBodyKont(
+        id~,
+        handle~,
+        environment~,
+        outer_handlers~,
+        next=append_kont(next, tail),
+      )
   }
 }
 

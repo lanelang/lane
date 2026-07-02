@@ -435,3 +435,269 @@ test "state effect threads state through get and put with a state-passing handle
     ),
   )
 }
+
+///|
+test "perform in call argument resumes into the pending call" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let reader = metadata.define_effect([])
+  let ask = metadata.define_operation(reader, [], effect_int_type())
+  let plus = metadata.define_value(
+    External,
+    Function([effect_int_type(), effect_int_type()], effect_int_type(), Empty),
+  )
+  let result = metadata.define_value(Value, effect_int_type())
+  let final_binder = metadata.define_value(Local, effect_int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([effect_int_type()], effect_int_type(), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      External(plus),
+      Let(
+        result,
+        Handle({
+          body: Call(Ref(plus), [
+            Literal(Int(1L)),
+            Perform({ operation: ask, type_arguments: [], payloads: [] }),
+          ]),
+          result_binder: final_binder,
+          result_type: effect_int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(reader, []),
+              operations: [
+                {
+                  operation: ask,
+                  payload_binders: [],
+                  resume_binder,
+                  body: Call(Resume(resume_binder), [Literal(Int(41L))]),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  effect_expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, effect_plus_runtime(plus))
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 42",
+  )
+}
+
+///|
+test "perform in construct payload resumes into the pending constructor" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let box_type = metadata.define_type([])
+  let box = metadata.define_data_constructor(box_type, [], [effect_int_type()])
+  let reader = metadata.define_effect([])
+  let ask = metadata.define_operation(reader, [], effect_int_type())
+  let result = metadata.define_value(Value, Constructor(box_type))
+  let final_binder = metadata.define_value(Local, Constructor(box_type))
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([effect_int_type()], Constructor(box_type), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Construct({
+            data_constructor: box,
+            type_arguments: [],
+            hidden_witnesses: [],
+            payloads: [
+              Perform({ operation: ask, type_arguments: [], payloads: [] }),
+            ],
+          }),
+          result_binder: final_binder,
+          result_type: Constructor(box_type),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(reader, []),
+              operations: [
+                {
+                  operation: ask,
+                  payload_binders: [],
+                  resume_binder,
+                  body: Call(Resume(resume_binder), [Literal(Int(7L))]),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  effect_expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content=(
+      #|data_value datacon#0 {
+      #|  int 7
+      #|}
+    ),
+  )
+}
+
+///|
+test "perform in match scrutinee resumes into branch selection" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let nondet = metadata.define_effect([])
+  let choose = metadata.define_operation(nondet, [], effect_bool_type())
+  let scrutinee_binder = metadata.define_value(MatchBinder, effect_bool_type())
+  let result = metadata.define_value(Value, effect_int_type())
+  let final_binder = metadata.define_value(Local, effect_int_type())
+  let resume_binder = metadata.define_value(
+    Parameter,
+    Function([effect_bool_type()], effect_int_type(), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Match({
+            scrutinee: Perform({
+              operation: choose,
+              type_arguments: [],
+              payloads: [],
+            }),
+            binder: scrutinee_binder,
+            result_type: effect_int_type(),
+            alternatives: [
+              {
+                alt_constructor: Literal(Bool(true)),
+                type_binders: [],
+                value_binders: [],
+                body: Literal(Int(42L)),
+              },
+              {
+                alt_constructor: Literal(Bool(false)),
+                type_binders: [],
+                value_binders: [],
+                body: Literal(Int(0L)),
+              },
+            ],
+          }),
+          result_binder: final_binder,
+          result_type: effect_int_type(),
+          final_body: Ref(final_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(nondet, []),
+              operations: [
+                {
+                  operation: choose,
+                  payload_binders: [],
+                  resume_binder,
+                  body: Call(Resume(resume_binder), [Literal(Bool(true))]),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  effect_expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 42",
+  )
+}
+
+///|
+test "inner handler final body performs through the outer handler stack" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let outer_effect = metadata.define_effect([])
+  let echo = metadata.define_operation(
+    outer_effect,
+    [effect_int_type()],
+    effect_int_type(),
+  )
+  let inner_effect = metadata.define_effect([])
+  let read = metadata.define_operation(inner_effect, [], effect_int_type())
+  let result = metadata.define_value(Value, effect_int_type())
+  let outer_final = metadata.define_value(Local, effect_int_type())
+  let inner_final = metadata.define_value(Local, effect_int_type())
+  let outer_payload = metadata.define_value(Parameter, effect_int_type())
+  let outer_resume = metadata.define_value(
+    Parameter,
+    Function([effect_int_type()], effect_int_type(), Empty),
+  )
+  let inner_resume = metadata.define_value(
+    Parameter,
+    Function(
+      [effect_int_type()],
+      effect_int_type(),
+      Singleton(outer_effect, []),
+    ),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Handle({
+            body: Perform({ operation: read, type_arguments: [], payloads: [] }),
+            result_binder: inner_final,
+            result_type: effect_int_type(),
+            final_body: Perform({
+              operation: echo,
+              type_arguments: [],
+              payloads: [Ref(inner_final)],
+            }),
+            handlers: [
+              {
+                handled_effect: Singleton(inner_effect, []),
+                operations: [
+                  {
+                    operation: read,
+                    payload_binders: [],
+                    resume_binder: inner_resume,
+                    body: Call(Resume(inner_resume), [Literal(Int(42L))]),
+                  },
+                ],
+              },
+            ],
+          }),
+          result_binder: outer_final,
+          result_type: effect_int_type(),
+          final_body: Ref(outer_final),
+          handlers: [
+            {
+              handled_effect: Singleton(outer_effect, []),
+              operations: [
+                {
+                  operation: echo,
+                  payload_binders: [outer_payload],
+                  resume_binder: outer_resume,
+                  body: Ref(outer_payload),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  effect_expect_ok(program)
+  let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
+  inspect(
+    @prettyprinter.render(evaluated.lookup(result), width=80),
+    content="int 42",
+  )
+}
