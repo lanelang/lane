@@ -193,7 +193,10 @@ fn SemanticChecker::synthesize_checked_expr(
         loc,
       )
     Builtin(_, loc~) => {
-      self.diagnostics.push({ kind: CannotInferExpression("builtin"), loc })
+      self.diagnostics.push({
+        kind: CannotInferExpression(label="builtin", reason=Builtin),
+        loc,
+      })
       checked_expression_none_reported(Error)
     }
     _ => checked_expression_none(self.synthesize_expr(scope, expression))
@@ -488,7 +491,10 @@ fn SemanticChecker::synthesize_checked_match(
     }
   }
   if !has_result {
-    self.diagnostics.push({ kind: CannotInferExpression("empty match"), loc })
+    self.diagnostics.push({
+      kind: CannotInferExpression(label="empty match", reason=Generic),
+      loc,
+    })
   }
   if !matrix.is_exhaustive(self.declarations, checked_scrutinee.type_) {
     self.diagnostics.push({
@@ -658,7 +664,10 @@ fn SemanticChecker::synthesize_checked_builtin_callee_call(
       }
       Named(name~, value~, loc~) => {
         self.diagnostics.push({
-          kind: CannotInferExpression("invalid named argument " + name),
+          kind: CannotInferExpression(
+            label="invalid named argument " + name,
+            reason=Generic,
+          ),
           loc,
         })
         let checked = self.synthesize_checked_expr(scope, value)
@@ -736,7 +745,10 @@ fn SemanticChecker::check_checked_call_arguments(
   loc : SourceSpan,
 ) -> CheckedCallArguments? {
   if parameters.length() != arguments.length() {
-    self.diagnostics.push({ kind: CannotInferExpression("call arity"), loc })
+    self.diagnostics.push({
+      kind: CannotInferExpression(label="call arity", reason=CallArity),
+      loc,
+    })
     return None
   }
   let checked_arguments = []
@@ -778,7 +790,10 @@ fn SemanticChecker::check_checked_call_argument(
       self.check_checked_expr(scope, expression, parameter)
     Named(name~, value~, loc~) => {
       self.diagnostics.push({
-        kind: CannotInferExpression("invalid named argument " + name),
+        kind: CannotInferExpression(
+          label="invalid named argument " + name,
+          reason=Generic,
+        ),
         loc,
       })
       self.check_checked_expr(scope, value, parameter)
@@ -824,7 +839,10 @@ fn SemanticChecker::synthesize_checked_function_literal(
     } else {
       let type_ : @types.Type = Error
       self.diagnostics.push({
-        kind: CannotInferExpression("function literal parameter"),
+        kind: CannotInferExpression(
+          label="function literal parameter",
+          reason=FunctionLiteralParameter,
+        ),
         loc: parameter.loc,
       })
       body_scope.bind(parameter.symbol, type_)
@@ -913,7 +931,10 @@ fn SemanticChecker::check_checked_function_literal(
       )
       if type_parameters.length() != expected_parameters.length() {
         self.diagnostics.push({
-          kind: CannotInferExpression("generic function arity"),
+          kind: CannotInferExpression(
+            label="generic function arity",
+            reason=CallArity,
+          ),
           loc,
         })
         return checked_expression_none_reported(expected)
@@ -957,14 +978,17 @@ fn SemanticChecker::check_checked_function_literal(
     Function(expected_parameters, expected_result, expected_effect) => {
       if !type_parameters.is_empty() {
         self.diagnostics.push({
-          kind: CannotInferExpression("generic function arity"),
+          kind: CannotInferExpression(
+            label="generic function arity",
+            reason=CallArity,
+          ),
           loc,
         })
         return checked_expression_none_reported(expected)
       }
       if expected_parameters.length() != parameters.length() {
         self.diagnostics.push({
-          kind: CannotInferExpression("function arity"),
+          kind: CannotInferExpression(label="function arity", reason=CallArity),
           loc,
         })
         return checked_expression_none_reported(expected)
@@ -1192,7 +1216,7 @@ fn SemanticChecker::require_checked_expression(
     None => {
       if !checked.missing_reported {
         self.diagnostics.push({
-          kind: CannotInferExpression("checked " + label),
+          kind: CannotInferExpression(label="checked " + label, reason=Generic),
           loc,
         })
       }

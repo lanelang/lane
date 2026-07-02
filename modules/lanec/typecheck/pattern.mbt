@@ -134,7 +134,10 @@ fn SemanticChecker::synthesize_match(
     }
   }
   if !has_result {
-    self.diagnostics.push({ kind: CannotInferExpression("empty match"), loc })
+    self.diagnostics.push({
+      kind: CannotInferExpression(label="empty match", reason=Generic),
+      loc,
+    })
   }
   if !matrix.is_exhaustive(self.declarations, scrutinee_type) {
     self.diagnostics.push({ kind: NonExhaustiveMatch(scrutinee_type), loc })
@@ -245,7 +248,8 @@ fn SemanticChecker::check_variant_pattern(
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
         kind: CannotInferExpression(
-          "unresolved variant " + type_name + "::" + variant,
+          label="unresolved variant " + type_name + "::" + variant,
+          reason=Generic,
         ),
         loc,
       })
@@ -253,7 +257,10 @@ fn SemanticChecker::check_variant_pattern(
     }
     UnresolvedUnqualified(name) => {
       self.diagnostics.push({
-        kind: CannotInferExpression("unresolved variant " + name),
+        kind: CannotInferExpression(
+          label="unresolved variant " + name,
+          reason=Generic,
+        ),
         loc,
       })
       Wildcard(type_=Error, loc~)
@@ -286,7 +293,8 @@ fn SemanticChecker::check_variant_symbol_pattern(
   guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
     self.diagnostics.push({
       kind: CannotInferExpression(
-        "unknown variant " + type_name + "::" + variant,
+        label="unknown variant " + type_name + "::" + variant,
+        reason=Generic,
       ),
       loc,
     })
@@ -294,7 +302,10 @@ fn SemanticChecker::check_variant_symbol_pattern(
   }
   guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
     self.diagnostics.push({
-      kind: CannotInferExpression("unknown variant owner " + type_name),
+      kind: CannotInferExpression(
+        label="unknown variant owner " + type_name,
+        reason=Generic,
+      ),
       loc,
     })
     return Wildcard(type_=Error, loc~)
@@ -302,7 +313,8 @@ fn SemanticChecker::check_variant_symbol_pattern(
   guard declaration.variant(symbol) is Some(variant_declaration) else {
     self.diagnostics.push({
       kind: CannotInferExpression(
-        "unknown variant " + type_name + "::" + variant,
+        label="unknown variant " + type_name + "::" + variant,
+        reason=Generic,
       ),
       loc,
     })
@@ -401,8 +413,9 @@ fn SemanticChecker::check_shorthand_variant_pattern(
     if !(expected is Error) {
       self.diagnostics.push({
         kind: CannotInferExpression(
-          "shorthand variant pattern requires enum expected type " +
-          display_name,
+          label="shorthand variant pattern requires enum expected type " +
+            display_name,
+          reason=Generic,
         ),
         loc,
       })
@@ -412,7 +425,9 @@ fn SemanticChecker::check_shorthand_variant_pattern(
   guard self.declarations.checked_enum(owner) is Some(_) else {
     self.diagnostics.push({
       kind: CannotInferExpression(
-        "shorthand variant pattern requires enum expected type " + display_name,
+        label="shorthand variant pattern requires enum expected type " +
+          display_name,
+        reason=Generic,
       ),
       loc,
     })
@@ -420,7 +435,10 @@ fn SemanticChecker::check_shorthand_variant_pattern(
   }
   guard self.source.symbols.variant_named(owner, variant) is Some(symbol) else {
     self.diagnostics.push({
-      kind: CannotInferExpression("unknown variant " + display_name),
+      kind: CannotInferExpression(
+        label="unknown variant " + display_name,
+        reason=Generic,
+      ),
       loc,
     })
     return Wildcard(type_=Error, loc~)

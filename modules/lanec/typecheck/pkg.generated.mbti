@@ -24,6 +24,15 @@ pub fn typecheck_source_file(@resolve.ResolvedSourceFile) -> TypeCheckResult
 // Errors
 
 // Types and methods
+pub(all) enum CannotInferReason {
+  Generic
+  ContextualOffer
+  FunctionLiteralParameter
+  CallArity
+  TypeArguments
+  Builtin
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedDeclarationEnvironment {
   types : Array[CheckedTypeDeclaration]
   type_members : Array[CheckedTypeMemberDeclaration]
@@ -190,7 +199,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   HiddenTypeEscape(type_~ : @types.Type)
   PrivateTypeEscape(name~ : String)
   InvalidIntLiteral(String)
-  CannotInferExpression(String)
+  CannotInferExpression(label~ : String, reason~ : CannotInferReason)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind
 

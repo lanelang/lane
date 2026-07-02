@@ -412,7 +412,10 @@ fn SemanticChecker::check_handler_table(
     }
     guard signature.effect is Singleton(_, _) else {
       self.diagnostics.push({
-        kind: CannotInferExpression("handler effect owner"),
+        kind: CannotInferExpression(
+          label="handler effect owner",
+          reason=Generic,
+        ),
         loc: arm.loc,
       })
       continue

@@ -116,7 +116,10 @@ fn SemanticChecker::check_builtin_callee_call(
         parameters.push(self.synthesize_expr(scope, expression))
       Named(name~, value~, loc~) => {
         self.diagnostics.push({
-          kind: CannotInferExpression("invalid named argument " + name),
+          kind: CannotInferExpression(
+            label="invalid named argument " + name,
+            reason=Generic,
+          ),
           loc,
         })
         parameters.push(self.synthesize_expr(scope, value))
@@ -142,7 +145,10 @@ fn SemanticChecker::check_call_arguments(
   // Argument checking is the direct-context step for calls: parameter types flow
   // down to each adjacent argument expression.
   if parameters.length() != arguments.length() {
-    self.diagnostics.push({ kind: CannotInferExpression("call arity"), loc })
+    self.diagnostics.push({
+      kind: CannotInferExpression(label="call arity", reason=CallArity),
+      loc,
+    })
     return
   }
   for index in 0..<parameters.length() {
@@ -161,7 +167,10 @@ fn SemanticChecker::check_call_argument(
     Positional(expression) => self.check_expr(scope, expression, parameter)
     Named(name~, value~, loc~) => {
       self.diagnostics.push({
-        kind: CannotInferExpression("invalid named argument " + name),
+        kind: CannotInferExpression(
+          label="invalid named argument " + name,
+          reason=Generic,
+        ),
         loc,
       })
       self.check_expr(scope, value, parameter)

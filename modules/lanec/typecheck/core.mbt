@@ -144,6 +144,16 @@ pub(all) struct TypeCheckDiagnostic {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum CannotInferReason {
+  Generic
+  ContextualOffer
+  FunctionLiteralParameter
+  CallArity
+  TypeArguments
+  Builtin
+} derive(Debug, Eq)
+
+///|
 pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
@@ -172,5 +182,5 @@ pub(all) enum TypeCheckDiagnosticKind {
   HiddenTypeEscape(type_~ : @types.Type)
   PrivateTypeEscape(name~ : String)
   InvalidIntLiteral(String)
-  CannotInferExpression(String)
+  CannotInferExpression(label~ : String, reason~ : CannotInferReason)
 } derive(Debug, Eq)

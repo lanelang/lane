@@ -332,7 +332,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     PrivateTypeEscape(name~) =>
       text("private type `") + text(name) + text("` in public interface")
     InvalidIntLiteral(raw) => text("invalid_int_literal") + space + text(raw)
-    CannotInferExpression(label) => text("cannot_infer") + space + text(label)
+    CannotInferExpression(label~, ..) =>
+      text("cannot_infer") + space + text(label)
   }
 }
 

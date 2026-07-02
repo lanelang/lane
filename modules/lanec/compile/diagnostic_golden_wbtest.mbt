@@ -22,6 +22,48 @@ fn assert_diagnostic_headline(
 }
 
 ///|
+fn inference_diagnostic_help(
+  label : String,
+  reason : @typecheck.CannotInferReason,
+) -> String {
+  let diagnostic = typecheck_diagnostic(
+    {
+      kind: CannotInferExpression(label~, reason~),
+      loc: @basic.SourceSpan::dummy(),
+    },
+    TypeDisplayContext::from_registry(SymbolRegistry()),
+  )
+  guard diagnostic.helps.length() == 1 else {
+    abort("expected one diagnostic help")
+  }
+  diagnostic.helps[0]
+}
+
+///|
+test "golden inference diagnostic help uses structured reason" {
+  assert_eq(
+    inference_diagnostic_help("renamed contextual hint", ContextualOffer),
+    "add a visible `offer` with the required type or pass the contextual argument explicitly",
+  )
+  assert_eq(
+    inference_diagnostic_help("lambda binder", FunctionLiteralParameter),
+    "add an explicit parameter type annotation to the function literal",
+  )
+  assert_eq(
+    inference_diagnostic_help("argument count", CallArity),
+    "check the number of arguments and type arguments at this call site",
+  )
+  assert_eq(
+    inference_diagnostic_help("generic arguments", TypeArguments),
+    "add explicit type arguments or provide an expected result type",
+  )
+  assert_eq(
+    inference_diagnostic_help("intrinsic", Builtin),
+    "add a type annotation so the builtin can be checked against a concrete function type",
+  )
+}
+
+///|
 test "golden syntax diagnostic includes code headline label note and help" {
   let diagnostic = single_check_diagnostic(
     (

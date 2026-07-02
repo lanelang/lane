@@ -73,7 +73,8 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
         kind: CannotInferExpression(
-          "unresolved variant " + type_name + "::" + variant,
+          label="unresolved variant " + type_name + "::" + variant,
+          reason=Generic,
         ),
         loc,
       })
@@ -85,7 +86,10 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
     }
     UnresolvedUnqualified(name) => {
       self.diagnostics.push({
-        kind: CannotInferExpression("unresolved variant " + name),
+        kind: CannotInferExpression(
+          label="unresolved variant " + name,
+          reason=Generic,
+        ),
         loc,
       })
       checked_expression_none_reported(Error)
@@ -121,7 +125,10 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
     }
     UnresolvedUnqualified(name) => {
       self.diagnostics.push({
-        kind: CannotInferExpression("unresolved variant " + name),
+        kind: CannotInferExpression(
+          label="unresolved variant " + name,
+          reason=Generic,
+        ),
         loc,
       })
       checked_expression_none_reported(Error)
@@ -129,7 +136,8 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
         kind: CannotInferExpression(
-          "unresolved variant " + type_name + "::" + variant,
+          label="unresolved variant " + type_name + "::" + variant,
+          reason=Generic,
         ),
         loc,
       })
@@ -152,21 +160,30 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
 ) -> CheckedExpressionSynthesis {
   guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
     self.diagnostics.push({
-      kind: CannotInferExpression("unknown variant " + display_name),
+      kind: CannotInferExpression(
+        label="unknown variant " + display_name,
+        reason=Generic,
+      ),
       loc,
     })
     return checked_expression_none_reported(Error)
   }
   guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
     self.diagnostics.push({
-      kind: CannotInferExpression("unknown variant owner " + display_name),
+      kind: CannotInferExpression(
+        label="unknown variant owner " + display_name,
+        reason=Generic,
+      ),
       loc,
     })
     return checked_expression_none_reported(Error)
   }
   guard declaration.variant(symbol) is Some(variant_declaration) else {
     self.diagnostics.push({
-      kind: CannotInferExpression("unknown variant " + display_name),
+      kind: CannotInferExpression(
+        label="unknown variant " + display_name,
+        reason=Generic,
+      ),
       loc,
     })
     return checked_expression_none_reported(Error)
@@ -190,7 +207,10 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     )
   }
   if variant_declaration.payload.length() != arguments.length() {
-    self.diagnostics.push({ kind: CannotInferExpression("variant arity"), loc })
+    self.diagnostics.push({
+      kind: CannotInferExpression(label="variant arity", reason=CallArity),
+      loc,
+    })
     return checked_expression_none_reported(
       @types.nominal_type(metadata.owner, explicit_type_arguments),
     )
@@ -307,7 +327,10 @@ fn SemanticChecker::variant_hidden_type_arguments(
   }
   guard inference.type_arguments() is Some(type_arguments) else {
     self.diagnostics.push({
-      kind: CannotInferExpression("hidden type arguments"),
+      kind: CannotInferExpression(
+        label="hidden type arguments",
+        reason=TypeArguments,
+      ),
       loc,
     })
     return None
@@ -342,7 +365,10 @@ fn SemanticChecker::infer_variant_type_arguments(
     }
   }
   guard inference.substitution() is Some(substitution) else {
-    self.diagnostics.push({ kind: CannotInferExpression("type arguments"), loc })
+    self.diagnostics.push({
+      kind: CannotInferExpression(label="type arguments", reason=TypeArguments),
+      loc,
+    })
     return None
   }
   Some(

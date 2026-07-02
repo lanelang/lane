@@ -1061,41 +1061,51 @@ fn typecheck_diagnostic(
         ],
         helps=["use a smaller integer literal"],
       )
-    CannotInferExpression(label) =>
-      diagnostic(
-        "cannot infer expression type",
-        span~,
-        severity=Error,
-        code=Some("E3010"),
-        labels=[
-          {
-            span: diagnostic_.loc,
-            message: "the checker needs more type information for `\{label}`",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "this diagnostic is emitted when local context is not enough to choose a unique type",
-        ],
-        helps=[cannot_infer_help(label)],
-      )
+    CannotInferExpression(label~, reason~) =>
+      cannot_infer_diagnostic(diagnostic_, span, label, reason)
   }
 }
 
 ///|
-fn cannot_infer_help(label : String) -> String {
-  if label.contains("contextual offer") {
-    "add a visible `offer` with the required type or pass the contextual argument explicitly"
-  } else if label.contains("function literal parameter") {
-    "add an explicit parameter type annotation to the function literal"
-  } else if label.contains("call arity") || label.contains("arity") {
-    "check the number of arguments and type arguments at this call site"
-  } else if label.contains("type arguments") {
-    "add explicit type arguments or provide an expected result type"
-  } else if label.contains("builtin") {
-    "add a type annotation so the builtin can be checked against a concrete function type"
-  } else {
-    "add a type annotation near this expression"
+fn cannot_infer_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  span : @basic.SourceSpan?,
+  label : String,
+  reason : @typecheck.CannotInferReason,
+) -> CompileDiagnostic {
+  diagnostic(
+    "cannot infer expression type",
+    span~,
+    severity=Error,
+    code=Some("E3010"),
+    labels=[
+      {
+        span: diagnostic_.loc,
+        message: "the checker needs more type information for `\{label}`",
+        style: Primary,
+      },
+    ],
+    notes=[
+      "this diagnostic is emitted when local context is not enough to choose a unique type",
+    ],
+    helps=[cannot_infer_help(reason)],
+  )
+}
+
+///|
+fn cannot_infer_help(reason : @typecheck.CannotInferReason) -> String {
+  match reason {
+    ContextualOffer =>
+      "add a visible `offer` with the required type or pass the contextual argument explicitly"
+    FunctionLiteralParameter =>
+      "add an explicit parameter type annotation to the function literal"
+    CallArity =>
+      "check the number of arguments and type arguments at this call site"
+    TypeArguments =>
+      "add explicit type arguments or provide an expected result type"
+    Builtin =>
+      "add a type annotation so the builtin can be checked against a concrete function type"
+    Generic => "add a type annotation near this expression"
   }
 }
 

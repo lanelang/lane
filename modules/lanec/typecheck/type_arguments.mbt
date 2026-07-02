@@ -222,7 +222,10 @@ fn SemanticChecker::instantiate_generic_callable(
   }
   if parameters.length() != arguments.length() {
     if report_failure {
-      self.diagnostics.push({ kind: CannotInferExpression("call arity"), loc })
+      self.diagnostics.push({
+        kind: CannotInferExpression(label="call arity", reason=CallArity),
+        loc,
+      })
     }
     return None
   }
@@ -242,7 +245,10 @@ fn SemanticChecker::instantiate_generic_callable(
   guard inference.substitution() is Some(substitution) else {
     if report_failure {
       self.diagnostics.push({
-        kind: CannotInferExpression("type arguments"),
+        kind: CannotInferExpression(
+          label="type arguments",
+          reason=TypeArguments,
+        ),
         loc,
       })
     }
@@ -251,7 +257,10 @@ fn SemanticChecker::instantiate_generic_callable(
   guard inference.type_arguments() is Some(type_arguments) else {
     if report_failure {
       self.diagnostics.push({
-        kind: CannotInferExpression("type arguments"),
+        kind: CannotInferExpression(
+          label="type arguments",
+          reason=TypeArguments,
+        ),
         loc,
       })
     }

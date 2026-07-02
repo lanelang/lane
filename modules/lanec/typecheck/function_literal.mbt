@@ -27,7 +27,10 @@ fn SemanticChecker::synthesize_function_literal(
       parameter_types.push(type_)
     } else {
       self.diagnostics.push({
-        kind: CannotInferExpression("function literal parameter"),
+        kind: CannotInferExpression(
+          label="function literal parameter",
+          reason=FunctionLiteralParameter,
+        ),
         loc: parameter.loc,
       })
       body_scope.bind(parameter.symbol, Error)
@@ -87,7 +90,10 @@ fn SemanticChecker::check_function_literal(
     Function(expected_parameters, expected_result, expected_effect) => {
       if !type_parameters.is_empty() {
         self.diagnostics.push({
-          kind: CannotInferExpression("generic function arity"),
+          kind: CannotInferExpression(
+            label="generic function arity",
+            reason=CallArity,
+          ),
           loc,
         })
         return
@@ -101,7 +107,7 @@ fn SemanticChecker::check_function_literal(
       // function type.
       if expected_parameters.length() != parameters.length() {
         self.diagnostics.push({
-          kind: CannotInferExpression("function arity"),
+          kind: CannotInferExpression(label="function arity", reason=CallArity),
           loc,
         })
         return
@@ -168,7 +174,10 @@ fn SemanticChecker::check_generic_function_literal(
   ignore(check_type_parameters(self.diagnostics, type_parameters))
   if type_parameters.length() != expected_parameters.length() {
     self.diagnostics.push({
-      kind: CannotInferExpression("generic function arity"),
+      kind: CannotInferExpression(
+        label="generic function arity",
+        reason=CallArity,
+      ),
       loc,
     })
     return

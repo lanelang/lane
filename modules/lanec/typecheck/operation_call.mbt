@@ -22,7 +22,7 @@ fn SemanticChecker::operation_call_signature(
   }
   guard self.declarations.checked_operation(operation) is Some(declaration) else {
     self.diagnostics.push({
-      kind: CannotInferExpression("effect operation"),
+      kind: CannotInferExpression(label="effect operation", reason=Generic),
       loc,
     })
     return None
@@ -55,7 +55,10 @@ fn SemanticChecker::operation_symbol(
     }
     Ambiguous(name~, ..) => {
       self.diagnostics.push({
-        kind: CannotInferExpression("ambiguous effect operation " + name),
+        kind: CannotInferExpression(
+          label="ambiguous effect operation " + name,
+          reason=Generic,
+        ),
         loc,
       })
       None
@@ -76,21 +79,30 @@ fn SemanticChecker::operation_owner_effect(
       guard self.resolved_source.symbols.operation_metadata(operation)
         is Some(metadata) else {
         self.diagnostics.push({
-          kind: CannotInferExpression("effect operation owner"),
+          kind: CannotInferExpression(
+            label="effect operation owner",
+            reason=Generic,
+          ),
           loc,
         })
         return None
       }
       guard self.declarations.checked_effect(metadata.owner) is Some(effect) else {
         self.diagnostics.push({
-          kind: CannotInferExpression("effect operation owner"),
+          kind: CannotInferExpression(
+            label="effect operation owner",
+            reason=Generic,
+          ),
           loc,
         })
         return None
       }
       if !effect.type_parameters.is_empty() {
         self.diagnostics.push({
-          kind: CannotInferExpression("effect operation owner"),
+          kind: CannotInferExpression(
+            label="effect operation owner",
+            reason=Generic,
+          ),
           loc,
         })
         return None
@@ -145,7 +157,10 @@ fn SemanticChecker::check_operation_call(
   }
   if signature.payload.length() != arguments.length() {
     self.diagnostics.push({
-      kind: CannotInferExpression("effect operation arity"),
+      kind: CannotInferExpression(
+        label="effect operation arity",
+        reason=CallArity,
+      ),
       loc,
     })
     return signature
@@ -169,7 +184,10 @@ fn SemanticChecker::synthesize_checked_operation_call(
   }
   if signature.payload.length() != arguments.length() {
     self.diagnostics.push({
-      kind: CannotInferExpression("effect operation arity"),
+      kind: CannotInferExpression(
+        label="effect operation arity",
+        reason=CallArity,
+      ),
       loc,
     })
     return checked_expression_none_reported(signature.result)
