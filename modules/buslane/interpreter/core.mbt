@@ -53,11 +53,8 @@ pub suberror BuslaneRuntimeError {
 pub type BuslaneNativeFunction = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
 
 ///|
-type BuslaneResumeFunction = (BuslaneRuntimeValue) -> BuslaneRuntimeValue raise BuslaneRuntimeError
-
-///|
 priv struct BuslaneResumeContinuation {
-  continue_with : BuslaneResumeFunction
+  kont : Kont
 }
 
 ///|
@@ -177,10 +174,8 @@ fn BuslaneRuntimeValue::runtime(
 }
 
 ///|
-fn BuslaneRuntimeValue::resume_continuation(
-  continue_with : BuslaneResumeFunction,
-) -> BuslaneRuntimeValue {
-  { kind: ResumeContinuation({ continue_with, }) }
+fn BuslaneRuntimeValue::resume_continuation(kont : Kont) -> BuslaneRuntimeValue {
+  { kind: ResumeContinuation({ kont, }) }
 }
 
 ///|
