@@ -7,7 +7,7 @@ import {
 
 rule(
   name: "moonyacc",
-  command: "mkdir -p .tmp-yacc && tmp=\".tmp-yacc/generated_parser.$$.mbt\" && rm -f \"$tmp\" \"$tmp.map.json\" && moon runwasm moonbitlang/yacc@0.7.14 --no-comments $input -o \"$tmp\" && moonfmt -w \"$tmp\" && moonfmt -w \"$tmp\" && mv \"$tmp\" $output && rm -f \"$tmp.map.json\"",
+  command: "moon runwasm moonbitlang/yacc@0.7.14 --no-comments $input -o $output",
 )
 
 dev_build(

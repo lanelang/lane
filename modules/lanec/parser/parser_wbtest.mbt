@@ -393,6 +393,57 @@ test "parse effect operation calls" {
 }
 
 ///|
+test "parse qualified postfix forms inside expressions" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|enum Option[A] {
+      #|  none
+      #|  some[A](A)
+      #|}
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|let boxed : Box[Int] = Box[Int]::{
+      #|  value: Console::choose![Int](1, 2)
+      #|}
+      #|fn use(box : Box[Int]) -> Option[Int] ! Console {
+      #|  Option::some[Int](Console::choose![Int](box.value, 0))
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Console {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|
+      #|enum Option[A] {
+      #|  none
+      #|  some[A](A)
+      #|}
+      #|
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|
+      #|let boxed : Box[Int] = Box[Int]::{
+      #|  value: Console::choose![Int](1, 2)
+      #|}
+      #|
+      #|fn use(box : Box[Int]) -> Option[Int] ! Console {
+      #|  Option::some[Int](Console::choose![Int](box.value, 0))
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse handler expressions" {
   let file = expect_parse_ok(
     (
@@ -430,6 +481,29 @@ test "parse handler expressions" {
       #|    value
       #|  }
       #|}
+    ),
+  )
+}
+
+///|
+test "parse rejects handler owner type arguments" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|effect State[S] {
+        #|  get() -> S
+        #|}
+        #|fn bad() -> Int ! State[Int] {
+        #|  handle State::get!() with {
+        #|    State[Int]::get(resume) => resume(0)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|}
+      ),
+    ),
+    content=(
+      #|[UnexpectedToken({ label: "`::`" }, [{ label: "`(`" }])]
     ),
   )
 }
