@@ -586,7 +586,7 @@ fn Expr::to_doc_with_precedence(
         docs.push(handler.to_doc())
       }
       docs.push(final_branch.to_doc())
-      (10, separate(hardline, docs))
+      (10, separate(space, docs))
     }
     Block(items~, result~, ..) => {
       let docs = items.map(LocalItem::to_doc)

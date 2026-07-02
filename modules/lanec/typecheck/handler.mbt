@@ -25,9 +25,10 @@ fn SemanticChecker::synthesize_handler(
   let handled_effects = checked_tables.map(fn(table) {
     table.checked.handled_effect
   })
-  let residual_body_effect = handler_residual_effect(
+  let residual_body_effect = self.handler_residual_effect(
     self.synthesize_expr_effect(scope, body),
     handled_effects,
+    loc,
   )
   let final_scope = scope.copy()
   final_scope.bind(final_branch.binder_symbol, body_type)
@@ -70,9 +71,10 @@ fn SemanticChecker::synthesize_checked_handler(
   let handled_effects = checked_tables.map(fn(table) {
     table.checked.handled_effect
   })
-  let residual_body_effect = handler_residual_effect(
+  let residual_body_effect = self.handler_residual_effect(
     checked_body.effect,
     handled_effects,
+    loc,
   )
   let final_scope = scope.copy()
   final_scope.bind(final_branch.binder_symbol, checked_body.type_)
@@ -231,15 +233,46 @@ fn TypeScope::bind_checked_pattern(
 }
 
 ///|
-fn handler_residual_effect(
+fn SemanticChecker::handler_residual_effect(
+  self : SemanticChecker,
   body_effect : @types.Effect,
   handled_effects : Array[@types.Effect],
+  loc : SourceSpan,
 ) -> @types.Effect {
   let mut residual = body_effect
+  let removed_effects : Array[@types.Effect] = []
   for handled in handled_effects {
+    if removed_effects.any(fn(effect) { effect.equals(handled) }) {
+      continue
+    }
+    removed_effects.push(handled)
+    if !effect_is_open(residual) && !effect_contains(residual, handled) {
+      self.diagnostics.push({
+        kind: EffectMismatch(expected=handled, actual=residual),
+        loc,
+      })
+    }
     residual = effect_without(residual, handled)
   }
   residual
+}
+
+///|
+fn effect_is_open(effect : @types.Effect) -> Bool {
+  match effect.normalize() {
+    Parameter(_) => true
+    Union(items) => items.any(effect_is_open)
+    Empty | Singleton(_, _) => false
+  }
+}
+
+///|
+fn effect_contains(effect : @types.Effect, needle : @types.Effect) -> Bool {
+  match effect.normalize() {
+    Empty | Parameter(_) => false
+    Singleton(_, _) as item => item.equals(needle)
+    Union(items) => items.any(fn(item) { effect_contains(item, needle) })
+  }
 }
 
 ///|
@@ -316,8 +349,10 @@ fn SemanticChecker::synthesize_handler_effect(
   let handled_effects = checked_tables.map(fn(table) {
     table.checked.handled_effect
   })
-  let residual_body_effect = handler_residual_effect(
-    body_effect, handled_effects,
+  let residual_body_effect = self.handler_residual_effect(
+    body_effect,
+    handled_effects,
+    body.loc(),
   )
   let body_type = self.synthesize_expr(scope, body)
   let final_scope = scope.copy()

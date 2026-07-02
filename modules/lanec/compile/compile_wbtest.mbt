@@ -18,6 +18,36 @@ test "compile source records builtin externals and public entries" {
 }
 
 ///|
+test "compile verifies handler around effectful function call" {
+  let result = compile_source(
+    (
+      #|module Test
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn read_int() -> Int ! Console {
+      #|  Console::read!()
+      #|}
+      #|pub fn program() -> Int {
+      #|  handle read_int() with {
+      #|    Console::read(resume) => resume(41)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  guard result.program is Some(program) else {
+    abort("expected Buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content="verify_result {}",
+  )
+}
+
+///|
 test "check reports payloadless variant call" {
   let result = check_source(
     (

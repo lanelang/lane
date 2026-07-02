@@ -242,6 +242,14 @@
       }
     },
     {
+      "name": "29 effectful function calls",
+      "file": "examples/valid/29_effectful_function_calls.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",
@@ -318,7 +326,7 @@
       "file": "examples/invalid/10_function_equals_body.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `{`, `[`, `.`, `->`"]
+        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `!`, `{`, `[`, `.`, `->`"]
       }
     },
     {
@@ -455,6 +463,14 @@
       "entry": "answer",
       "expect": {
         "contains": ["error[E3010]", "cannot infer expression type", "shorthand variant pattern requires enum expected type ::some"]
+      }
+    },
+    {
+      "name": "invalid 28 effectful function call in pure function",
+      "file": "examples/invalid/28_effectful_function_call_in_pure_function.lane",
+      "entry": "bad",
+      "expect": {
+        "contains": ["error[E3007]", "effect mismatch", "expected effect `{}`, found `effect#0`"]
       }
     }
   ]

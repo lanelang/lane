@@ -209,7 +209,7 @@ test "elaborate lowers handler payload binders before alternatives" {
       #|  write(String) -> Int
       #|  choose(Choice) -> Int
       #|}
-      #|fn program() -> Int ! Console {
+      #|fn program() -> Int {
       #|  handle Console::write!("hi") with {
       #|    Console::write(message, resume) => 0
       #|    Console::choose(Choice::left, resume2) => 1

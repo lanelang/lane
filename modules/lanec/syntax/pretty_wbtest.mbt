@@ -165,3 +165,54 @@ test "pretty print expression precedence" {
   )
   inspect(@prettyprinter.render(expression), content="(1 + 2) * 3")
 }
+
+///|
+test "pretty print handler keeps with and final attached" {
+  let expression = Expr::Handler(
+    body=Call(
+      callee=Var("call_read", loc=test_loc()),
+      arguments=[Positional(Var("read_int", loc=test_loc()))],
+      loc=test_loc(),
+    ),
+    handlers=[
+      {
+        arms: [
+          {
+            name: Qualified(
+              owner=test_type("Console"),
+              operation="read",
+              loc=test_loc(),
+            ),
+            payload_patterns: [],
+            resume_binder: "resume",
+            resume_loc: test_loc(),
+            body: Call(
+              callee=Var("resume", loc=test_loc()),
+              arguments=[Positional(IntLiteral("42", loc=test_loc()))],
+              loc=test_loc(),
+            ),
+            loc: test_loc(),
+          },
+        ],
+        loc: test_loc(),
+      },
+    ],
+    final_branch={
+      binder: "value",
+      binder_loc: test_loc(),
+      body: Block(items=[], result=Var("value", loc=test_loc()), loc=test_loc()),
+      loc: test_loc(),
+    },
+    loc=test_loc(),
+  )
+  inspect(
+    @prettyprinter.render(expression, width=80),
+    content=(
+      #|handle call_read(read_int) with {
+      #|  Console::read(resume) => resume(42)
+      #|} final value {
+      #|  value
+      #|}
+    ),
+  )
+}

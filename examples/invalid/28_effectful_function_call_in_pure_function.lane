@@ -1,0 +1,14 @@
+// invalid: ordinary function calls propagate their callee's latent effect
+module Examples.Invalid.EffectfulFunctionCallInPureFunction
+
+effect Console {
+  read() -> Int
+}
+
+fn read_int() -> Int ! Console {
+  Console::read!()
+}
+
+pub fn bad() -> Int {
+  read_int()
+}

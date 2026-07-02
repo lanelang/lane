@@ -216,7 +216,17 @@ pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
 ///|
 /// Returns whether two effects are equal under Lane2 effect equality.
 pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
-  effect_alpha_equal_with([], self.normalize(), other.normalize())
+  effect_alpha_equal_with([], self, other)
+}
+
+///|
+/// Returns the canonical effect shape used by equality.
+pub fn Effect::canonicalize(self : Effect) -> Effect {
+  match canonical_effect_terms([], self) {
+    [] => Empty
+    [term] => term
+    terms => Union(terms)
+  }
 }
 
 ///|
@@ -265,6 +275,74 @@ fn effect_alpha_equal_with(
   left : Effect,
   right : Effect,
 ) -> Bool {
+  let left_terms = canonical_effect_terms(bindings, left)
+  let right_terms = canonical_effect_terms(bindings, right)
+  if left_terms.length() != right_terms.length() {
+    return false
+  }
+  for left_term in left_terms {
+    if !right_terms.any(fn(right_term) {
+        effect_term_alpha_equal_with(bindings, left_term, right_term)
+      }) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn canonical_effect_terms(
+  bindings : Array[AlphaBinding],
+  effect : Effect,
+) -> Array[Effect] {
+  let terms : Array[Effect] = []
+  collect_effect_terms(bindings, effect, terms)
+  terms
+}
+
+///|
+fn collect_effect_terms(
+  bindings : Array[AlphaBinding],
+  effect : Effect,
+  terms : Array[Effect],
+) -> Unit {
+  match effect {
+    Empty => ()
+    Singleton(symbol, arguments) => {
+      let term = Singleton(
+        symbol,
+        arguments.map(fn(argument) { argument.normalize() }),
+      )
+      push_unique_effect_term(bindings, terms, term)
+    }
+    Parameter(_) => push_unique_effect_term(bindings, terms, effect)
+    Union(effects) =>
+      for nested in effects {
+        collect_effect_terms(bindings, nested, terms)
+      }
+  }
+}
+
+///|
+fn push_unique_effect_term(
+  bindings : Array[AlphaBinding],
+  terms : Array[Effect],
+  term : Effect,
+) -> Unit {
+  if terms.any(fn(existing) {
+      effect_term_alpha_equal_with(bindings, existing, term)
+    }) {
+    return
+  }
+  terms.push(term)
+}
+
+///|
+fn effect_term_alpha_equal_with(
+  bindings : Array[AlphaBinding],
+  left : Effect,
+  right : Effect,
+) -> Bool {
   match (left, right) {
     (Empty, Empty) => true
     (
@@ -275,17 +353,6 @@ fn effect_alpha_equal_with(
       same_length_alpha_equal(bindings, left_arguments, right_arguments)
     (Parameter(left), Parameter(right)) =>
       alpha_equal_parameter(bindings, left, right)
-    (Union(left), Union(right)) => {
-      if left.length() != right.length() {
-        return false
-      }
-      for index in 0..<left.length() {
-        if !effect_alpha_equal_with(bindings, left[index], right[index]) {
-          return false
-        }
-      }
-      true
-    }
     _ => false
   }
 }

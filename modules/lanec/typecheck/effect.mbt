@@ -108,36 +108,7 @@ fn SemanticChecker::expect_effect(
 
 ///|
 fn effect_allowed(expected : @types.Effect, actual : @types.Effect) -> Bool {
-  let expected = expected.normalize()
-  let actual = actual.normalize()
-  if effect_is_empty(actual) {
-    return true
-  }
-  if effect_is_empty(expected) {
-    return false
-  }
-  if expected == actual {
-    return true
-  }
-  match (expected, actual) {
-    (Union(expected_items), Union(actual_items)) => {
-      for item in actual_items {
-        if !effect_allowed(Union(expected_items), item) {
-          return false
-        }
-      }
-      true
-    }
-    (Union(expected_items), _) => {
-      for item in expected_items {
-        if effect_allowed(item, actual) {
-          return true
-        }
-      }
-      false
-    }
-    _ => false
-  }
+  expected.equals(actual)
 }
 
 ///|

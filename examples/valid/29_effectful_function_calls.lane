@@ -1,0 +1,21 @@
+module Examples.Valid.EffectfulFunctionCalls
+
+effect Console {
+  read() -> Int
+}
+
+fn read_int() -> Int ! Console {
+  Console::read!()
+}
+
+fn call_read(f : () -> Int ! Console) -> Int ! Console {
+  f()
+}
+
+pub let answer : Int = {
+  handle call_read(read_int) with {
+    Console::read(resume) => resume(42)
+  } final value {
+    value
+  }
+}

@@ -2797,6 +2797,104 @@ test "typecheck rejects operation call in pure function" {
 }
 
 ///|
+test "typecheck rejects pure body with non-empty effect annotation" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|fn bad() -> Unit ! Console {
+      #|  ()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[effect_mismatch expected=effect#0 actual={} @ 6:3-7:2]
+    ),
+  )
+}
+
+///|
+test "typecheck propagates effectful named function call" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn read_int() -> Int ! Console {
+      #|  Console::read!()
+      #|}
+      #|fn caller() -> Int ! Console {
+      #|  read_int()
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck rejects effectful function call in pure function" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn read_int() -> Int ! Console {
+      #|  Console::read!()
+      #|}
+      #|fn caller() -> Int {
+      #|  read_int()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[effect_mismatch expected={} actual=effect#0 @ 9:3-10:2]
+    ),
+  )
+}
+
+///|
+test "typecheck handler removes effect propagated through function call" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn read_int() -> Int ! Console {
+      #|  Console::read!()
+      #|}
+      #|fn program() -> Int {
+      #|  handle read_int() with {
+      #|    Console::read(resume) => resume(41)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck propagates latent effect from function parameter call" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn call_read(f : () -> Int ! Console) -> Int ! Console {
+      #|  f()
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
 test "typecheck checks operation payload type" {
   let result = expect_typecheck_result(
     (
@@ -2849,7 +2947,7 @@ test "typecheck checks handler operation tables" {
       #|  write(String) -> Unit
       #|  choose(Choice) -> Unit
       #|}
-      #|fn program() -> Int ! Console {
+      #|fn program() -> Int {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|    Console::write(message, resume2) => resume2(())
@@ -2991,6 +3089,30 @@ test "typecheck removes handled effect from handler residual effect" {
 }
 
 ///|
+test "typecheck rejects handler for absent closed effect" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle 0 with {
+      #|    Console::read(resume) => 0
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[effect_mismatch expected=effect#0 actual={} @ 6:12-10:4]
+    ),
+  )
+}
+
+///|
 test "typecheck preserves unhandled residual effect" {
   let result = expect_typecheck_result(
     (
@@ -3001,10 +3123,10 @@ test "typecheck preserves unhandled residual effect" {
       #|  get() -> Int
       #|}
       #|fn program() -> Int {
-      #|  handle State::get!() with {
+      #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|  } final value {
-      #|    value
+      #|    State::get!()
       #|  }
       #|}
     ),
@@ -3055,7 +3177,7 @@ test "typecheck rejects mixed handler effects" {
       #|  get() -> Int
       #|}
       #|fn program() -> Int {
-      #|  handle 0 with {
+      #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|    State::get(resume2) => 1
       #|  } final value {
@@ -3080,7 +3202,7 @@ test "typecheck rejects duplicate handled effects" {
       #|  read() -> Int
       #|}
       #|fn program() -> Int {
-      #|  handle 0 with {
+      #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|  } with {
       #|    Console::read(resume2) => 1
@@ -3111,7 +3233,7 @@ test "typecheck rejects missing handler operation coverage" {
       #|  choose(Choice) -> Unit
       #|}
       #|fn program() -> Int {
-      #|  handle 0 with {
+      #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|    Console::choose(Choice::left, resume2) => resume2(())
       #|  } final value {
@@ -3136,11 +3258,11 @@ test "typecheck rejects redundant handler operation arms" {
       #|  write(String) -> Unit
       #|}
       #|fn program() -> Int {
-      #|  handle 0 with {
+      #|  handle Console::write!("hi") with {
       #|    Console::write(_, resume) => resume(())
       #|    Console::write(message, resume2) => resume2(())
       #|  } final value {
-      #|    value
+      #|    0
       #|  }
       #|}
     ),

@@ -19,6 +19,7 @@ pub(all) enum Effect {
   Parameter(@symbol.TypeParameterId)
   Union(Array[Effect])
 } derive(@debug.Debug)
+pub fn Effect::canonicalize(Self) -> Self
 pub fn Effect::equals(Self, Self) -> Bool
 pub fn Effect::normalize(Self) -> Self
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
