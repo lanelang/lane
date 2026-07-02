@@ -385,6 +385,49 @@ pub impl @prettyprinter.Pretty for BuslaneAnfConstruct with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for BuslaneAnfPerform with fn pretty(
+  perform : BuslaneAnfPerform,
+) {
+  buslane_anf_perform_doc(perform)
+}
+
+///|
+pub impl @prettyprinter.Pretty for BuslaneAnfHandle with fn pretty(
+  handle : BuslaneAnfHandle,
+) {
+  buslane_anf_handle_doc(handle)
+}
+
+///|
+pub impl @prettyprinter.Pretty for BuslaneAnfHandlerTable with fn pretty(
+  table : BuslaneAnfHandlerTable,
+) {
+  table.handled_effect.pretty() +
+  space +
+  @pretty.braced_block(
+    table.operations.map(BuslaneAnfOperationAlternative::pretty),
+  )
+}
+
+///|
+pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative with fn pretty(
+  alternative : BuslaneAnfOperationAlternative,
+) {
+  alternative.operation.pretty() +
+  @pretty.parenthesized_inline(
+    alternative.payload_binders.map(@buslane.ValueId::pretty),
+  ) +
+  space +
+  text("resume") +
+  space +
+  alternative.resume_binder.pretty() +
+  space +
+  text("=>") +
+  space +
+  buslane_anf_expr_doc(alternative.body)
+}
+
+///|
 pub impl @prettyprinter.Pretty for BuslaneAnfAtom with fn pretty(
   atom : BuslaneAnfAtom,
 ) {
@@ -491,7 +534,44 @@ fn buslane_anf_rhs_doc(rhs : BuslaneAnfRhs) -> Document {
     TypeApply(callee~, arguments~) =>
       buslane_anf_atom_doc(callee) + buslane_type_arguments_doc(arguments)
     Construct(construct) => buslane_anf_construct_doc(construct)
+    Perform(perform) => buslane_anf_perform_doc(perform)
+    Handle(handle) => buslane_anf_handle_doc(handle)
   }
+}
+
+///|
+fn buslane_anf_perform_doc(perform : BuslaneAnfPerform) -> Document {
+  text("perform") +
+  space +
+  perform.operation.pretty() +
+  buslane_type_arguments_doc(perform.type_arguments) +
+  @pretty.parenthesized_inline(perform.payloads.map(buslane_anf_atom_doc))
+}
+
+///|
+fn buslane_anf_handle_doc(handle : BuslaneAnfHandle) -> Document {
+  text("handle") +
+  space +
+  buslane_anf_expr_doc(handle.body) +
+  space +
+  text("as") +
+  space +
+  handle.result_binder.pretty() +
+  space +
+  text("->") +
+  space +
+  handle.result_type.pretty() +
+  space +
+  @pretty.braced_block(
+    handle.handlers.map(BuslaneAnfHandlerTable::pretty) +
+    [
+      text("final") +
+      space +
+      text("=>") +
+      space +
+      buslane_anf_expr_doc(handle.final_body),
+    ],
+  )
 }
 
 ///|

@@ -37,6 +37,38 @@ pub(all) enum BuslaneAnfRhs {
   Call(callee~ : BuslaneAnfAtom, arguments~ : Array[BuslaneAnfAtom])
   TypeApply(callee~ : BuslaneAnfAtom, arguments~ : Array[@buslane.Type])
   Construct(BuslaneAnfConstruct)
+  Perform(BuslaneAnfPerform)
+  Handle(BuslaneAnfHandle)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct BuslaneAnfPerform {
+  operation : @buslane.OperationId
+  type_arguments : Array[@buslane.Type]
+  payloads : Array[BuslaneAnfAtom]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct BuslaneAnfHandle {
+  body : BuslaneAnfExpr
+  result_binder : @buslane.ValueId
+  result_type : @buslane.Type
+  final_body : BuslaneAnfExpr
+  handlers : Array[BuslaneAnfHandlerTable]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct BuslaneAnfHandlerTable {
+  handled_effect : @buslane.Effect
+  operations : Array[BuslaneAnfOperationAlternative]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct BuslaneAnfOperationAlternative {
+  operation : @buslane.OperationId
+  payload_binders : Array[@buslane.ValueId]
+  resume_binder : @buslane.ValueId
+  body : BuslaneAnfExpr
 } derive(Debug, Eq)
 
 ///|

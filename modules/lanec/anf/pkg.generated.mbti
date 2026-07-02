@@ -163,6 +163,21 @@ pub(all) struct BuslaneAnfFunction {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for BuslaneAnfFunction
 
+pub(all) struct BuslaneAnfHandle {
+  body : BuslaneAnfExpr
+  result_binder : @buslane.ValueId
+  result_type : @buslane.Type
+  final_body : BuslaneAnfExpr
+  handlers : Array[BuslaneAnfHandlerTable]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for BuslaneAnfHandle
+
+pub(all) struct BuslaneAnfHandlerTable {
+  handled_effect : @buslane.Effect
+  operations : Array[BuslaneAnfOperationAlternative]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for BuslaneAnfHandlerTable
+
 pub(all) struct BuslaneAnfMatch {
   scrutinee : BuslaneAnfAtom
   binder : @buslane.ValueId
@@ -170,6 +185,21 @@ pub(all) struct BuslaneAnfMatch {
   alternatives : Array[BuslaneAnfAlternative]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for BuslaneAnfMatch
+
+pub(all) struct BuslaneAnfOperationAlternative {
+  operation : @buslane.OperationId
+  payload_binders : Array[@buslane.ValueId]
+  resume_binder : @buslane.ValueId
+  body : BuslaneAnfExpr
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative
+
+pub(all) struct BuslaneAnfPerform {
+  operation : @buslane.OperationId
+  type_arguments : Array[@buslane.Type]
+  payloads : Array[BuslaneAnfAtom]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for BuslaneAnfPerform
 
 pub(all) struct BuslaneAnfProgram {
   metadata : @buslane.MetadataRegistry
@@ -188,6 +218,8 @@ pub(all) enum BuslaneAnfRhs {
   Call(callee~ : BuslaneAnfAtom, arguments~ : Array[BuslaneAnfAtom])
   TypeApply(callee~ : BuslaneAnfAtom, arguments~ : Array[@buslane.Type])
   Construct(BuslaneAnfConstruct)
+  Perform(BuslaneAnfPerform)
+  Handle(BuslaneAnfHandle)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for BuslaneAnfRhs
 

@@ -115,10 +115,57 @@ fn BuslaneAnfLowerer::lower_to_atom(
           }),
         })
       })
-    Perform(_) =>
-      abort("Buslane perform lowering to ANF is not implemented yet")
-    Handle(_) => abort("Buslane handler lowering to ANF is not implemented yet")
+    Perform(perform) =>
+      self.lower_exprs_to_atoms(perform.payloads, 0, [], fn(payloads) {
+        self.bind_temp(
+          Perform({
+            operation: perform.operation,
+            type_arguments: perform.type_arguments,
+            payloads,
+          }),
+          continuation,
+        )
+      })
+    Handle(handle) =>
+      self.bind_temp(
+        Handle({
+          body: self.lower_expr(handle.body),
+          result_binder: handle.result_binder,
+          result_type: handle.result_type,
+          final_body: self.lower_expr(handle.final_body),
+          handlers: handle.handlers.map(fn(table) {
+            self.lower_handler_table(table)
+          }),
+        }),
+        continuation,
+      )
     Resume(id) => continuation(Ref(id))
+  }
+}
+
+///|
+fn BuslaneAnfLowerer::lower_handler_table(
+  self : BuslaneAnfLowerer,
+  table : @buslane.HandlerTable,
+) -> BuslaneAnfHandlerTable {
+  {
+    handled_effect: table.handled_effect,
+    operations: table.operations.map(fn(alternative) {
+      self.lower_operation_alternative(alternative)
+    }),
+  }
+}
+
+///|
+fn BuslaneAnfLowerer::lower_operation_alternative(
+  self : BuslaneAnfLowerer,
+  alternative : @buslane.OperationAlternative,
+) -> BuslaneAnfOperationAlternative {
+  {
+    operation: alternative.operation,
+    payload_binders: alternative.payload_binders,
+    resume_binder: alternative.resume_binder,
+    body: self.lower_expr(alternative.body),
   }
 }
 

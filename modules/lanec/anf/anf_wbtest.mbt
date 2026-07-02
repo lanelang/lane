@@ -332,3 +332,72 @@ test "lower buslane function call to ANF" {
     ),
   )
 }
+
+///|
+test "lower buslane handler and perform to ANF" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect = metadata.define_effect([])
+  let operation = metadata.define_operation(effect, [], Primitive(Int))
+  let result = metadata.define_value(Value, Primitive(Int))
+  let result_binder = metadata.define_value(Local, Primitive(Int))
+  let resume_value = metadata.define_value(
+    Parameter,
+    Function([Primitive(Int)], Primitive(Int), Empty),
+  )
+  let first_resume = metadata.define_value(Local, Primitive(Int))
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        result,
+        Handle({
+          body: Perform({ operation, type_arguments: [], payloads: [] }),
+          result_binder,
+          result_type: Primitive(Int),
+          final_body: Ref(result_binder),
+          handlers: [
+            {
+              handled_effect: Singleton(effect, []),
+              operations: [
+                {
+                  operation,
+                  payload_binders: [],
+                  resume_binder: resume_value,
+                  body: Let(
+                    first_resume,
+                    Call(Ref(resume_value), [Literal(Int(1L))]),
+                    Call(Ref(resume_value), [Ref(first_resume)]),
+                  ),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(lower_buslane_program_to_anf(program), width=100),
+    content=(
+      #|buslane_anf_program {
+      #|  let value#0 = {
+      #|    let temp#3 = handle {
+      #|      let temp#0 = perform operation#0()
+      #|      temp#0
+      #|    } as value#1 -> Int {
+      #|      effect#0 {
+      #|        operation#0() resume value#2 => {
+      #|          let temp#1 = value#2(1)
+      #|          let value#3 = temp#1
+      #|          let temp#2 = value#2(value#3)
+      #|          temp#2
+      #|        }
+      #|      }
+      #|      final => value#1
+      #|    }
+      #|    temp#3
+      #|  }
+      #|}
+    ),
+  )
+}

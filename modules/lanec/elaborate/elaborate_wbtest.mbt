@@ -934,6 +934,26 @@ test "elaborate resolved source into anf" {
 }
 
 ///|
+test "elaborate effect handler source into anf" {
+  let result = elaborate_anf_source(
+    (
+      #|effect Flip {
+      #|  flip() -> Bool
+      #|}
+      #|pub fn program() -> Bool {
+      #|  handle Flip::flip!() with {
+      #|    Flip::flip(resume) => resume(true)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  assert_eq(result.diagnostics.length(), 0)
+  guard result.program is Some(_) else { abort("expected anf program") }
+}
+
+///|
 test "elaborate builtins through contextual expected types" {
   let result = elaborate_source(
     (
