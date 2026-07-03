@@ -231,6 +231,94 @@ test "resolve module-qualified effect alias references" {
 }
 
 ///|
+test "resolve rejects overlapping effect and type alias name" {
+  let file = expect_parse_ok(
+    (
+      #|effect IO {
+      #|  read() -> Int
+      #|}
+      #|type IO = { IO }
+    ),
+  )
+  let result = resolve_source_file_result(file)
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(item) { item.kind }),
+      width=100,
+    ),
+    content=(
+      #|[conflicting_top_type_effect_name IO type=type alias effect=effect]
+    ),
+  )
+}
+
+///|
+test "resolve rejects overlapping effect and struct name" {
+  let file = expect_parse_ok(
+    (
+      #|struct IO {}
+      #|effect IO {
+      #|  read() -> Int
+      #|}
+    ),
+  )
+  let result = resolve_source_file_result(file)
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(item) { item.kind }),
+      width=100,
+    ),
+    content=(
+      #|[conflicting_top_type_effect_name IO type=type effect=effect]
+    ),
+  )
+}
+
+///|
+test "resolve rejects overlapping effect and enum name" {
+  let file = expect_parse_ok(
+    (
+      #|effect Choice {
+      #|  pick() -> Int
+      #|}
+      #|enum Choice {
+      #|  none()
+      #|}
+    ),
+  )
+  let result = resolve_source_file_result(file)
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(item) { item.kind }),
+      width=100,
+    ),
+    content=(
+      #|[conflicting_top_type_effect_name Choice type=type effect=effect]
+    ),
+  )
+}
+
+///|
+test "resolve allows distinct effect and type names" {
+  let file = expect_parse_ok(
+    (
+      #|struct Box {}
+      #|effect IO {
+      #|  read() -> Int
+      #|}
+      #|type UI = { IO }
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      resolve_source_file_result(file).diagnostics,
+      width=100,
+    ),
+    content="[]",
+  )
+}
+
+///|
 test "resolve handler operation arms and binders" {
   let file = expect_parse_ok(
     (

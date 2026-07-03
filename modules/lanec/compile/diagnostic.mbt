@@ -616,6 +616,24 @@ fn resolve_diagnostic(
         notes=["a Lane module has one top-level value namespace"],
         helps=["rename one of the declarations or remove the duplicate import"],
       )
+    ConflictingTopLevelTypeAndEffectName(name~, type_kind~, effect_kind~) =>
+      diagnostic(
+        "conflicting top-level type/effect name `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E2007"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "this `\{effect_kind}` name overlaps with a `\{type_kind}` name",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "Lane keeps effect declarations and type/type-alias declarations in distinct namespaces, but their names cannot overlap",
+        ],
+        helps=["rename either the effect or the type/type alias"],
+      )
     AmbiguousModuleValue(name) =>
       diagnostic(
         "ambiguous module-qualified value `\{name}`",

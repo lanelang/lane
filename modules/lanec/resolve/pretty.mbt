@@ -81,6 +81,16 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       space +
       text("incoming=") +
       text(incoming)
+    ConflictingTopLevelTypeAndEffectName(name~, type_kind~, effect_kind~) =>
+      text("conflicting_top_type_effect_name") +
+      space +
+      text(name) +
+      space +
+      text("type=") +
+      text(type_kind) +
+      space +
+      text("effect=") +
+      text(effect_kind)
     AmbiguousModuleValue(name) =>
       text("ambiguous_module_value") + space + text(name)
     AmbiguousUnqualifiedVariant(name~, candidates~) =>

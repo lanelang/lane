@@ -281,7 +281,12 @@ fn Resolver::collect_top_level_headers(
 ) -> Unit {
   for declaration in source.declarations {
     match declaration {
-      Struct(declaration) =>
+      Struct(declaration) => {
+        self.report_type_effect_conflict_if_effect_exists(
+          declaration.name,
+          "type",
+          declaration.loc,
+        )
         self.publish_type_binding(
           declaration.name,
           self.registry.define_type(
@@ -291,7 +296,13 @@ fn Resolver::collect_top_level_headers(
             declaration.loc,
           ),
         )
-      Enum(declaration) =>
+      }
+      Enum(declaration) => {
+        self.report_type_effect_conflict_if_effect_exists(
+          declaration.name,
+          "type",
+          declaration.loc,
+        )
         self.publish_type_binding(
           declaration.name,
           self.registry.define_type(
@@ -301,7 +312,12 @@ fn Resolver::collect_top_level_headers(
             declaration.loc,
           ),
         )
-      Effect(declaration) =>
+      }
+      Effect(declaration) => {
+        self.report_effect_type_conflict_if_type_exists(
+          declaration.name,
+          declaration.loc,
+        )
         self.publish_effect_binding(
           declaration.name,
           self.registry.define_effect(
@@ -310,11 +326,18 @@ fn Resolver::collect_top_level_headers(
             declaration.loc,
           ),
         )
-      TypeAlias(declaration) =>
+      }
+      TypeAlias(declaration) => {
+        self.report_type_effect_conflict_if_effect_exists(
+          declaration.name,
+          "type alias",
+          declaration.loc,
+        )
         self.type_aliases.push({
           name: declaration.name,
           type_parameters: declaration.type_parameters,
         })
+      }
       Function(declaration) => {
         let symbol = self.registry.define_value(
           declaration.name,
@@ -1398,6 +1421,52 @@ fn Resolver::type_alias_binding(
     }
   }
   None
+}
+
+///|
+fn Resolver::report_type_effect_conflict_if_effect_exists(
+  self : Resolver,
+  name : String,
+  type_kind : String,
+  loc : SourceSpan,
+) -> Unit {
+  if self.effect_binding(name) is Some(_) {
+    self.report(
+      ConflictingTopLevelTypeAndEffectName(
+        name~,
+        type_kind~,
+        effect_kind="effect",
+      ),
+      loc,
+    )
+  }
+}
+
+///|
+fn Resolver::report_effect_type_conflict_if_type_exists(
+  self : Resolver,
+  name : String,
+  loc : SourceSpan,
+) -> Unit {
+  if self.type_binding(name) is Some(_) {
+    self.report(
+      ConflictingTopLevelTypeAndEffectName(
+        name~,
+        type_kind="type",
+        effect_kind="effect",
+      ),
+      loc,
+    )
+  } else if self.type_alias_binding(name) is Some(_) {
+    self.report(
+      ConflictingTopLevelTypeAndEffectName(
+        name~,
+        type_kind="type alias",
+        effect_kind="effect",
+      ),
+      loc,
+    )
+  }
 }
 
 ///|

@@ -36,6 +36,11 @@ pub(all) enum ResolveDiagnosticKind {
     existing~ : String,
     incoming~ : String
   )
+  ConflictingTopLevelTypeAndEffectName(
+    name~ : String,
+    type_kind~ : String,
+    effect_kind~ : String
+  )
   AmbiguousModuleValue(String)
   AmbiguousUnqualifiedVariant(
     name~ : String,
