@@ -1,0 +1,9 @@
+module Examples.Invalid.EffectAliasPrivateEffectEscape
+
+effect Console {
+  read() -> Int
+}
+
+pub type UI = { Console }
+
+pub let answer : Int = 42

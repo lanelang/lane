@@ -314,6 +314,14 @@
       }
     },
     {
+      "name": "38 effect set aliases",
+      "file": "examples/valid/38_effect_set_aliases.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",
@@ -543,6 +551,46 @@
       "entry": "answer",
       "expect": {
         "contains": ["error[E1100]", "the parser did not expect `::`"]
+      }
+    },
+    {
+      "name": "invalid 30 effect alias private effect escape",
+      "file": "examples/invalid/30_effect_alias_private_effect_escape.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["error[E3109]", "private effect `Console` in public interface"]
+      }
+    },
+    {
+      "name": "invalid 31 effect alias duplicate effect type name",
+      "file": "examples/invalid/31_effect_alias_duplicate_effect_type_name.lane",
+      "entry": "answer",
+      "expect": {
+        "contains": ["error[E2007]", "conflicting top-level type/effect name `IO`"]
+      }
+    },
+    {
+      "name": "invalid 32 effect alias type-kind in effect position",
+      "file": "examples/invalid/32_effect_alias_type_kind_in_effect_position.lane",
+      "entry": "bad",
+      "expect": {
+        "contains": ["error[E3005]", "kind mismatch", "expected kind `Effect`, found `Type`"]
+      }
+    },
+    {
+      "name": "invalid 33 effect alias bad effect argument",
+      "file": "examples/invalid/33_effect_alias_bad_effect_argument.lane",
+      "entry": "bad",
+      "expect": {
+        "contains": ["error[E3005]", "kind mismatch", "expected kind `Effect`, found `Type`"]
+      }
+    },
+    {
+      "name": "invalid 34 effect alias cycle",
+      "file": "examples/invalid/34_effect_alias_cycle.lane",
+      "entry": "bad",
+      "expect": {
+        "contains": ["error[E3004]", "type alias `A` is recursive"]
       }
     }
   ]

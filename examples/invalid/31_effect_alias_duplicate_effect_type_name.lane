@@ -1,0 +1,9 @@
+module Examples.Invalid.EffectAliasDuplicateEffectTypeName
+
+effect IO {
+  read() -> Int
+}
+
+type IO = { IO }
+
+pub let answer : Int = 42

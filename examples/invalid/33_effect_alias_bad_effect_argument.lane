@@ -1,0 +1,11 @@
+module Examples.Invalid.EffectAliasBadEffectArgument
+
+effect Coroutine {
+  pause() -> Unit
+}
+
+type Task[E : Effect] = { Coroutine, E }
+
+fn bad() -> Unit ! Task[Int] {
+  ()
+}

@@ -1,0 +1,39 @@
+module Examples.Valid.EffectSetAliases
+
+import Ops.*
+
+effect Console {
+  read() -> Int
+}
+
+effect Log {
+  write(Int) -> Unit
+}
+
+type UI = { Console, Log }
+
+type Task[E : Effect] = { Console, E }
+
+fn read_and_log() -> Int ! UI {
+  let value : Int = Console::read!()
+  let ignored : Unit = Log::write!(value)
+  value
+}
+
+fn task_read() -> Int ! Task[Log] {
+  read_and_log()
+}
+
+pub let answer : Int = {
+  handle {
+    handle task_read() with {
+      Console::read(resume) => resume(40)
+    } final value {
+      value
+    }
+  } with {
+    Log::write(_, resume) => resume(())
+  } final value {
+    value + 2
+  }
+}

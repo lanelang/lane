@@ -1,0 +1,7 @@
+module Examples.Invalid.EffectAliasTypeKindInEffectPosition
+
+type Answer = Int
+
+fn bad() -> Unit ! Answer {
+  ()
+}

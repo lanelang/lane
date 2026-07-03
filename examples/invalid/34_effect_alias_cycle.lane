@@ -1,0 +1,9 @@
+module Examples.Invalid.EffectAliasCycle
+
+type A = { B }
+
+type B = { A }
+
+fn bad() -> Unit ! A {
+  ()
+}
