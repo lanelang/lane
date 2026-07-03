@@ -189,7 +189,7 @@ test "desugar preserves handler operation arms and binders" {
       #|fn program() -> String ! Console {
       #|  handle Console::read!() with {
       #|    Console::write(message, resume) => resume(())
-      #|    ::read(resume2) => "fallback"
+      #|    read(resume2) => "fallback"
       #|    choose(resume3) => resume3(())
       #|  } final value {
       #|    value
@@ -213,7 +213,7 @@ test "desugar preserves handler operation arms and binders" {
       #|          handle effect#0 Console::read@operation#0!()
       #|          with {
       #|            effect#0 Console::write@operation#1(bind value#1 message, value#2 resume) => var value#2 resume(())
-      #|            ::read@operation#0(value#3 resume2) => "fallback"
+      #|            read@operation#0(value#3 resume2) => "fallback"
       #|            choose@operation#2(value#4 resume3) => var value#4 resume3(())
       #|          }
       #|          final value#5 value {

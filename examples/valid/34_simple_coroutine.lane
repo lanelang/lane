@@ -32,8 +32,8 @@ fn start() -> CoroutineStep {
 
 fn drive(step : CoroutineStep) -> Int {
   match step {
-    ::done(value) => value
-    ::yielded(value, resume) => value + drive(resume(value * 2))
+    done(value) => value
+    yielded(value, resume) => value + drive(resume(value * 2))
   }
 }
 

@@ -2576,8 +2576,8 @@ test "analysis produces parameter name inlay hints for calls" {
         #|pub fn answer(seed : Int) -> Int {
         #|  let local = choose(seed, 1)
         #|  match some(local, true) {
-        #|    ::some(value, flag) => value
-        #|    ::none() => 0
+        #|    some(value, flag) => value
+        #|    none() => 0
         #|  }
         #|}
       ),
@@ -2638,12 +2638,12 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 223,
-      #|        end_offset: 228,
+      #|        start_offset: 221,
+      #|        end_offset: 226,
       #|        start_line: 15,
-      #|        start_column: 12,
+      #|        start_column: 10,
       #|        end_line: 15,
-      #|        end_column: 17,
+      #|        end_column: 15,
       #|      },
       #|    },
       #|    kind: TypeHint,
@@ -2653,12 +2653,12 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 230,
-      #|        end_offset: 234,
+      #|        start_offset: 228,
+      #|        end_offset: 232,
       #|        start_line: 15,
-      #|        start_column: 19,
+      #|        start_column: 17,
       #|        end_line: 15,
-      #|        end_column: 23,
+      #|        end_column: 21,
       #|      },
       #|    },
       #|    kind: TypeHint,

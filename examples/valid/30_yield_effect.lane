@@ -9,8 +9,8 @@ pub enum IntList {
 
 pub fn sum(list : IntList) -> Int {
   match list {
-    ::nil() => 0
-    ::cons(head, tail) => head + sum(tail)
+    nil() => 0
+    cons(head, tail) => head + sum(tail)
   }
 }
 

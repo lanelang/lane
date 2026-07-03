@@ -845,7 +845,7 @@ fn Pattern::to_doc(self : Pattern) -> Document {
       } else {
         brackets(join_comma(type_binders.map(text)))
       }
-      let head = text("::") + text(variant) + binders_doc
+      let head = text(variant) + binders_doc
       head + parenthesized(arguments.map(Pattern::to_doc))
     }
     Struct(type_name~, fields~, ..) =>

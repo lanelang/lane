@@ -783,7 +783,7 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
       }
     }
     ShorthandVariant(variant~, type_binders~, arguments~, ..) => {
-      let head = text("::") + text(variant) + type_parameters_doc(type_binders)
+      let head = text(variant) + type_parameters_doc(type_binders)
       if arguments.is_empty() {
         head
       } else {

@@ -922,10 +922,10 @@ pattern -> Pattern
   | "true" { BoolLiteral(true, loc=span($sloc)) }
   | "false" { BoolLiteral(false, loc=span($sloc)) }
   | IDENT { Binding($1, loc=span($sloc)) }
-  | struct_pattern { $1 }
-  | "::" IDENT variant_type_binders "(" pattern_list ")" {
-    ShorthandVariant(variant=$2, type_binders=$3, arguments=$5, loc=span($sloc))
+  | IDENT variant_type_binders "(" pattern_list ")" {
+    ShorthandVariant(variant=$1, type_binders=$2, arguments=$4, loc=span($sloc))
   }
+  | struct_pattern { $1 }
   | nominal_type_name "tight ::" IDENT variant_type_binders "(" pattern_list ")" {
     QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=$6, loc=span($sloc))
   }

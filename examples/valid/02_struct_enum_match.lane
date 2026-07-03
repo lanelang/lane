@@ -14,8 +14,8 @@ pub enum Option[A] {
 
 pub fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
   match value {
-    ::none() => fallback
-    ::some(x) => x
+    none() => fallback
+    some(x) => x
   }
 }
 

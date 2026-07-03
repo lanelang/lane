@@ -15,14 +15,14 @@ pub enum Term {
 
 pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
   match term {
-    ::var(index) =>
+    var(index) =>
       if index < cutoff {
         var(index)
       } else {
         var(index + delta)
       }
-    ::lam(body) => lam(shift_from(cutoff + 1, delta, body))
-    ::app(function, argument) => app(
+    lam(body) => lam(shift_from(cutoff + 1, delta, body))
+    app(function, argument) => app(
       shift_from(cutoff, delta, function),
       shift_from(cutoff, delta, argument)
     )
@@ -35,14 +35,14 @@ pub fn shift(delta : Int, term : Term) -> Term {
 
 pub fn subst(index : Int, replacement : Term, term : Term) -> Term {
   match term {
-    ::var(variable) =>
+    var(variable) =>
       if variable == index {
         replacement
       } else {
         var(variable)
       }
-    ::lam(body) => lam(subst(index + 1, shift(1, replacement), body))
-    ::app(function, argument) => app(
+    lam(body) => lam(subst(index + 1, shift(1, replacement), body))
+    app(function, argument) => app(
       subst(index, replacement, function),
       subst(index, replacement, argument)
     )
@@ -55,22 +55,22 @@ pub fn beta(body : Term, argument : Term) -> Term {
 
 pub fn step(term : Term) -> Option[Term] {
   match term {
-    ::var(_) => Option::none()
-    ::lam(body) =>
+    var(_) => Option::none()
+    lam(body) =>
       match step(body) {
-        ::none() => Option::none()
-        ::some(next) => some(lam(next))
+        none() => Option::none()
+        some(next) => some(lam(next))
       }
-    ::app(function, argument) =>
+    app(function, argument) =>
       match function {
-        ::lam(body) => some(beta(body, argument))
+        lam(body) => some(beta(body, argument))
         _ =>
           match step(function) {
-            ::some(next_function) => some(app(next_function, argument))
-            ::none() =>
+            some(next_function) => some(app(next_function, argument))
+            none() =>
               match step(argument) {
-                ::none() => Option::none()
-                ::some(next_argument) => some(app(function, next_argument))
+                none() => Option::none()
+                some(next_argument) => some(app(function, next_argument))
               }
           }
       }
@@ -82,25 +82,25 @@ pub fn normalize(limit : Int, term : Term) -> Term {
     term
   } else {
     match step(term) {
-      ::none() => term
-      ::some(next) => normalize(limit - 1, next)
+      none() => term
+      some(next) => normalize(limit - 1, next)
     }
   }
 }
 
 pub fn term_size(term : Term) -> Int {
   match term {
-    ::var(_) => 1
-    ::lam(body) => 1 + term_size(body)
-    ::app(function, argument) => 1 + term_size(function) + term_size(argument)
+    var(_) => 1
+    lam(body) => 1 + term_size(body)
+    app(function, argument) => 1 + term_size(function) + term_size(argument)
   }
 }
 
 pub fn is_identity(term : Term) -> Bool {
   match term {
-    ::lam(body) =>
+    lam(body) =>
       match body {
-        ::var(index) => index == 0
+        var(index) => index == 0
         _ => false
       }
     _ => false

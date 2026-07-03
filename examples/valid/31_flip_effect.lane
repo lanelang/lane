@@ -9,22 +9,22 @@ pub enum BoolList {
 
 pub fn append(left : BoolList, right : BoolList) -> BoolList {
   match left {
-    ::nil() => right
-    ::cons(head, tail) => cons(head, append(tail, right))
+    nil() => right
+    cons(head, tail) => cons(head, append(tail, right))
   }
 }
 
 pub fn length(list : BoolList) -> Int {
   match list {
-    ::nil() => 0
-    ::cons(_, tail) => 1 + length(tail)
+    nil() => 0
+    cons(_, tail) => 1 + length(tail)
   }
 }
 
 pub fn count_true(list : BoolList) -> Int {
   match list {
-    ::nil() => 0
-    ::cons(head, tail) =>
+    nil() => 0
+    cons(head, tail) =>
       if head {
         1 + count_true(tail)
       } else {

@@ -1,0 +1,14 @@
+// invalid: enum variant patterns no longer use leading double colon
+module Examples.Invalid.LeadingDoubleColonVariantPattern
+
+pub enum Option[A] {
+  none()
+  some(A)
+}
+
+pub fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+  match value {
+    ::none() => fallback
+    some(x) => x
+  }
+}

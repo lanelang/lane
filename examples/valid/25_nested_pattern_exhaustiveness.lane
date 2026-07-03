@@ -11,19 +11,19 @@ pub struct Box[A] {
 
 pub fn flatten(value : Option[Option[Int]]) -> Int {
   match value {
-    ::none() => 0
-    ::some(::none()) => 1
-    ::some(::some(x)) => x
+    none() => 0
+    some(none()) => 1
+    some(some(x)) => x
   }
 }
 
 pub fn boxed(value : Box[Option[Int]]) -> Int {
   match value {
     Box::{
-      value: ::none()
+      value: none()
     } => 0
     Box::{
-      value: ::some(x)
+      value: some(x)
     } => x
   }
 }

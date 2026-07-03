@@ -1,4 +1,4 @@
-// invalid: enum variants in patterns must be qualified
+// invalid: bare variant-like identifiers in patterns are binders
 module Examples.Invalid06
 
 pub enum Option[A] {

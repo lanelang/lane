@@ -1,4 +1,4 @@
-module Examples.Valid.ShorthandVariantPatterns
+module Examples.Valid.UnqualifiedVariantPatterns
 
 enum Left {
   same(Int)
@@ -10,13 +10,13 @@ enum Right {
 
 fn read_left(value : Left) -> Int {
   match value {
-    ::same(x) => x
+    same(x) => x
   }
 }
 
 fn read_right(value : Right) -> Int {
   match value {
-    ::same(_) => 1
+    same(_) => 1
   }
 }
 

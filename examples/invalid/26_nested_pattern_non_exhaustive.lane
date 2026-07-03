@@ -8,7 +8,7 @@ enum Option[A] {
 
 pub fn bad(value : Option[Option[Int]]) -> Int {
   match value {
-    ::none() => 0
-    ::some(::none()) => 1
+    none() => 0
+    some(none()) => 1
   }
 }

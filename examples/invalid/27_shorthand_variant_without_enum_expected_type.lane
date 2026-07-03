@@ -1,8 +1,0 @@
-// invalid: shorthand variant patterns require an expected enum type
-module Examples.Invalid.ShorthandVariantWithoutEnumExpectedType
-
-pub fn bad(value : Int) -> Int {
-  match value {
-    ::some(x) => x
-  }
-}

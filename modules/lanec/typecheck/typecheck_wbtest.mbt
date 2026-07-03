@@ -2369,7 +2369,7 @@ test "typecheck exhaustive enum match" {
 }
 
 ///|
-test "typecheck shorthand enum variant patterns from expected type" {
+test "typecheck unqualified enum variant patterns from expected type" {
   let result = expect_typecheck_result(
     (
       #|enum Left {
@@ -2380,12 +2380,12 @@ test "typecheck shorthand enum variant patterns from expected type" {
       #|}
       #|fn left(value : Left) -> Int {
       #|  match value {
-      #|    ::same(x) => x
+      #|    same(x) => x
       #|  }
       #|}
       #|fn right(value : Right) -> Int {
       #|  match value {
-      #|    ::same(_) => 1
+      #|    same(_) => 1
       #|  }
       #|}
     ),
@@ -2394,7 +2394,7 @@ test "typecheck shorthand enum variant patterns from expected type" {
 }
 
 ///|
-test "typecheck shorthand enum variant patterns in adjacent match arms" {
+test "typecheck unqualified enum variant patterns in adjacent match arms" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
@@ -2403,8 +2403,8 @@ test "typecheck shorthand enum variant patterns in adjacent match arms" {
       #|}
       #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    ::none() => fallback
-      #|    ::some(x) => x
+      #|    none() => fallback
+      #|    some(x) => x
       #|  }
       #|}
     ),
@@ -2413,12 +2413,12 @@ test "typecheck shorthand enum variant patterns in adjacent match arms" {
 }
 
 ///|
-test "typecheck rejects shorthand enum variant without enum expected type" {
+test "typecheck rejects unqualified enum variant without enum expected type" {
   let result = expect_typecheck_result(
     (
       #|fn bad(value : Int) -> Int {
       #|  match value {
-      #|    ::some(x) => x
+      #|    some(x) => x
       #|  }
       #|}
     ),
@@ -2426,7 +2426,7 @@ test "typecheck rejects shorthand enum variant without enum expected type" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer shorthand variant pattern requires enum expected type ::some @ 4:13-4:14
+      #|cannot_infer unqualified variant pattern requires enum expected type some @ 4:11-4:12
     ),
   )
 }

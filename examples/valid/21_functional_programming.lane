@@ -28,22 +28,22 @@ pub struct Applicative[F : [Type] -> Type] {
 
 pub fn[A] unwrap_or(option : Option[A], fallback : A) -> A {
   match option {
-    ::none() => fallback
-    ::some(inner) => inner
+    none() => fallback
+    some(inner) => inner
   }
 }
 
 pub fn[A, B] option_map(f : (A) -> B, option : Option[A]) -> Option[B] {
   match option {
-    ::none() => Option::none()
-    ::some(inner) => some(f(inner))
+    none() => Option::none()
+    some(inner) => some(f(inner))
   }
 }
 
 pub fn[A, B] option_flat_map(f : (A) -> Option[B], option : Option[A]) -> Option[B] {
   match option {
-    ::none() => Option::none()
-    ::some(inner) => f(inner)
+    none() => Option::none()
+    some(inner) => f(inner)
   }
 }
 
@@ -53,29 +53,29 @@ pub fn[A] option_pure(inner : A) -> Option[A] {
 
 pub fn[A, B] option_apply(f : Option[(A) -> B], option : Option[A]) -> Option[B] {
   match f {
-    ::none() => Option::none()
-    ::some(inner) => option_map(inner, option)
+    none() => Option::none()
+    some(inner) => option_map(inner, option)
   }
 }
 
 pub fn[A] append(left : List[A], right : List[A]) -> List[A] {
   match left {
-    ::nil() => right
-    ::cons(head, tail) => cons(head, append(tail, right))
+    nil() => right
+    cons(head, tail) => cons(head, append(tail, right))
   }
 }
 
 pub fn[A, B] list_map(f : (A) -> B, list : List[A]) -> List[B] {
   match list {
-    ::nil() => List::nil()
-    ::cons(head, tail) => cons(f(head), list_map(f, tail))
+    nil() => List::nil()
+    cons(head, tail) => cons(f(head), list_map(f, tail))
   }
 }
 
 pub fn[A, B] list_flat_map(f : (A) -> List[B], list : List[A]) -> List[B] {
   match list {
-    ::nil() => List::nil()
-    ::cons(head, tail) => append(f(head), list_flat_map(f, tail))
+    nil() => List::nil()
+    cons(head, tail) => append(f(head), list_flat_map(f, tail))
   }
 }
 
@@ -85,8 +85,8 @@ pub fn[A] list_pure(inner : A) -> List[A] {
 
 pub fn[A, B] list_apply(functions : List[(A) -> B], values : List[A]) -> List[B] {
   match functions {
-    ::nil() => List::nil()
-    ::cons(f, tail) => append(list_map(f, values), list_apply(tail, values))
+    nil() => List::nil()
+    cons(f, tail) => append(list_map(f, values), list_apply(tail, values))
   }
 }
 
@@ -120,8 +120,8 @@ pub let list_flat_mappable : FlatMappable[List] = FlatMappable::{
 
 pub fn[A] reverse(list : List[A]) -> List[A] {
   match list {
-    ::nil() => List::nil()
-    ::cons(head, tail) => append(reverse(tail), cons(head, List::nil()))
+    nil() => List::nil()
+    cons(head, tail) => append(reverse(tail), cons(head, List::nil()))
   }
 }
 
@@ -130,8 +130,8 @@ pub fn[A] index(list : List[A], position : Int) -> Option[A] {
     Option::none()
   } else {
     match list {
-      ::nil() => Option::none()
-      ::cons(head, tail) =>
+      nil() => Option::none()
+      cons(head, tail) =>
         if position == 0 {
           some(head)
         } else {
@@ -143,8 +143,8 @@ pub fn[A] index(list : List[A], position : Int) -> Option[A] {
 
 pub fn elem(list : List[Int], needle : Int) -> Bool {
   match list {
-    ::nil() => false
-    ::cons(head, tail) =>
+    nil() => false
+    cons(head, tail) =>
       if head == needle {
         true
       } else {

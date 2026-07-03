@@ -38,8 +38,8 @@ test "parse nominal declarations and match" {
       #|}
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    ::none() => fallback
-      #|    ::some(x) => x
+      #|    none() => fallback
+      #|    some(x) => x
       #|  }
       #|}
     ),
@@ -61,8 +61,8 @@ test "parse nominal declarations and match" {
       #|
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    ::none() => fallback
-      #|    ::some(x) => x
+      #|    none() => fallback
+      #|    some(x) => x
       #|  }
       #|}
     ),
@@ -70,7 +70,7 @@ test "parse nominal declarations and match" {
 }
 
 ///|
-test "parse shorthand enum variant pattern" {
+test "parse unqualified enum variant pattern" {
   let file = expect_parse_ok(
     (
       #|enum Single {
@@ -78,7 +78,7 @@ test "parse shorthand enum variant pattern" {
       #|}
       #|fn unwrap(value : Single) -> Int {
       #|  match value {
-      #|    ::wrap(x) => x
+      #|    wrap(x) => x
       #|  }
       #|}
     ),
@@ -94,7 +94,7 @@ test "parse shorthand enum variant pattern" {
       #|
       #|fn unwrap(value : Single) -> Int {
       #|  match value {
-      #|    ::wrap(x) => x
+      #|    wrap(x) => x
       #|  }
       #|}
     ),
@@ -121,7 +121,13 @@ test "parse does not recognize spaced double colon as qualified variant pattern"
       #|[
       #|  UnexpectedToken(
       #|    { label: "`:`" },
-      #|    [{ label: "`.`" }, { label: "`::`" }, { label: "`=>`" }],
+      #|    [
+      #|      { label: "`(`" },
+      #|      { label: "`[`" },
+      #|      { label: "`.`" },
+      #|      { label: "`::`" },
+      #|      { label: "`=>`" },
+      #|    ],
       #|  ),
       #|]
     ),
@@ -148,7 +154,13 @@ test "parse does not recognize right-spaced double colon as variant pattern" {
       #|[
       #|  UnexpectedToken(
       #|    { label: "`:`" },
-      #|    [{ label: "`.`" }, { label: "`::`" }, { label: "`=>`" }],
+      #|    [
+      #|      { label: "`(`" },
+      #|      { label: "`[`" },
+      #|      { label: "`.`" },
+      #|      { label: "`::`" },
+      #|      { label: "`=>`" },
+      #|    ],
       #|  ),
       #|]
     ),
@@ -156,37 +168,20 @@ test "parse does not recognize right-spaced double colon as variant pattern" {
 }
 
 ///|
-test "parse does not recognize right-spaced shorthand variant pattern" {
-  debug_inspect(
-    parse_error_kinds(
+test "parse rejects leading double colon enum variant pattern" {
+  assert_true(
+    !parse_errors(
       (
         #|enum Single {
         #|  wrap(Int)
         #|}
         #|fn unwrap(value : Single) -> Int {
         #|  match value {
-        #|    :: wrap(x) => x
+        #|    ::wrap(x) => x
         #|  }
         #|}
       ),
-    ),
-    content=(
-      #|[
-      #|  UnexpectedToken(
-      #|    { label: "`:`" },
-      #|    [
-      #|      { label: "integer literal" },
-      #|      { label: "string literal" },
-      #|      { label: "identifier" },
-      #|      { label: "`false`" },
-      #|      { label: "`true`" },
-      #|      { label: "`}`" },
-      #|      { label: "`::`" },
-      #|      { label: "`_`" },
-      #|    ],
-      #|  ),
-      #|]
-    ),
+    ).is_empty(),
   )
 }
 
@@ -750,7 +745,7 @@ test "parse rejects payloadless qualified variant expression syntax without pare
 }
 
 ///|
-test "parse rejects payloadless variant pattern syntax without parentheses" {
+test "parse rejects payloadless qualified variant pattern syntax without parentheses" {
   assert_true(
     !parse_errors(
       (
@@ -759,19 +754,6 @@ test "parse rejects payloadless variant pattern syntax without parentheses" {
         #|  match value {
         #|    Option::none => 0
         #|    Option::some(x) => x
-        #|  }
-        #|}
-      ),
-    ).is_empty(),
-  )
-  assert_true(
-    !parse_errors(
-      (
-        #|enum Option[A] { none() some(A) }
-        #|fn shorthand(value : Option[Int]) -> Int {
-        #|  match value {
-        #|    ::none => 0
-        #|    ::some(x) => x
         #|  }
         #|}
       ),

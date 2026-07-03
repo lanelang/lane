@@ -23,7 +23,11 @@ _Avoid_: source variant spelling, raw tag pattern
 
 **Qualified Variant Pattern**:
 An enum variant pattern written with `Type::variant` so that bare identifiers remain variable bindings.
-_Avoid_: unqualified variant pattern, capitalization-based pattern
+_Avoid_: capitalization-based pattern, leading-`::` shorthand
+
+**Unqualified Variant Pattern**:
+An enum variant pattern written as `variant(...)` when the matched enum type is already expected.
+_Avoid_: bare variant identifier, leading-`::` shorthand
 
 **Pattern Binder Uniqueness**:
 The rule that a single pattern cannot bind the same value name more than once.
@@ -73,8 +77,9 @@ _Avoid_: case arm, arrow statement
 
 - Pattern matching in v1 uses **Checked Patterns**.
 - **Checked Patterns** include primitive inhabitants as literal patterns.
-- Enum variants in patterns use **Qualified Variant Pattern** syntax.
+- Enum variants in patterns use **Qualified Variant Pattern** or **Unqualified Variant Pattern** syntax.
 - A payloadless **Qualified Variant Pattern** is written with an empty payload list.
+- A payloadless **Unqualified Variant Pattern** is written with an empty payload list.
 - Struct patterns support punning and explicit field renaming, but not rest or spread.
 - Struct patterns must list all fields of the matched struct.
 - Source struct and enum patterns lower to data-constructor alternatives before entering Buslane.
@@ -95,4 +100,4 @@ _Avoid_: case arm, arrow statement
 ## Example dialogue
 
 > **Dev:** "Can a bare identifier in a pattern mean an enum variant?"
-> **Domain expert:** "No. Enum variants in patterns use **Qualified Variant Pattern** syntax so bare identifiers remain binders."
+> **Domain expert:** "No. Bare identifiers remain binders. Enum variants in patterns use `variant(...)` or `Type::variant(...)`."

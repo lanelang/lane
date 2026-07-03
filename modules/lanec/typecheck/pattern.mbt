@@ -408,13 +408,12 @@ fn SemanticChecker::check_shorthand_variant_pattern(
   binders : Array[String],
   loc : SourceSpan,
 ) -> @checked.CheckedPattern {
-  let display_name = "::" + variant
   guard expected.decompose_nominal() is Some((owner, _)) else {
     if !(expected is Error) {
       self.diagnostics.push({
         kind: CannotInferExpression(
-          label="shorthand variant pattern requires enum expected type " +
-            display_name,
+          label="unqualified variant pattern requires enum expected type " +
+            variant,
           reason=Generic,
         ),
         loc,
@@ -425,8 +424,8 @@ fn SemanticChecker::check_shorthand_variant_pattern(
   guard self.declarations.checked_enum(owner) is Some(_) else {
     self.diagnostics.push({
       kind: CannotInferExpression(
-        label="shorthand variant pattern requires enum expected type " +
-          display_name,
+        label="unqualified variant pattern requires enum expected type " +
+          variant,
         reason=Generic,
       ),
       loc,
@@ -436,7 +435,7 @@ fn SemanticChecker::check_shorthand_variant_pattern(
   guard self.source.symbols.variant_named(owner, variant) is Some(symbol) else {
     self.diagnostics.push({
       kind: CannotInferExpression(
-        label="unknown variant " + display_name,
+        label="unknown variant " + variant,
         reason=Generic,
       ),
       loc,
