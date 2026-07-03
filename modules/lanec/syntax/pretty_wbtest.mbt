@@ -217,3 +217,30 @@ test "pretty print handler keeps with and final attached" {
     ),
   )
 }
+
+///|
+test "pretty print short effect set inline" {
+  let type_ = Type::Function(
+    type_parameters=[],
+    parameters=[],
+    result=test_type("Bool"),
+    effect=Union(
+      items=[test_type("Coroutine"), test_type("Log")],
+      loc=test_loc(),
+    ),
+    loc=test_loc(),
+  )
+  inspect(
+    @prettyprinter.render(type_, width=80),
+    content="() -> Bool ! { Coroutine, Log }",
+  )
+  inspect(
+    @prettyprinter.render(type_, width=20),
+    content=(
+      #|() -> Bool ! {
+      #|  Coroutine,
+      #|  Log
+      #|}
+    ),
+  )
+}

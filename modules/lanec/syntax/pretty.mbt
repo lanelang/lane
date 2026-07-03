@@ -73,6 +73,11 @@ fn brace_comma_block(docs : Array[Document]) -> Document {
 }
 
 ///|
+fn brace_comma_group(docs : Array[Document]) -> Document {
+  group(surround(char('{'), char('}'), nest(line + comma_list(docs)) + line))
+}
+
+///|
 fn source_string(value : String) -> Document {
   text(value.escape())
 }
@@ -482,7 +487,7 @@ fn EffectTerm::to_doc(self : EffectTerm) -> Document {
   match self {
     Empty(..) => text("{}")
     Term(type_~, ..) => type_.to_doc()
-    Union(items~, ..) => brace_comma_block(items.map(Type::to_doc))
+    Union(items~, ..) => brace_comma_group(items.map(Type::to_doc))
   }
 }
 

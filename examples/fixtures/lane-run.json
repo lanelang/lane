@@ -306,6 +306,14 @@
       }
     },
     {
+      "name": "37 coroutine scheduler",
+      "file": "examples/valid/37_coroutine_scheduler.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "1112211322 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",

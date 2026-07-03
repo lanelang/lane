@@ -1,0 +1,159 @@
+module Examples.Valid.CoroutineScheduler
+
+import Ops.*
+
+effect Coroutine {
+  yield() -> Unit
+  spawn[A](() -> A ! { Coroutine, Log }) -> Unit
+}
+
+effect Log {
+  log(Int) -> Unit
+}
+
+enum Task {
+  task[A](() -> A ! { Coroutine, Log })
+}
+
+enum Runnable {
+  runnable(() -> Step ! Log)
+}
+
+enum Queue {
+  empty()
+  node(Runnable, Queue)
+}
+
+enum Step {
+  done()
+  yielded(() -> Step ! Log)
+  spawned[A](() -> A ! { Coroutine, Log }, () -> Step ! Log)
+}
+
+struct Scheduler {
+  queue : Queue
+}
+
+struct RunResult {
+  scheduler : Scheduler
+  checksum : Int
+}
+
+fn yield() -> Unit ! Coroutine {
+  Coroutine::yield!()
+}
+
+fn[A] spawn(body : () -> A ! { Coroutine, Log }) -> Unit ! Coroutine {
+  Coroutine::spawn!(body)
+}
+
+fn log(event : Int) -> Unit ! Log {
+  Log::log!(event)
+}
+
+fn enqueue(queue : Queue, item : Runnable) -> Queue {
+  match queue {
+    empty() => Queue::node(item, Queue::empty())
+    node(head, tail) => Queue::node(head, enqueue(tail, item))
+  }
+}
+
+fn with_queue(scheduler : Scheduler, queue : Queue) -> Scheduler {
+  Scheduler::{
+    queue
+  }
+}
+
+fn run_task(task_value : Task) -> Step ! Log {
+  match task_value {
+    task[A](body) =>
+      handle body() with {
+        Coroutine::yield(resume) => Step::yielded(
+          fn () -> Step ! Log {
+            resume(())
+          }
+        )
+        Coroutine::spawn[B](body, resume) => Step::spawned[B](
+          body,
+          fn () -> Step ! Log {
+            resume(())
+          }
+        )
+      } final value {
+        Step::done()
+      }
+  }
+}
+
+fn run_queue(scheduler : Scheduler) -> Scheduler ! Log {
+  match scheduler.queue {
+    empty() => scheduler
+    node(runnable_step, rest) =>
+      match runnable_step {
+        runnable(run) => run_step(run(), with_queue(scheduler, rest))
+      }
+  }
+}
+
+fn run_step(step : Step, scheduler : Scheduler) -> Scheduler ! Log {
+  match step {
+    done() => run_queue(scheduler)
+    yielded(resume) => run_queue(
+      with_queue(scheduler, enqueue(scheduler.queue, Runnable::runnable(resume)))
+    )
+    spawned[A](body, resume) => {
+      let child : Runnable = Runnable::runnable(
+        fn () -> Step ! Log {
+          run_task(Task::task[A](body))
+        }
+      )
+      run_step(resume(), with_queue(scheduler, enqueue(scheduler.queue, child)))
+    }
+  }
+}
+
+fn collect_logs(scheduler : Scheduler) -> (Int) -> RunResult {
+  handle run_queue(scheduler) with {
+    log(event, resume) => fn (checksum : Int) -> RunResult {
+      resume(())(checksum * 100 + event)
+    }
+  } final scheduler {
+    fn (checksum : Int) -> RunResult {
+      RunResult::{
+        scheduler,
+        checksum
+      }
+    }
+  }
+}
+
+fn child() -> Bool ! { Coroutine, Log } {
+  let child_started : Unit = log(21)
+  let yielded : Unit = yield()
+  let child_resumed : Unit = log(22)
+  true
+}
+
+fn parent() -> Int ! { Coroutine, Log } {
+  let parent_started : Unit = log(11)
+  let spawned : Unit = spawn(child)
+  let parent_spawned_child : Unit = log(12)
+  let yielded : Unit = yield()
+  let parent_resumed : Unit = log(13)
+  40
+}
+
+let result : RunResult = collect_logs(
+  Scheduler::{
+    queue: Queue::node(
+      Runnable::runnable(
+        fn () {
+          run_task(Task::task[Int](parent))
+        }
+      ),
+      Queue::empty()
+    )
+  }
+)(0)
+
+pub let answer : Int = result.checksum
