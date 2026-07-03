@@ -370,8 +370,8 @@
       }
     },
     {
-      "name": "invalid 07 payloadless variant call",
-      "file": "examples/invalid/07_payloadless_variant_call.lane",
+      "name": "invalid 07 qualified variant without parens",
+      "file": "examples/invalid/07_qualified_variant_without_parens.lane",
       "entry": "answer",
       "expect": {
         "contains": ["error[E1100]", "the parser did not expect end of file"]
@@ -591,6 +591,14 @@
       "entry": "bad",
       "expect": {
         "contains": ["error[E3004]", "type alias `A` is recursive"]
+      }
+    },
+    {
+      "name": "invalid 35 variant without parens",
+      "file": "examples/invalid/35_variant_without_parens.lane",
+      "entry": "bad",
+      "expect": {
+        "contains": ["error[E2004]", "payloadless variant `none` must use empty parentheses", "add empty parentheses: `none()`"]
       }
     }
   ]

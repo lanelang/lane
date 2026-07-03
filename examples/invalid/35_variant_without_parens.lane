@@ -1,0 +1,15 @@
+module Examples.Invalid35
+
+enum Option[T] {
+  some(T)
+  none()
+}
+
+let x : Option[Int] = some(1)
+
+fn[T, R] map_option(val : Option[T], f : (T) -> R) -> Option[R] {
+  match val {
+    Option::some(v) => some(f(v))
+    Option::none() => none
+  }
+}

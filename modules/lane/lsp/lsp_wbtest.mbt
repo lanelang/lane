@@ -550,7 +550,7 @@ async test "completion routes colon triggers to owner members" {
                 "start": { "line": 8, "character": 10 },
                 "end": { "line": 8, "character": 10 },
               },
-              "newText": "none",
+              "newText": "none()",
             },
           },
           {

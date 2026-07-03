@@ -313,6 +313,31 @@ fn add_completion_entry(
   detail : String?,
   rank : String,
 ) -> Unit {
+  add_completion_entry_with_insert_text(
+    entries,
+    source_id,
+    prefix,
+    replace,
+    label,
+    kind,
+    detail,
+    insert_text=None,
+    rank,
+  )
+}
+
+///|
+fn add_completion_entry_with_insert_text(
+  entries : Array[CompletionEntry],
+  source_id : String,
+  prefix : String,
+  replace : @basic.SourceSpan,
+  label : String,
+  kind : CompletionKind,
+  detail : String?,
+  insert_text~ : String?,
+  rank : String,
+) -> Unit {
   if !label.has_prefix(prefix) {
     return
   }
@@ -326,10 +351,22 @@ fn add_completion_entry(
     kind,
     detail,
     documentation: None,
-    insert_text: None,
+    insert_text,
     replace: Some({ source_id, span: replace }),
     sort_text: Some("\{rank}:\{label}"),
   })
+}
+
+///|
+fn payloadless_variant_insert_text(
+  name : String,
+  payload_count : Int,
+) -> String? {
+  if payload_count == 0 {
+    Some("\{name}()")
+  } else {
+    None
+  }
 }
 
 ///|
@@ -1123,7 +1160,7 @@ fn CompletionWorld::add_interface_owner_entries(
     match type_ {
       Enum(enum_) if enum_.name == owner =>
         for variant in enum_.variants {
-          add_completion_entry(
+          add_completion_entry_with_insert_text(
             entries,
             source_id,
             prefix,
@@ -1131,6 +1168,10 @@ fn CompletionWorld::add_interface_owner_entries(
             variant.name,
             Variant,
             Some("variant \{interface.module_path}.\{owner}::\{variant.name}"),
+            insert_text=payloadless_variant_insert_text(
+              variant.name,
+              variant.payload.length(),
+            ),
             "20",
           )
         }
@@ -1186,7 +1227,7 @@ fn CompletionWorld::add_local_owner_entries(
         match declaration {
           Enum(enum_) if enum_.name == owner =>
             for variant in enum_.variants {
-              add_completion_entry(
+              add_completion_entry_with_insert_text(
                 entries,
                 source_id,
                 prefix,
@@ -1194,6 +1235,10 @@ fn CompletionWorld::add_local_owner_entries(
                 variant.name,
                 Variant,
                 Some("variant \{owner}::\{variant.name}"),
+                insert_text=payloadless_variant_insert_text(
+                  variant.name,
+                  variant.payload.length(),
+                ),
                 "20",
               )
             }
@@ -1234,7 +1279,7 @@ fn CompletionWorld::add_local_owner_entries(
           match declaration {
             Enum(enum_) if enum_.name == owner =>
               for variant in enum_.variants {
-                add_completion_entry(
+                add_completion_entry_with_insert_text(
                   entries,
                   source_id,
                   prefix,
@@ -1242,6 +1287,10 @@ fn CompletionWorld::add_local_owner_entries(
                   variant.name,
                   Variant,
                   Some("variant \{owner}::\{variant.name}"),
+                  insert_text=payloadless_variant_insert_text(
+                    variant.name,
+                    variant.payload.length(),
+                  ),
                   "20",
                 )
               }

@@ -2280,7 +2280,7 @@ test "typecheck reports unresolved variant type arguments" {
       #|}
       #|fn use() -> Bool {
       #|  {
-      #|    let value = none
+      #|    let value = Option::none()
       #|    true
       #|  }
       #|}
@@ -2288,9 +2288,7 @@ test "typecheck reports unresolved variant type arguments" {
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content=(
-      #|cannot_infer type arguments @ 8:17-8:21
-    ),
+    content="cannot_infer type arguments @ 8:29-8:31",
   )
 }
 

@@ -584,21 +584,21 @@ fn resolve_diagnostic(
           "check the variant spelling or use a variant declared by `\{type_name}`",
         ],
       )
-    PayloadlessVariantCall(name) =>
+    PayloadlessVariantWithoutParens(name) =>
       diagnostic(
-        "payloadless variant `\{name}` is not callable",
+        "payloadless variant `\{name}` must use empty parentheses",
         span~,
         severity=Error,
         code=Some("E2004"),
         labels=[
           {
             span: diagnostic_.loc,
-            message: "`\{name}` has no payload, so it is already a value",
+            message: "`\{name}` has no payload, so construct it as `\{name}()`",
             style: Primary,
           },
         ],
-        notes=["only variants with payload fields are called with arguments"],
-        helps=["remove the call syntax and use `\{name}` directly"],
+        notes=["all enum variant constructors use parentheses in expressions"],
+        helps=["add empty parentheses: `\{name}()`"],
       )
     ConflictingTopLevelValue(name~, existing~, incoming~) =>
       diagnostic(

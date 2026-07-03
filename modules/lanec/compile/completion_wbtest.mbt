@@ -181,7 +181,7 @@ test "completion returns owner members after double colon" {
       #|    kind: Variant,
       #|    detail: Some("variant Option::none"),
       #|    documentation: None,
-      #|    insert_text: None,
+      #|    insert_text: Some("none()"),
       #|    replace: Some(
       #|      {
       #|        source_id: "file:///Main.lane",
@@ -212,6 +212,154 @@ test "completion returns owner members after double colon" {
       #|          start_line: 14,
       #|          start_column: 11,
       #|          end_line: 14,
+      #|          end_column: 11,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("20:some"),
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "completion inserts parens for imported payloadless owner variants" {
+  let root =
+    #|module Main
+    #|
+    #|import Lib
+    #|
+    #|pub fn use() -> Lib.Option[Int] {
+    #|  Lib.Option::none()
+    #|}
+  let lib =
+    #|module Lib
+    #|
+    #|pub enum Option[A] {
+    #|  none()
+    #|  some(A)
+    #|}
+  debug_inspect(
+    complete_source_inputs(
+      { source_id: "file:///Main.lane", text: root },
+      [{ source_id: "file:///Lib.lane", text: lib }],
+      "file:///Main.lane",
+      6,
+      15,
+      TriggerCharacter(":"),
+    ),
+    content=(
+      #|[
+      #|  {
+      #|    label: "none",
+      #|    kind: Variant,
+      #|    detail: Some("variant Lib.Option::none"),
+      #|    documentation: None,
+      #|    insert_text: Some("none()"),
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 73,
+      #|          end_offset: 73,
+      #|          start_line: 6,
+      #|          start_column: 15,
+      #|          end_line: 6,
+      #|          end_column: 15,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("20:none"),
+      #|  },
+      #|  {
+      #|    label: "some",
+      #|    kind: Variant,
+      #|    detail: Some("variant Lib.Option::some"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 73,
+      #|          end_offset: 73,
+      #|          start_line: 6,
+      #|          start_column: 15,
+      #|          end_line: 6,
+      #|          end_column: 15,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("20:some"),
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "completion inserts parens for payloadless variants with resolved fallback" {
+  let source =
+    #|module Main
+    #|
+    #|enum Option[A] {
+    #|  none()
+    #|  some(A)
+    #|}
+    #|
+    #|let broken : Missing = 0
+    #|
+    #|pub fn use() -> Option[Int] {
+    #|  Option::none()
+    #|}
+  debug_inspect(
+    complete_source_inputs(
+      { source_id: "file:///Main.lane", text: source },
+      [],
+      "file:///Main.lane",
+      11,
+      11,
+      TriggerCharacter(":"),
+    ),
+    content=(
+      #|[
+      #|  {
+      #|    label: "none",
+      #|    kind: Variant,
+      #|    detail: Some("variant Option::none"),
+      #|    documentation: None,
+      #|    insert_text: Some("none()"),
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 118,
+      #|          end_offset: 118,
+      #|          start_line: 11,
+      #|          start_column: 11,
+      #|          end_line: 11,
+      #|          end_column: 11,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("20:none"),
+      #|  },
+      #|  {
+      #|    label: "some",
+      #|    kind: Variant,
+      #|    detail: Some("variant Option::some"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 118,
+      #|          end_offset: 118,
+      #|          start_line: 11,
+      #|          start_column: 11,
+      #|          end_line: 11,
       #|          end_column: 11,
       #|        },
       #|      },

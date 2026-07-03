@@ -99,6 +99,10 @@ graph TD
   ISS_083["ISS-083: Complete owner and selector candidates"]
   ISS_084["ISS-084: Expose semantic completion through LSP"]
   ISS_085["ISS-085: Cover semantic completion with regressions and docs"]
+  ISS_086["ISS-086: Rename stale payloadless variant invalid example"]
+  ISS_087["ISS-087: Remove stale typecheck oracle for bare payloadless variants"]
+  ISS_088["ISS-088: Rename payloadless variant diagnostic to without-parens"]
+  ISS_089["ISS-089: Insert parentheses for payloadless variant completions"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

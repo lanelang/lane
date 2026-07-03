@@ -1,4 +1,4 @@
-// invalid: payloadless variants must be called with an empty payload list
+// invalid: qualified payloadless variant constructors require empty parentheses
 module Examples.Invalid07
 
 pub enum Option[A] {

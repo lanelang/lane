@@ -48,7 +48,7 @@ test "compile verifies handler around effectful function call" {
 }
 
 ///|
-test "check reports payloadless variant call" {
+test "check reports payloadless variant without parentheses" {
   let result = check_source(
     (
       #|module Test
@@ -56,13 +56,13 @@ test "check reports payloadless variant call" {
       #|  none()
       #|  some(A)
       #|}
-      #|let value : Option[Int] = none()
+      #|let value : Option[Int] = none
     ),
   )
   inspect(result.diagnostics.length(), content="1")
   inspect(
     result.diagnostics[0].message,
-    content="payloadless variant `none` is not callable",
+    content="payloadless variant `none` must use empty parentheses",
   )
 }
 

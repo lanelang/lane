@@ -1852,9 +1852,8 @@ fn nominal_type_of_resolved_type(type_ : ResolvedType) -> TypeSymbolId? {
 ///
 /// Example: `none` and `none()` both start from the same visible name. A visible
 /// value named `none` wins first; otherwise the name may fall back to an
-/// unqualified enum variant. Payloadless variants are values, so `none` is the
-/// valid form and `none()` is diagnosed here while the original call syntax is
-/// still available.
+/// unqualified enum variant. Payloadless variants are still constructors, so
+/// `none()` is the valid form and bare `none` is diagnosed here.
 fn Resolver::resolve_unqualified_name_use(
   self : Resolver,
   scope : ResolveScope,
@@ -1880,7 +1879,7 @@ fn Resolver::resolve_unqualified_variant_use(
 ) -> ResolvedExpr {
   match self.unqualified_variant_reference(name, name_use.loc()) {
     Symbol(symbol) as reference => {
-      name_use.report_payloadless_variant_call(self, symbol, name)
+      name_use.report_payloadless_variant_without_parens(self, symbol, name)
       name_use.resolve_as_variant(self, scope, name, reference)
     }
     Ambiguous(_) as reference =>
@@ -2037,19 +2036,18 @@ fn UnqualifiedNameUse::resolve_as_unresolved_value(
 }
 
 ///|
-fn UnqualifiedNameUse::report_payloadless_variant_call(
+fn UnqualifiedNameUse::report_payloadless_variant_without_parens(
   self : UnqualifiedNameUse,
   resolver : Resolver,
   symbol : VariantSymbolId,
   name : String,
 ) -> Unit {
-  guard self is CallUse(arguments~, ..) else { return }
-  guard arguments.is_empty() else { return }
+  guard self is BareUse(_) else { return }
   guard resolver.registry.variant_metadata(symbol) is Some(metadata) else {
     return
   }
   if metadata.payload_count == 0 {
-    resolver.report(PayloadlessVariantCall(name), self.loc())
+    resolver.report(PayloadlessVariantWithoutParens(name), self.loc())
   }
 }
 

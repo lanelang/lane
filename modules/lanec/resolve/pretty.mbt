@@ -69,8 +69,8 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       text(type_name) +
       text("::") +
       text(variant)
-    PayloadlessVariantCall(name) =>
-      text("payloadless_variant_call") + space + text(name)
+    PayloadlessVariantWithoutParens(name) =>
+      text("payloadless_variant_without_parens") + space + text(name)
     ConflictingTopLevelValue(name~, existing~, incoming~) =>
       text("conflicting_top_value") +
       space +

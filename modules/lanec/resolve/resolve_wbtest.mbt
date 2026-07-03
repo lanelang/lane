@@ -560,7 +560,7 @@ test "resolve unqualified variant calls after nominal member collection" {
 }
 
 ///|
-test "report payloadless unqualified variant call" {
+test "report payloadless unqualified variant without parentheses" {
   let file = expect_parse_ok(
     (
       #|enum Option[A] {
@@ -568,14 +568,14 @@ test "report payloadless unqualified variant call" {
       #|  some(A)
       #|}
       #|fn empty() -> Option[Int] {
-      #|  none()
+      #|  none
       #|}
     ),
   )
   let result = resolve_source_file_result(file)
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content="payloadless_variant_call none",
+    content="payloadless_variant_without_parens none",
   )
 }
 
