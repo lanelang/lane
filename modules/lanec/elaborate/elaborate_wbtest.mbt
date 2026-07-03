@@ -154,7 +154,7 @@ fn first_checked_handler_expr_for_elaborate_test(
         return Some(handler)
       }
       for argument in arguments {
-        if first_checked_handler_expr_for_elaborate_test(argument)
+        if first_checked_handler_expr_for_elaborate_test(argument.value)
           is Some(handler) {
           return Some(handler)
         }

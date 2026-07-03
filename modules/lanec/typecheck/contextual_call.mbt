@@ -6,8 +6,14 @@ priv struct NamedDirectArgument {
 }
 
 ///|
+priv struct PositionalDirectArgument {
+  value : @desugar.DesugaredExpr
+  loc : SourceSpan
+}
+
+///|
 priv struct CollectedDirectArguments {
-  positional : Array[@desugar.DesugaredExpr]
+  positional : Array[PositionalDirectArgument]
   named : Array[NamedDirectArgument]
 }
 
@@ -101,16 +107,16 @@ fn SemanticChecker::collect_direct_arguments(
   let named = []
   for argument in arguments {
     match argument {
-      Positional(value) => {
+      Positional(value~, loc~) => {
         if positional.length() >= positional_count {
           self.report_application_inference_failure(
             "auto arguments must be named",
             Generic,
-            value.loc(),
+            loc,
           )
           return None
         }
-        positional.push(value)
+        positional.push({ value, loc })
       }
       Named(name~, value~, loc~) => {
         if named_direct_argument(named, name) is Some(_) {
@@ -165,7 +171,7 @@ fn SemanticChecker::direct_parameter_types(
   scope : TypeScope,
   callee_type : @types.Type,
   parameters : Array[@checked.CheckedValueParameter],
-  positional : Array[@desugar.DesugaredExpr],
+  positional : Array[PositionalDirectArgument],
   named : Array[NamedDirectArgument],
   first_auto : Int,
   expected_result : @types.Type?,
@@ -186,7 +192,7 @@ fn SemanticChecker::direct_parameter_types(
       let expressions = []
       for index in 0..<positional.length() {
         templates.push(parameter_types[index])
-        expressions.push(positional[index])
+        expressions.push(positional[index].value)
       }
       for argument in named {
         guard auto_parameter_index(parameters, argument.name, first_auto)
@@ -232,14 +238,14 @@ fn SemanticChecker::complete_direct_call_arguments(
   scope : TypeScope,
   parameters : Array[@checked.CheckedValueParameter],
   parameter_types : Array[@types.Type],
-  positional : Array[@desugar.DesugaredExpr],
+  positional : Array[PositionalDirectArgument],
   named : Array[NamedDirectArgument],
   first_auto : Int,
   loc : SourceSpan,
 ) -> Array[@desugar.DesugaredCallArgument] {
   let result : Array[@desugar.DesugaredCallArgument] = []
   for argument in positional {
-    result.push(Positional(argument))
+    result.push(Positional(value=argument.value, loc=argument.loc))
   }
   for argument in named {
     if auto_parameter_index(parameters, argument.name, first_auto) is None {
@@ -254,11 +260,14 @@ fn SemanticChecker::complete_direct_call_arguments(
   for index in first_auto..<parameters.length() {
     let parameter = parameters[index]
     match named_direct_argument(named, parameter.name) {
-      Some(argument) => result.push(Positional(argument.value))
+      Some(argument) =>
+        result.push(Positional(value=argument.value, loc=argument.loc))
       None =>
         match self.contextual_offer_expr(scope, parameter_types[index], loc) {
-          Some(argument) => result.push(Positional(argument))
-          None => result.push(Positional(error_contextual_argument(loc)))
+          Some(argument) =>
+            result.push(Positional(value=argument, loc=argument.loc()))
+          None =>
+            result.push(Positional(value=error_contextual_argument(loc), loc~))
         }
     }
   }

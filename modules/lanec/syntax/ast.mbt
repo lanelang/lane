@@ -298,7 +298,7 @@ pub(all) enum Expr {
   )
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : SourceSpan)
   Call(callee~ : Expr, arguments~ : Array[CallArgument], loc~ : SourceSpan)
-  Field(base~ : Expr, name~ : String, name_loc~ : SourceSpan, loc~ : SourceSpan)
+  Field(base~ : Expr, name~ : String, loc~ : SourceSpan)
   Unary(operator~ : UnaryOperator, operand~ : Expr, loc~ : SourceSpan)
   Binary(
     operator~ : BinaryOperator,
@@ -392,7 +392,7 @@ pub(all) struct FunctionLiteralParameter {
 
 ///|
 pub(all) enum CallArgument {
-  Positional(Expr)
+  Positional(value~ : Expr, loc~ : SourceSpan)
   Named(name~ : String, value~ : Expr, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
@@ -400,7 +400,7 @@ pub(all) enum CallArgument {
 /// Returns the source span covered by this call argument.
 pub fn CallArgument::loc(self : CallArgument) -> SourceSpan {
   match self {
-    Positional(expression) => expression.loc()
+    Positional(loc~, ..) => loc
     Named(loc~, ..) => loc
   }
 }

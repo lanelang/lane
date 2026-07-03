@@ -112,8 +112,8 @@ fn SemanticChecker::check_builtin_callee_call(
   let parameters = []
   for argument in arguments {
     match argument {
-      Positional(expression) =>
-        parameters.push(self.synthesize_expr(scope, expression))
+      Positional(value~, ..) =>
+        parameters.push(self.synthesize_expr(scope, value))
       Named(name~, value~, loc~) => {
         self.report_application_inference_failure(
           "invalid named argument " + name,
@@ -164,7 +164,7 @@ fn SemanticChecker::check_call_argument(
   parameter : @types.Type,
 ) -> Unit {
   match argument {
-    Positional(expression) => self.check_expr(scope, expression, parameter)
+    Positional(value~, ..) => self.check_expr(scope, value, parameter)
     Named(name~, value~, loc~) => {
       self.report_application_inference_failure(
         "invalid named argument " + name,

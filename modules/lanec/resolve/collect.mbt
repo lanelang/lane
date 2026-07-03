@@ -1664,15 +1664,14 @@ fn @syntax.Expr::resolve_expr(
       match resolver.resolve_module_value_field_chain(scope, field, loc) {
         Some(expr) => expr
         None => {
-          guard field is Field(base~, name~, name_loc~, ..) else {
+          guard field is Field(base~, name~, ..) else {
             abort("expected field")
           }
           let base = base.resolve_expr(resolver, scope)
           Field(
             base~,
             name~,
-            name_loc~,
-            reference=resolver.field_reference(scope, base, name, name_loc),
+            reference=resolver.field_reference(scope, base, name, loc),
             loc~,
           )
         }
@@ -2122,8 +2121,8 @@ fn @syntax.CallArgument::resolve_call_argument(
   scope : ResolveScope,
 ) -> ResolvedCallArgument {
   match self {
-    Positional(expression) =>
-      Positional(expression.resolve_expr(resolver, scope))
+    Positional(value~, loc~) =>
+      Positional(value=value.resolve_expr(resolver, scope), loc~)
     Named(name~, value~, loc~) =>
       Named(name~, value=value.resolve_expr(resolver, scope), loc~)
   }
@@ -2142,7 +2141,7 @@ fn @syntax.CallArgument::resolve_positional_call_argument(
   scope : ResolveScope,
 ) -> ResolvedExpr {
   match self {
-    Positional(expression) => expression.resolve_expr(resolver, scope)
+    Positional(value~, ..) => value.resolve_expr(resolver, scope)
     Named(value~, ..) => value.resolve_expr(resolver, scope)
   }
 }

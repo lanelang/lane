@@ -25,7 +25,7 @@ fn BuslaneLowerer::lower_expr(
     Call(callee~, arguments~, ..) =>
       Call(
         self.lower_expr(callee),
-        arguments.map(fn(argument) { self.lower_expr(argument) }),
+        arguments.map(fn(argument) { self.lower_expr(argument.value) }),
       )
     OperationCall(operation~, type_witnesses~, arguments~, effect~, ..) =>
       Perform({

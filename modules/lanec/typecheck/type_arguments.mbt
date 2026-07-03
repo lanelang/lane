@@ -372,6 +372,15 @@ fn @desugar.DesugaredCallArgument::value_expr(
   self : @desugar.DesugaredCallArgument,
 ) -> @desugar.DesugaredExpr {
   match self {
-    Positional(expression) | Named(value=expression, ..) => expression
+    Positional(value~, ..) | Named(value~, ..) => value
+  }
+}
+
+///|
+fn @desugar.DesugaredCallArgument::loc(
+  self : @desugar.DesugaredCallArgument,
+) -> SourceSpan {
+  match self {
+    Positional(loc~, ..) | Named(loc~, ..) => loc
   }
 }

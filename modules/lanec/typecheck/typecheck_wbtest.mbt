@@ -154,7 +154,7 @@ fn find_first_handler_resume_callee_type(
         return Some(type_)
       }
       for argument in arguments {
-        if find_first_handler_resume_callee_type(argument) is Some(type_) {
+        if find_first_handler_resume_callee_type(argument.value) is Some(type_) {
           return Some(type_)
         }
       } nobreak {

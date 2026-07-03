@@ -53,7 +53,7 @@ pub(all) struct ResolveVariantCandidate {
 pub impl @prettyprinter.Pretty for ResolveVariantCandidate
 
 pub(all) enum ResolvedCallArgument {
-  Positional(ResolvedExpr)
+  Positional(value~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Named(name~ : String, value~ : ResolvedExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedCallArgument
@@ -139,7 +139,7 @@ pub(all) enum ResolvedExpr {
   If(condition~ : ResolvedExpr, then_branch~ : ResolvedExpr, else_branch~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : ResolvedExpr, arms~ : Array[ResolvedMatchArm], loc~ : @basic.SourceSpan)
   Call(callee~ : ResolvedExpr, arguments~ : Array[ResolvedCallArgument], loc~ : @basic.SourceSpan)
-  Field(base~ : ResolvedExpr, name~ : String, name_loc~ : @basic.SourceSpan, reference~ : ResolvedFieldReference, loc~ : @basic.SourceSpan)
+  Field(base~ : ResolvedExpr, name~ : String, reference~ : ResolvedFieldReference, loc~ : @basic.SourceSpan)
   Unary(operator~ : @syntax.UnaryOperator, reference~ : ResolvedValueReference, operand~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Binary(operator~ : @syntax.BinaryOperator, reference~ : ResolvedValueReference, left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Pipeline(left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)

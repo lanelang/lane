@@ -331,7 +331,7 @@ pub(all) struct ResolvedFunctionLiteralParameter {
 
 ///|
 pub(all) enum ResolvedCallArgument {
-  Positional(ResolvedExpr)
+  Positional(value~ : ResolvedExpr, loc~ : SourceSpan)
   Named(name~ : String, value~ : ResolvedExpr, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
@@ -479,7 +479,6 @@ pub(all) enum ResolvedExpr {
   Field(
     base~ : ResolvedExpr,
     name~ : String,
-    name_loc~ : SourceSpan,
     reference~ : ResolvedFieldReference,
     loc~ : SourceSpan
   )

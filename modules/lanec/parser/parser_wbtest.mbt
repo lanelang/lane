@@ -25,46 +25,50 @@ fn parse_error_kinds(source : String) -> Array[ParseErrorKind] {
 }
 
 ///|
-test "parse field access keeps expression and field-name spans separate" {
+test "parse positional call argument keeps argument source span" {
   let file = expect_parse_ok(
     (
       #|struct Box {
       #|  field : Int
       #|}
+      #|fn take(input : Int) -> Int {
+      #|  input
+      #|}
       #|fn answer(value : Box) -> Int {
-      #|  value.field
+      #|  take(value.field)
       #|}
     ),
   )
-  guard file.declarations[1] is Function(function) else {
+  guard file.declarations[2] is Function(function) else {
     abort("expected function declaration")
   }
   guard function.body is Block(result~, ..) else {
     abort("expected block body")
   }
-  guard result is Field(name~, name_loc~, loc~, ..) else {
-    abort("expected field access")
+  guard result is Call(arguments~, ..) else { abort("expected call") }
+  guard arguments[0] is Positional(value=Field(name~, loc=field_loc, ..), loc~) else {
+    abort("expected positional field argument")
   }
   debug_inspect(
-    (name, name_loc, loc),
+    (name, field_loc, loc),
     content=(
       #|(
       #|  "field",
       #|  {
-      #|    start_offset: 81,
-      #|    end_offset: 86,
-      #|    start_line: 6,
-      #|    start_column: 9,
-      #|    end_line: 6,
-      #|    end_column: 14,
+      #|    start_offset: 126,
+      #|    end_offset: 131,
+      #|    start_line: 9,
+      #|    start_column: 14,
+      #|    end_line: 9,
+      #|    end_column: 19,
       #|  },
       #|  {
-      #|    start_offset: 75,
-      #|    end_offset: 86,
-      #|    start_line: 6,
-      #|    start_column: 3,
-      #|    end_line: 6,
-      #|    end_column: 14,
+      #|    start_offset: 120,
+      #|    end_offset: 131,
+      #|    start_line: 9,
+      #|    start_column: 8,
+      #|    end_line: 9,
+      #|    end_column: 19,
       #|  },
       #|)
     ),

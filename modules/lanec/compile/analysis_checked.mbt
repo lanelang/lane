@@ -162,7 +162,7 @@ fn collect_checked_expr_parameter_signatures(
     Call(callee~, arguments~, ..) => {
       collect_checked_expr_parameter_signatures(callee, signatures)
       for argument in arguments {
-        collect_checked_expr_parameter_signatures(argument, signatures)
+        collect_checked_expr_parameter_signatures(argument.value, signatures)
       }
     }
     OperationCall(arguments~, ..) =>
@@ -614,7 +614,13 @@ fn collect_checked_expr(
       )
       for argument in arguments {
         collect_checked_expr(
-          source_id, source_text, argument, definitions, references, hovers, context,
+          source_id,
+          source_text,
+          argument.value,
+          definitions,
+          references,
+          hovers,
+          context,
         )
       }
     }
@@ -692,7 +698,7 @@ fn collect_checked_expr(
         )
       }
     }
-    Field(base~, field~, name~, name_loc~, type_~, ..) => {
+    Field(base~, field~, name~, type_~, loc~) => {
       collect_checked_expr(
         source_id, source_text, base, definitions, references, hovers, context,
       )
@@ -701,7 +707,7 @@ fn collect_checked_expr(
         hovers,
         source_id,
         Field(field),
-        name_loc,
+        loc,
         Some("\{name} : \{context.display.type_text(type_)}"),
       )
     }
@@ -892,7 +898,7 @@ fn add_call_inlay_hints(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
   callee : @checked.CheckedExpr,
-  arguments : Array[@checked.CheckedExpr],
+  arguments : Array[@checked.CheckedCallArgument],
   call_loc : @basic.SourceSpan,
   context : CheckedAnalysisContext,
 ) -> Unit {
@@ -930,7 +936,7 @@ fn callee_origin_loc(callee : @checked.CheckedExpr) -> @basic.SourceSpan {
 fn add_argument_inlay_hints(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
-  arguments : Array[@checked.CheckedExpr],
+  arguments : Array[@checked.CheckedCallArgument],
   parameters : Array[ParameterHintParameter],
   call_loc : @basic.SourceSpan,
   skip_parameter_hints : Bool,
@@ -944,8 +950,8 @@ fn add_argument_inlay_hints(
   for index in 0..<count {
     let argument = arguments[index]
     let parameter = parameters[index]
-    if parameter.is_auto && !call_loc.contains_span(argument.loc()) {
-      match implicit_argument_name(argument) {
+    if parameter.is_auto && !call_loc.contains_span(argument.loc) {
+      match implicit_argument_name(argument.value) {
         Some(name) => implicit_arguments.push("\{parameter.name}=\{name}")
         None => ()
       }
@@ -953,7 +959,7 @@ fn add_argument_inlay_hints(
       add_parameter_inlay_hint(
         inlay_hints,
         source_id,
-        parameter_hint_span(argument),
+        argument.loc,
         parameter.name,
       )
     }
@@ -962,15 +968,6 @@ fn add_argument_inlay_hints(
     add_implicit_argument_inlay_hint(
       inlay_hints, source_id, call_loc, implicit_arguments,
     )
-  }
-}
-
-///|
-fn parameter_hint_span(argument : @checked.CheckedExpr) -> @basic.SourceSpan {
-  match argument {
-    Call(callee~, ..) => callee_origin_loc(callee)
-    TypeApplication(callee~, ..) => parameter_hint_span(callee)
-    _ => argument.loc()
   }
 }
 

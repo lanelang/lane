@@ -661,7 +661,14 @@ fn CompletionWorld::add_checked_expr_locals(
       )
       for argument in arguments {
         self.add_checked_expr_locals(
-          entries, source_id, prefix, replace, space, argument, line, column,
+          entries,
+          source_id,
+          prefix,
+          replace,
+          space,
+          argument.value,
+          line,
+          column,
         )
       }
     }

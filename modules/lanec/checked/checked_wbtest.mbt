@@ -41,7 +41,7 @@ test "pretty prints checked source without surface-only syntax" {
   )
   let call = CheckedExpr::Call(
     callee~,
-    arguments=[value],
+    arguments=[{ value, loc: loc() }],
     type_=int_type(),
     loc=loc(),
   )
@@ -103,7 +103,7 @@ test "pretty prints checked thunked short circuit call shape" {
   )
   let call = CheckedExpr::Call(
     callee=op_and,
-    arguments=[left, thunk],
+    arguments=[{ value: left, loc: loc() }, { value: thunk, loc: loc() }],
     type_=bool_type(),
     loc=loc(),
   )

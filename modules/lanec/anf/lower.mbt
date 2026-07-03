@@ -152,14 +152,19 @@ fn AnfLowerer::lower_to_atom(
       })
     Call(callee~, arguments~, type_~, loc~) =>
       self.lower_to_atom(callee, fn(callee) {
-        self.lower_exprs_to_atoms(arguments, 0, [], fn(arguments) {
-          self.bind_temp(
-            Call(callee~, arguments~, type_~, loc~),
-            type_,
-            loc,
-            continuation,
-          )
-        })
+        self.lower_exprs_to_atoms(
+          arguments.map(fn(argument) { argument.value }),
+          0,
+          [],
+          fn(arguments) {
+            self.bind_temp(
+              Call(callee~, arguments~, type_~, loc~),
+              type_,
+              loc,
+              continuation,
+            )
+          },
+        )
       })
     OperationCall(operation~, arguments~, type_~, loc~, ..) =>
       self.lower_exprs_to_atoms(arguments, 0, [], fn(arguments) {
@@ -171,7 +176,7 @@ fn AnfLowerer::lower_to_atom(
         )
       })
     Handler(..) => abort("Lane handler lowering to ANF is not implemented yet")
-    Field(base~, field~, name~, type_~, loc~, ..) =>
+    Field(base~, field~, name~, type_~, loc~) =>
       self.lower_to_atom(base, fn(base) {
         self.bind_temp(
           Field(base~, field~, name~, type_~, loc~),

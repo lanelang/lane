@@ -110,7 +110,7 @@ pub(all) struct DesugaredHandlerFinalBranch {
 
 ///|
 pub(all) enum DesugaredCallArgument {
-  Positional(DesugaredExpr)
+  Positional(value~ : DesugaredExpr, loc~ : SourceSpan)
   Named(name~ : String, value~ : DesugaredExpr, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
@@ -190,7 +190,6 @@ pub(all) enum DesugaredExpr {
   Field(
     base~ : DesugaredExpr,
     name~ : String,
-    name_loc~ : SourceSpan,
     reference~ : @resolve.ResolvedFieldReference,
     loc~ : SourceSpan
   )

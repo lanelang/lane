@@ -267,6 +267,63 @@ async test "inlay hint returns parameter name hints at argument starts" {
 }
 
 ///|
+async test "inlay hint anchors field arguments before the full argument" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub struct Box {
+            #|  field : Int
+            #|}
+            #|
+            #|pub fn take(arg : Int) -> Int {
+            #|  arg
+            #|}
+            #|
+            #|pub fn answer(value : Box) -> Int {
+            #|  let local = take(value.field)
+            #|  local
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/inlayHint",
+      range_params("file:///Main.lane", 0, 0, 14, 0),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": [
+        {
+          "position": { "line": 11, "character": 11 },
+          "label": ": Int",
+          "kind": 1,
+        },
+        {
+          "position": { "line": 11, "character": 19 },
+          "label": "arg=",
+          "kind": 2,
+        },
+      ],
+    },
+  ])
+}
+
+///|
 async test "inlay hint returns implicit auto offer hints at call end" {
   let state = ServerState::ServerState()
   ignore(

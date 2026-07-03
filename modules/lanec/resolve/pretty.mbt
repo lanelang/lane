@@ -567,7 +567,7 @@ pub impl @prettyprinter.Pretty for ResolvedCallArgument with fn pretty(
   argument : ResolvedCallArgument,
 ) {
   match argument {
-    Positional(expression) => expression.pretty()
+    Positional(value~, ..) => value.pretty()
     Named(name~, value~, ..) => text(name) + text("=") + value.pretty()
   }
 }

@@ -604,7 +604,7 @@ fn collect_resolved_expr(
       )
       for argument in arguments {
         match argument {
-          Positional(value) =>
+          Positional(value~, ..) =>
             collect_resolved_expr(
               source_id, source_text, value, definitions, references, hovers,
             )
@@ -625,7 +625,7 @@ fn collect_resolved_expr(
         )
       }
     }
-    Field(base~, reference=Symbol(symbol), name_loc~, name~, ..) => {
+    Field(base~, reference=Symbol(symbol), name~, loc~) => {
       collect_resolved_expr(
         source_id, source_text, base, definitions, references, hovers,
       )
@@ -634,7 +634,7 @@ fn collect_resolved_expr(
         hovers,
         source_id,
         Field(symbol),
-        name_loc,
+        loc,
         Some(name),
       )
     }

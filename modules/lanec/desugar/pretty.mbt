@@ -275,7 +275,7 @@ pub impl @prettyprinter.Pretty for DesugaredCallArgument with fn pretty(
   argument : DesugaredCallArgument,
 ) {
   match argument {
-    Positional(expression) => expression.pretty()
+    Positional(value~, ..) => value.pretty()
     Named(name~, value~, ..) => text(name) + text("=") + value.pretty()
   }
 }

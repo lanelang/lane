@@ -150,6 +150,12 @@ pub(all) enum CheckedLiteral {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CheckedCallArgument {
+  value : CheckedExpr
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) enum CheckedExpr {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : SourceSpan)
   Value(
@@ -194,7 +200,7 @@ pub(all) enum CheckedExpr {
   )
   Call(
     callee~ : CheckedExpr,
-    arguments~ : Array[CheckedExpr],
+    arguments~ : Array[CheckedCallArgument],
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
@@ -217,7 +223,6 @@ pub(all) enum CheckedExpr {
     base~ : CheckedExpr,
     field~ : FieldSymbolId,
     name~ : String,
-    name_loc~ : SourceSpan,
     type_~ : @types.Type,
     loc~ : SourceSpan
   )

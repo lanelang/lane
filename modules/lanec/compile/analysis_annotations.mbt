@@ -127,8 +127,8 @@ fn collect_annotated_expr_values(
       collect_annotated_expr_values(callee, symbols)
       for argument in arguments {
         match argument {
-          Positional(argument) =>
-            collect_annotated_expr_values(argument, symbols)
+          Positional(value~, ..) =>
+            collect_annotated_expr_values(value, symbols)
           Named(value~, ..) => collect_annotated_expr_values(value, symbols)
         }
       }

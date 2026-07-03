@@ -371,7 +371,9 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       @pretty.braced_block(arms.map(CheckedMatchArm::pretty))
     Call(callee~, arguments~, ..) =>
       expression_doc(callee) +
-      @pretty.parenthesized_inline(arguments.map(expression_doc))
+      @pretty.parenthesized_inline(
+        arguments.map(fn(argument) { expression_doc(argument.value) }),
+      )
     OperationCall(operation~, type_witnesses~, arguments~, ..) =>
       operation.pretty() +
       text("!") +

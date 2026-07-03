@@ -257,8 +257,8 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         arguments=arguments.map(desugar_call_argument),
         loc~,
       )
-    Field(base~, name~, name_loc~, reference~, loc~) =>
-      Field(base=desugar_expr(base), name~, name_loc~, reference~, loc~)
+    Field(base~, name~, reference~, loc~) =>
+      Field(base=desugar_expr(base), name~, reference~, loc~)
     Unary(operator~, reference~, operand~, loc~) =>
       desugar_operator_call(
         operator.operation_name(),
@@ -316,7 +316,9 @@ fn desugar_operator_call(
 ) -> DesugaredExpr {
   Call(
     callee=Var(name~, reference~, loc~),
-    arguments=arguments.map(fn(argument) { Positional(argument) }),
+    arguments=arguments.map(fn(argument) {
+      Positional(value=argument, loc=argument.loc())
+    }),
     loc~,
   )
 }
@@ -328,9 +330,16 @@ fn desugar_pipeline(
   loc : SourceSpan,
 ) -> DesugaredExpr {
   if right is Call(callee~, arguments~, ..) {
-    Call(callee~, arguments=prepend_argument(Positional(left), arguments), loc~)
+    Call(
+      callee~,
+      arguments=prepend_argument(
+        Positional(value=left, loc=left.loc()),
+        arguments,
+      ),
+      loc~,
+    )
   } else {
-    Call(callee=right, arguments=[Positional(left)], loc~)
+    Call(callee=right, arguments=[Positional(value=left, loc=left.loc())], loc~)
   }
 }
 
@@ -351,7 +360,7 @@ fn desugar_call_argument(
   argument : @resolve.ResolvedCallArgument,
 ) -> DesugaredCallArgument {
   match argument {
-    Positional(expression) => Positional(desugar_expr(expression))
+    Positional(value~, loc~) => Positional(value=desugar_expr(value), loc~)
     Named(name~, value~, loc~) => Named(name~, value=desugar_expr(value), loc~)
   }
 }

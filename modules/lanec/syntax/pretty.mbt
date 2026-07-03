@@ -786,7 +786,7 @@ pub impl @prettyprinter.Pretty for FunctionLiteralParameter with fn pretty(
 ///|
 fn CallArgument::to_doc(self : CallArgument) -> Document {
   match self {
-    Positional(expression) => expression.to_doc()
+    Positional(value~, ..) => value.to_doc()
     Named(name~, value~, ..) => text(name) + text("=") + value.to_doc()
   }
 }

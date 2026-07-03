@@ -167,7 +167,6 @@ fn SemanticChecker::offer_forwarding_fields(
       let field_expr = @desugar.DesugaredExpr::Field(
         base=expression,
         name=field.name,
-        name_loc=loc,
         reference=Symbol(field.symbol),
         loc~,
       )

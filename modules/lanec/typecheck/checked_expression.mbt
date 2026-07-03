@@ -8,7 +8,7 @@ priv struct CheckedExpressionSynthesis {
 
 ///|
 priv struct CheckedCallArguments {
-  arguments : Array[@checked.CheckedExpr]
+  arguments : Array[@checked.CheckedCallArgument]
   effect : @types.Effect
 }
 
@@ -154,8 +154,8 @@ fn SemanticChecker::synthesize_checked_expr(
       )
     Var(name~, reference~, loc~) =>
       self.synthesize_checked_value_reference(scope, reference, name, loc)
-    Field(base~, name~, name_loc~, reference~, loc~) =>
-      self.synthesize_checked_field(scope, base, name, name_loc, reference, loc)
+    Field(base~, name~, reference~, loc~) =>
+      self.synthesize_checked_field(scope, base, name, reference, loc)
     If(condition~, then_branch~, else_branch~, loc~) =>
       self.synthesize_checked_if(
         scope, condition, then_branch, else_branch, loc,
@@ -652,22 +652,22 @@ fn SemanticChecker::synthesize_checked_builtin_callee_call(
   // synthesized facts, and the surrounding call result is the direct expected
   // result type.
   let parameters = []
-  let checked_arguments = []
+  let checked_arguments : Array[@checked.CheckedCallArgument] = []
   let effects = []
   let mut complete = true
   for argument in arguments {
     match argument {
-      Positional(expression) => {
-        let checked = self.synthesize_checked_expr(scope, expression)
+      Positional(value~, loc~) => {
+        let checked = self.synthesize_checked_expr(scope, value)
         parameters.push(checked.type_)
         effects.push(checked.effect)
         match
           self.require_checked_expression(
             checked,
-            expression.loc(),
+            value.loc(),
             "builtin call argument",
           ) {
-          Some(expression) => checked_arguments.push(expression)
+          Some(value) => checked_arguments.push({ value, loc })
           None => complete = false
         }
       }
@@ -686,7 +686,7 @@ fn SemanticChecker::synthesize_checked_builtin_callee_call(
             value.loc(),
             "builtin call argument",
           ) {
-          Some(expression) => checked_arguments.push(expression)
+          Some(value) => checked_arguments.push({ value, loc })
           None => complete = false
         }
       }
@@ -760,7 +760,7 @@ fn SemanticChecker::check_checked_call_arguments(
     ) {
     return None
   }
-  let checked_arguments = []
+  let checked_arguments : Array[@checked.CheckedCallArgument] = []
   let effects = []
   let mut complete = true
   for index in 0..<parameters.length() {
@@ -775,7 +775,8 @@ fn SemanticChecker::check_checked_call_arguments(
         arguments[index].value_expr().loc(),
         "call argument",
       ) {
-      Some(argument) => checked_arguments.push(argument)
+      Some(value) =>
+        checked_arguments.push({ value, loc: arguments[index].loc() })
       None => complete = false
     }
     effects.push(checked.effect)
@@ -795,8 +796,7 @@ fn SemanticChecker::check_checked_call_argument(
   parameter : @types.Type,
 ) -> CheckedExpressionSynthesis {
   match argument {
-    Positional(expression) =>
-      self.check_checked_expr(scope, expression, parameter)
+    Positional(value~, ..) => self.check_checked_expr(scope, value, parameter)
     Named(name~, value~, loc~) => {
       self.report_application_inference_failure(
         "invalid named argument " + name,
@@ -1096,7 +1096,6 @@ fn SemanticChecker::synthesize_checked_field(
   scope : TypeScope,
   base : @desugar.DesugaredExpr,
   name : String,
-  name_loc : SourceSpan,
   reference : @resolve.ResolvedFieldReference,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
@@ -1113,7 +1112,6 @@ fn SemanticChecker::synthesize_checked_field(
         checked_base.effect,
         field,
         name,
-        name_loc,
         loc,
       )
     Deferred(_) =>
@@ -1128,7 +1126,6 @@ fn SemanticChecker::synthesize_checked_field(
           checked_base.effect,
           field,
           name,
-          name_loc,
           loc,
         )
       } else if checked_base.type_ is Error {
@@ -1138,7 +1135,7 @@ fn SemanticChecker::synthesize_checked_field(
         checked_expression_none_reported(Error)
       }
     Unresolved(..) => {
-      self.diagnostics.push({ kind: UnknownField(name~), loc: name_loc })
+      self.diagnostics.push({ kind: UnknownField(name~), loc })
       checked_expression_none_reported(Error)
     }
   }
@@ -1152,7 +1149,6 @@ fn SemanticChecker::checked_field_from_symbol(
   base_effect : @types.Effect,
   field : FieldSymbolId,
   name : String,
-  name_loc : SourceSpan,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   let type_ = self.declarations.field_type(
@@ -1160,10 +1156,10 @@ fn SemanticChecker::checked_field_from_symbol(
     base_type,
     field,
     name,
-    name_loc,
+    loc,
   )
   checked_expression_with_effect(
-    Field(base~, field~, name~, name_loc~, type_~, loc~),
+    Field(base~, field~, name~, type_~, loc~),
     type_,
     base_effect,
   )

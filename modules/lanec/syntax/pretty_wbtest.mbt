@@ -171,7 +171,9 @@ test "pretty print handler keeps with and final attached" {
   let expression = Expr::Handler(
     body=Call(
       callee=Var("call_read", loc=test_loc()),
-      arguments=[Positional(Var("read_int", loc=test_loc()))],
+      arguments=[
+        Positional(value=Var("read_int", loc=test_loc()), loc=test_loc()),
+      ],
       loc=test_loc(),
     ),
     handlers=[
@@ -189,7 +191,12 @@ test "pretty print handler keeps with and final attached" {
             resume_loc: test_loc(),
             body: Call(
               callee=Var("resume", loc=test_loc()),
-              arguments=[Positional(IntLiteral("42", loc=test_loc()))],
+              arguments=[
+                Positional(
+                  value=IntLiteral("42", loc=test_loc()),
+                  loc=test_loc(),
+                ),
+              ],
               loc=test_loc(),
             ),
             loc: test_loc(),
