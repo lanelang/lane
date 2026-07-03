@@ -522,6 +522,154 @@ test "module artifacts roundtrip through binary and link" {
 }
 
 ///|
+test "effect aliases export through interface artifacts" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|import Lib.*
+      #|fn program() -> Unit ! Lib.UI {
+      #|  let ignored : Int = Console::read!()
+      #|  Log::write!("ok")
+      #|}
+    ),
+    [
+      (
+        #|module Lib
+        #|pub effect Console {
+        #|  read() -> Int
+        #|}
+        #|pub effect Log {
+        #|  write(String) -> Unit
+        #|}
+        #|pub type UI = { Console, Log }
+      ),
+    ],
+  )
+  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  guard find_compiled_module(modules.modules, "Lib") is Some(lib) else {
+    abort("expected Lib")
+  }
+  let lib_artifact = lib.to_artifact()
+  inspect(
+    interface_alias_signatures(lib_artifact.interface.interface),
+    content=(
+      #|UI[]:Effect=effect:{
+      #|  effect#0,
+      #|  effect#1
+      #|}
+    ),
+  )
+  let interface_text = module_interface_artifact_to_text(lib_artifact.interface)
+  let decoded = match parse_module_interface_artifact_text(interface_text) {
+    Ok(artifact) => artifact
+    Err(message) => abort(message)
+  }
+  inspect(
+    interface_alias_signatures(decoded.interface),
+    content=(
+      #|UI[]:Effect=effect:{
+      #|  effect#0,
+      #|  effect#1
+      #|}
+    ),
+  )
+  let interface_binary = module_interface_artifact_to_binary(
+    lib_artifact.interface,
+  )
+  let decoded_binary = match
+    parse_module_interface_artifact_binary(interface_binary) {
+    Ok(artifact) => artifact
+    Err(message) => abort(message)
+  }
+  inspect(
+    interface_alias_signatures(decoded_binary.interface),
+    content=(
+      #|UI[]:Effect=effect:{
+      #|  effect#0,
+      #|  effect#1
+      #|}
+    ),
+  )
+  let inspect_text = match artifact_binary_to_inspect_text(interface_binary) {
+    Ok(text) => text
+    Err(message) => abort(message)
+  }
+  inspect(
+    artifact_inspect_without_fingerprints(inspect_text),
+    content=(
+      #|Lane interface artifact
+      #|module: Lib
+      #|schema: 1
+      #|
+      #|imported interfaces:
+      #|  (none)
+      #|
+      #|interface Lib:
+      #|types:
+      #|  (none)
+      #|effects:
+      #|  pub effect Console { read() -> Int }
+      #|  pub effect Log { write(String) -> Unit }
+      #|type aliases:
+      #|  pub type UI : Effect = { Console, Log }
+      #|values:
+      #|  (none)
+      #|
+    ),
+  )
+}
+
+///|
+test "effect alias interface fingerprint tracks body changes" {
+  let first_compiled = compile_modules(
+    (
+      #|module Lib
+      #|pub effect Console {
+      #|  read() -> Int
+      #|}
+      #|pub effect Log {
+      #|  write(String) -> Unit
+      #|}
+      #|pub type UI = { Console }
+    ),
+    [],
+  )
+  let second_compiled = compile_modules(
+    (
+      #|module Lib
+      #|pub effect Console {
+      #|  read() -> Int
+      #|}
+      #|pub effect Log {
+      #|  write(String) -> Unit
+      #|}
+      #|pub type UI = { Console, Log }
+    ),
+    [],
+  )
+  guard first_compiled.modules is Some(first_modules) else {
+    abort("expected first modules")
+  }
+  guard second_compiled.modules is Some(second_modules) else {
+    abort("expected second modules")
+  }
+  guard first_modules.modules.get(0) is Some(first_module) else {
+    abort("expected first module")
+  }
+  guard second_modules.modules.get(0) is Some(second_module) else {
+    abort("expected second module")
+  }
+  inspect(
+    first_module.to_artifact().interface.interface_fingerprint ==
+    second_module.to_artifact().interface.interface_fingerprint,
+    content="false",
+  )
+}
+
+///|
 test "module artifact binary rejects wrong kind" {
   let compiled = compile_modules(
     (
@@ -761,6 +909,32 @@ fn interface_effect_signatures(
     "\{effect.name}[\{effect.type_parameters.length()}]{\{operations}}"
   })
   .join(";")
+}
+
+///|
+fn interface_alias_signatures(
+  interface : @module_interface.ModuleInterface,
+) -> String {
+  interface.type_aliases
+  .map(fn(alias_) {
+    let parameters = alias_.type_parameters
+      .map(fn(parameter) {
+        "\{parameter.name}:\{@prettyprinter.render(parameter.kind, width=100)}"
+      })
+      .join(",")
+    "\{alias_.name}[\{parameters}]:\{@prettyprinter.render(alias_.kind, width=100)}=\{interface_alias_body_signature(alias_.body)}"
+  })
+  .join(";")
+}
+
+///|
+fn interface_alias_body_signature(
+  body : @module_interface.ModuleInterfaceTypeAliasBody,
+) -> String {
+  match body {
+    TypeBody(type_) => "type:" + @prettyprinter.render(type_, width=100)
+    EffectBody(effect) => "effect:" + @prettyprinter.render(effect, width=100)
+  }
 }
 
 ///|

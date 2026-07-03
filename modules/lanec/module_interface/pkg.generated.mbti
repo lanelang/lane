@@ -81,9 +81,15 @@ pub(all) enum ModuleInterfaceType {
 
 pub(all) struct ModuleInterfaceTypeAlias {
   name : String
-  body : @types.Type
+  type_parameters : Array[@types.TypeParameter]
+  body : ModuleInterfaceTypeAliasBody
   kind : @types.Kind
   loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModuleInterfaceTypeAliasBody {
+  TypeBody(@types.Type)
+  EffectBody(@types.Effect)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceTypeMember {

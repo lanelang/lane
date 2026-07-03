@@ -904,9 +904,30 @@ fn ArtifactTextWriter::write_type_alias(
   alias_ : @module_interface.ModuleInterfaceTypeAlias,
 ) -> Unit {
   self.write_string("type_alias.name", alias_.name)
-  self.write_lane_type(alias_.body)
+  self.write_type_parameters(
+    "type_alias.type_parameters",
+    alias_.type_parameters,
+  )
+  self.write_type_alias_body(alias_.body)
   self.write_lane_kind("type_alias.kind", alias_.kind)
   self.write_source_span("type_alias.loc", alias_.loc)
+}
+
+///|
+fn ArtifactTextWriter::write_type_alias_body(
+  self : ArtifactTextWriter,
+  body : @module_interface.ModuleInterfaceTypeAliasBody,
+) -> Unit {
+  match body {
+    TypeBody(type_) => {
+      self.write_tag("type_alias.body.type")
+      self.write_lane_type(type_)
+    }
+    EffectBody(effect) => {
+      self.write_tag("type_alias.body.effect")
+      self.write_lane_effect(effect)
+    }
+  }
 }
 
 ///|
@@ -914,10 +935,22 @@ fn ArtifactTextReader::read_type_alias(
   self : ArtifactTextReader,
 ) -> @module_interface.ModuleInterfaceTypeAlias raise ArtifactTextError {
   let name = self.expect_string("type_alias.name")
-  let body = self.read_lane_type()
+  let type_parameters = self.read_type_parameters("type_alias.type_parameters")
+  let body = self.read_type_alias_body()
   let kind = self.read_lane_kind("type_alias.kind")
   let loc = self.read_source_span("type_alias.loc")
-  { name, body, kind, loc }
+  { name, type_parameters, body, kind, loc }
+}
+
+///|
+fn ArtifactTextReader::read_type_alias_body(
+  self : ArtifactTextReader,
+) -> @module_interface.ModuleInterfaceTypeAliasBody raise ArtifactTextError {
+  match self.next_tag() {
+    "type_alias.body.type" => TypeBody(self.read_lane_type())
+    "type_alias.body.effect" => EffectBody(self.read_lane_effect())
+    tag => fail_unknown("unknown type alias body tag \{tag}")
+  }
 }
 
 ///|

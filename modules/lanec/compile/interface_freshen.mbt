@@ -291,9 +291,23 @@ fn InterfaceSymbolFreshener::freshen_type_alias(
 ) -> @module_interface.ModuleInterfaceTypeAlias {
   {
     name: type_alias.name,
-    body: self.freshen_lane_type(type_alias.body),
+    type_parameters: type_alias.type_parameters.map(fn(parameter) {
+      self.freshen_type_parameter(parameter)
+    }),
+    body: self.freshen_type_alias_body(type_alias.body),
     kind: type_alias.kind,
     loc: type_alias.loc,
+  }
+}
+
+///|
+fn InterfaceSymbolFreshener::freshen_type_alias_body(
+  self : InterfaceSymbolFreshener,
+  body : @module_interface.ModuleInterfaceTypeAliasBody,
+) -> @module_interface.ModuleInterfaceTypeAliasBody {
+  match body {
+    TypeBody(type_) => TypeBody(self.freshen_lane_type(type_))
+    EffectBody(effect) => EffectBody(self.freshen_lane_effect(effect))
   }
 }
 

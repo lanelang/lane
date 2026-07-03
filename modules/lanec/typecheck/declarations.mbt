@@ -640,7 +640,17 @@ fn TypeExpressionChecker::expand_alias(
     }
     None =>
       match self.find_interface_alias(name) {
-        Some(type_alias) => { type_: type_alias.body, kind: type_alias.kind }
+        Some(type_alias) =>
+          match type_alias.body {
+            TypeBody(body) => { type_: body, kind: type_alias.kind }
+            EffectBody(_) => {
+              self.diagnostics.push({
+                kind: KindMismatch(expected=Type, actual=type_alias.kind),
+                loc,
+              })
+              { type_: Error, kind: Type }
+            }
+          }
         None => {
           self.diagnostics.push({ kind: UnresolvedType(name), loc })
           { type_: Error, kind: Type }

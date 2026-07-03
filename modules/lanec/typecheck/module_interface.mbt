@@ -171,26 +171,63 @@ fn SemanticChecker::interface_type_aliases(
   for declaration in self.resolved_source.declarations {
     match declaration {
       TypeAlias(declaration) if declaration.is_public => {
-        guard declaration.body is TypeBody(body) else { continue }
         let checker = TypeExpressionChecker::{
           source: self.resolved_source,
           imported_environment: self.imported_environment,
           diagnostics: self.diagnostics,
           expanding: [declaration.name],
         }
-        let result = checker.synthesize_type(body)
-        self.check_public_interface_type_fallback(result.type_, declaration.loc)
-        aliases.push({
-          name: declaration.name,
-          body: result.type_.normalize(),
-          kind: result.kind,
-          loc: declaration.loc,
-        })
+        let type_parameters = check_type_parameters(
+          self.diagnostics,
+          declaration.type_parameters,
+        )
+        match declaration.body {
+          TypeBody(body) => {
+            let result = checker.synthesize_type(body)
+            self.check_public_interface_type_fallback(
+              result.type_,
+              declaration.loc,
+            )
+            aliases.push({
+              name: declaration.name,
+              type_parameters,
+              body: TypeBody(result.type_.normalize()),
+              kind: result.kind,
+              loc: declaration.loc,
+            })
+          }
+          EffectBody(effect) => {
+            let checked = checker.check_effect(effect).normalize()
+            self.check_public_interface_effect_fallback_with_seen(
+              checked,
+              declaration.loc,
+              [],
+            )
+            aliases.push({
+              name: declaration.name,
+              type_parameters,
+              body: EffectBody(checked),
+              kind: effect_alias_interface_kind(type_parameters),
+              loc: declaration.loc,
+            })
+          }
+        }
       }
       _ => ()
     }
   }
   aliases
+}
+
+///|
+fn effect_alias_interface_kind(
+  type_parameters : Array[@types.TypeParameter],
+) -> @types.Kind {
+  if type_parameters.is_empty() {
+    Effect
+  } else {
+    Function(type_parameters.map(fn(parameter) { parameter.kind }), Effect)
+  }
 }
 
 ///|
@@ -360,14 +397,31 @@ fn SemanticChecker::check_public_interface_effect_fallback_with_seen(
 ) -> Unit {
   match effect {
     Empty | Parameter(_) => ()
-    Singleton(_, arguments) =>
+    Singleton(symbol, arguments) => {
+      self.check_public_interface_effect_fallback(symbol, loc)
       for argument in arguments {
         self.check_public_interface_type_fallback_with_seen(argument, loc, seen)
       }
+    }
     Union(effects) =>
       for item in effects {
         self.check_public_interface_effect_fallback_with_seen(item, loc, seen)
       }
+  }
+}
+
+///|
+fn SemanticChecker::check_public_interface_effect_fallback(
+  self : SemanticChecker,
+  symbol : EffectSymbolId,
+  loc : SourceSpan,
+) -> Unit {
+  match self.private_effect_name(symbol) {
+    Some(name) =>
+      if !self.has_private_effect_escape_diagnostic(name) {
+        self.diagnostics.push({ kind: PrivateEffectEscape(name~), loc })
+      }
+    None => ()
   }
 }
 
@@ -423,6 +477,20 @@ fn SemanticChecker::has_private_type_escape_diagnostic(
 }
 
 ///|
+fn SemanticChecker::has_private_effect_escape_diagnostic(
+  self : SemanticChecker,
+  name : String,
+) -> Bool {
+  for diagnostic in self.diagnostics {
+    if diagnostic.kind is PrivateEffectEscape(name=diagnostic_name) &&
+      diagnostic_name == name {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn SemanticChecker::private_nominal_type_name(
   self : SemanticChecker,
   symbol : TypeSymbolId,
@@ -442,6 +510,19 @@ fn SemanticChecker::private_nominal_type_name(
           return Some(declaration.name)
         }
       _ => ()
+    }
+  }
+  None
+}
+
+///|
+fn SemanticChecker::private_effect_name(
+  self : SemanticChecker,
+  symbol : EffectSymbolId,
+) -> String? {
+  for declaration in self.declarations.effects {
+    if declaration.symbol == symbol && !declaration.is_public {
+      return Some(declaration.name)
     }
   }
   None

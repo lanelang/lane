@@ -284,7 +284,8 @@ fn ArtifactInspectContext::from_interface(
     }
   }
   for alias_ in interface.type_aliases {
-    context.add_type_parameters_from_type(alias_.body)
+    context.add_type_parameters(alias_.type_parameters)
+    context.add_type_parameters_from_type_alias_body(alias_.body)
   }
   for value in interface.values {
     context.add_type_parameters_from_type(value.type_)
@@ -451,7 +452,29 @@ fn ArtifactInspectContext::interface_type_alias_text(
   self : ArtifactInspectContext,
   alias_ : @module_interface.ModuleInterfaceTypeAlias,
 ) -> String {
-  "pub type \{alias_.name} : \{self.kind_text(alias_.kind)} = \{self.type_text(alias_.body)}"
+  "pub type \{alias_.name}\{self.type_parameters_text(alias_.type_parameters)} : \{self.kind_text(alias_.kind)} = \{self.type_alias_body_text(alias_.body)}"
+}
+
+///|
+fn ArtifactInspectContext::type_alias_body_text(
+  self : ArtifactInspectContext,
+  body : @module_interface.ModuleInterfaceTypeAliasBody,
+) -> String {
+  match body {
+    TypeBody(type_) => self.type_text(type_)
+    EffectBody(effect) => self.effect_text(effect)
+  }
+}
+
+///|
+fn ArtifactInspectContext::add_type_parameters_from_type_alias_body(
+  self : ArtifactInspectContext,
+  body : @module_interface.ModuleInterfaceTypeAliasBody,
+) -> Unit {
+  match body {
+    TypeBody(type_) => self.add_type_parameters_from_type(type_)
+    EffectBody(effect) => self.add_type_parameters_from_effect(effect)
+  }
 }
 
 ///|
@@ -563,6 +586,18 @@ fn ArtifactInspectContext::type_parameter_bindings_text(
   parameters
   .map(fn(parameter) { "\{parameter.name} : \{self.kind_text(parameter.kind)}" })
   .join(", ")
+}
+
+///|
+fn ArtifactInspectContext::type_parameters_text(
+  self : ArtifactInspectContext,
+  parameters : Array[@types.TypeParameter],
+) -> String {
+  if parameters.is_empty() {
+    ""
+  } else {
+    "[\{self.type_parameter_bindings_text(parameters)}]"
+  }
 }
 
 ///|

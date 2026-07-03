@@ -156,15 +156,26 @@ fn TypeExpressionChecker::expand_effect_alias(
     None =>
       match self.find_interface_alias(name) {
         Some(type_alias) =>
-          if type_alias.kind == Effect {
-            self.diagnostics.push({ kind: UnresolvedType(name), loc })
-            Empty
-          } else {
-            self.diagnostics.push({
-              kind: KindMismatch(expected=Effect, actual=type_alias.kind),
-              loc,
-            })
-            Empty
+          match type_alias.body {
+            EffectBody(effect) => {
+              let (type_substitution, effect_substitution) = self.check_effect_alias_arguments(
+                type_alias.type_parameters,
+                arguments,
+                name,
+                loc,
+              )
+              let expanded = effect.substitute(type_substitution)
+              expanded
+              .substitute_effect_parameters(effect_substitution)
+              .normalize()
+            }
+            TypeBody(_) => {
+              self.diagnostics.push({
+                kind: KindMismatch(expected=Effect, actual=type_alias.kind),
+                loc,
+              })
+              Empty
+            }
           }
         None => {
           for argument in arguments {

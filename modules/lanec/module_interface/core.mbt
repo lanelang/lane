@@ -91,9 +91,16 @@ pub(all) struct ModuleInterfaceOperation {
 ///|
 pub(all) struct ModuleInterfaceTypeAlias {
   name : String
-  body : @types.Type
+  type_parameters : Array[@types.TypeParameter]
+  body : ModuleInterfaceTypeAliasBody
   kind : @types.Kind
   loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ModuleInterfaceTypeAliasBody {
+  TypeBody(@types.Type)
+  EffectBody(@types.Effect)
 } derive(Debug, Eq)
 
 ///|

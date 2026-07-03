@@ -181,6 +181,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   PatternArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
   HiddenTypeEscape(type_~ : @types.Type)
   PrivateTypeEscape(name~ : String)
+  PrivateEffectEscape(name~ : String)
   InvalidIntLiteral(String)
   CannotInferExpression(label~ : String, reason~ : CannotInferReason)
 } derive(Debug, Eq)

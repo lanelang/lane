@@ -432,6 +432,24 @@ test "typecheck effect declaration environment and public interface" {
 }
 
 ///|
+test "typecheck rejects public effect alias exposing private effect" {
+  let result = expect_checked_source_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|pub type UI = { Console }
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[private effect `Console` in public interface @ 5:15-5:26]
+    ),
+  )
+}
+
+///|
 fn module_interface_effect_signatures(
   interface : @module_interface.ModuleInterface,
 ) -> String {

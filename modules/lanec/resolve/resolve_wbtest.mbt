@@ -192,7 +192,8 @@ test "resolve module-qualified effect alias references" {
         type_aliases: [
           {
             name: "UI",
-            body: Primitive(Unit),
+            type_parameters: [],
+            body: EffectBody(Empty),
             kind: Effect,
             loc: @basic.SourceSpan::dummy(),
           },

@@ -228,7 +228,21 @@ fn interface_alias_fingerprint(
   context : FingerprintTypeContext,
   type_alias : @module_interface.ModuleInterfaceTypeAlias,
 ) -> String {
-  "\{type_alias.name}:\{kind_fingerprint(type_alias.kind)}=\{context.type_fingerprint(type_alias.body)}"
+  let type_parameters = type_alias.type_parameters
+    .map(type_parameter_fingerprint)
+    .join(",")
+  "\{type_alias.name}[\{type_parameters}]:\{kind_fingerprint(type_alias.kind)}=\{context.type_alias_body_fingerprint(type_alias.body)}"
+}
+
+///|
+fn FingerprintTypeContext::type_alias_body_fingerprint(
+  self : FingerprintTypeContext,
+  body : @module_interface.ModuleInterfaceTypeAliasBody,
+) -> String {
+  match body {
+    TypeBody(type_) => "type:" + self.type_fingerprint(type_)
+    EffectBody(effect) => "effect:" + self.effect_fingerprint(effect)
+  }
 }
 
 ///|

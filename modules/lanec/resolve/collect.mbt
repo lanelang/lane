@@ -179,7 +179,12 @@ fn Resolver::publish_imported_public_types(
     }
   }
   for type_alias in interface.type_aliases {
-    self.type_aliases.push({ name: type_alias.name, type_parameters: [] })
+    self.type_aliases.push({
+      name: type_alias.name,
+      type_parameters: interface_type_parameters_to_syntax(
+        type_alias.type_parameters,
+      ),
+    })
   }
 }
 
@@ -211,9 +216,41 @@ fn Resolver::publish_imported_selected_types(
     }
     for type_alias in interface.type_aliases {
       if type_alias.name == item.name {
-        self.type_aliases.push({ name: type_alias.name, type_parameters: [] })
+        self.type_aliases.push({
+          name: type_alias.name,
+          type_parameters: interface_type_parameters_to_syntax(
+            type_alias.type_parameters,
+          ),
+        })
       }
     }
+  }
+}
+
+///|
+fn interface_type_parameters_to_syntax(
+  parameters : Array[@types.TypeParameter],
+) -> Array[@syntax.TypeParameter] {
+  parameters.map(fn(parameter) {
+    {
+      name: parameter.name,
+      kind: Some(interface_kind_to_syntax(parameter.kind)),
+      loc: @basic.SourceSpan::dummy(),
+    }
+  })
+}
+
+///|
+fn interface_kind_to_syntax(kind : @types.Kind) -> @syntax.Kind {
+  match kind {
+    Type => Type(loc=@basic.SourceSpan::dummy())
+    Effect => Effect(loc=@basic.SourceSpan::dummy())
+    Function(parameters, result) =>
+      Function(
+        parameters=parameters.map(interface_kind_to_syntax),
+        result=interface_kind_to_syntax(result),
+        loc=@basic.SourceSpan::dummy(),
+      )
   }
 }
 
@@ -1278,9 +1315,12 @@ fn Resolver::resolve_module_qualified_effect_type(
       }
       for type_alias in module_.interface.type_aliases {
         if type_alias.name == name {
-          let arguments = arguments.map(fn(argument) {
-            TypeArgument(argument.resolve_type(self, scope))
-          })
+          let arguments = resolve_imported_effect_alias_arguments(
+            arguments,
+            type_alias.type_parameters,
+            self,
+            scope,
+          )
           return Alias(name=full_name, arguments~, loc~)
         }
       }
@@ -1298,6 +1338,28 @@ fn Resolver::resolve_module_qualified_effect_type(
       Unresolved(name=full_name, arguments~, loc~)
     }
   }
+}
+
+///|
+fn resolve_imported_effect_alias_arguments(
+  arguments : Array[@syntax.Type],
+  parameters : Array[@types.TypeParameter],
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> Array[ResolvedEffectAliasArgument] {
+  arguments.mapi(fn(index, argument) {
+    if index < parameters.length() && parameters[index].kind == Effect {
+      if argument.should_resolve_as_effect_alias_argument(resolver, scope) {
+        EffectArgument(
+          argument.resolve_effect_type(resolver, scope, argument.loc()),
+        )
+      } else {
+        TypeArgument(argument.resolve_type(resolver, scope))
+      }
+    } else {
+      TypeArgument(argument.resolve_type(resolver, scope))
+    }
+  })
 }
 
 ///|

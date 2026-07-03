@@ -1207,6 +1207,26 @@ fn typecheck_diagnostic(
           "make `\{name}` public or change the public signature to hide it",
         ],
       )
+    PrivateEffectEscape(name~) =>
+      diagnostic(
+        "private effect `\{name}` in public interface",
+        span~,
+        severity=Error,
+        code=Some("E3109"),
+        labels=[
+          {
+            span: diagnostic_.loc,
+            message: "public interface exposes private effect `\{name}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "downstream modules need public effect information to compile against this item",
+        ],
+        helps=[
+          "make `\{name}` public or change the public effect alias to hide it",
+        ],
+      )
     InvalidIntLiteral(raw) =>
       diagnostic(
         "invalid integer literal `\{raw}`",
