@@ -9,10 +9,10 @@ async fn lane_compile(
   let interface_path = compile_output_path(file, emit_interface, ".lmi")
   let object_path = compile_output_path(file, emit_object, ".lmo")
   let source = read_source_file(file) catch {
-    error => {
-      println(read_file_error(file, "\{error}"))
-      return UserFailure
-    }
+    error =>
+      return LaneCommandOutcome::user_error(
+        CliError::file_io(Compile, file, "\{error}"),
+      )
   }
   let root : LaneSourceInput = {
     source_id: file,
@@ -21,10 +21,7 @@ async fn lane_compile(
   }
   let imported_interfaces = match read_module_interface_artifacts(interfaces) {
     Ok(imported_interfaces) => imported_interfaces
-    Err(message) => {
-      println(message)
-      return UserFailure
-    }
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let diagnostic_sources = LaneSourceInput::diagnostic_sources(root, [])
   let result = @compile.compile_module_input_with_interface_artifacts(
@@ -32,8 +29,11 @@ async fn lane_compile(
     imported_interfaces,
   )
   if !result.diagnostics.is_empty() {
-    print_diagnostics_with_sources(result.diagnostics, diagnostic_sources)
-    return UserFailure
+    return LaneCommandOutcome::compile_diagnostics(
+      result.diagnostics,
+      diagnostic_sources,
+      false,
+    )
   }
   guard result.modules is Some(modules) else {
     internal_error("compiler produced no compiled modules")
@@ -42,16 +42,16 @@ async fn lane_compile(
     internal_error("compiler produced no compiled module")
   }
   write_module_interface_artifact(interface_path, module_) catch {
-    error => {
-      println(write_file_error(interface_path, "\{error}"))
-      return UserFailure
-    }
+    error =>
+      return LaneCommandOutcome::user_error(
+        CliError::file_io(Write, interface_path, "\{error}"),
+      )
   }
   write_module_object_artifact(object_path, module_) catch {
-    error => {
-      println(write_file_error(object_path, "\{error}"))
-      return UserFailure
-    }
+    error =>
+      return LaneCommandOutcome::user_error(
+        CliError::file_io(Write, object_path, "\{error}"),
+      )
   }
   if verbose {
     println("compiled module \{module_.module_path_text}")

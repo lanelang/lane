@@ -4,12 +4,11 @@ async fn lane_fmt(
   check : Bool,
   deny : Bool,
 ) -> LaneCommandOutcome {
-  let mut failed = false
+  let errors : Array[CliError] = []
   for file in files {
     let source = read_source_file(file) catch {
       error => {
-        println(read_file_error(file, "\{error}"))
-        failed = true
+        errors.push(CliError::file_io(Format, file, "\{error}"))
         continue
       }
     }
@@ -17,28 +16,19 @@ async fn lane_fmt(
       Ok(formatted) =>
         if formatted != source {
           if check || deny {
-            println("\{file}: not formatted")
-            failed = true
+            errors.push(NotFormatted(path=file))
           } else {
             write_source_file(file, formatted) catch {
-              error => {
-                println(write_file_error(file, "\{error}"))
-                failed = true
-              }
+              error => errors.push(CliError::file_io(Write, file, "\{error}"))
             }
           }
         }
-      Err(diagnostics) => {
-        failed = true
-        for diagnostic in diagnostics {
-          let rendered = @prettyprinter.render(diagnostic, width=100)
-          println("\{file}: \{rendered}")
-        }
-      }
+      Err(diagnostics) =>
+        errors.push(FormatDiagnostics(path=file, diagnostics~))
     }
   }
-  if failed {
-    UserFailure
+  if !errors.is_empty() {
+    UserErrors(errors)
   } else {
     Succeeded
   }

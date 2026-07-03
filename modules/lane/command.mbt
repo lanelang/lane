@@ -111,9 +111,9 @@ fn lane_command_spec() -> Command {
 }
 
 ///|
-fn parse_lane_command() -> Result[LaneCommand, String] {
+fn parse_lane_command() -> Result[LaneCommand, CliError] {
   let matches = lane_command_spec().parse() catch {
-    error => return Err(cli_parse_error("\{error}"))
+    error => return Err(InvalidCommand(message="\{error}"))
   }
   match matches.subcommand {
     Some(("check", child)) =>
@@ -195,7 +195,7 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
         ),
       )
     Some(("lsp", child)) => Ok(Lsp(stdio=flag(child, "stdio")))
-    _ => Err(unknown_command_error())
+    _ => Err(UnknownCommand)
   }
 }
 
@@ -206,23 +206,23 @@ priv struct RunTarget {
 }
 
 ///|
-fn parse_run_target(target : String) -> Result[RunTarget, String] {
+fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
   let parts = target.split(":").collect()
   if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-    return Err(run_target_error(target))
+    return Err(InvalidRunTarget(target~))
   }
   Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned() })
 }
 
 ///|
-fn parse_runobj_target(target : String) -> Result[RunTarget, String] {
+fn parse_runobj_target(target : String) -> Result[RunTarget, CliError] {
   let parts = target.split(":").collect()
   if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-    return Err(runobj_target_error(target))
+    return Err(InvalidRunObjTarget(target~))
   }
   match public_entry_name_to_internal(parts[1].to_owned()) {
     Ok(entry) => Ok({ file: parts[0].to_owned(), entry })
-    Err(_) => Err(runobj_target_error(target))
+    Err(_) => Err(InvalidRunObjTarget(target~))
   }
 }
 
@@ -307,13 +307,11 @@ fn verbose_flag() -> @argparse.FlagArg {
 fn required_value(
   matches : @argparse.Matches,
   name : String,
-) -> Result[String, String] {
+) -> Result[String, CliError] {
   guard matches.values.get(name) is Some(values) else {
-    return Err(missing_argument_error(name))
+    return Err(MissingArgument(name~))
   }
-  guard values.get(0) is Some(value) else {
-    return Err(missing_argument_error(name))
-  }
+  guard values.get(0) is Some(value) else { return Err(MissingArgument(name~)) }
   Ok(value)
 }
 

@@ -79,22 +79,28 @@ async fn write_module_object_artifact(
 ///|
 async fn read_module_interface_artifact(
   path : String,
-) -> @compile.ModuleInterfaceArtifact {
-  let bytes = read_binary_file(path)
+) -> Result[@compile.ModuleInterfaceArtifact, CliError] {
+  let bytes = read_binary_file(path) catch {
+    error => return Err(CliError::file_io(Read, path, "\{error}"))
+  }
   match @compile.parse_module_interface_artifact_binary(bytes) {
-    Ok(artifact) => artifact
-    Err(message) => fail(message)
+    Ok(artifact) => Ok(artifact)
+    Err(message) =>
+      Err(ArtifactLoad(path~, kind="module interface artifact", message~))
   }
 }
 
 ///|
 async fn read_module_object_artifact(
   path : String,
-) -> @compile.ModuleObjectArtifact {
-  let bytes = read_binary_file(path)
+) -> Result[@compile.ModuleObjectArtifact, CliError] {
+  let bytes = read_binary_file(path) catch {
+    error => return Err(CliError::file_io(Read, path, "\{error}"))
+  }
   match @compile.parse_module_object_artifact_binary(bytes) {
-    Ok(artifact) => artifact
-    Err(message) => fail(message)
+    Ok(artifact) => Ok(artifact)
+    Err(message) =>
+      Err(ArtifactLoad(path~, kind="module object artifact", message~))
   }
 }
 
@@ -110,38 +116,45 @@ async fn write_linked_program_artifact(
 }
 
 ///|
-async fn read_linked_program_artifact(path : String) -> @compile.LinkedProgram {
-  let bytes = read_binary_file(path)
+async fn read_linked_program_artifact(
+  path : String,
+) -> Result[@compile.LinkedProgram, CliError] {
+  let bytes = read_binary_file(path) catch {
+    error => return Err(CliError::file_io(RunObject, path, "\{error}"))
+  }
   let artifact = match @compile.parse_linked_program_artifact_binary(bytes) {
     Ok(artifact) => artifact
-    Err(message) => fail(message)
+    Err(message) =>
+      return Err(ArtifactLoad(path~, kind="linked program artifact", message~))
   }
   match artifact.to_linked_program() {
-    Ok(program) => program
-    Err(diagnostics) => fail(@prettyprinter.render(diagnostics, width=100))
+    Ok(program) => Ok(program)
+    Err(diagnostics) =>
+      Err(
+        ArtifactLoad(
+          path~,
+          kind="linked program artifact",
+          message=@prettyprinter.render(diagnostics, width=100),
+        ),
+      )
   }
 }
 
 ///|
 async fn read_module_object_artifacts(
   object_paths : Array[String],
-) -> Result[Array[@compile.ModuleObjectArtifact], String] {
+) -> Result[Array[@compile.ModuleObjectArtifact], CliError] {
   let objects = []
   for path in object_paths {
-    let artifact = read_module_object_artifact(path) catch {
-      error => return Err(read_file_error(path, "\{error}"))
+    let artifact = match read_module_object_artifact(path) {
+      Ok(artifact) => artifact
+      Err(FileIo(reason~, ..)) =>
+        return Err(FileIo(action=Link, path~, reason~))
+      Err(error) => return Err(error)
     }
     if find_object_artifact(objects, artifact.module_path_text) is Some(_) {
       return Err(
-        lane_boundary_error(
-          "E6007",
-          "duplicate module object artifact",
-          ["module `\{artifact.module_path_text}` was provided more than once"],
-          [
-            "each module in a link input set must come from exactly one object artifact",
-          ],
-          ["remove the duplicate object path and run `lane link` again"],
-        ),
+        DuplicateObjectArtifact(module_path_text=artifact.module_path_text),
       )
     }
     objects.push(artifact)
@@ -165,11 +178,12 @@ fn find_object_artifact(
 ///|
 async fn read_module_interface_artifacts(
   interfaces : Array[String],
-) -> Result[Array[@compile.ModuleInterfaceArtifact], String] {
+) -> Result[Array[@compile.ModuleInterfaceArtifact], CliError] {
   let artifacts = []
   for interface in interfaces {
-    let artifact = read_module_interface_artifact(interface) catch {
-      error => return Err(read_file_error(interface, "\{error}"))
+    let artifact = match read_module_interface_artifact(interface) {
+      Ok(artifact) => artifact
+      Err(error) => return Err(error)
     }
     artifacts.push(artifact)
   }
@@ -181,7 +195,7 @@ async fn read_library_source_inputs(
   root : String,
   libs : Array[String],
   lib_dirs : Array[String],
-) -> Result[Array[LaneSourceInput], String] {
+) -> Result[Array[LaneSourceInput], CliError] {
   let root_identity = match library_source_identity(root) {
     Ok(identity) => identity
     Err(message) => return Err(message)
@@ -205,9 +219,9 @@ async fn read_library_source_inputs(
 }
 
 ///|
-async fn library_source_identity(path : String) -> Result[String, String] {
+async fn library_source_identity(path : String) -> Result[String, CliError] {
   let identity = @fs.realpath(path) catch {
-    error => return Err(resolve_file_error(path, "\{error}"))
+    error => return Err(CliError::file_io(Resolve, path, "\{error}"))
   }
   Ok(identity)
 }
@@ -219,14 +233,14 @@ async fn append_library_source(
   path : String,
   identities : Array[String],
   sources : Array[LaneSourceInput],
-) -> Result[Unit, String] {
+) -> Result[Unit, CliError] {
   let identity = match library_source_identity(path) {
     Ok(identity) => identity
     Err(message) => return Err(message)
   }
   if identity == root_identity {
     match explicit_root {
-      Some(root) => return Err(root_library_input_error(root, path))
+      Some(root) => return Err(RootLibraryInput(root~, library=path))
       None => return Ok(())
     }
   }
@@ -234,7 +248,7 @@ async fn append_library_source(
     return Ok(())
   }
   let source = read_source_file(path) catch {
-    error => return Err(read_file_error(path, "\{error}"))
+    error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
   identities.push(identity)
   sources.push({ source_id: path, path: Some(path), text: source })
@@ -247,9 +261,9 @@ async fn append_library_dir_sources(
   path : String,
   identities : Array[String],
   sources : Array[LaneSourceInput],
-) -> Result[Unit, String] {
+) -> Result[Unit, CliError] {
   let entries = @fs.readdir(path, sort=true) catch {
-    error => return Err(read_file_error(path, "\{error}"))
+    error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
   for entry in entries {
     if should_skip_library_entry(entry) {
@@ -257,7 +271,7 @@ async fn append_library_dir_sources(
     }
     let child = "\{path}/\{entry}"
     let kind = @fs.kind(child) catch {
-      error => return Err(read_file_error(child, "\{error}"))
+      error => return Err(CliError::file_io(Read, child, "\{error}"))
     }
     match kind {
       Directory =>
@@ -289,5 +303,5 @@ fn should_skip_library_entry(entry : String) -> Bool {
 
 ///|
 fn[T] internal_error(message : String) -> T {
-  abort(internal_compiler_error(message))
+  abort(CliError::Internal(message~).render_human())
 }

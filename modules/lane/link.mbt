@@ -6,24 +6,24 @@ async fn lane_link(
 ) -> LaneCommandOutcome {
   let object_artifacts = match read_module_object_artifacts(objects) {
     Ok(objects) => objects
-    Err(message) => {
-      println(message)
-      return UserFailure
-    }
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let linked = @compile.link_module_object_artifacts(object_artifacts)
   if !linked.diagnostics.is_empty() {
-    print_diagnostics(linked.diagnostics)
-    return UserFailure
+    return LaneCommandOutcome::compile_diagnostics(
+      linked.diagnostics,
+      DiagnosticSources(),
+      false,
+    )
   }
   guard linked.program is Some(program) else {
     internal_error("linker produced no program")
   }
   write_linked_program_artifact(output, program) catch {
-    error => {
-      println(write_file_error(output, "\{error}"))
-      return UserFailure
-    }
+    error =>
+      return LaneCommandOutcome::user_error(
+        CliError::file_io(Write, output, "\{error}"),
+      )
   }
   if verbose {
     let linked_modules = program.module_path_texts.join(",")

@@ -1,7 +1,12 @@
 ///|
 enum LaneCommandOutcome {
   Succeeded
-  UserFailure
+  UserErrors(Array[CliError])
+  CompileDiagnostics(
+    diagnostics~ : Array[@compile.CompileDiagnostic],
+    sources~ : DiagnosticSources,
+    success~ : Bool
+  )
 }
 
 ///|
@@ -23,12 +28,42 @@ async fn main {
       }
       match outcome {
         Succeeded => ()
-        UserFailure => @sys.exit(1)
+        UserErrors(errors) => {
+          render_cli_errors(errors)
+          @sys.exit(1)
+        }
+        CompileDiagnostics(diagnostics~, sources~, success~) => {
+          print_diagnostics_with_sources(diagnostics, sources)
+          if !success {
+            @sys.exit(1)
+          }
+        }
       }
     }
-    Err(message) => {
-      println(message)
+    Err(error) => {
+      println(error.render_human())
       @sys.exit(1)
     }
+  }
+}
+
+///|
+fn LaneCommandOutcome::user_error(error : CliError) -> LaneCommandOutcome {
+  UserErrors([error])
+}
+
+///|
+fn LaneCommandOutcome::compile_diagnostics(
+  diagnostics : Array[@compile.CompileDiagnostic],
+  sources : DiagnosticSources,
+  success : Bool,
+) -> LaneCommandOutcome {
+  CompileDiagnostics(diagnostics~, sources~, success~)
+}
+
+///|
+fn render_cli_errors(errors : Array[CliError]) -> Unit {
+  for error in errors {
+    println(error.render_human())
   }
 }

@@ -9,11 +9,15 @@ test "parse run target from file and entry suffix" {
 
 ///|
 test "reject run target without entry suffix" {
-  guard parse_run_target("examples/main.lane") is Err(message) else {
+  guard parse_run_target("examples/main.lane") is Err(error) else {
     abort("expected run target error")
   }
+  debug_inspect(
+    error,
+    content="InvalidRunTarget(target=\"examples/main.lane\")",
+  )
   inspect(
-    message,
+    error.render_human(),
     content=(
       #|error[E6002]: invalid run target
       #|  = label: expected `FILE:ENTRY`, got `examples/main.lane`
@@ -34,17 +38,98 @@ test "parse runobj target from artifact and module-qualified entry" {
 
 ///|
 test "reject runobj target without module-qualified entry" {
-  guard parse_runobj_target("program.lbp:answer") is Err(message) else {
+  guard parse_runobj_target("program.lbp:answer") is Err(error) else {
     abort("expected runobj target error")
   }
+  debug_inspect(
+    error,
+    content="InvalidRunObjTarget(target=\"program.lbp:answer\")",
+  )
   inspect(
-    message,
+    error.render_human(),
     content=(
       #|error[E6008]: invalid runobj target
       #|  = label: expected `FILE:Module.value`, got `program.lbp:answer`
       #|  = note: `lane runobj` loads one linked program artifact and selects a public entry from it
       #|  = help: try: lane runobj program.lbp:Main.main
     ),
+  )
+}
+
+///|
+test "file read diagnostics hide host exception details" {
+  let error = CliError::file_io(
+    Read,
+    "hello",
+    "OSError(\"@fs.open(): \\\"hello\\\": No such file or directory\")",
+  )
+  debug_inspect(
+    error,
+    content="FileIo(action=Read, path=\"hello\", reason=NotFound)",
+  )
+  inspect(
+    error.render_human(),
+    content="error: couldn't read `hello`: No such file or directory",
+  )
+}
+
+///|
+test "file write diagnostics classify permission errors" {
+  let error = CliError::file_io(
+    Write,
+    "/root/out.lmo",
+    "OSError(\"@fs.open(): \\\"/root/out.lmo\\\": Permission denied\")",
+  )
+  debug_inspect(
+    error,
+    content="FileIo(action=Write, path=\"/root/out.lmo\", reason=PermissionDenied)",
+  )
+  inspect(
+    error.render_human(),
+    content="error: couldn't write `/root/out.lmo`: Permission denied",
+  )
+}
+
+///|
+test "file resolve diagnostics hide unclassified host errors" {
+  inspect(
+    CliError::file_io(Resolve, "input.lane", "OSError(\"opaque host failure\")").render_human(),
+    content="error: couldn't resolve `input.lane`: host file operation failed",
+  )
+}
+
+///|
+test "command file diagnostics use command verbs" {
+  let error = "OSError(\"@fs.open(): \\\"missing\\\": No such file or directory\")"
+  inspect(
+    [
+      CliError::file_io(Check, "missing.lane", error).render_human(),
+      CliError::file_io(Compile, "missing.lane", error).render_human(),
+      CliError::file_io(Run, "missing.lane", error).render_human(),
+      CliError::file_io(RunObject, "missing.lbp", error).render_human(),
+      CliError::file_io(Format, "missing.lane", error).render_human(),
+      CliError::file_io(Link, "missing.lmo", error).render_human(),
+    ].join("\n"),
+    content=(
+      #|error: couldn't check `missing.lane`: No such file or directory
+      #|error: couldn't compile `missing.lane`: No such file or directory
+      #|error: couldn't run `missing.lane`: No such file or directory
+      #|error: couldn't run object `missing.lbp`: No such file or directory
+      #|error: couldn't format `missing.lane`: No such file or directory
+      #|error: couldn't link `missing.lmo`: No such file or directory
+    ),
+  )
+}
+
+///|
+test "inspect file diagnostics name the inspect operation" {
+  inspect(
+    CliError::file_io(
+      Inspect,
+      "hello",
+      "OSError(\"@fs.open(): \\\"hello\\\": No such file or directory\")",
+    ).render_human(),
+    content="error: couldn't inspect `hello`: No such file or directory",
   )
 }
 
@@ -136,9 +221,27 @@ async test "native module artifacts are binary and readable" {
   )
   inspect(byte_prefix_text(object_bytes, 8), content="76,65,78,69,65,82,84,0")
   inspect(byte_prefix_text(program_bytes, 8), content="76,65,78,69,65,82,84,0")
-  let interface = read_module_interface_artifact(interface_path)
-  let object = read_module_object_artifact(object_path)
-  let linked_program = read_linked_program_artifact(program_path)
+  let interface = match read_module_interface_artifact(interface_path) {
+    Ok(artifact) => artifact
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort(error.render_human())
+    }
+  }
+  let object = match read_module_object_artifact(object_path) {
+    Ok(artifact) => artifact
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort(error.render_human())
+    }
+  }
+  let linked_program = match read_linked_program_artifact(program_path) {
+    Ok(program) => program
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort(error.render_human())
+    }
+  }
   cleanup_library_fixture(workspace)
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
@@ -239,11 +342,20 @@ test "missing entry error lists available public entries" {
       #|pub let answer : Int = 42
     ),
   )
-  guard find_entry(result.entries, "main") is Err(message) else {
+  guard find_entry(result.entries, "main") is Err(error) else {
     abort("expected missing entry")
   }
+  debug_inspect(
+    error,
+    content=(
+      #|EntryNotFound(
+      #|  name="main",
+      #|  entries=[{ name: "answer", value: { index: 0 }, type_: Primitive(Int) }],
+      #|)
+    ),
+  )
   inspect(
-    message,
+    error.render_human(),
     content=(
       #|error[E6005]: entry was not found in the linked program
       #|  = label: requested entry `main` does not exist
@@ -281,7 +393,7 @@ test "render primitive entry values with source type annotations" {
 ///|
 test "internal compiler error is marked as a compiler bug" {
   inspect(
-    internal_compiler_error("callee is not callable"),
+    CliError::Internal(message="callee is not callable").render_human(),
     content=(
       #|error[E6200]: internal Lane compiler/runtime error
       #|  = label: compiler/runtime invariant failed: callee is not callable
@@ -454,13 +566,22 @@ async test "explicit lib cannot be the root source" {
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   @fs.write_file(root, "root", create_mode=CreateOrTruncate)
-  guard read_library_source_inputs(root, [root], []) is Err(message) else {
+  guard read_library_source_inputs(root, [root], []) is Err(error) else {
     cleanup_library_fixture(workspace)
     abort("expected explicit root library error")
   }
   cleanup_library_fixture(workspace)
+  debug_inspect(
+    error,
+    content=(
+      #|RootLibraryInput(
+      #|  root=".tmp-lane-root-lib/Main.lane",
+      #|  library=".tmp-lane-root-lib/Main.lane",
+      #|)
+    ),
+  )
   inspect(
-    message,
+    error.render_human(),
     content=(
       #|error[E6008]: root source was also passed as an explicit library
       #|  = label: `.tmp-lane-root-lib/Main.lane` resolves to the same source file as the root source `.tmp-lane-root-lib/Main.lane`

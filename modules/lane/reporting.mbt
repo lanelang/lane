@@ -51,11 +51,6 @@ fn DiagnosticSources::find(
 }
 
 ///|
-fn print_diagnostics(diagnostics : Array[@compile.CompileDiagnostic]) -> Unit {
-  print_diagnostics_with_sources(diagnostics, DiagnosticSources())
-}
-
-///|
 fn print_diagnostics_with_sources(
   diagnostics : Array[@compile.CompileDiagnostic],
   sources : DiagnosticSources,

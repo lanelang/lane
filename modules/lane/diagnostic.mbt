@@ -1,5 +1,213 @@
 ///|
-fn lane_boundary_error(
+enum CliFileAction {
+  Read
+  Write
+  Resolve
+  Check
+  Compile
+  Run
+  RunObject
+  Format
+  Inspect
+  Link
+} derive(Debug, Eq)
+
+///|
+enum HostFileErrorReason {
+  NotFound
+  PermissionDenied
+  IsDirectory
+  Other
+} derive(Debug, Eq)
+
+///|
+enum CliError {
+  InvalidCommand(message~ : String)
+  UnknownCommand
+  MissingArgument(name~ : String)
+  InvalidRunTarget(target~ : String)
+  InvalidRunObjTarget(target~ : String)
+  FileIo(action~ : CliFileAction, path~ : String, reason~ : HostFileErrorReason)
+  ArtifactLoad(path~ : String, kind~ : String, message~ : String)
+  DuplicateObjectArtifact(module_path_text~ : String)
+  RootLibraryInput(root~ : String, library~ : String)
+  EntryNotFound(name~ : String, entries~ : Array[@elaborate.BuslaneEntry])
+  EntryAmbiguous(name~ : String, entries~ : Array[@elaborate.BuslaneEntry])
+  NotFormatted(path~ : String)
+  FormatDiagnostics(
+    path~ : String,
+    diagnostics~ : Array[@format.FormatDiagnostic]
+  )
+  Internal(message~ : String)
+} derive(Debug)
+
+///|
+fn host_file_error_reason(error : String) -> HostFileErrorReason {
+  if error.contains("No such file or directory") {
+    NotFound
+  } else if error.contains("Permission denied") {
+    PermissionDenied
+  } else if error.contains("Is a directory") {
+    IsDirectory
+  } else {
+    Other
+  }
+}
+
+///|
+fn CliError::file_io(
+  action : CliFileAction,
+  path : String,
+  error : String,
+) -> CliError {
+  FileIo(action~, path~, reason=host_file_error_reason(error))
+}
+
+///|
+fn CliError::render_human(self : CliError) -> String {
+  match self {
+    InvalidCommand(message~) =>
+      cli_detail_error(
+        "E6000",
+        "invalid lane command line",
+        ["the command-line parser reported: \{message}"],
+        ["this is a CLI usage error, not a Lane source error"],
+        ["run `lane --help` or `lane <command> --help` to see valid forms"],
+      )
+    UnknownCommand =>
+      cli_detail_error(
+        "E6001",
+        "unknown lane command",
+        ["the requested subcommand is not supported by this `lane` binary"],
+        [
+          "available commands include check, run, compile, inspect, link, runobj, fmt, and lsp",
+        ],
+        ["try: lane check Main.lane"],
+      )
+    MissingArgument(name~) =>
+      cli_detail_error(
+        "E6003",
+        "missing required CLI argument",
+        ["argument `\{name}` was not provided"],
+        ["this is a CLI usage error, not a Lane source error"],
+        [
+          "run `lane --help` or `lane <command> --help` to see the required arguments",
+        ],
+      )
+    InvalidRunTarget(target~) =>
+      cli_detail_error(
+        "E6002",
+        "invalid run target",
+        ["expected `FILE:ENTRY`, got `\{target}`"],
+        [
+          "`lane run` compiles one source file and then selects a public entry from it",
+        ],
+        ["try: lane run Main.lane:main"],
+      )
+    InvalidRunObjTarget(target~) =>
+      cli_detail_error(
+        "E6008",
+        "invalid runobj target",
+        ["expected `FILE:Module.value`, got `\{target}`"],
+        [
+          "`lane runobj` loads one linked program artifact and selects a public entry from it",
+        ],
+        ["try: lane runobj program.lbp:Main.main"],
+      )
+    FileIo(action~, path~, reason~) =>
+      "error: couldn't \{action.to_human_text()} `\{path}`: \{reason.to_human_text()}"
+    ArtifactLoad(path~, kind~, message~) =>
+      "error: couldn't load \{kind} `\{path}`: \{message}"
+    DuplicateObjectArtifact(module_path_text~) =>
+      cli_detail_error(
+        "E6007",
+        "duplicate module object artifact",
+        ["module `\{module_path_text}` was provided more than once"],
+        [
+          "each module in a link input set must come from exactly one object artifact",
+        ],
+        ["remove the duplicate object path and run `lane link` again"],
+      )
+    RootLibraryInput(root~, library~) =>
+      cli_detail_error(
+        "E6008",
+        "root source was also passed as an explicit library",
+        [
+          "`\{library}` resolves to the same source file as the root source `\{root}`",
+        ],
+        [
+          "`lane check` and `lane run` compile the root source separately from library inputs",
+          "`--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible",
+        ],
+        ["remove the duplicate `--lib \{library}` argument"],
+      )
+    EntryNotFound(name~, entries~) =>
+      cli_detail_error(
+        "E6005",
+        "entry was not found in the linked program",
+        ["requested entry `\{display_entry_name(name)}` does not exist"],
+        [available_entries_note(entries)],
+        [
+          "use one of the listed public entries, or export the value with `pub` before compiling",
+        ],
+      )
+    EntryAmbiguous(name~, entries~) =>
+      cli_detail_error(
+        "E6006",
+        "entry name is ambiguous",
+        ["more than one linked entry is named `\{display_entry_name(name)}`"],
+        [available_entries_note(entries)],
+        ["qualify the requested entry with its module path when possible"],
+      )
+    NotFormatted(path~) => "\{path}: not formatted"
+    FormatDiagnostics(path~, diagnostics~) =>
+      diagnostics
+      .map(fn(diagnostic) {
+        let rendered = @prettyprinter.render(diagnostic, width=100)
+        "\{path}: \{rendered}"
+      })
+      .join("\n")
+    Internal(message~) =>
+      cli_detail_error(
+        "E6200",
+        "internal Lane compiler/runtime error",
+        ["compiler/runtime invariant failed: \{message}"],
+        ["this is not expected after a successful Lane typecheck"],
+        [
+          "please file a compiler bug with the source file, command, and this diagnostic",
+        ],
+      )
+  }
+}
+
+///|
+fn CliFileAction::to_human_text(self : CliFileAction) -> String {
+  match self {
+    Read => "read"
+    Write => "write"
+    Resolve => "resolve"
+    Check => "check"
+    Compile => "compile"
+    Run => "run"
+    RunObject => "run object"
+    Format => "format"
+    Inspect => "inspect"
+    Link => "link"
+  }
+}
+
+///|
+fn HostFileErrorReason::to_human_text(self : HostFileErrorReason) -> String {
+  match self {
+    NotFound => "No such file or directory"
+    PermissionDenied => "Permission denied"
+    IsDirectory => "Is a directory"
+    Other => "host file operation failed"
+  }
+}
+
+///|
+fn cli_detail_error(
   code : String,
   title : String,
   labels : Array[String],
@@ -20,99 +228,6 @@ fn lane_boundary_error(
 }
 
 ///|
-fn cli_parse_error(message : String) -> String {
-  lane_boundary_error(
-    "E6000",
-    "invalid lane command line",
-    ["the command-line parser reported: \{message}"],
-    ["this is a CLI usage error, not a Lane source error"],
-    ["run `lane --help` or `lane <command> --help` to see valid forms"],
-  )
-}
-
-///|
-fn unknown_command_error() -> String {
-  lane_boundary_error(
-    "E6001",
-    "unknown lane command",
-    ["the requested subcommand is not supported by this `lane` binary"],
-    [
-      "available commands include check, run, compile, inspect, link, runobj, fmt, and lsp",
-    ],
-    ["try: lane check Main.lane"],
-  )
-}
-
-///|
-fn run_target_error(target : String) -> String {
-  lane_boundary_error(
-    "E6002",
-    "invalid run target",
-    ["expected `FILE:ENTRY`, got `\{target}`"],
-    [
-      "`lane run` compiles one source file and then selects a public entry from it",
-    ],
-    ["try: lane run Main.lane:main"],
-  )
-}
-
-///|
-fn runobj_target_error(target : String) -> String {
-  lane_boundary_error(
-    "E6008",
-    "invalid runobj target",
-    ["expected `FILE:Module.value`, got `\{target}`"],
-    [
-      "`lane runobj` loads one linked program artifact and selects a public entry from it",
-    ],
-    ["try: lane runobj program.lbp:Main.main"],
-  )
-}
-
-///|
-fn missing_argument_error(name : String) -> String {
-  lane_boundary_error(
-    "E6003",
-    "missing required CLI argument",
-    ["argument `\{name}` was not provided"],
-    ["this is a CLI usage error, not a Lane source error"],
-    [
-      "run `lane --help` or `lane <command> --help` to see the required arguments",
-    ],
-  )
-}
-
-///|
-fn entry_lookup_error(
-  name : String,
-  entries : Array[@elaborate.BuslaneEntry],
-) -> String {
-  lane_boundary_error(
-    "E6005",
-    "entry was not found in the linked program",
-    ["requested entry `\{display_entry_name(name)}` does not exist"],
-    [available_entries_note(entries)],
-    [
-      "use one of the listed public entries, or export the value with `pub` before compiling",
-    ],
-  )
-}
-
-///|
-fn ambiguous_entry_error(
-  name : String,
-  entries : Array[@elaborate.BuslaneEntry],
-) -> String {
-  lane_boundary_error(
-    "E6006",
-    "entry name is ambiguous",
-    ["more than one linked entry is named `\{display_entry_name(name)}`"],
-    [available_entries_note(entries)],
-    ["qualify the requested entry with its module path when possible"],
-  )
-}
-
-///|
 fn available_entries_note(entries : Array[@elaborate.BuslaneEntry]) -> String {
   let names = entry_names(entries)
   if names.is_empty() {
@@ -121,67 +236,4 @@ fn available_entries_note(entries : Array[@elaborate.BuslaneEntry]) -> String {
     let joined = names.join(", ")
     "available public entries: \{joined}"
   }
-}
-
-///|
-fn file_io_error(
-  code : String,
-  title : String,
-  path : String,
-  action : String,
-  error : String,
-) -> String {
-  lane_boundary_error(
-    code,
-    title,
-    ["while trying to \{action}: \{path}"],
-    ["host error: \{error}"],
-    [
-      "check that the path exists and the current process has the required permissions",
-    ],
-  )
-}
-
-///|
-fn read_file_error(path : String, error : String) -> String {
-  file_io_error("E6100", "could not read file", path, "read", error)
-}
-
-///|
-fn write_file_error(path : String, error : String) -> String {
-  file_io_error("E6101", "could not write file", path, "write", error)
-}
-
-///|
-fn resolve_file_error(path : String, error : String) -> String {
-  file_io_error("E6102", "could not resolve file path", path, "resolve", error)
-}
-
-///|
-fn root_library_input_error(root : String, library : String) -> String {
-  lane_boundary_error(
-    "E6008",
-    "root source was also passed as an explicit library",
-    [
-      "`\{library}` resolves to the same source file as the root source `\{root}`",
-    ],
-    [
-      "`lane check` and `lane run` compile the root source separately from library inputs",
-      "`--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible",
-    ],
-    ["remove the duplicate `--lib \{library}` argument"],
-  )
-}
-
-///|
-fn internal_compiler_error(message : String) -> String {
-  lane_boundary_error(
-    "E6200",
-    "internal Lane compiler/runtime error",
-    ["compiler/runtime invariant failed: \{message}"],
-    ["this is not expected after a successful Lane typecheck"],
-    [
-      "please file a compiler bug with the source file, command, and this diagnostic",
-    ],
-  )
 }

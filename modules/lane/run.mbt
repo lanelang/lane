@@ -1,10 +1,8 @@
 ///|
 async fn lane_runobj(path : String, entry_name : String) -> LaneCommandOutcome {
-  let program = read_linked_program_artifact(path) catch {
-    error => {
-      println(read_file_error(path, "\{error}"))
-      return UserFailure
-    }
+  let program = match read_linked_program_artifact(path) {
+    Ok(program) => program
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let runtime = @buslane_interpreter.evaluate_buslane_program(
     program.program,
@@ -14,10 +12,7 @@ async fn lane_runobj(path : String, entry_name : String) -> LaneCommandOutcome {
   }
   let entry = match find_entry(program.entries, entry_name) {
     Ok(entry) => entry
-    Err(message) => {
-      println(message)
-      return UserFailure
-    }
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let value = runtime.lookup(entry.value) catch {
     error => internal_error(@prettyprinter.render(error, width=100))
@@ -34,10 +29,10 @@ async fn lane_run(
   lib_dirs : Array[String],
 ) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
-    error => {
-      println(read_file_error(file, "\{error}"))
-      return UserFailure
-    }
+    error =>
+      return LaneCommandOutcome::user_error(
+        CliError::file_io(Run, file, "\{error}"),
+      )
   }
   let root : LaneSourceInput = {
     source_id: file,
@@ -46,10 +41,7 @@ async fn lane_run(
   }
   let libraries = match read_library_source_inputs(file, libs, lib_dirs) {
     Ok(libraries) => libraries
-    Err(message) => {
-      println(message)
-      return UserFailure
-    }
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let diagnostic_sources = LaneSourceInput::diagnostic_sources(root, libraries)
   let result = @compile.compile_source_inputs(
@@ -57,8 +49,11 @@ async fn lane_run(
     LaneSourceInput::array_to_compile_inputs(libraries),
   )
   if !result.diagnostics.is_empty() {
-    print_diagnostics_with_sources(result.diagnostics, diagnostic_sources)
-    return UserFailure
+    return LaneCommandOutcome::compile_diagnostics(
+      result.diagnostics,
+      diagnostic_sources,
+      false,
+    )
   }
   guard result.program is Some(program) else {
     internal_error("compiler produced no Buslane program")
@@ -71,10 +66,7 @@ async fn lane_run(
   }
   let entry = match find_entry(result.entries, entry) {
     Ok(entry) => entry
-    Err(message) => {
-      println(message)
-      return UserFailure
-    }
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let value = runtime.lookup(entry.value) catch {
     error => internal_error(@prettyprinter.render(error, width=100))
@@ -95,11 +87,11 @@ fn render_entry_value(
 fn find_entry(
   entries : Array[@elaborate.BuslaneEntry],
   name : String,
-) -> Result[@elaborate.BuslaneEntry, String] {
+) -> Result[@elaborate.BuslaneEntry, CliError] {
   let matched = entries.filter(entry => entry.name == name)
   match matched.length() {
     1 => Ok(matched[0])
-    0 => Err(entry_lookup_error(name, entries))
-    _ => Err(ambiguous_entry_error(name, entries))
+    0 => Err(EntryNotFound(name~, entries~))
+    _ => Err(EntryAmbiguous(name~, entries~))
   }
 }

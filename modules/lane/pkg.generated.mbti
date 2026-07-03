@@ -1,11 +1,21 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "Milky2018/lane"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 
 // Errors
 
 // Types and methods
+type CliError derive(@debug.Debug)
+
+type CliFileAction derive(Eq, @debug.Debug)
+
+type HostFileErrorReason derive(Eq, @debug.Debug)
+
 type LaneCommand
 
 type LaneCommandOutcome
