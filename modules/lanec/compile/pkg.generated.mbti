@@ -47,6 +47,10 @@ pub fn compile_source_inputs(SourceInput, Array[SourceInput]) -> CompileResult
 
 pub fn compile_sources(String, Array[String]) -> CompileResult
 
+pub fn complete_import_reachable_source_inputs(SourceInput, Array[SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
+
+pub fn complete_source_inputs(SourceInput, Array[SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
+
 pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[CompileDiagnostic]]
 
 pub fn link_module_artifacts(CompiledModuleSetArtifact) -> LinkResult
@@ -219,6 +223,34 @@ pub(all) struct CompiledModuleSetArtifact {
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
   reachable_module_path_texts : Array[String]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompletionEntry {
+  label : String
+  kind : CompletionKind
+  detail : String?
+  documentation : String?
+  insert_text : String?
+  replace : AnalysisLocation?
+  sort_text : String?
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CompletionKind {
+  Value
+  Function
+  Type
+  TypeParameter
+  Effect
+  Operation
+  Field
+  Variant
+  Module
+  Offer
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CompletionTrigger {
+  Manual
+  TriggerCharacter(String)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct DefinitionEntry {

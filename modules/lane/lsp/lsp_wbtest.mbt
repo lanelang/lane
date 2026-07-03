@@ -32,6 +32,23 @@ fn position_params(uri : String, line : Int, character : Int) -> Json {
 }
 
 ///|
+fn completion_params(
+  uri : String,
+  line : Int,
+  character : Int,
+  trigger_character : String?,
+) -> Json {
+  let params : Map[String, Json] = {
+    "textDocument": { "uri": uri },
+    "position": { "line": line, "character": character },
+  }
+  if trigger_character is Some(character) {
+    params["context"] = { "triggerCharacter": character }
+  }
+  params.to_json()
+}
+
+///|
 fn range_params(
   uri : String,
   start_line : Int,
@@ -78,6 +95,10 @@ async test "initialize returns full document sync capability" {
           "definitionProvider": true,
           "hoverProvider": true,
           "inlayHintProvider": true,
+          "completionProvider": {
+            "triggerCharacters": [".", ":"],
+            "resolveProvider": false,
+          },
         },
         "serverInfo": { "name": "lane", "version": "0.1.0" },
       },
@@ -341,7 +362,227 @@ async test "semantic tokens full is not provided by lane lsp" {
       "id": 2,
       "error": {
         "code": -32601,
-        "message": "method not found: textDocument/semanticTokens/full; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, and textDocument/inlayHint",
+        "message": "method not found: textDocument/semanticTokens/full; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, textDocument/inlayHint, and textDocument/completion",
+      },
+    },
+  ])
+}
+
+///|
+async test "completion returns a completion list for module trigger" {
+  let workspace = ".tmp-lsp-completion"
+  let main_path = "\{workspace}/Main.lane"
+  let lib_path = "\{workspace}/Lib.lane"
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  @fs.mkdir(workspace)
+  @fs.write_file(
+    lib_path,
+    (
+      #|module Lib
+      #|
+      #|pub fn answer() -> Int {
+      #|  42
+      #|}
+    ),
+    create_mode=CreateOrTruncate,
+  )
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(0, "initialize", { "rootUri": "file://\{workspace}" }),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
+        2,
+        "textDocument/didOpen",
+        open_params(
+          "file://\{main_path}",
+          (
+            #|module Main
+            #|
+            #|import Lib
+            #|
+            #|pub fn use() -> Int {
+            #|  Lib.answer()
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      3,
+      "textDocument/completion",
+      completion_params("file://\{main_path}", 5, 6, Some(".")),
+    ),
+  )
+  cleanup_workspace_fixture(workspace, main_path, lib_path)
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": {
+        "isIncomplete": false,
+        "items": [
+          {
+            "label": "answer",
+            "kind": 3,
+            "detail": "answer : () -> Int",
+            "sortText": "20:answer",
+            "textEdit": {
+              "range": {
+                "start": { "line": 5, "character": 6 },
+                "end": { "line": 5, "character": 6 },
+              },
+              "newText": "answer",
+            },
+          },
+        ],
+      },
+    },
+  ])
+}
+
+///|
+async test "completion returns lexical entries for manual requests" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub fn answer(seed : Int) -> Int {
+            #|  ans
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/completion",
+      completion_params("file:///Main.lane", 3, 5, None),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "isIncomplete": false,
+        "items": [
+          {
+            "label": "answer",
+            "kind": 3,
+            "detail": "fn answer",
+            "sortText": "20:answer",
+            "textEdit": {
+              "range": {
+                "start": { "line": 3, "character": 2 },
+                "end": { "line": 3, "character": 5 },
+              },
+              "newText": "answer",
+            },
+          },
+        ],
+      },
+    },
+  ])
+}
+
+///|
+async test "completion routes colon triggers to owner members" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|enum Option[A] {
+            #|  none()
+            #|  some(A)
+            #|}
+            #|
+            #|pub fn use() -> Option[Int] {
+            #|  Option::some(1)
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/completion",
+      completion_params("file:///Main.lane", 8, 10, Some(":")),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "isIncomplete": false,
+        "items": [
+          {
+            "label": "none",
+            "kind": 20,
+            "detail": "variant Option::none",
+            "sortText": "20:none",
+            "textEdit": {
+              "range": {
+                "start": { "line": 8, "character": 10 },
+                "end": { "line": 8, "character": 10 },
+              },
+              "newText": "none",
+            },
+          },
+          {
+            "label": "some",
+            "kind": 20,
+            "detail": "variant Option::some",
+            "sortText": "20:some",
+            "textEdit": {
+              "range": {
+                "start": { "line": 8, "character": 10 },
+                "end": { "line": 8, "character": 10 },
+              },
+              "newText": "some",
+            },
+          },
+        ],
+      },
+    },
+  ])
+}
+
+///|
+async test "completion reports invalid params as an LSP request shape error" {
+  let state = ServerState::ServerState()
+  let result = state.handle_message(request(4, "textDocument/completion", {}))
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 4,
+      "error": {
+        "code": -32602,
+        "message": "invalid textDocument/completion params: expected `textDocument.uri`, `position.line`, and `position.character`; this is an LSP client request shape error, not a Lane source error",
       },
     },
   ])

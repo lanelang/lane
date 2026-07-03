@@ -41,6 +41,37 @@ async fn LspWorkspaceAnalysis::analyze(
 }
 
 ///|
+async fn LspWorkspaceAnalysis::complete(
+  self : LspWorkspaceAnalysis,
+  document : DocumentSnapshot,
+  line : Int,
+  column : Int,
+  trigger : @compile.CompletionTrigger,
+) -> Array[@compile.CompletionEntry] {
+  let sources = self.analysis_sources(document)
+  match self.workspace_root {
+    Some(_) =>
+      @compile.complete_import_reachable_source_inputs(
+        sources.root,
+        sources.libraries,
+        document.uri,
+        line,
+        column,
+        trigger,
+      )
+    None =>
+      @compile.complete_source_inputs(
+        sources.root,
+        sources.libraries,
+        document.uri,
+        line,
+        column,
+        trigger,
+      )
+  }
+}
+
+///|
 fn LspWorkspaceAnalysis::analyze_sources(
   self : LspWorkspaceAnalysis,
   sources : LspAnalysisSources,

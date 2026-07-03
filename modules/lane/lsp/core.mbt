@@ -67,6 +67,7 @@ async fn ServerState::handle_request(
     "textDocument/definition" => self.handle_definition(request)
     "textDocument/hover" => self.handle_hover(request)
     "textDocument/inlayHint" => self.handle_inlay_hint(request)
+    "textDocument/completion" => self.handle_completion(request)
     method_name => self.method_not_found(request, method_name)
   }
 }
@@ -88,6 +89,10 @@ fn initialize_result() -> Json {
       "definitionProvider": true,
       "hoverProvider": true,
       "inlayHintProvider": true,
+      "completionProvider": {
+        "triggerCharacters": [".", ":"],
+        "resolveProvider": false,
+      },
     },
     "serverInfo": { "name": server_name, "version": "0.1.0" },
   }
@@ -243,6 +248,30 @@ async fn ServerState::handle_inlay_hint(
 }
 
 ///|
+async fn ServerState::handle_completion(
+  self : ServerState,
+  request : @jsonrpc.Request,
+) -> HandlerResult {
+  guard text_document_completion_params(request.params) is Some(params) else {
+    return respond(
+      request,
+      Err(invalid_params(invalid_position_params("textDocument/completion"))),
+    )
+  }
+  guard self.document_for_uri(params.uri) is Some(document) else {
+    return respond(request, Ok(completion_list_json([])))
+  }
+  let trigger = match params.trigger_character {
+    Some(character) => @compile.CompletionTrigger::TriggerCharacter(character)
+    None => Manual
+  }
+  let entries = self
+    .workspace_analysis()
+    .complete(document, params.line + 1, params.character + 1, trigger)
+  respond(request, Ok(completion_list_json(entries)))
+}
+
+///|
 fn ServerState::document_for_uri(
   self : ServerState,
   uri : String,
@@ -301,7 +330,7 @@ fn invalid_range_params(method_name : String) -> String {
 
 ///|
 fn method_not_found_message(method_name : String) -> String {
-  "method not found: \{method_name}; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, and textDocument/inlayHint"
+  "method not found: \{method_name}; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, textDocument/inlayHint, and textDocument/completion"
 }
 
 ///|
@@ -539,5 +568,63 @@ fn inlay_hint_kind_json(kind : @compile.InlayHintKind) -> Json {
   match kind {
     TypeHint => 1
     ParameterHint | ImplicitArgumentHint => 2
+  }
+}
+
+///|
+fn completion_list_json(entries : Array[@compile.CompletionEntry]) -> Json {
+  {
+    "isIncomplete": false,
+    "items": entries.map(completion_item_json).to_json(),
+  }
+}
+
+///|
+fn completion_item_json(entry : @compile.CompletionEntry) -> Json {
+  let fields : Map[String, Json] = {
+    "label": entry.label.to_json(),
+    "kind": completion_item_kind_json(entry.kind),
+  }
+  if entry.detail is Some(detail) {
+    fields["detail"] = detail.to_json()
+  }
+  if entry.documentation is Some(documentation) {
+    fields["documentation"] = documentation.to_json()
+  }
+  if entry.sort_text is Some(sort_text) {
+    fields["sortText"] = sort_text.to_json()
+  }
+  match entry.replace {
+    Some(location) => {
+      let new_text = match entry.insert_text {
+        Some(text) => text
+        None => entry.label
+      }
+      fields["textEdit"] = {
+        "range": range_json(location.span),
+        "newText": new_text,
+      }
+    }
+    None =>
+      if entry.insert_text is Some(text) {
+        fields["insertText"] = text.to_json()
+      }
+  }
+  fields.to_json()
+}
+
+///|
+fn completion_item_kind_json(kind : @compile.CompletionKind) -> Json {
+  match kind {
+    Value => 6
+    Function => 3
+    Type => 22
+    TypeParameter => 25
+    Effect => 7
+    Operation => 3
+    Field => 5
+    Variant => 20
+    Module => 9
+    Offer => 12
   }
 }

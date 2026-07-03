@@ -83,6 +83,14 @@ priv struct TextDocumentRangeParams {
 }
 
 ///|
+priv struct TextDocumentCompletionParams {
+  uri : String
+  line : Int
+  character : Int
+  trigger_character : String?
+}
+
+///|
 fn text_document_position_params(params : Json) -> TextDocumentPositionParams? {
   guard json_field(params, "textDocument") is Some(text_document) else {
     return None
@@ -93,6 +101,25 @@ fn text_document_position_params(params : Json) -> TextDocumentPositionParams? {
   let uri = json_string_field(text_document, "uri")
   guard uri is Some(uri) else { return None }
   Some({ uri, line: position.line, character: position.character })
+}
+
+///|
+fn text_document_completion_params(
+  params : Json,
+) -> TextDocumentCompletionParams? {
+  guard text_document_position_params(params) is Some(position_params) else {
+    return None
+  }
+  let trigger_character = match json_field(params, "context") {
+    Some(context) => json_string_field(context, "triggerCharacter")
+    None => None
+  }
+  Some({
+    uri: position_params.uri,
+    line: position_params.line,
+    character: position_params.character,
+    trigger_character,
+  })
 }
 
 ///|
