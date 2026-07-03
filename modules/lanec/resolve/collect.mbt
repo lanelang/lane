@@ -31,6 +31,7 @@ priv struct EffectBinding {
 ///|
 priv struct TypeAliasBinding {
   name : String
+  type_parameters : Array[@syntax.TypeParameter]
 }
 
 ///|
@@ -178,7 +179,7 @@ fn Resolver::publish_imported_public_types(
     }
   }
   for type_alias in interface.type_aliases {
-    self.type_aliases.push({ name: type_alias.name })
+    self.type_aliases.push({ name: type_alias.name, type_parameters: [] })
   }
 }
 
@@ -210,7 +211,7 @@ fn Resolver::publish_imported_selected_types(
     }
     for type_alias in interface.type_aliases {
       if type_alias.name == item.name {
-        self.type_aliases.push({ name: type_alias.name })
+        self.type_aliases.push({ name: type_alias.name, type_parameters: [] })
       }
     }
   }
@@ -310,7 +311,10 @@ fn Resolver::collect_top_level_headers(
           ),
         )
       TypeAlias(declaration) =>
-        self.type_aliases.push({ name: declaration.name })
+        self.type_aliases.push({
+          name: declaration.name,
+          type_parameters: declaration.type_parameters,
+        })
       Function(declaration) => {
         let symbol = self.registry.define_value(
           declaration.name,
@@ -561,6 +565,7 @@ fn @syntax.TypeAliasDeclaration::resolve_type_alias(
   {
     is_public: self.is_public,
     name: self.name,
+    type_parameters,
     body: if type_parameters.is_empty() {
       body
     } else {
@@ -1133,9 +1138,6 @@ fn @syntax.Type::resolve_effect_type(
   loc : SourceSpan,
 ) -> ResolvedEffectTerm {
   let (base, arguments) = self.effect_type_parts()
-  let resolved_arguments = arguments.map(fn(argument) {
-    argument.resolve_type(resolver, scope)
-  })
   match base {
     Name(name~, ..) =>
       match scope.type_parameter_info(name) {
@@ -1143,12 +1145,25 @@ fn @syntax.Type::resolve_effect_type(
           Parameter(symbol=parameter.symbol, name=parameter.name, loc~)
         None =>
           match resolver.effect_symbol_opt(name) {
-            Some(symbol) =>
+            Some(symbol) => {
+              let resolved_arguments = arguments.map(fn(argument) {
+                argument.resolve_type(resolver, scope)
+              })
               Singleton(symbol~, name~, arguments=resolved_arguments, loc~)
+            }
             None =>
-              if resolver.has_type_alias(name) {
+              if resolver.type_alias_binding(name) is Some(binding) {
+                let resolved_arguments = resolve_effect_alias_arguments(
+                  arguments,
+                  binding.type_parameters,
+                  resolver,
+                  scope,
+                )
                 Alias(name~, arguments=resolved_arguments, loc~)
               } else {
+                let resolved_arguments = arguments.map(fn(argument) {
+                  argument.resolve_type(resolver, scope)
+                })
                 resolver.report(UnresolvedType(name), loc)
                 Unresolved(name~, arguments=resolved_arguments, loc~)
               }
@@ -1156,7 +1171,7 @@ fn @syntax.Type::resolve_effect_type(
       }
     QualifiedName(module_path~, name~, ..) =>
       resolver.resolve_module_qualified_effect_type(
-        module_path, name, resolved_arguments, loc,
+        module_path, name, arguments, scope, loc,
       )
     _ => {
       let resolved = self.resolve_type(resolver, scope)
@@ -1218,7 +1233,8 @@ fn Resolver::resolve_module_qualified_effect_type(
   self : Resolver,
   module_path : @syntax.ModulePath,
   name : String,
-  arguments : Array[ResolvedType],
+  arguments : Array[@syntax.Type],
+  scope : ResolveScope,
   loc : SourceSpan,
 ) -> ResolvedEffectTerm {
   let full_name = module_qualified_name(module_path, name)
@@ -1226,6 +1242,9 @@ fn Resolver::resolve_module_qualified_effect_type(
     Some(module_) => {
       for effect in module_.interface.effects {
         if effect.name == name {
+          let arguments = arguments.map(fn(argument) {
+            argument.resolve_type(self, scope)
+          })
           return Singleton(
             symbol=effect.symbol,
             name=full_name,
@@ -1236,16 +1255,103 @@ fn Resolver::resolve_module_qualified_effect_type(
       }
       for type_alias in module_.interface.type_aliases {
         if type_alias.name == name {
+          let arguments = arguments.map(fn(argument) {
+            TypeArgument(argument.resolve_type(self, scope))
+          })
           return Alias(name=full_name, arguments~, loc~)
         }
       }
+      let arguments = arguments.map(fn(argument) {
+        argument.resolve_type(self, scope)
+      })
       self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
     None => {
+      let arguments = arguments.map(fn(argument) {
+        argument.resolve_type(self, scope)
+      })
       self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
+  }
+}
+
+///|
+fn resolve_effect_alias_arguments(
+  arguments : Array[@syntax.Type],
+  parameters : Array[@syntax.TypeParameter],
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> Array[ResolvedEffectAliasArgument] {
+  arguments.mapi(fn(index, argument) {
+    if index < parameters.length() && parameters[index].kind is Some(Effect(_)) {
+      if argument.should_resolve_as_effect_alias_argument(resolver, scope) {
+        EffectArgument(
+          argument.resolve_effect_type(resolver, scope, argument.loc()),
+        )
+      } else {
+        TypeArgument(argument.resolve_type(resolver, scope))
+      }
+    } else {
+      TypeArgument(argument.resolve_type(resolver, scope))
+    }
+  })
+}
+
+///|
+fn @syntax.Type::should_resolve_as_effect_alias_argument(
+  self : @syntax.Type,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> Bool {
+  let (base, _) = self.effect_type_parts()
+  match base {
+    Name(name~, ..) =>
+      match scope.type_parameter_info(name) {
+        Some(parameter) =>
+          match parameter.kind {
+            Some(Effect(_)) => true
+            _ => false
+          }
+        None =>
+          if resolver.effect_symbol_opt(name) is Some(_) {
+            true
+          } else if resolver.type_alias_binding(name) is Some(_) {
+            true
+          } else {
+            false
+          }
+      }
+    QualifiedName(module_path~, name~, ..) =>
+      resolver.module_qualified_name_can_be_effect_alias_argument(
+        module_path, name,
+      )
+    _ => false
+  }
+}
+
+///|
+fn Resolver::module_qualified_name_can_be_effect_alias_argument(
+  self : Resolver,
+  module_path : @syntax.ModulePath,
+  name : String,
+) -> Bool {
+  match self.module_binding(@module_interface.module_path_text(module_path)) {
+    Some(module_) => {
+      for effect in module_.interface.effects {
+        if effect.name == name {
+          return true
+        }
+      }
+      for type_alias in module_.interface.type_aliases {
+        if type_alias.name == name {
+          return true
+        }
+      }
+      false
+    }
+    None => false
   }
 }
 
@@ -1278,6 +1384,20 @@ fn interface_type_symbol(
 ///|
 fn Resolver::has_type_alias(self : Resolver, name : String) -> Bool {
   self.type_aliases.any(fn(type_alias) { type_alias.name == name })
+}
+
+///|
+fn Resolver::type_alias_binding(
+  self : Resolver,
+  name : String,
+) -> TypeAliasBinding? {
+  for index = self.type_aliases.length(); index > 0; index = index - 1 {
+    let binding = self.type_aliases[index - 1]
+    if binding.name == name {
+      return Some(binding)
+    }
+  }
+  None
 }
 
 ///|

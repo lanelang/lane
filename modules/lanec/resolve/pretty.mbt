@@ -215,6 +215,7 @@ pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration with fn pretty(
   text("type") +
   space +
   text(declaration.name) +
+  type_parameters_doc(declaration.type_parameters) +
   space +
   text("=") +
   space +
@@ -427,7 +428,7 @@ pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
       if arguments.is_empty() {
         text("alias ") + text(name)
       } else {
-        text("alias ") + text(name) + type_arguments_doc(arguments)
+        text("alias ") + text(name) + effect_alias_arguments_doc(arguments)
       }
     Union(items~, ..) =>
       @pretty.braced_block(items.map(ResolvedEffectTerm::pretty))
@@ -440,6 +441,23 @@ pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
         type_arguments_doc(arguments) +
         text(">")
       }
+  }
+}
+
+///|
+fn effect_alias_arguments_doc(
+  arguments : Array[ResolvedEffectAliasArgument],
+) -> Document {
+  @pretty.bracketed_inline(arguments.map(ResolvedEffectAliasArgument::pretty))
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedEffectAliasArgument with fn pretty(
+  argument : ResolvedEffectAliasArgument,
+) {
+  match argument {
+    TypeArgument(type_) => type_.pretty()
+    EffectArgument(effect) => effect.pretty()
   }
 }
 

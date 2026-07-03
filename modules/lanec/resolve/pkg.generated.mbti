@@ -57,6 +57,12 @@ pub(all) enum ResolvedCallArgument {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedCallArgument
 
+pub(all) enum ResolvedEffectAliasArgument {
+  TypeArgument(ResolvedType)
+  EffectArgument(ResolvedEffectTerm)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedEffectAliasArgument
+
 pub(all) struct ResolvedEffectDeclaration {
   is_public : Bool
   symbol : @symbol.EffectSymbolId
@@ -89,7 +95,7 @@ pub(all) enum ResolvedEffectTerm {
   Empty(loc~ : @basic.SourceSpan)
   Singleton(symbol~ : @symbol.EffectSymbolId, name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
-  Alias(name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  Alias(name~ : String, arguments~ : Array[ResolvedEffectAliasArgument], loc~ : @basic.SourceSpan)
   Union(items~ : Array[ResolvedEffectTerm], loc~ : @basic.SourceSpan)
   Unresolved(name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
@@ -341,6 +347,7 @@ pub impl @prettyprinter.Pretty for ResolvedTypeAliasBody
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
+  type_parameters : Array[ResolvedTypeParameter]
   body : ResolvedTypeAliasBody
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

@@ -931,9 +931,26 @@ fn collect_resolved_effect_reference(
         contents: "effect alias \{name}",
       })
       for argument in arguments {
-        collect_resolved_type_reference(source_id, argument, references, hovers)
+        collect_resolved_effect_alias_argument(
+          source_id, argument, references, hovers,
+        )
       }
     }
+  }
+}
+
+///|
+fn collect_resolved_effect_alias_argument(
+  source_id : String,
+  argument : @resolve.ResolvedEffectAliasArgument,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match argument {
+    TypeArgument(type_) =>
+      collect_resolved_type_reference(source_id, type_, references, hovers)
+    EffectArgument(effect) =>
+      collect_resolved_effect_reference(source_id, effect, references, hovers)
   }
 }
 
@@ -981,8 +998,28 @@ fn collect_resolved_effect_reference_with_source(
         contents: "effect alias \{name}",
       })
       for argument in arguments {
-        collect_resolved_type_reference(source_id, argument, references, hovers)
+        collect_resolved_effect_alias_argument_with_source(
+          source_id, source_text, argument, references, hovers,
+        )
       }
     }
+  }
+}
+
+///|
+fn collect_resolved_effect_alias_argument_with_source(
+  source_id : String,
+  source_text : String,
+  argument : @resolve.ResolvedEffectAliasArgument,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match argument {
+    TypeArgument(type_) =>
+      collect_resolved_type_reference(source_id, type_, references, hovers)
+    EffectArgument(effect) =>
+      collect_resolved_effect_reference_with_source(
+        source_id, source_text, effect, references, hovers,
+      )
   }
 }

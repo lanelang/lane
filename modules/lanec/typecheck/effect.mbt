@@ -55,13 +55,8 @@ fn TypeExpressionChecker::check_effect(
       }
       Parameter(symbol)
     }
-    Alias(name~, arguments~, loc~) => {
-      for argument in arguments {
-        ignore(self.synthesize_type(argument))
-      }
-      self.diagnostics.push({ kind: UnresolvedType(name), loc })
-      Empty
-    }
+    Alias(name~, arguments~, loc~) =>
+      self.expand_effect_alias(name, arguments, loc)
     Union(items~, ..) =>
       effect_union(items.map(fn(item) { self.check_effect(item) }))
     Unresolved(name~, arguments~, loc~) => {
@@ -71,6 +66,303 @@ fn TypeExpressionChecker::check_effect(
       self.diagnostics.push({ kind: UnresolvedType(name), loc })
       Empty
     }
+  }
+}
+
+///|
+priv struct EffectSubstitutionEntry {
+  parameter : TypeParameterId
+  replacement : @types.Effect
+}
+
+///|
+priv struct EffectSubstitution {
+  entries : Array[EffectSubstitutionEntry]
+}
+
+///|
+fn EffectSubstitution::EffectSubstitution() -> EffectSubstitution {
+  { entries: [] }
+}
+
+///|
+fn EffectSubstitution::insert(
+  self : EffectSubstitution,
+  parameter : TypeParameterId,
+  replacement : @types.Effect,
+) -> Unit {
+  self.entries.push({ parameter, replacement })
+}
+
+///|
+fn EffectSubstitution::lookup(
+  self : EffectSubstitution,
+  parameter : TypeParameterId,
+  bound : Array[TypeParameterId],
+) -> @types.Effect? {
+  if bound.contains(parameter) {
+    return None
+  }
+  for entry in self.entries {
+    if entry.parameter == parameter {
+      return Some(entry.replacement)
+    }
+  }
+  None
+}
+
+///|
+fn TypeExpressionChecker::expand_effect_alias(
+  self : TypeExpressionChecker,
+  name : String,
+  arguments : Array[@resolve.ResolvedEffectAliasArgument],
+  loc : SourceSpan,
+) -> @types.Effect {
+  if self.expanding.contains(name) {
+    self.diagnostics.push({ kind: TypeAliasCycle(name~), loc })
+    return Empty
+  }
+  match self.find_alias(name) {
+    Some(type_alias) => {
+      let next = {
+        source: self.source,
+        imported_environment: self.imported_environment,
+        diagnostics: self.diagnostics,
+        expanding: self.expanding.copy(),
+      }
+      next.expanding.push(name)
+      let checked_parameters = check_type_parameters(
+        self.diagnostics,
+        type_alias.type_parameters,
+      )
+      let (type_substitution, effect_substitution) = self.check_effect_alias_arguments(
+        checked_parameters, arguments, name, loc,
+      )
+      match type_alias.body {
+        EffectBody(effect) => {
+          let expanded = next.check_effect(effect).substitute(type_substitution)
+          expanded.substitute_effect_parameters(effect_substitution).normalize()
+        }
+        TypeBody(body) => {
+          let result = next.synthesize_type(body)
+          self.diagnostics.push({
+            kind: KindMismatch(expected=Effect, actual=result.kind),
+            loc,
+          })
+          Empty
+        }
+      }
+    }
+    None =>
+      match self.find_interface_alias(name) {
+        Some(type_alias) =>
+          if type_alias.kind == Effect {
+            self.diagnostics.push({ kind: UnresolvedType(name), loc })
+            Empty
+          } else {
+            self.diagnostics.push({
+              kind: KindMismatch(expected=Effect, actual=type_alias.kind),
+              loc,
+            })
+            Empty
+          }
+        None => {
+          for argument in arguments {
+            self.check_effect_alias_argument(argument)
+          }
+          self.diagnostics.push({ kind: UnresolvedType(name), loc })
+          Empty
+        }
+      }
+  }
+}
+
+///|
+fn TypeExpressionChecker::check_effect_alias_arguments(
+  self : TypeExpressionChecker,
+  parameters : Array[@types.TypeParameter],
+  arguments : Array[@resolve.ResolvedEffectAliasArgument],
+  name : String,
+  loc : SourceSpan,
+) -> (@types.TypeSubstitution, EffectSubstitution) {
+  if parameters.length() != arguments.length() {
+    self.diagnostics.push({
+      kind: TypeArgumentArityMismatch(
+        name~,
+        expected=parameters.length(),
+        actual=arguments.length(),
+      ),
+      loc,
+    })
+  }
+  let type_substitution = @types.TypeSubstitution::TypeSubstitution()
+  let effect_substitution = EffectSubstitution::EffectSubstitution()
+  for index in 0..<arguments.length() {
+    if index < parameters.length() {
+      self.check_effect_alias_argument_for_parameter(
+        parameters[index],
+        arguments[index],
+        type_substitution,
+        effect_substitution,
+      )
+    } else {
+      self.check_effect_alias_argument(arguments[index])
+    }
+  }
+  (type_substitution, effect_substitution)
+}
+
+///|
+fn TypeExpressionChecker::check_effect_alias_argument_for_parameter(
+  self : TypeExpressionChecker,
+  parameter : @types.TypeParameter,
+  argument : @resolve.ResolvedEffectAliasArgument,
+  type_substitution : @types.TypeSubstitution,
+  effect_substitution : EffectSubstitution,
+) -> Unit {
+  match (parameter.kind, argument) {
+    (Effect, EffectArgument(effect)) =>
+      effect_substitution.insert(parameter.id, self.check_effect(effect))
+    (Effect, TypeArgument(type_)) => {
+      let result = self.synthesize_type(type_)
+      self.diagnostics.push({
+        kind: KindMismatch(expected=Effect, actual=result.kind),
+        loc: resolved_type_loc(type_),
+      })
+    }
+    (expected, TypeArgument(type_)) => {
+      let result = self.synthesize_type(type_)
+      if result.kind != expected {
+        self.diagnostics.push({
+          kind: KindMismatch(expected~, actual=result.kind),
+          loc: resolved_type_loc(type_),
+        })
+      }
+      type_substitution.insert(parameter.id, result.type_.normalize())
+    }
+    (expected, EffectArgument(effect)) => {
+      ignore(self.check_effect(effect))
+      self.diagnostics.push({
+        kind: KindMismatch(expected~, actual=Effect),
+        loc: resolved_effect_alias_argument_loc(argument),
+      })
+    }
+  }
+}
+
+///|
+fn TypeExpressionChecker::check_effect_alias_argument(
+  self : TypeExpressionChecker,
+  argument : @resolve.ResolvedEffectAliasArgument,
+) -> Unit {
+  match argument {
+    TypeArgument(type_) => ignore(self.synthesize_type(type_))
+    EffectArgument(effect) => ignore(self.check_effect(effect))
+  }
+}
+
+///|
+fn @types.Effect::substitute_effect_parameters(
+  self : @types.Effect,
+  substitution : EffectSubstitution,
+) -> @types.Effect {
+  self.substitute_effect_parameters_with_bound(substitution, [])
+}
+
+///|
+fn @types.Effect::substitute_effect_parameters_with_bound(
+  self : @types.Effect,
+  substitution : EffectSubstitution,
+  bound : Array[TypeParameterId],
+) -> @types.Effect {
+  match self {
+    Empty => Empty
+    Singleton(symbol, arguments) =>
+      Singleton(
+        symbol,
+        arguments.map(fn(argument) {
+          argument.substitute_effect_parameters_with_bound(substitution, bound)
+        }),
+      )
+    Parameter(id) =>
+      match substitution.lookup(id, bound) {
+        Some(replacement) => replacement
+        None => self
+      }
+    Union(effects) =>
+      Union(
+        effects.map(fn(effect) {
+          effect.substitute_effect_parameters_with_bound(substitution, bound)
+        }),
+      )
+  }
+}
+
+///|
+fn @types.Type::substitute_effect_parameters_with_bound(
+  self : @types.Type,
+  substitution : EffectSubstitution,
+  bound : Array[TypeParameterId],
+) -> @types.Type {
+  match self {
+    Error | Primitive(_) | Constructor(_) | Parameter(_) => self
+    Apply(callee, arguments) =>
+      Apply(
+        callee.substitute_effect_parameters_with_bound(substitution, bound),
+        arguments.map(fn(argument) {
+          argument.substitute_effect_parameters_with_bound(substitution, bound)
+        }),
+      )
+    TypeLambda(type_parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in type_parameters {
+        next_bound.push(parameter.id)
+      }
+      TypeLambda(
+        type_parameters,
+        body.substitute_effect_parameters_with_bound(substitution, next_bound),
+      )
+    }
+    Function(parameters, result, effect) =>
+      Function(
+        parameters.map(fn(parameter) {
+          parameter.substitute_effect_parameters_with_bound(substitution, bound)
+        }),
+        result.substitute_effect_parameters_with_bound(substitution, bound),
+        effect.substitute_effect_parameters_with_bound(substitution, bound),
+      )
+    Forall(type_parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in type_parameters {
+        next_bound.push(parameter.id)
+      }
+      Forall(
+        type_parameters,
+        body.substitute_effect_parameters_with_bound(substitution, next_bound),
+      )
+    }
+  }
+}
+
+///|
+fn resolved_effect_alias_argument_loc(
+  argument : @resolve.ResolvedEffectAliasArgument,
+) -> SourceSpan {
+  match argument {
+    TypeArgument(type_) => resolved_type_loc(type_)
+    EffectArgument(effect) => resolved_effect_loc(effect)
+  }
+}
+
+///|
+fn resolved_effect_loc(effect : @resolve.ResolvedEffectTerm) -> SourceSpan {
+  match effect {
+    Empty(loc~) => loc
+    Singleton(loc~, ..) => loc
+    Parameter(loc~, ..) => loc
+    Alias(loc~, ..) => loc
+    Union(loc~, ..) => loc
+    Unresolved(loc~, ..) => loc
   }
 }
 

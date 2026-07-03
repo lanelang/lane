@@ -900,7 +900,7 @@ fn find_kind_in_effect(
       }
     Alias(arguments~, ..) => {
       for argument in arguments {
-        if find_kind_in_type(argument, symbol) is Some(kind) {
+        if find_kind_in_effect_alias_argument(argument, symbol) is Some(kind) {
           return Some(kind)
         }
       }
@@ -992,6 +992,17 @@ fn check_resolved_kind(kind : @resolve.ResolvedKind) -> @types.Kind {
     Effect(..) => Effect
     Function(parameters~, result~, ..) =>
       Function(parameters.map(check_resolved_kind), check_resolved_kind(result))
+  }
+}
+
+///|
+fn find_kind_in_effect_alias_argument(
+  argument : @resolve.ResolvedEffectAliasArgument,
+  symbol : TypeParameterId,
+) -> @types.Kind? {
+  match argument {
+    TypeArgument(type_) => find_kind_in_type(type_, symbol)
+    EffectArgument(effect) => find_kind_in_effect(effect, symbol)
   }
 }
 

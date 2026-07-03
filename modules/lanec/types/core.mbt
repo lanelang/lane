@@ -461,7 +461,7 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
 
 ///|
 pub fn Effect::normalize(self : Effect) -> Effect {
-  self.normalize_with_fuel(1024)
+  self.normalize_with_fuel(1024).canonicalize()
 }
 
 ///|

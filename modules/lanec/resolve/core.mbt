@@ -135,6 +135,7 @@ pub(all) struct ResolvedEffectOperationDeclaration {
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
+  type_parameters : Array[ResolvedTypeParameter]
   body : ResolvedTypeAliasBody
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -247,13 +248,23 @@ pub(all) enum ResolvedEffectTerm {
     loc~ : SourceSpan
   )
   Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)
-  Alias(name~ : String, arguments~ : Array[ResolvedType], loc~ : SourceSpan)
+  Alias(
+    name~ : String,
+    arguments~ : Array[ResolvedEffectAliasArgument],
+    loc~ : SourceSpan
+  )
   Union(items~ : Array[ResolvedEffectTerm], loc~ : SourceSpan)
   Unresolved(
     name~ : String,
     arguments~ : Array[ResolvedType],
     loc~ : SourceSpan
   )
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedEffectAliasArgument {
+  TypeArgument(ResolvedType)
+  EffectArgument(ResolvedEffectTerm)
 } derive(Debug, Eq)
 
 ///|

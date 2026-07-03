@@ -52,6 +52,22 @@ fn expect_checked_source_result(
 }
 
 ///|
+fn checked_function_effect(
+  result : TypeCheckResult,
+  name : String,
+) -> @types.Effect {
+  for value in result.values.values {
+    if value is Function(declaration) && declaration.name == name {
+      guard declaration.type_ is Function(_, _, effect) else {
+        abort("expected function type")
+      }
+      return effect
+    }
+  }
+  abort("expected function " + name)
+}
+
+///|
 fn expect_checked_let_initializer(
   source : String,
   name : String,
@@ -3381,4 +3397,144 @@ test "typecheck represents effect row variables" {
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck expands effect set alias in function annotations" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect Log {
+      #|  write(String) -> Unit
+      #|}
+      #|type UI = { Console, Log }
+      #|fn program() -> Unit ! UI {
+      #|  let ignored : Int = Console::read!()
+      #|  Log::write!("ok")
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  inspect(
+    @prettyprinter.render(checked_function_effect(result, "program"), width=100),
+    content=(
+      #|{
+      #|  effect#0,
+      #|  effect#1
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck applies generic effect set alias" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Coroutine {
+      #|  pause() -> Unit
+      #|}
+      #|effect Log {
+      #|  write(String) -> Unit
+      #|}
+      #|type Task[E : Effect] = { Coroutine, E }
+      #|fn program() -> Unit ! Task[Log] {
+      #|  let ignored : Unit = Coroutine::pause!()
+      #|  Log::write!("ok")
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  inspect(
+    @prettyprinter.render(checked_function_effect(result, "program"), width=100),
+    content=(
+      #|{
+      #|  effect#0,
+      #|  effect#1
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck normalizes expanded effect set alias" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect Log {
+      #|  write(String) -> Unit
+      #|}
+      #|type Read = { Console }
+      #|type UI = { Log, Read, Console }
+      #|fn program() -> Unit ! UI {
+      #|  let ignored : Int = Console::read!()
+      #|  Log::write!("ok")
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  inspect(
+    @prettyprinter.render(checked_function_effect(result, "program"), width=100),
+    content=(
+      #|{
+      #|  effect#1,
+      #|  effect#0
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck reports effect alias cycle" {
+  let result = expect_typecheck_result(
+    (
+      #|type A = { B }
+      #|type B = { A }
+      #|fn program() -> Unit ! A {
+      #|  ()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="type_alias_cycle A",
+  )
+}
+
+///|
+test "typecheck rejects type-kind alias in effect position" {
+  let result = expect_typecheck_result(
+    (
+      #|type Answer = Int
+      #|fn program() -> Unit ! Answer {
+      #|  ()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="kind_mismatch expected=Effect actual=Type",
+  )
+}
+
+///|
+test "typecheck rejects type argument for effect alias parameter" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Coroutine {
+      #|  yield() -> Unit
+      #|}
+      #|type Task[E : Effect] = { Coroutine, E }
+      #|fn program() -> Unit ! Task[Int] {
+      #|  ()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="kind_mismatch expected=Effect actual=Type",
+  )
 }
