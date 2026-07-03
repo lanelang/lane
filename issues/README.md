@@ -76,6 +76,15 @@ graph TD
   ISS_060["ISS-060: Add effect and operation symbols to LSP analysis"]
   ISS_061["ISS-061: Add LSP references for operation calls and handler arms"]
   ISS_062["ISS-062: Cover effect editor intelligence with LSP tests"]
+  ISS_063["ISS-063: Raise Lane diagnostics to Rust-grade reports"]
+  ISS_064["ISS-064: Add structured diagnostic facts and causal provenance"]
+  ISS_065["ISS-065: Make module import diagnostics explain actual inputs"]
+  ISS_066["ISS-066: Attach secondary spans and related locations to high-value diagnostics"]
+  ISS_067["ISS-067: Implement actionable diagnostic suggestions and edit rendering"]
+  ISS_068["ISS-068: Preserve parser and typechecker expectation context"]
+  ISS_069["ISS-069: Upgrade diagnostic renderer for multi-source terminal output"]
+  ISS_070["ISS-070: Define terminal color and diagnostic output capability policy"]
+  ISS_071["ISS-071: Build a Rust-style diagnostic regression corpus"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -138,6 +147,17 @@ graph TD
   ISS_060 --> ISS_061
   ISS_060 --> ISS_062
   ISS_061 --> ISS_062
+  ISS_064 --> ISS_065
+  ISS_064 --> ISS_066
+  ISS_064 --> ISS_067
+  ISS_064 --> ISS_068
+  ISS_064 --> ISS_069
+  ISS_067 --> ISS_069
+  ISS_065 --> ISS_071
+  ISS_066 --> ISS_071
+  ISS_067 --> ISS_071
+  ISS_069 --> ISS_071
+  ISS_070 --> ISS_071
 ```
 
 ## Warnings

@@ -1,4 +1,38 @@
 ///|
+priv struct LaneSourceInput {
+  source_id : String
+  path : String?
+  text : String
+}
+
+///|
+fn LaneSourceInput::to_compile_input(
+  self : LaneSourceInput,
+) -> @compile.SourceInput {
+  { source_id: self.source_id, text: self.text }
+}
+
+///|
+fn LaneSourceInput::array_to_compile_inputs(
+  inputs : Array[LaneSourceInput],
+) -> Array[@compile.SourceInput] {
+  inputs.map(LaneSourceInput::to_compile_input)
+}
+
+///|
+fn LaneSourceInput::diagnostic_sources(
+  root : LaneSourceInput,
+  libraries : Array[LaneSourceInput],
+) -> DiagnosticSources {
+  let sources = DiagnosticSources::DiagnosticSources()
+  sources.add_input(root)
+  for library in libraries {
+    sources.add_input(library)
+  }
+  sources
+}
+
+///|
 async fn read_source_file(path : String) -> String {
   @fs.read_file(path).text()
 }
@@ -143,11 +177,11 @@ async fn read_module_interface_artifacts(
 }
 
 ///|
-async fn read_library_sources(
+async fn read_library_source_inputs(
   root : String,
   libs : Array[String],
   lib_dirs : Array[String],
-) -> Result[Array[String], String] {
+) -> Result[Array[LaneSourceInput], String] {
   let root_identity = match library_source_identity(root) {
     Ok(identity) => identity
     Err(message) => return Err(message)
@@ -184,7 +218,7 @@ async fn append_library_source(
   root_identity : String,
   path : String,
   identities : Array[String],
-  sources : Array[String],
+  sources : Array[LaneSourceInput],
 ) -> Result[Unit, String] {
   let identity = match library_source_identity(path) {
     Ok(identity) => identity
@@ -203,7 +237,7 @@ async fn append_library_source(
     error => return Err(read_file_error(path, "\{error}"))
   }
   identities.push(identity)
-  sources.push(source)
+  sources.push({ source_id: path, path: Some(path), text: source })
   Ok(())
 }
 
@@ -212,7 +246,7 @@ async fn append_library_dir_sources(
   root_identity : String,
   path : String,
   identities : Array[String],
-  sources : Array[String],
+  sources : Array[LaneSourceInput],
 ) -> Result[Unit, String] {
   let entries = @fs.readdir(path, sort=true) catch {
     error => return Err(read_file_error(path, "\{error}"))

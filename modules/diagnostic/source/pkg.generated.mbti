@@ -1,0 +1,55 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/diagnostic/source"
+
+import {
+  "Milky2018/diagnostic/core",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct SourceDatabase {
+  files : Array[SourceFile]
+} derive(Eq, @debug.Debug)
+pub fn SourceDatabase::SourceDatabase() -> Self
+pub fn SourceDatabase::add(Self, String, path? : String) -> @core.SourceId
+pub fn SourceDatabase::file(Self, @core.SourceId) -> SourceFile?
+pub fn SourceDatabase::line_text(Self, @core.SourceId, Int) -> String?
+pub fn SourceDatabase::position(Self, @core.SourceSpan) -> SourcePosition?
+pub fn SourceDatabase::range(Self, @core.SourceSpan) -> SourceRange?
+pub fn SourceDatabase::span(Self, @core.SourceId, Int, Int) -> @core.SourceSpan
+pub fn SourceDatabase::span_from_text_offsets(Self, @core.SourceId, Int, Int) -> @core.SourceSpan
+
+pub(all) struct SourceFile {
+  id : @core.SourceId
+  path : String?
+  text : String
+  line_starts : Array[Int]
+  char_line_starts : Array[Int]
+  byte_to_text_offsets : Array[Int]
+  text_to_byte_offsets : Array[Int]
+} derive(Eq, @debug.Debug)
+pub fn SourceFile::byte_length(Self) -> Int
+pub fn SourceFile::byte_offset_for_text_offset(Self, Int) -> Int
+pub fn SourceFile::display_name(Self) -> String
+pub fn SourceFile::line_text(Self, Int) -> String?
+pub fn SourceFile::position(Self, Int) -> SourcePosition
+pub fn SourceFile::text_offset_for_byte_offset(Self, Int) -> Int
+
+pub(all) struct SourcePosition {
+  line : Int
+  column : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SourceRange {
+  start : SourcePosition
+  end : SourcePosition
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

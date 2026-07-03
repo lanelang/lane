@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/diagnostic/json"
+
+import {
+  "Milky2018/diagnostic/core",
+}
+
+// Values
+pub fn diagnostic_to_json(@core.Diagnostic) -> Json
+
+pub fn fact_to_json(@core.DiagnosticFact) -> Json
+
+pub fn label_to_json(@core.Label) -> Json
+
+pub fn related_location_to_json(@core.RelatedLocation) -> Json
+
+pub fn span_to_json(@core.SourceSpan) -> Json
+
+pub fn suggestion_to_json(@core.Suggestion) -> Json
+
+pub fn text_edit_to_json(@core.TextEdit) -> Json
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

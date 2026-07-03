@@ -1,5 +1,6 @@
 /.mooncakes/
 /_build/
+/modules/*/_build/
 /tools/.mooncakes/
 /tools/_build/
 /modules/lanec/.tmp-yacc/

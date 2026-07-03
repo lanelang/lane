@@ -54,7 +54,11 @@ fn validate_module_inputs(
     for import_ in module_.header.imports {
       if find_module(modules, import_.module_path_text) is None {
         let diagnostic = CompileErrorKind::to_diagnostic(
-          MissingImport(import_.module_path_text),
+          MissingImportWithCandidates(
+            module_=import_.module_path_text,
+            source_modules=module_candidates(modules),
+            interface_modules=[],
+          ),
           Some(import_.import_span),
         ).with_source_id(module_.source_id)
         diagnostics.push(diagnostic)
@@ -125,7 +129,16 @@ fn visit_module(
     return
   }
   guard find_module(modules, path) is Some(module_) else {
-    diagnostics.push(CompileErrorKind::to_diagnostic(MissingImport(path), None))
+    diagnostics.push(
+      CompileErrorKind::to_diagnostic(
+        MissingImportWithCandidates(
+          module_=path,
+          source_modules=module_candidates(modules),
+          interface_modules=[],
+        ),
+        None,
+      ),
+    )
     return
   }
   if visiting.contains(path) {
@@ -162,4 +175,9 @@ fn find_module(
     }
   }
   None
+}
+
+///|
+fn module_candidates(modules : Array[ParsedModuleInput]) -> Array[String] {
+  modules.map(fn(module_) { module_.header.module_path_text })
 }

@@ -1,11 +1,16 @@
 import {
   "Milky2018/buslane",
   "Milky2018/buslane/interpreter" @buslane_interpreter,
+  "Milky2018/diagnostic/core" @diag_core,
+  "Milky2018/diagnostic/render" @diag_render,
+  "Milky2018/diagnostic/source" @diag_source,
+  "Milky2018/lanec/basic",
   "Milky2018/lanec/compile",
   "Milky2018/lanec/elaborate",
   "Milky2018/lanec/format",
   "Milky2018/lanec/intrinsics",
   "Milky2018/lane/lsp",
+  "Milky2018/lane/terminal",
   "moonbit-community/prettyprinter",
   "moonbitlang/async",
   "moonbitlang/async/fs",
@@ -15,6 +20,7 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/sys",
 }
 
 supported_targets = "native"

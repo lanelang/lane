@@ -135,7 +135,14 @@ fn visit_interface_artifact(
   guard find_module_interface_artifact(interfaces, module_path_text)
     is Some(interface) else {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(MissingImport(module_path_text), span),
+      CompileErrorKind::to_diagnostic(
+        MissingImportWithCandidates(
+          module_=module_path_text,
+          source_modules=[],
+          interface_modules=interface_candidates(interfaces),
+        ),
+        span,
+      ),
     )
     return
   }
@@ -183,6 +190,13 @@ fn find_module_interface_artifact(
     }
   }
   None
+}
+
+///|
+fn interface_candidates(
+  interfaces : Array[ModuleInterfaceArtifact],
+) -> Array[String] {
+  interfaces.map(fn(interface) { interface.module_path_text })
 }
 
 ///|

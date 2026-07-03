@@ -14,6 +14,7 @@ preferred_target = "native"
 
 import {
   "Milky2018/buslane@0.1.0",
+  "Milky2018/diagnostic@0.1.0",
   "Milky2018/lanec@0.1.0",
   "gmlewis/jsonrpc2@0.0.32",
   "moonbit-community/prettyprinter@0.4.10",

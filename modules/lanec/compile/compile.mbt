@@ -30,7 +30,23 @@ pub fn check_sources(
   root_source : String,
   library_sources : Array[String],
 ) -> CheckResult {
-  match compile_module_set_from_inputs(root_source, library_sources) {
+  let library_inputs = []
+  for index, source in library_sources {
+    library_inputs.push({ source_id: "<library:\{index}>", text: source })
+  }
+  check_source_inputs(
+    { source_id: "<root>", text: root_source },
+    library_inputs,
+  )
+}
+
+///|
+/// Checks a root Lane source module against explicitly supplied library modules.
+pub fn check_source_inputs(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
+) -> CheckResult {
+  match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) =>
       match
         find_compiled_module(modules.modules, modules.root_module_path_text) {
@@ -51,6 +67,18 @@ pub fn check_sources(
 /// Checks one Lane source module against already compiled module interfaces.
 pub fn check_source_with_interface_artifacts(
   root_source : String,
+  interfaces : Array[ModuleInterfaceArtifact],
+) -> CheckResult {
+  check_source_input_with_interface_artifacts(
+    { source_id: "<root>", text: root_source },
+    interfaces,
+  )
+}
+
+///|
+/// Checks one Lane source module against already compiled module interfaces.
+pub fn check_source_input_with_interface_artifacts(
+  root_source : SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> CheckResult {
   match compile_module_from_interface_artifacts(root_source, interfaces) {
@@ -76,7 +104,23 @@ pub fn compile_modules(
   root_source : String,
   library_sources : Array[String],
 ) -> CompileModulesResult {
-  match compile_module_set_from_inputs(root_source, library_sources) {
+  let library_inputs = []
+  for index, source in library_sources {
+    library_inputs.push({ source_id: "<library:\{index}>", text: source })
+  }
+  compile_module_inputs(
+    { source_id: "<root>", text: root_source },
+    library_inputs,
+  )
+}
+
+///|
+/// Compiles source modules into separate module artifacts without linking them.
+pub fn compile_module_inputs(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
+) -> CompileModulesResult {
+  match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) => { modules: Some(modules), diagnostics: [] }
     Err(diagnostics) => { modules: None, diagnostics }
   }
@@ -86,6 +130,18 @@ pub fn compile_modules(
 /// Compiles one Lane source module against already compiled module interfaces.
 pub fn compile_module_with_interface_artifacts(
   root_source : String,
+  interfaces : Array[ModuleInterfaceArtifact],
+) -> CompileModulesResult {
+  compile_module_input_with_interface_artifacts(
+    { source_id: "<root>", text: root_source },
+    interfaces,
+  )
+}
+
+///|
+/// Compiles one Lane source module against already compiled module interfaces.
+pub fn compile_module_input_with_interface_artifacts(
+  root_source : SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> CompileModulesResult {
   match compile_module_from_interface_artifacts(root_source, interfaces) {
@@ -114,7 +170,24 @@ pub fn compile_sources(
   root_source : String,
   library_sources : Array[String],
 ) -> CompileResult {
-  match compile_module_set_from_inputs(root_source, library_sources) {
+  let library_inputs = []
+  for index, source in library_sources {
+    library_inputs.push({ source_id: "<library:\{index}>", text: source })
+  }
+  compile_source_inputs(
+    { source_id: "<root>", text: root_source },
+    library_inputs,
+  )
+}
+
+///|
+/// Compiles a root Lane source module against explicitly supplied library
+/// modules.
+pub fn compile_source_inputs(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
+) -> CompileResult {
+  match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) => {
       let linked = link_compiled_module_set(modules)
       match linked.program {
@@ -140,11 +213,11 @@ pub fn compile_sources(
 }
 
 ///|
-fn compile_module_set_from_inputs(
-  root_source : String,
-  library_sources : Array[String],
+fn compile_module_set_from_source_inputs(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
 ) -> Result[CompiledModuleSet, Array[CompileDiagnostic]] {
-  match parse_module_input_set(root_source, library_sources) {
+  match parse_module_input_set_from_inputs(root_source, library_sources) {
     Err(diagnostics) => Err(diagnostics)
     Ok(inputs) =>
       match build_module_graph(inputs) {

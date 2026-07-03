@@ -11,6 +11,8 @@ pub(all) struct CompileDiagnostic {
   labels : Array[CompileDiagnosticLabel]
   notes : Array[String]
   helps : Array[String]
+  facts : Array[CompileDiagnosticFact]
+  suggestions : Array[CompileDiagnosticSuggestion]
 } derive(Debug, Eq)
 
 ///|
@@ -33,10 +35,42 @@ pub(all) enum CompileDiagnosticLabelStyle {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CompileDiagnosticFact {
+  name : String
+  value : String
+  span : @basic.SourceSpan?
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CompileDiagnosticTextEdit {
+  span : @basic.SourceSpan
+  replacement : String
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CompileDiagnosticApplicability {
+  MachineApplicable
+  MaybeIncorrect
+  HasPlaceholders
+  Unspecified
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CompileDiagnosticSuggestion {
+  message : String
+  edits : Array[CompileDiagnosticTextEdit]
+  applicability : CompileDiagnosticApplicability
+} derive(Debug, Eq)
+
+///|
 priv enum CompileErrorKind {
   NoRootSourceModule
   DuplicateModuleInput(String)
-  MissingImport(String)
+  MissingImportWithCandidates(
+    module_~ : String,
+    source_modules~ : Array[String],
+    interface_modules~ : Array[String]
+  )
   ImportCycle(String)
   DuplicateModuleInterfaceArtifact(String)
   UnsupportedModuleInterfaceArtifactSchema(String)
@@ -88,8 +122,21 @@ fn diagnostic(
   labels~ : Array[CompileDiagnosticLabel],
   notes~ : Array[String],
   helps~ : Array[String],
+  facts? : Array[CompileDiagnosticFact] = [],
+  suggestions? : Array[CompileDiagnosticSuggestion] = [],
 ) -> CompileDiagnostic {
-  { source_id: None, message, span, severity, code, labels, notes, helps }
+  {
+    source_id: None,
+    message,
+    span,
+    severity,
+    code,
+    labels,
+    notes,
+    helps,
+    facts,
+    suggestions,
+  }
 }
 
 ///|
@@ -135,14 +182,9 @@ fn CompileErrorKind::to_diagnostic(
         note="a module input set cannot contain two sources with the same module name",
         help="remove one source file or rename one of the modules",
       )
-    MissingImport(module_) =>
-      compile_report(
-        "missing imported module `\{module_}`",
-        span,
-        code="E4002",
-        label="this import has no matching module input or interface artifact",
-        note="Lane does not search the file system by module name during compilation",
-        help="pass the imported module as a library source or compiled interface",
+    MissingImportWithCandidates(module_~, source_modules~, interface_modules~) =>
+      missing_import_diagnostic(
+        module_, span, source_modules, interface_modules,
       )
     ImportCycle(module_) =>
       compile_report(
@@ -388,6 +430,58 @@ fn compile_report(
     labels=primary_label(span, label),
     notes=[note],
     helps=[help],
+  )
+}
+
+///|
+fn missing_import_diagnostic(
+  module_ : String,
+  span : @basic.SourceSpan?,
+  source_modules : Array[String],
+  interface_modules : Array[String],
+) -> CompileDiagnostic {
+  let facts : Array[CompileDiagnosticFact] = []
+  for source_module in source_modules {
+    facts.push({
+      name: "considered source module",
+      value: "`\{source_module}`",
+      span: None,
+    })
+  }
+  for interface_module in interface_modules {
+    facts.push({
+      name: "considered interface artifact",
+      value: "declares module `\{interface_module}`",
+      span: None,
+    })
+  }
+  if source_modules.is_empty() && interface_modules.is_empty() {
+    facts.push({
+      name: "considered inputs",
+      value: "no library source or interface artifact was available",
+      span: None,
+    })
+  }
+  diagnostic(
+    "missing imported module `\{module_}`",
+    span~,
+    severity=Error,
+    code=Some("E4002"),
+    labels=primary_label(span, "no explicit input provides this module"),
+    notes=[
+      "Lane only compiles explicitly provided source files and interface artifacts",
+    ],
+    helps=[
+      "pass an input whose declared module is `\{module_}`, or change the import to one of the listed modules",
+    ],
+    facts~,
+    suggestions=[
+      {
+        message: "check the imported module name against the listed explicit inputs",
+        edits: [],
+        applicability: MaybeIncorrect,
+      },
+    ],
   )
 }
 
@@ -706,6 +800,25 @@ fn typecheck_diagnostic(
         helps=[
           "change the expression type or adjust the annotation/expected type",
         ],
+        facts=[
+          {
+            name: "expected type",
+            value: "`\{display.type_text(expected)}`",
+            span: Some(diagnostic_.loc),
+          },
+          {
+            name: "actual type",
+            value: "`\{display.type_text(actual)}`",
+            span: Some(diagnostic_.loc),
+          },
+        ],
+        suggestions=[
+          {
+            message: "change the expression type or adjust the annotation/expected type",
+            edits: [],
+            applicability: Unspecified,
+          },
+        ],
       )
     EffectMismatch(expected~, actual~) =>
       diagnostic(
@@ -723,6 +836,25 @@ fn typecheck_diagnostic(
         notes=["Lane functions without an effect annotation are pure"],
         helps=[
           "add the required effect annotation or remove the effectful operation",
+        ],
+        facts=[
+          {
+            name: "expected effect",
+            value: "`\{display.effect_text(expected)}`",
+            span: Some(diagnostic_.loc),
+          },
+          {
+            name: "actual effect",
+            value: "`\{display.effect_text(actual)}`",
+            span: Some(diagnostic_.loc),
+          },
+        ],
+        suggestions=[
+          {
+            message: "add the required effect annotation or remove the effectful operation",
+            edits: [],
+            applicability: Unspecified,
+          },
         ],
       )
     NotCallable(type_) =>
@@ -776,6 +908,13 @@ fn typecheck_diagnostic(
           "Lane struct literals and struct patterns must account for required fields",
         ],
         helps=["add a `\{name}: ...` field entry"],
+        suggestions=[
+          {
+            message: "add a `\{name}: ...` field entry",
+            edits: [],
+            applicability: HasPlaceholders,
+          },
+        ],
       )
     DuplicateField(name~) =>
       diagnostic(
@@ -792,6 +931,13 @@ fn typecheck_diagnostic(
         ],
         notes=["each struct field may appear at most once"],
         helps=["remove the duplicate field entry"],
+        suggestions=[
+          {
+            message: "remove the duplicate field entry",
+            edits: [{ span: diagnostic_.loc, replacement: "" }],
+            applicability: MachineApplicable,
+          },
+        ],
       )
     UnknownTypeMember(name~) =>
       diagnostic(
@@ -1089,7 +1235,33 @@ fn cannot_infer_diagnostic(
       "this diagnostic is emitted when local context is not enough to choose a unique type",
     ],
     helps=[cannot_infer_help(reason)],
+    facts=[
+      {
+        name: "inference context",
+        value: cannot_infer_reason_text(reason),
+        span: Some(diagnostic_.loc),
+      },
+    ],
+    suggestions=[
+      {
+        message: cannot_infer_help(reason),
+        edits: [],
+        applicability: HasPlaceholders,
+      },
+    ],
   )
+}
+
+///|
+fn cannot_infer_reason_text(reason : @typecheck.CannotInferReason) -> String {
+  match reason {
+    ContextualOffer => "contextual offer"
+    FunctionLiteralParameter => "function literal parameter"
+    CallArity => "call arity"
+    TypeArguments => "type arguments"
+    Builtin => "builtin"
+    Generic => "generic expression"
+  }
 }
 
 ///|
@@ -1336,8 +1508,14 @@ fn CompileDiagnostic::body_doc(self : CompileDiagnostic) -> Document? {
   for note in self.notes {
     docs.push(text("  = note:") + space + text(note))
   }
+  for fact in self.facts {
+    docs.push(fact.to_doc())
+  }
   for help in self.helps {
     docs.push(text("  = help:") + space + text(help))
+  }
+  for suggestion in self.suggestions {
+    docs.push(suggestion.to_doc())
   }
   if docs.is_empty() {
     None
@@ -1353,6 +1531,53 @@ fn CompileDiagnosticLabel::to_doc(self : CompileDiagnosticLabel) -> Document {
     Secondary => text("  = note:")
   }
   prefix + space + text(span_text(self.span)) + space + text(self.message)
+}
+
+///|
+fn CompileDiagnosticFact::to_doc(self : CompileDiagnosticFact) -> Document {
+  match self.span {
+    Some(span) =>
+      text("  =") +
+      space +
+      text(self.name) +
+      text(":") +
+      space +
+      text(self.value) +
+      space +
+      text("at") +
+      space +
+      text(span_text(span))
+    None =>
+      text("  =") +
+      space +
+      text(self.name) +
+      text(":") +
+      space +
+      text(self.value)
+  }
+}
+
+///|
+fn CompileDiagnosticSuggestion::to_doc(
+  self : CompileDiagnosticSuggestion,
+) -> Document {
+  text("  = suggestion:") +
+  space +
+  text(self.message) +
+  space +
+  text("(\{self.applicability.as_text()})")
+}
+
+///|
+fn CompileDiagnosticApplicability::as_text(
+  self : CompileDiagnosticApplicability,
+) -> String {
+  match self {
+    MachineApplicable => "machine-applicable"
+    MaybeIncorrect => "maybe-incorrect"
+    HasPlaceholders => "has-placeholders"
+    Unspecified => "unspecified"
+  }
 }
 
 ///|

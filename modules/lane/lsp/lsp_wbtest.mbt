@@ -371,14 +371,14 @@ async test "didOpen publishes compiler diagnostics" {
         "uri": "file:///bad.lane",
         "diagnostics": [
           {
+            "severity": 1,
+            "message": "cannot find type `Missing`",
+            "source": "lane",
+            "code": "E2000",
             "range": {
               "start": { "line": 1, "character": 13 },
               "end": { "line": 1, "character": 20 },
             },
-            "severity": 1,
-            "source": "lane",
-            "message": "cannot find type `Missing`",
-            "code": "E2000",
             "relatedInformation": [
               {
                 "location": {
@@ -416,6 +416,115 @@ async test "didOpen publishes compiler diagnostics" {
       },
     },
   ])
+}
+
+///|
+test "lsp diagnostics convert text offsets before transport" {
+  let input : @compile.SourceInput = {
+    source_id: "file:///unicode.lane",
+    text: (
+      #|module Main
+      #|// 中文 before import
+      #|import Builtins.{
+      #|  read_int
+      #|}
+      #|pub let answer : Int = 1
+    ),
+  }
+  let result = @compile.check_source_inputs(input, [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one missing import diagnostic")
+  }
+  let sources = LspDiagnosticSources::from_inputs([input])
+  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
+    "severity": 1,
+    "message": "missing imported module `Builtins`",
+    "source": "lane",
+    "code": "E4002",
+    "range": {
+      "start": { "line": 2, "character": 7 },
+      "end": { "line": 2, "character": 15 },
+    },
+    "data": {
+      "facts": [
+        {
+          "name": "considered source module",
+          "value": "`Main`",
+          "hasSpan": false,
+        },
+      ],
+      "suggestions": [
+        {
+          "message": "check the imported module name against the listed explicit inputs",
+          "applicability": "maybe-incorrect",
+        },
+      ],
+    },
+    "relatedInformation": [
+      {
+        "location": {
+          "uri": "file:///unicode.lane",
+          "range": {
+            "start": { "line": 2, "character": 7 },
+            "end": { "line": 2, "character": 15 },
+          },
+        },
+        "message": "no explicit input provides this module",
+      },
+      {
+        "location": {
+          "uri": "file:///unicode.lane",
+          "range": {
+            "start": { "line": 2, "character": 7 },
+            "end": { "line": 2, "character": 15 },
+          },
+        },
+        "message": "note: Lane only compiles explicitly provided source files and interface artifacts",
+      },
+      {
+        "location": {
+          "uri": "file:///unicode.lane",
+          "range": {
+            "start": { "line": 2, "character": 7 },
+            "end": { "line": 2, "character": 15 },
+          },
+        },
+        "message": "help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules",
+      },
+    ],
+  })
+}
+
+///|
+test "lsp diagnostic conversion keeps required range for unmapped source" {
+  let diagnostic : @compile.CompileDiagnostic = {
+    source_id: Some("file:///missing.lane"),
+    message: "diagnostic source is not open",
+    span: None,
+    severity: Error,
+    code: Some("E9999"),
+    labels: [
+      {
+        span: @basic.SourceSpan::dummy(),
+        message: "original label could not be mapped",
+        style: Primary,
+      },
+    ],
+    notes: [],
+    helps: [],
+    facts: [],
+    suggestions: [],
+  }
+  json_inspect(compile_diagnostic_json(diagnostic, LspDiagnosticSources()), content={
+    "severity": 1,
+    "message": "diagnostic source is not open",
+    "source": "lane",
+    "code": "E9999",
+    "range": {
+      "start": { "line": 0, "character": 0 },
+      "end": { "line": 0, "character": 0 },
+    },
+  })
 }
 
 ///|
@@ -554,14 +663,14 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
         "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
         "diagnostics": [
           {
+            "severity": 1,
+            "message": "cannot find type `Missing`",
+            "source": "lane",
+            "code": "E2000",
             "range": {
               "start": { "line": 2, "character": 16 },
               "end": { "line": 2, "character": 23 },
             },
-            "severity": 1,
-            "source": "lane",
-            "message": "cannot find type `Missing`",
-            "code": "E2000",
             "relatedInformation": [
               {
                 "location": {

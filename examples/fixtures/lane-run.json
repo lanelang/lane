@@ -518,7 +518,7 @@
       "file": "examples/invalid/28_effectful_function_call_in_pure_function.lane",
       "entry": "bad",
       "expect": {
-        "contains": ["error[E3007]", "effect mismatch", "expected effect `{}`, found `effect#0`"]
+        "contains": ["error[E3007]", "effect mismatch", "expected effect `{}`, found `Console`"]
       }
     }
   ]

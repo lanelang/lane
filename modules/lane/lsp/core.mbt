@@ -121,7 +121,11 @@ async fn ServerState::handle_did_open(
     .workspace_analysis()
     .check(document)
     .map(fn(publication) {
-      publish_diagnostics(publication.uri, publication.diagnostics)
+      publish_diagnostics(
+        publication.uri,
+        publication.diagnostics,
+        sources=publication.sources,
+      )
     }),
     exit_requested: false,
   }
@@ -141,7 +145,11 @@ async fn ServerState::handle_did_change(
     .workspace_analysis()
     .check(document)
     .map(fn(publication) {
-      publish_diagnostics(publication.uri, publication.diagnostics)
+      publish_diagnostics(
+        publication.uri,
+        publication.diagnostics,
+        sources=publication.sources,
+      )
     }),
     exit_requested: false,
   }

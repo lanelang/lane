@@ -1,4 +1,7 @@
 import {
+  "Milky2018/diagnostic/core" @diag_core,
+  "Milky2018/diagnostic/lsp" @diag_lsp,
+  "Milky2018/diagnostic/source" @diag_source,
   "Milky2018/lanec/basic",
   "Milky2018/lanec/compile",
   "gmlewis/jsonrpc2" @jsonrpc,

@@ -262,6 +262,8 @@ test "check deny controls warning failures" {
     labels: [],
     notes: [],
     helps: [],
+    facts: [],
+    suggestions: [],
   }
   let error : @compile.CompileDiagnostic = {
     source_id: None,
@@ -272,10 +274,114 @@ test "check deny controls warning failures" {
     labels: [],
     notes: [],
     helps: [],
+    facts: [],
+    suggestions: [],
   }
   inspect(denied_diagnostics([warning], false).length(), content="0")
   inspect(denied_diagnostics([warning], true).length(), content="1")
   inspect(denied_diagnostics([error], false).length(), content="1")
+}
+
+///|
+test "compile diagnostics render source snippets" {
+  let source =
+    #|module Main
+    #|import Builtins.{
+    #|  read_int
+    #|}
+    #|pub let answer : Int = 1
+  let root : LaneSourceInput = {
+    source_id: "ops.lane",
+    path: Some("ops.lane"),
+    text: source,
+  }
+  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one missing import diagnostic")
+  }
+  let sources = LaneSourceInput::diagnostic_sources(root, [])
+  inspect(
+    render_compile_diagnostic(result.diagnostics[0], sources),
+    content=(
+      #|error[E4002]: missing imported module `Builtins`
+      #|  --> ops.lane:2:8
+      #|   |
+      #| 2 | import Builtins.{
+      #|   |        ^^^^^^^^ no explicit input provides this module
+      #|   |
+      #|  = note: Lane only compiles explicitly provided source files and interface artifacts
+      #|  = considered source module: `Main`
+      #|  = help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules
+      #|  = suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
+    ),
+  )
+}
+
+///|
+test "compile diagnostics convert text offsets before rendering" {
+  let source =
+    #|module Main
+    #|// 中文 before import
+    #|import Builtins.{
+    #|  read_int
+    #|}
+    #|pub let answer : Int = 1
+  let root : LaneSourceInput = {
+    source_id: "unicode.lane",
+    path: Some("unicode.lane"),
+    text: source,
+  }
+  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one missing import diagnostic")
+  }
+  let sources = LaneSourceInput::diagnostic_sources(root, [])
+  inspect(
+    render_compile_diagnostic(result.diagnostics[0], sources),
+    content=(
+      #|error[E4002]: missing imported module `Builtins`
+      #|  --> unicode.lane:3:8
+      #|   |
+      #| 3 | import Builtins.{
+      #|   |        ^^^^^^^^ no explicit input provides this module
+      #|   |
+      #|  = note: Lane only compiles explicitly provided source files and interface artifacts
+      #|  = considered source module: `Main`
+      #|  = help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules
+      #|  = suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
+    ),
+  )
+}
+
+///|
+test "source-less diagnostic labels are preserved as notes" {
+  let diagnostic : @compile.CompileDiagnostic = {
+    source_id: None,
+    message: "source-less error",
+    span: None,
+    severity: Error,
+    code: Some("E9999"),
+    labels: [
+      {
+        span: @basic.SourceSpan::dummy(),
+        message: "context without a source file",
+        style: Primary,
+      },
+    ],
+    notes: ["ordinary note"],
+    helps: ["ordinary help"],
+    facts: [],
+    suggestions: [],
+  }
+  inspect(
+    render_compile_diagnostic(diagnostic, DiagnosticSources()),
+    content=(
+      #|error[E9999]: source-less error
+      #|  = note: context without a source file
+      #|  = note: ordinary note
+      #|  = help: ordinary help
+    ),
+  )
 }
 
 ///|
@@ -287,13 +393,18 @@ async test "lib-dir excludes root source and deduplicates libraries" {
   @fs.mkdir(workspace)
   @fs.write_file(root, "root", create_mode=CreateOrTruncate)
   @fs.write_file(lib, "lib", create_mode=CreateOrTruncate)
-  guard read_library_sources(root, [lib], [workspace]) is Ok(sources) else {
+  guard read_library_source_inputs(root, [lib], [workspace]) is Ok(sources) else {
     cleanup_library_fixture(workspace)
     abort("expected normalized library sources")
   }
   cleanup_library_fixture(workspace)
   inspect(sources.length(), content="1")
-  inspect(sources[0], content="lib")
+  inspect(sources[0].text, content="lib")
+  inspect(sources[0].source_id, content=".tmp-lane-library-sources/Lib.lane")
+  debug_inspect(
+    sources[0].path,
+    content="Some(\".tmp-lane-library-sources/Lib.lane\")",
+  )
 }
 
 ///|
@@ -303,7 +414,7 @@ async test "explicit lib cannot be the root source" {
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   @fs.write_file(root, "root", create_mode=CreateOrTruncate)
-  guard read_library_sources(root, [root], []) is Err(message) else {
+  guard read_library_source_inputs(root, [root], []) is Err(message) else {
     cleanup_library_fixture(workspace)
     abort("expected explicit root library error")
   }
@@ -332,13 +443,17 @@ async test "library source identity resolves symlinks" {
   @fs.write_file(root, "root", create_mode=CreateOrTruncate)
   @fs.write_file(lib, "lib", create_mode=CreateOrTruncate)
   @fs.symlink(lib_alias, target="Lib.lane")
-  guard read_library_sources(root, [lib_alias, lib], []) is Ok(sources) else {
+  guard read_library_source_inputs(root, [lib_alias, lib], []) is Ok(sources) else {
     cleanup_library_fixture(workspace)
     abort("expected symlinked duplicate library to be deduped")
   }
   cleanup_library_fixture(workspace)
   inspect(sources.length(), content="1")
-  inspect(sources[0], content="lib")
+  inspect(sources[0].text, content="lib")
+  inspect(
+    sources[0].source_id,
+    content=".tmp-lane-library-symlinks/LibAlias.lane",
+  )
 }
 
 ///|

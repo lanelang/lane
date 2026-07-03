@@ -92,10 +92,10 @@ fn compile_module_graph(
 
 ///|
 fn compile_module_from_interface_artifacts(
-  root_source : String,
+  root_source : SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> Result[CompiledModuleSet, Array[CompileDiagnostic]] {
-  let parsed = parse_module_inputs({ source_id: "<root>", text: root_source }, [])
+  let parsed = parse_module_inputs(root_source, [])
   if !parsed.diagnostics.is_empty() {
     return Err(parsed.diagnostics)
   }
@@ -108,7 +108,11 @@ fn compile_module_from_interface_artifacts(
   )
   let import_diagnostics = ordered_interfaces.diagnostics
   if !import_diagnostics.is_empty() {
-    return Err(import_diagnostics)
+    return Err(
+      import_diagnostics.map(fn(diagnostic) {
+        diagnostic.with_source_id(root_source.source_id)
+      }),
+    )
   }
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let imported = freshen_module_interface_artifacts(

@@ -1,0 +1,93 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/diagnostic/core"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum Applicability {
+  MachineApplicable
+  MaybeIncorrect
+  HasPlaceholders
+  Unspecified
+} derive(Eq, @debug.Debug)
+pub fn Applicability::as_text(Self) -> String
+
+pub(all) struct Diagnostic {
+  severity : Severity
+  code : String?
+  message : String
+  labels : Array[Label]
+  notes : Array[String]
+  helps : Array[String]
+  facts : Array[DiagnosticFact]
+  suggestions : Array[Suggestion]
+  related_locations : Array[RelatedLocation]
+  related : Array[Diagnostic]
+} derive(Eq, @debug.Debug)
+pub fn Diagnostic::error(String, code? : String, labels? : Array[Label], notes? : Array[String], helps? : Array[String], facts? : Array[DiagnosticFact], suggestions? : Array[Suggestion], related_locations? : Array[RelatedLocation], related? : Array[Self]) -> Self
+
+pub(all) struct DiagnosticFact {
+  name : String
+  value : String
+  span : SourceSpan?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Label {
+  style : LabelStyle
+  span : SourceSpan
+  message : String?
+} derive(Eq, @debug.Debug)
+pub fn Label::primary(SourceSpan, message? : String) -> Self
+pub fn Label::secondary(SourceSpan, message? : String) -> Self
+
+pub(all) enum LabelStyle {
+  Primary
+  Secondary
+} derive(Eq, @debug.Debug)
+pub fn LabelStyle::marker(Self) -> String
+
+pub(all) struct RelatedLocation {
+  span : SourceSpan
+  message : String
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Severity {
+  Error
+  Warning
+  Info
+  Hint
+} derive(Eq, @debug.Debug)
+pub fn Severity::as_text(Self) -> String
+
+pub(all) struct SourceId {
+  value : Int
+} derive(Compare, Eq, @debug.Debug)
+
+pub(all) struct SourceSpan {
+  source_id : SourceId
+  start_offset : Int
+  end_offset : Int
+} derive(Eq, @debug.Debug)
+pub fn SourceSpan::SourceSpan(SourceId, Int, Int) -> Self
+
+pub(all) struct Suggestion {
+  message : String
+  edits : Array[TextEdit]
+  applicability : Applicability
+} derive(Eq, @debug.Debug)
+
+pub(all) struct TextEdit {
+  span : SourceSpan
+  replacement : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

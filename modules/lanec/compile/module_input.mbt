@@ -39,21 +39,6 @@ pub(all) struct SourceInput {
 } derive(Debug, Eq)
 
 ///|
-fn parse_module_input_set(
-  root_source : String,
-  library_sources : Array[String],
-) -> Result[ModuleInputSet, Array[CompileDiagnostic]] {
-  let library_inputs = []
-  for index, source in library_sources {
-    library_inputs.push({ source_id: "<library:\{index}>", text: source })
-  }
-  parse_module_input_set_from_inputs(
-    { source_id: "<root>", text: root_source },
-    library_inputs,
-  )
-}
-
-///|
 fn parse_module_input_set_from_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
@@ -236,12 +221,21 @@ fn module_header(source : @syntax.SourceFile) -> ModuleHeader {
 ///|
 fn import_header(import_ : @syntax.ImportDeclaration) -> ImportHeader {
   match import_ {
-    Qualified(module_path~, loc~) =>
-      { module_path_text: module_path_text(module_path), import_span: loc }
-    Open(module_path~, loc~) =>
-      { module_path_text: module_path_text(module_path), import_span: loc }
-    Selective(module_path~, loc~, ..) =>
-      { module_path_text: module_path_text(module_path), import_span: loc }
+    Qualified(module_path~, ..) =>
+      {
+        module_path_text: module_path_text(module_path),
+        import_span: module_path.loc,
+      }
+    Open(module_path~, ..) =>
+      {
+        module_path_text: module_path_text(module_path),
+        import_span: module_path.loc,
+      }
+    Selective(module_path~, ..) =>
+      {
+        module_path_text: module_path_text(module_path),
+        import_span: module_path.loc,
+      }
   }
 }
 

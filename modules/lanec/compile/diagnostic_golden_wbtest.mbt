@@ -121,7 +121,10 @@ test "golden type diagnostic includes code headline label note and help" {
       #|  --> 2:24-2:28
       #|  = label: 2:24-2:28 expected `Int`, found `Bool`
       #|  = note: Lane does not insert implicit conversions between different types
+      #|  = expected type: `Int` at 2:24-2:28
+      #|  = actual type: `Bool` at 2:24-2:28
       #|  = help: change the expression type or adjust the annotation/expected type
+      #|  = suggestion: change the expression type or adjust the annotation/expected type (unspecified)
     ),
   )
 }
@@ -147,6 +150,7 @@ test "golden struct diagnostic includes code headline label note and help" {
       #|  = label: 6:30-6:36 this struct construction or pattern omits required field `y`
       #|  = note: Lane struct literals and struct patterns must account for required fields
       #|  = help: add a `y: ...` field entry
+      #|  = suggestion: add a `y: ...` field entry (has-placeholders)
     ),
   )
 }
@@ -196,10 +200,12 @@ test "golden module input diagnostic includes code headline label note and help"
     @prettyprinter.render(diagnostic),
     content=(
       #|error[E4002]: missing imported module `Missing`
-      #|  --> 2:15-2:17
-      #|  = label: 2:15-2:17 this import has no matching module input or interface artifact
-      #|  = note: Lane does not search the file system by module name during compilation
-      #|  = help: pass the imported module as a library source or compiled interface
+      #|  --> 2:8-2:15
+      #|  = label: 2:8-2:15 no explicit input provides this module
+      #|  = note: Lane only compiles explicitly provided source files and interface artifacts
+      #|  = considered source module: `Main`
+      #|  = help: pass an input whose declared module is `Missing`, or change the import to one of the listed modules
+      #|  = suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
     ),
   )
 }

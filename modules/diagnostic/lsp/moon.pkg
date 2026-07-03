@@ -1,0 +1,5 @@
+import {
+  "Milky2018/diagnostic/core",
+  "Milky2018/diagnostic/source",
+  "moonbitlang/core/json",
+}

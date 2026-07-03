@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lane/terminal"
+
+import {
+  "Milky2018/diagnostic/render",
+}
+
+// Values
+pub fn diagnostic_render_config() -> @render.RenderConfig
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

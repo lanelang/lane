@@ -42,16 +42,25 @@ async fn lane_run(
       return UserFailure
     }
   }
-  let libraries = match read_library_sources(file, libs, lib_dirs) {
+  let root : LaneSourceInput = {
+    source_id: file,
+    path: Some(file),
+    text: source,
+  }
+  let libraries = match read_library_source_inputs(file, libs, lib_dirs) {
     Ok(libraries) => libraries
     Err(message) => {
       println(message)
       return UserFailure
     }
   }
-  let result = @compile.compile_sources(source, libraries)
+  let diagnostic_sources = LaneSourceInput::diagnostic_sources(root, libraries)
+  let result = @compile.compile_source_inputs(
+    root.to_compile_input(),
+    LaneSourceInput::array_to_compile_inputs(libraries),
+  )
   if !result.diagnostics.is_empty() {
-    print_diagnostics(result.diagnostics)
+    print_diagnostics_with_sources(result.diagnostics, diagnostic_sources)
     return UserFailure
   }
   guard result.program is Some(program) else {

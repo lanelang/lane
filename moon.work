@@ -1,5 +1,6 @@
 members = [
   "./modules/buslane",
+  "./modules/diagnostic",
   "./modules/lanec",
   "./modules/lane",
   "./modules/lane_wasm",

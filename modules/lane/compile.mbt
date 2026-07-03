@@ -13,6 +13,11 @@ async fn lane_compile(
       return UserFailure
     }
   }
+  let root : LaneSourceInput = {
+    source_id: file,
+    path: Some(file),
+    text: source,
+  }
   let imported_interfaces = match read_module_interface_artifacts(interfaces) {
     Ok(imported_interfaces) => imported_interfaces
     Err(message) => {
@@ -20,11 +25,13 @@ async fn lane_compile(
       return UserFailure
     }
   }
-  let result = @compile.compile_module_with_interface_artifacts(
-    source, imported_interfaces,
+  let diagnostic_sources = LaneSourceInput::diagnostic_sources(root, [])
+  let result = @compile.compile_module_input_with_interface_artifacts(
+    root.to_compile_input(),
+    imported_interfaces,
   )
   if !result.diagnostics.is_empty() {
-    print_diagnostics(result.diagnostics)
+    print_diagnostics_with_sources(result.diagnostics, diagnostic_sources)
     return UserFailure
   }
   guard result.modules is Some(modules) else {

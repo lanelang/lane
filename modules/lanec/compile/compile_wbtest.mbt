@@ -506,6 +506,47 @@ test "module artifact binary rejects wrong kind" {
 }
 
 ///|
+test "missing import with mismatched interface artifact reports candidates" {
+  let provider = compile_modules(
+    (
+      #|module builtins
+      #|pub let read_int : Int = 0
+    ),
+    [],
+  )
+  inspect(@prettyprinter.render(provider.diagnostics, width=100), content="[]")
+  guard provider.modules is Some(provider_modules) else {
+    abort("expected provider modules")
+  }
+  guard provider_modules.modules.get(0) is Some(provider_module) else {
+    abort("expected provider module")
+  }
+  let compiled = compile_module_with_interface_artifacts(
+    (
+      #|module Main
+      #|import Builtins.*
+      #|pub let answer : Int = read_int
+    ),
+    [provider_module.to_interface_artifact()],
+  )
+  guard compiled.diagnostics.get(0) is Some(diagnostic) else {
+    abort("expected missing import diagnostic")
+  }
+  inspect(
+    @prettyprinter.render(diagnostic, width=100),
+    content=(
+      #|error[E4002]: missing imported module `Builtins`
+      #|  --> 2:8-2:16
+      #|  = label: 2:8-2:16 no explicit input provides this module
+      #|  = note: Lane only compiles explicitly provided source files and interface artifacts
+      #|  = considered interface artifact: declares module `builtins`
+      #|  = help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules
+      #|  = suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
+    ),
+  )
+}
+
+///|
 test "module artifact binary inspect renders human readable summaries" {
   let compiled = compile_modules(
     (
