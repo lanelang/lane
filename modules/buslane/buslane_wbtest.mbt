@@ -9,6 +9,30 @@ fn bool_type() -> Type {
 }
 
 ///|
+fn assert_type_equal(actual : Type, expected : Type) -> Unit {
+  if actual != expected {
+    abort(
+      "expected equal buslane types\nactual:\n" +
+      @prettyprinter.render(actual, width=100) +
+      "\nexpected:\n" +
+      @prettyprinter.render(expected, width=100),
+    )
+  }
+}
+
+///|
+fn assert_effect_equal(actual : Effect, expected : Effect) -> Unit {
+  if actual != expected {
+    abort(
+      "expected equal buslane effects\nactual:\n" +
+      @prettyprinter.render(actual, width=100) +
+      "\nexpected:\n" +
+      @prettyprinter.render(expected, width=100),
+    )
+  }
+}
+
+///|
 test "buslane metadata owns nominal data shape" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let option_param = metadata.define_type_parameter("T", Type)
@@ -29,11 +53,35 @@ test "buslane metadata owns nominal data shape" {
       #|}
     ),
   )
-  assert_true(
-    metadata.data_constructor_info(none).unwrap().owner == option_type,
-  )
-  assert_true(
-    metadata.data_constructor_info(some).unwrap().owner == option_type,
+  debug_inspect(
+    [
+      metadata.data_constructor_info(none).unwrap(),
+      metadata.data_constructor_info(some).unwrap(),
+    ],
+    content=(
+      #|[
+      #|  {
+      #|    name: {
+      #|      name_space: DataConstructorName,
+      #|      occurrence: "Con",
+      #|      unique: { value: 2 },
+      #|    },
+      #|    owner: { index: 0 },
+      #|    hidden_type_parameters: [],
+      #|    payload_types: [],
+      #|  },
+      #|  {
+      #|    name: {
+      #|      name_space: DataConstructorName,
+      #|      occurrence: "Con",
+      #|      unique: { value: 3 },
+      #|    },
+      #|    owner: { index: 0 },
+      #|    hidden_type_parameters: [],
+      #|    payload_types: [Parameter({ index: 0 })],
+      #|  },
+      #|]
+    ),
   )
 }
 
@@ -77,9 +125,40 @@ test "buslane metadata owns effect operation shape" {
     ),
     content="{effect#0[Int], tparam#1}",
   )
-  assert_true(metadata.effect_info(state).unwrap().operations == [get, put])
-  assert_true(metadata.operation_info(get).unwrap().owner == state)
-  assert_true(metadata.operation_info(put).unwrap().owner == state)
+  debug_inspect(
+    metadata.effect_info(state).unwrap(),
+    content=(
+      #|{
+      #|  name: { name_space: EffectName, occurrence: "Effect", unique: { value: 2 } },
+      #|  parameters: [{ index: 0 }],
+      #|  operations: [{ index: 0 }, { index: 1 }],
+      #|}
+    ),
+  )
+  debug_inspect(
+    [
+      metadata.operation_info(get).unwrap(),
+      metadata.operation_info(put).unwrap(),
+    ],
+    content=(
+      #|[
+      #|  {
+      #|    name: { name_space: OperationName, occurrence: "op", unique: { value: 3 } },
+      #|    owner: { index: 0 },
+      #|    hidden_type_parameters: [],
+      #|    payload_types: [],
+      #|    result_type: Parameter({ index: 0 }),
+      #|  },
+      #|  {
+      #|    name: { name_space: OperationName, occurrence: "op", unique: { value: 4 } },
+      #|    owner: { index: 0 },
+      #|    hidden_type_parameters: [],
+      #|    payload_types: [Parameter({ index: 0 })],
+      #|    result_type: Primitive(Unit),
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|
@@ -88,14 +167,14 @@ test "buslane forall equality is alpha equivalent" {
   let right_param = TypeParameterId::{ index: 1 }
   let left = Type::Forall([left_param], Parameter(left_param))
   let right = Type::Forall([right_param], Parameter(right_param))
-  assert_true(left == right)
+  assert_type_equal(left, right)
 }
 
 ///|
 test "buslane type equality beta normalizes type lambdas" {
   let parameter = TypeParameterId::{ index: 0 }
   let lambda = Type::TypeLambda([parameter], Parameter(parameter))
-  assert_true(Apply(lambda, [int_type()]) == int_type())
+  assert_type_equal(Apply(lambda, [int_type()]), int_type())
 }
 
 ///|
@@ -119,7 +198,7 @@ test "buslane function latent effects participate in type equality and substitut
       Singleton(effect_id, [Parameter(right_param)]),
     ),
   )
-  assert_true(left == right)
+  assert_type_equal(left, right)
   let left_row : Type = Forall(
     [left_param],
     Function([], int_type(), Parameter(left_param)),
@@ -128,7 +207,7 @@ test "buslane function latent effects participate in type equality and substitut
     [right_param],
     Function([], int_type(), Parameter(right_param)),
   )
-  assert_true(left_row == right_row)
+  assert_type_equal(left_row, right_row)
   let substitution = TypeSubstitution::TypeSubstitution()
   substitution.insert(left_param, int_type())
   let effectful : Type = Function(
@@ -159,7 +238,7 @@ test "buslane canonical effect equality ignores ordering and duplicates" {
     Singleton(console, [int_type()]),
     Singleton(state, []),
   ])
-  assert_true(left == right)
+  assert_effect_equal(left, right)
   inspect(
     @prettyprinter.render(left.canonicalize(), width=100),
     content="{effect#1, effect#0[Int], tparam#2}",

@@ -4,6 +4,33 @@ fn int_type() -> @buslane.Type {
 }
 
 ///|
+fn assert_program_equal(
+  actual : @buslane.Program,
+  expected : @buslane.Program,
+) -> Unit {
+  if actual != expected {
+    abort(
+      "expected equal buslane programs\nactual:\n" +
+      @prettyprinter.render(actual, width=100) +
+      "\nexpected:\n" +
+      @prettyprinter.render(expected, width=100),
+    )
+  }
+}
+
+///|
+fn assert_type_equal(actual : @buslane.Type, expected : @buslane.Type) -> Unit {
+  if actual != expected {
+    abort(
+      "expected equal buslane types\nactual:\n" +
+      @prettyprinter.render(actual, width=100) +
+      "\nexpected:\n" +
+      @prettyprinter.render(expected, width=100),
+    )
+  }
+}
+
+///|
 test "buslane text roundtrips function call program" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let value = metadata.define_value("value", Value, int_type())
@@ -34,7 +61,7 @@ test "buslane text roundtrips function call program" {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
   }
-  assert_true(decoded == program)
+  assert_program_equal(decoded, program)
 }
 
 ///|
@@ -55,7 +82,7 @@ test "buslane text roundtrips standalone type" {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
   }
-  assert_true(decoded == type_)
+  assert_type_equal(decoded, type_)
 }
 
 ///|
@@ -70,7 +97,7 @@ test "buslane text roundtrips effectful function type" {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
   }
-  assert_true(decoded == type_)
+  assert_type_equal(decoded, type_)
 }
 
 ///|
@@ -130,7 +157,7 @@ test "buslane text roundtrips perform and deep handler syntax" {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
   }
-  assert_true(decoded == program)
+  assert_program_equal(decoded, program)
 }
 
 ///|
@@ -196,14 +223,14 @@ test "buslane text roundtrips polymorphic operation witnesses" {
       ),
     ],
   }
-  assert_true(@buslane.verify_program(program).is_ok())
+  debug_inspect(@buslane.verify_program(program), content="{ diagnostics: [] }")
   let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
   let decoded = match parse_program_text(text) {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
   }
-  assert_true(decoded == program)
-  assert_true(@buslane.verify_program(decoded).is_ok())
+  assert_program_equal(decoded, program)
+  debug_inspect(@buslane.verify_program(decoded), content="{ diagnostics: [] }")
 }
 
 ///|
@@ -260,5 +287,5 @@ test "buslane text roundtrips construct and match" {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
   }
-  assert_true(decoded == program)
+  assert_program_equal(decoded, program)
 }

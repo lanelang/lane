@@ -11,14 +11,21 @@ test "parse readable artifact text document" {
     ),
   )
   guard parsed is Ok(document) else { abort("expected parsed artifact") }
-  assert_eq(document.kind, "interface")
-  assert_eq(document.entries.length(), 4)
-  assert_true(document.entries[0] == Value("schema_version", Atom("1")))
-  assert_true(
-    document.entries[1] == Value("module_path_text", Text("Examples.Valid01")),
+  debug_inspect(
+    document,
+    content=(
+      #|{
+      #|  version: "lane-artifact-text-v1",
+      #|  kind: "interface",
+      #|  entries: [
+      #|    Value("schema_version", Atom("1")),
+      #|    Value("module_path_text", Text("Examples.Valid01")),
+      #|    Tag("lane_type.function"),
+      #|    Value("escaped", Text("a\nb\"c")),
+      #|  ],
+      #|}
+    ),
   )
-  assert_true(document.entries[2] == Tag("lane_type.function"))
-  assert_true(document.entries[3] == Value("escaped", Text("a\nb\"c")))
 }
 
 ///|

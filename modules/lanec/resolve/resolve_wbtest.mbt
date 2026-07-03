@@ -153,22 +153,96 @@ test "resolve local effect alias references" {
   guard ui_alias.body is EffectBody(Union(items~, ..)) else {
     abort("expected UI effect union")
   }
-  assert_true(items.length() == 2)
-  assert_true(items[0] is Singleton(name="Console", ..))
-  assert_true(items[1] is Singleton(name="Log", ..))
+  debug_inspect(
+    items,
+    content=(
+      #|[
+      #|  Singleton(
+      #|    symbol={ index: 0 },
+      #|    name="Console",
+      #|    arguments=[],
+      #|    loc={
+      #|      start_offset: 95,
+      #|      end_offset: 102,
+      #|      start_line: 8,
+      #|      start_column: 13,
+      #|      end_line: 8,
+      #|      end_column: 20,
+      #|    },
+      #|  ),
+      #|  Singleton(
+      #|    symbol={ index: 1 },
+      #|    name="Log",
+      #|    arguments=[],
+      #|    loc={
+      #|      start_offset: 104,
+      #|      end_offset: 107,
+      #|      start_line: 8,
+      #|      start_column: 22,
+      #|      end_line: 8,
+      #|      end_column: 25,
+      #|    },
+      #|  ),
+      #|]
+    ),
+  )
   guard resolved.declarations[3] is TypeAlias(task_alias) else {
     abort("expected Task alias")
   }
   guard task_alias.body is EffectBody(Union(items=task_items, ..)) else {
     abort("expected Task effect union")
   }
-  assert_true(task_items.length() == 2)
-  assert_true(task_items[0] is Alias(name="UI", ..))
-  assert_true(task_items[1] is Parameter(name="E", ..))
+  debug_inspect(
+    task_items,
+    content=(
+      #|[
+      #|  Alias(
+      #|    name="UI",
+      #|    arguments=[],
+      #|    loc={
+      #|      start_offset: 136,
+      #|      end_offset: 138,
+      #|      start_line: 9,
+      #|      start_column: 27,
+      #|      end_line: 9,
+      #|      end_column: 29,
+      #|    },
+      #|  ),
+      #|  Parameter(
+      #|    symbol={ index: 0 },
+      #|    name="E",
+      #|    loc={
+      #|      start_offset: 140,
+      #|      end_offset: 141,
+      #|      start_line: 9,
+      #|      start_column: 31,
+      #|      end_line: 9,
+      #|      end_column: 32,
+      #|    },
+      #|  ),
+      #|]
+    ),
+  )
   guard resolved.declarations[4] is Function(program) else {
     abort("expected program")
   }
-  assert_true(program.effect is Alias(name="UI", ..))
+  debug_inspect(
+    program.effect,
+    content=(
+      #|Alias(
+      #|  name="UI",
+      #|  arguments=[],
+      #|  loc={
+      #|    start_offset: 167,
+      #|    end_offset: 169,
+      #|    start_line: 10,
+      #|    start_column: 24,
+      #|    end_line: 10,
+      #|    end_column: 26,
+      #|  },
+      #|)
+    ),
+  )
 }
 
 ///|
@@ -215,20 +289,65 @@ test "resolve module-qualified effect alias references" {
   let resolved = resolve_source_file_with_imports_result(
     file, registry, imported,
   )
-  assert_true(resolved.diagnostics.is_empty())
+  debug_inspect(resolved.diagnostics, content="[]")
   guard resolved.source.declarations[0] is TypeAlias(local_alias) else {
     abort("expected Local alias")
   }
   guard local_alias.body is EffectBody(Union(items~, ..)) else {
     abort("expected Local effect union")
   }
-  assert_true(items.length() == 2)
-  assert_true(items[0] is Singleton(name="Lib.Console", ..))
-  assert_true(items[1] is Alias(name="Lib.UI", ..))
+  debug_inspect(
+    items,
+    content=(
+      #|[
+      #|  Singleton(
+      #|    symbol={ index: 0 },
+      #|    name="Lib.Console",
+      #|    arguments=[],
+      #|    loc={
+      #|      start_offset: 42,
+      #|      end_offset: 49,
+      #|      start_line: 3,
+      #|      start_column: 20,
+      #|      end_line: 3,
+      #|      end_column: 27,
+      #|    },
+      #|  ),
+      #|  Alias(
+      #|    name="Lib.UI",
+      #|    arguments=[],
+      #|    loc={
+      #|      start_offset: 55,
+      #|      end_offset: 57,
+      #|      start_line: 3,
+      #|      start_column: 33,
+      #|      end_line: 3,
+      #|      end_column: 35,
+      #|    },
+      #|  ),
+      #|]
+    ),
+  )
   guard resolved.source.declarations[1] is Function(program) else {
     abort("expected program")
   }
-  assert_true(program.effect is Alias(name="Lib.UI", ..))
+  debug_inspect(
+    program.effect,
+    content=(
+      #|Alias(
+      #|  name="Lib.UI",
+      #|  arguments=[],
+      #|  loc={
+      #|    start_offset: 83,
+      #|    end_offset: 89,
+      #|    start_line: 4,
+      #|    start_column: 24,
+      #|    end_line: 4,
+      #|    end_column: 30,
+      #|  },
+      #|)
+    ),
+  )
 }
 
 ///|

@@ -9,6 +9,18 @@ fn test_symbols() -> (TypeSymbolId, TypeParameter, TypeParameter) {
 }
 
 ///|
+fn assert_type_equal(actual : Type, expected : Type) -> Unit {
+  if actual != expected {
+    abort(
+      "expected equal types\nactual:\n" +
+      @prettyprinter.render(actual, width=100) +
+      "\nexpected:\n" +
+      @prettyprinter.render(expected, width=100),
+    )
+  }
+}
+
+///|
 test "pretty prints checked type objects" {
   let (option, a, _) = test_symbols()
   let type_ = Forall(
@@ -61,7 +73,7 @@ test "forall equality is alpha-equivalent" {
     Function([Parameter(a.id)], Parameter(b.id), Empty),
   )
   assert_true(left.alpha_equal(right))
-  assert_true(left == right)
+  assert_type_equal(left, right)
   assert_false(left.alpha_equal(free_mismatch))
   assert_false(left == free_mismatch)
 }

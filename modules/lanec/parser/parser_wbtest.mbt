@@ -169,8 +169,8 @@ test "parse does not recognize right-spaced double colon as variant pattern" {
 
 ///|
 test "parse rejects leading double colon enum variant pattern" {
-  assert_true(
-    !parse_errors(
+  assert_false(
+    parse_errors(
       (
         #|enum Single {
         #|  wrap(Int)
@@ -255,7 +255,7 @@ test "parse type alias with effect set body" {
 
 ///|
 test "parse rejects value block as type alias body" {
-  assert_true(!parse_errors("type Bad = { let x : Int = 1 x }").is_empty())
+  assert_false(parse_errors("type Bad = { let x : Int = 1 x }").is_empty())
 }
 
 ///|
@@ -553,7 +553,7 @@ test "parse rejects malformed handler expressions" {
       #|}
     ),
   )
-  assert_true(!empty_with_errors.is_empty())
+  assert_false(empty_with_errors.is_empty())
   let missing_final_errors = parse_error_kinds(
     (
       #|fn bad() -> Unit {
@@ -563,7 +563,7 @@ test "parse rejects malformed handler expressions" {
       #|}
     ),
   )
-  assert_true(!missing_final_errors.is_empty())
+  assert_false(missing_final_errors.is_empty())
 }
 
 ///|
@@ -748,7 +748,7 @@ test "parse accepts empty enum variant payload syntax" {
 
 ///|
 test "parse rejects payloadless enum variant declaration syntax without parentheses" {
-  assert_true(!parse_errors("enum Option[A] { none some(A) }").is_empty())
+  assert_false(parse_errors("enum Option[A] { none some(A) }").is_empty())
 }
 
 ///|
@@ -773,8 +773,8 @@ test "parse rejects else-if chain without final else" {
 
 ///|
 test "parse rejects payloadless qualified variant expression syntax without parentheses" {
-  assert_true(
-    !parse_errors(
+  assert_false(
+    parse_errors(
       (
         #|enum Option[A] { none() some(A) }
         #|let value : Option[Int] = Option::none
@@ -785,8 +785,8 @@ test "parse rejects payloadless qualified variant expression syntax without pare
 
 ///|
 test "parse rejects payloadless qualified variant pattern syntax without parentheses" {
-  assert_true(
-    !parse_errors(
+  assert_false(
+    parse_errors(
       (
         #|enum Option[A] { none() some(A) }
         #|fn qualified(value : Option[Int]) -> Int {
