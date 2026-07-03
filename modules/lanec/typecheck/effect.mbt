@@ -55,6 +55,13 @@ fn TypeExpressionChecker::check_effect(
       }
       Parameter(symbol)
     }
+    Alias(name~, arguments~, loc~) => {
+      for argument in arguments {
+        ignore(self.synthesize_type(argument))
+      }
+      self.diagnostics.push({ kind: UnresolvedType(name), loc })
+      Empty
+    }
     Union(items~, ..) =>
       effect_union(items.map(fn(item) { self.check_effect(item) }))
     Unresolved(name~, arguments~, loc~) => {

@@ -130,6 +130,107 @@ test "resolve effect declarations and operation symbols" {
 }
 
 ///|
+test "resolve local effect alias references" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|type UI = { Console, Log }
+      #|type Task[E : Effect] = { UI, E }
+      #|fn program() -> Unit ! UI {
+      #|  ()
+      #|}
+    ),
+  )
+  let resolved = resolve_source_file(file)
+  guard resolved.declarations[2] is TypeAlias(ui_alias) else {
+    abort("expected UI alias")
+  }
+  guard ui_alias.body is EffectBody(Union(items~, ..)) else {
+    abort("expected UI effect union")
+  }
+  assert_true(items.length() == 2)
+  assert_true(items[0] is Singleton(name="Console", ..))
+  assert_true(items[1] is Singleton(name="Log", ..))
+  guard resolved.declarations[3] is TypeAlias(task_alias) else {
+    abort("expected Task alias")
+  }
+  guard task_alias.body is EffectBody(Union(items=task_items, ..)) else {
+    abort("expected Task effect union")
+  }
+  assert_true(task_items.length() == 2)
+  assert_true(task_items[0] is Alias(name="UI", ..))
+  assert_true(task_items[1] is Parameter(name="E", ..))
+  guard resolved.declarations[4] is Function(program) else {
+    abort("expected program")
+  }
+  assert_true(program.effect is Alias(name="UI", ..))
+}
+
+///|
+test "resolve module-qualified effect alias references" {
+  let registry = SymbolRegistry()
+  let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())
+  let imported : @module_interface.ImportedEnvironment = {
+    modules: [
+      {
+        module_path: "Lib",
+        types: [],
+        effects: [
+          {
+            symbol: console,
+            name: "Console",
+            type_parameters: [],
+            operations: [],
+            loc: @basic.SourceSpan::dummy(),
+          },
+        ],
+        type_aliases: [
+          {
+            name: "UI",
+            body: Primitive(Unit),
+            kind: Effect,
+            loc: @basic.SourceSpan::dummy(),
+          },
+        ],
+        values: [],
+        optimization_hints: [],
+      },
+    ],
+  }
+  let file = expect_parse_ok(
+    (
+      #|import Lib
+      #|type Local = { Lib.Console, Lib.UI }
+      #|fn program() -> Unit ! Lib.UI {
+      #|  ()
+      #|}
+    ),
+  )
+  let resolved = resolve_source_file_with_imports_result(
+    file, registry, imported,
+  )
+  assert_true(resolved.diagnostics.is_empty())
+  guard resolved.source.declarations[0] is TypeAlias(local_alias) else {
+    abort("expected Local alias")
+  }
+  guard local_alias.body is EffectBody(Union(items~, ..)) else {
+    abort("expected Local effect union")
+  }
+  assert_true(items.length() == 2)
+  assert_true(items[0] is Singleton(name="Lib.Console", ..))
+  assert_true(items[1] is Alias(name="Lib.UI", ..))
+  guard resolved.source.declarations[1] is Function(program) else {
+    abort("expected program")
+  }
+  assert_true(program.effect is Alias(name="Lib.UI", ..))
+}
+
+///|
 test "resolve handler operation arms and binders" {
   let file = expect_parse_ok(
     (

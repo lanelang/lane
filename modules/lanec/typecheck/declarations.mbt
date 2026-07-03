@@ -898,6 +898,14 @@ fn find_kind_in_effect(
       } else {
         None
       }
+    Alias(arguments~, ..) => {
+      for argument in arguments {
+        if find_kind_in_type(argument, symbol) is Some(kind) {
+          return Some(kind)
+        }
+      }
+      None
+    }
     Union(items~, ..) => {
       for item in items {
         if find_kind_in_effect(item, symbol) is Some(kind) {

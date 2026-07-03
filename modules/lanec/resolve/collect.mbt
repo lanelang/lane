@@ -1145,21 +1145,19 @@ fn @syntax.Type::resolve_effect_type(
           match resolver.effect_symbol_opt(name) {
             Some(symbol) =>
               Singleton(symbol~, name~, arguments=resolved_arguments, loc~)
-            None => {
-              resolver.report(UnresolvedType(name), loc)
-              Unresolved(name~, arguments=resolved_arguments, loc~)
-            }
+            None =>
+              if resolver.has_type_alias(name) {
+                Alias(name~, arguments=resolved_arguments, loc~)
+              } else {
+                resolver.report(UnresolvedType(name), loc)
+                Unresolved(name~, arguments=resolved_arguments, loc~)
+              }
           }
       }
     QualifiedName(module_path~, name~, ..) =>
-      match resolver.qualified_effect_symbol_opt(module_path, name) {
-        Some(symbol) =>
-          Singleton(symbol~, name~, arguments=resolved_arguments, loc~)
-        None => {
-          resolver.report(UnresolvedType(name), loc)
-          Unresolved(name~, arguments=resolved_arguments, loc~)
-        }
-      }
+      resolver.resolve_module_qualified_effect_type(
+        module_path, name, resolved_arguments, loc,
+      )
     _ => {
       let resolved = self.resolve_type(resolver, scope)
       Unresolved(
@@ -1211,6 +1209,42 @@ fn Resolver::resolve_module_qualified_type(
     None => {
       self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments=[], loc~)
+    }
+  }
+}
+
+///|
+fn Resolver::resolve_module_qualified_effect_type(
+  self : Resolver,
+  module_path : @syntax.ModulePath,
+  name : String,
+  arguments : Array[ResolvedType],
+  loc : SourceSpan,
+) -> ResolvedEffectTerm {
+  let full_name = module_qualified_name(module_path, name)
+  match self.module_binding(@module_interface.module_path_text(module_path)) {
+    Some(module_) => {
+      for effect in module_.interface.effects {
+        if effect.name == name {
+          return Singleton(
+            symbol=effect.symbol,
+            name=full_name,
+            arguments~,
+            loc~,
+          )
+        }
+      }
+      for type_alias in module_.interface.type_aliases {
+        if type_alias.name == name {
+          return Alias(name=full_name, arguments~, loc~)
+        }
+      }
+      self.report(UnresolvedType(full_name), loc)
+      Unresolved(name=full_name, arguments~, loc~)
+    }
+    None => {
+      self.report(UnresolvedType(full_name), loc)
+      Unresolved(name=full_name, arguments~, loc~)
     }
   }
 }
@@ -2337,19 +2371,6 @@ fn Resolver::effect_symbol_opt(
 }
 
 ///|
-fn Resolver::qualified_effect_symbol_opt(
-  self : Resolver,
-  module_path : @syntax.ModulePath,
-  name : String,
-) -> EffectSymbolId? {
-  let module_path = @module_interface.module_path_text(module_path)
-  match self.module_binding(module_path) {
-    Some(module_) => module_.interface.effect_symbol_named(name)
-    None => None
-  }
-}
-
-///|
 fn Resolver::effect_binding(self : Resolver, name : String) -> EffectBinding? {
   for index = self.effects.length(); index > 0; index = index - 1 {
     let binding = self.effects[index - 1]
@@ -2367,19 +2388,6 @@ fn Resolver::publish_effect_binding(
   symbol : EffectSymbolId,
 ) -> Unit {
   self.effects.push({ name, symbol })
-}
-
-///|
-fn @module_interface.ModuleInterface::effect_symbol_named(
-  self : @module_interface.ModuleInterface,
-  name : String,
-) -> EffectSymbolId? {
-  for effect in self.effects {
-    if effect.name == name {
-      return Some(effect.symbol)
-    }
-  }
-  None
 }
 
 ///|

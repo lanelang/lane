@@ -247,6 +247,7 @@ pub(all) enum ResolvedEffectTerm {
     loc~ : SourceSpan
   )
   Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)
+  Alias(name~ : String, arguments~ : Array[ResolvedType], loc~ : SourceSpan)
   Union(items~ : Array[ResolvedEffectTerm], loc~ : SourceSpan)
   Unresolved(
     name~ : String,

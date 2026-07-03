@@ -925,6 +925,15 @@ fn collect_resolved_effect_reference(
       for item in items {
         collect_resolved_effect_reference(source_id, item, references, hovers)
       }
+    Alias(name~, arguments~, loc~) => {
+      hovers.push({
+        location: { source_id, span: loc },
+        contents: "effect alias \{name}",
+      })
+      for argument in arguments {
+        collect_resolved_type_reference(source_id, argument, references, hovers)
+      }
+    }
   }
 }
 
@@ -966,5 +975,14 @@ fn collect_resolved_effect_reference_with_source(
           source_id, source_text, item, references, hovers,
         )
       }
+    Alias(name~, arguments~, loc~) => {
+      hovers.push({
+        location: { source_id, span: name_span(source_text, name, loc) },
+        contents: "effect alias \{name}",
+      })
+      for argument in arguments {
+        collect_resolved_type_reference(source_id, argument, references, hovers)
+      }
+    }
   }
 }

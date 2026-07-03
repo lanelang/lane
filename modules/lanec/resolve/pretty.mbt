@@ -423,6 +423,12 @@ pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
     Singleton(symbol~, name~, arguments~, ..) =>
       symbol.pretty() + space + text(name) + type_arguments_doc(arguments)
     Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
+    Alias(name~, arguments~, ..) =>
+      if arguments.is_empty() {
+        text("alias ") + text(name)
+      } else {
+        text("alias ") + text(name) + type_arguments_doc(arguments)
+      }
     Union(items~, ..) =>
       @pretty.braced_block(items.map(ResolvedEffectTerm::pretty))
     Unresolved(name~, arguments~, ..) =>
