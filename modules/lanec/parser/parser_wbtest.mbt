@@ -33,12 +33,12 @@ test "parse nominal declarations and match" {
       #|  y : Int
       #|}
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    ::none => fallback
+      #|    ::none() => fallback
       #|    ::some(x) => x
       #|  }
       #|}
@@ -55,13 +55,13 @@ test "parse nominal declarations and match" {
       #|}
       #|
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    ::none => fallback
+      #|    ::none() => fallback
       #|    ::some(x) => x
       #|  }
       #|}
@@ -107,12 +107,12 @@ test "parse does not recognize spaced double colon as qualified variant pattern"
     parse_error_kinds(
       (
         #|enum Option[A] {
-        #|  none
+        #|  none()
         #|  some(A)
         #|}
         #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
         #|  match value {
-        #|    Option :: none => fallback
+        #|    Option :: none() => fallback
         #|  }
         #|}
       ),
@@ -134,12 +134,12 @@ test "parse does not recognize right-spaced double colon as variant pattern" {
     parse_error_kinds(
       (
         #|enum Option[A] {
-        #|  none
+        #|  none()
         #|  some(A)
         #|}
         #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
         #|  match value {
-        #|    Option:: none => fallback
+        #|    Option:: none() => fallback
         #|  }
         #|}
       ),
@@ -400,7 +400,7 @@ test "parse qualified postfix forms inside expressions" {
       #|  choose[A](A, A) -> A
       #|}
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some[A](A)
       #|}
       #|struct Box[A] {
@@ -424,7 +424,7 @@ test "parse qualified postfix forms inside expressions" {
       #|}
       #|
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some[A](A)
       #|}
       #|
@@ -697,23 +697,24 @@ test "parse rejects equals function body syntax" {
 }
 
 ///|
-test "parse rejects empty enum variant payload syntax" {
-  debug_inspect(
-    parse_error_kinds("enum Option[A] { none() some(A) }"),
+test "parse accepts empty enum variant payload syntax" {
+  let file = expect_parse_ok("enum Option[A] { none() some(A) }")
+  inspect(
+    @prettyprinter.render(file),
     content=(
-      #|[
-      #|  UnexpectedToken(
-      #|    { label: "`)`" },
-      #|    [
-      #|      { label: "identifier" },
-      #|      { label: "`type`" },
-      #|      { label: "`(`" },
-      #|      { label: "`[`" },
-      #|    ],
-      #|  ),
-      #|]
+      #|module Test
+      #|
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
     ),
   )
+}
+
+///|
+test "parse rejects payloadless enum variant declaration syntax without parentheses" {
+  assert_true(!parse_errors("enum Option[A] { none some(A) }").is_empty())
 }
 
 ///|
@@ -737,37 +738,66 @@ test "parse rejects else-if chain without final else" {
 }
 
 ///|
-test "parse rejects empty qualified variant argument syntax" {
-  debug_inspect(
-    parse_error_kinds(
+test "parse rejects payloadless qualified variant expression syntax without parentheses" {
+  assert_true(
+    !parse_errors(
       (
-        #|enum Option[A] { none some(A) }
-        #|let value : Option[Int] = Option::none()
+        #|enum Option[A] { none() some(A) }
+        #|let value : Option[Int] = Option::none
       ),
+    ).is_empty(),
+  )
+}
+
+///|
+test "parse rejects payloadless variant pattern syntax without parentheses" {
+  assert_true(
+    !parse_errors(
+      (
+        #|enum Option[A] { none() some(A) }
+        #|fn qualified(value : Option[Int]) -> Int {
+        #|  match value {
+        #|    Option::none => 0
+        #|    Option::some(x) => x
+        #|  }
+        #|}
+      ),
+    ).is_empty(),
+  )
+  assert_true(
+    !parse_errors(
+      (
+        #|enum Option[A] { none() some(A) }
+        #|fn shorthand(value : Option[Int]) -> Int {
+        #|  match value {
+        #|    ::none => 0
+        #|    ::some(x) => x
+        #|  }
+        #|}
+      ),
+    ).is_empty(),
+  )
+}
+
+///|
+test "parse accepts empty qualified variant argument syntax" {
+  let file = expect_parse_ok(
+    (
+      #|enum Option[A] { none() some(A) }
+      #|let value : Option[Int] = Option::none()
     ),
+  )
+  inspect(
+    @prettyprinter.render(file),
     content=(
-      #|[
-      #|  UnexpectedToken(
-      #|    { label: "`)`" },
-      #|    [
-      #|      { label: "integer literal" },
-      #|      { label: "string literal" },
-      #|      { label: "identifier" },
-      #|      { label: "`false`" },
-      #|      { label: "`true`" },
-      #|      { label: "`fn`" },
-      #|      { label: "`if`" },
-      #|      { label: "`match`" },
-      #|      { label: "`handle`" },
-      #|      { label: "`builtin`" },
-      #|      { label: "`-`" },
-      #|      { label: "`!`" },
-      #|      { label: "`(`" },
-      #|      { label: "`{`" },
-      #|      { label: "`::`" },
-      #|    ],
-      #|  ),
-      #|]
+      #|module Test
+      #|
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|
+      #|let value : Option[Int] = Option::none()
     ),
   )
 }

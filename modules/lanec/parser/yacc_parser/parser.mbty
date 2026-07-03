@@ -254,16 +254,10 @@ enum_variants -> Array[EnumVariant]
   ;
 
 enum_variant -> EnumVariant
-  : IDENT {
-    { name: $1, type_parameters: [], payload: [], loc: span($sloc) }
-  }
-  | IDENT non_empty_type_parameters {
-    { name: $1, type_parameters: $2, payload: [], loc: span($sloc) }
-  }
-  | IDENT "(" non_empty_type_list ")" {
+  : IDENT "(" type_list ")" {
     { name: $1, type_parameters: [], payload: $3, loc: span($sloc) }
   }
-  | IDENT non_empty_type_parameters "(" non_empty_type_list ")" {
+  | IDENT non_empty_type_parameters "(" type_list ")" {
     { name: $1, type_parameters: $2, payload: $4, loc: span($sloc) }
   }
   ;
@@ -726,8 +720,7 @@ struct_literal_field -> StructLiteralField
   ;
 
 variant_arguments -> Array[Expr]
-  : %prec VARIANT_EXPR { [] }
-  | "(" non_empty_positional_argument_list ")" { $2 }
+  : "(" positional_argument_list ")" { $2 }
   ;
 
 positional_argument_list -> Array[Expr]
@@ -930,14 +923,8 @@ pattern -> Pattern
   | "false" { BoolLiteral(false, loc=span($sloc)) }
   | IDENT { Binding($1, loc=span($sloc)) }
   | struct_pattern { $1 }
-  | "::" IDENT variant_type_binders {
-    ShorthandVariant(variant=$2, type_binders=$3, arguments=[], loc=span($sloc))
-  }
   | "::" IDENT variant_type_binders "(" pattern_list ")" {
     ShorthandVariant(variant=$2, type_binders=$3, arguments=$5, loc=span($sloc))
-  }
-  | nominal_type_name "tight ::" IDENT variant_type_binders {
-    QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=[], loc=span($sloc))
   }
   | nominal_type_name "tight ::" IDENT variant_type_binders "(" pattern_list ")" {
     QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=$6, loc=span($sloc))

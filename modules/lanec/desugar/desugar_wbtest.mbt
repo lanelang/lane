@@ -139,7 +139,7 @@ test "desugar qualified and unqualified variant calls into one expression shape"
   let source = desugar_source(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn qualified(value : Int) -> Option[Int] {

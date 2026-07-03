@@ -1,7 +1,7 @@
 module Examples.Valid.NestedPatternExhaustiveness
 
 pub enum Option[A] {
-  none
+  none()
   some(A)
 }
 
@@ -11,21 +11,21 @@ pub struct Box[A] {
 
 pub fn flatten(value : Option[Option[Int]]) -> Int {
   match value {
-    Option::none => 0
-    Option::some(Option::none) => 1
-    Option::some(Option::some(x)) => x
+    ::none() => 0
+    ::some(::none()) => 1
+    ::some(::some(x)) => x
   }
 }
 
 pub fn boxed(value : Box[Option[Int]]) -> Int {
   match value {
     Box::{
-      value: Option::none
+      value: ::none()
     } => 0
     Box::{
-      value: Option::some(x)
+      value: ::some(x)
     } => x
   }
 }
 
-pub let answer : Int = flatten(Option::some(Option::some(42)))
+pub let answer : Int = flatten(some(some(42)))

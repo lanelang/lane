@@ -3,14 +3,14 @@ module Examples.Valid.YieldEffect
 import Ops.*
 
 pub enum IntList {
-  nil
+  nil()
   cons(Int, IntList)
 }
 
 pub fn sum(list : IntList) -> Int {
   match list {
-    IntList::nil => 0
-    IntList::cons(head, tail) => head + sum(tail)
+    ::nil() => 0
+    ::cons(head, tail) => head + sum(tail)
   }
 }
 
@@ -26,9 +26,9 @@ fn produce() -> Int ! Yield {
 
 pub let emitted : IntList = {
   handle produce() with {
-    Yield::emit(value, resume) => IntList::cons(value, resume(()))
+    Yield::emit(value, resume) => cons(value, resume(()))
   } final value {
-    IntList::cons(value, IntList::nil)
+    cons(value, IntList::nil())
   }
 }
 

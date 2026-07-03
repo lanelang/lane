@@ -267,7 +267,7 @@ test "typecheck custom type declaration environment" {
       #|  value : A
       #|}
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|struct Uses {
@@ -1618,14 +1618,14 @@ test "typecheck qualified enum variant construction" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn wrap(value : Int) -> Option[Int] {
       #|  Option::some(value)
       #|}
       #|fn empty() -> Option[Int] {
-      #|  Option::none
+      #|  Option::none()
       #|}
     ),
   )
@@ -1987,12 +1987,12 @@ test "typecheck accepts higher-kinded struct literal type argument" {
     (
       #|enum Option[T] {
       #|  some(T)
-      #|  none
+      #|  none()
       #|}
       #|fn[T, R] map_option(val : Option[T], f : (T) -> R) -> Option[R] {
       #|  match val {
       #|    Option::some(v) => Option::some(f(v))
-      #|    Option::none => Option::none
+      #|    Option::none() => Option::none()
       #|  }
       #|}
       #|struct Mappable[U : [Type] -> Type] {
@@ -2012,12 +2012,12 @@ test "typecheck reports kind mismatch for higher-kinded struct literal type argu
     (
       #|enum Option[T] {
       #|  some(T)
-      #|  none
+      #|  none()
       #|}
       #|fn[T, R] map_option(val : Option[T], f : (T) -> R) -> Option[R] {
       #|  match val {
       #|    Option::some(v) => Option::some(f(v))
-      #|    Option::none => Option::none
+      #|    Option::none() => Option::none()
       #|  }
       #|}
       #|struct Mappable[U : [Type] -> Type] {
@@ -2040,7 +2040,7 @@ test "typecheck accepts higher-kinded qualified variant type argument" {
     (
       #|enum Option[T] {
       #|  some(T)
-      #|  none
+      #|  none()
       #|}
       #|enum Box[F : [Type] -> Type] {
       #|  wrap(F[Int])
@@ -2057,7 +2057,7 @@ test "typecheck reports kind mismatch for higher-kinded qualified variant type a
     (
       #|enum Option[T] {
       #|  some(T)
-      #|  none
+      #|  none()
       #|}
       #|enum Box[F : [Type] -> Type] {
       #|  wrap(F[Int])
@@ -2197,14 +2197,14 @@ test "typecheck unqualified enum variant construction" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn wrap(value : Int) -> Option[Int] {
       #|  some(value)
       #|}
       #|fn empty() -> Option[Int] {
-      #|  none
+      #|  none()
       #|}
     ),
   )
@@ -2241,7 +2241,7 @@ test "typecheck reports unresolved variant type arguments" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn use() -> Bool {
@@ -2265,7 +2265,7 @@ test "typecheck reports enum variant payload mismatch" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn bad() -> Option[Int] {
@@ -2286,7 +2286,7 @@ test "typecheck reports enum variant arity mismatch" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn bad() -> Option[Int] {
@@ -2330,12 +2330,12 @@ test "typecheck exhaustive enum match" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    Option::none => fallback
+      #|    Option::none() => fallback
       #|    Option::some(x) => x
       #|  }
       #|}
@@ -2398,12 +2398,12 @@ test "typecheck shorthand enum variant patterns in adjacent match arms" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    ::none => fallback
+      #|    ::none() => fallback
       #|    ::some(x) => x
       #|  }
       #|}
@@ -2455,13 +2455,13 @@ test "typecheck accepts exhaustive nested enum patterns" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn use(value : Option[Option[Int]]) -> Int {
       #|  match value {
-      #|    Option::none => 0
-      #|    Option::some(Option::none) => 1
+      #|    Option::none() => 0
+      #|    Option::some(Option::none()) => 1
       #|    Option::some(Option::some(x)) => x
       #|  }
       #|}
@@ -2475,13 +2475,13 @@ test "typecheck reports non-exhaustive nested enum patterns" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn bad(value : Option[Option[Int]]) -> Int {
       #|  match value {
-      #|    Option::none => 0
-      #|    Option::some(Option::none) => 1
+      #|    Option::none() => 0
+      #|    Option::some(Option::none()) => 1
       #|  }
       #|}
     ),
@@ -2499,15 +2499,15 @@ test "typecheck reports unreachable nested enum pattern" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn bad(value : Option[Option[Int]]) -> Int {
       #|  match value {
-      #|    Option::some(Option::none) => 1
-      #|    Option::some(Option::none) => 2
+      #|    Option::some(Option::none()) => 1
+      #|    Option::some(Option::none()) => 2
       #|    Option::some(Option::some(x)) => x
-      #|    Option::none => 0
+      #|    Option::none() => 0
       #|  }
       #|}
     ),
@@ -2515,7 +2515,7 @@ test "typecheck reports unreachable nested enum pattern" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|unreachable_match_arm @ 9:5-9:36
+      #|unreachable_match_arm @ 9:5-9:38
     ),
   )
 }
@@ -2525,7 +2525,7 @@ test "typecheck accepts exhaustive nested struct field patterns" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|struct Box[A] {
@@ -2533,7 +2533,7 @@ test "typecheck accepts exhaustive nested struct field patterns" {
       #|}
       #|fn use(value : Box[Option[Int]]) -> Int {
       #|  match value {
-      #|    Box::{ value: Option::none } => 0
+      #|    Box::{ value: Option::none() } => 0
       #|    Box::{ value: Option::some(x) } => x
       #|  }
       #|}
@@ -3035,8 +3035,8 @@ test "typecheck checks handler operation tables" {
   let result = expect_checked_source_result(
     (
       #|enum Choice {
-      #|  left
-      #|  right
+      #|  left()
+      #|  right()
       #|}
       #|effect Console {
       #|  read() -> Int
@@ -3047,8 +3047,8 @@ test "typecheck checks handler operation tables" {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|    Console::write(message, resume2) => resume2(())
-      #|    Console::choose(Choice::left, resume3) => resume3(())
-      #|    Console::choose(Choice::right, resume4) => resume4(())
+      #|    Console::choose(Choice::left(), resume3) => resume3(())
+      #|    Console::choose(Choice::right(), resume4) => resume4(())
       #|  } final value {
       #|    value
       #|  }
@@ -3321,8 +3321,8 @@ test "typecheck rejects missing handler operation coverage" {
   let result = expect_typecheck_result(
     (
       #|enum Choice {
-      #|  left
-      #|  right
+      #|  left()
+      #|  right()
       #|}
       #|effect Console {
       #|  read() -> Int
@@ -3331,7 +3331,7 @@ test "typecheck rejects missing handler operation coverage" {
       #|fn program() -> Int {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
-      #|    Console::choose(Choice::left, resume2) => resume2(())
+      #|    Console::choose(Choice::left(), resume2) => resume2(())
       #|  } final value {
       #|    value
       #|  }

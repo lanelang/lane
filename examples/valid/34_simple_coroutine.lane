@@ -19,21 +19,21 @@ fn worker() -> Int ! Coroutine {
 
 fn start() -> CoroutineStep {
   handle worker() with {
-    Coroutine::yield(value, resume) => CoroutineStep::yielded(
+    Coroutine::yield(value, resume) => yielded(
       value,
       fn (input : Int) -> CoroutineStep {
         resume(input)
       }
     )
   } final value {
-    CoroutineStep::done(value)
+    done(value)
   }
 }
 
 fn drive(step : CoroutineStep) -> Int {
   match step {
-    CoroutineStep::done(value) => value
-    CoroutineStep::yielded(value, resume) => value + drive(resume(value * 2))
+    ::done(value) => value
+    ::yielded(value, resume) => value + drive(resume(value * 2))
   }
 }
 

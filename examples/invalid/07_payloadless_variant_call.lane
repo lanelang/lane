@@ -1,9 +1,9 @@
-// invalid: payloadless variants are values, not zero-argument calls
+// invalid: payloadless variants must be called with an empty payload list
 module Examples.Invalid07
 
 pub enum Option[A] {
-  none
+  none()
   some(A)
 }
 
-pub let value : Option[Int] = Option::none()
+pub let value : Option[Int] = Option::none

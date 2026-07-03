@@ -3,12 +3,12 @@ module Examples.Valid21
 import Ops.*
 
 pub enum Option[A] {
-  none
+  none()
   some(A)
 }
 
 pub enum List[A] {
-  nil
+  nil()
   cons(A, List[A])
 }
 
@@ -28,65 +28,65 @@ pub struct Applicative[F : [Type] -> Type] {
 
 pub fn[A] unwrap_or(option : Option[A], fallback : A) -> A {
   match option {
-    Option::none => fallback
-    Option::some(inner) => inner
+    ::none() => fallback
+    ::some(inner) => inner
   }
 }
 
 pub fn[A, B] option_map(f : (A) -> B, option : Option[A]) -> Option[B] {
   match option {
-    Option::none => Option::none
-    Option::some(inner) => Option::some(f(inner))
+    ::none() => Option::none()
+    ::some(inner) => some(f(inner))
   }
 }
 
 pub fn[A, B] option_flat_map(f : (A) -> Option[B], option : Option[A]) -> Option[B] {
   match option {
-    Option::none => Option::none
-    Option::some(inner) => f(inner)
+    ::none() => Option::none()
+    ::some(inner) => f(inner)
   }
 }
 
 pub fn[A] option_pure(inner : A) -> Option[A] {
-  Option::some(inner)
+  some(inner)
 }
 
 pub fn[A, B] option_apply(f : Option[(A) -> B], option : Option[A]) -> Option[B] {
   match f {
-    Option::none => Option::none
-    Option::some(inner) => option_map(inner, option)
+    ::none() => Option::none()
+    ::some(inner) => option_map(inner, option)
   }
 }
 
 pub fn[A] append(left : List[A], right : List[A]) -> List[A] {
   match left {
-    List::nil => right
-    List::cons(head, tail) => List::cons(head, append(tail, right))
+    ::nil() => right
+    ::cons(head, tail) => cons(head, append(tail, right))
   }
 }
 
 pub fn[A, B] list_map(f : (A) -> B, list : List[A]) -> List[B] {
   match list {
-    List::nil => List::nil
-    List::cons(head, tail) => List::cons(f(head), list_map(f, tail))
+    ::nil() => List::nil()
+    ::cons(head, tail) => cons(f(head), list_map(f, tail))
   }
 }
 
 pub fn[A, B] list_flat_map(f : (A) -> List[B], list : List[A]) -> List[B] {
   match list {
-    List::nil => List::nil
-    List::cons(head, tail) => append(f(head), list_flat_map(f, tail))
+    ::nil() => List::nil()
+    ::cons(head, tail) => append(f(head), list_flat_map(f, tail))
   }
 }
 
 pub fn[A] list_pure(inner : A) -> List[A] {
-  List::cons(inner, List::nil)
+  cons(inner, List::nil())
 }
 
 pub fn[A, B] list_apply(functions : List[(A) -> B], values : List[A]) -> List[B] {
   match functions {
-    List::nil => List::nil
-    List::cons(f, tail) => append(list_map(f, values), list_apply(tail, values))
+    ::nil() => List::nil()
+    ::cons(f, tail) => append(list_map(f, values), list_apply(tail, values))
   }
 }
 
@@ -120,20 +120,20 @@ pub let list_flat_mappable : FlatMappable[List] = FlatMappable::{
 
 pub fn[A] reverse(list : List[A]) -> List[A] {
   match list {
-    List::nil => List::nil
-    List::cons(head, tail) => append(reverse(tail), List::cons(head, List::nil))
+    ::nil() => List::nil()
+    ::cons(head, tail) => append(reverse(tail), cons(head, List::nil()))
   }
 }
 
 pub fn[A] index(list : List[A], position : Int) -> Option[A] {
   if position < 0 {
-    Option::none
+    Option::none()
   } else {
     match list {
-      List::nil => Option::none
-      List::cons(head, tail) =>
+      ::nil() => Option::none()
+      ::cons(head, tail) =>
         if position == 0 {
-          Option::some(head)
+          some(head)
         } else {
           index(tail, position - 1)
         }
@@ -143,8 +143,8 @@ pub fn[A] index(list : List[A], position : Int) -> Option[A] {
 
 pub fn elem(list : List[Int], needle : Int) -> Bool {
   match list {
-    List::nil => false
-    List::cons(head, tail) =>
+    ::nil() => false
+    ::cons(head, tail) =>
       if head == needle {
         true
       } else {
@@ -166,7 +166,7 @@ pub fn increment(x : Int) -> Int {
 }
 
 pub fn[A] singleton(x : A) -> List[A] {
-  List::cons(x, List::nil)
+  cons(x, List::nil())
 }
 
 pub fn singleton_int(x : Int) -> List[Int] {
@@ -178,10 +178,10 @@ pub fn identity_int(x : Int) -> Int {
 }
 
 pub fn option_identity(x : Int) -> Option[Int] {
-  option_mappable.map(identity_int, Option::some(x))
+  option_mappable.map(identity_int, some(x))
 }
 
-pub let numbers : List[Int] = List::cons(1, List::cons(2, List::cons(3, List::nil)))
+pub let numbers : List[Int] = cons(1, cons(2, cons(3, List::nil())))
 
 pub let incremented_numbers : List[Int] = list_mappable.map(increment, numbers)
 
@@ -191,7 +191,7 @@ pub let flattened_numbers : List[Int] = list_flat_mappable.flat_map(
 )
 
 pub let applied_numbers : List[Int] = list_applicative.apply(
-  List::cons(identity_int, List::nil),
+  cons(identity_int, List::nil()),
   flattened_numbers
 )
 
@@ -201,7 +201,7 @@ pub let selected_number : Option[Int] = option_flat_mappable.flat_map(
 )
 
 pub let selected_answer : Option[Int] = option_applicative.apply(
-  Option::some(identity_int),
+  some(identity_int),
   selected_number
 )
 

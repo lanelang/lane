@@ -17,12 +17,12 @@ test "collect top level declaration symbols" {
       #|  y : Int
       #|}
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    Option::none => fallback
+      #|    Option::none() => fallback
       #|    Option::some(x) => x
       #|  }
       #|}
@@ -209,7 +209,7 @@ test "resolve unqualified variant calls after nominal member collection" {
       #|  some(value)
       #|}
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
     ),
@@ -255,7 +255,7 @@ test "report payloadless unqualified variant call" {
   let file = expect_parse_ok(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn empty() -> Option[Int] {
@@ -383,7 +383,7 @@ test "report unresolved type and qualified variant diagnostics" {
   let file = expect_parse_ok(
     (
       #|enum Option {
-      #|  none
+      #|  none()
       #|}
       #|fn bad(value : Missing) -> Int {
       #|  Option::some(0)

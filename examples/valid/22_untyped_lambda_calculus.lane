@@ -3,7 +3,7 @@ module Examples.Valid22
 import Ops.*
 
 pub enum Option[A] {
-  none
+  none()
   some(A)
 }
 
@@ -15,14 +15,14 @@ pub enum Term {
 
 pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
   match term {
-    Term::var(index) =>
+    ::var(index) =>
       if index < cutoff {
-        Term::var(index)
+        var(index)
       } else {
-        Term::var(index + delta)
+        var(index + delta)
       }
-    Term::lam(body) => Term::lam(shift_from(cutoff + 1, delta, body))
-    Term::app(function, argument) => Term::app(
+    ::lam(body) => lam(shift_from(cutoff + 1, delta, body))
+    ::app(function, argument) => app(
       shift_from(cutoff, delta, function),
       shift_from(cutoff, delta, argument)
     )
@@ -35,14 +35,14 @@ pub fn shift(delta : Int, term : Term) -> Term {
 
 pub fn subst(index : Int, replacement : Term, term : Term) -> Term {
   match term {
-    Term::var(variable) =>
+    ::var(variable) =>
       if variable == index {
         replacement
       } else {
-        Term::var(variable)
+        var(variable)
       }
-    Term::lam(body) => Term::lam(subst(index + 1, shift(1, replacement), body))
-    Term::app(function, argument) => Term::app(
+    ::lam(body) => lam(subst(index + 1, shift(1, replacement), body))
+    ::app(function, argument) => app(
       subst(index, replacement, function),
       subst(index, replacement, argument)
     )
@@ -55,22 +55,22 @@ pub fn beta(body : Term, argument : Term) -> Term {
 
 pub fn step(term : Term) -> Option[Term] {
   match term {
-    Term::var(_) => Option::none
-    Term::lam(body) =>
+    ::var(_) => Option::none()
+    ::lam(body) =>
       match step(body) {
-        Option::none => Option::none
-        Option::some(next) => Option::some(Term::lam(next))
+        ::none() => Option::none()
+        ::some(next) => some(lam(next))
       }
-    Term::app(function, argument) =>
+    ::app(function, argument) =>
       match function {
-        Term::lam(body) => Option::some(beta(body, argument))
+        ::lam(body) => some(beta(body, argument))
         _ =>
           match step(function) {
-            Option::some(next_function) => Option::some(Term::app(next_function, argument))
-            Option::none =>
+            ::some(next_function) => some(app(next_function, argument))
+            ::none() =>
               match step(argument) {
-                Option::none => Option::none
-                Option::some(next_argument) => Option::some(Term::app(function, next_argument))
+                ::none() => Option::none()
+                ::some(next_argument) => some(app(function, next_argument))
               }
           }
       }
@@ -82,34 +82,34 @@ pub fn normalize(limit : Int, term : Term) -> Term {
     term
   } else {
     match step(term) {
-      Option::none => term
-      Option::some(next) => normalize(limit - 1, next)
+      ::none() => term
+      ::some(next) => normalize(limit - 1, next)
     }
   }
 }
 
 pub fn term_size(term : Term) -> Int {
   match term {
-    Term::var(_) => 1
-    Term::lam(body) => 1 + term_size(body)
-    Term::app(function, argument) => 1 + term_size(function) + term_size(argument)
+    ::var(_) => 1
+    ::lam(body) => 1 + term_size(body)
+    ::app(function, argument) => 1 + term_size(function) + term_size(argument)
   }
 }
 
 pub fn is_identity(term : Term) -> Bool {
   match term {
-    Term::lam(body) =>
+    ::lam(body) =>
       match body {
-        Term::var(index) => index == 0
+        ::var(index) => index == 0
         _ => false
       }
     _ => false
   }
 }
 
-pub let identity : Term = Term::lam(Term::var(0))
+pub let identity : Term = lam(var(0))
 
-pub let applied_identity : Term = Term::app(identity, identity)
+pub let applied_identity : Term = app(identity, identity)
 
 pub let normal_identity : Term = normalize(8, applied_identity)
 

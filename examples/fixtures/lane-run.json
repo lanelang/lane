@@ -350,7 +350,7 @@
       "file": "examples/invalid/07_payloadless_variant_call.lane",
       "entry": "answer",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `)`"]
+        "contains": ["error[E1100]", "the parser did not expect end of file"]
       }
     },
     {

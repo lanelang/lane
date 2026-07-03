@@ -136,13 +136,13 @@ test "pretty print source file" {
       #|}
       #|
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|
       #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    Option::none => fallback
+      #|    Option::none() => fallback
       #|    Option::some(x) => x
       #|  }
       #|}

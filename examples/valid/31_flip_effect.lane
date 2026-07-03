@@ -3,28 +3,28 @@ module Examples.Valid.FlipEffect
 import Ops.*
 
 pub enum BoolList {
-  nil
+  nil()
   cons(Bool, BoolList)
 }
 
 pub fn append(left : BoolList, right : BoolList) -> BoolList {
   match left {
-    BoolList::nil => right
-    BoolList::cons(head, tail) => BoolList::cons(head, append(tail, right))
+    ::nil() => right
+    ::cons(head, tail) => cons(head, append(tail, right))
   }
 }
 
 pub fn length(list : BoolList) -> Int {
   match list {
-    BoolList::nil => 0
-    BoolList::cons(_, tail) => 1 + length(tail)
+    ::nil() => 0
+    ::cons(_, tail) => 1 + length(tail)
   }
 }
 
 pub fn count_true(list : BoolList) -> Int {
   match list {
-    BoolList::nil => 0
-    BoolList::cons(head, tail) =>
+    ::nil() => 0
+    ::cons(head, tail) =>
       if head {
         1 + count_true(tail)
       } else {
@@ -47,7 +47,7 @@ pub let choices : BoolList = {
   handle flip_twice() with {
     Flip::flip(resume) => append(resume(true), resume(false))
   } final value {
-    BoolList::cons(value, BoolList::nil)
+    cons(value, BoolList::nil())
   }
 }
 

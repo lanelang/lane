@@ -53,7 +53,7 @@ test "check reports payloadless variant call" {
     (
       #|module Test
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|let value : Option[Int] = none()
@@ -314,9 +314,9 @@ test "link modules remaps data constructors through one identity" {
       (
         #|module Lib
         #|pub enum Flag {
-        #|  on
+        #|  on()
         #|}
-        #|pub let flag : Flag = on
+        #|pub let flag : Flag = Flag::on()
       ),
     ],
   )
@@ -2005,7 +2005,7 @@ test "check sources resolves module qualified variant expressions and patterns" 
       #|import Lib
       #|pub let answer : Int = match Lib.Option::some(42) {
       #|  Lib.Option::some(value) => value
-      #|  Lib.Option::none => 0
+      #|  Lib.Option::none() => 0
       #|}
     ),
     [
@@ -2013,7 +2013,7 @@ test "check sources resolves module qualified variant expressions and patterns" 
         #|module Lib
         #|pub enum Option {
         #|  some(Int)
-        #|  none
+        #|  none()
         #|}
       ),
     ],
@@ -2337,7 +2337,7 @@ test "analysis resolves types fields and variants" {
         #|
         #|pub enum Option {
         #|  some(Point)
-        #|  none
+        #|  none()
         #|}
         #|
         #|pub let point : Point = Point::{ x: 1 }
@@ -2520,7 +2520,7 @@ test "analysis renders user-facing type names in type inlay hints" {
         #|
         #|pub enum Option[T] {
         #|  some(T)
-        #|  none
+        #|  none()
         #|}
         #|
         #|pub fn answer(seed : Int) -> Int {
@@ -2540,8 +2540,8 @@ test "analysis renders user-facing type names in type inlay hints" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 95,
-      #|        end_offset: 100,
+      #|        start_offset: 97,
+      #|        end_offset: 102,
       #|        start_line: 9,
       #|        start_column: 7,
       #|        end_line: 9,
@@ -2566,7 +2566,7 @@ test "analysis produces parameter name inlay hints for calls" {
         #|
         #|pub enum Option {
         #|  some(Int, Bool)
-        #|  none
+        #|  none()
         #|}
         #|
         #|pub fn choose(left : Int, right : Int) -> Int {
@@ -2577,7 +2577,7 @@ test "analysis produces parameter name inlay hints for calls" {
         #|  let local = choose(seed, 1)
         #|  match some(local, true) {
         #|    ::some(value, flag) => value
-        #|    ::none => 0
+        #|    ::none() => 0
         #|  }
         #|}
       ),
@@ -2593,8 +2593,8 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 158,
-      #|        end_offset: 163,
+      #|        start_offset: 160,
+      #|        end_offset: 165,
       #|        start_line: 13,
       #|        start_column: 7,
       #|        end_line: 13,
@@ -2608,8 +2608,8 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 173,
-      #|        end_offset: 177,
+      #|        start_offset: 175,
+      #|        end_offset: 179,
       #|        start_line: 13,
       #|        start_column: 22,
       #|        end_line: 13,
@@ -2623,8 +2623,8 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 179,
-      #|        end_offset: 180,
+      #|        start_offset: 181,
+      #|        end_offset: 182,
       #|        start_line: 13,
       #|        start_column: 28,
       #|        end_line: 13,
@@ -2638,8 +2638,8 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 221,
-      #|        end_offset: 226,
+      #|        start_offset: 223,
+      #|        end_offset: 228,
       #|        start_line: 15,
       #|        start_column: 12,
       #|        end_line: 15,
@@ -2653,8 +2653,8 @@ test "analysis produces parameter name inlay hints for calls" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 228,
-      #|        end_offset: 232,
+      #|        start_offset: 230,
+      #|        end_offset: 234,
       #|        start_line: 15,
       #|        start_column: 19,
       #|        end_line: 15,
@@ -2678,7 +2678,7 @@ test "analysis does not synthesize constructor parameter hints from payload type
         #|module Main
         #|
         #|pub enum List[A] {
-        #|  nil
+        #|  nil()
         #|  cons(A, List[A])
         #|}
         #|

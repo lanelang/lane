@@ -323,13 +323,9 @@ fn EnumDeclaration::to_doc(self : EnumDeclaration) -> Document {
 ///|
 fn EnumVariant::to_doc(self : EnumVariant) -> Document {
   let type_parameters = bracketed_type_parameters(self.type_parameters)
-  if self.payload.is_empty() {
-    text(self.name) + type_parameters
-  } else {
-    text(self.name) +
-    type_parameters +
-    parenthesized(self.payload.map(Type::to_doc))
-  }
+  text(self.name) +
+  type_parameters +
+  parenthesized(self.payload.map(Type::to_doc))
 }
 
 ///|
@@ -532,11 +528,7 @@ fn Expr::to_doc_with_precedence(
         text("::") +
         text(variant) +
         bracketed_type_arguments(variant_type_arguments)
-      let doc = if arguments.is_empty() {
-        head
-      } else {
-        head + parenthesized(arguments.map(Expr::to_doc))
-      }
+      let doc = head + parenthesized(arguments.map(Expr::to_doc))
       (10, doc)
     }
     StructLiteral(type_name~, type_arguments~, fields~, ..) => {
@@ -845,11 +837,7 @@ fn Pattern::to_doc(self : Pattern) -> Document {
         brackets(join_comma(type_binders.map(text)))
       }
       let head = text(type_name) + text("::") + text(variant) + binders_doc
-      if arguments.is_empty() {
-        head
-      } else {
-        head + parenthesized(arguments.map(Pattern::to_doc))
-      }
+      head + parenthesized(arguments.map(Pattern::to_doc))
     }
     ShorthandVariant(variant~, type_binders~, arguments~, ..) => {
       let binders_doc = if type_binders.is_empty() {
@@ -858,11 +846,7 @@ fn Pattern::to_doc(self : Pattern) -> Document {
         brackets(join_comma(type_binders.map(text)))
       }
       let head = text("::") + text(variant) + binders_doc
-      if arguments.is_empty() {
-        head
-      } else {
-        head + parenthesized(arguments.map(Pattern::to_doc))
-      }
+      head + parenthesized(arguments.map(Pattern::to_doc))
     }
     Struct(type_name~, fields~, ..) =>
       text(type_name) +

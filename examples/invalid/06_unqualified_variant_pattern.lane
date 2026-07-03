@@ -2,7 +2,7 @@
 module Examples.Invalid06
 
 pub enum Option[A] {
-  none
+  none()
   some(A)
 }
 

@@ -162,7 +162,7 @@ test "golden pattern diagnostic includes code headline label note and help" {
       #|module Test
       #|enum Option {
       #|  some(Int)
-      #|  none
+      #|  none()
       #|}
       #|pub fn value(option : Option) -> Int {
       #|  match option {

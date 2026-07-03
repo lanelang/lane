@@ -74,7 +74,7 @@ _Avoid_: case arm, arrow statement
 - Pattern matching in v1 uses **Checked Patterns**.
 - **Checked Patterns** include primitive inhabitants as literal patterns.
 - Enum variants in patterns use **Qualified Variant Pattern** syntax.
-- A payloadless **Qualified Variant Pattern** is written without parentheses.
+- A payloadless **Qualified Variant Pattern** is written with an empty payload list.
 - Struct patterns support punning and explicit field renaming, but not rest or spread.
 - Struct patterns must list all fields of the matched struct.
 - Source struct and enum patterns lower to data-constructor alternatives before entering Buslane.

@@ -8,14 +8,14 @@ pub struct Point {
 }
 
 pub enum Option[A] {
-  none
+  none()
   some(A)
 }
 
 pub fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
   match value {
-    Option::none => fallback
-    Option::some(x) => x
+    ::none() => fallback
+    ::some(x) => x
   }
 }
 

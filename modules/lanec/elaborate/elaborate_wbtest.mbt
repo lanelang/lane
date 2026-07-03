@@ -224,8 +224,8 @@ test "elaborate lowers handler payload binders before alternatives" {
   let tables = lower_first_handler_for_elaborate_test(
     (
       #|enum Choice {
-      #|  left
-      #|  right
+      #|  left()
+      #|  right()
       #|}
       #|effect Console {
       #|  write(String) -> Int
@@ -234,7 +234,7 @@ test "elaborate lowers handler payload binders before alternatives" {
       #|fn program() -> Int {
       #|  handle Console::write!("hi") with {
       #|    Console::write(message, resume) => 0
-      #|    Console::choose(Choice::left, resume2) => 1
+      #|    Console::choose(Choice::left(), resume2) => 1
       #|    Console::choose(_, resume3) => 2
       #|  } final value {
       #|    value
@@ -302,7 +302,7 @@ test "elaborate generic enum variant into verifiable buslane" {
   let result = elaborate_buslane_source(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|let answer : Option[Int] = Option::some(1)
@@ -662,7 +662,7 @@ test "elaborate higher-kinded struct parameters into verifiable buslane" {
   let result = elaborate_buslane_source(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|struct Mappable[F : [Type] -> Type] {
@@ -670,7 +670,7 @@ test "elaborate higher-kinded struct parameters into verifiable buslane" {
       #|}
       #|fn[A, B] option_map(f : (A) -> B, option : Option[A]) -> Option[B] {
       #|  match option {
-      #|    Option::none => Option::none
+      #|    Option::none() => Option::none()
       #|    Option::some(inner) => Option::some(f(inner))
       #|  }
       #|}
@@ -719,12 +719,12 @@ test "elaborate pattern binders before match arm bodies" {
       #|  y : Int
       #|}
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|fn choose(value : Option[Int], fallback : Int) -> Int {
       #|  match value {
-      #|    Option::none => fallback
+      #|    Option::none() => fallback
       #|    Option::some(x) => x
       #|  }
       #|}
@@ -752,7 +752,7 @@ test "elaborate nested patterns into verifiable buslane decision tree" {
   let result = elaborate_buslane_source(
     (
       #|enum Option[A] {
-      #|  none
+      #|  none()
       #|  some(A)
       #|}
       #|struct Box[A] {
@@ -760,14 +760,14 @@ test "elaborate nested patterns into verifiable buslane decision tree" {
       #|}
       #|fn flatten(value : Option[Option[Int]]) -> Int {
       #|  match value {
-      #|    Option::none => 0
-      #|    Option::some(Option::none) => 1
+      #|    Option::none() => 0
+      #|    Option::some(Option::none()) => 1
       #|    Option::some(Option::some(x)) => x
       #|  }
       #|}
       #|fn boxed(value : Box[Option[Int]]) -> Int {
       #|  match value {
-      #|    Box::{ value: Option::none } => 0
+      #|    Box::{ value: Option::none() } => 0
       #|    Box::{ value: Option::some(x) } => x
       #|  }
       #|}
