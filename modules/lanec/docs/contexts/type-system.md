@@ -137,6 +137,14 @@ _Avoid_: nominal arity only, all nominal names are value-level types
 A type syntax form after resolution and kind checking, which may have kind `Type` or a higher kind.
 _Avoid_: value expression, runtime expression
 
+**Effect-Level Expression**:
+A type-level expression whose kind is **Effect Kind** and whose value denotes an effect set.
+_Avoid_: runtime effect operation, handler expression, effect declaration body
+
+**Kinded Alias Body**:
+The right-hand side of a top-level alias, parsed as a type-level form that may have ordinary type kind, constructor kind, or effect kind.
+_Avoid_: value expression body, declaration block, runtime expression
+
 **Value-Level Type**:
 A type-level expression whose kind is exactly `Type` and is therefore valid as the type of a runtime value.
 _Avoid_: higher-kinded constructor, type-level expression of any kind
@@ -350,7 +358,11 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - **Type Alias Declaration Syntax** includes `type Name = TypeExpr` and `type Name[Params] = TypeExpr`.
 - A **Top-Level Type Alias** may be an **Arbitrary-Kind Type Alias**.
 - **Top-Level Type Aliases** share the **Unified Type Namespace** with structs, enums, and primitive type names.
+- A **Top-Level Type Alias** may bind an **Effect-Level Expression** such as an effect set literal when its inferred kind is **Effect Kind**.
+- An **Effect-Level Expression** may use **Effect Kind** type parameters and transparent alias application with the existing **Type Constructor Application** syntax.
+- A **Kinded Alias Body** may be an ordinary **Type-Level Expression** or an **Effect-Level Expression**; ordinary value expressions are not valid alias bodies.
 - Transparent type alias declarations form an **Acyclic Type Alias Graph**.
+- **Effect-Level Expressions** from transparent aliases are expanded before Buslane lowering; Buslane does not retain source **Effect Set Alias** identities.
 - **Top-Level Type Aliases** use **Order-Independent Type Alias Collection** and may reference later aliases when the alias graph remains acyclic.
 - The **Acyclic Type Alias Graph** is built from **Free Alias Dependencies**.
 - A **Higher-Kinded Type Argument** is valid when its kind exactly matches the corresponding type-application parameter kind.

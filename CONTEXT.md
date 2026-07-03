@@ -229,6 +229,10 @@ _Avoid_: ordinary function call, omitted call parentheses, implicit perform expr
 The finite, order-insensitive set of typed algebraic effects that an expression or function may perform.
 _Avoid_: exception list, ordered runtime list, runtime capability bag, implicit ambient state
 
+**Effect Set Alias**:
+A transparent top-level alias whose expansion has **Effect Kind** and denotes an **Effect Set**.
+_Avoid_: effect declaration alias, operation alias, nominal effect wrapper
+
 **Effect Variable**:
 A type-level variable ranging over effect sets in an effect-polymorphic function type.
 _Avoid_: value parameter, contextual offer, dynamic capability token
@@ -360,6 +364,7 @@ _Avoid_: VS Code extension, compiler front end
 - Value and type declarations do not shadow **Module Bindings**.
 - Module-qualified value access is written as `Module.Path.name`.
 - Module-qualified type access is written as `Module.Path.Type`.
+- Module-qualified effect and **Effect Set Alias** access is written as `Module.Path.Name`.
 - Module-qualified nominal member access combines both separators, such as `Module.Path.Type::{ ... }` and `Module.Path.Type::variant`.
 - The left side of module-qualified access must be an imported complete **Module Path**.
 - Importing `Module` does not make `Module.Child.name` or `Module.Child.Type` available.
@@ -371,11 +376,14 @@ _Avoid_: VS Code extension, compiler front end
 - **Operation Type Parameters** follow the same witness/opened-binder split as existential enum variant type parameters.
 - A written **Type Argument List** is always non-empty; omitting brackets is the only way to omit type arguments.
 - Public **Effect Declarations** and their operation signatures enter module interfaces; exported function signatures may mention only **Interface-Visible Effects**.
+- Public **Effect Set Aliases** enter module interfaces as transparent type aliases and may mention only **Interface-Visible Effects**.
 - An **Effect Operation Call** invokes an **Effect Operation**, keeps ordinary call parentheses even for zero arguments, and contributes the owning **Typed Algebraic Effect** to the surrounding **Effect Set**.
 - Source **Effect Operation Calls** lower to the `perform` part of **Buslane Effect Core**; source **Effect Handlers** lower to the `handle` part.
 - **Effect Operation Lookup** is separate from ordinary value lookup and contextual offer lookup; qualified operation syntax is distinguished by `!` in calls and by handler-arm position.
 - A **Function Effect Annotation** names an **Effect Set**; non-empty named function effects must be explicit, while function literals may use an explicit annotation or an expected function type.
 - **Effect Sets** normalize by removing duplicates, ignoring order, expanding single-effect sugar, and allowing at most one row tail to solve to the empty effect set.
+- An **Effect Set Alias** is a transparent **Top-Level Type Alias** of **Effect Kind**, not a new **Effect Declaration**.
+- An **Effect Declaration** and an **Effect Set Alias** cannot share the same top-level name in one **Module**.
 - **Effect Polymorphism** uses **Effect Variables** of **Effect Kind** and **Effect Row Unification**, not effect subtyping.
 - An **Effect Handler** contains one or more **Handler With Blocks** and exactly one **Handler Final Branch**; each `with` block is non-empty, handles one effect, and cannot be duplicated for the same effect.
 - **Handler Operation Arms** must target the block's handled effect, match operation arguments with ordinary Lane patterns, and place the **Resume Continuation** as the final binder.
