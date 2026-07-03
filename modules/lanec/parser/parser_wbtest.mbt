@@ -25,6 +25,53 @@ fn parse_error_kinds(source : String) -> Array[ParseErrorKind] {
 }
 
 ///|
+test "parse field access keeps expression and field-name spans separate" {
+  let file = expect_parse_ok(
+    (
+      #|struct Box {
+      #|  field : Int
+      #|}
+      #|fn answer(value : Box) -> Int {
+      #|  value.field
+      #|}
+    ),
+  )
+  guard file.declarations[1] is Function(function) else {
+    abort("expected function declaration")
+  }
+  guard function.body is Block(result~, ..) else {
+    abort("expected block body")
+  }
+  guard result is Field(name~, name_loc~, loc~, ..) else {
+    abort("expected field access")
+  }
+  debug_inspect(
+    (name, name_loc, loc),
+    content=(
+      #|(
+      #|  "field",
+      #|  {
+      #|    start_offset: 81,
+      #|    end_offset: 86,
+      #|    start_line: 6,
+      #|    start_column: 9,
+      #|    end_line: 6,
+      #|    end_column: 14,
+      #|  },
+      #|  {
+      #|    start_offset: 75,
+      #|    end_offset: 86,
+      #|    start_line: 6,
+      #|    start_column: 3,
+      #|    end_line: 6,
+      #|    end_column: 14,
+      #|  },
+      #|)
+    ),
+  )
+}
+
+///|
 test "parse nominal declarations and match" {
   let file = expect_parse_ok(
     (

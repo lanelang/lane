@@ -102,7 +102,7 @@ pub(all) enum Expr {
   If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : @basic.SourceSpan)
   Call(callee~ : Expr, arguments~ : Array[CallArgument], loc~ : @basic.SourceSpan)
-  Field(base~ : Expr, name~ : String, loc~ : @basic.SourceSpan)
+  Field(base~ : Expr, name~ : String, name_loc~ : @basic.SourceSpan, loc~ : @basic.SourceSpan)
   Unary(operator~ : UnaryOperator, operand~ : Expr, loc~ : @basic.SourceSpan)
   Binary(operator~ : BinaryOperator, left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
   Pipeline(left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)

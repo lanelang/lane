@@ -562,7 +562,8 @@ postfix_expression -> Expr
     Call(callee=$1, arguments=$3, loc=span($sloc))
   }
   | postfix_expression "." IDENT {
-    Field(base=$1, name=$3, loc=span($sloc))
+    let name_loc = span($sloc)
+    Field(base=$1, name=$3, name_loc~, loc=SourceSpan::join($1.loc(), name_loc))
   }
   | postfix_expression "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
     EffectOperationCall(

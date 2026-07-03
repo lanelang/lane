@@ -154,8 +154,8 @@ fn SemanticChecker::synthesize_checked_expr(
       )
     Var(name~, reference~, loc~) =>
       self.synthesize_checked_value_reference(scope, reference, name, loc)
-    Field(base~, name~, reference~, loc~) =>
-      self.synthesize_checked_field(scope, base, name, reference, loc)
+    Field(base~, name~, name_loc~, reference~, loc~) =>
+      self.synthesize_checked_field(scope, base, name, name_loc, reference, loc)
     If(condition~, then_branch~, else_branch~, loc~) =>
       self.synthesize_checked_if(
         scope, condition, then_branch, else_branch, loc,
@@ -1096,6 +1096,7 @@ fn SemanticChecker::synthesize_checked_field(
   scope : TypeScope,
   base : @desugar.DesugaredExpr,
   name : String,
+  name_loc : SourceSpan,
   reference : @resolve.ResolvedFieldReference,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
@@ -1112,6 +1113,7 @@ fn SemanticChecker::synthesize_checked_field(
         checked_base.effect,
         field,
         name,
+        name_loc,
         loc,
       )
     Deferred(_) =>
@@ -1126,6 +1128,7 @@ fn SemanticChecker::synthesize_checked_field(
           checked_base.effect,
           field,
           name,
+          name_loc,
           loc,
         )
       } else if checked_base.type_ is Error {
@@ -1135,7 +1138,7 @@ fn SemanticChecker::synthesize_checked_field(
         checked_expression_none_reported(Error)
       }
     Unresolved(..) => {
-      self.diagnostics.push({ kind: UnknownField(name~), loc })
+      self.diagnostics.push({ kind: UnknownField(name~), loc: name_loc })
       checked_expression_none_reported(Error)
     }
   }
@@ -1149,6 +1152,7 @@ fn SemanticChecker::checked_field_from_symbol(
   base_effect : @types.Effect,
   field : FieldSymbolId,
   name : String,
+  name_loc : SourceSpan,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   let type_ = self.declarations.field_type(
@@ -1156,10 +1160,10 @@ fn SemanticChecker::checked_field_from_symbol(
     base_type,
     field,
     name,
-    loc,
+    name_loc,
   )
   checked_expression_with_effect(
-    Field(base~, field~, name~, type_~, loc~),
+    Field(base~, field~, name~, name_loc~, type_~, loc~),
     type_,
     base_effect,
   )

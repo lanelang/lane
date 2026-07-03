@@ -479,6 +479,7 @@ pub(all) enum ResolvedExpr {
   Field(
     base~ : ResolvedExpr,
     name~ : String,
+    name_loc~ : SourceSpan,
     reference~ : ResolvedFieldReference,
     loc~ : SourceSpan
   )

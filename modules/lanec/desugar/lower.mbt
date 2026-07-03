@@ -257,8 +257,8 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         arguments=arguments.map(desugar_call_argument),
         loc~,
       )
-    Field(base~, name~, reference~, loc~) =>
-      Field(base=desugar_expr(base), name~, reference~, loc~)
+    Field(base~, name~, name_loc~, reference~, loc~) =>
+      Field(base=desugar_expr(base), name~, name_loc~, reference~, loc~)
     Unary(operator~, reference~, operand~, loc~) =>
       desugar_operator_call(
         operator.operation_name(),

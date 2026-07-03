@@ -594,8 +594,9 @@ fn SemanticChecker::synthesize_field(
   scope : TypeScope,
   base : @desugar.DesugaredExpr,
   name : String,
+  name_loc : SourceSpan,
   reference : @resolve.ResolvedFieldReference,
-  loc : SourceSpan,
+  _loc : SourceSpan,
 ) -> @types.Type {
   let base_type = self.synthesize_expr(scope, base)
   match reference {
@@ -605,16 +606,16 @@ fn SemanticChecker::synthesize_field(
         base_type,
         field,
         name,
-        loc,
+        name_loc,
       )
     Unresolved(..) => {
-      self.diagnostics.push({ kind: UnknownField(name~), loc })
+      self.diagnostics.push({ kind: UnknownField(name~), loc: name_loc })
       Error
     }
     Deferred(_) =>
       if base_type.decompose_nominal() is Some((symbol, _)) {
         guard self.source.symbols.field_named(symbol, name) is Some(field) else {
-          self.diagnostics.push({ kind: UnknownField(name~), loc })
+          self.diagnostics.push({ kind: UnknownField(name~), loc: name_loc })
           return Error
         }
         self.declarations.field_type(
@@ -622,12 +623,12 @@ fn SemanticChecker::synthesize_field(
           base_type,
           field,
           name,
-          loc,
+          name_loc,
         )
       } else if base_type is Error {
         Error
       } else {
-        self.diagnostics.push({ kind: NotAStruct(base_type), loc })
+        self.diagnostics.push({ kind: NotAStruct(base_type), loc: name_loc })
         Error
       }
   }

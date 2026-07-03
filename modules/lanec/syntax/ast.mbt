@@ -298,7 +298,7 @@ pub(all) enum Expr {
   )
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : SourceSpan)
   Call(callee~ : Expr, arguments~ : Array[CallArgument], loc~ : SourceSpan)
-  Field(base~ : Expr, name~ : String, loc~ : SourceSpan)
+  Field(base~ : Expr, name~ : String, name_loc~ : SourceSpan, loc~ : SourceSpan)
   Unary(operator~ : UnaryOperator, operand~ : Expr, loc~ : SourceSpan)
   Binary(
     operator~ : BinaryOperator,

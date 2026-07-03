@@ -190,6 +190,7 @@ pub(all) enum DesugaredExpr {
   Field(
     base~ : DesugaredExpr,
     name~ : String,
+    name_loc~ : SourceSpan,
     reference~ : @resolve.ResolvedFieldReference,
     loc~ : SourceSpan
   )

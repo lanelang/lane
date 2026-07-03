@@ -217,6 +217,7 @@ pub(all) enum CheckedExpr {
     base~ : CheckedExpr,
     field~ : FieldSymbolId,
     name~ : String,
+    name_loc~ : SourceSpan,
     type_~ : @types.Type,
     loc~ : SourceSpan
   )

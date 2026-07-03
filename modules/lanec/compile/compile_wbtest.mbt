@@ -2897,6 +2897,54 @@ test "analysis keeps nested call parameter hints at distinct positions" {
 }
 
 ///|
+test "analysis anchors field argument parameter hint at argument start" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub struct Box {
+        #|  field : Int
+        #|}
+        #|
+        #|pub fn take(arg : Int) -> Int {
+        #|  arg
+        #|}
+        #|
+        #|pub fn answer(value : Box) -> Int {
+        #|  take(value.field)
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(
+    result.inlay_hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 131,
+      #|        end_offset: 142,
+      #|        start_line: 12,
+      #|        start_column: 8,
+      #|        end_line: 12,
+      #|        end_column: 19,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "arg=",
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "analysis skips parameter name inlay hints for source operators" {
   let result = analyze_source_inputs(
     {

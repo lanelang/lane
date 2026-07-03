@@ -692,7 +692,7 @@ fn collect_checked_expr(
         )
       }
     }
-    Field(base~, field~, name~, type_~, loc~) => {
+    Field(base~, field~, name~, name_loc~, type_~, ..) => {
       collect_checked_expr(
         source_id, source_text, base, definitions, references, hovers, context,
       )
@@ -701,7 +701,7 @@ fn collect_checked_expr(
         hovers,
         source_id,
         Field(field),
-        loc,
+        name_loc,
         Some("\{name} : \{context.display.type_text(type_)}"),
       )
     }

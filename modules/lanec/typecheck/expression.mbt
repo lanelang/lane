@@ -202,8 +202,8 @@ fn SemanticChecker::synthesize_expr(
     }
     Handler(body~, handlers~, final_branch~, loc~) =>
       self.synthesize_handler(scope, body, handlers, final_branch, loc)
-    Field(base~, name~, reference~, loc~) =>
-      self.synthesize_field(scope, base, name, reference, loc)
+    Field(base~, name~, name_loc~, reference~, loc~) =>
+      self.synthesize_field(scope, base, name, name_loc, reference, loc)
     StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
       self.synthesize_struct_literal(
         scope, type_name, type_arguments, fields, loc,

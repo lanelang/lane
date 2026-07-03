@@ -1664,14 +1664,15 @@ fn @syntax.Expr::resolve_expr(
       match resolver.resolve_module_value_field_chain(scope, field, loc) {
         Some(expr) => expr
         None => {
-          guard field is Field(base~, name~, ..) else {
+          guard field is Field(base~, name~, name_loc~, ..) else {
             abort("expected field")
           }
           let base = base.resolve_expr(resolver, scope)
           Field(
             base~,
             name~,
-            reference=resolver.field_reference(scope, base, name, loc),
+            name_loc~,
+            reference=resolver.field_reference(scope, base, name, name_loc),
             loc~,
           )
         }
