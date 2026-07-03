@@ -298,6 +298,14 @@
       }
     },
     {
+      "name": "36 handle block subject",
+      "file": "examples/valid/36_handle_block_subject.lane",
+      "entry": "answer",
+      "expect": {
+        "equals": "42 : Int"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",

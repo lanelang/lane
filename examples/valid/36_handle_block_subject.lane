@@ -1,0 +1,18 @@
+module Examples.Valid.HandleBlockSubject
+
+import Ops.*
+
+effect Console {
+  read() -> Int
+}
+
+pub let answer : Int = {
+  handle {
+    let base : Int = 40
+    base + Console::read!()
+  } with {
+    Console::read(resume) => resume(2)
+  } final value {
+    value
+  }
+}
