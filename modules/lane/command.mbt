@@ -13,11 +13,12 @@ enum LaneCommand {
     file~ : String,
     interfaces~ : Array[String],
     emit_interface~ : String?,
-    emit_object~ : String?
+    emit_object~ : String?,
+    verbose~ : Bool
   )
   Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
   Inspect(artifact~ : String)
-  Link(objects~ : Array[String], output~ : String)
+  Link(objects~ : Array[String], output~ : String, verbose~ : Bool)
   Lsp(stdio~ : Bool)
   RunLinked(program~ : String, entry~ : String)
   Run(
@@ -62,6 +63,7 @@ fn lane_command_spec() -> Command {
           emit_interface_option(),
           emit_object_option(),
         ],
+        flags=[verbose_flag()],
         positionals=[PositionArg("file")],
       ),
       Command("inspect", about="Dump a compiled Lane module artifact.", positionals=[
@@ -71,6 +73,7 @@ fn lane_command_spec() -> Command {
         "link",
         about="Link compiled Lane module object artifacts.",
         options=[output_option()],
+        flags=[verbose_flag()],
         positionals=[PositionArg("objects", num_args=ValueRange(lower=1))],
       ),
       Command(
@@ -153,6 +156,7 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
               interfaces=values(child, "interface"),
               emit_interface=optional_value(child, "emit-interface"),
               emit_object=optional_value(child, "emit-object"),
+              verbose=flag(child, "verbose"),
             ),
           )
         Err(message) => Err(message)
@@ -164,7 +168,14 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
       }
     Some(("link", child)) =>
       match required_value(child, "output") {
-        Ok(output) => Ok(Link(objects=values(child, "objects"), output~))
+        Ok(output) =>
+          Ok(
+            Link(
+              objects=values(child, "objects"),
+              output~,
+              verbose=flag(child, "verbose"),
+            ),
+          )
         Err(message) => Err(message)
       }
     Some(("runlinked", child)) =>
@@ -268,6 +279,11 @@ fn entry_option() -> @argparse.OptionArg {
 ///|
 fn output_option() -> @argparse.OptionArg {
   OptionArg("output", short='o', long="output", about="Write output artifact.")
+}
+
+///|
+fn verbose_flag() -> @argparse.FlagArg {
+  FlagArg("verbose", long="verbose", about="Print successful artifact writes.")
 }
 
 ///|

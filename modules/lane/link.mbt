@@ -2,6 +2,7 @@
 async fn lane_link(
   objects : Array[String],
   output : String,
+  verbose : Bool,
 ) -> LaneCommandOutcome {
   let object_artifacts = match read_module_object_artifacts(objects) {
     Ok(objects) => objects
@@ -24,11 +25,13 @@ async fn lane_link(
       return UserFailure
     }
   }
-  let linked_modules = program.module_path_texts.join(",")
-  let linked_entries = entry_names(program.entries).join(",")
-  println("linked program \{output}")
-  println("linked modules \{linked_modules}")
-  println("linked entries \{linked_entries}")
+  if verbose {
+    let linked_modules = program.module_path_texts.join(",")
+    let linked_entries = entry_names(program.entries).join(",")
+    println("linked program \{output}")
+    println("linked modules \{linked_modules}")
+    println("linked entries \{linked_entries}")
+  }
   Succeeded
 }
 

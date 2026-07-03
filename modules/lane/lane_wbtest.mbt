@@ -55,7 +55,7 @@ async test "compile writes default module artifacts beside source" {
       #|pub let answer : Int = 42
     ),
   )
-  let outcome = lane_compile(source_path, [], None, None)
+  let outcome = lane_compile(source_path, [], None, None, false)
   guard outcome is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")

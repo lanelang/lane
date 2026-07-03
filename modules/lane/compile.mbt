@@ -4,6 +4,7 @@ async fn lane_compile(
   interfaces : Array[String],
   emit_interface : String?,
   emit_object : String?,
+  verbose : Bool,
 ) -> LaneCommandOutcome {
   let interface_path = compile_output_path(file, emit_interface, ".lmi")
   let object_path = compile_output_path(file, emit_object, ".lmo")
@@ -52,9 +53,11 @@ async fn lane_compile(
       return UserFailure
     }
   }
-  println("compiled module \{module_.module_path_text}")
-  println("wrote interface \{interface_path}")
-  println("wrote object \{object_path}")
+  if verbose {
+    println("compiled module \{module_.module_path_text}")
+    println("wrote interface \{interface_path}")
+    println("wrote object \{object_path}")
+  }
   Succeeded
 }
 
