@@ -361,6 +361,21 @@ fn TypeAliasDeclaration::to_doc(self : TypeAliasDeclaration) -> Document {
 }
 
 ///|
+pub impl @prettyprinter.Pretty for TypeAliasBody with fn pretty(
+  body : TypeAliasBody,
+) {
+  body.to_doc()
+}
+
+///|
+fn TypeAliasBody::to_doc(self : TypeAliasBody) -> Document {
+  match self {
+    TypeBody(type_) => type_.to_doc()
+    EffectBody(effect) => effect.to_doc()
+  }
+}
+
+///|
 pub impl @prettyprinter.Pretty for FunctionDeclaration with fn pretty(
   declaration : FunctionDeclaration,
 ) {

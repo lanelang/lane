@@ -158,14 +158,27 @@ public_top_level_declaration -> TopLevelDeclaration
   ;
 
 type_alias_declaration -> TypeAliasDeclaration
-  : "type" IDENT type_parameters "=" type {
+  : "type" IDENT type_parameters "=" type_alias_body {
     { is_public: false, name: $2, type_parameters: $3, body: $5, loc: span($sloc) }
   }
   ;
 
 public_type_alias_declaration -> TypeAliasDeclaration
-  : "type" IDENT type_parameters "=" type {
+  : "type" IDENT type_parameters "=" type_alias_body {
     { is_public: true, name: $2, type_parameters: $3, body: $5, loc: span($sloc) }
+  }
+  ;
+
+type_alias_body -> TypeAliasBody
+  : type { TypeBody($1) }
+  | "{" type_list "}" {
+    EffectBody(
+      if $2.is_empty() {
+        Empty(loc=span($sloc))
+      } else {
+        Union(items=$2, loc=span($sloc))
+      }
+    )
   }
   ;
 

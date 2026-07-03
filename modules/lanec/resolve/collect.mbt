@@ -557,16 +557,41 @@ fn @syntax.TypeAliasDeclaration::resolve_type_alias(
     self.loc,
   )
   let scope = resolver.scope(type_parameters)
-  let body = self.body.resolve_type(resolver, scope)
+  let body = self.body.resolve_type_alias_body(resolver, scope)
   {
     is_public: self.is_public,
     name: self.name,
     body: if type_parameters.is_empty() {
       body
     } else {
-      TypeLambda(parameters=type_parameters, body~, loc=self.loc)
+      body.wrap_type_lambda(type_parameters, self.loc)
     },
     loc: self.loc,
+  }
+}
+
+///|
+fn @syntax.TypeAliasBody::resolve_type_alias_body(
+  self : @syntax.TypeAliasBody,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedTypeAliasBody {
+  match self {
+    TypeBody(type_) => TypeBody(type_.resolve_type(resolver, scope))
+    EffectBody(effect) =>
+      EffectBody(effect.resolve_effect_term(resolver, scope))
+  }
+}
+
+///|
+fn ResolvedTypeAliasBody::wrap_type_lambda(
+  self : ResolvedTypeAliasBody,
+  parameters : Array[ResolvedTypeParameter],
+  loc : SourceSpan,
+) -> ResolvedTypeAliasBody {
+  match self {
+    TypeBody(body) => TypeBody(TypeLambda(parameters~, body~, loc~))
+    EffectBody(_) => self
   }
 }
 

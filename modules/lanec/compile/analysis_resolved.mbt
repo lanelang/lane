@@ -117,7 +117,7 @@ fn collect_resolved_top_level_declaration(
       }
     }
     TypeAlias(declaration) =>
-      collect_resolved_type_reference(
+      collect_resolved_type_alias_body_reference(
         source_id,
         declaration.body,
         references,
@@ -770,6 +770,21 @@ fn collect_resolved_pattern(
             )
         }
       }
+  }
+}
+
+///|
+fn collect_resolved_type_alias_body_reference(
+  source_id : String,
+  body : @resolve.ResolvedTypeAliasBody,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match body {
+    TypeBody(type_) =>
+      collect_resolved_type_reference(source_id, type_, references, hovers)
+    EffectBody(effect) =>
+      collect_resolved_effect_reference(source_id, effect, references, hovers)
   }
 }
 

@@ -220,6 +220,45 @@ test "parse type aliases and F-omega type expressions" {
 }
 
 ///|
+test "parse type alias with effect set body" {
+  let file = expect_parse_ok(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|type UI = { Console, Log }
+      #|type Task[E : Effect] = { UI, E }
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|
+      #|type UI = { Console, Log }
+      #|
+      #|type Task[E : Effect] = { UI, E }
+    ),
+  )
+}
+
+///|
+test "parse rejects value block as type alias body" {
+  assert_true(!parse_errors("type Bad = { let x : Int = 1 x }").is_empty())
+}
+
+///|
 test "parse function literal and pipeline" {
   let file = expect_parse_ok(
     (

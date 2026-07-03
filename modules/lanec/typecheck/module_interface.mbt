@@ -171,13 +171,14 @@ fn SemanticChecker::interface_type_aliases(
   for declaration in self.resolved_source.declarations {
     match declaration {
       TypeAlias(declaration) if declaration.is_public => {
+        guard declaration.body is TypeBody(body) else { continue }
         let checker = TypeExpressionChecker::{
           source: self.resolved_source,
           imported_environment: self.imported_environment,
           diagnostics: self.diagnostics,
           expanding: [declaration.name],
         }
-        let result = checker.synthesize_type(declaration.body)
+        let result = checker.synthesize_type(body)
         self.check_public_interface_type_fallback(result.type_, declaration.loc)
         aliases.push({
           name: declaration.name,
@@ -258,7 +259,9 @@ fn SemanticChecker::check_public_interface_resolved_declarations(
           self.check_public_interface_resolved_type(operation.result)
         }
       TypeAlias(declaration) if declaration.is_public =>
-        self.check_public_interface_resolved_type(declaration.body)
+        if declaration.body is TypeBody(body) {
+          self.check_public_interface_resolved_type(body)
+        }
       Function(declaration) if declaration.is_public => {
         for parameter in declaration.parameters {
           self.check_public_interface_resolved_type(parameter.type_)

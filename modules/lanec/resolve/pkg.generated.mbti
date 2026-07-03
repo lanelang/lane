@@ -331,10 +331,16 @@ pub(all) enum ResolvedType {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedType
 
+pub(all) enum ResolvedTypeAliasBody {
+  TypeBody(ResolvedType)
+  EffectBody(ResolvedEffectTerm)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedTypeAliasBody
+
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
-  body : ResolvedType
+  body : ResolvedTypeAliasBody
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration

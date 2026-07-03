@@ -135,8 +135,14 @@ pub(all) struct ResolvedEffectOperationDeclaration {
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
-  body : ResolvedType
+  body : ResolvedTypeAliasBody
   loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedTypeAliasBody {
+  TypeBody(ResolvedType)
+  EffectBody(ResolvedEffectTerm)
 } derive(Debug, Eq)
 
 ///|

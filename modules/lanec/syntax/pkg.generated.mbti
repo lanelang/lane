@@ -312,11 +312,18 @@ pub(all) enum Type {
 pub fn Type::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for Type
 
+pub(all) enum TypeAliasBody {
+  TypeBody(Type)
+  EffectBody(EffectTerm)
+} derive(Eq, @debug.Debug)
+pub fn TypeAliasBody::loc(Self) -> @basic.SourceSpan
+pub impl @prettyprinter.Pretty for TypeAliasBody
+
 pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
   type_parameters : Array[TypeParameter]
-  body : Type
+  body : TypeAliasBody
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeAliasDeclaration

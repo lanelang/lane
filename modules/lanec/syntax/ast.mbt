@@ -139,9 +139,23 @@ pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
   type_parameters : Array[TypeParameter]
-  body : Type
+  body : TypeAliasBody
   loc : SourceSpan
 } derive(Debug, Eq)
+
+///|
+pub(all) enum TypeAliasBody {
+  TypeBody(Type)
+  EffectBody(EffectTerm)
+} derive(Debug, Eq)
+
+///|
+pub fn TypeAliasBody::loc(self : TypeAliasBody) -> SourceSpan {
+  match self {
+    TypeBody(type_) => type_.loc()
+    EffectBody(effect) => effect.loc()
+  }
+}
 
 ///|
 pub(all) struct FunctionDeclaration {

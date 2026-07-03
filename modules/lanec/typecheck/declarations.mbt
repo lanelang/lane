@@ -204,14 +204,26 @@ fn DeclarationChecker::check_type_alias(
   self : DeclarationChecker,
   declaration : @resolve.ResolvedTypeAliasDeclaration,
 ) -> Unit {
-  ignore(
-    TypeExpressionChecker::{
-      source: self.source,
-      imported_environment: self.imported_environment,
-      diagnostics: self.diagnostics,
-      expanding: [declaration.name],
-    }.synthesize_type(declaration.body),
-  )
+  match declaration.body {
+    TypeBody(body) =>
+      ignore(
+        TypeExpressionChecker::{
+          source: self.source,
+          imported_environment: self.imported_environment,
+          diagnostics: self.diagnostics,
+          expanding: [declaration.name],
+        }.synthesize_type(body),
+      )
+    EffectBody(effect) =>
+      ignore(
+        TypeExpressionChecker::{
+          source: self.source,
+          imported_environment: self.imported_environment,
+          diagnostics: self.diagnostics,
+          expanding: [declaration.name],
+        }.check_effect(effect),
+      )
+  }
 }
 
 ///|
@@ -615,7 +627,16 @@ fn TypeExpressionChecker::expand_alias(
         expanding: self.expanding.copy(),
       }
       next.expanding.push(name)
-      next.synthesize_type(type_alias.body)
+      match type_alias.body {
+        TypeBody(body) => next.synthesize_type(body)
+        EffectBody(_) => {
+          self.diagnostics.push({
+            kind: KindMismatch(expected=Type, actual=Effect),
+            loc,
+          })
+          { type_: Error, kind: Type }
+        }
+      }
     }
     None =>
       match self.find_interface_alias(name) {
@@ -765,8 +786,15 @@ fn TypeExpressionChecker::find_type_parameter_kind(
           return Some(kind)
         }
       TypeAlias(type_alias) =>
-        if find_kind_in_type(type_alias.body, symbol) is Some(kind) {
-          return Some(kind)
+        match type_alias.body {
+          TypeBody(body) =>
+            if find_kind_in_type(body, symbol) is Some(kind) {
+              return Some(kind)
+            }
+          EffectBody(effect) =>
+            if find_kind_in_effect(effect, symbol) is Some(kind) {
+              return Some(kind)
+            }
         }
       Effect(declaration) => {
         if find_kind_in_parameters(declaration.type_parameters, symbol)

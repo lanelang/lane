@@ -35,6 +35,7 @@ using @syntax {
   type StructMember,
   type StructPatternField,
   type TypeAliasDeclaration,
+  type TypeAliasBody,
   type TypeMemberDeclaration,
   type TypeParameter,
   type TopLevelDeclaration,

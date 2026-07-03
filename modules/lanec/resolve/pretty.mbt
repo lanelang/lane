@@ -222,6 +222,16 @@ pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for ResolvedTypeAliasBody with fn pretty(
+  body : ResolvedTypeAliasBody,
+) {
+  match body {
+    TypeBody(type_) => type_.pretty()
+    EffectBody(effect) => effect.pretty()
+  }
+}
+
+///|
 pub impl @prettyprinter.Pretty for ResolvedEffectDeclaration with fn pretty(
   declaration : ResolvedEffectDeclaration,
 ) {
