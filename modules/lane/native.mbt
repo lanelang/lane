@@ -103,16 +103,16 @@ async fn write_linked_program_artifact(
   path : String,
   program : @compile.LinkedProgram,
 ) -> Unit {
-  write_source_file(
+  write_binary_file(
     path,
-    @compile.linked_program_artifact_to_text(program.to_artifact()),
+    @compile.linked_program_artifact_to_binary(program.to_artifact()),
   )
 }
 
 ///|
 async fn read_linked_program_artifact(path : String) -> @compile.LinkedProgram {
-  let source = read_source_file(path)
-  let artifact = match @compile.parse_linked_program_artifact_text(source) {
+  let bytes = read_binary_file(path)
+  let artifact = match @compile.parse_linked_program_artifact_binary(bytes) {
     Ok(artifact) => artifact
     Err(message) => fail(message)
   }

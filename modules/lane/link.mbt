@@ -37,5 +37,10 @@ async fn lane_link(
 
 ///|
 fn entry_names(entries : Array[@elaborate.BuslaneEntry]) -> Array[String] {
-  entries.map(fn(entry) { entry.name })
+  entries.map(fn(entry) { display_entry_name(entry.name) })
+}
+
+///|
+fn display_entry_name(name : String) -> String {
+  name.split("::").map(StringView::to_owned).collect().join(".")
 }

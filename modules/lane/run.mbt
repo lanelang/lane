@@ -1,8 +1,5 @@
 ///|
-async fn lane_runlinked(
-  path : String,
-  entry_name : String,
-) -> LaneCommandOutcome {
+async fn lane_runobj(path : String, entry_name : String) -> LaneCommandOutcome {
   let program = read_linked_program_artifact(path) catch {
     error => {
       println(read_file_error(path, "\{error}"))

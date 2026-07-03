@@ -8,6 +8,9 @@ let artifact_binary_kind_interface = 1
 let artifact_binary_kind_object = 2
 
 ///|
+let artifact_binary_kind_program = 3
+
+///|
 priv struct BinaryArtifactText {
   kind : Int
   text : String
@@ -33,6 +36,11 @@ pub fn artifact_binary_to_text(bytes : Bytes) -> Result[String, String] {
             Ok(_) => Ok(decoded.text)
             Err(message) => Err(message)
           }
+        kind if kind == artifact_binary_kind_program =>
+          match parse_linked_program_artifact_text(decoded.text) {
+            Ok(_) => Ok(decoded.text)
+            Err(message) => Err(message)
+          }
         kind =>
           Err("unknown artifact binary kind \{artifact_binary_kind_name(kind)}")
       }
@@ -54,6 +62,12 @@ pub fn artifact_binary_to_inspect_text(bytes : Bytes) -> Result[String, String] 
         kind if kind == artifact_binary_kind_object =>
           match parse_module_object_artifact_text(decoded.text) {
             Ok(artifact) => Ok(module_object_artifact_to_inspect_text(artifact))
+            Err(message) => Err(message)
+          }
+        kind if kind == artifact_binary_kind_program =>
+          match parse_linked_program_artifact_text(decoded.text) {
+            Ok(artifact) =>
+              Ok(linked_program_artifact_to_inspect_text(artifact))
             Err(message) => Err(message)
           }
         kind =>
@@ -109,6 +123,31 @@ pub fn parse_module_object_artifact_binary(
       expected_name="object",
     ) {
     Ok(text) => parse_module_object_artifact_text(text)
+    Err(message) => Err(message)
+  }
+}
+
+///|
+pub fn linked_program_artifact_to_binary(
+  artifact : LinkedProgramArtifact,
+) -> Bytes {
+  artifact_text_to_binary(
+    artifact_binary_kind_program,
+    linked_program_artifact_to_text(artifact),
+  )
+}
+
+///|
+pub fn parse_linked_program_artifact_binary(
+  bytes : Bytes,
+) -> Result[LinkedProgramArtifact, String] {
+  match
+    binary_artifact_text(
+      bytes,
+      expected_kind=artifact_binary_kind_program,
+      expected_name="program",
+    ) {
+    Ok(text) => parse_linked_program_artifact_text(text)
     Err(message) => Err(message)
   }
 }
@@ -195,6 +234,8 @@ fn artifact_binary_kind_name(kind : Int) -> String {
     "interface"
   } else if kind == artifact_binary_kind_object {
     "object"
+  } else if kind == artifact_binary_kind_program {
+    "program"
   } else {
     "unknown(\{kind})"
   }

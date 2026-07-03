@@ -20,7 +20,7 @@ enum LaneCommand {
   Inspect(artifact~ : String)
   Link(objects~ : Array[String], output~ : String, verbose~ : Bool)
   Lsp(stdio~ : Bool)
-  RunLinked(program~ : String, entry~ : String)
+  RunObj(program~ : String, entry~ : String)
   Run(
     file~ : String,
     entry~ : String,
@@ -77,10 +77,9 @@ fn lane_command_spec() -> Command {
         positionals=[PositionArg("objects", num_args=ValueRange(lower=1))],
       ),
       Command(
-        "runlinked",
+        "runobj",
         about="Run an entry from a linked Lane program artifact.",
-        options=[entry_option()],
-        positionals=[PositionArg("program")],
+        positionals=[PositionArg("target")],
       ),
       Command(
         "fmt",
@@ -178,11 +177,11 @@ fn parse_lane_command() -> Result[LaneCommand, String] {
           )
         Err(message) => Err(message)
       }
-    Some(("runlinked", child)) =>
-      match required_value(child, "program") {
-        Ok(program) =>
-          match required_value(child, "entry") {
-            Ok(entry) => Ok(RunLinked(program~, entry~))
+    Some(("runobj", child)) =>
+      match required_value(child, "target") {
+        Ok(target_text) =>
+          match parse_runobj_target(target_text) {
+            Ok(target) => Ok(RunObj(program=target.file, entry=target.entry))
             Err(message) => Err(message)
           }
         Err(message) => Err(message)
@@ -213,6 +212,34 @@ fn parse_run_target(target : String) -> Result[RunTarget, String] {
     return Err(run_target_error(target))
   }
   Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned() })
+}
+
+///|
+fn parse_runobj_target(target : String) -> Result[RunTarget, String] {
+  let parts = target.split(":").collect()
+  if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
+    return Err(runobj_target_error(target))
+  }
+  match public_entry_name_to_internal(parts[1].to_owned()) {
+    Ok(entry) => Ok({ file: parts[0].to_owned(), entry })
+    Err(_) => Err(runobj_target_error(target))
+  }
+}
+
+///|
+fn public_entry_name_to_internal(name : String) -> Result[String, Unit] {
+  let parts = name.split(".").map(StringView::to_owned).collect()
+  if parts.length() < 2 {
+    return Err(())
+  }
+  for part in parts {
+    if part.is_empty() {
+      return Err(())
+    }
+  }
+  let value = parts[parts.length() - 1]
+  let module_path = parts[:parts.length() - 1].join(".")
+  Ok("\{module_path}::\{value}")
 }
 
 ///|
@@ -263,16 +290,6 @@ fn emit_object_option() -> @argparse.OptionArg {
     short='o',
     long="emit-object",
     about="Write module object binary artifact.",
-  )
-}
-
-///|
-fn entry_option() -> @argparse.OptionArg {
-  OptionArg(
-    "entry",
-    short='e',
-    long="entry",
-    about="Program entry in Module::value form.",
   )
 }
 

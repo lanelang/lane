@@ -24,6 +24,31 @@ test "reject run target without entry suffix" {
 }
 
 ///|
+test "parse runobj target from artifact and module-qualified entry" {
+  guard parse_runobj_target("program.lbp:Main.answer") is Ok(target) else {
+    abort("expected runobj target")
+  }
+  inspect(target.file, content="program.lbp")
+  inspect(target.entry, content="Main::answer")
+}
+
+///|
+test "reject runobj target without module-qualified entry" {
+  guard parse_runobj_target("program.lbp:answer") is Err(message) else {
+    abort("expected runobj target error")
+  }
+  inspect(
+    message,
+    content=(
+      #|error[E6008]: invalid runobj target
+      #|  = label: expected `FILE:Module.value`, got `program.lbp:answer`
+      #|  = note: `lane runobj` loads one linked program artifact and selects a public entry from it
+      #|  = help: try: lane runobj program.lbp:Main.main
+    ),
+  )
+}
+
+///|
 test "default compile artifact path replaces input suffix" {
   inspect(
     default_compile_artifact_path("Main.lane", ".lmi"),
@@ -75,6 +100,7 @@ async test "native module artifacts are binary and readable" {
   let workspace = ".tmp-lane-binary-artifacts"
   let interface_path = "\{workspace}/Main.lmi"
   let object_path = "\{workspace}/Main.lmo"
+  let program_path = "\{workspace}/Main.lbp"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   let compiled = @compile.compile_module_with_interface_artifacts(
@@ -94,18 +120,32 @@ async test "native module artifacts are binary and readable" {
   }
   write_module_interface_artifact(interface_path, module_)
   write_module_object_artifact(object_path, module_)
+  let linked = @compile.link_modules(modules)
+  inspect(linked.diagnostics.length(), content="0")
+  guard linked.program is Some(program) else {
+    cleanup_library_fixture(workspace)
+    abort("expected linked program")
+  }
+  write_linked_program_artifact(program_path, program)
   let interface_bytes = @fs.read_file(interface_path).binary()
   let object_bytes = @fs.read_file(object_path).binary()
+  let program_bytes = @fs.read_file(program_path).binary()
   inspect(
     byte_prefix_text(interface_bytes, 8),
     content="76,65,78,69,65,82,84,0",
   )
   inspect(byte_prefix_text(object_bytes, 8), content="76,65,78,69,65,82,84,0")
+  inspect(byte_prefix_text(program_bytes, 8), content="76,65,78,69,65,82,84,0")
   let interface = read_module_interface_artifact(interface_path)
   let object = read_module_object_artifact(object_path)
+  let linked_program = read_linked_program_artifact(program_path)
   cleanup_library_fixture(workspace)
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
+  inspect(
+    linked_program.entries.map(fn(entry) { entry.name }).join(","),
+    content="answer",
+  )
 }
 
 ///|

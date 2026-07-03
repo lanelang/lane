@@ -300,7 +300,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   if link.code != 0 {
     return link
   }
-  run_moon_lane(["runlinked", linked_program, "--entry", "C::answer"])
+  run_moon_lane(["runobj", linked_program + ":C.answer"])
 }
 
 fn ensure_dir(path : String) -> Unit raise {

@@ -38,6 +38,13 @@ fn module_object_artifact_to_inspect_text(
 }
 
 ///|
+fn linked_program_artifact_to_inspect_text(
+  artifact : LinkedProgramArtifact,
+) -> String {
+  @prettyprinter.render(artifact, width=100) + "\n"
+}
+
+///|
 pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact with fn pretty(
   artifact : ModuleInterfaceArtifact,
 ) -> Document {
@@ -75,6 +82,31 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
+  artifact : LinkedProgramArtifact,
+) -> Document {
+  let buslane = BuslaneInspectContext::{ metadata: artifact.program.metadata }
+  separate(@prettyprinter.hardline + @prettyprinter.hardline, [
+    linked_program_header_doc(artifact),
+    section_doc(
+      "modules:",
+      artifact.module_path_texts.map(fn(module_) { text(module_) }),
+    ),
+    section_doc(
+      "entries:",
+      artifact.entries.map(fn(entry) { text(buslane.entry_text(entry)) }),
+    ),
+    section_doc(
+      "externals:",
+      artifact.externals.builtins.map(fn(external) {
+        text(buslane.external_text(external))
+      }),
+    ),
+    buslane_program_doc(artifact.program.metadata, artifact.program.terms),
+  ])
+}
+
+///|
 fn artifact_header_doc(
   kind : String,
   schema_version : Int,
@@ -94,6 +126,14 @@ fn artifact_header_doc(
     fields.push(text("object fingerprint: \{fingerprint.value}"))
   }
   separate(@prettyprinter.hardline, fields)
+}
+
+///|
+fn linked_program_header_doc(artifact : LinkedProgramArtifact) -> Document {
+  separate(@prettyprinter.hardline, [
+    text("Lane program artifact"),
+    text("schema: \{artifact.schema_version}"),
+  ])
 }
 
 ///|

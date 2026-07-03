@@ -55,6 +55,8 @@ pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> LinkResult
 
 pub fn link_modules(CompiledModuleSet) -> LinkResult
 
+pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Bytes
+
 pub fn linked_program_artifact_to_text(LinkedProgramArtifact) -> String
 
 pub fn module_interface_artifact_to_binary(ModuleInterfaceArtifact) -> Bytes
@@ -64,6 +66,8 @@ pub fn module_interface_artifact_to_text(ModuleInterfaceArtifact) -> String
 pub fn module_object_artifact_to_binary(ModuleObjectArtifact) -> Bytes
 
 pub fn module_object_artifact_to_text(ModuleObjectArtifact) -> String
+
+pub fn parse_linked_program_artifact_binary(Bytes) -> Result[LinkedProgramArtifact, String]
 
 pub fn parse_linked_program_artifact_text(String) -> Result[LinkedProgramArtifact, String]
 
@@ -267,6 +271,7 @@ pub(all) struct LinkedProgramArtifact {
   entries : Array[@elaborate.BuslaneEntry]
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedProgram, Array[CompileDiagnostic]]
+pub impl @prettyprinter.Pretty for LinkedProgramArtifact
 
 pub(all) struct ModuleImportedReference {
   module_path_text : String

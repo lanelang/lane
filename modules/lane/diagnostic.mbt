@@ -37,7 +37,7 @@ fn unknown_command_error() -> String {
     "unknown lane command",
     ["the requested subcommand is not supported by this `lane` binary"],
     [
-      "available commands include check, run, compile, inspect, link, runlinked, fmt, and lsp",
+      "available commands include check, run, compile, inspect, link, runobj, fmt, and lsp",
     ],
     ["try: lane check Main.lane"],
   )
@@ -53,6 +53,19 @@ fn run_target_error(target : String) -> String {
       "`lane run` compiles one source file and then selects a public entry from it",
     ],
     ["try: lane run Main.lane:main"],
+  )
+}
+
+///|
+fn runobj_target_error(target : String) -> String {
+  lane_boundary_error(
+    "E6008",
+    "invalid runobj target",
+    ["expected `FILE:Module.value`, got `\{target}`"],
+    [
+      "`lane runobj` loads one linked program artifact and selects a public entry from it",
+    ],
+    ["try: lane runobj program.lbp:Main.main"],
   )
 }
 
@@ -77,7 +90,7 @@ fn entry_lookup_error(
   lane_boundary_error(
     "E6005",
     "entry was not found in the linked program",
-    ["requested entry `\{name}` does not exist"],
+    ["requested entry `\{display_entry_name(name)}` does not exist"],
     [available_entries_note(entries)],
     [
       "use one of the listed public entries, or export the value with `pub` before compiling",
@@ -93,7 +106,7 @@ fn ambiguous_entry_error(
   lane_boundary_error(
     "E6006",
     "entry name is ambiguous",
-    ["more than one linked entry is named `\{name}`"],
+    ["more than one linked entry is named `\{display_entry_name(name)}`"],
     [available_entries_note(entries)],
     ["qualify the requested entry with its module path when possible"],
   )

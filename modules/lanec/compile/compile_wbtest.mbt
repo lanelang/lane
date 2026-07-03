@@ -394,8 +394,10 @@ test "module artifacts roundtrip through binary and link" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let linked_text = linked_program_artifact_to_text(program.to_artifact())
-  let linked_decoded = match parse_linked_program_artifact_text(linked_text) {
+  let linked_binary = linked_program_artifact_to_binary(program.to_artifact())
+  inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
+  let linked_decoded = match
+    parse_linked_program_artifact_binary(linked_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
@@ -406,6 +408,50 @@ test "module artifacts roundtrip through binary and link" {
   inspect(
     linked_program.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
+  )
+  let linked_inspect = match artifact_binary_to_inspect_text(linked_binary) {
+    Ok(text) => text
+    Err(message) => abort(message)
+  }
+  inspect(
+    artifact_inspect_without_fingerprints(linked_inspect),
+    content=(
+      #|Lane program artifact
+      #|schema: 1
+      #|
+      #|modules:
+      #|  Lib
+      #|  Main
+      #|
+      #|entries:
+      #|  answer : Int
+      #|
+      #|externals:
+      #|  (none)
+      #|
+      #|buslane:
+      #|  buslane {
+      #|    metadata {
+      #|      type Box#0 {
+      #|        Box#1(Int)
+      #|      }
+      #|      function value#2 : (type#0) -> Int
+      #|      parameter receiver#3 : type#0
+      #|      match_binder match#4 : type#0
+      #|      match_binder value#5 : Int
+      #|      value box#6 : type#0
+      #|      value answer#7 : Int
+      #|    }
+      #|    let value#0 = fn(value#1) -> Int {
+      #|      match value#1 as value#2 -> Int {
+      #|        datacon#0(value#3) => value#3
+      #|      }
+      #|    }
+      #|    let value#4 = datacon#0(42)
+      #|    let value#5 = value#0(value#4)
+      #|  }
+      #|
+    ),
   )
   let duplicated_entries = linked_decoded.entries.copy()
   duplicated_entries.push(linked_decoded.entries[0])
@@ -502,6 +548,20 @@ test "module artifact binary rejects wrong kind" {
     )
   } else {
     abort("expected wrong artifact binary kind")
+  }
+  let linked = link_modules(modules)
+  inspect(linked.diagnostics.length(), content="0")
+  guard linked.program is Some(program) else {
+    abort("expected linked program")
+  }
+  let program_binary = linked_program_artifact_to_binary(program.to_artifact())
+  if parse_module_object_artifact_binary(program_binary) is Err(message) {
+    inspect(
+      message,
+      content="wrong artifact binary kind: expected object, got program",
+    )
+  } else {
+    abort("expected program binary to fail object parsing")
   }
 }
 

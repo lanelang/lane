@@ -17,7 +17,7 @@ async fn main {
         Inspect(artifact~) => lane_inspect(artifact)
         Link(objects~, output~, verbose~) => lane_link(objects, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)
-        RunLinked(program~, entry~) => lane_runlinked(program, entry)
+        RunObj(program~, entry~) => lane_runobj(program, entry)
         Run(file~, entry~, libs~, lib_dirs~) =>
           lane_run(file, entry, libs, lib_dirs)
       }
