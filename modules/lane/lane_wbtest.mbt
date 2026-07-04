@@ -477,6 +477,24 @@ test "run rejects Stdlib Io effect without explicit runtime metadata" {
       #|)
     ),
   )
+  guard validate_executable_entry(
+      entry,
+      command_runtime_effects(program, result.runtime_effect_operations),
+    )
+    is Err(error) else {
+    abort("expected unsupported effect diagnostic")
+  }
+  inspect(
+    error.render_human(),
+    content=(
+      #|error[E6009]: entry is not executable
+      #|  = label: requested entry `main` has type `() -> Unit ! effect#0`
+      #|  = note: `lane run` and `lane runobj` execute only public zero-argument functions returning `Unit`
+      #|  = note: the selected function has unsupported effect set `effect#0`
+      #|  = help: export a `pub fn main() -> Unit` entry, or use supported runtime effects such as `Stdlib.Io.Write`
+      #|  = help: use `lane inspect <artifact>` to inspect public entries and artifact metadata
+    ),
+  )
 }
 
 ///|

@@ -80,6 +80,7 @@ _Avoid_: integer trap, arbitrary precision integer
 - **Run Entry Convention** is a caller policy layered on top of **Interpreter Entry Selection** and selects from the final linked top-level environment.
 - `lane run` and `lane runobj` execute only an **Executable Entry Type**; arbitrary public value inspection belongs to inspect tooling rather than run tooling.
 - `lane run` and `lane runobj` do not print the `Unit` result of an executed entry; user-visible output comes from runtime effect handlers.
+- `lane inspect <artifact>` is the command-line path for reviewing artifact metadata such as public entry names, entry types, exports, externals, and Buslane code.
 - **Run Effect Convention** belongs to `lane run` and `lane runobj`; it is not a Lane language prelude or standard library rule.
 - The v1 **Executable Entry Type** is exactly a zero-argument function returning `Unit`; validation uses only the fully expanded closed concrete effect set, which may be empty or covered by registered runtime effect conventions such as `Stdlib.Io.Write`.
 - A **Runtime Effect Handler** only handles operations that are not captured by source lexical handlers.

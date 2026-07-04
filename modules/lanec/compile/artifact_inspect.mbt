@@ -96,7 +96,7 @@ pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
       artifact.module_path_texts.map(fn(module_) { text(module_) }),
     ),
     section_doc(
-      "entries:",
+      "public entries:",
       artifact.entries.map(fn(entry) { text(buslane.entry_text(entry)) }),
     ),
     section_doc(
@@ -205,7 +205,7 @@ fn object_summary_doc(artifact : ModuleObjectArtifact) -> Document {
       artifact.exports.map(fn(export_) { text(export_text(export_)) }),
     ),
     section_doc(
-      "entries:",
+      "public entries:",
       artifact.entries.map(fn(entry) { text(buslane.entry_text(entry)) }),
     ),
     section_doc(

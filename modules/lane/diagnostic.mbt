@@ -185,6 +185,7 @@ fn CliError::render_human(self : CliError) -> String {
         ],
         [
           "export a `pub fn main() -> Unit` entry, or use supported runtime effects such as `Stdlib.Io.Write`",
+          "use `lane inspect <artifact>` to inspect public entries and artifact metadata",
         ],
       )
     NotFormatted(path~) => "\{path}: not formatted"

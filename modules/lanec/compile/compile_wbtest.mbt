@@ -423,7 +423,7 @@ test "module artifacts roundtrip through binary and link" {
       #|  Lib
       #|  Main
       #|
-      #|entries:
+      #|public entries:
       #|  answer : Int
       #|
       #|externals:
@@ -977,7 +977,7 @@ test "module artifact binary inspect renders human readable summaries" {
       #|  (none)
       #|exports:
       #|  value answer
-      #|entries:
+      #|public entries:
       #|  answer : Int
       #|externals:
       #|  (none)
