@@ -9,6 +9,7 @@ pub(all) struct CompileResult {
   program : @buslane.Program?
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
   diagnostics : Array[CompileDiagnostic]
 } derive(Debug, Eq)
 
@@ -196,6 +197,7 @@ pub fn compile_source_inputs(
             program: Some(program.program),
             externals: program.externals,
             entries: program.entries,
+            runtime_effect_operations: program.runtime_effect_operations,
             diagnostics: linked.diagnostics,
           }
         None =>
@@ -203,12 +205,19 @@ pub fn compile_source_inputs(
             program: None,
             externals: { builtins: [] },
             entries: [],
+            runtime_effect_operations: [],
             diagnostics: linked.diagnostics,
           }
       }
     }
     Err(diagnostics) =>
-      { program: None, externals: { builtins: [] }, entries: [], diagnostics }
+      {
+        program: None,
+        externals: { builtins: [] },
+        entries: [],
+        runtime_effect_operations: [],
+        diagnostics,
+      }
   }
 }
 

@@ -188,6 +188,7 @@ pub(all) struct CompileResult {
   program : @buslane.Program?
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
   diagnostics : Array[CompileDiagnostic]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CompileResult

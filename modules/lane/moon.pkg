@@ -9,6 +9,7 @@ import {
   "Milky2018/lanec/elaborate",
   "Milky2018/lanec/format",
   "Milky2018/lanec/intrinsics",
+  "Milky2018/lanec/types",
   "Milky2018/lane/lsp",
   "Milky2018/lane/terminal",
   "moonbit-community/prettyprinter",

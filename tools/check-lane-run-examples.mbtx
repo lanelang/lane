@@ -22,6 +22,7 @@ struct FixtureCase {
   name : String
   file : String
   entry : String
+  mode : FixtureMode
   expectation : FixtureExpectation
 }
 
@@ -34,6 +35,11 @@ enum FixtureExpectation {
   Equals(String)
   Contains(Array[String])
 }
+
+enum FixtureMode {
+  CheckOnly
+  RunEntry
+} derive(Eq)
 
 async fn main raise {
   let manifest = read_fixture_manifest("examples/fixtures/lane-run.json")
@@ -74,7 +80,7 @@ async fn main raise {
       )
     }
     Some(separate_result) => {
-      let separate_expectation = Equals("42 : Int")
+      let separate_expectation = Equals("")
       if separate_result.code != 0 ||
         !matches_expectation(separate_result.output, separate_expectation) {
         failure_count += 1
@@ -124,12 +130,30 @@ fn decode_case(json : Json, path : String) -> FixtureCase {
       "expect": expectation,
       ..
     } =>
-      { name, file, entry, expectation: decode_expectation(expectation, path + ".expect") }
+      {
+        name,
+        file,
+        entry,
+        mode: decode_mode(json, path + ".mode"),
+        expectation: decode_expectation(expectation, path + ".expect"),
+      }
     _ =>
       abort(
         path +
         " must contain string fields name/file/entry and object field expect",
       )
+  }
+}
+
+fn decode_mode(json : Json, path : String) -> FixtureMode {
+  match json {
+    { "mode": String(mode), .. } =>
+      match mode {
+        "check" => CheckOnly
+        "run" => RunEntry
+        _ => abort(path + " must be \"check\" or \"run\"")
+      }
+    _ => CheckOnly
   }
 }
 
@@ -180,6 +204,9 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
   }
   if !check_output.is_empty() {
     return { code: 0, output: check_output }
+  }
+  if case.mode == CheckOnly {
+    return { code: 0, output: "" }
   }
   let args = ["run", case.file + ":" + case.entry]
   for lib_dir in lib_dirs {
@@ -240,7 +267,13 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
       #|
       #|import B.*
       #|
-      #|pub let answer : Int = forwarded.value
+      #|fn ignore_int(value : Int) -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|pub fn main() -> Unit {
+      #|  ignore_int(forwarded.value)
+      #|}
     ),
   )
   let a_artifacts = workspace + "/a-artifacts"
@@ -300,7 +333,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   if link.code != 0 {
     return link
   }
-  run_moon_lane(["runobj", linked_program + ":C.answer"])
+  run_moon_lane(["runobj", linked_program + ":C.main"])
 }
 
 fn ensure_dir(path : String) -> Unit raise {
@@ -342,10 +375,13 @@ fn matches_expectation(output : String, expectation : FixtureExpectation) -> Boo
 }
 
 fn matches_case_result(case : FixtureCase, result : LaneRunResult) -> Bool {
-  let expectation_matched = matches_expectation(result.output, case.expectation)
   if case.file.has_prefix("examples/invalid/") {
+    let expectation_matched = matches_expectation(result.output, case.expectation)
     result.code != 0 && expectation_matched
+  } else if case.mode == CheckOnly {
+    result.code == 0 && result.output == ""
   } else {
+    let expectation_matched = matches_expectation(result.output, case.expectation)
     result.code == 0 && expectation_matched
   }
 }

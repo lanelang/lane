@@ -518,6 +518,16 @@ fn apply_buslane_function(
 }
 
 ///|
+/// Calls a runtime function value at the host boundary.
+pub fn BuslaneRuntimeValue::call(
+  callee : BuslaneRuntimeValue,
+  arguments : Array[BuslaneRuntimeValue],
+  externals : BuslaneExternalRuntime,
+) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
+  apply_buslane_function(callee, arguments, externals, [], DoneKont)
+}
+
+///|
 fn append_kont(kont : Kont, tail : Kont) -> Kont {
   match kont {
     DoneKont => tail

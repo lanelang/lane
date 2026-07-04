@@ -102,7 +102,7 @@ _Avoid_: integer trap, arbitrary precision integer
 > **Domain expert:** "No. **Interpreter Entry Selection** belongs to the caller or later linker, not to the reference interpreter."
 
 > **Dev:** "Can single-file `lane run` execute `main` by default?"
-> **Domain expert:** "No. The **Run Entry Convention** requires `FILE:ENTRY` and debug-prints the selected value."
+> **Domain expert:** "No. The **Run Entry Convention** requires `FILE:ENTRY` and executes only an **Executable Entry Type**."
 
 > **Dev:** "Can `lane run` inspect a selected public value such as `answer : Int`?"
 > **Domain expert:** "No. **Run Entry Convention** executes an **Executable Entry Type**; arbitrary value inspection belongs to inspect tooling."

@@ -1,0 +1,7 @@
+module ExecutableEntry
+
+import Stdlib.Io.*
+
+pub fn main() -> Unit ! Io {
+  Write::println!("hello from Lane")
+}

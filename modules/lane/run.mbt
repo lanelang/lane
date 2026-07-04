@@ -4,21 +4,16 @@ async fn lane_runobj(path : String, entry_name : String) -> LaneCommandOutcome {
     Ok(program) => program
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let runtime = @buslane_interpreter.evaluate_buslane_program(
-    program.program,
-    @intrinsics.standard_external_runtime(program.externals),
-  ) catch {
-    error => internal_error(@prettyprinter.render(error, width=100))
-  }
   let entry = match find_entry(program.entries, entry_name) {
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let value = runtime.lookup(entry.value) catch {
-    error => internal_error(@prettyprinter.render(error, width=100))
-  }
-  println(render_entry_value(value, entry.type_))
-  Succeeded
+  execute_entry(
+    program.program,
+    program.externals,
+    program.runtime_effect_operations,
+    entry,
+  )
 }
 
 ///|
@@ -58,29 +53,211 @@ async fn lane_run(
   guard result.program is Some(program) else {
     internal_error("compiler produced no Buslane program")
   }
-  let runtime = @buslane_interpreter.evaluate_buslane_program(
-    program,
-    @intrinsics.standard_external_runtime(result.externals),
-  ) catch {
-    error => internal_error(@prettyprinter.render(error, width=100))
-  }
   let entry = match find_entry(result.entries, entry) {
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
+  execute_entry(
+    program,
+    result.externals,
+    result.runtime_effect_operations,
+    entry,
+  )
+}
+
+///|
+fn execute_entry(
+  program : @buslane.Program,
+  externals : @elaborate.BuslaneExternalMap,
+  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  entry : @elaborate.BuslaneEntry,
+) -> LaneCommandOutcome {
+  execute_entry_with_output(
+    program,
+    externals,
+    runtime_effect_operations,
+    entry,
+    line => println(line),
+  )
+}
+
+///|
+fn execute_entry_with_output(
+  program : @buslane.Program,
+  externals : @elaborate.BuslaneExternalMap,
+  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  entry : @elaborate.BuslaneEntry,
+  write_line : (String) -> Unit,
+) -> LaneCommandOutcome {
+  let runtime_effects = command_runtime_effects(
+    program, runtime_effect_operations,
+  )
+  match validate_executable_entry(entry, runtime_effects) {
+    Ok(_) => ()
+    Err(error) => return LaneCommandOutcome::user_error(error)
+  }
+  let external_runtime = command_external_runtime(
+    externals, program, runtime_effect_operations, write_line,
+  )
+  let runtime = @buslane_interpreter.evaluate_buslane_program(
+    program, external_runtime,
+  ) catch {
+    error => internal_error(@prettyprinter.render(error, width=100))
+  }
   let value = runtime.lookup(entry.value) catch {
     error => internal_error(@prettyprinter.render(error, width=100))
   }
-  println(render_entry_value(value, entry.type_))
+  ignore(
+    value.call([], external_runtime) catch {
+      error => internal_error(@prettyprinter.render(error, width=100))
+    },
+  )
   Succeeded
 }
 
 ///|
-fn render_entry_value(
-  value : @buslane_interpreter.BuslaneRuntimeValue,
-  type_ : @buslane.Type,
-) -> String {
-  @prettyprinter.render(value.pretty_with_type(type_), width=100)
+fn validate_executable_entry(
+  entry : @elaborate.BuslaneEntry,
+  runtime_effects : Array[@buslane.EffectId],
+) -> Result[Unit, CliError] {
+  guard entry.type_ is Function(parameters, result, effect) else {
+    return Err(
+      EntryNotExecutable(
+        name=entry.name,
+        type_=entry.type_,
+        reason=EntryIsNotFunction,
+      ),
+    )
+  }
+  if !parameters.is_empty() {
+    return Err(
+      EntryNotExecutable(
+        name=entry.name,
+        type_=entry.type_,
+        reason=EntryHasParameters(count=parameters.length()),
+      ),
+    )
+  }
+  if result != Primitive(Unit) {
+    return Err(
+      EntryNotExecutable(
+        name=entry.name,
+        type_=entry.type_,
+        reason=EntryReturnsNonUnit(result~),
+      ),
+    )
+  }
+  if !entry_effect_is_supported(effect, runtime_effects) {
+    return Err(
+      EntryNotExecutable(
+        name=entry.name,
+        type_=entry.type_,
+        reason=EntryHasUnsupportedEffects(effect~),
+      ),
+    )
+  }
+  Ok(())
+}
+
+///|
+fn command_external_runtime(
+  externals : @elaborate.BuslaneExternalMap,
+  program : @buslane.Program,
+  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  write_line : (String) -> Unit,
+) -> @buslane_interpreter.BuslaneExternalRuntime {
+  let runtime = @intrinsics.standard_external_runtime(externals)
+  if command_runtime_effect_operation(program, runtime_effect_operations)
+    is Some(operation) {
+    runtime.add_effect_handler(operation, fn(
+      arguments,
+    ) raise @buslane_interpreter.BuslaneRuntimeError {
+      if arguments.length() != 1 {
+        raise InvalidValue(
+          message="Stdlib.Io.Write.println expects one argument",
+        )
+      }
+      guard arguments[0].as_string() is Some(line) else {
+        raise InvalidValue(
+          message="Stdlib.Io.Write.println expects a string argument",
+        )
+      }
+      write_line(line)
+      @buslane_interpreter.BuslaneRuntimeValue::unit()
+    })
+  }
+  runtime
+}
+
+///|
+fn command_runtime_effects(
+  program : @buslane.Program,
+  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+) -> Array[@buslane.EffectId] {
+  let effects = []
+  if command_runtime_effect_operation(program, runtime_effect_operations)
+    is Some(operation) {
+    if program.metadata.operation_info(operation) is Some(info) {
+      effects.push(info.owner)
+    }
+  }
+  effects
+}
+
+///|
+fn command_runtime_effect_operation(
+  program : @buslane.Program,
+  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+) -> @buslane.OperationId? {
+  let signature = stdlib_io_write_println_signature()
+  for operation in runtime_effect_operations {
+    if runtime_effect_operation_matches(operation, signature) &&
+      program.metadata.operation_info(operation.operation) is Some(_) {
+      return Some(operation.operation)
+    }
+  }
+  None
+}
+
+///|
+fn runtime_effect_operation_matches(
+  operation : @compile.LinkedRuntimeEffectOperation,
+  signature : @compile.RuntimeEffectOperationSignature,
+) -> Bool {
+  operation.module_path_text == signature.module_path_text &&
+  operation.effect_name == signature.effect_name &&
+  operation.operation_name == signature.operation_name &&
+  operation.payload == signature.payload &&
+  operation.result == signature.result
+}
+
+///|
+fn stdlib_io_write_println_signature() -> @compile.RuntimeEffectOperationSignature {
+  {
+    module_path_text: "Stdlib.Io",
+    effect_name: "Write",
+    operation_name: "println",
+    payload: [Primitive(String)],
+    result: Primitive(Unit),
+  }
+}
+
+///|
+fn entry_effect_is_supported(
+  effect : @buslane.Effect,
+  runtime_effects : Array[@buslane.EffectId],
+) -> Bool {
+  match effect {
+    Empty => true
+    Singleton(id, arguments) =>
+      arguments.is_empty() &&
+      runtime_effects.any(fn(effect_id) { effect_id == id })
+    Parameter(_) => false
+    Union(effects) =>
+      effects.all(fn(effect) {
+        entry_effect_is_supported(effect, runtime_effects)
+      })
+  }
 }
 
 ///|

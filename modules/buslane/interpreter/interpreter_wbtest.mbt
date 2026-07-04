@@ -150,9 +150,7 @@ test "runtime effect handler registration is validated before execution" {
     terms: [Let(result, Literal(Unit))],
   }
   let runtime = BuslaneExternalRuntime::BuslaneExternalRuntime()
-  runtime.add_effect_handler({ index: 7 }, fn(_) {
-    BuslaneRuntimeValue::unit()
-  })
+  runtime.add_effect_handler({ index: 7 }, fn(_) { BuslaneRuntimeValue::unit() })
   let error = try {
     ignore(evaluate_buslane_program(program, runtime))
     abort("expected invalid runtime effect handler")

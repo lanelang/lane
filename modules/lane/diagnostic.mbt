@@ -21,6 +21,14 @@ enum HostFileErrorReason {
 } derive(Debug, Eq)
 
 ///|
+enum EntryExecutableError {
+  EntryIsNotFunction
+  EntryHasParameters(count~ : Int)
+  EntryReturnsNonUnit(result~ : @buslane.Type)
+  EntryHasUnsupportedEffects(effect~ : @buslane.Effect)
+} derive(Debug)
+
+///|
 enum CliError {
   InvalidCommand(message~ : String)
   UnknownCommand
@@ -33,6 +41,11 @@ enum CliError {
   RootLibraryInput(root~ : String, library~ : String)
   EntryNotFound(name~ : String, entries~ : Array[@elaborate.BuslaneEntry])
   EntryAmbiguous(name~ : String, entries~ : Array[@elaborate.BuslaneEntry])
+  EntryNotExecutable(
+    name~ : String,
+    type_~ : @buslane.Type,
+    reason~ : EntryExecutableError
+  )
   NotFormatted(path~ : String)
   FormatDiagnostics(
     path~ : String,
@@ -159,6 +172,21 @@ fn CliError::render_human(self : CliError) -> String {
         [available_entries_note(entries)],
         ["qualify the requested entry with its module path when possible"],
       )
+    EntryNotExecutable(name~, type_~, reason~) =>
+      cli_detail_error(
+        "E6009",
+        "entry is not executable",
+        [
+          "requested entry `\{display_entry_name(name)}` has type `\{render_buslane_type(type_)}`",
+        ],
+        [
+          "`lane run` and `lane runobj` execute only public zero-argument functions returning `Unit`",
+          reason.to_human_note(),
+        ],
+        [
+          "export a `pub fn main() -> Unit` entry, or use supported runtime effects such as `Stdlib.Io.Write`",
+        ],
+      )
     NotFormatted(path~) => "\{path}: not formatted"
     FormatDiagnostics(path~, diagnostics~) =>
       diagnostics
@@ -177,6 +205,19 @@ fn CliError::render_human(self : CliError) -> String {
           "please file a compiler bug with the source file, command, and this diagnostic",
         ],
       )
+  }
+}
+
+///|
+fn EntryExecutableError::to_human_note(self : EntryExecutableError) -> String {
+  match self {
+    EntryIsNotFunction => "the selected public entry is a value, not a function"
+    EntryHasParameters(count~) =>
+      "the selected function expects \{count} argument(s)"
+    EntryReturnsNonUnit(result~) =>
+      "the selected function returns `\{render_buslane_type(result)}`, not `Unit`"
+    EntryHasUnsupportedEffects(effect~) =>
+      "the selected function has unsupported effect set `\{render_buslane_effect(effect)}`"
   }
 }
 
@@ -204,6 +245,16 @@ fn HostFileErrorReason::to_human_text(self : HostFileErrorReason) -> String {
     IsDirectory => "Is a directory"
     Other => "host file operation failed"
   }
+}
+
+///|
+fn render_buslane_type(type_ : @buslane.Type) -> String {
+  @prettyprinter.render(type_, width=100)
+}
+
+///|
+fn render_buslane_effect(effect : @buslane.Effect) -> String {
+  @prettyprinter.render(effect, width=100)
 }
 
 ///|

@@ -252,7 +252,94 @@ async test "native module artifacts are binary and readable" {
 }
 
 ///|
-test "run selected public value through buslane interpreter" {
+async test "runobj executes explicit Stdlib Io linked input" {
+  let workspace = ".tmp-lane-runobj-stdlib-io"
+  let stdlib_source = "\{workspace}/io.lane"
+  let stdlib_interface = "\{workspace}/io.lmi"
+  let stdlib_object = "\{workspace}/io.lmo"
+  let main_source = "\{workspace}/Main.lane"
+  let main_object = "\{workspace}/Main.lmo"
+  let program_path = "\{workspace}/program.lbp"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  write_source_file(
+    stdlib_source,
+    (
+      #|module Stdlib.Io
+      #|pub effect Write {
+      #|  println(String) -> Unit
+      #|}
+      #|pub type Console = { Write }
+      #|pub type Io = { Console }
+    ),
+  )
+  write_source_file(
+    main_source,
+    (
+      #|module Main
+      #|import Stdlib.Io.*
+      #|pub fn main() -> Unit ! Io {
+      #|  Write::println!("hello")
+      #|}
+    ),
+  )
+  guard lane_compile(
+      stdlib_source,
+      [],
+      Some(stdlib_interface),
+      Some(stdlib_object),
+      false,
+    )
+    is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected stdlib compile to succeed")
+  }
+  guard lane_compile(
+      main_source,
+      [stdlib_interface],
+      None,
+      Some(main_object),
+      false,
+    )
+    is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected main compile to succeed")
+  }
+  guard lane_link([main_object, stdlib_object], program_path, false)
+    is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected link to succeed")
+  }
+  let linked_program = match read_linked_program_artifact(program_path) {
+    Ok(program) => program
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort(error.render_human())
+    }
+  }
+  let entry = find_entry(linked_program.entries, "Main::main")
+  guard entry is Ok(entry) else {
+    cleanup_library_fixture(workspace)
+    abort("expected linked main entry")
+  }
+  let output : Array[String] = []
+  guard execute_entry_with_output(
+      linked_program.program,
+      linked_program.externals,
+      linked_program.runtime_effect_operations,
+      entry,
+      line => output.push(line),
+    )
+    is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected runobj to succeed")
+  }
+  cleanup_library_fixture(workspace)
+  inspect(output.join("\n"), content="hello")
+}
+
+///|
+test "run rejects public value entries" {
   let result = @compile.compile_source(
     (
       #|module Test
@@ -261,25 +348,24 @@ test "run selected public value through buslane interpreter" {
     ),
   )
   inspect(result.diagnostics.length(), content="0")
-  guard result.program is Some(program) else { abort("expected program") }
-  let runtime = @buslane_interpreter.evaluate_buslane_program(
-    program,
-    @intrinsics.standard_external_runtime(result.externals),
-  )
   let entry = find_entry(result.entries, "answer")
   guard entry is Ok(entry) else { abort("expected entry") }
-  inspect(
-    render_entry_value(runtime.lookup(entry.value), entry.type_),
-    content="42 : Int",
-  )
-  inspect(
-    result.entries.map(fn(entry) { entry.name }).join(","),
-    content="answer",
+  debug_inspect(
+    validate_executable_entry(entry, []),
+    content=(
+      #|Err(
+      #|  EntryNotExecutable(
+      #|    name="answer",
+      #|    type_=Primitive(Int),
+      #|    reason=EntryIsNotFunction,
+      #|  ),
+      #|)
+    ),
   )
 }
 
 ///|
-test "selected public function entry renders as function" {
+test "run rejects functions with parameters" {
   let result = @compile.compile_source(
     (
       #|module Test
@@ -287,50 +373,109 @@ test "selected public function entry renders as function" {
     ),
   )
   inspect(result.diagnostics.length(), content="0")
-  guard result.program is Some(program) else { abort("expected program") }
-  let runtime = @buslane_interpreter.evaluate_buslane_program(
-    program,
-    @intrinsics.standard_external_runtime(result.externals),
-  )
   let entry = find_entry(result.entries, "id")
   guard entry is Ok(entry) else { abort("expected entry") }
-  inspect(
-    render_entry_value(runtime.lookup(entry.value), entry.type_),
-    content="<function> : (Int) -> Int",
+  debug_inspect(
+    validate_executable_entry(entry, []),
+    content=(
+      #|Err(
+      #|  EntryNotExecutable(
+      #|    name="id",
+      #|    type_=Function([Primitive(Int)], Primitive(Int), Empty),
+      #|    reason=EntryHasParameters(count=1),
+      #|  ),
+      #|)
+    ),
   )
 }
 
 ///|
-test "run handler body block with effectful local binding" {
+test "run executes pure unit function entries without rendering Unit" {
   let result = @compile.compile_source(
     (
       #|module Test
-      #|effect Console {
-      #|  read() -> Int
-      #|}
-      #|pub let answer : Int = {
-      #|  handle {
-      #|    let x : Int = Console::read!()
-      #|    x
-      #|  } with {
-      #|    Console::read(resume) => resume(42)
-      #|  } final value {
-      #|    value
-      #|  }
+      #|pub fn main() -> Unit {
+      #|  ()
       #|}
     ),
   )
   inspect(result.diagnostics.length(), content="0")
   guard result.program is Some(program) else { abort("expected program") }
-  let runtime = @buslane_interpreter.evaluate_buslane_program(
-    program,
-    @intrinsics.standard_external_runtime(result.externals),
-  )
-  let entry = find_entry(result.entries, "answer")
+  let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  inspect(
-    render_entry_value(runtime.lookup(entry.value), entry.type_),
-    content="42 : Int",
+  let outcome = execute_entry(
+    program,
+    result.externals,
+    result.runtime_effect_operations,
+    entry,
+  )
+  guard outcome is Succeeded else { abort("expected run entry to succeed") }
+}
+
+///|
+test "run accepts Stdlib Io effect aliases when supplied explicitly" {
+  let stdlib_io =
+    #|module Stdlib.Io
+    #|pub effect Write {
+    #|  println(String) -> Unit
+    #|}
+    #|pub type Console = { Write }
+    #|pub type Io = { Console }
+  let result = @compile.compile_sources(
+    (
+      #|module Test
+      #|import Stdlib.Io.*
+      #|pub fn main() -> Unit ! Io {
+      #|  Write::println!("hello")
+      #|}
+    ),
+    [stdlib_io],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  guard result.program is Some(program) else { abort("expected program") }
+  let entry = find_entry(result.entries, "main")
+  guard entry is Ok(entry) else { abort("expected entry") }
+  let runtime_effects = command_runtime_effects(
+    program,
+    result.runtime_effect_operations,
+  )
+  debug_inspect(
+    validate_executable_entry(entry, runtime_effects),
+    content="Ok(())",
+  )
+}
+
+///|
+test "run rejects Stdlib Io effect without explicit runtime metadata" {
+  let result = @compile.compile_source(
+    (
+      #|module Test
+      #|pub effect Write {
+      #|  println(String) -> Unit
+      #|}
+      #|pub fn main() -> Unit ! Write {
+      #|  Write::println!("hello")
+      #|}
+    ),
+  )
+  inspect(result.diagnostics.length(), content="0")
+  guard result.program is Some(program) else { abort("expected program") }
+  let entry = find_entry(result.entries, "main")
+  guard entry is Ok(entry) else { abort("expected entry") }
+  debug_inspect(
+    validate_executable_entry(
+      entry,
+      command_runtime_effects(program, result.runtime_effect_operations),
+    ),
+    content=(
+      #|Err(
+      #|  EntryNotExecutable(
+      #|    name="main",
+      #|    type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
+      #|    reason=EntryHasUnsupportedEffects(effect=Singleton({ index: 0 }, [])),
+      #|  ),
+      #|)
+    ),
   )
 }
 
@@ -362,31 +507,6 @@ test "missing entry error lists available public entries" {
       #|  = note: available public entries: answer
       #|  = help: use one of the listed public entries, or export the value with `pub` before compiling
     ),
-  )
-}
-
-///|
-test "render primitive entry values with source type annotations" {
-  inspect(
-    render_entry_value(
-      @buslane_interpreter.BuslaneRuntimeValue::bool(true),
-      Primitive(Bool),
-    ),
-    content="true : Bool",
-  )
-  inspect(
-    render_entry_value(
-      @buslane_interpreter.BuslaneRuntimeValue::string("lane"),
-      Primitive(String),
-    ),
-    content="\"lane\" : String",
-  )
-  inspect(
-    render_entry_value(
-      @buslane_interpreter.BuslaneRuntimeValue::unit(),
-      Primitive(Unit),
-    ),
-    content="() : Unit",
   )
 }
 

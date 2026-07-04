@@ -322,6 +322,15 @@
       }
     },
     {
+      "name": "39 executable Stdlib Io entry",
+      "file": "examples/valid/39_executable_entry.lane",
+      "entry": "main",
+      "mode": "run",
+      "expect": {
+        "equals": "hello from Lane"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "entry": "answer",
