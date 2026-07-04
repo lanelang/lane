@@ -19,10 +19,13 @@ test "reject run target without entry suffix" {
   inspect(
     error.render_human(),
     content=(
-      #|error[E6002]: invalid run target
-      #|  = label: expected `FILE:ENTRY`, got `examples/main.lane`
-      #|  = note: `lane run` compiles one source file and then selects a public entry from it
-      #|  = help: try: lane run Main.lane:main
+      #|error[E6002]: invalid run target `examples/main.lane`
+      #|  expected: FILE:ENTRY
+      #|
+      #|`lane run` compiles one source file and then selects a public entry from it.
+      #|
+      #|Example:
+      #|  lane run Main.lane:main
     ),
   )
 }
@@ -48,10 +51,13 @@ test "reject runobj target without module-qualified entry" {
   inspect(
     error.render_human(),
     content=(
-      #|error[E6008]: invalid runobj target
-      #|  = label: expected `FILE:Module.value`, got `program.lbp:answer`
-      #|  = note: `lane runobj` loads one linked program artifact and selects a public entry from it
-      #|  = help: try: lane runobj program.lbp:Main.main
+      #|error[E6008]: invalid runobj target `program.lbp:answer`
+      #|  expected: FILE:Module.value
+      #|
+      #|`lane runobj` loads one linked program artifact and selects a public entry from it.
+      #|
+      #|Example:
+      #|  lane runobj program.lbp:Main.main
     ),
   )
 }
@@ -130,6 +136,36 @@ test "inspect file diagnostics name the inspect operation" {
       "OSError(\"@fs.open(): \\\"hello\\\": No such file or directory\")",
     ).render_human(),
     content="error: couldn't inspect `hello`: No such file or directory",
+  )
+}
+
+///|
+test "artifact load diagnostics render as command reports" {
+  inspect(
+    ArtifactLoad(
+      path="main.lmo",
+      kind="module object artifact",
+      message="invalid artifact header",
+    ).render_human(),
+    content=(
+      #|error: couldn't load module object artifact `main.lmo`
+      #|  reason: invalid artifact header
+    ),
+  )
+}
+
+///|
+test "duplicate object diagnostics render as command reports" {
+  inspect(
+    DuplicateObjectArtifact(module_path_text="Main").render_human(),
+    content=(
+      #|error[E6007]: duplicate module object artifact
+      #|  module: Main
+      #|
+      #|Each module in a link input set must come from exactly one object artifact.
+      #|
+      #|Remove the duplicate object path and run `lane link` again.
+    ),
   )
 }
 
@@ -487,12 +523,14 @@ test "run rejects Stdlib Io effect without explicit runtime metadata" {
   inspect(
     error.render_human(),
     content=(
-      #|error[E6009]: entry is not executable
-      #|  = label: requested entry `main` has type `() -> Unit ! effect#0`
-      #|  = note: `lane run` and `lane runobj` execute only public zero-argument functions returning `Unit`
-      #|  = note: the selected function has unsupported effect set `effect#0`
-      #|  = help: export a `pub fn main() -> Unit` entry, or use supported runtime effects such as `Stdlib.Io.Write`
-      #|  = help: use `lane inspect <artifact>` to inspect public entries and artifact metadata
+      #|error[E6009]: entry `main` is not executable
+      #|  requested type: () -> Unit ! effect#0
+      #|  expected: () -> Unit, or supported runtime effects such as Stdlib.Io.Write
+      #|
+      #|The selected function has unsupported effect set `effect#0`.
+      #|
+      #|Export a `pub fn main() -> Unit` entry.
+      #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
 }
@@ -520,10 +558,33 @@ test "missing entry error lists available public entries" {
   inspect(
     error.render_human(),
     content=(
-      #|error[E6005]: entry was not found in the linked program
-      #|  = label: requested entry `main` does not exist
-      #|  = note: available public entries: answer
-      #|  = help: use one of the listed public entries, or export the value with `pub` before compiling
+      #|error[E6005]: entry `main` was not found
+      #|  available public entries: answer
+      #|
+      #|Use one of the listed public entries, or export the value with `pub` before compiling.
+    ),
+  )
+}
+
+///|
+test "ambiguous entry error lists available public entries" {
+  let result = @compile.compile_source(
+    (
+      #|module Test
+      #|pub let answer : Int = 42
+    ),
+  )
+  let entry = result.entries[0]
+  guard find_entry([entry, entry], "answer") is Err(error) else {
+    abort("expected ambiguous entry")
+  }
+  inspect(
+    error.render_human(),
+    content=(
+      #|error[E6006]: entry name `answer` is ambiguous
+      #|  available public entries: answer, answer
+      #|
+      #|Qualify the requested entry with its module path when possible.
     ),
   )
 }
@@ -534,9 +595,11 @@ test "internal compiler error is marked as a compiler bug" {
     CliError::Internal(message="callee is not callable").render_human(),
     content=(
       #|error[E6200]: internal Lane compiler/runtime error
-      #|  = label: compiler/runtime invariant failed: callee is not callable
-      #|  = note: this is not expected after a successful Lane typecheck
-      #|  = help: please file a compiler bug with the source file, command, and this diagnostic
+      #|  invariant: callee is not callable
+      #|
+      #|This is not expected after a successful Lane typecheck.
+      #|
+      #|Please file a compiler bug with the source file, command, and this diagnostic.
     ),
   )
 }
@@ -722,10 +785,13 @@ async test "explicit lib cannot be the root source" {
     error.render_human(),
     content=(
       #|error[E6008]: root source was also passed as an explicit library
-      #|  = label: `.tmp-lane-root-lib/Main.lane` resolves to the same source file as the root source `.tmp-lane-root-lib/Main.lane`
-      #|  = note: `lane check` and `lane run` compile the root source separately from library inputs
-      #|  = note: `--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible
-      #|  = help: remove the duplicate `--lib .tmp-lane-root-lib/Main.lane` argument
+      #|  root: .tmp-lane-root-lib/Main.lane
+      #|  library: .tmp-lane-root-lib/Main.lane
+      #|
+      #|`lane check` and `lane run` compile the root source separately from library inputs.
+      #|`--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible.
+      #|
+      #|Remove the duplicate `--lib .tmp-lane-root-lib/Main.lane` argument.
     ),
   )
 }

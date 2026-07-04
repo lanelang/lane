@@ -29,6 +29,27 @@ enum EntryExecutableError {
 } derive(Debug)
 
 ///|
+priv struct CommandReportField {
+  name : String
+  value : String
+}
+
+///|
+priv struct CommandSuggestion {
+  message : String
+  command : String?
+}
+
+///|
+priv struct CommandReport {
+  code : String?
+  title : String
+  fields : Array[CommandReportField]
+  details : Array[String]
+  suggestions : Array[CommandSuggestion]
+}
+
+///|
 enum CliError {
   InvalidCommand(message~ : String)
   UnknownCommand
@@ -78,132 +99,182 @@ fn CliError::file_io(
 
 ///|
 fn CliError::render_human(self : CliError) -> String {
+  self.to_command_report().render_human()
+}
+
+///|
+fn CliError::to_command_report(self : CliError) -> CommandReport {
   match self {
     InvalidCommand(message~) =>
-      cli_detail_error(
-        "E6000",
-        "invalid lane command line",
-        ["the command-line parser reported: \{message}"],
-        ["this is a CLI usage error, not a Lane source error"],
-        ["run `lane --help` or `lane <command> --help` to see valid forms"],
+      command_report(
+        code="E6000",
+        title="invalid lane command line",
+        fields=[command_report_field("parser message", message)],
+        details=["This is a CLI usage error, not a Lane source error."],
+        suggestions=[
+          command_suggestion(
+            "Run `lane --help` or `lane <command> --help` to see valid forms.",
+          ),
+        ],
       )
     UnknownCommand =>
-      cli_detail_error(
-        "E6001",
-        "unknown lane command",
-        ["the requested subcommand is not supported by this `lane` binary"],
-        [
-          "available commands include check, run, compile, inspect, link, runobj, fmt, and lsp",
+      command_report(
+        code="E6001",
+        title="unknown lane command",
+        details=[
+          "The requested subcommand is not supported by this `lane` binary.", "Available commands include check, run, compile, inspect, link, runobj, fmt, and lsp.",
         ],
-        ["try: lane check Main.lane"],
+        suggestions=[
+          command_suggestion("Example:", command="lane check Main.lane"),
+        ],
       )
     MissingArgument(name~) =>
-      cli_detail_error(
-        "E6003",
-        "missing required CLI argument",
-        ["argument `\{name}` was not provided"],
-        ["this is a CLI usage error, not a Lane source error"],
-        [
-          "run `lane --help` or `lane <command> --help` to see the required arguments",
+      command_report(
+        code="E6003",
+        title="missing required CLI argument `\{name}`",
+        details=["This is a CLI usage error, not a Lane source error."],
+        suggestions=[
+          command_suggestion(
+            "Run `lane --help` or `lane <command> --help` to see the required arguments.",
+          ),
         ],
       )
     InvalidRunTarget(target~) =>
-      cli_detail_error(
-        "E6002",
-        "invalid run target",
-        ["expected `FILE:ENTRY`, got `\{target}`"],
-        [
-          "`lane run` compiles one source file and then selects a public entry from it",
+      command_report(
+        code="E6002",
+        title="invalid run target `\{target}`",
+        fields=[command_report_field("expected", "FILE:ENTRY")],
+        details=[
+          "`lane run` compiles one source file and then selects a public entry from it.",
         ],
-        ["try: lane run Main.lane:main"],
+        suggestions=[
+          command_suggestion("Example:", command="lane run Main.lane:main"),
+        ],
       )
     InvalidRunObjTarget(target~) =>
-      cli_detail_error(
-        "E6008",
-        "invalid runobj target",
-        ["expected `FILE:Module.value`, got `\{target}`"],
-        [
-          "`lane runobj` loads one linked program artifact and selects a public entry from it",
+      command_report(
+        code="E6008",
+        title="invalid runobj target `\{target}`",
+        fields=[command_report_field("expected", "FILE:Module.value")],
+        details=[
+          "`lane runobj` loads one linked program artifact and selects a public entry from it.",
         ],
-        ["try: lane runobj program.lbp:Main.main"],
+        suggestions=[
+          command_suggestion(
+            "Example:",
+            command="lane runobj program.lbp:Main.main",
+          ),
+        ],
       )
     FileIo(action~, path~, reason~) =>
-      "error: couldn't \{action.to_human_text()} `\{path}`: \{reason.to_human_text()}"
+      command_report(
+        title="couldn't \{action.to_human_text()} `\{path}`: \{reason.to_human_text()}",
+      )
     ArtifactLoad(path~, kind~, message~) =>
-      "error: couldn't load \{kind} `\{path}`: \{message}"
+      command_report(title="couldn't load \{kind} `\{path}`", fields=[
+        command_report_field("reason", message),
+      ])
     DuplicateObjectArtifact(module_path_text~) =>
-      cli_detail_error(
-        "E6007",
-        "duplicate module object artifact",
-        ["module `\{module_path_text}` was provided more than once"],
-        [
-          "each module in a link input set must come from exactly one object artifact",
+      command_report(
+        code="E6007",
+        title="duplicate module object artifact",
+        fields=[command_report_field("module", module_path_text)],
+        details=[
+          "Each module in a link input set must come from exactly one object artifact.",
         ],
-        ["remove the duplicate object path and run `lane link` again"],
+        suggestions=[
+          command_suggestion(
+            "Remove the duplicate object path and run `lane link` again.",
+          ),
+        ],
       )
     RootLibraryInput(root~, library~) =>
-      cli_detail_error(
-        "E6008",
-        "root source was also passed as an explicit library",
-        [
-          "`\{library}` resolves to the same source file as the root source `\{root}`",
+      command_report(
+        code="E6008",
+        title="root source was also passed as an explicit library",
+        fields=[
+          command_report_field("root", root),
+          command_report_field("library", library),
         ],
-        [
-          "`lane check` and `lane run` compile the root source separately from library inputs",
-          "`--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible",
+        details=[
+          "`lane check` and `lane run` compile the root source separately from library inputs.",
+          "`--lib-dir` discovery silently skips the root source, but explicit `--lib` keeps mistakes visible.",
         ],
-        ["remove the duplicate `--lib \{library}` argument"],
+        suggestions=[
+          command_suggestion(
+            "Remove the duplicate `--lib \{library}` argument.",
+          ),
+        ],
       )
     EntryNotFound(name~, entries~) =>
-      cli_detail_error(
-        "E6005",
-        "entry was not found in the linked program",
-        ["requested entry `\{display_entry_name(name)}` does not exist"],
-        [available_entries_note(entries)],
-        [
-          "use one of the listed public entries, or export the value with `pub` before compiling",
+      command_report(
+        code="E6005",
+        title="entry `\{display_entry_name(name)}` was not found",
+        fields=[
+          command_report_field(
+            "available public entries",
+            available_entries_text(entries),
+          ),
+        ],
+        suggestions=[
+          command_suggestion(
+            "Use one of the listed public entries, or export the value with `pub` before compiling.",
+          ),
         ],
       )
     EntryAmbiguous(name~, entries~) =>
-      cli_detail_error(
-        "E6006",
-        "entry name is ambiguous",
-        ["more than one linked entry is named `\{display_entry_name(name)}`"],
-        [available_entries_note(entries)],
-        ["qualify the requested entry with its module path when possible"],
+      command_report(
+        code="E6006",
+        title="entry name `\{display_entry_name(name)}` is ambiguous",
+        fields=[
+          command_report_field(
+            "available public entries",
+            available_entries_text(entries),
+          ),
+        ],
+        suggestions=[
+          command_suggestion(
+            "Qualify the requested entry with its module path when possible.",
+          ),
+        ],
       )
     EntryNotExecutable(name~, type_~, reason~) =>
-      cli_detail_error(
-        "E6009",
-        "entry is not executable",
-        [
-          "requested entry `\{display_entry_name(name)}` has type `\{render_buslane_type(type_)}`",
+      command_report(
+        code="E6009",
+        title="entry `\{display_entry_name(name)}` is not executable",
+        fields=[
+          command_report_field("requested type", render_buslane_type(type_)),
+          command_report_field(
+            "expected", "() -> Unit, or supported runtime effects such as Stdlib.Io.Write",
+          ),
         ],
-        [
-          "`lane run` and `lane runobj` execute only public zero-argument functions returning `Unit`",
-          reason.to_human_note(),
-        ],
-        [
-          "export a `pub fn main() -> Unit` entry, or use supported runtime effects such as `Stdlib.Io.Write`",
-          "use `lane inspect <artifact>` to inspect public entries and artifact metadata",
+        details=[reason.to_human_note()],
+        suggestions=[
+          command_suggestion("Export a `pub fn main() -> Unit` entry."),
+          command_suggestion(
+            "Use `lane inspect <artifact>` to inspect public entries and artifact metadata.",
+          ),
         ],
       )
-    NotFormatted(path~) => "\{path}: not formatted"
+    NotFormatted(path~) => command_report(title="\{path}: not formatted")
     FormatDiagnostics(path~, diagnostics~) =>
-      diagnostics
-      .map(fn(diagnostic) {
-        let rendered = @prettyprinter.render(diagnostic, width=100)
-        "\{path}: \{rendered}"
-      })
-      .join("\n")
+      command_report(
+        title="format diagnostics",
+        details=diagnostics.map(fn(diagnostic) {
+          let rendered = @prettyprinter.render(diagnostic, width=100)
+          "\{path}: \{rendered}"
+        }),
+      )
     Internal(message~) =>
-      cli_detail_error(
-        "E6200",
-        "internal Lane compiler/runtime error",
-        ["compiler/runtime invariant failed: \{message}"],
-        ["this is not expected after a successful Lane typecheck"],
-        [
-          "please file a compiler bug with the source file, command, and this diagnostic",
+      command_report(
+        code="E6200",
+        title="internal Lane compiler/runtime error",
+        fields=[command_report_field("invariant", message)],
+        details=["This is not expected after a successful Lane typecheck."],
+        suggestions=[
+          command_suggestion(
+            "Please file a compiler bug with the source file, command, and this diagnostic.",
+          ),
         ],
       )
   }
@@ -212,13 +283,14 @@ fn CliError::render_human(self : CliError) -> String {
 ///|
 fn EntryExecutableError::to_human_note(self : EntryExecutableError) -> String {
   match self {
-    EntryIsNotFunction => "the selected public entry is a value, not a function"
+    EntryIsNotFunction =>
+      "The selected public entry is a value, not a function."
     EntryHasParameters(count~) =>
-      "the selected function expects \{count} argument(s)"
+      "The selected function expects \{count} argument(s)."
     EntryReturnsNonUnit(result~) =>
-      "the selected function returns `\{render_buslane_type(result)}`, not `Unit`"
+      "The selected function returns `\{render_buslane_type(result)}`, not `Unit`."
     EntryHasUnsupportedEffects(effect~) =>
-      "the selected function has unsupported effect set `\{render_buslane_effect(effect)}`"
+      "The selected function has unsupported effect set `\{render_buslane_effect(effect)}`."
   }
 }
 
@@ -259,33 +331,68 @@ fn render_buslane_effect(effect : @buslane.Effect) -> String {
 }
 
 ///|
-fn cli_detail_error(
-  code : String,
-  title : String,
-  labels : Array[String],
-  notes : Array[String],
-  helps : Array[String],
-) -> String {
-  let lines = ["error[\{code}]: \{title}"]
-  for label in labels {
-    lines.push("  = label: \{label}")
+fn command_report(
+  code? : String,
+  title~ : String,
+  fields? : Array[CommandReportField] = [],
+  details? : Array[String] = [],
+  suggestions? : Array[CommandSuggestion] = [],
+) -> CommandReport {
+  { code, title, fields, details, suggestions }
+}
+
+///|
+fn command_report_field(name : String, value : String) -> CommandReportField {
+  { name, value }
+}
+
+///|
+fn command_suggestion(message : String, command? : String) -> CommandSuggestion {
+  { message, command }
+}
+
+///|
+fn CommandReport::render_human(self : CommandReport) -> String {
+  let lines = [self.render_header()]
+  for field in self.fields {
+    lines.push("  \{field.name}: \{field.value}")
   }
-  for note in notes {
-    lines.push("  = note: \{note}")
+  if !self.details.is_empty() {
+    if !self.fields.is_empty() {
+      lines.push("")
+    }
+    for detail in self.details {
+      lines.push(detail)
+    }
   }
-  for help in helps {
-    lines.push("  = help: \{help}")
+  if !self.suggestions.is_empty() {
+    if !self.fields.is_empty() || !self.details.is_empty() {
+      lines.push("")
+    }
+    for suggestion in self.suggestions {
+      lines.push(suggestion.message)
+      if suggestion.command is Some(command) {
+        lines.push("  \{command}")
+      }
+    }
   }
   lines.join("\n")
 }
 
 ///|
-fn available_entries_note(entries : Array[@elaborate.BuslaneEntry]) -> String {
+fn CommandReport::render_header(self : CommandReport) -> String {
+  match self.code {
+    Some(code) => "error[\{code}]: \{self.title}"
+    None => "error: \{self.title}"
+  }
+}
+
+///|
+fn available_entries_text(entries : Array[@elaborate.BuslaneEntry]) -> String {
   let names = entry_names(entries)
   if names.is_empty() {
-    "the linked program exports no public entries"
+    "(none)"
   } else {
-    let joined = names.join(", ")
-    "available public entries: \{joined}"
+    names.join(", ")
   }
 }

@@ -161,6 +161,10 @@ _Avoid_: VS Code Web extension, WASM language server
   they do not define separate language semantics.
 - CLI output and LSP output render the same **Structured Compiler Diagnostics**
   through different presentation layers.
+- **Command Reports** cover CLI-only failures such as bad arguments, host IO,
+  artifact loading, runtime entry selection, and internal command invariants.
+  They are not source diagnostics and must not invent source labels when no
+  source span exists.
 
 ## Example dialogue
 

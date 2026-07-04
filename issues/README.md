@@ -113,6 +113,7 @@ graph TD
   ISS_093["ISS-093: Add runtime effect handler validation and dispatch API"]
   ISS_094["ISS-094: Make run and runobj execute only executable entries"]
   ISS_095["ISS-095: Keep public value inspection out of run tooling"]
+  ISS_096["ISS-096: Separate CLI command reports from source diagnostics"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
