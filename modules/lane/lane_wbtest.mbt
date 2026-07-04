@@ -63,6 +63,37 @@ test "reject runobj target without module-qualified entry" {
 }
 
 ///|
+test "basic command parser diagnostics render as command reports" {
+  inspect(
+    [
+      InvalidCommand(message="invalid option `--wat`").render_human(),
+      UnknownCommand.render_human(),
+      MissingArgument(name="file").render_human(),
+    ].join("\n---\n"),
+    content=(
+      #|error[E6000]: invalid lane command line
+      #|  parser message: invalid option `--wat`
+      #|
+      #|This is a CLI usage error, not a Lane source error.
+      #|
+      #|Run `lane --help` or `lane <command> --help` to see valid forms.
+      #|---
+      #|error[E6001]: unknown lane command
+      #|The requested subcommand is not supported by this `lane` binary.
+      #|Available commands include check, run, compile, inspect, link, runobj, fmt, and lsp.
+      #|
+      #|Example:
+      #|  lane check Main.lane
+      #|---
+      #|error[E6003]: missing required CLI argument `file`
+      #|This is a CLI usage error, not a Lane source error.
+      #|
+      #|Run `lane --help` or `lane <command> --help` to see the required arguments.
+    ),
+  )
+}
+
+///|
 test "file read diagnostics hide host exception details" {
   let error = CliError::file_io(
     Read,
@@ -165,6 +196,30 @@ test "duplicate object diagnostics render as command reports" {
       #|Each module in a link input set must come from exactly one object artifact.
       #|
       #|Remove the duplicate object path and run `lane link` again.
+    ),
+  )
+}
+
+///|
+test "format command diagnostics render through command reports" {
+  guard @format.format_source("module Test\npub let answer : =")
+    is Err(diagnostics) else {
+    abort("expected format diagnostics")
+  }
+  inspect(
+    [
+      NotFormatted(path="Main.lane").render_human(),
+      FormatDiagnostics(path="Main.lane", diagnostics~).render_human(),
+    ].join("\n---\n"),
+    content=(
+      #|error: Main.lane: not formatted
+      #|---
+      #|error: format diagnostics
+      #|Main.lane: error[E1100]: unexpected token
+      #|  --> 2:18-2:19
+      #|  = label: 2:18-2:19 the parser did not expect `=`
+      #|  = note: expected one of: identifier, `type`, `(`, `[`
+      #|  = help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
     ),
   )
 }
