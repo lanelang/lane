@@ -8,9 +8,7 @@ pub fn custom_add(a : Int, b : Int) -> Int {
   a
 }
 
-pub offer custom_add_ops : Add[Int] = Add::{
-  add: custom_add
-}
+pub offer custom_add_ops : Add[Int] = Add::{ add: custom_add }
 
 pub let chosen : Int = op_add(1, 2, op=custom_add_ops)
 

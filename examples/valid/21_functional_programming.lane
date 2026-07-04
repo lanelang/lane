@@ -92,9 +92,7 @@ pub fn[A, B] list_apply(functions : List[(A) -> B], values : List[A]) -> List[B]
   }
 }
 
-pub let option_mappable : Mappable[Option] = Mappable::{
-  map: option_map
-}
+pub let option_mappable : Mappable[Option] = Mappable::{ map: option_map }
 
 pub let option_applicative : Applicative[Option] = Applicative::{
   mappable_impl: option_mappable,
@@ -106,9 +104,7 @@ pub let option_flat_mappable : FlatMappable[Option] = FlatMappable::{
   flat_map: option_flat_map
 }
 
-pub let list_mappable : Mappable[List] = Mappable::{
-  map: list_map
-}
+pub let list_mappable : Mappable[List] = Mappable::{ map: list_map }
 
 pub let list_applicative : Applicative[List] = Applicative::{
   mappable_impl: list_mappable,

@@ -61,9 +61,7 @@ fn enqueue(queue : Queue, item : Runnable) -> Queue {
 }
 
 fn with_queue(scheduler : Scheduler, queue : Queue) -> Scheduler {
-  Scheduler::{
-    queue
-  }
+  Scheduler::{ queue }
 }
 
 fn run_task(task_value : Task) -> Step ! Log {
@@ -121,10 +119,7 @@ fn collect_logs(scheduler : Scheduler) -> (Int) -> RunResult {
     }
   } final scheduler {
     fn (checksum : Int) -> RunResult {
-      RunResult::{
-        scheduler,
-        checksum
-      }
+      RunResult::{ scheduler, checksum }
     }
   }
 }

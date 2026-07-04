@@ -16,13 +16,9 @@ pub fn user_value(id : UserId) -> Int {
   id.value
 }
 
-pub let user_id : UserId = UserId::{
-  value: 1
-}
+pub let user_id : UserId = UserId::{ value: 1 }
 
-pub let order_id : OrderId = OrderId::{
-  value: 1
-}
+pub let order_id : OrderId = OrderId::{ value: 1 }
 
 pub fn answer() -> Unit ! Io {
   if user_value(user_id) == 1 {

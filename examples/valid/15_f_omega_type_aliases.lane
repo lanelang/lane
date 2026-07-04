@@ -19,11 +19,7 @@ pub fn get(box : ApplyInt[Box]) -> Id[Int] {
   box.value
 }
 
-pub let aliased_value : Id[Int] = get(
-  Box::{
-    value: 42
-  }
-)
+pub let aliased_value : Id[Int] = get(Box::{ value: 42 })
 
 pub fn answer() -> Unit ! Io {
   if aliased_value == 42 {

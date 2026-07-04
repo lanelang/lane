@@ -23,17 +23,11 @@ pub fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
 
 pub fn sum_point(point : Point) -> Int {
   match point {
-    Point::{
-      x,
-      y
-    } => x + y
+    Point::{ x, y } => x + y
   }
 }
 
-pub let origin : Point = Point::{
-  x: 0,
-  y: 0
-}
+pub let origin : Point = Point::{ x: 0, y: 0 }
 
 pub let chosen : Option[Int] = some(1)
 

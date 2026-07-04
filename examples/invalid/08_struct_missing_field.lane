@@ -6,6 +6,4 @@ pub struct Point {
   y : Int
 }
 
-pub let point : Point = Point::{
-  x: 1
-}
+pub let point : Point = Point::{ x: 1 }

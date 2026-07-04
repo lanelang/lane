@@ -27,16 +27,10 @@ pub let meter_equal_ops : Equal[Meter] = Equal::{
   }
 }
 
-pub offer meter_ops : MeterOps = MeterOps::{
-  equal_impl: meter_equal_ops
-}
+pub offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
 
 pub fn use_forwarded_field() -> Int {
-  if Meter::{
-    value: 1
-  } == Meter::{
-    value: 1
-  } {
+  if Meter::{ value: 1 } == Meter::{ value: 1 } {
     1
   } else {
     0

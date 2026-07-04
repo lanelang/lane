@@ -405,9 +405,7 @@ test "parse offered value definitions and contextual parameter syntax" {
       #|  op.equal(a, b)
       #|}
       #|
-      #|offer int_equal_ops : Equal[Int] = Equal::{
-      #|  equal: int_equal
-      #|}
+      #|offer int_equal_ops : Equal[Int] = Equal::{ equal: int_equal }
       #|
       #|fn use(a : Int, b : Int) -> Bool {
       #|  op_equal(a, b, op=int_equal_ops)
@@ -517,9 +515,7 @@ test "parse qualified postfix forms inside expressions" {
       #|  value : A
       #|}
       #|
-      #|let boxed : Box[Int] = Box[Int]::{
-      #|  value: Console::choose![Int](1, 2)
-      #|}
+      #|let boxed : Box[Int] = Box[Int]::{ value: Console::choose![Int](1, 2) }
       #|
       #|fn use(box : Box[Int]) -> Option[Int] ! Console {
       #|  Option::some[Int](Console::choose![Int](box.value, 0))
@@ -718,20 +714,14 @@ test "parse existential surface syntax" {
       #|  hide[T](T)
       #|}
       #|
-      #|let h : Hide = Hide::{
-      #|  T = Int,
-      #|  val: 5
-      #|}
+      #|let h : Hide = Hide::{ T = Int, val: 5 }
       #|
       #|let e : Any = Any::hide[Int](5)
       #|
       #|fn use(h : Hide, e : Any) -> Int {
       #|  match e {
       #|    Any::hide[T](value) => {
-      #|      let Hide::{
-      #|        _,
-      #|        val
-      #|      } = h
+      #|      let Hide::{ _, val } = h
       #|      1
       #|    }
       #|  }

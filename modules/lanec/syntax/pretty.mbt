@@ -60,21 +60,17 @@ fn brace_block(docs : Array[Document]) -> Document {
 }
 
 ///|
-fn brace_comma_block(docs : Array[Document]) -> Document {
-  if docs.is_empty() {
-    surround(char('{'), char('}'), empty)
-  } else {
-    surround(
-      char('{'),
-      hardline + char('}'),
-      nest(hardline + separate(comma_line(), docs)),
-    )
-  }
+fn brace_comma_group(docs : Array[Document]) -> Document {
+  group(surround(char('{'), char('}'), nest(line + comma_list(docs)) + line))
 }
 
 ///|
-fn brace_comma_group(docs : Array[Document]) -> Document {
-  group(surround(char('{'), char('}'), nest(line + comma_list(docs)) + line))
+fn brace_comma_compact(docs : Array[Document]) -> Document {
+  if docs.is_empty() {
+    surround(char('{'), char('}'), empty)
+  } else {
+    group(surround(char('{'), char('}'), nest(line + comma_list(docs)) + line))
+  }
 }
 
 ///|
@@ -555,7 +551,7 @@ fn Expr::to_doc_with_precedence(
       let head = text(type_name) +
         bracketed_type_arguments(type_arguments) +
         text("::")
-      (10, head + brace_comma_block(fields.map(StructLiteralField::to_doc)))
+      (10, head + brace_comma_compact(fields.map(StructLiteralField::to_doc)))
     }
     Builtin(name, ..) =>
       (10, keyword("builtin") + parenthesized([source_string(name)]))
@@ -644,11 +640,12 @@ fn Expr::to_doc_with_precedence(
       let precedence = operator.precedence()
       (
         precedence,
-        left.to_doc_with_precedence(precedence) +
-        space +
-        operator.to_doc() +
-        space +
-        right.to_doc_with_precedence(precedence + 1),
+        group(
+          left.to_doc_with_precedence(precedence) +
+          space +
+          operator.to_doc() +
+          nest(line + right.to_doc_with_precedence(precedence + 1)),
+        ),
       )
     }
     Pipeline(left~, right~, ..) =>
@@ -871,7 +868,7 @@ fn Pattern::to_doc(self : Pattern) -> Document {
     Struct(type_name~, fields~, ..) =>
       text(type_name) +
       text("::") +
-      brace_comma_block(fields.map(StructPatternField::to_doc))
+      brace_comma_compact(fields.map(StructPatternField::to_doc))
   }
 }
 

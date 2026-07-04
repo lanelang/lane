@@ -23,23 +23,15 @@ pub fn flatten(value : Option[Option[Int]]) -> Int {
 
 pub fn boxed(value : Box[Option[Int]]) -> Int {
   match value {
-    Box::{
-      value: none()
-    } => 0
-    Box::{
-      value: some(x)
-    } => x
+    Box::{ value: none() } => 0
+    Box::{ value: some(x) } => x
   }
 }
 
 pub let flattened_value : Int = flatten(some(some(42)))
 
 pub fn answer() -> Unit ! Io {
-  if flattened_value == 42 && boxed(
-    Box::{
-      value: some(42)
-    }
-  ) == 42 {
+  if flattened_value == 42 && boxed(Box::{ value: some(42) }) == 42 {
     Write::println!("flatten=42 boxed=42")
   } else {
     Write::println!("bad:flatten=42 boxed=42")

@@ -115,17 +115,11 @@ test "format source keeps struct literal and pattern fields parseable" {
       #|  y : Int
       #|}
       #|
-      #|pub let origin : Point = Point::{
-      #|  x: 0,
-      #|  y: 0
-      #|}
+      #|pub let origin : Point = Point::{ x: 0, y: 0 }
       #|
       #|pub fn sum(point : Point) -> Int {
       #|  match point {
-      #|    Point::{
-      #|      x,
-      #|      y
-      #|    } => x + y
+      #|    Point::{ x, y } => x + y
       #|  }
       #|}
       #|
@@ -155,11 +149,7 @@ test "format source keeps struct literals tighter than binary operators" {
       #|  value : Int
       #|}
       #|
-      #|pub let answer : Bool = Meter::{
-      #|  value: 1
-      #|} == Meter::{
-      #|  value: 1
-      #|}
+      #|pub let answer : Bool = Meter::{ value: 1 } == Meter::{ value: 1 }
       #|
     ),
   )
@@ -214,9 +204,7 @@ test "format source keeps selective imports parseable" {
       #|
       #|import Lib.{value, Box}
       #|
-      #|pub let item : Box = Box::{
-      #|  value
-      #|}
+      #|pub let item : Box = Box::{ value }
       #|
     ),
   )
