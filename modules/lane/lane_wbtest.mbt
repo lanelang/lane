@@ -782,7 +782,7 @@ test "source-less diagnostic labels are preserved as notes" {
     suggestions: [],
   }
   inspect(
-    render_compile_diagnostic(diagnostic, DiagnosticSources()),
+    render_compile_diagnostic(diagnostic, CompilerDiagnosticSources()),
     content=(
       #|error[E9999]: source-less error
       #|  = note: context without a source file

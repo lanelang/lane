@@ -2,6 +2,8 @@
 package "Milky2018/lanec/diagnostic"
 
 import {
+  "Milky2018/diagnostic/core",
+  "Milky2018/diagnostic/source",
   "Milky2018/lanec/basic",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -25,6 +27,7 @@ pub(all) struct CompilerDiagnostic {
   suggestions : Array[CompilerDiagnosticSuggestion]
 } derive(Eq, @debug.Debug)
 pub fn CompilerDiagnostic::list_doc(Array[Self]) -> @prettyprinter.Document
+pub fn CompilerDiagnostic::to_diagnostic(Self, CompilerDiagnosticSources) -> @core.Diagnostic
 pub fn CompilerDiagnostic::with_source_id(Self, String) -> Self
 pub impl @prettyprinter.Pretty for CompilerDiagnostic
 
@@ -56,6 +59,16 @@ pub(all) enum CompilerDiagnosticSeverity {
   Error
   Warning
 } derive(Eq, @debug.Debug)
+
+pub struct CompilerDiagnosticSources {
+  database : @source.SourceDatabase
+  source_ids : Array[String]
+  diagnostic_ids : Array[@core.SourceId]
+}
+pub fn CompilerDiagnosticSources::CompilerDiagnosticSources() -> Self
+pub fn CompilerDiagnosticSources::add(Self, String, String, String?) -> Unit
+pub fn CompilerDiagnosticSources::find(Self, String) -> @core.SourceId?
+pub fn CompilerDiagnosticSources::source_database(Self) -> @source.SourceDatabase
 
 pub(all) struct CompilerDiagnosticSuggestion {
   message : String

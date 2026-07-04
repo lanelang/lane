@@ -733,7 +733,7 @@ test "lsp diagnostics convert text offsets before transport" {
   guard result.diagnostics.length() == 1 else {
     abort("expected one missing import diagnostic")
   }
-  let sources = LspDiagnosticSources::from_inputs([input])
+  let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 1,
     "message": "missing imported module `Builtins`",
@@ -813,16 +813,19 @@ test "lsp diagnostic conversion keeps required range for unmapped source" {
     facts: [],
     suggestions: [],
   }
-  json_inspect(compile_diagnostic_json(diagnostic, LspDiagnosticSources()), content={
-    "severity": 1,
-    "message": "diagnostic source is not open",
-    "source": "lane",
-    "code": "E9999",
-    "range": {
-      "start": { "line": 0, "character": 0 },
-      "end": { "line": 0, "character": 0 },
+  json_inspect(
+    compile_diagnostic_json(diagnostic, CompilerDiagnosticSources()),
+    content={
+      "severity": 1,
+      "message": "diagnostic source is not open",
+      "source": "lane",
+      "code": "E9999",
+      "range": {
+        "start": { "line": 0, "character": 0 },
+        "end": { "line": 0, "character": 0 },
+      },
     },
-  })
+  )
 }
 
 ///|

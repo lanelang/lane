@@ -12,7 +12,7 @@ async fn lane_link(
   if !linked.diagnostics.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
       linked.diagnostics,
-      DiagnosticSources(),
+      CompilerDiagnosticSources(),
       false,
     )
   }

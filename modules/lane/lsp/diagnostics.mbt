@@ -1,57 +1,29 @@
 ///|
+using @compiler_diag {type CompilerDiagnosticSources}
+
+///|
 priv struct DiagnosticPublication {
   uri : String
   diagnostics : Array[@compiler_diag.CompilerDiagnostic]
-  sources : LspDiagnosticSources
+  sources : CompilerDiagnosticSources
 }
 
 ///|
-priv struct LspDiagnosticSourceBinding {
-  source_id : String
-  diagnostic_id : @diag_core.SourceId
-}
-
-///|
-priv struct LspDiagnosticSources {
-  database : @diag_source.SourceDatabase
-  bindings : Array[LspDiagnosticSourceBinding]
-}
-
-///|
-fn LspDiagnosticSources::LspDiagnosticSources() -> LspDiagnosticSources {
-  { database: SourceDatabase(), bindings: [] }
-}
-
-///|
-fn LspDiagnosticSources::from_inputs(
+fn compiler_diagnostic_sources_from_inputs(
   inputs : Array[@compile.SourceInput],
-) -> LspDiagnosticSources {
-  let sources = LspDiagnosticSources()
+) -> CompilerDiagnosticSources {
+  let sources = @compiler_diag.CompilerDiagnosticSources::CompilerDiagnosticSources()
   for input in inputs {
-    let diagnostic_id = sources.database.add(input.text, path=input.source_id)
-    sources.bindings.push({ source_id: input.source_id, diagnostic_id })
+    sources.add(input.source_id, input.text, Some(input.source_id))
   }
   sources
-}
-
-///|
-fn LspDiagnosticSources::find(
-  self : LspDiagnosticSources,
-  source_id : String,
-) -> @diag_core.SourceId? {
-  for binding in self.bindings {
-    if binding.source_id == source_id {
-      return Some(binding.diagnostic_id)
-    }
-  }
-  None
 }
 
 ///|
 fn publish_diagnostics(
   uri : String,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
-  sources? : LspDiagnosticSources = LspDiagnosticSources(),
+  sources? : CompilerDiagnosticSources = CompilerDiagnosticSources(),
 ) -> @jsonrpc.Message {
   @jsonrpc.new_notification("textDocument/publishDiagnostics", {
     "uri": uri,
@@ -67,7 +39,7 @@ fn diagnostic_publications(
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
   fallback_uri~ : String,
 ) -> Array[DiagnosticPublication] {
-  let sources = LspDiagnosticSources::from_inputs(inputs)
+  let sources = compiler_diagnostic_sources_from_inputs(inputs)
   let publications = inputs.map(fn(input) {
     { uri: input.source_id, diagnostics: [], sources }
   })
@@ -93,173 +65,18 @@ fn add_diagnostic(
       return
     }
   }
-  let empty_sources = LspDiagnosticSources()
+  let empty_sources = CompilerDiagnosticSources()
   publications.push({ uri, diagnostics: [diagnostic], sources: empty_sources })
 }
 
 ///|
 fn compile_diagnostic_json(
   diagnostic : @compiler_diag.CompilerDiagnostic,
-  sources : LspDiagnosticSources,
+  sources : CompilerDiagnosticSources,
 ) -> Json {
   @diag_lsp.diagnostic_to_lsp_json(
-    compile_diagnostic_to_diagnostic(diagnostic, sources),
-    sources.database,
+    diagnostic.to_diagnostic(sources),
+    sources.source_database(),
     source="lane",
   )
-}
-
-///|
-fn compile_diagnostic_to_diagnostic(
-  diagnostic : @compiler_diag.CompilerDiagnostic,
-  sources : LspDiagnosticSources,
-) -> @diag_core.Diagnostic {
-  {
-    severity: diagnostic.severity.to_diagnostic_severity(),
-    code: diagnostic.code,
-    message: diagnostic.message,
-    labels: compile_diagnostic_labels_to_diagnostic_labels(diagnostic, sources),
-    notes: compile_diagnostic_unmapped_label_notes(diagnostic, sources) +
-    diagnostic.notes,
-    helps: diagnostic.helps,
-    facts: compile_diagnostic_facts_to_diagnostic_facts(diagnostic, sources),
-    suggestions: compile_diagnostic_suggestions_to_diagnostic_suggestions(
-      diagnostic, sources,
-    ),
-    related_locations: [],
-    related: [],
-  }
-}
-
-///|
-fn @compiler_diag.CompilerDiagnosticSeverity::to_diagnostic_severity(
-  self : @compiler_diag.CompilerDiagnosticSeverity,
-) -> @diag_core.Severity {
-  match self {
-    Error => Error
-    Warning => Warning
-  }
-}
-
-///|
-fn compile_diagnostic_labels_to_diagnostic_labels(
-  diagnostic : @compiler_diag.CompilerDiagnostic,
-  sources : LspDiagnosticSources,
-) -> Array[@diag_core.Label] {
-  guard diagnostic.source_id is Some(source_id) else { return [] }
-  guard sources.find(source_id) is Some(diagnostic_source_id) else { return [] }
-  let labels : Array[@diag_core.Label] = []
-  for label in diagnostic.labels {
-    labels.push({
-      style: label.style.to_diagnostic_label_style(),
-      span: sources.database.span_from_text_offsets(
-        diagnostic_source_id,
-        label.span.start_offset,
-        label.span.end_offset,
-      ),
-      message: Some(label.message),
-    })
-  }
-  labels
-}
-
-///|
-fn compile_diagnostic_unmapped_label_notes(
-  diagnostic : @compiler_diag.CompilerDiagnostic,
-  sources : LspDiagnosticSources,
-) -> Array[String] {
-  match diagnostic.source_id {
-    Some(source_id) if sources.find(source_id) is Some(_) => []
-    _ => diagnostic.labels.map(fn(label) { label.message })
-  }
-}
-
-///|
-fn compile_diagnostic_facts_to_diagnostic_facts(
-  diagnostic : @compiler_diag.CompilerDiagnostic,
-  sources : LspDiagnosticSources,
-) -> Array[@diag_core.DiagnosticFact] {
-  diagnostic.facts.map(fn(fact) {
-    {
-      name: fact.name,
-      value: fact.value,
-      span: compile_optional_span_to_diagnostic_span(
-        diagnostic,
-        fact.span,
-        sources,
-      ),
-    }
-  })
-}
-
-///|
-fn compile_diagnostic_suggestions_to_diagnostic_suggestions(
-  diagnostic : @compiler_diag.CompilerDiagnostic,
-  sources : LspDiagnosticSources,
-) -> Array[@diag_core.Suggestion] {
-  diagnostic.suggestions.map(fn(suggestion) {
-    {
-      message: suggestion.message,
-      edits: suggestion.edits.filter_map(fn(edit) {
-        match compile_span_to_diagnostic_span(diagnostic, edit.span, sources) {
-          Some(span) => Some({ span, replacement: edit.replacement })
-          None => None
-        }
-      }),
-      applicability: suggestion.applicability.to_diagnostic_applicability(),
-    }
-  })
-}
-
-///|
-fn compile_optional_span_to_diagnostic_span(
-  diagnostic : @compiler_diag.CompilerDiagnostic,
-  span : @basic.SourceSpan?,
-  sources : LspDiagnosticSources,
-) -> @diag_core.SourceSpan? {
-  match span {
-    Some(span) => compile_span_to_diagnostic_span(diagnostic, span, sources)
-    None => None
-  }
-}
-
-///|
-fn compile_span_to_diagnostic_span(
-  diagnostic : @compiler_diag.CompilerDiagnostic,
-  span : @basic.SourceSpan,
-  sources : LspDiagnosticSources,
-) -> @diag_core.SourceSpan? {
-  guard diagnostic.source_id is Some(source_id) else { return None }
-  guard sources.find(source_id) is Some(diagnostic_source_id) else {
-    return None
-  }
-  Some(
-    sources.database.span_from_text_offsets(
-      diagnostic_source_id,
-      span.start_offset,
-      span.end_offset,
-    ),
-  )
-}
-
-///|
-fn @compiler_diag.CompilerDiagnosticLabelStyle::to_diagnostic_label_style(
-  self : @compiler_diag.CompilerDiagnosticLabelStyle,
-) -> @diag_core.LabelStyle {
-  match self {
-    Primary => Primary
-    Secondary => Secondary
-  }
-}
-
-///|
-fn @compiler_diag.CompilerDiagnosticApplicability::to_diagnostic_applicability(
-  self : @compiler_diag.CompilerDiagnosticApplicability,
-) -> @diag_core.Applicability {
-  match self {
-    MachineApplicable => MachineApplicable
-    MaybeIncorrect => MaybeIncorrect
-    HasPlaceholders => HasPlaceholders
-    Unspecified => Unspecified
-  }
 }

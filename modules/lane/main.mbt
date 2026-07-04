@@ -1,10 +1,13 @@
 ///|
+using @compiler_diag {type CompilerDiagnosticSources}
+
+///|
 enum LaneCommandOutcome {
   Succeeded
   UserErrors(Array[CliError])
   CompileDiagnostics(
     diagnostics~ : Array[@compiler_diag.CompilerDiagnostic],
-    sources~ : DiagnosticSources,
+    sources~ : CompilerDiagnosticSources,
     success~ : Bool
   )
 }
@@ -55,7 +58,7 @@ fn LaneCommandOutcome::user_error(error : CliError) -> LaneCommandOutcome {
 ///|
 fn LaneCommandOutcome::compile_diagnostics(
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
-  sources : DiagnosticSources,
+  sources : CompilerDiagnosticSources,
   success : Bool,
 ) -> LaneCommandOutcome {
   CompileDiagnostics(diagnostics~, sources~, success~)

@@ -1,10 +1,7 @@
 import {
   "Milky2018/buslane",
   "Milky2018/buslane/interpreter" @buslane_interpreter,
-  "Milky2018/diagnostic/core" @diag_core,
   "Milky2018/diagnostic/render" @diag_render,
-  "Milky2018/diagnostic/source" @diag_source,
-  "Milky2018/lanec/basic",
   "Milky2018/lanec/compile",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate",
@@ -24,6 +21,10 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/sys",
 }
+
+import {
+  "Milky2018/lanec/basic",
+} for "wbtest"
 
 supported_targets = "native"
 

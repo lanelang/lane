@@ -23,11 +23,11 @@ fn LaneSourceInput::array_to_compile_inputs(
 fn LaneSourceInput::diagnostic_sources(
   root : LaneSourceInput,
   libraries : Array[LaneSourceInput],
-) -> DiagnosticSources {
-  let sources = DiagnosticSources::DiagnosticSources()
-  sources.add_input(root)
+) -> CompilerDiagnosticSources {
+  let sources = @compiler_diag.CompilerDiagnosticSources::CompilerDiagnosticSources()
+  sources.add(root.source_id, root.text, root.path)
   for library in libraries {
-    sources.add_input(library)
+    sources.add(library.source_id, library.text, library.path)
   }
   sources
 }
