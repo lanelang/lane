@@ -126,7 +126,7 @@ test "golden resolver diagnostic renders span summary and guidance" {
     diagnostic,
     content=(
       #|{
-      #|  source_id: None,
+      #|  source_id: Some("<root>"),
       #|  message: "cannot find value `missing`",
       #|  span: Some(
       #|    {
@@ -176,7 +176,7 @@ test "golden type diagnostic renders span summary and facts" {
     diagnostic,
     content=(
       #|{
-      #|  source_id: None,
+      #|  source_id: Some("<root>"),
       #|  message: "type mismatch",
       #|  span: Some(
       #|    {
@@ -265,7 +265,7 @@ test "golden struct diagnostic renders span summary and suggestion" {
     diagnostic,
     content=(
       #|{
-      #|  source_id: None,
+      #|  source_id: Some("<root>"),
       #|  message: "missing field `y`",
       #|  span: Some(
       #|    {
@@ -329,7 +329,7 @@ test "golden pattern diagnostic renders span summary and guidance" {
     diagnostic,
     content=(
       #|{
-      #|  source_id: None,
+      #|  source_id: Some("<root>"),
       #|  message: "non-exhaustive match",
       #|  span: Some(
       #|    {

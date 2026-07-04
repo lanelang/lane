@@ -769,6 +769,41 @@ test "compile diagnostics convert text offsets before rendering" {
 }
 
 ///|
+test "semantic diagnostics render source snippets" {
+  let source =
+    #|module Main
+    #|struct Point {
+    #|  x : Int
+    #|  y : Int
+    #|}
+    #|pub let point : Point = Point::{ x: 1 }
+  let root : LaneSourceInput = {
+    source_id: "point.lane",
+    path: Some("point.lane"),
+    text: source,
+  }
+  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one missing field diagnostic")
+  }
+  let sources = LaneSourceInput::diagnostic_sources(root, [])
+  inspect(
+    render_compile_diagnostic(result.diagnostics[0], sources),
+    content=(
+      #|error[E3101]: missing field `y`
+      #|  --> point.lane:6:34
+      #|   |
+      #| 6 | pub let point : Point = Point::{ x: 1 }
+      #|   |                                  ^^^^^^ this struct construction or pattern omits required field `y`
+      #|   |
+      #|  = note: Lane struct literals and struct patterns must account for required fields
+      #|  = help: add a `y: ...` field entry
+      #|  = suggestion: add a `y: ...` field entry (has-placeholders)
+    ),
+  )
+}
+
+///|
 test "source-less diagnostic labels are preserved as notes" {
   let diagnostic : @compiler_diag.CompilerDiagnostic = {
     source_id: None,

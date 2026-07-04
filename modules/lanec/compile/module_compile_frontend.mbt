@@ -25,7 +25,7 @@ fn compile_one_module(
     imported,
   )
   let resolve_diagnostics = resolved.diagnostics.map(fn(diagnostic) {
-    resolve_diagnostic(diagnostic, display)
+    resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)
   })
   if !resolve_diagnostics.is_empty() {
     return Err(resolve_diagnostics)
@@ -35,7 +35,7 @@ fn compile_one_module(
     imported,
   )
   let typecheck_diagnostics = checked.diagnostics.map(fn(diagnostic) {
-    typecheck_diagnostic(diagnostic, display)
+    typecheck_diagnostic(diagnostic, display).with_source_id(input.source_id)
   })
   if !typecheck_diagnostics.is_empty() {
     return Err(typecheck_diagnostics)
@@ -77,7 +77,9 @@ fn compile_one_module(
     }
     _ =>
       Err([
-        CompileErrorKind::to_diagnostic(CheckedSourceConstructionFailed, None),
+        CompileErrorKind::to_diagnostic(CheckedSourceConstructionFailed, None).with_source_id(
+          input.source_id,
+        ),
       ])
   }
 }
