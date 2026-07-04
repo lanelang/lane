@@ -1,0 +1,5 @@
+# Source-aware diagnostic rendering
+
+Lane compiler and formatter diagnostics are user-facing compiler interface, so their official presentation must combine structured diagnostic data with source text before rendering source locations, labels, facts, notes, help, and suggestions. `lanec` owns the compiler diagnostic data model and the adapter into the generic diagnostic infrastructure, while tools such as `lane` and `lane lsp` own terminal or protocol presentation.
+
+We deliberately do not keep `Pretty` output for compiler diagnostics as a fallback user interface. Compact pretty-printed diagnostics are convenient in tests, but they encourage tools to render source errors without source context and make incomplete Rust-like output look official. Hard switching to source-aware rendering keeps the boundary explicit: source diagnostics use the diagnostic infrastructure, while command, artifact, runtime, and Buslane verifier reports stay outside the source-diagnostic path unless they carry an explicit source origin map.

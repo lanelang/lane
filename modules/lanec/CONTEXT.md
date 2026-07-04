@@ -24,6 +24,14 @@ An in-memory API used by tools and LSP code without owning file IO or process
 IO.
 _Avoid_: native command implementation, editor extension
 
+**Compiler Diagnostic Adapter**:
+A compiler-owned translation from Lane compiler diagnostics into generic diagnostic infrastructure.
+_Avoid_: terminal renderer, LSP diagnostic, command report
+
+**Source-Aware Diagnostic Rendering**:
+Diagnostic presentation that combines a compiler diagnostic with its source text before rendering source locations and guidance.
+_Avoid_: compact diagnostic pretty print, debug diagnostic output, command report
+
 **Semantic Completion**:
 A compiler-analysis completion result derived from Lane symbols, types, effects, modules, and source context.
 _Avoid_: keyword snippet, editor-side text scan, LSP-only completion
@@ -48,6 +56,10 @@ _Avoid_: full analysis index, precomputed completion cache, editor request handl
   internal packages when possible.
 - Platform services such as filesystem access belong in tools, not in the
   compiler core.
+- A **Compiler Diagnostic Adapter** may depend on **Diagnostic Infrastructure**
+  but must not own terminal, JSON-RPC, or editor presentation.
+- **Source-Aware Diagnostic Rendering** is the only user-facing presentation
+  path for compiler and formatter source diagnostics.
 - **Semantic Completion** belongs to the **Compiler Analysis API**; LSP adapters
   only transport it as protocol-specific completion items.
 - A **Completion Trigger** informs a **Semantic Completion** query but does not

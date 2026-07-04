@@ -29,6 +29,10 @@ _Avoid_: concatenated source offset, anonymous line range, prelude line shift
 A driver-supplied module identity for interactive or test snippets that are not ordinary source files.
 _Avoid_: ordinary source file fallback, implicit filename module, compatibility mode
 
+**Diagnostic Infrastructure**:
+Reusable diagnostic data, source mapping, protocol conversion, and rendering primitives shared by Lane tools without knowing Lane compiler semantics.
+_Avoid_: compiler diagnostic adapter, Lane error taxonomy, command report
+
 **Module Path**:
 A dotted name that identifies a **Module**.
 _Avoid_: filesystem path, package URL, source filename
