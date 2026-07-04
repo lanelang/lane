@@ -18,12 +18,24 @@ The rule that a caller chooses which checked value or function to evaluate rathe
 _Avoid_: built-in main, source entrypoint
 
 **Run Entry Convention**:
-The Lane Command convention that single-file `lane run` takes a `FILE:ENTRY` target and prints the selected value with debug rendering.
-_Avoid_: language-level main semantics, project entrypoint, interpreter hard-code
+The Lane Command convention that `lane run` and `lane runobj` select and execute an **Executable Entry Type**.
+_Avoid_: language-level main semantics, project entrypoint, arbitrary value inspection
 
-**Run Debug Rendering**:
-The Lane Command output rule that prints the selected runtime value without applying function values.
-_Avoid_: implicit entry call, source pretty printing
+**Run Effect Convention**:
+The Lane Command convention that an executable selected entry may leave a specific outer effect set for the command to handle.
+_Avoid_: language-level main effect, standard library effect, compiler-builtin effect
+
+**Executable Entry Type**:
+The function type shape accepted by `lane run` and `lane runobj` for automatic command execution.
+_Avoid_: language main type, pure value entry, unchecked effectful entry
+
+**Runtime Effect Handler**:
+An execution-target handler for an operation that escapes all source-level lexical handlers to the outer runtime boundary.
+_Avoid_: source effect handler, handler override, unsafe builtin plugin
+
+**Runtime Effect Convention**:
+A command/runtime rule that maps a source-level exported effect operation identity and signature to a host-provided **Runtime Effect Handler**.
+_Avoid_: Buslane debug-name binding, operation-number API, official standard-library pinning
 
 **Interpreter Value**:
 A uniform runtime value used by the reference interpreter.
@@ -66,7 +78,16 @@ _Avoid_: integer trap, arbitrary precision integer
 - The first **Execution Target** currently evaluates ANF IR.
 - The **Reference Interpreter** uses **Interpreter Entry Selection** over a whole checked compiler program.
 - **Run Entry Convention** is a caller policy layered on top of **Interpreter Entry Selection** and selects from the final top-level environment after explicit library loading.
-- **Run Debug Rendering** displays function values as opaque function placeholders rather than invoking them.
+- `lane run` and `lane runobj` execute only an **Executable Entry Type**; arbitrary public value inspection belongs to inspect tooling rather than run tooling.
+- `lane run` and `lane runobj` do not print the `Unit` result of an executed entry; user-visible output comes from runtime effect handlers.
+- `lane inspect <artifact>` is the command-line path for reviewing artifact metadata such as public entry names, entry types, exports, externals, and Buslane code.
+- **Run Effect Convention** belongs to `lane run` and `lane runobj`; it is not a Lane language prelude or standard library rule.
+- The v1 **Executable Entry Type** is exactly a zero-argument function returning `Unit`; validation uses only the fully expanded closed concrete effect set, which may be empty or covered by registered runtime effect conventions such as `Stdlib.Io.Write`.
+- A **Runtime Effect Handler** only handles operations that are not captured by source lexical handlers.
+- A **Runtime Effect Convention** is validated against source-level exported module, effect, operation, and signature metadata before execution maps it to a Buslane operation identity.
+- The initial built-in **Runtime Effect Convention** handles only `Stdlib.Io.Write.println(String) -> Unit`.
+- Runtime convention validation belongs at the execution boundary, not at compile or link time.
+- Runtime failures inside the initial `Stdlib.Io.Write.println` handler are execution failures rather than Lane language-level effects or exceptions.
 - The **Reference Interpreter** separates the **Global Environment**, **Call Frame**, and **Closure Environment**.
 - The **Reference Interpreter** evaluates to **Interpreter Values**.
 - Lane v1 does not require **Tail-Call Optimization**.
@@ -82,7 +103,10 @@ _Avoid_: integer trap, arbitrary precision integer
 > **Domain expert:** "No. **Interpreter Entry Selection** belongs to the caller or later linker, not to the reference interpreter."
 
 > **Dev:** "Can single-file `lane run` execute `main` by default?"
-> **Domain expert:** "No. The **Run Entry Convention** requires `FILE:ENTRY` and debug-prints the selected value."
+> **Domain expert:** "No. The **Run Entry Convention** requires `FILE:ENTRY` and executes only an **Executable Entry Type**."
 
-> **Dev:** "If the selected entry is a function, should `lane run` call it?"
-> **Domain expert:** "No. **Run Debug Rendering** prints an opaque function placeholder instead of applying it."
+> **Dev:** "Can `lane run` inspect a selected public value such as `answer : Int`?"
+> **Domain expert:** "No. **Run Entry Convention** executes an **Executable Entry Type**; arbitrary value inspection belongs to inspect tooling."
+
+> **Dev:** "Can a runtime effect handler intercept operations already handled by source code?"
+> **Domain expert:** "No. A **Runtime Effect Handler** only handles the outer residual operations that escape source lexical handlers."
