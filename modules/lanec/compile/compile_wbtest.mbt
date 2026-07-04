@@ -37,7 +37,7 @@ test "compile verifies handler around effectful function call" {
       #|}
     ),
   )
-  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else {
     abort("expected Buslane program")
   }
@@ -390,7 +390,7 @@ test "module artifacts roundtrip through binary and link" {
     modules: decoded_modules,
     reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
-  inspect(@prettyprinter.render(linked.diagnostics, width=100), content="[]")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -403,7 +403,7 @@ test "module artifacts roundtrip through binary and link" {
   }
   let linked_program = match linked_decoded.to_linked_program() {
     Ok(program) => program
-    Err(diagnostics) => abort(@prettyprinter.render(diagnostics, width=100))
+    Err(_) => abort("unexpected diagnostics")
   }
   inspect(
     linked_program.entries.map(fn(entry) { entry.name }).join(","),
@@ -548,12 +548,12 @@ test "linked artifacts preserve runtime effect operation metadata" {
       ),
     ],
   )
-  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
   let linked = link_modules(modules)
-  inspect(@prettyprinter.render(linked.diagnostics, width=100), content="[]")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -691,7 +691,7 @@ test "effect aliases export through interface artifacts" {
       ),
     ],
   )
-  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -824,7 +824,7 @@ test "module artifact binary rejects wrong kind" {
     ),
     [],
   )
-  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -868,7 +868,7 @@ test "missing import with mismatched interface artifact reports candidates" {
     ),
     [],
   )
-  inspect(@prettyprinter.render(provider.diagnostics, width=100), content="[]")
+  debug_inspect(provider.diagnostics, content="[]")
   guard provider.modules is Some(provider_modules) else {
     abort("expected provider modules")
   }
@@ -886,16 +886,55 @@ test "missing import with mismatched interface artifact reports candidates" {
   guard compiled.diagnostics.get(0) is Some(diagnostic) else {
     abort("expected missing import diagnostic")
   }
-  inspect(
-    @prettyprinter.render(diagnostic, width=100),
+  debug_inspect(
+    diagnostic,
     content=(
-      #|error[E4002]: missing imported module `Builtins`
-      #|  span: 2:8-2:16
-      #|  primary: 2:8-2:16: no explicit input provides this module
-      #|  note: Lane only compiles explicitly provided source files and interface artifacts
-      #|  considered interface artifact: declares module `builtins`
-      #|  help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules
-      #|  suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
+      #|{
+      #|  source_id: Some("<root>"),
+      #|  message: "missing imported module `Builtins`",
+      #|  span: Some(
+      #|    {
+      #|      start_offset: 19,
+      #|      end_offset: 27,
+      #|      start_line: 2,
+      #|      start_column: 8,
+      #|      end_line: 2,
+      #|      end_column: 16,
+      #|    },
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E4002"),
+      #|  labels: [
+      #|    {
+      #|      span: {
+      #|        start_offset: 19,
+      #|        end_offset: 27,
+      #|        start_line: 2,
+      #|        start_column: 8,
+      #|        end_line: 2,
+      #|        end_column: 16,
+      #|      },
+      #|      message: "no explicit input provides this module",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane only compiles explicitly provided source files and interface artifacts"],
+      #|  helps: ["pass an input whose declared module is `Builtins`, or change the import to one of the listed modules"],
+      #|  facts: [
+      #|    {
+      #|      name: "considered interface artifact",
+      #|      value: "declares module `builtins`",
+      #|      span: None,
+      #|    },
+      #|  ],
+      #|  suggestions: [
+      #|    {
+      #|      message: "check the imported module name against the listed explicit inputs",
+      #|      edits: [],
+      #|      applicability: MaybeIncorrect,
+      #|    },
+      #|  ],
+      #|}
     ),
   )
 }
@@ -909,7 +948,7 @@ test "module artifact binary inspect renders human readable summaries" {
     ),
     [],
   )
-  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -1006,10 +1045,7 @@ test "compile module interface preserves public effects across artifact import" 
     ),
     [],
   )
-  inspect(
-    @prettyprinter.render(lib_compiled.diagnostics, width=100),
-    content="[]",
-  )
+  debug_inspect(lib_compiled.diagnostics, content="[]")
   guard lib_compiled.modules is Some(lib_modules) else {
     abort("expected Lib modules")
   }
@@ -1034,10 +1070,7 @@ test "compile module interface preserves public effects across artifact import" 
     ),
     [lib_artifact.interface],
   )
-  inspect(
-    @prettyprinter.render(main_compiled.diagnostics, width=100),
-    content="[]",
-  )
+  debug_inspect(main_compiled.diagnostics, content="[]")
 }
 
 ///|

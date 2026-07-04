@@ -72,14 +72,43 @@ test "golden syntax diagnostic renders span summary and guidance" {
     ),
   )
   assert_diagnostic_headline(diagnostic, "E1100", "unexpected token")
-  inspect(
-    @prettyprinter.render(diagnostic),
+  debug_inspect(
+    diagnostic,
     content=(
-      #|error[E1100]: unexpected token
-      #|  span: 2:18-2:19
-      #|  primary: 2:18-2:19: the parser did not expect `=`
-      #|  note: expected one of: identifier, `type`, `(`, `[`
-      #|  help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
+      #|{
+      #|  source_id: Some("<root>"),
+      #|  message: "unexpected token",
+      #|  span: Some(
+      #|    {
+      #|      start_offset: 29,
+      #|      end_offset: 30,
+      #|      start_line: 2,
+      #|      start_column: 18,
+      #|      end_line: 2,
+      #|      end_column: 19,
+      #|    },
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E1100"),
+      #|  labels: [
+      #|    {
+      #|      span: {
+      #|        start_offset: 29,
+      #|        end_offset: 30,
+      #|        start_line: 2,
+      #|        start_column: 18,
+      #|        end_line: 2,
+      #|        end_column: 19,
+      #|      },
+      #|      message: "the parser did not expect `=`",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["expected one of: identifier, `type`, `(`, `[`"],
+      #|  helps: ["rewrite this position so it starts with one of: identifier, `type`, `(`, `[`"],
+      #|  facts: [],
+      #|  suggestions: [],
+      #|}
     ),
   )
 }
@@ -93,14 +122,43 @@ test "golden resolver diagnostic renders span summary and guidance" {
     ),
   )
   assert_diagnostic_headline(diagnostic, "E2001", "cannot find value `missing`")
-  inspect(
-    @prettyprinter.render(diagnostic),
+  debug_inspect(
+    diagnostic,
     content=(
-      #|error[E2001]: cannot find value `missing`
-      #|  span: 2:24-2:31
-      #|  primary: 2:24-2:31: no value named `missing` is visible here
-      #|  note: Lane value lookup uses local bindings, top-level values, and explicitly imported public values
-      #|  help: define `missing` before this use, import it, or qualify it with its module path
+      #|{
+      #|  source_id: None,
+      #|  message: "cannot find value `missing`",
+      #|  span: Some(
+      #|    {
+      #|      start_offset: 35,
+      #|      end_offset: 42,
+      #|      start_line: 2,
+      #|      start_column: 24,
+      #|      end_line: 2,
+      #|      end_column: 31,
+      #|    },
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E2001"),
+      #|  labels: [
+      #|    {
+      #|      span: {
+      #|        start_offset: 35,
+      #|        end_offset: 42,
+      #|        start_line: 2,
+      #|        start_column: 24,
+      #|        end_line: 2,
+      #|        end_column: 31,
+      #|      },
+      #|      message: "no value named `missing` is visible here",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane value lookup uses local bindings, top-level values, and explicitly imported public values"],
+      #|  helps: ["define `missing` before this use, import it, or qualify it with its module path"],
+      #|  facts: [],
+      #|  suggestions: [],
+      #|}
     ),
   )
 }
@@ -114,17 +172,78 @@ test "golden type diagnostic renders span summary and facts" {
     ),
   )
   assert_diagnostic_headline(diagnostic, "E3006", "type mismatch")
-  inspect(
-    @prettyprinter.render(diagnostic),
+  debug_inspect(
+    diagnostic,
     content=(
-      #|error[E3006]: type mismatch
-      #|  span: 2:24-2:28
-      #|  primary: 2:24-2:28: expected `Int`, found `Bool`
-      #|  note: Lane does not insert implicit conversions between different types
-      #|  expected type: `Int` at 2:24-2:28
-      #|  actual type: `Bool` at 2:24-2:28
-      #|  help: change the expression type or adjust the annotation/expected type
-      #|  suggestion: change the expression type or adjust the annotation/expected type (unspecified)
+      #|{
+      #|  source_id: None,
+      #|  message: "type mismatch",
+      #|  span: Some(
+      #|    {
+      #|      start_offset: 35,
+      #|      end_offset: 39,
+      #|      start_line: 2,
+      #|      start_column: 24,
+      #|      end_line: 2,
+      #|      end_column: 28,
+      #|    },
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E3006"),
+      #|  labels: [
+      #|    {
+      #|      span: {
+      #|        start_offset: 35,
+      #|        end_offset: 39,
+      #|        start_line: 2,
+      #|        start_column: 24,
+      #|        end_line: 2,
+      #|        end_column: 28,
+      #|      },
+      #|      message: "expected `Int`, found `Bool`",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane does not insert implicit conversions between different types"],
+      #|  helps: ["change the expression type or adjust the annotation/expected type"],
+      #|  facts: [
+      #|    {
+      #|      name: "expected type",
+      #|      value: "`Int`",
+      #|      span: Some(
+      #|        {
+      #|          start_offset: 35,
+      #|          end_offset: 39,
+      #|          start_line: 2,
+      #|          start_column: 24,
+      #|          end_line: 2,
+      #|          end_column: 28,
+      #|        },
+      #|      ),
+      #|    },
+      #|    {
+      #|      name: "actual type",
+      #|      value: "`Bool`",
+      #|      span: Some(
+      #|        {
+      #|          start_offset: 35,
+      #|          end_offset: 39,
+      #|          start_line: 2,
+      #|          start_column: 24,
+      #|          end_line: 2,
+      #|          end_column: 28,
+      #|        },
+      #|      ),
+      #|    },
+      #|  ],
+      #|  suggestions: [
+      #|    {
+      #|      message: "change the expression type or adjust the annotation/expected type",
+      #|      edits: [],
+      #|      applicability: Unspecified,
+      #|    },
+      #|  ],
+      #|}
     ),
   )
 }
@@ -142,15 +261,49 @@ test "golden struct diagnostic renders span summary and suggestion" {
     ),
   )
   assert_diagnostic_headline(diagnostic, "E3101", "missing field `y`")
-  inspect(
-    @prettyprinter.render(diagnostic),
+  debug_inspect(
+    diagnostic,
     content=(
-      #|error[E3101]: missing field `y`
-      #|  span: 6:30-6:36
-      #|  primary: 6:30-6:36: this struct construction or pattern omits required field `y`
-      #|  note: Lane struct literals and struct patterns must account for required fields
-      #|  help: add a `y: ...` field entry
-      #|  suggestion: add a `y: ...` field entry (has-placeholders)
+      #|{
+      #|  source_id: None,
+      #|  message: "missing field `y`",
+      #|  span: Some(
+      #|    {
+      #|      start_offset: 82,
+      #|      end_offset: 88,
+      #|      start_line: 6,
+      #|      start_column: 30,
+      #|      end_line: 6,
+      #|      end_column: 36,
+      #|    },
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E3101"),
+      #|  labels: [
+      #|    {
+      #|      span: {
+      #|        start_offset: 82,
+      #|        end_offset: 88,
+      #|        start_line: 6,
+      #|        start_column: 30,
+      #|        end_line: 6,
+      #|        end_column: 36,
+      #|      },
+      #|      message: "this struct construction or pattern omits required field `y`",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane struct literals and struct patterns must account for required fields"],
+      #|  helps: ["add a `y: ...` field entry"],
+      #|  facts: [],
+      #|  suggestions: [
+      #|    {
+      #|      message: "add a `y: ...` field entry",
+      #|      edits: [],
+      #|      applicability: HasPlaceholders,
+      #|    },
+      #|  ],
+      #|}
     ),
   )
 }
@@ -172,14 +325,43 @@ test "golden pattern diagnostic renders span summary and guidance" {
     ),
   )
   assert_diagnostic_headline(diagnostic, "E3200", "non-exhaustive match")
-  inspect(
-    @prettyprinter.render(diagnostic),
+  debug_inspect(
+    diagnostic,
     content=(
-      #|error[E3200]: non-exhaustive match
-      #|  span: 7:16-9:4
-      #|  primary: 7:16-9:4: patterns do not cover every `Option` value
-      #|  note: Lane checks match coverage statically using the pattern matrix
-      #|  help: add a missing constructor case or a final `_` wildcard arm
+      #|{
+      #|  source_id: None,
+      #|  message: "non-exhaustive match",
+      #|  span: Some(
+      #|    {
+      #|      start_offset: 103,
+      #|      end_offset: 141,
+      #|      start_line: 7,
+      #|      start_column: 16,
+      #|      end_line: 9,
+      #|      end_column: 4,
+      #|    },
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E3200"),
+      #|  labels: [
+      #|    {
+      #|      span: {
+      #|        start_offset: 103,
+      #|        end_offset: 141,
+      #|        start_line: 7,
+      #|        start_column: 16,
+      #|        end_line: 9,
+      #|        end_column: 4,
+      #|      },
+      #|      message: "patterns do not cover every `Option` value",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane checks match coverage statically using the pattern matrix"],
+      #|  helps: ["add a missing constructor case or a final `_` wildcard arm"],
+      #|  facts: [],
+      #|  suggestions: [],
+      #|}
     ),
   )
 }
@@ -196,16 +378,49 @@ test "golden module input diagnostic renders span summary and input facts" {
   assert_diagnostic_headline(
     diagnostic, "E4002", "missing imported module `Missing`",
   )
-  inspect(
-    @prettyprinter.render(diagnostic),
+  debug_inspect(
+    diagnostic,
     content=(
-      #|error[E4002]: missing imported module `Missing`
-      #|  span: 2:8-2:15
-      #|  primary: 2:8-2:15: no explicit input provides this module
-      #|  note: Lane only compiles explicitly provided source files and interface artifacts
-      #|  considered source module: `Main`
-      #|  help: pass an input whose declared module is `Missing`, or change the import to one of the listed modules
-      #|  suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
+      #|{
+      #|  source_id: Some("<root>"),
+      #|  message: "missing imported module `Missing`",
+      #|  span: Some(
+      #|    {
+      #|      start_offset: 19,
+      #|      end_offset: 26,
+      #|      start_line: 2,
+      #|      start_column: 8,
+      #|      end_line: 2,
+      #|      end_column: 15,
+      #|    },
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E4002"),
+      #|  labels: [
+      #|    {
+      #|      span: {
+      #|        start_offset: 19,
+      #|        end_offset: 26,
+      #|        start_line: 2,
+      #|        start_column: 8,
+      #|        end_line: 2,
+      #|        end_column: 15,
+      #|      },
+      #|      message: "no explicit input provides this module",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane only compiles explicitly provided source files and interface artifacts"],
+      #|  helps: ["pass an input whose declared module is `Missing`, or change the import to one of the listed modules"],
+      #|  facts: [{ name: "considered source module", value: "`Main`", span: None }],
+      #|  suggestions: [
+      #|    {
+      #|      message: "check the imported module name against the listed explicit inputs",
+      #|      edits: [],
+      #|      applicability: MaybeIncorrect,
+      #|    },
+      #|  ],
+      #|}
     ),
   )
 }

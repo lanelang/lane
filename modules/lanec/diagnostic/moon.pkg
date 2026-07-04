@@ -2,5 +2,4 @@ import {
   "Milky2018/diagnostic/core" @diag_core,
   "Milky2018/diagnostic/source" @diag_source,
   "Milky2018/lanec/basic",
-  "moonbit-community/prettyprinter",
 }

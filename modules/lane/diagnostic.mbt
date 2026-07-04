@@ -68,10 +68,6 @@ enum CliError {
     reason~ : EntryExecutableError
   )
   NotFormatted(path~ : String)
-  FormatDiagnostics(
-    path~ : String,
-    diagnostics~ : Array[@compiler_diag.CompilerDiagnostic]
-  )
   Internal(message~ : String)
 } derive(Debug)
 
@@ -257,14 +253,6 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         ],
       )
     NotFormatted(path~) => command_report(title="\{path}: not formatted")
-    FormatDiagnostics(path~, diagnostics~) =>
-      command_report(
-        title="format diagnostics",
-        details=diagnostics.map(fn(diagnostic) {
-          let rendered = @prettyprinter.render(diagnostic, width=100)
-          "\{path}: \{rendered}"
-        }),
-      )
     Internal(message~) =>
       command_report(
         code="E6200",

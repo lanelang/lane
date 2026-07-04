@@ -5,6 +5,8 @@ async fn lane_fmt(
   deny : Bool,
 ) -> LaneCommandOutcome {
   let errors : Array[CliError] = []
+  let diagnostics : Array[@compiler_diag.CompilerDiagnostic] = []
+  let sources = CompilerDiagnosticSources()
   for file in files {
     let source = read_source_file(file) catch {
       error => {
@@ -12,6 +14,7 @@ async fn lane_fmt(
         continue
       }
     }
+    sources.add(file, source, Some(file))
     match @format.format_source(source) {
       Ok(formatted) =>
         if formatted != source {
@@ -23,9 +26,16 @@ async fn lane_fmt(
             }
           }
         }
-      Err(diagnostics) =>
-        errors.push(FormatDiagnostics(path=file, diagnostics~))
+      Err(file_diagnostics) =>
+        diagnostics.append(
+          file_diagnostics.map(fn(diagnostic) {
+            diagnostic.with_source_id(file)
+          }),
+        )
     }
+  }
+  if !diagnostics.is_empty() {
+    return LaneCommandOutcome::compile_diagnostics(diagnostics, sources, false)
   }
   if !errors.is_empty() {
     UserErrors(errors)

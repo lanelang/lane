@@ -201,25 +201,32 @@ test "duplicate object diagnostics render as command reports" {
 }
 
 ///|
-test "format command diagnostics render through command reports" {
-  guard @format.format_source("module Test\npub let answer : =")
-    is Err(diagnostics) else {
+test "format diagnostics render through source-aware reports" {
+  let source = "module Test\npub let answer : ="
+  guard @format.format_source(source) is Err(diagnostics) else {
     abort("expected format diagnostics")
   }
+  let sources = CompilerDiagnosticSources()
+  sources.add("Main.lane", source, Some("Main.lane"))
+  let diagnostics = diagnostics.map(fn(diagnostic) {
+    diagnostic.with_source_id("Main.lane")
+  })
   inspect(
     [
       NotFormatted(path="Main.lane").render_human(),
-      FormatDiagnostics(path="Main.lane", diagnostics~).render_human(),
+      render_compile_diagnostic(diagnostics[0], sources),
     ].join("\n---\n"),
     content=(
       #|error: Main.lane: not formatted
       #|---
-      #|error: format diagnostics
-      #|Main.lane: error[E1100]: unexpected token
-      #|  span: 2:18-2:19
-      #|  primary: 2:18-2:19: the parser did not expect `=`
-      #|  note: expected one of: identifier, `type`, `(`, `[`
-      #|  help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
+      #|error[E1100]: unexpected token
+      #|  --> Main.lane:2:18
+      #|   |
+      #| 2 | pub let answer : =
+      #|   |                  ^ the parser did not expect `=`
+      #|   |
+      #|  = note: expected one of: identifier, `type`, `(`, `[`
+      #|  = help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
     ),
   )
 }

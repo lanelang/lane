@@ -134,7 +134,9 @@ async fn read_linked_program_artifact(
         ArtifactLoad(
           path~,
           kind="linked program artifact",
-          message=@prettyprinter.render(diagnostics, width=100),
+          message=diagnostics
+            .map(fn(diagnostic) { diagnostic.message })
+            .join("; "),
         ),
       )
   }

@@ -1,7 +1,4 @@
 ///|
-using @prettyprinter {type Document}
-
-///|
 using @compiler_diag {
   type CompilerDiagnostic,
   type CompilerDiagnosticFact,
@@ -1426,18 +1423,4 @@ fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
 ///|
 fn expected_list(expected : Array[@parser.ExpectedSyntax]) -> String {
   expected.map(fn(item) { item.label }).join(", ")
-}
-
-///|
-pub impl @prettyprinter.Pretty for CheckResult with fn pretty(
-  result : CheckResult,
-) -> Document {
-  @compiler_diag.CompilerDiagnostic::list_doc(result.diagnostics)
-}
-
-///|
-pub impl @prettyprinter.Pretty for CompileResult with fn pretty(
-  result : CompileResult,
-) -> Document {
-  @compiler_diag.CompilerDiagnostic::list_doc(result.diagnostics)
 }

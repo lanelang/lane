@@ -1,5 +1,5 @@
 ///|
-using @prettyprinter {separate, text}
+using @prettyprinter {type Document, separate, text}
 
 ///|
 priv struct ArtifactTypeName {

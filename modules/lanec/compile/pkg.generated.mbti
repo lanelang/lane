@@ -120,7 +120,6 @@ pub(all) struct CheckResult {
   source : @checked.CheckedSourceFile?
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for CheckResult
 
 pub(all) struct CompilationFingerprint {
   value : String
@@ -138,7 +137,6 @@ pub(all) struct CompileResult {
   runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for CompileResult
 
 pub(all) struct CompiledModule {
   module_path_text : String
