@@ -97,6 +97,8 @@ pub impl @prettyprinter.Pretty for BuslaneRuntimeError with fn pretty(
     UnboundValue(id) => text("unbound_value") + space + id.pretty()
     MissingExternal(id) => text("missing_external") + space + id.pretty()
     UnhandledOperation(id) => text("unhandled_operation") + space + id.pretty()
+    InvalidRuntimeEffectHandler(id) =>
+      text("invalid_runtime_effect_handler") + space + id.pretty()
     ExternalFailure(id~, message~) =>
       text("external_failure") + space + id.pretty() + space + quoted(message)
     InvalidValue(message~) => text("invalid_value") + space + quoted(message)

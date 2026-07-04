@@ -579,6 +579,12 @@ test "linked artifacts preserve runtime effect operation metadata" {
     artifact.runtime_effect_operations[0].operation.index,
   )
   assert_eq(
+    runtime_operation_result_index(
+      artifact.validate_runtime_effect_operation(signature),
+    ),
+    artifact.runtime_effect_operations[0].operation.index,
+  )
+  assert_eq(
     runtime_operation_index(
       artifact.find_runtime_effect_operation({
         module_path_text: "Other.Io",
@@ -629,6 +635,18 @@ test "linked artifacts preserve runtime effect operation metadata" {
   assert_eq(
     runtime_operation_index(
       artifact.find_runtime_effect_operation({
+        module_path_text: "Stdlib.Io",
+        effect_name: "Write",
+        operation_name: "println",
+        payload: [Primitive(String)],
+        result: Primitive(String),
+      }),
+    ),
+    -1,
+  )
+  assert_eq(
+    runtime_operation_result_index(
+      artifact.validate_runtime_effect_operation({
         module_path_text: "Stdlib.Io",
         effect_name: "Write",
         operation_name: "println",
@@ -3324,6 +3342,19 @@ fn runtime_operation_index(operation : @buslane.OperationId?) -> Int {
   match operation {
     Some(operation) => operation.index
     None => -1
+  }
+}
+
+///|
+fn runtime_operation_result_index(
+  operation : Result[
+    @buslane.OperationId,
+    RuntimeEffectOperationValidationError,
+  ],
+) -> Int {
+  match operation {
+    Ok(operation) => operation.index
+    Err(_) => -1
   }
 }
 

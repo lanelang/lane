@@ -44,12 +44,22 @@ pub(all) suberror BuslaneRuntimeError {
   UnboundValue(@buslane.ValueId)
   MissingExternal(@buslane.ValueId)
   UnhandledOperation(@buslane.OperationId)
+  InvalidRuntimeEffectHandler(@buslane.OperationId)
   ExternalFailure(id~ : @buslane.ValueId, message~ : String)
   InvalidValue(message~ : String)
 } derive(Debug, Eq)
 
 ///|
 pub type BuslaneNativeFunction = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+
+///|
+pub type BuslaneRuntimeEffectHandler = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+
+///|
+priv struct BuslaneRuntimeEffectHandlerEntry {
+  operation : @buslane.OperationId
+  handler : BuslaneRuntimeEffectHandler
+}
 
 ///|
 priv struct BuslaneResumeContinuation {
@@ -62,6 +72,7 @@ pub type BuslaneExternalResolver = (@buslane.ValueId, @buslane.Type) -> BuslaneR
 ///|
 pub struct BuslaneExternalRuntime {
   priv resolvers : Array[BuslaneExternalResolver]
+  priv effect_handlers : Array[BuslaneRuntimeEffectHandlerEntry]
 }
 
 ///|
@@ -194,7 +205,7 @@ fn BuslaneRuntimeProgram::BuslaneRuntimeProgram(
 ///|
 /// Creates an external runtime with no handlers.
 pub fn BuslaneExternalRuntime::BuslaneExternalRuntime() -> BuslaneExternalRuntime {
-  { resolvers: [] }
+  { resolvers: [], effect_handlers: [] }
 }
 
 ///|
@@ -204,6 +215,41 @@ pub fn BuslaneExternalRuntime::add_resolver(
   resolver : BuslaneExternalResolver,
 ) -> Unit {
   self.resolvers.push(resolver)
+}
+
+///|
+/// Adds a runtime effect handler for an operation that reaches the host boundary.
+pub fn BuslaneExternalRuntime::add_effect_handler(
+  self : BuslaneExternalRuntime,
+  operation : @buslane.OperationId,
+  handler : BuslaneRuntimeEffectHandler,
+) -> Unit {
+  self.effect_handlers.push({ operation, handler })
+}
+
+///|
+fn BuslaneExternalRuntime::validate_effect_handlers(
+  self : BuslaneExternalRuntime,
+  metadata : @buslane.MetadataRegistry,
+) -> Unit raise BuslaneRuntimeError {
+  for entry in self.effect_handlers {
+    if metadata.operation_info(entry.operation) is None {
+      raise InvalidRuntimeEffectHandler(entry.operation)
+    }
+  }
+}
+
+///|
+fn BuslaneExternalRuntime::effect_handler(
+  self : BuslaneExternalRuntime,
+  operation : @buslane.OperationId,
+) -> BuslaneRuntimeEffectHandler? {
+  for entry in self.effect_handlers {
+    if entry.operation == operation {
+      return Some(entry.handler)
+    }
+  }
+  None
 }
 
 ///|

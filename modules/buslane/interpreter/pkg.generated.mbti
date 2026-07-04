@@ -20,6 +20,7 @@ pub(all) suberror BuslaneRuntimeError {
   UnboundValue(@buslane.ValueId)
   MissingExternal(@buslane.ValueId)
   UnhandledOperation(@buslane.OperationId)
+  InvalidRuntimeEffectHandler(@buslane.OperationId)
   ExternalFailure(id~ : @buslane.ValueId, message~ : String)
   InvalidValue(message~ : String)
 } derive(Eq, @debug.Debug)
@@ -30,6 +31,7 @@ pub struct BuslaneExternalRuntime {
   // private fields
 }
 pub fn BuslaneExternalRuntime::BuslaneExternalRuntime() -> Self
+pub fn BuslaneExternalRuntime::add_effect_handler(Self, @buslane.OperationId, (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError) -> Unit
 pub fn BuslaneExternalRuntime::add_resolver(Self, (@buslane.ValueId, @buslane.Type) -> BuslaneRuntimeValue raise BuslaneRuntimeError) -> Unit
 
 pub struct BuslaneRuntimeProgram {
@@ -61,6 +63,8 @@ type BuslaneRuntimeValueKind
 pub type BuslaneExternalResolver = (@buslane.ValueId, @buslane.Type) -> BuslaneRuntimeValue raise BuslaneRuntimeError
 
 pub type BuslaneNativeFunction = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+
+pub type BuslaneRuntimeEffectHandler = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
 
 // Traits
 

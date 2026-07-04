@@ -88,6 +88,11 @@ pub(all) struct LinkedRuntimeEffectOperation {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum RuntimeEffectOperationValidationError {
+  MissingRuntimeEffectOperation(RuntimeEffectOperationSignature)
+} derive(Debug, Eq)
+
+///|
 pub fn LinkedProgram::find_runtime_effect_operation(
   self : LinkedProgram,
   signature : RuntimeEffectOperationSignature,
@@ -96,11 +101,27 @@ pub fn LinkedProgram::find_runtime_effect_operation(
 }
 
 ///|
+pub fn LinkedProgram::validate_runtime_effect_operation(
+  self : LinkedProgram,
+  signature : RuntimeEffectOperationSignature,
+) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
+  validate_runtime_effect_operation(self.runtime_effect_operations, signature)
+}
+
+///|
 pub fn LinkedProgramArtifact::find_runtime_effect_operation(
   self : LinkedProgramArtifact,
   signature : RuntimeEffectOperationSignature,
 ) -> @buslane.OperationId? {
   find_runtime_effect_operation(self.runtime_effect_operations, signature)
+}
+
+///|
+pub fn LinkedProgramArtifact::validate_runtime_effect_operation(
+  self : LinkedProgramArtifact,
+  signature : RuntimeEffectOperationSignature,
+) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
+  validate_runtime_effect_operation(self.runtime_effect_operations, signature)
 }
 
 ///|
@@ -118,6 +139,17 @@ fn find_runtime_effect_operation(
     }
   }
   None
+}
+
+///|
+fn validate_runtime_effect_operation(
+  operations : Array[LinkedRuntimeEffectOperation],
+  signature : RuntimeEffectOperationSignature,
+) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
+  match find_runtime_effect_operation(operations, signature) {
+    Some(operation) => Ok(operation)
+    None => Err(MissingRuntimeEffectOperation(signature))
+  }
 }
 
 ///|

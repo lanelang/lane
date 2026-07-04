@@ -12,6 +12,7 @@ pub fn evaluate_buslane_program(
   if !verify_result.is_ok() {
     raise InvalidProgram(verify_result.diagnostics)
   }
+  externals.validate_effect_handlers(program.metadata)
   let globals = BuslaneRuntimeEnvironment::BuslaneRuntimeEnvironment()
   for term in program.terms {
     match term {
@@ -618,6 +619,9 @@ fn dispatch_buslane_perform(
   kont : Kont,
 ) -> BuslaneRuntimeValue raise BuslaneRuntimeError {
   guard find_operation_dispatch(handlers, perform.operation) is Some(dispatch) else {
+    if externals.effect_handler(perform.operation) is Some(handler) {
+      return apply_buslane_kont(handler(payloads), externals, kont)
+    }
     raise UnhandledOperation(perform.operation)
   }
   guard split_kont_at_handler(kont, dispatch.handler.id) is Some(split) else {

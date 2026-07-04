@@ -297,6 +297,7 @@ pub(all) struct LinkedProgram {
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgram::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
 pub fn LinkedProgram::to_artifact(Self) -> LinkedProgramArtifact
+pub fn LinkedProgram::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
 
 pub(all) struct LinkedProgramArtifact {
   schema_version : Int
@@ -308,6 +309,7 @@ pub(all) struct LinkedProgramArtifact {
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgramArtifact::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
 pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedProgram, Array[CompileDiagnostic]]
+pub fn LinkedProgramArtifact::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
 
 pub(all) struct LinkedRuntimeEffectOperation {
@@ -384,6 +386,10 @@ pub(all) struct RuntimeEffectOperationSignature {
   operation_name : String
   payload : Array[@types.Type]
   result : @types.Type
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeEffectOperationValidationError {
+  MissingRuntimeEffectOperation(RuntimeEffectOperationSignature)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct SemanticTokenEntry {
