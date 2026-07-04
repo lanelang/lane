@@ -1,6 +1,6 @@
 module Examples.Valid.CoroutineScheduler
 
-import Ops.*
+import Stdlib.Ops.*
 
 effect Coroutine {
   yield() -> Unit

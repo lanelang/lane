@@ -1,6 +1,6 @@
 module Examples.Valid22
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub enum Option[A] {
   none()

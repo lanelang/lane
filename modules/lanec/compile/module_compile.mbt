@@ -59,6 +59,7 @@ pub(all) struct LinkedProgram {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
 ///|
@@ -66,6 +67,58 @@ pub(all) struct LinkResult {
   program : LinkedProgram?
   diagnostics : Array[CompileDiagnostic]
 } derive(Debug, Eq)
+
+///|
+pub(all) struct RuntimeEffectOperationSignature {
+  module_path_text : String
+  effect_name : String
+  operation_name : String
+  payload : Array[@types.Type]
+  result : @types.Type
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LinkedRuntimeEffectOperation {
+  module_path_text : String
+  effect_name : String
+  operation_name : String
+  payload : Array[@types.Type]
+  result : @types.Type
+  operation : @buslane.OperationId
+} derive(Debug, Eq)
+
+///|
+pub fn LinkedProgram::find_runtime_effect_operation(
+  self : LinkedProgram,
+  signature : RuntimeEffectOperationSignature,
+) -> @buslane.OperationId? {
+  find_runtime_effect_operation(self.runtime_effect_operations, signature)
+}
+
+///|
+pub fn LinkedProgramArtifact::find_runtime_effect_operation(
+  self : LinkedProgramArtifact,
+  signature : RuntimeEffectOperationSignature,
+) -> @buslane.OperationId? {
+  find_runtime_effect_operation(self.runtime_effect_operations, signature)
+}
+
+///|
+fn find_runtime_effect_operation(
+  operations : Array[LinkedRuntimeEffectOperation],
+  signature : RuntimeEffectOperationSignature,
+) -> @buslane.OperationId? {
+  for operation in operations {
+    if operation.module_path_text == signature.module_path_text &&
+      operation.effect_name == signature.effect_name &&
+      operation.operation_name == signature.operation_name &&
+      operation.payload == signature.payload &&
+      operation.result == signature.result {
+      return Some(operation.operation)
+    }
+  }
+  None
+}
 
 ///|
 fn compile_module_graph(

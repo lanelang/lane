@@ -1,6 +1,6 @@
 module Examples.Valid12
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub fn compare_ints(a : Int, b : Int) -> Bool {
   if a < b {

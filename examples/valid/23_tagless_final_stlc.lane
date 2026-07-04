@@ -1,6 +1,6 @@
 module Examples.Valid23
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub struct Stlc[R : [Type] -> Type] {
   int_lit : (Int) -> R[Int]

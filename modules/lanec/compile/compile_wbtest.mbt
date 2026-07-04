@@ -429,6 +429,9 @@ test "module artifacts roundtrip through binary and link" {
       #|externals:
       #|  (none)
       #|
+      #|runtime effects:
+      #|  (none)
+      #|
       #|buslane:
       #|  buslane {
       #|    metadata {
@@ -461,6 +464,7 @@ test "module artifacts roundtrip through binary and link" {
     program: linked_decoded.program,
     externals: linked_decoded.externals,
     entries: duplicated_entries,
+    runtime_effect_operations: linked_decoded.runtime_effect_operations,
   }
   guard duplicate_entry_artifact.to_linked_program()
     is Err(duplicate_entry_diagnostics) else {
@@ -484,6 +488,7 @@ test "module artifacts roundtrip through binary and link" {
         type_: linked_decoded.entries[0].type_,
       },
     ],
+    runtime_effect_operations: linked_decoded.runtime_effect_operations,
   }
   guard unknown_entry_artifact.to_linked_program()
     is Err(unknown_entry_diagnostics) else {
@@ -504,6 +509,7 @@ test "module artifacts roundtrip through binary and link" {
     },
     externals: linked_decoded.externals,
     entries: [],
+    runtime_effect_operations: linked_decoded.runtime_effect_operations,
   }
   guard invalid_program_artifact.to_linked_program()
     is Err(invalid_program_diagnostics) else {
@@ -518,6 +524,128 @@ test "module artifacts roundtrip through binary and link" {
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
     content="verify_result {}",
+  )
+}
+
+///|
+test "linked artifacts preserve runtime effect operation metadata" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|import Stdlib.Io.*
+      #|pub fn main() -> Unit ! Io {
+      #|  Write::println!("hello")
+      #|}
+    ),
+    [
+      (
+        #|module Stdlib.Io
+        #|pub effect Write {
+        #|  println(String) -> Unit
+        #|}
+        #|pub type Console = { Write }
+        #|pub type Io = { Console }
+      ),
+    ],
+  )
+  inspect(@prettyprinter.render(compiled.diagnostics, width=100), content="[]")
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  let linked = link_modules(modules)
+  inspect(@prettyprinter.render(linked.diagnostics, width=100), content="[]")
+  guard linked.program is Some(program) else {
+    abort("expected linked program")
+  }
+  let artifact = program.to_artifact()
+  inspect(
+    artifact.runtime_effect_operations
+    .map(fn(operation) {
+      "\{operation.module_path_text}.\{operation.effect_name}::\{operation.operation_name}/\{operation.payload.length()}->\{@prettyprinter.render(operation.result, width=100)}"
+    })
+    .join("\n"),
+    content="Stdlib.Io.Write::println/1->Unit",
+  )
+  let signature : RuntimeEffectOperationSignature = {
+    module_path_text: "Stdlib.Io",
+    effect_name: "Write",
+    operation_name: "println",
+    payload: [Primitive(String)],
+    result: Primitive(Unit),
+  }
+  let found = artifact.find_runtime_effect_operation(signature)
+  assert_eq(
+    runtime_operation_index(found),
+    artifact.runtime_effect_operations[0].operation.index,
+  )
+  assert_eq(
+    runtime_operation_index(
+      artifact.find_runtime_effect_operation({
+        module_path_text: "Other.Io",
+        effect_name: "Write",
+        operation_name: "println",
+        payload: [Primitive(String)],
+        result: Primitive(Unit),
+      }),
+    ),
+    -1,
+  )
+  assert_eq(
+    runtime_operation_index(
+      artifact.find_runtime_effect_operation({
+        module_path_text: "Stdlib.Io",
+        effect_name: "Console",
+        operation_name: "println",
+        payload: [Primitive(String)],
+        result: Primitive(Unit),
+      }),
+    ),
+    -1,
+  )
+  assert_eq(
+    runtime_operation_index(
+      artifact.find_runtime_effect_operation({
+        module_path_text: "Stdlib.Io",
+        effect_name: "Write",
+        operation_name: "print",
+        payload: [Primitive(String)],
+        result: Primitive(Unit),
+      }),
+    ),
+    -1,
+  )
+  assert_eq(
+    runtime_operation_index(
+      artifact.find_runtime_effect_operation({
+        module_path_text: "Stdlib.Io",
+        effect_name: "Write",
+        operation_name: "println",
+        payload: [Primitive(Int)],
+        result: Primitive(Unit),
+      }),
+    ),
+    -1,
+  )
+  assert_eq(
+    runtime_operation_index(
+      artifact.find_runtime_effect_operation({
+        module_path_text: "Stdlib.Io",
+        effect_name: "Write",
+        operation_name: "println",
+        payload: [Primitive(String)],
+        result: Primitive(String),
+      }),
+    ),
+    -1,
+  )
+  let binary = linked_program_artifact_to_binary(artifact)
+  let decoded = match parse_linked_program_artifact_binary(binary) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message)
+  }
+  assert_eq(
+    runtime_operation_index(decoded.find_runtime_effect_operation(signature)),
+    runtime_operation_index(found),
   )
 }
 
@@ -3189,6 +3317,14 @@ fn find_artifact_module(
     }
   }
   None
+}
+
+///|
+fn runtime_operation_index(operation : @buslane.OperationId?) -> Int {
+  match operation {
+    Some(operation) => operation.index
+    None => -1
+  }
 }
 
 ///|

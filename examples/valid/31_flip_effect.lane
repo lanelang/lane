@@ -1,6 +1,6 @@
 module Examples.Valid.FlipEffect
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub enum BoolList {
   nil()

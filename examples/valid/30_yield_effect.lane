@@ -1,6 +1,6 @@
 module Examples.Valid.YieldEffect
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub enum IntList {
   nil()

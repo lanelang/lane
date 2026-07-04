@@ -86,6 +86,9 @@ pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
   artifact : LinkedProgramArtifact,
 ) -> Document {
   let buslane = BuslaneInspectContext::{ metadata: artifact.program.metadata }
+  let runtime_context = ArtifactInspectContext::from_runtime_effect_operations(
+    artifact.runtime_effect_operations,
+  )
   separate(@prettyprinter.hardline + @prettyprinter.hardline, [
     linked_program_header_doc(artifact),
     section_doc(
@@ -100,6 +103,12 @@ pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
       "externals:",
       artifact.externals.builtins.map(fn(external) {
         text(buslane.external_text(external))
+      }),
+    ),
+    section_doc(
+      "runtime effects:",
+      artifact.runtime_effect_operations.map(fn(operation) {
+        text(runtime_context.runtime_effect_operation_text(operation))
       }),
     ),
     buslane_program_doc(artifact.program.metadata, artifact.program.terms),
@@ -296,6 +305,35 @@ fn ArtifactInspectContext::from_interface(
     }
   }
   context
+}
+
+///|
+fn ArtifactInspectContext::from_runtime_effect_operations(
+  operations : Array[LinkedRuntimeEffectOperation],
+) -> ArtifactInspectContext {
+  let context = ArtifactInspectContext::{
+    types: [],
+    effects: [],
+    type_parameters: [],
+  }
+  for operation in operations {
+    for payload in operation.payload {
+      context.add_type_parameters_from_type(payload)
+    }
+    context.add_type_parameters_from_type(operation.result)
+  }
+  context
+}
+
+///|
+fn ArtifactInspectContext::runtime_effect_operation_text(
+  self : ArtifactInspectContext,
+  operation : LinkedRuntimeEffectOperation,
+) -> String {
+  let payload = operation.payload
+    .map(fn(type_) { self.type_text(type_) })
+    .join(", ")
+  "\{operation.module_path_text}.\{operation.effect_name}::\{operation.operation_name}(\{payload}) -> \{self.type_text(operation.result)} => operation#\{operation.operation.index}"
 }
 
 ///|

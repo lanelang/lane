@@ -1,5 +1,5 @@
 module Examples.Valid.ModuleQualifiedAccess
 
-import Builtins
+import Stdlib.Builtins
 
-pub let answer : Int = Builtins.int_add(20, 22)
+pub let answer : Int = Stdlib.Builtins.int_add(20, 22)

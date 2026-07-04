@@ -8,6 +8,7 @@ import {
   "Milky2018/lanec/elaborate",
   "Milky2018/lanec/module_interface",
   "Milky2018/lanec/symbol",
+  "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
@@ -292,7 +293,9 @@ pub(all) struct LinkedProgram {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
+pub fn LinkedProgram::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
 pub fn LinkedProgram::to_artifact(Self) -> LinkedProgramArtifact
 
 pub(all) struct LinkedProgramArtifact {
@@ -301,9 +304,20 @@ pub(all) struct LinkedProgramArtifact {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
+pub fn LinkedProgramArtifact::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
 pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedProgram, Array[CompileDiagnostic]]
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
+
+pub(all) struct LinkedRuntimeEffectOperation {
+  module_path_text : String
+  effect_name : String
+  operation_name : String
+  payload : Array[@types.Type]
+  result : @types.Type
+  operation : @buslane.OperationId
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleImportedReference {
   module_path_text : String
@@ -362,6 +376,14 @@ pub(all) struct ReferenceEntry {
   location : AnalysisLocation
   symbol : AnalysisSymbol
   hover : String?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct RuntimeEffectOperationSignature {
+  module_path_text : String
+  effect_name : String
+  operation_name : String
+  payload : Array[@types.Type]
+  result : @types.Type
 } derive(Eq, @debug.Debug)
 
 pub(all) struct SemanticTokenEntry {

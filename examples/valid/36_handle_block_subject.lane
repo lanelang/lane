@@ -1,6 +1,6 @@
 module Examples.Valid.HandleBlockSubject
 
-import Ops.*
+import Stdlib.Ops.*
 
 effect Console {
   read() -> Int

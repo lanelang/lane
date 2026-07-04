@@ -1,6 +1,6 @@
 module Examples.Valid.EffectSetAliases
 
-import Ops.*
+import Stdlib.Ops.*
 
 effect Console {
   read() -> Int

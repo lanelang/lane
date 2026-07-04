@@ -1,10 +1,10 @@
 ///|
 fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
-  match linked_module_objects(modules) {
+  match linked_modules(modules) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(objects) =>
-      link_ordered_module_objects(
-        objects,
+    Ok(ordered_modules) =>
+      link_ordered_modules(
+        ordered_modules,
         RootEntries(modules.root_module_path_text),
       )
   }
@@ -12,27 +12,33 @@ fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
 
 ///|
 fn link_compiled_modules(modules : Array[CompiledModule]) -> LinkResult {
-  match linked_all_module_objects(modules) {
+  match linked_all_modules(modules) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(objects) => link_ordered_module_objects(objects, QualifiedEntries)
+    Ok(ordered_modules) =>
+      link_ordered_modules(ordered_modules, QualifiedEntries)
   }
 }
 
 ///|
-fn link_ordered_module_objects(
-  objects : Array[ModuleObject],
+fn link_ordered_modules(
+  modules : Array[CompiledModule],
   entry_mode : LinkedEntryMode,
 ) -> LinkResult {
   let remapper = BuslaneLinker::BuslaneLinker()
+  let objects = modules.map(fn(module_) { module_.object })
   let remapped_objects = remapper.remap_module_objects(objects)
   let module_path_texts = []
   let terms = []
   let builtins = []
   let entries : Array[@elaborate.BuslaneEntry] = []
-  for object in remapped_objects {
+  let runtime_effect_operations : Array[LinkedRuntimeEffectOperation] = []
+  for index, object in remapped_objects {
     module_path_texts.push(object.module_path_text)
     terms.append(object.terms)
     builtins.append(object.externals.builtins)
+    runtime_effect_operations.append(
+      runtime_effect_operations_from_module(modules[index], object),
+    )
     match entry_mode {
       RootEntries(root) =>
         if object.module_path_text == root {
@@ -50,9 +56,40 @@ fn link_ordered_module_objects(
       program: { metadata: remapper.metadata, terms },
       externals: { builtins, },
       entries,
+      runtime_effect_operations,
     }),
     diagnostics: [],
   }
+}
+
+///|
+fn runtime_effect_operations_from_module(
+  module_ : CompiledModule,
+  object : RemappedModuleObject,
+) -> Array[LinkedRuntimeEffectOperation] {
+  let operations : Array[LinkedRuntimeEffectOperation] = []
+  for effect in module_.interface.effects {
+    for operation in effect.operations {
+      let export_name = effect_operation_export_name(
+        effect.name,
+        operation.name,
+      )
+      if find_module_export(object.exports, Operation, export_name)
+        is Some(export_) {
+        if export_.operation is Some(operation_id) {
+          operations.push({
+            module_path_text: module_.module_path_text,
+            effect_name: effect.name,
+            operation_name: operation.name,
+            payload: operation.payload,
+            result: operation.result,
+            operation: operation_id,
+          })
+        }
+      }
+    }
+  }
+  operations
 }
 
 ///|
@@ -168,9 +205,9 @@ fn find_linked_export(
 }
 
 ///|
-fn linked_module_objects(
+fn linked_modules(
   modules : CompiledModuleSet,
-) -> Result[Array[ModuleObject], Array[CompileDiagnostic]] {
+) -> Result[Array[CompiledModule], Array[CompileDiagnostic]] {
   let module_diagnostics = validate_compiled_modules(modules.modules)
   if !module_diagnostics.is_empty() {
     return Err(module_diagnostics)
@@ -182,22 +219,20 @@ fn linked_module_objects(
   if !ordered.diagnostics.is_empty() {
     return Err(ordered.diagnostics)
   }
-  let objects = []
   for module_ in ordered.modules {
     let object = module_.object
     let diagnostics = validate_link_object(modules.modules, module_, object)
     if !diagnostics.is_empty() {
       return Err(diagnostics)
     }
-    objects.push(object)
   }
-  Ok(objects)
+  Ok(ordered.modules)
 }
 
 ///|
-fn linked_all_module_objects(
+fn linked_all_modules(
   modules : Array[CompiledModule],
-) -> Result[Array[ModuleObject], Array[CompileDiagnostic]] {
+) -> Result[Array[CompiledModule], Array[CompileDiagnostic]] {
   let module_diagnostics = validate_compiled_modules(modules)
   if !module_diagnostics.is_empty() {
     return Err(module_diagnostics)
@@ -206,16 +241,14 @@ fn linked_all_module_objects(
   if !ordered.diagnostics.is_empty() {
     return Err(ordered.diagnostics)
   }
-  let objects = []
   for module_ in ordered.modules {
     let object = module_.object
     let diagnostics = validate_link_object(modules, module_, object)
     if !diagnostics.is_empty() {
       return Err(diagnostics)
     }
-    objects.push(object)
   }
-  Ok(objects)
+  Ok(ordered.modules)
 }
 
 ///|

@@ -1,11 +1,11 @@
 module Examples.Valid.ModuleQualifiedTypeAccess
 
-import Builtins
+import Stdlib.Builtins
 
-import Ops
+import Stdlib.Ops
 
-let add_ops : Ops.Add[Int] = Ops.Add::{
-  add: Builtins.int_add
+let add_ops : Stdlib.Ops.Add[Int] = Stdlib.Ops.Add::{
+  add: Stdlib.Builtins.int_add
 }
 
 pub let answer : Int = add_ops.add(20, 22)

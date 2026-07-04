@@ -1,6 +1,6 @@
 module Examples.Valid06
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub fn add_three(a : Int, b : Int, c : Int) -> Int {
   a + b + c

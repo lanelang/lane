@@ -1,6 +1,6 @@
 module Examples.Valid05
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub fn custom_add(a : Int, b : Int) -> Int {
   a

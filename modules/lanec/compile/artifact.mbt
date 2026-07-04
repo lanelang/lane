@@ -35,6 +35,7 @@ pub(all) struct LinkedProgramArtifact {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
 ///|
@@ -127,6 +128,7 @@ pub fn LinkedProgram::to_artifact(
     program: self.program,
     externals: self.externals,
     entries: self.entries,
+    runtime_effect_operations: self.runtime_effect_operations,
   }
 }
 
@@ -143,6 +145,7 @@ pub fn LinkedProgramArtifact::to_linked_program(
       program: self.program,
       externals: self.externals,
       entries: self.entries,
+      runtime_effect_operations: self.runtime_effect_operations,
     })
   }
 }
@@ -299,6 +302,7 @@ fn LinkedProgramArtifact::validate(
   }
   self.validate_modules(diagnostics)
   self.validate_entries(diagnostics)
+  self.validate_runtime_effect_operations(diagnostics)
   diagnostics
 }
 
@@ -345,6 +349,20 @@ fn LinkedProgramArtifact::validate_entries(
           ),
         )
       }
+    }
+  }
+}
+
+///|
+fn LinkedProgramArtifact::validate_runtime_effect_operations(
+  self : LinkedProgramArtifact,
+  diagnostics : Array[CompileDiagnostic],
+) -> Unit {
+  for operation in self.runtime_effect_operations {
+    if self.program.metadata.operation_info(operation.operation) is None {
+      diagnostics.push(
+        CompileErrorKind::to_diagnostic(InvalidLinkedBuslaneProgram, None),
+      )
     }
   }
 }

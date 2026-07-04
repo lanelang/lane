@@ -542,6 +542,7 @@ fn ArtifactTextWriter::write_linked_program_artifact(
   self.write_buslane_program_block(artifact.program)
   self.write_externals(artifact.externals)
   self.write_entries(artifact.entries)
+  self.write_runtime_effect_operations(artifact.runtime_effect_operations)
 }
 
 ///|
@@ -556,7 +557,15 @@ fn ArtifactTextReader::read_linked_program_artifact(
   let program = self.read_buslane_program_block()
   let externals = self.read_externals()
   let entries = self.read_entries()
-  { schema_version, module_path_texts, program, externals, entries }
+  let runtime_effect_operations = self.read_runtime_effect_operations()
+  {
+    schema_version,
+    module_path_texts,
+    program,
+    externals,
+    entries,
+    runtime_effect_operations,
+  }
 }
 
 ///|
@@ -1542,6 +1551,23 @@ fn ArtifactTextReader::read_buslane_value_id(
 }
 
 ///|
+fn ArtifactTextWriter::write_operation_id(
+  self : ArtifactTextWriter,
+  tag : String,
+  id : @buslane.OperationId,
+) -> Unit {
+  self.write_int(tag, id.index)
+}
+
+///|
+fn ArtifactTextReader::read_operation_id(
+  self : ArtifactTextReader,
+  tag : String,
+) -> @buslane.OperationId raise ArtifactTextError {
+  { index: self.expect_int(tag) }
+}
+
+///|
 fn ArtifactTextWriter::write_optional_type_id(
   self : ArtifactTextWriter,
   tag : String,
@@ -1740,6 +1766,62 @@ fn ArtifactTextReader::read_entries(
     entries.push({ name, value, type_ })
   }
   entries
+}
+
+///|
+fn ArtifactTextWriter::write_runtime_effect_operations(
+  self : ArtifactTextWriter,
+  operations : Array[LinkedRuntimeEffectOperation],
+) -> Unit {
+  self.write_int("runtime_effect_operations", operations.length())
+  for operation in operations {
+    self.write_string(
+      "runtime_effect_operation.module_path_text",
+      operation.module_path_text,
+    )
+    self.write_string(
+      "runtime_effect_operation.effect_name",
+      operation.effect_name,
+    )
+    self.write_string(
+      "runtime_effect_operation.operation_name",
+      operation.operation_name,
+    )
+    self.write_lane_types("runtime_effect_operation.payload", operation.payload)
+    self.write_lane_type(operation.result)
+    self.write_operation_id(
+      "runtime_effect_operation.operation",
+      operation.operation,
+    )
+  }
+}
+
+///|
+fn ArtifactTextReader::read_runtime_effect_operations(
+  self : ArtifactTextReader,
+) -> Array[LinkedRuntimeEffectOperation] raise ArtifactTextError {
+  let operations : Array[LinkedRuntimeEffectOperation] = []
+  for _ in 0..<self.expect_int("runtime_effect_operations") {
+    let module_path_text = self.expect_string(
+      "runtime_effect_operation.module_path_text",
+    )
+    let effect_name = self.expect_string("runtime_effect_operation.effect_name")
+    let operation_name = self.expect_string(
+      "runtime_effect_operation.operation_name",
+    )
+    let payload = self.read_lane_types("runtime_effect_operation.payload")
+    let result = self.read_lane_type()
+    let operation = self.read_operation_id("runtime_effect_operation.operation")
+    operations.push({
+      module_path_text,
+      effect_name,
+      operation_name,
+      payload,
+      result,
+      operation,
+    })
+  }
+  operations
 }
 
 ///|

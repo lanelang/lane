@@ -3,7 +3,7 @@
 
 module Examples.Valid15
 
-import Ops.*
+import Stdlib.Ops.*
 
 pub struct Box[A] {
   value : A
