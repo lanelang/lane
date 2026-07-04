@@ -127,7 +127,7 @@ fn ImportDeclaration::to_doc(self : ImportDeclaration) -> Document {
       keyword("import") +
       space +
       module_path.to_doc() +
-      text("::") +
+      text(".") +
       surround(char('{'), char('}'), join_comma(items.map(ImportItem::to_doc)))
   }
 }

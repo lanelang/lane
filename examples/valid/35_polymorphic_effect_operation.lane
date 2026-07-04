@@ -1,5 +1,7 @@
 module Examples.Valid.PolymorphicEffectOperation
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 effect Prompt {
@@ -14,7 +16,7 @@ fn choose_inferred() -> Int ! Prompt {
   Prompt::choose!(1, 2)
 }
 
-pub let answer : Int = {
+pub let handled_value : Int = {
   let first : Int = handle choose_explicit() with {
     Prompt::choose[T](left, right, resume) => resume(left)
   } final value {
@@ -26,4 +28,12 @@ pub let answer : Int = {
     value
   }
   first + second
+}
+
+pub fn answer() -> Unit ! Io {
+  if handled_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
 }

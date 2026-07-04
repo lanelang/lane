@@ -1,5 +1,7 @@
 module Examples.Valid.SimpleCoroutine
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 effect Coroutine {
@@ -37,4 +39,12 @@ fn drive(step : CoroutineStep) -> Int {
   }
 }
 
-pub let answer : Int = drive(start())
+pub let coroutine_total : Int = drive(start())
+
+pub fn answer() -> Unit ! Io {
+  if coroutine_total == 137 {
+    Write::println!("137")
+  } else {
+    Write::println!("bad:137")
+  }
+}

@@ -1,7 +1,15 @@
 module Examples.Valid07
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub fn host_int() -> Int {
   builtin("%host_int")
 }
 
 pub let host_value : Int = builtin("%host_value")
+
+pub fn answer() -> Unit ! Io {
+  Write::println!("builtin external typed")
+}

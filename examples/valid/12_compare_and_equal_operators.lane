@@ -1,5 +1,7 @@
 module Examples.Valid12
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub fn compare_ints(a : Int, b : Int) -> Bool {
@@ -7,5 +9,13 @@ pub fn compare_ints(a : Int, b : Int) -> Bool {
     a != b
   } else {
     a == b || a > b
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if compare_ints(1, 2) && compare_ints(2, 1) {
+    Write::println!("compare=true")
+  } else {
+    Write::println!("bad:compare=true")
   }
 }

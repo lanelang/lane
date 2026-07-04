@@ -1,5 +1,7 @@
 module Examples.Valid22
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub enum Option[A] {
@@ -113,8 +115,16 @@ pub let applied_identity : Term = app(identity, identity)
 
 pub let normal_identity : Term = normalize(8, applied_identity)
 
-pub let answer : Int = if is_identity(normal_identity) {
+pub let normalized_size : Int = if is_identity(normal_identity) {
   40 + term_size(normal_identity)
 } else {
   0
+}
+
+pub fn answer() -> Unit ! Io {
+  if normalized_size == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
 }

@@ -1,5 +1,9 @@
 module Examples.Valid03
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 fn[A] choose(cond : Bool, left : A, right : A) -> A {
   if cond {
     left
@@ -20,4 +24,12 @@ pub fn check_expected_function() -> Int {
     x
   }
   f(1)
+}
+
+pub fn answer() -> Unit ! Io {
+  if choose(true, 1, 2) == 1 && use_local_id(41) == 41 && check_expected_function() == 1 {
+    Write::println!("generic=1")
+  } else {
+    Write::println!("bad:generic=1")
+  }
 }

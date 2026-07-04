@@ -1,5 +1,7 @@
 module Examples.Valid08
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub struct Meter {
@@ -38,5 +40,13 @@ pub fn use_forwarded_field() -> Int {
     1
   } else {
     0
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if use_forwarded_field() == 1 {
+    Write::println!("forwarded equality=1")
+  } else {
+    Write::println!("bad:forwarded equality=1")
   }
 }

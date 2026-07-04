@@ -105,7 +105,7 @@ _Avoid_: integer trap, arbitrary precision integer
 > **Dev:** "Can single-file `lane run` execute `main` by default?"
 > **Domain expert:** "No. The **Run Entry Convention** requires `FILE:ENTRY` and executes only an **Executable Entry Type**."
 
-> **Dev:** "Can `lane run` inspect a selected public value such as `answer : Int`?"
+> **Dev:** "Can `lane run` inspect a selected public value such as `sample : Int`?"
 > **Domain expert:** "No. **Run Entry Convention** executes an **Executable Entry Type**; arbitrary value inspection belongs to inspect tooling."
 
 > **Dev:** "Can a runtime effect handler intercept operations already handled by source code?"

@@ -1,5 +1,7 @@
 module Examples.Valid23
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub struct Stlc[R : [Type] -> Type] {
@@ -153,4 +155,12 @@ pub let measured : Size[Int] = object_program(size_stlc)
 
 pub let measured_size : Int = measured.size
 
-pub let answer : Int = evaluated.value
+pub let evaluated_value : Int = evaluated.value
+
+pub fn answer() -> Unit ! Io {
+  if evaluated_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

@@ -1,12 +1,14 @@
 module Examples.Valid.HandleBlockSubject
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 effect Console {
   read() -> Int
 }
 
-pub let answer : Int = {
+pub let handled_value : Int = {
   handle {
     let base : Int = 40
     base + Console::read!()
@@ -14,5 +16,13 @@ pub let answer : Int = {
     Console::read(resume) => resume(2)
   } final value {
     value
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if handled_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
   }
 }

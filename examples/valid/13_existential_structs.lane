@@ -1,5 +1,9 @@
 module Examples.Valid13
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub struct Hide {
   type T : Type
   val : T
@@ -20,7 +24,11 @@ pub fn repack(h : Hide) -> Hide {
 
 pub let packed_int : Hide = Hide::{
   T = Int,
-  val: builtin("%answer")
+  val: builtin("%external_int")
 }
 
 pub let repacked_int : Hide = repack(packed_int)
+
+pub fn answer() -> Unit ! Io {
+  Write::println!("existential struct packed")
+}

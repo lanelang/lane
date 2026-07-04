@@ -2,8 +2,20 @@
 
 module Examples.Valid20
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub type Shadow[A] = type[A] => A
 
 pub type BoolAlias = Shadow[Int][Bool]
 
-pub let answer : BoolAlias = true
+pub let shadowed_value : BoolAlias = true
+
+pub fn answer() -> Unit ! Io {
+  if shadowed_value {
+    Write::println!("true")
+  } else {
+    Write::println!("bad:true")
+  }
+}

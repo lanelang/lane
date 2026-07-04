@@ -1,5 +1,9 @@
 module Examples.Valid.NestedPatternExhaustiveness
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub enum Option[A] {
   none()
   some(A)
@@ -28,4 +32,16 @@ pub fn boxed(value : Box[Option[Int]]) -> Int {
   }
 }
 
-pub let answer : Int = flatten(some(some(42)))
+pub let flattened_value : Int = flatten(some(some(42)))
+
+pub fn answer() -> Unit ! Io {
+  if flattened_value == 42 && boxed(
+    Box::{
+      value: some(42)
+    }
+  ) == 42 {
+    Write::println!("flatten=42 boxed=42")
+  } else {
+    Write::println!("bad:flatten=42 boxed=42")
+  }
+}

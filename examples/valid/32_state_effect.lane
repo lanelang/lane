@@ -1,5 +1,7 @@
 module Examples.Valid.StateEffect
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub struct StateResult {
@@ -38,4 +40,12 @@ fn run_tick() -> (Int) -> StateResult {
 
 pub let result : StateResult = run_tick()(41)
 
-pub let answer : Int = result.value
+pub let state_value : Int = result.value
+
+pub fn answer() -> Unit ! Io {
+  if state_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

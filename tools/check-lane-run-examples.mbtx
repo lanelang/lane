@@ -18,12 +18,19 @@ struct FixtureManifest {
 
 let fixture_timeout_ms : Int = 60000
 
-struct FixtureCase {
-  name : String
-  file : String
-  entry : String
-  mode : FixtureMode
-  expectation : FixtureExpectation
+enum FixtureCase {
+  CheckSuccessCase(name~ : String, file~ : String)
+  CheckErrorCase(
+    name~ : String,
+    file~ : String,
+    expectation~ : FixtureExpectation
+  )
+  RunCase(
+    name~ : String,
+    file~ : String,
+    entry~ : String,
+    expectation~ : FixtureExpectation
+  )
 }
 
 struct LaneRunResult {
@@ -37,7 +44,8 @@ enum FixtureExpectation {
 }
 
 enum FixtureMode {
-  CheckOnly
+  CheckSuccess
+  CheckError
   RunEntry
 } derive(Eq)
 
@@ -51,20 +59,20 @@ async fn main raise {
     )
     guard result is Some(result) else {
       failure_count += 1
-      println("FAILED " + case.name)
-      println("  file: " + case.file)
-      println("  entry: " + case.entry)
+      println("FAILED " + case.name())
+      println("  file: " + case.file())
+      case.print_entry()
       println("  error: timed out after " + fixture_timeout_ms.to_string() + "ms")
       continue
     }
     if !matches_case_result(case, result) {
       failure_count += 1
-      println("FAILED " + case.name)
-      println("  file: " + case.file)
-      println("  entry: " + case.entry)
+      println("FAILED " + case.name())
+      println("  file: " + case.file())
+      case.print_entry()
       println("  exit: " + result.code.to_string())
       println("  actual: " + result.output)
-      print_expectation(case.expectation)
+      case.print_expectation()
     }
   }
   let separate_result = @async.with_timeout_opt(
@@ -126,21 +134,29 @@ fn decode_case(json : Json, path : String) -> FixtureCase {
     {
       "name": String(name),
       "file": String(file),
-      "entry": String(entry),
-      "expect": expectation,
       ..
     } =>
-      {
-        name,
-        file,
-        entry,
-        mode: decode_mode(json, path + ".mode"),
-        expectation: decode_expectation(expectation, path + ".expect"),
+      match decode_mode(json, path + ".mode") {
+        CheckSuccess => {
+          reject_entry_field(json, path)
+          reject_expect_field(json, path)
+          CheckSuccessCase(name~, file~)
+        }
+        CheckError => {
+          reject_entry_field(json, path)
+          let expectation = decode_required_expectation(json, path)
+          CheckErrorCase(name~, file~, expectation~)
+        }
+        RunEntry => {
+          let entry = decode_required_entry(json, path)
+          let expectation = decode_required_expectation(json, path)
+          RunCase(name~, file~, entry~, expectation~)
+        }
       }
     _ =>
       abort(
         path +
-        " must contain string fields name/file/entry and object field expect",
+        " must contain string fields name/file and string field mode",
       )
   }
 }
@@ -149,11 +165,43 @@ fn decode_mode(json : Json, path : String) -> FixtureMode {
   match json {
     { "mode": String(mode), .. } =>
       match mode {
-        "check" => CheckOnly
+        "check" => CheckSuccess
+        "check-error" => CheckError
         "run" => RunEntry
-        _ => abort(path + " must be \"check\" or \"run\"")
+        _ => abort(path + " must be \"check\", \"check-error\", or \"run\"")
       }
-    _ => CheckOnly
+    _ => abort(path + " is required")
+  }
+}
+
+fn reject_entry_field(json : Json, path : String) -> Unit {
+  if json is { "entry": _, .. } {
+    abort(path + ".entry is only valid for run cases")
+  }
+}
+
+fn reject_expect_field(json : Json, path : String) -> Unit {
+  if json is { "expect": _, .. } {
+    abort(path + ".expect is only valid for check-error and run cases")
+  }
+}
+
+fn decode_required_entry(json : Json, path : String) -> String {
+  match json {
+    { "entry": String(entry), .. } => entry
+    { "entry": _, .. } => abort(path + ".entry must be a JSON string")
+    _ => abort(path + ".entry is required for run cases")
+  }
+}
+
+fn decode_required_expectation(
+  json : Json,
+  path : String
+) -> FixtureExpectation {
+  match json {
+    { "expect": expectation, .. } =>
+      decode_expectation(expectation, path + ".expect")
+    _ => abort(path + ".expect is required")
   }
 }
 
@@ -180,8 +228,9 @@ fn decode_string(json : Json, path : String) -> String {
 }
 
 async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult {
-  ignore(read_text(case.file))
-  let fmt_args = ["fmt", "--deny", case.file]
+  let file = case.file()
+  ignore(read_text(file))
+  let fmt_args = ["fmt", "--deny", file]
   let (fmt_code, fmt_output) = run_lane_process(fmt_args)
   let fmt_output = fmt_output.text().trim_end(chars="\n\r").to_owned()
   if fmt_code != 0 {
@@ -191,7 +240,7 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
     return { code: 0, output: fmt_output }
   }
   let check_args = [
-    "check", "--deny", case.file,
+    "check", "--deny", file,
   ]
   for lib_dir in lib_dirs {
     check_args.push("--lib-dir")
@@ -205,16 +254,62 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
   if !check_output.is_empty() {
     return { code: 0, output: check_output }
   }
-  if case.mode == CheckOnly {
-    return { code: 0, output: "" }
+  match case {
+    CheckSuccessCase(..) | CheckErrorCase(..) =>
+      return { code: check_code, output: check_output }
+    RunCase(entry~, ..) => {
+      let args = ["run", file + ":" + entry]
+      for lib_dir in lib_dirs {
+        args.push("--lib-dir")
+        args.push(lib_dir)
+      }
+      let (code, output) = run_lane_process(args)
+      return { code, output: output.text().trim_end(chars="\n\r").to_owned() }
+    }
   }
-  let args = ["run", case.file + ":" + case.entry]
-  for lib_dir in lib_dirs {
-    args.push("--lib-dir")
-    args.push(lib_dir)
+}
+
+fn FixtureCase::name(self : FixtureCase) -> String {
+  match self {
+    CheckSuccessCase(name~, ..) => name
+    CheckErrorCase(name~, ..) => name
+    RunCase(name~, ..) => name
   }
-  let (code, output) = run_lane_process(args)
-  { code, output: output.text().trim_end(chars="\n\r").to_owned() }
+}
+
+fn FixtureCase::file(self : FixtureCase) -> String {
+  match self {
+    CheckSuccessCase(file~, ..) => file
+    CheckErrorCase(file~, ..) => file
+    RunCase(file~, ..) => file
+  }
+}
+
+fn FixtureCase::print_entry(self : FixtureCase) -> Unit {
+  if self is RunCase(entry~, ..) {
+    println("  entry: " + entry)
+  }
+}
+
+fn FixtureCase::print_expectation(self : FixtureCase) -> Unit {
+  match self {
+    CheckSuccessCase(..) => println("  expected: successful format and check")
+    CheckErrorCase(expectation~, ..) => print_expectation(expectation)
+    RunCase(expectation~, ..) => print_expectation(expectation)
+  }
+}
+
+fn FixtureCase::matches_result(
+  self : FixtureCase,
+  result : LaneRunResult
+) -> Bool {
+  match self {
+    CheckSuccessCase(..) => result.code == 0 && result.output == ""
+    CheckErrorCase(expectation~, ..) =>
+      result.code != 0 && matches_expectation(result.output, expectation)
+    RunCase(expectation~, ..) =>
+      result.code == 0 && matches_expectation(result.output, expectation)
+  }
 }
 
 async fn run_separate_compile_smoke() -> LaneRunResult {
@@ -375,15 +470,7 @@ fn matches_expectation(output : String, expectation : FixtureExpectation) -> Boo
 }
 
 fn matches_case_result(case : FixtureCase, result : LaneRunResult) -> Bool {
-  if case.file.has_prefix("examples/invalid/") {
-    let expectation_matched = matches_expectation(result.output, case.expectation)
-    result.code != 0 && expectation_matched
-  } else if case.mode == CheckOnly {
-    result.code == 0 && result.output == ""
-  } else {
-    let expectation_matched = matches_expectation(result.output, case.expectation)
-    result.code == 0 && expectation_matched
-  }
+  case.matches_result(result)
 }
 
 fn print_expectation(expectation : FixtureExpectation) -> Unit {

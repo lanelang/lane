@@ -11,7 +11,7 @@ moon build modules/lane_wasm --target wasm
 The semantic request is JSON:
 
 ```json
-{ "source": "module Test\npub let answer : Int = 42" }
+{ "source": "module Test\npub let sample_value : Int = 42" }
 ```
 
 The response is JSON:

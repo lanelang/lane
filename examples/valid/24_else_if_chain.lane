@@ -1,5 +1,9 @@
 module Examples.Valid.ElseIfChain
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub fn choose(first : Bool, second : Bool) -> Int {
   if first {
     1
@@ -15,3 +19,11 @@ pub let first : Int = choose(true, false)
 pub let second : Int = choose(false, true)
 
 pub let fallback : Int = choose(false, false)
+
+pub fn answer() -> Unit ! Io {
+  if first == 1 && second == 2 && fallback == 3 {
+    Write::println!("1,2,3")
+  } else {
+    Write::println!("bad:1,2,3")
+  }
+}

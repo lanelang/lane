@@ -7,4 +7,4 @@ pub type A = B
 
 pub type B = A
 
-pub let answer : A = 42
+pub let bad : A = 42

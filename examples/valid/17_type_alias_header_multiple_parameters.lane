@@ -2,6 +2,18 @@
 
 module Examples.Valid17
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub type Left[A, B] = A
 
-pub let answer : Left[Int, Bool] = 42
+pub let left_value : Left[Int, Bool] = 42
+
+pub fn answer() -> Unit ! Io {
+  if left_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

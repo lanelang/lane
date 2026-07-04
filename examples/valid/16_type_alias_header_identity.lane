@@ -3,6 +3,18 @@
 
 module Examples.Valid16
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub type Id[A] = A
 
-pub let answer : Id[Int] = 42
+pub let identity_value : Id[Int] = 42
+
+pub fn answer() -> Unit ! Io {
+  if identity_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

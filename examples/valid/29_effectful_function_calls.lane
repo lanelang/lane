@@ -1,5 +1,9 @@
 module Examples.Valid.EffectfulFunctionCalls
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 effect Console {
   read() -> Int
 }
@@ -12,10 +16,18 @@ fn call_read(f : () -> Int ! Console) -> Int ! Console {
   f()
 }
 
-pub let answer : Int = {
+pub let handled_value : Int = {
   handle call_read(read_int) with {
     Console::read(resume) => resume(42)
   } final value {
     value
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if handled_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
   }
 }

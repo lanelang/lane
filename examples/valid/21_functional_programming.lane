@@ -1,5 +1,7 @@
 module Examples.Valid21
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub enum Option[A] {
@@ -200,9 +202,14 @@ pub let selected_number : Option[Int] = option_flat_mappable.flat_map(
   index(reverse(applied_numbers), 2)
 )
 
-pub let selected_answer : Option[Int] = option_applicative.apply(
-  some(identity_int),
-  selected_number
-)
+pub let selected_value : Option[Int] = option_applicative.apply(some(identity_int), selected_number)
 
-pub let answer : Int = unwrap_or(selected_answer, 0) + found_score(elem(numbers, 3))
+pub let final_score : Int = unwrap_or(selected_value, 0) + found_score(elem(numbers, 3))
+
+pub fn answer() -> Unit ! Io {
+  if final_score == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

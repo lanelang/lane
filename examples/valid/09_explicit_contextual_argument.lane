@@ -1,5 +1,7 @@
 module Examples.Valid09
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub fn weird_add(a : Int, b : Int) -> Int {
@@ -11,4 +13,12 @@ pub fn use_weird_add(a : Int, b : Int) -> Int {
     add: weird_add
   }
   op_add(a, b, op=weird_add_ops)
+}
+
+pub fn answer() -> Unit ! Io {
+  if use_weird_add(40, 2) == 40 {
+    Write::println!("weird_add=40")
+  } else {
+    Write::println!("bad:weird_add=40")
+  }
 }

@@ -3,6 +3,8 @@
 
 module Examples.Valid15
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub struct Box[A] {
@@ -17,8 +19,16 @@ pub fn get(box : ApplyInt[Box]) -> Id[Int] {
   box.value
 }
 
-pub let answer : Id[Int] = get(
+pub let aliased_value : Id[Int] = get(
   Box::{
     value: 42
   }
 )
+
+pub fn answer() -> Unit ! Io {
+  if aliased_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

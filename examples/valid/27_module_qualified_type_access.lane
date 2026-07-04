@@ -1,5 +1,9 @@
 module Examples.Valid.ModuleQualifiedTypeAccess
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Builtins
 
 import Stdlib.Ops
@@ -8,4 +12,12 @@ let add_ops : Stdlib.Ops.Add[Int] = Stdlib.Ops.Add::{
   add: Stdlib.Builtins.int_add
 }
 
-pub let answer : Int = add_ops.add(20, 22)
+pub let sum_value : Int = add_ops.add(20, 22)
+
+pub fn answer() -> Unit ! Io {
+  if sum_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

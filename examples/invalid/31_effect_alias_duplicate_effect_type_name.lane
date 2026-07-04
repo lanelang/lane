@@ -6,4 +6,4 @@ effect IO {
 
 type IO = { IO }
 
-pub let answer : Int = 42
+pub let bad : Int = 42

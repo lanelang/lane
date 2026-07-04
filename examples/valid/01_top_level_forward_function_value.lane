@@ -1,7 +1,19 @@
 module Examples.Valid01
 
-pub fn read_answer() -> Int {
-  answer
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
+pub fn read_stored_value() -> Int {
+  stored_value
 }
 
-pub let answer : Int = 42
+pub let stored_value : Int = 42
+
+pub fn answer() -> Unit ! Io {
+  if read_stored_value() == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

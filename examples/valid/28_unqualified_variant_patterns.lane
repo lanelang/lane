@@ -1,5 +1,9 @@
 module Examples.Valid.UnqualifiedVariantPatterns
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 enum Left {
   same(Int)
 }
@@ -20,4 +24,12 @@ fn read_right(value : Right) -> Int {
   }
 }
 
-pub let answer : Int = read_left(Left::same(42))
+pub let left_payload : Int = read_left(Left::same(42))
+
+pub fn answer() -> Unit ! Io {
+  if left_payload == 42 && read_right(Right::same(true)) == 1 {
+    Write::println!("left=42 right=1")
+  } else {
+    Write::println!("bad:left=42 right=1")
+  }
+}

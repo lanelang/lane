@@ -1,5 +1,7 @@
 module Examples.Valid06
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub fn add_three(a : Int, b : Int, c : Int) -> Int {
@@ -13,5 +15,13 @@ pub fn pipeline_call(x : Int) -> Int {
 pub fn pipeline_literal(x : Int) -> Int {
   x |> fn (value : Int) {
     value + 1
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if pipeline_call(39) == 42 && pipeline_literal(41) == 42 {
+    Write::println!("pipeline=42")
+  } else {
+    Write::println!("bad:pipeline=42")
   }
 }

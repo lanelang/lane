@@ -1,5 +1,7 @@
 module Examples.Valid04
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub fn factorial(n : Int) -> Int {
@@ -17,4 +19,12 @@ pub fn shadow_value(x : Int) -> Int {
   let x = x + 1
   let x = x + 1
   x
+}
+
+pub fn answer() -> Unit ! Io {
+  if factorial(5) == 120 && shadow_value(1) == 3 {
+    Write::println!("factorial=120 shadow=3")
+  } else {
+    Write::println!("bad:factorial=120 shadow=3")
+  }
 }

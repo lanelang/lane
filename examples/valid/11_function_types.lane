@@ -1,5 +1,9 @@
 module Examples.Valid11
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub fn apply(value : Int, f : (Int) -> Int) -> Int {
   f(value)
 }
@@ -14,4 +18,12 @@ pub let id_int : (Int) -> Int = fn (value) {
 
 pub let id_poly : [A](A) -> A = fn[A] (value) {
   value
+}
+
+pub fn answer() -> Unit ! Io {
+  if apply(42, id_int) == 42 {
+    Write::println!("apply=42")
+  } else {
+    Write::println!("bad:apply=42")
+  }
 }

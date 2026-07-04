@@ -1,5 +1,9 @@
 module Examples.Valid10
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 pub struct UserId {
   value : Int
 }
@@ -18,4 +22,12 @@ pub let user_id : UserId = UserId::{
 
 pub let order_id : OrderId = OrderId::{
   value: 1
+}
+
+pub fn answer() -> Unit ! Io {
+  if user_value(user_id) == 1 {
+    Write::println!("user_id=1")
+  } else {
+    Write::println!("bad:user_id=1")
+  }
 }

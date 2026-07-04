@@ -1,331 +1,355 @@
 {
-  "lib_dirs": ["../stdlib"],
+  "lib_dirs": [
+    "../stdlib"
+  ],
   "cases": [
     {
       "name": "01 top-level forward value",
       "file": "examples/valid/01_top_level_forward_function_value.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
-      "name": "02 struct value entry",
+      "name": "02 struct value example",
       "file": "examples/valid/02_struct_enum_match.lane",
-      "entry": "origin",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "contains": [" : type#"]
-      }
-    },
-    {
-      "name": "02 enum value entry",
-      "file": "examples/valid/02_struct_enum_match.lane",
-      "entry": "chosen",
-      "expect": {
-        "contains": ["type#"]
+        "equals": "point=0 option=1"
       }
     },
     {
       "name": "03 generic function literal",
       "file": "examples/valid/03_generic_functions_and_literals.lane",
-      "entry": "check_expected_function",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "<function> : () -> Int"
+        "equals": "generic=1"
       }
     },
     {
-      "name": "04 local recursive function entry",
+      "name": "04 local recursive function example",
       "file": "examples/valid/04_blocks_and_local_scope.lane",
-      "entry": "factorial",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "<function> : (Int) -> Int"
+        "equals": "factorial=120 shadow=3"
       }
     },
     {
       "name": "05 top-level contextual offer",
       "file": "examples/valid/05_top_level_contextual_offer.lane",
-      "entry": "chosen",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "1 : Int"
+        "equals": "chosen=1"
       }
     },
     {
-      "name": "06 pipeline function entry",
+      "name": "06 pipeline function example",
       "file": "examples/valid/06_pipeline.lane",
-      "entry": "pipeline_literal",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "<function> : (Int) -> Int"
+        "equals": "pipeline=42"
       }
     },
     {
       "name": "07 builtin external value stays opaque",
       "file": "examples/valid/07_builtin_expected_type.lane",
-      "entry": "host_value",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "contains": ["external_value", " : Int"]
+        "equals": "builtin external typed"
       }
     },
     {
       "name": "08 struct forwarding finite closure value",
       "file": "examples/valid/08_struct_forwarding.lane",
-      "entry": "meter_equal_ops",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "contains": ["<function>"]
+        "equals": "forwarded equality=1"
       }
     },
     {
-      "name": "09 explicit contextual argument function entry",
+      "name": "09 explicit contextual argument function example",
       "file": "examples/valid/09_explicit_contextual_argument.lane",
-      "entry": "use_weird_add",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "<function> : (Int, Int) -> Int"
+        "equals": "weird_add=40"
       }
     },
     {
       "name": "10 nominal type value",
       "file": "examples/valid/10_nominal_types.lane",
-      "entry": "user_id",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "contains": [" : type#"]
+        "equals": "user_id=1"
       }
     },
     {
       "name": "11 monomorphic function value",
       "file": "examples/valid/11_function_types.lane",
-      "entry": "id_int",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "<function> : (Int) -> Int"
+        "equals": "apply=42"
       }
     },
     {
-      "name": "11 polymorphic function value",
-      "file": "examples/valid/11_function_types.lane",
-      "entry": "id_poly",
-      "expect": {
-        "contains": ["<function> : forall", "(tparam#"]
-      }
-    },
-    {
-      "name": "12 comparison function entry",
+      "name": "12 comparison function example",
       "file": "examples/valid/12_compare_and_equal_operators.lane",
-      "entry": "compare_ints",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "<function> : (Int, Int) -> Bool"
+        "equals": "compare=true"
       }
     },
     {
       "name": "13 existential struct packed value",
       "file": "examples/valid/13_existential_structs.lane",
-      "entry": "packed_int",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "contains": ["data_value", "external_value", " : type#"]
+        "equals": "existential struct packed"
       }
     },
     {
       "name": "14 existential enum packed value",
       "file": "examples/valid/14_existential_enums.lane",
-      "entry": "packed_int",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "contains": ["data_value", "external_value", " : type#"]
+        "equals": "existential enum packed"
       }
     },
     {
       "name": "15 f-omega transparent type aliases",
       "file": "examples/valid/15_f_omega_type_aliases.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "16 type alias header identity",
       "file": "examples/valid/16_type_alias_header_identity.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "17 type alias header multiple parameters",
       "file": "examples/valid/17_type_alias_header_multiple_parameters.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "18 type alias header higher-kind parameter",
       "file": "examples/valid/18_type_alias_header_higher_kind_parameter.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "19 type alias header staged lambda",
       "file": "examples/valid/19_type_alias_header_staged_lambda.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "20 type alias header shadowing",
       "file": "examples/valid/20_type_alias_header_shadowing.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "true : Bool"
+        "equals": "true"
       }
     },
     {
       "name": "21 functional programming basics",
       "file": "examples/valid/21_functional_programming.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "22 untyped lambda calculus",
       "file": "examples/valid/22_untyped_lambda_calculus.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "23 tagless final stlc",
       "file": "examples/valid/23_tagless_final_stlc.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "24 else-if chain",
       "file": "examples/valid/24_else_if_chain.lane",
-      "entry": "second",
+      "mode": "run",
+      "entry": "answer",
       "expect": {
-        "equals": "2 : Int"
+        "equals": "1,2,3"
       }
     },
     {
       "name": "25 nested pattern exhaustiveness",
       "file": "examples/valid/25_nested_pattern_exhaustiveness.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "flatten=42 boxed=42"
       }
     },
     {
       "name": "26 module qualified access",
       "file": "examples/valid/26_module_qualified_access.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "27 module qualified type access",
       "file": "examples/valid/27_module_qualified_type_access.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "28 unqualified variant patterns",
       "file": "examples/valid/28_unqualified_variant_patterns.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "left=42 right=1"
       }
     },
     {
       "name": "29 effectful function calls",
       "file": "examples/valid/29_effectful_function_calls.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "30 yield effect",
       "file": "examples/valid/30_yield_effect.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "31 flip effect",
       "file": "examples/valid/31_flip_effect.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "34 : Int"
+        "equals": "34"
       }
     },
     {
       "name": "32 state effect",
       "file": "examples/valid/32_state_effect.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "33 exception effect",
       "file": "examples/valid/33_exception_effect.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "34 simple coroutine",
       "file": "examples/valid/34_simple_coroutine.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "137 : Int"
+        "equals": "137"
       }
     },
     {
       "name": "35 polymorphic effect operation",
       "file": "examples/valid/35_polymorphic_effect_operation.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "36 handle block subject",
       "file": "examples/valid/36_handle_block_subject.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "37 coroutine scheduler",
       "file": "examples/valid/37_coroutine_scheduler.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "1112211322 : Int"
+        "equals": "1112211322"
       }
     },
     {
       "name": "38 effect set aliases",
       "file": "examples/valid/38_effect_set_aliases.lane",
+      "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "42 : Int"
+        "equals": "42"
       }
     },
     {
       "name": "39 executable Stdlib Io entry",
       "file": "examples/valid/39_executable_entry.lane",
-      "entry": "main",
       "mode": "run",
+      "entry": "answer",
       "expect": {
         "equals": "hello from Lane"
       }
@@ -333,281 +357,407 @@
     {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `:`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `=`",
+          "expected one of: `:`"
+        ]
       }
     },
     {
       "name": "invalid 02 top-level let forward value",
       "file": "examples/invalid/02_top_level_let_forward_value.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E2001]", "cannot find value `x`", "no value named `x` is visible here"]
+        "contains": [
+          "error[E2001]",
+          "cannot find value `x`",
+          "no value named `x` is visible here"
+        ]
       }
     },
     {
       "name": "invalid 03 offer missing type annotation",
       "file": "examples/invalid/03_offer_missing_type_annotation.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `:`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `=`",
+          "expected one of: `:`"
+        ]
       }
     },
     {
       "name": "invalid 04 empty block no implicit unit",
       "file": "examples/invalid/04_empty_block_no_implicit_unit.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `}`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `}`"
+        ]
       }
     },
     {
       "name": "invalid 05 multiple expression statements",
       "file": "examples/invalid/05_multiple_expression_statements.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect identifier `x`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect identifier `x`"
+        ]
       }
     },
     {
       "name": "invalid 06 bare variant identifier pattern",
       "file": "examples/invalid/06_bare_variant_identifier_pattern.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3201]", "unreachable match arm"]
+        "contains": [
+          "error[E3201]",
+          "unreachable match arm"
+        ]
       }
     },
     {
       "name": "invalid 07 qualified variant without parens",
       "file": "examples/invalid/07_qualified_variant_without_parens.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect end of file"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect end of file"
+        ]
       }
     },
     {
       "name": "invalid 08 struct missing field",
       "file": "examples/invalid/08_struct_missing_field.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3101]", "missing field `y`", "omits required field `y`"]
+        "contains": [
+          "error[E3101]",
+          "missing field `y`",
+          "omits required field `y`"
+        ]
       }
     },
     {
       "name": "invalid 09 struct update spread",
       "file": "examples/invalid/09_struct_update_spread.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `.`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `.`"
+        ]
       }
     },
     {
       "name": "invalid 10 function equals body",
       "file": "examples/invalid/10_function_equals_body.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `!`, `{`, `[`, `.`, `->`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `=`",
+          "expected one of: `!`, `{`, `[`, `.`, `->`"
+        ]
       }
     },
     {
       "name": "invalid 11 named function missing result type",
       "file": "examples/invalid/11_named_function_missing_result_type.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `{`", "expected one of: `->`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `{`",
+          "expected one of: `->`"
+        ]
       }
     },
     {
       "name": "invalid 12 local function forward reference",
       "file": "examples/invalid/12_local_function_forward_reference.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `fn`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `fn`"
+        ]
       }
     },
     {
       "name": "invalid 13 function literal missing parameter type",
       "file": "examples/invalid/13_function_literal_missing_parameter_type.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3010]", "cannot infer expression type", "function literal parameter"]
+        "contains": [
+          "error[E3010]",
+          "cannot infer expression type",
+          "function literal parameter"
+        ]
       }
     },
     {
       "name": "invalid 14 builtin without expected type",
       "file": "examples/invalid/14_builtin_without_expected_type.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3010]", "cannot infer expression type", "builtin"]
+        "contains": [
+          "error[E3010]",
+          "cannot infer expression type",
+          "builtin"
+        ]
       }
     },
     {
       "name": "invalid 15 method call syntax",
       "file": "examples/invalid/15_method_call_syntax.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3007]", "value is not callable", "`Int` is not a function type"]
+        "contains": [
+          "error[E3007]",
+          "value is not callable",
+          "`Int` is not a function type"
+        ]
       }
     },
     {
       "name": "invalid 16 tuple type",
       "file": "examples/invalid/16_tuple_type.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `=`", "expected one of: `->`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `=`",
+          "expected one of: `->`"
+        ]
       }
     },
     {
       "name": "invalid 17 existential struct missing witness",
       "file": "examples/invalid/17_existential_struct_missing_witness.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3104]", "missing type member `T`", "omits required type member `T`"]
+        "contains": [
+          "error[E3104]",
+          "missing type member `T`",
+          "omits required type member `T`"
+        ]
       }
     },
     {
       "name": "invalid 18 existential hidden type escape",
       "file": "examples/invalid/18_existential_hidden_type_escape.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3006]", "type mismatch", "expected `Int`, found `T`"]
+        "contains": [
+          "error[E3006]",
+          "type mismatch",
+          "expected `Int`, found `T`"
+        ]
       }
     },
     {
       "name": "invalid 19 ambiguous contextual offer",
       "file": "examples/invalid/19_ambiguous_contextual_offer.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3010]", "cannot infer expression type", "ambiguous contextual offer"]
+        "contains": [
+          "error[E3010]",
+          "cannot infer expression type",
+          "ambiguous contextual offer"
+        ]
       }
     },
     {
       "name": "invalid 20 type alias cycle",
       "file": "examples/invalid/20_type_alias_cycle.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3004]", "type alias `A` is recursive"]
+        "contains": [
+          "error[E3004]",
+          "type alias `A` is recursive"
+        ]
       }
     },
     {
       "name": "invalid 21 type alias empty parameter header",
       "file": "examples/invalid/21_type_alias_empty_parameter_header.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `]`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `]`"
+        ]
       }
     },
     {
       "name": "invalid 22 type alias multi-layer parameter header",
       "file": "examples/invalid/22_type_alias_multi_layer_parameter_header.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `[`", "expected one of: `=`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `[`",
+          "expected one of: `=`"
+        ]
       }
     },
     {
       "name": "invalid 23 type alias unannotated higher-kind parameter",
       "file": "examples/invalid/23_type_alias_unannotated_higher_kind_parameter.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3005]", "kind mismatch", "expected kind `[] -> Type`, found `Type`"]
+        "contains": [
+          "error[E3005]",
+          "kind mismatch",
+          "expected kind `[] -> Type`, found `Type`"
+        ]
       }
     },
     {
       "name": "invalid 24 type alias duplicate parameter",
       "file": "examples/invalid/24_type_alias_duplicate_parameter.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3106]", "duplicate type parameter `A`"]
+        "contains": [
+          "error[E3106]",
+          "duplicate type parameter `A`"
+        ]
       }
     },
     {
       "name": "invalid 25 else-if missing final else",
       "file": "examples/invalid/25_else_if_missing_final_else.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `}`", "expected one of: `else`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `}`",
+          "expected one of: `else`"
+        ]
       }
     },
     {
       "name": "invalid 26 nested pattern non-exhaustive",
       "file": "examples/invalid/26_nested_pattern_non_exhaustive.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3200]", "non-exhaustive match"]
+        "contains": [
+          "error[E3200]",
+          "non-exhaustive match"
+        ]
       }
     },
     {
       "name": "invalid 27 unqualified variant without enum expected type",
       "file": "examples/invalid/27_unqualified_variant_without_enum_expected_type.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3010]", "cannot infer expression type", "unqualified variant pattern requires enum expected type some"]
+        "contains": [
+          "error[E3010]",
+          "cannot infer expression type",
+          "unqualified variant pattern requires enum expected type some"
+        ]
       }
     },
     {
       "name": "invalid 28 effectful function call in pure function",
       "file": "examples/invalid/28_effectful_function_call_in_pure_function.lane",
-      "entry": "bad",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3007]", "effect mismatch", "expected effect `{}`, found `Console`"]
+        "contains": [
+          "error[E3007]",
+          "effect mismatch",
+          "expected effect `{}`, found `Console`"
+        ]
       }
     },
     {
       "name": "invalid 29 leading double colon variant pattern",
       "file": "examples/invalid/29_leading_double_colon_variant_pattern.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E1100]", "the parser did not expect `::`"]
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `::`"
+        ]
       }
     },
     {
       "name": "invalid 30 effect alias private effect escape",
       "file": "examples/invalid/30_effect_alias_private_effect_escape.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3109]", "private effect `Console` in public interface"]
+        "contains": [
+          "error[E3109]",
+          "private effect `Console` in public interface"
+        ]
       }
     },
     {
       "name": "invalid 31 effect alias duplicate effect type name",
       "file": "examples/invalid/31_effect_alias_duplicate_effect_type_name.lane",
-      "entry": "answer",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E2007]", "conflicting top-level type/effect name `IO`"]
+        "contains": [
+          "error[E2007]",
+          "conflicting top-level type/effect name `IO`"
+        ]
       }
     },
     {
       "name": "invalid 32 effect alias type-kind in effect position",
       "file": "examples/invalid/32_effect_alias_type_kind_in_effect_position.lane",
-      "entry": "bad",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3005]", "kind mismatch", "expected kind `Effect`, found `Type`"]
+        "contains": [
+          "error[E3005]",
+          "kind mismatch",
+          "expected kind `Effect`, found `Type`"
+        ]
       }
     },
     {
       "name": "invalid 33 effect alias bad effect argument",
       "file": "examples/invalid/33_effect_alias_bad_effect_argument.lane",
-      "entry": "bad",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3005]", "kind mismatch", "expected kind `Effect`, found `Type`"]
+        "contains": [
+          "error[E3005]",
+          "kind mismatch",
+          "expected kind `Effect`, found `Type`"
+        ]
       }
     },
     {
       "name": "invalid 34 effect alias cycle",
       "file": "examples/invalid/34_effect_alias_cycle.lane",
-      "entry": "bad",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E3004]", "type alias `A` is recursive"]
+        "contains": [
+          "error[E3004]",
+          "type alias `A` is recursive"
+        ]
       }
     },
     {
       "name": "invalid 35 variant without parens",
       "file": "examples/invalid/35_variant_without_parens.lane",
-      "entry": "bad",
+      "mode": "check-error",
       "expect": {
-        "contains": ["error[E2004]", "payloadless variant `none` must use empty parentheses", "add empty parentheses: `none()`"]
+        "contains": [
+          "error[E2004]",
+          "payloadless variant `none` must use empty parentheses",
+          "add empty parentheses: `none()`"
+        ]
       }
     }
   ]

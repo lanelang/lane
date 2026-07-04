@@ -6,4 +6,4 @@ effect Console {
 
 pub type UI = { Console }
 
-pub let answer : Int = 42
+pub let bad : Int = 42

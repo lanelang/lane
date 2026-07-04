@@ -200,6 +200,32 @@ test "format source keeps else-if chains parseable" {
 }
 
 ///|
+test "format source keeps selective imports parseable" {
+  let source =
+    #|module Test
+    #|import Lib.{ value, Box }
+    #|pub let item : Box = Box::{ value }
+  let result = format_source(source)
+  guard result is Ok(formatted) else { abort("expected formatted source") }
+  inspect(
+    formatted,
+    content=(
+      #|module Test
+      #|
+      #|import Lib.{value, Box}
+      #|
+      #|pub let item : Box = Box::{
+      #|  value
+      #|}
+      #|
+    ),
+  )
+  guard format_source(formatted) is Ok(_) else {
+    abort("expected formatted source to parse")
+  }
+}
+
+///|
 test "format source nests broken call arguments in match arms" {
   let source =
     #|module Test

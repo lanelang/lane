@@ -1,5 +1,7 @@
 module Examples.Valid.FlipEffect
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub enum BoolList {
@@ -51,4 +53,12 @@ pub let choices : BoolList = {
   }
 }
 
-pub let answer : Int = count_true(choices) * 10 + length(choices)
+pub let choice_score : Int = count_true(choices) * 10 + length(choices)
+
+pub fn answer() -> Unit ! Io {
+  if choice_score == 34 {
+    Write::println!("34")
+  } else {
+    Write::println!("bad:34")
+  }
+}

@@ -5,4 +5,4 @@ module Examples.Invalid23
 
 pub type ApplyInt[F] = F[Int]
 
-pub let answer : ApplyInt[Int] = 42
+pub let bad : ApplyInt[Int] = 42

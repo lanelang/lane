@@ -1,5 +1,7 @@
 module Examples.Valid.YieldEffect
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 pub enum IntList {
@@ -32,4 +34,12 @@ pub let emitted : IntList = {
   }
 }
 
-pub let answer : Int = sum(emitted)
+pub let emitted_sum : Int = sum(emitted)
+
+pub fn answer() -> Unit ! Io {
+  if emitted_sum == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

@@ -1,5 +1,7 @@
 module Examples.Valid.CoroutineScheduler
 
+import Stdlib.Io.{Io, Write}
+
 import Stdlib.Ops.*
 
 effect Coroutine {
@@ -156,4 +158,12 @@ let result : RunResult = collect_logs(
   }
 )(0)
 
-pub let answer : Int = result.checksum
+pub let schedule_checksum : Int = result.checksum
+
+pub fn answer() -> Unit ! Io {
+  if schedule_checksum == 1112211322 {
+    Write::println!("1112211322")
+  } else {
+    Write::println!("bad:1112211322")
+  }
+}

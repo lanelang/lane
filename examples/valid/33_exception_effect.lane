@@ -1,5 +1,9 @@
 module Examples.Valid.ExceptionEffect
 
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
 effect Exception {
   raise(Int) -> Int
 }
@@ -8,10 +12,18 @@ fn fail_with_answer() -> Int ! Exception {
   Exception::raise!(42)
 }
 
-pub let answer : Int = {
+pub let handled_value : Int = {
   handle fail_with_answer() with {
     Exception::raise(code, resume) => code
   } final value {
     value
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if handled_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
   }
 }
