@@ -70,7 +70,7 @@ enum CliError {
   NotFormatted(path~ : String)
   FormatDiagnostics(
     path~ : String,
-    diagnostics~ : Array[@format.FormatDiagnostic]
+    diagnostics~ : Array[@compiler_diag.CompilerDiagnostic]
   )
   Internal(message~ : String)
 } derive(Debug)

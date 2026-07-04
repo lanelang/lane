@@ -20,15 +20,45 @@ test "format source normalizes whitespace and final newline" {
 test "format source reports parse diagnostics" {
   let result = format_source("module Test\npub let answer : =")
   guard result is Err(diagnostics) else { abort("expected diagnostics") }
-  inspect(diagnostics.length(), content="1")
-  inspect(
-    @prettyprinter.render(diagnostics[0]),
+  debug_inspect(
+    diagnostics,
     content=(
-      #|error[E1100]: unexpected token
-      #|  span: 2:18-2:19
-      #|  primary: 2:18-2:19: the parser did not expect `=`
-      #|  note: expected one of: identifier, `type`, `(`, `[`
-      #|  help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
+      #|[
+      #|  {
+      #|    source_id: None,
+      #|    message: "unexpected token",
+      #|    span: Some(
+      #|      {
+      #|        start_offset: 29,
+      #|        end_offset: 30,
+      #|        start_line: 2,
+      #|        start_column: 18,
+      #|        end_line: 2,
+      #|        end_column: 19,
+      #|      },
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E1100"),
+      #|    labels: [
+      #|      {
+      #|        span: {
+      #|          start_offset: 29,
+      #|          end_offset: 30,
+      #|          start_line: 2,
+      #|          start_column: 18,
+      #|          end_line: 2,
+      #|          end_column: 19,
+      #|        },
+      #|        message: "the parser did not expect `=`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["expected one of: identifier, `type`, `(`, `[`"],
+      #|    helps: ["rewrite this position so it starts with one of: identifier, `type`, `(`, `[`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
 }

@@ -1,5 +1,5 @@
 ///|
-using @prettyprinter {type Document, line, separate, space, text}
+using @compiler_diag {type CompilerDiagnostic, type CompilerDiagnosticLabel}
 
 ///|
 pub(all) struct FormatOptions {
@@ -12,32 +12,9 @@ pub fn default_options() -> FormatOptions {
 }
 
 ///|
-pub(all) struct FormatDiagnostic {
-  message : String
-  span : @basic.SourceSpan?
-  code : String?
-  labels : Array[FormatDiagnosticLabel]
-  notes : Array[String]
-  helps : Array[String]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct FormatDiagnosticLabel {
-  span : @basic.SourceSpan
-  message : String
-  style : FormatDiagnosticLabelStyle
-} derive(Debug, Eq)
-
-///|
-pub(all) enum FormatDiagnosticLabelStyle {
-  Primary
-  Secondary
-} derive(Debug, Eq)
-
-///|
 pub fn format_source(
   source : String,
-) -> Result[String, Array[FormatDiagnostic]] {
+) -> Result[String, Array[CompilerDiagnostic]] {
   format_source_with_options(source, default_options())
 }
 
@@ -45,7 +22,7 @@ pub fn format_source(
 pub fn format_source_with_options(
   source : String,
   options : FormatOptions,
-) -> Result[String, Array[FormatDiagnostic]] {
+) -> Result[String, Array[CompilerDiagnostic]] {
   let parsed = @parser.parse_string(source)
   let diagnostics = parse_diagnostics(parsed)
   if !diagnostics.is_empty() {
@@ -111,7 +88,7 @@ fn leading_comment_block(source : String) -> String {
 }
 
 ///|
-fn parse_diagnostics(result : @parser.ParseResult) -> Array[FormatDiagnostic] {
+fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for error in result.lexical_errors {
     diagnostics.push(lex_diagnostic(error))
@@ -123,7 +100,7 @@ fn parse_diagnostics(result : @parser.ParseResult) -> Array[FormatDiagnostic] {
 }
 
 ///|
-fn lex_diagnostic(error : @lexer.LexError) -> FormatDiagnostic {
+fn lex_diagnostic(error : @lexer.LexError) -> CompilerDiagnostic {
   let span = Some(error.span)
   diagnostic(
     lex_error_title(error.error),
@@ -207,7 +184,7 @@ fn lex_error_helps(error : @lexer.LexicalError) -> Array[String] {
 }
 
 ///|
-fn parse_diagnostic(error : @parser.ParseError) -> FormatDiagnostic {
+fn parse_diagnostic(error : @parser.ParseError) -> CompilerDiagnostic {
   let span = Some(error.loc)
   diagnostic(
     parse_error_title(error.kind),
@@ -292,86 +269,24 @@ fn expected_list(expected : Array[@parser.ExpectedSyntax]) -> String {
 }
 
 ///|
-fn span_text(span : @basic.SourceSpan) -> String {
-  span.start_line.to_string() +
-  ":" +
-  span.start_column.to_string() +
-  "-" +
-  span.end_line.to_string() +
-  ":" +
-  span.end_column.to_string()
-}
-
-///|
-pub impl @prettyprinter.Pretty for FormatDiagnostic with fn pretty(
-  diagnostic : FormatDiagnostic,
-) -> Document {
-  let header = text("error") +
-    code_doc(diagnostic.code) +
-    text(":") +
-    space +
-    text(diagnostic.message)
-  let body = diagnostic_body_doc(diagnostic)
-  if body is Some(body) {
-    header + line + body
-  } else {
-    header
-  }
-}
-
-///|
 fn diagnostic(
   message : String,
   span~ : @basic.SourceSpan?,
   code~ : String?,
-  labels~ : Array[FormatDiagnosticLabel],
+  labels~ : Array[CompilerDiagnosticLabel],
   notes~ : Array[String],
   helps~ : Array[String],
-) -> FormatDiagnostic {
-  { message, span, code, labels, notes, helps }
-}
-
-///|
-fn code_doc(code : String?) -> Document {
-  match code {
-    Some(code) => text("[") + text(code) + text("]")
-    None => text("")
+) -> CompilerDiagnostic {
+  {
+    source_id: None,
+    message,
+    span,
+    severity: Error,
+    code,
+    labels,
+    notes,
+    helps,
+    facts: [],
+    suggestions: [],
   }
-}
-
-///|
-fn diagnostic_body_doc(diagnostic : FormatDiagnostic) -> Document? {
-  let docs : Array[Document] = []
-  match diagnostic.span {
-    Some(span) => docs.push(text("  span:") + space + text(span_text(span)))
-    None => ()
-  }
-  for label in diagnostic.labels {
-    docs.push(label_doc(label))
-  }
-  for note in diagnostic.notes {
-    docs.push(text("  note:") + space + text(note))
-  }
-  for help in diagnostic.helps {
-    docs.push(text("  help:") + space + text(help))
-  }
-  if docs.is_empty() {
-    None
-  } else {
-    Some(separate(line, docs))
-  }
-}
-
-///|
-fn label_doc(label : FormatDiagnosticLabel) -> Document {
-  let prefix = match label.style {
-    Primary => text("  primary:")
-    Secondary => text("  secondary:")
-  }
-  prefix +
-  space +
-  text(span_text(label.span)) +
-  text(":") +
-  space +
-  text(label.message)
 }
