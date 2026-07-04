@@ -90,7 +90,7 @@ fn LspWorkspaceAnalysis::analyze_sources(
 fn LspWorkspaceAnalysis::diagnostic_publication_inputs(
   self : LspWorkspaceAnalysis,
   sources : LspAnalysisSources,
-  diagnostics : Array[@compile.CompileDiagnostic],
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> Array[@compile.SourceInput] {
   match self.workspace_root {
     Some(_) =>
@@ -106,7 +106,7 @@ fn LspWorkspaceAnalysis::diagnostic_publication_inputs(
 ///|
 fn LspAnalysisSources::inputs_with_diagnostics(
   self : LspAnalysisSources,
-  diagnostics : Array[@compile.CompileDiagnostic],
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> Array[@compile.SourceInput] {
   let source_ids = diagnostics.filter_map(fn(diagnostic) {
     diagnostic.source_id

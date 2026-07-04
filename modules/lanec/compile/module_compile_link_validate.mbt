@@ -3,7 +3,7 @@ fn validate_link_object(
   modules : Array[CompiledModule],
   module_ : CompiledModule,
   object : ModuleObject,
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   if module_.module_path_text != object.module_path_text {
     diagnostics.push(
@@ -83,7 +83,7 @@ fn validate_imported_references(
   module_ : CompiledModule,
   object : ModuleObject,
   modules : Array[CompiledModule],
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for imported in object.imports {
     match find_compiled_module(modules, imported.module_path_text) {
@@ -156,7 +156,7 @@ fn imported_reference_shape_matches_export(
 fn validate_imported_exports(
   module_ : CompiledModule,
   imported : CompiledModule,
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for value in imported.interface.values {
     if !module_exports_value(imported.object.exports, value.name) {

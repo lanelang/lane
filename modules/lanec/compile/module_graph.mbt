@@ -8,7 +8,7 @@ priv struct ModuleGraph {
 ///|
 fn build_module_graph(
   inputs : ModuleInputSet,
-) -> Result[ModuleGraph, Array[CompileDiagnostic]] {
+) -> Result[ModuleGraph, Array[CompilerDiagnostic]] {
   let graph_diagnostics = validate_module_inputs(inputs.modules)
   if !graph_diagnostics.is_empty() {
     return Err(graph_diagnostics)
@@ -36,7 +36,7 @@ fn build_module_graph(
 ///|
 fn validate_module_inputs(
   modules : Array[ParsedModuleInput],
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for index in 0..<modules.length() {
     for other_index in (index + 1)..<modules.length() {
@@ -71,13 +71,13 @@ fn validate_module_inputs(
 ///|
 priv struct ReachableModulesResult {
   modules : Array[ParsedModuleInput]
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|
 priv struct OrderedModulesResult {
   modules : Array[ParsedModuleInput]
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|
@@ -123,7 +123,7 @@ fn visit_module(
   visiting : Array[String],
   visited : Array[String],
   ordered : Array[ParsedModuleInput],
-  diagnostics : Array[CompileDiagnostic],
+  diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   if visited.contains(path) {
     return

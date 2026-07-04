@@ -1,7 +1,7 @@
 ///|
 priv struct DiagnosticPublication {
   uri : String
-  diagnostics : Array[@compile.CompileDiagnostic]
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
   sources : LspDiagnosticSources
 }
 
@@ -50,7 +50,7 @@ fn LspDiagnosticSources::find(
 ///|
 fn publish_diagnostics(
   uri : String,
-  diagnostics : Array[@compile.CompileDiagnostic],
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
   sources? : LspDiagnosticSources = LspDiagnosticSources(),
 ) -> @jsonrpc.Message {
   @jsonrpc.new_notification("textDocument/publishDiagnostics", {
@@ -64,7 +64,7 @@ fn publish_diagnostics(
 ///|
 fn diagnostic_publications(
   inputs : Array[@compile.SourceInput],
-  diagnostics : Array[@compile.CompileDiagnostic],
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
   fallback_uri~ : String,
 ) -> Array[DiagnosticPublication] {
   let sources = LspDiagnosticSources::from_inputs(inputs)
@@ -85,7 +85,7 @@ fn diagnostic_publications(
 fn add_diagnostic(
   publications : Array[DiagnosticPublication],
   uri : String,
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
 ) -> Unit {
   for publication in publications {
     if publication.uri == uri {
@@ -99,7 +99,7 @@ fn add_diagnostic(
 
 ///|
 fn compile_diagnostic_json(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : LspDiagnosticSources,
 ) -> Json {
   @diag_lsp.diagnostic_to_lsp_json(
@@ -111,7 +111,7 @@ fn compile_diagnostic_json(
 
 ///|
 fn compile_diagnostic_to_diagnostic(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : LspDiagnosticSources,
 ) -> @diag_core.Diagnostic {
   {
@@ -132,8 +132,8 @@ fn compile_diagnostic_to_diagnostic(
 }
 
 ///|
-fn @compile.CompileDiagnosticSeverity::to_diagnostic_severity(
-  self : @compile.CompileDiagnosticSeverity,
+fn @compiler_diag.CompilerDiagnosticSeverity::to_diagnostic_severity(
+  self : @compiler_diag.CompilerDiagnosticSeverity,
 ) -> @diag_core.Severity {
   match self {
     Error => Error
@@ -143,7 +143,7 @@ fn @compile.CompileDiagnosticSeverity::to_diagnostic_severity(
 
 ///|
 fn compile_diagnostic_labels_to_diagnostic_labels(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : LspDiagnosticSources,
 ) -> Array[@diag_core.Label] {
   guard diagnostic.source_id is Some(source_id) else { return [] }
@@ -165,7 +165,7 @@ fn compile_diagnostic_labels_to_diagnostic_labels(
 
 ///|
 fn compile_diagnostic_unmapped_label_notes(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : LspDiagnosticSources,
 ) -> Array[String] {
   match diagnostic.source_id {
@@ -176,7 +176,7 @@ fn compile_diagnostic_unmapped_label_notes(
 
 ///|
 fn compile_diagnostic_facts_to_diagnostic_facts(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : LspDiagnosticSources,
 ) -> Array[@diag_core.DiagnosticFact] {
   diagnostic.facts.map(fn(fact) {
@@ -194,7 +194,7 @@ fn compile_diagnostic_facts_to_diagnostic_facts(
 
 ///|
 fn compile_diagnostic_suggestions_to_diagnostic_suggestions(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : LspDiagnosticSources,
 ) -> Array[@diag_core.Suggestion] {
   diagnostic.suggestions.map(fn(suggestion) {
@@ -213,7 +213,7 @@ fn compile_diagnostic_suggestions_to_diagnostic_suggestions(
 
 ///|
 fn compile_optional_span_to_diagnostic_span(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   span : @basic.SourceSpan?,
   sources : LspDiagnosticSources,
 ) -> @diag_core.SourceSpan? {
@@ -225,7 +225,7 @@ fn compile_optional_span_to_diagnostic_span(
 
 ///|
 fn compile_span_to_diagnostic_span(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   span : @basic.SourceSpan,
   sources : LspDiagnosticSources,
 ) -> @diag_core.SourceSpan? {
@@ -243,8 +243,8 @@ fn compile_span_to_diagnostic_span(
 }
 
 ///|
-fn @compile.CompileDiagnosticLabelStyle::to_diagnostic_label_style(
-  self : @compile.CompileDiagnosticLabelStyle,
+fn @compiler_diag.CompilerDiagnosticLabelStyle::to_diagnostic_label_style(
+  self : @compiler_diag.CompilerDiagnosticLabelStyle,
 ) -> @diag_core.LabelStyle {
   match self {
     Primary => Primary
@@ -253,8 +253,8 @@ fn @compile.CompileDiagnosticLabelStyle::to_diagnostic_label_style(
 }
 
 ///|
-fn @compile.CompileDiagnosticApplicability::to_diagnostic_applicability(
-  self : @compile.CompileDiagnosticApplicability,
+fn @compiler_diag.CompilerDiagnosticApplicability::to_diagnostic_applicability(
+  self : @compiler_diag.CompilerDiagnosticApplicability,
 ) -> @diag_core.Applicability {
   match self {
     MachineApplicable => MachineApplicable

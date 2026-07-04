@@ -1,7 +1,7 @@
 ///|
 pub(all) struct CheckResult {
   source : @checked.CheckedSourceFile?
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
@@ -10,13 +10,13 @@ pub(all) struct CompileResult {
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
   runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct CompileModulesResult {
   modules : CompiledModuleSet?
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
@@ -225,7 +225,7 @@ pub fn compile_source_inputs(
 fn compile_module_set_from_source_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[CompiledModuleSet, Array[CompileDiagnostic]] {
+) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   match parse_module_input_set_from_inputs(root_source, library_sources) {
     Err(diagnostics) => Err(diagnostics)
     Ok(inputs) =>

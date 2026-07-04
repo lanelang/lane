@@ -1,0 +1,74 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/diagnostic"
+
+import {
+  "Milky2018/lanec/basic",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct CompilerDiagnostic {
+  source_id : String?
+  message : String
+  span : @basic.SourceSpan?
+  severity : CompilerDiagnosticSeverity
+  code : String?
+  labels : Array[CompilerDiagnosticLabel]
+  notes : Array[String]
+  helps : Array[String]
+  facts : Array[CompilerDiagnosticFact]
+  suggestions : Array[CompilerDiagnosticSuggestion]
+} derive(Eq, @debug.Debug)
+pub fn CompilerDiagnostic::list_doc(Array[Self]) -> @prettyprinter.Document
+pub fn CompilerDiagnostic::with_source_id(Self, String) -> Self
+pub impl @prettyprinter.Pretty for CompilerDiagnostic
+
+pub(all) enum CompilerDiagnosticApplicability {
+  MachineApplicable
+  MaybeIncorrect
+  HasPlaceholders
+  Unspecified
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompilerDiagnosticFact {
+  name : String
+  value : String
+  span : @basic.SourceSpan?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompilerDiagnosticLabel {
+  span : @basic.SourceSpan
+  message : String
+  style : CompilerDiagnosticLabelStyle
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CompilerDiagnosticLabelStyle {
+  Primary
+  Secondary
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CompilerDiagnosticSeverity {
+  Error
+  Warning
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompilerDiagnosticSuggestion {
+  message : String
+  edits : Array[CompilerDiagnosticTextEdit]
+  applicability : CompilerDiagnosticApplicability
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompilerDiagnosticTextEdit {
+  span : @basic.SourceSpan
+  replacement : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

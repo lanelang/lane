@@ -795,7 +795,7 @@ test "lsp diagnostics convert text offsets before transport" {
 
 ///|
 test "lsp diagnostic conversion keeps required range for unmapped source" {
-  let diagnostic : @compile.CompileDiagnostic = {
+  let diagnostic : @compiler_diag.CompilerDiagnostic = {
     source_id: Some("file:///missing.lane"),
     message: "diagnostic source is not open",
     span: None,

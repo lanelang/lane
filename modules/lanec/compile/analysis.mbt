@@ -65,7 +65,7 @@ pub(all) struct InlayHintEntry {
 
 ///|
 pub(all) struct AnalysisResult {
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
@@ -123,7 +123,7 @@ pub fn analyze_import_reachable_source_inputs(
 
 ///|
 fn AnalysisResult::from_diagnostics(
-  diagnostics : Array[CompileDiagnostic],
+  diagnostics : Array[CompilerDiagnostic],
 ) -> AnalysisResult {
   {
     diagnostics,

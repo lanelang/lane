@@ -4,6 +4,7 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/compile",
+  "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/encoding/utf8",

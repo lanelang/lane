@@ -1,5 +1,5 @@
 ///|
-fn single_check_diagnostic(source : String) -> CompileDiagnostic {
+fn single_check_diagnostic(source : String) -> CompilerDiagnostic {
   let result = check_source(source)
   guard result.diagnostics.length() == 1 else {
     abort("expected exactly one diagnostic")
@@ -9,7 +9,7 @@ fn single_check_diagnostic(source : String) -> CompileDiagnostic {
 
 ///|
 fn assert_diagnostic_headline(
-  diagnostic : CompileDiagnostic,
+  diagnostic : CompilerDiagnostic,
   code : String,
   message : String,
 ) -> Unit {

@@ -42,7 +42,7 @@ pub(all) struct SourceInput {
 fn parse_module_input_set_from_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[ModuleInputSet, Array[CompileDiagnostic]] {
+) -> Result[ModuleInputSet, Array[CompilerDiagnostic]] {
   let parsed = parse_module_inputs(root_source, library_sources)
   if !parsed.diagnostics.is_empty() {
     return Err(parsed.diagnostics)
@@ -60,7 +60,7 @@ fn parse_module_input_set_from_inputs(
 fn parse_import_reachable_module_input_set_from_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[ModuleInputSet, Array[CompileDiagnostic]] {
+) -> Result[ModuleInputSet, Array[CompilerDiagnostic]] {
   let parsed = parse_module_inputs(root_source, library_sources)
   let root_diagnostics = parsed.diagnostics_for_source(root_source.source_id)
   if !root_diagnostics.is_empty() {
@@ -113,7 +113,7 @@ fn parse_import_reachable_module_input_set_from_inputs(
 pub fn import_reachable_source_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[Array[SourceInput], Array[CompileDiagnostic]] {
+) -> Result[Array[SourceInput], Array[CompilerDiagnostic]] {
   match
     parse_import_reachable_module_input_set_from_inputs(
       root_source, library_sources,
@@ -142,14 +142,14 @@ pub fn import_reachable_source_inputs(
 priv struct ParseModuleInputsResult {
   modules : Array[ParsedModuleInput]
   headers : Array[ModuleInputHeader]
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|
 fn ParseModuleInputsResult::diagnostics_for_source(
   self : ParseModuleInputsResult,
   source_id : String,
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   self.diagnostics.filter(fn(diagnostic) {
     diagnostic.source_id == Some(source_id)
   })
@@ -158,7 +158,7 @@ fn ParseModuleInputsResult::diagnostics_for_source(
 ///|
 fn ParseModuleInputsResult::source_diagnostics(
   self : ParseModuleInputsResult,
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   self.diagnostics.filter(fn(diagnostic) { diagnostic.source_id is Some(_) })
 }
 

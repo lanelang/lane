@@ -6,6 +6,7 @@ import {
   "Milky2018/diagnostic/source" @diag_source,
   "Milky2018/lanec/basic",
   "Milky2018/lanec/compile",
+  "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate",
   "Milky2018/lanec/format",
   "Milky2018/lanec/intrinsics",

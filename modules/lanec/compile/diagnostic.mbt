@@ -1,66 +1,14 @@
 ///|
-using @prettyprinter {type Document, line, separate, space, text}
+using @prettyprinter {type Document}
 
 ///|
-pub(all) struct CompileDiagnostic {
-  source_id : String?
-  message : String
-  span : @basic.SourceSpan?
-  severity : CompileDiagnosticSeverity
-  code : String?
-  labels : Array[CompileDiagnosticLabel]
-  notes : Array[String]
-  helps : Array[String]
-  facts : Array[CompileDiagnosticFact]
-  suggestions : Array[CompileDiagnosticSuggestion]
-} derive(Debug, Eq)
-
-///|
-pub(all) enum CompileDiagnosticSeverity {
-  Error
-  Warning
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CompileDiagnosticLabel {
-  span : @basic.SourceSpan
-  message : String
-  style : CompileDiagnosticLabelStyle
-} derive(Debug, Eq)
-
-///|
-pub(all) enum CompileDiagnosticLabelStyle {
-  Primary
-  Secondary
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CompileDiagnosticFact {
-  name : String
-  value : String
-  span : @basic.SourceSpan?
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CompileDiagnosticTextEdit {
-  span : @basic.SourceSpan
-  replacement : String
-} derive(Debug, Eq)
-
-///|
-pub(all) enum CompileDiagnosticApplicability {
-  MachineApplicable
-  MaybeIncorrect
-  HasPlaceholders
-  Unspecified
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CompileDiagnosticSuggestion {
-  message : String
-  edits : Array[CompileDiagnosticTextEdit]
-  applicability : CompileDiagnosticApplicability
-} derive(Debug, Eq)
+using @compiler_diag {
+  type CompilerDiagnostic,
+  type CompilerDiagnosticFact,
+  type CompilerDiagnosticLabel,
+  type CompilerDiagnosticSeverity,
+  type CompilerDiagnosticSuggestion,
+}
 
 ///|
 priv enum CompileErrorKind {
@@ -117,14 +65,14 @@ priv enum CompileErrorKind {
 fn diagnostic(
   message : String,
   span~ : @basic.SourceSpan?,
-  severity~ : CompileDiagnosticSeverity,
+  severity~ : CompilerDiagnosticSeverity,
   code~ : String?,
-  labels~ : Array[CompileDiagnosticLabel],
+  labels~ : Array[CompilerDiagnosticLabel],
   notes~ : Array[String],
   helps~ : Array[String],
-  facts? : Array[CompileDiagnosticFact] = [],
-  suggestions? : Array[CompileDiagnosticSuggestion] = [],
-) -> CompileDiagnostic {
+  facts? : Array[CompilerDiagnosticFact] = [],
+  suggestions? : Array[CompilerDiagnosticSuggestion] = [],
+) -> CompilerDiagnostic {
   {
     source_id: None,
     message,
@@ -140,18 +88,10 @@ fn diagnostic(
 }
 
 ///|
-fn CompileDiagnostic::with_source_id(
-  self : CompileDiagnostic,
-  source_id : String,
-) -> CompileDiagnostic {
-  { ..self, source_id: Some(source_id) }
-}
-
-///|
 fn primary_label(
   span : @basic.SourceSpan?,
   message : String,
-) -> Array[CompileDiagnosticLabel] {
+) -> Array[CompilerDiagnosticLabel] {
   match span {
     Some(span) => [{ span, message, style: Primary }]
     None => []
@@ -162,7 +102,7 @@ fn primary_label(
 fn CompileErrorKind::to_diagnostic(
   self : CompileErrorKind,
   span : @basic.SourceSpan?,
-) -> CompileDiagnostic {
+) -> CompilerDiagnostic {
   match self {
     NoRootSourceModule =>
       compile_report(
@@ -421,7 +361,7 @@ fn compile_report(
   label~ : String,
   note~ : String,
   help~ : String,
-) -> CompileDiagnostic {
+) -> CompilerDiagnostic {
   diagnostic(
     title,
     span~,
@@ -439,8 +379,8 @@ fn missing_import_diagnostic(
   span : @basic.SourceSpan?,
   source_modules : Array[String],
   interface_modules : Array[String],
-) -> CompileDiagnostic {
-  let facts : Array[CompileDiagnosticFact] = []
+) -> CompilerDiagnostic {
+  let facts : Array[CompilerDiagnosticFact] = []
   for source_module in source_modules {
     facts.push({
       name: "considered source module",
@@ -486,7 +426,7 @@ fn missing_import_diagnostic(
 }
 
 ///|
-fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompileDiagnostic] {
+fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for error in result.lexical_errors {
     diagnostics.push(lex_diagnostic(error))
@@ -501,7 +441,7 @@ fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompileDiagnostic] {
 fn resolve_diagnostic(
   diagnostic_ : @resolve.ResolveDiagnostic,
   _display : TypeDisplayContext,
-) -> CompileDiagnostic {
+) -> CompilerDiagnostic {
   let span = Some(diagnostic_.loc)
   match diagnostic_.kind {
     UnresolvedType(name) =>
@@ -688,7 +628,7 @@ fn resolve_variant_candidates_text(
 fn typecheck_diagnostic(
   diagnostic_ : @typecheck.TypeCheckDiagnostic,
   display : TypeDisplayContext,
-) -> CompileDiagnostic {
+) -> CompilerDiagnostic {
   let span = Some(diagnostic_.loc)
   match diagnostic_.kind {
     UnresolvedType(name) =>
@@ -1256,7 +1196,7 @@ fn cannot_infer_diagnostic(
   span : @basic.SourceSpan?,
   label : String,
   reason : @typecheck.CannotInferReason,
-) -> CompileDiagnostic {
+) -> CompilerDiagnostic {
   diagnostic(
     "cannot infer expression type",
     span~,
@@ -1320,7 +1260,7 @@ fn cannot_infer_help(reason : @typecheck.CannotInferReason) -> String {
 }
 
 ///|
-fn lex_diagnostic(error : @lexer.LexError) -> CompileDiagnostic {
+fn lex_diagnostic(error : @lexer.LexError) -> CompilerDiagnostic {
   let span = Some(error.span)
   diagnostic(
     lex_error_title(error.error),
@@ -1405,7 +1345,7 @@ fn lex_error_helps(error : @lexer.LexicalError) -> Array[String] {
 }
 
 ///|
-fn parse_diagnostic(error : @parser.ParseError) -> CompileDiagnostic {
+fn parse_diagnostic(error : @parser.ParseError) -> CompilerDiagnostic {
   let span = Some(error.loc)
   diagnostic(
     parse_error_title(error.kind),
@@ -1489,156 +1429,15 @@ fn expected_list(expected : Array[@parser.ExpectedSyntax]) -> String {
 }
 
 ///|
-fn span_text(span : @basic.SourceSpan) -> String {
-  "\{span.start_line}:\{span.start_column}-\{span.end_line}:\{span.end_column}"
-}
-
-///|
-pub impl @prettyprinter.Pretty for CompileDiagnostic with fn pretty(
-  diagnostic : CompileDiagnostic,
-) -> Document {
-  let header = diagnostic.header_doc()
-  let body = diagnostic.body_doc()
-  if body is Some(body) {
-    header + line + body
-  } else {
-    header
-  }
-}
-
-///|
-fn CompileDiagnostic::header_doc(self : CompileDiagnostic) -> Document {
-  self.severity.to_doc() +
-  self.code_doc() +
-  text(":") +
-  space +
-  text(self.message)
-}
-
-///|
-fn CompileDiagnosticSeverity::to_doc(
-  self : CompileDiagnosticSeverity,
-) -> Document {
-  match self {
-    Error => text("error")
-    Warning => text("warning")
-  }
-}
-
-///|
-fn CompileDiagnostic::code_doc(self : CompileDiagnostic) -> Document {
-  match self.code {
-    Some(code) => text("[") + text(code) + text("]")
-    None => text("")
-  }
-}
-
-///|
-fn CompileDiagnostic::body_doc(self : CompileDiagnostic) -> Document? {
-  let docs : Array[Document] = []
-  match self.span {
-    Some(span) => docs.push(text("  span:") + space + text(span_text(span)))
-    None => ()
-  }
-  for label in self.labels {
-    docs.push(label.to_doc())
-  }
-  for note in self.notes {
-    docs.push(text("  note:") + space + text(note))
-  }
-  for fact in self.facts {
-    docs.push(fact.to_doc())
-  }
-  for help in self.helps {
-    docs.push(text("  help:") + space + text(help))
-  }
-  for suggestion in self.suggestions {
-    docs.push(suggestion.to_doc())
-  }
-  if docs.is_empty() {
-    None
-  } else {
-    Some(separate(line, docs))
-  }
-}
-
-///|
-fn CompileDiagnosticLabel::to_doc(self : CompileDiagnosticLabel) -> Document {
-  let prefix = match self.style {
-    Primary => text("  primary:")
-    Secondary => text("  secondary:")
-  }
-  prefix +
-  space +
-  text(span_text(self.span)) +
-  text(":") +
-  space +
-  text(self.message)
-}
-
-///|
-fn CompileDiagnosticFact::to_doc(self : CompileDiagnosticFact) -> Document {
-  match self.span {
-    Some(span) =>
-      text("  ") +
-      text(self.name) +
-      text(":") +
-      space +
-      text(self.value) +
-      space +
-      text("at") +
-      space +
-      text(span_text(span))
-    None => text("  ") + text(self.name) + text(":") + space + text(self.value)
-  }
-}
-
-///|
-fn CompileDiagnosticSuggestion::to_doc(
-  self : CompileDiagnosticSuggestion,
-) -> Document {
-  text("  suggestion:") +
-  space +
-  text(self.message) +
-  space +
-  text("(\{self.applicability.as_text()})")
-}
-
-///|
-fn CompileDiagnosticApplicability::as_text(
-  self : CompileDiagnosticApplicability,
-) -> String {
-  match self {
-    MachineApplicable => "machine-applicable"
-    MaybeIncorrect => "maybe-incorrect"
-    HasPlaceholders => "has-placeholders"
-    Unspecified => "unspecified"
-  }
-}
-
-///|
 pub impl @prettyprinter.Pretty for CheckResult with fn pretty(
   result : CheckResult,
 ) -> Document {
-  CompileDiagnostic::list_doc(result.diagnostics)
+  @compiler_diag.CompilerDiagnostic::list_doc(result.diagnostics)
 }
 
 ///|
 pub impl @prettyprinter.Pretty for CompileResult with fn pretty(
   result : CompileResult,
 ) -> Document {
-  CompileDiagnostic::list_doc(result.diagnostics)
-}
-
-///|
-fn CompileDiagnostic::list_doc(
-  diagnostics : Array[CompileDiagnostic],
-) -> Document {
-  if diagnostics.is_empty() {
-    text("diagnostics") + space + text("{}")
-  } else {
-    text("diagnostics") +
-    space +
-    separate(line, diagnostics.map(CompileDiagnostic::pretty))
-  }
+  @compiler_diag.CompilerDiagnostic::list_doc(result.diagnostics)
 }

@@ -52,7 +52,7 @@ fn DiagnosticSources::find(
 
 ///|
 fn print_diagnostics_with_sources(
-  diagnostics : Array[@compile.CompileDiagnostic],
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
   sources : DiagnosticSources,
 ) -> Unit {
   for diagnostic in diagnostics {
@@ -62,7 +62,7 @@ fn print_diagnostics_with_sources(
 
 ///|
 fn render_compile_diagnostic(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : DiagnosticSources,
 ) -> String {
   @diag_render.render_diagnostic(
@@ -74,7 +74,7 @@ fn render_compile_diagnostic(
 
 ///|
 fn compile_diagnostic_to_diagnostic(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : DiagnosticSources,
 ) -> @diag_core.Diagnostic {
   {
@@ -95,8 +95,8 @@ fn compile_diagnostic_to_diagnostic(
 }
 
 ///|
-fn @compile.CompileDiagnosticSeverity::to_diagnostic_severity(
-  self : @compile.CompileDiagnosticSeverity,
+fn @compiler_diag.CompilerDiagnosticSeverity::to_diagnostic_severity(
+  self : @compiler_diag.CompilerDiagnosticSeverity,
 ) -> @diag_core.Severity {
   match self {
     Error => Error
@@ -106,7 +106,7 @@ fn @compile.CompileDiagnosticSeverity::to_diagnostic_severity(
 
 ///|
 fn compile_diagnostic_labels_to_diagnostic_labels(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : DiagnosticSources,
 ) -> Array[@diag_core.Label] {
   guard diagnostic.source_id is Some(source_id) else { return [] }
@@ -128,7 +128,7 @@ fn compile_diagnostic_labels_to_diagnostic_labels(
 
 ///|
 fn compile_diagnostic_unmapped_label_notes(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : DiagnosticSources,
 ) -> Array[String] {
   match diagnostic.source_id {
@@ -139,7 +139,7 @@ fn compile_diagnostic_unmapped_label_notes(
 
 ///|
 fn compile_diagnostic_facts_to_diagnostic_facts(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : DiagnosticSources,
 ) -> Array[@diag_core.DiagnosticFact] {
   diagnostic.facts.map(fn(fact) {
@@ -157,7 +157,7 @@ fn compile_diagnostic_facts_to_diagnostic_facts(
 
 ///|
 fn compile_diagnostic_suggestions_to_diagnostic_suggestions(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   sources : DiagnosticSources,
 ) -> Array[@diag_core.Suggestion] {
   diagnostic.suggestions.map(fn(suggestion) {
@@ -176,7 +176,7 @@ fn compile_diagnostic_suggestions_to_diagnostic_suggestions(
 
 ///|
 fn compile_optional_span_to_diagnostic_span(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   span : @basic.SourceSpan?,
   sources : DiagnosticSources,
 ) -> @diag_core.SourceSpan? {
@@ -188,7 +188,7 @@ fn compile_optional_span_to_diagnostic_span(
 
 ///|
 fn compile_span_to_diagnostic_span(
-  diagnostic : @compile.CompileDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   span : @basic.SourceSpan,
   sources : DiagnosticSources,
 ) -> @diag_core.SourceSpan? {
@@ -206,8 +206,8 @@ fn compile_span_to_diagnostic_span(
 }
 
 ///|
-fn @compile.CompileDiagnosticLabelStyle::to_diagnostic_label_style(
-  self : @compile.CompileDiagnosticLabelStyle,
+fn @compiler_diag.CompilerDiagnosticLabelStyle::to_diagnostic_label_style(
+  self : @compiler_diag.CompilerDiagnosticLabelStyle,
 ) -> @diag_core.LabelStyle {
   match self {
     Primary => Primary
@@ -216,8 +216,8 @@ fn @compile.CompileDiagnosticLabelStyle::to_diagnostic_label_style(
 }
 
 ///|
-fn @compile.CompileDiagnosticApplicability::to_diagnostic_applicability(
-  self : @compile.CompileDiagnosticApplicability,
+fn @compiler_diag.CompilerDiagnosticApplicability::to_diagnostic_applicability(
+  self : @compiler_diag.CompilerDiagnosticApplicability,
 ) -> @diag_core.Applicability {
   match self {
     MachineApplicable => MachineApplicable
@@ -229,8 +229,8 @@ fn @compile.CompileDiagnosticApplicability::to_diagnostic_applicability(
 
 ///|
 fn denied_diagnostics(
-  diagnostics : Array[@compile.CompileDiagnostic],
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
   deny : Bool,
-) -> Array[@compile.CompileDiagnostic] {
+) -> Array[@compiler_diag.CompilerDiagnostic] {
   diagnostics.filter(fn(diagnostic) { deny || diagnostic.severity is Error })
 }

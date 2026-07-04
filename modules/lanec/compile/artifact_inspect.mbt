@@ -1,4 +1,7 @@
 ///|
+using @prettyprinter {separate, text}
+
+///|
 priv struct ArtifactTypeName {
   type_symbol : @symbol.TypeSymbolId
   type_name : String

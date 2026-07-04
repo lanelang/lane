@@ -108,7 +108,9 @@ fn pane_json(name : String, text : String) -> Json {
 }
 
 ///|
-fn compile_diagnostic_json(diagnostic : @compile.CompileDiagnostic) -> Json {
+fn compile_diagnostic_json(
+  diagnostic : @compiler_diag.CompilerDiagnostic,
+) -> Json {
   let fields : Map[String, Json] = {
     "source": "lane",
     "severity": diagnostic_severity_json(diagnostic.severity),
@@ -151,7 +153,7 @@ fn diagnostic_range_json(span : @basic.SourceSpan?) -> Json {
 
 ///|
 fn diagnostic_severity_json(
-  severity : @compile.CompileDiagnosticSeverity,
+  severity : @compiler_diag.CompilerDiagnosticSeverity,
 ) -> String {
   match severity {
     Error => "error"
@@ -161,7 +163,7 @@ fn diagnostic_severity_json(
 
 ///|
 fn diagnostic_label_style_json(
-  style : @compile.CompileDiagnosticLabelStyle,
+  style : @compiler_diag.CompilerDiagnosticLabelStyle,
 ) -> String {
   match style {
     Primary => "primary"

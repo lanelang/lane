@@ -5,6 +5,7 @@ import {
   "Milky2018/buslane",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
+  "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate",
   "Milky2018/lanec/module_interface",
   "Milky2018/lanec/symbol",
@@ -52,7 +53,7 @@ pub fn complete_import_reachable_source_inputs(SourceInput, Array[SourceInput], 
 
 pub fn complete_source_inputs(SourceInput, Array[SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
 
-pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[CompileDiagnostic]]
+pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[@diagnostic.CompilerDiagnostic]]
 
 pub fn link_module_artifacts(CompiledModuleSetArtifact) -> LinkResult
 
@@ -93,7 +94,7 @@ pub(all) struct AnalysisLocation {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct AnalysisResult {
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
@@ -117,7 +118,7 @@ pub(all) enum AnalysisSymbol {
 
 pub(all) struct CheckResult {
   source : @checked.CheckedSourceFile?
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckResult
 
@@ -125,63 +126,9 @@ pub(all) struct CompilationFingerprint {
   value : String
 } derive(Eq, @debug.Debug)
 
-pub(all) struct CompileDiagnostic {
-  source_id : String?
-  message : String
-  span : @basic.SourceSpan?
-  severity : CompileDiagnosticSeverity
-  code : String?
-  labels : Array[CompileDiagnosticLabel]
-  notes : Array[String]
-  helps : Array[String]
-  facts : Array[CompileDiagnosticFact]
-  suggestions : Array[CompileDiagnosticSuggestion]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for CompileDiagnostic
-
-pub(all) enum CompileDiagnosticApplicability {
-  MachineApplicable
-  MaybeIncorrect
-  HasPlaceholders
-  Unspecified
-} derive(Eq, @debug.Debug)
-
-pub(all) struct CompileDiagnosticFact {
-  name : String
-  value : String
-  span : @basic.SourceSpan?
-} derive(Eq, @debug.Debug)
-
-pub(all) struct CompileDiagnosticLabel {
-  span : @basic.SourceSpan
-  message : String
-  style : CompileDiagnosticLabelStyle
-} derive(Eq, @debug.Debug)
-
-pub(all) enum CompileDiagnosticLabelStyle {
-  Primary
-  Secondary
-} derive(Eq, @debug.Debug)
-
-pub(all) enum CompileDiagnosticSeverity {
-  Error
-  Warning
-} derive(Eq, @debug.Debug)
-
-pub(all) struct CompileDiagnosticSuggestion {
-  message : String
-  edits : Array[CompileDiagnosticTextEdit]
-  applicability : CompileDiagnosticApplicability
-} derive(Eq, @debug.Debug)
-
-pub(all) struct CompileDiagnosticTextEdit {
-  span : @basic.SourceSpan
-  replacement : String
-} derive(Eq, @debug.Debug)
-
 pub(all) struct CompileModulesResult {
   modules : CompiledModuleSet?
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CompileResult {
@@ -189,7 +136,7 @@ pub(all) struct CompileResult {
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
   runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CompileResult
 
@@ -286,7 +233,7 @@ pub(all) enum InlayHintKind {
 
 pub(all) struct LinkResult {
   program : LinkedProgram?
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkedProgram {
@@ -309,7 +256,7 @@ pub(all) struct LinkedProgramArtifact {
   runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgramArtifact::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
-pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedProgram, Array[CompileDiagnostic]]
+pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedProgram, Array[@diagnostic.CompilerDiagnostic]]
 pub fn LinkedProgramArtifact::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
 

@@ -207,7 +207,7 @@ fn find_linked_export(
 ///|
 fn linked_modules(
   modules : CompiledModuleSet,
-) -> Result[Array[CompiledModule], Array[CompileDiagnostic]] {
+) -> Result[Array[CompiledModule], Array[CompilerDiagnostic]] {
   let module_diagnostics = validate_compiled_modules(modules.modules)
   if !module_diagnostics.is_empty() {
     return Err(module_diagnostics)
@@ -232,7 +232,7 @@ fn linked_modules(
 ///|
 fn linked_all_modules(
   modules : Array[CompiledModule],
-) -> Result[Array[CompiledModule], Array[CompileDiagnostic]] {
+) -> Result[Array[CompiledModule], Array[CompilerDiagnostic]] {
   let module_diagnostics = validate_compiled_modules(modules)
   if !module_diagnostics.is_empty() {
     return Err(module_diagnostics)
@@ -254,7 +254,7 @@ fn linked_all_modules(
 ///|
 fn validate_compiled_modules(
   modules : Array[CompiledModule],
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for index in 0..<modules.length() {
     for other_index in (index + 1)..<modules.length() {
@@ -315,7 +315,7 @@ fn visit_compiled_module(
   visiting : Array[String],
   visited : Array[String],
   ordered : Array[CompiledModule],
-  diagnostics : Array[CompileDiagnostic],
+  diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   if visited.contains(module_path_text) {
     return

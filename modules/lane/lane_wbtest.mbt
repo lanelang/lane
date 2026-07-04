@@ -661,7 +661,7 @@ test "internal compiler error is marked as a compiler bug" {
 
 ///|
 test "check deny controls warning failures" {
-  let warning : @compile.CompileDiagnostic = {
+  let warning : @compiler_diag.CompilerDiagnostic = {
     source_id: None,
     message: "example warning",
     span: None,
@@ -673,7 +673,7 @@ test "check deny controls warning failures" {
     facts: [],
     suggestions: [],
   }
-  let error : @compile.CompileDiagnostic = {
+  let error : @compiler_diag.CompilerDiagnostic = {
     source_id: None,
     message: "example error",
     span: None,
@@ -763,7 +763,7 @@ test "compile diagnostics convert text offsets before rendering" {
 
 ///|
 test "source-less diagnostic labels are preserved as notes" {
-  let diagnostic : @compile.CompileDiagnostic = {
+  let diagnostic : @compiler_diag.CompilerDiagnostic = {
     source_id: None,
     message: "source-less error",
     span: None,

@@ -1,7 +1,7 @@
 ///|
 priv struct OrderedInterfaceArtifactsResult {
   interfaces : Array[ModuleInterfaceArtifact]
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|
@@ -35,7 +35,7 @@ fn reachable_interface_artifacts(
 ///|
 fn validate_interface_artifacts(
   interfaces : Array[ModuleInterfaceArtifact],
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for interface in interfaces {
     match interface.validate() {
@@ -62,7 +62,7 @@ fn validate_interface_artifacts(
 ///|
 fn ModuleInterfaceArtifact::validate(
   self : ModuleInterfaceArtifact,
-) -> CompileDiagnostic? {
+) -> CompilerDiagnostic? {
   if self.schema_version != 1 {
     return Some(
       CompileErrorKind::to_diagnostic(
@@ -121,7 +121,7 @@ fn visit_interface_artifact(
   visiting : Array[String],
   visited : Array[String],
   ordered : Array[ModuleInterfaceArtifact],
-  diagnostics : Array[CompileDiagnostic],
+  diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   if visited.contains(module_path_text) {
     return

@@ -82,7 +82,7 @@ priv struct LinkedModuleExport {
 ///|
 priv struct OrderedCompiledModulesResult {
   modules : Array[CompiledModule]
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|

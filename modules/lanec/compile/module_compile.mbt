@@ -65,7 +65,7 @@ pub(all) struct LinkedProgram {
 ///|
 pub(all) struct LinkResult {
   program : LinkedProgram?
-  diagnostics : Array[CompileDiagnostic]
+  diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
@@ -155,7 +155,7 @@ fn validate_runtime_effect_operation(
 ///|
 fn compile_module_graph(
   graph : ModuleGraph,
-) -> Result[CompiledModuleSet, Array[CompileDiagnostic]] {
+) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let modules : Array[CompiledModule] = []
   for input in graph.modules {
@@ -179,7 +179,7 @@ fn compile_module_graph(
 fn compile_module_from_interface_artifacts(
   root_source : SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
-) -> Result[CompiledModuleSet, Array[CompileDiagnostic]] {
+) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   let parsed = parse_module_inputs(root_source, [])
   if !parsed.diagnostics.is_empty() {
     return Err(parsed.diagnostics)

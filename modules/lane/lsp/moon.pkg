@@ -4,6 +4,7 @@ import {
   "Milky2018/diagnostic/source" @diag_source,
   "Milky2018/lanec/basic",
   "Milky2018/lanec/compile",
+  "Milky2018/lanec/diagnostic" @compiler_diag,
   "gmlewis/jsonrpc2" @jsonrpc,
   "moonbitlang/async/fs",
   "moonbitlang/async/io",

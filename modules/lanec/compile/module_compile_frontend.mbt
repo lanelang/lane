@@ -17,7 +17,7 @@ fn compile_one_module(
   input : ParsedModuleInput,
   registry : @symbol.SymbolRegistry,
   imported : @module_interface.ImportedEnvironment,
-) -> Result[CompiledModule, Array[CompileDiagnostic]] {
+) -> Result[CompiledModule, Array[CompilerDiagnostic]] {
   let display = TypeDisplayContext::from_registry(registry)
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,

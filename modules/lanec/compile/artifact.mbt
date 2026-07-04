@@ -135,7 +135,7 @@ pub fn LinkedProgram::to_artifact(
 ///|
 pub fn LinkedProgramArtifact::to_linked_program(
   self : LinkedProgramArtifact,
-) -> Result[LinkedProgram, Array[CompileDiagnostic]] {
+) -> Result[LinkedProgram, Array[CompilerDiagnostic]] {
   let diagnostics = self.validate()
   if !diagnostics.is_empty() {
     Err(diagnostics)
@@ -173,7 +173,7 @@ pub fn link_module_artifacts(
 ///|
 fn compiled_modules_from_object_artifacts(
   objects : Array[ModuleObjectArtifact],
-) -> Result[Array[CompiledModule], Array[CompileDiagnostic]] {
+) -> Result[Array[CompiledModule], Array[CompilerDiagnostic]] {
   let diagnostics = ModuleObjectArtifact::validate_all(objects)
   if !diagnostics.is_empty() {
     return Err(diagnostics)
@@ -184,7 +184,7 @@ fn compiled_modules_from_object_artifacts(
 ///|
 fn ModuleObjectArtifact::validate_all(
   objects : Array[ModuleObjectArtifact],
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for object in objects {
     match object.validate() {
@@ -211,7 +211,7 @@ fn ModuleObjectArtifact::validate_all(
 ///|
 fn ModuleObjectArtifact::validate(
   self : ModuleObjectArtifact,
-) -> CompileDiagnostic? {
+) -> CompilerDiagnostic? {
   if self.schema_version != module_object_artifact_schema_version {
     return Some(
       CompileErrorKind::to_diagnostic(
@@ -284,7 +284,7 @@ fn ModuleObjectArtifact::validate(
 ///|
 fn LinkedProgramArtifact::validate(
   self : LinkedProgramArtifact,
-) -> Array[CompileDiagnostic] {
+) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   if self.schema_version != 1 {
     diagnostics.push(
@@ -309,7 +309,7 @@ fn LinkedProgramArtifact::validate(
 ///|
 fn LinkedProgramArtifact::validate_modules(
   self : LinkedProgramArtifact,
-  diagnostics : Array[CompileDiagnostic],
+  diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   for index in 0..<self.module_path_texts.length() {
     for other_index in (index + 1)..<self.module_path_texts.length() {
@@ -328,7 +328,7 @@ fn LinkedProgramArtifact::validate_modules(
 ///|
 fn LinkedProgramArtifact::validate_entries(
   self : LinkedProgramArtifact,
-  diagnostics : Array[CompileDiagnostic],
+  diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   for index in 0..<self.entries.length() {
     let entry = self.entries[index]
@@ -356,7 +356,7 @@ fn LinkedProgramArtifact::validate_entries(
 ///|
 fn LinkedProgramArtifact::validate_runtime_effect_operations(
   self : LinkedProgramArtifact,
-  diagnostics : Array[CompileDiagnostic],
+  diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   for operation in self.runtime_effect_operations {
     if self.program.metadata.operation_info(operation.operation) is None {
@@ -370,7 +370,7 @@ fn LinkedProgramArtifact::validate_runtime_effect_operations(
 ///|
 fn CompiledModuleSetArtifact::validate_schema(
   self : CompiledModuleSetArtifact,
-) -> CompileDiagnostic? {
+) -> CompilerDiagnostic? {
   if self.schema_version != 1 {
     return Some(
       CompileErrorKind::to_diagnostic(
