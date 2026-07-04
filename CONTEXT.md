@@ -37,6 +37,10 @@ _Avoid_: filesystem path, package URL, source filename
 A normal library **Module** supplied explicitly as a **Library Input**.
 _Avoid_: prelude, implicit builtin scope, compiler magic module
 
+**Conventional Standard Module**:
+A **Standard Library Module** whose module path and exported shapes are recognized by tools as conventions rather than by an official implementation fingerprint.
+_Avoid_: pinned standard library, compiler-owned module, trusted artifact
+
 **Compilation Unit**:
 One **Module** compiled by `lanec` against an **Imported Environment**.
 _Avoid_: project, module graph, linked program
@@ -437,6 +441,8 @@ _Avoid_: VS Code extension, compiler front end
 - A **Library Directory** skips hidden directories and build output directories during CLI discovery.
 - Source files discovered from a **Library Directory** must be valid **Source Files**.
 - Filesystem paths do not define or validate **Module Paths**.
+- A **Standard Library Module** is never injected implicitly by compiler or command tooling; users provide its interface, object, or source as ordinary inputs.
+- A **Conventional Standard Module** may be implemented by any user-provided artifact whose exported shapes satisfy the tool convention.
 - A **Duplicate Module Input** is an error, including duplicates between the root source and libraries.
 - All modules supplied by **Library Inputs** are compiled, even when they are not imported by the root source.
 - Every compiled module must resolve its imports within the **Module Input Set**.

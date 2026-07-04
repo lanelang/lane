@@ -1,0 +1,9 @@
+# Explicit conventional Stdlib runtime effects
+
+Lane2 run tooling uses explicit, user-provided `Stdlib` artifacts as runtime effect conventions rather than injecting a standard library, pinning an official fingerprint, or treating console output as an unsafe builtin-only escape hatch. `Stdlib` is an ordinary module input that may be implemented by any artifact with the expected exported shapes; `lane run` and `lane runobj` validate executable entries by expanding their closed effect sets and ensuring the remaining effects are covered by registered runtime conventions such as `Stdlib.Io`.
+
+Runtime conventions bind source-level exported identities and signatures, for example `Stdlib.Write.println : (String) -> Unit`, then map the validated operation to the linked Buslane operation identity used during execution. Runtime effect handlers only handle operations that escape source lexical handlers to the outer runtime boundary; they do not override Lane source handlers. The initial convention provides `Stdlib.Io`, `Stdlib.Console`, and `Stdlib.Write`, with default command support only for `Stdlib.Write.println`.
+
+Runtime convention validation happens at the execution boundary rather than at compile or link time. Compile and link preserve the metadata needed for later validation, while `lane run`, `lane runobj`, or a MoonBit host embedding `lanec` chooses a selected entry and validates that its fully expanded closed concrete effect set is empty or covered by the registered runtime conventions.
+
+Rejected alternatives were intentionally avoided: `builtin("%println")` is simpler but loses typed algebraic-effect tracking; user-declared shape matching without a conventional module path is ambiguous; runtime capability binding declarations add a new language surface too early; and official Stdlib fingerprint pinning conflicts with explicit, replaceable module inputs.
