@@ -1537,20 +1537,20 @@ fn CompileDiagnostic::code_doc(self : CompileDiagnostic) -> Document {
 fn CompileDiagnostic::body_doc(self : CompileDiagnostic) -> Document? {
   let docs : Array[Document] = []
   match self.span {
-    Some(span) => docs.push(text("  -->") + space + text(span_text(span)))
+    Some(span) => docs.push(text("  span:") + space + text(span_text(span)))
     None => ()
   }
   for label in self.labels {
     docs.push(label.to_doc())
   }
   for note in self.notes {
-    docs.push(text("  = note:") + space + text(note))
+    docs.push(text("  note:") + space + text(note))
   }
   for fact in self.facts {
     docs.push(fact.to_doc())
   }
   for help in self.helps {
-    docs.push(text("  = help:") + space + text(help))
+    docs.push(text("  help:") + space + text(help))
   }
   for suggestion in self.suggestions {
     docs.push(suggestion.to_doc())
@@ -1565,18 +1565,22 @@ fn CompileDiagnostic::body_doc(self : CompileDiagnostic) -> Document? {
 ///|
 fn CompileDiagnosticLabel::to_doc(self : CompileDiagnosticLabel) -> Document {
   let prefix = match self.style {
-    Primary => text("  = label:")
-    Secondary => text("  = note:")
+    Primary => text("  primary:")
+    Secondary => text("  secondary:")
   }
-  prefix + space + text(span_text(self.span)) + space + text(self.message)
+  prefix +
+  space +
+  text(span_text(self.span)) +
+  text(":") +
+  space +
+  text(self.message)
 }
 
 ///|
 fn CompileDiagnosticFact::to_doc(self : CompileDiagnosticFact) -> Document {
   match self.span {
     Some(span) =>
-      text("  =") +
-      space +
+      text("  ") +
       text(self.name) +
       text(":") +
       space +
@@ -1585,13 +1589,7 @@ fn CompileDiagnosticFact::to_doc(self : CompileDiagnosticFact) -> Document {
       text("at") +
       space +
       text(span_text(span))
-    None =>
-      text("  =") +
-      space +
-      text(self.name) +
-      text(":") +
-      space +
-      text(self.value)
+    None => text("  ") + text(self.name) + text(":") + space + text(self.value)
   }
 }
 
@@ -1599,7 +1597,7 @@ fn CompileDiagnosticFact::to_doc(self : CompileDiagnosticFact) -> Document {
 fn CompileDiagnosticSuggestion::to_doc(
   self : CompileDiagnosticSuggestion,
 ) -> Document {
-  text("  = suggestion:") +
+  text("  suggestion:") +
   space +
   text(self.message) +
   space +

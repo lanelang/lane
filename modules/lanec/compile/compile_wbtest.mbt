@@ -890,12 +890,12 @@ test "missing import with mismatched interface artifact reports candidates" {
     @prettyprinter.render(diagnostic, width=100),
     content=(
       #|error[E4002]: missing imported module `Builtins`
-      #|  --> 2:8-2:16
-      #|  = label: 2:8-2:16 no explicit input provides this module
-      #|  = note: Lane only compiles explicitly provided source files and interface artifacts
-      #|  = considered interface artifact: declares module `builtins`
-      #|  = help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules
-      #|  = suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
+      #|  span: 2:8-2:16
+      #|  primary: 2:8-2:16: no explicit input provides this module
+      #|  note: Lane only compiles explicitly provided source files and interface artifacts
+      #|  considered interface artifact: declares module `builtins`
+      #|  help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules
+      #|  suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
     ),
   )
 }
@@ -1104,9 +1104,9 @@ test "module object text rejects old schema one artifact" {
     message,
     content=(
       #|error[E5016]: unsupported artifact schema
-      #|  = label: unsupported module object artifact schema 1 for Old
-      #|  = note: this artifact was produced by an incompatible Lane compiler or old schema
-      #|  = help: regenerate the artifact with the current Lane compiler
+      #|  problem: unsupported module object artifact schema 1 for Old
+      #|  context: this artifact was produced by an incompatible Lane compiler or old schema
+      #|  recovery: regenerate the artifact with the current Lane compiler
     ),
   )
 }

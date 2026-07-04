@@ -216,10 +216,10 @@ test "format command diagnostics render through command reports" {
       #|---
       #|error: format diagnostics
       #|Main.lane: error[E1100]: unexpected token
-      #|  --> 2:18-2:19
-      #|  = label: 2:18-2:19 the parser did not expect `=`
-      #|  = note: expected one of: identifier, `type`, `(`, `[`
-      #|  = help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
+      #|  span: 2:18-2:19
+      #|  primary: 2:18-2:19: the parser did not expect `=`
+      #|  note: expected one of: identifier, `type`, `(`, `[`
+      #|  help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
     ),
   )
 }

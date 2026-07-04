@@ -81,9 +81,14 @@ pub fn parse_text(text : String) -> Result[ArtifactDocument, String] {
 fn artifact_error(
   code : String,
   title : String,
-  label : String,
-  note : String,
-  help : String,
+  problem : String,
+  context : String,
+  recovery : String,
 ) -> String {
-  "error[\{code}]: \{title}\n  = label: \{label}\n  = note: \{note}\n  = help: \{help}"
+  (
+    $|error[\{code}]: \{title}
+    $|  problem: \{problem}
+    $|  context: \{context}
+    $|  recovery: \{recovery}
+  )
 }

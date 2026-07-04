@@ -64,7 +64,7 @@ test "golden inference diagnostic help uses structured reason" {
 }
 
 ///|
-test "golden syntax diagnostic includes code headline label note and help" {
+test "golden syntax diagnostic renders span summary and guidance" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
@@ -76,16 +76,16 @@ test "golden syntax diagnostic includes code headline label note and help" {
     @prettyprinter.render(diagnostic),
     content=(
       #|error[E1100]: unexpected token
-      #|  --> 2:18-2:19
-      #|  = label: 2:18-2:19 the parser did not expect `=`
-      #|  = note: expected one of: identifier, `type`, `(`, `[`
-      #|  = help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
+      #|  span: 2:18-2:19
+      #|  primary: 2:18-2:19: the parser did not expect `=`
+      #|  note: expected one of: identifier, `type`, `(`, `[`
+      #|  help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
     ),
   )
 }
 
 ///|
-test "golden resolver diagnostic includes code headline label note and help" {
+test "golden resolver diagnostic renders span summary and guidance" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
@@ -97,16 +97,16 @@ test "golden resolver diagnostic includes code headline label note and help" {
     @prettyprinter.render(diagnostic),
     content=(
       #|error[E2001]: cannot find value `missing`
-      #|  --> 2:24-2:31
-      #|  = label: 2:24-2:31 no value named `missing` is visible here
-      #|  = note: Lane value lookup uses local bindings, top-level values, and explicitly imported public values
-      #|  = help: define `missing` before this use, import it, or qualify it with its module path
+      #|  span: 2:24-2:31
+      #|  primary: 2:24-2:31: no value named `missing` is visible here
+      #|  note: Lane value lookup uses local bindings, top-level values, and explicitly imported public values
+      #|  help: define `missing` before this use, import it, or qualify it with its module path
     ),
   )
 }
 
 ///|
-test "golden type diagnostic includes code headline label note and help" {
+test "golden type diagnostic renders span summary and facts" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
@@ -118,19 +118,19 @@ test "golden type diagnostic includes code headline label note and help" {
     @prettyprinter.render(diagnostic),
     content=(
       #|error[E3006]: type mismatch
-      #|  --> 2:24-2:28
-      #|  = label: 2:24-2:28 expected `Int`, found `Bool`
-      #|  = note: Lane does not insert implicit conversions between different types
-      #|  = expected type: `Int` at 2:24-2:28
-      #|  = actual type: `Bool` at 2:24-2:28
-      #|  = help: change the expression type or adjust the annotation/expected type
-      #|  = suggestion: change the expression type or adjust the annotation/expected type (unspecified)
+      #|  span: 2:24-2:28
+      #|  primary: 2:24-2:28: expected `Int`, found `Bool`
+      #|  note: Lane does not insert implicit conversions between different types
+      #|  expected type: `Int` at 2:24-2:28
+      #|  actual type: `Bool` at 2:24-2:28
+      #|  help: change the expression type or adjust the annotation/expected type
+      #|  suggestion: change the expression type or adjust the annotation/expected type (unspecified)
     ),
   )
 }
 
 ///|
-test "golden struct diagnostic includes code headline label note and help" {
+test "golden struct diagnostic renders span summary and suggestion" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
@@ -146,17 +146,17 @@ test "golden struct diagnostic includes code headline label note and help" {
     @prettyprinter.render(diagnostic),
     content=(
       #|error[E3101]: missing field `y`
-      #|  --> 6:30-6:36
-      #|  = label: 6:30-6:36 this struct construction or pattern omits required field `y`
-      #|  = note: Lane struct literals and struct patterns must account for required fields
-      #|  = help: add a `y: ...` field entry
-      #|  = suggestion: add a `y: ...` field entry (has-placeholders)
+      #|  span: 6:30-6:36
+      #|  primary: 6:30-6:36: this struct construction or pattern omits required field `y`
+      #|  note: Lane struct literals and struct patterns must account for required fields
+      #|  help: add a `y: ...` field entry
+      #|  suggestion: add a `y: ...` field entry (has-placeholders)
     ),
   )
 }
 
 ///|
-test "golden pattern diagnostic includes code headline label note and help" {
+test "golden pattern diagnostic renders span summary and guidance" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
@@ -176,16 +176,16 @@ test "golden pattern diagnostic includes code headline label note and help" {
     @prettyprinter.render(diagnostic),
     content=(
       #|error[E3200]: non-exhaustive match
-      #|  --> 7:16-9:4
-      #|  = label: 7:16-9:4 patterns do not cover every `Option` value
-      #|  = note: Lane checks match coverage statically using the pattern matrix
-      #|  = help: add a missing constructor case or a final `_` wildcard arm
+      #|  span: 7:16-9:4
+      #|  primary: 7:16-9:4: patterns do not cover every `Option` value
+      #|  note: Lane checks match coverage statically using the pattern matrix
+      #|  help: add a missing constructor case or a final `_` wildcard arm
     ),
   )
 }
 
 ///|
-test "golden module input diagnostic includes code headline label note and help" {
+test "golden module input diagnostic renders span summary and input facts" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Main
@@ -200,12 +200,12 @@ test "golden module input diagnostic includes code headline label note and help"
     @prettyprinter.render(diagnostic),
     content=(
       #|error[E4002]: missing imported module `Missing`
-      #|  --> 2:8-2:15
-      #|  = label: 2:8-2:15 no explicit input provides this module
-      #|  = note: Lane only compiles explicitly provided source files and interface artifacts
-      #|  = considered source module: `Main`
-      #|  = help: pass an input whose declared module is `Missing`, or change the import to one of the listed modules
-      #|  = suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
+      #|  span: 2:8-2:15
+      #|  primary: 2:8-2:15: no explicit input provides this module
+      #|  note: Lane only compiles explicitly provided source files and interface artifacts
+      #|  considered source module: `Main`
+      #|  help: pass an input whose declared module is `Missing`, or change the import to one of the listed modules
+      #|  suggestion: check the imported module name against the listed explicit inputs (maybe-incorrect)
     ),
   )
 }

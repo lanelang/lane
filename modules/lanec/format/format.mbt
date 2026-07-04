@@ -343,17 +343,17 @@ fn code_doc(code : String?) -> Document {
 fn diagnostic_body_doc(diagnostic : FormatDiagnostic) -> Document? {
   let docs : Array[Document] = []
   match diagnostic.span {
-    Some(span) => docs.push(text("  -->") + space + text(span_text(span)))
+    Some(span) => docs.push(text("  span:") + space + text(span_text(span)))
     None => ()
   }
   for label in diagnostic.labels {
     docs.push(label_doc(label))
   }
   for note in diagnostic.notes {
-    docs.push(text("  = note:") + space + text(note))
+    docs.push(text("  note:") + space + text(note))
   }
   for help in diagnostic.helps {
-    docs.push(text("  = help:") + space + text(help))
+    docs.push(text("  help:") + space + text(help))
   }
   if docs.is_empty() {
     None
@@ -365,8 +365,13 @@ fn diagnostic_body_doc(diagnostic : FormatDiagnostic) -> Document? {
 ///|
 fn label_doc(label : FormatDiagnosticLabel) -> Document {
   let prefix = match label.style {
-    Primary => text("  = label:")
-    Secondary => text("  = note:")
+    Primary => text("  primary:")
+    Secondary => text("  secondary:")
   }
-  prefix + space + text(span_text(label.span)) + space + text(label.message)
+  prefix +
+  space +
+  text(span_text(label.span)) +
+  text(":") +
+  space +
+  text(label.message)
 }

@@ -38,13 +38,13 @@ test "reject unsupported artifact text version" {
     ),
   )
   guard parsed is Err(message) else { abort("expected parse failure") }
-  assert_eq(
+  inspect(
     message,
-    (
+    content=(
       #|error[E5003]: unsupported artifact text version
-      #|  = label: found `lane-artifact-text-v0`, expected `lane-artifact-text-v1`
-      #|  = note: artifact text versions are compiler format contracts
-      #|  = help: recompile or relink the artifact with the current Lane compiler
+      #|  problem: found `lane-artifact-text-v0`, expected `lane-artifact-text-v1`
+      #|  context: artifact text versions are compiler format contracts
+      #|  recovery: recompile or relink the artifact with the current Lane compiler
     ),
   )
 }

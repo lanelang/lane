@@ -25,10 +25,10 @@ test "format source reports parse diagnostics" {
     @prettyprinter.render(diagnostics[0]),
     content=(
       #|error[E1100]: unexpected token
-      #|  --> 2:18-2:19
-      #|  = label: 2:18-2:19 the parser did not expect `=`
-      #|  = note: expected one of: identifier, `type`, `(`, `[`
-      #|  = help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
+      #|  span: 2:18-2:19
+      #|  primary: 2:18-2:19: the parser did not expect `=`
+      #|  note: expected one of: identifier, `type`, `(`, `[`
+      #|  help: rewrite this position so it starts with one of: identifier, `type`, `(`, `[`
     ),
   )
 }
