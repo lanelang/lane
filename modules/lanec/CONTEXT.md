@@ -32,6 +32,10 @@ _Avoid_: terminal renderer, LSP diagnostic, command report
 Diagnostic presentation that combines a compiler diagnostic with its source text before rendering source locations and guidance.
 _Avoid_: compact diagnostic pretty print, debug diagnostic output, command report
 
+**Width-Sensitive Formatting**:
+Formatter output that uses syntax-aware pretty-printing breakpoints to prefer lines within a configured width while allowing indivisible source atoms to exceed it.
+_Avoid_: hard line wrapping, post-render text wrapping, token splitting
+
 **Semantic Completion**:
 A compiler-analysis completion result derived from Lane symbols, types, effects, modules, and source context.
 _Avoid_: keyword snippet, editor-side text scan, LSP-only completion
@@ -60,6 +64,11 @@ _Avoid_: full analysis index, precomputed completion cache, editor request handl
   but must not own terminal, JSON-RPC, or editor presentation.
 - **Source-Aware Diagnostic Rendering** is the only user-facing presentation
   path for compiler and formatter source diagnostics.
+- **Width-Sensitive Formatting** belongs to compiler syntax pretty-printing,
+  not to command-line post-processing.
+- **Width-Sensitive Formatting** applies first to syntax-owned list and head
+  structures; it does not split source atoms such as identifiers, module paths,
+  comments, or string literals.
 - **Semantic Completion** belongs to the **Compiler Analysis API**; LSP adapters
   only transport it as protocol-specific completion items.
 - A **Completion Trigger** informs a **Semantic Completion** query but does not
