@@ -38,7 +38,11 @@ pub fn eval_eq_int(left : Eval[Int], right : Eval[Int]) -> Eval[Bool] {
   Eval::{ value: left.value == right.value }
 }
 
-pub fn eval_if_int(condition : Eval[Bool], then_branch : Eval[Int], else_branch : Eval[Int]) -> Eval[Int] {
+pub fn eval_if_int(
+  condition : Eval[Bool],
+  then_branch : Eval[Int],
+  else_branch : Eval[Int]
+) -> Eval[Int] {
   if condition.value {
     then_branch
   } else {
@@ -74,7 +78,11 @@ pub fn size_eq_int(left : Size[Int], right : Size[Int]) -> Size[Bool] {
   Size::{ size: 1 + left.size + right.size }
 }
 
-pub fn size_if_int(condition : Size[Bool], then_branch : Size[Int], else_branch : Size[Int]) -> Size[Int] {
+pub fn size_if_int(
+  condition : Size[Bool],
+  then_branch : Size[Int],
+  else_branch : Size[Int]
+) -> Size[Int] {
   Size::{ size: 1 + condition.size + then_branch.size + else_branch.size }
 }
 

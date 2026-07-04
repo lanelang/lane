@@ -183,20 +183,14 @@ pub let numbers : List[Int] = cons(1, cons(2, cons(3, List::nil())))
 
 pub let incremented_numbers : List[Int] = list_mappable.map(increment, numbers)
 
-pub let flattened_numbers : List[Int] = list_flat_mappable.flat_map(
-  singleton_int,
-  incremented_numbers
-)
+pub let flattened_numbers : List[Int] =
+  list_flat_mappable.flat_map(singleton_int, incremented_numbers)
 
-pub let applied_numbers : List[Int] = list_applicative.apply(
-  cons(identity_int, List::nil()),
-  flattened_numbers
-)
+pub let applied_numbers : List[Int] =
+  list_applicative.apply(cons(identity_int, List::nil()), flattened_numbers)
 
-pub let selected_number : Option[Int] = option_flat_mappable.flat_map(
-  option_identity,
-  index(reverse(applied_numbers), 2)
-)
+pub let selected_number : Option[Int] =
+  option_flat_mappable.flat_map(option_identity, index(reverse(applied_numbers), 2))
 
 pub let selected_value : Option[Int] = option_applicative.apply(some(identity_int), selected_number)
 

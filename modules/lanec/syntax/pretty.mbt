@@ -1,26 +1,6 @@
 ///|
-fn keyword(value : String) -> Document {
-  text(value)
-}
-
-///|
-fn comma_space() -> Document {
-  text(",") + space
-}
-
-///|
-fn comma_line() -> Document {
-  text(",") + line
-}
-
-///|
-fn comma_list(docs : Array[Document]) -> Document {
-  separate(comma_line(), docs)
-}
-
-///|
-fn join_comma(docs : Array[Document]) -> Document {
-  separate(comma_space(), docs)
+fn assignment_expr_doc(head : Document, value : Expr) -> Document {
+  source_assignment(head, value.first_line_doc(), value.to_doc())
 }
 
 ///|
@@ -28,7 +8,7 @@ fn bracketed_type_parameters(parameters : Array[TypeParameter]) -> Document {
   if parameters.is_empty() {
     empty
   } else {
-    brackets(join_comma(parameters.map(TypeParameter::to_doc)))
+    bracketed_comma_list(parameters.map(TypeParameter::to_doc))
   }
 }
 
@@ -37,45 +17,8 @@ fn bracketed_type_arguments(arguments : Array[Type]) -> Document {
   if arguments.is_empty() {
     empty
   } else {
-    brackets(join_comma(arguments.map(Type::to_doc)))
+    bracketed_comma_list(arguments.map(Type::to_doc))
   }
-}
-
-///|
-fn parenthesized(docs : Array[Document]) -> Document {
-  group(parens(nest(softline + comma_list(docs)) + softline))
-}
-
-///|
-fn brace_block(docs : Array[Document]) -> Document {
-  if docs.is_empty() {
-    surround(char('{'), char('}'), empty)
-  } else {
-    surround(
-      char('{'),
-      hardline + char('}'),
-      nest(hardline + separate(hardline, docs)),
-    )
-  }
-}
-
-///|
-fn brace_comma_group(docs : Array[Document]) -> Document {
-  group(surround(char('{'), char('}'), nest(line + comma_list(docs)) + line))
-}
-
-///|
-fn brace_comma_compact(docs : Array[Document]) -> Document {
-  if docs.is_empty() {
-    surround(char('{'), char('}'), empty)
-  } else {
-    group(surround(char('{'), char('}'), nest(line + comma_list(docs)) + line))
-  }
-}
-
-///|
-fn source_string(value : String) -> Document {
-  text(value.escape())
 }
 
 ///|
@@ -124,7 +67,7 @@ fn ImportDeclaration::to_doc(self : ImportDeclaration) -> Document {
       space +
       module_path.to_doc() +
       text(".") +
-      surround(char('{'), char('}'), join_comma(items.map(ImportItem::to_doc)))
+      braced_comma_list_compact(items.map(ImportItem::to_doc))
   }
 }
 
@@ -283,11 +226,10 @@ fn EffectOperationDeclaration::to_doc(
 ) -> Document {
   text(self.name) +
   bracketed_type_parameters(self.type_parameters) +
-  parenthesized(self.payload.map(Type::to_doc)) +
-  space +
-  text("->") +
-  space +
-  self.result.to_doc()
+  parenthesized_comma_list_with_suffix(
+    self.payload.map(Type::to_doc),
+    space + text("->") + space + self.result.to_doc(),
+  )
 }
 
 ///|
@@ -326,7 +268,7 @@ fn EnumVariant::to_doc(self : EnumVariant) -> Document {
   let type_parameters = bracketed_type_parameters(self.type_parameters)
   text(self.name) +
   type_parameters +
-  parenthesized(self.payload.map(Type::to_doc))
+  parenthesized_comma_list(self.payload.map(Type::to_doc))
 }
 
 ///|
@@ -380,17 +322,20 @@ pub impl @prettyprinter.Pretty for FunctionDeclaration with fn pretty(
 
 ///|
 fn FunctionDeclaration::to_doc(self : FunctionDeclaration) -> Document {
+  let suffix = space +
+    text("->") +
+    space +
+    self.return_type.to_doc() +
+    self.effect.to_annotation_doc()
   public_prefix(self.is_public) +
   keyword("fn") +
   bracketed_type_parameters(self.type_parameters) +
   space +
   text(self.name) +
-  parenthesized(self.parameters.map(Parameter::to_doc)) +
-  space +
-  text("->") +
-  space +
-  self.return_type.to_doc() +
-  self.effect.to_annotation_doc() +
+  parenthesized_comma_list_with_suffix(
+    self.parameters.map(Parameter::to_doc),
+    suffix,
+  ) +
   space +
   self.body.to_doc()
 }
@@ -429,14 +374,10 @@ fn LetDeclaration::to_doc(self : LetDeclaration) -> Document {
     Some(type_) => space + text(":") + space + type_.to_doc()
     None => empty
   }
-  public_prefix(self.is_public) +
-  keyword("let") +
-  name_doc +
-  type_doc +
-  space +
-  text("=") +
-  space +
-  self.initializer.to_doc()
+  assignment_expr_doc(
+    public_prefix(self.is_public) + keyword("let") + name_doc + type_doc,
+    self.initializer,
+  )
 }
 
 ///|
@@ -448,18 +389,17 @@ pub impl @prettyprinter.Pretty for OfferDeclaration with fn pretty(
 
 ///|
 fn OfferDeclaration::to_doc(self : OfferDeclaration) -> Document {
-  public_prefix(self.is_public) +
-  keyword("offer") +
-  space +
-  text(self.name) +
-  space +
-  text(":") +
-  space +
-  self.type_annotation.to_doc() +
-  space +
-  text("=") +
-  space +
-  self.initializer.to_doc()
+  assignment_expr_doc(
+    public_prefix(self.is_public) +
+    keyword("offer") +
+    space +
+    text(self.name) +
+    space +
+    text(":") +
+    space +
+    self.type_annotation.to_doc(),
+    self.initializer,
+  )
 }
 
 ///|
@@ -484,7 +424,7 @@ fn Type::to_doc(self : Type) -> Document {
       body.to_doc()
     Function(type_parameters~, parameters~, result~, effect~, ..) =>
       bracketed_type_parameters(type_parameters) +
-      parenthesized(parameters.map(Type::to_doc)) +
+      parenthesized_comma_list(parameters.map(Type::to_doc)) +
       space +
       text("->") +
       space +
@@ -498,7 +438,7 @@ fn EffectTerm::to_doc(self : EffectTerm) -> Document {
   match self {
     Empty(..) => text("{}")
     Term(type_~, ..) => type_.to_doc()
-    Union(items~, ..) => brace_comma_group(items.map(Type::to_doc))
+    Union(items~, ..) => braced_comma_list(items.map(Type::to_doc))
   }
 }
 
@@ -518,6 +458,44 @@ pub impl @prettyprinter.Pretty for Expr with fn pretty(expression : Expr) {
 ///|
 fn Expr::to_doc(self : Expr) -> Document {
   self.to_doc_with_precedence(0)
+}
+
+///|
+fn Expr::first_line_doc(self : Expr) -> Document {
+  match self {
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) => {
+      let head = function_literal_head_doc(
+        type_parameters, parameters, return_type, effect,
+      )
+      head + space + body.first_line_doc()
+    }
+    Handler(body~, ..) => keyword("handle") + space + body.first_line_doc()
+    Block(..) => char('{')
+    StructLiteral(type_name~, type_arguments~, ..) =>
+      text(type_name) +
+      bracketed_type_arguments(type_arguments) +
+      text("::") +
+      char('{')
+    If(condition~, then_branch~, ..) =>
+      keyword("if") +
+      space +
+      condition.to_doc() +
+      space +
+      then_branch.first_line_doc()
+    Match(scrutinee~, ..) =>
+      keyword("match") + space + scrutinee.to_doc() + space + char('{')
+    Call(callee~, arguments~, ..) =>
+      callee.to_doc_with_precedence(9) +
+      parenthesized_comma_list(arguments.map(CallArgument::first_line_doc))
+    _ => self.to_doc()
+  }
 }
 
 ///|
@@ -544,17 +522,17 @@ fn Expr::to_doc_with_precedence(
         text("::") +
         text(variant) +
         bracketed_type_arguments(variant_type_arguments)
-      let doc = head + parenthesized(arguments.map(Expr::to_doc))
+      let doc = head + parenthesized_comma_list(arguments.map(Expr::to_doc))
       (10, doc)
     }
     StructLiteral(type_name~, type_arguments~, fields~, ..) => {
       let head = text(type_name) +
         bracketed_type_arguments(type_arguments) +
         text("::")
-      (10, head + brace_comma_compact(fields.map(StructLiteralField::to_doc)))
+      (10, head + braced_comma_list(fields.map(StructLiteralField::to_doc)))
     }
     Builtin(name, ..) =>
-      (10, keyword("builtin") + parenthesized([source_string(name)]))
+      (10, keyword("builtin") + parenthesized_comma_list([source_string(name)]))
     FunctionLiteral(
       type_parameters~,
       parameters~,
@@ -562,37 +540,27 @@ fn Expr::to_doc_with_precedence(
       effect~,
       body~,
       ..
-    ) => {
-      let return_doc = match return_type {
-        Some(type_) => space + text("->") + space + type_.to_doc()
-        None => empty
-      }
-      let effect_doc = match effect {
-        Some(effect) => effect.to_annotation_doc()
-        None => empty
-      }
+    ) =>
       (
         10,
-        keyword("fn") +
-        bracketed_type_parameters(type_parameters) +
-        space +
-        parenthesized(parameters.map(FunctionLiteralParameter::to_doc)) +
-        return_doc +
-        effect_doc +
+        function_literal_head_doc(
+          type_parameters, parameters, return_type, effect,
+        ) +
         space +
         body.to_doc(),
       )
-    }
     EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
       (
         10,
         name.to_doc() +
         text("!") +
         bracketed_type_arguments(type_witnesses) +
-        parenthesized(arguments.map(Expr::to_doc)),
+        parenthesized_comma_list(arguments.map(Expr::to_doc)),
       )
     Handler(body~, handlers~, final_branch~, ..) => {
-      let docs = [keyword("handle") + space + body.to_doc()]
+      let docs = [
+        source_prefixed(keyword("handle"), body.first_line_doc(), body.to_doc()),
+      ]
       for handler in handlers {
         docs.push(handler.to_doc())
       }
@@ -607,9 +575,7 @@ fn Expr::to_doc_with_precedence(
     If(condition~, then_branch~, else_branch~, ..) =>
       (
         10,
-        keyword("if") +
-        space +
-        condition.to_doc() +
+        breakable_head(keyword("if"), condition.to_doc()) +
         space +
         then_branch.to_doc() +
         space +
@@ -620,9 +586,7 @@ fn Expr::to_doc_with_precedence(
     Match(scrutinee~, arms~, ..) =>
       (
         10,
-        keyword("match") +
-        space +
-        scrutinee.to_doc() +
+        breakable_head(keyword("match"), scrutinee.to_doc()) +
         space +
         brace_block(arms.map(MatchArm::to_doc)),
       )
@@ -630,10 +594,9 @@ fn Expr::to_doc_with_precedence(
       (
         9,
         callee.to_doc_with_precedence(9) +
-        parenthesized(arguments.map(CallArgument::to_doc)),
+        parenthesized_comma_list(arguments.map(CallArgument::to_doc)),
       )
-    Field(base~, name~, ..) =>
-      (9, base.to_doc_with_precedence(9) + text(".") + text(name))
+    Field(..) => (9, self.field_chain_doc())
     Unary(operator~, operand~, ..) =>
       (8, operator.to_doc() + operand.to_doc_with_precedence(8))
     Binary(operator~, left~, right~, ..) => {
@@ -642,26 +605,97 @@ fn Expr::to_doc_with_precedence(
         precedence,
         group(
           left.to_doc_with_precedence(precedence) +
-          space +
-          operator.to_doc() +
-          nest(line + right.to_doc_with_precedence(precedence + 1)),
+          nest(
+            line +
+            operator.to_doc() +
+            space +
+            right.to_doc_with_precedence(precedence + 1),
+          ),
         ),
       )
     }
-    Pipeline(left~, right~, ..) =>
-      (
-        1,
-        left.to_doc_with_precedence(1) +
-        space +
-        text("|>") +
-        space +
-        right.to_doc_with_precedence(2),
-      )
+    Pipeline(..) => (1, self.pipeline_chain_doc())
   }
   if precedence < context_precedence {
     parens(doc)
   } else {
     doc
+  }
+}
+
+///|
+fn Expr::pipeline_chain_doc(self : Expr) -> Document {
+  let (root, segments) = self.pipeline_chain_parts()
+  let root_doc = root.to_doc_with_precedence(1)
+  let mut inline_first_line = root_doc
+  for segment in segments {
+    inline_first_line = inline_first_line +
+      space +
+      text("|>") +
+      space +
+      segment.first_line_doc()
+  }
+  dynamic(fn(context) {
+    if inline_first_line.requirement() <= context.current_remain() {
+      let mut inline_doc = root_doc
+      for segment in segments {
+        inline_doc = inline_doc +
+          space +
+          text("|>") +
+          space +
+          segment.to_doc_with_precedence(2)
+      }
+      inline_doc
+    } else {
+      group(
+        root_doc +
+        nest(
+          line +
+          separate(
+            line,
+            segments.map(fn(segment) {
+              text("|>") + space + segment.to_doc_with_precedence(2)
+            }),
+          ),
+        ),
+      )
+    }
+  })
+}
+
+///|
+fn Expr::pipeline_chain_parts(self : Expr) -> (Expr, Array[Expr]) {
+  match self {
+    Pipeline(left~, right~, ..) => {
+      let (root, segments) = left.pipeline_chain_parts()
+      segments.push(right)
+      (root, segments)
+    }
+    _ => (self, [])
+  }
+}
+
+///|
+fn Expr::field_chain_doc(self : Expr) -> Document {
+  let (root, fields) = self.field_chain_parts()
+  group(
+    root.to_doc_with_precedence(9) +
+    nest(
+      softline +
+      separate(softline, fields.map(fn(field) { text(".") + text(field) })),
+    ),
+  )
+}
+
+///|
+fn Expr::field_chain_parts(self : Expr) -> (Expr, Array[String]) {
+  match self {
+    Field(base~, name~, ..) => {
+      let (root, fields) = base.field_chain_parts()
+      fields.push(name)
+      (root, fields)
+    }
+    _ => (self, [])
   }
 }
 
@@ -689,11 +723,11 @@ fn HandlerOperationArm::to_doc(self : HandlerOperationArm) -> Document {
   let binders = if self.type_binders.is_empty() {
     empty
   } else {
-    brackets(join_comma(self.type_binders.map(text)))
+    bracketed_comma_list(self.type_binders.map(text))
   }
   let head = self.name.to_doc() +
     binders +
-    parenthesized(parameters) +
+    parenthesized_comma_list(parameters) +
     space +
     text("=>")
   if self.body.breaks_after_match_arrow() {
@@ -752,13 +786,33 @@ pub impl @prettyprinter.Pretty for PatternLetDeclaration with fn pretty(
 
 ///|
 fn PatternLetDeclaration::to_doc(self : PatternLetDeclaration) -> Document {
-  keyword("let") +
+  assignment_expr_doc(
+    keyword("let") + space + self.pattern.to_doc(),
+    self.initializer,
+  )
+}
+
+///|
+fn function_literal_head_doc(
+  type_parameters : Array[TypeParameter],
+  parameters : Array[FunctionLiteralParameter],
+  return_type : Type?,
+  effect : EffectTerm?,
+) -> Document {
+  let return_doc = match return_type {
+    Some(type_) => space + text("->") + space + type_.to_doc()
+    None => empty
+  }
+  let effect_doc = match effect {
+    Some(effect) => effect.to_annotation_doc()
+    None => empty
+  }
+  keyword("fn") +
+  bracketed_type_parameters(type_parameters) +
   space +
-  self.pattern.to_doc() +
-  space +
-  text("=") +
-  space +
-  self.initializer.to_doc()
+  parenthesized_comma_list(parameters.map(FunctionLiteralParameter::to_doc)) +
+  return_doc +
+  effect_doc
 }
 
 ///|
@@ -785,6 +839,14 @@ fn CallArgument::to_doc(self : CallArgument) -> Document {
   match self {
     Positional(value~, ..) => value.to_doc()
     Named(name~, value~, ..) => text(name) + text("=") + value.to_doc()
+  }
+}
+
+///|
+fn CallArgument::first_line_doc(self : CallArgument) -> Document {
+  match self {
+    Positional(value~, ..) => value.first_line_doc()
+    Named(name~, value~, ..) => text(name) + text("=") + value.first_line_doc()
   }
 }
 
@@ -851,24 +913,24 @@ fn Pattern::to_doc(self : Pattern) -> Document {
       let binders_doc = if type_binders.is_empty() {
         empty
       } else {
-        brackets(join_comma(type_binders.map(text)))
+        bracketed_comma_list(type_binders.map(text))
       }
       let head = text(type_name) + text("::") + text(variant) + binders_doc
-      head + parenthesized(arguments.map(Pattern::to_doc))
+      head + parenthesized_comma_list(arguments.map(Pattern::to_doc))
     }
     ShorthandVariant(variant~, type_binders~, arguments~, ..) => {
       let binders_doc = if type_binders.is_empty() {
         empty
       } else {
-        brackets(join_comma(type_binders.map(text)))
+        bracketed_comma_list(type_binders.map(text))
       }
       let head = text(variant) + binders_doc
-      head + parenthesized(arguments.map(Pattern::to_doc))
+      head + parenthesized_comma_list(arguments.map(Pattern::to_doc))
     }
     Struct(type_name~, fields~, ..) =>
       text(type_name) +
       text("::") +
-      brace_comma_compact(fields.map(StructPatternField::to_doc))
+      braced_comma_list(fields.map(StructPatternField::to_doc))
   }
 }
 

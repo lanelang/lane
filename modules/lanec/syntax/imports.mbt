@@ -6,6 +6,7 @@ using @prettyprinter {
   type Document,
   brackets,
   char,
+  dynamic,
   empty,
   group,
   hardline,
@@ -16,5 +17,6 @@ using @prettyprinter {
   softline,
   space,
   surround,
+  switch,
   text,
 }
