@@ -86,14 +86,22 @@ pub fn CompiledModule::to_artifact(
 pub fn CompiledModule::to_interface_artifact(
   self : CompiledModule,
 ) -> ModuleInterfaceArtifact {
+  let interface = self.artifact_interface()
   {
     schema_version: 1,
     module_path_text: self.module_path_text,
-    interface: self.interface,
-    interface_fingerprint: interface_fingerprint(self.interface),
+    interface,
+    interface_fingerprint: interface_fingerprint(interface),
     module_fingerprint: self.fingerprint,
     imported_interface_fingerprints: self.imported_interface_fingerprints,
   }
+}
+
+///|
+fn CompiledModule::artifact_interface(
+  self : CompiledModule,
+) -> @module_interface.ModuleInterface {
+  { ..self.interface, source_id: None }
 }
 
 ///|
@@ -101,11 +109,12 @@ pub fn CompiledModule::to_object_artifact(
   self : CompiledModule,
 ) -> ModuleObjectArtifact {
   let object = self.object
+  let interface = self.artifact_interface()
   {
     schema_version: module_object_artifact_schema_version,
     module_path_text: object.module_path_text,
-    interface: self.interface,
-    interface_fingerprint: interface_fingerprint(self.interface),
+    interface,
+    interface_fingerprint: interface_fingerprint(interface),
     metadata: object.metadata,
     terms: object.terms,
     externals: object.externals,

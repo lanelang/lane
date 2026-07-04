@@ -70,6 +70,7 @@ test "pretty print source file" {
         is_public: false,
         type_parameters: [],
         name: "unwrap_or",
+        name_loc: test_loc(),
         parameters: [
           {
             is_auto: false,

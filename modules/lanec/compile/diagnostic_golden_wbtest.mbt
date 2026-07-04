@@ -79,20 +79,9 @@ test "golden syntax diagnostic renders span summary and guidance" {
       #|  source_id: Some("<root>"),
       #|  message: "unexpected token",
       #|  span: Some(
-      #|    {
-      #|      start_offset: 29,
-      #|      end_offset: 30,
-      #|      start_line: 2,
-      #|      start_column: 18,
-      #|      end_line: 2,
-      #|      end_column: 19,
-      #|    },
-      #|  ),
-      #|  severity: Error,
-      #|  code: Some("E1100"),
-      #|  labels: [
-      #|    {
-      #|      span: {
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
       #|        start_offset: 29,
       #|        end_offset: 30,
       #|        start_line: 2,
@@ -100,6 +89,23 @@ test "golden syntax diagnostic renders span summary and guidance" {
       #|        end_line: 2,
       #|        end_column: 19,
       #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E1100"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 29,
+      #|          end_offset: 30,
+      #|          start_line: 2,
+      #|          start_column: 18,
+      #|          end_line: 2,
+      #|          end_column: 19,
+      #|        },
+      #|      ),
       #|      message: "the parser did not expect `=`",
       #|      style: Primary,
       #|    },
@@ -129,20 +135,9 @@ test "golden resolver diagnostic renders span summary and guidance" {
       #|  source_id: Some("<root>"),
       #|  message: "cannot find value `missing`",
       #|  span: Some(
-      #|    {
-      #|      start_offset: 35,
-      #|      end_offset: 42,
-      #|      start_line: 2,
-      #|      start_column: 24,
-      #|      end_line: 2,
-      #|      end_column: 31,
-      #|    },
-      #|  ),
-      #|  severity: Error,
-      #|  code: Some("E2001"),
-      #|  labels: [
-      #|    {
-      #|      span: {
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
       #|        start_offset: 35,
       #|        end_offset: 42,
       #|        start_line: 2,
@@ -150,6 +145,23 @@ test "golden resolver diagnostic renders span summary and guidance" {
       #|        end_line: 2,
       #|        end_column: 31,
       #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E2001"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 35,
+      #|          end_offset: 42,
+      #|          start_line: 2,
+      #|          start_column: 24,
+      #|          end_line: 2,
+      #|          end_column: 31,
+      #|        },
+      #|      ),
       #|      message: "no value named `missing` is visible here",
       #|      style: Primary,
       #|    },
@@ -179,20 +191,9 @@ test "golden type diagnostic renders span summary and facts" {
       #|  source_id: Some("<root>"),
       #|  message: "type mismatch",
       #|  span: Some(
-      #|    {
-      #|      start_offset: 35,
-      #|      end_offset: 39,
-      #|      start_line: 2,
-      #|      start_column: 24,
-      #|      end_line: 2,
-      #|      end_column: 28,
-      #|    },
-      #|  ),
-      #|  severity: Error,
-      #|  code: Some("E3006"),
-      #|  labels: [
-      #|    {
-      #|      span: {
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
       #|        start_offset: 35,
       #|        end_offset: 39,
       #|        start_line: 2,
@@ -200,6 +201,23 @@ test "golden type diagnostic renders span summary and facts" {
       #|        end_line: 2,
       #|        end_column: 28,
       #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E3006"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 35,
+      #|          end_offset: 39,
+      #|          start_line: 2,
+      #|          start_column: 24,
+      #|          end_line: 2,
+      #|          end_column: 28,
+      #|        },
+      #|      ),
       #|      message: "expected `Int`, found `Bool`",
       #|      style: Primary,
       #|    },
@@ -211,28 +229,34 @@ test "golden type diagnostic renders span summary and facts" {
       #|      name: "expected type",
       #|      value: "`Int`",
       #|      span: Some(
-      #|        {
-      #|          start_offset: 35,
-      #|          end_offset: 39,
-      #|          start_line: 2,
-      #|          start_column: 24,
-      #|          end_line: 2,
-      #|          end_column: 28,
-      #|        },
+      #|        Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 35,
+      #|            end_offset: 39,
+      #|            start_line: 2,
+      #|            start_column: 24,
+      #|            end_line: 2,
+      #|            end_column: 28,
+      #|          },
+      #|        ),
       #|      ),
       #|    },
       #|    {
       #|      name: "actual type",
       #|      value: "`Bool`",
       #|      span: Some(
-      #|        {
-      #|          start_offset: 35,
-      #|          end_offset: 39,
-      #|          start_line: 2,
-      #|          start_column: 24,
-      #|          end_line: 2,
-      #|          end_column: 28,
-      #|        },
+      #|        Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 35,
+      #|            end_offset: 39,
+      #|            start_line: 2,
+      #|            start_column: 24,
+      #|            end_line: 2,
+      #|            end_column: 28,
+      #|          },
+      #|        ),
       #|      ),
       #|    },
       #|  ],
@@ -268,20 +292,9 @@ test "golden struct diagnostic renders span summary and suggestion" {
       #|  source_id: Some("<root>"),
       #|  message: "missing field `y`",
       #|  span: Some(
-      #|    {
-      #|      start_offset: 82,
-      #|      end_offset: 88,
-      #|      start_line: 6,
-      #|      start_column: 30,
-      #|      end_line: 6,
-      #|      end_column: 36,
-      #|    },
-      #|  ),
-      #|  severity: Error,
-      #|  code: Some("E3101"),
-      #|  labels: [
-      #|    {
-      #|      span: {
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
       #|        start_offset: 82,
       #|        end_offset: 88,
       #|        start_line: 6,
@@ -289,6 +302,23 @@ test "golden struct diagnostic renders span summary and suggestion" {
       #|        end_line: 6,
       #|        end_column: 36,
       #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E3101"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 82,
+      #|          end_offset: 88,
+      #|          start_line: 6,
+      #|          start_column: 30,
+      #|          end_line: 6,
+      #|          end_column: 36,
+      #|        },
+      #|      ),
       #|      message: "this struct construction or pattern omits required field `y`",
       #|      style: Primary,
       #|    },
@@ -332,20 +362,9 @@ test "golden pattern diagnostic renders span summary and guidance" {
       #|  source_id: Some("<root>"),
       #|  message: "non-exhaustive match",
       #|  span: Some(
-      #|    {
-      #|      start_offset: 103,
-      #|      end_offset: 141,
-      #|      start_line: 7,
-      #|      start_column: 16,
-      #|      end_line: 9,
-      #|      end_column: 4,
-      #|    },
-      #|  ),
-      #|  severity: Error,
-      #|  code: Some("E3200"),
-      #|  labels: [
-      #|    {
-      #|      span: {
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
       #|        start_offset: 103,
       #|        end_offset: 141,
       #|        start_line: 7,
@@ -353,6 +372,23 @@ test "golden pattern diagnostic renders span summary and guidance" {
       #|        end_line: 9,
       #|        end_column: 4,
       #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E3200"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 103,
+      #|          end_offset: 141,
+      #|          start_line: 7,
+      #|          start_column: 16,
+      #|          end_line: 9,
+      #|          end_column: 4,
+      #|        },
+      #|      ),
       #|      message: "patterns do not cover every `Option` value",
       #|      style: Primary,
       #|    },
@@ -385,20 +421,9 @@ test "golden module input diagnostic renders span summary and input facts" {
       #|  source_id: Some("<root>"),
       #|  message: "missing imported module `Missing`",
       #|  span: Some(
-      #|    {
-      #|      start_offset: 19,
-      #|      end_offset: 26,
-      #|      start_line: 2,
-      #|      start_column: 8,
-      #|      end_line: 2,
-      #|      end_column: 15,
-      #|    },
-      #|  ),
-      #|  severity: Error,
-      #|  code: Some("E4002"),
-      #|  labels: [
-      #|    {
-      #|      span: {
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
       #|        start_offset: 19,
       #|        end_offset: 26,
       #|        start_line: 2,
@@ -406,6 +431,23 @@ test "golden module input diagnostic renders span summary and input facts" {
       #|        end_line: 2,
       #|        end_column: 15,
       #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E4002"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 19,
+      #|          end_offset: 26,
+      #|          start_line: 2,
+      #|          start_column: 8,
+      #|          end_line: 2,
+      #|          end_column: 15,
+      #|        },
+      #|      ),
       #|      message: "no explicit input provides this module",
       #|      style: Primary,
       #|    },

@@ -44,7 +44,7 @@ fn diagnostic_publications(
     { uri: input.source_id, diagnostics: [], sources }
   })
   for diagnostic in diagnostics {
-    let uri = match diagnostic.source_id {
+    let uri = match diagnostic.primary_source_id() {
       Some(source_id) => source_id
       None => fallback_uri
     }

@@ -1,5 +1,9 @@
 ///|
-using @compiler_diag {type CompilerDiagnostic, type CompilerDiagnosticLabel}
+using @compiler_diag {
+  type CompilerDiagnostic,
+  type CompilerDiagnosticLabel,
+  compiler_local_span,
+}
 
 ///|
 pub(all) struct FormatOptions {
@@ -108,7 +112,7 @@ fn lex_diagnostic(error : @lexer.LexError) -> CompilerDiagnostic {
     code=Some(lex_error_code(error.error)),
     labels=[
       {
-        span: error.span,
+        span: compiler_local_span(error.span),
         message: lex_error_label(error.error),
         style: Primary,
       },
@@ -192,7 +196,7 @@ fn parse_diagnostic(error : @parser.ParseError) -> CompilerDiagnostic {
     code=Some(parse_error_code(error.kind)),
     labels=[
       {
-        span: error.loc,
+        span: compiler_local_span(error.loc),
         message: parse_error_label(error.kind),
         style: Primary,
       },
@@ -280,7 +284,7 @@ fn diagnostic(
   {
     source_id: None,
     message,
-    span,
+    span: span.map(compiler_local_span),
     severity: Error,
     code,
     labels,

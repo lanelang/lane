@@ -677,7 +677,15 @@ fn ArtifactTextReader::read_module_interface(
       name: self.expect_string("optimization_hint.name"),
     })
   }
-  { module_path, types, effects, type_aliases, values, optimization_hints }
+  {
+    module_path,
+    source_id: None,
+    types,
+    effects,
+    type_aliases,
+    values,
+    optimization_hints,
+  }
 }
 
 ///|

@@ -127,7 +127,10 @@ fn compile_diagnostic_json(
     let fields : Map[String, Json] = {
       "message": label.message,
       "style": diagnostic_label_style_json(label.style),
-      "range": range_json(label.span),
+      "range": compiler_span_range_json(label.span),
+    }
+    if label.span.source_id() is Some(source_id) {
+      fields["sourceId"] = source_id.to_json()
     }
     fields.to_json()
   })
@@ -144,10 +147,17 @@ fn compile_diagnostic_json(
 }
 
 ///|
-fn diagnostic_range_json(span : @basic.SourceSpan?) -> Json {
+fn diagnostic_range_json(span : @compiler_diag.CompilerSourceSpan?) -> Json {
   match span {
-    Some(span) => range_json(span)
+    Some(span) => compiler_span_range_json(span)
     None => range_json(@basic.SourceSpan::dummy())
+  }
+}
+
+///|
+fn compiler_span_range_json(span : @compiler_diag.CompilerSourceSpan) -> Json {
+  match span {
+    Local(span) | Source(span~, ..) => range_json(span)
   }
 }
 

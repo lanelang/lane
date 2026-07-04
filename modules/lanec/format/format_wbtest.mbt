@@ -28,20 +28,8 @@ test "format source reports parse diagnostics" {
       #|    source_id: None,
       #|    message: "unexpected token",
       #|    span: Some(
-      #|      {
-      #|        start_offset: 29,
-      #|        end_offset: 30,
-      #|        start_line: 2,
-      #|        start_column: 18,
-      #|        end_line: 2,
-      #|        end_column: 19,
-      #|      },
-      #|    ),
-      #|    severity: Error,
-      #|    code: Some("E1100"),
-      #|    labels: [
-      #|      {
-      #|        span: {
+      #|      Local(
+      #|        {
       #|          start_offset: 29,
       #|          end_offset: 30,
       #|          start_line: 2,
@@ -49,6 +37,22 @@ test "format source reports parse diagnostics" {
       #|          end_line: 2,
       #|          end_column: 19,
       #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E1100"),
+      #|    labels: [
+      #|      {
+      #|        span: Local(
+      #|          {
+      #|            start_offset: 29,
+      #|            end_offset: 30,
+      #|            start_line: 2,
+      #|            start_column: 18,
+      #|            end_line: 2,
+      #|            end_column: 19,
+      #|          },
+      #|        ),
       #|        message: "the parser did not expect `=`",
       #|        style: Primary,
       #|      },

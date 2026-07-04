@@ -34,7 +34,10 @@ pub(all) enum ResolveDiagnosticKind {
   ConflictingTopLevelValue(
     name~ : String,
     existing~ : String,
-    incoming~ : String
+    incoming~ : String,
+    existing_source_id~ : String?,
+    existing_loc~ : SourceSpan?,
+    existing_origin~ : String?
   )
   ConflictingTopLevelTypeAndEffectName(
     name~ : String,

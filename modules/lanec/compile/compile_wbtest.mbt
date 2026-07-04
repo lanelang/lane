@@ -893,20 +893,9 @@ test "missing import with mismatched interface artifact reports candidates" {
       #|  source_id: Some("<root>"),
       #|  message: "missing imported module `Builtins`",
       #|  span: Some(
-      #|    {
-      #|      start_offset: 19,
-      #|      end_offset: 27,
-      #|      start_line: 2,
-      #|      start_column: 8,
-      #|      end_line: 2,
-      #|      end_column: 16,
-      #|    },
-      #|  ),
-      #|  severity: Error,
-      #|  code: Some("E4002"),
-      #|  labels: [
-      #|    {
-      #|      span: {
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
       #|        start_offset: 19,
       #|        end_offset: 27,
       #|        start_line: 2,
@@ -914,6 +903,23 @@ test "missing import with mismatched interface artifact reports candidates" {
       #|        end_line: 2,
       #|        end_column: 16,
       #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E4002"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 19,
+      #|          end_offset: 27,
+      #|          start_line: 2,
+      #|          start_column: 8,
+      #|          end_line: 2,
+      #|          end_column: 16,
+      #|        },
+      #|      ),
       #|      message: "no explicit input provides this module",
       #|      style: Primary,
       #|    },
@@ -1028,6 +1034,47 @@ test "module artifact binary inspect renders human readable summaries" {
       #|    let value#0 = 42
       #|  }
       #|
+    ),
+  )
+}
+
+///|
+test "duplicate imported top-level value from interface artifact reports artifact origin" {
+  let lib_modules = compile_modules(
+    (
+      #|module Lib
+      #|pub let answer : Int = 1
+    ),
+    [],
+  )
+  guard lib_modules.modules is Some(modules) else {
+    abort("expected Lib module")
+  }
+  guard modules.modules.get(0) is Some(lib_module) else {
+    abort("expected compiled Lib module")
+  }
+  let result = check_source_with_interface_artifacts(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = 2
+    ),
+    [lib_module.to_artifact().interface],
+  )
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one duplicate top-level value diagnostic")
+  }
+  let diagnostic = result.diagnostics[0]
+  inspect(
+    [
+      diagnostic.message,
+      "labels=\{diagnostic.labels.length()}",
+      diagnostic.notes.join("|"),
+    ].join("\n"),
+    content=(
+      #|conflicting top-level value `answer`
+      #|labels=1
+      #|a Lane module has one top-level value namespace|previous definition comes from module `Lib`
     ),
   )
 }
@@ -1473,6 +1520,7 @@ test "compile module rejects interface artifact name mismatch" {
   let interface = lib_artifact.interface.interface
   let damaged_interface : @module_interface.ModuleInterface = {
     module_path: "Other",
+    source_id: None,
     types: interface.types,
     effects: interface.effects,
     type_aliases: interface.type_aliases,
@@ -2126,12 +2174,13 @@ test "check sources rejects private nominal type escape through public function"
     content="private type `Hidden` in public interface",
   )
   match result.diagnostics[0].span {
-    Some(span) => {
+    Some(Source(span~, ..)) => {
       inspect(span.start_line, content="5")
       inspect(span.start_column, content="18")
       inspect(span.end_line, content="5")
       inspect(span.end_column, content="24")
     }
+    Some(Local(_)) => abort("expected diagnostic span with source id")
     None => abort("expected diagnostic span")
   }
 }

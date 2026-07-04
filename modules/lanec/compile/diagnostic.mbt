@@ -5,6 +5,8 @@ using @compiler_diag {
   type CompilerDiagnosticLabel,
   type CompilerDiagnosticSeverity,
   type CompilerDiagnosticSuggestion,
+  compiler_local_span,
+  compiler_source_span,
 }
 
 ///|
@@ -73,7 +75,7 @@ fn diagnostic(
   {
     source_id: None,
     message,
-    span,
+    span: span.map(compiler_local_span),
     severity,
     code,
     labels,
@@ -90,7 +92,7 @@ fn primary_label(
   message : String,
 ) -> Array[CompilerDiagnosticLabel] {
   match span {
-    Some(span) => [{ span, message, style: Primary }]
+    Some(span) => [{ span: compiler_local_span(span), message, style: Primary }]
     None => []
   }
 }
@@ -449,7 +451,7 @@ fn resolve_diagnostic(
         code=Some("E2000"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "no type named `\{name}` is visible here",
             style: Primary,
           },
@@ -469,7 +471,7 @@ fn resolve_diagnostic(
         code=Some("E2001"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "no value named `\{name}` is visible here",
             style: Primary,
           },
@@ -489,7 +491,7 @@ fn resolve_diagnostic(
         code=Some("E2002"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{type_name}` has no visible field named `\{field}`",
             style: Primary,
           },
@@ -509,7 +511,7 @@ fn resolve_diagnostic(
         code=Some("E2003"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this enum type does not expose a variant named `\{variant}`",
             style: Primary,
           },
@@ -529,7 +531,7 @@ fn resolve_diagnostic(
         code=Some("E2004"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` has no payload, so construct it as `\{name}()`",
             style: Primary,
           },
@@ -537,22 +539,48 @@ fn resolve_diagnostic(
         notes=["all enum variant constructors use parentheses in expressions"],
         helps=["add empty parentheses: `\{name}()`"],
       )
-    ConflictingTopLevelValue(name~, existing~, incoming~) =>
+    ConflictingTopLevelValue(
+      name~,
+      existing~,
+      incoming~,
+      existing_source_id~,
+      existing_loc~,
+      existing_origin~
+    ) => {
+      let labels : Array[CompilerDiagnosticLabel] = [
+        {
+          span: compiler_local_span(diagnostic_.loc),
+          message: "`\{incoming}` conflicts with an existing value named `\{existing}`",
+          style: Primary,
+        },
+      ]
+      if existing_loc is Some(existing_loc) {
+        let span = match existing_source_id {
+          Some(source_id) => compiler_source_span(source_id, existing_loc)
+          None => compiler_local_span(existing_loc)
+        }
+        labels.push({
+          span,
+          message: "previous definition of `\{existing}` is here",
+          style: Secondary,
+        })
+      }
+      let notes = ["a Lane module has one top-level value namespace"]
+      if existing_loc is None {
+        if existing_origin is Some(origin) {
+          notes.push("previous definition comes from \{origin}")
+        }
+      }
       diagnostic(
         "conflicting top-level value `\{name}`",
         span~,
         severity=Error,
         code=Some("E2005"),
-        labels=[
-          {
-            span: diagnostic_.loc,
-            message: "`\{incoming}` conflicts with an existing value named `\{existing}`",
-            style: Primary,
-          },
-        ],
-        notes=["a Lane module has one top-level value namespace"],
+        labels~,
+        notes~,
         helps=["rename one of the declarations or remove the duplicate import"],
       )
+    }
     ConflictingTopLevelTypeAndEffectName(name~, type_kind~, effect_kind~) =>
       diagnostic(
         "conflicting top-level type/effect name `\{name}`",
@@ -561,7 +589,7 @@ fn resolve_diagnostic(
         code=Some("E2007"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this `\{effect_kind}` name overlaps with a `\{type_kind}` name",
             style: Primary,
           },
@@ -579,7 +607,7 @@ fn resolve_diagnostic(
         code=Some("E2006"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` can refer to more than one imported value",
             style: Primary,
           },
@@ -599,7 +627,7 @@ fn resolve_diagnostic(
         code=Some("E2007"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` matches more than one visible enum variant",
             style: Primary,
           },
@@ -636,7 +664,7 @@ fn typecheck_diagnostic(
         code=Some("E3000"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "type checking could not resolve `\{name}`",
             style: Primary,
           },
@@ -654,7 +682,7 @@ fn typecheck_diagnostic(
         code=Some("E3001"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "type checking could not resolve `\{name}`",
             style: Primary,
           },
@@ -672,7 +700,7 @@ fn typecheck_diagnostic(
         code=Some("E3002"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this compilation boundary cannot infer a top-level `let` type",
             style: Primary,
           },
@@ -690,7 +718,7 @@ fn typecheck_diagnostic(
         code=Some("E3003"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` expects \{expected} type argument(s), but \{actual} were provided",
             style: Primary,
           },
@@ -708,7 +736,7 @@ fn typecheck_diagnostic(
         code=Some("E3004"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` expands back to itself",
             style: Primary,
           },
@@ -724,7 +752,7 @@ fn typecheck_diagnostic(
         code=Some("E3005"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "expected kind `\{display.kind_text(expected)}`, found `\{display.kind_text(actual)}`",
             style: Primary,
           },
@@ -744,7 +772,7 @@ fn typecheck_diagnostic(
         code=Some("E3006"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "expected `\{display.type_text(expected)}`, found `\{display.type_text(actual)}`",
             style: Primary,
           },
@@ -759,12 +787,12 @@ fn typecheck_diagnostic(
           {
             name: "expected type",
             value: "`\{display.type_text(expected)}`",
-            span: Some(diagnostic_.loc),
+            span: Some(compiler_local_span(diagnostic_.loc)),
           },
           {
             name: "actual type",
             value: "`\{display.type_text(actual)}`",
-            span: Some(diagnostic_.loc),
+            span: Some(compiler_local_span(diagnostic_.loc)),
           },
         ],
         suggestions=[
@@ -783,7 +811,7 @@ fn typecheck_diagnostic(
         code=Some("E3007"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "expected effect `\{display.effect_text(expected)}`, found `\{display.effect_text(actual)}`",
             style: Primary,
           },
@@ -796,12 +824,12 @@ fn typecheck_diagnostic(
           {
             name: "expected effect",
             value: "`\{display.effect_text(expected)}`",
-            span: Some(diagnostic_.loc),
+            span: Some(compiler_local_span(diagnostic_.loc)),
           },
           {
             name: "actual effect",
             value: "`\{display.effect_text(actual)}`",
-            span: Some(diagnostic_.loc),
+            span: Some(compiler_local_span(diagnostic_.loc)),
           },
         ],
         suggestions=[
@@ -820,7 +848,7 @@ fn typecheck_diagnostic(
         code=Some("E3007"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{display.type_text(type_)}` is not a function type",
             style: Primary,
           },
@@ -836,7 +864,7 @@ fn typecheck_diagnostic(
         code=Some("E3100"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this struct does not have a visible field named `\{name}`",
             style: Primary,
           },
@@ -854,7 +882,7 @@ fn typecheck_diagnostic(
         code=Some("E3101"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this struct construction or pattern omits required field `\{name}`",
             style: Primary,
           },
@@ -879,7 +907,7 @@ fn typecheck_diagnostic(
         code=Some("E3102"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` is provided more than once",
             style: Primary,
           },
@@ -889,7 +917,9 @@ fn typecheck_diagnostic(
         suggestions=[
           {
             message: "remove the duplicate field entry",
-            edits: [{ span: diagnostic_.loc, replacement: "" }],
+            edits: [
+              { span: compiler_local_span(diagnostic_.loc), replacement: "" },
+            ],
             applicability: MachineApplicable,
           },
         ],
@@ -902,7 +932,7 @@ fn typecheck_diagnostic(
         code=Some("E3103"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this existential struct has no visible type member named `\{name}`",
             style: Primary,
           },
@@ -922,7 +952,7 @@ fn typecheck_diagnostic(
         code=Some("E3104"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this existential struct value omits required type member `\{name}`",
             style: Primary,
           },
@@ -940,7 +970,7 @@ fn typecheck_diagnostic(
         code=Some("E3105"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` is provided more than once",
             style: Primary,
           },
@@ -956,7 +986,7 @@ fn typecheck_diagnostic(
         code=Some("E3106"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` is bound more than once in the same parameter list",
             style: Primary,
           },
@@ -974,7 +1004,7 @@ fn typecheck_diagnostic(
         code=Some("E3008"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{display.type_text(type_)}` is not a struct type",
             style: Primary,
           },
@@ -994,7 +1024,7 @@ fn typecheck_diagnostic(
         code=Some("E3200"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "patterns do not cover every `\{display.type_text(type_)}` value",
             style: Primary,
           },
@@ -1010,7 +1040,7 @@ fn typecheck_diagnostic(
         code=Some("E3201"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this arm can never be selected",
             style: Primary,
           },
@@ -1028,7 +1058,7 @@ fn typecheck_diagnostic(
         code=Some("E3202"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "all operation arms in one `with` block must belong to the same effect",
             style: Primary,
           },
@@ -1046,7 +1076,7 @@ fn typecheck_diagnostic(
         code=Some("E3203"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this handler already has a `with` block for `\{display.effect_text(effect)}`",
             style: Primary,
           },
@@ -1062,7 +1092,7 @@ fn typecheck_diagnostic(
         code=Some("E3204"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this handler does not cover operation `operation#\{operation.index}`",
             style: Primary,
           },
@@ -1080,7 +1110,7 @@ fn typecheck_diagnostic(
         code=Some("E3202"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` is bound more than once in the same pattern",
             style: Primary,
           },
@@ -1098,7 +1128,7 @@ fn typecheck_diagnostic(
         code=Some("E3203"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` expects \{expected} payload field(s), but \{actual} were provided",
             style: Primary,
           },
@@ -1114,7 +1144,7 @@ fn typecheck_diagnostic(
         code=Some("E3107"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "this expression exposes hidden type `\{display.type_text(type_)}` outside its unpacking scope",
             style: Primary,
           },
@@ -1132,7 +1162,7 @@ fn typecheck_diagnostic(
         code=Some("E3108"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "public interface exposes private type `\{name}`",
             style: Primary,
           },
@@ -1152,7 +1182,7 @@ fn typecheck_diagnostic(
         code=Some("E3109"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "public interface exposes private effect `\{name}`",
             style: Primary,
           },
@@ -1172,7 +1202,7 @@ fn typecheck_diagnostic(
         code=Some("E3009"),
         labels=[
           {
-            span: diagnostic_.loc,
+            span: compiler_local_span(diagnostic_.loc),
             message: "`\{raw}` cannot be represented as a Lane `Int`",
             style: Primary,
           },
@@ -1201,7 +1231,7 @@ fn cannot_infer_diagnostic(
     code=Some("E3010"),
     labels=[
       {
-        span: diagnostic_.loc,
+        span: compiler_local_span(diagnostic_.loc),
         message: "the checker needs more type information for `\{label}`",
         style: Primary,
       },
@@ -1214,7 +1244,7 @@ fn cannot_infer_diagnostic(
       {
         name: "inference context",
         value: cannot_infer_reason_text(reason),
-        span: Some(diagnostic_.loc),
+        span: Some(compiler_local_span(diagnostic_.loc)),
       },
     ],
     suggestions=[
@@ -1266,7 +1296,7 @@ fn lex_diagnostic(error : @lexer.LexError) -> CompilerDiagnostic {
     code=Some(lex_error_code(error.error)),
     labels=[
       {
-        span: error.span,
+        span: compiler_local_span(error.span),
         message: lex_error_label(error.error),
         style: Primary,
       },
@@ -1351,7 +1381,7 @@ fn parse_diagnostic(error : @parser.ParseError) -> CompilerDiagnostic {
     code=Some(parse_error_code(error.kind)),
     labels=[
       {
-        span: error.loc,
+        span: compiler_local_span(error.loc),
         message: parse_error_label(error.kind),
         style: Primary,
       },

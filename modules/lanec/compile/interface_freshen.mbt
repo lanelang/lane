@@ -46,6 +46,7 @@ fn freshen_module_interface(
   freshener.predeclare_effects(interface)
   {
     module_path: interface.module_path,
+    source_id: interface.source_id,
     types: interface.types.map(fn(type_) { freshener.freshen_type(type_) }),
     effects: interface.effects.map(fn(effect) {
       freshener.freshen_effect(effect)

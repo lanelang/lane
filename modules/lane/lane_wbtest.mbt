@@ -813,7 +813,7 @@ test "source-less diagnostic labels are preserved as notes" {
     code: Some("E9999"),
     labels: [
       {
-        span: @basic.SourceSpan::dummy(),
+        span: @compiler_diag.compiler_local_span(@basic.SourceSpan::dummy()),
         message: "context without a source file",
         style: Primary,
       },

@@ -1,0 +1,6 @@
+// invalid: top-level values share one namespace
+module Main
+
+let answer : Int = 1
+
+let answer : Int = 2

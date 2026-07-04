@@ -131,6 +131,10 @@ import_item -> ImportItem
   : IDENT { { name: $1, loc: span($sloc) } }
   ;
 
+identifier -> Identifier
+  : IDENT { { name: $1, loc: span($sloc) } }
+  ;
+
 top_level_declarations -> Array[TopLevelDeclaration]
   : { [] }
   | top_level_declarations top_level_declaration { comma_push($1, $2) }
@@ -302,11 +306,12 @@ effect_operation -> EffectOperationDeclaration
   ;
 
 function_declaration -> FunctionDeclaration
-  : "fn" type_parameters IDENT parameters "->" type effect_annotation_opt block_expression {
+  : "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: false,
       type_parameters: $2,
-      name: $3,
+      name: $3.name,
+      name_loc: $3.loc,
       parameters: $4,
       return_type: $6,
       effect: effect_or_empty($7, $6),
@@ -317,11 +322,12 @@ function_declaration -> FunctionDeclaration
   ;
 
 public_function_declaration -> FunctionDeclaration
-  : "fn" type_parameters IDENT parameters "->" type effect_annotation_opt block_expression {
+  : "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: true,
       type_parameters: $2,
-      name: $3,
+      name: $3.name,
+      name_loc: $3.loc,
       parameters: $4,
       return_type: $6,
       effect: effect_or_empty($7, $6),
@@ -356,20 +362,20 @@ parameter_modifiers -> ParameterModifiers
   ;
 
 top_level_let_declaration -> LetDeclaration
-  : "let" IDENT ":" type "=" expression {
-    { is_public: false, name: Some($2), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+  : "let" identifier ":" type "=" expression {
+    { is_public: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
 public_top_level_let_declaration -> LetDeclaration
-  : "let" IDENT ":" type "=" expression {
-    { is_public: true, name: Some($2), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+  : "let" identifier ":" type "=" expression {
+    { is_public: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
 local_let_declaration -> LetDeclaration
-  : "let" IDENT local_type_annotation "=" expression {
-    { is_public: false, name: Some($2), type_annotation: $3, initializer: $5, loc: span($sloc) }
+  : "let" identifier local_type_annotation "=" expression {
+    { is_public: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: $3, initializer: $5, loc: span($sloc) }
   }
   ;
 
@@ -385,14 +391,14 @@ local_type_annotation -> Type?
   ;
 
 offer_value_declaration -> OfferDeclaration
-  : "offer" IDENT ":" type "=" expression {
-    { is_public: false, name: $2, type_annotation: $4, initializer: $6, loc: span($sloc) }
+  : "offer" identifier ":" type "=" expression {
+    { is_public: false, name: $2.name, name_loc: $2.loc, type_annotation: $4, initializer: $6, loc: span($sloc) }
   }
   ;
 
 public_offer_value_declaration -> OfferDeclaration
-  : "offer" IDENT ":" type "=" expression {
-    { is_public: true, name: $2, type_annotation: $4, initializer: $6, loc: span($sloc) }
+  : "offer" identifier ":" type "=" expression {
+    { is_public: true, name: $2.name, name_loc: $2.loc, type_annotation: $4, initializer: $6, loc: span($sloc) }
   }
   ;
 

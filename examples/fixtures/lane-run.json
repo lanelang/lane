@@ -759,6 +759,19 @@
           "add empty parentheses: `none()`"
         ]
       }
+    },
+    {
+      "name": "invalid 36 duplicate top-level value",
+      "file": "examples/invalid/36_duplicate_top_level_value.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E2005]",
+          "conflicting top-level value `answer`",
+          "previous definition of `answer` is here",
+          "a Lane module has one top-level value namespace"
+        ]
+      }
     }
   ]
 }

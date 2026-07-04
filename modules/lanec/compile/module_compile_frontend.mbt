@@ -42,6 +42,7 @@ fn compile_one_module(
   }
   match (checked.source, checked.module_interface) {
     (Some(checked), Some(interface)) => {
+      let interface = { ..interface, source_id: Some(input.source_id) }
       let imported_fingerprints = imported_environment_fingerprints(imported)
       let fingerprint = module_fingerprint(interface, imported_fingerprints)
       let object_fingerprint = module_object_fingerprint(

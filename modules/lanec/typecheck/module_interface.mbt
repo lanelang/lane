@@ -6,6 +6,7 @@ fn SemanticChecker::module_interface(
   self.check_public_interface_resolved_declarations()
   {
     module_path: @module_interface.module_path_text(checked_source.module_path),
+    source_id: None,
     types: checked_source.declarations.filter_map(fn(declaration) {
       self.interface_type(declaration)
     }),

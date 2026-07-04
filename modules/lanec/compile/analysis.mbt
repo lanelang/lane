@@ -179,6 +179,7 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
         let annotated_values = annotated_value_symbols(resolved.source)
         match (checked.source, checked.module_interface) {
           (Some(source), Some(interface)) if checked.diagnostics.is_empty() => {
+            let interface = { ..interface, source_id: Some(input.source_id) }
             let imported_fingerprints = imported_environment_fingerprints(
               imported,
             )

@@ -794,6 +794,151 @@ test "lsp diagnostics convert text offsets before transport" {
 }
 
 ///|
+test "lsp duplicate top-level value diagnostic points at names" {
+  let input : @compile.SourceInput = {
+    source_id: "file:///duplicate.lane",
+    text: (
+      #|module Main
+      #|let answer : Int = 1
+      #|let answer : Int = 2
+    ),
+  }
+  let result = @compile.check_source_inputs(input, [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one duplicate top-level value diagnostic")
+  }
+  let sources = compiler_diagnostic_sources_from_inputs([input])
+  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
+    "severity": 1,
+    "message": "conflicting top-level value `answer`",
+    "source": "lane",
+    "code": "E2005",
+    "range": {
+      "start": { "line": 2, "character": 4 },
+      "end": { "line": 2, "character": 10 },
+    },
+    "relatedInformation": [
+      {
+        "location": {
+          "uri": "file:///duplicate.lane",
+          "range": {
+            "start": { "line": 2, "character": 4 },
+            "end": { "line": 2, "character": 10 },
+          },
+        },
+        "message": "`answer` conflicts with an existing value named `answer`",
+      },
+      {
+        "location": {
+          "uri": "file:///duplicate.lane",
+          "range": {
+            "start": { "line": 1, "character": 4 },
+            "end": { "line": 1, "character": 10 },
+          },
+        },
+        "message": "previous definition of `answer` is here",
+      },
+      {
+        "location": {
+          "uri": "file:///duplicate.lane",
+          "range": {
+            "start": { "line": 2, "character": 4 },
+            "end": { "line": 2, "character": 10 },
+          },
+        },
+        "message": "note: a Lane module has one top-level value namespace",
+      },
+      {
+        "location": {
+          "uri": "file:///duplicate.lane",
+          "range": {
+            "start": { "line": 2, "character": 4 },
+            "end": { "line": 2, "character": 10 },
+          },
+        },
+        "message": "help: rename one of the declarations or remove the duplicate import",
+      },
+    ],
+  })
+}
+
+///|
+test "lsp duplicate imported top-level value diagnostic points across sources" {
+  let main : @compile.SourceInput = {
+    source_id: "file:///Main.lane",
+    text: (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = 2
+    ),
+  }
+  let lib : @compile.SourceInput = {
+    source_id: "file:///Lib.lane",
+    text: (
+      #|module Lib
+      #|pub let answer : Int = 1
+    ),
+  }
+  let result = @compile.check_source_inputs(main, [lib])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one duplicate top-level value diagnostic")
+  }
+  let sources = compiler_diagnostic_sources_from_inputs([main, lib])
+  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
+    "severity": 1,
+    "message": "conflicting top-level value `answer`",
+    "source": "lane",
+    "code": "E2005",
+    "range": {
+      "start": { "line": 2, "character": 8 },
+      "end": { "line": 2, "character": 14 },
+    },
+    "relatedInformation": [
+      {
+        "location": {
+          "uri": "file:///Main.lane",
+          "range": {
+            "start": { "line": 2, "character": 8 },
+            "end": { "line": 2, "character": 14 },
+          },
+        },
+        "message": "`answer` conflicts with an existing value named `answer`",
+      },
+      {
+        "location": {
+          "uri": "file:///Lib.lane",
+          "range": {
+            "start": { "line": 1, "character": 8 },
+            "end": { "line": 1, "character": 14 },
+          },
+        },
+        "message": "previous definition of `answer` is here",
+      },
+      {
+        "location": {
+          "uri": "file:///Main.lane",
+          "range": {
+            "start": { "line": 2, "character": 8 },
+            "end": { "line": 2, "character": 14 },
+          },
+        },
+        "message": "note: a Lane module has one top-level value namespace",
+      },
+      {
+        "location": {
+          "uri": "file:///Main.lane",
+          "range": {
+            "start": { "line": 2, "character": 8 },
+            "end": { "line": 2, "character": 14 },
+          },
+        },
+        "message": "help: rename one of the declarations or remove the duplicate import",
+      },
+    ],
+  })
+}
+
+///|
 test "lsp diagnostic conversion keeps required range for unmapped source" {
   let diagnostic : @compiler_diag.CompilerDiagnostic = {
     source_id: Some("file:///missing.lane"),
@@ -803,7 +948,7 @@ test "lsp diagnostic conversion keeps required range for unmapped source" {
     code: Some("E9999"),
     labels: [
       {
-        span: @basic.SourceSpan::dummy(),
+        span: @compiler_diag.compiler_local_span(@basic.SourceSpan::dummy()),
         message: "original label could not be mapped",
         style: Primary,
       },

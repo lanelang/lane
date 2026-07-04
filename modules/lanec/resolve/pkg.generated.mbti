@@ -33,7 +33,7 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedField(type_name~ : String, field~ : String)
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
   PayloadlessVariantWithoutParens(String)
-  ConflictingTopLevelValue(name~ : String, existing~ : String, incoming~ : String)
+  ConflictingTopLevelValue(name~ : String, existing~ : String, incoming~ : String, existing_source_id~ : String?, existing_loc~ : @basic.SourceSpan?, existing_origin~ : String?)
   ConflictingTopLevelTypeAndEffectName(name~ : String, type_kind~ : String, effect_kind~ : String)
   AmbiguousModuleValue(String)
   AmbiguousUnqualifiedVariant(name~ : String, candidates~ : Array[ResolveVariantCandidate])

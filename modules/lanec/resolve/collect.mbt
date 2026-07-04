@@ -7,6 +7,7 @@ priv struct Resolver {
   type_aliases : Array[TypeAliasBinding]
   top_values : Array[ValueBinding]
   ordered_top_values : Array[ValueBinding]
+  conflicting_top_value_names : Array[String]
   diagnostics : Array[ResolveDiagnostic]
 }
 
@@ -103,6 +104,7 @@ fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
     type_aliases: [],
     top_values: [],
     ordered_top_values: [],
+    conflicting_top_value_names: [],
     diagnostics: [],
   }
 }
@@ -276,7 +278,7 @@ fn Resolver::publish_imported_public_values(
   loc : SourceSpan,
 ) -> Unit {
   for value in interface.values {
-    let binding = imported_interface_value_binding(value)
+    let binding = imported_interface_value_binding(interface, value)
     self.publish_complete_top_level_binding(binding, loc)
     self.publish_ordered_top_level_binding(binding, loc)
   }
@@ -291,7 +293,7 @@ fn Resolver::publish_imported_selected_values(
   for item in items {
     for value in interface.values {
       if value.name == item.name {
-        let binding = imported_interface_value_binding(value)
+        let binding = imported_interface_value_binding(interface, value)
         self.publish_complete_top_level_binding(binding, item.loc)
         self.publish_ordered_top_level_binding(binding, item.loc)
       }
@@ -301,13 +303,19 @@ fn Resolver::publish_imported_selected_values(
 
 ///|
 fn imported_interface_value_binding(
+  interface : @module_interface.ModuleInterface,
   value : @module_interface.ModuleInterfaceValue,
 ) -> ValueBinding {
+  let source = match interface.source_id {
+    Some(source_id) => ExternalSource(source_id~)
+    None => NoSource(origin="module `\{interface.module_path}`")
+  }
   {
     name: value.name,
     reference: Symbol(value.symbol),
     type_: None,
     kind: Plain,
+    source,
   }
 }
 
@@ -379,23 +387,24 @@ fn Resolver::collect_top_level_headers(
         let symbol = self.registry.define_value(
           declaration.name,
           TopLevelFunction,
-          declaration.loc,
+          declaration.name_loc,
         )
         let binding = {
           name: declaration.name,
           reference: Symbol(symbol),
           type_: None,
           kind: Plain,
+          source: CurrentSource,
         }
-        self.publish_complete_top_level_binding(binding, declaration.loc)
-        self.publish_ordered_top_level_binding(binding, declaration.loc)
+        self.publish_complete_top_level_binding(binding, declaration.name_loc)
+        self.publish_ordered_top_level_binding(binding, declaration.name_loc)
       }
       Let(declaration) =>
         if declaration.name is Some(name) {
           let symbol = self.registry.define_value(
             name,
             TopLevelValue,
-            declaration.loc,
+            declaration.name_loc.unwrap_or(declaration.loc),
           )
           let type_annotation = declaration.type_annotation.map(fn(type_) {
             type_.resolve_type(self, self.scope([]))
@@ -406,15 +415,16 @@ fn Resolver::collect_top_level_headers(
               reference: Symbol(symbol),
               type_: type_annotation,
               kind: Plain,
+              source: CurrentSource,
             },
-            declaration.loc,
+            declaration.name_loc.unwrap_or(declaration.loc),
           )
         }
       Offer(declaration) => {
         let symbol = self.registry.define_value(
           declaration.name,
           TopLevelValue,
-          declaration.loc,
+          declaration.name_loc,
         )
         let type_annotation = declaration.type_annotation.resolve_type(
           self,
@@ -426,8 +436,9 @@ fn Resolver::collect_top_level_headers(
             reference: Symbol(symbol),
             type_: Some(type_annotation),
             kind: Plain,
+            source: CurrentSource,
           },
-          declaration.loc,
+          declaration.name_loc,
         )
       }
     }
@@ -939,7 +950,7 @@ fn @syntax.LetDeclaration::resolve_top_level_let(
   let declaration = self.resolve_let_with_resolved_type(
     resolver, scope, symbol, type_annotation,
   )
-  resolver.publish_top_level_let(declaration, self.loc)
+  resolver.publish_top_level_let(declaration, self.name_loc.unwrap_or(self.loc))
   declaration
 }
 
@@ -954,6 +965,7 @@ fn Resolver::publish_top_level_let(
     reference: Symbol(declaration.symbol),
     type_: declaration.type_annotation,
     kind: Plain,
+    source: CurrentSource,
   }
   match declaration.name {
     Some(_) => self.publish_ordered_top_level_binding(binding, loc)
@@ -973,7 +985,11 @@ fn @syntax.LetDeclaration::resolve_let(
   kind : @symbol.ValueSymbolKind,
 ) -> ResolvedLetDeclaration {
   let display_name = self.name.unwrap_or("<anonymous>")
-  let symbol = resolver.registry.define_value(display_name, kind, self.loc)
+  let symbol = resolver.registry.define_value(
+    display_name,
+    kind,
+    self.name_loc.unwrap_or(self.loc),
+  )
   self.resolve_let_with_symbol(resolver, scope, symbol)
 }
 
@@ -1032,7 +1048,7 @@ fn @syntax.OfferDeclaration::resolve_top_level_offer(
   let declaration = self.resolve_offer_value_with_resolved_type(
     resolver, scope, symbol, type_annotation,
   )
-  resolver.publish_top_level_offer(declaration, self.loc)
+  resolver.publish_top_level_offer(declaration, self.name_loc)
   declaration
 }
 
@@ -1048,6 +1064,7 @@ fn Resolver::publish_top_level_offer(
       reference: Symbol(declaration.symbol),
       type_: Some(declaration.type_annotation),
       kind: Plain,
+      source: CurrentSource,
     },
     loc,
   )
@@ -1060,7 +1077,7 @@ fn @syntax.OfferDeclaration::resolve_offer_value(
   scope : ResolveScope,
   kind : @symbol.ValueSymbolKind,
 ) -> ResolvedOfferDeclaration {
-  let symbol = resolver.registry.define_value(self.name, kind, self.loc)
+  let symbol = resolver.registry.define_value(self.name, kind, self.name_loc)
   self.resolve_offer_value_with_symbol(resolver, scope, symbol)
 }
 
@@ -2720,14 +2737,9 @@ fn Resolver::publish_complete_top_level_binding(
     Plain =>
       match self.top_value_binding(binding.name) {
         Some(existing) =>
-          self.report(
-            ConflictingTopLevelValue(
-              name=binding.name,
-              existing=self.binding_display(existing),
-              incoming=self.binding_display(binding),
-            ),
-            loc,
-          )
+          if !self.has_conflicting_top_value_name(binding.name) {
+            self.report_conflicting_top_level_value(binding, existing, loc)
+          }
         None => self.top_values.push(binding)
       }
   }
@@ -2743,17 +2755,41 @@ fn Resolver::publish_ordered_top_level_binding(
     Plain =>
       match self.ordered_top_value_binding(binding.name) {
         Some(existing) =>
-          self.report(
-            ConflictingTopLevelValue(
-              name=binding.name,
-              existing=self.binding_display(existing),
-              incoming=self.binding_display(binding),
-            ),
-            loc,
-          )
+          if !self.has_conflicting_top_value_name(binding.name) {
+            self.report_conflicting_top_level_value(binding, existing, loc)
+          }
         None => self.ordered_top_values.push(binding)
       }
   }
+}
+
+///|
+fn Resolver::has_conflicting_top_value_name(
+  self : Resolver,
+  name : String,
+) -> Bool {
+  self.conflicting_top_value_names.any(fn(conflicting) { conflicting == name })
+}
+
+///|
+fn Resolver::report_conflicting_top_level_value(
+  self : Resolver,
+  incoming : ValueBinding,
+  existing : ValueBinding,
+  loc : SourceSpan,
+) -> Unit {
+  self.conflicting_top_value_names.push(incoming.name)
+  self.report(
+    ConflictingTopLevelValue(
+      name=incoming.name,
+      existing=self.binding_display(existing),
+      incoming=self.binding_display(incoming),
+      existing_source_id=binding_source_id(existing),
+      existing_loc=self.binding_loc(existing),
+      existing_origin=binding_origin(existing),
+    ),
+    loc,
+  )
 }
 
 ///|
@@ -2765,6 +2801,41 @@ fn Resolver::binding_display(self : Resolver, binding : ValueBinding) -> String 
         None => binding.name
       }
     Unresolved(name) => name
+  }
+}
+
+///|
+fn binding_source_id(binding : ValueBinding) -> String? {
+  match binding.source {
+    ExternalSource(source_id~) => Some(source_id)
+    _ => None
+  }
+}
+
+///|
+fn Resolver::binding_loc(
+  self : Resolver,
+  binding : ValueBinding,
+) -> SourceSpan? {
+  match binding.source {
+    NoSource(_) => None
+    _ =>
+      match binding.reference {
+        Symbol(symbol) =>
+          match self.registry.value_metadata(symbol) {
+            Some(metadata) => Some(metadata.loc)
+            None => None
+          }
+        Unresolved(_) => None
+      }
+  }
+}
+
+///|
+fn binding_origin(binding : ValueBinding) -> String? {
+  match binding.source {
+    NoSource(origin~) => Some(origin)
+    _ => None
   }
 }
 

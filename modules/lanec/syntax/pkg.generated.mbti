@@ -122,6 +122,7 @@ pub(all) struct FunctionDeclaration {
   is_public : Bool
   type_parameters : Array[TypeParameter]
   name : String
+  name_loc : @basic.SourceSpan
   parameters : Array[Parameter]
   return_type : Type
   effect : EffectTerm
@@ -185,6 +186,7 @@ pub impl @prettyprinter.Pretty for Kind
 pub(all) struct LetDeclaration {
   is_public : Bool
   name : String?
+  name_loc : @basic.SourceSpan?
   type_annotation : Type?
   initializer : Expr
   loc : @basic.SourceSpan
@@ -215,6 +217,7 @@ pub impl @prettyprinter.Pretty for ModulePath
 pub(all) struct OfferDeclaration {
   is_public : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_annotation : Type
   initializer : Expr
   loc : @basic.SourceSpan

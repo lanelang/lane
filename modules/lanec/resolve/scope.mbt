@@ -4,12 +4,20 @@ priv struct ValueBinding {
   reference : ResolvedValueReference
   type_ : ResolvedType?
   kind : ValueBindingKind
+  source : ValueBindingSource
 }
 
 ///|
 priv enum ValueBindingKind {
   Plain
 } derive(Eq)
+
+///|
+priv enum ValueBindingSource {
+  CurrentSource
+  ExternalSource(source_id~ : String)
+  NoSource(origin~ : String)
+}
 
 ///|
 priv struct ResolveScope {
@@ -34,7 +42,13 @@ fn ResolveScope::define_value(
   symbol : ValueSymbolId,
   type_ : ResolvedType?,
 ) -> Unit {
-  self.values.push({ name, reference: Symbol(symbol), type_, kind: Plain })
+  self.values.push({
+    name,
+    reference: Symbol(symbol),
+    type_,
+    kind: Plain,
+    source: CurrentSource,
+  })
 }
 
 ///|

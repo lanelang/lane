@@ -6,6 +6,7 @@ pub(all) struct ImportedEnvironment {
 ///|
 pub(all) struct ModuleInterface {
   module_path : String
+  source_id : String?
   types : Array[ModuleInterfaceType]
   effects : Array[ModuleInterfaceEffect]
   type_aliases : Array[ModuleInterfaceTypeAlias]

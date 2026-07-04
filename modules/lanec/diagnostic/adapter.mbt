@@ -79,19 +79,15 @@ fn CompilerDiagnostic::labels_to_diagnostic_labels(
   self : CompilerDiagnostic,
   sources : CompilerDiagnosticSources,
 ) -> Array[@diag_core.Label] {
-  guard self.source_id is Some(source_id) else { return [] }
-  guard sources.find(source_id) is Some(diagnostic_source_id) else { return [] }
   let labels : Array[@diag_core.Label] = []
   for label in self.labels {
-    labels.push({
-      style: label.style.to_diagnostic_label_style(),
-      span: sources.database.span_from_text_offsets(
-        diagnostic_source_id,
-        label.span.start_offset,
-        label.span.end_offset,
-      ),
-      message: Some(label.message),
-    })
+    if self.compiler_span_to_diagnostic_span(label.span, sources) is Some(span) {
+      labels.push({
+        style: label.style.to_diagnostic_label_style(),
+        span,
+        message: Some(label.message),
+      })
+    }
   }
   labels
 }
@@ -101,12 +97,13 @@ fn CompilerDiagnostic::unmapped_label_notes(
   self : CompilerDiagnostic,
   sources : CompilerDiagnosticSources,
 ) -> Array[String] {
-  if self.source_id is Some(source_id) {
-    if sources.find(source_id) is Some(_) {
-      return []
+  let notes : Array[String] = []
+  for label in self.labels {
+    if self.compiler_span_to_diagnostic_span(label.span, sources) is None {
+      notes.push(label.message)
     }
   }
-  self.labels.map(fn(label) { label.message })
+  notes
 }
 
 ///|
@@ -132,7 +129,7 @@ fn CompilerDiagnostic::suggestions_to_diagnostic_suggestions(
     {
       message: suggestion.message,
       edits: suggestion.edits.filter_map(fn(edit) {
-        match self.span_to_diagnostic_span(edit.span, sources) {
+        match self.compiler_span_to_diagnostic_span(edit.span, sources) {
           Some(span) => Some({ span, replacement: edit.replacement })
           None => None
         }
@@ -145,22 +142,29 @@ fn CompilerDiagnostic::suggestions_to_diagnostic_suggestions(
 ///|
 fn CompilerDiagnostic::optional_span_to_diagnostic_span(
   self : CompilerDiagnostic,
-  span : @basic.SourceSpan?,
+  span : CompilerSourceSpan?,
   sources : CompilerDiagnosticSources,
 ) -> @diag_core.SourceSpan? {
   match span {
-    Some(span) => self.span_to_diagnostic_span(span, sources)
+    Some(span) => self.compiler_span_to_diagnostic_span(span, sources)
     None => None
   }
 }
 
 ///|
-fn CompilerDiagnostic::span_to_diagnostic_span(
+fn CompilerDiagnostic::compiler_span_to_diagnostic_span(
   self : CompilerDiagnostic,
-  span : @basic.SourceSpan,
+  span : CompilerSourceSpan,
   sources : CompilerDiagnosticSources,
 ) -> @diag_core.SourceSpan? {
-  guard self.source_id is Some(source_id) else { return None }
+  let (source_id, span) = match span {
+    Local(span) =>
+      match self.source_id {
+        Some(source_id) => (source_id, span)
+        None => return None
+      }
+    Source(source_id~, span~) => (source_id, span)
+  }
   guard sources.find(source_id) is Some(diagnostic_source_id) else {
     return None
   }

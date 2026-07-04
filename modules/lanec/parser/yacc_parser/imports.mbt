@@ -43,6 +43,12 @@ using @syntax {
 }
 
 ///|
+priv struct Identifier {
+  name : String
+  loc : SourceSpan
+}
+
+///|
 priv struct ReturnAnnotation {
   return_type : Type?
   effect : EffectTerm?

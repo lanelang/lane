@@ -108,9 +108,14 @@ fn LspAnalysisSources::inputs_with_diagnostics(
   self : LspAnalysisSources,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> Array[@compile.SourceInput] {
-  let source_ids = diagnostics.filter_map(fn(diagnostic) {
-    diagnostic.source_id
-  })
+  let source_ids : Array[String] = []
+  for diagnostic in diagnostics {
+    for source_id in diagnostic.source_ids() {
+      if !source_ids.contains(source_id) {
+        source_ids.push(source_id)
+      }
+    }
+  }
   [self.root] +
   self.libraries.filter(fn(input) { source_ids.contains(input.source_id) })
 }

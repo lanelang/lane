@@ -162,6 +162,7 @@ pub(all) struct FunctionDeclaration {
   is_public : Bool
   type_parameters : Array[TypeParameter]
   name : String
+  name_loc : SourceSpan
   parameters : Array[Parameter]
   return_type : Type
   effect : EffectTerm
@@ -188,6 +189,7 @@ pub(all) struct ParameterModifiers {
 pub(all) struct LetDeclaration {
   is_public : Bool
   name : String?
+  name_loc : SourceSpan?
   type_annotation : Type?
   initializer : Expr
   loc : SourceSpan
@@ -197,6 +199,7 @@ pub(all) struct LetDeclaration {
 pub(all) struct OfferDeclaration {
   is_public : Bool
   name : String
+  name_loc : SourceSpan
   type_annotation : Type
   initializer : Expr
   loc : SourceSpan

@@ -82,6 +82,7 @@ test "explore_json returns diagnostics for invalid source" {
       #|                        "end": Object({ "line": Number(2), "column": Number(17), "offset": Number(28) }),
       #|                      },
       #|                    ),
+      #|                    "sourceId": String("<root>"),
       #|                  },
       #|                ),
       #|              ],
