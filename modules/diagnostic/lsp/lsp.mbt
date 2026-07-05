@@ -101,15 +101,6 @@ fn diagnostic_message(diagnostic : @core.Diagnostic) -> String {
       }
     }
   }
-  for fact in diagnostic.facts {
-    push_diagnostic_message_line(lines, "\{fact.name}: \{fact.value}")
-  }
-  for note in diagnostic.notes {
-    push_diagnostic_message_line(lines, "Context: \{note}")
-  }
-  for help in diagnostic.helps {
-    push_diagnostic_message_line(lines, "Suggestion: \{help}")
-  }
   lines.join("\n")
 }
 
@@ -144,15 +135,28 @@ fn related_information_json(
 
 ///|
 fn diagnostic_data_json(diagnostic : @core.Diagnostic) -> Json? {
-  if diagnostic.facts.is_empty() && diagnostic.suggestions.is_empty() {
+  if diagnostic.facts.is_empty() &&
+    diagnostic.suggestions.is_empty() &&
+    diagnostic.notes.is_empty() &&
+    diagnostic.helps.is_empty() {
     return None
   }
-  Some(
-    {
-      "facts": diagnostic.facts.map(fact_to_json).to_json(),
-      "suggestions": diagnostic.suggestions.map(suggestion_data_json).to_json(),
-    }.to_json(),
-  )
+  let fields : Map[String, Json] = {}
+  if !diagnostic.notes.is_empty() {
+    fields["notes"] = diagnostic.notes.to_json()
+  }
+  if !diagnostic.helps.is_empty() {
+    fields["helps"] = diagnostic.helps.to_json()
+  }
+  if !diagnostic.facts.is_empty() {
+    fields["facts"] = diagnostic.facts.map(fact_to_json).to_json()
+  }
+  if !diagnostic.suggestions.is_empty() {
+    fields["suggestions"] = diagnostic.suggestions
+      .map(suggestion_data_json)
+      .to_json()
+  }
+  Some(fields.to_json())
 }
 
 ///|

@@ -50,15 +50,16 @@ test "lsp related information only carries independent source locations" {
   )
   json_inspect(diagnostic_to_lsp_json(diagnostic, sources), content={
     "severity": 1,
-    "message": "bad value\nvalue starts here\nexpected type: `Int`\nContext: notes belong to the diagnostic body\nSuggestion: fix the value",
+    "message": "bad value\nvalue starts here",
     "code": "E0001",
     "range": {
       "start": { "line": 0, "character": 4 },
       "end": { "line": 0, "character": 10 },
     },
     "data": {
+      "notes": ["notes belong to the diagnostic body"],
+      "helps": ["fix the value"],
       "facts": [{ "name": "expected type", "value": "`Int`", "hasSpan": true }],
-      "suggestions": [],
     },
     "relatedInformation": [
       {
@@ -120,13 +121,14 @@ test "diagnostic without labels still includes required lsp range" {
   ])
   json_inspect(diagnostic_to_lsp_json(diagnostic, sources, source="lane"), content={
     "severity": 1,
-    "message": "workspace failure\nContext: no source location is available",
+    "message": "workspace failure",
     "source": "lane",
     "code": "E9999",
     "range": {
       "start": { "line": 0, "character": 0 },
       "end": { "line": 0, "character": 0 },
     },
+    "data": { "notes": ["no source location is available"] },
   })
 }
 
@@ -168,7 +170,6 @@ test "suggestions convert to lsp code actions" {
       #|              ),
       #|              "data": Object(
       #|                {
-      #|                  "facts": Array([]),
       #|                  "suggestions": Array(
       #|                    [
       #|                      Object(

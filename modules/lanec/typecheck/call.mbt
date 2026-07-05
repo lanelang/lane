@@ -13,6 +13,7 @@ fn SemanticChecker::synthesize_call(
   //
   // In synthesis mode the result type must come from the callee.
   let callee_type = self.synthesize_expr(scope, callee)
+  let diagnostic_count = self.diagnostics.length()
   let arguments = self.prepare_direct_call_arguments(
     scope,
     callee,
@@ -21,6 +22,9 @@ fn SemanticChecker::synthesize_call(
     None,
     loc,
   )
+  if self.diagnostics.length() != diagnostic_count {
+    return Error
+  }
   self.synthesize_callable_call(
     scope,
     callee_type,
@@ -84,6 +88,7 @@ fn SemanticChecker::check_call(
     return
   }
   let callee_type = self.synthesize_expr(scope, callee)
+  let diagnostic_count = self.diagnostics.length()
   let arguments = self.prepare_direct_call_arguments(
     scope,
     callee,
@@ -92,6 +97,9 @@ fn SemanticChecker::check_call(
     Some(expected),
     loc,
   )
+  if self.diagnostics.length() != diagnostic_count {
+    return
+  }
   let actual = self.synthesize_callable_call(
     scope,
     callee_type,

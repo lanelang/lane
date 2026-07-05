@@ -788,12 +788,20 @@ async test "didOpen publishes compiler diagnostics" {
         "diagnostics": [
           {
             "severity": 1,
-            "message": "cannot find type `Missing`\nno type named `Missing` is visible here\nContext: Lane resolves type names from the current module and explicitly imported public types\nSuggestion: declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
+            "message": "cannot find type `Missing`\nno type named `Missing` is visible here",
             "source": "lane",
             "code": "E2000",
             "range": {
               "start": { "line": 1, "character": 13 },
               "end": { "line": 1, "character": 20 },
+            },
+            "data": {
+              "notes": [
+                "Lane resolves type names from the current module and explicitly imported public types",
+              ],
+              "helps": [
+                "declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
+              ],
             },
           },
         ],
@@ -822,7 +830,7 @@ test "lsp diagnostics convert text offsets before transport" {
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 1,
-    "message": "missing imported module `Builtins`\nno explicit input provides this module\nconsidered source module: `Main`\nContext: Lane only compiles explicitly provided source files and interface artifacts\nSuggestion: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules",
+    "message": "missing imported module `Builtins`\nno explicit input provides this module",
     "source": "lane",
     "code": "E4002",
     "range": {
@@ -830,6 +838,12 @@ test "lsp diagnostics convert text offsets before transport" {
       "end": { "line": 2, "character": 15 },
     },
     "data": {
+      "notes": [
+        "Lane only compiles explicitly provided source files and interface artifacts",
+      ],
+      "helps": [
+        "pass an input whose declared module is `Builtins`, or change the import to one of the listed modules",
+      ],
       "facts": [
         {
           "name": "considered source module",
@@ -841,6 +855,66 @@ test "lsp diagnostics convert text offsets before transport" {
         {
           "message": "check the imported module name against the listed explicit inputs",
           "applicability": "maybe-incorrect",
+        },
+      ],
+    },
+  })
+}
+
+///|
+test "lsp generic operator conflict keeps diagnostic message concise" {
+  let input : @compile.SourceInput = {
+    source_id: "file:///generic-operator.lane",
+    text: (
+      #|module Main
+      #|struct Add[T] {
+      #|  add : (T, T) -> T
+      #|}
+      #|fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
+      #|  op.add(a, b)
+      #|}
+      #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|pub let x : Int = 1 + true
+    ),
+  }
+  let result = @compile.check_source_inputs(input, [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected generic operator conflict without cascaded diagnostics")
+  }
+  let diagnostics = result.diagnostics.filter(fn(diagnostic) {
+    diagnostic.code == Some("E3010")
+  })
+  guard diagnostics.length() == 1 else {
+    abort("expected one generic operator conflict diagnostic")
+  }
+  let sources = compiler_diagnostic_sources_from_inputs([input])
+  json_inspect(compile_diagnostic_json(diagnostics[0], sources), content={
+    "severity": 1,
+    "message": "conflicting generic arguments for this call\ngeneric parameter `T` was inferred as `Int` and `Bool`",
+    "source": "lane",
+    "code": "E3010",
+    "range": {
+      "start": { "line": 8, "character": 22 },
+      "end": { "line": 8, "character": 26 },
+    },
+    "data": {
+      "notes": [
+        "Lane infers generic arguments only from the adjacent call arguments and expected result type",
+      ],
+      "helps": [
+        "make every use of generic parameter `T` agree, or pass explicit generic arguments",
+      ],
+      "facts": [
+        { "name": "generic parameter", "value": "`T`", "hasSpan": true },
+        {
+          "name": "previous inferred argument",
+          "value": "`Int`",
+          "hasSpan": true,
+        },
+        {
+          "name": "conflicting inferred argument",
+          "value": "`Bool`",
+          "hasSpan": true,
         },
       ],
     },
@@ -866,13 +940,14 @@ test "lsp diagnostics transport unused local warnings" {
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 2,
-    "message": "unused local value binding\n`unused` is never used\nSuggestion: prefix the name with `_` if this is intentional",
+    "message": "unused local value binding\n`unused` is never used",
     "source": "lane",
     "code": "W2001",
     "range": {
       "start": { "line": 2, "character": 6 },
       "end": { "line": 2, "character": 12 },
     },
+    "data": { "helps": ["prefix the name with `_` if this is intentional"] },
   })
 }
 
@@ -893,12 +968,16 @@ test "lsp duplicate top-level value diagnostic points at names" {
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 1,
-    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`\nContext: a Lane module has one top-level value namespace\nSuggestion: rename one of the declarations or remove the duplicate import",
+    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`",
     "source": "lane",
     "code": "E2005",
     "range": {
       "start": { "line": 2, "character": 4 },
       "end": { "line": 2, "character": 10 },
+    },
+    "data": {
+      "notes": ["a Lane module has one top-level value namespace"],
+      "helps": ["rename one of the declarations or remove the duplicate import"],
     },
     "relatedInformation": [
       {
@@ -939,12 +1018,16 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
   let sources = compiler_diagnostic_sources_from_inputs([main, lib])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 1,
-    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`\nContext: a Lane module has one top-level value namespace\nSuggestion: rename one of the declarations or remove the duplicate import",
+    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`",
     "source": "lane",
     "code": "E2005",
     "range": {
       "start": { "line": 2, "character": 8 },
       "end": { "line": 2, "character": 14 },
+    },
+    "data": {
+      "notes": ["a Lane module has one top-level value namespace"],
+      "helps": ["rename one of the declarations or remove the duplicate import"],
     },
     "relatedInformation": [
       {
@@ -985,13 +1068,14 @@ test "lsp diagnostic conversion keeps required range for unmapped source" {
     compile_diagnostic_json(diagnostic, CompilerDiagnosticSources()),
     content={
       "severity": 1,
-      "message": "diagnostic source is not open\nContext: original label could not be mapped",
+      "message": "diagnostic source is not open",
       "source": "lane",
       "code": "E9999",
       "range": {
         "start": { "line": 0, "character": 0 },
         "end": { "line": 0, "character": 0 },
       },
+      "data": { "notes": ["original label could not be mapped"] },
     },
   )
 }
@@ -1133,12 +1217,20 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
         "diagnostics": [
           {
             "severity": 1,
-            "message": "cannot find type `Missing`\nno type named `Missing` is visible here\nContext: Lane resolves type names from the current module and explicitly imported public types\nSuggestion: declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
+            "message": "cannot find type `Missing`\nno type named `Missing` is visible here",
             "source": "lane",
             "code": "E2000",
             "range": {
               "start": { "line": 2, "character": 16 },
               "end": { "line": 2, "character": 23 },
+            },
+            "data": {
+              "notes": [
+                "Lane resolves type names from the current module and explicitly imported public types",
+              ],
+              "helps": [
+                "declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
+              ],
             },
           },
         ],

@@ -682,6 +682,7 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
     is Some(checked_callee_expr) else {
     return checked_expression_none_reported(Error)
   }
+  let diagnostic_count = self.diagnostics.length()
   let arguments = self.prepare_direct_call_arguments(
     scope,
     callee,
@@ -690,6 +691,9 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
     expected_result,
     loc,
   )
+  if self.diagnostics.length() != diagnostic_count {
+    return checked_expression_none_reported(Error)
+  }
   match checked_callee.type_ {
     Function(parameters, result, effect) => {
       guard self.check_checked_call_arguments(scope, parameters, arguments, loc)
