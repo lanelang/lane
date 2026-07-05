@@ -179,28 +179,30 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       text("var") + space + reference.pretty() + space + text(name)
     VariantCall(
       type_name~,
-      type_arguments~,
+      generic_arguments~,
       variant~,
-      variant_type_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       ..
     ) => {
       let owner = match type_name {
         Some(type_name) =>
-          text(type_name) + generic_arguments_doc(type_arguments) + text("::")
+          text(type_name) +
+          generic_arguments_doc(generic_arguments) +
+          text("::")
         None => empty
       }
       reference.pretty() +
       space +
       owner +
       text(variant) +
-      generic_arguments_doc(variant_type_arguments) +
+      generic_arguments_doc(variant_generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
     }
-    StructLiteral(type_name~, type_arguments~, fields~, ..) =>
+    StructLiteral(type_name~, generic_arguments~, fields~, ..) =>
       text(type_name) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(DesugaredStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
@@ -228,12 +230,12 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       space +
       body.pretty()
     }
-    EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
+    EffectOperationCall(name~, generic_witnesses~, arguments~, ..) =>
       name.pretty() +
       text("!") +
-      generic_arguments_doc(type_witnesses) +
+      generic_arguments_doc(generic_witnesses) +
       @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
-    TypeApplication(callee~, arguments~, ..) =>
+    GenericApplication(callee~, arguments~, ..) =>
       callee.pretty() + generic_arguments_doc(arguments)
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]

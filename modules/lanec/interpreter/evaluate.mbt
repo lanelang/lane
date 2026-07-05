@@ -115,9 +115,9 @@ fn evaluate_rhs(
       raise InvalidRuntimeValue(
         message="effect operation evaluation is not implemented yet",
       )
-    TypeApplication(callee~, ..) => {
+    GenericApplication(callee~, ..) => {
       let callee_value = evaluate_atom(callee, environment, builtins)
-      erase_type_application(callee_value, builtins)
+      erase_generic_application(callee_value, builtins)
     }
     Field(base~, field~, name~, ..) => {
       let base = evaluate_atom(base, environment, builtins)
@@ -224,7 +224,7 @@ fn apply_function_atom(
       evaluate_expr(body, frame, builtins)
     }
     TypeLambda(..) => {
-      let erased = erase_type_application(
+      let erased = erase_generic_application(
         FunctionAtom(function~, environment~),
         builtins,
       )
@@ -263,8 +263,8 @@ fn bind_parameters(
 }
 
 ///|
-/// Erases a type application at runtime.
-fn erase_type_application(
+/// Erases a generic application at runtime.
+fn erase_generic_application(
   callee : RuntimeValue,
   builtins : BuiltinRuntime,
 ) -> RuntimeValue raise RuntimeError {
@@ -272,7 +272,8 @@ fn erase_type_application(
     FunctionAtom(function=TypeLambda(body~, ..), environment~) =>
       evaluate_atom(body, environment, builtins)
     Closure(..) | FunctionAtom(function=Function(..), ..) => callee
-    _ => raise InvalidRuntimeValue(message="type application target is invalid")
+    _ =>
+      raise InvalidRuntimeValue(message="generic application target is invalid")
   }
 }
 

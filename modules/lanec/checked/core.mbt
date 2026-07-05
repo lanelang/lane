@@ -173,7 +173,7 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
-  TypeApplication(
+  GenericApplication(
     callee~ : CheckedExpr,
     arguments~ : Array[@types.GenericArgument],
     type_~ : @types.Type,
@@ -206,7 +206,7 @@ pub(all) enum CheckedExpr {
   )
   OperationCall(
     operation~ : OperationSymbolId,
-    type_witnesses~ : Array[@types.GenericArgument],
+    generic_witnesses~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedExpr],
     effect~ : @types.Effect,
     type_~ : @types.Type,
@@ -228,7 +228,7 @@ pub(all) enum CheckedExpr {
   )
   StructLiteral(
     symbol~ : TypeSymbolId,
-    type_arguments~ : Array[@types.GenericArgument],
+    generic_arguments~ : Array[@types.GenericArgument],
     type_witnesses~ : Array[CheckedStructTypeWitness],
     fields~ : Array[CheckedStructLiteralField],
     type_~ : @types.Type,
@@ -236,7 +236,7 @@ pub(all) enum CheckedExpr {
   )
   Variant(
     symbol~ : VariantSymbolId,
-    type_arguments~ : Array[@types.GenericArgument],
+    generic_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedExpr],
     type_~ : @types.Type,
     loc~ : SourceSpan
@@ -308,7 +308,7 @@ pub(all) enum CheckedPattern {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : SourceSpan)
   Variant(
     symbol~ : VariantSymbolId,
-    type_arguments~ : Array[@types.GenericArgument],
+    generic_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedPattern],
     type_~ : @types.Type,
     loc~ : SourceSpan
@@ -346,7 +346,7 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
     | Value(type_~, ..)
     | UnsafeBuiltin(type_~, ..)
     | FunctionLiteral(type_~, ..)
-    | TypeApplication(type_~, ..)
+    | GenericApplication(type_~, ..)
     | Block(type_~, ..)
     | If(type_~, ..)
     | Match(type_~, ..)
@@ -367,7 +367,7 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | Value(loc~, ..)
     | UnsafeBuiltin(loc~, ..)
     | FunctionLiteral(loc~, ..)
-    | TypeApplication(loc~, ..)
+    | GenericApplication(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)

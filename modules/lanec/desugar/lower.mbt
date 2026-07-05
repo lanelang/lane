@@ -172,18 +172,18 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     Var(name~, reference~, loc~) => Var(name~, reference~, loc~)
     QualifiedVariant(
       type_name~,
-      type_arguments~,
+      generic_arguments~,
       variant~,
-      variant_type_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       loc~
     ) =>
       VariantCall(
         type_name=Some(type_name),
-        type_arguments~,
+        generic_arguments~,
         variant~,
-        variant_type_arguments~,
+        variant_generic_arguments~,
         reference~,
         arguments=arguments.map(desugar_expr),
         loc~,
@@ -191,17 +191,17 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     UnqualifiedVariant(variant~, reference~, arguments~, loc~) =>
       VariantCall(
         type_name=None,
-        type_arguments=[],
+        generic_arguments=[],
         variant~,
-        variant_type_arguments=[],
+        variant_generic_arguments=[],
         reference~,
         arguments=arguments.map(desugar_expr),
         loc~,
       )
-    StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
+    StructLiteral(type_name~, generic_arguments~, fields~, loc~) =>
       StructLiteral(
         type_name~,
-        type_arguments~,
+        generic_arguments~,
         fields=desugar_struct_literal_fields(fields),
         loc~,
       )
@@ -222,15 +222,15 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         body=desugar_expr(body),
         loc~,
       )
-    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
+    EffectOperationCall(name~, generic_witnesses~, arguments~, loc~) =>
       EffectOperationCall(
         name~,
-        type_witnesses~,
+        generic_witnesses~,
         arguments=arguments.map(desugar_expr),
         loc~,
       )
-    TypeApplication(callee~, arguments~, loc~) =>
-      TypeApplication(callee=desugar_expr(callee), arguments~, loc~)
+    GenericApplication(callee~, arguments~, loc~) =>
+      GenericApplication(callee=desugar_expr(callee), arguments~, loc~)
     Handler(body~, handlers~, final_branch~, loc~) =>
       Handler(
         body=desugar_expr(body),

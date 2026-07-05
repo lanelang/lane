@@ -424,9 +424,9 @@ pub(all) enum ResolvedExpr {
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : SourceSpan)
   QualifiedVariant(
     type_name~ : String,
-    type_arguments~ : Array[ResolvedGenericArgument],
+    generic_arguments~ : Array[ResolvedGenericArgument],
     variant~ : String,
-    variant_type_arguments~ : Array[ResolvedGenericArgument],
+    variant_generic_arguments~ : Array[ResolvedGenericArgument],
     reference~ : ResolvedVariantReference,
     arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan
@@ -439,7 +439,7 @@ pub(all) enum ResolvedExpr {
   )
   StructLiteral(
     type_name~ : String,
-    type_arguments~ : Array[ResolvedGenericArgument],
+    generic_arguments~ : Array[ResolvedGenericArgument],
     fields~ : Array[ResolvedStructLiteralField],
     loc~ : SourceSpan
   )
@@ -454,11 +454,11 @@ pub(all) enum ResolvedExpr {
   )
   EffectOperationCall(
     name~ : ResolvedEffectOperationName,
-    type_witnesses~ : Array[ResolvedGenericArgument],
+    generic_witnesses~ : Array[ResolvedGenericArgument],
     arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan
   )
-  TypeApplication(
+  GenericApplication(
     callee~ : ResolvedExpr,
     arguments~ : Array[ResolvedGenericArgument],
     loc~ : SourceSpan

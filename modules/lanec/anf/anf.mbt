@@ -108,12 +108,12 @@ pub(all) enum AnfRhs {
   )
   OperationCall(
     operation~ : OperationSymbolId,
-    type_witnesses~ : Array[@types.GenericArgument],
+    generic_witnesses~ : Array[@types.GenericArgument],
     arguments~ : Array[AnfAtom],
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
-  TypeApplication(
+  GenericApplication(
     callee~ : AnfAtom,
     arguments~ : Array[@types.GenericArgument],
     type_~ : @types.Type,
@@ -128,7 +128,7 @@ pub(all) enum AnfRhs {
   )
   Struct(
     symbol~ : TypeSymbolId,
-    type_arguments~ : Array[@types.GenericArgument],
+    generic_arguments~ : Array[@types.GenericArgument],
     type_witnesses~ : Array[@checked.CheckedStructTypeWitness],
     fields~ : Array[AnfStructField],
     type_~ : @types.Type,
@@ -136,7 +136,7 @@ pub(all) enum AnfRhs {
   )
   Variant(
     symbol~ : VariantSymbolId,
-    type_arguments~ : Array[@types.GenericArgument],
+    generic_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[AnfAtom],
     type_~ : @types.Type,
     loc~ : SourceSpan
@@ -211,7 +211,7 @@ pub fn AnfRhs::type_(self : AnfRhs) -> @types.Type {
     Atom(atom) => atom.type_()
     Call(type_~, ..)
     | OperationCall(type_~, ..)
-    | TypeApplication(type_~, ..)
+    | GenericApplication(type_~, ..)
     | Field(type_~, ..)
     | Struct(type_~, ..)
     | Variant(type_~, ..) => type_
@@ -225,7 +225,7 @@ pub fn AnfRhs::loc(self : AnfRhs) -> SourceSpan {
     Atom(atom) => atom.loc()
     Call(loc~, ..)
     | OperationCall(loc~, ..)
-    | TypeApplication(loc~, ..)
+    | GenericApplication(loc~, ..)
     | Field(loc~, ..)
     | Struct(loc~, ..)
     | Variant(loc~, ..) => loc

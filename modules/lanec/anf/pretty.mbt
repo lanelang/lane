@@ -198,26 +198,26 @@ fn anf_rhs_doc(rhs : AnfRhs) -> Document {
     Call(callee~, arguments~, ..) =>
       anf_atom_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
-    OperationCall(operation~, type_witnesses~, arguments~, ..) =>
+    OperationCall(operation~, generic_witnesses~, arguments~, ..) =>
       operation.pretty() +
       text("!") +
-      generic_arguments_doc(type_witnesses) +
+      generic_arguments_doc(generic_witnesses) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
-    TypeApplication(callee~, arguments~, ..) =>
+    GenericApplication(callee~, arguments~, ..) =>
       anf_atom_doc(callee) + generic_arguments_doc(arguments)
     Field(base~, field~, name~, ..) =>
       anf_atom_doc(base) + text(".") + field_name_doc(name, field)
-    Struct(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
+    Struct(symbol~, generic_arguments~, type_witnesses~, fields~, ..) =>
       type_symbol_doc(symbol) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(
         type_witnesses.map(@checked.CheckedStructTypeWitness::pretty) +
         fields.map(AnfStructField::pretty),
       )
-    Variant(symbol~, type_arguments~, arguments~, ..) =>
+    Variant(symbol~, generic_arguments~, arguments~, ..) =>
       variant_symbol_doc(symbol) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
   }
 }

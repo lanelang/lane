@@ -265,7 +265,7 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     UnresolvedType(name) => text("unresolved_type") + space + text(name)
     UnresolvedValue(name) => text("unresolved_value") + space + text(name)
     MissingTopLevelLetAnnotation => text("missing_top_level_let_annotation")
-    TypeArgumentArityMismatch(name~, expected~, actual~) =>
+    GenericArgumentArityMismatch(name~, expected~, actual~) =>
       text("type_arity_mismatch") +
       space +
       text(name) +
@@ -299,8 +299,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text("actual=") +
       actual.pretty()
     NotCallable(type_) => text("not_callable") + space + type_.pretty()
-    TypeArgumentsOnNonGeneric(type_) =>
-      text("type_arguments_on_non_generic") + space + type_.pretty()
+    GenericArgumentsOnNonGeneric(type_) =>
+      text("generic_arguments_on_non_generic") + space + type_.pretty()
     UnknownField(name~) => text("unknown_field") + space + text(name)
     MissingField(name~) => text("missing_field") + space + text(name)
     DuplicateField(name~) => text("duplicate_field") + space + text(name)

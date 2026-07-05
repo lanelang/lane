@@ -204,7 +204,7 @@ fn find_first_handler_resume_callee_type(
           None
         }
       }
-    TypeApplication(callee~, ..) =>
+    GenericApplication(callee~, ..) =>
       find_first_handler_resume_callee_type(callee)
     OperationCall(arguments~, ..) | Variant(arguments~, ..) =>
       for argument in arguments {
@@ -1645,7 +1645,7 @@ test "typecheck reports explicit generic function kind mismatch" {
 }
 
 ///|
-test "typecheck reports type arguments on non-generic function" {
+test "typecheck reports generic arguments on non-generic function" {
   let result = expect_typecheck_result(
     (
       #|fn plain(value : Int) -> Int {
@@ -1657,13 +1657,13 @@ test "typecheck reports type arguments on non-generic function" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_arguments_on_non_generic (Int) -> Int @ 5:24-5:29]
+      #|[generic_arguments_on_non_generic (Int) -> Int @ 5:24-5:29]
     ),
   )
 }
 
 ///|
-test "typecheck reports unresolved generic type arguments" {
+test "typecheck reports unresolved generic arguments" {
   let result = expect_typecheck_result(
     (
       #|fn[A] make() -> A {
@@ -1680,7 +1680,7 @@ test "typecheck reports unresolved generic type arguments" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer type arguments @ 7:22-7:23
+      #|cannot_infer generic arguments @ 7:22-7:23
     ),
   )
 }
@@ -2416,7 +2416,7 @@ test "typecheck unqualified enum variant construction" {
 }
 
 ///|
-test "typecheck reports unresolved variant type arguments" {
+test "typecheck reports unresolved variant generic arguments" {
   let result = expect_typecheck_result(
     (
       #|enum Option[A] {
@@ -2433,7 +2433,7 @@ test "typecheck reports unresolved variant type arguments" {
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content="cannot_infer type arguments @ 8:29-8:31",
+    content="cannot_infer generic arguments @ 8:29-8:31",
   )
 }
 
@@ -2954,7 +2954,7 @@ test "typecheck accepts annotated effect operation call" {
 }
 
 ///|
-test "typecheck accepts explicit effect operation type witnesses and handler binders" {
+test "typecheck accepts explicit effect operation generic witnesses and handler binders" {
   let result = expect_checked_source_result(
     (
       #|effect Prompt {
@@ -2996,7 +2996,7 @@ test "typecheck accepts explicit effect operation type witnesses and handler bin
 }
 
 ///|
-test "typecheck infers effect operation type witnesses from payloads" {
+test "typecheck infers effect operation generic witnesses from payloads" {
   let result = expect_checked_source_result(
     (
       #|effect Prompt {
@@ -3118,7 +3118,7 @@ test "typecheck accepts effect-kind generic witnesses for operations and variant
 }
 
 ///|
-test "typecheck rejects effect operation type witness arity mismatch" {
+test "typecheck rejects effect operation generic witness arity mismatch" {
   let result = expect_typecheck_result(
     (
       #|effect Prompt {
@@ -3133,8 +3133,8 @@ test "typecheck rejects effect operation type witness arity mismatch" {
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
       #|[
-      #|  cannot_infer effect operation type arguments @ 6:18-6:35,
-      #|  cannot_infer effect operation type arguments @ 6:18-6:35,
+      #|  cannot_infer effect operation generic arguments @ 6:18-6:35,
+      #|  cannot_infer effect operation generic arguments @ 6:18-6:35,
       #|  effect_mismatch expected=effect#0 actual={} @ 6:3-7:2
       #|]
     ),

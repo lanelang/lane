@@ -1,7 +1,7 @@
 ///|
 priv struct OperationCallSignature {
   operation : OperationSymbolId
-  type_witnesses : Array[@types.GenericArgument]
+  generic_witnesses : Array[@types.GenericArgument]
   type_binders : Array[@types.TypeParameter]
   payload : Array[@types.Type]
   result : @types.Type
@@ -13,7 +13,7 @@ fn SemanticChecker::operation_call_signature(
   self : SemanticChecker,
   scope : TypeScope,
   name : @resolve.ResolvedEffectOperationName,
-  type_witnesses : Array[@resolve.ResolvedGenericArgument],
+  generic_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
@@ -38,16 +38,16 @@ fn SemanticChecker::operation_call_signature(
     type_.substitute(owner_substitution)
   })
   let result_template = declaration.result.substitute(owner_substitution)
-  guard self.operation_type_witnesses(
-      scope, declaration, payload_templates, result_template, type_witnesses, arguments,
-      expected_result, loc,
+  guard self.operation_generic_witnesses(
+      scope, declaration, payload_templates, result_template, generic_witnesses,
+      arguments, expected_result, loc,
     )
     is Some(hidden) else {
     return None
   }
   Some({
     operation,
-    type_witnesses: hidden.type_witnesses,
+    generic_witnesses: hidden.generic_witnesses,
     type_binders: [],
     payload: payload_templates.map(fn(type_) {
       type_.substitute(hidden.substitution)
@@ -119,7 +119,7 @@ fn SemanticChecker::handler_operation_signature(
   }
   Some({
     operation,
-    type_witnesses: [],
+    generic_witnesses: [],
     type_binders: checked_binders,
     payload: declaration.payload.map(fn(type_) {
       type_.substitute(owner_substitution).substitute(hidden_substitution)
@@ -132,33 +132,33 @@ fn SemanticChecker::handler_operation_signature(
 }
 
 ///|
-priv struct OperationTypeWitnesses {
-  type_witnesses : Array[@types.GenericArgument]
+priv struct OperationGenericWitnesses {
+  generic_witnesses : Array[@types.GenericArgument]
   substitution : @types.TypeSubstitution
 }
 
 ///|
-fn SemanticChecker::operation_type_witnesses(
+fn SemanticChecker::operation_generic_witnesses(
   self : SemanticChecker,
   scope : TypeScope,
   declaration : CheckedEffectOperationDeclaration,
   payload_templates : Array[@types.Type],
   result_template : @types.Type,
-  type_witnesses : Array[@resolve.ResolvedGenericArgument],
+  generic_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
-) -> OperationTypeWitnesses? {
-  if declaration.type_parameters.length() != type_witnesses.length() &&
-    !type_witnesses.is_empty() {
-    self.report_application_arity("effect operation type arguments", loc)
+) -> OperationGenericWitnesses? {
+  if declaration.type_parameters.length() != generic_witnesses.length() &&
+    !generic_witnesses.is_empty() {
+    self.report_application_arity("effect operation generic arguments", loc)
     return None
   }
-  let checked = if type_witnesses.is_empty() {
+  let checked = if generic_witnesses.is_empty() {
     if declaration.type_parameters.is_empty() {
       []
     } else {
-      guard self.infer_application_type_arguments(
+      guard self.infer_application_generic_arguments(
           scope,
           declaration.type_parameters,
           payload_templates,
@@ -166,14 +166,14 @@ fn SemanticChecker::operation_type_witnesses(
           Some(result_template),
           expected_result,
           false,
-          "effect operation type arguments",
+          "effect operation generic arguments",
           loc,
           true,
         )
         is Some(inferred) else {
         return None
       }
-      inferred.type_arguments
+      inferred.generic_arguments
     }
   } else {
     check_resolved_generic_arguments(
@@ -181,7 +181,7 @@ fn SemanticChecker::operation_type_witnesses(
       self.diagnostics,
       scope,
       declaration.type_parameters,
-      type_witnesses,
+      generic_witnesses,
     )
   }
   let substitution = @types.TypeSubstitution::TypeSubstitution()
@@ -191,7 +191,7 @@ fn SemanticChecker::operation_type_witnesses(
       checked[index],
     )
   }
-  Some({ type_witnesses: checked, substitution })
+  Some({ generic_witnesses: checked, substitution })
 }
 
 ///|
@@ -289,18 +289,18 @@ fn SemanticChecker::check_operation_call(
   self : SemanticChecker,
   scope : TypeScope,
   name : @resolve.ResolvedEffectOperationName,
-  type_witnesses : Array[@resolve.ResolvedGenericArgument],
+  generic_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> OperationCallSignature {
   guard self.operation_call_signature(
-      scope, name, type_witnesses, arguments, expected_result, loc,
+      scope, name, generic_witnesses, arguments, expected_result, loc,
     )
     is Some(signature) else {
     return {
       operation: { index: -1 },
-      type_witnesses: [],
+      generic_witnesses: [],
       type_binders: [],
       payload: [],
       result: Error,
@@ -322,13 +322,13 @@ fn SemanticChecker::synthesize_checked_operation_call(
   self : SemanticChecker,
   scope : TypeScope,
   name : @resolve.ResolvedEffectOperationName,
-  type_witnesses : Array[@resolve.ResolvedGenericArgument],
+  generic_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   guard self.operation_call_signature(
-      scope, name, type_witnesses, arguments, expected_result, loc,
+      scope, name, generic_witnesses, arguments, expected_result, loc,
     )
     is Some(signature) else {
     return checked_expression_none_reported(Error)
@@ -364,7 +364,7 @@ fn SemanticChecker::synthesize_checked_operation_call(
   checked_expression_with_effect(
     OperationCall(
       operation=signature.operation,
-      type_witnesses=signature.type_witnesses,
+      generic_witnesses=signature.generic_witnesses,
       arguments=checked_arguments,
       effect=signature.effect,
       type_=signature.result,

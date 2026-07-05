@@ -51,11 +51,11 @@ test "golden inference diagnostic help uses structured reason" {
   )
   assert_eq(
     inference_diagnostic_help("argument count", CallArity),
-    "check the number of arguments and type arguments at this call site",
+    "check the number of arguments and generic arguments at this call site",
   )
   assert_eq(
-    inference_diagnostic_help("generic arguments", TypeArguments),
-    "add explicit type arguments or provide an expected result type",
+    inference_diagnostic_help("generic arguments", GenericArguments),
+    "add explicit generic arguments or provide an expected result type",
   )
   assert_eq(
     inference_diagnostic_help("intrinsic", Builtin),

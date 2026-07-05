@@ -224,8 +224,8 @@ fn TypeScope::bind_checked_pattern(
 ) -> Unit {
   match pattern {
     Binding(symbol~, type_~, ..) => self.bind(symbol, type_)
-    Variant(type_arguments~, arguments~, ..) => {
-      for argument in type_arguments {
+    Variant(generic_arguments~, arguments~, ..) => {
+      for argument in generic_arguments {
         match argument {
           TypeArgument(Parameter(id)) => self.bind_type_parameter_kind(id, Type)
           EffectArgument(Parameter(id)) =>

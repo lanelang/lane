@@ -68,7 +68,7 @@ fn SemanticChecker::prepare_direct_call_arguments(
 fn direct_call_symbol(callee : @desugar.DesugaredExpr) -> ValueSymbolId? {
   match callee {
     Var(reference=Symbol(symbol), ..) => Some(symbol)
-    TypeApplication(callee~, ..) => direct_call_symbol(callee)
+    GenericApplication(callee~, ..) => direct_call_symbol(callee)
     _ => None
   }
 }
@@ -216,7 +216,7 @@ fn SemanticChecker::direct_parameter_types(
         templates.push(parameter_types[index])
         expressions.push(argument.value)
       }
-      guard self.infer_application_type_arguments(
+      guard self.infer_application_generic_arguments(
           scope,
           type_parameters,
           templates,
@@ -224,7 +224,7 @@ fn SemanticChecker::direct_parameter_types(
           Some(result),
           expected_result,
           false,
-          "type arguments",
+          "generic arguments",
           loc,
           true,
         )

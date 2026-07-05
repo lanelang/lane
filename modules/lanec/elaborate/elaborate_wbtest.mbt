@@ -162,7 +162,7 @@ fn first_checked_handler_expr_for_elaborate_test(
         None
       }
     }
-    TypeApplication(callee~, ..) =>
+    GenericApplication(callee~, ..) =>
       first_checked_handler_expr_for_elaborate_test(callee)
     OperationCall(arguments~, ..) | Variant(arguments~, ..) =>
       for argument in arguments {

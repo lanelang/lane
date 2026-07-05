@@ -106,10 +106,10 @@ fn AnfLowerer::lower_to_atom(
           type_parameters, parameters, return_type, body, type_, loc,
         ),
       )
-    TypeApplication(callee~, arguments~, type_~, loc~) =>
+    GenericApplication(callee~, arguments~, type_~, loc~) =>
       self.lower_to_atom(callee, fn(callee) {
         self.bind_temp(
-          TypeApplication(callee~, arguments~, type_~, loc~),
+          GenericApplication(callee~, arguments~, type_~, loc~),
           type_,
           loc,
           continuation,
@@ -166,10 +166,16 @@ fn AnfLowerer::lower_to_atom(
           },
         )
       })
-    OperationCall(operation~, type_witnesses~, arguments~, type_~, loc~, ..) =>
+    OperationCall(operation~, generic_witnesses~, arguments~, type_~, loc~, ..) =>
       self.lower_exprs_to_atoms(arguments, 0, [], fn(arguments) {
         self.bind_temp(
-          OperationCall(operation~, type_witnesses~, arguments~, type_~, loc~),
+          OperationCall(
+            operation~,
+            generic_witnesses~,
+            arguments~,
+            type_~,
+            loc~,
+          ),
           type_,
           loc,
           continuation,
@@ -187,7 +193,7 @@ fn AnfLowerer::lower_to_atom(
       })
     StructLiteral(
       symbol~,
-      type_arguments~,
+      generic_arguments~,
       type_witnesses~,
       fields~,
       type_~,
@@ -197,7 +203,7 @@ fn AnfLowerer::lower_to_atom(
         self.bind_temp(
           Struct(
             symbol~,
-            type_arguments~,
+            generic_arguments~,
             type_witnesses~,
             fields~,
             type_~,
@@ -208,10 +214,10 @@ fn AnfLowerer::lower_to_atom(
           continuation,
         )
       })
-    Variant(symbol~, type_arguments~, arguments~, type_~, loc~) =>
+    Variant(symbol~, generic_arguments~, arguments~, type_~, loc~) =>
       self.lower_exprs_to_atoms(arguments, 0, [], fn(arguments) {
         self.bind_temp(
-          Variant(symbol~, type_arguments~, arguments~, type_~, loc~),
+          Variant(symbol~, generic_arguments~, arguments~, type_~, loc~),
           type_,
           loc,
           continuation,

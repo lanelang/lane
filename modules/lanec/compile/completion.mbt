@@ -676,7 +676,7 @@ fn CompletionWorld::add_checked_expr_locals(
       self.add_checked_expr_locals(
         entries, source_id, prefix, replace, space, base, line, column,
       )
-    TypeApplication(callee~, ..) =>
+    GenericApplication(callee~, ..) =>
       self.add_checked_expr_locals(
         entries, source_id, prefix, replace, space, callee, line, column,
       )

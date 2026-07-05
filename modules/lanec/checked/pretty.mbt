@@ -283,9 +283,9 @@ pub impl @prettyprinter.Pretty for CheckedPattern with fn pretty(
     Wildcard(..) => text("_")
     Binding(name~, symbol~, ..) => value_name_doc(name, symbol)
     Literal(literal~, ..) => literal_doc(literal)
-    Variant(symbol~, type_arguments~, arguments~, ..) =>
+    Variant(symbol~, generic_arguments~, arguments~, ..) =>
       variant_symbol_doc(symbol) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(CheckedPattern::pretty))
     Struct(symbol~, type_binders~, fields~, ..) =>
       type_symbol_doc(symbol) +
@@ -350,7 +350,7 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       return_type.pretty() +
       space +
       function_body_doc(body)
-    TypeApplication(callee~, arguments~, ..) =>
+    GenericApplication(callee~, arguments~, ..) =>
       expression_doc(callee) + generic_arguments_doc(arguments)
     Block(items~, result~, ..) => block_doc(items, result)
     If(condition~, then_branch~, else_branch~, ..) =>
@@ -374,10 +374,10 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       @pretty.parenthesized_inline(
         arguments.map(fn(argument) { expression_doc(argument.value) }),
       )
-    OperationCall(operation~, type_witnesses~, arguments~, ..) =>
+    OperationCall(operation~, generic_witnesses~, arguments~, ..) =>
       operation.pretty() +
       text("!") +
-      generic_arguments_doc(type_witnesses) +
+      generic_arguments_doc(generic_witnesses) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
     Handler(body~, handlers~, final_branch~, ..) => {
       let body_doc = match body {
@@ -393,17 +393,17 @@ fn expression_doc(expression : CheckedExpr) -> Document {
     }
     Field(base~, field~, name~, ..) =>
       expression_doc(base) + text(".") + field_name_doc(name, field)
-    StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
+    StructLiteral(symbol~, generic_arguments~, type_witnesses~, fields~, ..) =>
       type_symbol_doc(symbol) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(
         type_witnesses.map(CheckedStructTypeWitness::pretty) +
         fields.map(CheckedStructLiteralField::pretty),
       )
-    Variant(symbol~, type_arguments~, arguments~, ..) =>
+    Variant(symbol~, generic_arguments~, arguments~, ..) =>
       variant_symbol_doc(symbol) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
   }
 }

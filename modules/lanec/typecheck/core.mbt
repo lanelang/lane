@@ -149,7 +149,7 @@ pub(all) enum CannotInferReason {
   ContextualOffer
   FunctionLiteralParameter
   CallArity
-  TypeArguments
+  GenericArguments
   Builtin
 } derive(Debug, Eq)
 
@@ -158,13 +158,13 @@ pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
   MissingTopLevelLetAnnotation
-  TypeArgumentArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
+  GenericArgumentArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
   TypeAliasCycle(name~ : String)
   KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)
   TypeMismatch(expected~ : @types.Type, actual~ : @types.Type)
   EffectMismatch(expected~ : @types.Effect, actual~ : @types.Effect)
   NotCallable(@types.Type)
-  TypeArgumentsOnNonGeneric(@types.Type)
+  GenericArgumentsOnNonGeneric(@types.Type)
   UnknownField(name~ : String)
   MissingField(name~ : String)
   DuplicateField(name~ : String)

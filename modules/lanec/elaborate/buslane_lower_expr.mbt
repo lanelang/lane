@@ -12,7 +12,7 @@ fn BuslaneLowerer::lower_expr(
       self.lower_function_literal(
         type_parameters, parameters, return_type, body,
       )
-    TypeApplication(callee~, arguments~, ..) =>
+    GenericApplication(callee~, arguments~, ..) =>
       TypeApply(
         self.lower_expr(callee),
         arguments.map(fn(argument) { self.lower_generic_argument(argument) }),
@@ -27,11 +27,11 @@ fn BuslaneLowerer::lower_expr(
         self.lower_expr(callee),
         arguments.map(fn(argument) { self.lower_expr(argument.value) }),
       )
-    OperationCall(operation~, type_witnesses~, arguments~, effect~, ..) =>
+    OperationCall(operation~, generic_witnesses~, arguments~, effect~, ..) =>
       Perform({
         operation: self.operation_id(operation),
         effect_arguments: self.perform_type_arguments(effect),
-        hidden_witnesses: type_witnesses.map(fn(witness) {
+        hidden_witnesses: generic_witnesses.map(fn(witness) {
           self.lower_generic_argument(witness)
         }),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
@@ -39,10 +39,10 @@ fn BuslaneLowerer::lower_expr(
     Handler(body~, handlers~, final_branch~, type_~, ..) =>
       self.lower_handler(body, handlers, final_branch, type_)
     Field(base~, field~, ..) => self.lower_field(base, field)
-    StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
+    StructLiteral(symbol~, generic_arguments~, type_witnesses~, fields~, ..) =>
       Construct({
         data_constructor: self.struct_constructor_id(symbol),
-        type_arguments: type_arguments.map(fn(argument) {
+        type_arguments: generic_arguments.map(fn(argument) {
           self.lower_generic_argument(argument)
         }),
         hidden_witnesses: type_witnesses.map(fn(witness) {
@@ -50,11 +50,11 @@ fn BuslaneLowerer::lower_expr(
         }),
         payloads: fields.map(fn(field) { self.lower_expr(field.value) }),
       })
-    Variant(symbol~, type_arguments~, arguments~, type_~, ..) =>
+    Variant(symbol~, generic_arguments~, arguments~, type_~, ..) =>
       Construct({
         data_constructor: self.data_constructor_id(symbol),
         type_arguments: self.nominal_type_arguments(type_),
-        hidden_witnesses: type_arguments.map(fn(argument) {
+        hidden_witnesses: generic_arguments.map(fn(argument) {
           self.lower_generic_argument(argument)
         }),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),

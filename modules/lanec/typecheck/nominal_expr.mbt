@@ -5,16 +5,16 @@ fn SemanticChecker::synthesize_variant_call(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String?,
-  type_arguments : Array[@resolve.ResolvedGenericArgument],
+  generic_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
-  variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
+  variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> @types.Type {
   self.synthesize_checked_variant_call(
-    scope, type_name, type_arguments, variant, variant_type_arguments, reference,
+    scope, type_name, generic_arguments, variant, variant_generic_arguments, reference,
     arguments, expected_result, loc,
   ).type_
 }
@@ -24,9 +24,9 @@ fn SemanticChecker::synthesize_checked_variant_call(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String?,
-  type_arguments : Array[@resolve.ResolvedGenericArgument],
+  generic_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
-  variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
+  variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
@@ -35,8 +35,8 @@ fn SemanticChecker::synthesize_checked_variant_call(
   match type_name {
     Some(type_name) =>
       self.synthesize_checked_qualified_variant(
-        scope, type_name, type_arguments, variant, variant_type_arguments, reference,
-        arguments, expected_result, loc,
+        scope, type_name, generic_arguments, variant, variant_generic_arguments,
+        reference, arguments, expected_result, loc,
       )
     None =>
       self.synthesize_checked_unqualified_variant(
@@ -50,9 +50,9 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
-  type_arguments : Array[@resolve.ResolvedGenericArgument],
+  generic_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
-  variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
+  variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
@@ -64,8 +64,8 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
         scope,
         symbol,
         type_name + "::" + variant,
-        type_arguments,
-        variant_type_arguments,
+        generic_arguments,
+        variant_generic_arguments,
         arguments,
         expected_result,
         loc,
@@ -152,8 +152,8 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   scope : TypeScope,
   symbol : VariantSymbolId,
   display_name : String,
-  explicit_type_arguments : Array[@resolve.ResolvedGenericArgument],
-  explicit_variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
+  explicit_generic_arguments : Array[@resolve.ResolvedGenericArgument],
+  explicit_variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
@@ -188,7 +188,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     })
     return checked_expression_none_reported(Error)
   }
-  let explicit_type_arguments = if explicit_type_arguments.is_empty() {
+  let explicit_generic_arguments = if explicit_generic_arguments.is_empty() {
     []
   } else {
     check_type_arity(
@@ -196,48 +196,48 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
       self.diagnostics,
       metadata.owner,
       display_name,
-      explicit_type_arguments.length(),
+      explicit_generic_arguments.length(),
       loc,
     )
-    check_resolved_type_arguments(
+    check_resolved_nominal_generic_arguments(
       self.resolved_source,
       self.diagnostics,
       declaration.type_parameters,
-      explicit_type_arguments,
+      explicit_generic_arguments,
     )
   }
   if variant_declaration.payload.length() != arguments.length() {
     self.report_application_arity("variant arity", loc)
     return checked_expression_none_reported(
-      @types.nominal_type_generic(metadata.owner, explicit_type_arguments),
+      @types.nominal_type_generic(metadata.owner, explicit_generic_arguments),
     )
   }
-  let type_arguments = if explicit_type_arguments.is_empty() &&
+  let generic_arguments = if explicit_generic_arguments.is_empty() &&
     !declaration.type_parameters.is_empty() {
-    guard self.infer_variant_type_arguments(
+    guard self.infer_variant_generic_arguments(
         scope, declaration, variant_declaration, arguments, expected_result, loc,
       )
-      is Some(type_arguments) else {
+      is Some(generic_arguments) else {
       return checked_expression_none_reported(Error)
     }
-    type_arguments
+    generic_arguments
   } else {
-    explicit_type_arguments
+    explicit_generic_arguments
   }
   let nominal_substitution = variant_type_substitution(
     declaration.type_parameters,
-    type_arguments,
+    generic_arguments,
   )
-  let hidden_type_arguments = self.variant_hidden_type_arguments(
-    scope, variant_declaration, explicit_variant_type_arguments, arguments, nominal_substitution,
+  let hidden_generic_arguments = self.variant_hidden_generic_arguments(
+    scope, variant_declaration, explicit_variant_generic_arguments, arguments, nominal_substitution,
     display_name, loc,
   )
-  guard hidden_type_arguments is Some(hidden_type_arguments) else {
+  guard hidden_generic_arguments is Some(hidden_generic_arguments) else {
     return checked_expression_none_reported(Error)
   }
   let hidden_substitution = variant_generic_argument_substitution(
     variant_declaration.type_parameters,
-    hidden_type_arguments,
+    hidden_generic_arguments,
   )
   let checked_arguments = []
   let effects = []
@@ -258,12 +258,12 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     }
     effects.push(checked.effect)
   }
-  let type_ = @types.nominal_type_generic(metadata.owner, type_arguments)
+  let type_ = @types.nominal_type_generic(metadata.owner, generic_arguments)
   if complete {
     checked_expression_with_effect(
       Variant(
         symbol~,
-        type_arguments=hidden_type_arguments,
+        generic_arguments=hidden_generic_arguments,
         arguments=checked_arguments,
         type_~,
         loc~,
@@ -277,7 +277,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
 }
 
 ///|
-fn SemanticChecker::variant_hidden_type_arguments(
+fn SemanticChecker::variant_hidden_generic_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   variant : CheckedVariantDeclaration,
@@ -290,7 +290,7 @@ fn SemanticChecker::variant_hidden_type_arguments(
   if !explicit.is_empty() {
     if explicit.length() != variant.type_parameters.length() {
       self.diagnostics.push({
-        kind: TypeArgumentArityMismatch(
+        kind: GenericArgumentArityMismatch(
           name=display_name,
           expected=variant.type_parameters.length(),
           actual=explicit.length(),
@@ -314,7 +314,7 @@ fn SemanticChecker::variant_hidden_type_arguments(
   let templates = variant.payload.map(fn(parameter) {
     parameter.substitute(nominal_substitution)
   })
-  guard self.infer_application_type_arguments(
+  guard self.infer_application_generic_arguments(
       scope,
       variant.type_parameters,
       templates,
@@ -322,18 +322,18 @@ fn SemanticChecker::variant_hidden_type_arguments(
       None,
       None,
       false,
-      "hidden type arguments",
+      "hidden generic arguments",
       loc,
       true,
     )
     is Some(inferred) else {
     return None
   }
-  Some(inferred.type_arguments)
+  Some(inferred.generic_arguments)
 }
 
 ///|
-fn SemanticChecker::infer_variant_type_arguments(
+fn SemanticChecker::infer_variant_generic_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   declaration : CheckedEnumDeclaration,
@@ -354,7 +354,7 @@ fn SemanticChecker::infer_variant_type_arguments(
   } else {
     None
   }
-  guard self.infer_application_type_arguments(
+  guard self.infer_application_generic_arguments(
       scope,
       declaration.type_parameters,
       variant.payload,
@@ -362,7 +362,7 @@ fn SemanticChecker::infer_variant_type_arguments(
       result_template,
       expected_result,
       true,
-      "type arguments",
+      "generic arguments",
       loc,
       true,
     )
@@ -415,14 +415,14 @@ fn SemanticChecker::synthesize_struct_literal(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
-  type_arguments : Array[@resolve.ResolvedGenericArgument],
+  generic_arguments : Array[@resolve.ResolvedGenericArgument],
   fields : Array[@desugar.DesugaredStructLiteralField],
   loc : SourceSpan,
 ) -> @types.Type {
   self.synthesize_checked_struct_literal(
     scope,
     type_name,
-    type_arguments,
+    generic_arguments,
     fields,
     None,
     loc,
@@ -434,7 +434,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
-  type_arguments : Array[@resolve.ResolvedGenericArgument],
+  generic_arguments : Array[@resolve.ResolvedGenericArgument],
   fields : Array[@desugar.DesugaredStructLiteralField],
   expected : @types.Type?,
   loc : SourceSpan,
@@ -448,20 +448,20 @@ fn SemanticChecker::synthesize_checked_struct_literal(
       Some(declaration) => declaration.type_parameters
       None => []
     }
-    let arguments = check_resolved_type_arguments(
+    let arguments = check_resolved_nominal_generic_arguments(
       self.resolved_source,
       self.diagnostics,
       parameters,
-      type_arguments,
+      generic_arguments,
     )
     let type_ = @types.nominal_type_generic(symbol, arguments)
     self.diagnostics.push({ kind: NotAStruct(type_), loc })
     return checked_expression_none_reported(Error)
   }
-  let arguments = self.struct_literal_type_arguments(
+  let arguments = self.struct_literal_generic_arguments(
     symbol,
     struct_declaration.type_parameters,
-    type_arguments,
+    generic_arguments,
     expected,
   )
   check_type_arity(
@@ -526,7 +526,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     checked_expression_with_effect(
       StructLiteral(
         symbol~,
-        type_arguments=arguments,
+        generic_arguments=arguments,
         type_witnesses=witnesses,
         fields=checked_fields,
         type_~,
@@ -541,29 +541,29 @@ fn SemanticChecker::synthesize_checked_struct_literal(
 }
 
 ///|
-fn SemanticChecker::struct_literal_type_arguments(
+fn SemanticChecker::struct_literal_generic_arguments(
   self : SemanticChecker,
   symbol : @symbol.TypeSymbolId,
   parameters : Array[@types.TypeParameter],
-  type_arguments : Array[@resolve.ResolvedGenericArgument],
+  generic_arguments : Array[@resolve.ResolvedGenericArgument],
   expected : @types.Type?,
 ) -> Array[@types.GenericArgument] {
   // Local type inference for `S::{ ... }` is intentionally one-way. If the
-  // adjacent expected type is the same nominal constructor, omitted source type
-  // arguments are copied from that expected type. Explicit source type
-  // arguments are always respected.
-  if type_arguments.is_empty() && expected is Some(expected_type) {
+  // adjacent expected type is the same nominal constructor, omitted generic
+  // arguments are copied from that expected type. Explicit generic arguments
+  // are always respected.
+  if generic_arguments.is_empty() && expected is Some(expected_type) {
     match expected_type.decompose_nominal() {
       Some((expected_symbol, expected_arguments)) if expected_symbol == symbol =>
         return expected_arguments.copy()
       _ => ()
     }
   }
-  check_resolved_type_arguments(
+  check_resolved_nominal_generic_arguments(
     self.resolved_source,
     self.diagnostics,
     parameters,
-    type_arguments,
+    generic_arguments,
   )
 }
 

@@ -1,45 +1,45 @@
 ///|
-priv struct TypeArgumentBinding {
+priv struct GenericArgumentBinding {
   parameter : TypeParameterId
   argument : @types.GenericArgument
 }
 
 ///|
-priv struct TypeArgumentInference {
+priv struct GenericArgumentInference {
   parameters : Array[@types.TypeParameter]
-  bindings : Array[TypeArgumentBinding]
+  bindings : Array[GenericArgumentBinding]
 }
 
 ///|
 priv struct InstantiatedCallableType {
-  type_arguments : Array[@types.GenericArgument]
+  generic_arguments : Array[@types.GenericArgument]
   parameters : Array[@types.Type]
   result : @types.Type
   effect : @types.Effect
 }
 
 ///|
-priv struct InferredApplicationTypeArguments {
-  type_arguments : Array[@types.GenericArgument]
+priv struct InferredApplicationGenericArguments {
+  generic_arguments : Array[@types.GenericArgument]
   substitution : @types.TypeSubstitution
 }
 
 ///|
-priv struct ExplicitTypeApplicationResult {
+priv struct ExplicitGenericApplicationResult {
   arguments : Array[@types.GenericArgument]
   type_ : @types.Type
 }
 
 ///|
-fn TypeArgumentInference::TypeArgumentInference(
+fn GenericArgumentInference::GenericArgumentInference(
   parameters : Array[@types.TypeParameter],
-) -> TypeArgumentInference {
+) -> GenericArgumentInference {
   { parameters, bindings: [] }
 }
 
 ///|
-fn TypeArgumentInference::tracked_parameter(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::tracked_parameter(
+  self : GenericArgumentInference,
   parameter : TypeParameterId,
 ) -> @types.TypeParameter? {
   for tracked in self.parameters {
@@ -51,8 +51,8 @@ fn TypeArgumentInference::tracked_parameter(
 }
 
 ///|
-fn TypeArgumentInference::lookup(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::lookup(
+  self : GenericArgumentInference,
   parameter : TypeParameterId,
 ) -> @types.GenericArgument? {
   for binding in self.bindings {
@@ -64,8 +64,8 @@ fn TypeArgumentInference::lookup(
 }
 
 ///|
-fn TypeArgumentInference::remember(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::remember(
+  self : GenericArgumentInference,
   parameter : TypeParameterId,
   argument : @types.GenericArgument,
 ) -> Unit {
@@ -80,12 +80,12 @@ fn TypeArgumentInference::remember(
 }
 
 ///|
-fn TypeArgumentInference::collect(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::collect(
+  self : GenericArgumentInference,
   template : @types.Type,
   actual : @types.Type,
 ) -> Unit {
-  // Local type-argument synthesis is first-order and boundary-local: only type
+  // Local generic-argument synthesis is first-order and boundary-local: only type
   // parameters bound by this one forall are remembered, and only from types
   // adjacent to this call.
   match (template, actual) {
@@ -118,8 +118,8 @@ fn TypeArgumentInference::collect(
 }
 
 ///|
-fn TypeArgumentInference::collect_effect(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::collect_effect(
+  self : GenericArgumentInference,
   template : @types.Effect,
   actual : @types.Effect,
 ) -> Unit {
@@ -148,8 +148,8 @@ fn TypeArgumentInference::collect_effect(
 }
 
 ///|
-fn TypeArgumentInference::collect_array(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::collect_array(
+  self : GenericArgumentInference,
   templates : Array[@types.Type],
   actuals : Array[@types.Type],
 ) -> Unit {
@@ -162,8 +162,8 @@ fn TypeArgumentInference::collect_array(
 }
 
 ///|
-fn TypeArgumentInference::collect_generic_array(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::collect_generic_array(
+  self : GenericArgumentInference,
   templates : Array[@types.GenericArgument],
   actuals : Array[@types.GenericArgument],
 ) -> Unit {
@@ -182,8 +182,8 @@ fn TypeArgumentInference::collect_generic_array(
 }
 
 ///|
-fn TypeArgumentInference::substitution(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::substitution(
+  self : GenericArgumentInference,
 ) -> @types.TypeSubstitution? {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for parameter in self.parameters {
@@ -194,8 +194,8 @@ fn TypeArgumentInference::substitution(
 }
 
 ///|
-fn TypeArgumentInference::type_arguments(
-  self : TypeArgumentInference,
+fn GenericArgumentInference::generic_arguments(
+  self : GenericArgumentInference,
 ) -> Array[@types.GenericArgument]? {
   let arguments = []
   for parameter in self.parameters {
@@ -206,13 +206,13 @@ fn TypeArgumentInference::type_arguments(
 }
 
 ///|
-fn SemanticChecker::synthesize_argument_for_type_arguments(
+fn SemanticChecker::synthesize_argument_for_generic_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   argument : @desugar.DesugaredExpr,
 ) -> @types.Type? {
   // During inference, an argument is allowed to fail synthesis without making
-  // the whole call fail immediately. Once type arguments are known, the same
+  // the whole call fail immediately. Once generic arguments are known, the same
   // argument is checked again through the ordinary user-visible judgment.
   let checkpoint = self.diagnostic_checkpoint()
   let type_ = self.synthesize_expr(scope, argument)
@@ -264,7 +264,7 @@ fn SemanticChecker::check_application_arity(
 }
 
 ///|
-fn SemanticChecker::infer_application_type_arguments(
+fn SemanticChecker::infer_application_generic_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   type_parameters : Array[@types.TypeParameter],
@@ -276,8 +276,10 @@ fn SemanticChecker::infer_application_type_arguments(
   failure_label : String,
   loc : SourceSpan,
   report_failure : Bool,
-) -> InferredApplicationTypeArguments? {
-  let inference = TypeArgumentInference::TypeArgumentInference(type_parameters)
+) -> InferredApplicationGenericArguments? {
+  let inference = GenericArgumentInference::GenericArgumentInference(
+    type_parameters,
+  )
   if collect_result_first &&
     result_template is Some(template) &&
     expected_result is Some(expected) {
@@ -289,7 +291,7 @@ fn SemanticChecker::infer_application_type_arguments(
     argument_expressions.length()
   }
   for index in 0..<count {
-    if self.synthesize_argument_for_type_arguments(
+    if self.synthesize_argument_for_generic_arguments(
         scope,
         argument_expressions[index],
       )
@@ -306,23 +308,23 @@ fn SemanticChecker::infer_application_type_arguments(
     if report_failure {
       self.report_application_inference_failure(
         failure_label,
-        TypeArguments,
+        GenericArguments,
         loc,
       )
     }
     return None
   }
-  guard inference.type_arguments() is Some(type_arguments) else {
+  guard inference.generic_arguments() is Some(generic_arguments) else {
     if report_failure {
       self.report_application_inference_failure(
         failure_label,
-        TypeArguments,
+        GenericArguments,
         loc,
       )
     }
     return None
   }
-  Some({ type_arguments, substitution })
+  Some({ generic_arguments, substitution })
 }
 
 ///|
@@ -333,18 +335,18 @@ fn call_argument_expressions(
 }
 
 ///|
-fn SemanticChecker::check_explicit_type_application(
+fn SemanticChecker::check_explicit_generic_application(
   self : SemanticChecker,
   scope : TypeScope,
   callee_type : @types.Type,
   arguments : Array[@resolve.ResolvedGenericArgument],
   loc : SourceSpan,
-) -> ExplicitTypeApplicationResult? {
+) -> ExplicitGenericApplicationResult? {
   match callee_type {
     Forall(type_parameters, body) => {
       if type_parameters.length() != arguments.length() {
         self.diagnostics.push({
-          kind: TypeArgumentArityMismatch(
+          kind: GenericArgumentArityMismatch(
             name="generic expression",
             expected=type_parameters.length(),
             actual=arguments.length(),
@@ -374,7 +376,7 @@ fn SemanticChecker::check_explicit_type_application(
     }
     Error => None
     type_ => {
-      self.diagnostics.push({ kind: TypeArgumentsOnNonGeneric(type_), loc })
+      self.diagnostics.push({ kind: GenericArgumentsOnNonGeneric(type_), loc })
       None
     }
   }
@@ -415,7 +417,7 @@ fn SemanticChecker::instantiate_generic_callable(
     ) {
     return None
   }
-  guard self.infer_application_type_arguments(
+  guard self.infer_application_generic_arguments(
       scope,
       type_parameters,
       parameters,
@@ -423,7 +425,7 @@ fn SemanticChecker::instantiate_generic_callable(
       Some(result),
       expected_result,
       false,
-      "type arguments",
+      "generic arguments",
       loc,
       report_failure,
     )
@@ -431,7 +433,7 @@ fn SemanticChecker::instantiate_generic_callable(
     return None
   }
   Some({
-    type_arguments: inferred.type_arguments,
+    generic_arguments: inferred.generic_arguments,
     parameters: parameters.map(fn(parameter) {
       parameter.substitute(inferred.substitution)
     }),

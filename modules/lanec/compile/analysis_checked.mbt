@@ -140,7 +140,7 @@ fn collect_checked_expr_parameter_signatures(
     Literal(_) | Value(_) | UnsafeBuiltin(_) => ()
     FunctionLiteral(body~, ..) =>
       collect_checked_expr_parameter_signatures(body, signatures)
-    TypeApplication(callee~, ..) =>
+    GenericApplication(callee~, ..) =>
       collect_checked_expr_parameter_signatures(callee, signatures)
     Block(items~, result~, ..) => {
       for item in items {
@@ -550,7 +550,7 @@ fn collect_checked_expr(
         source_id, source_text, body, definitions, references, hovers, context,
       )
     }
-    TypeApplication(callee~, ..) =>
+    GenericApplication(callee~, ..) =>
       collect_checked_expr(
         source_id, source_text, callee, definitions, references, hovers, context,
       )
@@ -927,7 +927,7 @@ fn is_source_operator_call(
 ///|
 fn callee_origin_loc(callee : @checked.CheckedExpr) -> @basic.SourceSpan {
   match callee {
-    TypeApplication(callee~, ..) => callee_origin_loc(callee)
+    GenericApplication(callee~, ..) => callee_origin_loc(callee)
     _ => callee.loc()
   }
 }
@@ -978,7 +978,7 @@ fn parameter_names_for_callee(
 ) -> Array[ParameterHintParameter]? {
   match callee {
     Value(symbol~, ..) => parameter_names_for_symbol(Value(symbol), signatures)
-    TypeApplication(callee~, ..) =>
+    GenericApplication(callee~, ..) =>
       parameter_names_for_callee(callee, signatures)
     _ => None
   }

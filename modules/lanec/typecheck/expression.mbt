@@ -28,9 +28,9 @@ fn SemanticChecker::check_expr(
       self.check_match(scope, scrutinee, arms, expected, loc)
     VariantCall(
       type_name~,
-      type_arguments~,
+      generic_arguments~,
       variant~,
-      variant_type_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       loc~
@@ -38,9 +38,9 @@ fn SemanticChecker::check_expr(
       let actual = self.synthesize_variant_call(
         scope,
         type_name,
-        type_arguments,
+        generic_arguments,
         variant,
-        variant_type_arguments,
+        variant_generic_arguments,
         reference,
         arguments,
         Some(expected),
@@ -50,11 +50,11 @@ fn SemanticChecker::check_expr(
     }
     Call(callee~, arguments~, loc~) =>
       self.check_call(scope, callee, arguments, expected, loc)
-    StructLiteral(type_name~, type_arguments~, fields~, loc~) => {
+    StructLiteral(type_name~, generic_arguments~, fields~, loc~) => {
       let actual = self.synthesize_checked_struct_literal(
           scope,
           type_name,
-          type_arguments,
+          generic_arguments,
           fields,
           Some(expected),
           loc,
@@ -169,9 +169,9 @@ fn SemanticChecker::synthesize_expr(
       self.synthesize_match(scope, scrutinee, arms, loc)
     VariantCall(
       type_name~,
-      type_arguments~,
+      generic_arguments~,
       variant~,
-      variant_type_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       loc~
@@ -179,9 +179,9 @@ fn SemanticChecker::synthesize_expr(
       self.synthesize_variant_call(
         scope,
         type_name,
-        type_arguments,
+        generic_arguments,
         variant,
-        variant_type_arguments,
+        variant_generic_arguments,
         reference,
         arguments,
         None,
@@ -189,21 +189,23 @@ fn SemanticChecker::synthesize_expr(
       )
     Call(callee~, arguments~, loc~) =>
       self.synthesize_call(scope, callee, arguments, loc)
-    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) => {
+    EffectOperationCall(name~, generic_witnesses~, arguments~, loc~) => {
       let operation = self.check_operation_call(
         scope,
         name,
-        type_witnesses,
+        generic_witnesses,
         arguments,
         None,
         loc,
       )
       operation.result
     }
-    TypeApplication(callee~, arguments~, loc~) => {
+    GenericApplication(callee~, arguments~, loc~) => {
       let callee_type = self.synthesize_expr(scope, callee)
       match
-        self.check_explicit_type_application(scope, callee_type, arguments, loc) {
+        self.check_explicit_generic_application(
+          scope, callee_type, arguments, loc,
+        ) {
         Some(application) => application.type_
         None => Error
       }
@@ -212,9 +214,9 @@ fn SemanticChecker::synthesize_expr(
       self.synthesize_handler(scope, body, handlers, final_branch, loc)
     Field(base~, name~, reference~, loc~) =>
       self.synthesize_field(scope, base, name, reference, loc)
-    StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
+    StructLiteral(type_name~, generic_arguments~, fields~, loc~) =>
       self.synthesize_struct_literal(
-        scope, type_name, type_arguments, fields, loc,
+        scope, type_name, generic_arguments, fields, loc,
       )
     Builtin(_, loc~) => {
       self.report_application_inference_failure("builtin", Builtin, loc)
@@ -384,11 +386,11 @@ fn SemanticChecker::synthesize_expr_effect(
       }
       effect_union(effects)
     }
-    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) => {
+    EffectOperationCall(name~, generic_witnesses~, arguments~, loc~) => {
       let operation = self.check_operation_call(
         scope,
         name,
-        type_witnesses,
+        generic_witnesses,
         arguments,
         None,
         loc,
@@ -399,7 +401,8 @@ fn SemanticChecker::synthesize_expr_effect(
       }
       effect_union(effects)
     }
-    TypeApplication(callee~, ..) => self.synthesize_expr_effect(scope, callee)
+    GenericApplication(callee~, ..) =>
+      self.synthesize_expr_effect(scope, callee)
   }
 }
 

@@ -288,7 +288,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   //   payload_i[v][A_1, ..., A_n] checks pattern_i
   //
   // Variant patterns are nominal. The variant symbol determines the owner enum,
-  // and the expected enum application supplies the type arguments used to
+  // and the expected enum application supplies the generic arguments used to
   // substitute payload types.
   guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
     self.diagnostics.push({
@@ -320,7 +320,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
     })
     return Wildcard(type_=Error, loc~)
   }
-  let type_arguments = match expected.decompose_nominal() {
+  let generic_arguments = match expected.decompose_nominal() {
     Some((owner, arguments)) if owner == metadata.owner => arguments
     _ =>
       if expected is Error {
@@ -351,11 +351,11 @@ fn SemanticChecker::check_variant_symbol_pattern(
   }
   let substitution = variant_type_substitution(
     declaration.type_parameters,
-    type_arguments,
+    generic_arguments,
   )
   if type_binders.length() != variant_declaration.type_parameters.length() {
     self.diagnostics.push({
-      kind: TypeArgumentArityMismatch(
+      kind: GenericArgumentArityMismatch(
         name=type_name + "::" + variant,
         expected=variant_declaration.type_parameters.length(),
         actual=type_binders.length(),
@@ -363,7 +363,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
       loc,
     })
   }
-  let hidden_type_arguments = type_binders.mapi(fn(index, parameter) {
+  let hidden_generic_arguments = type_binders.mapi(fn(index, parameter) {
     let kind = match parameter.kind {
       Some(kind) => check_resolved_kind(kind)
       None =>
@@ -380,7 +380,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   })
   let hidden_substitution = variant_generic_argument_substitution(
     variant_declaration.type_parameters,
-    hidden_type_arguments,
+    hidden_generic_arguments,
   )
   let checked_arguments = []
   let length = if variant_declaration.payload.length() < arguments.length() {
@@ -402,7 +402,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   }
   Variant(
     symbol~,
-    type_arguments=hidden_type_arguments,
+    generic_arguments=hidden_generic_arguments,
     arguments=checked_arguments,
     type_=expected,
     loc~,
@@ -494,7 +494,7 @@ fn SemanticChecker::check_struct_pattern(
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return Wildcard(type_=Error, loc~)
   }
-  let type_arguments = match expected.decompose_nominal() {
+  let generic_arguments = match expected.decompose_nominal() {
     Some((owner, arguments)) if owner == symbol => arguments
     _ =>
       if expected is Error {
@@ -506,7 +506,7 @@ fn SemanticChecker::check_struct_pattern(
   }
   guard self.declarations.checked_struct(symbol) is Some(declaration) else {
     self.diagnostics.push({
-      kind: NotAStruct(@types.nominal_type_generic(symbol, type_arguments)),
+      kind: NotAStruct(@types.nominal_type_generic(symbol, generic_arguments)),
       loc,
     })
     return Wildcard(type_=Error, loc~)
@@ -524,7 +524,7 @@ fn SemanticChecker::check_struct_pattern(
       }
     }
   }
-  let substitution = declaration.nominal_substitution(type_arguments)
+  let substitution = declaration.nominal_substitution(generic_arguments)
   let type_member_result = self.check_struct_pattern_type_binders(
     declaration, fields, loc,
   )

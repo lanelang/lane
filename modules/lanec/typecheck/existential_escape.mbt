@@ -26,8 +26,8 @@ fn @checked.CheckedPattern::collect_opened_type_parameters(
 ) -> Unit {
   match self {
     Wildcard(..) | Binding(..) | Literal(..) => ()
-    Variant(type_arguments~, arguments~, ..) => {
-      for argument in type_arguments {
+    Variant(generic_arguments~, arguments~, ..) => {
+      for argument in generic_arguments {
         match argument {
           TypeArgument(Parameter(id)) | EffectArgument(Parameter(id)) =>
             parameters.push(id)

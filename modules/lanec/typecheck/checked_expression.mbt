@@ -46,11 +46,11 @@ fn SemanticChecker::check_checked_expr(
       self.check_checked_match(scope, scrutinee, arms, expected, loc)
     Call(callee~, arguments~, loc~) =>
       self.check_checked_call(scope, callee, arguments, expected, loc)
-    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) => {
+    EffectOperationCall(name~, generic_witnesses~, arguments~, loc~) => {
       let checked = self.synthesize_checked_operation_call(
         scope,
         name,
-        type_witnesses,
+        generic_witnesses,
         arguments,
         Some(expected),
         loc,
@@ -58,8 +58,8 @@ fn SemanticChecker::check_checked_expr(
       self.expect_type(expected, checked.type_, loc)
       checked
     }
-    TypeApplication(callee~, arguments~, loc~) => {
-      let checked = self.synthesize_checked_type_application(
+    GenericApplication(callee~, arguments~, loc~) => {
+      let checked = self.synthesize_checked_generic_application(
         scope, callee, arguments, loc,
       )
       self.expect_type(expected, checked.type_, loc)
@@ -72,11 +72,11 @@ fn SemanticChecker::check_checked_expr(
       self.expect_type(expected, checked.type_, loc)
       checked
     }
-    StructLiteral(type_name~, type_arguments~, fields~, loc~) => {
+    StructLiteral(type_name~, generic_arguments~, fields~, loc~) => {
       let checked = self.synthesize_checked_struct_literal(
         scope,
         type_name,
-        type_arguments,
+        generic_arguments,
         fields,
         Some(expected),
         loc,
@@ -86,9 +86,9 @@ fn SemanticChecker::check_checked_expr(
     }
     VariantCall(
       type_name~,
-      type_arguments~,
+      generic_arguments~,
       variant~,
-      variant_type_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       loc~
@@ -96,9 +96,9 @@ fn SemanticChecker::check_checked_expr(
       let checked = self.synthesize_checked_variant_call(
         scope,
         type_name,
-        type_arguments,
+        generic_arguments,
         variant,
-        variant_type_arguments,
+        variant_generic_arguments,
         reference,
         arguments,
         Some(expected),
@@ -171,33 +171,33 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_match(scope, scrutinee, arms, loc)
     Call(callee~, arguments~, loc~) =>
       self.synthesize_checked_call(scope, callee, arguments, loc)
-    EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
+    EffectOperationCall(name~, generic_witnesses~, arguments~, loc~) =>
       self.synthesize_checked_operation_call(
         scope,
         name,
-        type_witnesses,
+        generic_witnesses,
         arguments,
         None,
         loc,
       )
-    TypeApplication(callee~, arguments~, loc~) =>
-      self.synthesize_checked_type_application(scope, callee, arguments, loc)
+    GenericApplication(callee~, arguments~, loc~) =>
+      self.synthesize_checked_generic_application(scope, callee, arguments, loc)
     Handler(body~, handlers~, final_branch~, loc~) =>
       self.synthesize_checked_handler(scope, body, handlers, final_branch, loc)
-    StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
+    StructLiteral(type_name~, generic_arguments~, fields~, loc~) =>
       self.synthesize_checked_struct_literal(
         scope,
         type_name,
-        type_arguments,
+        generic_arguments,
         fields,
         None,
         loc,
       )
     VariantCall(
       type_name~,
-      type_arguments~,
+      generic_arguments~,
       variant~,
-      variant_type_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       loc~
@@ -205,9 +205,9 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_variant_call(
         scope,
         type_name,
-        type_arguments,
+        generic_arguments,
         variant,
-        variant_type_arguments,
+        variant_generic_arguments,
         reference,
         arguments,
         None,
@@ -222,7 +222,7 @@ fn SemanticChecker::synthesize_checked_expr(
 }
 
 ///|
-fn SemanticChecker::synthesize_checked_type_application(
+fn SemanticChecker::synthesize_checked_generic_application(
   self : SemanticChecker,
   scope : TypeScope,
   callee : @desugar.DesugaredExpr,
@@ -233,13 +233,13 @@ fn SemanticChecker::synthesize_checked_type_application(
   guard self.require_checked_expression(
       checked_callee,
       callee.loc(),
-      "type application callee",
+      "generic application callee",
     )
     is Some(callee_expr) else {
     return checked_expression_none_reported(Error)
   }
   match
-    self.check_explicit_type_application(
+    self.check_explicit_generic_application(
       scope,
       checked_callee.type_,
       arguments,
@@ -247,7 +247,7 @@ fn SemanticChecker::synthesize_checked_type_application(
     ) {
     Some(application) =>
       checked_expression_with_effect(
-        TypeApplication(
+        GenericApplication(
           callee=callee_expr,
           arguments=application.arguments,
           type_=application.type_,
@@ -652,9 +652,9 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
         is Some(checked_arguments) else {
         return checked_expression_none_reported(instantiated.result)
       }
-      let callee = type_applied_callee(
+      let callee = generic_applied_callee(
         checked_callee_expr,
-        instantiated.type_arguments,
+        instantiated.generic_arguments,
         Function(
           instantiated.parameters,
           instantiated.result,
@@ -776,18 +776,18 @@ fn SemanticChecker::check_checked_call(
 }
 
 ///|
-fn type_applied_callee(
+fn generic_applied_callee(
   callee : @checked.CheckedExpr,
-  type_arguments : Array[@types.GenericArgument],
+  generic_arguments : Array[@types.GenericArgument],
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> @checked.CheckedExpr {
   // Non-generic calls keep the value callee directly. Generic calls insert the
-  // explicit checked type application inferred by local call checking.
-  if type_arguments.is_empty() {
+  // explicit checked generic application inferred by local call checking.
+  if generic_arguments.is_empty() {
     callee
   } else {
-    TypeApplication(callee~, arguments=type_arguments, type_~, loc~)
+    GenericApplication(callee~, arguments=generic_arguments, type_~, loc~)
   }
 }
 

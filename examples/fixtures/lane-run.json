@@ -801,8 +801,8 @@
       "expect": {
         "contains": [
           "error[E3003]",
-          "wrong number of type arguments for `generic expression`",
-          "`generic expression` expects 1 type argument(s), but 2 were provided"
+          "wrong number of generic arguments for `generic expression`",
+          "`generic expression` expects 1 generic argument(s), but 2 were provided"
         ]
       }
     },
@@ -819,13 +819,13 @@
       }
     },
     {
-      "name": "invalid 40 type arguments on non-generic function",
+      "name": "invalid 40 generic arguments on non-generic function",
       "file": "examples/invalid/40_type_arguments_on_non_generic_function.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
           "error[E3011]",
-          "type arguments require a generic value",
+          "generic arguments require a generic value",
           "`(Int) -> Int` is not a generic function type"
         ]
       }

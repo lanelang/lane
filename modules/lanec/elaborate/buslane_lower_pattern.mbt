@@ -206,13 +206,13 @@ fn BuslaneLowerer::lower_signature_for_pattern(
         argument_types: [],
         type_binders: [],
       })
-    Variant(symbol~, type_arguments~, arguments~, ..) => {
+    Variant(symbol~, generic_arguments~, arguments~, ..) => {
       let data_constructor = self.data_constructor_id(symbol)
       Some({
         alt_constructor: DataCon(data_constructor),
         argument_types: arguments.map(fn(argument) { argument.type_() }),
         type_binders: self.lower_pattern_type_binders(
-          data_constructor, type_arguments,
+          data_constructor, generic_arguments,
         ),
       })
     }
@@ -382,7 +382,7 @@ fn buslane_value_concat(
 fn BuslaneLowerer::lower_pattern_type_binders(
   self : BuslaneLowerer,
   data_constructor : @buslane.DataConId,
-  type_arguments : Array[@types.GenericArgument],
+  generic_arguments : Array[@types.GenericArgument],
 ) -> Array[@buslane.TypeParameterId] {
   let lowered : Array[@buslane.TypeParameterId] = []
   let hidden_parameters = match
@@ -390,8 +390,8 @@ fn BuslaneLowerer::lower_pattern_type_binders(
     Some(info) => info.hidden_type_parameters
     None => []
   }
-  for index in 0..<type_arguments.length() {
-    let argument = type_arguments[index]
+  for index in 0..<generic_arguments.length() {
+    let argument = generic_arguments[index]
     let parameter = match argument {
       TypeArgument(Parameter(parameter))
       | EffectArgument(Parameter(parameter)) => Some(parameter)
@@ -425,11 +425,11 @@ fn BuslaneLowerer::define_pattern_binders(
       ignore(
         self.define_value(symbol, name, MatchBinder, self.lower_type(type_)),
       )
-    Variant(symbol~, type_arguments~, arguments~, ..) => {
+    Variant(symbol~, generic_arguments~, arguments~, ..) => {
       ignore(
         self.lower_pattern_type_binders(
           self.data_constructor_id(symbol),
-          type_arguments,
+          generic_arguments,
         ),
       )
       for argument in arguments {

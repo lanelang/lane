@@ -365,8 +365,8 @@ fn collect_resolved_expr(
       )
     Var(..) => ()
     QualifiedVariant(
-      type_arguments~,
-      variant_type_arguments~,
+      generic_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       loc~,
@@ -390,12 +390,12 @@ fn collect_resolved_expr(
         }
         _ => ()
       }
-      for type_ in type_arguments {
+      for type_ in generic_arguments {
         collect_resolved_generic_argument_reference(
           source_id, type_, references, hovers,
         )
       }
-      for argument in variant_type_arguments {
+      for argument in variant_generic_arguments {
         collect_resolved_generic_argument_reference(
           source_id, argument, references, hovers,
         )
@@ -431,8 +431,8 @@ fn collect_resolved_expr(
           source_id, source_text, argument, definitions, references, hovers,
         )
       }
-    StructLiteral(type_arguments~, fields~, ..) => {
-      for argument in type_arguments {
+    StructLiteral(generic_arguments~, fields~, ..) => {
+      for argument in generic_arguments {
         collect_resolved_generic_argument_reference(
           source_id, argument, references, hovers,
         )
@@ -631,7 +631,7 @@ fn collect_resolved_expr(
         )
       }
     }
-    TypeApplication(callee~, arguments~, ..) => {
+    GenericApplication(callee~, arguments~, ..) => {
       collect_resolved_expr(
         source_id, source_text, callee, definitions, references, hovers,
       )
@@ -715,7 +715,7 @@ fn resolved_expr_loc(expr : @resolve.ResolvedExpr) -> @basic.SourceSpan {
     | Handler(loc~, ..)
     | Call(loc~, ..)
     | EffectOperationCall(loc~, ..)
-    | TypeApplication(loc~, ..)
+    | GenericApplication(loc~, ..)
     | Field(loc~, ..)
     | Unary(loc~, ..)
     | Binary(loc~, ..)

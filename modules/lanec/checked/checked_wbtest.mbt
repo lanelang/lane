@@ -130,7 +130,7 @@ test "pretty prints checked match with resolved patterns" {
   let option_box = @types.nominal_type(option, [box_int])
   let pattern = CheckedPattern::Variant(
     symbol=some,
-    type_arguments=[],
+    generic_arguments=[],
     arguments=[
       Struct(
         symbol=box,

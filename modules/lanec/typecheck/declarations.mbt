@@ -403,7 +403,7 @@ fn check_resolved_type_with_imported_environment(
 }
 
 ///|
-fn check_resolved_type_arguments(
+fn check_resolved_nominal_generic_arguments(
   source : @resolve.ResolvedSourceFile,
   diagnostics : Array[TypeCheckDiagnostic],
   parameters : Array[@types.TypeParameter],
@@ -588,7 +588,7 @@ fn TypeExpressionChecker::synthesize_type(
         Function(parameter_kinds, result_kind) => {
           if parameter_kinds.length() != arguments.length() {
             self.diagnostics.push({
-              kind: TypeArgumentArityMismatch(
+              kind: GenericArgumentArityMismatch(
                 name=resolved_type_name(callee),
                 expected=parameter_kinds.length(),
                 actual=arguments.length(),
@@ -1204,7 +1204,11 @@ fn check_type_arity(
 ) -> Unit {
   if symbols.type_metadata(symbol) is Some(metadata) && metadata.arity != actual {
     diagnostics.push({
-      kind: TypeArgumentArityMismatch(name~, expected=metadata.arity, actual~),
+      kind: GenericArgumentArityMismatch(
+        name~,
+        expected=metadata.arity,
+        actual~,
+      ),
       loc,
     })
   }

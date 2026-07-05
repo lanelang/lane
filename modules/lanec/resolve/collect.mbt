@@ -1246,7 +1246,8 @@ fn @syntax.Type::resolve_type_application_arguments(
                 resolver,
                 scope,
               )
-            None => resolve_default_type_arguments(arguments, resolver, scope)
+            None =>
+              resolve_default_generic_arguments(arguments, resolver, scope)
           }
       }
     QualifiedName(module_path~, name~, ..) =>
@@ -1256,16 +1257,17 @@ fn @syntax.Type::resolve_type_application_arguments(
           match interface_type_application_parameters(module_.interface, name) {
             Some(parameters) =>
               resolve_generic_arguments(arguments, parameters, resolver, scope)
-            None => resolve_default_type_arguments(arguments, resolver, scope)
+            None =>
+              resolve_default_generic_arguments(arguments, resolver, scope)
           }
-        None => resolve_default_type_arguments(arguments, resolver, scope)
+        None => resolve_default_generic_arguments(arguments, resolver, scope)
       }
-    _ => resolve_default_type_arguments(arguments, resolver, scope)
+    _ => resolve_default_generic_arguments(arguments, resolver, scope)
   }
 }
 
 ///|
-fn resolve_default_type_arguments(
+fn resolve_default_generic_arguments(
   arguments : Array[@syntax.Type],
   resolver : Resolver,
   scope : ResolveScope,
@@ -1321,7 +1323,8 @@ fn resolve_type_name_arguments(
           match qualified_type_name_parameters(resolver, type_name) {
             Some(parameters) =>
               resolve_generic_arguments(arguments, parameters, resolver, scope)
-            None => resolve_default_type_arguments(arguments, resolver, scope)
+            None =>
+              resolve_default_generic_arguments(arguments, resolver, scope)
           }
       }
   }
@@ -1344,7 +1347,7 @@ fn owner_type_name(owner : @syntax.Type) -> String {
 }
 
 ///|
-fn resolve_owner_type_arguments(
+fn resolve_owner_generic_arguments(
   owner : @syntax.Type,
   resolver : Resolver,
   scope : ResolveScope,
@@ -1588,12 +1591,12 @@ fn Resolver::resolve_module_qualified_effect_type(
           return Alias(name=full_name, arguments~, loc~)
         }
       }
-      let arguments = resolve_default_type_arguments(arguments, self, scope)
+      let arguments = resolve_default_generic_arguments(arguments, self, scope)
       self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
     None => {
-      let arguments = resolve_default_type_arguments(arguments, self, scope)
+      let arguments = resolve_default_generic_arguments(arguments, self, scope)
       self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
@@ -1828,12 +1831,14 @@ fn @syntax.Expr::resolve_expr(
       arguments~,
       loc~
     ) => {
-      let resolved_owner = resolve_owner_type_arguments(owner, resolver, scope)
+      let resolved_owner = resolve_owner_generic_arguments(
+        owner, resolver, scope,
+      )
       QualifiedVariant(
         type_name=resolved_owner.type_name,
-        type_arguments=resolved_owner.arguments,
+        generic_arguments=resolved_owner.arguments,
         variant~,
-        variant_type_arguments=variant_type_arguments.map(fn(type_) {
+        variant_generic_arguments=variant_type_arguments.map(fn(type_) {
           type_.resolve_generic_argument(resolver, scope)
         }),
         reference=resolver.variant_reference(
@@ -1848,10 +1853,12 @@ fn @syntax.Expr::resolve_expr(
       )
     }
     StructLiteral(owner~, fields~, loc~) => {
-      let resolved_owner = resolve_owner_type_arguments(owner, resolver, scope)
+      let resolved_owner = resolve_owner_generic_arguments(
+        owner, resolver, scope,
+      )
       StructLiteral(
         type_name=resolved_owner.type_name,
-        type_arguments=resolved_owner.arguments,
+        generic_arguments=resolved_owner.arguments,
         fields=resolve_struct_literal_fields(fields, resolver, scope),
         loc~,
       )
@@ -1860,7 +1867,7 @@ fn @syntax.Expr::resolve_expr(
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
       EffectOperationCall(
         name=name.resolve_effect_operation_name(resolver, scope),
-        type_witnesses=type_witnesses.map(fn(type_) {
+        generic_witnesses=type_witnesses.map(fn(type_) {
           type_.resolve_generic_argument(resolver, scope)
         }),
         arguments=arguments.map(fn(argument) {
@@ -1869,7 +1876,7 @@ fn @syntax.Expr::resolve_expr(
         loc~,
       )
     TypeApplication(callee~, arguments~, loc~) =>
-      TypeApplication(
+      GenericApplication(
         callee=callee.resolve_expr(resolver, scope),
         arguments=arguments.map(fn(argument) {
           argument.resolve_generic_argument(resolver, scope)

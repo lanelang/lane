@@ -710,23 +710,23 @@ fn typecheck_diagnostic(
         ],
         helps=["write the declaration as `let name : Type = expression`"],
       )
-    TypeArgumentArityMismatch(name~, expected~, actual~) =>
+    GenericArgumentArityMismatch(name~, expected~, actual~) =>
       diagnostic(
-        "wrong number of type arguments for `\{name}`",
+        "wrong number of generic arguments for `\{name}`",
         span~,
         severity=Error,
         code=Some("E3003"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "`\{name}` expects \{expected} type argument(s), but \{actual} were provided",
+            message: "`\{name}` expects \{expected} generic argument(s), but \{actual} were provided",
             style: Primary,
           },
         ],
         notes=[
           "type constructors and generic functions must be applied with their declared arity",
         ],
-        helps=["add or remove type arguments so the count is \{expected}"],
+        helps=["add or remove generic arguments so the count is \{expected}"],
       )
     TypeAliasCycle(name~) =>
       diagnostic(
@@ -761,7 +761,7 @@ fn typecheck_diagnostic(
           "`Type` is the kind of value-level types; function kinds such as `[Type] -> Type` describe type constructors",
         ],
         helps=[
-          "add the intended kind annotation or apply the type constructor to enough type arguments",
+          "add the intended kind annotation or apply the type constructor to enough generic arguments",
         ],
       )
     TypeMismatch(expected~, actual~) =>
@@ -856,9 +856,9 @@ fn typecheck_diagnostic(
         notes=["only values with function type can be used in call position"],
         helps=["remove the call or use a function value here"],
       )
-    TypeArgumentsOnNonGeneric(type_) =>
+    GenericArgumentsOnNonGeneric(type_) =>
       diagnostic(
-        "type arguments require a generic value",
+        "generic arguments require a generic value",
         span~,
         severity=Error,
         code=Some("E3011"),
@@ -869,8 +869,10 @@ fn typecheck_diagnostic(
             style: Primary,
           },
         ],
-        notes=["explicit type arguments instantiate values with `forall` type"],
-        helps=["remove the type arguments or make the callee generic"],
+        notes=[
+          "explicit generic arguments instantiate values with `forall` type",
+        ],
+        helps=["remove the generic arguments or make the callee generic"],
       )
     UnknownField(name~) =>
       diagnostic(
@@ -1279,7 +1281,7 @@ fn cannot_infer_reason_text(reason : @typecheck.CannotInferReason) -> String {
     ContextualOffer => "contextual offer"
     FunctionLiteralParameter => "function literal parameter"
     CallArity => "call arity"
-    TypeArguments => "type arguments"
+    GenericArguments => "generic arguments"
     Builtin => "builtin"
     Generic => "generic expression"
   }
@@ -1293,9 +1295,9 @@ fn cannot_infer_help(reason : @typecheck.CannotInferReason) -> String {
     FunctionLiteralParameter =>
       "add an explicit parameter type annotation to the function literal"
     CallArity =>
-      "check the number of arguments and type arguments at this call site"
-    TypeArguments =>
-      "add explicit type arguments or provide an expected result type"
+      "check the number of arguments and generic arguments at this call site"
+    GenericArguments =>
+      "add explicit generic arguments or provide an expected result type"
     Builtin =>
       "add a type annotation so the builtin can be checked against a concrete function type"
     Generic => "add a type annotation near this expression"

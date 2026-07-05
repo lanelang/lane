@@ -680,9 +680,9 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       text("var") + space + reference.pretty() + space + text(name)
     QualifiedVariant(
       type_name~,
-      type_arguments~,
+      generic_arguments~,
       variant~,
-      variant_type_arguments~,
+      variant_generic_arguments~,
       reference~,
       arguments~,
       ..
@@ -690,19 +690,19 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       reference.pretty() +
       space +
       text(type_name) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       text("::") +
       text(variant) +
-      generic_arguments_doc(variant_type_arguments) +
+      generic_arguments_doc(variant_generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     UnqualifiedVariant(variant~, reference~, arguments~, ..) =>
       reference.pretty() +
       space +
       text(variant) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
-    StructLiteral(type_name~, type_arguments~, fields~, ..) =>
+    StructLiteral(type_name~, generic_arguments~, fields~, ..) =>
       text(type_name) +
-      generic_arguments_doc(type_arguments) +
+      generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(ResolvedStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
@@ -730,12 +730,12 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       space +
       body.pretty()
     }
-    EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
+    EffectOperationCall(name~, generic_witnesses~, arguments~, ..) =>
       name.pretty() +
       text("!") +
-      generic_arguments_doc(type_witnesses) +
+      generic_arguments_doc(generic_witnesses) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
-    TypeApplication(callee~, arguments~, ..) =>
+    GenericApplication(callee~, arguments~, ..) =>
       callee.pretty() + generic_arguments_doc(arguments)
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]

@@ -78,7 +78,7 @@ test "pretty prints ANF existential package and opening" {
   )
   let packed_value = AnfRhs::Struct(
     symbol=hide,
-    type_arguments=[],
+    generic_arguments=[],
     type_witnesses=[
       { symbol: type_member, name: "T", type_: opened_type, loc: loc() },
     ],

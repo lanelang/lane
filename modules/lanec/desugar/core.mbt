@@ -132,16 +132,16 @@ pub(all) enum DesugaredExpr {
   )
   VariantCall(
     type_name~ : String?,
-    type_arguments~ : Array[@resolve.ResolvedGenericArgument],
+    generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     variant~ : String,
-    variant_type_arguments~ : Array[@resolve.ResolvedGenericArgument],
+    variant_generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     reference~ : @resolve.ResolvedVariantReference,
     arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )
   StructLiteral(
     type_name~ : String,
-    type_arguments~ : Array[@resolve.ResolvedGenericArgument],
+    generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     fields~ : Array[DesugaredStructLiteralField],
     loc~ : SourceSpan
   )
@@ -156,11 +156,11 @@ pub(all) enum DesugaredExpr {
   )
   EffectOperationCall(
     name~ : @resolve.ResolvedEffectOperationName,
-    type_witnesses~ : Array[@resolve.ResolvedGenericArgument],
+    generic_witnesses~ : Array[@resolve.ResolvedGenericArgument],
     arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )
-  TypeApplication(
+  GenericApplication(
     callee~ : DesugaredExpr,
     arguments~ : Array[@resolve.ResolvedGenericArgument],
     loc~ : SourceSpan
@@ -211,7 +211,7 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
-    | TypeApplication(loc~, ..)
+    | GenericApplication(loc~, ..)
     | Handler(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
