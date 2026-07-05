@@ -21,9 +21,9 @@ fn SemanticChecker::probe_expr_type(
   expression : @desugar.DesugaredExpr,
 ) -> @types.Type? {
   let probe = self.fork_for_probe()
-  let type_ = probe.synthesize_expr(scope.copy(), expression)
+  let checked = probe.synthesize_checked_expr(scope.copy(), expression)
   if probe.diagnostics.is_empty() {
-    Some(type_)
+    Some(checked.type_)
   } else {
     None
   }
@@ -37,7 +37,5 @@ fn SemanticChecker::probe_checked_expr_effect(
   expected : @types.Type,
 ) -> @types.Effect {
   let probe = self.fork_for_probe()
-  let probe_scope = scope.copy()
-  probe.check_expr(probe_scope, expression, expected)
-  probe.synthesize_expr_effect(probe_scope, expression)
+  probe.check_checked_expr(scope.copy(), expression, expected).effect
 }

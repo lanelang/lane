@@ -23,9 +23,9 @@ fn SemanticChecker::check_checked_expr(
   //
   //   Gamma |- e <= Expected ~~> checked_e
   //
-  // Only desugared forms that can use direct expected context are constructed
-  // here. The remaining forms continue to use the existing type-only checker
-  // until their checked-node rules are moved over one by one.
+  // Expected type information is used only by syntax nodes that are adjacent to
+  // this expression: block results, if branches, function literals, calls, and
+  // operation payloads.
   match expression {
     Builtin(name, loc~) =>
       // `builtin` is unsafe and opaque to the checker. The adjacent expected
@@ -137,9 +137,9 @@ fn SemanticChecker::synthesize_checked_expr(
   //
   //   Gamma |- e => T ~~> checked_e
   //
-  // This initial slice covers source forms whose checked node does not need a
-  // recursive checked subtree. Compound expressions still return their
-  // synthesized type through the existing checker and no checked node.
+  // This direction computes both the synthesized type and the checked subtree.
+  // Forms that need an adjacent expected type must use `check_checked_expr`
+  // instead of inventing non-local inference.
   match expression {
     Literal(literal~, loc~) => {
       let type_ = literal.type_()
@@ -184,6 +184,8 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_generic_application(scope, callee, arguments, loc)
     Handler(body~, handlers~, final_branch~, loc~) =>
       self.synthesize_checked_handler(scope, body, handlers, final_branch, loc)
+    Block(items~, result~, loc~) =>
+      self.synthesize_checked_block(scope, items, result, loc)
     StructLiteral(type_name~, generic_arguments~, fields~, loc~) =>
       self.synthesize_checked_struct_literal(
         scope,
@@ -217,7 +219,6 @@ fn SemanticChecker::synthesize_checked_expr(
       self.report_application_inference_failure("builtin", Builtin, loc)
       checked_expression_none_reported(Error)
     }
-    _ => checked_expression_none(self.synthesize_expr(scope, expression))
   }
 }
 
@@ -324,6 +325,81 @@ fn SemanticChecker::check_checked_block(
     )
   } else {
     checked_expression_none_reported(expected)
+  }
+}
+
+///|
+fn SemanticChecker::synthesize_checked_block(
+  self : SemanticChecker,
+  scope : TypeScope,
+  items : Array[@desugar.DesugaredLocalItem],
+  result : @desugar.DesugaredExpr,
+  loc : SourceSpan,
+) -> CheckedExpressionSynthesis {
+  let next_scope = scope.copy()
+  let checked_items : Array[@checked.CheckedLocalItem] = []
+  let effects = []
+  let opened_type_parameters : Array[TypeParameterId] = []
+  let mut complete = true
+  for item in items {
+    match item {
+      Let(declaration) =>
+        match self.check_checked_local_let(next_scope, declaration) {
+          Some(result) => {
+            effects.push(result.effect)
+            checked_items.push(Let(result.declaration))
+          }
+          None => complete = false
+        }
+      Function(declaration) =>
+        match self.check_checked_local_function(next_scope, declaration) {
+          Some(declaration) => checked_items.push(Function(declaration))
+          None => complete = false
+        }
+      Offer(declaration) =>
+        match self.check_checked_local_offer(next_scope, declaration) {
+          Some(result) => {
+            effects.push(result.effect)
+            checked_items.push(Let(result.declaration))
+          }
+          None => complete = false
+        }
+      PatternLet(declaration) =>
+        match self.check_checked_local_pattern_let(next_scope, declaration) {
+          Some(result) => {
+            effects.push(result.effect)
+            opened_type_parameters.append(
+              result.declaration.pattern.opened_type_parameters(),
+            )
+            checked_items.push(PatternLet(result.declaration))
+          }
+          None => complete = false
+        }
+    }
+  }
+  let checked_result = self.synthesize_checked_expr(next_scope, result)
+  self.check_hidden_type_escape(
+    opened_type_parameters,
+    checked_result.type_,
+    result.loc(),
+  )
+  effects.push(checked_result.effect)
+  guard self.require_checked_expression(
+      checked_result,
+      result.loc(),
+      "block result",
+    )
+    is Some(result) else {
+    return checked_expression_none_reported(checked_result.type_)
+  }
+  if complete {
+    checked_expression_with_effect(
+      Block(items=checked_items, result~, type_=checked_result.type_, loc~),
+      checked_result.type_,
+      effect_union(effects),
+    )
+  } else {
+    checked_expression_none_reported(checked_result.type_)
   }
 }
 
@@ -915,16 +991,17 @@ fn SemanticChecker::synthesize_checked_function_literal(
       })
     }
   }
-  let result_type = if return_type is Some(type_annotation) {
-    self.check_type(type_annotation)
+  let (result_type, checked_body) = if return_type is Some(type_annotation) {
+    let result_type = self.check_type(type_annotation)
+    (result_type, self.check_checked_expr(body_scope, body, result_type))
   } else {
-    self.synthesize_expr(body_scope, body)
+    let checked_body = self.synthesize_checked_expr(body_scope, body)
+    (checked_body.type_, checked_body)
   }
   let checked_effect = match effect {
     Some(effect) => self.check_effect(effect)
     None => Empty
   }
-  let checked_body = self.check_checked_expr(body_scope, body, result_type)
   self.expect_effect(checked_effect, checked_body.effect, body.loc())
   guard self.require_checked_expression(
       checked_body,

@@ -12,51 +12,6 @@ priv struct HandlerOperationCheck {
 }
 
 ///|
-fn SemanticChecker::synthesize_handler(
-  self : SemanticChecker,
-  scope : TypeScope,
-  body : @desugar.DesugaredExpr,
-  handlers : Array[@desugar.DesugaredHandlerWithBlock],
-  final_branch : @desugar.DesugaredHandlerFinalBranch,
-  loc : SourceSpan,
-) -> @types.Type {
-  let body_type = self.synthesize_expr(scope, body)
-  let checked_tables = self.check_handler_table_data(scope, handlers)
-  let handled_effects = checked_tables.map(fn(table) {
-    table.checked.handled_effect
-  })
-  let residual_body_effect = self.handler_residual_effect(
-    self.synthesize_expr_effect(scope, body),
-    handled_effects,
-    loc,
-  )
-  let final_scope = scope.copy()
-  final_scope.bind(final_branch.binder_symbol, body_type)
-  let result_type = self.synthesize_expr(final_scope, final_branch.body)
-  let final_effect = self.synthesize_expr_effect(final_scope, final_branch.body)
-  let residual_seed = handler_effect_union([residual_body_effect, final_effect])
-  let arm_effects = []
-  for table in checked_tables {
-    for operation in table.operations {
-      let arm_scope = handler_operation_scope(
-        scope,
-        operation.checked,
-        operation.signature,
-        result_type,
-        residual_seed,
-      )
-      self.check_expr(arm_scope, operation.source.body, result_type)
-      arm_effects.push(
-        self.synthesize_expr_effect(arm_scope, operation.source.body),
-      )
-    }
-  }
-  ignore(loc)
-  ignore(handler_effect_union([residual_seed] + arm_effects))
-  result_type
-}
-
-///|
 fn SemanticChecker::synthesize_checked_handler(
   self : SemanticChecker,
   scope : TypeScope,
@@ -65,8 +20,7 @@ fn SemanticChecker::synthesize_checked_handler(
   final_branch : @desugar.DesugaredHandlerFinalBranch,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  let body_type = self.synthesize_expr(scope, body)
-  let checked_body = self.check_checked_expr(scope, body, body_type)
+  let checked_body = self.synthesize_checked_expr(scope, body)
   let checked_tables = self.check_handler_table_data(scope, handlers)
   let handled_effects = checked_tables.map(fn(table) {
     table.checked.handled_effect
@@ -78,12 +32,11 @@ fn SemanticChecker::synthesize_checked_handler(
   )
   let final_scope = scope.copy()
   final_scope.bind(final_branch.binder_symbol, checked_body.type_)
-  let result_type = self.synthesize_expr(final_scope, final_branch.body)
-  let checked_final_body = self.check_checked_expr(
+  let checked_final_body = self.synthesize_checked_expr(
     final_scope,
     final_branch.body,
-    result_type,
   )
+  let result_type = checked_final_body.type_
   let residual_seed = handler_effect_union([
     residual_body_effect,
     checked_final_body.effect,
@@ -353,66 +306,6 @@ fn checked_handler_operations(
   operations : Array[HandlerOperationCheck],
 ) -> Array[@checked.CheckedHandlerOperationArm] {
   operations.map(HandlerOperationCheck::to_checked)
-}
-
-///|
-fn SemanticChecker::synthesize_handler_effect(
-  self : SemanticChecker,
-  scope : TypeScope,
-  body : @desugar.DesugaredExpr,
-  handlers : Array[@desugar.DesugaredHandlerWithBlock],
-  final_branch : @desugar.DesugaredHandlerFinalBranch,
-) -> @types.Effect {
-  let probe = self.fork_for_probe()
-  probe.synthesize_handler_effect_probe(
-    scope.copy(),
-    body,
-    handlers,
-    final_branch,
-  )
-}
-
-///|
-fn SemanticChecker::synthesize_handler_effect_probe(
-  self : SemanticChecker,
-  scope : TypeScope,
-  body : @desugar.DesugaredExpr,
-  handlers : Array[@desugar.DesugaredHandlerWithBlock],
-  final_branch : @desugar.DesugaredHandlerFinalBranch,
-) -> @types.Effect {
-  let body_effect = self.synthesize_expr_effect(scope, body)
-  let checked_tables = self.check_handler_table_data(scope, handlers)
-  let handled_effects = checked_tables.map(fn(table) {
-    table.checked.handled_effect
-  })
-  let residual_body_effect = self.handler_residual_effect(
-    body_effect,
-    handled_effects,
-    body.loc(),
-  )
-  let body_type = self.synthesize_expr(scope, body)
-  let final_scope = scope.copy()
-  final_scope.bind(final_branch.binder_symbol, body_type)
-  let result_type = self.synthesize_expr(final_scope, final_branch.body)
-  let final_effect = self.synthesize_expr_effect(final_scope, final_branch.body)
-  let residual_seed = handler_effect_union([residual_body_effect, final_effect])
-  let arm_effects = []
-  for table in checked_tables {
-    for operation in table.operations {
-      let arm_scope = handler_operation_scope(
-        scope,
-        operation.checked,
-        operation.signature,
-        result_type,
-        residual_seed,
-      )
-      arm_effects.push(
-        self.synthesize_expr_effect(arm_scope, operation.source.body),
-      )
-    }
-  }
-  let effect = handler_effect_union([residual_seed] + arm_effects)
-  effect
 }
 
 ///|

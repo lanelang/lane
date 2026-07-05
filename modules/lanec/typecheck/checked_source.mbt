@@ -190,23 +190,27 @@ fn SemanticChecker::checked_top_level_let(
   self : SemanticChecker,
   declaration : @desugar.DesugaredLetDeclaration,
 ) -> @checked.CheckedTopLevelDeclaration? {
-  let type_ = if declaration.type_annotation is Some(type_annotation) {
-    match self.value_type(declaration.symbol) {
-      Some(type_) => type_
-      None => self.check_type(type_annotation)
+  let scope = self.ordered_root_scope()
+  let (type_, checked_initializer) = match declaration.type_annotation {
+    Some(type_annotation) => {
+      let type_ = match self.value_type(declaration.symbol) {
+        Some(type_) => type_
+        None => self.check_type(type_annotation)
+      }
+      (type_, self.check_checked_expr(scope, declaration.initializer, type_))
     }
-  } else {
-    self.diagnostics.push({
-      kind: MissingTopLevelLetAnnotation,
-      loc: declaration.loc,
-    })
-    self.synthesize_expr(self.ordered_root_scope(), declaration.initializer)
+    None => {
+      self.diagnostics.push({
+        kind: MissingTopLevelLetAnnotation,
+        loc: declaration.loc,
+      })
+      let checked_initializer = self.synthesize_checked_expr(
+        scope,
+        declaration.initializer,
+      )
+      (checked_initializer.type_, checked_initializer)
+    }
   }
-  let checked_initializer = self.check_checked_expr(
-    self.ordered_root_scope(),
-    declaration.initializer,
-    type_,
-  )
   self.expect_effect(
     Empty,
     checked_initializer.effect,
