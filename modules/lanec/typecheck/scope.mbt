@@ -14,14 +14,25 @@ priv struct ContextualOffer {
 }
 
 ///|
+priv struct TypeParameterKindBinding {
+  symbol : TypeParameterId
+  kind : @types.Kind
+}
+
+///|
 priv struct TypeScope {
   values : Array[ValueTypeBinding]
   offers : Array[ContextualOffer]
+  type_parameters : Array[TypeParameterKindBinding]
 }
 
 ///|
 fn SemanticChecker::root_scope(self : SemanticChecker) -> TypeScope {
-  { values: self.value_types.copy(), offers: self.offers.copy() }
+  {
+    values: self.value_types.copy(),
+    offers: self.offers.copy(),
+    type_parameters: [],
+  }
 }
 
 ///|
@@ -29,6 +40,7 @@ fn SemanticChecker::ordered_root_scope(self : SemanticChecker) -> TypeScope {
   {
     values: self.ordered_value_types.copy(),
     offers: self.ordered_offers.copy(),
+    type_parameters: [],
   }
 }
 
@@ -78,7 +90,34 @@ fn TypeScope::lookup_function_parameters(
 
 ///|
 fn TypeScope::copy(self : TypeScope) -> TypeScope {
-  { values: self.values.copy(), offers: self.offers.copy() }
+  {
+    values: self.values.copy(),
+    offers: self.offers.copy(),
+    type_parameters: self.type_parameters.copy(),
+  }
+}
+
+///|
+fn TypeScope::bind_type_parameter_kind(
+  self : TypeScope,
+  symbol : TypeParameterId,
+  kind : @types.Kind,
+) -> Unit {
+  self.type_parameters.push({ symbol, kind })
+}
+
+///|
+fn TypeScope::type_parameter_kind(
+  self : TypeScope,
+  symbol : TypeParameterId,
+) -> @types.Kind? {
+  for index = self.type_parameters.length() - 1; index >= 0; index = index - 1 {
+    let binding = self.type_parameters[index]
+    if binding.symbol == symbol {
+      return Some(binding.kind)
+    }
+  }
+  None
 }
 
 ///|

@@ -391,10 +391,14 @@ fn collect_resolved_expr(
         _ => ()
       }
       for type_ in type_arguments {
-        collect_resolved_type_reference(source_id, type_, references, hovers)
+        collect_resolved_generic_argument_reference(
+          source_id, type_, references, hovers,
+        )
       }
-      for type_ in variant_type_arguments {
-        collect_resolved_type_reference(source_id, type_, references, hovers)
+      for argument in variant_type_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
       }
       for argument in arguments {
         collect_resolved_expr(
@@ -428,8 +432,10 @@ fn collect_resolved_expr(
         )
       }
     StructLiteral(type_arguments~, fields~, ..) => {
-      for type_ in type_arguments {
-        collect_resolved_type_reference(source_id, type_, references, hovers)
+      for argument in type_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
       }
       for field in fields {
         match field {
@@ -809,7 +815,9 @@ fn collect_resolved_type_reference(
     Apply(callee~, arguments~, ..) => {
       collect_resolved_type_reference(source_id, callee, references, hovers)
       for argument in arguments {
-        collect_resolved_type_reference(source_id, argument, references, hovers)
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
       }
     }
     TypeLambda(parameters~, body~, ..) => {
@@ -909,7 +917,9 @@ fn collect_resolved_effect_reference(
         Some("effect \{name}"),
       )
       for argument in arguments {
-        collect_resolved_type_reference(source_id, argument, references, hovers)
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
       }
     }
     Parameter(symbol~, name~, loc~) =>
@@ -955,6 +965,21 @@ fn collect_resolved_effect_alias_argument(
 }
 
 ///|
+fn collect_resolved_generic_argument_reference(
+  source_id : String,
+  argument : @resolve.ResolvedGenericArgument,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match argument {
+    TypeArgument(type_) =>
+      collect_resolved_type_reference(source_id, type_, references, hovers)
+    EffectArgument(effect) =>
+      collect_resolved_effect_reference(source_id, effect, references, hovers)
+  }
+}
+
+///|
 fn collect_resolved_effect_reference_with_source(
   source_id : String,
   source_text : String,
@@ -974,7 +999,9 @@ fn collect_resolved_effect_reference_with_source(
         Some("effect \{name}"),
       )
       for argument in arguments {
-        collect_resolved_type_reference(source_id, argument, references, hovers)
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
       }
     }
     Parameter(symbol~, name~, loc~) =>

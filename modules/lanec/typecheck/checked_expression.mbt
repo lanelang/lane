@@ -730,7 +730,7 @@ fn SemanticChecker::check_checked_call(
 ///|
 fn type_applied_callee(
   callee : @checked.CheckedExpr,
-  type_arguments : Array[@types.Type],
+  type_arguments : Array[@types.GenericArgument],
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> @checked.CheckedExpr {

@@ -394,7 +394,9 @@ fn InterfaceSymbolFreshener::freshen_lane_type(
     Apply(callee, arguments) =>
       Apply(
         self.freshen_lane_type(callee),
-        arguments.map(fn(argument) { self.freshen_lane_type(argument) }),
+        arguments.map(fn(argument) {
+          self.freshen_lane_generic_argument(argument)
+        }),
       )
     TypeLambda(parameters, body) => {
       let parameters = parameters.map(fn(parameter) {
@@ -428,11 +430,24 @@ fn InterfaceSymbolFreshener::freshen_lane_effect(
     Singleton(symbol, arguments) =>
       Singleton(
         self.remap_effect_symbol(symbol),
-        arguments.map(fn(argument) { self.freshen_lane_type(argument) }),
+        arguments.map(fn(argument) {
+          self.freshen_lane_generic_argument(argument)
+        }),
       )
     Parameter(id) => Parameter(self.remap_type_parameter(id))
     Union(effects) =>
       Union(effects.map(fn(effect) { self.freshen_lane_effect(effect) }))
+  }
+}
+
+///|
+fn InterfaceSymbolFreshener::freshen_lane_generic_argument(
+  self : InterfaceSymbolFreshener,
+  argument : @types.GenericArgument,
+) -> @types.GenericArgument {
+  match argument {
+    TypeArgument(type_) => TypeArgument(self.freshen_lane_type(type_))
+    EffectArgument(effect) => EffectArgument(self.freshen_lane_effect(effect))
   }
 }
 

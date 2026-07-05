@@ -403,49 +403,137 @@ fn check_resolved_type_with_imported_environment(
 }
 
 ///|
-fn check_resolved_type_with_kind(
+fn check_resolved_type_arguments(
   source : @resolve.ResolvedSourceFile,
   diagnostics : Array[TypeCheckDiagnostic],
-  type_ : @resolve.ResolvedType,
+  parameters : Array[@types.TypeParameter],
+  arguments : Array[@resolve.ResolvedGenericArgument],
+) -> Array[@types.GenericArgument] {
+  let checked = []
+  for index in 0..<arguments.length() {
+    let argument = if index < parameters.length() {
+      check_resolved_generic_argument(
+        source,
+        diagnostics,
+        { values: [], offers: [], type_parameters: [] },
+        parameters[index].kind,
+        arguments[index],
+      )
+    } else {
+      check_resolved_generic_argument(
+        source,
+        diagnostics,
+        { values: [], offers: [], type_parameters: [] },
+        Type,
+        arguments[index],
+      )
+    }
+    checked.push(argument)
+  }
+  checked
+}
+
+///|
+fn check_resolved_generic_arguments(
+  source : @resolve.ResolvedSourceFile,
+  diagnostics : Array[TypeCheckDiagnostic],
+  scope : TypeScope,
+  parameters : Array[@types.TypeParameter],
+  arguments : Array[@resolve.ResolvedGenericArgument],
+) -> Array[@types.GenericArgument] {
+  let checked = []
+  for index in 0..<arguments.length() {
+    if index < parameters.length() {
+      checked.push(
+        check_resolved_generic_argument(
+          source,
+          diagnostics,
+          scope,
+          parameters[index].kind,
+          arguments[index],
+        ),
+      )
+    } else {
+      checked.push(
+        check_resolved_generic_argument(
+          source,
+          diagnostics,
+          scope,
+          Type,
+          arguments[index],
+        ),
+      )
+    }
+  }
+  checked
+}
+
+///|
+fn check_resolved_generic_argument(
+  source : @resolve.ResolvedSourceFile,
+  diagnostics : Array[TypeCheckDiagnostic],
+  scope : TypeScope,
   expected : @types.Kind,
-) -> @types.Type {
+  argument : @resolve.ResolvedGenericArgument,
+) -> @types.GenericArgument {
   let checker = TypeExpressionChecker::{
     source,
     imported_environment: empty_imported_environment(),
     diagnostics,
     expanding: [],
   }
-  checker.expect_kind(type_, expected).type_.normalize()
+  match (expected, argument) {
+    (Effect, EffectArgument(effect)) =>
+      EffectArgument(checker.check_effect(effect).normalize())
+    (Effect, TypeArgument(type_)) => {
+      let result = checker.synthesize_type(type_)
+      let actual = resolved_type_kind_with_scope(scope, type_, result.kind)
+      if actual == Effect && result.type_ is Parameter(symbol) {
+        EffectArgument(Parameter(symbol))
+      } else {
+        diagnostics.push({
+          kind: KindMismatch(expected=Effect, actual~),
+          loc: resolved_type_loc(type_),
+        })
+        EffectArgument(Empty)
+      }
+    }
+    (expected, TypeArgument(type_)) => {
+      let result = checker.synthesize_type(type_)
+      let actual = resolved_type_kind_with_scope(scope, type_, result.kind)
+      if actual != expected {
+        diagnostics.push({
+          kind: KindMismatch(expected~, actual~),
+          loc: resolved_type_loc(type_),
+        })
+      }
+      TypeArgument(result.type_.normalize())
+    }
+    (expected, EffectArgument(effect)) => {
+      ignore(checker.check_effect(effect))
+      diagnostics.push({
+        kind: KindMismatch(expected~, actual=Effect),
+        loc: resolved_generic_argument_loc(argument),
+      })
+      TypeArgument(Error)
+    }
+  }
 }
 
 ///|
-fn check_resolved_type_arguments(
-  source : @resolve.ResolvedSourceFile,
-  diagnostics : Array[TypeCheckDiagnostic],
-  parameters : Array[@types.TypeParameter],
-  arguments : Array[@resolve.ResolvedType],
-) -> Array[@types.Type] {
-  let checked = []
-  for index in 0..<arguments.length() {
-    let type_ = if index < parameters.length() {
-      check_resolved_type_with_kind(
-        source,
-        diagnostics,
-        arguments[index],
-        parameters[index].kind,
-      )
-    } else {
-      let checker = TypeExpressionChecker::{
-        source,
-        imported_environment: empty_imported_environment(),
-        diagnostics,
-        expanding: [],
+fn resolved_type_kind_with_scope(
+  scope : TypeScope,
+  type_ : @resolve.ResolvedType,
+  fallback : @types.Kind,
+) -> @types.Kind {
+  match type_ {
+    Parameter(symbol~, ..) =>
+      match scope.type_parameter_kind(symbol) {
+        Some(kind) => kind
+        None => fallback
       }
-      checker.synthesize_type(arguments[index]).type_.normalize()
-    }
-    checked.push(type_)
+    _ => fallback
   }
-  checked
 }
 
 ///|
@@ -509,17 +597,17 @@ fn TypeExpressionChecker::synthesize_type(
             })
           }
           for index in 0..<arguments.length() {
-            let argument_result = self.synthesize_type(arguments[index])
-            checked_arguments.push(argument_result.type_)
-            if index < parameter_kinds.length() &&
-              argument_result.kind != parameter_kinds[index] {
-              self.diagnostics.push({
-                kind: KindMismatch(
-                  expected=parameter_kinds[index],
-                  actual=argument_result.kind,
+            if index < parameter_kinds.length() {
+              checked_arguments.push(
+                self.check_generic_argument(
+                  parameter_kinds[index],
+                  arguments[index],
                 ),
-                loc: resolved_type_loc(arguments[index]),
-              })
+              )
+            } else {
+              checked_arguments.push(
+                self.check_generic_argument(Type, arguments[index]),
+              )
             }
           }
           {
@@ -529,7 +617,7 @@ fn TypeExpressionChecker::synthesize_type(
         }
         _ => {
           for argument in arguments {
-            checked_arguments.push(self.synthesize_type(argument).type_)
+            checked_arguments.push(self.check_generic_argument(Type, argument))
           }
           self.diagnostics.push({
             kind: KindMismatch(
@@ -584,10 +672,52 @@ fn TypeExpressionChecker::synthesize_type(
     }
     Unresolved(name~, arguments~, loc~) => {
       for argument in arguments {
-        ignore(self.synthesize_type(argument))
+        ignore(self.check_generic_argument(Type, argument))
       }
       self.diagnostics.push({ kind: UnresolvedType(name), loc })
       { type_: Error, kind: Type }
+    }
+  }
+}
+
+///|
+fn TypeExpressionChecker::check_generic_argument(
+  self : TypeExpressionChecker,
+  expected : @types.Kind,
+  argument : @resolve.ResolvedGenericArgument,
+) -> @types.GenericArgument {
+  match (expected, argument) {
+    (Effect, EffectArgument(effect)) =>
+      EffectArgument(self.check_effect(effect).normalize())
+    (Effect, TypeArgument(type_)) => {
+      let result = self.synthesize_type(type_)
+      if result.kind == Effect && result.type_ is Parameter(symbol) {
+        EffectArgument(Parameter(symbol))
+      } else {
+        self.diagnostics.push({
+          kind: KindMismatch(expected=Effect, actual=result.kind),
+          loc: resolved_type_loc(type_),
+        })
+        EffectArgument(Empty)
+      }
+    }
+    (expected, TypeArgument(type_)) => {
+      let result = self.synthesize_type(type_)
+      if result.kind != expected {
+        self.diagnostics.push({
+          kind: KindMismatch(expected~, actual=result.kind),
+          loc: resolved_type_loc(type_),
+        })
+      }
+      TypeArgument(result.type_.normalize())
+    }
+    (expected, EffectArgument(effect)) => {
+      ignore(self.check_effect(effect))
+      self.diagnostics.push({
+        kind: KindMismatch(expected~, actual=Effect),
+        loc: resolved_generic_argument_loc(argument),
+      })
+      TypeArgument(Error)
     }
   }
 }
@@ -862,7 +992,7 @@ fn find_kind_in_type(
         None => ()
       }
       for argument in arguments {
-        if find_kind_in_type(argument, symbol) is Some(kind) {
+        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
           return Some(kind)
         }
       }
@@ -896,7 +1026,7 @@ fn find_kind_in_effect(
     Empty(..) => None
     Singleton(arguments~, ..) => {
       for argument in arguments {
-        if find_kind_in_type(argument, symbol) is Some(kind) {
+        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
           return Some(kind)
         }
       }
@@ -926,12 +1056,23 @@ fn find_kind_in_effect(
     }
     Unresolved(arguments~, ..) => {
       for argument in arguments {
-        if find_kind_in_type(argument, symbol) is Some(kind) {
+        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
           return Some(kind)
         }
       }
       None
     }
+  }
+}
+
+///|
+fn find_kind_in_generic_argument(
+  argument : @resolve.ResolvedGenericArgument,
+  symbol : TypeParameterId,
+) -> @types.Kind? {
+  match argument {
+    TypeArgument(type_) => find_kind_in_type(type_, symbol)
+    EffectArgument(effect) => find_kind_in_effect(effect, symbol)
   }
 }
 
@@ -1027,6 +1168,16 @@ fn resolved_type_loc(type_ : @resolve.ResolvedType) -> SourceSpan {
     Parameter(loc~, ..) => loc
     Function(loc~, ..) => loc
     Unresolved(loc~, ..) => loc
+  }
+}
+
+///|
+fn resolved_generic_argument_loc(
+  argument : @resolve.ResolvedGenericArgument,
+) -> SourceSpan {
+  match argument {
+    TypeArgument(type_) => resolved_type_loc(type_)
+    EffectArgument(effect) => resolved_effect_loc(effect)
   }
 }
 

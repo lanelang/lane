@@ -82,7 +82,8 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
     Primitive(primitive) => primitive.pretty()
     Parameter(parameter) => parameter.pretty()
     Constructor(type_id) => type_id.pretty()
-    Apply(callee, arguments) => callee.pretty() + type_arguments_doc(arguments)
+    Apply(callee, arguments) =>
+      callee.pretty() + generic_arguments_doc(arguments)
     TypeLambda(parameters, body) =>
       text("type") +
       space +
@@ -107,9 +108,19 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
 pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
   match effect {
     Empty => text("{}")
-    Singleton(id, arguments) => id.pretty() + type_arguments_doc(arguments)
+    Singleton(id, arguments) => id.pretty() + generic_arguments_doc(arguments)
     Parameter(parameter) => parameter.pretty()
     Union(effects) => braced_inline(effects.map(Effect::pretty))
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for GenericArgument with fn pretty(
+  argument : GenericArgument,
+) {
+  match argument {
+    TypeArgument(type_) => type_.pretty()
+    EffectArgument(effect) => effect.pretty()
   }
 }
 
@@ -267,7 +278,7 @@ pub impl @prettyprinter.Pretty for Expr with fn pretty(expr : Expr) {
       space +
       braced_block([body.pretty()])
     TypeApply(callee, arguments) =>
-      callee.pretty() + type_arguments_doc(arguments)
+      callee.pretty() + generic_arguments_doc(arguments)
     Construct(construct) => construct.pretty()
     Let(id, initializer, body) =>
       text("let") +
@@ -488,11 +499,11 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
 }
 
 ///|
-fn type_arguments_doc(arguments : Array[Type]) -> Document {
+fn generic_arguments_doc(arguments : Array[GenericArgument]) -> Document {
   if arguments.is_empty() {
     empty
   } else {
-    bracketed_inline(arguments.map(Type::pretty))
+    bracketed_inline(arguments.map(GenericArgument::pretty))
   }
 }
 
@@ -524,21 +535,21 @@ fn type_parameters_doc(parameters : Array[TypeParameterId]) -> Document {
 
 ///|
 fn type_and_witness_arguments_doc(
-  arguments : Array[Type],
-  witnesses : Array[Type],
+  arguments : Array[GenericArgument],
+  witnesses : Array[GenericArgument],
 ) -> Document {
   if arguments.is_empty() && witnesses.is_empty() {
     empty
   } else if witnesses.is_empty() {
-    bracketed_inline(arguments.map(Type::pretty))
+    bracketed_inline(arguments.map(GenericArgument::pretty))
   } else {
     surround(
       char('['),
       char(']'),
-      join_comma(arguments.map(Type::pretty)) +
+      join_comma(arguments.map(GenericArgument::pretty)) +
       text(";") +
       space +
-      join_comma(witnesses.map(Type::pretty)),
+      join_comma(witnesses.map(GenericArgument::pretty)),
     )
   }
 }

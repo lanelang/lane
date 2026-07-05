@@ -120,7 +120,10 @@ test "buslane metadata owns effect operation shape" {
   )
   inspect(
     @prettyprinter.render(
-      Effect::Union([Singleton(state, [int_type()]), Parameter(row_param)]),
+      Effect::Union([
+        Singleton(state, [TypeArgument(int_type())]),
+        Parameter(row_param),
+      ]),
       width=100,
     ),
     content="{effect#0[Int], tparam#1}",
@@ -174,7 +177,7 @@ test "buslane forall equality is alpha equivalent" {
 test "buslane type equality beta normalizes type lambdas" {
   let parameter = TypeParameterId::{ index: 0 }
   let lambda = Type::TypeLambda([parameter], Parameter(parameter))
-  assert_type_equal(Apply(lambda, [int_type()]), int_type())
+  assert_type_equal(Apply(lambda, [TypeArgument(int_type())]), int_type())
 }
 
 ///|
@@ -187,7 +190,7 @@ test "buslane function latent effects participate in type equality and substitut
     Function(
       [],
       Parameter(left_param),
-      Singleton(effect_id, [Parameter(left_param)]),
+      Singleton(effect_id, [TypeArgument(Parameter(left_param))]),
     ),
   )
   let right = Type::Forall(
@@ -195,7 +198,7 @@ test "buslane function latent effects participate in type equality and substitut
     Function(
       [],
       Parameter(right_param),
-      Singleton(effect_id, [Parameter(right_param)]),
+      Singleton(effect_id, [TypeArgument(Parameter(right_param))]),
     ),
   )
   assert_type_equal(left, right)
@@ -213,7 +216,7 @@ test "buslane function latent effects participate in type equality and substitut
   let effectful : Type = Function(
     [],
     Parameter(left_param),
-    Singleton(effect_id, [Parameter(left_param)]),
+    Singleton(effect_id, [TypeArgument(Parameter(left_param))]),
   )
   inspect(
     @prettyprinter.render(effectful.substitute(substitution), width=100),
@@ -229,13 +232,13 @@ test "buslane canonical effect equality ignores ordering and duplicates" {
   let left = Effect::Union([
     Singleton(state, []),
     Empty,
-    Singleton(console, [int_type()]),
+    Singleton(console, [TypeArgument(int_type())]),
     Singleton(state, []),
     Parameter(row),
   ])
   let right = Effect::Union([
     Parameter(row),
-    Singleton(console, [int_type()]),
+    Singleton(console, [TypeArgument(int_type())]),
     Singleton(state, []),
   ])
   assert_effect_equal(left, right)
@@ -437,7 +440,10 @@ test "verify buslane handler preserves open residual effect row" {
               parameters: [],
               result_type: int_type(),
               body: Handle({
-                body: Call(TypeApply(Ref(external), [Parameter(row)]), []),
+                body: Call(
+                  TypeApply(Ref(external), [TypeArgument(Parameter(row))]),
+                  [],
+                ),
                 result_binder: final_binder,
                 result_type: int_type(),
                 final_body: Ref(final_binder),
@@ -715,12 +721,12 @@ test "pretty buslane construct and one-level match" {
   let scrutinee = metadata.define_value(
     "value",
     Value,
-    Apply(Constructor(option_type), [int_type()]),
+    Apply(Constructor(option_type), [TypeArgument(int_type())]),
   )
   let match_binder = metadata.define_value(
     "value",
     MatchBinder,
-    Apply(Constructor(option_type), [int_type()]),
+    Apply(Constructor(option_type), [TypeArgument(int_type())]),
   )
   let payload = metadata.define_value("value", Parameter, int_type())
   let program = Program::{
@@ -730,7 +736,7 @@ test "pretty buslane construct and one-level match" {
         scrutinee,
         Construct({
           data_constructor: some,
-          type_arguments: [int_type()],
+          type_arguments: [TypeArgument(int_type())],
           hidden_witnesses: [],
           payloads: [Literal(Int(1L))],
         }),

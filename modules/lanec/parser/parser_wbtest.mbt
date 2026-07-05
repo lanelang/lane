@@ -567,24 +567,37 @@ test "parse handler expressions" {
 }
 
 ///|
-test "parse rejects handler owner type arguments" {
-  debug_inspect(
-    parse_error_kinds(
-      (
-        #|effect State[S] {
-        #|  get() -> S
-        #|}
-        #|fn bad() -> Int ! State[Int] {
-        #|  handle State::get!() with {
-        #|    State[Int]::get(resume) => resume(0)
-        #|  } final value {
-        #|    value
-        #|  }
-        #|}
-      ),
+test "parse handler owner type arguments" {
+  let file = expect_parse_ok(
+    (
+      #|effect State[S] {
+      #|  get() -> S
+      #|}
+      #|fn good() -> Int ! State[Int] {
+      #|  handle State[Int]::get!() with {
+      #|    State[Int]::get(resume) => resume(0)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
     ),
+  )
+  inspect(
+    @prettyprinter.render(file),
     content=(
-      #|[UnexpectedToken({ label: "`::`" }, [{ label: "`(`" }])]
+      #|module Test
+      #|
+      #|effect State[S] {
+      #|  get() -> S
+      #|}
+      #|
+      #|fn good() -> Int ! State[Int] {
+      #|  handle State[Int]::get!() with {
+      #|    State[Int]::get(resume) => resume(0)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
     ),
   )
 }

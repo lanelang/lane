@@ -352,7 +352,7 @@ fn FingerprintTypeContext::type_fingerprint(
     Apply(callee, arguments) => {
       let callee_fingerprint = self.type_fingerprint(callee)
       let arguments = arguments
-        .map(fn(argument) { self.type_fingerprint(argument) })
+        .map(fn(argument) { self.generic_argument_fingerprint(argument) })
         .join(",")
       "\{callee_fingerprint}[\{arguments}]"
     }
@@ -393,13 +393,24 @@ fn FingerprintTypeContext::effect_fingerprint(
     Empty => "{}"
     Singleton(symbol, arguments) => {
       let arguments = arguments
-        .map(fn(argument) { self.type_fingerprint(argument) })
+        .map(fn(argument) { self.generic_argument_fingerprint(argument) })
         .join(",")
       "\{@prettyprinter.render(symbol.pretty(), width=100)}[\{arguments}]"
     }
     Parameter(symbol) => self.type_parameter_name(symbol)
     Union(effects) =>
       "{\{effects.map(fn(effect) { self.effect_fingerprint(effect) }).join(",")}}"
+  }
+}
+
+///|
+fn FingerprintTypeContext::generic_argument_fingerprint(
+  self : FingerprintTypeContext,
+  argument : @types.GenericArgument,
+) -> String {
+  match argument {
+    TypeArgument(type_) => self.type_fingerprint(type_)
+    EffectArgument(effect) => self.effect_fingerprint(effect)
   }
 }
 

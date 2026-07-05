@@ -4,88 +4,84 @@ import Stdlib.Io.{Io, Write}
 
 import Stdlib.Ops.*
 
-effect Coroutine {
+effect Coroutine[E : Effect] {
   yield() -> Unit
-  spawn[A](() -> A ! { Coroutine, Log }) -> Unit
+  spawn[A](() -> A ! { Coroutine[E], E }) -> Unit
 }
 
 effect Log {
   log(Int) -> Unit
 }
 
-enum Task {
-  task[A](() -> A ! { Coroutine, Log })
+enum Task[E : Effect] {
+  task[A](() -> A ! { Coroutine[E], E })
 }
 
-enum Runnable {
-  runnable(() -> Step ! Log)
+enum Runnable[E : Effect] {
+  runnable(() -> Step[E] ! E)
 }
 
-enum Queue {
+enum Queue[E : Effect] {
   empty()
-  node(Runnable, Queue)
+  node(Runnable[E], Queue[E])
 }
 
-enum Step {
+enum Step[E : Effect] {
   done()
-  yielded(() -> Step ! Log)
-  spawned[A](() -> A ! { Coroutine, Log }, () -> Step ! Log)
+  yielded(() -> Step[E] ! E)
+  spawned[A](() -> A ! { Coroutine[E], E }, () -> Step[E] ! E)
 }
 
-struct Scheduler {
-  queue : Queue
+struct Scheduler[E : Effect] {
+  queue : Queue[E]
 }
 
 struct RunResult {
-  scheduler : Scheduler
+  scheduler : Scheduler[Log]
   checksum : Int
 }
 
-fn yield() -> Unit ! Coroutine {
-  Coroutine::yield!()
-}
-
-fn[A] spawn(body : () -> A ! { Coroutine, Log }) -> Unit ! Coroutine {
-  Coroutine::spawn!(body)
+fn[A, E : Effect] spawn(body : () -> A ! { Coroutine[E], E }) -> Unit ! Coroutine[E] {
+  Coroutine[E]::spawn![A](body)
 }
 
 fn log(event : Int) -> Unit ! Log {
   Log::log!(event)
 }
 
-fn enqueue(queue : Queue, item : Runnable) -> Queue {
+fn[E : Effect] enqueue(queue : Queue[E], item : Runnable[E]) -> Queue[E] {
   match queue {
-    empty() => Queue::node(item, Queue::empty())
-    node(head, tail) => Queue::node(head, enqueue(tail, item))
+    empty() => Queue[E]::node(item, Queue[E]::empty())
+    node(head, tail) => Queue[E]::node(head, enqueue(tail, item))
   }
 }
 
-fn with_queue(scheduler : Scheduler, queue : Queue) -> Scheduler {
-  Scheduler::{ queue }
+fn[E : Effect] with_queue(scheduler : Scheduler[E], queue : Queue[E]) -> Scheduler[E] {
+  Scheduler[E]::{ queue }
 }
 
-fn run_task(task_value : Task) -> Step ! Log {
+fn[E : Effect] run_task(task_value : Task[E]) -> Step[E] ! E {
   match task_value {
     task[A](body) =>
       handle body() with {
-        Coroutine::yield(resume) => Step::yielded(
-          fn () -> Step ! Log {
+        Coroutine[E]::yield(resume) => Step[E]::yielded(
+          fn () -> Step[E] ! E {
             resume(())
           }
         )
-        Coroutine::spawn[B](body, resume) => Step::spawned[B](
+        Coroutine[E]::spawn[B](body, resume) => Step[E]::spawned[B](
           body,
-          fn () -> Step ! Log {
+          fn () -> Step[E] ! E {
             resume(())
           }
         )
       } final value {
-        Step::done()
+        Step[E]::done()
       }
   }
 }
 
-fn run_queue(scheduler : Scheduler) -> Scheduler ! Log {
+fn[E : Effect] run_queue(scheduler : Scheduler[E]) -> Scheduler[E] ! E {
   match scheduler.queue {
     empty() => scheduler
     node(runnable_step, rest) =>
@@ -95,17 +91,17 @@ fn run_queue(scheduler : Scheduler) -> Scheduler ! Log {
   }
 }
 
-fn run_step(step : Step, scheduler : Scheduler) -> Scheduler ! Log {
+fn[E : Effect] run_step(step : Step[E], scheduler : Scheduler[E]) -> Scheduler[E] ! E {
   match step {
     done() => run_queue(scheduler)
     yielded(resume) => run_queue(
-      with_queue(scheduler, enqueue(scheduler.queue, Runnable::runnable(resume)))
+      with_queue(scheduler, enqueue(scheduler.queue, Runnable[E]::runnable(resume)))
     )
     spawned[A](body, resume) => {
-      let child : Runnable =
-        Runnable::runnable(
-          fn () -> Step ! Log {
-            run_task(Task::task[A](body))
+      let child : Runnable[E] =
+        Runnable[E]::runnable(
+          fn () -> Step[E] ! E {
+            run_task(Task[E]::task[A](body))
           }
         )
       run_step(resume(), with_queue(scheduler, enqueue(scheduler.queue, child)))
@@ -113,9 +109,9 @@ fn run_step(step : Step, scheduler : Scheduler) -> Scheduler ! Log {
   }
 }
 
-fn collect_logs(scheduler : Scheduler) -> (Int) -> RunResult {
+fn collect_logs(scheduler : Scheduler[Log]) -> (Int) -> RunResult {
   handle run_queue(scheduler) with {
-    log(event, resume) => fn (checksum : Int) -> RunResult {
+    Log::log(event, resume) => fn (checksum : Int) -> RunResult {
       resume(())(checksum * 100 + event)
     }
   } final scheduler {
@@ -125,32 +121,32 @@ fn collect_logs(scheduler : Scheduler) -> (Int) -> RunResult {
   }
 }
 
-fn child() -> Bool ! { Coroutine, Log } {
+fn child() -> Bool ! { Coroutine[Log], Log } {
   let child_started : Unit = log(21)
-  let yielded : Unit = yield()
+  let child_yielded : Unit = Coroutine[Log]::yield!()
   let child_resumed : Unit = log(22)
   true
 }
 
-fn parent() -> Int ! { Coroutine, Log } {
+fn parent() -> Int ! { Coroutine[Log], Log } {
   let parent_started : Unit = log(11)
-  let spawned : Unit = spawn(child)
-  let parent_spawned_child : Unit = log(12)
-  let yielded : Unit = yield()
+  let child_spawned : Unit = spawn(child)
+  let parent_after_spawn : Unit = log(12)
+  let parent_yielded : Unit = Coroutine[Log]::yield!()
   let parent_resumed : Unit = log(13)
   40
 }
 
 let result : RunResult =
   collect_logs(
-    Scheduler::{
-      queue: Queue::node(
-        Runnable::runnable(
+    Scheduler[Log]::{
+      queue: Queue[Log]::node(
+        Runnable[Log]::runnable(
           fn () {
-            run_task(Task::task[Int](parent))
+            run_task(Task[Log]::task[Int](parent))
           }
         ),
-        Queue::empty()
+        Queue[Log]::empty()
       )
     }
   )(0)

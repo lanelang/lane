@@ -363,10 +363,22 @@ fn SemanticChecker::check_variant_symbol_pattern(
       loc,
     })
   }
-  let hidden_type_arguments = type_binders.map(fn(parameter) {
-    @types.Type::Parameter(parameter.symbol)
+  let hidden_type_arguments = type_binders.mapi(fn(index, parameter) {
+    let kind = match parameter.kind {
+      Some(kind) => check_resolved_kind(kind)
+      None =>
+        if index < variant_declaration.type_parameters.length() {
+          variant_declaration.type_parameters[index].kind
+        } else {
+          Type
+        }
+    }
+    match kind {
+      Effect => effect_parameter_argument(parameter.symbol)
+      _ => type_parameter_argument(parameter.symbol)
+    }
   })
-  let hidden_substitution = variant_type_substitution(
+  let hidden_substitution = variant_generic_argument_substitution(
     variant_declaration.type_parameters,
     hidden_type_arguments,
   )
@@ -395,6 +407,18 @@ fn SemanticChecker::check_variant_symbol_pattern(
     type_=expected,
     loc~,
   )
+}
+
+///|
+fn type_parameter_argument(symbol : TypeParameterId) -> @types.GenericArgument {
+  TypeArgument(Parameter(symbol))
+}
+
+///|
+fn effect_parameter_argument(
+  symbol : TypeParameterId,
+) -> @types.GenericArgument {
+  EffectArgument(Parameter(symbol))
 }
 
 ///|
@@ -482,7 +506,7 @@ fn SemanticChecker::check_struct_pattern(
   }
   guard self.declarations.checked_struct(symbol) is Some(declaration) else {
     self.diagnostics.push({
-      kind: NotAStruct(@types.nominal_type(symbol, type_arguments)),
+      kind: NotAStruct(@types.nominal_type_generic(symbol, type_arguments)),
       loc,
     })
     return Wildcard(type_=Error, loc~)
@@ -842,7 +866,7 @@ fn complete_constructor_signatures(
 fn variant_payload_types(
   declaration : CheckedEnumDeclaration,
   variant : CheckedVariantDeclaration,
-  arguments : Array[@types.Type],
+  arguments : Array[@types.GenericArgument],
 ) -> Array[@types.Type] {
   let substitution = variant_type_substitution(
     declaration.type_parameters,
@@ -854,7 +878,7 @@ fn variant_payload_types(
 ///|
 fn struct_field_types(
   declaration : CheckedStructDeclaration,
-  arguments : Array[@types.Type],
+  arguments : Array[@types.GenericArgument],
 ) -> Array[@types.Type] {
   let substitution = declaration.nominal_substitution(arguments)
   declaration.fields.map(fn(field) { field.type_.substitute(substitution) })

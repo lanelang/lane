@@ -175,7 +175,7 @@ pub(all) enum CheckedExpr {
   )
   TypeApplication(
     callee~ : CheckedExpr,
-    arguments~ : Array[@types.Type],
+    arguments~ : Array[@types.GenericArgument],
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
@@ -206,7 +206,7 @@ pub(all) enum CheckedExpr {
   )
   OperationCall(
     operation~ : OperationSymbolId,
-    type_witnesses~ : Array[@types.Type],
+    type_witnesses~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedExpr],
     effect~ : @types.Effect,
     type_~ : @types.Type,
@@ -228,7 +228,7 @@ pub(all) enum CheckedExpr {
   )
   StructLiteral(
     symbol~ : TypeSymbolId,
-    type_arguments~ : Array[@types.Type],
+    type_arguments~ : Array[@types.GenericArgument],
     type_witnesses~ : Array[CheckedStructTypeWitness],
     fields~ : Array[CheckedStructLiteralField],
     type_~ : @types.Type,
@@ -236,7 +236,7 @@ pub(all) enum CheckedExpr {
   )
   Variant(
     symbol~ : VariantSymbolId,
-    type_arguments~ : Array[@types.Type],
+    type_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedExpr],
     type_~ : @types.Type,
     loc~ : SourceSpan
@@ -308,7 +308,7 @@ pub(all) enum CheckedPattern {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : SourceSpan)
   Variant(
     symbol~ : VariantSymbolId,
-    type_arguments~ : Array[@types.Type],
+    type_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedPattern],
     type_~ : @types.Type,
     loc~ : SourceSpan

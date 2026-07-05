@@ -369,7 +369,7 @@ fn VerifyContext::synthesize_type_lambda(
 fn VerifyContext::synthesize_type_apply(
   self : VerifyContext,
   callee : Expr,
-  arguments : Array[Type],
+  arguments : Array[GenericArgument],
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> SynthesizedExpr {
@@ -391,8 +391,8 @@ fn VerifyContext::synthesize_type_apply(
       self.report(UnknownTypeParameter(parameters[index]))
       continue
     }
-    self.verify_type_kind(arguments[index], info.kind, type_scope)
-    substitution.insert(parameters[index], arguments[index])
+    self.verify_generic_argument_kind(arguments[index], info.kind, type_scope)
+    substitution.insert_argument(parameters[index], arguments[index])
   }
   { type_: body.substitute(substitution), effect: callee_result.effect }
 }
@@ -448,8 +448,8 @@ fn VerifyContext::synthesize_construct(
       self.report(UnknownTypeParameter(owner.parameters[index]))
       continue
     }
-    self.verify_type_kind(argument, parameter_info.kind, type_scope)
-    substitution.insert(owner.parameters[index], argument)
+    self.verify_generic_argument_kind(argument, parameter_info.kind, type_scope)
+    substitution.insert_argument(owner.parameters[index], argument)
   }
   for
     index in 0..<info.hidden_type_parameters
@@ -463,8 +463,8 @@ fn VerifyContext::synthesize_construct(
       self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
       continue
     }
-    self.verify_type_kind(witness, parameter_info.kind, type_scope)
-    substitution.insert(info.hidden_type_parameters[index], witness)
+    self.verify_generic_argument_kind(witness, parameter_info.kind, type_scope)
+    substitution.insert_argument(info.hidden_type_parameters[index], witness)
   }
   let effects = []
   for index in 0..<info.payload_types.length().min(construct.payloads.length()) {
@@ -523,12 +523,12 @@ fn VerifyContext::synthesize_perform(
       self.report(UnknownTypeParameter(owner.parameters[index]))
       continue
     }
-    self.verify_type_kind(
+    self.verify_generic_argument_kind(
       perform.effect_arguments[index],
       parameter_info.kind,
       type_scope,
     )
-    substitution.insert(
+    substitution.insert_argument(
       owner.parameters[index],
       perform.effect_arguments[index],
     )
@@ -545,8 +545,8 @@ fn VerifyContext::synthesize_perform(
       self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
       continue
     }
-    self.verify_type_kind(witness, parameter_info.kind, type_scope)
-    substitution.insert(info.hidden_type_parameters[index], witness)
+    self.verify_generic_argument_kind(witness, parameter_info.kind, type_scope)
+    substitution.insert_argument(info.hidden_type_parameters[index], witness)
   }
   if info.payload_types.length() != perform.payloads.length() {
     self.report(
@@ -657,7 +657,10 @@ fn VerifyContext::verify_operation_alternative(
       }
       if self.program.metadata.effect_info(info.owner) is Some(effect_info) {
         for index in 0..<effect_info.parameters.length().min(arguments.length()) {
-          substitution.insert(effect_info.parameters[index], arguments[index])
+          substitution.insert_argument(
+            effect_info.parameters[index],
+            arguments[index],
+          )
         }
       }
     }
@@ -685,7 +688,14 @@ fn VerifyContext::verify_operation_alternative(
         KindMismatch(expected=hidden_info.kind, actual=binder_info.kind),
       )
     }
-    substitution.insert(info.hidden_type_parameters[index], Parameter(binder))
+    if hidden_info.kind == Effect {
+      substitution.insert_effect(
+        info.hidden_type_parameters[index],
+        Parameter(binder),
+      )
+    } else {
+      substitution.insert(info.hidden_type_parameters[index], Parameter(binder))
+    }
     arm_type_scope.parameters.push(binder)
   }
   if alternative.payload_binders.length() != info.payload_types.length() {
@@ -924,13 +934,27 @@ fn VerifyContext::verify_data_alternative(
   }
   let substitution = TypeSubstitution::TypeSubstitution()
   for index in 0..<owner.parameters.length().min(type_arguments.length()) {
-    substitution.insert(owner.parameters[index], type_arguments[index])
+    substitution.insert_argument(owner.parameters[index], type_arguments[index])
   }
   for index in 0..<info.hidden_type_parameters.length() {
-    substitution.insert(
-      info.hidden_type_parameters[index],
-      Parameter(alternative.type_binders[index]),
-    )
+    guard self.program.metadata.type_parameter_info(
+        info.hidden_type_parameters[index],
+      )
+      is Some(hidden_info) else {
+      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
+      continue
+    }
+    if hidden_info.kind == Effect {
+      substitution.insert_effect(
+        info.hidden_type_parameters[index],
+        Parameter(alternative.type_binders[index]),
+      )
+    } else {
+      substitution.insert(
+        info.hidden_type_parameters[index],
+        Parameter(alternative.type_binders[index]),
+      )
+    }
   }
   for index in 0..<alternative.value_binders.length() {
     let binder = alternative.value_binders[index]
@@ -1035,6 +1059,24 @@ fn VerifyContext::verify_type_kind(
 }
 
 ///|
+fn VerifyContext::verify_generic_argument_kind(
+  self : VerifyContext,
+  argument : GenericArgument,
+  expected : Kind,
+  scope : TypeScope,
+) -> Unit {
+  match argument {
+    TypeArgument(type_) => self.verify_type_kind(type_, expected, scope)
+    EffectArgument(effect) => {
+      self.verify_effect(effect, scope)
+      if expected != Effect {
+        self.report(KindMismatch(expected~, actual=Effect))
+      }
+    }
+  }
+}
+
+///|
 fn VerifyContext::synthesize_type_kind(
   self : VerifyContext,
   type_ : Type,
@@ -1096,9 +1138,17 @@ fn VerifyContext::synthesize_type_kind(
       for index in 0..<arguments.length() {
         let argument = arguments[index]
         if index < parameter_kinds.length() {
-          self.verify_type_kind(argument, parameter_kinds[index], scope)
+          self.verify_generic_argument_kind(
+            argument,
+            parameter_kinds[index],
+            scope,
+          )
         } else {
-          ignore(self.synthesize_type_kind(argument, scope))
+          match argument {
+            TypeArgument(type_) =>
+              ignore(self.synthesize_type_kind(type_, scope))
+            EffectArgument(effect) => self.verify_effect(effect, scope)
+          }
         }
       }
       result_kind
@@ -1163,7 +1213,11 @@ fn VerifyContext::verify_effect(
           self.report(UnknownTypeParameter(info.parameters[index]))
           continue
         }
-        self.verify_type_kind(arguments[index], parameter_info.kind, scope)
+        self.verify_generic_argument_kind(
+          arguments[index],
+          parameter_info.kind,
+          scope,
+        )
       }
     }
     Parameter(parameter) => self.verify_effect_parameter(parameter, scope)
@@ -1344,7 +1398,7 @@ fn Expr::is_recursable_function(self : Expr) -> Bool {
 }
 
 ///|
-fn nominal_type(owner : TypeId, arguments : Array[Type]) -> Type {
+fn nominal_type(owner : TypeId, arguments : Array[GenericArgument]) -> Type {
   if arguments.is_empty() {
     Constructor(owner)
   } else {
@@ -1353,7 +1407,7 @@ fn nominal_type(owner : TypeId, arguments : Array[Type]) -> Type {
 }
 
 ///|
-fn decompose_nominal_type(type_ : Type) -> (TypeId, Array[Type])? {
+fn decompose_nominal_type(type_ : Type) -> (TypeId, Array[GenericArgument])? {
   match type_ {
     Constructor(owner) => Some((owner, []))
     Apply(Constructor(owner), arguments) => Some((owner, arguments))

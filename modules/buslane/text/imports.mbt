@@ -9,6 +9,7 @@ using @buslane {
   type EffectId,
   type EffectInfo,
   type Expr,
+  type GenericArgument,
   type HandlerTable,
   type Kind,
   type Literal,

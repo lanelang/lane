@@ -382,7 +382,7 @@ fn buslane_value_concat(
 fn BuslaneLowerer::lower_pattern_type_binders(
   self : BuslaneLowerer,
   data_constructor : @buslane.DataConId,
-  type_arguments : Array[@types.Type],
+  type_arguments : Array[@types.GenericArgument],
 ) -> Array[@buslane.TypeParameterId] {
   let lowered : Array[@buslane.TypeParameterId] = []
   let hidden_parameters = match
@@ -392,7 +392,12 @@ fn BuslaneLowerer::lower_pattern_type_binders(
   }
   for index in 0..<type_arguments.length() {
     let argument = type_arguments[index]
-    if argument is Parameter(parameter) {
+    let parameter = match argument {
+      TypeArgument(Parameter(parameter))
+      | EffectArgument(Parameter(parameter)) => Some(parameter)
+      _ => None
+    }
+    if parameter is Some(parameter) {
       let kind = match hidden_parameters.get(index) {
         Some(hidden) =>
           match self.metadata.type_parameter_info(hidden) {

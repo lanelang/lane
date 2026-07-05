@@ -94,11 +94,11 @@ pub impl @prettyprinter.Pretty for ResolvedEffectOperationName
 
 pub(all) enum ResolvedEffectTerm {
   Empty(loc~ : @basic.SourceSpan)
-  Singleton(symbol~ : @symbol.EffectSymbolId, name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  Singleton(symbol~ : @symbol.EffectSymbolId, name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
   Alias(name~ : String, arguments~ : Array[ResolvedEffectAliasArgument], loc~ : @basic.SourceSpan)
   Union(items~ : Array[ResolvedEffectTerm], loc~ : @basic.SourceSpan)
-  Unresolved(name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  Unresolved(name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedEffectTerm
 
@@ -128,12 +128,12 @@ pub(all) enum ResolvedExpr {
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   UnitLiteral(loc~ : @basic.SourceSpan)
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : @basic.SourceSpan)
-  QualifiedVariant(type_name~ : String, type_arguments~ : Array[ResolvedType], variant~ : String, variant_type_arguments~ : Array[ResolvedType], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
+  QualifiedVariant(type_name~ : String, type_arguments~ : Array[ResolvedGenericArgument], variant~ : String, variant_type_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
-  StructLiteral(type_name~ : String, type_arguments~ : Array[ResolvedType], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
+  StructLiteral(type_name~ : String, type_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
-  EffectOperationCall(name~ : ResolvedEffectOperationName, type_witnesses~ : Array[ResolvedType], arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : ResolvedEffectOperationName, type_witnesses~ : Array[ResolvedGenericArgument], arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   Handler(body~ : ResolvedExpr, handlers~ : Array[ResolvedHandlerWithBlock], final_branch~ : ResolvedHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[ResolvedLocalItem], result~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   If(condition~ : ResolvedExpr, then_branch~ : ResolvedExpr, else_branch~ : ResolvedExpr, loc~ : @basic.SourceSpan)
@@ -184,6 +184,12 @@ pub(all) struct ResolvedFunctionLiteralParameter {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedFunctionLiteralParameter
+
+pub(all) enum ResolvedGenericArgument {
+  TypeArgument(ResolvedType)
+  EffectArgument(ResolvedEffectTerm)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedGenericArgument
 
 pub(all) struct ResolvedHandlerFinalBranch {
   binder_symbol : @symbol.ValueSymbolId
@@ -331,11 +337,11 @@ pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : @basic.SourceSpan)
   Constructor(symbol~ : @symbol.TypeSymbolId, name~ : String, loc~ : @basic.SourceSpan)
   Alias(name~ : String, loc~ : @basic.SourceSpan)
-  Apply(callee~ : ResolvedType, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  Apply(callee~ : ResolvedType, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[ResolvedTypeParameter], body~ : ResolvedType, loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
   Function(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedType], result~ : ResolvedType, effect~ : ResolvedEffectTerm, loc~ : @basic.SourceSpan)
-  Unresolved(name~ : String, arguments~ : Array[ResolvedType], loc~ : @basic.SourceSpan)
+  Unresolved(name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedType
 

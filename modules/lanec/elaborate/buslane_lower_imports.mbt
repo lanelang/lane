@@ -198,7 +198,7 @@ fn BuslaneLowerer::imported_selector_type(
   let receiver = buslane_nominal_type(
     self.type_id(declaration.symbol),
     declaration.type_parameters.map(fn(parameter) {
-      Parameter(self.type_parameter_id(parameter.id))
+      self.lower_type_parameter_argument(parameter)
     }),
   )
   let function = @buslane.Type::Function(

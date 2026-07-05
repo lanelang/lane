@@ -85,11 +85,11 @@ pub impl @prettyprinter.Pretty for AnfProgram
 pub(all) enum AnfRhs {
   Atom(AnfAtom)
   Call(callee~ : AnfAtom, arguments~ : Array[AnfAtom], type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  OperationCall(operation~ : @symbol.OperationSymbolId, arguments~ : Array[AnfAtom], type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  TypeApplication(callee~ : AnfAtom, arguments~ : Array[@types.Type], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  OperationCall(operation~ : @symbol.OperationSymbolId, type_witnesses~ : Array[@types.GenericArgument], arguments~ : Array[AnfAtom], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  TypeApplication(callee~ : AnfAtom, arguments~ : Array[@types.GenericArgument], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Field(base~ : AnfAtom, field~ : @symbol.FieldSymbolId, name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  Struct(symbol~ : @symbol.TypeSymbolId, type_arguments~ : Array[@types.Type], type_witnesses~ : Array[@checked.CheckedStructTypeWitness], fields~ : Array[AnfStructField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  Variant(symbol~ : @symbol.VariantSymbolId, type_arguments~ : Array[@types.Type], arguments~ : Array[AnfAtom], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Struct(symbol~ : @symbol.TypeSymbolId, type_arguments~ : Array[@types.GenericArgument], type_witnesses~ : Array[@checked.CheckedStructTypeWitness], fields~ : Array[AnfStructField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Variant(symbol~ : @symbol.VariantSymbolId, type_arguments~ : Array[@types.GenericArgument], arguments~ : Array[AnfAtom], type_~ : @types.Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn AnfRhs::loc(Self) -> @basic.SourceSpan
 pub fn AnfRhs::type_(Self) -> @types.Type
@@ -142,8 +142,8 @@ pub impl @prettyprinter.Pretty for BuslaneAnfBinding
 
 pub(all) struct BuslaneAnfConstruct {
   data_constructor : @buslane.DataConId
-  type_arguments : Array[@buslane.Type]
-  hidden_witnesses : Array[@buslane.Type]
+  type_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
   payloads : Array[BuslaneAnfAtom]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for BuslaneAnfConstruct
@@ -197,8 +197,8 @@ pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative
 
 pub(all) struct BuslaneAnfPerform {
   operation : @buslane.OperationId
-  effect_arguments : Array[@buslane.Type]
-  hidden_witnesses : Array[@buslane.Type]
+  effect_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
   payloads : Array[BuslaneAnfAtom]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for BuslaneAnfPerform
@@ -218,7 +218,7 @@ pub impl @prettyprinter.Pretty for BuslaneAnfRecursiveBinding
 pub(all) enum BuslaneAnfRhs {
   Atom(BuslaneAnfAtom)
   Call(callee~ : BuslaneAnfAtom, arguments~ : Array[BuslaneAnfAtom])
-  TypeApply(callee~ : BuslaneAnfAtom, arguments~ : Array[@buslane.Type])
+  TypeApply(callee~ : BuslaneAnfAtom, arguments~ : Array[@buslane.GenericArgument])
   Construct(BuslaneAnfConstruct)
   Perform(BuslaneAnfPerform)
   Handle(BuslaneAnfHandle)

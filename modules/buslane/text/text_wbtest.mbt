@@ -70,7 +70,7 @@ test "buslane text roundtrips standalone type" {
     [{ index: 0 }],
     Function(
       [
-        Apply(Constructor({ index: 0 }), [Parameter({ index: 0 })]),
+        Apply(Constructor({ index: 0 }), [TypeArgument(Parameter({ index: 0 }))]),
         Function([Primitive(Int)], Primitive(Bool), Empty),
       ],
       Primitive(String),
@@ -90,7 +90,10 @@ test "buslane text roundtrips effectful function type" {
   let type_ : @buslane.Type = Function(
     [Primitive(String)],
     Primitive(Unit),
-    Union([Singleton({ index: 0 }, [Primitive(Int)]), Parameter({ index: 0 })]),
+    Union([
+      Singleton({ index: 0 }, [TypeArgument(Primitive(Int))]),
+      Parameter({ index: 0 }),
+    ]),
   )
   let text = CanonicalTextWriter::CanonicalTextWriter().write_type(type_)
   let decoded = match parse_type_text(text) {
@@ -199,7 +202,7 @@ test "buslane text roundtrips polymorphic operation witnesses" {
           body: Perform({
             operation: choose,
             effect_arguments: [],
-            hidden_witnesses: [int_type()],
+            hidden_witnesses: [TypeArgument(int_type())],
             payloads: [Literal(Int(40L)), Literal(Int(41L))],
           }),
           result_binder: final_binder,
@@ -244,12 +247,12 @@ test "buslane text roundtrips construct and match" {
   let scrutinee = metadata.define_value(
     "value",
     Value,
-    Apply(Constructor(option_type), [int_type()]),
+    Apply(Constructor(option_type), [TypeArgument(int_type())]),
   )
   let match_binder = metadata.define_value(
     "value",
     MatchBinder,
-    Apply(Constructor(option_type), [int_type()]),
+    Apply(Constructor(option_type), [TypeArgument(int_type())]),
   )
   let payload = metadata.define_value("value", Parameter, int_type())
   let program = @buslane.Program::{
@@ -259,7 +262,7 @@ test "buslane text roundtrips construct and match" {
         scrutinee,
         Construct({
           data_constructor: some,
-          type_arguments: [int_type()],
+          type_arguments: [TypeArgument(int_type())],
           hidden_witnesses: [],
           payloads: [Literal(Int(1L))],
         }),

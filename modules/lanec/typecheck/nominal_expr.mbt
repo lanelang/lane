@@ -5,9 +5,9 @@ fn SemanticChecker::synthesize_variant_call(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String?,
-  type_arguments : Array[@resolve.ResolvedType],
+  type_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
-  variant_type_arguments : Array[@resolve.ResolvedType],
+  variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
@@ -24,9 +24,9 @@ fn SemanticChecker::synthesize_checked_variant_call(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String?,
-  type_arguments : Array[@resolve.ResolvedType],
+  type_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
-  variant_type_arguments : Array[@resolve.ResolvedType],
+  variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
@@ -50,9 +50,9 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
-  type_arguments : Array[@resolve.ResolvedType],
+  type_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
-  variant_type_arguments : Array[@resolve.ResolvedType],
+  variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
@@ -152,8 +152,8 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   scope : TypeScope,
   symbol : VariantSymbolId,
   display_name : String,
-  explicit_type_arguments : Array[@resolve.ResolvedType],
-  explicit_variant_type_arguments : Array[@resolve.ResolvedType],
+  explicit_type_arguments : Array[@resolve.ResolvedGenericArgument],
+  explicit_variant_type_arguments : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
@@ -209,7 +209,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   if variant_declaration.payload.length() != arguments.length() {
     self.report_application_arity("variant arity", loc)
     return checked_expression_none_reported(
-      @types.nominal_type(metadata.owner, explicit_type_arguments),
+      @types.nominal_type_generic(metadata.owner, explicit_type_arguments),
     )
   }
   let type_arguments = if explicit_type_arguments.is_empty() &&
@@ -235,7 +235,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   guard hidden_type_arguments is Some(hidden_type_arguments) else {
     return checked_expression_none_reported(Error)
   }
-  let hidden_substitution = variant_type_substitution(
+  let hidden_substitution = variant_generic_argument_substitution(
     variant_declaration.type_parameters,
     hidden_type_arguments,
   )
@@ -258,7 +258,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     }
     effects.push(checked.effect)
   }
-  let type_ = @types.nominal_type(metadata.owner, type_arguments)
+  let type_ = @types.nominal_type_generic(metadata.owner, type_arguments)
   if complete {
     checked_expression_with_effect(
       Variant(
@@ -281,12 +281,12 @@ fn SemanticChecker::variant_hidden_type_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   variant : CheckedVariantDeclaration,
-  explicit : Array[@resolve.ResolvedType],
+  explicit : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   nominal_substitution : @types.TypeSubstitution,
   display_name : String,
   loc : SourceSpan,
-) -> Array[@types.Type]? {
+) -> Array[@types.GenericArgument]? {
   if !explicit.is_empty() {
     if explicit.length() != variant.type_parameters.length() {
       self.diagnostics.push({
@@ -299,9 +299,10 @@ fn SemanticChecker::variant_hidden_type_arguments(
       })
     }
     return Some(
-      check_resolved_type_arguments(
+      check_resolved_generic_arguments(
         self.resolved_source,
         self.diagnostics,
+        scope,
         variant.type_parameters,
         explicit,
       ),
@@ -340,13 +341,13 @@ fn SemanticChecker::infer_variant_type_arguments(
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
-) -> Array[@types.Type]? {
+) -> Array[@types.GenericArgument]? {
   let result_template = if expected_result is Some(_) {
     Some(
-      @types.nominal_type(
+      @types.nominal_type_generic(
         declaration.symbol,
         declaration.type_parameters.map(fn(parameter) {
-          Parameter(parameter.id)
+          parameter.generic_argument()
         }),
       ),
     )
@@ -370,7 +371,7 @@ fn SemanticChecker::infer_variant_type_arguments(
   }
   Some(
     declaration.type_parameters.map(fn(parameter) {
-      @types.Type::Parameter(parameter.id).substitute(inferred.substitution)
+      parameter.generic_argument().substitute(inferred.substitution)
     }),
   )
 }
@@ -378,7 +379,7 @@ fn SemanticChecker::infer_variant_type_arguments(
 ///|
 fn variant_type_substitution(
   parameters : Array[@types.TypeParameter],
-  arguments : Array[@types.Type],
+  arguments : Array[@types.GenericArgument],
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   let length = if parameters.length() < arguments.length() {
@@ -387,7 +388,24 @@ fn variant_type_substitution(
     arguments.length()
   }
   for index in 0..<length {
-    substitution.insert(parameters[index].id, arguments[index])
+    substitution.insert_argument(parameters[index].id, arguments[index])
+  }
+  substitution
+}
+
+///|
+fn variant_generic_argument_substitution(
+  parameters : Array[@types.TypeParameter],
+  arguments : Array[@types.GenericArgument],
+) -> @types.TypeSubstitution {
+  let substitution = @types.TypeSubstitution::TypeSubstitution()
+  let length = if parameters.length() < arguments.length() {
+    parameters.length()
+  } else {
+    arguments.length()
+  }
+  for index in 0..<length {
+    substitution.insert_argument(parameters[index].id, arguments[index])
   }
   substitution
 }
@@ -397,7 +415,7 @@ fn SemanticChecker::synthesize_struct_literal(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
-  type_arguments : Array[@resolve.ResolvedType],
+  type_arguments : Array[@resolve.ResolvedGenericArgument],
   fields : Array[@desugar.DesugaredStructLiteralField],
   loc : SourceSpan,
 ) -> @types.Type {
@@ -416,7 +434,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
-  type_arguments : Array[@resolve.ResolvedType],
+  type_arguments : Array[@resolve.ResolvedGenericArgument],
   fields : Array[@desugar.DesugaredStructLiteralField],
   expected : @types.Type?,
   loc : SourceSpan,
@@ -436,7 +454,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
       parameters,
       type_arguments,
     )
-    let type_ = @types.nominal_type(symbol, arguments)
+    let type_ = @types.nominal_type_generic(symbol, arguments)
     self.diagnostics.push({ kind: NotAStruct(type_), loc })
     return checked_expression_none_reported(Error)
   }
@@ -454,7 +472,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     arguments.length(),
     loc,
   )
-  let type_ = @types.nominal_type(symbol, arguments)
+  let type_ = @types.nominal_type_generic(symbol, arguments)
   let witnesses = self.check_struct_type_witnesses(
     struct_declaration, fields, loc,
   )
@@ -527,9 +545,9 @@ fn SemanticChecker::struct_literal_type_arguments(
   self : SemanticChecker,
   symbol : @symbol.TypeSymbolId,
   parameters : Array[@types.TypeParameter],
-  type_arguments : Array[@resolve.ResolvedType],
+  type_arguments : Array[@resolve.ResolvedGenericArgument],
   expected : @types.Type?,
-) -> Array[@types.Type] {
+) -> Array[@types.GenericArgument] {
   // Local type inference for `S::{ ... }` is intentionally one-way. If the
   // adjacent expected type is the same nominal constructor, omitted source type
   // arguments are copied from that expected type. Explicit source type

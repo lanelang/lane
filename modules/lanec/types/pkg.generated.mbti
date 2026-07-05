@@ -10,12 +10,16 @@ import {
 // Values
 pub fn nominal_type(@symbol.TypeSymbolId, Array[Type]) -> Type
 
+pub fn nominal_type_generic(@symbol.TypeSymbolId, Array[GenericArgument]) -> Type
+
+pub fn type_arguments(Array[Type]) -> Array[GenericArgument]
+
 // Errors
 
 // Types and methods
 pub(all) enum Effect {
   Empty
-  Singleton(@symbol.EffectSymbolId, Array[Type])
+  Singleton(@symbol.EffectSymbolId, Array[GenericArgument])
   Parameter(@symbol.TypeParameterId)
   Union(Array[Effect])
 } derive(@debug.Debug)
@@ -25,6 +29,14 @@ pub fn Effect::normalize(Self) -> Self
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Effect
 pub impl Eq for Effect
+
+pub(all) enum GenericArgument {
+  TypeArgument(Type)
+  EffectArgument(Effect)
+} derive(Eq, @debug.Debug)
+pub fn GenericArgument::normalize(Self) -> Self
+pub fn GenericArgument::substitute(Self, TypeSubstitution) -> Self
+pub impl @prettyprinter.Pretty for GenericArgument
 
 pub(all) enum Kind {
   Type
@@ -45,14 +57,14 @@ pub(all) enum Type {
   Error
   Primitive(PrimitiveType)
   Constructor(@symbol.TypeSymbolId)
-  Apply(Type, Array[Type])
+  Apply(Type, Array[GenericArgument])
   TypeLambda(Array[TypeParameter], Type)
   Parameter(@symbol.TypeParameterId)
   Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameter], Type)
 } derive(@debug.Debug)
 pub fn Type::alpha_equal(Self, Self) -> Bool
-pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[Self])?
+pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[GenericArgument])?
 pub fn Type::equals(Self, Self) -> Bool
 pub fn Type::normalize(Self) -> Self
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
@@ -64,6 +76,7 @@ pub(all) struct TypeParameter {
   name : String
   kind : Kind
 } derive(Eq, @debug.Debug)
+pub fn TypeParameter::generic_argument(Self) -> GenericArgument
 pub impl @prettyprinter.Pretty for TypeParameter
 
 pub struct TypeSubstitution {
@@ -71,12 +84,14 @@ pub struct TypeSubstitution {
 } derive(Eq, @debug.Debug)
 pub fn TypeSubstitution::TypeSubstitution() -> Self
 pub fn TypeSubstitution::insert(Self, @symbol.TypeParameterId, Type) -> Unit
+pub fn TypeSubstitution::insert_argument(Self, @symbol.TypeParameterId, GenericArgument) -> Unit
+pub fn TypeSubstitution::insert_effect(Self, @symbol.TypeParameterId, Effect) -> Unit
 pub fn TypeSubstitution::single(@symbol.TypeParameterId, Type) -> Self
 pub impl @prettyprinter.Pretty for TypeSubstitution
 
 pub struct TypeSubstitutionEntry {
   parameter : @symbol.TypeParameterId
-  replacement : Type
+  replacement : GenericArgument
 } derive(Eq, @debug.Debug)
 
 // Type aliases

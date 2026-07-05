@@ -108,13 +108,14 @@ pub(all) enum AnfRhs {
   )
   OperationCall(
     operation~ : OperationSymbolId,
+    type_witnesses~ : Array[@types.GenericArgument],
     arguments~ : Array[AnfAtom],
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
   TypeApplication(
     callee~ : AnfAtom,
-    arguments~ : Array[@types.Type],
+    arguments~ : Array[@types.GenericArgument],
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
@@ -127,7 +128,7 @@ pub(all) enum AnfRhs {
   )
   Struct(
     symbol~ : TypeSymbolId,
-    type_arguments~ : Array[@types.Type],
+    type_arguments~ : Array[@types.GenericArgument],
     type_witnesses~ : Array[@checked.CheckedStructTypeWitness],
     fields~ : Array[AnfStructField],
     type_~ : @types.Type,
@@ -135,7 +136,7 @@ pub(all) enum AnfRhs {
   )
   Variant(
     symbol~ : VariantSymbolId,
-    type_arguments~ : Array[@types.Type],
+    type_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[AnfAtom],
     type_~ : @types.Type,
     loc~ : SourceSpan

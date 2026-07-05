@@ -281,7 +281,7 @@ test "evaluate buslane nominal data match" {
     Parameter(option_parameter),
   ])
   let option_int = @buslane.Type::Apply(Constructor(option_type), [
-    Primitive(Int),
+    TypeArgument(Primitive(Int)),
   ])
   let scrutinee = metadata.define_value("value", Value, option_int)
   let result = metadata.define_value("value", Value, Primitive(Int))
@@ -294,7 +294,7 @@ test "evaluate buslane nominal data match" {
         scrutinee,
         Construct({
           data_constructor: some,
-          type_arguments: [Primitive(Int)],
+          type_arguments: [TypeArgument(Primitive(Int))],
           hidden_witnesses: [],
           payloads: [Literal(Int(7L))],
         }),

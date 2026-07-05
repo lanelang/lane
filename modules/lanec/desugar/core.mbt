@@ -132,16 +132,16 @@ pub(all) enum DesugaredExpr {
   )
   VariantCall(
     type_name~ : String?,
-    type_arguments~ : Array[@resolve.ResolvedType],
+    type_arguments~ : Array[@resolve.ResolvedGenericArgument],
     variant~ : String,
-    variant_type_arguments~ : Array[@resolve.ResolvedType],
+    variant_type_arguments~ : Array[@resolve.ResolvedGenericArgument],
     reference~ : @resolve.ResolvedVariantReference,
     arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )
   StructLiteral(
     type_name~ : String,
-    type_arguments~ : Array[@resolve.ResolvedType],
+    type_arguments~ : Array[@resolve.ResolvedGenericArgument],
     fields~ : Array[DesugaredStructLiteralField],
     loc~ : SourceSpan
   )
@@ -156,7 +156,7 @@ pub(all) enum DesugaredExpr {
   )
   EffectOperationCall(
     name~ : @resolve.ResolvedEffectOperationName,
-    type_witnesses~ : Array[@resolve.ResolvedType],
+    type_witnesses~ : Array[@resolve.ResolvedGenericArgument],
     arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )

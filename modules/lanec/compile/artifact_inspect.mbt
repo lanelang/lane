@@ -362,7 +362,7 @@ fn ArtifactInspectContext::add_type_parameters_from_type(
     Apply(callee, arguments) => {
       self.add_type_parameters_from_type(callee)
       for argument in arguments {
-        self.add_type_parameters_from_type(argument)
+        self.add_type_parameters_from_generic_argument(argument)
       }
     }
     TypeLambda(parameters, body) | Forall(parameters, body) => {
@@ -389,13 +389,24 @@ fn ArtifactInspectContext::add_type_parameters_from_effect(
     Empty => ()
     Singleton(_, arguments) =>
       for argument in arguments {
-        self.add_type_parameters_from_type(argument)
+        self.add_type_parameters_from_generic_argument(argument)
       }
     Parameter(_) => ()
     Union(effects) =>
       for effect in effects {
         self.add_type_parameters_from_effect(effect)
       }
+  }
+}
+
+///|
+fn ArtifactInspectContext::add_type_parameters_from_generic_argument(
+  self : ArtifactInspectContext,
+  argument : @types.GenericArgument,
+) -> Unit {
+  match argument {
+    TypeArgument(type_) => self.add_type_parameters_from_type(type_)
+    EffectArgument(effect) => self.add_type_parameters_from_effect(effect)
   }
 }
 
@@ -563,7 +574,7 @@ fn ArtifactInspectContext::type_text(
     Primitive(primitive) => lane_primitive_text(primitive)
     Constructor(symbol) => self.type_symbol_text(symbol)
     Apply(callee, arguments) =>
-      "\{self.type_text(callee)}[\{arguments.map(fn(argument) { self.type_text(argument) }).join(", ")}]"
+      "\{self.type_text(callee)}[\{arguments.map(fn(argument) { self.generic_argument_text(argument) }).join(", ")}]"
     TypeLambda(parameters, body) => {
       let context = self.with_type_parameters(parameters)
       "type [\{context.type_parameter_bindings_text(parameters)}] => \{context.type_text(body)}"
@@ -599,7 +610,7 @@ fn ArtifactInspectContext::effect_text(
       if arguments.is_empty() {
         self.effect_symbol_text(symbol)
       } else {
-        "\{self.effect_symbol_text(symbol)}[\{arguments.map(fn(argument) { self.type_text(argument) }).join(", ")}]"
+        "\{self.effect_symbol_text(symbol)}[\{arguments.map(fn(argument) { self.generic_argument_text(argument) }).join(", ")}]"
       }
     Parameter(id) => self.type_parameter_text(id)
     Union(effects) =>
@@ -650,6 +661,17 @@ fn ArtifactInspectContext::type_arguments_text(
     "()"
   } else {
     "(\{arguments.map(fn(argument) { self.type_text(argument) }).join(", ")})"
+  }
+}
+
+///|
+fn ArtifactInspectContext::generic_argument_text(
+  self : ArtifactInspectContext,
+  argument : @types.GenericArgument,
+) -> String {
+  match argument {
+    TypeArgument(type_) => self.type_text(type_)
+    EffectArgument(effect) => self.effect_text(effect)
   }
 }
 
@@ -746,7 +768,7 @@ fn BuslaneInspectContext::type_text(
     Parameter(id) => self.type_parameter_text(id)
     Constructor(id) => self.type_id_text(id)
     Apply(callee, arguments) =>
-      "\{self.type_text(callee)}[\{arguments.map(fn(argument) { self.type_text(argument) }).join(", ")}]"
+      "\{self.type_text(callee)}[\{arguments.map(fn(argument) { self.generic_argument_text(argument) }).join(", ")}]"
     TypeLambda(parameters, body) =>
       "type [\{self.type_parameter_bindings_text(parameters)}] => \{self.type_text(body)}"
     Function(parameters, result, effect) => {
@@ -777,7 +799,7 @@ fn BuslaneInspectContext::effect_text(
       if arguments.is_empty() {
         self.effect_id_text(id)
       } else {
-        "\{self.effect_id_text(id)}[\{arguments.map(fn(argument) { self.type_text(argument) }).join(", ")}]"
+        "\{self.effect_id_text(id)}[\{arguments.map(fn(argument) { self.generic_argument_text(argument) }).join(", ")}]"
       }
     Parameter(id) => self.type_parameter_text(id)
     Union(effects) =>
@@ -798,6 +820,17 @@ fn BuslaneInspectContext::type_parameter_bindings_text(
     }
   })
   .join(", ")
+}
+
+///|
+fn BuslaneInspectContext::generic_argument_text(
+  self : BuslaneInspectContext,
+  argument : @buslane.GenericArgument,
+) -> String {
+  match argument {
+    TypeArgument(type_) => self.type_text(type_)
+    EffectArgument(effect) => self.effect_text(effect)
+  }
 }
 
 ///|

@@ -70,7 +70,7 @@ pub(all) enum Type {
   Primitive(PrimitiveType)
   Parameter(TypeParameterId)
   Constructor(TypeId)
-  Apply(Type, Array[Type])
+  Apply(Type, Array[GenericArgument])
   TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
@@ -79,10 +79,16 @@ pub(all) enum Type {
 ///|
 pub(all) enum Effect {
   Empty
-  Singleton(EffectId, Array[Type])
+  Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
 } derive(Debug)
+
+///|
+pub(all) enum GenericArgument {
+  TypeArgument(Type)
+  EffectArgument(Effect)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum Literal {
@@ -186,8 +192,8 @@ pub(all) struct FunctionExpr {
 ///|
 pub(all) struct ConstructExpr {
   data_constructor : DataConId
-  type_arguments : Array[Type]
-  hidden_witnesses : Array[Type]
+  type_arguments : Array[GenericArgument]
+  hidden_witnesses : Array[GenericArgument]
   payloads : Array[Expr]
 } derive(Debug, Eq)
 
@@ -202,8 +208,8 @@ pub(all) struct MatchExpr {
 ///|
 pub(all) struct PerformExpr {
   operation : OperationId
-  effect_arguments : Array[Type]
-  hidden_witnesses : Array[Type]
+  effect_arguments : Array[GenericArgument]
+  hidden_witnesses : Array[GenericArgument]
   payloads : Array[Expr]
 } derive(Debug, Eq)
 
@@ -253,7 +259,7 @@ pub(all) enum Expr {
   Function(FunctionExpr)
   Call(Expr, Array[Expr])
   TypeLambda(Array[TypeParameterId], Expr)
-  TypeApply(Expr, Array[Type])
+  TypeApply(Expr, Array[GenericArgument])
   Construct(ConstructExpr)
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
@@ -498,7 +504,7 @@ fn alpha_equal_with(
     (Constructor(left_id), Constructor(right_id)) => left_id == right_id
     (Apply(left_callee, left_args), Apply(right_callee, right_args)) =>
       alpha_equal_with(bindings, left_callee, right_callee) &&
-      same_length_alpha_equal(bindings, left_args, right_args)
+      same_length_generic_argument_alpha_equal(bindings, left_args, right_args)
     (TypeLambda(left_params, left_body), TypeLambda(right_params, right_body)) =>
       alpha_equal_binders(
         bindings, left_params, right_params, left_body, right_body,
@@ -595,7 +601,9 @@ fn alpha_equal_effect_term_with(
   match (left, right) {
     (Singleton(left_id, left_arguments), Singleton(right_id, right_arguments)) =>
       left_id == right_id &&
-      same_length_alpha_equal(bindings, left_arguments, right_arguments)
+      same_length_generic_argument_alpha_equal(
+        bindings, left_arguments, right_arguments,
+      )
     (Parameter(left), Parameter(right)) =>
       alpha_equal_parameter(bindings, left, right)
     _ => false
@@ -638,6 +646,38 @@ fn same_length_alpha_equal(
 }
 
 ///|
+fn same_length_generic_argument_alpha_equal(
+  bindings : Array[AlphaBinding],
+  left : Array[GenericArgument],
+  right : Array[GenericArgument],
+) -> Bool {
+  if left.length() != right.length() {
+    return false
+  }
+  for index in 0..<left.length() {
+    if !generic_argument_alpha_equal_with(bindings, left[index], right[index]) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn generic_argument_alpha_equal_with(
+  bindings : Array[AlphaBinding],
+  left : GenericArgument,
+  right : GenericArgument,
+) -> Bool {
+  match (left, right) {
+    (TypeArgument(left), TypeArgument(right)) =>
+      alpha_equal_with(bindings, left, right)
+    (EffectArgument(left), EffectArgument(right)) =>
+      alpha_equal_effect_with(bindings, left, right)
+    _ => false
+  }
+}
+
+///|
 fn alpha_equal_parameter(
   bindings : Array[AlphaBinding],
   left : TypeParameterId,
@@ -654,7 +694,7 @@ fn alpha_equal_parameter(
 ///|
 pub struct TypeSubstitutionEntry {
   parameter : TypeParameterId
-  replacement : Type
+  replacement : GenericArgument
 } derive(Debug, Eq)
 
 ///|
@@ -673,15 +713,33 @@ pub fn TypeSubstitution::insert(
   parameter : TypeParameterId,
   replacement : Type,
 ) -> Unit {
+  self.entries.push({ parameter, replacement: TypeArgument(replacement) })
+}
+
+///|
+pub fn TypeSubstitution::insert_effect(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+  replacement : Effect,
+) -> Unit {
+  self.entries.push({ parameter, replacement: EffectArgument(replacement) })
+}
+
+///|
+pub fn TypeSubstitution::insert_argument(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+  replacement : GenericArgument,
+) -> Unit {
   self.entries.push({ parameter, replacement })
 }
 
 ///|
-fn TypeSubstitution::lookup(
+fn TypeSubstitution::lookup_argument(
   self : TypeSubstitution,
   parameter : TypeParameterId,
   bound : Array[TypeParameterId],
-) -> Type? {
+) -> GenericArgument? {
   if bound.contains(parameter) {
     return None
   }
@@ -691,6 +749,60 @@ fn TypeSubstitution::lookup(
     }
   }
   None
+}
+
+///|
+fn TypeSubstitution::lookup_type(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+  bound : Array[TypeParameterId],
+) -> Type? {
+  match self.lookup_argument(parameter, bound) {
+    Some(TypeArgument(type_)) => Some(type_)
+    _ => None
+  }
+}
+
+///|
+fn TypeSubstitution::lookup_effect(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+  bound : Array[TypeParameterId],
+) -> Effect? {
+  match self.lookup_argument(parameter, bound) {
+    Some(EffectArgument(effect)) => Some(effect)
+    _ => None
+  }
+}
+
+///|
+pub fn GenericArgument::normalize(self : GenericArgument) -> GenericArgument {
+  self.normalize_with_fuel(1024)
+}
+
+///|
+fn GenericArgument::normalize_with_fuel(
+  self : GenericArgument,
+  fuel : Int,
+) -> GenericArgument {
+  match self {
+    TypeArgument(type_) => TypeArgument(type_.normalize_with_fuel(fuel))
+    EffectArgument(effect) => EffectArgument(effect.normalize_with_fuel(fuel))
+  }
+}
+
+///|
+fn GenericArgument::substitute_with_bound(
+  self : GenericArgument,
+  substitution : TypeSubstitution,
+  bound : Array[TypeParameterId],
+) -> GenericArgument {
+  match self {
+    TypeArgument(type_) =>
+      TypeArgument(type_.substitute_with_bound(substitution, bound))
+    EffectArgument(effect) =>
+      EffectArgument(effect.substitute_types_with_bound(substitution, bound))
+  }
 }
 
 ///|
@@ -717,7 +829,7 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
           } else {
             let substitution = TypeSubstitution::TypeSubstitution()
             for index in 0..<parameters.length() {
-              substitution.insert(
+              substitution.insert_argument(
                 parameters[index],
                 normalized_arguments[index],
               )
@@ -771,7 +883,7 @@ fn Type::substitute_with_bound(
   match self {
     Primitive(_) | Constructor(_) => self
     Parameter(parameter) =>
-      match substitution.lookup(parameter, bound) {
+      match substitution.lookup_type(parameter, bound) {
         Some(replacement) => replacement
         None => self
       }
@@ -817,7 +929,12 @@ fn Effect::substitute_types_with_bound(
   bound : Array[TypeParameterId],
 ) -> Effect {
   match self {
-    Empty | Parameter(_) => self
+    Empty => self
+    Parameter(parameter) =>
+      match substitution.lookup_effect(parameter, bound) {
+        Some(replacement) => replacement
+        None => self
+      }
     Singleton(id, arguments) =>
       Singleton(
         id,

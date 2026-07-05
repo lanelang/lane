@@ -223,7 +223,7 @@ pub(all) enum ResolvedType {
   Alias(name~ : String, loc~ : SourceSpan)
   Apply(
     callee~ : ResolvedType,
-    arguments~ : Array[ResolvedType],
+    arguments~ : Array[ResolvedGenericArgument],
     loc~ : SourceSpan
   )
   TypeLambda(
@@ -241,7 +241,7 @@ pub(all) enum ResolvedType {
   )
   Unresolved(
     name~ : String,
-    arguments~ : Array[ResolvedType],
+    arguments~ : Array[ResolvedGenericArgument],
     loc~ : SourceSpan
   )
 } derive(Debug, Eq)
@@ -252,7 +252,7 @@ pub(all) enum ResolvedEffectTerm {
   Singleton(
     symbol~ : EffectSymbolId,
     name~ : String,
-    arguments~ : Array[ResolvedType],
+    arguments~ : Array[ResolvedGenericArgument],
     loc~ : SourceSpan
   )
   Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)
@@ -264,13 +264,19 @@ pub(all) enum ResolvedEffectTerm {
   Union(items~ : Array[ResolvedEffectTerm], loc~ : SourceSpan)
   Unresolved(
     name~ : String,
-    arguments~ : Array[ResolvedType],
+    arguments~ : Array[ResolvedGenericArgument],
     loc~ : SourceSpan
   )
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum ResolvedEffectAliasArgument {
+  TypeArgument(ResolvedType)
+  EffectArgument(ResolvedEffectTerm)
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedGenericArgument {
   TypeArgument(ResolvedType)
   EffectArgument(ResolvedEffectTerm)
 } derive(Debug, Eq)
@@ -418,9 +424,9 @@ pub(all) enum ResolvedExpr {
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : SourceSpan)
   QualifiedVariant(
     type_name~ : String,
-    type_arguments~ : Array[ResolvedType],
+    type_arguments~ : Array[ResolvedGenericArgument],
     variant~ : String,
-    variant_type_arguments~ : Array[ResolvedType],
+    variant_type_arguments~ : Array[ResolvedGenericArgument],
     reference~ : ResolvedVariantReference,
     arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan
@@ -433,7 +439,7 @@ pub(all) enum ResolvedExpr {
   )
   StructLiteral(
     type_name~ : String,
-    type_arguments~ : Array[ResolvedType],
+    type_arguments~ : Array[ResolvedGenericArgument],
     fields~ : Array[ResolvedStructLiteralField],
     loc~ : SourceSpan
   )
@@ -448,7 +454,7 @@ pub(all) enum ResolvedExpr {
   )
   EffectOperationCall(
     name~ : ResolvedEffectOperationName,
-    type_witnesses~ : Array[ResolvedType],
+    type_witnesses~ : Array[ResolvedGenericArgument],
     arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan
   )

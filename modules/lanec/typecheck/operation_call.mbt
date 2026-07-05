@@ -1,7 +1,7 @@
 ///|
 priv struct OperationCallSignature {
   operation : OperationSymbolId
-  type_witnesses : Array[@types.Type]
+  type_witnesses : Array[@types.GenericArgument]
   type_binders : Array[@types.TypeParameter]
   payload : Array[@types.Type]
   result : @types.Type
@@ -13,7 +13,7 @@ fn SemanticChecker::operation_call_signature(
   self : SemanticChecker,
   scope : TypeScope,
   name : @resolve.ResolvedEffectOperationName,
-  type_witnesses : Array[@resolve.ResolvedType],
+  type_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
@@ -80,7 +80,20 @@ fn SemanticChecker::handler_operation_signature(
     return None
   }
   let owner_substitution = self.operation_owner_substitution(effect, operation)
-  let checked_binders = check_type_parameters(self.diagnostics, type_binders)
+  let checked_binders = []
+  for index in 0..<type_binders.length() {
+    let binder = type_binders[index]
+    if index < declaration.type_parameters.length() && binder.kind is None {
+      checked_binders.push(
+        checked_type_parameter_with_kind(
+          binder,
+          declaration.type_parameters[index].kind,
+        ),
+      )
+    } else {
+      checked_binders.push(checked_type_parameter(binder))
+    }
+  }
   if checked_binders.length() != declaration.type_parameters.length() {
     self.report_application_arity("effect operation type binders", loc)
     return None
@@ -92,10 +105,17 @@ fn SemanticChecker::handler_operation_signature(
     if actual != expected {
       self.diagnostics.push({ kind: KindMismatch(expected~, actual~), loc })
     }
-    hidden_substitution.insert(
-      declaration.type_parameters[index].id,
-      Parameter(checked_binders[index].id),
-    )
+    if expected == Effect {
+      hidden_substitution.insert_effect(
+        declaration.type_parameters[index].id,
+        Parameter(checked_binders[index].id),
+      )
+    } else {
+      hidden_substitution.insert(
+        declaration.type_parameters[index].id,
+        Parameter(checked_binders[index].id),
+      )
+    }
   }
   Some({
     operation,
@@ -113,7 +133,7 @@ fn SemanticChecker::handler_operation_signature(
 
 ///|
 priv struct OperationTypeWitnesses {
-  type_witnesses : Array[@types.Type]
+  type_witnesses : Array[@types.GenericArgument]
   substitution : @types.TypeSubstitution
 }
 
@@ -124,7 +144,7 @@ fn SemanticChecker::operation_type_witnesses(
   declaration : CheckedEffectOperationDeclaration,
   payload_templates : Array[@types.Type],
   result_template : @types.Type,
-  type_witnesses : Array[@resolve.ResolvedType],
+  type_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
@@ -156,16 +176,20 @@ fn SemanticChecker::operation_type_witnesses(
       inferred.type_arguments
     }
   } else {
-    check_resolved_type_arguments(
+    check_resolved_generic_arguments(
       self.resolved_source,
       self.diagnostics,
+      scope,
       declaration.type_parameters,
       type_witnesses,
     )
   }
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for index in 0..<checked.length().min(declaration.type_parameters.length()) {
-    substitution.insert(declaration.type_parameters[index].id, checked[index])
+    substitution.insert_argument(
+      declaration.type_parameters[index].id,
+      checked[index],
+    )
   }
   Some({ type_witnesses: checked, substitution })
 }
@@ -250,7 +274,7 @@ fn SemanticChecker::operation_owner_substitution(
   if effect is Singleton(symbol, arguments) && symbol == metadata.owner {
     for index in 0..<arguments.length() {
       if index < declaration.type_parameters.length() {
-        substitution.insert(
+        substitution.insert_argument(
           declaration.type_parameters[index].id,
           arguments[index],
         )
@@ -265,7 +289,7 @@ fn SemanticChecker::check_operation_call(
   self : SemanticChecker,
   scope : TypeScope,
   name : @resolve.ResolvedEffectOperationName,
-  type_witnesses : Array[@resolve.ResolvedType],
+  type_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,
@@ -298,7 +322,7 @@ fn SemanticChecker::synthesize_checked_operation_call(
   self : SemanticChecker,
   scope : TypeScope,
   name : @resolve.ResolvedEffectOperationName,
-  type_witnesses : Array[@resolve.ResolvedType],
+  type_witnesses : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
   loc : SourceSpan,

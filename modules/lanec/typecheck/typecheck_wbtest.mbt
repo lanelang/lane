@@ -2881,6 +2881,98 @@ test "typecheck infers effect operation type witnesses from payloads" {
 }
 
 ///|
+test "typecheck accepts effect-kind generic witnesses for operations and variants" {
+  let result = expect_checked_source_result(
+    (
+      #|effect Log {
+      #|  log(Int) -> Unit
+      #|}
+      #|effect Coroutine[E : Effect] {
+      #|  yield() -> Unit
+      #|  spawn[A](() -> A ! { Coroutine[E], E }) -> Unit
+      #|}
+      #|enum Task[E : Effect] {
+      #|  task[A](() -> A ! { Coroutine[E], E })
+      #|}
+      #|enum Packed[E : Effect] {
+      #|  pack[A](() -> A ! { Coroutine[E], E })
+      #|}
+      #|fn child() -> Bool ! { Coroutine[Log], Log } {
+      #|  let ignored_yield : Unit = Coroutine[Log]::yield!()
+      #|  let ignored_log : Unit = Log::log!(1)
+      #|  true
+      #|}
+      #|fn[A, E : Effect] spawn(body : () -> A ! { Coroutine[E], E }) -> Unit ! Coroutine[E] {
+      #|  Coroutine[E]::spawn![A](body)
+      #|}
+      #|fn parent() -> Unit ! Coroutine[Log] {
+      #|  let ignored_spawn : Unit = Coroutine[Log]::spawn![Bool](child)
+      #|  spawn(child)
+      #|}
+      #|let task : Task[Log] = Task[Log]::task[Bool](child)
+      #|fn[E : Effect] pack_spawn(body : () -> Bool ! { Coroutine[E], E }) -> Packed[E] {
+      #|  handle Coroutine[E]::spawn![Bool](body) with {
+      #|    Coroutine[E]::yield(resume) => Packed[E]::pack[Bool](body)
+      #|    Coroutine[E]::spawn[A](body, resume) => Packed[E]::pack[A](body)
+      #|  } final value {
+      #|    Packed[E]::pack[Bool](body)
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    effect Log#0 {
+      #|      log#0(Int) -> Unit
+      #|    }
+      #|    effect Coroutine#1[E#0 : Effect] {
+      #|      yield#1 -> Unit
+      #|      spawn#2[A#1 : Type](() -> tparam#1 ! {effect#1[tparam#0], tparam#0}) -> Unit
+      #|    }
+      #|    enum Task#0[E#2 : Effect] {
+      #|      task#0[A#3 : Type](() -> tparam#3 ! {effect#1[tparam#2], tparam#2})
+      #|    }
+      #|    enum Packed#1[E#4 : Effect] {
+      #|      pack#1[A#5 : Type](() -> tparam#5 ! {effect#1[tparam#4], tparam#4})
+      #|    }
+      #|    fn child#0() -> Bool {
+      #|      let ignored_yield#5 : Unit = operation#1!()
+      #|      let ignored_log#6 : Unit = operation#0!(1)
+      #|      true
+      #|    }
+      #|    fn[A#6 : Type, E#7 : Effect] spawn#1(body#7 : () -> tparam#6 ! {effect#1[tparam#7], tparam#7}) -> Unit {
+      #|      operation#2![tparam#6](body#7)
+      #|    }
+      #|    fn parent#2() -> Unit {
+      #|      let ignored_spawn#8 : Unit = operation#2![Bool](child#0)
+      #|      spawn#1[Bool, effect#0](child#0)
+      #|    }
+      #|    let task#3 : type#0[effect#0] = variant#0[Bool](child#0)
+      #|    fn[E#8 : Effect] pack_spawn#4(body#9 : () -> Bool ! {effect#1[tparam#8], tparam#8}) -> type#1[
+      #|      tparam#8
+      #|    ] {
+      #|      {
+      #|        handle operation#2![Bool](body#9)
+      #|        with effect#1[tparam#8] {
+      #|          operation#1(resume#10) => variant#1[Bool](body#9)
+      #|          operation#2[A#9 : Type](body#11, resume#12) => variant#1[tparam#9](body#11)
+      #|        }
+      #|        final value#13 {
+      #|          variant#1[Bool](body#9)
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
 test "typecheck rejects effect operation type witness arity mismatch" {
   let result = expect_typecheck_result(
     (

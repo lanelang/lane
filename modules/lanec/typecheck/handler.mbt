@@ -204,6 +204,9 @@ fn handler_operation_scope(
   residual_effect : @types.Effect,
 ) -> TypeScope {
   let arm_scope = scope.copy()
+  for type_binder in checked.type_binders {
+    arm_scope.bind_type_parameter_kind(type_binder.id, type_binder.kind)
+  }
   for pattern in checked.payload_patterns {
     arm_scope.bind_checked_pattern(pattern)
   }
@@ -221,14 +224,29 @@ fn TypeScope::bind_checked_pattern(
 ) -> Unit {
   match pattern {
     Binding(symbol~, type_~, ..) => self.bind(symbol, type_)
-    Variant(arguments~, ..) =>
+    Variant(type_arguments~, arguments~, ..) => {
+      for argument in type_arguments {
+        match argument {
+          TypeArgument(Parameter(id)) => self.bind_type_parameter_kind(id, Type)
+          EffectArgument(Parameter(id)) =>
+            self.bind_type_parameter_kind(id, Effect)
+          _ => ()
+        }
+      }
       for argument in arguments {
         self.bind_checked_pattern(argument)
       }
-    Struct(fields~, ..) =>
+    }
+    Struct(type_binders~, fields~, ..) => {
+      for binder in type_binders {
+        if binder.type_parameter is Some(parameter) {
+          self.bind_type_parameter_kind(parameter.id, parameter.kind)
+        }
+      }
       for field in fields {
         self.bind_checked_pattern(field.pattern)
       }
+    }
     Wildcard(..) | Literal(..) => ()
   }
 }

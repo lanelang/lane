@@ -189,7 +189,7 @@ expr -> Expr
     Function({ parameters: $3, result_type: $5, body: $8 })
   }
   | "call" "(" expr "," expr_list ")" { Call($3, $5) }
-  | "perform" "(" operation_id "," type_list "," type_list "," expr_list ")" {
+  | "perform" "(" operation_id "," generic_argument_list "," generic_argument_list "," expr_list ")" {
     Perform({
       operation: $3,
       effect_arguments: $5,
@@ -201,8 +201,8 @@ expr -> Expr
   | "type_fn" "(" type_parameter_id_list ")" "{" expr "}" {
     TypeLambda($3, $6)
   }
-  | "type_apply" "(" expr "," type_list ")" { TypeApply($3, $5) }
-  | "construct" "(" data_con_id "," type_list "," type_list "," expr_list ")" {
+  | "type_apply" "(" expr "," generic_argument_list ")" { TypeApply($3, $5) }
+  | "construct" "(" data_con_id "," generic_argument_list "," generic_argument_list "," expr_list ")" {
     Construct({
       data_constructor: $3,
       type_arguments: $5,
@@ -291,7 +291,7 @@ type -> Type
   : primitive_type { Primitive($1) }
   | type_parameter_id { Parameter($1) }
   | type_id { Constructor($1) }
-  | "apply" "(" type "," type_list ")" { Apply($3, $5) }
+  | "apply" "(" type "," generic_argument_list ")" { Apply($3, $5) }
   | "type_fn" "(" type_parameter_id_list "," type ")" { TypeLambda($3, $5) }
   | "fn_type" "(" type_list "," type ")" { Function($3, $5, Empty) }
   | "fn_type" "(" type_list "," type "," effect ")" { Function($3, $5, $7) }
@@ -301,7 +301,7 @@ type -> Type
 effect -> Effect
   : "empty_effect" "(" ")" { Empty }
   | type_parameter_id { Parameter($1) }
-  | "effect_singleton" "(" effect_id "," type_list ")" { Singleton($3, $5) }
+  | "effect_singleton" "(" effect_id "," generic_argument_list ")" { Singleton($3, $5) }
   | "effect_union" "(" effect_list ")" { Union($3) }
   ;
 
@@ -339,6 +339,21 @@ type_list -> Array[Type]
 non_empty_type_list -> Array[Type]
   : type { [ $1 ] }
   | non_empty_type_list "," type { comma_push($1, $3) }
+  ;
+
+generic_argument -> GenericArgument
+  : "type" "(" type ")" { TypeArgument($3) }
+  | "effect" "(" effect ")" { EffectArgument($3) }
+  ;
+
+generic_argument_list -> Array[GenericArgument]
+  : "[" "]" { [] }
+  | "[" non_empty_generic_argument_list "]" { $2 }
+  ;
+
+non_empty_generic_argument_list -> Array[GenericArgument]
+  : generic_argument { [ $1 ] }
+  | non_empty_generic_argument_list "," generic_argument { comma_push($1, $3) }
   ;
 
 effect_list -> Array[Effect]

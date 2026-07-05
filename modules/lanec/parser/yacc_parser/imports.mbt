@@ -62,6 +62,28 @@ priv struct HandlerOperationArmParameters {
 }
 
 ///|
+priv struct HandlerOperationHead {
+  name : EffectOperationName
+  type_binders : Array[String]
+}
+
+///|
+priv enum HandlerOperationHeadAfterIdent {
+  Unqualified(Array[String])
+  Qualified(
+    owner_arguments~ : Array[Type],
+    operation~ : String,
+    type_binders~ : Array[String]
+  )
+}
+
+///|
+priv enum HandlerOperationAfterTypeArguments {
+  OperationBinders
+  OwnerArguments(operation~ : String, type_binders~ : Array[String])
+}
+
+///|
 fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
   SourceSpan::join(loc.0, loc.1)
 }
@@ -119,5 +141,67 @@ fn expression_type_name_text(expr : Expr) -> String {
       }
     }
     _ => ""
+  }
+}
+
+///|
+fn type_binders_from_type_arguments(arguments : Array[Type]) -> Array[String] {
+  arguments.map(type_name_text)
+}
+
+///|
+fn handler_operation_head_shorthand(
+  operation : String,
+  type_binders : Array[String],
+  loc : SourceSpan,
+) -> HandlerOperationHead {
+  { name: Shorthand(operation~, loc~), type_binders }
+}
+
+///|
+fn handler_operation_head_from_ident(
+  name : String,
+  suffix : HandlerOperationHeadAfterIdent,
+  loc : SourceSpan,
+) -> HandlerOperationHead {
+  match suffix {
+    Unqualified(type_binders) =>
+      { name: Unqualified(operation=name, loc~), type_binders }
+    Qualified(owner_arguments~, operation~, type_binders~) => {
+      let owner : Type = match owner_arguments {
+        [] => Name(name~, loc~)
+        arguments => Apply(callee=Name(name~, loc~), arguments~, loc~)
+      }
+      { name: Qualified(owner~, operation~, loc~), type_binders }
+    }
+  }
+}
+
+///|
+fn handler_operation_head_from_qualified(
+  owner_base : Type,
+  owner_arguments : Array[Type],
+  operation : String,
+  type_binders : Array[String],
+  loc : SourceSpan,
+) -> HandlerOperationHead {
+  let owner = match owner_arguments {
+    [] => owner_base
+    arguments => Apply(callee=owner_base, arguments~, loc~)
+  }
+  { name: Qualified(owner~, operation~, loc~), type_binders }
+}
+
+///|
+fn handler_operation_head_after_type_arguments(
+  owner_or_binders : Array[Type],
+  suffix : HandlerOperationAfterTypeArguments,
+) -> HandlerOperationHeadAfterIdent {
+  match suffix {
+    OperationBinders => Unqualified(
+      type_binders_from_type_arguments(owner_or_binders),
+    )
+    OwnerArguments(operation~, type_binders~) =>
+      Qualified(owner_arguments=owner_or_binders, operation~, type_binders~)
   }
 }

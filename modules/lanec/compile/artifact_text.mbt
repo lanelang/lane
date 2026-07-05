@@ -1200,6 +1200,58 @@ fn ArtifactTextReader::read_lane_types(
 }
 
 ///|
+fn ArtifactTextWriter::write_lane_generic_arguments(
+  self : ArtifactTextWriter,
+  tag : String,
+  arguments : Array[@types.GenericArgument],
+) -> Unit {
+  self.write_int(tag, arguments.length())
+  for argument in arguments {
+    self.write_lane_generic_argument(argument)
+  }
+}
+
+///|
+fn ArtifactTextReader::read_lane_generic_arguments(
+  self : ArtifactTextReader,
+  tag : String,
+) -> Array[@types.GenericArgument] raise ArtifactTextError {
+  let arguments = []
+  for _ in 0..<self.expect_int(tag) {
+    arguments.push(self.read_lane_generic_argument())
+  }
+  arguments
+}
+
+///|
+fn ArtifactTextWriter::write_lane_generic_argument(
+  self : ArtifactTextWriter,
+  argument : @types.GenericArgument,
+) -> Unit {
+  match argument {
+    TypeArgument(type_) => {
+      self.write_tag("lane_generic_argument.type")
+      self.write_lane_type(type_)
+    }
+    EffectArgument(effect) => {
+      self.write_tag("lane_generic_argument.effect")
+      self.write_lane_effect(effect)
+    }
+  }
+}
+
+///|
+fn ArtifactTextReader::read_lane_generic_argument(
+  self : ArtifactTextReader,
+) -> @types.GenericArgument raise ArtifactTextError {
+  match self.next_tag() {
+    "lane_generic_argument.type" => TypeArgument(self.read_lane_type())
+    "lane_generic_argument.effect" => EffectArgument(self.read_lane_effect())
+    tag => fail_unknown("unknown Lane generic argument tag \{tag}")
+  }
+}
+
+///|
 fn ArtifactTextWriter::write_lane_type(
   self : ArtifactTextWriter,
   type_ : @types.Type,
@@ -1217,7 +1269,7 @@ fn ArtifactTextWriter::write_lane_type(
     Apply(callee, arguments) => {
       self.write_tag("lane_type.apply")
       self.write_lane_type(callee)
-      self.write_lane_types("lane_type.apply.arguments", arguments)
+      self.write_lane_generic_arguments("lane_type.apply.arguments", arguments)
     }
     TypeLambda(parameters, body) => {
       self.write_tag("lane_type.type_lambda")
@@ -1253,7 +1305,9 @@ fn ArtifactTextReader::read_lane_type(
       Constructor(self.read_type_symbol_id("lane_type.constructor.symbol"))
     "lane_type.apply" => {
       let callee = self.read_lane_type()
-      let arguments = self.read_lane_types("lane_type.apply.arguments")
+      let arguments = self.read_lane_generic_arguments(
+        "lane_type.apply.arguments",
+      )
       Apply(callee, arguments)
     }
     "lane_type.type_lambda" => {
@@ -1288,7 +1342,9 @@ fn ArtifactTextWriter::write_lane_effect(
     Singleton(symbol, arguments) => {
       self.write_tag("lane_effect.singleton")
       self.write_effect_symbol_id("lane_effect.singleton.symbol", symbol)
-      self.write_lane_types("lane_effect.singleton.arguments", arguments)
+      self.write_lane_generic_arguments(
+        "lane_effect.singleton.arguments", arguments,
+      )
     }
     Parameter(id) => {
       self.write_tag("lane_effect.parameter")
@@ -1312,7 +1368,9 @@ fn ArtifactTextReader::read_lane_effect(
     "lane_effect.empty" => Empty
     "lane_effect.singleton" => {
       let symbol = self.read_effect_symbol_id("lane_effect.singleton.symbol")
-      let arguments = self.read_lane_types("lane_effect.singleton.arguments")
+      let arguments = self.read_lane_generic_arguments(
+        "lane_effect.singleton.arguments",
+      )
       Singleton(symbol, arguments)
     }
     "lane_effect.parameter" =>

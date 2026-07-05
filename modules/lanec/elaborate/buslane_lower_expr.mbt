@@ -15,7 +15,7 @@ fn BuslaneLowerer::lower_expr(
     TypeApplication(callee~, arguments~, ..) =>
       TypeApply(
         self.lower_expr(callee),
-        arguments.map(fn(argument) { self.lower_type(argument) }),
+        arguments.map(fn(argument) { self.lower_generic_argument(argument) }),
       )
     Block(items~, result~, ..) => self.lower_items(items, 0, result)
     If(condition~, then_branch~, else_branch~, type_~, ..) =>
@@ -32,7 +32,7 @@ fn BuslaneLowerer::lower_expr(
         operation: self.operation_id(operation),
         effect_arguments: self.perform_type_arguments(effect),
         hidden_witnesses: type_witnesses.map(fn(witness) {
-          self.lower_type(witness)
+          self.lower_generic_argument(witness)
         }),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
@@ -43,10 +43,10 @@ fn BuslaneLowerer::lower_expr(
       Construct({
         data_constructor: self.struct_constructor_id(symbol),
         type_arguments: type_arguments.map(fn(argument) {
-          self.lower_type(argument)
+          self.lower_generic_argument(argument)
         }),
         hidden_witnesses: type_witnesses.map(fn(witness) {
-          self.lower_type(witness.type_)
+          TypeArgument(self.lower_type(witness.type_))
         }),
         payloads: fields.map(fn(field) { self.lower_expr(field.value) }),
       })
@@ -55,7 +55,7 @@ fn BuslaneLowerer::lower_expr(
         data_constructor: self.data_constructor_id(symbol),
         type_arguments: self.nominal_type_arguments(type_),
         hidden_witnesses: type_arguments.map(fn(argument) {
-          self.lower_type(argument)
+          self.lower_generic_argument(argument)
         }),
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
@@ -247,7 +247,7 @@ fn BuslaneLowerer::lower_field(
       } else {
         TypeApply(
           selector,
-          arguments.map(fn(argument) { self.lower_type(argument) }),
+          arguments.map(fn(argument) { self.lower_generic_argument(argument) }),
         )
       }
     _ => selector
@@ -277,7 +277,7 @@ fn BuslaneLowerer::lower_type(
     Apply(callee, arguments) =>
       Apply(
         self.lower_type(callee),
-        arguments.map(fn(argument) { self.lower_type(argument) }),
+        arguments.map(fn(argument) { self.lower_generic_argument(argument) }),
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
@@ -309,7 +309,7 @@ fn BuslaneLowerer::lower_effect(
     Singleton(symbol, arguments) =>
       Singleton(
         self.effect_id(symbol),
-        arguments.map(fn(argument) { self.lower_type(argument) }),
+        arguments.map(fn(argument) { self.lower_generic_argument(argument) }),
       )
     Parameter(parameter) => Parameter(self.type_parameter_id(parameter))
     Union(effects) =>
@@ -318,24 +318,47 @@ fn BuslaneLowerer::lower_effect(
 }
 
 ///|
+fn BuslaneLowerer::lower_generic_argument(
+  self : BuslaneLowerer,
+  argument : @types.GenericArgument,
+) -> @buslane.GenericArgument {
+  match argument {
+    TypeArgument(type_) => TypeArgument(self.lower_type(type_))
+    EffectArgument(effect) => EffectArgument(self.lower_effect(effect))
+  }
+}
+
+///|
+fn BuslaneLowerer::lower_type_parameter_argument(
+  self : BuslaneLowerer,
+  parameter : @types.TypeParameter,
+) -> @buslane.GenericArgument {
+  match parameter.kind {
+    Effect => EffectArgument(Parameter(self.type_parameter_id(parameter.id)))
+    Type | Function(_) =>
+      TypeArgument(Parameter(self.type_parameter_id(parameter.id)))
+  }
+}
+
+///|
 fn BuslaneLowerer::perform_type_arguments(
   self : BuslaneLowerer,
   effect : @types.Effect,
-) -> Array[@buslane.Type] {
+) -> Array[@buslane.GenericArgument] {
   guard effect is Singleton(_, arguments) else {
     abort("checked effect operation call must carry singleton owner effect")
   }
-  arguments.map(fn(argument) { self.lower_type(argument) })
+  arguments.map(fn(argument) { self.lower_generic_argument(argument) })
 }
 
 ///|
 fn BuslaneLowerer::nominal_type_arguments(
   self : BuslaneLowerer,
   type_ : @types.Type,
-) -> Array[@buslane.Type] {
+) -> Array[@buslane.GenericArgument] {
   match type_.decompose_nominal() {
     Some((_, arguments)) =>
-      arguments.map(fn(argument) { self.lower_type(argument) })
+      arguments.map(fn(argument) { self.lower_generic_argument(argument) })
     None => []
   }
 }
@@ -343,7 +366,7 @@ fn BuslaneLowerer::nominal_type_arguments(
 ///|
 fn buslane_nominal_type(
   symbol : @buslane.TypeId,
-  arguments : Array[@buslane.Type],
+  arguments : Array[@buslane.GenericArgument],
 ) -> @buslane.Type {
   if arguments.is_empty() {
     Constructor(symbol)

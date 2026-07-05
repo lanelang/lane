@@ -198,17 +198,18 @@ fn anf_rhs_doc(rhs : AnfRhs) -> Document {
     Call(callee~, arguments~, ..) =>
       anf_atom_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
-    OperationCall(operation~, arguments~, ..) =>
+    OperationCall(operation~, type_witnesses~, arguments~, ..) =>
       operation.pretty() +
       text("!") +
+      generic_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
     TypeApplication(callee~, arguments~, ..) =>
-      anf_atom_doc(callee) + type_arguments_doc(arguments)
+      anf_atom_doc(callee) + generic_arguments_doc(arguments)
     Field(base~, field~, name~, ..) =>
       anf_atom_doc(base) + text(".") + field_name_doc(name, field)
     Struct(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
       type_symbol_doc(symbol) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       text("::") +
       @pretty.braced_block(
         type_witnesses.map(@checked.CheckedStructTypeWitness::pretty) +
@@ -216,7 +217,7 @@ fn anf_rhs_doc(rhs : AnfRhs) -> Document {
       )
     Variant(symbol~, type_arguments~, arguments~, ..) =>
       variant_symbol_doc(symbol) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
   }
 }
@@ -415,7 +416,9 @@ pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative with fn pretty
 ) {
   alternative.operation.pretty() +
   buslane_type_arguments_doc(
-    alternative.type_binders.map(fn(parameter) { Parameter(parameter) }),
+    alternative.type_binders.map(fn(parameter) {
+      TypeArgument(Parameter(parameter))
+    }),
   ) +
   @pretty.parenthesized_inline(
     alternative.payload_binders.map(@buslane.ValueId::pretty),
@@ -535,7 +538,7 @@ fn buslane_anf_rhs_doc(rhs : BuslaneAnfRhs) -> Document {
       buslane_anf_atom_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(buslane_anf_atom_doc))
     TypeApply(callee~, arguments~) =>
-      buslane_anf_atom_doc(callee) + buslane_type_arguments_doc(arguments)
+      buslane_anf_atom_doc(callee) + buslane_generic_arguments_doc(arguments)
     Construct(construct) => buslane_anf_construct_doc(construct)
     Perform(perform) => buslane_anf_perform_doc(perform)
     Handle(handle) => buslane_anf_handle_doc(handle)
@@ -636,30 +639,45 @@ fn type_parameters_doc(parameters : Array[@types.TypeParameter]) -> Document {
 }
 
 ///|
-fn type_arguments_doc(arguments : Array[@types.Type]) -> Document {
+fn generic_arguments_doc(arguments : Array[@types.GenericArgument]) -> Document {
   if arguments.is_empty() {
     empty
   } else {
-    @pretty.bracketed_inline(arguments.map(@types.Type::pretty))
+    @pretty.bracketed_inline(arguments.map(@types.GenericArgument::pretty))
   }
 }
 
 ///|
-fn buslane_type_arguments_doc(arguments : Array[@buslane.Type]) -> Document {
+fn buslane_type_arguments_doc(
+  arguments : Array[@buslane.GenericArgument],
+) -> Document {
   if arguments.is_empty() {
     empty
   } else {
-    @pretty.bracketed_inline(arguments.map(@buslane.Type::pretty))
+    @pretty.bracketed_inline(arguments.map(@buslane.GenericArgument::pretty))
   }
 }
 
 ///|
-fn buslane_hidden_witnesses_doc(arguments : Array[@buslane.Type]) -> Document {
+fn buslane_generic_arguments_doc(
+  arguments : Array[@buslane.GenericArgument],
+) -> Document {
+  if arguments.is_empty() {
+    empty
+  } else {
+    @pretty.bracketed_inline(arguments.map(@buslane.GenericArgument::pretty))
+  }
+}
+
+///|
+fn buslane_hidden_witnesses_doc(
+  arguments : Array[@buslane.GenericArgument],
+) -> Document {
   if arguments.is_empty() {
     empty
   } else {
     text(" exists") +
-    @pretty.bracketed_inline(arguments.map(@buslane.Type::pretty))
+    @pretty.bracketed_inline(arguments.map(@buslane.GenericArgument::pretty))
   }
 }
 

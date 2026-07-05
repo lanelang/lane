@@ -507,7 +507,9 @@ test "data constructor match selects matching alternative" {
   let some = metadata.define_data_constructor("Con", option, [], [
     Parameter(parameter),
   ])
-  let option_int = @buslane.Type::Apply(Constructor(option), [int_type()])
+  let option_int = @buslane.Type::Apply(Constructor(option), [
+    TypeArgument(int_type()),
+  ])
   let scrutinee = metadata.define_value("value", Value, option_int)
   let binder = metadata.define_value("value", MatchBinder, option_int)
   let payload = metadata.define_value("value", MatchBinder, int_type())
@@ -519,7 +521,7 @@ test "data constructor match selects matching alternative" {
         scrutinee,
         Construct({
           data_constructor: some,
-          type_arguments: [int_type()],
+          type_arguments: [TypeArgument(int_type())],
           hidden_witnesses: [],
           payloads: [Literal(Int(7L))],
         }),

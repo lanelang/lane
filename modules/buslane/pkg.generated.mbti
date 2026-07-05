@@ -40,8 +40,8 @@ pub(all) struct BuslaneUnique {
 
 pub(all) struct ConstructExpr {
   data_constructor : DataConId
-  type_arguments : Array[Type]
-  hidden_witnesses : Array[Type]
+  type_arguments : Array[GenericArgument]
+  hidden_witnesses : Array[GenericArgument]
   payloads : Array[Expr]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ConstructExpr
@@ -61,7 +61,7 @@ pub impl @prettyprinter.Pretty for DataConInfo
 
 pub(all) enum Effect {
   Empty
-  Singleton(EffectId, Array[Type])
+  Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
 } derive(@debug.Debug)
@@ -88,7 +88,7 @@ pub(all) enum Expr {
   Function(FunctionExpr)
   Call(Expr, Array[Expr])
   TypeLambda(Array[TypeParameterId], Expr)
-  TypeApply(Expr, Array[Type])
+  TypeApply(Expr, Array[GenericArgument])
   Construct(ConstructExpr)
   Let(ValueId, Expr, Expr)
   LetRec(Array[RecursiveBinding], Expr)
@@ -105,6 +105,13 @@ pub(all) struct FunctionExpr {
   body : Expr
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for FunctionExpr
+
+pub(all) enum GenericArgument {
+  TypeArgument(Type)
+  EffectArgument(Effect)
+} derive(Eq, @debug.Debug)
+pub fn GenericArgument::normalize(Self) -> Self
+pub impl @prettyprinter.Pretty for GenericArgument
 
 pub(all) struct HandleExpr {
   body : Expr
@@ -202,8 +209,8 @@ pub impl @prettyprinter.Pretty for OperationInfo
 
 pub(all) struct PerformExpr {
   operation : OperationId
-  effect_arguments : Array[Type]
-  hidden_witnesses : Array[Type]
+  effect_arguments : Array[GenericArgument]
+  hidden_witnesses : Array[GenericArgument]
   payloads : Array[Expr]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for PerformExpr
@@ -239,7 +246,7 @@ pub(all) enum Type {
   Primitive(PrimitiveType)
   Parameter(TypeParameterId)
   Constructor(TypeId)
-  Apply(Type, Array[Type])
+  Apply(Type, Array[GenericArgument])
   TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
@@ -277,10 +284,12 @@ pub struct TypeSubstitution {
 } derive(Eq, @debug.Debug)
 pub fn TypeSubstitution::TypeSubstitution() -> Self
 pub fn TypeSubstitution::insert(Self, TypeParameterId, Type) -> Unit
+pub fn TypeSubstitution::insert_argument(Self, TypeParameterId, GenericArgument) -> Unit
+pub fn TypeSubstitution::insert_effect(Self, TypeParameterId, Effect) -> Unit
 
 pub struct TypeSubstitutionEntry {
   parameter : TypeParameterId
-  replacement : Type
+  replacement : GenericArgument
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ValueId {

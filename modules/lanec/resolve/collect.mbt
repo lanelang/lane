@@ -21,12 +21,14 @@ priv struct ModuleBinding {
 priv struct TypeBinding {
   name : String
   symbol : TypeSymbolId
+  type_parameters : Array[@syntax.TypeParameter]
 }
 
 ///|
 priv struct EffectBinding {
   name : String
   symbol : EffectSymbolId
+  type_parameters : Array[@syntax.TypeParameter]
 }
 
 ///|
@@ -175,9 +177,17 @@ fn Resolver::publish_imported_public_types(
   for type_ in interface.types {
     match type_ {
       Struct(declaration) =>
-        self.publish_type_binding(declaration.name, declaration.symbol)
+        self.publish_type_binding(
+          declaration.name,
+          declaration.symbol,
+          interface_type_parameters_to_syntax(declaration.type_parameters),
+        )
       Enum(declaration) =>
-        self.publish_type_binding(declaration.name, declaration.symbol)
+        self.publish_type_binding(
+          declaration.name,
+          declaration.symbol,
+          interface_type_parameters_to_syntax(declaration.type_parameters),
+        )
     }
   }
   for type_alias in interface.type_aliases {
@@ -196,7 +206,11 @@ fn Resolver::publish_imported_public_effects(
   interface : @module_interface.ModuleInterface,
 ) -> Unit {
   for effect in interface.effects {
-    self.publish_effect_binding(effect.name, effect.symbol)
+    self.publish_effect_binding(
+      effect.name,
+      effect.symbol,
+      interface_type_parameters_to_syntax(effect.type_parameters),
+    )
   }
 }
 
@@ -210,9 +224,17 @@ fn Resolver::publish_imported_selected_types(
     for type_ in interface.types {
       match type_ {
         Struct(declaration) if declaration.name == item.name =>
-          self.publish_type_binding(declaration.name, declaration.symbol)
+          self.publish_type_binding(
+            declaration.name,
+            declaration.symbol,
+            interface_type_parameters_to_syntax(declaration.type_parameters),
+          )
         Enum(declaration) if declaration.name == item.name =>
-          self.publish_type_binding(declaration.name, declaration.symbol)
+          self.publish_type_binding(
+            declaration.name,
+            declaration.symbol,
+            interface_type_parameters_to_syntax(declaration.type_parameters),
+          )
         _ => ()
       }
     }
@@ -265,7 +287,11 @@ fn Resolver::publish_imported_selected_effects(
   for item in items {
     for effect in interface.effects {
       if effect.name == item.name {
-        self.publish_effect_binding(effect.name, effect.symbol)
+        self.publish_effect_binding(
+          effect.name,
+          effect.symbol,
+          interface_type_parameters_to_syntax(effect.type_parameters),
+        )
       }
     }
   }
@@ -340,6 +366,7 @@ fn Resolver::collect_top_level_headers(
             declaration.type_parameters.length(),
             declaration.loc,
           ),
+          declaration.type_parameters,
         )
       }
       Enum(declaration) => {
@@ -356,6 +383,7 @@ fn Resolver::collect_top_level_headers(
             declaration.type_parameters.length(),
             declaration.loc,
           ),
+          declaration.type_parameters,
         )
       }
       Effect(declaration) => {
@@ -370,6 +398,7 @@ fn Resolver::collect_top_level_headers(
             declaration.type_parameters.length(),
             declaration.loc,
           ),
+          declaration.type_parameters,
         )
       }
       TypeAlias(declaration) => {
@@ -1149,14 +1178,16 @@ fn @syntax.Type::resolve_type(
       }
     QualifiedName(module_path~, name~, loc~) =>
       resolver.resolve_module_qualified_type(module_path, name, loc)
-    Apply(callee~, arguments~, loc~) =>
+    Apply(callee~, arguments~, loc~) => {
+      let resolved_callee = callee.resolve_type(resolver, scope)
       Apply(
-        callee=callee.resolve_type(resolver, scope),
-        arguments=arguments.map(fn(argument) {
-          argument.resolve_type(resolver, scope)
-        }),
+        callee=resolved_callee,
+        arguments=callee.resolve_type_application_arguments(
+          resolved_callee, arguments, resolver, scope,
+        ),
         loc~,
       )
+    }
     TypeLambda(parameters~, body~, loc~) => {
       let resolved_type_parameters = resolver.resolve_type_parameters(
         parameters, loc,
@@ -1186,6 +1217,168 @@ fn @syntax.Type::resolve_type(
       )
     }
   }
+}
+
+///|
+fn @syntax.Type::resolve_type_application_arguments(
+  self : @syntax.Type,
+  _resolved_callee : ResolvedType,
+  arguments : Array[@syntax.Type],
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> Array[ResolvedGenericArgument] {
+  match self {
+    Name(name~, ..) =>
+      match resolver.type_binding(name) {
+        Some(binding) =>
+          resolve_generic_arguments(
+            arguments,
+            binding.type_parameters,
+            resolver,
+            scope,
+          )
+        None =>
+          match resolver.type_alias_binding(name) {
+            Some(binding) =>
+              resolve_generic_arguments(
+                arguments,
+                binding.type_parameters,
+                resolver,
+                scope,
+              )
+            None => resolve_default_type_arguments(arguments, resolver, scope)
+          }
+      }
+    QualifiedName(module_path~, name~, ..) =>
+      match
+        resolver.module_binding(@module_interface.module_path_text(module_path)) {
+        Some(module_) =>
+          match interface_type_application_parameters(module_.interface, name) {
+            Some(parameters) =>
+              resolve_generic_arguments(arguments, parameters, resolver, scope)
+            None => resolve_default_type_arguments(arguments, resolver, scope)
+          }
+        None => resolve_default_type_arguments(arguments, resolver, scope)
+      }
+    _ => resolve_default_type_arguments(arguments, resolver, scope)
+  }
+}
+
+///|
+fn resolve_default_type_arguments(
+  arguments : Array[@syntax.Type],
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> Array[ResolvedGenericArgument] {
+  arguments.map(fn(argument) {
+    TypeArgument(argument.resolve_type(resolver, scope))
+  })
+}
+
+///|
+fn resolve_generic_arguments(
+  arguments : Array[@syntax.Type],
+  parameters : Array[@syntax.TypeParameter],
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> Array[ResolvedGenericArgument] {
+  arguments.mapi(fn(index, argument) {
+    if index < parameters.length() && parameters[index].kind is Some(Effect(_)) {
+      EffectArgument(
+        argument.resolve_effect_type(resolver, scope, argument.loc()),
+      )
+    } else {
+      TypeArgument(argument.resolve_type(resolver, scope))
+    }
+  })
+}
+
+///|
+fn resolve_type_name_arguments(
+  type_name : String,
+  arguments : Array[@syntax.Type],
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> Array[ResolvedGenericArgument] {
+  match resolver.type_binding(type_name) {
+    Some(binding) =>
+      resolve_generic_arguments(
+        arguments,
+        binding.type_parameters,
+        resolver,
+        scope,
+      )
+    None =>
+      match resolver.type_alias_binding(type_name) {
+        Some(binding) =>
+          resolve_generic_arguments(
+            arguments,
+            binding.type_parameters,
+            resolver,
+            scope,
+          )
+        None =>
+          match qualified_type_name_parameters(resolver, type_name) {
+            Some(parameters) =>
+              resolve_generic_arguments(arguments, parameters, resolver, scope)
+            None => resolve_default_type_arguments(arguments, resolver, scope)
+          }
+      }
+  }
+}
+
+///|
+fn qualified_type_name_parameters(
+  resolver : Resolver,
+  type_name : String,
+) -> Array[@syntax.TypeParameter]? {
+  guard split_qualified_name(type_name) is Some(qualified) else { return None }
+  match resolver.module_binding(qualified.module_path) {
+    Some(module_) =>
+      interface_type_application_parameters(module_.interface, qualified.name)
+    None => None
+  }
+}
+
+///|
+fn split_qualified_name(type_name : String) -> QualifiedNameText? {
+  let parts = type_name.split(".").map(StringView::to_owned).collect()
+  if parts.length() < 2 {
+    return None
+  }
+  let module_parts = []
+  for index in 0..<(parts.length() - 1) {
+    module_parts.push(parts[index])
+  }
+  Some({ module_path: module_parts.join("."), name: parts[parts.length() - 1] })
+}
+
+///|
+fn interface_type_application_parameters(
+  interface : @module_interface.ModuleInterface,
+  name : String,
+) -> Array[@syntax.TypeParameter]? {
+  for type_ in interface.types {
+    match type_ {
+      Struct(declaration) if declaration.name == name =>
+        return Some(
+          interface_type_parameters_to_syntax(declaration.type_parameters),
+        )
+      Enum(declaration) if declaration.name == name =>
+        return Some(
+          interface_type_parameters_to_syntax(declaration.type_parameters),
+        )
+      _ => ()
+    }
+  }
+  for type_alias in interface.type_aliases {
+    if type_alias.name == name {
+      return Some(
+        interface_type_parameters_to_syntax(type_alias.type_parameters),
+      )
+    }
+  }
+  None
 }
 
 ///|
@@ -1223,9 +1416,19 @@ fn @syntax.Type::resolve_effect_type(
         None =>
           match resolver.effect_symbol_opt(name) {
             Some(symbol) => {
-              let resolved_arguments = arguments.map(fn(argument) {
-                argument.resolve_type(resolver, scope)
-              })
+              let resolved_arguments = match resolver.effect_binding(name) {
+                Some(binding) =>
+                  resolve_generic_arguments(
+                    arguments,
+                    binding.type_parameters,
+                    resolver,
+                    scope,
+                  )
+                None =>
+                  arguments.map(fn(argument) {
+                    TypeArgument(argument.resolve_type(resolver, scope))
+                  })
+              }
               Singleton(symbol~, name~, arguments=resolved_arguments, loc~)
             }
             None =>
@@ -1239,7 +1442,9 @@ fn @syntax.Type::resolve_effect_type(
                 Alias(name~, arguments=resolved_arguments, loc~)
               } else {
                 let resolved_arguments = arguments.map(fn(argument) {
-                  argument.resolve_type(resolver, scope)
+                  ResolvedGenericArgument::TypeArgument(
+                    argument.resolve_type(resolver, scope),
+                  )
                 })
                 resolver.report(UnresolvedType(name), loc)
                 Unresolved(name~, arguments=resolved_arguments, loc~)
@@ -1319,9 +1524,12 @@ fn Resolver::resolve_module_qualified_effect_type(
     Some(module_) => {
       for effect in module_.interface.effects {
         if effect.name == name {
-          let arguments = arguments.map(fn(argument) {
-            argument.resolve_type(self, scope)
-          })
+          let arguments = resolve_generic_arguments(
+            arguments,
+            interface_type_parameters_to_syntax(effect.type_parameters),
+            self,
+            scope,
+          )
           return Singleton(
             symbol=effect.symbol,
             name=full_name,
@@ -1341,19 +1549,28 @@ fn Resolver::resolve_module_qualified_effect_type(
           return Alias(name=full_name, arguments~, loc~)
         }
       }
-      let arguments = arguments.map(fn(argument) {
-        argument.resolve_type(self, scope)
-      })
+      let arguments = resolve_default_type_arguments(arguments, self, scope)
       self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
     None => {
-      let arguments = arguments.map(fn(argument) {
-        argument.resolve_type(self, scope)
-      })
+      let arguments = resolve_default_type_arguments(arguments, self, scope)
       self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
+  }
+}
+
+///|
+fn @syntax.Type::resolve_generic_argument(
+  self : @syntax.Type,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedGenericArgument {
+  if self.should_resolve_as_effect_alias_argument(resolver, scope) {
+    EffectArgument(self.resolve_effect_type(resolver, scope, self.loc()))
+  } else {
+    TypeArgument(self.resolve_type(resolver, scope))
   }
 }
 
@@ -1575,12 +1792,12 @@ fn @syntax.Expr::resolve_expr(
     ) =>
       QualifiedVariant(
         type_name~,
-        type_arguments=type_arguments.map(fn(type_) {
-          type_.resolve_type(resolver, scope)
-        }),
+        type_arguments=resolve_type_name_arguments(
+          type_name, type_arguments, resolver, scope,
+        ),
         variant~,
         variant_type_arguments=variant_type_arguments.map(fn(type_) {
-          type_.resolve_type(resolver, scope)
+          type_.resolve_generic_argument(resolver, scope)
         }),
         reference=resolver.variant_reference(type_name, variant, loc),
         arguments=arguments.map(fn(argument) {
@@ -1591,9 +1808,9 @@ fn @syntax.Expr::resolve_expr(
     StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
       StructLiteral(
         type_name~,
-        type_arguments=type_arguments.map(fn(type_) {
-          type_.resolve_type(resolver, scope)
-        }),
+        type_arguments=resolve_type_name_arguments(
+          type_name, type_arguments, resolver, scope,
+        ),
         fields=resolve_struct_literal_fields(fields, resolver, scope),
         loc~,
       )
@@ -1602,7 +1819,7 @@ fn @syntax.Expr::resolve_expr(
       EffectOperationCall(
         name=name.resolve_effect_operation_name(resolver, scope),
         type_witnesses=type_witnesses.map(fn(type_) {
-          type_.resolve_type(resolver, scope)
+          type_.resolve_generic_argument(resolver, scope)
         }),
         arguments=arguments.map(fn(argument) {
           argument.resolve_expr(resolver, scope)
@@ -2619,8 +2836,9 @@ fn Resolver::publish_type_binding(
   self : Resolver,
   name : String,
   symbol : TypeSymbolId,
+  type_parameters : Array[@syntax.TypeParameter],
 ) -> Unit {
-  self.types.push({ name, symbol })
+  self.types.push({ name, symbol, type_parameters })
 }
 
 ///|
@@ -2652,8 +2870,9 @@ fn Resolver::publish_effect_binding(
   self : Resolver,
   name : String,
   symbol : EffectSymbolId,
+  type_parameters : Array[@syntax.TypeParameter],
 ) -> Unit {
-  self.effects.push({ name, symbol })
+  self.effects.push({ name, symbol, type_parameters })
 }
 
 ///|

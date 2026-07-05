@@ -188,19 +188,19 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
     ) => {
       let owner = match type_name {
         Some(type_name) =>
-          text(type_name) + type_arguments_doc(type_arguments) + text("::")
+          text(type_name) + generic_arguments_doc(type_arguments) + text("::")
         None => empty
       }
       reference.pretty() +
       space +
       owner +
       text(variant) +
-      type_arguments_doc(variant_type_arguments) +
+      generic_arguments_doc(variant_type_arguments) +
       @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
     }
     StructLiteral(type_name~, type_arguments~, fields~, ..) =>
       text(type_name) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(DesugaredStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
@@ -231,7 +231,7 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
     EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
       name.pretty() +
       text("!") +
-      type_arguments_doc(type_witnesses) +
+      generic_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]
@@ -281,11 +281,15 @@ pub impl @prettyprinter.Pretty for DesugaredCallArgument with fn pretty(
 }
 
 ///|
-fn type_arguments_doc(types : Array[@resolve.ResolvedType]) -> Document {
-  if types.is_empty() {
+fn generic_arguments_doc(
+  arguments : Array[@resolve.ResolvedGenericArgument],
+) -> Document {
+  if arguments.is_empty() {
     empty
   } else {
-    @pretty.bracketed_inline(types.map(@resolve.ResolvedType::pretty))
+    @pretty.bracketed_inline(
+      arguments.map(@resolve.ResolvedGenericArgument::pretty),
+    )
   }
 }
 

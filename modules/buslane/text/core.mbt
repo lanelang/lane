@@ -353,7 +353,7 @@ fn type_doc(type_ : @buslane.Type) -> Document {
     Parameter(id) => type_parameter_id_doc(id)
     Constructor(id) => type_id_doc(id)
     Apply(callee, arguments) =>
-      call_doc("apply", [type_doc(callee), types_doc(arguments)])
+      call_doc("apply", [type_doc(callee), generic_arguments_doc(arguments)])
     TypeLambda(parameters, body) =>
       call_doc("type_fn", [type_parameter_ids_doc(parameters), type_doc(body)])
     Function(parameters, result, effect) =>
@@ -376,7 +376,10 @@ fn effect_doc(effect : @buslane.Effect) -> Document {
   match effect {
     Empty => call_doc("empty_effect", [])
     Singleton(id, arguments) =>
-      call_doc("effect_singleton", [effect_id_doc(id), types_doc(arguments)])
+      call_doc("effect_singleton", [
+        effect_id_doc(id),
+        generic_arguments_doc(arguments),
+      ])
     Parameter(id) => type_parameter_id_doc(id)
     Union(effects) => call_doc("effect_union", [effects_doc(effects)])
   }
@@ -390,6 +393,21 @@ fn effects_doc(effects : Array[@buslane.Effect]) -> Document {
 ///|
 fn types_doc(types : Array[@buslane.Type]) -> Document {
   bracketed(types.map(type_doc))
+}
+
+///|
+fn generic_argument_doc(argument : @buslane.GenericArgument) -> Document {
+  match argument {
+    TypeArgument(type_) => call_doc("type", [type_doc(type_)])
+    EffectArgument(effect) => call_doc("effect", [effect_doc(effect)])
+  }
+}
+
+///|
+fn generic_arguments_doc(
+  arguments : Array[@buslane.GenericArgument],
+) -> Document {
+  bracketed(arguments.map(generic_argument_doc))
 }
 
 ///|
@@ -419,8 +437,8 @@ fn expr_doc(expr : @buslane.Expr) -> Document {
     Perform(perform) =>
       call_doc("perform", [
         operation_id_doc(perform.operation),
-        types_doc(perform.effect_arguments),
-        types_doc(perform.hidden_witnesses),
+        generic_arguments_doc(perform.effect_arguments),
+        generic_arguments_doc(perform.hidden_witnesses),
         exprs_doc(perform.payloads),
       ])
     Resume(id) => call_doc("resume", [value_id_doc(id)])
@@ -429,12 +447,15 @@ fn expr_doc(expr : @buslane.Expr) -> Document {
       space +
       inline_block(expr_doc(body))
     TypeApply(callee, arguments) =>
-      call_doc("type_apply", [expr_doc(callee), types_doc(arguments)])
+      call_doc("type_apply", [
+        expr_doc(callee),
+        generic_arguments_doc(arguments),
+      ])
     Construct(construct) =>
       call_doc("construct", [
         data_con_id_doc(construct.data_constructor),
-        types_doc(construct.type_arguments),
-        types_doc(construct.hidden_witnesses),
+        generic_arguments_doc(construct.type_arguments),
+        generic_arguments_doc(construct.hidden_witnesses),
         exprs_doc(construct.payloads),
       ])
     Let(id, initializer, body) =>

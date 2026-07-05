@@ -1,7 +1,7 @@
 ///|
 priv struct TypeArgumentBinding {
   parameter : TypeParameterId
-  type_ : @types.Type
+  argument : @types.GenericArgument
 }
 
 ///|
@@ -12,7 +12,7 @@ priv struct TypeArgumentInference {
 
 ///|
 priv struct InstantiatedCallableType {
-  type_arguments : Array[@types.Type]
+  type_arguments : Array[@types.GenericArgument]
   parameters : Array[@types.Type]
   result : @types.Type
   effect : @types.Effect
@@ -20,7 +20,7 @@ priv struct InstantiatedCallableType {
 
 ///|
 priv struct InferredApplicationTypeArguments {
-  type_arguments : Array[@types.Type]
+  type_arguments : Array[@types.GenericArgument]
   substitution : @types.TypeSubstitution
 }
 
@@ -32,21 +32,26 @@ fn TypeArgumentInference::TypeArgumentInference(
 }
 
 ///|
-fn TypeArgumentInference::tracks(
+fn TypeArgumentInference::tracked_parameter(
   self : TypeArgumentInference,
   parameter : TypeParameterId,
-) -> Bool {
-  self.parameters.any(fn(tracked) { tracked.id == parameter })
+) -> @types.TypeParameter? {
+  for tracked in self.parameters {
+    if tracked.id == parameter {
+      return Some(tracked)
+    }
+  }
+  None
 }
 
 ///|
 fn TypeArgumentInference::lookup(
   self : TypeArgumentInference,
   parameter : TypeParameterId,
-) -> @types.Type? {
+) -> @types.GenericArgument? {
   for binding in self.bindings {
     if binding.parameter == parameter {
-      return Some(binding.type_)
+      return Some(binding.argument)
     }
   }
   None
@@ -56,15 +61,15 @@ fn TypeArgumentInference::lookup(
 fn TypeArgumentInference::remember(
   self : TypeArgumentInference,
   parameter : TypeParameterId,
-  type_ : @types.Type,
+  argument : @types.GenericArgument,
 ) -> Unit {
-  if type_ is Error {
+  if argument is TypeArgument(Error) {
     return
   }
   // A later conflict does not rewrite the chosen type argument. The final
   // argument/result checking step will surface the concrete mismatch.
   if self.lookup(parameter) is None {
-    self.bindings.push({ parameter, type_ })
+    self.bindings.push({ parameter, argument })
   }
 }
 
@@ -80,8 +85,9 @@ fn TypeArgumentInference::collect(
   match (template, actual) {
     (Error, _) | (_, Error) => ()
     (Parameter(parameter), actual) =>
-      if self.tracks(parameter) {
-        self.remember(parameter, actual)
+      if self.tracked_parameter(parameter) is Some(tracked) &&
+        tracked.kind != Effect {
+        self.remember(parameter, TypeArgument(actual))
       }
     (
       Function(left_parameters, left_result, left_effect),
@@ -98,7 +104,7 @@ fn TypeArgumentInference::collect(
           Some((right_symbol, right_arguments)),
         ) =>
           if left_symbol == right_symbol {
-            self.collect_array(left_arguments, right_arguments)
+            self.collect_generic_array(left_arguments, right_arguments)
           }
         _ => ()
       }
@@ -114,15 +120,16 @@ fn TypeArgumentInference::collect_effect(
   match (template, actual) {
     (Empty, Empty) => ()
     (Parameter(parameter), _) =>
-      if self.tracks(parameter) {
-        self.remember(parameter, effect_as_type(actual))
+      if self.tracked_parameter(parameter) is Some(tracked) &&
+        tracked.kind == Effect {
+        self.remember(parameter, EffectArgument(actual.normalize()))
       }
     (
       Singleton(left_symbol, left_arguments),
       Singleton(right_symbol, right_arguments),
     ) =>
       if left_symbol == right_symbol {
-        self.collect_array(left_arguments, right_arguments)
+        self.collect_generic_array(left_arguments, right_arguments)
       }
     (Union(left), Union(right)) =>
       if left.length() == right.length() {
@@ -131,14 +138,6 @@ fn TypeArgumentInference::collect_effect(
         }
       }
     _ => ()
-  }
-}
-
-///|
-fn effect_as_type(effect : @types.Effect) -> @types.Type {
-  match effect {
-    Parameter(id) => Parameter(id)
-    _ => Error
   }
 }
 
@@ -157,13 +156,33 @@ fn TypeArgumentInference::collect_array(
 }
 
 ///|
+fn TypeArgumentInference::collect_generic_array(
+  self : TypeArgumentInference,
+  templates : Array[@types.GenericArgument],
+  actuals : Array[@types.GenericArgument],
+) -> Unit {
+  if templates.length() != actuals.length() {
+    return
+  }
+  for index in 0..<templates.length() {
+    match (templates[index], actuals[index]) {
+      (TypeArgument(template), TypeArgument(actual)) =>
+        self.collect(template, actual)
+      (EffectArgument(template), EffectArgument(actual)) =>
+        self.collect_effect(template, actual)
+      _ => ()
+    }
+  }
+}
+
+///|
 fn TypeArgumentInference::substitution(
   self : TypeArgumentInference,
 ) -> @types.TypeSubstitution? {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for parameter in self.parameters {
-    guard self.lookup(parameter.id) is Some(type_) else { return None }
-    substitution.insert(parameter.id, type_)
+    guard self.lookup(parameter.id) is Some(argument) else { return None }
+    substitution.insert_argument(parameter.id, argument)
   }
   Some(substitution)
 }
@@ -171,11 +190,11 @@ fn TypeArgumentInference::substitution(
 ///|
 fn TypeArgumentInference::type_arguments(
   self : TypeArgumentInference,
-) -> Array[@types.Type]? {
+) -> Array[@types.GenericArgument]? {
   let arguments = []
   for parameter in self.parameters {
-    guard self.lookup(parameter.id) is Some(type_) else { return None }
-    arguments.push(type_)
+    guard self.lookup(parameter.id) is Some(argument) else { return None }
+    arguments.push(argument)
   }
   Some(arguments)
 }

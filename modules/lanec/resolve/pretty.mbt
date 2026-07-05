@@ -394,8 +394,7 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
     Constructor(symbol~, name~, ..) => symbol.pretty() + space + text(name)
     Alias(name~, ..) => text("alias") + space + text(name)
     Apply(callee~, arguments~, ..) =>
-      callee.pretty() +
-      @pretty.bracketed_inline(arguments.map(ResolvedType::pretty))
+      callee.pretty() + generic_arguments_doc(arguments)
     TypeLambda(parameters~, body~, ..) =>
       text("type") +
       type_parameters_doc(parameters) +
@@ -418,9 +417,7 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
       if arguments.is_empty() {
         text("?") + text(name)
       } else {
-        text("?") +
-        text(name) +
-        @pretty.bracketed_inline(arguments.map(ResolvedType::pretty))
+        text("?") + text(name) + generic_arguments_doc(arguments)
       }
   }
 }
@@ -432,7 +429,7 @@ pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
   match effect {
     Empty(..) => text("{}")
     Singleton(symbol~, name~, arguments~, ..) =>
-      symbol.pretty() + space + text(name) + type_arguments_doc(arguments)
+      symbol.pretty() + space + text(name) + generic_arguments_doc(arguments)
     Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
     Alias(name~, arguments~, ..) =>
       if arguments.is_empty() {
@@ -448,7 +445,7 @@ pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
       } else {
         text("<unresolved-effect ") +
         text(name) +
-        type_arguments_doc(arguments) +
+        generic_arguments_doc(arguments) +
         text(">")
       }
   }
@@ -693,10 +690,10 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       reference.pretty() +
       space +
       text(type_name) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       text("::") +
       text(variant) +
-      type_arguments_doc(variant_type_arguments) +
+      generic_arguments_doc(variant_type_arguments) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     UnqualifiedVariant(variant~, reference~, arguments~, ..) =>
       reference.pretty() +
@@ -705,7 +702,7 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     StructLiteral(type_name~, type_arguments~, fields~, ..) =>
       text(type_name) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(ResolvedStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
@@ -736,7 +733,7 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
     EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
       name.pretty() +
       text("!") +
-      type_arguments_doc(type_witnesses) +
+      generic_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]
@@ -874,10 +871,22 @@ fn payload_doc(payload : Array[ResolvedType]) -> Document {
 }
 
 ///|
-fn type_arguments_doc(arguments : Array[ResolvedType]) -> Document {
+pub impl @prettyprinter.Pretty for ResolvedGenericArgument with fn pretty(
+  argument : ResolvedGenericArgument,
+) {
+  match argument {
+    TypeArgument(type_) => type_.pretty()
+    EffectArgument(effect) => effect.pretty()
+  }
+}
+
+///|
+fn generic_arguments_doc(
+  arguments : Array[ResolvedGenericArgument],
+) -> Document {
   if arguments.is_empty() {
     empty
   } else {
-    @pretty.bracketed_inline(arguments.map(ResolvedType::pretty))
+    @pretty.bracketed_inline(arguments.map(ResolvedGenericArgument::pretty))
   }
 }

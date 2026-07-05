@@ -166,10 +166,10 @@ fn AnfLowerer::lower_to_atom(
           },
         )
       })
-    OperationCall(operation~, arguments~, type_~, loc~, ..) =>
+    OperationCall(operation~, type_witnesses~, arguments~, type_~, loc~, ..) =>
       self.lower_exprs_to_atoms(arguments, 0, [], fn(arguments) {
         self.bind_temp(
-          OperationCall(operation~, arguments~, type_~, loc~),
+          OperationCall(operation~, type_witnesses~, arguments~, type_~, loc~),
           type_,
           loc,
           continuation,

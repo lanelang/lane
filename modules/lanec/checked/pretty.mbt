@@ -285,7 +285,7 @@ pub impl @prettyprinter.Pretty for CheckedPattern with fn pretty(
     Literal(literal~, ..) => literal_doc(literal)
     Variant(symbol~, type_arguments~, arguments~, ..) =>
       variant_symbol_doc(symbol) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       @pretty.parenthesized_inline(arguments.map(CheckedPattern::pretty))
     Struct(symbol~, type_binders~, fields~, ..) =>
       type_symbol_doc(symbol) +
@@ -351,7 +351,7 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       space +
       function_body_doc(body)
     TypeApplication(callee~, arguments~, ..) =>
-      expression_doc(callee) + type_arguments_doc(arguments)
+      expression_doc(callee) + generic_arguments_doc(arguments)
     Block(items~, result~, ..) => block_doc(items, result)
     If(condition~, then_branch~, else_branch~, ..) =>
       text("if") +
@@ -377,7 +377,7 @@ fn expression_doc(expression : CheckedExpr) -> Document {
     OperationCall(operation~, type_witnesses~, arguments~, ..) =>
       operation.pretty() +
       text("!") +
-      type_arguments_doc(type_witnesses) +
+      generic_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
     Handler(body~, handlers~, final_branch~, ..) => {
       let body_doc = match body {
@@ -395,7 +395,7 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       expression_doc(base) + text(".") + field_name_doc(name, field)
     StructLiteral(symbol~, type_arguments~, type_witnesses~, fields~, ..) =>
       type_symbol_doc(symbol) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       text("::") +
       @pretty.braced_block(
         type_witnesses.map(CheckedStructTypeWitness::pretty) +
@@ -403,7 +403,7 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       )
     Variant(symbol~, type_arguments~, arguments~, ..) =>
       variant_symbol_doc(symbol) +
-      type_arguments_doc(type_arguments) +
+      generic_arguments_doc(type_arguments) +
       @pretty.parenthesized_inline(arguments.map(expression_doc))
   }
 }
@@ -556,11 +556,11 @@ fn type_parameters_doc(parameters : Array[@types.TypeParameter]) -> Document {
 }
 
 ///|
-fn type_arguments_doc(arguments : Array[@types.Type]) -> Document {
+fn generic_arguments_doc(arguments : Array[@types.GenericArgument]) -> Document {
   if arguments.is_empty() {
     empty
   } else {
-    @pretty.bracketed_inline(arguments.map(@types.Type::pretty))
+    @pretty.bracketed_inline(arguments.map(@types.GenericArgument::pretty))
   }
 }
 

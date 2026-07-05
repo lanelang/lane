@@ -35,7 +35,10 @@ pub(all) enum BuslaneAnfBinding {
 pub(all) enum BuslaneAnfRhs {
   Atom(BuslaneAnfAtom)
   Call(callee~ : BuslaneAnfAtom, arguments~ : Array[BuslaneAnfAtom])
-  TypeApply(callee~ : BuslaneAnfAtom, arguments~ : Array[@buslane.Type])
+  TypeApply(
+    callee~ : BuslaneAnfAtom,
+    arguments~ : Array[@buslane.GenericArgument]
+  )
   Construct(BuslaneAnfConstruct)
   Perform(BuslaneAnfPerform)
   Handle(BuslaneAnfHandle)
@@ -44,8 +47,8 @@ pub(all) enum BuslaneAnfRhs {
 ///|
 pub(all) struct BuslaneAnfPerform {
   operation : @buslane.OperationId
-  effect_arguments : Array[@buslane.Type]
-  hidden_witnesses : Array[@buslane.Type]
+  effect_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
   payloads : Array[BuslaneAnfAtom]
 } derive(Debug, Eq)
 
@@ -76,8 +79,8 @@ pub(all) struct BuslaneAnfOperationAlternative {
 ///|
 pub(all) struct BuslaneAnfConstruct {
   data_constructor : @buslane.DataConId
-  type_arguments : Array[@buslane.Type]
-  hidden_witnesses : Array[@buslane.Type]
+  type_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
   payloads : Array[BuslaneAnfAtom]
 } derive(Debug, Eq)
 

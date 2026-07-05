@@ -35,10 +35,15 @@ fn TypeExpressionChecker::check_effect(
     Empty(..) => Empty
     Singleton(symbol~, name~, arguments~, loc~) => {
       self.check_effect_arity(symbol, name, arguments.length(), loc)
+      let parameters = self.effect_type_parameters(symbol)
       Singleton(
         symbol,
-        arguments.map(fn(argument) {
-          self.expect_kind(argument, Type).type_.normalize()
+        arguments.mapi(fn(index, argument) {
+          if index < parameters.length() {
+            self.check_generic_argument(parameters[index].kind, argument)
+          } else {
+            self.check_generic_argument(Type, argument)
+          }
         }),
       )
     }
@@ -61,7 +66,7 @@ fn TypeExpressionChecker::check_effect(
       effect_union(items.map(fn(item) { self.check_effect(item) }))
     Unresolved(name~, arguments~, loc~) => {
       for argument in arguments {
-        ignore(self.synthesize_type(argument))
+        ignore(self.check_generic_argument(Type, argument))
       }
       self.diagnostics.push({ kind: UnresolvedType(name), loc })
       Empty
@@ -310,6 +315,24 @@ fn @types.Effect::substitute_effect_parameters_with_bound(
 }
 
 ///|
+fn @types.GenericArgument::substitute_effect_parameters_with_bound(
+  self : @types.GenericArgument,
+  substitution : EffectSubstitution,
+  bound : Array[TypeParameterId],
+) -> @types.GenericArgument {
+  match self {
+    TypeArgument(type_) =>
+      TypeArgument(
+        type_.substitute_effect_parameters_with_bound(substitution, bound),
+      )
+    EffectArgument(effect) =>
+      EffectArgument(
+        effect.substitute_effect_parameters_with_bound(substitution, bound),
+      )
+  }
+}
+
+///|
 fn @types.Type::substitute_effect_parameters_with_bound(
   self : @types.Type,
   substitution : EffectSubstitution,
@@ -402,6 +425,31 @@ fn TypeExpressionChecker::check_effect_arity(
       loc,
     })
   }
+}
+
+///|
+fn TypeExpressionChecker::effect_type_parameters(
+  self : TypeExpressionChecker,
+  symbol : EffectSymbolId,
+) -> Array[@types.TypeParameter] {
+  for declaration in self.source.declarations {
+    match declaration {
+      Effect(declaration) if declaration.symbol == symbol =>
+        return check_type_parameters(
+          self.diagnostics,
+          declaration.type_parameters,
+        )
+      _ => ()
+    }
+  }
+  for module_ in self.imported_environment.modules {
+    for effect in module_.effects {
+      if effect.symbol == symbol {
+        return effect.type_parameters
+      }
+    }
+  }
+  []
 }
 
 ///|

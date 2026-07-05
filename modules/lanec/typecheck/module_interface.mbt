@@ -329,7 +329,7 @@ fn SemanticChecker::check_public_interface_resolved_type(
     Apply(callee~, arguments~, ..) => {
       self.check_public_interface_resolved_type(callee)
       for argument in arguments {
-        self.check_public_interface_resolved_type(argument)
+        self.check_public_interface_resolved_generic_argument(argument)
       }
     }
     TypeLambda(body~, ..) => self.check_public_interface_resolved_type(body)
@@ -341,9 +341,48 @@ fn SemanticChecker::check_public_interface_resolved_type(
     }
     Unresolved(arguments~, ..) =>
       for argument in arguments {
-        self.check_public_interface_resolved_type(argument)
+        self.check_public_interface_resolved_generic_argument(argument)
       }
     Primitive(_) | Alias(_) | Parameter(_) => ()
+  }
+}
+
+///|
+fn SemanticChecker::check_public_interface_resolved_generic_argument(
+  self : SemanticChecker,
+  argument : @resolve.ResolvedGenericArgument,
+) -> Unit {
+  match argument {
+    TypeArgument(type_) => self.check_public_interface_resolved_type(type_)
+    EffectArgument(effect) =>
+      self.check_public_interface_resolved_effect(effect)
+  }
+}
+
+///|
+fn SemanticChecker::check_public_interface_resolved_effect(
+  self : SemanticChecker,
+  effect : @resolve.ResolvedEffectTerm,
+) -> Unit {
+  match effect {
+    Singleton(arguments~, ..) | Unresolved(arguments~, ..) =>
+      for argument in arguments {
+        self.check_public_interface_resolved_generic_argument(argument)
+      }
+    Alias(arguments~, ..) =>
+      for argument in arguments {
+        match argument {
+          TypeArgument(type_) =>
+            self.check_public_interface_resolved_type(type_)
+          EffectArgument(effect) =>
+            self.check_public_interface_resolved_effect(effect)
+        }
+      }
+    Union(items~, ..) =>
+      for item in items {
+        self.check_public_interface_resolved_effect(item)
+      }
+    Empty(_) | Parameter(_) => ()
   }
 }
 
@@ -369,7 +408,9 @@ fn SemanticChecker::check_public_interface_type_fallback_with_seen(
     Apply(callee, arguments) => {
       self.check_public_interface_type_fallback_with_seen(callee, loc, seen)
       for argument in arguments {
-        self.check_public_interface_type_fallback_with_seen(argument, loc, seen)
+        self.check_public_interface_generic_argument_fallback_with_seen(
+          argument, loc, seen,
+        )
       }
     }
     TypeLambda(_, body) =>
@@ -390,6 +431,21 @@ fn SemanticChecker::check_public_interface_type_fallback_with_seen(
 }
 
 ///|
+fn SemanticChecker::check_public_interface_generic_argument_fallback_with_seen(
+  self : SemanticChecker,
+  argument : @types.GenericArgument,
+  loc : SourceSpan,
+  seen : Array[TypeSymbolId],
+) -> Unit {
+  match argument {
+    TypeArgument(type_) =>
+      self.check_public_interface_type_fallback_with_seen(type_, loc, seen)
+    EffectArgument(effect) =>
+      self.check_public_interface_effect_fallback_with_seen(effect, loc, seen)
+  }
+}
+
+///|
 fn SemanticChecker::check_public_interface_effect_fallback_with_seen(
   self : SemanticChecker,
   effect : @types.Effect,
@@ -401,7 +457,9 @@ fn SemanticChecker::check_public_interface_effect_fallback_with_seen(
     Singleton(symbol, arguments) => {
       self.check_public_interface_effect_fallback(symbol, loc)
       for argument in arguments {
-        self.check_public_interface_type_fallback_with_seen(argument, loc, seen)
+        self.check_public_interface_generic_argument_fallback_with_seen(
+          argument, loc, seen,
+        )
       }
     }
     Union(effects) =>

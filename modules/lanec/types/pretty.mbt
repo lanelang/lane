@@ -61,7 +61,7 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
     Primitive(primitive) => primitive.pretty()
     Constructor(symbol) => symbol.pretty()
     Apply(callee, arguments) =>
-      group(callee.pretty() + bracketed(arguments.map(Type::pretty)))
+      group(callee.pretty() + bracketed(arguments.map(GenericArgument::pretty)))
     TypeLambda(parameters, body) =>
       group(
         text("type") +
@@ -107,7 +107,9 @@ pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
       if arguments.is_empty() {
         symbol.pretty()
       } else {
-        group(symbol.pretty() + bracketed(arguments.map(Type::pretty)))
+        group(
+          symbol.pretty() + bracketed(arguments.map(GenericArgument::pretty)),
+        )
       }
     Parameter(id) => id.pretty()
     Union(effects) =>
@@ -116,6 +118,16 @@ pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
         char('}'),
         nest(softline + comma_list(effects.map(Effect::pretty))) + softline,
       )
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for GenericArgument with fn pretty(
+  argument : GenericArgument,
+) {
+  match argument {
+    TypeArgument(type_) => type_.pretty()
+    EffectArgument(effect) => effect.pretty()
   }
 }
 

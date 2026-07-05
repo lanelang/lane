@@ -22,7 +22,7 @@ fn TypeDisplayContext::type_text(
     Apply(callee, arguments) => {
       let callee_text = self.type_text(callee)
       let argument_text = arguments
-        .map(fn(argument) { self.type_text(argument) })
+        .map(fn(argument) { self.generic_argument_text(argument) })
         .join(", ")
       "\{callee_text}[\{argument_text}]"
     }
@@ -69,7 +69,7 @@ fn TypeDisplayContext::effect_text(
         name
       } else {
         let arguments = arguments
-          .map(fn(argument) { self.type_text(argument) })
+          .map(fn(argument) { self.generic_argument_text(argument) })
           .join(", ")
         "\{name}[\{arguments}]"
       }
@@ -77,6 +77,17 @@ fn TypeDisplayContext::effect_text(
     Parameter(id) => self.type_parameter_text(id)
     Union(effects) =>
       "{ \{effects.map(fn(effect) { self.effect_text(effect) }).join(", ")} }"
+  }
+}
+
+///|
+fn TypeDisplayContext::generic_argument_text(
+  self : TypeDisplayContext,
+  argument : @types.GenericArgument,
+) -> String {
+  match argument {
+    TypeArgument(type_) => self.type_text(type_)
+    EffectArgument(effect) => self.effect_text(effect)
   }
 }
 

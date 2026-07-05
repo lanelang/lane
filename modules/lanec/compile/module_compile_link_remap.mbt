@@ -95,7 +95,9 @@ fn BuslaneLinker::remap_expr(
     TypeApply(callee, arguments) =>
       TypeApply(
         self.remap_expr(object, callee),
-        arguments.map(fn(argument) { self.remap_type(object, argument) }),
+        arguments.map(fn(argument) {
+          self.remap_generic_argument(object, argument)
+        }),
       )
     Construct(construct) =>
       Construct({
@@ -104,10 +106,10 @@ fn BuslaneLinker::remap_expr(
           construct.data_constructor,
         ),
         type_arguments: construct.type_arguments.map(fn(argument) {
-          self.remap_type(object, argument)
+          self.remap_generic_argument(object, argument)
         }),
         hidden_witnesses: construct.hidden_witnesses.map(fn(witness) {
-          self.remap_type(object, witness)
+          self.remap_generic_argument(object, witness)
         }),
         payloads: construct.payloads.map(fn(payload) {
           self.remap_expr(object, payload)
@@ -154,10 +156,10 @@ fn BuslaneLinker::remap_expr(
       Perform({
         operation: self.remap_operation_id(object, perform.operation),
         effect_arguments: perform.effect_arguments.map(fn(argument) {
-          self.remap_type(object, argument)
+          self.remap_generic_argument(object, argument)
         }),
         hidden_witnesses: perform.hidden_witnesses.map(fn(argument) {
-          self.remap_type(object, argument)
+          self.remap_generic_argument(object, argument)
         }),
         payloads: perform.payloads.map(fn(payload) {
           self.remap_expr(object, payload)
@@ -236,7 +238,9 @@ fn BuslaneLinker::remap_type(
     Apply(callee, arguments) =>
       Apply(
         self.remap_type(object, callee),
-        arguments.map(fn(argument) { self.remap_type(object, argument) }),
+        arguments.map(fn(argument) {
+          self.remap_generic_argument(object, argument)
+        }),
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
@@ -258,6 +262,18 @@ fn BuslaneLinker::remap_type(
 }
 
 ///|
+fn BuslaneLinker::remap_generic_argument(
+  self : BuslaneLinker,
+  object : ModuleObject,
+  argument : @buslane.GenericArgument,
+) -> @buslane.GenericArgument {
+  match argument {
+    TypeArgument(type_) => TypeArgument(self.remap_type(object, type_))
+    EffectArgument(effect) => EffectArgument(self.remap_effect(object, effect))
+  }
+}
+
+///|
 fn BuslaneLinker::remap_effect(
   self : BuslaneLinker,
   object : ModuleObject,
@@ -268,7 +284,9 @@ fn BuslaneLinker::remap_effect(
     Singleton(id, arguments) =>
       Singleton(
         self.remap_effect_id(object, id),
-        arguments.map(fn(argument) { self.remap_type(object, argument) }),
+        arguments.map(fn(argument) {
+          self.remap_generic_argument(object, argument)
+        }),
       )
     Parameter(parameter) =>
       Parameter(self.remap_type_parameter_id(object, parameter))

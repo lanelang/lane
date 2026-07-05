@@ -28,8 +28,10 @@ fn @checked.CheckedPattern::collect_opened_type_parameters(
     Wildcard(..) | Binding(..) | Literal(..) => ()
     Variant(type_arguments~, arguments~, ..) => {
       for argument in type_arguments {
-        if argument is Parameter(id) {
-          parameters.push(id)
+        match argument {
+          TypeArgument(Parameter(id)) | EffectArgument(Parameter(id)) =>
+            parameters.push(id)
+          _ => ()
         }
       }
       for argument in arguments {
@@ -91,6 +93,20 @@ fn @types.Type::mentions_any_type_parameter_with_bound(
       }
       body.mentions_any_type_parameter_with_bound(parameters, next_bound)
     }
+  }
+}
+
+///|
+fn @types.GenericArgument::mentions_any_type_parameter_with_bound(
+  self : @types.GenericArgument,
+  parameters : Array[TypeParameterId],
+  bound : Array[TypeParameterId],
+) -> Bool {
+  match self {
+    TypeArgument(type_) =>
+      type_.mentions_any_type_parameter_with_bound(parameters, bound)
+    EffectArgument(effect) =>
+      effect.mentions_any_type_parameter_with_bound(parameters, bound)
   }
 }
 

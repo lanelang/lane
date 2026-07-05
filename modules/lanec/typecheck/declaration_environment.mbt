@@ -138,7 +138,7 @@ fn CheckedEnumDeclaration::variant(
 ///|
 fn CheckedStructDeclaration::nominal_substitution(
   self : CheckedStructDeclaration,
-  arguments : Array[@types.Type],
+  arguments : Array[@types.GenericArgument],
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   let length = if self.type_parameters.length() < arguments.length() {
@@ -147,7 +147,10 @@ fn CheckedStructDeclaration::nominal_substitution(
     arguments.length()
   }
   for index in 0..<length {
-    substitution.insert(self.type_parameters[index].id, arguments[index])
+    substitution.insert_argument(
+      self.type_parameters[index].id,
+      arguments[index],
+    )
   }
   substitution
 }
