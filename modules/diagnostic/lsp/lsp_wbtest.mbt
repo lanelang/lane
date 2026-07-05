@@ -14,7 +14,7 @@ test "diagnostic converts to lsp diagnostic json" {
       #|Object(
       #|  {
       #|    "severity": Number(1),
-      #|    "message": String("bad value"),
+      #|    "message": String("bad value\nvalue starts here"),
       #|    "code": String("E0001"),
       #|    "range": Object(
       #|      {
@@ -22,30 +22,67 @@ test "diagnostic converts to lsp diagnostic json" {
       #|        "end": Object({ "line": Number(0), "character": Number(10) }),
       #|      },
       #|    ),
-      #|    "relatedInformation": Array(
-      #|      [
-      #|        Object(
-      #|          {
-      #|            "location": Object(
-      #|              {
-      #|                "uri": String("file:///ops.lane"),
-      #|                "range": Object(
-      #|                  {
-      #|                    "start": Object({ "line": Number(0), "character": Number(4) }),
-      #|                    "end": Object({ "line": Number(0), "character": Number(10) }),
-      #|                  },
-      #|                ),
-      #|              },
-      #|            ),
-      #|            "message": String("value starts here"),
-      #|          },
-      #|        ),
-      #|      ],
-      #|    ),
       #|  },
       #|)
     ),
   )
+}
+
+///|
+test "lsp related information only carries independent source locations" {
+  let sources = @source.SourceDatabase::SourceDatabase()
+  let source = sources.add("let answer = value", path="file:///ops.lane")
+  let other = sources.add("let value = 1", path="file:///lib.lane")
+  let primary = sources.span(source, 4, 10)
+  let secondary = sources.span(source, 13, 18)
+  let related = sources.span(other, 4, 9)
+  let diagnostic = @core.Diagnostic::error(
+    "bad value",
+    code="E0001",
+    labels=[
+      @core.Label::primary(primary, message="value starts here"),
+      @core.Label::secondary(secondary, message="value used here"),
+    ],
+    notes=["notes belong to the diagnostic body"],
+    helps=["fix the value"],
+    facts=[{ name: "expected type", value: "`Int`", span: Some(primary) }],
+    related_locations=[{ span: related, message: "definition is here" }],
+  )
+  json_inspect(diagnostic_to_lsp_json(diagnostic, sources), content={
+    "severity": 1,
+    "message": "bad value\nvalue starts here\nexpected type: `Int`\nContext: notes belong to the diagnostic body\nSuggestion: fix the value",
+    "code": "E0001",
+    "range": {
+      "start": { "line": 0, "character": 4 },
+      "end": { "line": 0, "character": 10 },
+    },
+    "data": {
+      "facts": [{ "name": "expected type", "value": "`Int`", "hasSpan": true }],
+      "suggestions": [],
+    },
+    "relatedInformation": [
+      {
+        "location": {
+          "uri": "file:///ops.lane",
+          "range": {
+            "start": { "line": 0, "character": 13 },
+            "end": { "line": 0, "character": 18 },
+          },
+        },
+        "message": "value used here",
+      },
+      {
+        "location": {
+          "uri": "file:///lib.lane",
+          "range": {
+            "start": { "line": 0, "character": 4 },
+            "end": { "line": 0, "character": 9 },
+          },
+        },
+        "message": "definition is here",
+      },
+    ],
+  })
 }
 
 ///|
@@ -83,7 +120,7 @@ test "diagnostic without labels still includes required lsp range" {
   ])
   json_inspect(diagnostic_to_lsp_json(diagnostic, sources, source="lane"), content={
     "severity": 1,
-    "message": "workspace failure",
+    "message": "workspace failure\nContext: no source location is available",
     "source": "lane",
     "code": "E9999",
     "range": {

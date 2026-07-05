@@ -788,45 +788,13 @@ async test "didOpen publishes compiler diagnostics" {
         "diagnostics": [
           {
             "severity": 1,
-            "message": "cannot find type `Missing`",
+            "message": "cannot find type `Missing`\nno type named `Missing` is visible here\nContext: Lane resolves type names from the current module and explicitly imported public types\nSuggestion: declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
             "source": "lane",
             "code": "E2000",
             "range": {
               "start": { "line": 1, "character": 13 },
               "end": { "line": 1, "character": 20 },
             },
-            "relatedInformation": [
-              {
-                "location": {
-                  "uri": "file:///bad.lane",
-                  "range": {
-                    "start": { "line": 1, "character": 13 },
-                    "end": { "line": 1, "character": 20 },
-                  },
-                },
-                "message": "no type named `Missing` is visible here",
-              },
-              {
-                "location": {
-                  "uri": "file:///bad.lane",
-                  "range": {
-                    "start": { "line": 1, "character": 13 },
-                    "end": { "line": 1, "character": 20 },
-                  },
-                },
-                "message": "note: Lane resolves type names from the current module and explicitly imported public types",
-              },
-              {
-                "location": {
-                  "uri": "file:///bad.lane",
-                  "range": {
-                    "start": { "line": 1, "character": 13 },
-                    "end": { "line": 1, "character": 20 },
-                  },
-                },
-                "message": "help: declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
-              },
-            ],
           },
         ],
       },
@@ -854,7 +822,7 @@ test "lsp diagnostics convert text offsets before transport" {
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 1,
-    "message": "missing imported module `Builtins`",
+    "message": "missing imported module `Builtins`\nno explicit input provides this module\nconsidered source module: `Main`\nContext: Lane only compiles explicitly provided source files and interface artifacts\nSuggestion: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules",
     "source": "lane",
     "code": "E4002",
     "range": {
@@ -876,38 +844,6 @@ test "lsp diagnostics convert text offsets before transport" {
         },
       ],
     },
-    "relatedInformation": [
-      {
-        "location": {
-          "uri": "file:///unicode.lane",
-          "range": {
-            "start": { "line": 2, "character": 7 },
-            "end": { "line": 2, "character": 15 },
-          },
-        },
-        "message": "no explicit input provides this module",
-      },
-      {
-        "location": {
-          "uri": "file:///unicode.lane",
-          "range": {
-            "start": { "line": 2, "character": 7 },
-            "end": { "line": 2, "character": 15 },
-          },
-        },
-        "message": "note: Lane only compiles explicitly provided source files and interface artifacts",
-      },
-      {
-        "location": {
-          "uri": "file:///unicode.lane",
-          "range": {
-            "start": { "line": 2, "character": 7 },
-            "end": { "line": 2, "character": 15 },
-          },
-        },
-        "message": "help: pass an input whose declared module is `Builtins`, or change the import to one of the listed modules",
-      },
-    ],
   })
 }
 
@@ -930,35 +866,13 @@ test "lsp diagnostics transport unused local warnings" {
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 2,
-    "message": "unused local value binding",
+    "message": "unused local value binding\n`unused` is never used\nSuggestion: prefix the name with `_` if this is intentional",
     "source": "lane",
     "code": "W2001",
     "range": {
       "start": { "line": 2, "character": 6 },
       "end": { "line": 2, "character": 12 },
     },
-    "relatedInformation": [
-      {
-        "location": {
-          "uri": "file:///unused.lane",
-          "range": {
-            "start": { "line": 2, "character": 6 },
-            "end": { "line": 2, "character": 12 },
-          },
-        },
-        "message": "`unused` is never used",
-      },
-      {
-        "location": {
-          "uri": "file:///unused.lane",
-          "range": {
-            "start": { "line": 2, "character": 6 },
-            "end": { "line": 2, "character": 12 },
-          },
-        },
-        "message": "help: prefix the name with `_` if this is intentional",
-      },
-    ],
   })
 }
 
@@ -979,7 +893,7 @@ test "lsp duplicate top-level value diagnostic points at names" {
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 1,
-    "message": "conflicting top-level value `answer`",
+    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`\nContext: a Lane module has one top-level value namespace\nSuggestion: rename one of the declarations or remove the duplicate import",
     "source": "lane",
     "code": "E2005",
     "range": {
@@ -991,41 +905,11 @@ test "lsp duplicate top-level value diagnostic points at names" {
         "location": {
           "uri": "file:///duplicate.lane",
           "range": {
-            "start": { "line": 2, "character": 4 },
-            "end": { "line": 2, "character": 10 },
-          },
-        },
-        "message": "`answer` conflicts with an existing value named `answer`",
-      },
-      {
-        "location": {
-          "uri": "file:///duplicate.lane",
-          "range": {
             "start": { "line": 1, "character": 4 },
             "end": { "line": 1, "character": 10 },
           },
         },
         "message": "previous definition of `answer` is here",
-      },
-      {
-        "location": {
-          "uri": "file:///duplicate.lane",
-          "range": {
-            "start": { "line": 2, "character": 4 },
-            "end": { "line": 2, "character": 10 },
-          },
-        },
-        "message": "note: a Lane module has one top-level value namespace",
-      },
-      {
-        "location": {
-          "uri": "file:///duplicate.lane",
-          "range": {
-            "start": { "line": 2, "character": 4 },
-            "end": { "line": 2, "character": 10 },
-          },
-        },
-        "message": "help: rename one of the declarations or remove the duplicate import",
       },
     ],
   })
@@ -1055,7 +939,7 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
   let sources = compiler_diagnostic_sources_from_inputs([main, lib])
   json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
     "severity": 1,
-    "message": "conflicting top-level value `answer`",
+    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`\nContext: a Lane module has one top-level value namespace\nSuggestion: rename one of the declarations or remove the duplicate import",
     "source": "lane",
     "code": "E2005",
     "range": {
@@ -1065,16 +949,6 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
     "relatedInformation": [
       {
         "location": {
-          "uri": "file:///Main.lane",
-          "range": {
-            "start": { "line": 2, "character": 8 },
-            "end": { "line": 2, "character": 14 },
-          },
-        },
-        "message": "`answer` conflicts with an existing value named `answer`",
-      },
-      {
-        "location": {
           "uri": "file:///Lib.lane",
           "range": {
             "start": { "line": 1, "character": 8 },
@@ -1082,26 +956,6 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
           },
         },
         "message": "previous definition of `answer` is here",
-      },
-      {
-        "location": {
-          "uri": "file:///Main.lane",
-          "range": {
-            "start": { "line": 2, "character": 8 },
-            "end": { "line": 2, "character": 14 },
-          },
-        },
-        "message": "note: a Lane module has one top-level value namespace",
-      },
-      {
-        "location": {
-          "uri": "file:///Main.lane",
-          "range": {
-            "start": { "line": 2, "character": 8 },
-            "end": { "line": 2, "character": 14 },
-          },
-        },
-        "message": "help: rename one of the declarations or remove the duplicate import",
       },
     ],
   })
@@ -1131,7 +985,7 @@ test "lsp diagnostic conversion keeps required range for unmapped source" {
     compile_diagnostic_json(diagnostic, CompilerDiagnosticSources()),
     content={
       "severity": 1,
-      "message": "diagnostic source is not open",
+      "message": "diagnostic source is not open\nContext: original label could not be mapped",
       "source": "lane",
       "code": "E9999",
       "range": {
@@ -1279,45 +1133,13 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
         "diagnostics": [
           {
             "severity": 1,
-            "message": "cannot find type `Missing`",
+            "message": "cannot find type `Missing`\nno type named `Missing` is visible here\nContext: Lane resolves type names from the current module and explicitly imported public types\nSuggestion: declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
             "source": "lane",
             "code": "E2000",
             "range": {
               "start": { "line": 2, "character": 16 },
               "end": { "line": 2, "character": 23 },
             },
-            "relatedInformation": [
-              {
-                "location": {
-                  "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
-                  "range": {
-                    "start": { "line": 2, "character": 16 },
-                    "end": { "line": 2, "character": 23 },
-                  },
-                },
-                "message": "no type named `Missing` is visible here",
-              },
-              {
-                "location": {
-                  "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
-                  "range": {
-                    "start": { "line": 2, "character": 16 },
-                    "end": { "line": 2, "character": 23 },
-                  },
-                },
-                "message": "note: Lane resolves type names from the current module and explicitly imported public types",
-              },
-              {
-                "location": {
-                  "uri": "file://.tmp-lsp-diagnostic-workspace/Lib.lane",
-                  "range": {
-                    "start": { "line": 2, "character": 16 },
-                    "end": { "line": 2, "character": 23 },
-                  },
-                },
-                "message": "help: declare `Missing`, import the module that exports it, or qualify the type as `Module.Missing`",
-              },
-            ],
           },
         ],
       },

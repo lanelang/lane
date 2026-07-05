@@ -6,7 +6,7 @@ pub fn diagnostic_to_lsp_json(
 ) -> Json {
   let fields : Map[String, Json] = {
     "severity": severity_to_lsp_number(diagnostic.severity).to_json(),
-    "message": diagnostic.message.to_json(),
+    "message": diagnostic_message(diagnostic).to_json(),
   }
   if source is Some(source) {
     fields["source"] = source.to_json()
@@ -78,16 +78,46 @@ fn edits_by_uri_json(
 fn related_to_lsp_json(
   diagnostic : @core.Diagnostic,
   sources : @source.SourceDatabase,
-) -> Json {
-  let location = match diagnostic.labels.get(0) {
-    Some(label) =>
-      {
+) -> Json? {
+  guard diagnostic.labels.get(0) is Some(label) else { return None }
+  Some(
+    {
+      "location": {
         "uri": source_uri(label.span.source_id, sources).to_json(),
         "range": range_to_lsp_json(label.span, sources),
-      }.to_json()
-    None => Json::null()
+      }.to_json(),
+      "message": diagnostic.message.to_json(),
+    }.to_json(),
+  )
+}
+
+///|
+fn diagnostic_message(diagnostic : @core.Diagnostic) -> String {
+  let lines = [diagnostic.message]
+  for label in diagnostic.labels {
+    if label.style == Primary {
+      if label.message is Some(message) {
+        push_diagnostic_message_line(lines, message)
+      }
+    }
   }
-  { "location": location, "message": diagnostic.message.to_json() }.to_json()
+  for fact in diagnostic.facts {
+    push_diagnostic_message_line(lines, "\{fact.name}: \{fact.value}")
+  }
+  for note in diagnostic.notes {
+    push_diagnostic_message_line(lines, "Context: \{note}")
+  }
+  for help in diagnostic.helps {
+    push_diagnostic_message_line(lines, "Suggestion: \{help}")
+  }
+  lines.join("\n")
+}
+
+///|
+fn push_diagnostic_message_line(lines : Array[String], line : String) -> Unit {
+  if !line.is_empty() && !lines.contains(line) {
+    lines.push(line)
+  }
 }
 
 ///|
@@ -96,34 +126,18 @@ fn related_information_json(
   sources : @source.SourceDatabase,
 ) -> Array[Json] {
   let items : Array[Json] = []
-  let fallback_span = diagnostic.labels.get(0).map(fn(label) { label.span })
   for label in diagnostic.labels {
-    if label.message is Some(message) {
+    if label.style == Secondary && label.message is Some(message) {
       items.push(location_message_json(label.span, message, sources))
-    }
-  }
-  for note in diagnostic.notes {
-    if fallback_span is Some(span) {
-      items.push(location_message_json(span, "note: \{note}", sources))
-    }
-  }
-  for help in diagnostic.helps {
-    if fallback_span is Some(span) {
-      items.push(location_message_json(span, "help: \{help}", sources))
-    }
-  }
-  for fact in diagnostic.facts {
-    if fact.span is Some(span) {
-      items.push(
-        location_message_json(span, "\{fact.name}: \{fact.value}", sources),
-      )
     }
   }
   for related in diagnostic.related_locations {
     items.push(location_message_json(related.span, related.message, sources))
   }
   for related in diagnostic.related {
-    items.push(related_to_lsp_json(related, sources))
+    if related_to_lsp_json(related, sources) is Some(item) {
+      items.push(item)
+    }
   }
   items
 }
