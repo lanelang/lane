@@ -6,6 +6,8 @@ elaborator, Buslane checker, command line tool, and reference interpreter.
 - `valid/*.lane` should parse and type check.
 - `invalid/*.lane` should be rejected for the reason stated in the leading
   comment.
+- `warnings/*.lane` should type check but produce the documented warning under
+  warning-deny fixture runs.
 
 The examples follow the language specification rather than the current
 implementation. Rejecting a `valid` example or accepting an `invalid` example

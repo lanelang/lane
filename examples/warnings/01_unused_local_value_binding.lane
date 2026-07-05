@@ -1,0 +1,8 @@
+module Examples.Warnings.UnusedLocalValueBinding
+
+pub fn answer() -> Int {
+  let used = 1
+  let unused = 2
+  let _ignored = 3
+  used
+}

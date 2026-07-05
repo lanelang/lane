@@ -364,6 +364,19 @@
       }
     },
     {
+      "name": "warning 01 unused local value binding",
+      "file": "examples/warnings/01_unused_local_value_binding.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "warning[W2001]",
+          "unused local value binding",
+          "`unused` is never used",
+          "prefix the name with `_` if this is intentional"
+        ]
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "mode": "check-error",
