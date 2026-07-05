@@ -204,7 +204,7 @@ fn SemanticChecker::synthesize_expr(
       let callee_type = self.synthesize_expr(scope, callee)
       match
         self.check_explicit_generic_application(
-          scope, callee_type, arguments, loc,
+          scope, callee, callee_type, arguments, loc,
         ) {
         Some(application) => application.type_
         None => Error

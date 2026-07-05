@@ -23,6 +23,8 @@ fn parse_error_summary(errors : Array[@parser.ParseError]) -> String {
     UnexpectedEndOfInput(expected) =>
       "unexpected eof expected " +
       expected.map(fn(item) { item.label }).join(",")
+    EmptyGenericArgumentList => "empty generic argument list"
+    EmptyTypeParameterList => "empty type parameter list"
   }
 }
 
@@ -1612,7 +1614,7 @@ test "typecheck reports explicit generic function arity mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_arity_mismatch generic expression expected=1 actual=2 @ 5:21-5:32]
+      #|[type_arity_mismatch explicit_generic_application id expected=1 actual=2 @ 5:21-5:32]
     ),
   )
 }
@@ -1636,10 +1638,7 @@ test "typecheck reports explicit generic function kind mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[
-      #|  kind_mismatch expected=Effect actual=Type @ 11:24-11:27,
-      #|  type_mismatch expected=() -> Unit actual=() -> Unit ! effect#0 @ 11:29-11:35
-      #|]
+      #|[kind_mismatch expected=Effect actual=Type @ 11:24-11:27]
     ),
   )
 }
@@ -1657,7 +1656,7 @@ test "typecheck reports generic arguments on non-generic function" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[generic_arguments_on_non_generic (Int) -> Int @ 5:24-5:29]
+      #|[generic_arguments_on_non_generic explicit_generic_application plain (Int) -> Int @ 5:24-5:29]
     ),
   )
 }

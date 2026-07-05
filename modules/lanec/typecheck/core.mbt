@@ -154,17 +154,30 @@ pub(all) enum CannotInferReason {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum GenericArgumentSubject {
+  Named(name~ : String)
+  ExplicitExpression(callee~ : String?, callee_loc~ : SourceSpan?)
+} derive(Debug, Eq)
+
+///|
 pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
   MissingTopLevelLetAnnotation
-  GenericArgumentArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
+  GenericArgumentArityMismatch(
+    subject~ : GenericArgumentSubject,
+    expected~ : Int,
+    actual~ : Int
+  )
   TypeAliasCycle(name~ : String)
   KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)
   TypeMismatch(expected~ : @types.Type, actual~ : @types.Type)
   EffectMismatch(expected~ : @types.Effect, actual~ : @types.Effect)
   NotCallable(@types.Type)
-  GenericArgumentsOnNonGeneric(@types.Type)
+  GenericArgumentsOnNonGeneric(
+    subject~ : GenericArgumentSubject,
+    type_~ : @types.Type
+  )
   UnknownField(name~ : String)
   MissingField(name~ : String)
   DuplicateField(name~ : String)

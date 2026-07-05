@@ -356,7 +356,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   if type_binders.length() != variant_declaration.type_parameters.length() {
     self.diagnostics.push({
       kind: GenericArgumentArityMismatch(
-        name=type_name + "::" + variant,
+        subject=Named(name=type_name + "::" + variant),
         expected=variant_declaration.type_parameters.length(),
         actual=type_binders.length(),
       ),

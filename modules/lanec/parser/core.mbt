@@ -12,6 +12,8 @@ pub(all) struct ExpectedSyntax {
 pub(all) enum ParseErrorKind {
   UnexpectedToken(TokenSummary, Array[ExpectedSyntax])
   UnexpectedEndOfInput(Array[ExpectedSyntax])
+  EmptyGenericArgumentList
+  EmptyTypeParameterList
 } derive(Debug, Eq)
 
 ///|

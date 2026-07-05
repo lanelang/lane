@@ -265,10 +265,10 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     UnresolvedType(name) => text("unresolved_type") + space + text(name)
     UnresolvedValue(name) => text("unresolved_value") + space + text(name)
     MissingTopLevelLetAnnotation => text("missing_top_level_let_annotation")
-    GenericArgumentArityMismatch(name~, expected~, actual~) =>
+    GenericArgumentArityMismatch(subject~, expected~, actual~) =>
       text("type_arity_mismatch") +
       space +
-      text(name) +
+      subject.pretty() +
       space +
       text("expected=\{expected}") +
       space +
@@ -299,8 +299,12 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text("actual=") +
       actual.pretty()
     NotCallable(type_) => text("not_callable") + space + type_.pretty()
-    GenericArgumentsOnNonGeneric(type_) =>
-      text("generic_arguments_on_non_generic") + space + type_.pretty()
+    GenericArgumentsOnNonGeneric(subject~, type_~) =>
+      text("generic_arguments_on_non_generic") +
+      space +
+      subject.pretty() +
+      space +
+      type_.pretty()
     UnknownField(name~) => text("unknown_field") + space + text(name)
     MissingField(name~) => text("missing_field") + space + text(name)
     DuplicateField(name~) => text("duplicate_field") + space + text(name)
@@ -338,6 +342,18 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     InvalidIntLiteral(raw) => text("invalid_int_literal") + space + text(raw)
     CannotInferExpression(label~, ..) =>
       text("cannot_infer") + space + text(label)
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for GenericArgumentSubject with fn pretty(
+  subject : GenericArgumentSubject,
+) {
+  match subject {
+    Named(name~) => text(name)
+    ExplicitExpression(callee=Some(callee), ..) =>
+      text("explicit_generic_application") + space + text(callee)
+    ExplicitExpression(callee=None, ..) => text("explicit_generic_application")
   }
 }
 

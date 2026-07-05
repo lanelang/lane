@@ -204,7 +204,7 @@ fn TypeExpressionChecker::check_effect_alias_arguments(
   if parameters.length() != arguments.length() {
     self.diagnostics.push({
       kind: GenericArgumentArityMismatch(
-        name~,
+        subject=Named(name~),
         expected=parameters.length(),
         actual=arguments.length(),
       ),
@@ -421,7 +421,11 @@ fn TypeExpressionChecker::check_effect_arity(
   }
   if expected is Some(expected) && expected != actual {
     self.diagnostics.push({
-      kind: GenericArgumentArityMismatch(name~, expected~, actual~),
+      kind: GenericArgumentArityMismatch(
+        subject=Named(name~),
+        expected~,
+        actual~,
+      ),
       loc,
     })
   }

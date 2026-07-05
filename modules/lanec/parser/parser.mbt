@@ -30,22 +30,52 @@ pub fn parse_tokens(tokens : Array[(@lexer.Token, SourceSpan)]) -> ParseResult {
           { kind: UnexpectedEndOfInput(expected_syntax(expected)), loc },
         ],
       }
-    UnexpectedToken(token, (start, end), expected) =>
+    UnexpectedToken(token, (start, end), expected) => {
+      let expected = expected_syntax(expected)
+      let kind = match
+        empty_bracket_list_error(tokens, token, start, expected) {
+        Some(kind) => kind
+        None => UnexpectedToken(token_summary(token), expected)
+      }
       return {
         source: None,
         lexical_errors: [],
-        parse_errors: [
-          {
-            kind: UnexpectedToken(
-              token_summary(token),
-              expected_syntax(expected),
-            ),
-            loc: SourceSpan::join(start, end),
-          },
-        ],
+        parse_errors: [{ kind, loc: SourceSpan::join(start, end) }],
       }
+    }
   }
   { source: Some(source), lexical_errors: [], parse_errors: [] }
+}
+
+///|
+fn empty_bracket_list_error(
+  tokens : Array[(@lexer.Token, SourceSpan)],
+  token : @yacc_parser.Token,
+  loc : SourceSpan,
+  expected : Array[ExpectedSyntax],
+) -> ParseErrorKind? {
+  guard token is RBRACKET else { return None }
+  guard previous_token(tokens, loc) is Some(LBRACKET) else { return None }
+  if expected.length() == 1 && expected[0].label == "identifier" {
+    Some(EmptyTypeParameterList)
+  } else {
+    Some(EmptyGenericArgumentList)
+  }
+}
+
+///|
+fn previous_token(
+  tokens : Array[(@lexer.Token, SourceSpan)],
+  loc : SourceSpan,
+) -> @lexer.Token? {
+  for index in 0..<tokens.length() {
+    let (_, token_loc) = tokens[index]
+    if token_loc == loc && index > 0 {
+      let (token, _) = tokens[index - 1]
+      return Some(token)
+    }
+  }
+  None
 }
 
 ///|

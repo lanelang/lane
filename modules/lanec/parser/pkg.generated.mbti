@@ -28,6 +28,8 @@ pub(all) struct ParseError {
 pub(all) enum ParseErrorKind {
   UnexpectedToken(TokenSummary, Array[ExpectedSyntax])
   UnexpectedEndOfInput(Array[ExpectedSyntax])
+  EmptyGenericArgumentList
+  EmptyTypeParameterList
 } derive(Eq, @debug.Debug)
 
 pub struct ParseResult {

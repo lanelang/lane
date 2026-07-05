@@ -291,7 +291,7 @@ fn SemanticChecker::variant_hidden_generic_arguments(
     if explicit.length() != variant.type_parameters.length() {
       self.diagnostics.push({
         kind: GenericArgumentArityMismatch(
-          name=display_name,
+          subject=Named(name=display_name),
           expected=variant.type_parameters.length(),
           actual=explicit.length(),
         ),

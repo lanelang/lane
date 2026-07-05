@@ -602,8 +602,9 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
-          "the parser did not expect `]`"
+          "error[E1103]",
+          "empty type parameter list",
+          "generic parameter lists must contain at least one parameter"
         ]
       }
     },
@@ -788,9 +789,9 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
-          "the parser did not expect `]`",
-          "expected one of: identifier, `type`, `(`, `[`"
+          "error[E1102]",
+          "empty generic argument list",
+          "explicit generic argument lists must contain at least one argument"
         ]
       }
     },
@@ -801,8 +802,9 @@
       "expect": {
         "contains": [
           "error[E3003]",
-          "wrong number of generic arguments for `generic expression`",
-          "`generic expression` expects 1 generic argument(s), but 2 were provided"
+          "wrong number of explicit generic arguments for `id`",
+          "this explicit generic argument list provides 2 argument(s), but the callee expects 1",
+          "generic callee `id`"
         ]
       }
     },
@@ -826,7 +828,8 @@
         "contains": [
           "error[E3011]",
           "generic arguments require a generic value",
-          "`(Int) -> Int` is not a generic function type"
+          "these explicit generic arguments require a value with `forall` type",
+          "`plain` has type `(Int) -> Int`"
         ]
       }
     }

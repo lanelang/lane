@@ -211,6 +211,8 @@ fn parse_error_code(error : @parser.ParseErrorKind) -> String {
   match error {
     UnexpectedToken(_, _) => "E1100"
     UnexpectedEndOfInput(_) => "E1101"
+    EmptyGenericArgumentList => "E1102"
+    EmptyTypeParameterList => "E1103"
   }
 }
 
@@ -219,6 +221,8 @@ fn parse_error_title(error : @parser.ParseErrorKind) -> String {
   match error {
     UnexpectedToken(_, _) => "unexpected token"
     UnexpectedEndOfInput(_) => "unexpected end of input"
+    EmptyGenericArgumentList => "empty generic argument list"
+    EmptyTypeParameterList => "empty type parameter list"
   }
 }
 
@@ -228,6 +232,10 @@ fn parse_error_label(error : @parser.ParseErrorKind) -> String {
     UnexpectedToken(token, _) => "the parser did not expect " + token.label
     UnexpectedEndOfInput(_) =>
       "the source file ended while parsing this construct"
+    EmptyGenericArgumentList =>
+      "explicit generic argument lists must contain at least one argument"
+    EmptyTypeParameterList =>
+      "generic parameter lists must contain at least one parameter"
   }
 }
 
@@ -240,6 +248,12 @@ fn parse_error_notes(error : @parser.ParseErrorKind) -> Array[String] {
       } else {
         ["expected one of: " + expected_list(expected)]
       }
+    EmptyGenericArgumentList =>
+      [
+        "use explicit generic arguments only when at least one argument is provided",
+      ]
+    EmptyTypeParameterList =>
+      ["omit the brackets when a declaration has no generic parameters"]
   }
 }
 
@@ -264,6 +278,10 @@ fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
           expected_list(expected),
         ]
       }
+    EmptyGenericArgumentList =>
+      ["remove the empty `[]` or provide at least one generic argument"]
+    EmptyTypeParameterList =>
+      ["remove the empty `[]` or add a parameter name such as `[A]`"]
   }
 }
 

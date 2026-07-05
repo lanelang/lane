@@ -803,13 +803,13 @@ test "parse rejects empty enum and effect operation parameter headers" {
   debug_inspect(
     parse_error_kinds("enum Empty[] { value }"),
     content=(
-      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+      #|[EmptyTypeParameterList]
     ),
   )
   debug_inspect(
     parse_error_kinds("effect Prompt { choose[](Int, Int) -> Int }"),
     content=(
-      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+      #|[EmptyTypeParameterList]
     ),
   )
 }
@@ -828,17 +828,7 @@ test "parse rejects empty operation witness and handler binder lists" {
       ),
     ),
     content=(
-      #|[
-      #|  UnexpectedToken(
-      #|    { label: "`]`" },
-      #|    [
-      #|      { label: "identifier" },
-      #|      { label: "`type`" },
-      #|      { label: "`(`" },
-      #|      { label: "`[`" },
-      #|    ],
-      #|  ),
-      #|]
+      #|[EmptyGenericArgumentList]
     ),
   )
   debug_inspect(
@@ -857,7 +847,7 @@ test "parse rejects empty operation witness and handler binder lists" {
       ),
     ),
     content=(
-      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+      #|[EmptyTypeParameterList]
     ),
   )
 }
@@ -920,7 +910,7 @@ test "parse rejects empty type alias parameter header" {
   debug_inspect(
     parse_error_kinds("type Empty[] = Int"),
     content=(
-      #|[UnexpectedToken({ label: "`]`" }, [{ label: "identifier" }])]
+      #|[EmptyTypeParameterList]
     ),
   )
 }

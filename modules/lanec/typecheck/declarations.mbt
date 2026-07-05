@@ -589,7 +589,7 @@ fn TypeExpressionChecker::synthesize_type(
           if parameter_kinds.length() != arguments.length() {
             self.diagnostics.push({
               kind: GenericArgumentArityMismatch(
-                name=resolved_type_name(callee),
+                subject=Named(name=resolved_type_name(callee)),
                 expected=parameter_kinds.length(),
                 actual=arguments.length(),
               ),
@@ -1205,7 +1205,7 @@ fn check_type_arity(
   if symbols.type_metadata(symbol) is Some(metadata) && metadata.arity != actual {
     diagnostics.push({
       kind: GenericArgumentArityMismatch(
-        name~,
+        subject=Named(name~),
         expected=metadata.arity,
         actual~,
       ),

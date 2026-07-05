@@ -242,6 +242,7 @@ fn SemanticChecker::synthesize_checked_generic_application(
   match
     self.check_explicit_generic_application(
       scope,
+      callee,
       checked_callee.type_,
       arguments,
       loc,

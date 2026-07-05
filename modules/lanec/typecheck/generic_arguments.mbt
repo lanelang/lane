@@ -342,16 +342,18 @@ fn call_argument_expressions(
 fn SemanticChecker::check_explicit_generic_application(
   self : SemanticChecker,
   scope : TypeScope,
+  callee : @desugar.DesugaredExpr,
   callee_type : @types.Type,
   arguments : Array[@resolve.ResolvedGenericArgument],
   loc : SourceSpan,
 ) -> ExplicitGenericApplicationResult? {
+  let subject = explicit_generic_application_subject(callee)
   match callee_type {
     Forall(type_parameters, body) => {
       if type_parameters.length() != arguments.length() {
         self.diagnostics.push({
           kind: GenericArgumentArityMismatch(
-            name="generic expression",
+            subject~,
             expected=type_parameters.length(),
             actual=arguments.length(),
           ),
@@ -359,6 +361,7 @@ fn SemanticChecker::check_explicit_generic_application(
         })
         return None
       }
+      let diagnostic_count = self.diagnostics.length()
       let checked_arguments = check_resolved_generic_arguments(
         self.resolved_source,
         self.diagnostics,
@@ -366,6 +369,9 @@ fn SemanticChecker::check_explicit_generic_application(
         type_parameters,
         arguments,
       )
+      if self.diagnostics.length() != diagnostic_count {
+        return None
+      }
       let substitution = @types.TypeSubstitution::TypeSubstitution()
       for index in 0..<type_parameters.length() {
         substitution.insert_argument(
@@ -380,9 +386,32 @@ fn SemanticChecker::check_explicit_generic_application(
     }
     Error => None
     type_ => {
-      self.diagnostics.push({ kind: GenericArgumentsOnNonGeneric(type_), loc })
+      self.diagnostics.push({
+        kind: GenericArgumentsOnNonGeneric(subject~, type_~),
+        loc,
+      })
       None
     }
+  }
+}
+
+///|
+fn explicit_generic_application_subject(
+  callee : @desugar.DesugaredExpr,
+) -> GenericArgumentSubject {
+  ExplicitExpression(
+    callee=explicit_generic_callee_name(callee),
+    callee_loc=Some(callee.loc()),
+  )
+}
+
+///|
+fn explicit_generic_callee_name(callee : @desugar.DesugaredExpr) -> String? {
+  match callee {
+    Var(name~, ..) => Some(name)
+    Field(name~, ..) => Some(name)
+    GenericApplication(callee~, ..) => explicit_generic_callee_name(callee)
+    _ => None
   }
 }
 

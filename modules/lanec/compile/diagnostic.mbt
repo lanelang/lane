@@ -710,23 +710,9 @@ fn typecheck_diagnostic(
         ],
         helps=["write the declaration as `let name : Type = expression`"],
       )
-    GenericArgumentArityMismatch(name~, expected~, actual~) =>
-      diagnostic(
-        "wrong number of generic arguments for `\{name}`",
-        span~,
-        severity=Error,
-        code=Some("E3003"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "`\{name}` expects \{expected} generic argument(s), but \{actual} were provided",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "type constructors and generic functions must be applied with their declared arity",
-        ],
-        helps=["add or remove generic arguments so the count is \{expected}"],
+    GenericArgumentArityMismatch(subject~, expected~, actual~) =>
+      generic_argument_arity_diagnostic(
+        diagnostic_, display, span, subject, expected, actual,
       )
     TypeAliasCycle(name~) =>
       diagnostic(
@@ -856,23 +842,9 @@ fn typecheck_diagnostic(
         notes=["only values with function type can be used in call position"],
         helps=["remove the call or use a function value here"],
       )
-    GenericArgumentsOnNonGeneric(type_) =>
-      diagnostic(
-        "generic arguments require a generic value",
-        span~,
-        severity=Error,
-        code=Some("E3011"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "`\{display.type_text(type_)}` is not a generic function type",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "explicit generic arguments instantiate values with `forall` type",
-        ],
-        helps=["remove the generic arguments or make the callee generic"],
+    GenericArgumentsOnNonGeneric(subject~, type_~) =>
+      generic_arguments_on_non_generic_diagnostic(
+        diagnostic_, display, span, subject, type_,
       )
     UnknownField(name~) =>
       diagnostic(
@@ -1236,6 +1208,165 @@ fn typecheck_diagnostic(
 }
 
 ///|
+fn generic_argument_arity_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  display : TypeDisplayContext,
+  span : @basic.SourceSpan?,
+  subject : @typecheck.GenericArgumentSubject,
+  expected : Int,
+  actual : Int,
+) -> CompilerDiagnostic {
+  diagnostic(
+    generic_argument_arity_title(subject),
+    span~,
+    severity=Error,
+    code=Some("E3003"),
+    labels=generic_argument_arity_labels(
+      diagnostic_.loc,
+      display,
+      subject,
+      expected,
+      actual,
+    ),
+    notes=generic_argument_subject_notes(subject),
+    helps=["add or remove generic arguments so the count is \{expected}"],
+  )
+}
+
+///|
+fn generic_arguments_on_non_generic_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  display : TypeDisplayContext,
+  span : @basic.SourceSpan?,
+  subject : @typecheck.GenericArgumentSubject,
+  type_ : @types.Type,
+) -> CompilerDiagnostic {
+  diagnostic(
+    "generic arguments require a generic value",
+    span~,
+    severity=Error,
+    code=Some("E3011"),
+    labels=generic_arguments_on_non_generic_labels(
+      diagnostic_.loc,
+      display,
+      subject,
+      type_,
+    ),
+    notes=["explicit generic arguments instantiate values with `forall` type"],
+    helps=["remove the generic arguments or make the callee generic"],
+  )
+}
+
+///|
+fn generic_argument_arity_title(
+  subject : @typecheck.GenericArgumentSubject,
+) -> String {
+  match subject {
+    Named(name~) => "wrong number of generic arguments for `\{name}`"
+    ExplicitExpression(callee=Some(callee), ..) =>
+      "wrong number of explicit generic arguments for `\{callee}`"
+    ExplicitExpression(callee=None, ..) =>
+      "wrong number of explicit generic arguments"
+  }
+}
+
+///|
+fn generic_argument_arity_labels(
+  loc : @basic.SourceSpan,
+  display : TypeDisplayContext,
+  subject : @typecheck.GenericArgumentSubject,
+  expected : Int,
+  actual : Int,
+) -> Array[CompilerDiagnosticLabel] {
+  let labels : Array[CompilerDiagnosticLabel] = [
+    {
+      span: compiler_local_span(loc),
+      message: generic_argument_arity_primary_label(subject, expected, actual),
+      style: Primary,
+    },
+  ]
+  add_generic_argument_subject_label(labels, display, subject, None)
+  labels
+}
+
+///|
+fn generic_argument_arity_primary_label(
+  subject : @typecheck.GenericArgumentSubject,
+  expected : Int,
+  actual : Int,
+) -> String {
+  match subject {
+    Named(name~) =>
+      "`\{name}` expects \{expected} generic argument(s), but \{actual} were provided"
+    ExplicitExpression(..) =>
+      "this explicit generic argument list provides \{actual} argument(s), but the callee expects \{expected}"
+  }
+}
+
+///|
+fn generic_arguments_on_non_generic_labels(
+  loc : @basic.SourceSpan,
+  display : TypeDisplayContext,
+  subject : @typecheck.GenericArgumentSubject,
+  type_ : @types.Type,
+) -> Array[CompilerDiagnosticLabel] {
+  let labels : Array[CompilerDiagnosticLabel] = [
+    {
+      span: compiler_local_span(loc),
+      message: generic_arguments_on_non_generic_primary_label(
+        display, subject, type_,
+      ),
+      style: Primary,
+    },
+  ]
+  add_generic_argument_subject_label(labels, display, subject, Some(type_))
+  labels
+}
+
+///|
+fn generic_arguments_on_non_generic_primary_label(
+  display : TypeDisplayContext,
+  subject : @typecheck.GenericArgumentSubject,
+  type_ : @types.Type,
+) -> String {
+  match subject {
+    Named(_) => "`\{display.type_text(type_)}` is not a generic function type"
+    ExplicitExpression(..) =>
+      "these explicit generic arguments require a value with `forall` type"
+  }
+}
+
+///|
+fn add_generic_argument_subject_label(
+  labels : Array[CompilerDiagnosticLabel],
+  display : TypeDisplayContext,
+  subject : @typecheck.GenericArgumentSubject,
+  type_ : @types.Type?,
+) -> Unit {
+  if subject is ExplicitExpression(callee=Some(callee), callee_loc=Some(loc)) {
+    let message = match type_ {
+      Some(type_) => "`\{callee}` has type `\{display.type_text(type_)}`"
+      None => "generic callee `\{callee}`"
+    }
+    labels.push({ span: compiler_local_span(loc), message, style: Secondary })
+  }
+}
+
+///|
+fn generic_argument_subject_notes(
+  subject : @typecheck.GenericArgumentSubject,
+) -> Array[String] {
+  match subject {
+    Named(_) =>
+      [
+        "type constructors, effects, variants, and generic functions must be applied with their declared arity",
+      ]
+    ExplicitExpression(..) =>
+      ["explicit generic arguments instantiate values with `forall` type"]
+  }
+}
+
+///|
 fn cannot_infer_diagnostic(
   diagnostic_ : @typecheck.TypeCheckDiagnostic,
   span : @basic.SourceSpan?,
@@ -1414,6 +1545,8 @@ fn parse_error_code(error : @parser.ParseErrorKind) -> String {
   match error {
     UnexpectedToken(_, _) => "E1100"
     UnexpectedEndOfInput(_) => "E1101"
+    EmptyGenericArgumentList => "E1102"
+    EmptyTypeParameterList => "E1103"
   }
 }
 
@@ -1422,6 +1555,8 @@ fn parse_error_title(error : @parser.ParseErrorKind) -> String {
   match error {
     UnexpectedToken(_, _) => "unexpected token"
     UnexpectedEndOfInput(_) => "unexpected end of input"
+    EmptyGenericArgumentList => "empty generic argument list"
+    EmptyTypeParameterList => "empty type parameter list"
   }
 }
 
@@ -1431,6 +1566,10 @@ fn parse_error_label(error : @parser.ParseErrorKind) -> String {
     UnexpectedToken(token, _) => "the parser did not expect \{token.label}"
     UnexpectedEndOfInput(_) =>
       "the source file ended while parsing this construct"
+    EmptyGenericArgumentList =>
+      "explicit generic argument lists must contain at least one argument"
+    EmptyTypeParameterList =>
+      "generic parameter lists must contain at least one parameter"
   }
 }
 
@@ -1443,6 +1582,12 @@ fn parse_error_notes(error : @parser.ParseErrorKind) -> Array[String] {
       } else {
         ["expected one of: \{expected_list(expected)}"]
       }
+    EmptyGenericArgumentList =>
+      [
+        "use explicit generic arguments only when at least one argument is provided",
+      ]
+    EmptyTypeParameterList =>
+      ["omit the brackets when a declaration has no generic parameters"]
   }
 }
 
@@ -1465,6 +1610,10 @@ fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
           "add the missing syntax before the end of file; expected one of: \{expected_list(expected)}",
         ]
       }
+    EmptyGenericArgumentList =>
+      ["remove the empty `[]` or provide at least one generic argument"]
+    EmptyTypeParameterList =>
+      ["remove the empty `[]` or add a parameter name such as `[A]`"]
   }
 }
 
