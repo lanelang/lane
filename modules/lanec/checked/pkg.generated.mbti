@@ -185,6 +185,7 @@ pub(all) struct CheckedSourceFile {
   declarations : Array[CheckedTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedSourceFile::value_use_analysis(Self) -> CheckedValueUseAnalysis
 pub impl @prettyprinter.Pretty for CheckedSourceFile
 
 pub(all) struct CheckedStructDeclaration {
@@ -258,6 +259,35 @@ pub(all) struct CheckedValueParameter {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedValueParameter
+
+pub(all) struct CheckedValueUseAnalysis {
+  binders : Array[CheckedValueUseBinder]
+  references : Array[CheckedValueUseReference]
+} derive(Eq, @debug.Debug)
+pub fn CheckedValueUseAnalysis::unused_binders(Self) -> Array[CheckedValueUseBinder]
+
+pub(all) struct CheckedValueUseBinder {
+  symbol : @symbol.ValueSymbolId
+  name : String
+  loc : @basic.SourceSpan
+  kind : CheckedValueUseBinderKind
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CheckedValueUseBinderKind {
+  LocalLet
+  LocalFunction
+  FunctionParameter
+  FunctionLiteralParameter
+  PatternBinder
+  HandlerResumeBinder
+  HandlerFinalBinder
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CheckedValueUseReference {
+  target : @symbol.ValueSymbolId
+  origin_binder : @symbol.ValueSymbolId?
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedVariantDeclaration {
   symbol : @symbol.VariantSymbolId

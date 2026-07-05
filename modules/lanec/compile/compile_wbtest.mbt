@@ -48,6 +48,131 @@ test "compile verifies handler around effectful function call" {
 }
 
 ///|
+test "check reports unused local value binding as warning" {
+  let result = check_source(
+    (
+      #|module Test
+      #|pub fn answer() -> Int {
+      #|  let used = 1
+      #|  let unused = 2
+      #|  let _ignored = 3
+      #|  used
+      #|}
+    ),
+  )
+  guard result.source is Some(_) else { abort("expected checked source") }
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 58,
+      #|          end_offset: 64,
+      #|          start_line: 4,
+      #|          start_column: 7,
+      #|          end_line: 4,
+      #|          end_column: 13,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 58,
+      #|            end_offset: 64,
+      #|            start_line: 4,
+      #|            start_column: 7,
+      #|            end_line: 4,
+      #|            end_column: 13,
+      #|          },
+      #|        ),
+      #|        message: "`unused` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "compile modules keeps artifacts when unused local warning exists" {
+  let result = compile_modules(
+    (
+      #|module Test
+      #|pub fn answer() -> Int {
+      #|  let unused = 1
+      #|  0
+      #|}
+    ),
+    [],
+  )
+  guard result.modules is Some(_) else { abort("expected compiled modules") }
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 43,
+      #|          end_offset: 49,
+      #|          start_line: 3,
+      #|          start_column: 7,
+      #|          end_line: 3,
+      #|          end_column: 13,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 43,
+      #|            end_offset: 49,
+      #|            start_line: 3,
+      #|            start_column: 7,
+      #|            end_line: 3,
+      #|            end_column: 13,
+      #|          },
+      #|        ),
+      #|        message: "`unused` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "check reports payloadless variant without parentheses" {
   let result = check_source(
     (
@@ -691,7 +816,53 @@ test "effect aliases export through interface artifacts" {
       ),
     ],
   )
-  debug_inspect(compiled.diagnostics, content="[]")
+  debug_inspect(
+    compiled.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 63,
+      #|          end_offset: 70,
+      #|          start_line: 4,
+      #|          start_column: 7,
+      #|          end_line: 4,
+      #|          end_column: 14,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 63,
+      #|            end_offset: 70,
+      #|            start_line: 4,
+      #|            start_column: 7,
+      #|            end_line: 4,
+      #|            end_column: 14,
+      #|          },
+      #|        ),
+      #|        message: "`ignored` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -1882,6 +2053,7 @@ test "link modules rejects stale module object fingerprint" {
     root_module_path_text: modules.root_module_path_text,
     modules: stale_modules,
     reachable_module_path_texts: modules.reachable_module_path_texts,
+    diagnostics: [],
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(linked.diagnostics[0].message, content="stale module object")
@@ -1960,6 +2132,7 @@ test "link modules rejects stale imported reference fingerprint" {
     root_module_path_text: modules.root_module_path_text,
     modules: damaged_modules,
     reachable_module_path_texts: modules.reachable_module_path_texts,
+    diagnostics: [],
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(linked.diagnostics[0].message, content="stale imported reference")
@@ -2023,6 +2196,7 @@ test "link modules rejects missing exported object value" {
     root_module_path_text: modules.root_module_path_text,
     modules: damaged_modules,
     reachable_module_path_texts: modules.reachable_module_path_texts,
+    diagnostics: [],
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(
@@ -2075,6 +2249,7 @@ test "link modules rejects compiled artifact import cycle" {
     root_module_path_text: "A",
     modules: [module_a, module_b],
     reachable_module_path_texts: ["A", "B"],
+    diagnostics: [],
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(linked.diagnostics[0].message, content="import cycle involving `A`")
@@ -2100,6 +2275,7 @@ test "link modules rejects missing compiled artifact import" {
     root_module_path_text: "Main",
     modules: [module_],
     reachable_module_path_texts: ["Main"],
+    diagnostics: [],
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(
@@ -2976,7 +3152,12 @@ test "analysis renders user-facing type names in type inlay hints" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.diagnostics.length(),
+    content=(
+      #|1
+    ),
+  )
   debug_inspect(
     result.inlay_hints,
     content=(
@@ -3029,7 +3210,12 @@ test "analysis produces parameter name inlay hints for calls" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.diagnostics.length(),
+    content=(
+      #|2
+    ),
+  )
   debug_inspect(
     result.inlay_hints,
     content=(
@@ -3163,7 +3349,12 @@ test "analysis keeps nested call parameter hints at distinct positions" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.diagnostics.length(),
+    content=(
+      #|1
+    ),
+  )
   assert_no_duplicate_parameter_hint_positions(result.inlay_hints)
 }
 
@@ -3235,7 +3426,12 @@ test "analysis skips parameter name inlay hints for source operators" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  inspect(
+    result.diagnostics.length(),
+    content=(
+      #|1
+    ),
+  )
   debug_inspect(
     result.inlay_hints,
     content=(

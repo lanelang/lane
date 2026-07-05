@@ -4,7 +4,7 @@ import Stdlib.Io.{Io, Write}
 
 import Stdlib.Ops.*
 
-pub fn weird_add(a : Int, b : Int) -> Int {
+pub fn weird_add(a : Int, _b : Int) -> Int {
   a
 }
 

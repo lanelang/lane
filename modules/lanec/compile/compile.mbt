@@ -51,7 +51,11 @@ pub fn check_source_inputs(
     Ok(modules) =>
       match
         find_compiled_module(modules.modules, modules.root_module_path_text) {
-        Some(root) => { source: Some(root.object.checked), diagnostics: [] }
+        Some(root) =>
+          {
+            source: Some(root.object.checked),
+            diagnostics: modules.diagnostics,
+          }
         None =>
           {
             source: None,
@@ -86,7 +90,11 @@ pub fn check_source_input_with_interface_artifacts(
     Ok(modules) =>
       match
         find_compiled_module(modules.modules, modules.root_module_path_text) {
-        Some(root) => { source: Some(root.object.checked), diagnostics: [] }
+        Some(root) =>
+          {
+            source: Some(root.object.checked),
+            diagnostics: modules.diagnostics,
+          }
         None =>
           {
             source: None,
@@ -122,7 +130,7 @@ pub fn compile_module_inputs(
   library_sources : Array[SourceInput],
 ) -> CompileModulesResult {
   match compile_module_set_from_source_inputs(root_source, library_sources) {
-    Ok(modules) => { modules: Some(modules), diagnostics: [] }
+    Ok(modules) => { modules: Some(modules), diagnostics: modules.diagnostics }
     Err(diagnostics) => { modules: None, diagnostics }
   }
 }
@@ -146,7 +154,7 @@ pub fn compile_module_input_with_interface_artifacts(
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> CompileModulesResult {
   match compile_module_from_interface_artifacts(root_source, interfaces) {
-    Ok(modules) => { modules: Some(modules), diagnostics: [] }
+    Ok(modules) => { modules: Some(modules), diagnostics: modules.diagnostics }
     Err(diagnostics) => { modules: None, diagnostics }
   }
 }

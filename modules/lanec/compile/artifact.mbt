@@ -518,6 +518,7 @@ fn CompiledModuleSetArtifact::to_compiled_module_set(
     root_module_path_text: self.root_module_path_text,
     modules: self.modules.map(CompiledModuleArtifact::to_compiled_module),
     reachable_module_path_texts: self.reachable_module_path_texts,
+    diagnostics: [],
   }
 }
 

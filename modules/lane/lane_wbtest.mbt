@@ -733,6 +733,38 @@ test "compile diagnostics render source snippets" {
 }
 
 ///|
+test "compile warnings render source snippets" {
+  let source =
+    #|module Main
+    #|pub fn answer() -> Int {
+    #|  let unused = 1
+    #|  0
+    #|}
+  let root : LaneSourceInput = {
+    source_id: "unused.lane",
+    path: Some("unused.lane"),
+    text: source,
+  }
+  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one unused local warning")
+  }
+  let sources = LaneSourceInput::diagnostic_sources(root, [])
+  inspect(
+    render_compile_diagnostic(result.diagnostics[0], sources),
+    content=(
+      #|warning[W2001]: unused local value binding
+      #|  --> unused.lane:3:7
+      #|   |
+      #| 3 |   let unused = 1
+      #|   |       ^^^^^^ `unused` is never used
+      #|   |
+      #|  = help: prefix the name with `_` if this is intentional
+    ),
+  )
+}
+
+///|
 test "compile diagnostics convert text offsets before rendering" {
   let source =
     #|module Main

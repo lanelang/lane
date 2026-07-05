@@ -14,7 +14,7 @@ fn fail_with_answer() -> Int ! Exception {
 
 pub let handled_value : Int = {
   handle fail_with_answer() with {
-    Exception::raise(code, resume) => code
+    Exception::raise(code, _resume) => code
   } final value {
     value
   }

@@ -362,7 +362,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
       #|
       #|import B.*
       #|
-      #|fn ignore_int(value : Int) -> Unit {
+      #|fn ignore_int(_value : Int) -> Unit {
       #|  ()
       #|}
       #|

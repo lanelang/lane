@@ -18,7 +18,7 @@ type Task[E : Effect] = { Console, E }
 
 fn read_and_log() -> Int ! UI {
   let value : Int = Console::read!()
-  let ignored : Unit = Log::write!(value)
+  let _ignored : Unit = Log::write!(value)
   value
 }
 

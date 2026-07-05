@@ -60,7 +60,7 @@ fn[E : Effect] enqueue(queue : Queue[E], item : Runnable[E]) -> Queue[E] {
   }
 }
 
-fn[E : Effect] with_queue(scheduler : Scheduler[E], queue : Queue[E]) -> Scheduler[E] {
+fn[E : Effect] with_queue(_scheduler : Scheduler[E], queue : Queue[E]) -> Scheduler[E] {
   Scheduler[E]::{ queue }
 }
 
@@ -79,7 +79,7 @@ fn[E : Effect] run_task(task_value : Task[E]) -> Step[E] ! E {
             resume(())
           }
         )
-      } final value {
+      } final _value {
         Step[E]::done()
       }
   }
@@ -126,18 +126,18 @@ fn collect_logs(scheduler : Scheduler[Log]) -> (Int) -> RunResult {
 }
 
 fn child() -> Bool ! { Coroutine[Log], Log } {
-  let child_started : Unit = log(21)
-  let child_yielded : Unit = yield[Log]()
-  let child_resumed : Unit = log(22)
+  let _child_started : Unit = log(21)
+  let _child_yielded : Unit = yield[Log]()
+  let _child_resumed : Unit = log(22)
   true
 }
 
 fn parent() -> Int ! { Coroutine[Log], Log } {
-  let parent_started : Unit = log(11)
-  let child_spawned : Unit = spawn(child)
-  let parent_after_spawn : Unit = log(12)
-  let parent_yielded : Unit = yield[Log]()
-  let parent_resumed : Unit = log(13)
+  let _parent_started : Unit = log(11)
+  let _child_spawned : Unit = spawn(child)
+  let _parent_after_spawn : Unit = log(12)
+  let _parent_yielded : Unit = yield[Log]()
+  let _parent_resumed : Unit = log(13)
   40
 }
 

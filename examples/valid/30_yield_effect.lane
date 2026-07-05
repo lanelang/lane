@@ -21,8 +21,8 @@ effect Yield {
 }
 
 fn produce() -> Int ! Yield {
-  let first : Unit = Yield::emit!(10)
-  let second : Unit = Yield::emit!(20)
+  let _first : Unit = Yield::emit!(10)
+  let _second : Unit = Yield::emit!(20)
   12
 }
 

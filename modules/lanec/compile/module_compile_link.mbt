@@ -1,12 +1,15 @@
 ///|
 fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
   match linked_modules(modules) {
-    Err(diagnostics) => { program: None, diagnostics }
-    Ok(ordered_modules) =>
-      link_ordered_modules(
+    Err(diagnostics) =>
+      { program: None, diagnostics: modules.diagnostics + diagnostics }
+    Ok(ordered_modules) => {
+      let linked = link_ordered_modules(
         ordered_modules,
         RootEntries(modules.root_module_path_text),
       )
+      { ..linked, diagnostics: modules.diagnostics + linked.diagnostics }
+    }
   }
 }
 

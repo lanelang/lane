@@ -912,6 +912,57 @@ test "lsp diagnostics convert text offsets before transport" {
 }
 
 ///|
+test "lsp diagnostics transport unused local warnings" {
+  let input : @compile.SourceInput = {
+    source_id: "file:///unused.lane",
+    text: (
+      #|module Main
+      #|pub fn answer() -> Int {
+      #|  let unused = 1
+      #|  0
+      #|}
+    ),
+  }
+  let result = @compile.check_source_inputs(input, [])
+  guard result.diagnostics.length() == 1 else {
+    abort("expected one unused local warning")
+  }
+  let sources = compiler_diagnostic_sources_from_inputs([input])
+  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
+    "severity": 2,
+    "message": "unused local value binding",
+    "source": "lane",
+    "code": "W2001",
+    "range": {
+      "start": { "line": 2, "character": 6 },
+      "end": { "line": 2, "character": 12 },
+    },
+    "relatedInformation": [
+      {
+        "location": {
+          "uri": "file:///unused.lane",
+          "range": {
+            "start": { "line": 2, "character": 6 },
+            "end": { "line": 2, "character": 12 },
+          },
+        },
+        "message": "`unused` is never used",
+      },
+      {
+        "location": {
+          "uri": "file:///unused.lane",
+          "range": {
+            "start": { "line": 2, "character": 6 },
+            "end": { "line": 2, "character": 12 },
+          },
+        },
+        "message": "help: prefix the name with `_` if this is intentional",
+      },
+    ],
+  })
+}
+
+///|
 test "lsp duplicate top-level value diagnostic points at names" {
   let input : @compile.SourceInput = {
     source_id: "file:///duplicate.lane",

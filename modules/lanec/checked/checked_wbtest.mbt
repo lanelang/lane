@@ -22,6 +22,62 @@ fn function_type(
 }
 
 ///|
+fn checked_function(
+  symbol : @symbol.ValueSymbolId,
+  name : String,
+  parameters : Array[CheckedValueParameter],
+  body : CheckedExpr,
+) -> CheckedFunctionDeclaration {
+  {
+    is_public: false,
+    symbol,
+    name,
+    type_parameters: [],
+    parameters,
+    return_type: int_type(),
+    body,
+    type_: function_type(
+      parameters.map(fn(parameter) { parameter.type_ }),
+      int_type(),
+    ),
+    loc: loc(),
+  }
+}
+
+///|
+fn checked_source(body : CheckedExpr) -> CheckedSourceFile {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let main = registry.define_value("main", TopLevelFunction, loc())
+  {
+    module_path: { components: ["Test"], loc: loc() },
+    declarations: [Function(checked_function(main, "main", [], body))],
+    loc: loc(),
+  }
+}
+
+///|
+fn unused_binder_summary(
+  binders : Array[CheckedValueUseBinder],
+) -> Array[String] {
+  binders.map(fn(binder) {
+    "\{binder.name}:\{value_use_binder_kind_text(binder.kind)}"
+  })
+}
+
+///|
+fn value_use_binder_kind_text(kind : CheckedValueUseBinderKind) -> String {
+  match kind {
+    LocalLet => "local-let"
+    LocalFunction => "local-function"
+    FunctionParameter => "function-parameter"
+    FunctionLiteralParameter => "function-literal-parameter"
+    PatternBinder => "pattern-binder"
+    HandlerResumeBinder => "handler-resume-binder"
+    HandlerFinalBinder => "handler-final-binder"
+  }
+}
+
+///|
 test "pretty prints checked source without surface-only syntax" {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let x = registry.define_value("x", LocalBinding, loc())
@@ -174,6 +230,160 @@ test "pretty prints checked match with resolved patterns" {
       #|    value#0: x#0
       #|  }) => x#0
       #|} : Int
+    ),
+  )
+}
+
+///|
+test "value use analysis classifies local dependency groups" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let x = registry.define_value("x", LocalBinding, loc())
+  let y = registry.define_value("y", LocalBinding, loc())
+  let loop_symbol = registry.define_value("loop", LocalFunction, loc())
+  let n = registry.define_value("n", Parameter, loc())
+  let a = registry.define_value("a", LocalFunction, loc())
+  let b = registry.define_value("b", LocalFunction, loc())
+  let loop_parameter : CheckedValueParameter = {
+    symbol: n,
+    is_auto: false,
+    is_offered: false,
+    name: "n",
+    type_: int_type(),
+    loc: loc(),
+  }
+  let loop_body = CheckedExpr::Call(
+    callee=Value(
+      name="loop",
+      symbol=loop_symbol,
+      type_=function_type([int_type()], int_type()),
+      loc=loc(),
+    ),
+    arguments=[
+      {
+        value: Value(name="n", symbol=n, type_=int_type(), loc=loc()),
+        loc: loc(),
+      },
+    ],
+    type_=int_type(),
+    loc=loc(),
+  )
+  let block = CheckedExpr::Block(
+    items=[
+      Let({
+        is_public: false,
+        symbol: x,
+        name: Some("x"),
+        initializer: Literal(
+          literal=Int({ raw: "1", value: 1 }),
+          type_=int_type(),
+          loc=loc(),
+        ),
+        type_: int_type(),
+        loc: loc(),
+      }),
+      Let({
+        is_public: false,
+        symbol: y,
+        name: Some("y"),
+        initializer: Value(name="x", symbol=x, type_=int_type(), loc=loc()),
+        type_: int_type(),
+        loc: loc(),
+      }),
+      Function(
+        checked_function(loop_symbol, "loop", [loop_parameter], loop_body),
+      ),
+      Function(
+        checked_function(
+          a,
+          "a",
+          [],
+          Value(
+            name="b",
+            symbol=b,
+            type_=function_type([], int_type()),
+            loc=loc(),
+          ),
+        ),
+      ),
+      Function(
+        checked_function(
+          b,
+          "b",
+          [],
+          Value(
+            name="a",
+            symbol=a,
+            type_=function_type([], int_type()),
+            loc=loc(),
+          ),
+        ),
+      ),
+    ],
+    result=Literal(
+      literal=Int({ raw: "0", value: 0 }),
+      type_=int_type(),
+      loc=loc(),
+    ),
+    type_=int_type(),
+    loc=loc(),
+  )
+  debug_inspect(
+    unused_binder_summary(
+      checked_source(block).value_use_analysis().unused_binders(),
+    ),
+    content=(
+      #|[
+      #|  "y:local-let",
+      #|  "loop:local-function",
+      #|  "a:local-function",
+      #|  "b:local-function",
+      #|]
+    ),
+  )
+}
+
+///|
+test "value use analysis does not cascade through unused captured function" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let x = registry.define_value("x", LocalBinding, loc())
+  let helper = registry.define_value("helper", LocalFunction, loc())
+  let block = CheckedExpr::Block(
+    items=[
+      Let({
+        is_public: false,
+        symbol: x,
+        name: Some("x"),
+        initializer: Literal(
+          literal=Int({ raw: "1", value: 1 }),
+          type_=int_type(),
+          loc=loc(),
+        ),
+        type_: int_type(),
+        loc: loc(),
+      }),
+      Function(
+        checked_function(
+          helper,
+          "helper",
+          [],
+          Value(name="x", symbol=x, type_=int_type(), loc=loc()),
+        ),
+      ),
+    ],
+    result=Literal(
+      literal=Int({ raw: "0", value: 0 }),
+      type_=int_type(),
+      loc=loc(),
+    ),
+    type_=int_type(),
+    loc=loc(),
+  )
+  debug_inspect(
+    unused_binder_summary(
+      checked_source(block).value_use_analysis().unused_binders(),
+    ),
+    content=(
+      #|["helper:local-function"]
     ),
   )
 }

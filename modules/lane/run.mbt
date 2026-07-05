@@ -43,7 +43,8 @@ async fn lane_run(
     root.to_compile_input(),
     LaneSourceInput::array_to_compile_inputs(libraries),
   )
-  if !result.diagnostics.is_empty() {
+  let failures = denied_diagnostics(result.diagnostics, false)
+  if !failures.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
       result.diagnostics,
       diagnostic_sources,
@@ -52,6 +53,9 @@ async fn lane_run(
   }
   guard result.program is Some(program) else {
     internal_error("compiler produced no Buslane program")
+  }
+  if !result.diagnostics.is_empty() {
+    print_diagnostics_with_sources(result.diagnostics, diagnostic_sources)
   }
   let entry = match find_entry(result.entries, entry) {
     Ok(entry) => entry

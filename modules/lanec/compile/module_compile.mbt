@@ -51,6 +51,7 @@ pub(all) struct CompiledModuleSet {
   root_module_path_text : String
   modules : Array[CompiledModule]
   reachable_module_path_texts : Array[String]
+  diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
@@ -158,10 +159,14 @@ fn compile_module_graph(
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let modules : Array[CompiledModule] = []
+  let diagnostics : Array[CompilerDiagnostic] = []
   for input in graph.modules {
     let imported = imported_interfaces(input.header, modules)
     match compile_one_module(input, registry, imported) {
-      Ok(module_) => modules.push(module_)
+      Ok(compiled) => {
+        modules.push(compiled.module_)
+        diagnostics.append(compiled.diagnostics)
+      }
       Err(diagnostics) => return Err(diagnostics)
     }
   }
@@ -172,6 +177,7 @@ fn compile_module_graph(
     root_module_path_text: graph.root_module_path_text,
     modules: lower_compiled_module_objects(modules),
     reachable_module_path_texts: graph.reachable_module_path_texts,
+    diagnostics,
   })
 }
 
@@ -206,7 +212,8 @@ fn compile_module_from_interface_artifacts(
   )
   match compile_one_module(input, registry, imported) {
     Err(diagnostics) => Err(diagnostics)
-    Ok(module_) => {
+    Ok(success) => {
+      let module_ = success.module_
       let imported_fingerprints = imported_interface_fingerprints_from_artifacts(
         input.header,
         ordered_interfaces.interfaces,
@@ -227,6 +234,7 @@ fn compile_module_from_interface_artifacts(
         root_module_path_text: compiled.module_path_text,
         modules: [compiled],
         reachable_module_path_texts: [compiled.module_path_text],
+        diagnostics: success.diagnostics,
       })
     }
   }

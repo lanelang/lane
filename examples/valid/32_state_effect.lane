@@ -16,7 +16,7 @@ effect State {
 
 fn tick() -> Int ! State {
   let current : Int = State::get!()
-  let updated : Unit = State::put!(current + 1)
+  let _updated : Unit = State::put!(current + 1)
   State::get!()
 }
 
@@ -25,7 +25,7 @@ fn run_tick() -> (Int) -> StateResult {
     State::get(resume) => fn (state : Int) -> StateResult {
       resume(state)(state)
     }
-    State::put(next, resume) => fn (state : Int) -> StateResult {
+    State::put(next, resume) => fn (_state : Int) -> StateResult {
       resume(())(next)
     }
   } final value {

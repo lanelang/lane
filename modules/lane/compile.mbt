@@ -28,7 +28,8 @@ async fn lane_compile(
     root.to_compile_input(),
     imported_interfaces,
   )
-  if !result.diagnostics.is_empty() {
+  let failures = denied_diagnostics(result.diagnostics, false)
+  if !failures.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
       result.diagnostics,
       diagnostic_sources,
@@ -58,7 +59,15 @@ async fn lane_compile(
     println("wrote interface \{interface_path}")
     println("wrote object \{object_path}")
   }
-  Succeeded
+  if !result.diagnostics.is_empty() {
+    LaneCommandOutcome::compile_diagnostics(
+      result.diagnostics,
+      diagnostic_sources,
+      true,
+    )
+  } else {
+    Succeeded
+  }
 }
 
 ///|

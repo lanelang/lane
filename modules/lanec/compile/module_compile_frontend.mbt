@@ -1,4 +1,10 @@
 ///|
+priv struct CompileOneModuleSuccess {
+  module_ : CompiledModule
+  diagnostics : Array[CompilerDiagnostic]
+}
+
+///|
 fn imported_interfaces(
   header : ModuleHeader,
   modules : Array[CompiledModule],
@@ -17,7 +23,7 @@ fn compile_one_module(
   input : ParsedModuleInput,
   registry : @symbol.SymbolRegistry,
   imported : @module_interface.ImportedEnvironment,
-) -> Result[CompiledModule, Array[CompilerDiagnostic]] {
+) -> Result[CompileOneModuleSuccess, Array[CompilerDiagnostic]] {
   let display = TypeDisplayContext::from_registry(registry)
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
@@ -42,6 +48,10 @@ fn compile_one_module(
   }
   match (checked.source, checked.module_interface) {
     (Some(checked), Some(interface)) => {
+      let warning_diagnostics = checked_unused_local_value_binding_diagnostics(
+        checked,
+        input.text,
+      ).map(fn(diagnostic) { diagnostic.with_source_id(input.source_id) })
       let interface = { ..interface, source_id: Some(input.source_id) }
       let imported_fingerprints = imported_environment_fingerprints(imported)
       let fingerprint = module_fingerprint(interface, imported_fingerprints)
@@ -69,11 +79,14 @@ fn compile_one_module(
         imported_interface_fingerprints: imported_fingerprints,
       }
       Ok({
-        module_path_text: input.header.module_path_text,
-        interface,
-        object,
-        fingerprint,
-        imported_interface_fingerprints: imported_fingerprints,
+        module_: {
+          module_path_text: input.header.module_path_text,
+          interface,
+          object,
+          fingerprint,
+          imported_interface_fingerprints: imported_fingerprints,
+        },
+        diagnostics: warning_diagnostics,
       })
     }
     _ =>

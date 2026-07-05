@@ -18,12 +18,12 @@ fn choose_inferred() -> Int ! Prompt {
 
 pub let handled_value : Int = {
   let first : Int = handle choose_explicit() with {
-    Prompt::choose[T](left, right, resume) => resume(left)
+    Prompt::choose[T](left, _right, resume) => resume(left)
   } final value {
     value
   }
   let second : Int = handle choose_inferred() with {
-    Prompt::choose[T](left, right, resume) => resume(right)
+    Prompt::choose[T](_left, right, resume) => resume(right)
   } final value {
     value
   }

@@ -23,7 +23,7 @@ fn[E : Effect] yield_once() -> Unit ! Coroutine[E] {
 fn handled_yield() -> Int {
   handle yield_once[Log]() with {
     Coroutine[Log]::yield(resume) => resume(())
-  } final value {
+  } final _value {
     id[Int](42)
   }
 }

@@ -98,6 +98,41 @@ fn primary_label(
 }
 
 ///|
+fn checked_unused_local_value_binding_diagnostics(
+  source : @checked.CheckedSourceFile,
+  source_text : String,
+) -> Array[CompilerDiagnostic] {
+  source
+  .value_use_analysis()
+  .unused_binders()
+  .filter(fn(binder) { !binder.name.has_prefix("_") })
+  .map(fn(binder) { unused_local_value_binding_diagnostic(binder, source_text) })
+}
+
+///|
+fn unused_local_value_binding_diagnostic(
+  binder : @checked.CheckedValueUseBinder,
+  source_text : String,
+) -> CompilerDiagnostic {
+  let binder_loc = name_span(source_text, binder.name, binder.loc)
+  diagnostic(
+    "unused local value binding",
+    span=Some(binder_loc),
+    severity=Warning,
+    code=Some("W2001"),
+    labels=[
+      {
+        span: compiler_local_span(binder_loc),
+        message: "`\{binder.name}` is never used",
+        style: Primary,
+      },
+    ],
+    notes=[],
+    helps=["prefix the name with `_` if this is intentional"],
+  )
+}
+
+///|
 fn CompileErrorKind::to_diagnostic(
   self : CompileErrorKind,
   span : @basic.SourceSpan?,
