@@ -53,6 +53,8 @@
 %token RBRACE "}"
 %token LBRACKET "["
 %token RBRACKET "]"
+%token EMPTY_GENERIC_ARGUMENT_LIST_ERROR
+%token EMPTY_TYPE_PARAMETER_LIST_ERROR
 %token COMMA ","
 %token DOTSTAR ".*"
 %token DOTLBRACE ".{"
@@ -274,7 +276,7 @@ enum_variant -> EnumVariant
   : IDENT "(" type_list ")" {
     { name: $1, type_parameters: [], payload: $3, loc: span($sloc) }
   }
-  | IDENT non_empty_type_parameters "(" type_list ")" {
+  | IDENT type_parameter_bracket_list "(" type_list ")" {
     { name: $1, type_parameters: $2, payload: $4, loc: span($sloc) }
   }
   ;
@@ -300,7 +302,7 @@ effect_operation -> EffectOperationDeclaration
   : IDENT "(" type_list ")" "->" type {
     { name: $1, type_parameters: [], payload: $3, result: $6, loc: span($sloc) }
   }
-  | IDENT non_empty_type_parameters "(" type_list ")" "->" type {
+  | IDENT type_parameter_bracket_list "(" type_list ")" "->" type {
     { name: $1, type_parameters: $2, payload: $4, result: $7, loc: span($sloc) }
   }
   ;
@@ -404,11 +406,12 @@ public_offer_value_declaration -> OfferDeclaration
 
 type_parameters -> Array[TypeParameter]
   : { [] }
-  | non_empty_type_parameters { $1 }
+  | type_parameter_bracket_list { $1 }
   ;
 
-non_empty_type_parameters -> Array[TypeParameter]
+type_parameter_bracket_list -> Array[TypeParameter]
   : "[" non_empty_type_parameter_list "]" { $2 }
+  | "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
   ;
 
 non_empty_type_parameter_list -> Array[TypeParameter]
@@ -436,15 +439,18 @@ type -> Type
   ;
 
 type_lambda -> Type
-  : "type" "[" non_empty_type_parameter_list "]" "=>" type {
-    TypeLambda(parameters=$3, body=$6, loc=span($sloc))
+  : "type" type_parameter_bracket_list "=>" type {
+    TypeLambda(parameters=$2, body=$4, loc=span($sloc))
   }
   ;
 
 type_application -> Type
   : type_primary { $1 }
-  | type_application "[" type_list "]" {
+  | type_application "[" non_empty_type_list "]" {
     Apply(callee=$1, arguments=$3, loc=span($sloc))
+  }
+  | type_application "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" {
+    Apply(callee=$1, arguments=[], loc=span($sloc))
   }
   ;
 
@@ -472,8 +478,8 @@ function_type -> Type
   | "(" type "," type_list ")" "->" type effect_annotation_opt {
     Function(type_parameters=[], parameters=[$2] + $4, result=$7, effect=effect_or_empty($8, $7), loc=span($sloc))
   }
-  | "[" non_empty_type_parameter_list "]" "(" type_list ")" "->" type effect_annotation_opt {
-    Function(type_parameters=$2, parameters=$5, result=$8, effect=effect_or_empty($9, $8), loc=span($sloc))
+  | type_parameter_bracket_list "(" type_list ")" "->" type effect_annotation_opt {
+    Function(type_parameters=$1, parameters=$3, result=$6, effect=effect_or_empty($7, $6), loc=span($sloc))
   }
   ;
 
@@ -661,7 +667,12 @@ operation_type_witnesses -> Array[Type]
   ;
 
 type_arguments -> Array[Type]
+  : type_argument_bracket_list { $1 }
+  ;
+
+type_argument_bracket_list -> Array[Type]
   : "[" non_empty_type_list "]" { $2 }
+  | "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" { [] }
   ;
 
 nominal_type_name -> String
@@ -823,7 +834,12 @@ handler_operation_after_type_arguments -> HandlerOperationAfterTypeArguments
 
 handler_operation_type_binders -> Array[String]
   : { [] }
-  | "[" non_empty_ident_list "]" { $2 }
+  | ident_bracket_list { $1 }
+  ;
+
+ident_bracket_list -> Array[String]
+  : "[" non_empty_ident_list "]" { $2 }
+  | "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
   ;
 
 handler_operation_owner_arguments -> Array[Type]

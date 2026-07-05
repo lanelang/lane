@@ -127,6 +127,7 @@ graph TD
   ISS_111["ISS-111: Centralize expression traversal across compiler analysis layers"]
   ISS_112["ISS-112: Improve diagnostics for generic expression application"]
   ISS_113["ISS-113: Remove transitional typecheck probe helpers"]
+  ISS_114["ISS-114: Move empty bracket parse diagnostics into grammar context"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

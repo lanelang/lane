@@ -306,8 +306,8 @@ test "parse explicit generic expression application" {
 
 ///|
 test "parse rejects empty explicit generic expression arguments" {
-  assert_false(
-    parse_errors(
+  debug_inspect(
+    parse_error_kinds(
       (
         #|fn[A] id(value : A) -> A {
         #|  value
@@ -316,7 +316,10 @@ test "parse rejects empty explicit generic expression arguments" {
         #|  id[](1)
         #|}
       ),
-    ).is_empty(),
+    ),
+    content=(
+      #|[EmptyGenericArgumentList]
+    ),
   )
 }
 
@@ -846,6 +849,22 @@ test "parse rejects empty operation witness and handler binder lists" {
         #|}
       ),
     ),
+    content=(
+      #|[EmptyTypeParameterList]
+    ),
+  )
+}
+
+///|
+test "parse rejects empty type application arguments" {
+  debug_inspect(
+    parse_error_kinds("type Bad = Option[]"),
+    content=(
+      #|[EmptyGenericArgumentList]
+    ),
+  )
+  debug_inspect(
+    parse_error_kinds("type Bad = [](Int) -> Int"),
     content=(
       #|[EmptyTypeParameterList]
     ),

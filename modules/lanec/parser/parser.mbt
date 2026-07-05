@@ -31,12 +31,7 @@ pub fn parse_tokens(tokens : Array[(@lexer.Token, SourceSpan)]) -> ParseResult {
         ],
       }
     UnexpectedToken(token, (start, end), expected) => {
-      let expected = expected_syntax(expected)
-      let kind = match
-        empty_bracket_list_error(tokens, token, start, expected) {
-        Some(kind) => kind
-        None => UnexpectedToken(token_summary(token), expected)
-      }
+      let kind = unexpected_token_error_kind(token, expected)
       return {
         source: None,
         lexical_errors: [],
@@ -48,34 +43,17 @@ pub fn parse_tokens(tokens : Array[(@lexer.Token, SourceSpan)]) -> ParseResult {
 }
 
 ///|
-fn empty_bracket_list_error(
-  tokens : Array[(@lexer.Token, SourceSpan)],
+fn unexpected_token_error_kind(
   token : @yacc_parser.Token,
-  loc : SourceSpan,
-  expected : Array[ExpectedSyntax],
-) -> ParseErrorKind? {
-  guard token is RBRACKET else { return None }
-  guard previous_token(tokens, loc) is Some(LBRACKET) else { return None }
-  if expected.length() == 1 && expected[0].label == "identifier" {
-    Some(EmptyTypeParameterList)
+  expected : Array[@yacc_parser.TokenKind],
+) -> ParseErrorKind {
+  if expected.contains(TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR) {
+    EmptyGenericArgumentList
+  } else if expected.contains(TK_EMPTY_TYPE_PARAMETER_LIST_ERROR) {
+    EmptyTypeParameterList
   } else {
-    Some(EmptyGenericArgumentList)
+    UnexpectedToken(token_summary(token), expected_syntax(expected))
   }
-}
-
-///|
-fn previous_token(
-  tokens : Array[(@lexer.Token, SourceSpan)],
-  loc : SourceSpan,
-) -> @lexer.Token? {
-  for index in 0..<tokens.length() {
-    let (_, token_loc) = tokens[index]
-    if token_loc == loc && index > 0 {
-      let (token, _) = tokens[index - 1]
-      return Some(token)
-    }
-  }
-  None
 }
 
 ///|
@@ -146,6 +124,8 @@ fn token_label(token : @yacc_parser.Token) -> String {
     RBRACE => "`}`"
     LBRACKET => "`[`"
     RBRACKET => "`]`"
+    EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
+    EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
     COMMA => "`,`"
     DOTSTAR => "`.*`"
     DOTLBRACE => "`.{`"
@@ -209,6 +189,8 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_RBRACE => "`}`"
     TK_LBRACKET => "`[`"
     TK_RBRACKET => "`]`"
+    TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
+    TK_EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
     TK_COMMA => "`,`"
     TK_DOTSTAR => "`.*`"
     TK_DOTLBRACE => "`.{`"
