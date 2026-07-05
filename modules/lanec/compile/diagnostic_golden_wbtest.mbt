@@ -2,7 +2,16 @@
 fn single_check_diagnostic(source : String) -> CompilerDiagnostic {
   let result = check_source(source)
   guard result.diagnostics.length() == 1 else {
-    abort("expected exactly one diagnostic")
+    abort("\{to_repr(result.diagnostics)}")
+  }
+  result.diagnostics[0]
+}
+
+///|
+fn first_check_diagnostic(source : String) -> CompilerDiagnostic {
+  let result = check_source(source)
+  guard !result.diagnostics.is_empty() else {
+    abort("expected at least one diagnostic")
   }
   result.diagnostics[0]
 }
@@ -14,53 +23,215 @@ fn assert_diagnostic_headline(
   message : String,
 ) -> Unit {
   guard diagnostic.code == Some(code) else {
-    abort("unexpected diagnostic code")
+    abort("unexpected diagnostic code: \{to_repr(diagnostic.code)}")
   }
   guard diagnostic.message == message else {
-    abort("unexpected diagnostic message")
+    abort("unexpected diagnostic message: " + diagnostic.message)
   }
 }
 
 ///|
-fn inference_diagnostic_help(
-  label : String,
-  reason : @typecheck.CannotInferReason,
-) -> String {
-  let diagnostic = typecheck_diagnostic(
-    {
-      kind: CannotInferExpression(label~, reason~),
-      loc: @basic.SourceSpan::dummy(),
-    },
-    TypeDisplayContext::from_registry(SymbolRegistry()),
-  )
+fn assert_single_help(diagnostic : CompilerDiagnostic, help : String) -> Unit {
   guard diagnostic.helps.length() == 1 else {
     abort("expected one diagnostic help")
   }
-  diagnostic.helps[0]
+  guard diagnostic.helps[0] == help else { abort("unexpected diagnostic help") }
 }
 
 ///|
-test "golden inference diagnostic help uses structured reason" {
-  assert_eq(
-    inference_diagnostic_help("renamed contextual hint", ContextualOffer),
-    "add a visible `offer` with the required type or pass the contextual argument explicitly",
+test "golden builtin missing expected type diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn bad() -> Int {
+      #|  {
+      #|    let _ = builtin("%external_int")
+      #|    1
+      #|  }
+      #|}
+    ),
   )
-  assert_eq(
-    inference_diagnostic_help("lambda binder", FunctionLiteralParameter),
-    "add an explicit parameter type annotation to the function literal",
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "builtin `%external_int` needs an expected type",
   )
-  assert_eq(
-    inference_diagnostic_help("argument count", CallArity),
-    "check the number of arguments and generic arguments at this call site",
+  assert_single_help(
+    diagnostic, "add a type annotation to the binding, parameter, or surrounding expression",
   )
-  assert_eq(
-    inference_diagnostic_help("generic arguments", GenericArguments),
-    "add explicit generic arguments or provide an expected result type",
+}
+
+///|
+test "golden function literal parameter diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn bad() -> Int {
+      #|  {
+      #|    let _f = fn (value) {
+      #|      value
+      #|    }
+      #|    1
+      #|  }
+      #|}
+    ),
   )
-  assert_eq(
-    inference_diagnostic_help("intrinsic", Builtin),
-    "add a type annotation so the builtin can be checked against a concrete function type",
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "function literal parameter needs a type annotation",
   )
+  assert_single_help(diagnostic, "write the parameter as `name : Type`")
+}
+
+///|
+test "golden empty match missing expected type diagnostic is specific" {
+  let diagnostic = first_check_diagnostic(
+    (
+      #|module Test
+      #|fn bad() -> Int {
+      #|  {
+      #|    let _ = match true {
+      #|    }
+      #|    1
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "empty match needs an expected result type",
+  )
+  assert_single_help(
+    diagnostic, "add an expected type with a binding annotation or use the empty match where a result type is already known",
+  )
+}
+
+///|
+test "golden unqualified variant pattern diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn bad(value : Int) -> Int {
+      #|  match value {
+      #|    some(_) => 1
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "unqualified variant pattern `some` needs an expected enum type",
+  )
+  assert_single_help(
+    diagnostic, "add a scrutinee type annotation or qualify the variant with its enum owner",
+  )
+}
+
+///|
+test "golden missing generic argument inference diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn[A] make() -> A {
+      #|  builtin("%make")
+      #|}
+      #|fn use() -> Bool {
+      #|  {
+      #|    let _value = make()
+      #|    true
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "cannot infer generic arguments for `make`",
+  )
+  assert_single_help(
+    diagnostic, "add explicit generic arguments for `make` or provide an expected result type",
+  )
+}
+
+///|
+test "golden conflicting generic argument inference diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn[A] choose(left : A, right : A) -> A {
+      #|  left
+      #|}
+      #|fn use() -> Bool {
+      #|  {
+      #|    let _ = choose(1, true)
+      #|    true
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "conflicting generic arguments for `choose`",
+  )
+  assert_single_help(
+    diagnostic, "make every use of generic parameter `A` agree, or pass explicit generic arguments",
+  )
+}
+
+///|
+test "golden missing contextual offer diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+      #|  op.add(a, b)
+      #|}
+      #|fn use() -> Int {
+      #|  op_add(1, 2)
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(diagnostic, "E3013", "missing contextual offer")
+  assert_single_help(
+    diagnostic, "pass the argument explicitly or add a visible `offer` with type `Add[Int]`",
+  )
+}
+
+///|
+test "golden ambiguous contextual offer diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+      #|  op.add(a, b)
+      #|}
+      #|let add_a : Add[Int] = builtin("%add_a")
+      #|let add_b : Add[Int] = builtin("%add_b")
+      #|offer offer_a : Add[Int] = add_a
+      #|offer offer_b : Add[Int] = add_b
+      #|fn use() -> Int {
+      #|  op_add(1, 2)
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(diagnostic, "E3013", "ambiguous contextual offer")
+  assert_single_help(
+    diagnostic, "pass the argument explicitly or keep only one matching visible offer",
+  )
+}
+
+///|
+test "golden named builtin argument diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn use() -> Int {
+      #|  builtin("%id")(value=1)
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3012", "builtin call argument `value` cannot be named",
+  )
+  assert_single_help(diagnostic, "remove the argument name")
 }
 
 ///|

@@ -749,6 +749,66 @@ fn typecheck_diagnostic(
       generic_argument_arity_diagnostic(
         diagnostic_, display, span, subject, expected, actual,
       )
+    ApplicationArityMismatch(label~) =>
+      application_arity_mismatch_diagnostic(diagnostic_, span, label)
+    VariantReferenceFailure(label~) =>
+      simple_typecheck_diagnostic(
+        diagnostic_, span, "invalid variant reference", label, "check the variant name and enum owner",
+      )
+    InternalTypecheckFailure(label~) =>
+      simple_typecheck_diagnostic(
+        diagnostic_, span, "internal typecheck failure", label, "report this compiler bug with a minimal reproduction",
+      )
+    CallArityMismatch(expected~, actual~) =>
+      call_arity_mismatch_diagnostic(diagnostic_, span, expected, actual)
+    AutoParametersMustBeTrailing =>
+      simple_typecheck_diagnostic(
+        diagnostic_, span, "auto parameters must be trailing", "a non-auto parameter appears after an auto parameter",
+        "move all auto parameters to the end of the parameter list",
+      )
+    AutoArgumentMustBeNamed =>
+      simple_typecheck_diagnostic(
+        diagnostic_, span, "auto argument must be named", "positional arguments cannot fill auto parameters",
+        "pass the auto argument by name or let contextual offer insertion fill it",
+      )
+    DuplicateNamedArgument(name~) =>
+      simple_typecheck_diagnostic(
+        diagnostic_,
+        span,
+        "duplicate named argument `\{name}`",
+        "`\{name}` was provided more than once",
+        "remove the duplicate named argument",
+      )
+    UnknownContextualArgument(name~) =>
+      simple_typecheck_diagnostic(
+        diagnostic_,
+        span,
+        "unknown contextual argument `\{name}`",
+        "no auto parameter named `\{name}` is available here",
+        "check the argument name or remove it",
+      )
+    InvalidNamedArgument(name~) =>
+      simple_typecheck_diagnostic(
+        diagnostic_,
+        span,
+        "named argument `\{name}` is not accepted here",
+        "this call position only accepts positional arguments",
+        "remove the name or call a function with an auto parameter named `\{name}`",
+      )
+    InvalidNamedBuiltinArgument(name~) =>
+      simple_typecheck_diagnostic(
+        diagnostic_,
+        span,
+        "builtin call argument `\{name}` cannot be named",
+        "`builtin` calls derive their parameter types from positional arguments",
+        "remove the argument name",
+      )
+    MissingContextualOffer(expected~) =>
+      contextual_offer_diagnostic(diagnostic_, display, span, expected, [])
+    AmbiguousContextualOffer(expected~, candidates~) =>
+      contextual_offer_diagnostic(
+        diagnostic_, display, span, expected, candidates,
+      )
     TypeAliasCycle(name~) =>
       diagnostic(
         "type alias `\{name}` is recursive",
@@ -880,6 +940,10 @@ fn typecheck_diagnostic(
     GenericArgumentsOnNonGeneric(subject~, type_~) =>
       generic_arguments_on_non_generic_diagnostic(
         diagnostic_, display, span, subject, type_,
+      )
+    GenericArgumentInferenceFailed(label~, failure~) =>
+      generic_argument_inference_failed_diagnostic(
+        diagnostic_, display, span, label, failure,
       )
     UnknownField(name~) =>
       diagnostic(
@@ -1258,8 +1322,96 @@ fn typecheck_diagnostic(
         ],
         helps=["use a smaller integer literal"],
       )
-    CannotInferExpression(label~, reason~) =>
-      cannot_infer_diagnostic(diagnostic_, span, label, reason)
+    BuiltinNeedsExpectedType(name~) =>
+      diagnostic(
+        "builtin `\{name}` needs an expected type",
+        span~,
+        severity=Error,
+        code=Some("E3010"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "the result type of this builtin is unknown here",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "`builtin` is unsafe and opaque; Lane checks it only against an adjacent expected type",
+        ],
+        helps=[
+          "add a type annotation to the binding, parameter, or surrounding expression",
+        ],
+        suggestions=[
+          {
+            message: "add an explicit type annotation near this builtin",
+            edits: [],
+            applicability: HasPlaceholders,
+          },
+        ],
+      )
+    FunctionLiteralParameterNeedsAnnotation(name~) => {
+      let subject = match name {
+        Some(name) => "parameter `\{name}`"
+        None => "this parameter"
+      }
+      diagnostic(
+        "function literal parameter needs a type annotation",
+        span~,
+        severity=Error,
+        code=Some("E3010"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "\{subject} has no type annotation and no adjacent expected function type",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "Lane does not infer function literal parameter types without an expected function type",
+        ],
+        helps=["write the parameter as `name : Type`"],
+      )
+    }
+    EmptyMatchNeedsExpectedType =>
+      diagnostic(
+        "empty match needs an expected result type",
+        span~,
+        severity=Error,
+        code=Some("E3010"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "this match has no arms, so it cannot synthesize a result type",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "an empty match can only be checked when the surrounding expression already provides the result type",
+        ],
+        helps=[
+          "add an expected type with a binding annotation or use the empty match where a result type is already known",
+        ],
+      )
+    UnqualifiedVariantPatternNeedsExpectedEnum(variant~) =>
+      diagnostic(
+        "unqualified variant pattern `\{variant}` needs an expected enum type",
+        span~,
+        severity=Error,
+        code=Some("E3010"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "`\{variant}` cannot be resolved as a pattern without an enum scrutinee type",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "unqualified variant patterns are resolved from the matched value's enum type",
+        ],
+        helps=[
+          "add a scrutinee type annotation or qualify the variant with its enum owner",
+        ],
+      )
   }
 }
 
@@ -1290,6 +1442,167 @@ fn generic_argument_arity_diagnostic(
 }
 
 ///|
+fn call_arity_mismatch_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  span : @basic.SourceSpan?,
+  expected : Int,
+  actual : Int,
+) -> CompilerDiagnostic {
+  diagnostic(
+    "wrong number of call arguments",
+    span~,
+    severity=Error,
+    code=Some("E3012"),
+    labels=[
+      {
+        span: compiler_local_span(diagnostic_.loc),
+        message: "expected \{expected} argument(s), found \{actual}",
+        style: Primary,
+      },
+    ],
+    notes=[
+      "function calls must provide exactly one argument for each non-contextual parameter",
+    ],
+    helps=["add or remove arguments so the call has \{expected} argument(s)"],
+  )
+}
+
+///|
+fn application_arity_mismatch_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  span : @basic.SourceSpan?,
+  label : String,
+) -> CompilerDiagnostic {
+  diagnostic(
+    "wrong number of application arguments",
+    span~,
+    severity=Error,
+    code=Some("E3012"),
+    labels=[
+      {
+        span: compiler_local_span(diagnostic_.loc),
+        message: label,
+        style: Primary,
+      },
+    ],
+    notes=["this application form was checked against a fixed parameter list"],
+    helps=["check the number of value, type, or effect arguments"],
+  )
+}
+
+///|
+fn simple_typecheck_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  span : @basic.SourceSpan?,
+  title : String,
+  label : String,
+  help : String,
+) -> CompilerDiagnostic {
+  diagnostic(
+    title,
+    span~,
+    severity=Error,
+    code=Some("E3012"),
+    labels=[
+      {
+        span: compiler_local_span(diagnostic_.loc),
+        message: label,
+        style: Primary,
+      },
+    ],
+    notes=[],
+    helps=[help],
+  )
+}
+
+///|
+fn contextual_offer_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  display : TypeDisplayContext,
+  span : @basic.SourceSpan?,
+  expected : @types.Type,
+  candidates : Array[@types.Type],
+) -> CompilerDiagnostic {
+  let expected_text = display.type_text(expected)
+  if candidates.is_empty() {
+    diagnostic(
+      "missing contextual offer",
+      span~,
+      severity=Error,
+      code=Some("E3013"),
+      labels=[
+        {
+          span: compiler_local_span(diagnostic_.loc),
+          message: "no visible offer matches required type `\{expected_text}`",
+          style: Primary,
+        },
+      ],
+      notes=[
+        "contextual arguments are inserted only from visible `offer` bindings with matching type",
+      ],
+      helps=[
+        "pass the argument explicitly or add a visible `offer` with type `\{expected_text}`",
+      ],
+      facts=[
+        {
+          name: "required contextual type",
+          value: "`\{expected_text}`",
+          span: Some(compiler_local_span(diagnostic_.loc)),
+        },
+      ],
+    )
+  } else {
+    diagnostic(
+      "ambiguous contextual offer",
+      span~,
+      severity=Error,
+      code=Some("E3013"),
+      labels=[
+        {
+          span: compiler_local_span(diagnostic_.loc),
+          message: "\{candidates.length()} visible offers match required type `\{expected_text}`",
+          style: Primary,
+        },
+      ],
+      notes=[
+        "Lane will not choose between multiple matching contextual offers implicitly",
+      ],
+      helps=[
+        "pass the argument explicitly or keep only one matching visible offer",
+      ],
+      facts=contextual_offer_candidate_facts(
+        display,
+        diagnostic_.loc,
+        candidates,
+      ),
+    )
+  }
+}
+
+///|
+fn contextual_offer_candidate_facts(
+  display : TypeDisplayContext,
+  loc : @basic.SourceSpan,
+  candidates : Array[@types.Type],
+) -> Array[CompilerDiagnosticFact] {
+  let facts : Array[CompilerDiagnosticFact] = [
+    {
+      name: "matching contextual offer count",
+      value: candidates.length().to_string(),
+      span: Some(compiler_local_span(loc)),
+    },
+  ]
+  for index in 0..<candidates.length() {
+    facts.push({
+      name: "candidate \{index + 1}",
+      value: "`\{display.type_text(candidates[index])}`",
+      span: Some(compiler_local_span(loc)),
+    })
+  }
+  facts
+}
+
+///|
 fn generic_arguments_on_non_generic_diagnostic(
   diagnostic_ : @typecheck.TypeCheckDiagnostic,
   display : TypeDisplayContext,
@@ -1314,6 +1627,34 @@ fn generic_arguments_on_non_generic_diagnostic(
 }
 
 ///|
+fn generic_argument_inference_failed_diagnostic(
+  diagnostic_ : @typecheck.TypeCheckDiagnostic,
+  display : TypeDisplayContext,
+  span : @basic.SourceSpan?,
+  label : String,
+  failure : @typecheck.GenericArgumentInferenceFailure,
+) -> CompilerDiagnostic {
+  diagnostic(
+    generic_argument_inference_title(label, failure),
+    span~,
+    severity=Error,
+    code=Some("E3010"),
+    labels=[
+      {
+        span: compiler_local_span(diagnostic_.loc),
+        message: generic_argument_inference_primary_label(display, failure),
+        style: Primary,
+      },
+    ],
+    notes=[
+      "Lane infers generic arguments only from the adjacent call arguments and expected result type",
+    ],
+    helps=[generic_argument_inference_help(label, failure)],
+    facts=generic_argument_inference_facts(display, diagnostic_.loc, failure),
+  )
+}
+
+///|
 fn generic_argument_arity_title(
   subject : @typecheck.GenericArgumentSubject,
 ) -> String {
@@ -1323,6 +1664,34 @@ fn generic_argument_arity_title(
       "wrong number of explicit generic arguments for `\{callee}`"
     ExplicitExpression(callee=None, ..) =>
       "wrong number of explicit generic arguments"
+  }
+}
+
+///|
+fn generic_argument_inference_title(
+  label : String,
+  failure : @typecheck.GenericArgumentInferenceFailure,
+) -> String {
+  let subject = generic_argument_inference_subject(label)
+  match failure {
+    MissingGenericArguments(..) =>
+      "cannot infer generic arguments for \{subject}"
+    ConflictingGenericArgument(..) =>
+      "conflicting generic arguments for \{subject}"
+    RecursiveGenericArgument(..) => "recursive generic argument for \{subject}"
+    GenericArgumentConstraintMismatch(..) =>
+      "generic argument constraint mismatch for \{subject}"
+  }
+}
+
+///|
+fn generic_argument_inference_subject(label : String) -> String {
+  if label == "generic arguments" {
+    "this call"
+  } else if label.contains(" ") {
+    label
+  } else {
+    "`\{label}`"
   }
 }
 
@@ -1343,6 +1712,114 @@ fn generic_argument_arity_labels(
   ]
   add_generic_argument_subject_label(labels, display, subject, None)
   labels
+}
+
+///|
+fn generic_argument_inference_primary_label(
+  display : TypeDisplayContext,
+  failure : @typecheck.GenericArgumentInferenceFailure,
+) -> String {
+  match failure {
+    MissingGenericArguments(parameters~) =>
+      "local context did not determine generic parameter(s) \{generic_parameter_list_text(parameters)}"
+    ConflictingGenericArgument(parameter~, previous~, actual~) =>
+      "generic parameter `\{parameter.name}` was inferred as `\{display.generic_argument_text(previous)}` and `\{display.generic_argument_text(actual)}`"
+    RecursiveGenericArgument(parameter~, actual~) =>
+      "generic parameter `\{parameter.name}` would recursively contain `\{display.generic_argument_text(actual)}`"
+    GenericArgumentConstraintMismatch(expected~, actual~) =>
+      "generic inference expected `\{display.generic_argument_text(expected)}`, found `\{display.generic_argument_text(actual)}`"
+  }
+}
+
+///|
+fn generic_argument_inference_help(
+  label : String,
+  failure : @typecheck.GenericArgumentInferenceFailure,
+) -> String {
+  let subject = generic_argument_inference_subject(label)
+  match failure {
+    MissingGenericArguments(..) =>
+      "add explicit generic arguments for \{subject} or provide an expected result type"
+    ConflictingGenericArgument(parameter~, ..) =>
+      "make every use of generic parameter `\{parameter.name}` agree, or pass explicit generic arguments"
+    RecursiveGenericArgument(parameter~, ..) =>
+      "remove the recursive effect constraint involving `\{parameter.name}`"
+    GenericArgumentConstraintMismatch(..) =>
+      "adjust the argument or expected result type so the generic constraints match"
+  }
+}
+
+///|
+fn generic_argument_inference_facts(
+  display : TypeDisplayContext,
+  loc : @basic.SourceSpan,
+  failure : @typecheck.GenericArgumentInferenceFailure,
+) -> Array[CompilerDiagnosticFact] {
+  match failure {
+    MissingGenericArguments(parameters~) =>
+      [
+        {
+          name: "missing generic parameter(s)",
+          value: generic_parameter_list_text(parameters),
+          span: Some(compiler_local_span(loc)),
+        },
+      ]
+    ConflictingGenericArgument(parameter~, previous~, actual~) =>
+      [
+        {
+          name: "generic parameter",
+          value: "`\{parameter.name}`",
+          span: Some(compiler_local_span(loc)),
+        },
+        {
+          name: "previous inferred argument",
+          value: "`\{display.generic_argument_text(previous)}`",
+          span: Some(compiler_local_span(loc)),
+        },
+        {
+          name: "conflicting inferred argument",
+          value: "`\{display.generic_argument_text(actual)}`",
+          span: Some(compiler_local_span(loc)),
+        },
+      ]
+    RecursiveGenericArgument(parameter~, actual~) =>
+      [
+        {
+          name: "generic parameter",
+          value: "`\{parameter.name}`",
+          span: Some(compiler_local_span(loc)),
+        },
+        {
+          name: "recursive inferred argument",
+          value: "`\{display.generic_argument_text(actual)}`",
+          span: Some(compiler_local_span(loc)),
+        },
+      ]
+    GenericArgumentConstraintMismatch(expected~, actual~) =>
+      [
+        {
+          name: "expected constraint",
+          value: "`\{display.generic_argument_text(expected)}`",
+          span: Some(compiler_local_span(loc)),
+        },
+        {
+          name: "actual constraint",
+          value: "`\{display.generic_argument_text(actual)}`",
+          span: Some(compiler_local_span(loc)),
+        },
+      ]
+  }
+}
+
+///|
+fn generic_parameter_list_text(
+  parameters : Array[@types.TypeParameter],
+) -> String {
+  if parameters.is_empty() {
+    "<unknown>"
+  } else {
+    parameters.map(fn(parameter) { "`\{parameter.name}`" }).join(", ")
+  }
 }
 
 ///|
@@ -1419,75 +1896,6 @@ fn generic_argument_subject_notes(
       ]
     ExplicitExpression(..) =>
       ["explicit generic arguments instantiate values with `forall` type"]
-  }
-}
-
-///|
-fn cannot_infer_diagnostic(
-  diagnostic_ : @typecheck.TypeCheckDiagnostic,
-  span : @basic.SourceSpan?,
-  label : String,
-  reason : @typecheck.CannotInferReason,
-) -> CompilerDiagnostic {
-  diagnostic(
-    "cannot infer expression type",
-    span~,
-    severity=Error,
-    code=Some("E3010"),
-    labels=[
-      {
-        span: compiler_local_span(diagnostic_.loc),
-        message: "the checker needs more type information for `\{label}`",
-        style: Primary,
-      },
-    ],
-    notes=[
-      "this diagnostic is emitted when local context is not enough to choose a unique type",
-    ],
-    helps=[cannot_infer_help(reason)],
-    facts=[
-      {
-        name: "inference context",
-        value: cannot_infer_reason_text(reason),
-        span: Some(compiler_local_span(diagnostic_.loc)),
-      },
-    ],
-    suggestions=[
-      {
-        message: cannot_infer_help(reason),
-        edits: [],
-        applicability: HasPlaceholders,
-      },
-    ],
-  )
-}
-
-///|
-fn cannot_infer_reason_text(reason : @typecheck.CannotInferReason) -> String {
-  match reason {
-    ContextualOffer => "contextual offer"
-    FunctionLiteralParameter => "function literal parameter"
-    CallArity => "call arity"
-    GenericArguments => "generic arguments"
-    Builtin => "builtin"
-    Generic => "generic expression"
-  }
-}
-
-///|
-fn cannot_infer_help(reason : @typecheck.CannotInferReason) -> String {
-  match reason {
-    ContextualOffer =>
-      "add a visible `offer` with the required type or pass the contextual argument explicitly"
-    FunctionLiteralParameter =>
-      "add an explicit parameter type annotation to the function literal"
-    CallArity =>
-      "check the number of arguments and generic arguments at this call site"
-    GenericArguments =>
-      "add explicit generic arguments or provide an expected result type"
-    Builtin =>
-      "add a type annotation so the builtin can be checked against a concrete function type"
-    Generic => "add a type annotation near this expression"
   }
 }
 

@@ -72,9 +72,8 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
       )
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
-        kind: CannotInferExpression(
+        kind: VariantReferenceFailure(
           label="unresolved variant " + type_name + "::" + variant,
-          reason=Generic,
         ),
         loc,
       })
@@ -86,10 +85,7 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
     }
     UnresolvedUnqualified(name) => {
       self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="unresolved variant " + name,
-          reason=Generic,
-        ),
+        kind: VariantReferenceFailure(label="unresolved variant " + name),
         loc,
       })
       checked_expression_none_reported(Error)
@@ -125,19 +121,15 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
     }
     UnresolvedUnqualified(name) => {
       self.diagnostics.push({
-        kind: CannotInferExpression(
-          label="unresolved variant " + name,
-          reason=Generic,
-        ),
+        kind: VariantReferenceFailure(label="unresolved variant " + name),
         loc,
       })
       checked_expression_none_reported(Error)
     }
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
-        kind: CannotInferExpression(
+        kind: VariantReferenceFailure(
           label="unresolved variant " + type_name + "::" + variant,
-          reason=Generic,
         ),
         loc,
       })
@@ -160,19 +152,15 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
 ) -> CheckedExpressionSynthesis {
   guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
     self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="unknown variant " + display_name,
-        reason=Generic,
-      ),
+      kind: VariantReferenceFailure(label="unknown variant " + display_name),
       loc,
     })
     return checked_expression_none_reported(Error)
   }
   guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
     self.diagnostics.push({
-      kind: CannotInferExpression(
+      kind: VariantReferenceFailure(
         label="unknown variant owner " + display_name,
-        reason=Generic,
       ),
       loc,
     })
@@ -180,10 +168,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   }
   guard declaration.variant(symbol) is Some(variant_declaration) else {
     self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="unknown variant " + display_name,
-        reason=Generic,
-      ),
+      kind: VariantReferenceFailure(label="unknown variant " + display_name),
       loc,
     })
     return checked_expression_none_reported(Error)

@@ -8,6 +8,7 @@ priv struct GenericArgumentBinding {
 priv struct GenericArgumentInference {
   parameters : Array[@types.TypeParameter]
   bindings : Array[GenericArgumentBinding]
+  mut failure : GenericArgumentInferenceFailure?
 }
 
 ///|
@@ -64,7 +65,18 @@ priv struct ExplicitGenericApplicationResult {
 fn GenericArgumentInference::GenericArgumentInference(
   parameters : Array[@types.TypeParameter],
 ) -> GenericArgumentInference {
-  { parameters, bindings: [] }
+  { parameters, bindings: [], failure: None }
+}
+
+///|
+fn GenericArgumentInference::fail(
+  self : GenericArgumentInference,
+  failure : GenericArgumentInferenceFailure,
+) -> Bool {
+  if self.failure is None {
+    self.failure = Some(failure)
+  }
+  false
 }
 
 ///|
@@ -102,13 +114,25 @@ fn GenericArgumentInference::remember(
   if argument is TypeArgument(Error) {
     return true
   }
+  guard self.tracked_parameter(parameter) is Some(tracked) else { return true }
   if argument is EffectArgument(effect) &&
     !effect_is_parameter(effect, parameter) &&
     effect_mentions_free_parameter(effect, parameter) {
-    return false
+    return self.fail(
+      RecursiveGenericArgument(parameter=tracked, actual=argument),
+    )
   }
   match self.lookup(parameter) {
-    Some(_) => ()
+    Some(previous) =>
+      if !generic_argument_equals(previous, argument) {
+        return self.fail(
+          ConflictingGenericArgument(
+            parameter=tracked,
+            previous~,
+            actual=argument,
+          ),
+        )
+      }
     None => self.bindings.push({ parameter, argument })
   }
   true
@@ -166,7 +190,13 @@ fn GenericArgumentInference::collect_effect(
       self.collect_effect_row_match(
         term_pairs, residual_parameter, residual_effect,
       )
-    EffectRowsMismatched | EffectRowsAmbiguous => false
+    EffectRowsMismatched | EffectRowsAmbiguous =>
+      self.fail(
+        GenericArgumentConstraintMismatch(
+          expected=EffectArgument(template),
+          actual=EffectArgument(actual),
+        ),
+      )
   }
 }
 
@@ -314,10 +344,27 @@ fn GenericArgumentInference::collect_effect_term(
         Some(tracked) =>
           if tracked.kind == Effect {
             self.remember(parameter, EffectArgument(actual))
+          } else if template.equals(actual) {
+            true
           } else {
-            template.equals(actual)
+            self.fail(
+              GenericArgumentConstraintMismatch(
+                expected=EffectArgument(template),
+                actual=EffectArgument(actual),
+              ),
+            )
           }
-        None => template.equals(actual)
+        None =>
+          if template.equals(actual) {
+            true
+          } else {
+            self.fail(
+              GenericArgumentConstraintMismatch(
+                expected=EffectArgument(template),
+                actual=EffectArgument(actual),
+              ),
+            )
+          }
       }
     (
       Singleton(left_symbol, left_arguments),
@@ -326,9 +373,24 @@ fn GenericArgumentInference::collect_effect_term(
       if left_symbol == right_symbol {
         self.collect_generic_array(left_arguments, right_arguments)
       } else {
-        false
+        self.fail(
+          GenericArgumentConstraintMismatch(
+            expected=EffectArgument(template),
+            actual=EffectArgument(actual),
+          ),
+        )
       }
-    _ => template.equals(actual)
+    _ =>
+      if template.equals(actual) {
+        true
+      } else {
+        self.fail(
+          GenericArgumentConstraintMismatch(
+            expected=EffectArgument(template),
+            actual=EffectArgument(actual),
+          ),
+        )
+      }
   }
 }
 
@@ -400,12 +462,32 @@ fn GenericArgumentInference::finish(
 ) -> InferredApplicationGenericArguments? {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   let generic_arguments = []
+  let missing = []
   for parameter in self.parameters {
-    guard self.lookup(parameter.id) is Some(argument) else { return None }
+    guard self.lookup(parameter.id) is Some(argument) else {
+      missing.push(parameter)
+      continue
+    }
     substitution.insert_argument(parameter.id, argument)
     generic_arguments.push(argument)
   }
+  if !missing.is_empty() {
+    ignore(self.fail(MissingGenericArguments(parameters=missing)))
+    return None
+  }
   Some({ generic_arguments, substitution })
+}
+
+///|
+fn generic_argument_equals(
+  left : @types.GenericArgument,
+  right : @types.GenericArgument,
+) -> Bool {
+  match (left, right) {
+    (TypeArgument(left), TypeArgument(right)) => left.equals(right)
+    (EffectArgument(left), EffectArgument(right)) => left.equals(right)
+    _ => false
+  }
 }
 
 ///|
@@ -485,13 +567,12 @@ fn SemanticChecker::try_synthesize_checked_expr_type_silently(
 }
 
 ///|
-fn SemanticChecker::report_application_inference_failure(
+fn SemanticChecker::report_internal_typecheck_failure(
   self : SemanticChecker,
   label : String,
-  reason : CannotInferReason,
   loc : SourceSpan,
 ) -> Unit {
-  self.diagnostics.push({ kind: CannotInferExpression(label~, reason~), loc })
+  self.diagnostics.push({ kind: InternalTypecheckFailure(label~), loc })
 }
 
 ///|
@@ -500,7 +581,7 @@ fn SemanticChecker::report_application_arity(
   label : String,
   loc : SourceSpan,
 ) -> Unit {
-  self.report_application_inference_failure(label, CallArity, loc)
+  self.diagnostics.push({ kind: ApplicationArityMismatch(label~), loc })
 }
 
 ///|
@@ -516,7 +597,8 @@ fn SemanticChecker::check_application_arity(
     true
   } else {
     if report_failure {
-      self.report_application_arity(label, loc)
+      ignore(label)
+      self.diagnostics.push({ kind: CallArityMismatch(expected~, actual~), loc })
     }
     false
   }
@@ -572,25 +654,38 @@ fn SemanticChecker::infer_application_generic_arguments(
   }
   guard !inference_failed else {
     if report_failure {
-      self.report_application_inference_failure(
-        failure_label,
-        GenericArguments,
-        loc,
+      self.report_generic_argument_inference_failure(
+        failure_label, inference, loc,
       )
     }
     return None
   }
   guard inference.finish() is Some(inferred) else {
     if report_failure {
-      self.report_application_inference_failure(
-        failure_label,
-        GenericArguments,
-        loc,
+      self.report_generic_argument_inference_failure(
+        failure_label, inference, loc,
       )
     }
     return None
   }
   Some(inferred)
+}
+
+///|
+fn SemanticChecker::report_generic_argument_inference_failure(
+  self : SemanticChecker,
+  label : String,
+  inference : GenericArgumentInference,
+  loc : SourceSpan,
+) -> Unit {
+  let failure = match inference.failure {
+    Some(failure) => failure
+    None => MissingGenericArguments(parameters=[])
+  }
+  self.diagnostics.push({
+    kind: GenericArgumentInferenceFailed(label~, failure~),
+    loc,
+  })
 }
 
 ///|
@@ -662,17 +757,25 @@ fn explicit_generic_application_subject(
   callee : @desugar.DesugaredExpr,
 ) -> GenericArgumentSubject {
   ExplicitExpression(
-    callee=explicit_generic_callee_name(callee),
+    callee=generic_callee_name(callee),
     callee_loc=Some(callee.loc()),
   )
 }
 
 ///|
-fn explicit_generic_callee_name(callee : @desugar.DesugaredExpr) -> String? {
+fn generic_callable_inference_label(callee : @desugar.DesugaredExpr) -> String {
+  match generic_callee_name(callee) {
+    Some(name) => name
+    None => "generic arguments"
+  }
+}
+
+///|
+fn generic_callee_name(callee : @desugar.DesugaredExpr) -> String? {
   match callee {
     Var(name~, ..) => Some(name)
     Field(name~, ..) => Some(name)
-    GenericApplication(callee~, ..) => explicit_generic_callee_name(callee)
+    GenericApplication(callee~, ..) => generic_callee_name(callee)
     _ => None
   }
 }
@@ -685,6 +788,7 @@ fn SemanticChecker::instantiate_generic_callable(
   body : @types.Type,
   arguments : Array[@desugar.DesugaredCallArgument],
   expected_result : @types.Type?,
+  inference_label : String,
   loc : SourceSpan,
   report_failure : Bool,
 ) -> InstantiatedCallableType? {
@@ -720,7 +824,7 @@ fn SemanticChecker::instantiate_generic_callable(
       Some(result),
       expected_result,
       false,
-      "generic arguments",
+      inference_label,
       loc,
       report_failure,
     )

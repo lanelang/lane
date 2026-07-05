@@ -539,8 +539,8 @@
       "expect": {
         "contains": [
           "error[E3010]",
-          "cannot infer expression type",
-          "function literal parameter"
+          "function literal parameter needs a type annotation",
+          "write the parameter as `name : Type`"
         ]
       }
     },
@@ -551,8 +551,8 @@
       "expect": {
         "contains": [
           "error[E3010]",
-          "cannot infer expression type",
-          "builtin"
+          "builtin `%anything` needs an expected type",
+          "add a type annotation to the binding, parameter, or surrounding expression"
         ]
       }
     },
@@ -610,9 +610,9 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3010]",
-          "cannot infer expression type",
-          "ambiguous contextual offer"
+          "error[E3013]",
+          "ambiguous contextual offer",
+          "pass the argument explicitly or keep only one matching visible offer"
         ]
       }
     },
@@ -704,8 +704,8 @@
       "expect": {
         "contains": [
           "error[E3010]",
-          "cannot infer expression type",
-          "unqualified variant pattern requires enum expected type some"
+          "unqualified variant pattern `some` needs an expected enum type",
+          "add a scrutinee type annotation or qualify the variant with its enum owner"
         ]
       }
     },

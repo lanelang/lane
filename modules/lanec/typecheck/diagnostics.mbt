@@ -5,10 +5,7 @@ fn SemanticChecker::report_ambiguous_variant_reference(
   loc : SourceSpan,
 ) -> Unit {
   self.diagnostics.push({
-    kind: CannotInferExpression(
-      label="ambiguous variant reference " + name,
-      reason=Generic,
-    ),
+    kind: VariantReferenceFailure(label="ambiguous variant reference " + name),
     loc,
   })
 }

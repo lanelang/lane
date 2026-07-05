@@ -94,11 +94,7 @@ fn SemanticChecker::validate_auto_parameter_suffix(
 ) -> Bool {
   for index in first_auto..<parameters.length() {
     if !parameters[index].is_auto {
-      self.report_application_inference_failure(
-        "auto parameters must be trailing",
-        Generic,
-        loc,
-      )
+      self.diagnostics.push({ kind: AutoParametersMustBeTrailing, loc })
       return false
     }
   }
@@ -118,22 +114,14 @@ fn SemanticChecker::collect_direct_arguments(
     match argument {
       Positional(value~, loc~) => {
         if positional.length() >= positional_count {
-          self.report_application_inference_failure(
-            "auto arguments must be named",
-            Generic,
-            loc,
-          )
+          self.diagnostics.push({ kind: AutoArgumentMustBeNamed, loc })
           return None
         }
         positional.push({ value, loc })
       }
       Named(name~, value~, loc~) => {
         if named_direct_argument(named, name) is Some(_) {
-          self.report_application_inference_failure(
-            "duplicate named argument " + name,
-            Generic,
-            loc,
-          )
+          self.diagnostics.push({ kind: DuplicateNamedArgument(name~), loc })
           return None
         }
         named.push({ name, value, loc })
@@ -141,7 +129,13 @@ fn SemanticChecker::collect_direct_arguments(
     }
   }
   if positional.length() != positional_count {
-    self.report_application_arity("call arity", loc)
+    self.diagnostics.push({
+      kind: CallArityMismatch(
+        expected=positional_count,
+        actual=positional.length(),
+      ),
+      loc,
+    })
     return None
   }
   Some({ positional, named })
@@ -206,11 +200,10 @@ fn SemanticChecker::direct_parameter_types(
       for argument in named {
         guard auto_parameter_index(parameters, argument.name, first_auto)
           is Some(index) else {
-          self.report_application_inference_failure(
-            "unknown contextual argument " + argument.name,
-            Generic,
-            argument.loc,
-          )
+          self.diagnostics.push({
+            kind: UnknownContextualArgument(name=argument.name),
+            loc: argument.loc,
+          })
           return None
         }
         templates.push(parameter_types[index])
@@ -258,11 +251,10 @@ fn SemanticChecker::complete_direct_call_arguments(
   }
   for argument in named {
     if auto_parameter_index(parameters, argument.name, first_auto) is None {
-      self.report_application_inference_failure(
-        "unknown contextual argument " + argument.name,
-        Generic,
-        argument.loc,
-      )
+      self.diagnostics.push({
+        kind: UnknownContextualArgument(name=argument.name),
+        loc: argument.loc,
+      })
       return result
     }
   }
@@ -298,11 +290,7 @@ fn SemanticChecker::contextual_offer_expr(
   }
   match matches.length() {
     0 => {
-      self.report_application_inference_failure(
-        "missing contextual offer",
-        ContextualOffer,
-        loc,
-      )
+      self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
       None
     }
     1 => {
@@ -310,11 +298,13 @@ fn SemanticChecker::contextual_offer_expr(
       Some(offer.expression)
     }
     _ => {
-      self.report_application_inference_failure(
-        "ambiguous contextual offer",
-        ContextualOffer,
+      self.diagnostics.push({
+        kind: AmbiguousContextualOffer(
+          expected~,
+          candidates=matches.map(fn(offer) { offer.type_ }),
+        ),
         loc,
-      )
+      })
       None
     }
   }

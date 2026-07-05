@@ -21,7 +21,14 @@ fn SemanticChecker::synthesize_call(
     None,
     loc,
   )
-  self.synthesize_callable_call(scope, callee_type, arguments, None, loc)
+  self.synthesize_callable_call(
+    scope,
+    callee_type,
+    arguments,
+    None,
+    generic_callable_inference_label(callee),
+    loc,
+  )
 }
 
 ///|
@@ -31,6 +38,7 @@ fn SemanticChecker::synthesize_callable_call(
   callee_type : @types.Type,
   arguments : Array[@desugar.DesugaredCallArgument],
   expected_result : @types.Type?,
+  inference_label : String,
   loc : SourceSpan,
 ) -> @types.Type {
   match callee_type {
@@ -40,7 +48,8 @@ fn SemanticChecker::synthesize_callable_call(
     }
     Forall(type_parameters, body) => {
       guard self.instantiate_generic_callable(
-          scope, type_parameters, body, arguments, expected_result, loc, true,
+          scope, type_parameters, body, arguments, expected_result, inference_label,
+          loc, true,
         )
         is Some(instantiated) else {
         return Error
@@ -88,6 +97,7 @@ fn SemanticChecker::check_call(
     callee_type,
     arguments,
     Some(expected),
+    generic_callable_inference_label(callee),
     loc,
   )
   self.expect_type(expected, actual, loc)
@@ -115,11 +125,7 @@ fn SemanticChecker::check_builtin_callee_call(
       Positional(value~, ..) =>
         parameters.push(self.synthesize_expr(scope, value))
       Named(name~, value~, loc~) => {
-        self.report_application_inference_failure(
-          "invalid named argument " + name,
-          Generic,
-          loc,
-        )
+        self.diagnostics.push({ kind: InvalidNamedBuiltinArgument(name~), loc })
         parameters.push(self.synthesize_expr(scope, value))
       }
     }
@@ -166,11 +172,7 @@ fn SemanticChecker::check_call_argument(
   match argument {
     Positional(value~, ..) => self.check_expr(scope, value, parameter)
     Named(name~, value~, loc~) => {
-      self.report_application_inference_failure(
-        "invalid named argument " + name,
-        Generic,
-        loc,
-      )
+      self.diagnostics.push({ kind: InvalidNamedArgument(name~), loc })
       self.check_expr(scope, value, parameter)
     }
   }

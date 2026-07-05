@@ -82,10 +82,7 @@ fn SemanticChecker::checked_top_level_struct(
 ) -> @checked.CheckedTopLevelDeclaration? {
   guard self.declarations.checked_struct(declaration.symbol) is Some(checked) else {
     self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="checked struct " + declaration.name,
-        reason=Generic,
-      ),
+      kind: InternalTypecheckFailure(label="checked struct " + declaration.name),
       loc: declaration.loc,
     })
     return None
@@ -100,10 +97,7 @@ fn SemanticChecker::checked_top_level_enum(
 ) -> @checked.CheckedTopLevelDeclaration? {
   guard self.declarations.checked_enum(declaration.symbol) is Some(checked) else {
     self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="checked enum " + declaration.name,
-        reason=Generic,
-      ),
+      kind: InternalTypecheckFailure(label="checked enum " + declaration.name),
       loc: declaration.loc,
     })
     return None
@@ -118,10 +112,7 @@ fn SemanticChecker::checked_top_level_effect(
 ) -> @checked.CheckedTopLevelDeclaration? {
   guard self.declarations.checked_effect(declaration.symbol) is Some(checked) else {
     self.diagnostics.push({
-      kind: CannotInferExpression(
-        label="checked effect " + declaration.name,
-        reason=Generic,
-      ),
+      kind: InternalTypecheckFailure(label="checked effect " + declaration.name),
       loc: declaration.loc,
     })
     return None

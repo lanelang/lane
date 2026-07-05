@@ -140,6 +140,11 @@ graph TD
   ISS_116["ISS-116: Warn on unused private top-level declarations"]
   ISS_117["ISS-117: Warn on unused type and effect parameters"]
   ISS_118["ISS-118: Warn on unused imports and opens"]
+  ISS_119["ISS-119: Replace catch-all inference diagnostics with structured cases"]
+  ISS_120["ISS-120: Split missing expected-type diagnostics"]
+  ISS_121["ISS-121: Preserve generic inference failure details"]
+  ISS_122["ISS-122: Split contextual offer and call-shape diagnostics"]
+  ISS_123["ISS-123: Remove obsolete inference diagnostic catch-all"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -240,6 +245,11 @@ graph TD
   ISS_105 --> ISS_106
   ISS_110 --> ISS_113
   ISS_111 --> ISS_113
+  ISS_120 --> ISS_121
+  ISS_120 --> ISS_122
+  ISS_120 --> ISS_123
+  ISS_121 --> ISS_123
+  ISS_122 --> ISS_123
 ```
 
 ## Warnings

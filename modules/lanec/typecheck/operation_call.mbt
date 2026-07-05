@@ -27,7 +27,7 @@ fn SemanticChecker::operation_call_signature(
     return None
   }
   guard self.declarations.checked_operation(operation) is Some(declaration) else {
-    self.report_application_inference_failure("effect operation", Generic, loc)
+    self.report_internal_typecheck_failure("effect operation", loc)
     return None
   }
   guard self.operation_owner_effect(name, operation, loc) is Some(effect) else {
@@ -73,7 +73,7 @@ fn SemanticChecker::handler_operation_signature(
     return None
   }
   guard self.declarations.checked_operation(operation) is Some(declaration) else {
-    self.report_application_inference_failure("effect operation", Generic, loc)
+    self.report_internal_typecheck_failure("effect operation", loc)
     return None
   }
   guard self.operation_owner_effect(name, operation, loc) is Some(effect) else {
@@ -207,9 +207,8 @@ fn SemanticChecker::operation_symbol(
       None
     }
     Ambiguous(name~, ..) => {
-      self.report_application_inference_failure(
+      self.report_internal_typecheck_failure(
         "ambiguous effect operation " + name,
-        Generic,
         loc,
       )
       None
@@ -229,27 +228,15 @@ fn SemanticChecker::operation_owner_effect(
     Shorthand(..) | Unqualified(..) => {
       guard self.resolved_source.symbols.operation_metadata(operation)
         is Some(metadata) else {
-        self.report_application_inference_failure(
-          "effect operation owner",
-          Generic,
-          loc,
-        )
+        self.report_internal_typecheck_failure("effect operation owner", loc)
         return None
       }
       guard self.declarations.checked_effect(metadata.owner) is Some(effect) else {
-        self.report_application_inference_failure(
-          "effect operation owner",
-          Generic,
-          loc,
-        )
+        self.report_internal_typecheck_failure("effect operation owner", loc)
         return None
       }
       if !effect.type_parameters.is_empty() {
-        self.report_application_inference_failure(
-          "effect operation owner",
-          Generic,
-          loc,
-        )
+        self.report_internal_typecheck_failure("effect operation owner", loc)
         return None
       }
       Some(Singleton(metadata.owner, []))

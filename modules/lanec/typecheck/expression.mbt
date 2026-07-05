@@ -218,8 +218,8 @@ fn SemanticChecker::synthesize_expr(
       self.synthesize_struct_literal(
         scope, type_name, generic_arguments, fields, loc,
       )
-    Builtin(_, loc~) => {
-      self.report_application_inference_failure("builtin", Builtin, loc)
+    Builtin(name, loc~) => {
+      self.diagnostics.push({ kind: BuiltinNeedsExpectedType(name~), loc })
       Error
     }
   }

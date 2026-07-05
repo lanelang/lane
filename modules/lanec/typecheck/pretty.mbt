@@ -273,6 +273,36 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text("expected=\{expected}") +
       space +
       text("actual=\{actual}")
+    ApplicationArityMismatch(label~) =>
+      text("application_arity_mismatch") + space + text(label)
+    VariantReferenceFailure(label~) =>
+      text("variant_reference_failure") + space + text(label)
+    InternalTypecheckFailure(label~) =>
+      text("internal_typecheck_failure") + space + text(label)
+    CallArityMismatch(expected~, actual~) =>
+      text("call_arity_mismatch") +
+      space +
+      text("expected=\{expected}") +
+      space +
+      text("actual=\{actual}")
+    AutoParametersMustBeTrailing => text("auto_parameters_must_be_trailing")
+    AutoArgumentMustBeNamed => text("auto_argument_must_be_named")
+    DuplicateNamedArgument(name~) =>
+      text("duplicate_named_argument") + space + text(name)
+    UnknownContextualArgument(name~) =>
+      text("unknown_contextual_argument") + space + text(name)
+    InvalidNamedArgument(name~) =>
+      text("invalid_named_argument") + space + text(name)
+    InvalidNamedBuiltinArgument(name~) =>
+      text("invalid_named_builtin_argument") + space + text(name)
+    MissingContextualOffer(expected~) =>
+      text("missing_contextual_offer") + space + expected.pretty()
+    AmbiguousContextualOffer(expected~, candidates~) =>
+      text("ambiguous_contextual_offer") +
+      space +
+      expected.pretty() +
+      space +
+      text("candidates=\{candidates.length()}")
     TypeAliasCycle(name~) => text("type_alias_cycle") + space + text(name)
     KindMismatch(expected~, actual~) =>
       text("kind_mismatch") +
@@ -342,8 +372,26 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     PrivateEffectEscape(name~) =>
       text("private effect `") + text(name) + text("` in public interface")
     InvalidIntLiteral(raw) => text("invalid_int_literal") + space + text(raw)
-    CannotInferExpression(label~, ..) =>
-      text("cannot_infer") + space + text(label)
+    BuiltinNeedsExpectedType(name~) =>
+      text("builtin_needs_expected_type") + space + text(name)
+    FunctionLiteralParameterNeedsAnnotation(name~) => {
+      let name = match name {
+        Some(name) => text(name)
+        None => text("<anonymous>")
+      }
+      text("function_literal_parameter_needs_annotation") + space + name
+    }
+    EmptyMatchNeedsExpectedType => text("empty_match_needs_expected_type")
+    UnqualifiedVariantPatternNeedsExpectedEnum(variant~) =>
+      text("unqualified_variant_pattern_needs_expected_enum") +
+      space +
+      text(variant)
+    GenericArgumentInferenceFailed(label~, failure~) =>
+      text("generic_argument_inference_failed") +
+      space +
+      text(label) +
+      space +
+      failure.pretty()
   }
 }
 
@@ -357,6 +405,41 @@ pub impl @prettyprinter.Pretty for GenericArgumentSubject with fn pretty(
       text("explicit_generic_application") + space + text(callee)
     ExplicitExpression(callee=None, ..) => text("explicit_generic_application")
   }
+}
+
+///|
+pub impl @prettyprinter.Pretty for GenericArgumentInferenceFailure with fn pretty(
+  failure : GenericArgumentInferenceFailure,
+) {
+  match failure {
+    MissingGenericArguments(parameters~) =>
+      text("missing") + space + text(generic_parameter_names(parameters))
+    ConflictingGenericArgument(parameter~, previous~, actual~) =>
+      text("conflict") +
+      space +
+      text(parameter.name) +
+      space +
+      text("previous=") +
+      previous.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty()
+    RecursiveGenericArgument(parameter~, actual~) =>
+      text("recursive") + space + text(parameter.name) + space + actual.pretty()
+    GenericArgumentConstraintMismatch(expected~, actual~) =>
+      text("constraint_mismatch") +
+      space +
+      text("expected=") +
+      expected.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty()
+  }
+}
+
+///|
+fn generic_parameter_names(parameters : Array[@types.TypeParameter]) -> String {
+  parameters.map(fn(parameter) { parameter.name }).join(",")
 }
 
 ///|

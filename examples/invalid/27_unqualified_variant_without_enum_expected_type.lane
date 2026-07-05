@@ -3,6 +3,6 @@ module Examples.Invalid.UnqualifiedVariantWithoutEnumExpectedType
 
 pub fn bad(value : Int) -> Int {
   match value {
-    some(x) => x
+    some(_) => 1
   }
 }

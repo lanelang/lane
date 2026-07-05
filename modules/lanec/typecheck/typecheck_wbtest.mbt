@@ -767,7 +767,7 @@ test "typecheck reports missing contextual offer" {
       #|    let answer#1 : Int
       #|  }
       #|  diagnostics {
-      #|    cannot_infer missing contextual offer @ 8:24-8:25
+      #|    missing_contextual_offer type#0[Int] @ 8:24-8:25
       #|  }
       #|}
     ),
@@ -812,10 +812,85 @@ test "typecheck reports ambiguous contextual offer" {
       #|    let answer#3 : Int
       #|  }
       #|  diagnostics {
-      #|    cannot_infer ambiguous contextual offer @ 10:24-10:25
+      #|    ambiguous_contextual_offer type#0[Int] candidates=2 @ 10:24-10:25
       #|  }
       #|}
     ),
+  )
+}
+
+///|
+test "typecheck reports non-trailing auto parameter" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn bad(a : Int, auto op : Add[Int], b : Int) -> Int {
+      #|  a
+      #|}
+      #|let answer : Int = bad(1, 2)
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content="auto_parameters_must_be_trailing @ 8:24-8:29",
+  )
+}
+
+///|
+test "typecheck reports positional auto argument" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+      #|  op.add(a, b)
+      #|}
+      #|let custom : Add[Int] = builtin("%custom")
+      #|let answer : Int = op_add(1, 2, custom)
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content="auto_argument_must_be_named @ 9:33-9:39",
+  )
+}
+
+///|
+test "typecheck reports duplicate named contextual argument" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+      #|  op.add(a, b)
+      #|}
+      #|let custom : Add[Int] = builtin("%custom")
+      #|let answer : Int = op_add(1, 2, op=custom, op=custom)
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content="duplicate_named_argument op @ 9:47-9:53",
+  )
+}
+
+///|
+test "typecheck reports invalid named argument for ordinary call" {
+  let result = expect_typecheck_result(
+    (
+      #|fn id(value : Int) -> Int {
+      #|  value
+      #|}
+      #|let answer : Int = id(value=1)
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content="invalid_named_argument value @ 5:29-5:30",
   )
 }
 
@@ -1361,7 +1436,7 @@ test "typecheck reports generic function literal arity mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer generic function arity @ 2:26-4:2
+      #|application_arity_mismatch generic function arity @ 2:26-4:2
     ),
   )
 }
@@ -1378,7 +1453,7 @@ test "typecheck reports generic literal against non-generic function type" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer generic function arity @ 2:27-4:2
+      #|application_arity_mismatch generic function arity @ 2:27-4:2
     ),
   )
 }
@@ -1737,7 +1812,30 @@ test "typecheck reports unresolved generic arguments" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer generic arguments @ 7:22-7:23
+      #|generic_argument_inference_failed make missing A @ 7:22-7:23
+    ),
+  )
+}
+
+///|
+test "typecheck reports conflicting generic argument inference" {
+  let result = expect_typecheck_result(
+    (
+      #|fn[A] choose(left : A, right : A) -> A {
+      #|  left
+      #|}
+      #|fn use() -> Bool {
+      #|  {
+      #|    let _ = choose(1, true)
+      #|    true
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0]),
+    content=(
+      #|generic_argument_inference_failed choose conflict A previous=Int actual=Bool @ 7:20-7:28
     ),
   )
 }
@@ -2656,7 +2754,7 @@ test "typecheck reports unresolved variant generic arguments" {
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content="cannot_infer generic arguments @ 8:29-8:31",
+    content="generic_argument_inference_failed generic arguments missing A @ 8:29-8:31",
   )
 }
 
@@ -2669,14 +2767,14 @@ test "typecheck reports enum variant payload mismatch" {
       #|  some(A)
       #|}
       #|fn bad() -> Option[Int] {
-      #|  some(true)
+      #|  Option[Int]::some(true)
       #|}
     ),
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|type_mismatch expected=Int actual=Bool @ 7:8-7:12
+      #|type_mismatch expected=Int actual=Bool @ 7:21-7:25
     ),
   )
 }
@@ -2697,7 +2795,7 @@ test "typecheck reports enum variant arity mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer variant arity @ 7:8-7:9
+      #|application_arity_mismatch variant arity @ 7:8-7:9
     ),
   )
 }
@@ -2720,7 +2818,7 @@ test "typecheck reports ambiguous unqualified enum variant" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer ambiguous variant reference same @ 9:9-9:10
+      #|variant_reference_failure ambiguous variant reference same @ 9:9-9:10
     ),
   )
 }
@@ -2826,7 +2924,7 @@ test "typecheck rejects unqualified enum variant without enum expected type" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer unqualified variant pattern requires enum expected type some @ 4:5-4:12
+      #|unqualified_variant_pattern_needs_expected_enum some @ 4:5-4:12
     ),
   )
 }
@@ -3356,7 +3454,7 @@ test "typecheck reports effect operation generic witness arity mismatch once" {
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
       #|[
-      #|  cannot_infer effect operation generic arguments @ 6:18-6:35,
+      #|  application_arity_mismatch effect operation generic arguments @ 6:18-6:35,
       #|  effect_mismatch expected=effect#0 actual={} @ 6:3-7:2
       #|]
     ),
@@ -3516,7 +3614,7 @@ test "typecheck checks operation payload arity" {
   inspect(
     @prettyprinter.render(result.diagnostics[0].kind, width=100),
     content=(
-      #|cannot_infer effect operation arity
+      #|application_arity_mismatch effect operation arity
     ),
   )
 }

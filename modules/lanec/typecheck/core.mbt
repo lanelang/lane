@@ -144,19 +144,27 @@ pub(all) struct TypeCheckDiagnostic {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum CannotInferReason {
-  Generic
-  ContextualOffer
-  FunctionLiteralParameter
-  CallArity
-  GenericArguments
-  Builtin
-} derive(Debug, Eq)
-
-///|
 pub(all) enum GenericArgumentSubject {
   Named(name~ : String)
   ExplicitExpression(callee~ : String?, callee_loc~ : SourceSpan?)
+} derive(Debug, Eq)
+
+///|
+pub(all) enum GenericArgumentInferenceFailure {
+  MissingGenericArguments(parameters~ : Array[@types.TypeParameter])
+  ConflictingGenericArgument(
+    parameter~ : @types.TypeParameter,
+    previous~ : @types.GenericArgument,
+    actual~ : @types.GenericArgument
+  )
+  RecursiveGenericArgument(
+    parameter~ : @types.TypeParameter,
+    actual~ : @types.GenericArgument
+  )
+  GenericArgumentConstraintMismatch(
+    expected~ : @types.GenericArgument,
+    actual~ : @types.GenericArgument
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -168,6 +176,21 @@ pub(all) enum TypeCheckDiagnosticKind {
     subject~ : GenericArgumentSubject,
     expected~ : Int,
     actual~ : Int
+  )
+  ApplicationArityMismatch(label~ : String)
+  VariantReferenceFailure(label~ : String)
+  InternalTypecheckFailure(label~ : String)
+  CallArityMismatch(expected~ : Int, actual~ : Int)
+  AutoParametersMustBeTrailing
+  AutoArgumentMustBeNamed
+  DuplicateNamedArgument(name~ : String)
+  UnknownContextualArgument(name~ : String)
+  InvalidNamedArgument(name~ : String)
+  InvalidNamedBuiltinArgument(name~ : String)
+  MissingContextualOffer(expected~ : @types.Type)
+  AmbiguousContextualOffer(
+    expected~ : @types.Type,
+    candidates~ : Array[@types.Type]
   )
   TypeAliasCycle(name~ : String)
   KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)
@@ -198,5 +221,12 @@ pub(all) enum TypeCheckDiagnosticKind {
   PrivateTypeEscape(name~ : String)
   PrivateEffectEscape(name~ : String)
   InvalidIntLiteral(String)
-  CannotInferExpression(label~ : String, reason~ : CannotInferReason)
+  BuiltinNeedsExpectedType(name~ : String)
+  FunctionLiteralParameterNeedsAnnotation(name~ : String?)
+  EmptyMatchNeedsExpectedType
+  UnqualifiedVariantPatternNeedsExpectedEnum(variant~ : String)
+  GenericArgumentInferenceFailed(
+    label~ : String,
+    failure~ : GenericArgumentInferenceFailure
+  )
 } derive(Debug, Eq)

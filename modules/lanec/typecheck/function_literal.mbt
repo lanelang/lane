@@ -26,11 +26,10 @@ fn SemanticChecker::synthesize_function_literal(
       }
       parameter_types.push(type_)
     } else {
-      self.report_application_inference_failure(
-        "function literal parameter",
-        FunctionLiteralParameter,
-        parameter.loc,
-      )
+      self.diagnostics.push({
+        kind: FunctionLiteralParameterNeedsAnnotation(name=Some(parameter.name)),
+        loc: parameter.loc,
+      })
       body_scope.bind(parameter.symbol, Error)
       if parameter.is_offered {
         self.offer_symbol(

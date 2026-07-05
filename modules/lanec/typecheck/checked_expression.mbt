@@ -215,8 +215,8 @@ fn SemanticChecker::synthesize_checked_expr(
         None,
         loc,
       )
-    Builtin(_, loc~) => {
-      self.report_application_inference_failure("builtin", Builtin, loc)
+    Builtin(name, loc~) => {
+      self.diagnostics.push({ kind: BuiltinNeedsExpectedType(name~), loc })
       checked_expression_none_reported(Error)
     }
   }
@@ -622,10 +622,7 @@ fn SemanticChecker::synthesize_checked_match(
     }
   }
   if !has_result {
-    self.diagnostics.push({
-      kind: CannotInferExpression(label="empty match", reason=Generic),
-      loc,
-    })
+    self.diagnostics.push({ kind: EmptyMatchNeedsExpectedType, loc })
   }
   if !matrix.is_exhaustive(self.declarations, checked_scrutinee.type_) {
     self.diagnostics.push({
@@ -712,7 +709,14 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
     }
     Forall(type_parameters, body) => {
       guard self.instantiate_generic_callable(
-          scope, type_parameters, body, arguments, expected_result, loc, true,
+          scope,
+          type_parameters,
+          body,
+          arguments,
+          expected_result,
+          generic_callable_inference_label(callee),
+          loc,
+          true,
         )
         is Some(instantiated) else {
         return checked_expression_none_reported(Error)
@@ -794,11 +798,7 @@ fn SemanticChecker::synthesize_checked_builtin_callee_call(
         }
       }
       Named(name~, value~, loc~) => {
-        self.report_application_inference_failure(
-          "invalid named argument " + name,
-          Generic,
-          loc,
-        )
+        self.diagnostics.push({ kind: InvalidNamedBuiltinArgument(name~), loc })
         let checked = self.synthesize_checked_expr(scope, value)
         parameters.push(checked.type_)
         effects.push(checked.effect)
@@ -920,11 +920,7 @@ fn SemanticChecker::check_checked_call_argument(
   match argument {
     Positional(value~, ..) => self.check_checked_expr(scope, value, parameter)
     Named(name~, value~, loc~) => {
-      self.report_application_inference_failure(
-        "invalid named argument " + name,
-        Generic,
-        loc,
-      )
+      self.diagnostics.push({ kind: InvalidNamedArgument(name~), loc })
       self.check_checked_expr(scope, value, parameter)
     }
   }
@@ -967,11 +963,10 @@ fn SemanticChecker::synthesize_checked_function_literal(
       })
     } else {
       let type_ : @types.Type = Error
-      self.report_application_inference_failure(
-        "function literal parameter",
-        FunctionLiteralParameter,
-        parameter.loc,
-      )
+      self.diagnostics.push({
+        kind: FunctionLiteralParameterNeedsAnnotation(name=Some(parameter.name)),
+        loc: parameter.loc,
+      })
       body_scope.bind(parameter.symbol, type_)
       if parameter.is_offered {
         self.offer_symbol(
@@ -1329,7 +1324,7 @@ fn SemanticChecker::require_checked_expression(
     None => {
       if !checked.missing_reported {
         self.diagnostics.push({
-          kind: CannotInferExpression(label="checked " + label, reason=Generic),
+          kind: InternalTypecheckFailure(label="checked " + label),
           loc,
         })
       }
