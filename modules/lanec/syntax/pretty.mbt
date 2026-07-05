@@ -478,11 +478,7 @@ fn Expr::first_line_doc(self : Expr) -> Document {
     }
     Handler(body~, ..) => keyword("handle") + space + body.first_line_doc()
     Block(..) => char('{')
-    StructLiteral(type_name~, type_arguments~, ..) =>
-      text(type_name) +
-      bracketed_type_arguments(type_arguments) +
-      text("::") +
-      char('{')
+    StructLiteral(owner~, ..) => owner.to_doc() + text("::") + char('{')
     If(condition~, then_branch~, ..) =>
       keyword("if") +
       space +
@@ -511,26 +507,16 @@ fn Expr::to_doc_with_precedence(
     BoolLiteral(value, ..) => (10, text(value.to_string()))
     UnitLiteral(..) => (10, text("()"))
     Var(name, ..) => (10, text(name))
-    QualifiedVariant(
-      type_name~,
-      type_arguments~,
-      variant~,
-      variant_type_arguments~,
-      arguments~,
-      ..
-    ) => {
-      let head = text(type_name) +
-        bracketed_type_arguments(type_arguments) +
+    QualifiedVariant(owner~, variant~, variant_type_arguments~, arguments~, ..) => {
+      let head = owner.to_doc() +
         text("::") +
         text(variant) +
         bracketed_type_arguments(variant_type_arguments)
       let doc = head + parenthesized_comma_list(arguments.map(Expr::to_doc))
       (10, doc)
     }
-    StructLiteral(type_name~, type_arguments~, fields~, ..) => {
-      let head = text(type_name) +
-        bracketed_type_arguments(type_arguments) +
-        text("::")
+    StructLiteral(owner~, fields~, ..) => {
+      let head = owner.to_doc() + text("::")
       (10, head + braced_comma_list(fields.map(StructLiteralField::to_doc)))
     }
     Builtin(name, ..) =>

@@ -258,16 +258,14 @@ pub(all) enum Expr {
   UnitLiteral(loc~ : SourceSpan)
   Var(String, loc~ : SourceSpan)
   QualifiedVariant(
-    type_name~ : String,
-    type_arguments~ : Array[Type],
+    owner~ : Type,
     variant~ : String,
     variant_type_arguments~ : Array[Type],
     arguments~ : Array[Expr],
     loc~ : SourceSpan
   )
   StructLiteral(
-    type_name~ : String,
-    type_arguments~ : Array[Type],
+    owner~ : Type,
     fields~ : Array[StructLiteralField],
     loc~ : SourceSpan
   )

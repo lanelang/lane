@@ -55,16 +55,16 @@ priv struct ReturnAnnotation {
 }
 
 ///|
+priv struct OwnerExpression {
+  expr : Expr
+  owner : Type
+}
+
+///|
 priv struct HandlerOperationArmParameters {
   payload_patterns : Array[Pattern]
   resume_binder : String
   resume_loc : SourceSpan
-}
-
-///|
-priv struct ExpressionTypeName {
-  name : String
-  arguments : Array[Type]
 }
 
 ///|
@@ -135,48 +135,57 @@ fn type_name_text(type_ : Type) -> String {
 }
 
 ///|
-fn expression_type_name_text(expr : Expr) -> String {
-  match expr {
-    Var(name, ..) => name
-    TypeApplication(callee~, ..) => expression_type_name_text(callee)
-    Field(base~, name~, ..) => {
-      let base_name = expression_type_name_text(base)
-      if base_name == "" {
-        ""
-      } else {
-        base_name + "." + name
-      }
-    }
-    _ => ""
-  }
-}
-
-///|
-fn expression_type_name(expr : Expr) -> ExpressionTypeName {
-  match expr {
-    TypeApplication(callee~, arguments~, ..) =>
-      { name: expression_type_name_text(callee), arguments }
-    _ => { name: expression_type_name_text(expr), arguments: [] }
-  }
-}
-
-///|
-fn expression_type_name_name(expr : Expr) -> String {
-  expression_type_name(expr).name
-}
-
-///|
-fn expression_type_name_arguments(expr : Expr) -> Array[Type] {
-  expression_type_name(expr).arguments
-}
-
-///|
-fn expression_type_owner_type(expr : Expr, loc : SourceSpan) -> Type {
-  let name = expression_type_name(expr)
-  if name.arguments.is_empty() {
-    Name(name=name.name, loc~)
+fn apply_type_arguments(
+  callee : Type,
+  arguments : Array[Type],
+  loc : SourceSpan,
+) -> Type {
+  if arguments.is_empty() {
+    callee
   } else {
-    Apply(callee=Name(name=name.name, loc~), arguments=name.arguments, loc~)
+    Apply(callee~, arguments~, loc~)
+  }
+}
+
+///|
+fn extend_owner_type_name(
+  owner : Type,
+  name : String,
+  loc : SourceSpan,
+) -> Type {
+  match owner {
+    Name(name=previous_name, ..) =>
+      QualifiedName(
+        module_path={ components: [previous_name], loc },
+        name~,
+        loc~,
+      )
+    QualifiedName(..) => extend_qualified_type_name(owner, name, loc)
+    _ => abort("expected nominal owner type")
+  }
+}
+
+///|
+fn owner_expression_field(
+  expression : OwnerExpression,
+  name : String,
+  loc : SourceSpan,
+) -> OwnerExpression {
+  {
+    expr: Field(base=expression.expr, name~, loc~),
+    owner: extend_owner_type_name(expression.owner, name, loc),
+  }
+}
+
+///|
+fn owner_expression_with_arguments(
+  expression : OwnerExpression,
+  arguments : Array[Type],
+  loc : SourceSpan,
+) -> OwnerExpression {
+  {
+    expr: TypeApplication(callee=expression.expr, arguments~, loc~),
+    owner: apply_type_arguments(expression.owner, arguments, loc),
   }
 }
 
@@ -204,10 +213,7 @@ fn handler_operation_head_from_ident(
     Unqualified(type_binders) =>
       { name: Unqualified(operation=name, loc~), type_binders }
     Qualified(owner_arguments~, operation~, type_binders~) => {
-      let owner : Type = match owner_arguments {
-        [] => Name(name~, loc~)
-        arguments => Apply(callee=Name(name~, loc~), arguments~, loc~)
-      }
+      let owner = apply_type_arguments(Name(name~, loc~), owner_arguments, loc)
       { name: Qualified(owner~, operation~, loc~), type_binders }
     }
   }
@@ -221,10 +227,7 @@ fn handler_operation_head_from_qualified(
   type_binders : Array[String],
   loc : SourceSpan,
 ) -> HandlerOperationHead {
-  let owner = match owner_arguments {
-    [] => owner_base
-    arguments => Apply(callee=owner_base, arguments~, loc~)
-  }
+  let owner = apply_type_arguments(owner_base, owner_arguments, loc)
   { name: Qualified(owner~, operation~, loc~), type_binders }
 }
 

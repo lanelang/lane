@@ -575,6 +575,128 @@ test "parse qualified postfix forms inside expressions" {
 }
 
 ///|
+test "parse member forms with generic owner types" {
+  let file = expect_parse_ok(
+    (
+      #|effect Coroutine[E : Effect] {
+      #|  yield() -> Unit
+      #|}
+      #|effect Log {
+      #|  log(String) -> Unit
+      #|}
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|fn handled() -> Unit {
+      #|  handle Coroutine[Log]::yield!() with {
+      #|    Coroutine[Log]::yield(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|fn use(box : Box[Int]) -> Option[Int] ! Coroutine[Log] {
+      #|  let copied : Box[Int] = Box[Int]::{ value: box.value }
+      #|  let ignored : Unit = Coroutine[Log]::yield!()
+      #|  Option[Int]::some(copied.value)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Coroutine[E : Effect] {
+      #|  yield() -> Unit
+      #|}
+      #|
+      #|effect Log {
+      #|  log(String) -> Unit
+      #|}
+      #|
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|
+      #|fn handled() -> Unit {
+      #|  handle Coroutine[Log]::yield!() with {
+      #|    Coroutine[Log]::yield(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|
+      #|fn use(box : Box[Int]) -> Option[Int] ! Coroutine[Log] {
+      #|  let copied : Box[Int] = Box[Int]::{ value: box.value }
+      #|  let ignored : Unit = Coroutine[Log]::yield!()
+      #|  Option[Int]::some(copied.value)
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse rejects expression-shaped member owner" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|struct Box[A] {
+        #|  value : A
+        #|}
+        #|fn make() -> Box[Int] {
+        #|  Box[Int]::{ value: 1 }
+        #|}
+        #|let bad : Box[Int] = make()::{ value: 2 }
+      ),
+    ),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`::`" },
+      #|    [
+      #|      { label: "end of file" },
+      #|      { label: "`struct`" },
+      #|      { label: "`enum`" },
+      #|      { label: "`effect`" },
+      #|      { label: "`fn`" },
+      #|      { label: "`let`" },
+      #|      { label: "`type`" },
+      #|      { label: "`offer`" },
+      #|      { label: "`pub`" },
+      #|      { label: "`+`" },
+      #|      { label: "`-`" },
+      #|      { label: "`*`" },
+      #|      { label: "`/`" },
+      #|      { label: "`%`" },
+      #|      { label: "`==`" },
+      #|      { label: "`!=`" },
+      #|      { label: "`<`" },
+      #|      { label: "`<=`" },
+      #|      { label: "`>`" },
+      #|      { label: "`>=`" },
+      #|      { label: "`&&`" },
+      #|      { label: "`||`" },
+      #|      { label: "`|>`" },
+      #|      { label: "`(`" },
+      #|      { label: "`[`" },
+      #|      { label: "`.`" },
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "parse handler expressions" {
   let file = expect_parse_ok(
     (

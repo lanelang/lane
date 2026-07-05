@@ -1328,6 +1328,45 @@ fn resolve_type_name_arguments(
 }
 
 ///|
+priv struct ResolvedOwnerArguments {
+  type_name : String
+  arguments : Array[ResolvedGenericArgument]
+}
+
+///|
+fn owner_type_name(owner : @syntax.Type) -> String {
+  match owner {
+    Name(name~, ..) => name
+    QualifiedName(module_path~, name~, ..) =>
+      module_path.components.join(".") + "." + name
+    _ => abort("expected nominal owner type")
+  }
+}
+
+///|
+fn resolve_owner_type_arguments(
+  owner : @syntax.Type,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedOwnerArguments {
+  match owner {
+    Apply(callee~, arguments~, ..) => {
+      let type_name = owner_type_name(callee)
+      {
+        type_name,
+        arguments: resolve_type_name_arguments(
+          type_name, arguments, resolver, scope,
+        ),
+      }
+    }
+    _ => {
+      let type_name = owner_type_name(owner)
+      { type_name, arguments: [] }
+    }
+  }
+}
+
+///|
 fn qualified_type_name_parameters(
   resolver : Resolver,
   type_name : String,
@@ -1783,37 +1822,40 @@ fn @syntax.Expr::resolve_expr(
     Var(name, loc~) =>
       resolver.resolve_unqualified_name_use(scope, name, loc, BareUse(loc))
     QualifiedVariant(
-      type_name~,
-      type_arguments~,
+      owner~,
       variant~,
       variant_type_arguments~,
       arguments~,
       loc~
-    ) =>
+    ) => {
+      let resolved_owner = resolve_owner_type_arguments(owner, resolver, scope)
       QualifiedVariant(
-        type_name~,
-        type_arguments=resolve_type_name_arguments(
-          type_name, type_arguments, resolver, scope,
-        ),
+        type_name=resolved_owner.type_name,
+        type_arguments=resolved_owner.arguments,
         variant~,
         variant_type_arguments=variant_type_arguments.map(fn(type_) {
           type_.resolve_generic_argument(resolver, scope)
         }),
-        reference=resolver.variant_reference(type_name, variant, loc),
+        reference=resolver.variant_reference(
+          resolved_owner.type_name,
+          variant,
+          loc,
+        ),
         arguments=arguments.map(fn(argument) {
           argument.resolve_expr(resolver, scope)
         }),
         loc~,
       )
-    StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
+    }
+    StructLiteral(owner~, fields~, loc~) => {
+      let resolved_owner = resolve_owner_type_arguments(owner, resolver, scope)
       StructLiteral(
-        type_name~,
-        type_arguments=resolve_type_name_arguments(
-          type_name, type_arguments, resolver, scope,
-        ),
+        type_name=resolved_owner.type_name,
+        type_arguments=resolved_owner.arguments,
         fields=resolve_struct_literal_fields(fields, resolver, scope),
         loc~,
       )
+    }
     Builtin(name, loc~) => Builtin(name, loc~)
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
       EffectOperationCall(
