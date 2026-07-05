@@ -52,7 +52,7 @@ fn SemanticChecker::synthesize_checked_handler(
         residual_seed,
       )
       preliminary_arm_effects.push(
-        self.probe_checked_expr_effect(
+        self.preliminary_handler_arm_effect(
           arm_scope,
           operation.source.body,
           result_type,
@@ -147,6 +147,17 @@ fn SemanticChecker::synthesize_checked_handler(
   } else {
     checked_expression_none_reported(result_type)
   }
+}
+
+///|
+fn SemanticChecker::preliminary_handler_arm_effect(
+  self : SemanticChecker,
+  scope : TypeScope,
+  body : @desugar.DesugaredExpr,
+  result_type : @types.Type,
+) -> @types.Effect {
+  let checker = self.copy_for_silent_analysis()
+  checker.check_checked_expr(scope.copy(), body, result_type).effect
 }
 
 ///|

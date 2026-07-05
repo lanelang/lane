@@ -130,6 +130,7 @@ graph TD
   ISS_110["ISS-110: Make expression type and effect synthesis side-effect disciplined"]
   ISS_111["ISS-111: Centralize expression traversal across compiler analysis layers"]
   ISS_112["ISS-112: Improve diagnostics for generic expression application"]
+  ISS_113["ISS-113: Remove transitional typecheck probe helpers"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -228,6 +229,8 @@ graph TD
   ISS_103 --> ISS_104
   ISS_104 --> ISS_105
   ISS_105 --> ISS_106
+  ISS_110 --> ISS_113
+  ISS_111 --> ISS_113
 ```
 
 ## Warnings

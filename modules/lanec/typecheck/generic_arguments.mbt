@@ -211,7 +211,22 @@ fn SemanticChecker::synthesize_argument_for_generic_arguments(
   scope : TypeScope,
   argument : @desugar.DesugaredExpr,
 ) -> @types.Type? {
-  self.probe_expr_type(scope, argument)
+  self.try_synthesize_checked_expr_type_silently(scope, argument)
+}
+
+///|
+fn SemanticChecker::try_synthesize_checked_expr_type_silently(
+  self : SemanticChecker,
+  scope : TypeScope,
+  expression : @desugar.DesugaredExpr,
+) -> @types.Type? {
+  let checker = self.copy_for_silent_analysis()
+  let checked = checker.synthesize_checked_expr(scope.copy(), expression)
+  if checker.diagnostics.is_empty() {
+    Some(checked.type_)
+  } else {
+    None
+  }
 }
 
 ///|
