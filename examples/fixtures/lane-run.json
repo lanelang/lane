@@ -373,6 +373,15 @@
       }
     },
     {
+      "name": "42 single variant pattern let",
+      "file": "examples/valid/42_single_variant_pattern_let.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "pattern-let=42"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
@@ -852,6 +861,33 @@
           "generic arguments require a generic value",
           "these explicit generic arguments require a value with `forall` type",
           "`plain` has type `(Int) -> Int`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 41 refutable pattern let variant",
+      "file": "examples/invalid/41_refutable_pattern_let_variant.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3205]",
+          "refutable pattern in `let` binding",
+          "this pattern may fail for some `Option[Int]` values",
+          "`let` pattern bindings must be irrefutable because there is no fallback branch",
+          "use a `match` expression when the pattern can fail"
+        ]
+      }
+    },
+    {
+      "name": "invalid 42 refutable nested pattern let",
+      "file": "examples/invalid/42_refutable_pattern_let_nested.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3205]",
+          "refutable pattern in `let` binding",
+          "this pattern may fail for some `Option[Int]` values",
+          "replace the refutable nested pattern with a binder and match it later"
         ]
       }
     }

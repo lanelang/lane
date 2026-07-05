@@ -2187,6 +2187,32 @@ test "typecheck allows repacking existential enum before leaving match arm" {
 }
 
 ///|
+test "typecheck rejects escaped existential enum binder from pattern let" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Packed {
+      #|  hide[T](T)
+      #|}
+      #|fn bad(p : Packed) -> Int {
+      #|  {
+      #|    let escaped = {
+      #|      let hide[T](value) = p
+      #|      value
+      #|    }
+      #|    1
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0], width=100),
+    content=(
+      #|hidden_type_escape tparam#1 @ 9:7-9:12
+    ),
+  )
+}
+
+///|
 test "typecheck expands transparent type alias beta applications" {
   let result = expect_typecheck_result(
     (
@@ -2429,6 +2455,146 @@ test "typecheck checked source preserves existential enum match pattern" {
 }
 
 ///|
+test "typecheck accepts single-variant enum pattern let" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Id[A] {
+      #|  id(A)
+      #|}
+      #|fn unwrap(value : Id[Int]) -> Int {
+      #|  {
+      #|    let id(x) = value
+      #|    x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck uses pattern let annotation as initializer expected type" {
+  let result = expect_typecheck_result(
+    (
+      #|fn use() -> Int {
+      #|  {
+      #|    let _ : Int = builtin("%external_int")
+      #|    42
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck checked source preserves existential enum pattern let" {
+  let result = expect_checked_source_result(
+    (
+      #|enum Packed {
+      #|  hide[T](T)
+      #|}
+      #|fn repack(p : Packed) -> Packed {
+      #|  {
+      #|    let hide[T](value) = p
+      #|    Packed::hide[T](value)
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    enum Packed#0 {
+      #|      hide#0[T#0 : Type](tparam#0)
+      #|    }
+      #|    fn repack#0(p#1 : type#0) -> type#0 {
+      #|      {
+      #|        let variant#0[tparam#1](value#2) = p#1
+      #|        variant#0[tparam#1](value#2)
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck rejects multi-variant enum pattern let" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|fn bad(value : Option[Int]) -> Int {
+      #|  {
+      #|    let some(x) = value
+      #|    x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[refutable_pattern_let type#0[Int] @ 8:9-8:16]
+    ),
+  )
+}
+
+///|
+test "typecheck rejects literal pattern let as refutable" {
+  let result = expect_typecheck_result(
+    (
+      #|fn bad(value : Int) -> Int {
+      #|  {
+      #|    let 1 = value
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[refutable_pattern_let Int @ 4:9-4:10]
+    ),
+  )
+}
+
+///|
+test "typecheck rejects nested refutable pattern let" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|struct Box {
+      #|  value : Option[Int]
+      #|}
+      #|fn bad(box : Box) -> Int {
+      #|  {
+      #|    let Box::{ value: some(x) } = box
+      #|    x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[refutable_pattern_let type#0[Int] @ 11:23-11:30]
+    ),
+  )
+}
+
+///|
 test "typecheck unqualified enum variant construction" {
   let result = expect_typecheck_result(
     (
@@ -2660,7 +2826,7 @@ test "typecheck rejects unqualified enum variant without enum expected type" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|cannot_infer unqualified variant pattern requires enum expected type some @ 4:11-4:12
+      #|cannot_infer unqualified variant pattern requires enum expected type some @ 4:5-4:12
     ),
   )
 }

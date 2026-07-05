@@ -198,6 +198,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   NotAStruct(@types.Type)
   NonExhaustiveMatch(@types.Type)
   UnreachableMatchArm
+  RefutablePatternLet(@types.Type)
   MixedHandlerEffects
   DuplicateHandledEffect(@types.Effect)
   MissingHandlerOperation(@symbol.OperationSymbolId)

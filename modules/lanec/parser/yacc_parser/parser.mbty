@@ -375,16 +375,8 @@ public_top_level_let_declaration -> LetDeclaration
   }
   ;
 
-local_let_declaration -> LetDeclaration
-  : "let" identifier local_type_annotation "=" expression {
-    { is_public: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: $3, initializer: $5, loc: span($sloc) }
-  }
-  ;
-
-local_pattern_let_declaration -> PatternLetDeclaration
-  : "let" struct_pattern "=" expression {
-    { pattern: $2, initializer: $4, loc: span($sloc) }
-  }
+local_let_item -> LocalItem
+  : "let" pattern local_type_annotation "=" expression { local_let_item($2, $3, $5, span($sloc)) }
   ;
 
 local_type_annotation -> Type?
@@ -745,8 +737,7 @@ local_items -> Array[LocalItem]
   ;
 
 local_item -> LocalItem
-  : local_let_declaration { Let($1) }
-  | local_pattern_let_declaration { PatternLet($1) }
+  : local_let_item { $1 }
   | function_declaration { Function($1) }
   | offer_value_declaration { Offer($1) }
   ;
@@ -914,13 +905,9 @@ pattern -> Pattern
   | "true" { BoolLiteral(true, loc=span($sloc)) }
   | "false" { BoolLiteral(false, loc=span($sloc)) }
   | IDENT { Binding($1, loc=span($sloc)) }
-  | IDENT variant_type_binders "(" pattern_list ")" {
-    ShorthandVariant(variant=$1, type_binders=$2, arguments=$4, loc=span($sloc))
-  }
+  | IDENT variant_type_binders "(" pattern_list ")" { ShorthandVariant(variant=$1, type_binders=$2, arguments=$4, loc=span(($startpos, $endpos))) }
   | struct_pattern { $1 }
-  | nominal_type_name "tight ::" IDENT variant_type_binders "(" pattern_list ")" {
-    QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=$6, loc=span($sloc))
-  }
+  | nominal_type_name "tight ::" IDENT variant_type_binders "(" pattern_list ")" { QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=$6, loc=span(($startpos, $endpos))) }
   ;
 
 struct_pattern -> Pattern

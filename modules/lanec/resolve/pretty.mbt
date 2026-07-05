@@ -600,9 +600,14 @@ pub impl @prettyprinter.Pretty for ResolvedLocalItem with fn pretty(
 pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration with fn pretty(
   declaration : ResolvedPatternLetDeclaration,
 ) {
+  let type_doc = match declaration.type_annotation {
+    Some(type_) => space + text(":") + space + type_.pretty()
+    None => empty
+  }
   text("let") +
   space +
   declaration.pattern.pretty() +
+  type_doc +
   space +
   text("=") +
   space +

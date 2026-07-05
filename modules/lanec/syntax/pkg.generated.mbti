@@ -254,6 +254,7 @@ pub impl @prettyprinter.Pretty for Pattern
 
 pub(all) struct PatternLetDeclaration {
   pattern : Pattern
+  type_annotation : Type?
   initializer : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

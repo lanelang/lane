@@ -779,8 +779,12 @@ pub impl @prettyprinter.Pretty for PatternLetDeclaration with fn pretty(
 
 ///|
 fn PatternLetDeclaration::to_doc(self : PatternLetDeclaration) -> Document {
+  let type_doc = match self.type_annotation {
+    Some(type_) => space + text(":") + space + type_.to_doc()
+    None => empty
+  }
   assignment_expr_doc(
-    keyword("let") + space + self.pattern.to_doc(),
+    keyword("let") + space + self.pattern.to_doc() + type_doc,
     self.initializer,
   )
 }

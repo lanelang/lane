@@ -126,6 +126,7 @@ pub impl @prettyprinter.Pretty for DesugaredOfferDeclaration
 
 pub(all) struct DesugaredPatternLetDeclaration {
   pattern : @resolve.ResolvedPattern
+  type_annotation : @resolve.ResolvedType?
   initializer : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

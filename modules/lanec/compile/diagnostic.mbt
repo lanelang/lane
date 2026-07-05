@@ -1075,6 +1075,27 @@ fn typecheck_diagnostic(
         ],
         helps=["remove this arm or make the earlier patterns more specific"],
       )
+    RefutablePatternLet(type_) =>
+      diagnostic(
+        "refutable pattern in `let` binding",
+        span~,
+        severity=Error,
+        code=Some("E3205"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "this pattern may fail for some `\{display.type_text(type_)}` values",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "`let` pattern bindings must be irrefutable because there is no fallback branch",
+          "struct patterns and single-variant enum patterns are allowed only when their nested patterns are also irrefutable",
+        ],
+        helps=[
+          "use a `match` expression when the pattern can fail", "replace the refutable nested pattern with a binder and match it later",
+        ],
+      )
     MixedHandlerEffects =>
       diagnostic(
         "handler block mixes effects",

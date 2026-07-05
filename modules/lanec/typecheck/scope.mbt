@@ -257,8 +257,16 @@ fn SemanticChecker::check_local_pattern_let(
   //
   // Existential type binders opened by the pattern are recorded in the checked
   // pattern so block synthesis can reject hidden-type escape at the scope exit.
-  let type_ = self.synthesize_expr(scope, declaration.initializer)
-  self.check_pattern(scope, declaration.pattern, type_, [])
+  let type_ = if declaration.type_annotation is Some(type_annotation) {
+    let type_ = self.check_type(type_annotation)
+    self.check_expr(scope, declaration.initializer, type_)
+    type_
+  } else {
+    self.synthesize_expr(scope, declaration.initializer)
+  }
+  let pattern = self.check_pattern(scope, declaration.pattern, type_, [])
+  self.check_irrefutable_pattern_let(pattern)
+  pattern
 }
 
 ///|

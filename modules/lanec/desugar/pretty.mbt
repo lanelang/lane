@@ -93,9 +93,14 @@ pub impl @prettyprinter.Pretty for DesugaredLocalItem with fn pretty(
 pub impl @prettyprinter.Pretty for DesugaredPatternLetDeclaration with fn pretty(
   declaration : DesugaredPatternLetDeclaration,
 ) {
+  let type_doc = match declaration.type_annotation {
+    Some(type_) => space + text(":") + space + type_.pretty()
+    None => empty
+  }
   text("let") +
   space +
   declaration.pattern.pretty() +
+  type_doc +
   space +
   text("=") +
   space +

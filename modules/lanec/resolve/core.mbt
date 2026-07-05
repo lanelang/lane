@@ -411,6 +411,7 @@ pub(all) enum ResolvedLocalItem {
 ///|
 pub(all) struct ResolvedPatternLetDeclaration {
   pattern : ResolvedPattern
+  type_annotation : ResolvedType?
   initializer : ResolvedExpr
   loc : SourceSpan
 } derive(Debug, Eq)

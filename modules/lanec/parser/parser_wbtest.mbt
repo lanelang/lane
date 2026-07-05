@@ -153,6 +153,40 @@ test "parse unqualified enum variant pattern" {
 }
 
 ///|
+test "parse single-constructor enum pattern let" {
+  let file = expect_parse_ok(
+    (
+      #|enum Single {
+      #|  wrap(Int)
+      #|}
+      #|fn unwrap(value : Single) -> Int {
+      #|  {
+      #|    let wrap(x) = value
+      #|    x
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|enum Single {
+      #|  wrap(Int)
+      #|}
+      #|
+      #|fn unwrap(value : Single) -> Int {
+      #|  {
+      #|    let wrap(x) = value
+      #|    x
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse does not recognize spaced double colon as qualified variant pattern" {
   debug_inspect(
     parse_error_kinds(

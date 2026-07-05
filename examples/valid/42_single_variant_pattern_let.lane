@@ -1,0 +1,43 @@
+module Examples.Valid.SingleVariantPatternLet
+
+import Stdlib.Ops.*
+
+import Stdlib.Io.{Io, Write}
+
+pub enum Id[A] {
+  id(A)
+}
+
+pub enum Packed {
+  hide[T](T)
+}
+
+pub fn unwrap(value : Id[Int]) -> Int {
+  {
+    let id(x) = value
+    x
+  }
+}
+
+pub fn repack(p : Packed) -> Packed {
+  {
+    let hide[T](value) = p
+    Packed::hide[T](value)
+  }
+}
+
+pub let wrapped_int : Id[Int] = Id::id(42)
+
+pub let unwrapped_int : Int = unwrap(wrapped_int)
+
+pub let packed_int : Packed = Packed::hide[Int](builtin("%external_int"))
+
+pub let repacked_int : Packed = repack(packed_int)
+
+pub fn answer() -> Unit ! Io {
+  if unwrapped_int == 42 {
+    Write::println!("pattern-let=42")
+  } else {
+    Write::println!("bad:pattern-let")
+  }
+}

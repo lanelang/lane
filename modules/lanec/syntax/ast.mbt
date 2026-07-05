@@ -381,6 +381,7 @@ pub(all) struct HandlerFinalBranch {
 ///|
 pub(all) struct PatternLetDeclaration {
   pattern : Pattern
+  type_annotation : Type?
   initializer : Expr
   loc : SourceSpan
 } derive(Debug, Eq)

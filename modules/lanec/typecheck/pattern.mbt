@@ -165,6 +165,85 @@ fn SemanticChecker::check_match_pattern(
 }
 
 ///|
+priv struct RefutablePatternLetSite {
+  type_ : @types.Type
+  loc : SourceSpan
+}
+
+///|
+fn SemanticChecker::check_irrefutable_pattern_let(
+  self : SemanticChecker,
+  pattern : @checked.CheckedPattern,
+) -> Unit {
+  if self.refutable_pattern_let_site(pattern) is Some(site) {
+    self.diagnostics.push({
+      kind: RefutablePatternLet(site.type_),
+      loc: site.loc,
+    })
+  }
+}
+
+///|
+fn SemanticChecker::refutable_pattern_let_site(
+  self : SemanticChecker,
+  pattern : @checked.CheckedPattern,
+) -> RefutablePatternLetSite? {
+  match pattern {
+    Wildcard(..) | Binding(..) => None
+    Literal(type_~, loc~, ..) => Some({ type_, loc })
+    Struct(fields~, ..) => self.refutable_struct_pattern_let_site(fields)
+    Variant(symbol~, arguments~, type_~, loc~, ..) =>
+      if self.variant_pattern_is_irrefutable(symbol) {
+        self.refutable_variant_payload_pattern_let_site(arguments)
+      } else {
+        Some({ type_, loc })
+      }
+  }
+}
+
+///|
+fn SemanticChecker::refutable_struct_pattern_let_site(
+  self : SemanticChecker,
+  fields : Array[@checked.CheckedStructPatternField],
+) -> RefutablePatternLetSite? {
+  for field in fields {
+    if self.refutable_pattern_let_site(field.pattern) is Some(site) {
+      return Some(site)
+    }
+  }
+  None
+}
+
+///|
+fn SemanticChecker::refutable_variant_payload_pattern_let_site(
+  self : SemanticChecker,
+  arguments : Array[@checked.CheckedPattern],
+) -> RefutablePatternLetSite? {
+  for argument in arguments {
+    if self.refutable_pattern_let_site(argument) is Some(site) {
+      return Some(site)
+    }
+  }
+  None
+}
+
+///|
+fn SemanticChecker::variant_pattern_is_irrefutable(
+  self : SemanticChecker,
+  symbol : VariantSymbolId,
+) -> Bool {
+  guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
+    return false
+  }
+  guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
+    return false
+  }
+  guard declaration.variants.length() == 1 else { return false }
+  guard declaration.variants.get(0) is Some(variant) else { return false }
+  variant.symbol == symbol
+}
+
+///|
 fn SemanticChecker::check_pattern(
   self : SemanticChecker,
   scope : TypeScope,

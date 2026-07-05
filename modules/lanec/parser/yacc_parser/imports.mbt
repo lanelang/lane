@@ -28,7 +28,6 @@ using @syntax {
   type Parameter,
   type ParameterModifiers,
   type Pattern,
-  type PatternLetDeclaration,
   type SourceFile,
   type StructDeclaration,
   type StructLiteralField,
@@ -98,6 +97,27 @@ fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
 fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
   items.push(item)
   items
+}
+
+///|
+fn local_let_item(
+  pattern : Pattern,
+  type_annotation : Type?,
+  initializer : Expr,
+  loc : SourceSpan,
+) -> LocalItem {
+  match pattern {
+    Binding(name, loc=name_loc) =>
+      Let({
+        is_public: false,
+        name: Some(name),
+        name_loc: Some(name_loc),
+        type_annotation,
+        initializer,
+        loc,
+      })
+    _ => PatternLet({ pattern, type_annotation, initializer, loc })
+  }
 }
 
 ///|

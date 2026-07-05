@@ -285,6 +285,7 @@ pub impl @prettyprinter.Pretty for ResolvedPattern
 
 pub(all) struct ResolvedPatternLetDeclaration {
   pattern : ResolvedPattern
+  type_annotation : ResolvedType?
   initializer : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

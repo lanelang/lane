@@ -42,6 +42,7 @@ pub(all) struct DesugaredLetDeclaration {
 ///|
 pub(all) struct DesugaredPatternLetDeclaration {
   pattern : @resolve.ResolvedPattern
+  type_annotation : @resolve.ResolvedType?
   initializer : DesugaredExpr
   loc : SourceSpan
 } derive(Debug, Eq)

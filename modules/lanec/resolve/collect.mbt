@@ -2542,8 +2542,11 @@ fn @syntax.PatternLetDeclaration::resolve_pattern_let(
   scope : ResolveScope,
 ) -> ResolvedPatternLetDeclaration {
   let initializer = self.initializer.resolve_expr(resolver, scope)
+  let type_annotation = self.type_annotation.map(fn(type_) {
+    type_.resolve_type(resolver, scope)
+  })
   let pattern = self.pattern.resolve_pattern(resolver, scope)
-  { pattern, initializer, loc: self.loc }
+  { pattern, type_annotation, initializer, loc: self.loc }
 }
 
 ///|

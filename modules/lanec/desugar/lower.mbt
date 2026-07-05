@@ -96,6 +96,7 @@ fn desugar_pattern_let_declaration(
 ) -> DesugaredPatternLetDeclaration {
   {
     pattern: declaration.pattern,
+    type_annotation: declaration.type_annotation,
     initializer: desugar_expr(declaration.initializer),
     loc: declaration.loc,
   }

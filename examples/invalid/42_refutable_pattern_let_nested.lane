@@ -1,0 +1,19 @@
+module Examples.Invalid.RefutablePatternLetNested
+
+enum Option[A] {
+  none()
+  some(A)
+}
+
+struct Box {
+  value : Option[Int]
+}
+
+fn bad(box : Box) -> Int {
+  {
+    let Box::{ value: some(x) } = box
+    x
+  }
+}
+
+let value : Int = bad(Box::{ value: Option::none() })

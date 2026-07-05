@@ -401,16 +401,19 @@ fn SemanticChecker::check_checked_local_pattern_let(
   scope : TypeScope,
   declaration : @desugar.DesugaredPatternLetDeclaration,
 ) -> CheckedLocalPatternLetSynthesis? {
-  let checked_initializer = self.synthesize_checked_expr(
-    scope,
-    declaration.initializer,
-  )
-  let pattern = self.check_pattern(
-    scope,
-    declaration.pattern,
-    checked_initializer.type_,
-    [],
-  )
+  let (type_, checked_initializer) = if declaration.type_annotation
+    is Some(type_annotation) {
+    let type_ = self.check_type(type_annotation)
+    (type_, self.check_checked_expr(scope, declaration.initializer, type_))
+  } else {
+    let checked_initializer = self.synthesize_checked_expr(
+      scope,
+      declaration.initializer,
+    )
+    (checked_initializer.type_, checked_initializer)
+  }
+  let pattern = self.check_pattern(scope, declaration.pattern, type_, [])
+  self.check_irrefutable_pattern_let(pattern)
   guard self.require_checked_expression(
       checked_initializer,
       declaration.initializer.loc(),
