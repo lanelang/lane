@@ -8,6 +8,7 @@ priv struct GenericArgumentBinding {
 priv struct GenericArgumentInference {
   parameters : Array[@types.TypeParameter]
   bindings : Array[GenericArgumentBinding]
+  mut failed : Bool
 }
 
 ///|
@@ -34,7 +35,12 @@ priv struct ExplicitGenericApplicationResult {
 fn GenericArgumentInference::GenericArgumentInference(
   parameters : Array[@types.TypeParameter],
 ) -> GenericArgumentInference {
-  { parameters, bindings: [] }
+  { parameters, bindings: [], failed: false }
+}
+
+///|
+fn GenericArgumentInference::fail(self : GenericArgumentInference) -> Unit {
+  self.failed = true
 }
 
 ///|
@@ -72,10 +78,15 @@ fn GenericArgumentInference::remember(
   if argument is TypeArgument(Error) {
     return
   }
-  // A later conflict does not rewrite the chosen type argument. The final
-  // argument/result checking step will surface the concrete mismatch.
-  if self.lookup(parameter) is None {
-    self.bindings.push({ parameter, argument })
+  if argument is EffectArgument(effect) &&
+    !effect_is_parameter(effect, parameter) &&
+    effect_mentions_free_parameter(effect, parameter) {
+    self.fail()
+    return
+  }
+  match self.lookup(parameter) {
+    Some(_) => ()
+    None => self.bindings.push({ parameter, argument })
   }
 }
 
@@ -123,12 +134,117 @@ fn GenericArgumentInference::collect_effect(
   template : @types.Effect,
   actual : @types.Effect,
 ) -> Unit {
+  self.collect_effect_terms(effect_terms(template), effect_terms(actual))
+}
+
+///|
+fn GenericArgumentInference::collect_effect_terms(
+  self : GenericArgumentInference,
+  templates : Array[@types.Effect],
+  actuals : Array[@types.Effect],
+) -> Unit {
+  if self.failed {
+    return
+  }
+  let row_parameters = []
+  let concrete_templates = []
+  for template in templates {
+    match self.tracked_effect_row_parameter(template) {
+      Some(parameter) => row_parameters.push(parameter)
+      None => concrete_templates.push(template)
+    }
+  }
+  if row_parameters.length() > 1 {
+    self.fail()
+    return
+  }
+  let used = []
+  for _ in actuals {
+    used.push(false)
+  }
+  for template in concrete_templates {
+    match self.unique_effect_term_candidate(template, actuals, used) {
+      Some(index) => {
+        self.collect_effect_term(template, actuals[index])
+        if self.failed {
+          return
+        }
+        used[index] = true
+      }
+      None => {
+        self.fail()
+        return
+      }
+    }
+  }
+  let remaining = []
+  for index in 0..<actuals.length() {
+    if !used[index] {
+      remaining.push(actuals[index])
+    }
+  }
+  match row_parameters {
+    [parameter] =>
+      self.remember(parameter, EffectArgument(effect_from_terms(remaining)))
+    [] => if !remaining.is_empty() { self.fail() }
+    _ => self.fail()
+  }
+}
+
+///|
+fn GenericArgumentInference::unique_effect_term_candidate(
+  self : GenericArgumentInference,
+  template : @types.Effect,
+  actuals : Array[@types.Effect],
+  used : Array[Bool],
+) -> Int? {
+  let mut found_index : Int? = None
+  for index in 0..<actuals.length() {
+    if !used[index] && self.effect_term_candidate(template, actuals[index]) {
+      if found_index is Some(_) {
+        self.fail()
+        return None
+      }
+      found_index = Some(index)
+    }
+  }
+  found_index
+}
+
+///|
+fn GenericArgumentInference::effect_term_candidate(
+  self : GenericArgumentInference,
+  template : @types.Effect,
+  actual : @types.Effect,
+) -> Bool {
+  match (template, actual) {
+    (Empty, Empty) => true
+    (Parameter(_), _) =>
+      self.tracked_effect_row_parameter(template) is Some(_) ||
+      template.equals(actual)
+    (Singleton(left_symbol, _), Singleton(right_symbol, _)) =>
+      left_symbol == right_symbol
+    _ => template.equals(actual)
+  }
+}
+
+///|
+fn GenericArgumentInference::collect_effect_term(
+  self : GenericArgumentInference,
+  template : @types.Effect,
+  actual : @types.Effect,
+) -> Unit {
   match (template, actual) {
     (Empty, Empty) => ()
     (Parameter(parameter), _) =>
-      if self.tracked_parameter(parameter) is Some(tracked) &&
-        tracked.kind == Effect {
-        self.remember(parameter, EffectArgument(actual.normalize()))
+      match self.tracked_parameter(parameter) {
+        Some(tracked) =>
+          if tracked.kind == Effect {
+            self.remember(parameter, EffectArgument(actual))
+          } else if !template.equals(actual) {
+            self.fail()
+          }
+        None => if !template.equals(actual) { self.fail() }
       }
     (
       Singleton(left_symbol, left_arguments),
@@ -136,14 +252,30 @@ fn GenericArgumentInference::collect_effect(
     ) =>
       if left_symbol == right_symbol {
         self.collect_generic_array(left_arguments, right_arguments)
+      } else {
+        self.fail()
       }
-    (Union(left), Union(right)) =>
-      if left.length() == right.length() {
-        for index in 0..<left.length() {
-          self.collect_effect(left[index], right[index])
-        }
+    _ => if !template.equals(actual) { self.fail() }
+  }
+}
+
+///|
+fn GenericArgumentInference::tracked_effect_row_parameter(
+  self : GenericArgumentInference,
+  effect : @types.Effect,
+) -> TypeParameterId? {
+  match effect {
+    Parameter(parameter) =>
+      match self.tracked_parameter(parameter) {
+        Some(tracked) =>
+          if tracked.kind == Effect {
+            Some(parameter)
+          } else {
+            None
+          }
+        None => None
       }
-    _ => ()
+    _ => None
   }
 }
 
@@ -153,6 +285,9 @@ fn GenericArgumentInference::collect_array(
   templates : Array[@types.Type],
   actuals : Array[@types.Type],
 ) -> Unit {
+  if self.failed {
+    return
+  }
   if templates.length() != actuals.length() {
     return
   }
@@ -167,6 +302,9 @@ fn GenericArgumentInference::collect_generic_array(
   templates : Array[@types.GenericArgument],
   actuals : Array[@types.GenericArgument],
 ) -> Unit {
+  if self.failed {
+    return
+  }
   if templates.length() != actuals.length() {
     return
   }
@@ -185,6 +323,9 @@ fn GenericArgumentInference::collect_generic_array(
 fn GenericArgumentInference::substitution(
   self : GenericArgumentInference,
 ) -> @types.TypeSubstitution? {
+  if self.failed {
+    return None
+  }
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for parameter in self.parameters {
     guard self.lookup(parameter.id) is Some(argument) else { return None }
@@ -197,12 +338,67 @@ fn GenericArgumentInference::substitution(
 fn GenericArgumentInference::generic_arguments(
   self : GenericArgumentInference,
 ) -> Array[@types.GenericArgument]? {
+  if self.failed {
+    return None
+  }
   let arguments = []
   for parameter in self.parameters {
     guard self.lookup(parameter.id) is Some(argument) else { return None }
     arguments.push(argument)
   }
   Some(arguments)
+}
+
+///|
+fn effect_mentions_free_parameter(
+  effect : @types.Effect,
+  parameter : TypeParameterId,
+) -> Bool {
+  match effect {
+    Empty => false
+    Parameter(id) => id == parameter
+    Singleton(_, arguments) =>
+      arguments.any(fn(argument) {
+        match argument {
+          EffectArgument(effect) =>
+            effect_mentions_free_parameter(effect, parameter)
+          TypeArgument(_) => false
+        }
+      })
+    Union(effects) =>
+      effects.any(fn(effect) {
+        effect_mentions_free_parameter(effect, parameter)
+      })
+  }
+}
+
+///|
+fn effect_is_parameter(
+  effect : @types.Effect,
+  parameter : TypeParameterId,
+) -> Bool {
+  match effect {
+    Parameter(id) => id == parameter
+    _ => false
+  }
+}
+
+///|
+fn effect_terms(effect : @types.Effect) -> Array[@types.Effect] {
+  match effect.normalize() {
+    Empty => []
+    Union(items) => items
+    item => [item]
+  }
+}
+
+///|
+fn effect_from_terms(terms : Array[@types.Effect]) -> @types.Effect {
+  match terms {
+    [] => Empty
+    [term] => term
+    _ => @types.Effect::Union(terms).normalize()
+  }
 }
 
 ///|

@@ -1602,6 +1602,64 @@ test "typecheck explicit effect-kind generic function argument" {
 }
 
 ///|
+test "typecheck infers empty residual effect row in generic function argument" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|fn program() -> Int ! Log {
+      #|  let _written : Unit = Log::write!(40)
+      #|  42
+      #|}
+      #|fn[A, E : Effect] handle_log(task : () -> A ! { Log, E }) -> () -> A ! E {
+      #|  builtin("%handle_log")
+      #|}
+      #|fn use() -> Int {
+      #|  handle_log(program)()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[]
+    ),
+  )
+}
+
+///|
+test "typecheck infers non-empty residual effect row in generic function argument" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Ask {
+      #|  read() -> Int
+      #|}
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|fn program() -> Int ! { Ask, Log } {
+      #|  let value : Int = Ask::read!()
+      #|  let _written : Unit = Log::write!(value)
+      #|  value
+      #|}
+      #|fn[A, E : Effect] handle_ask(task : () -> A ! { Ask, E }) -> () -> A ! E {
+      #|  builtin("%handle_ask")
+      #|}
+      #|fn use() -> Int ! Log {
+      #|  handle_ask(program)()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[]
+    ),
+  )
+}
+
+///|
 test "typecheck reports explicit generic function arity mismatch" {
   let result = expect_typecheck_result(
     (

@@ -1,0 +1,49 @@
+module Examples.Valid.PipelineEffectHandlers
+
+import Stdlib.Io.{Io, Write}
+
+import Stdlib.Ops.*
+
+effect Ask {
+  read() -> Int
+}
+
+effect Log {
+  write(Int) -> Unit
+}
+
+fn program() -> Int ! { Ask, Log } {
+  let value : Int = Ask::read!()
+  let _written : Unit = Log::write!(value + 1)
+  value + 2
+}
+
+fn[A, E : Effect] handle_ask(task : () -> A ! { Ask, E }) -> () -> A ! E {
+  fn () {
+    handle task() with {
+      Ask::read(resume) => resume(40)
+    } final value {
+      value
+    }
+  }
+}
+
+fn[A, E : Effect] handle_log(task : () -> A ! { Log, E }) -> () -> A ! E {
+  fn () {
+    handle task() with {
+      Log::write(_value, resume) => resume(())
+    } final value {
+      value
+    }
+  }
+}
+
+pub let handled_value : Int = (program |> handle_ask |> handle_log)()
+
+pub fn answer() -> Unit ! Io {
+  if handled_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}
