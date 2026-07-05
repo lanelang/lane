@@ -211,18 +211,7 @@ fn SemanticChecker::synthesize_argument_for_generic_arguments(
   scope : TypeScope,
   argument : @desugar.DesugaredExpr,
 ) -> @types.Type? {
-  // During inference, an argument is allowed to fail synthesis without making
-  // the whole call fail immediately. Once generic arguments are known, the same
-  // argument is checked again through the ordinary user-visible judgment.
-  let checkpoint = self.diagnostic_checkpoint()
-  let type_ = self.synthesize_expr(scope, argument)
-  let success = self.diagnostics.length() == checkpoint.length
-  self.rollback_diagnostics(checkpoint)
-  if success {
-    Some(type_)
-  } else {
-    None
-  }
+  self.probe_expr_type(scope, argument)
 }
 
 ///|

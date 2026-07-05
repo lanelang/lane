@@ -289,14 +289,14 @@ fn SemanticChecker::check_local_function(
       )
     }
   }
-  self.check_expr(
+  let body = self.check_checked_expr(
     body_scope,
     declaration.body,
     self.check_type(declaration.return_type),
   )
   self.expect_effect(
     self.check_effect(declaration.effect),
-    self.synthesize_expr_effect(body_scope, declaration.body),
+    body.effect,
     declaration.body.loc(),
   )
 }

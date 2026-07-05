@@ -359,16 +359,14 @@ fn SemanticChecker::synthesize_expr_effect(
       effect_union(effects)
     }
     Call(callee~, arguments~, ..) => {
-      let checkpoint = self.diagnostic_checkpoint()
-      let callee_type = self.synthesize_expr(scope, callee)
-      self.rollback_diagnostics(checkpoint)
+      let callee_type = self.probe_expr_type(scope, callee)
       let effects = [self.synthesize_expr_effect(scope, callee)]
       for argument in arguments {
         effects.push(self.synthesize_expr_effect(scope, argument.value_expr()))
       }
       match callee_type {
-        Function(_, _, effect) => effects.push(effect)
-        Forall(type_parameters, body) =>
+        Some(Function(_, _, effect)) => effects.push(effect)
+        Some(Forall(type_parameters, body)) =>
           match
             self.instantiate_generic_callable(
               scope,

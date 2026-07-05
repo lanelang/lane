@@ -91,7 +91,6 @@ fn SemanticChecker::synthesize_checked_handler(
   let preliminary_arm_effects = []
   for table in checked_tables {
     for operation in table.operations {
-      let checkpoint = self.diagnostic_checkpoint()
       let arm_scope = handler_operation_scope(
         scope,
         operation.checked,
@@ -99,11 +98,13 @@ fn SemanticChecker::synthesize_checked_handler(
         result_type,
         residual_seed,
       )
-      self.check_expr(arm_scope, operation.source.body, result_type)
       preliminary_arm_effects.push(
-        self.synthesize_expr_effect(arm_scope, operation.source.body),
+        self.probe_checked_expr_effect(
+          arm_scope,
+          operation.source.body,
+          result_type,
+        ),
       )
-      self.rollback_diagnostics(checkpoint)
     }
   }
   let residual_effect = handler_effect_union(
@@ -362,7 +363,23 @@ fn SemanticChecker::synthesize_handler_effect(
   handlers : Array[@desugar.DesugaredHandlerWithBlock],
   final_branch : @desugar.DesugaredHandlerFinalBranch,
 ) -> @types.Effect {
-  let checkpoint = self.diagnostic_checkpoint()
+  let probe = self.fork_for_probe()
+  probe.synthesize_handler_effect_probe(
+    scope.copy(),
+    body,
+    handlers,
+    final_branch,
+  )
+}
+
+///|
+fn SemanticChecker::synthesize_handler_effect_probe(
+  self : SemanticChecker,
+  scope : TypeScope,
+  body : @desugar.DesugaredExpr,
+  handlers : Array[@desugar.DesugaredHandlerWithBlock],
+  final_branch : @desugar.DesugaredHandlerFinalBranch,
+) -> @types.Effect {
   let body_effect = self.synthesize_expr_effect(scope, body)
   let checked_tables = self.check_handler_table_data(scope, handlers)
   let handled_effects = checked_tables.map(fn(table) {
@@ -395,7 +412,6 @@ fn SemanticChecker::synthesize_handler_effect(
     }
   }
   let effect = handler_effect_union([residual_seed] + arm_effects)
-  self.rollback_diagnostics(checkpoint)
   effect
 }
 

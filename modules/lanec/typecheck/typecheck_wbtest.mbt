@@ -3118,7 +3118,7 @@ test "typecheck accepts effect-kind generic witnesses for operations and variant
 }
 
 ///|
-test "typecheck rejects effect operation generic witness arity mismatch" {
+test "typecheck reports effect operation generic witness arity mismatch once" {
   let result = expect_typecheck_result(
     (
       #|effect Prompt {
@@ -3133,7 +3133,6 @@ test "typecheck rejects effect operation generic witness arity mismatch" {
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
       #|[
-      #|  cannot_infer effect operation generic arguments @ 6:18-6:35,
       #|  cannot_infer effect operation generic arguments @ 6:18-6:35,
       #|  effect_mismatch expected=effect#0 actual={} @ 6:3-7:2
       #|]

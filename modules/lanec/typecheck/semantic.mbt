@@ -213,14 +213,14 @@ fn SemanticChecker::check_top_level_function(
       self.offer_symbol(scope.offers, parameter.symbol, type_, parameter.loc)
     }
   }
-  self.check_expr(
+  let body = self.check_checked_expr(
     scope,
     declaration.body,
     self.check_type(declaration.return_type),
   )
   self.expect_effect(
     self.check_effect(declaration.effect),
-    self.synthesize_expr_effect(scope, declaration.body),
+    body.effect,
     declaration.body.loc(),
   )
 }
@@ -235,15 +235,13 @@ fn SemanticChecker::check_top_level_let(
       Some(type_) => type_
       None => self.check_type(type_annotation)
     }
-    self.check_expr(self.ordered_root_scope(), declaration.initializer, type_)
-    self.expect_effect(
-      Empty,
-      self.synthesize_expr_effect(
-        self.ordered_root_scope(),
-        declaration.initializer,
-      ),
-      declaration.initializer.loc(),
+    let scope = self.ordered_root_scope()
+    let initializer = self.check_checked_expr(
+      scope,
+      declaration.initializer,
+      type_,
     )
+    self.expect_effect(Empty, initializer.effect, declaration.initializer.loc())
     type_
   } else {
     self.diagnostics.push({
@@ -277,15 +275,13 @@ fn SemanticChecker::check_top_level_offer(
     Some(type_) => type_
     None => self.check_type(declaration.type_annotation)
   }
-  self.check_expr(self.ordered_root_scope(), declaration.initializer, type_)
-  self.expect_effect(
-    Empty,
-    self.synthesize_expr_effect(
-      self.ordered_root_scope(),
-      declaration.initializer,
-    ),
-    declaration.initializer.loc(),
+  let scope = self.ordered_root_scope()
+  let initializer = self.check_checked_expr(
+    scope,
+    declaration.initializer,
+    type_,
   )
+  self.expect_effect(Empty, initializer.effect, declaration.initializer.loc())
   self.ordered_value_types.push({
     symbol: declaration.symbol,
     type_,

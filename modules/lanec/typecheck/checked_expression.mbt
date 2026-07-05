@@ -275,38 +275,35 @@ fn SemanticChecker::check_checked_block(
   let mut complete = true
   for item in items {
     match item {
-      Let(declaration) => {
-        effects.push(
-          self.synthesize_expr_effect(next_scope, declaration.initializer),
-        )
+      Let(declaration) =>
         match self.check_checked_local_let(next_scope, declaration) {
-          Some(declaration) => checked_items.push(Let(declaration))
+          Some(result) => {
+            effects.push(result.effect)
+            checked_items.push(Let(result.declaration))
+          }
           None => complete = false
         }
-      }
       Function(declaration) =>
         match self.check_checked_local_function(next_scope, declaration) {
           Some(declaration) => checked_items.push(Function(declaration))
           None => complete = false
         }
-      Offer(declaration) => {
-        effects.push(
-          self.synthesize_expr_effect(next_scope, declaration.initializer),
-        )
+      Offer(declaration) =>
         match self.check_checked_local_offer(next_scope, declaration) {
-          Some(declaration) => checked_items.push(Let(declaration))
+          Some(result) => {
+            effects.push(result.effect)
+            checked_items.push(Let(result.declaration))
+          }
           None => complete = false
         }
-      }
-      PatternLet(declaration) => {
-        effects.push(
-          self.synthesize_expr_effect(next_scope, declaration.initializer),
-        )
+      PatternLet(declaration) =>
         match self.check_checked_local_pattern_let(next_scope, declaration) {
-          Some(declaration) => checked_items.push(PatternLet(declaration))
+          Some(result) => {
+            effects.push(result.effect)
+            checked_items.push(PatternLet(result.declaration))
+          }
           None => complete = false
         }
-      }
     }
   }
   let checked_result = self.check_checked_expr(next_scope, result, expected)

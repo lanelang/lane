@@ -306,21 +306,34 @@ fn SemanticChecker::checked_top_level_offer(
 }
 
 ///|
+priv struct CheckedLocalLetSynthesis {
+  declaration : @checked.CheckedLetDeclaration
+  effect : @types.Effect
+}
+
+///|
+priv struct CheckedLocalPatternLetSynthesis {
+  declaration : @checked.CheckedPatternLetDeclaration
+  effect : @types.Effect
+}
+
+///|
 fn SemanticChecker::check_checked_local_let(
   self : SemanticChecker,
   scope : TypeScope,
   declaration : @desugar.DesugaredLetDeclaration,
-) -> @checked.CheckedLetDeclaration? {
-  let type_ = if declaration.type_annotation is Some(type_annotation) {
-    self.check_type(type_annotation)
+) -> CheckedLocalLetSynthesis? {
+  let (type_, checked_initializer) = if declaration.type_annotation
+    is Some(type_annotation) {
+    let type_ = self.check_type(type_annotation)
+    (type_, self.check_checked_expr(scope, declaration.initializer, type_))
   } else {
-    self.synthesize_expr(scope, declaration.initializer)
+    let checked_initializer = self.synthesize_checked_expr(
+      scope,
+      declaration.initializer,
+    )
+    (checked_initializer.type_, checked_initializer)
   }
-  let checked_initializer = self.check_checked_expr(
-    scope,
-    declaration.initializer,
-    type_,
-  )
   scope.bind(declaration.symbol, type_)
   guard self.require_checked_expression(
       checked_initializer,
@@ -331,12 +344,15 @@ fn SemanticChecker::check_checked_local_let(
     return None
   }
   Some({
-    is_public: false,
-    symbol: declaration.symbol,
-    name: declaration.name,
-    initializer,
-    type_,
-    loc: declaration.loc,
+    declaration: {
+      is_public: false,
+      symbol: declaration.symbol,
+      name: declaration.name,
+      initializer,
+      type_,
+      loc: declaration.loc,
+    },
+    effect: checked_initializer.effect,
   })
 }
 
@@ -345,7 +361,7 @@ fn SemanticChecker::check_checked_local_offer(
   self : SemanticChecker,
   scope : TypeScope,
   declaration : @desugar.DesugaredOfferDeclaration,
-) -> @checked.CheckedLetDeclaration? {
+) -> CheckedLocalLetSynthesis? {
   let type_ = self.check_type(declaration.type_annotation)
   let checked_initializer = self.check_checked_expr(
     scope,
@@ -363,12 +379,15 @@ fn SemanticChecker::check_checked_local_offer(
     return None
   }
   Some({
-    is_public: false,
-    symbol: declaration.symbol,
-    name: Some(declaration.name),
-    initializer,
-    type_,
-    loc: declaration.loc,
+    declaration: {
+      is_public: false,
+      symbol: declaration.symbol,
+      name: Some(declaration.name),
+      initializer,
+      type_,
+      loc: declaration.loc,
+    },
+    effect: checked_initializer.effect,
   })
 }
 
@@ -377,7 +396,7 @@ fn SemanticChecker::check_checked_local_pattern_let(
   self : SemanticChecker,
   scope : TypeScope,
   declaration : @desugar.DesugaredPatternLetDeclaration,
-) -> @checked.CheckedPatternLetDeclaration? {
+) -> CheckedLocalPatternLetSynthesis? {
   let checked_initializer = self.synthesize_checked_expr(
     scope,
     declaration.initializer,
@@ -396,7 +415,10 @@ fn SemanticChecker::check_checked_local_pattern_let(
     is Some(initializer) else {
     return None
   }
-  Some({ pattern, initializer, loc: declaration.loc })
+  Some({
+    declaration: { pattern, initializer, loc: declaration.loc },
+    effect: checked_initializer.effect,
+  })
 }
 
 ///|

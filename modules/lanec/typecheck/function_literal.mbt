@@ -43,22 +43,19 @@ fn SemanticChecker::synthesize_function_literal(
       parameter_types.push(Error)
     }
   }
-  let result = if return_type is Some(type_annotation) {
+  let (result, actual_effect) = if return_type is Some(type_annotation) {
     let type_ = self.check_type(type_annotation)
-    self.check_expr(body_scope, body, type_)
-    type_
+    let checked_body = self.check_checked_expr(body_scope, body, type_)
+    (type_, checked_body.effect)
   } else {
-    self.synthesize_expr(body_scope, body)
+    let checked_body = self.synthesize_checked_expr(body_scope, body)
+    (checked_body.type_, checked_body.effect)
   }
   let checked_effect = match effect {
     Some(effect) => self.check_effect(effect)
     None => Empty
   }
-  self.expect_effect(
-    checked_effect,
-    self.synthesize_expr_effect(body_scope, body),
-    body.loc(),
-  )
+  self.expect_effect(checked_effect, actual_effect, body.loc())
   let type_ = @types.Type::Function(parameter_types, result, checked_effect)
   if type_parameters.is_empty() {
     type_
@@ -127,12 +124,10 @@ fn SemanticChecker::check_function_literal(
       if effect is Some(effect) {
         self.expect_effect(expected_effect, self.check_effect(effect), loc)
       }
-      self.check_expr(body_scope, body, expected_result)
-      self.expect_effect(
-        expected_effect,
-        self.synthesize_expr_effect(body_scope, body),
-        body.loc(),
+      let checked_body = self.check_checked_expr(
+        body_scope, body, expected_result,
       )
+      self.expect_effect(expected_effect, checked_body.effect, body.loc())
     }
     Error => ()
     _ => {
