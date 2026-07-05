@@ -2692,6 +2692,49 @@ test "analysis resolves same-file definition and hover" {
 }
 
 ///|
+test "analysis traverses explicit generic application" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub struct Box {
+        #|  value : Int
+        #|}
+        #|
+        #|pub fn[A] id(value : A) -> A {
+        #|  value
+        #|}
+        #|
+        #|pub let answer : Box = id[Box](Box::{ value: 1 })
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  match result.definition_at("file:///Main.lane", 11, 24) {
+    Some(location) => inspect(location.span.start_line, content="7")
+    None => abort("expected generic callee definition")
+  }
+  match result.hover_at("file:///Main.lane", 11, 24) {
+    Some(hover) =>
+      inspect(hover.contents, content="id : forall [A : Type]. (A) -> A")
+    None => abort("expected generic callee hover")
+  }
+  match result.definition_at("file:///Main.lane", 11, 27) {
+    Some(location) => inspect(location.span.start_line, content="3")
+    None => abort("expected generic argument type definition")
+  }
+  debug_inspect(
+    result.inlay_hints.map(fn(hint) { hint.label }),
+    content=(
+      #|["value="]
+    ),
+  )
+}
+
+///|
 test "analysis resolves cross-module definition by source identity" {
   let result = analyze_source_inputs(
     {

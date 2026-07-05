@@ -74,21 +74,6 @@ fn collect_annotated_expr_values(
     | UnitLiteral(_)
     | Var(_)
     | Builtin(_) => ()
-    QualifiedVariant(arguments~, ..) | UnqualifiedVariant(arguments~, ..) =>
-      for argument in arguments {
-        collect_annotated_expr_values(argument, symbols)
-      }
-    StructLiteral(fields~, ..) =>
-      for field in fields {
-        match field {
-          Value(value~, ..) =>
-            match value {
-              Some(value) => collect_annotated_expr_values(value, symbols)
-              None => ()
-            }
-          TypeWitness(_) => ()
-        }
-      }
     FunctionLiteral(parameters~, body~, ..) => {
       for parameter in parameters {
         if parameter.type_annotation is Some(_) {
@@ -103,47 +88,9 @@ fn collect_annotated_expr_values(
       }
       collect_annotated_expr_values(result, symbols)
     }
-    If(condition~, then_branch~, else_branch~, ..) => {
-      collect_annotated_expr_values(condition, symbols)
-      collect_annotated_expr_values(then_branch, symbols)
-      collect_annotated_expr_values(else_branch, symbols)
-    }
-    Match(scrutinee~, arms~, ..) => {
-      collect_annotated_expr_values(scrutinee, symbols)
-      for arm in arms {
-        collect_annotated_expr_values(arm.body, symbols)
-      }
-    }
-    Handler(body~, handlers~, final_branch~, ..) => {
-      collect_annotated_expr_values(body, symbols)
-      for handler in handlers {
-        for arm in handler.arms {
-          collect_annotated_expr_values(arm.body, symbols)
-        }
-      }
-      collect_annotated_expr_values(final_branch.body, symbols)
-    }
-    Call(callee~, arguments~, ..) => {
-      collect_annotated_expr_values(callee, symbols)
-      for argument in arguments {
-        match argument {
-          Positional(value~, ..) =>
-            collect_annotated_expr_values(value, symbols)
-          Named(value~, ..) => collect_annotated_expr_values(value, symbols)
-        }
-      }
-    }
-    EffectOperationCall(arguments~, ..) =>
-      for argument in arguments {
-        collect_annotated_expr_values(argument, symbols)
-      }
-    GenericApplication(callee~, ..) =>
-      collect_annotated_expr_values(callee, symbols)
-    Field(base~, ..) => collect_annotated_expr_values(base, symbols)
-    Unary(operand~, ..) => collect_annotated_expr_values(operand, symbols)
-    Binary(left~, right~, ..) | Pipeline(left~, right~, ..) => {
-      collect_annotated_expr_values(left, symbols)
-      collect_annotated_expr_values(right, symbols)
-    }
+    _ =>
+      expr.for_each_child_expr(fn(child) {
+        collect_annotated_expr_values(child, symbols)
+      })
   }
 }

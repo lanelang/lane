@@ -267,6 +267,124 @@ async test "inlay hint returns parameter name hints at argument starts" {
 }
 
 ///|
+async test "analysis requests traverse explicit generic application" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub struct Box {
+            #|  value : Int
+            #|}
+            #|
+            #|pub fn[A] id(value : A) -> A {
+            #|  value
+            #|}
+            #|
+            #|pub let answer : Box = id[Box](Box::{ value: 1 })
+          ),
+        ),
+      ),
+    ),
+  )
+  let callee_definition = state.handle_message(
+    request(
+      2,
+      "textDocument/definition",
+      position_params("file:///Main.lane", 10, 23),
+    ),
+  )
+  json_inspect(
+    callee_definition.outgoing.map(fn(message) { message.to_json() }),
+    content=[
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "uri": "file:///Main.lane",
+          "range": {
+            "start": { "line": 6, "character": 10 },
+            "end": { "line": 6, "character": 12 },
+          },
+        },
+      },
+    ],
+  )
+  let argument_definition = state.handle_message(
+    request(
+      3,
+      "textDocument/definition",
+      position_params("file:///Main.lane", 10, 26),
+    ),
+  )
+  json_inspect(
+    argument_definition.outgoing.map(fn(message) { message.to_json() }),
+    content=[
+      {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "uri": "file:///Main.lane",
+          "range": {
+            "start": { "line": 2, "character": 11 },
+            "end": { "line": 2, "character": 14 },
+          },
+        },
+      },
+    ],
+  )
+  let hover = state.handle_message(
+    request(
+      4,
+      "textDocument/hover",
+      position_params("file:///Main.lane", 10, 23),
+    ),
+  )
+  json_inspect(hover.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 4,
+      "result": {
+        "contents": {
+          "kind": "markdown",
+          "value": "```lane\nid : forall [A : Type]. (A) -> A\n```",
+        },
+        "range": {
+          "start": { "line": 10, "character": 23 },
+          "end": { "line": 10, "character": 25 },
+        },
+      },
+    },
+  ])
+  let inlay = state.handle_message(
+    request(
+      5,
+      "textDocument/inlayHint",
+      range_params("file:///Main.lane", 0, 0, 12, 0),
+    ),
+  )
+  json_inspect(inlay.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 5,
+      "result": [
+        {
+          "position": { "line": 10, "character": 31 },
+          "label": "value=",
+          "kind": 2,
+        },
+      ],
+    },
+  ])
+}
+
+///|
 async test "inlay hint anchors field arguments before the full argument" {
   let state = ServerState::ServerState()
   ignore(

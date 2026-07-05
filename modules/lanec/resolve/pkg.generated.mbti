@@ -56,6 +56,7 @@ pub(all) enum ResolvedCallArgument {
   Positional(value~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Named(name~ : String, value~ : ResolvedExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedCallArgument::for_each_child_expr(Self, (ResolvedExpr) -> Unit) -> Unit
 pub impl @prettyprinter.Pretty for ResolvedCallArgument
 
 pub(all) enum ResolvedEffectAliasArgument {
@@ -145,6 +146,8 @@ pub(all) enum ResolvedExpr {
   Binary(operator~ : @syntax.BinaryOperator, reference~ : ResolvedValueReference, left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Pipeline(left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
+pub fn ResolvedExpr::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for ResolvedExpr
 
 pub(all) struct ResolvedFieldDeclaration {
@@ -242,6 +245,7 @@ pub(all) enum ResolvedLocalItem {
   Function(ResolvedFunctionDeclaration)
   Offer(ResolvedOfferDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedLocalItem::for_each_child_expr(Self, (ResolvedExpr) -> Unit) -> Unit
 pub impl @prettyprinter.Pretty for ResolvedLocalItem
 
 pub(all) struct ResolvedMatchArm {

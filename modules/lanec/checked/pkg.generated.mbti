@@ -67,6 +67,7 @@ pub(all) enum CheckedExpr {
   StructLiteral(symbol~ : @symbol.TypeSymbolId, generic_arguments~ : Array[@types.GenericArgument], type_witnesses~ : Array[CheckedStructTypeWitness], fields~ : Array[CheckedStructLiteralField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Variant(symbol~ : @symbol.VariantSymbolId, generic_arguments~ : Array[@types.GenericArgument], arguments~ : Array[CheckedExpr], type_~ : @types.Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn CheckedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
 pub fn CheckedExpr::loc(Self) -> @basic.SourceSpan
 pub fn CheckedExpr::type_(Self) -> @types.Type
 pub impl @prettyprinter.Pretty for CheckedExpr
@@ -151,6 +152,7 @@ pub(all) enum CheckedLocalItem {
   PatternLet(CheckedPatternLetDeclaration)
   Function(CheckedFunctionDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn CheckedLocalItem::for_each_child_expr(Self, (CheckedExpr) -> Unit) -> Unit
 pub impl @prettyprinter.Pretty for CheckedLocalItem
 
 pub(all) struct CheckedMatchArm {

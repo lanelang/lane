@@ -138,62 +138,16 @@ fn collect_checked_expr_parameter_signatures(
 ) -> Unit {
   match expr {
     Literal(_) | Value(_) | UnsafeBuiltin(_) => ()
-    FunctionLiteral(body~, ..) =>
-      collect_checked_expr_parameter_signatures(body, signatures)
-    GenericApplication(callee~, ..) =>
-      collect_checked_expr_parameter_signatures(callee, signatures)
     Block(items~, result~, ..) => {
       for item in items {
         collect_checked_local_parameter_signatures(item, signatures)
       }
       collect_checked_expr_parameter_signatures(result, signatures)
     }
-    If(condition~, then_branch~, else_branch~, ..) => {
-      collect_checked_expr_parameter_signatures(condition, signatures)
-      collect_checked_expr_parameter_signatures(then_branch, signatures)
-      collect_checked_expr_parameter_signatures(else_branch, signatures)
-    }
-    Match(scrutinee~, arms~, ..) => {
-      collect_checked_expr_parameter_signatures(scrutinee, signatures)
-      for arm in arms {
-        collect_checked_expr_parameter_signatures(arm.body, signatures)
-      }
-    }
-    Call(callee~, arguments~, ..) => {
-      collect_checked_expr_parameter_signatures(callee, signatures)
-      for argument in arguments {
-        collect_checked_expr_parameter_signatures(argument.value, signatures)
-      }
-    }
-    OperationCall(arguments~, ..) =>
-      for argument in arguments {
-        collect_checked_expr_parameter_signatures(argument, signatures)
-      }
-    Handler(body~, handlers~, final_branch~, ..) => {
-      if body is Some(body) {
-        collect_checked_expr_parameter_signatures(body, signatures)
-      }
-      for handler in handlers {
-        for arm in handler.operations {
-          if arm.body is Some(body) {
-            collect_checked_expr_parameter_signatures(body, signatures)
-          }
-        }
-      }
-      if final_branch.body is Some(body) {
-        collect_checked_expr_parameter_signatures(body, signatures)
-      }
-    }
-    Field(base~, ..) =>
-      collect_checked_expr_parameter_signatures(base, signatures)
-    StructLiteral(fields~, ..) =>
-      for field in fields {
-        collect_checked_expr_parameter_signatures(field.value, signatures)
-      }
-    Variant(arguments~, ..) =>
-      for argument in arguments {
-        collect_checked_expr_parameter_signatures(argument, signatures)
-      }
+    _ =>
+      expr.for_each_child_expr(fn(child) {
+        collect_checked_expr_parameter_signatures(child, signatures)
+      })
   }
 }
 
@@ -550,10 +504,6 @@ fn collect_checked_expr(
         source_id, source_text, body, definitions, references, hovers, context,
       )
     }
-    GenericApplication(callee~, ..) =>
-      collect_checked_expr(
-        source_id, source_text, callee, definitions, references, hovers, context,
-      )
     Block(items~, result~, ..) => {
       for item in items {
         collect_checked_local_item(
@@ -562,17 +512,6 @@ fn collect_checked_expr(
       }
       collect_checked_expr(
         source_id, source_text, result, definitions, references, hovers, context,
-      )
-    }
-    If(condition~, then_branch~, else_branch~, ..) => {
-      collect_checked_expr(
-        source_id, source_text, condition, definitions, references, hovers, context,
-      )
-      collect_checked_expr(
-        source_id, source_text, then_branch, definitions, references, hovers, context,
-      )
-      collect_checked_expr(
-        source_id, source_text, else_branch, definitions, references, hovers, context,
       )
     }
     Match(scrutinee~, arms~, ..) => {
@@ -775,6 +714,12 @@ fn collect_checked_expr(
         )
       }
     }
+    _ =>
+      expr.for_each_child_expr(fn(child) {
+        collect_checked_expr(
+          source_id, source_text, child, definitions, references, hovers, context,
+        )
+      })
   }
 }
 

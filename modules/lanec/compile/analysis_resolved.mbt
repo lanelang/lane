@@ -447,7 +447,7 @@ fn collect_resolved_expr(
                   hovers,
                   source_id,
                   Value(symbol),
-                  resolved_expr_loc(value),
+                  value.loc(),
                   None,
                 )
               _ => ()
@@ -514,17 +514,6 @@ fn collect_resolved_expr(
       }
       collect_resolved_expr(
         source_id, source_text, result, definitions, references, hovers,
-      )
-    }
-    If(condition~, then_branch~, else_branch~, ..) => {
-      collect_resolved_expr(
-        source_id, source_text, condition, definitions, references, hovers,
-      )
-      collect_resolved_expr(
-        source_id, source_text, then_branch, definitions, references, hovers,
-      )
-      collect_resolved_expr(
-        source_id, source_text, else_branch, definitions, references, hovers,
       )
     }
     Match(scrutinee~, arms~, ..) => {
@@ -604,23 +593,6 @@ fn collect_resolved_expr(
         hovers,
       )
     }
-    Call(callee~, arguments~, ..) => {
-      collect_resolved_expr(
-        source_id, source_text, callee, definitions, references, hovers,
-      )
-      for argument in arguments {
-        match argument {
-          Positional(value~, ..) =>
-            collect_resolved_expr(
-              source_id, source_text, value, definitions, references, hovers,
-            )
-          Named(value~, ..) =>
-            collect_resolved_expr(
-              source_id, source_text, value, definitions, references, hovers,
-            )
-        }
-      }
-    }
     EffectOperationCall(name~, arguments~, ..) => {
       collect_resolved_effect_operation_name(
         source_id, source_text, name, references, hovers,
@@ -631,15 +603,17 @@ fn collect_resolved_expr(
         )
       }
     }
-    GenericApplication(callee~, arguments~, ..) => {
-      collect_resolved_expr(
-        source_id, source_text, callee, definitions, references, hovers,
-      )
+    GenericApplication(arguments~, ..) => {
       for argument in arguments {
         collect_resolved_generic_argument_reference(
           source_id, argument, references, hovers,
         )
       }
+      expr.for_each_child_expr(fn(child) {
+        collect_resolved_expr(
+          source_id, source_text, child, definitions, references, hovers,
+        )
+      })
     }
     Field(base~, reference=Symbol(symbol), name~, loc~) => {
       collect_resolved_expr(
@@ -685,41 +659,12 @@ fn collect_resolved_expr(
         source_id, source_text, right, definitions, references, hovers,
       )
     }
-    Pipeline(left~, right~, ..) => {
-      collect_resolved_expr(
-        source_id, source_text, left, definitions, references, hovers,
-      )
-      collect_resolved_expr(
-        source_id, source_text, right, definitions, references, hovers,
-      )
-    }
-  }
-}
-
-///|
-fn resolved_expr_loc(expr : @resolve.ResolvedExpr) -> @basic.SourceSpan {
-  match expr {
-    IntLiteral(_, loc~)
-    | StringLiteral(_, loc~)
-    | BoolLiteral(_, loc~)
-    | UnitLiteral(loc~)
-    | Var(loc~, ..)
-    | QualifiedVariant(loc~, ..)
-    | UnqualifiedVariant(loc~, ..)
-    | StructLiteral(loc~, ..)
-    | Builtin(_, loc~)
-    | FunctionLiteral(loc~, ..)
-    | Block(loc~, ..)
-    | If(loc~, ..)
-    | Match(loc~, ..)
-    | Handler(loc~, ..)
-    | Call(loc~, ..)
-    | EffectOperationCall(loc~, ..)
-    | GenericApplication(loc~, ..)
-    | Field(loc~, ..)
-    | Unary(loc~, ..)
-    | Binary(loc~, ..)
-    | Pipeline(loc~, ..) => loc
+    _ =>
+      expr.for_each_child_expr(fn(child) {
+        collect_resolved_expr(
+          source_id, source_text, child, definitions, references, hovers,
+        )
+      })
   }
 }
 

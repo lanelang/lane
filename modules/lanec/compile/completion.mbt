@@ -627,59 +627,6 @@ fn CompletionWorld::add_checked_expr_locals(
         entries, source_id, prefix, replace, space, result, line, column,
       )
     }
-    If(condition~, then_branch~, else_branch~, ..) => {
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, condition, line, column,
-      )
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, then_branch, line, column,
-      )
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, else_branch, line, column,
-      )
-    }
-    Match(scrutinee~, arms~, ..) => {
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, scrutinee, line, column,
-      )
-      for arm in arms {
-        self.add_checked_expr_locals(
-          entries,
-          source_id,
-          prefix,
-          replace,
-          space,
-          arm.body,
-          line,
-          column,
-        )
-      }
-    }
-    Call(callee~, arguments~, ..) => {
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, callee, line, column,
-      )
-      for argument in arguments {
-        self.add_checked_expr_locals(
-          entries,
-          source_id,
-          prefix,
-          replace,
-          space,
-          argument.value,
-          line,
-          column,
-        )
-      }
-    }
-    Field(base~, ..) =>
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, base, line, column,
-      )
-    GenericApplication(callee~, ..) =>
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, callee, line, column,
-      )
     FunctionLiteral(parameters~, body~, ..) => {
       for parameter in parameters {
         if completion_allows_value(space) {
@@ -701,47 +648,12 @@ fn CompletionWorld::add_checked_expr_locals(
         entries, source_id, prefix, replace, space, body, line, column,
       )
     }
-    Handler(body~, handlers~, final_branch~, ..) => {
-      if body is Some(body_expr) {
+    _ =>
+      expr.for_each_child_expr(fn(child) {
         self.add_checked_expr_locals(
-          entries, source_id, prefix, replace, space, body_expr, line, column,
+          entries, source_id, prefix, replace, space, child, line, column,
         )
-      }
-      for handler in handlers {
-        for operation in handler.operations {
-          if operation.body is Some(body) {
-            self.add_checked_expr_locals(
-              entries, source_id, prefix, replace, space, body, line, column,
-            )
-          }
-        }
-      }
-      if final_branch.body is Some(body) {
-        self.add_checked_expr_locals(
-          entries, source_id, prefix, replace, space, body, line, column,
-        )
-      }
-    }
-    StructLiteral(fields~, ..) =>
-      for field in fields {
-        self.add_checked_expr_locals(
-          entries,
-          source_id,
-          prefix,
-          replace,
-          space,
-          field.value,
-          line,
-          column,
-        )
-      }
-    Variant(arguments~, ..) | OperationCall(arguments~, ..) =>
-      for argument in arguments {
-        self.add_checked_expr_locals(
-          entries, source_id, prefix, replace, space, argument, line, column,
-        )
-      }
-    Literal(_) | Value(_) | UnsafeBuiltin(_) => ()
+      })
   }
 }
 
