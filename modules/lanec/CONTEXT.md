@@ -52,6 +52,18 @@ _Avoid_: LSP completion item, text snippet, raw symbol
 A position-specific compiler analysis request that computes semantic completion candidates for one source location.
 _Avoid_: full analysis index, precomputed completion cache, editor request handler
 
+**Unused Local Value Binding**:
+A value binder introduced inside an executable expression body that has no resolved `ValueSymbolId` reference within its lexical scope after source elaboration.
+_Avoid_: unused private declaration, unused type parameter, unused import, unreachable code
+
+**Checked Value-Use Analysis**:
+A source-elaboration follow-up analysis over checked AST that records local value binders and resolved `ValueSymbolId` references with their definition-body origin.
+_Avoid_: type scope, lexical scope tree, dead-code elimination, textual name scan
+
+**Intentionally Ignored Local Binding**:
+A named local value binder whose source name starts with `_`; unused-local-value warnings do not fire for these binders.
+_Avoid_: wildcard pattern, dead binding, generated temporary
+
 ## Relationships
 
 - `lanec` implements the language contract from `spec`.
@@ -78,3 +90,17 @@ _Avoid_: full analysis index, precomputed completion cache, editor request handl
 - A **Completion Query** reuses compiler analysis inputs but does not require
   every ordinary **Compiler Analysis API** result to precompute completion
   scopes.
+- An **Unused Local Value Binding** warning is a compiler semantic diagnostic,
+  not a control-flow reachability analysis or an API export check.
+- **Checked Value-Use Analysis** may be reused by future optimization work, but
+  warning policy such as underscore suppression must stay outside the reusable
+  use-collection core.
+- **Checked Value-Use Analysis** is a symbol identity graph over resolved
+  binders and references; reference origin identifies the local binder whose
+  definition body contains the reference, when any, so self-recursive and
+  mutually recursive local definitions can be distinguished from external uses.
+  It should not grow a lexical scope tree unless a separate source-tooling
+  problem explicitly requires one.
+- An **Intentionally Ignored Local Binding** is still a normal resolved value
+  binding when referenced; the leading `_` only suppresses unused-local-value
+  warnings.
