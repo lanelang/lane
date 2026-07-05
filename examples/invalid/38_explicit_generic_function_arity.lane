@@ -1,0 +1,7 @@
+module Examples.Invalid.ExplicitGenericFunctionArity
+
+fn[A] id(value : A) -> A {
+  value
+}
+
+let value : Int = id[Int, Bool](1)

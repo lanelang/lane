@@ -631,6 +631,16 @@ fn collect_resolved_expr(
         )
       }
     }
+    TypeApplication(callee~, arguments~, ..) => {
+      collect_resolved_expr(
+        source_id, source_text, callee, definitions, references, hovers,
+      )
+      for argument in arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
+    }
     Field(base~, reference=Symbol(symbol), name~, loc~) => {
       collect_resolved_expr(
         source_id, source_text, base, definitions, references, hovers,
@@ -705,6 +715,7 @@ fn resolved_expr_loc(expr : @resolve.ResolvedExpr) -> @basic.SourceSpan {
     | Handler(loc~, ..)
     | Call(loc~, ..)
     | EffectOperationCall(loc~, ..)
+    | TypeApplication(loc~, ..)
     | Field(loc~, ..)
     | Unary(loc~, ..)
     | Binary(loc~, ..)

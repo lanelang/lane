@@ -299,6 +299,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text("actual=") +
       actual.pretty()
     NotCallable(type_) => text("not_callable") + space + type_.pretty()
+    TypeArgumentsOnNonGeneric(type_) =>
+      text("type_arguments_on_non_generic") + space + type_.pretty()
     UnknownField(name~) => text("unknown_field") + space + text(name)
     MissingField(name~) => text("missing_field") + space + text(name)
     DuplicateField(name~) => text("duplicate_field") + space + text(name)

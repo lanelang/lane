@@ -1518,6 +1518,151 @@ test "typecheck polymorphic function parameter instantiation" {
 }
 
 ///|
+test "typecheck explicit generic function application" {
+  let result = expect_checked_source_result(
+    (
+      #|fn[A] id(value : A) -> A {
+      #|  value
+      #|}
+      #|let id_int : (Int) -> Int = id[Int]
+      #|let value : Int = id[Int](id_int(1))
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    fn[A#0 : Type] id#0(value#3 : tparam#0) -> tparam#0 {
+      #|      value#3
+      #|    }
+      #|    let id_int#1 : (Int) -> Int = id#0[Int]
+      #|    let value#2 : Int = id#0[Int](id_int#1(1))
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck explicit effect-kind generic function argument" {
+  let result = expect_checked_source_result(
+    (
+      #|effect Log {
+      #|  log(Int) -> Unit
+      #|}
+      #|effect Coroutine[E : Effect] {
+      #|  yield() -> Unit
+      #|}
+      #|fn[E : Effect] yield_once() -> Unit ! Coroutine[E] {
+      #|  Coroutine[E]::yield!()
+      #|}
+      #|fn use() -> Int {
+      #|  handle yield_once[Log]() with {
+      #|    Coroutine[Log]::yield(resume) => resume(())
+      #|  } final value {
+      #|    42
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    effect Log#0 {
+      #|      log#0(Int) -> Unit
+      #|    }
+      #|    effect Coroutine#1[E#0 : Effect] {
+      #|      yield#1 -> Unit
+      #|    }
+      #|    fn[E#1 : Effect] yield_once#0() -> Unit {
+      #|      operation#1!()
+      #|    }
+      #|    fn use#1() -> Int {
+      #|      {
+      #|        handle yield_once#0[effect#0]()
+      #|        with effect#1[effect#0] {
+      #|          operation#1(resume#2) => resume#2(())
+      #|        }
+      #|        final value#3 {
+      #|          42
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck reports explicit generic function arity mismatch" {
+  let result = expect_typecheck_result(
+    (
+      #|fn[A] id(value : A) -> A {
+      #|  value
+      #|}
+      #|let value : Int = id[Int, Bool](1)
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[type_arity_mismatch generic expression expected=1 actual=2 @ 5:21-5:32]
+    ),
+  )
+}
+
+///|
+test "typecheck reports explicit generic function kind mismatch" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Log {
+      #|  log(Int) -> Unit
+      #|}
+      #|fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
+      #|  action()
+      #|}
+      #|fn logged() -> Unit ! Log {
+      #|  Log::log!(1)
+      #|}
+      #|let value : Unit = run[Int](logged)
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[
+      #|  kind_mismatch expected=Effect actual=Type @ 11:24-11:27,
+      #|  type_mismatch expected=() -> Unit actual=() -> Unit ! effect#0 @ 11:29-11:35
+      #|]
+    ),
+  )
+}
+
+///|
+test "typecheck reports type arguments on non-generic function" {
+  let result = expect_typecheck_result(
+    (
+      #|fn plain(value : Int) -> Int {
+      #|  value
+      #|}
+      #|let value : Int = plain[Int](1)
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[type_arguments_on_non_generic (Int) -> Int @ 5:24-5:29]
+    ),
+  )
+}
+
+///|
 test "typecheck reports unresolved generic type arguments" {
   let result = expect_typecheck_result(
     (

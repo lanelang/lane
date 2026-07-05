@@ -271,6 +271,56 @@ test "parse type aliases and F-omega type expressions" {
 }
 
 ///|
+test "parse explicit generic expression application" {
+  let file = expect_parse_ok(
+    (
+      #|fn[A] id(value : A) -> A {
+      #|  value
+      #|}
+      #|fn use() -> Int {
+      #|  {
+      #|    let id_int : (Int) -> Int = id[Int]
+      #|    id[Int](id_int(1))
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|fn[A] id(value : A) -> A {
+      #|  value
+      #|}
+      #|
+      #|fn use() -> Int {
+      #|  {
+      #|    let id_int : (Int) -> Int = id[Int]
+      #|    id[Int](id_int(1))
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse rejects empty explicit generic expression arguments" {
+  assert_false(
+    parse_errors(
+      (
+        #|fn[A] id(value : A) -> A {
+        #|  value
+        #|}
+        #|fn use() -> Int {
+        #|  id[](1)
+        #|}
+      ),
+    ).is_empty(),
+  )
+}
+
+///|
 test "parse type alias with effect set body" {
   let file = expect_parse_ok(
     (

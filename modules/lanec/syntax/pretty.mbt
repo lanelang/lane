@@ -494,6 +494,8 @@ fn Expr::first_line_doc(self : Expr) -> Document {
     Call(callee~, arguments~, ..) =>
       callee.to_doc_with_precedence(9) +
       parenthesized_comma_list(arguments.map(CallArgument::first_line_doc))
+    TypeApplication(callee~, arguments~, ..) =>
+      callee.to_doc_with_precedence(9) + bracketed_type_arguments(arguments)
     _ => self.to_doc()
   }
 }
@@ -556,6 +558,11 @@ fn Expr::to_doc_with_precedence(
         text("!") +
         bracketed_type_arguments(type_witnesses) +
         parenthesized_comma_list(arguments.map(Expr::to_doc)),
+      )
+    TypeApplication(callee~, arguments~, ..) =>
+      (
+        9,
+        callee.to_doc_with_precedence(9) + bracketed_type_arguments(arguments),
       )
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [

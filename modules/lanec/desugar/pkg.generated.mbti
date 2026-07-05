@@ -30,6 +30,7 @@ pub(all) enum DesugaredExpr {
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@resolve.ResolvedTypeParameter], parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter], return_type~ : @resolve.ResolvedType?, effect~ : @resolve.ResolvedEffectTerm?, body~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : @resolve.ResolvedEffectOperationName, type_witnesses~ : Array[@resolve.ResolvedGenericArgument], arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
+  TypeApplication(callee~ : DesugaredExpr, arguments~ : Array[@resolve.ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Handler(body~ : DesugaredExpr, handlers~ : Array[DesugaredHandlerWithBlock], final_branch~ : DesugaredHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[DesugaredLocalItem], result~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   If(condition~ : DesugaredExpr, then_branch~ : DesugaredExpr, else_branch~ : DesugaredExpr, loc~ : @basic.SourceSpan)

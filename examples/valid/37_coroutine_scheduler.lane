@@ -45,6 +45,10 @@ fn[A, E : Effect] spawn(body : () -> A ! { Coroutine[E], E }) -> Unit ! Coroutin
   Coroutine[E]::spawn![A](body)
 }
 
+fn[E : Effect] yield() -> Unit ! Coroutine[E] {
+  Coroutine[E]::yield!()
+}
+
 fn log(event : Int) -> Unit ! Log {
   Log::log!(event)
 }
@@ -123,7 +127,7 @@ fn collect_logs(scheduler : Scheduler[Log]) -> (Int) -> RunResult {
 
 fn child() -> Bool ! { Coroutine[Log], Log } {
   let child_started : Unit = log(21)
-  let child_yielded : Unit = Coroutine[Log]::yield!()
+  let child_yielded : Unit = yield[Log]()
   let child_resumed : Unit = log(22)
   true
 }
@@ -132,7 +136,7 @@ fn parent() -> Int ! { Coroutine[Log], Log } {
   let parent_started : Unit = log(11)
   let child_spawned : Unit = spawn(child)
   let parent_after_spawn : Unit = log(12)
-  let parent_yielded : Unit = Coroutine[Log]::yield!()
+  let parent_yielded : Unit = yield[Log]()
   let parent_resumed : Unit = log(13)
   40
 }

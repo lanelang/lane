@@ -1,0 +1,7 @@
+module Examples.Invalid.EmptyExplicitGenericArguments
+
+fn[A] id(value : A) -> A {
+  value
+}
+
+let value : Int = id[](1)

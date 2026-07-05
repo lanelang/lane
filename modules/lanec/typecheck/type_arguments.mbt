@@ -25,6 +25,12 @@ priv struct InferredApplicationTypeArguments {
 }
 
 ///|
+priv struct ExplicitTypeApplicationResult {
+  arguments : Array[@types.GenericArgument]
+  type_ : @types.Type
+}
+
+///|
 fn TypeArgumentInference::TypeArgumentInference(
   parameters : Array[@types.TypeParameter],
 ) -> TypeArgumentInference {
@@ -324,6 +330,54 @@ fn call_argument_expressions(
   arguments : Array[@desugar.DesugaredCallArgument],
 ) -> Array[@desugar.DesugaredExpr] {
   arguments.map(fn(argument) { argument.value_expr() })
+}
+
+///|
+fn SemanticChecker::check_explicit_type_application(
+  self : SemanticChecker,
+  scope : TypeScope,
+  callee_type : @types.Type,
+  arguments : Array[@resolve.ResolvedGenericArgument],
+  loc : SourceSpan,
+) -> ExplicitTypeApplicationResult? {
+  match callee_type {
+    Forall(type_parameters, body) => {
+      if type_parameters.length() != arguments.length() {
+        self.diagnostics.push({
+          kind: TypeArgumentArityMismatch(
+            name="generic expression",
+            expected=type_parameters.length(),
+            actual=arguments.length(),
+          ),
+          loc,
+        })
+        return None
+      }
+      let checked_arguments = check_resolved_generic_arguments(
+        self.resolved_source,
+        self.diagnostics,
+        scope,
+        type_parameters,
+        arguments,
+      )
+      let substitution = @types.TypeSubstitution::TypeSubstitution()
+      for index in 0..<type_parameters.length() {
+        substitution.insert_argument(
+          type_parameters[index].id,
+          checked_arguments[index],
+        )
+      }
+      Some({
+        arguments: checked_arguments,
+        type_: body.substitute(substitution).normalize(),
+      })
+    }
+    Error => None
+    type_ => {
+      self.diagnostics.push({ kind: TypeArgumentsOnNonGeneric(type_), loc })
+      None
+    }
+  }
 }
 
 ///|

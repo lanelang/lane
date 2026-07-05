@@ -1,0 +1,7 @@
+module Examples.Invalid.TypeArgumentsOnNonGenericFunction
+
+fn plain(value : Int) -> Int {
+  value
+}
+
+let value : Int = plain[Int](1)

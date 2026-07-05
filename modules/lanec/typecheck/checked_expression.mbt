@@ -58,6 +58,13 @@ fn SemanticChecker::check_checked_expr(
       self.expect_type(expected, checked.type_, loc)
       checked
     }
+    TypeApplication(callee~, arguments~, loc~) => {
+      let checked = self.synthesize_checked_type_application(
+        scope, callee, arguments, loc,
+      )
+      self.expect_type(expected, checked.type_, loc)
+      checked
+    }
     Handler(body~, handlers~, final_branch~, loc~) => {
       let checked = self.synthesize_checked_handler(
         scope, body, handlers, final_branch, loc,
@@ -173,6 +180,8 @@ fn SemanticChecker::synthesize_checked_expr(
         None,
         loc,
       )
+    TypeApplication(callee~, arguments~, loc~) =>
+      self.synthesize_checked_type_application(scope, callee, arguments, loc)
     Handler(body~, handlers~, final_branch~, loc~) =>
       self.synthesize_checked_handler(scope, body, handlers, final_branch, loc)
     StructLiteral(type_name~, type_arguments~, fields~, loc~) =>
@@ -209,6 +218,45 @@ fn SemanticChecker::synthesize_checked_expr(
       checked_expression_none_reported(Error)
     }
     _ => checked_expression_none(self.synthesize_expr(scope, expression))
+  }
+}
+
+///|
+fn SemanticChecker::synthesize_checked_type_application(
+  self : SemanticChecker,
+  scope : TypeScope,
+  callee : @desugar.DesugaredExpr,
+  arguments : Array[@resolve.ResolvedGenericArgument],
+  loc : SourceSpan,
+) -> CheckedExpressionSynthesis {
+  let checked_callee = self.synthesize_checked_expr(scope, callee)
+  guard self.require_checked_expression(
+      checked_callee,
+      callee.loc(),
+      "type application callee",
+    )
+    is Some(callee_expr) else {
+    return checked_expression_none_reported(Error)
+  }
+  match
+    self.check_explicit_type_application(
+      scope,
+      checked_callee.type_,
+      arguments,
+      loc,
+    ) {
+    Some(application) =>
+      checked_expression_with_effect(
+        TypeApplication(
+          callee=callee_expr,
+          arguments=application.arguments,
+          type_=application.type_,
+          loc~,
+        ),
+        application.type_,
+        checked_callee.effect,
+      )
+    None => checked_expression_none_reported(Error)
   }
 }
 

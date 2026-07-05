@@ -1,0 +1,44 @@
+module Examples.Valid.ExplicitGenericFunctionApplication
+
+import Stdlib.Io.{Io, Write}
+
+import Stdlib.Ops.*
+
+effect Log {
+  log(Int) -> Unit
+}
+
+effect Coroutine[E : Effect] {
+  yield() -> Unit
+}
+
+fn[A] id(value : A) -> A {
+  value
+}
+
+fn[E : Effect] yield_once() -> Unit ! Coroutine[E] {
+  Coroutine[E]::yield!()
+}
+
+fn handled_yield() -> Int {
+  handle yield_once[Log]() with {
+    Coroutine[Log]::yield(resume) => resume(())
+  } final value {
+    id[Int](42)
+  }
+}
+
+fn explicit_id() -> Int {
+  {
+    let id_int : (Int) -> Int = id[Int]
+    id[Int](id_int(handled_yield()))
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if explicit_id() == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

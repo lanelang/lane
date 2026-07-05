@@ -160,6 +160,11 @@ pub(all) enum DesugaredExpr {
     arguments~ : Array[DesugaredExpr],
     loc~ : SourceSpan
   )
+  TypeApplication(
+    callee~ : DesugaredExpr,
+    arguments~ : Array[@resolve.ResolvedGenericArgument],
+    loc~ : SourceSpan
+  )
   Handler(
     body~ : DesugaredExpr,
     handlers~ : Array[DesugaredHandlerWithBlock],
@@ -206,6 +211,7 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
+    | TypeApplication(loc~, ..)
     | Handler(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)

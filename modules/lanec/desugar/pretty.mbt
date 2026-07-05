@@ -233,6 +233,8 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       text("!") +
       generic_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
+    TypeApplication(callee~, arguments~, ..) =>
+      callee.pretty() + generic_arguments_doc(arguments)
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]
       for handler in handlers {

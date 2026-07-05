@@ -286,6 +286,7 @@ pub(all) enum Expr {
     arguments~ : Array[Expr],
     loc~ : SourceSpan
   )
+  TypeApplication(callee~ : Expr, arguments~ : Array[Type], loc~ : SourceSpan)
   Handler(
     body~ : Expr,
     handlers~ : Array[HandlerWithBlock],
@@ -326,6 +327,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
+    | TypeApplication(loc~, ..)
     | Handler(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)

@@ -1826,6 +1826,14 @@ fn @syntax.Expr::resolve_expr(
         }),
         loc~,
       )
+    TypeApplication(callee~, arguments~, loc~) =>
+      TypeApplication(
+        callee=callee.resolve_expr(resolver, scope),
+        arguments=arguments.map(fn(argument) {
+          argument.resolve_generic_argument(resolver, scope)
+        }),
+        loc~,
+      )
     Handler(body~, handlers~, final_branch~, loc~) =>
       Handler(
         body=body.resolve_expr(resolver, scope),

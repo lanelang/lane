@@ -355,6 +355,15 @@
       }
     },
     {
+      "name": "40 explicit generic function application",
+      "file": "examples/valid/40_explicit_generic_function_application.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "42"
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "mode": "check-error",
@@ -770,6 +779,54 @@
           "conflicting top-level value `answer`",
           "previous definition of `answer` is here",
           "a Lane module has one top-level value namespace"
+        ]
+      }
+    },
+    {
+      "name": "invalid 37 empty explicit generic arguments",
+      "file": "examples/invalid/37_empty_explicit_generic_arguments.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect `]`",
+          "expected one of: identifier, `type`, `(`, `[`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 38 explicit generic function arity",
+      "file": "examples/invalid/38_explicit_generic_function_arity.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3003]",
+          "wrong number of type arguments for `generic expression`",
+          "`generic expression` expects 1 type argument(s), but 2 were provided"
+        ]
+      }
+    },
+    {
+      "name": "invalid 39 explicit generic function kind",
+      "file": "examples/invalid/39_explicit_generic_function_kind.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3005]",
+          "kind mismatch",
+          "expected kind `Effect`, found `Type`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 40 type arguments on non-generic function",
+      "file": "examples/invalid/40_type_arguments_on_non_generic_function.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3011]",
+          "type arguments require a generic value",
+          "`(Int) -> Int` is not a generic function type"
         ]
       }
     }

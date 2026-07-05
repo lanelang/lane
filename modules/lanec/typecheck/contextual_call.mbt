@@ -27,7 +27,7 @@ fn SemanticChecker::prepare_direct_call_arguments(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> Array[@desugar.DesugaredCallArgument] {
-  guard callee is Var(reference=Symbol(symbol), ..) else { return arguments }
+  guard direct_call_symbol(callee) is Some(symbol) else { return arguments }
   guard scope.lookup_function_parameters(symbol) is Some(parameters) else {
     return arguments
   }
@@ -62,6 +62,15 @@ fn SemanticChecker::prepare_direct_call_arguments(
     first_auto,
     loc,
   )
+}
+
+///|
+fn direct_call_symbol(callee : @desugar.DesugaredExpr) -> ValueSymbolId? {
+  match callee {
+    Var(reference=Symbol(symbol), ..) => Some(symbol)
+    TypeApplication(callee~, ..) => direct_call_symbol(callee)
+    _ => None
+  }
 }
 
 ///|

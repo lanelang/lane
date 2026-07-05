@@ -200,6 +200,14 @@ fn SemanticChecker::synthesize_expr(
       )
       operation.result
     }
+    TypeApplication(callee~, arguments~, loc~) => {
+      let callee_type = self.synthesize_expr(scope, callee)
+      match
+        self.check_explicit_type_application(scope, callee_type, arguments, loc) {
+        Some(application) => application.type_
+        None => Error
+      }
+    }
     Handler(body~, handlers~, final_branch~, loc~) =>
       self.synthesize_handler(scope, body, handlers, final_branch, loc)
     Field(base~, name~, reference~, loc~) =>
@@ -349,7 +357,9 @@ fn SemanticChecker::synthesize_expr_effect(
       effect_union(effects)
     }
     Call(callee~, arguments~, ..) => {
+      let checkpoint = self.diagnostic_checkpoint()
       let callee_type = self.synthesize_expr(scope, callee)
+      self.rollback_diagnostics(checkpoint)
       let effects = [self.synthesize_expr_effect(scope, callee)]
       for argument in arguments {
         effects.push(self.synthesize_expr_effect(scope, argument.value_expr()))
@@ -389,6 +399,7 @@ fn SemanticChecker::synthesize_expr_effect(
       }
       effect_union(effects)
     }
+    TypeApplication(callee~, ..) => self.synthesize_expr_effect(scope, callee)
   }
 }
 

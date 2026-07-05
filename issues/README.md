@@ -120,6 +120,7 @@ graph TD
   ISS_104["ISS-104: Apply width-sensitive formatting to list-like syntax"]
   ISS_105["ISS-105: Apply width-sensitive formatting to declarations and expression heads"]
   ISS_106["ISS-106: Refresh examples and complete formatter validation"]
+  ISS_107["ISS-107: Support explicit generic applications on ordinary expressions"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

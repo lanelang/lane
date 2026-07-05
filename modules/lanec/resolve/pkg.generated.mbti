@@ -134,6 +134,7 @@ pub(all) enum ResolvedExpr {
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : ResolvedEffectOperationName, type_witnesses~ : Array[ResolvedGenericArgument], arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
+  TypeApplication(callee~ : ResolvedExpr, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Handler(body~ : ResolvedExpr, handlers~ : Array[ResolvedHandlerWithBlock], final_branch~ : ResolvedHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[ResolvedLocalItem], result~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   If(condition~ : ResolvedExpr, then_branch~ : ResolvedExpr, else_branch~ : ResolvedExpr, loc~ : @basic.SourceSpan)

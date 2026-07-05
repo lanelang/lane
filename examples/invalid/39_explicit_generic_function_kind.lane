@@ -1,0 +1,15 @@
+module Examples.Invalid.ExplicitGenericFunctionKind
+
+effect Log {
+  log(Int) -> Unit
+}
+
+fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
+  action()
+}
+
+fn logged() -> Unit ! Log {
+  Log::log!(1)
+}
+
+let value : Unit = run[Int](logged)

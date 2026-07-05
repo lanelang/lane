@@ -458,6 +458,11 @@ pub(all) enum ResolvedExpr {
     arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan
   )
+  TypeApplication(
+    callee~ : ResolvedExpr,
+    arguments~ : Array[ResolvedGenericArgument],
+    loc~ : SourceSpan
+  )
   Handler(
     body~ : ResolvedExpr,
     handlers~ : Array[ResolvedHandlerWithBlock],

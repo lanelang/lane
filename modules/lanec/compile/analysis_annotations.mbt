@@ -137,6 +137,8 @@ fn collect_annotated_expr_values(
       for argument in arguments {
         collect_annotated_expr_values(argument, symbols)
       }
+    TypeApplication(callee~, ..) =>
+      collect_annotated_expr_values(callee, symbols)
     Field(base~, ..) => collect_annotated_expr_values(base, symbols)
     Unary(operand~, ..) => collect_annotated_expr_values(operand, symbols)
     Binary(left~, right~, ..) | Pipeline(left~, right~, ..) => {

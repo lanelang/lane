@@ -62,6 +62,12 @@ priv struct HandlerOperationArmParameters {
 }
 
 ///|
+priv struct ExpressionTypeName {
+  name : String
+  arguments : Array[Type]
+}
+
+///|
 priv struct HandlerOperationHead {
   name : EffectOperationName
   type_binders : Array[String]
@@ -132,6 +138,7 @@ fn type_name_text(type_ : Type) -> String {
 fn expression_type_name_text(expr : Expr) -> String {
   match expr {
     Var(name, ..) => name
+    TypeApplication(callee~, ..) => expression_type_name_text(callee)
     Field(base~, name~, ..) => {
       let base_name = expression_type_name_text(base)
       if base_name == "" {
@@ -141,6 +148,35 @@ fn expression_type_name_text(expr : Expr) -> String {
       }
     }
     _ => ""
+  }
+}
+
+///|
+fn expression_type_name(expr : Expr) -> ExpressionTypeName {
+  match expr {
+    TypeApplication(callee~, arguments~, ..) =>
+      { name: expression_type_name_text(callee), arguments }
+    _ => { name: expression_type_name_text(expr), arguments: [] }
+  }
+}
+
+///|
+fn expression_type_name_name(expr : Expr) -> String {
+  expression_type_name(expr).name
+}
+
+///|
+fn expression_type_name_arguments(expr : Expr) -> Array[Type] {
+  expression_type_name(expr).arguments
+}
+
+///|
+fn expression_type_owner_type(expr : Expr, loc : SourceSpan) -> Type {
+  let name = expression_type_name(expr)
+  if name.arguments.is_empty() {
+    Name(name=name.name, loc~)
+  } else {
+    Apply(callee=Name(name=name.name, loc~), arguments=name.arguments, loc~)
   }
 }
 
@@ -198,9 +234,8 @@ fn handler_operation_head_after_type_arguments(
   suffix : HandlerOperationAfterTypeArguments,
 ) -> HandlerOperationHeadAfterIdent {
   match suffix {
-    OperationBinders => Unqualified(
-      type_binders_from_type_arguments(owner_or_binders),
-    )
+    OperationBinders =>
+      Unqualified(type_binders_from_type_arguments(owner_or_binders))
     OwnerArguments(operation~, type_binders~) =>
       Qualified(owner_arguments=owner_or_binders, operation~, type_binders~)
   }

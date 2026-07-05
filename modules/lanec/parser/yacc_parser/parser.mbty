@@ -567,13 +567,14 @@ postfix_expression -> Expr
   : postfix_expression "(" argument_list ")" {
     Call(callee=$1, arguments=$3, loc=span($sloc))
   }
+  | postfix_expression type_arguments %prec "[" { TypeApplication(callee=$1, arguments=$2, loc=span($sloc)) }
   | postfix_expression "." IDENT {
     Field(base=$1, name=$3, loc=span($sloc))
   }
   | postfix_expression "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
     EffectOperationCall(
       name=Qualified(
-        owner=Name(name=expression_type_name_text($1), loc=span($sloc)),
+        owner=expression_type_owner_type($1, span($sloc)),
         operation=$3,
         loc=span($sloc)
       ),
@@ -585,7 +586,7 @@ postfix_expression -> Expr
   | postfix_expression "tight ::" IDENT "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
     EffectOperationCall(
       name=Qualified(
-        owner=Name(name=expression_type_name_text($1), loc=span($sloc)),
+        owner=expression_type_owner_type($1, span($sloc)),
         operation=$3,
         loc=span($sloc)
       ),
@@ -594,49 +595,11 @@ postfix_expression -> Expr
       loc=span($sloc)
     )
   }
-  | postfix_expression type_arguments "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
-    EffectOperationCall(
-      name=Qualified(
-        owner=Apply(
-          callee=Name(name=expression_type_name_text($1), loc=span($sloc)),
-          arguments=$2,
-          loc=span($sloc)
-        ),
-        operation=$4,
-        loc=span($sloc)
-      ),
-      type_witnesses=[],
-      arguments=$7,
-      loc=span($sloc)
-    )
-  }
-  | postfix_expression type_arguments "tight ::" IDENT "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
-    EffectOperationCall(
-      name=Qualified(
-        owner=Apply(
-          callee=Name(name=expression_type_name_text($1), loc=span($sloc)),
-          arguments=$2,
-          loc=span($sloc)
-        ),
-        operation=$4,
-        loc=span($sloc)
-      ),
-      type_witnesses=$6,
-      arguments=$8,
-      loc=span($sloc)
-    )
-  }
   | postfix_expression "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
-    StructLiteral(type_name=expression_type_name_text($1), type_arguments=[], fields=$4, loc=span($sloc))
-  }
-  | postfix_expression type_arguments "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
-    StructLiteral(type_name=expression_type_name_text($1), type_arguments=$2, fields=$5, loc=span($sloc))
+    StructLiteral(type_name=expression_type_name_name($1), type_arguments=expression_type_name_arguments($1), fields=$4, loc=span($sloc))
   }
   | postfix_expression "tight ::" IDENT variant_type_arguments variant_arguments %prec VARIANT_EXPR {
-    QualifiedVariant(type_name=expression_type_name_text($1), type_arguments=[], variant=$3, variant_type_arguments=$4, arguments=$5, loc=span($sloc))
-  }
-  | postfix_expression type_arguments "tight ::" IDENT variant_type_arguments variant_arguments %prec VARIANT_EXPR {
-    QualifiedVariant(type_name=expression_type_name_text($1), type_arguments=$2, variant=$4, variant_type_arguments=$5, arguments=$6, loc=span($sloc))
+    QualifiedVariant(type_name=expression_type_name_name($1), type_arguments=expression_type_name_arguments($1), variant=$3, variant_type_arguments=$4, arguments=$5, loc=span($sloc))
   }
   | primary_expression { $1 }
   ;

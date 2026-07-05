@@ -735,6 +735,8 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       text("!") +
       generic_arguments_doc(type_witnesses) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
+    TypeApplication(callee~, arguments~, ..) =>
+      callee.pretty() + generic_arguments_doc(arguments)
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [text("handle") + space + body.pretty()]
       for handler in handlers {

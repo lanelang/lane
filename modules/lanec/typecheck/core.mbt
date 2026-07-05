@@ -164,6 +164,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   TypeMismatch(expected~ : @types.Type, actual~ : @types.Type)
   EffectMismatch(expected~ : @types.Effect, actual~ : @types.Effect)
   NotCallable(@types.Type)
+  TypeArgumentsOnNonGeneric(@types.Type)
   UnknownField(name~ : String)
   MissingField(name~ : String)
   DuplicateField(name~ : String)

@@ -856,6 +856,22 @@ fn typecheck_diagnostic(
         notes=["only values with function type can be used in call position"],
         helps=["remove the call or use a function value here"],
       )
+    TypeArgumentsOnNonGeneric(type_) =>
+      diagnostic(
+        "type arguments require a generic value",
+        span~,
+        severity=Error,
+        code=Some("E3011"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "`\{display.type_text(type_)}` is not a generic function type",
+            style: Primary,
+          },
+        ],
+        notes=["explicit type arguments instantiate values with `forall` type"],
+        helps=["remove the type arguments or make the callee generic"],
+      )
     UnknownField(name~) =>
       diagnostic(
         "unknown field `\{name}`",

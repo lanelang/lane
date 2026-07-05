@@ -229,6 +229,8 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         arguments=arguments.map(desugar_expr),
         loc~,
       )
+    TypeApplication(callee~, arguments~, loc~) =>
+      TypeApplication(callee=desugar_expr(callee), arguments~, loc~)
     Handler(body~, handlers~, final_branch~, loc~) =>
       Handler(
         body=desugar_expr(body),
