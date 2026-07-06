@@ -426,6 +426,150 @@ async test "runobj executes explicit Basic Io linked input" {
 }
 
 ///|
+async test "link rejects private selected entry" {
+  let workspace = ".tmp-lane-link-private-entry"
+  let source = "\{workspace}/Main.lane"
+  let object = "\{workspace}/Main.lmo"
+  let program = "\{workspace}/program.lbp"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  write_source_file(
+    source,
+    (
+      #|module Main
+      #|fn main() -> Unit {
+      #|  ()
+      #|}
+    ),
+  )
+  guard lane_compile(source, [], None, Some(object), false) is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected compile to succeed")
+  }
+  let outcome = lane_link([object], "Main::main", program, false)
+  cleanup_library_fixture(workspace)
+  guard outcome is UserErrors(errors) else {
+    abort("expected link to reject private entry")
+  }
+  inspect(
+    errors.map(CliError::render_human).join("\n"),
+    content=(
+      #|error[E6005]: entry `Main.main` was not found
+      #|  available public entries: (none)
+      #|
+      #|Use one of the listed public entries, or export the value with `pub` before compiling.
+    ),
+  )
+}
+
+///|
+async test "link rejects non-function selected entry" {
+  let workspace = ".tmp-lane-link-value-entry"
+  let source = "\{workspace}/Main.lane"
+  let object = "\{workspace}/Main.lmo"
+  let program = "\{workspace}/program.lbp"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  write_source_file(
+    source,
+    (
+      #|module Main
+      #|pub let main : Int = 1
+    ),
+  )
+  guard lane_compile(source, [], None, Some(object), false) is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected compile to succeed")
+  }
+  let outcome = lane_link([object], "Main::main", program, false)
+  cleanup_library_fixture(workspace)
+  guard outcome is UserErrors(errors) else {
+    abort("expected link to reject value entry")
+  }
+  inspect(
+    errors.map(CliError::render_human).join("\n"),
+    content=(
+      #|error[E6009]: entry `Main.main` is not executable
+      #|  requested type: Int
+      #|  expected: () -> Unit, or supported runtime effects such as Basic.Io.Write
+      #|
+      #|The selected public entry is a value, not a function.
+      #|
+      #|Export a `pub fn main() -> Unit` entry.
+      #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
+    ),
+  )
+}
+
+///|
+async test "link rejects unsupported selected entry effects" {
+  let workspace = ".tmp-lane-link-unsupported-effects"
+  let source = "\{workspace}/Main.lane"
+  let object = "\{workspace}/Main.lmo"
+  let program = "\{workspace}/program.lbp"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  write_source_file(
+    source,
+    (
+      #|module Main
+      #|pub effect Console {
+      #|  tick() -> Unit
+      #|}
+      #|pub fn main() -> Unit ! Console {
+      #|  Console::tick!()
+      #|}
+    ),
+  )
+  guard lane_compile(source, [], None, Some(object), false) is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected compile to succeed")
+  }
+  let outcome = lane_link([object], "Main::main", program, false)
+  cleanup_library_fixture(workspace)
+  guard outcome is UserErrors(errors) else {
+    abort("expected link to reject unsupported effect entry")
+  }
+  inspect(
+    errors.map(CliError::render_human).join("\n"),
+    content=(
+      #|error[E6009]: entry `Main.main` is not executable
+      #|  requested type: () -> Unit ! effect#0
+      #|  expected: () -> Unit, or supported runtime effects such as Basic.Io.Write
+      #|
+      #|The selected function has unsupported effect set `effect#0`.
+      #|
+      #|Export a `pub fn main() -> Unit` entry.
+      #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
+    ),
+  )
+}
+
+///|
+test "invalid link entry diagnostic explains expected public symbol form" {
+  inspect(
+    [
+      MissingArgument(name="entry").render_human(),
+      InvalidLinkEntry(entry="main").render_human(),
+    ].join("\n---\n"),
+    content=(
+      #|error[E6003]: missing required CLI argument `entry`
+      #|This is a CLI usage error, not a Lane source error.
+      #|
+      #|Run `lane --help` or `lane <command> --help` to see the required arguments.
+      #|---
+      #|error[E6010]: invalid link entry `main`
+      #|  expected: Module.value
+      #|
+      #|`lane link` selects one exported entry before producing a linked program artifact.
+      #|
+      #|Example:
+      #|  lane link --entry Main.main -o program.lbp Main.lmo
+    ),
+  )
+}
+
+///|
 test "run rejects public value entries" {
   let result = @compile.compile_source(
     (

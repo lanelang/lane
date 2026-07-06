@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/occurrence"
+
+import {
+  "Milky2018/buslane",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn analyze(OccurrenceInput) -> OccurrenceSummary
+
+pub fn analyze_program(@buslane.Program, @buslane.ValueId) -> OccurrenceSummary
+
+// Errors
+
+// Types and methods
+pub(all) struct OccurrenceInput {
+  program : @buslane.Program
+  entry : @buslane.ValueId
+  roots : Array[@buslane.ValueId]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct OccurrenceSummary {
+  entry : @buslane.ValueId
+  roots : Array[@buslane.ValueId]
+  facts : Array[ValueOccurrenceFact]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ValueOccurrenceFact {
+  value : @buslane.ValueId
+  use_count : Int
+  call_count : Int
+  callee_only : Bool
+  escapes : Bool
+  used_in_effectful_context : Bool
+  reachable_from_entry : Bool
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+
