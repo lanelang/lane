@@ -6,7 +6,7 @@ import Basic.Ops.*
 
 import Basic.Io.{Io, Write}
 
-pub type Shadow[A] = type[A] => A
+pub type Shadow[_A] = type[A] => A
 
 pub type BoolAlias = Shadow[Int][Bool]
 

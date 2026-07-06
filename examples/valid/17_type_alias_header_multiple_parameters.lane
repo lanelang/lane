@@ -6,7 +6,7 @@ import Basic.Ops.*
 
 import Basic.Io.{Io, Write}
 
-pub type Left[A, B] = A
+pub type Left[A, _B] = A
 
 pub let left_value : Left[Int, Bool] = 42
 

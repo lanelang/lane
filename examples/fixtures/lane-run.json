@@ -440,6 +440,20 @@
       }
     },
     {
+      "name": "warning 03 unused generic parameter",
+      "file": "examples/warnings/03_unused_generic_parameter.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "warning[W2003]",
+          "unused type parameter",
+          "unused effect parameter",
+          "`B` is never used",
+          "`E` is never used"
+        ]
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "mode": "check-error",

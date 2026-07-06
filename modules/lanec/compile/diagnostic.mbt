@@ -123,6 +123,42 @@ fn unused_private_top_level_declaration_diagnostic(
 }
 
 ///|
+fn unused_generic_parameter_diagnostics(
+  source : @resolve.ResolvedSourceFile,
+  checked : @checked.CheckedSourceFile,
+  source_text : String,
+) -> Array[CompilerDiagnostic] {
+  source
+  .generic_parameter_use_analysis(checked)
+  .unused_binders()
+  .map(fn(binder) { unused_generic_parameter_diagnostic(binder, source_text) })
+}
+
+///|
+fn unused_generic_parameter_diagnostic(
+  binder : GenericParameterUseBinder,
+  source_text : String,
+) -> CompilerDiagnostic {
+  let binder_loc = name_span(source_text, binder.name, binder.loc)
+  let kind = binder.kind.text()
+  diagnostic(
+    "unused \{kind}",
+    span=Some(binder_loc),
+    severity=Warning,
+    code=Some("W2003"),
+    labels=[
+      {
+        span: compiler_local_span(binder_loc),
+        message: "`\{binder.name}` is never used",
+        style: Primary,
+      },
+    ],
+    notes=[],
+    helps=["prefix the name with `_` if this is intentional"],
+  )
+}
+
+///|
 fn compile_report(
   title : String,
   span : @basic.SourceSpan?,

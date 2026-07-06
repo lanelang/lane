@@ -8,7 +8,7 @@ effect Log {
   log(Int) -> Unit
 }
 
-effect Coroutine[E : Effect] {
+effect Coroutine[_E : Effect] {
   yield() -> Unit
 }
 

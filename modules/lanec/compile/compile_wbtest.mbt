@@ -527,6 +527,348 @@ test "check keeps reachable private top-level declarations quiet" {
 }
 
 ///|
+test "check reports unused generic parameters as warnings" {
+  let result = check_source(
+    (
+      #|module Test
+      #|pub struct Box[A, B] {
+      #|  value : A
+      #|}
+      #|pub effect Logger[E : Effect] {
+      #|  log() -> Unit
+      #|}
+      #|pub effect Prompt {
+      #|  choose[A, B](A) -> A
+      #|}
+      #|pub type Alias[A, B] = A
+      #|pub fn[A] shadow(_f : [A](A) -> A) -> Unit {
+      #|  ()
+      #|}
+      #|pub fn[A, B] id(value : A) -> A {
+      #|  value
+      #|}
+    ),
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused type parameter",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 30,
+      #|          end_offset: 31,
+      #|          start_line: 2,
+      #|          start_column: 19,
+      #|          end_line: 2,
+      #|          end_column: 20,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 30,
+      #|            end_offset: 31,
+      #|            start_line: 2,
+      #|            start_column: 19,
+      #|            end_line: 2,
+      #|            end_column: 20,
+      #|          },
+      #|        ),
+      #|        message: "`B` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused effect parameter",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 71,
+      #|          end_offset: 72,
+      #|          start_line: 5,
+      #|          start_column: 23,
+      #|          end_line: 5,
+      #|          end_column: 24,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 71,
+      #|            end_offset: 72,
+      #|            start_line: 5,
+      #|            start_column: 23,
+      #|            end_line: 5,
+      #|            end_column: 24,
+      #|          },
+      #|        ),
+      #|        message: "`E` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused type parameter",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 131,
+      #|          end_offset: 132,
+      #|          start_line: 9,
+      #|          start_column: 13,
+      #|          end_line: 9,
+      #|          end_column: 14,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 131,
+      #|            end_offset: 132,
+      #|            start_line: 9,
+      #|            start_column: 13,
+      #|            end_line: 9,
+      #|            end_column: 14,
+      #|          },
+      #|        ),
+      #|        message: "`B` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused type parameter",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 162,
+      #|          end_offset: 163,
+      #|          start_line: 11,
+      #|          start_column: 19,
+      #|          end_line: 11,
+      #|          end_column: 20,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 162,
+      #|            end_offset: 163,
+      #|            start_line: 11,
+      #|            start_column: 19,
+      #|            end_line: 11,
+      #|            end_column: 20,
+      #|          },
+      #|        ),
+      #|        message: "`B` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused type parameter",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 162,
+      #|          end_offset: 163,
+      #|          start_line: 11,
+      #|          start_column: 19,
+      #|          end_line: 11,
+      #|          end_column: 20,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 162,
+      #|            end_offset: 163,
+      #|            start_line: 11,
+      #|            start_column: 19,
+      #|            end_line: 11,
+      #|            end_column: 20,
+      #|          },
+      #|        ),
+      #|        message: "`B` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused type parameter",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 176,
+      #|          end_offset: 177,
+      #|          start_line: 12,
+      #|          start_column: 8,
+      #|          end_line: 12,
+      #|          end_column: 9,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 176,
+      #|            end_offset: 177,
+      #|            start_line: 12,
+      #|            start_column: 8,
+      #|            end_line: 12,
+      #|            end_column: 9,
+      #|          },
+      #|        ),
+      #|        message: "`A` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused type parameter",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 231,
+      #|          end_offset: 232,
+      #|          start_line: 15,
+      #|          start_column: 11,
+      #|          end_line: 15,
+      #|          end_column: 12,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 231,
+      #|            end_offset: 232,
+      #|            start_line: 15,
+      #|            start_column: 11,
+      #|            end_line: 15,
+      #|            end_column: 12,
+      #|          },
+      #|        ),
+      #|        message: "`B` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+  guard result.source is Some(_) else { abort("expected checked source") }
+}
+
+///|
+test "check keeps used generic parameters quiet" {
+  let result = check_source(
+    (
+      #|module Test
+      #|pub struct Box[A] {
+      #|  value : A
+      #|}
+      #|pub enum Option[A] {
+      #|  some(A)
+      #|  none()
+      #|}
+      #|pub effect Console[E : Effect] {
+      #|  run(() -> Unit ! E) -> Unit
+      #|}
+      #|pub effect Prompt {
+      #|  choose[A](A) -> A
+      #|}
+      #|pub type Task[E : Effect] = { Console[E], E }
+      #|pub type Mapper[F : [Type] -> Type, A] = F[A]
+      #|pub fn[A, E : Effect] keep(value : A, _body : () -> Unit ! E) -> A {
+      #|  value
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(_) else { abort("expected checked source") }
+}
+
+///|
 test "check reports payloadless variant without parentheses" {
   let result = check_source(
     (

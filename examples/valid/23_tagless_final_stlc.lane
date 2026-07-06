@@ -18,7 +18,7 @@ pub struct Eval[A] {
   value : A
 }
 
-pub struct Size[A] {
+pub struct Size[_A] {
   size : Int
 }
 

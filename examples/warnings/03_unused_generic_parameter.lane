@@ -1,0 +1,23 @@
+module Examples.Warnings.UnusedGenericParameter
+
+pub struct Box[A, B] {
+  value : A
+}
+
+pub effect Logger[E : Effect] {
+  log() -> Unit
+}
+
+pub effect Prompt {
+  choose[A, B](A) -> A
+}
+
+pub type Alias[A, B] = A
+
+pub fn[A, B] id(value : A) -> A {
+  value
+}
+
+pub fn answer() -> Int {
+  0
+}

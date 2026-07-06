@@ -59,6 +59,13 @@ fn compile_one_module(
           input.text,
         ),
       )
+      warning_diagnostics.append(
+        unused_generic_parameter_diagnostics(
+          resolved.source,
+          checked,
+          input.text,
+        ),
+      )
       let warning_diagnostics = warning_diagnostics.map(fn(diagnostic) {
         diagnostic.with_source_id(input.source_id)
       })
