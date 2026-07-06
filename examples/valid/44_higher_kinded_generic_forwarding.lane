@@ -1,0 +1,31 @@
+module Examples.Valid44
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+struct Box[A] {
+  value : A
+}
+
+fn[F : [Type] -> Type] consume_int(_value : F[Int]) -> Int {
+  42
+}
+
+fn[F : [Type] -> Type] forward(value : F[Int]) -> Int {
+  consume_int(value)
+}
+
+fn run_box(value : Box[Int]) -> Int {
+  forward(value)
+}
+
+let forwarded : Int = run_box(Box::{ value: 1 })
+
+pub fn answer() -> Unit ! Io {
+  if forwarded == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

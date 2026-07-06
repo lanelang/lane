@@ -130,6 +130,7 @@ fn SemanticChecker::checked_top_level_function(
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> @checked.CheckedTopLevelDeclaration? {
   let body_scope = self.root_scope()
+  body_scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
   let parameters = declaration.parameters.map(fn(parameter) {
     self.checked_value_parameter(parameter)
   })
@@ -466,6 +467,7 @@ fn SemanticChecker::check_checked_local_function(
     }),
   )
   let body_scope = scope.copy()
+  body_scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
   let parameters = declaration.parameters.map(fn(parameter) {
     self.checked_value_parameter(parameter)
   })

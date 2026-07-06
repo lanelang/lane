@@ -983,6 +983,7 @@ fn SemanticChecker::synthesize_checked_function_literal(
   let parameter_types = []
   let checked_parameters : Array[@checked.CheckedValueParameter] = []
   let body_scope = scope.copy()
+  body_scope.bind_resolved_type_parameter_kinds(type_parameters)
   for parameter in parameters {
     if parameter.type_annotation is Some(type_annotation) {
       let type_ = self.check_type(type_annotation)
@@ -1114,6 +1115,8 @@ fn SemanticChecker::check_checked_function_literal(
           Parameter(type_parameters[index].symbol),
         )
       }
+      let scope = scope.copy()
+      scope.bind_resolved_type_parameter_kinds(type_parameters)
       let checked = self.check_checked_function_literal(
         scope,
         [],

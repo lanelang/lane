@@ -1,0 +1,17 @@
+module Examples.Invalid44
+
+struct Option[A] {
+  value : A
+}
+
+struct Uses[F : [Type] -> Type] {
+  marker : Int
+}
+
+offer option_uses : Uses[Option] = Uses::{ marker: 0 }
+
+fn[F : [Type] -> Type] use_context(auto _ctx : Uses[F]) -> Int {
+  0
+}
+
+let value : Int = use_context()

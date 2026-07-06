@@ -382,6 +382,24 @@
       }
     },
     {
+      "name": "43 higher-kinded generic inference",
+      "file": "examples/valid/43_higher_kinded_generic_inference.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "42"
+      }
+    },
+    {
+      "name": "44 higher-kinded generic forwarding",
+      "file": "examples/valid/44_higher_kinded_generic_forwarding.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "42"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
@@ -897,6 +915,32 @@
           "refutable pattern in `let` binding",
           "this pattern may fail for some `Option[Int]` values",
           "replace the refutable nested pattern with a binder and match it later"
+        ]
+      }
+    },
+    {
+      "name": "invalid 43 higher-kinded no lambda synthesis",
+      "file": "examples/invalid/43_higher_kinded_no_lambda_synthesis.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3010]",
+          "generic argument constraint mismatch for `consume_int`",
+          "generic inference expected `F`, found `Pair`",
+          "adjust the argument or expected result type so the generic constraints match"
+        ]
+      }
+    },
+    {
+      "name": "invalid 44 higher-kinded contextual offer not inferred",
+      "file": "examples/invalid/44_higher_kinded_contextual_offer_not_inferred.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3010]",
+          "cannot infer generic arguments for this call",
+          "local context did not determine generic parameter(s) `F`",
+          "add explicit generic arguments for this call or provide an expected result type"
         ]
       }
     }

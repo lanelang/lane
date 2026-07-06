@@ -1,0 +1,30 @@
+module Examples.Valid43
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+enum Option[A] {
+  none()
+  some(A)
+}
+
+fn[F : [Type] -> Type] consume_int(_value : F[Int]) -> Int {
+  1
+}
+
+fn[F : [Type] -> Type, A] choose(_value : F[A], fallback : A) -> A {
+  fallback
+}
+
+let inferred_constructor : Int = consume_int(Option::some(0))
+
+let inferred_constructor_and_value : Int = choose(Option::some(1), 41)
+
+pub fn answer() -> Unit ! Io {
+  if inferred_constructor + inferred_constructor_and_value == 42 {
+    Write::println!("42")
+  } else {
+    Write::println!("bad:42")
+  }
+}

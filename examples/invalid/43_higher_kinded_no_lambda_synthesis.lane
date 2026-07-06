@@ -1,0 +1,15 @@
+module Examples.Invalid43
+
+enum Pair[A, B] {
+  pair(A, B)
+}
+
+fn[F : [Type] -> Type] consume_int(_value : F[Int]) -> Int {
+  0
+}
+
+fn bad(value : Pair[Int, Bool]) -> Int {
+  consume_int(value)
+}
+
+let value : Int = bad(Pair::pair(1, true))
