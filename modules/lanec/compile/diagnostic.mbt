@@ -5,7 +5,9 @@ using @compiler_diag {
   type CompilerDiagnosticLabel,
   type CompilerDiagnosticSeverity,
   type CompilerDiagnosticSuggestion,
+  compiler_diagnostic,
   compiler_local_span,
+  compiler_primary_labels,
   compiler_source_span,
 }
 
@@ -72,18 +74,17 @@ fn diagnostic(
   facts? : Array[CompilerDiagnosticFact] = [],
   suggestions? : Array[CompilerDiagnosticSuggestion] = [],
 ) -> CompilerDiagnostic {
-  {
-    source_id: None,
+  compiler_diagnostic(
     message,
-    span: span.map(compiler_local_span),
-    severity,
-    code,
-    labels,
-    notes,
-    helps,
-    facts,
-    suggestions,
-  }
+    span~,
+    severity~,
+    code~,
+    labels~,
+    notes~,
+    helps~,
+    facts~,
+    suggestions~,
+  )
 }
 
 ///|
@@ -91,10 +92,7 @@ fn primary_label(
   span : @basic.SourceSpan?,
   message : String,
 ) -> Array[CompilerDiagnosticLabel] {
-  match span {
-    Some(span) => [{ span: compiler_local_span(span), message, style: Primary }]
-    None => []
-  }
+  compiler_primary_labels(span, message)
 }
 
 ///|
@@ -476,212 +474,8 @@ fn resolve_diagnostic(
   diagnostic_ : @resolve.ResolveDiagnostic,
   _display : TypeDisplayContext,
 ) -> CompilerDiagnostic {
-  let span = Some(diagnostic_.loc)
-  match diagnostic_.kind {
-    UnresolvedType(name) =>
-      diagnostic(
-        "cannot find type `\{name}`",
-        span~,
-        severity=Error,
-        code=Some("E2000"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "no type named `\{name}` is visible here",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "Lane resolves type names from the current module and explicitly imported public types",
-        ],
-        helps=[
-          "declare `\{name}`, import the module that exports it, or qualify the type as `Module.\{name}`",
-        ],
-      )
-    UnresolvedValue(name) =>
-      diagnostic(
-        "cannot find value `\{name}`",
-        span~,
-        severity=Error,
-        code=Some("E2001"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "no value named `\{name}` is visible here",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "Lane value lookup uses local bindings, top-level values, and explicitly imported public values",
-        ],
-        helps=[
-          "define `\{name}` before this use, import it, or qualify it with its module path",
-        ],
-      )
-    UnresolvedField(type_name~, field~) =>
-      diagnostic(
-        "cannot find field `\{field}` on `\{type_name}`",
-        span~,
-        severity=Error,
-        code=Some("E2002"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "`\{type_name}` has no visible field named `\{field}`",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "field lookup only sees fields declared by the resolved struct type",
-        ],
-        helps=[
-          "check the field spelling or change the expression to a struct type that declares `\{field}`",
-        ],
-      )
-    UnresolvedQualifiedVariant(type_name~, variant~) =>
-      diagnostic(
-        "cannot find variant `\{type_name}::\{variant}`",
-        span~,
-        severity=Error,
-        code=Some("E2003"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "this enum type does not expose a variant named `\{variant}`",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "qualified variant lookup first resolves the enum type, then its variants",
-        ],
-        helps=[
-          "check the variant spelling or use a variant declared by `\{type_name}`",
-        ],
-      )
-    PayloadlessVariantWithoutParens(name) =>
-      diagnostic(
-        "payloadless variant `\{name}` must use empty parentheses",
-        span~,
-        severity=Error,
-        code=Some("E2004"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "`\{name}` has no payload, so construct it as `\{name}()`",
-            style: Primary,
-          },
-        ],
-        notes=["all enum variant constructors use parentheses in expressions"],
-        helps=["add empty parentheses: `\{name}()`"],
-      )
-    ConflictingTopLevelValue(
-      name~,
-      existing~,
-      incoming~,
-      existing_source_id~,
-      existing_loc~,
-      existing_origin~
-    ) => {
-      let labels : Array[CompilerDiagnosticLabel] = [
-        {
-          span: compiler_local_span(diagnostic_.loc),
-          message: "`\{incoming}` conflicts with an existing value named `\{existing}`",
-          style: Primary,
-        },
-      ]
-      if existing_loc is Some(existing_loc) {
-        let span = match existing_source_id {
-          Some(source_id) => compiler_source_span(source_id, existing_loc)
-          None => compiler_local_span(existing_loc)
-        }
-        labels.push({
-          span,
-          message: "previous definition of `\{existing}` is here",
-          style: Secondary,
-        })
-      }
-      let notes = ["a Lane module has one top-level value namespace"]
-      if existing_loc is None {
-        if existing_origin is Some(origin) {
-          notes.push("previous definition comes from \{origin}")
-        }
-      }
-      diagnostic(
-        "conflicting top-level value `\{name}`",
-        span~,
-        severity=Error,
-        code=Some("E2005"),
-        labels~,
-        notes~,
-        helps=["rename one of the declarations or remove the duplicate import"],
-      )
-    }
-    ConflictingTopLevelTypeAndEffectName(name~, type_kind~, effect_kind~) =>
-      diagnostic(
-        "conflicting top-level type/effect name `\{name}`",
-        span~,
-        severity=Error,
-        code=Some("E2007"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "this `\{effect_kind}` name overlaps with a `\{type_kind}` name",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "Lane keeps effect declarations and type/type-alias declarations in distinct namespaces, but their names cannot overlap",
-        ],
-        helps=["rename either the effect or the type/type alias"],
-      )
-    AmbiguousModuleValue(name) =>
-      diagnostic(
-        "ambiguous module-qualified value `\{name}`",
-        span~,
-        severity=Error,
-        code=Some("E2006"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "`\{name}` can refer to more than one imported value",
-            style: Primary,
-          },
-        ],
-        notes=[
-          "Lane does not choose between ambiguous imports because doing so would make name resolution order-dependent",
-        ],
-        helps=[
-          "import only one matching module or use a more specific module path before the value name",
-        ],
-      )
-    AmbiguousUnqualifiedVariant(name~, candidates~) =>
-      diagnostic(
-        "ambiguous variant `\{name}`",
-        span~,
-        severity=Error,
-        code=Some("E2007"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "`\{name}` matches more than one visible enum variant",
-            style: Primary,
-          },
-        ],
-        notes=["candidates: \{resolve_variant_candidates_text(candidates)}"],
-        helps=[
-          "qualify the variant with its enum type, for example `Enum::\{name}`",
-        ],
-      )
-  }
-}
-
-///|
-fn resolve_variant_candidates_text(
-  candidates : Array[@resolve.ResolveVariantCandidate],
-) -> String {
-  candidates
-  .map(fn(candidate) { "\{candidate.owner}::\{candidate.variant}" })
-  .join(", ")
+  ignore(_display)
+  diagnostic_.to_compiler_diagnostic(DiagnosticContext())
 }
 
 ///|
@@ -864,25 +658,6 @@ fn typecheck_diagnostic(
         helps=[
           "change the expression type or adjust the annotation/expected type",
         ],
-        facts=[
-          {
-            name: "expected type",
-            value: "`\{display.type_text(expected)}`",
-            span: Some(compiler_local_span(diagnostic_.loc)),
-          },
-          {
-            name: "actual type",
-            value: "`\{display.type_text(actual)}`",
-            span: Some(compiler_local_span(diagnostic_.loc)),
-          },
-        ],
-        suggestions=[
-          {
-            message: "change the expression type or adjust the annotation/expected type",
-            edits: [],
-            applicability: Unspecified,
-          },
-        ],
       )
     EffectMismatch(expected~, actual~) =>
       diagnostic(
@@ -900,25 +675,6 @@ fn typecheck_diagnostic(
         notes=["Lane functions without an effect annotation are pure"],
         helps=[
           "add the required effect annotation or remove the effectful operation",
-        ],
-        facts=[
-          {
-            name: "expected effect",
-            value: "`\{display.effect_text(expected)}`",
-            span: Some(compiler_local_span(diagnostic_.loc)),
-          },
-          {
-            name: "actual effect",
-            value: "`\{display.effect_text(actual)}`",
-            span: Some(compiler_local_span(diagnostic_.loc)),
-          },
-        ],
-        suggestions=[
-          {
-            message: "add the required effect annotation or remove the effectful operation",
-            edits: [],
-            applicability: Unspecified,
-          },
         ],
       )
     NotCallable(type_) =>
@@ -1105,7 +861,7 @@ fn typecheck_diagnostic(
           "use a struct value here or change the surrounding type annotation",
         ],
       )
-    NonExhaustiveMatch(type_) =>
+    NonExhaustiveMatch(type_~, witness~) =>
       diagnostic(
         "non-exhaustive match",
         span~,
@@ -1119,7 +875,7 @@ fn typecheck_diagnostic(
           },
         ],
         notes=["Lane checks match coverage statically using the pattern matrix"],
-        helps=["add a missing constructor case or a final `_` wildcard arm"],
+        helps=non_exhaustive_match_helps(witness),
       )
     UnreachableMatchArm =>
       diagnostic(
@@ -1521,7 +1277,7 @@ fn contextual_offer_diagnostic(
   display : TypeDisplayContext,
   span : @basic.SourceSpan?,
   expected : @types.Type,
-  candidates : Array[@types.Type],
+  candidates : Array[@typecheck.ContextualOfferDiagnosticCandidate],
 ) -> CompilerDiagnostic {
   let expected_text = display.type_text(expected)
   if candidates.is_empty() {
@@ -1543,13 +1299,6 @@ fn contextual_offer_diagnostic(
       helps=[
         "pass the argument explicitly or add a visible `offer` with type `\{expected_text}`",
       ],
-      facts=[
-        {
-          name: "required contextual type",
-          value: "`\{expected_text}`",
-          span: Some(compiler_local_span(diagnostic_.loc)),
-        },
-      ],
     )
   } else {
     diagnostic(
@@ -1557,49 +1306,67 @@ fn contextual_offer_diagnostic(
       span~,
       severity=Error,
       code=Some("E3013"),
-      labels=[
-        {
-          span: compiler_local_span(diagnostic_.loc),
-          message: "\{candidates.length()} visible offers match required type `\{expected_text}`",
-          style: Primary,
-        },
-      ],
+      labels=contextual_offer_labels(
+        diagnostic_.loc,
+        display,
+        expected_text,
+        candidates,
+      ),
       notes=[
         "Lane will not choose between multiple matching contextual offers implicitly",
       ],
       helps=[
         "pass the argument explicitly or keep only one matching visible offer",
       ],
-      facts=contextual_offer_candidate_facts(
-        display,
-        diagnostic_.loc,
-        candidates,
-      ),
     )
   }
 }
 
 ///|
-fn contextual_offer_candidate_facts(
-  display : TypeDisplayContext,
+fn contextual_offer_labels(
   loc : @basic.SourceSpan,
-  candidates : Array[@types.Type],
-) -> Array[CompilerDiagnosticFact] {
-  let facts : Array[CompilerDiagnosticFact] = [
+  display : TypeDisplayContext,
+  expected_text : String,
+  candidates : Array[@typecheck.ContextualOfferDiagnosticCandidate],
+) -> Array[CompilerDiagnosticLabel] {
+  let labels : Array[CompilerDiagnosticLabel] = [
     {
-      name: "matching contextual offer count",
-      value: candidates.length().to_string(),
-      span: Some(compiler_local_span(loc)),
+      span: compiler_local_span(loc),
+      message: "\{candidates.length()} visible offers match required type `\{expected_text}`",
+      style: Primary,
     },
   ]
-  for index in 0..<candidates.length() {
-    facts.push({
-      name: "candidate \{index + 1}",
-      value: "`\{display.type_text(candidates[index])}`",
-      span: Some(compiler_local_span(loc)),
-    })
+  labels.append(contextual_offer_candidate_labels(display, candidates))
+  labels
+}
+
+///|
+fn contextual_offer_candidate_labels(
+  display : TypeDisplayContext,
+  candidates : Array[@typecheck.ContextualOfferDiagnosticCandidate],
+) -> Array[CompilerDiagnosticLabel] {
+  candidates.map(fn(candidate) {
+    let span = match candidate.source_id {
+      Some(source_id) => compiler_source_span(source_id, candidate.loc)
+      None => compiler_local_span(candidate.loc)
+    }
+    {
+      span,
+      message: "candidate `\{candidate.name}` has type `\{display.type_text(candidate.type_)}`",
+      style: Secondary,
+    }
+  })
+}
+
+///|
+fn non_exhaustive_match_helps(witness : String?) -> Array[String] {
+  match witness {
+    Some(witness) =>
+      [
+        "add a pattern that covers `\{witness}`, or add a final `_` wildcard arm",
+      ]
+    None => ["add a missing constructor case or a final `_` wildcard arm"]
   }
-  facts
 }
 
 ///|
@@ -1638,7 +1405,7 @@ fn generic_argument_inference_failed_diagnostic(
     generic_argument_inference_title(label, failure),
     span~,
     severity=Error,
-    code=Some("E3010"),
+    code=Some(generic_argument_inference_code(failure)),
     labels=[
       {
         span: compiler_local_span(diagnostic_.loc),
@@ -1646,12 +1413,50 @@ fn generic_argument_inference_failed_diagnostic(
         style: Primary,
       },
     ],
-    notes=[
-      "Lane infers generic arguments only from the adjacent call arguments and expected result type",
-    ],
+    notes=generic_argument_inference_notes(failure),
     helps=[generic_argument_inference_help(label, failure)],
-    facts=generic_argument_inference_facts(display, diagnostic_.loc, failure),
   )
+}
+
+///|
+fn generic_argument_inference_notes(
+  failure : @typecheck.GenericArgumentInferenceFailure,
+) -> Array[String] {
+  match failure {
+    ConflictingGenericArgument(
+      previous=TypeArgument(_),
+      actual=TypeArgument(_),
+      ..
+    ) => ["Lane does not insert implicit conversions between different types"]
+    ConflictingGenericArgument(
+      previous=EffectArgument(_),
+      actual=EffectArgument(_),
+      ..
+    ) => ["Lane functions without an effect annotation are pure"]
+    _ =>
+      [
+        "Lane infers generic arguments only from the adjacent call arguments and expected result type",
+      ]
+  }
+}
+
+///|
+fn generic_argument_inference_code(
+  failure : @typecheck.GenericArgumentInferenceFailure,
+) -> String {
+  match failure {
+    ConflictingGenericArgument(
+      previous=TypeArgument(_),
+      actual=TypeArgument(_),
+      ..
+    ) => "E3006"
+    ConflictingGenericArgument(
+      previous=EffectArgument(_),
+      actual=EffectArgument(_),
+      ..
+    ) => "E3007"
+    _ => "E3010"
+  }
 }
 
 ///|
@@ -1676,6 +1481,16 @@ fn generic_argument_inference_title(
   match failure {
     MissingGenericArguments(..) =>
       "cannot infer generic arguments for \{subject}"
+    ConflictingGenericArgument(
+      previous=TypeArgument(_),
+      actual=TypeArgument(_),
+      ..
+    ) => "type mismatch"
+    ConflictingGenericArgument(
+      previous=EffectArgument(_),
+      actual=EffectArgument(_),
+      ..
+    ) => "effect mismatch"
     ConflictingGenericArgument(..) =>
       "conflicting generic arguments for \{subject}"
     RecursiveGenericArgument(..) => "recursive generic argument for \{subject}"
@@ -1722,6 +1537,18 @@ fn generic_argument_inference_primary_label(
   match failure {
     MissingGenericArguments(parameters~) =>
       "local context did not determine generic parameter(s) \{generic_parameter_list_text(parameters)}"
+    ConflictingGenericArgument(
+      previous=TypeArgument(expected),
+      actual=TypeArgument(actual),
+      ..
+    ) =>
+      "expected `\{display.type_text(expected)}`, found `\{display.type_text(actual)}`"
+    ConflictingGenericArgument(
+      previous=EffectArgument(expected),
+      actual=EffectArgument(actual),
+      ..
+    ) =>
+      "expected effect `\{display.effect_text(expected)}`, found `\{display.effect_text(actual)}`"
     ConflictingGenericArgument(parameter~, previous~, actual~) =>
       "generic parameter `\{parameter.name}` was inferred as `\{display.generic_argument_text(previous)}` and `\{display.generic_argument_text(actual)}`"
     RecursiveGenericArgument(parameter~, actual~) =>
@@ -1740,74 +1567,24 @@ fn generic_argument_inference_help(
   match failure {
     MissingGenericArguments(..) =>
       "add explicit generic arguments for \{subject} or provide an expected result type"
+    ConflictingGenericArgument(
+      previous=TypeArgument(_),
+      actual=TypeArgument(_),
+      ..
+    ) =>
+      "make this argument agree with the type inferred earlier, or pass explicit generic arguments"
+    ConflictingGenericArgument(
+      previous=EffectArgument(_),
+      actual=EffectArgument(_),
+      ..
+    ) =>
+      "make this effect agree with the effect inferred earlier, or pass explicit generic arguments"
     ConflictingGenericArgument(parameter~, ..) =>
       "make every use of generic parameter `\{parameter.name}` agree, or pass explicit generic arguments"
     RecursiveGenericArgument(parameter~, ..) =>
       "remove the recursive effect constraint involving `\{parameter.name}`"
     GenericArgumentConstraintMismatch(..) =>
       "adjust the argument or expected result type so the generic constraints match"
-  }
-}
-
-///|
-fn generic_argument_inference_facts(
-  display : TypeDisplayContext,
-  loc : @basic.SourceSpan,
-  failure : @typecheck.GenericArgumentInferenceFailure,
-) -> Array[CompilerDiagnosticFact] {
-  match failure {
-    MissingGenericArguments(parameters~) =>
-      [
-        {
-          name: "missing generic parameter(s)",
-          value: generic_parameter_list_text(parameters),
-          span: Some(compiler_local_span(loc)),
-        },
-      ]
-    ConflictingGenericArgument(parameter~, previous~, actual~) =>
-      [
-        {
-          name: "generic parameter",
-          value: "`\{parameter.name}`",
-          span: Some(compiler_local_span(loc)),
-        },
-        {
-          name: "previous inferred argument",
-          value: "`\{display.generic_argument_text(previous)}`",
-          span: Some(compiler_local_span(loc)),
-        },
-        {
-          name: "conflicting inferred argument",
-          value: "`\{display.generic_argument_text(actual)}`",
-          span: Some(compiler_local_span(loc)),
-        },
-      ]
-    RecursiveGenericArgument(parameter~, actual~) =>
-      [
-        {
-          name: "generic parameter",
-          value: "`\{parameter.name}`",
-          span: Some(compiler_local_span(loc)),
-        },
-        {
-          name: "recursive inferred argument",
-          value: "`\{display.generic_argument_text(actual)}`",
-          span: Some(compiler_local_span(loc)),
-        },
-      ]
-    GenericArgumentConstraintMismatch(expected~, actual~) =>
-      [
-        {
-          name: "expected constraint",
-          value: "`\{display.generic_argument_text(expected)}`",
-          span: Some(compiler_local_span(loc)),
-        },
-        {
-          name: "actual constraint",
-          value: "`\{display.generic_argument_text(actual)}`",
-          span: Some(compiler_local_span(loc)),
-        },
-      ]
   }
 }
 
@@ -1986,102 +1763,5 @@ fn lex_error_helps(error : @lexer.LexicalError) -> Array[String] {
 
 ///|
 fn parse_diagnostic(error : @parser.ParseError) -> CompilerDiagnostic {
-  let span = Some(error.loc)
-  diagnostic(
-    parse_error_title(error.kind),
-    span~,
-    severity=Error,
-    code=Some(parse_error_code(error.kind)),
-    labels=[
-      {
-        span: compiler_local_span(error.loc),
-        message: parse_error_label(error.kind),
-        style: Primary,
-      },
-    ],
-    notes=parse_error_notes(error.kind),
-    helps=parse_error_helps(error.kind),
-  )
-}
-
-///|
-fn parse_error_code(error : @parser.ParseErrorKind) -> String {
-  match error {
-    UnexpectedToken(_, _) => "E1100"
-    UnexpectedEndOfInput(_) => "E1101"
-    EmptyGenericArgumentList => "E1102"
-    EmptyTypeParameterList => "E1103"
-  }
-}
-
-///|
-fn parse_error_title(error : @parser.ParseErrorKind) -> String {
-  match error {
-    UnexpectedToken(_, _) => "unexpected token"
-    UnexpectedEndOfInput(_) => "unexpected end of input"
-    EmptyGenericArgumentList => "empty generic argument list"
-    EmptyTypeParameterList => "empty type parameter list"
-  }
-}
-
-///|
-fn parse_error_label(error : @parser.ParseErrorKind) -> String {
-  match error {
-    UnexpectedToken(token, _) => "the parser did not expect \{token.label}"
-    UnexpectedEndOfInput(_) =>
-      "the source file ended while parsing this construct"
-    EmptyGenericArgumentList =>
-      "explicit generic argument lists must contain at least one argument"
-    EmptyTypeParameterList =>
-      "generic parameter lists must contain at least one parameter"
-  }
-}
-
-///|
-fn parse_error_notes(error : @parser.ParseErrorKind) -> Array[String] {
-  match error {
-    UnexpectedToken(_, expected) | UnexpectedEndOfInput(expected) =>
-      if expected.is_empty() {
-        []
-      } else {
-        ["expected one of: \{expected_list(expected)}"]
-      }
-    EmptyGenericArgumentList =>
-      [
-        "use explicit generic arguments only when at least one argument is provided",
-      ]
-    EmptyTypeParameterList =>
-      ["omit the brackets when a declaration has no generic parameters"]
-  }
-}
-
-///|
-fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
-  match error {
-    UnexpectedToken(_, expected) =>
-      if expected.is_empty() {
-        ["remove the unexpected token or rewrite the surrounding expression"]
-      } else {
-        [
-          "rewrite this position so it starts with one of: \{expected_list(expected)}",
-        ]
-      }
-    UnexpectedEndOfInput(expected) =>
-      if expected.is_empty() {
-        ["finish the incomplete construct before the end of file"]
-      } else {
-        [
-          "add the missing syntax before the end of file; expected one of: \{expected_list(expected)}",
-        ]
-      }
-    EmptyGenericArgumentList =>
-      ["remove the empty `[]` or provide at least one generic argument"]
-    EmptyTypeParameterList =>
-      ["remove the empty `[]` or add a parameter name such as `[A]`"]
-  }
-}
-
-///|
-fn expected_list(expected : Array[@parser.ExpectedSyntax]) -> String {
-  expected.map(fn(item) { item.label }).join(", ")
+  error.to_compiler_diagnostic(DiagnosticContext())
 }

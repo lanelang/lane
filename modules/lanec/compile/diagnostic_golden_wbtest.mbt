@@ -147,7 +147,7 @@ test "golden missing generic argument inference diagnostic is specific" {
 }
 
 ///|
-test "golden conflicting generic argument inference diagnostic is specific" {
+test "golden conflicting generic argument inference renders type mismatch" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
@@ -162,11 +162,9 @@ test "golden conflicting generic argument inference diagnostic is specific" {
       #|}
     ),
   )
-  assert_diagnostic_headline(
-    diagnostic, "E3010", "conflicting generic arguments for `choose`",
-  )
+  assert_diagnostic_headline(diagnostic, "E3006", "type mismatch")
   assert_single_help(
-    diagnostic, "make every use of generic parameter `A` agree, or pass explicit generic arguments",
+    diagnostic, "make this argument agree with the type inferred earlier, or pass explicit generic arguments",
   )
 }
 
@@ -395,49 +393,8 @@ test "golden type diagnostic renders span summary and facts" {
       #|  ],
       #|  notes: ["Lane does not insert implicit conversions between different types"],
       #|  helps: ["change the expression type or adjust the annotation/expected type"],
-      #|  facts: [
-      #|    {
-      #|      name: "expected type",
-      #|      value: "`Int`",
-      #|      span: Some(
-      #|        Source(
-      #|          source_id="<root>",
-      #|          span={
-      #|            start_offset: 35,
-      #|            end_offset: 39,
-      #|            start_line: 2,
-      #|            start_column: 24,
-      #|            end_line: 2,
-      #|            end_column: 28,
-      #|          },
-      #|        ),
-      #|      ),
-      #|    },
-      #|    {
-      #|      name: "actual type",
-      #|      value: "`Bool`",
-      #|      span: Some(
-      #|        Source(
-      #|          source_id="<root>",
-      #|          span={
-      #|            start_offset: 35,
-      #|            end_offset: 39,
-      #|            start_line: 2,
-      #|            start_column: 24,
-      #|            end_line: 2,
-      #|            end_column: 28,
-      #|          },
-      #|        ),
-      #|      ),
-      #|    },
-      #|  ],
-      #|  suggestions: [
-      #|    {
-      #|      message: "change the expression type or adjust the annotation/expected type",
-      #|      edits: [],
-      #|      applicability: Unspecified,
-      #|    },
-      #|  ],
+      #|  facts: [],
+      #|  suggestions: [],
       #|}
     ),
   )
@@ -565,7 +522,7 @@ test "golden pattern diagnostic renders span summary and guidance" {
       #|    },
       #|  ],
       #|  notes: ["Lane checks match coverage statically using the pattern matrix"],
-      #|  helps: ["add a missing constructor case or a final `_` wildcard arm"],
+      #|  helps: ["add a pattern that covers `none()`, or add a final `_` wildcard arm"],
       #|  facts: [],
       #|  suggestions: [],
       #|}

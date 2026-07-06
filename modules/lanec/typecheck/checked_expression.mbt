@@ -379,10 +379,12 @@ fn SemanticChecker::synthesize_checked_block(
     }
   }
   let checked_result = self.synthesize_checked_expr(next_scope, result)
-  self.check_hidden_type_escape(
-    opened_type_parameters,
-    checked_result.type_,
-    result.loc(),
+  ignore(
+    self.check_hidden_type_escape(
+      opened_type_parameters,
+      checked_result.type_,
+      result.loc(),
+    ),
   )
   effects.push(checked_result.effect)
   guard self.require_checked_expression(
@@ -539,7 +541,20 @@ fn SemanticChecker::check_checked_match(
       self.diagnostics.push({ kind: UnreachableMatchArm, loc: arm.loc })
     }
     matrix.add(pattern)
-    let checked_body = self.check_checked_expr(arm_scope, arm.body, expected)
+    let opened_type_parameters = pattern.opened_type_parameters()
+    let checked_body = if opened_type_parameters.is_empty() {
+      self.check_checked_expr(arm_scope, arm.body, expected)
+    } else {
+      let synthesized = self.synthesize_checked_expr(arm_scope, arm.body)
+      if !self.check_hidden_type_escape(
+          opened_type_parameters,
+          synthesized.type_,
+          arm.body.loc(),
+        ) {
+        self.expect_type(expected, synthesized.type_, arm.body.loc())
+      }
+      synthesized
+    }
     match
       self.require_checked_expression(checked_body, arm.body.loc(), "match arm") {
       Some(body) => {
@@ -551,7 +566,13 @@ fn SemanticChecker::check_checked_match(
   }
   if !matrix.is_exhaustive(self.declarations, checked_scrutinee.type_) {
     self.diagnostics.push({
-      kind: NonExhaustiveMatch(checked_scrutinee.type_),
+      kind: NonExhaustiveMatch(
+        type_=checked_scrutinee.type_,
+        witness=matrix.missing_witness(
+          self.declarations,
+          checked_scrutinee.type_,
+        ),
+      ),
       loc,
     })
   }
@@ -601,10 +622,12 @@ fn SemanticChecker::synthesize_checked_match(
     }
     matrix.add(pattern)
     let checked_body = self.synthesize_checked_expr(arm_scope, arm.body)
-    self.check_hidden_type_escape(
-      pattern.opened_type_parameters(),
-      checked_body.type_,
-      arm.body.loc(),
+    ignore(
+      self.check_hidden_type_escape(
+        pattern.opened_type_parameters(),
+        checked_body.type_,
+        arm.body.loc(),
+      ),
     )
     if has_result {
       self.expect_type(result, checked_body.type_, arm.loc)
@@ -626,7 +649,13 @@ fn SemanticChecker::synthesize_checked_match(
   }
   if !matrix.is_exhaustive(self.declarations, checked_scrutinee.type_) {
     self.diagnostics.push({
-      kind: NonExhaustiveMatch(checked_scrutinee.type_),
+      kind: NonExhaustiveMatch(
+        type_=checked_scrutinee.type_,
+        witness=matrix.missing_witness(
+          self.declarations,
+          checked_scrutinee.type_,
+        ),
+      ),
       loc,
     })
   }

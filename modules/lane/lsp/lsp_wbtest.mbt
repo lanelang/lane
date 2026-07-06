@@ -882,40 +882,27 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
     abort("expected generic operator conflict without cascaded diagnostics")
   }
   let diagnostics = result.diagnostics.filter(fn(diagnostic) {
-    diagnostic.code == Some("E3010")
+    diagnostic.code == Some("E3006")
   })
   guard diagnostics.length() == 1 else {
-    abort("expected one generic operator conflict diagnostic")
+    abort("expected one type mismatch diagnostic")
   }
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(compile_diagnostic_json(diagnostics[0], sources), content={
     "severity": 1,
-    "message": "conflicting generic arguments for this call\ngeneric parameter `T` was inferred as `Int` and `Bool`",
+    "message": "type mismatch\nexpected `Int`, found `Bool`",
     "source": "lane",
-    "code": "E3010",
+    "code": "E3006",
     "range": {
       "start": { "line": 8, "character": 22 },
       "end": { "line": 8, "character": 26 },
     },
     "data": {
       "notes": [
-        "Lane infers generic arguments only from the adjacent call arguments and expected result type",
+        "Lane does not insert implicit conversions between different types",
       ],
       "helps": [
-        "make every use of generic parameter `T` agree, or pass explicit generic arguments",
-      ],
-      "facts": [
-        { "name": "generic parameter", "value": "`T`", "hasSpan": true },
-        {
-          "name": "previous inferred argument",
-          "value": "`Int`",
-          "hasSpan": true,
-        },
-        {
-          "name": "conflicting inferred argument",
-          "value": "`Bool`",
-          "hasSpan": true,
-        },
+        "make this argument agree with the type inferred earlier, or pass explicit generic arguments",
       ],
     },
   })

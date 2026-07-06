@@ -11,6 +11,8 @@ priv struct ContextualOffer {
   path : Array[FieldSymbolId]
   expression : @desugar.DesugaredExpr
   type_ : @types.Type
+  source_id : String?
+  loc : SourceSpan
 }
 
 ///|
@@ -128,6 +130,18 @@ fn SemanticChecker::offer_symbol(
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
+  self.offer_symbol_with_source_id(offers, symbol, type_, None, loc)
+}
+
+///|
+fn SemanticChecker::offer_symbol_with_source_id(
+  self : SemanticChecker,
+  offers : Array[ContextualOffer],
+  symbol : ValueSymbolId,
+  type_ : @types.Type,
+  source_id : String?,
+  loc : SourceSpan,
+) -> Unit {
   let name = match self.source.symbols.value_metadata(symbol) {
     Some(metadata) => metadata.name
     None => "<unknown>"
@@ -137,7 +151,7 @@ fn SemanticChecker::offer_symbol(
     reference=Symbol(symbol),
     loc~,
   )
-  self.offer_expression(offers, symbol, [], expression, type_, loc)
+  self.offer_expression(offers, symbol, [], expression, type_, source_id, loc)
 }
 
 ///|
@@ -148,12 +162,51 @@ fn SemanticChecker::offer_expression(
   path : Array[FieldSymbolId],
   expression : @desugar.DesugaredExpr,
   type_ : @types.Type,
+  source_id : String?,
   loc : SourceSpan,
 ) -> Unit {
   if !contains_contextual_offer(offers, root, path) {
-    offers.push({ root, path, expression, type_ })
+    offers.push({ root, path, expression, type_, source_id, loc })
   }
-  self.offer_forwarding_fields(offers, root, path, expression, type_, loc)
+  self.offer_forwarding_fields(
+    offers, root, path, expression, type_, source_id, loc,
+  )
+}
+
+///|
+fn SemanticChecker::contextual_offer_diagnostic_candidate(
+  self : SemanticChecker,
+  offer : ContextualOffer,
+) -> ContextualOfferDiagnosticCandidate {
+  {
+    name: self.contextual_offer_name(offer),
+    type_: offer.type_,
+    source_id: offer.source_id,
+    loc: offer.loc,
+  }
+}
+
+///|
+fn SemanticChecker::contextual_offer_name(
+  self : SemanticChecker,
+  offer : ContextualOffer,
+) -> String {
+  let root = match self.source.symbols.value_metadata(offer.root) {
+    Some(metadata) => metadata.name
+    None => "<unknown>"
+  }
+  if offer.path.is_empty() {
+    return root
+  }
+  let parts = [root]
+  for field in offer.path {
+    let name = match self.source.symbols.field_metadata(field) {
+      Some(metadata) => metadata.name
+      None => "<unknown>"
+    }
+    parts.push(name)
+  }
+  parts.join(".")
 }
 
 ///|
@@ -191,6 +244,7 @@ fn SemanticChecker::offer_forwarding_fields(
   path : Array[FieldSymbolId],
   expression : @desugar.DesugaredExpr,
   type_ : @types.Type,
+  source_id : String?,
   loc : SourceSpan,
 ) -> Unit {
   guard type_.decompose_nominal() is Some((owner, arguments)) else { return }
@@ -210,7 +264,7 @@ fn SemanticChecker::offer_forwarding_fields(
         loc~,
       )
       self.offer_expression(
-        offers, root, field_path, field_expr, field_type, loc,
+        offers, root, field_path, field_expr, field_type, source_id, loc,
       )
     }
   }

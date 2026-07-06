@@ -301,7 +301,9 @@ fn SemanticChecker::contextual_offer_expr(
       self.diagnostics.push({
         kind: AmbiguousContextualOffer(
           expected~,
-          candidates=matches.map(fn(offer) { offer.type_ }),
+          candidates=matches.map(fn(offer) {
+            self.contextual_offer_diagnostic_candidate(offer)
+          }),
         ),
         loc,
       })

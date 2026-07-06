@@ -812,7 +812,7 @@ test "typecheck reports ambiguous contextual offer" {
       #|    let answer#3 : Int
       #|  }
       #|  diagnostics {
-      #|    ambiguous_contextual_offer type#0[Int] candidates=2 @ 10:24-10:25
+      #|    ambiguous_contextual_offer type#0[Int] candidates=[add_a, add_b] @ 10:24-10:25
       #|  }
       #|}
     ),
@@ -1835,7 +1835,7 @@ test "typecheck reports conflicting generic argument inference" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|generic_argument_inference_failed choose conflict A previous=Int actual=Bool @ 7:20-7:28
+      #|generic_argument_inference_failed choose conflict A previous=Int actual=Bool @ 7:23-7:27
     ),
   )
 }
@@ -2083,7 +2083,7 @@ test "typecheck existential enum pattern checks payload under opened witness" {
   inspect(
     @prettyprinter.render(result.diagnostics[0], width=100),
     content=(
-      #|type_mismatch expected=Int actual=tparam#1 @ 7:31-7:36
+      #|hidden_type_escape tparam#1 @ 7:31-7:36
     ),
   )
 }
@@ -2191,7 +2191,7 @@ test "typecheck existential struct pattern checks field under opened witness" {
   inspect(
     @prettyprinter.render(result.diagnostics[0], width=100),
     content=(
-      #|type_mismatch expected=Int actual=tparam#1 @ 8:25-8:28
+      #|hidden_type_escape tparam#1 @ 8:25-8:28
     ),
   )
 }
@@ -2943,7 +2943,7 @@ test "typecheck reports non-exhaustive bool match" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|non_exhaustive_match Bool @ 3:15-5:4
+      #|non_exhaustive_match Bool missing=`false` @ 3:15-5:4
     ),
   )
 }
@@ -2987,7 +2987,7 @@ test "typecheck reports non-exhaustive nested enum patterns" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|non_exhaustive_match type#0[type#0[Int]] @ 7:15-10:4
+      #|non_exhaustive_match type#0[type#0[Int]] missing=`some(some(_))` @ 7:15-10:4
     ),
   )
 }

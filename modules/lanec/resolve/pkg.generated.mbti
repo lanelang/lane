@@ -3,6 +3,7 @@ package "Milky2018/lanec/resolve"
 
 import {
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/module_interface",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
@@ -25,6 +26,7 @@ pub(all) struct ResolveDiagnostic {
   kind : ResolveDiagnosticKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @diagnostic.ToCompilerDiagnostic for ResolveDiagnostic
 pub impl @prettyprinter.Pretty for ResolveDiagnostic
 
 pub(all) enum ResolveDiagnosticKind {

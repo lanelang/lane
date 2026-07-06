@@ -9,9 +9,21 @@ import {
 }
 
 // Values
+pub fn compiler_diagnostic(String, span~ : @basic.SourceSpan?, severity~ : CompilerDiagnosticSeverity, code~ : String?, labels~ : Array[CompilerDiagnosticLabel], notes~ : Array[String], helps~ : Array[String], facts? : Array[CompilerDiagnosticFact], suggestions? : Array[CompilerDiagnosticSuggestion], context? : DiagnosticContext) -> CompilerDiagnostic
+
+pub fn compiler_error(String, span~ : @basic.SourceSpan?, code~ : String?, labels~ : Array[CompilerDiagnosticLabel], notes~ : Array[String], helps~ : Array[String], facts? : Array[CompilerDiagnosticFact], suggestions? : Array[CompilerDiagnosticSuggestion], context? : DiagnosticContext) -> CompilerDiagnostic
+
 pub fn compiler_local_span(@basic.SourceSpan) -> CompilerSourceSpan
 
+pub fn compiler_primary_label(@basic.SourceSpan, String) -> CompilerDiagnosticLabel
+
+pub fn compiler_primary_labels(@basic.SourceSpan?, String) -> Array[CompilerDiagnosticLabel]
+
+pub fn compiler_secondary_label(@basic.SourceSpan, String) -> CompilerDiagnosticLabel
+
 pub fn compiler_source_span(String, @basic.SourceSpan) -> CompilerSourceSpan
+
+pub fn compiler_warning(String, span~ : @basic.SourceSpan?, code~ : String?, labels~ : Array[CompilerDiagnosticLabel], notes~ : Array[String], helps~ : Array[String], facts? : Array[CompilerDiagnosticFact], suggestions? : Array[CompilerDiagnosticSuggestion], context? : DiagnosticContext) -> CompilerDiagnostic
 
 // Errors
 
@@ -89,7 +101,15 @@ pub(all) enum CompilerSourceSpan {
 } derive(Eq, @debug.Debug)
 pub fn CompilerSourceSpan::source_id(Self) -> String?
 
+pub(all) struct DiagnosticContext {
+  source_id : String?
+} derive(Eq, @debug.Debug)
+pub fn DiagnosticContext::DiagnosticContext(source_id? : String) -> Self
+
 // Type aliases
 
 // Traits
+pub(open) trait ToCompilerDiagnostic {
+  fn to_compiler_diagnostic(Self, DiagnosticContext) -> CompilerDiagnostic
+}
 

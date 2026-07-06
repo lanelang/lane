@@ -302,7 +302,11 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       expected.pretty() +
       space +
-      text("candidates=\{candidates.length()}")
+      text(
+        "candidates=[" +
+        candidates.map(fn(candidate) { candidate.name }).join(", ") +
+        "]",
+      )
     TypeAliasCycle(name~) => text("type_alias_cycle") + space + text(name)
     KindMismatch(expected~, actual~) =>
       text("kind_mismatch") +
@@ -345,8 +349,13 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     DuplicateTypeParameter(name~) =>
       text("duplicate_type_parameter") + space + text(name)
     NotAStruct(type_) => text("not_a_struct") + space + type_.pretty()
-    NonExhaustiveMatch(type_) =>
-      text("non_exhaustive_match") + space + type_.pretty()
+    NonExhaustiveMatch(type_~, witness~) => {
+      let doc = text("non_exhaustive_match") + space + type_.pretty()
+      match witness {
+        Some(witness) => doc + space + text("missing=`\{witness}`")
+        None => doc
+      }
+    }
     UnreachableMatchArm => text("unreachable_match_arm")
     RefutablePatternLet(type_) =>
       text("refutable_pattern_let") + space + type_.pretty()

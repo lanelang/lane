@@ -626,7 +626,7 @@ fn TypeExpressionChecker::synthesize_type(
             ),
             loc,
           })
-          { type_: Apply(callee_result.type_, checked_arguments), kind: Type }
+          { type_: Error, kind: Type }
         }
       }
     }

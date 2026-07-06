@@ -401,8 +401,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `=`",
-          "expected one of: `:`"
+          "declaration needs a type annotation",
+          "write `: Type` before `=`"
         ]
       }
     },
@@ -425,8 +425,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `=`",
-          "expected one of: `:`"
+          "declaration needs a type annotation",
+          "write `: Type` before `=`"
         ]
       }
     },
@@ -437,7 +437,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `}`"
+          "block needs a result expression",
+          "this block has no final expression"
         ]
       }
     },
@@ -448,7 +449,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect identifier `x`"
+          "block result expression must be last",
+          "this appears after the block's final expression"
         ]
       }
     },
@@ -470,7 +472,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect end of file"
+          "variant constructor needs parentheses",
+          "write empty parentheses after this payloadless constructor"
         ]
       }
     },
@@ -493,7 +496,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `.`"
+          "struct spread is not supported",
+          "`..` spread is not part of Lane struct literals"
         ]
       }
     },
@@ -504,8 +508,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `=`",
-          "expected one of: `!`, `{`, `[`, `.`, `->`"
+          "function body must be a block",
+          "write the function body as `{ ... }`, not after `=`"
         ]
       }
     },
@@ -516,8 +520,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `{`",
-          "expected one of: `->`"
+          "function declaration needs a result type",
+          "write `-> Type` before the function body"
         ]
       }
     },
@@ -528,7 +532,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `fn`"
+          "block result expression must be last",
+          "this appears after the block's final expression"
         ]
       }
     },
@@ -575,8 +580,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `=`",
-          "expected one of: `->`"
+          "tuple types are not supported",
+          "parenthesized types are parsed as function types and need `->`"
         ]
       }
     },
@@ -598,9 +603,9 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3006]",
-          "type mismatch",
-          "expected `Int`, found `T`"
+          "error[E3107]",
+          "hidden existential type escapes its scope",
+          "this expression exposes hidden type `T`"
         ]
       }
     },
@@ -612,6 +617,8 @@
         "contains": [
           "error[E3013]",
           "ambiguous contextual offer",
+          "candidate `custom_add_ops` has type `Add[Int]`",
+          "candidate `int_add_ops` has type `Add[Int]`",
           "pass the argument explicitly or keep only one matching visible offer"
         ]
       }
@@ -646,8 +653,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `[`",
-          "expected one of: `=`"
+          "type alias has one parameter list",
+          "put every type parameter in the first `[...]` list"
         ]
       }
     },
@@ -681,8 +688,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `}`",
-          "expected one of: `else`"
+          "`if` expression needs an `else` branch",
+          "add an `else` branch before the block ends"
         ]
       }
     },
@@ -693,7 +700,8 @@
       "expect": {
         "contains": [
           "error[E3200]",
-          "non-exhaustive match"
+          "non-exhaustive match",
+          "add a pattern that covers `some(some(_))`"
         ]
       }
     },
@@ -728,7 +736,8 @@
       "expect": {
         "contains": [
           "error[E1100]",
-          "the parser did not expect `::`"
+          "variant patterns do not use leading `::`",
+          "write the variant pattern without leading `::`"
         ]
       }
     },

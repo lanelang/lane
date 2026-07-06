@@ -44,7 +44,7 @@ pub fn typecheck_source_file(
   {
     declarations: checker.declarations,
     values: { values: checker.values },
-    diagnostics: checker.diagnostics,
+    diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
   }
 }
 
@@ -69,7 +69,7 @@ fn SemanticChecker::seed_imported_top_level_value_types(
 ) -> Unit {
   for module_ in imported_environment.modules {
     for value in module_.values {
-      self.seed_imported_top_level_value_type(value)
+      self.seed_imported_top_level_value_type(value, module_.source_id)
     }
   }
 }
@@ -78,6 +78,7 @@ fn SemanticChecker::seed_imported_top_level_value_types(
 fn SemanticChecker::seed_imported_top_level_value_type(
   self : SemanticChecker,
   value : @module_interface.ModuleInterfaceValue,
+  source_id : String?,
 ) -> Unit {
   let parameters = value.parameters.map(fn(parameters) {
     parameters.map(checked_value_parameter_from_interface)
@@ -108,11 +109,18 @@ fn SemanticChecker::seed_imported_top_level_value_type(
         }),
       )
     Offer => {
-      self.offer_symbol(self.offers, value.symbol, value.type_, value.loc)
-      self.offer_symbol(
+      self.offer_symbol_with_source_id(
+        self.offers,
+        value.symbol,
+        value.type_,
+        source_id,
+        value.loc,
+      )
+      self.offer_symbol_with_source_id(
         self.ordered_offers,
         value.symbol,
         value.type_,
+        source_id,
         value.loc,
       )
       self.values.push(

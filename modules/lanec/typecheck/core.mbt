@@ -34,6 +34,14 @@ pub(all) struct CheckedValueEnvironment {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct ContextualOfferDiagnosticCandidate {
+  name : String
+  type_ : @types.Type
+  source_id : String?
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) enum CheckedTypeDeclaration {
   Struct(CheckedStructDeclaration)
   Enum(CheckedEnumDeclaration)
@@ -190,7 +198,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   MissingContextualOffer(expected~ : @types.Type)
   AmbiguousContextualOffer(
     expected~ : @types.Type,
-    candidates~ : Array[@types.Type]
+    candidates~ : Array[ContextualOfferDiagnosticCandidate]
   )
   TypeAliasCycle(name~ : String)
   KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)
@@ -209,7 +217,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   DuplicateTypeMember(name~ : String)
   DuplicateTypeParameter(name~ : String)
   NotAStruct(@types.Type)
-  NonExhaustiveMatch(@types.Type)
+  NonExhaustiveMatch(type_~ : @types.Type, witness~ : String?)
   UnreachableMatchArm
   RefutablePatternLet(@types.Type)
   MixedHandlerEffects

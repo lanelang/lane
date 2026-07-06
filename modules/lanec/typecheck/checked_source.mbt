@@ -57,7 +57,11 @@ pub fn typecheck_checked_source_file_with_imported_environment(
       Some(checker.module_interface(checked_source))
     _ => None
   }
-  { source: checked_source, module_interface, diagnostics: checker.diagnostics }
+  {
+    source: checked_source,
+    module_interface,
+    diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
+  }
 }
 
 ///|

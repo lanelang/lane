@@ -3,6 +3,7 @@ package "Milky2018/lanec/parser"
 
 import {
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/lexer",
   "Milky2018/lanec/syntax",
   "moonbitlang/core/debug",
@@ -24,6 +25,7 @@ pub(all) struct ParseError {
   kind : ParseErrorKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @diagnostic.ToCompilerDiagnostic for ParseError
 
 pub(all) enum ParseErrorKind {
   UnexpectedToken(TokenSummary, Array[ExpectedSyntax])
@@ -31,6 +33,11 @@ pub(all) enum ParseErrorKind {
   EmptyGenericArgumentList
   EmptyTypeParameterList
 } derive(Eq, @debug.Debug)
+pub fn ParseErrorKind::diagnostic_code(Self) -> String
+pub fn ParseErrorKind::diagnostic_helps(Self) -> Array[String]
+pub fn ParseErrorKind::diagnostic_label(Self) -> String
+pub fn ParseErrorKind::diagnostic_notes(Self) -> Array[String]
+pub fn ParseErrorKind::diagnostic_title(Self) -> String
 
 pub struct ParseResult {
   source : @syntax.SourceFile?

@@ -61,7 +61,7 @@ test "explore_json returns diagnostics for invalid source" {
       #|          {
       #|            "source": String("lane"),
       #|            "severity": String("error"),
-      #|            "message": String("unexpected token"),
+      #|            "message": String("declaration needs a type annotation"),
       #|            "range": Object(
       #|              {
       #|                "start": Object({ "line": Number(2), "column": Number(16), "offset": Number(27) }),
@@ -74,7 +74,7 @@ test "explore_json returns diagnostics for invalid source" {
       #|              [
       #|                Object(
       #|                  {
-      #|                    "message": String("the parser did not expect `=`"),
+      #|                    "message": String("write `: Type` before `=`"),
       #|                    "style": String("primary"),
       #|                    "range": Object(
       #|                      {
@@ -87,8 +87,8 @@ test "explore_json returns diagnostics for invalid source" {
       #|                ),
       #|              ],
       #|            ),
-      #|            "notes": Array([String("expected one of: `:`")]),
-      #|            "helps": Array([String("rewrite this position so it starts with one of: `:`")]),
+      #|            "notes": Array([String("top-level declarations and local `let` bindings use `name : Type = expression`")]),
+      #|            "helps": Array([String("write the binding as `name : Type = expression`")]),
       #|          },
       #|        ),
       #|      ],

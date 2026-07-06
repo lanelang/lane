@@ -9,6 +9,7 @@ priv struct GenericArgumentInference {
   parameters : Array[@types.TypeParameter]
   bindings : Array[GenericArgumentBinding]
   mut failure : GenericArgumentInferenceFailure?
+  mut failure_loc : SourceSpan?
 }
 
 ///|
@@ -65,7 +66,7 @@ priv struct ExplicitGenericApplicationResult {
 fn GenericArgumentInference::GenericArgumentInference(
   parameters : Array[@types.TypeParameter],
 ) -> GenericArgumentInference {
-  { parameters, bindings: [], failure: None }
+  { parameters, bindings: [], failure: None, failure_loc: None }
 }
 
 ///|
@@ -77,6 +78,16 @@ fn GenericArgumentInference::fail(
     self.failure = Some(failure)
   }
   false
+}
+
+///|
+fn GenericArgumentInference::set_failure_loc_if_missing(
+  self : GenericArgumentInference,
+  loc : SourceSpan,
+) -> Unit {
+  if self.failure_loc is None {
+    self.failure_loc = Some(loc)
+  }
 }
 
 ///|
@@ -627,6 +638,7 @@ fn SemanticChecker::infer_application_generic_arguments(
     expected_result is Some(expected) {
     if !inference.collect(template, expected) {
       inference_failed = true
+      inference.set_failure_loc_if_missing(loc)
     }
   }
   let count = if parameter_templates.length() < argument_expressions.length() {
@@ -642,6 +654,7 @@ fn SemanticChecker::infer_application_generic_arguments(
       is Some(actual) {
       if !inference.collect(parameter_templates[index], actual) {
         inference_failed = true
+        inference.set_failure_loc_if_missing(argument_expressions[index].loc())
       }
     }
   }
@@ -650,6 +663,7 @@ fn SemanticChecker::infer_application_generic_arguments(
     expected_result is Some(expected) {
     if !inference.collect(template, expected) {
       inference_failed = true
+      inference.set_failure_loc_if_missing(loc)
     }
   }
   guard !inference_failed else {
@@ -684,7 +698,10 @@ fn SemanticChecker::report_generic_argument_inference_failure(
   }
   self.diagnostics.push({
     kind: GenericArgumentInferenceFailed(label~, failure~),
-    loc,
+    loc: match inference.failure_loc {
+      Some(failure_loc) => failure_loc
+      None => loc
+    },
   })
 }
 

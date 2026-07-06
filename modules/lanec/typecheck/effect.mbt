@@ -140,9 +140,12 @@ fn TypeExpressionChecker::expand_effect_alias(
         self.diagnostics,
         type_alias.type_parameters,
       )
-      let (type_substitution, effect_substitution) = self.check_effect_alias_arguments(
+      let (type_substitution, effect_substitution, has_error) = self.check_effect_alias_arguments(
         checked_parameters, arguments, name, loc,
       )
+      if has_error {
+        return Empty
+      }
       match type_alias.body {
         EffectBody(effect) => {
           let expanded = next.check_effect(effect).substitute(type_substitution)
@@ -163,12 +166,15 @@ fn TypeExpressionChecker::expand_effect_alias(
         Some(type_alias) =>
           match type_alias.body {
             EffectBody(effect) => {
-              let (type_substitution, effect_substitution) = self.check_effect_alias_arguments(
+              let (type_substitution, effect_substitution, has_error) = self.check_effect_alias_arguments(
                 type_alias.type_parameters,
                 arguments,
                 name,
                 loc,
               )
+              if has_error {
+                return Empty
+              }
               let expanded = effect.substitute(type_substitution)
               expanded
               .substitute_effect_parameters(effect_substitution)
@@ -200,7 +206,8 @@ fn TypeExpressionChecker::check_effect_alias_arguments(
   arguments : Array[@resolve.ResolvedEffectAliasArgument],
   name : String,
   loc : SourceSpan,
-) -> (@types.TypeSubstitution, EffectSubstitution) {
+) -> (@types.TypeSubstitution, EffectSubstitution, Bool) {
+  let mut has_error = false
   if parameters.length() != arguments.length() {
     self.diagnostics.push({
       kind: GenericArgumentArityMismatch(
@@ -210,22 +217,26 @@ fn TypeExpressionChecker::check_effect_alias_arguments(
       ),
       loc,
     })
+    has_error = true
   }
   let type_substitution = @types.TypeSubstitution::TypeSubstitution()
   let effect_substitution = EffectSubstitution::EffectSubstitution()
   for index in 0..<arguments.length() {
     if index < parameters.length() {
-      self.check_effect_alias_argument_for_parameter(
-        parameters[index],
-        arguments[index],
-        type_substitution,
-        effect_substitution,
-      )
+      if self.check_effect_alias_argument_for_parameter(
+          parameters[index],
+          arguments[index],
+          type_substitution,
+          effect_substitution,
+        ) {
+        has_error = true
+      }
     } else {
       self.check_effect_alias_argument(arguments[index])
+      has_error = true
     }
   }
-  (type_substitution, effect_substitution)
+  (type_substitution, effect_substitution, has_error)
 }
 
 ///|
@@ -235,26 +246,32 @@ fn TypeExpressionChecker::check_effect_alias_argument_for_parameter(
   argument : @resolve.ResolvedEffectAliasArgument,
   type_substitution : @types.TypeSubstitution,
   effect_substitution : EffectSubstitution,
-) -> Unit {
+) -> Bool {
   match (parameter.kind, argument) {
-    (Effect, EffectArgument(effect)) =>
+    (Effect, EffectArgument(effect)) => {
       effect_substitution.insert(parameter.id, self.check_effect(effect))
+      false
+    }
     (Effect, TypeArgument(type_)) => {
       let result = self.synthesize_type(type_)
       self.diagnostics.push({
         kind: KindMismatch(expected=Effect, actual=result.kind),
         loc: resolved_type_loc(type_),
       })
+      true
     }
     (expected, TypeArgument(type_)) => {
       let result = self.synthesize_type(type_)
+      let mut has_error = false
       if result.kind != expected {
         self.diagnostics.push({
           kind: KindMismatch(expected~, actual=result.kind),
           loc: resolved_type_loc(type_),
         })
+        has_error = true
       }
       type_substitution.insert(parameter.id, result.type_.normalize())
+      has_error
     }
     (expected, EffectArgument(effect)) => {
       ignore(self.check_effect(effect))
@@ -262,6 +279,7 @@ fn TypeExpressionChecker::check_effect_alias_argument_for_parameter(
         kind: KindMismatch(expected~, actual=Effect),
         loc: resolved_effect_alias_argument_loc(argument),
       })
+      true
     }
   }
 }

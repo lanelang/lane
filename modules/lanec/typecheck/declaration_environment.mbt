@@ -161,9 +161,16 @@ fn CheckedStructDeclaration::existential_substitution(
   witnesses : Array[@checked.CheckedStructTypeWitness],
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
+  let seen : Array[TypeMemberSymbolId] = []
   for witness in witnesses {
     if self.type_member(witness.symbol) is Some(type_member) {
+      seen.push(witness.symbol)
       substitution.insert(type_member.type_parameter.id, witness.type_)
+    }
+  }
+  for type_member in self.type_members {
+    if !seen.contains(type_member.symbol) {
+      substitution.insert(type_member.type_parameter.id, Error)
     }
   }
   substitution

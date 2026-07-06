@@ -48,6 +48,23 @@ fn PatternMatrix::is_row_exhaustive(
 }
 
 ///|
+fn PatternMatrix::missing_witness(
+  self : PatternMatrix,
+  declarations : CheckedDeclarationEnvironment,
+  type_ : @types.Type,
+) -> String? {
+  if type_ is Error {
+    return None
+  }
+  for candidate in coverage_candidates(declarations, type_, 6) {
+    if matrix_useful(declarations, self.rows, [candidate.pattern], [type_]) {
+      return Some(candidate.witness.to_text())
+    }
+  }
+  None
+}
+
+///|
 fn SemanticChecker::check_match(
   self : SemanticChecker,
   scope : TypeScope,
@@ -80,10 +97,28 @@ fn SemanticChecker::check_match(
       self.diagnostics.push({ kind: UnreachableMatchArm, loc: arm.loc })
     }
     matrix.add(pattern)
-    self.check_expr(arm_scope, arm.body, expected)
+    let opened_type_parameters = pattern.opened_type_parameters()
+    if opened_type_parameters.is_empty() {
+      self.check_expr(arm_scope, arm.body, expected)
+    } else {
+      let arm_type = self.synthesize_expr(arm_scope, arm.body)
+      if !self.check_hidden_type_escape(
+          opened_type_parameters,
+          arm_type,
+          arm.body.loc(),
+        ) {
+        self.expect_type(expected, arm_type, arm.body.loc())
+      }
+    }
   }
   if !matrix.is_exhaustive(self.declarations, scrutinee_type) {
-    self.diagnostics.push({ kind: NonExhaustiveMatch(scrutinee_type), loc })
+    self.diagnostics.push({
+      kind: NonExhaustiveMatch(
+        type_=scrutinee_type,
+        witness=matrix.missing_witness(self.declarations, scrutinee_type),
+      ),
+      loc,
+    })
   }
 }
 
@@ -121,10 +156,12 @@ fn SemanticChecker::synthesize_match(
     }
     matrix.add(pattern)
     let arm_type = self.synthesize_expr(arm_scope, arm.body)
-    self.check_hidden_type_escape(
-      pattern.opened_type_parameters(),
-      arm_type,
-      arm.body.loc(),
+    ignore(
+      self.check_hidden_type_escape(
+        pattern.opened_type_parameters(),
+        arm_type,
+        arm.body.loc(),
+      ),
     )
     if has_result {
       self.expect_type(result, arm_type, arm.loc)
@@ -137,7 +174,13 @@ fn SemanticChecker::synthesize_match(
     self.diagnostics.push({ kind: EmptyMatchNeedsExpectedType, loc })
   }
   if !matrix.is_exhaustive(self.declarations, scrutinee_type) {
-    self.diagnostics.push({ kind: NonExhaustiveMatch(scrutinee_type), loc })
+    self.diagnostics.push({
+      kind: NonExhaustiveMatch(
+        type_=scrutinee_type,
+        witness=matrix.missing_witness(self.declarations, scrutinee_type),
+      ),
+      loc,
+    })
   }
   result
 }
@@ -782,6 +825,207 @@ priv enum MatrixConstructor {
 priv struct ConstructorSignature {
   tag : MatrixConstructor
   argument_types : Array[@types.Type]
+}
+
+///|
+priv struct CoverageCandidate {
+  pattern : @checked.CheckedPattern
+  witness : CoverageWitness
+}
+
+///|
+priv struct CoverageCandidateRow {
+  patterns : Array[@checked.CheckedPattern]
+  witnesses : Array[CoverageWitness]
+}
+
+///|
+priv struct CoverageWitnessField {
+  name : String
+  value : CoverageWitness
+}
+
+///|
+priv enum CoverageWitness {
+  Any
+  WitnessBool(Bool)
+  WitnessUnit
+  WitnessVariant(name~ : String, arguments~ : Array[CoverageWitness])
+  WitnessStruct(name~ : String, fields~ : Array[CoverageWitnessField])
+}
+
+///|
+fn coverage_candidates(
+  declarations : CheckedDeclarationEnvironment,
+  type_ : @types.Type,
+  depth : Int,
+) -> Array[CoverageCandidate] {
+  if depth <= 0 {
+    return [coverage_wildcard_candidate(type_)]
+  }
+  match type_ {
+    Error => []
+    Primitive(Bool) =>
+      [
+        {
+          pattern: Literal(literal=Bool(false), type_~, loc=SourceSpan::dummy()),
+          witness: WitnessBool(false),
+        },
+        {
+          pattern: Literal(literal=Bool(true), type_~, loc=SourceSpan::dummy()),
+          witness: WitnessBool(true),
+        },
+      ]
+    Primitive(Unit) =>
+      [
+        {
+          pattern: Literal(literal=Unit, type_~, loc=SourceSpan::dummy()),
+          witness: WitnessUnit,
+        },
+      ]
+    _ =>
+      match type_.decompose_nominal() {
+        Some((symbol, arguments)) =>
+          nominal_coverage_candidates(
+            declarations, symbol, arguments, type_, depth,
+          )
+        None => [coverage_wildcard_candidate(type_)]
+      }
+  }
+}
+
+///|
+fn nominal_coverage_candidates(
+  declarations : CheckedDeclarationEnvironment,
+  symbol : TypeSymbolId,
+  arguments : Array[@types.GenericArgument],
+  type_ : @types.Type,
+  depth : Int,
+) -> Array[CoverageCandidate] {
+  if declarations.checked_enum(symbol) is Some(declaration) {
+    return enum_coverage_candidates(
+      declarations, declaration, arguments, type_, depth,
+    )
+  }
+  if declarations.checked_struct(symbol) is Some(declaration) {
+    return struct_coverage_candidates(
+      declarations, declaration, arguments, type_, depth,
+    )
+  }
+  [coverage_wildcard_candidate(type_)]
+}
+
+///|
+fn enum_coverage_candidates(
+  declarations : CheckedDeclarationEnvironment,
+  declaration : CheckedEnumDeclaration,
+  arguments : Array[@types.GenericArgument],
+  type_ : @types.Type,
+  depth : Int,
+) -> Array[CoverageCandidate] {
+  let candidates = []
+  for variant in declaration.variants {
+    let payload_types = variant_payload_types(declaration, variant, arguments)
+    for row in coverage_candidate_rows(declarations, payload_types, depth - 1) {
+      candidates.push({
+        pattern: Variant(
+          symbol=variant.symbol,
+          generic_arguments=[],
+          arguments=row.patterns,
+          type_~,
+          loc=SourceSpan::dummy(),
+        ),
+        witness: WitnessVariant(name=variant.name, arguments=row.witnesses),
+      })
+    }
+  }
+  candidates
+}
+
+///|
+fn struct_coverage_candidates(
+  declarations : CheckedDeclarationEnvironment,
+  declaration : CheckedStructDeclaration,
+  arguments : Array[@types.GenericArgument],
+  type_ : @types.Type,
+  depth : Int,
+) -> Array[CoverageCandidate] {
+  let field_types = struct_field_types(declaration, arguments)
+  coverage_candidate_rows(declarations, field_types, depth - 1).map(fn(row) {
+    let fields : Array[@checked.CheckedStructPatternField] = []
+    for index in 0..<declaration.fields.length() {
+      fields.push({
+        symbol: declaration.fields[index].symbol,
+        name: declaration.fields[index].name,
+        pattern: row.patterns[index],
+        loc: SourceSpan::dummy(),
+      })
+    }
+    let witness_fields : Array[CoverageWitnessField] = []
+    for index in 0..<declaration.fields.length() {
+      witness_fields.push({
+        name: declaration.fields[index].name,
+        value: row.witnesses[index],
+      })
+    }
+    {
+      pattern: Struct(
+        symbol=declaration.symbol,
+        type_binders=[],
+        fields~,
+        type_~,
+        loc=SourceSpan::dummy(),
+      ),
+      witness: WitnessStruct(name=declaration.name, fields=witness_fields),
+    }
+  })
+}
+
+///|
+fn coverage_candidate_rows(
+  declarations : CheckedDeclarationEnvironment,
+  types : Array[@types.Type],
+  depth : Int,
+) -> Array[CoverageCandidateRow] {
+  if types.is_empty() {
+    return [{ patterns: [], witnesses: [] }]
+  }
+  let head_type = types[0]
+  let tail_types = type_tail(types)
+  let rows = []
+  for head in coverage_candidates(declarations, head_type, depth) {
+    for tail in coverage_candidate_rows(declarations, tail_types, depth) {
+      let patterns = [head.pattern]
+      patterns.append(tail.patterns)
+      let witnesses = [head.witness]
+      witnesses.append(tail.witnesses)
+      rows.push({ patterns, witnesses })
+    }
+  }
+  rows
+}
+
+///|
+fn coverage_wildcard_candidate(type_ : @types.Type) -> CoverageCandidate {
+  { pattern: wildcard_pattern(type_), witness: Any }
+}
+
+///|
+fn CoverageWitness::to_text(self : CoverageWitness) -> String {
+  match self {
+    Any => "_"
+    WitnessBool(value) => if value { "true" } else { "false" }
+    WitnessUnit => "()"
+    WitnessVariant(name~, arguments~) =>
+      "\{name}(\{arguments.map(fn(argument) { argument.to_text() }).join(", ")})"
+    WitnessStruct(name~, fields~) =>
+      "\{name}::{ \{fields.map(fn(field) { field.to_text() }).join(", ")} }"
+  }
+}
+
+///|
+fn CoverageWitnessField::to_text(self : CoverageWitnessField) -> String {
+  "\{self.name}: \{self.value.to_text()}"
 }
 
 ///|

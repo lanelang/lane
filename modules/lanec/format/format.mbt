@@ -2,6 +2,7 @@
 using @compiler_diag {
   type CompilerDiagnostic,
   type CompilerDiagnosticLabel,
+  compiler_error,
   compiler_local_span,
 }
 
@@ -189,105 +190,7 @@ fn lex_error_helps(error : @lexer.LexicalError) -> Array[String] {
 
 ///|
 fn parse_diagnostic(error : @parser.ParseError) -> CompilerDiagnostic {
-  let span = Some(error.loc)
-  diagnostic(
-    parse_error_title(error.kind),
-    span~,
-    code=Some(parse_error_code(error.kind)),
-    labels=[
-      {
-        span: compiler_local_span(error.loc),
-        message: parse_error_label(error.kind),
-        style: Primary,
-      },
-    ],
-    notes=parse_error_notes(error.kind),
-    helps=parse_error_helps(error.kind),
-  )
-}
-
-///|
-fn parse_error_code(error : @parser.ParseErrorKind) -> String {
-  match error {
-    UnexpectedToken(_, _) => "E1100"
-    UnexpectedEndOfInput(_) => "E1101"
-    EmptyGenericArgumentList => "E1102"
-    EmptyTypeParameterList => "E1103"
-  }
-}
-
-///|
-fn parse_error_title(error : @parser.ParseErrorKind) -> String {
-  match error {
-    UnexpectedToken(_, _) => "unexpected token"
-    UnexpectedEndOfInput(_) => "unexpected end of input"
-    EmptyGenericArgumentList => "empty generic argument list"
-    EmptyTypeParameterList => "empty type parameter list"
-  }
-}
-
-///|
-fn parse_error_label(error : @parser.ParseErrorKind) -> String {
-  match error {
-    UnexpectedToken(token, _) => "the parser did not expect " + token.label
-    UnexpectedEndOfInput(_) =>
-      "the source file ended while parsing this construct"
-    EmptyGenericArgumentList =>
-      "explicit generic argument lists must contain at least one argument"
-    EmptyTypeParameterList =>
-      "generic parameter lists must contain at least one parameter"
-  }
-}
-
-///|
-fn parse_error_notes(error : @parser.ParseErrorKind) -> Array[String] {
-  match error {
-    UnexpectedToken(_, expected) | UnexpectedEndOfInput(expected) =>
-      if expected.is_empty() {
-        []
-      } else {
-        ["expected one of: " + expected_list(expected)]
-      }
-    EmptyGenericArgumentList =>
-      [
-        "use explicit generic arguments only when at least one argument is provided",
-      ]
-    EmptyTypeParameterList =>
-      ["omit the brackets when a declaration has no generic parameters"]
-  }
-}
-
-///|
-fn parse_error_helps(error : @parser.ParseErrorKind) -> Array[String] {
-  match error {
-    UnexpectedToken(_, expected) =>
-      if expected.is_empty() {
-        ["remove the unexpected token or rewrite the surrounding expression"]
-      } else {
-        [
-          "rewrite this position so it starts with one of: " +
-          expected_list(expected),
-        ]
-      }
-    UnexpectedEndOfInput(expected) =>
-      if expected.is_empty() {
-        ["finish the incomplete construct before the end of file"]
-      } else {
-        [
-          "add the missing syntax before the end of file; expected one of: " +
-          expected_list(expected),
-        ]
-      }
-    EmptyGenericArgumentList =>
-      ["remove the empty `[]` or provide at least one generic argument"]
-    EmptyTypeParameterList =>
-      ["remove the empty `[]` or add a parameter name such as `[A]`"]
-  }
-}
-
-///|
-fn expected_list(expected : Array[@parser.ExpectedSyntax]) -> String {
-  expected.map(fn(item) { item.label }).join(", ")
+  error.to_compiler_diagnostic(DiagnosticContext())
 }
 
 ///|
@@ -299,16 +202,5 @@ fn diagnostic(
   notes~ : Array[String],
   helps~ : Array[String],
 ) -> CompilerDiagnostic {
-  {
-    source_id: None,
-    message,
-    span: span.map(compiler_local_span),
-    severity: Error,
-    code,
-    labels,
-    notes,
-    helps,
-    facts: [],
-    suggestions: [],
-  }
+  compiler_error(message, span~, code~, labels~, notes~, helps~)
 }

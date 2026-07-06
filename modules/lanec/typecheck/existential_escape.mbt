@@ -4,9 +4,12 @@ fn SemanticChecker::check_hidden_type_escape(
   opened : Array[TypeParameterId],
   type_ : @types.Type,
   loc : SourceSpan,
-) -> Unit {
+) -> Bool {
   if type_.mentions_any_type_parameter(opened) {
     self.diagnostics.push({ kind: HiddenTypeEscape(type_~), loc })
+    true
+  } else {
+    false
   }
 }
 
