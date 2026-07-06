@@ -2432,6 +2432,83 @@ test "typecheck reports kind mismatch for higher-kinded qualified variant type a
 }
 
 ///|
+test "typecheck infers higher-kinded generic argument from application spine" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[T] {
+      #|  some(T)
+      #|  none()
+      #|}
+      #|fn[F : [Type] -> Type] consume(value : F[Int]) -> Int {
+      #|  0
+      #|}
+      #|fn use() -> Int {
+      #|  consume(Option::some(1))
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck infers higher-kinded and ordinary arguments from application spine" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[T] {
+      #|  some(T)
+      #|  none()
+      #|}
+      #|fn[F : [Type] -> Type, A] select(value : F[A], fallback : A) -> A {
+      #|  fallback
+      #|}
+      #|let picked : Int = select(Option::some(1), 0)
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck forwards outer higher-kinded generic argument" {
+  let result = expect_typecheck_result(
+    (
+      #|fn[F : [Type] -> Type] consume(value : F[Int]) -> Int {
+      #|  0
+      #|}
+      #|fn[F : [Type] -> Type] forward(value : F[Int]) -> Int {
+      #|  consume(value)
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck does not synthesize higher-order lambda during generic inference" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Pair[A, B] {
+      #|  pair(A, B)
+      #|}
+      #|fn[F : [Type] -> Type] consume(value : F[Int]) -> Int {
+      #|  0
+      #|}
+      #|fn bad(value : Pair[Int, Bool]) -> Int {
+      #|  consume(value)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[generic_argument_inference_failed consume constraint_mismatch expected=tparam#2 actual=type#0]
+    ),
+  )
+}
+
+///|
 test "typecheck defaults unannotated alias header parameter kind to Type" {
   let result = expect_typecheck_result(
     (

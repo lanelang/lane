@@ -214,6 +214,7 @@ fn SemanticChecker::check_top_level_function(
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> Unit {
   let scope = self.root_scope()
+  scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
   for parameter in declaration.parameters {
     let type_ = self.check_type(parameter.type_)
     scope.bind(parameter.symbol, type_)

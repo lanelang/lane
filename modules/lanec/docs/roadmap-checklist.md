@@ -115,7 +115,7 @@ ordinary local typing has determined their target types.
 - [x] Implement local type argument synthesis for generic applications,
   including constraints from argument types and expected result types in
   checking mode.
-- [ ] Support higher-kinded generic instantiation by structural matching
+- [x] Support higher-kinded generic instantiation by structural matching
   without higher-order unification.
 - [x] Ensure checked source contains no omitted contextual arguments and no
   contextual offer ambiguity states.

@@ -68,6 +68,25 @@ Gamma |- f(arg_1, ..., arg_n) => R[Sub]
 If a generic parameter cannot be inferred from those local facts, the checker
 reports a missing generic argument rather than keeping an unsolved variable.
 
+Higher-kinded generic parameters use the same local inference boundary. The
+checker may decompose matching type-application spines and bind an unsolved
+callee parameter to the actual callee when the kinds match:
+
+```text
+F : [K] -> Type
+Gamma |- ActualF : [K] -> Type
+collect(A, B) = Sub
+--------------------------------
+collect(F[A], ActualF[B]) binds F := ActualF and merges Sub
+```
+
+This is structural matching, not higher-order unification. The checker never
+synthesizes a new type lambda such as `[X] => Pair[X, Bool]` to satisfy
+`F[Int] ~ Pair[Int, Bool]`; users must pass that type-level lambda explicitly
+when they need partial application. Every inferred higher-kinded binding is
+kind-checked immediately and rejected if it would recursively mention the
+parameter being solved.
+
 ## Expression checking
 
 The expression dispatcher implements these two entry points:

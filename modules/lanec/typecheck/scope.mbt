@@ -109,6 +109,19 @@ fn TypeScope::bind_type_parameter_kind(
 }
 
 ///|
+fn TypeScope::bind_resolved_type_parameter_kinds(
+  self : TypeScope,
+  parameters : Array[@resolve.ResolvedTypeParameter],
+) -> Unit {
+  for parameter in parameters {
+    self.bind_type_parameter_kind(
+      parameter.symbol,
+      resolve_type_parameter_kind(parameter),
+    )
+  }
+}
+
+///|
 fn TypeScope::type_parameter_kind(
   self : TypeScope,
   symbol : TypeParameterId,
@@ -340,6 +353,7 @@ fn SemanticChecker::check_local_function(
   })
   scope.bind_function(declaration.symbol, type_, parameters)
   let body_scope = scope.copy()
+  body_scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
   for parameter in parameters {
     body_scope.bind(parameter.symbol, parameter.type_)
     if parameter.is_offered {

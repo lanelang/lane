@@ -6,6 +6,8 @@ priv struct GenericArgumentBinding {
 
 ///|
 priv struct GenericArgumentInference {
+  declarations : CheckedDeclarationEnvironment
+  scope : TypeScope
   parameters : Array[@types.TypeParameter]
   bindings : Array[GenericArgumentBinding]
   mut failure : GenericArgumentInferenceFailure?
@@ -64,9 +66,18 @@ priv struct ExplicitGenericApplicationResult {
 
 ///|
 fn GenericArgumentInference::GenericArgumentInference(
+  declarations : CheckedDeclarationEnvironment,
+  scope : TypeScope,
   parameters : Array[@types.TypeParameter],
 ) -> GenericArgumentInference {
-  { parameters, bindings: [], failure: None, failure_loc: None }
+  {
+    declarations,
+    scope,
+    parameters,
+    bindings: [],
+    failure: None,
+    failure_loc: None,
+  }
 }
 
 ///|
@@ -133,6 +144,21 @@ fn GenericArgumentInference::remember(
     return true
   }
   guard self.tracked_parameter(parameter) is Some(tracked) else { return true }
+  if !self.generic_argument_has_kind(argument, tracked.kind) {
+    return self.fail(
+      GenericArgumentConstraintMismatch(
+        expected=tracked.generic_argument(),
+        actual=argument,
+      ),
+    )
+  }
+  if argument is TypeArgument(type_) &&
+    !type_is_parameter(type_, parameter) &&
+    type_.mentions_any_type_parameter([parameter]) {
+    return self.fail(
+      RecursiveGenericArgument(parameter=tracked, actual=argument),
+    )
+  }
   if argument is EffectArgument(effect) &&
     !effect_is_parameter(effect, parameter) &&
     effect_mentions_free_parameter(effect, parameter) {
@@ -157,6 +183,93 @@ fn GenericArgumentInference::remember(
 }
 
 ///|
+fn GenericArgumentInference::generic_argument_has_kind(
+  self : GenericArgumentInference,
+  argument : @types.GenericArgument,
+  expected : @types.Kind,
+) -> Bool {
+  match argument {
+    TypeArgument(type_) =>
+      match self.type_kind(type_, []) {
+        Some(actual) => actual == expected
+        None => true
+      }
+    EffectArgument(_) => expected == Effect
+  }
+}
+
+///|
+fn GenericArgumentInference::type_kind(
+  self : GenericArgumentInference,
+  type_ : @types.Type,
+  bound : Array[@types.TypeParameter],
+) -> @types.Kind? {
+  match type_ {
+    Error | Primitive(_) | Function(_, _, _) | Forall(_, _) => Some(Type)
+    Constructor(symbol) => Some(self.nominal_type_kind(symbol))
+    Apply(callee, _) =>
+      match self.type_kind(callee, bound) {
+        Some(Function(_, result)) => Some(result)
+        Some(_) => Some(Type)
+        None => None
+      }
+    TypeLambda(type_parameters, body) => {
+      let next_bound = bound.copy()
+      for parameter in type_parameters {
+        next_bound.push(parameter)
+      }
+      match self.type_kind(body, next_bound) {
+        Some(result) =>
+          Some(
+            Function(
+              type_parameters.map(fn(parameter) { parameter.kind }),
+              result,
+            ),
+          )
+        None => None
+      }
+    }
+    Parameter(id) => self.type_parameter_kind(id, bound)
+  }
+}
+
+///|
+fn GenericArgumentInference::nominal_type_kind(
+  self : GenericArgumentInference,
+  symbol : TypeSymbolId,
+) -> @types.Kind {
+  if self.declarations.checked_struct(symbol) is Some(declaration) {
+    return type_parameters_to_constructor_kind(declaration.type_parameters)
+  }
+  if self.declarations.checked_enum(symbol) is Some(declaration) {
+    return type_parameters_to_constructor_kind(declaration.type_parameters)
+  }
+  Type
+}
+
+///|
+fn GenericArgumentInference::type_parameter_kind(
+  self : GenericArgumentInference,
+  symbol : TypeParameterId,
+  bound : Array[@types.TypeParameter],
+) -> @types.Kind? {
+  for parameter in bound {
+    if parameter.id == symbol {
+      return Some(parameter.kind)
+    }
+  }
+  match self.tracked_parameter(symbol) {
+    Some(parameter) => return Some(parameter.kind)
+    None => ()
+  }
+  match self.scope.type_parameter_kind(symbol) {
+    Some(kind) => return Some(kind)
+    None => ()
+  }
+  Some(Type)
+}
+
+///|
 fn GenericArgumentInference::collect(
   self : GenericArgumentInference,
   template : @types.Type,
@@ -178,6 +291,15 @@ fn GenericArgumentInference::collect(
       } else {
         true
       }
+    (
+      Apply(template_callee, template_arguments),
+      Apply(actual_callee, actual_arguments),
+    ) => {
+      if !self.collect(template_callee, actual_callee) {
+        return false
+      }
+      self.collect_generic_array(template_arguments, actual_arguments)
+    }
     (
       Function(left_parameters, left_result, left_effect),
       Function(right_parameters, right_result, right_effect),
@@ -522,6 +644,25 @@ fn generic_argument_equals(
 }
 
 ///|
+fn type_parameters_to_constructor_kind(
+  parameters : Array[@types.TypeParameter],
+) -> @types.Kind {
+  if parameters.is_empty() {
+    Type
+  } else {
+    Function(parameters.map(fn(parameter) { parameter.kind }), Type)
+  }
+}
+
+///|
+fn type_is_parameter(type_ : @types.Type, parameter : TypeParameterId) -> Bool {
+  match type_ {
+    Parameter(id) => id == parameter
+    _ => false
+  }
+}
+
+///|
 fn effect_mentions_free_parameter(
   effect : @types.Effect,
   parameter : TypeParameterId,
@@ -660,6 +801,8 @@ fn SemanticChecker::infer_application_generic_arguments(
   // before payload checking, while ordinary function calls prefer argument
   // evidence first. Either way, every constraint is accepted or rejected now.
   let inference = GenericArgumentInference::GenericArgumentInference(
+    self.declarations,
+    scope,
     type_parameters,
   )
   let mut inference_failed = false
