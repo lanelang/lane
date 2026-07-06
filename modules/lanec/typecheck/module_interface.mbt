@@ -3,6 +3,9 @@ fn SemanticChecker::module_interface(
   self : SemanticChecker,
   checked_source : @checked.CheckedSourceFile,
 ) -> @module_interface.ModuleInterface {
+  // Interface construction is the public-boundary judgment. It exports checked
+  // declarations only after validating that public signatures do not expose
+  // private local nominal types or effects.
   self.check_public_interface_resolved_declarations()
   {
     module_path: @module_interface.module_path_text(checked_source.module_path),
@@ -273,6 +276,9 @@ fn SemanticChecker::interface_value(
 fn SemanticChecker::check_public_interface_resolved_declarations(
   self : SemanticChecker,
 ) -> Unit {
+  // Run the escape check over resolved public annotations before the checked
+  // fallback below. This gives diagnostics near the source signature and still
+  // leaves alias-expanded checked types to catch synthesized escapes.
   for declaration in self.resolved_source.declarations {
     match declaration {
       Struct(declaration) if declaration.is_public =>

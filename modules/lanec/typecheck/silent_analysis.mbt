@@ -2,6 +2,9 @@
 fn SemanticChecker::copy_for_silent_analysis(
   self : SemanticChecker,
 ) -> SemanticChecker {
+  // Silent analysis reuses the normal typing rules for bounded local
+  // measurements, such as handler residual effects. Diagnostics and mutations
+  // stay in the copied checker.
   {
     resolved_source: self.resolved_source,
     source: self.source,

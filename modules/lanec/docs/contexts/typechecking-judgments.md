@@ -38,6 +38,12 @@ transparent and must be fully expanded before comparison.
 contains value bindings, function bindings with parameter metadata, contextual
 offers, and type-parameter kind bindings.
 
+The checker also maintains a checked declaration environment `Delta`. `Delta`
+contains nominal type metadata, field and variant declarations, effect
+operations, imported module interfaces, and transparent type aliases. Expression
+judgments read from `Delta`; declaration checking builds it before source value
+bodies are checked.
+
 ## Local inference boundary
 
 Lane uses bidirectional local type inference. Expected type information flows
@@ -101,6 +107,57 @@ Gamma |- fn(x_1, ..., x_n) { body } <= (P_1, ..., P_n) -> R ! ExpectedEff
 If a function literal has no expected function type, every parameter must carry
 an annotation so synthesis can compute a function type locally.
 
+## Declaration and type-level checking
+
+Declaration checking builds `Delta` from imported interfaces plus local nominal
+and effect declarations. It validates type-level syntax before value bodies use
+the declarations:
+
+```text
+Gamma_type |- P_i : K_i
+Gamma_type, P_i : K_i |- member_j : Type
+------------------------------------------------
+Delta |- struct S[P_i...] { member_j... } ok
+```
+
+Enum payloads, struct fields, operation payloads, operation results, value
+annotations, and contextual offer annotations all require value-level types:
+
+```text
+Gamma_type |- T : K
+K = Type
+---------------------------
+Gamma_type |- T value-type
+```
+
+General type application is kind-directed. The callee can be any type-level
+expression with function kind, including a nominal constructor, type parameter,
+alias expansion, or type-level lambda:
+
+```text
+Gamma_type |- F : [K_1, ..., K_n] -> K
+Gamma_type |- A_i : K_i
+---------------------------------------
+Gamma_type |- F[A_1, ..., A_n] : K
+```
+
+Type aliases are transparent. Expanding an alias is part of type synthesis, and
+recursive alias expansion is rejected immediately instead of being delayed.
+Alias bodies may have kind `Type`, `Effect`, or a higher kind; positions that
+need a runtime value type still require the synthesized kind to be exactly
+`Type`.
+
+Forall function types bind kinded type parameters and then check parameter and
+result types at kind `Type` plus the latent effect at kind `Effect`:
+
+```text
+Gamma_type, A_i : K_i |- P_j : Type
+Gamma_type, A_i : K_i |- R : Type
+Gamma_type, A_i : K_i |- E : Effect
+------------------------------------------------
+Gamma_type |- [A_i : K_i] (P_j...) -> R ! E : Type
+```
+
 ## Effect expressions
 
 Effect sets are normalized before equality. Singleton order does not matter and
@@ -124,6 +181,33 @@ Gamma |- A[args] => normalize(E)
 
 Effect parameters have kind `Effect`. A type-kind parameter used in an effect
 position is a kind mismatch.
+
+## Contextual argument resolution
+
+Contextual argument insertion is a type-directed rewrite that happens only for
+direct calls to known function symbols. Auto parameters must form a trailing
+suffix. Explicit direct arguments determine the non-auto prefix, explicit named
+contextual arguments fill named auto parameters, and every remaining auto
+parameter is supplied from visible offers:
+
+```text
+Gamma |- f : (P_1, ..., P_m, C_1, ..., C_n) -> R
+auto suffix = C_1, ..., C_n
+Gamma.offers contains exactly one offer o_i with type C_i
+---------------------------------------------------------
+Gamma |- f(args...) rewrites to f(args..., o_i...)
+```
+
+If there is no matching offer, the checker reports a missing contextual offer.
+If more than one offer has the required type, it reports ambiguity. Contextual
+resolution never searches for offers to infer generic arguments. For generic
+direct calls, generic arguments are inferred first from supplied direct
+arguments and the adjacent expected result type; only then are omitted
+contextual arguments matched by type equality.
+
+Offer fields are already resolved before typechecking reaches this rewrite.
+The typechecker consumes a flat offer environment; it must not re-open values or
+perform field search during contextual insertion.
 
 ## Generic effect-row matching
 
@@ -170,6 +254,44 @@ Gamma |- Owner[O...]::op[Sub_hidden](arg_i...) => R[Sub_owner][Sub_hidden]
 
 The latent effect of a perform expression includes the owning singleton effect
 plus any effects produced while evaluating payload expressions.
+
+## Nominal construction and projection
+
+Enum variant construction synthesizes the owner nominal type. Owner generic
+arguments may be explicit, copied from the adjacent expected result type, or
+inferred locally from payload expressions. Variant-level hidden witnesses are a
+separate generic layer and are inferred only from the variant payloads:
+
+```text
+variant v[X...] : (P_1, ..., P_n) in enum E[A...]
+Sub_owner inferred from payloads and Expected?
+Sub_hidden inferred from P_i[Sub_owner] and payloads
+Gamma |- arg_i <= P_i[Sub_owner][Sub_hidden]
+----------------------------------------------------
+Gamma |- E[Sub_owner]::v[Sub_hidden](arg_i...) => E[Sub_owner]
+```
+
+Struct literals synthesize a nominal type and require every declared value field
+and hidden type member to be supplied exactly once. Field values are checked
+after substituting both owner type arguments and existential witnesses:
+
+```text
+Gamma |- witness_j : kind(member_j)
+Gamma |- field_i <= FieldType_i[owner_sub][witness_sub]
+-------------------------------------------------------
+Gamma |- S[owner_args]::{ type member_j = witness_j, field_i: expr_i } => S[owner_args]
+```
+
+Field access first synthesizes the base expression. The base must be a nominal
+struct type, and the selected field type is read through the resolved field
+symbol, not through textual field lookup:
+
+```text
+Gamma |- base => S[args]
+field(S, name) = FieldSymbol : T
+---------------------------------
+Gamma |- base.name => T[args]
+```
 
 ## Handler checking
 
@@ -220,9 +342,49 @@ come from the expected nominal type after substituting its generic arguments.
 Pattern `let` accepts only irrefutable patterns. Refutability is checked
 semantically after the initializer type is known.
 
+Pattern opening of existential hidden type members is scoped. A hidden type
+opened by a pattern may be used while checking the arm body, but it must not
+escape into the synthesized result type of the surrounding expression.
+
+## Public interface and escape checks
+
+Module interfaces are constructed from checked declarations, then validated as
+the public boundary. Public declarations may mention public imported names and
+their own public declarations, but cannot expose private local nominal types or
+private local effects:
+
+```text
+Delta |- public decl : T
+private_names(T) = empty
+--------------------------------
+Delta |- decl exportable
+```
+
+The same check is run over resolved public annotations before and over checked
+types after alias expansion. The resolved pass gives diagnostics at source
+spans near the public signature; the checked fallback catches private names
+that appear only after expansion or synthesis.
+
+Existential escape is separate from public/private escape. When a pattern opens
+hidden members, any result type mentioning those hidden type parameters is
+rejected even if all nominal owners are public:
+
+```text
+opened(pattern) = X_i
+mentions(ResultT, X_i)
+----------------------
+hidden type escape
+```
+
 ## Checked source construction
 
 The checked-source pass mirrors the same judgments but returns checked AST nodes
 and latent effects. If an earlier error prevents constructing a checked node,
 the checker keeps reporting diagnostics and marks the synthesis result as
 missing rather than fabricating a valid checked expression.
+
+Silent analysis uses the same typing rules with a copied checker and an empty
+diagnostic sink. It is allowed only where the checker needs a bounded local
+measurement, such as computing handler residual effects. A silent pass must not
+commit values, offers, inferred generic arguments, or diagnostics back into the
+real checker.

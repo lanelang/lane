@@ -27,6 +27,9 @@ fn SemanticChecker::prepare_direct_call_arguments(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> Array[@desugar.DesugaredCallArgument] {
+  // Contextual insertion is a local rewrite for direct calls to known function
+  // symbols. Supplied arguments are checked first; omitted trailing auto
+  // parameters are filled from exactly matching visible offers.
   guard direct_call_symbol(callee) is Some(symbol) else { return arguments }
   guard scope.lookup_function_parameters(symbol) is Some(parameters) else {
     return arguments
@@ -282,6 +285,9 @@ fn SemanticChecker::contextual_offer_expr(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
+  // Offer matching is exact type equality over the already-resolved flat offer
+  // environment. It must not infer generics from the offer set or perform field
+  // search during typechecking.
   let matches = []
   for offer in scope.offers {
     if type_matches(expected, offer.type_) {

@@ -27,6 +27,8 @@ fn typecheck_declarations_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
   imported_environment : @module_interface.ImportedEnvironment,
 ) -> DeclarationTypeCheckResult {
+  // Declaration checking builds Delta from imported module interfaces and local
+  // nominal/effect declarations before expression bodies are checked.
   let checker = DeclarationChecker::{
     source,
     imported_environment,
@@ -555,6 +557,12 @@ fn TypeExpressionChecker::check_value_type(
   self : TypeExpressionChecker,
   type_ : @resolve.ResolvedType,
 ) -> @types.Type {
+  // Value-level type rule:
+  //
+  //   Gamma_type |- T : K
+  //   K = Type
+  //   ------------------
+  //   Gamma_type |- T value-type
   let result = self.synthesize_type(type_)
   if result.kind != Type {
     self.diagnostics.push({
@@ -570,6 +578,9 @@ fn TypeExpressionChecker::synthesize_type(
   self : TypeExpressionChecker,
   type_ : @resolve.ResolvedType,
 ) -> TypeExpressionResult {
+  // Type expression synthesis computes both the core type expression and its
+  // kind. Type application is general: the callee may be any type-level
+  // expression whose kind is [K_i...] -> K.
   match type_ {
     Primitive(primitive, ..) => { type_: Primitive(primitive), kind: Type }
     Constructor(symbol~, ..) => {
@@ -686,6 +697,9 @@ fn TypeExpressionChecker::check_generic_argument(
   expected : @types.Kind,
   argument : @resolve.ResolvedGenericArgument,
 ) -> @types.GenericArgument {
+  // Generic arguments are checked by the expected kind and keep their argument
+  // category. Effect-kind arguments must remain EffectArgument values; they are
+  // not encoded as ordinary TypeArgument nodes.
   match (expected, argument) {
     (Effect, EffectArgument(effect)) =>
       EffectArgument(self.check_effect(effect).normalize())

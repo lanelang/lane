@@ -150,6 +150,9 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  // Variant construction has two generic layers: owner arguments for the enum
+  // type, and variant-level hidden witnesses. Owner arguments may also use the
+  // expected result type; hidden witnesses are inferred from payloads only.
   guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
     self.diagnostics.push({
       kind: VariantReferenceFailure(label="unknown variant " + display_name),
@@ -424,6 +427,9 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   expected : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  // Struct literals synthesize a nominal owner type. Value fields are checked
+  // after substituting owner generic arguments and explicit existential type
+  // witnesses supplied by the literal.
   guard self.type_symbol_for_name(type_name) is Some(symbol) else {
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return checked_expression_none_reported(Error)
@@ -600,6 +606,8 @@ fn SemanticChecker::synthesize_field(
   reference : @resolve.ResolvedFieldReference,
   loc : SourceSpan,
 ) -> @types.Type {
+  // Field projection is nominal. The resolved field symbol identifies the owner
+  // field; the base expression supplies the owner generic arguments.
   let base_type = self.synthesize_expr(scope, base)
   match reference {
     Symbol(field) =>
