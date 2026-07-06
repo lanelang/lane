@@ -546,7 +546,7 @@ fn ArtifactTextWriter::write_linked_program_artifact(
   }
   self.write_buslane_program_block(artifact.program)
   self.write_externals(artifact.externals)
-  self.write_entries(artifact.entries)
+  self.write_entry(artifact.entry)
   self.write_runtime_effect_operations(artifact.runtime_effect_operations)
 }
 
@@ -561,14 +561,14 @@ fn ArtifactTextReader::read_linked_program_artifact(
   }
   let program = self.read_buslane_program_block()
   let externals = self.read_externals()
-  let entries = self.read_entries()
+  let entry = self.read_entry()
   let runtime_effect_operations = self.read_runtime_effect_operations()
   {
     schema_version,
     module_path_texts,
     program,
     externals,
-    entries,
+    entry,
     runtime_effect_operations,
   }
 }
@@ -1819,9 +1819,7 @@ fn ArtifactTextWriter::write_entries(
 ) -> Unit {
   self.write_int("entries", entries.length())
   for entry in entries {
-    self.write_string("entry.name", entry.name)
-    self.write_buslane_value_id("entry.value", entry.value)
-    self.write_buslane_type("entry.type", entry.type_)
+    self.write_entry(entry)
   }
 }
 
@@ -1831,12 +1829,29 @@ fn ArtifactTextReader::read_entries(
 ) -> Array[@elaborate.BuslaneEntry] raise ArtifactTextError {
   let entries : Array[@elaborate.BuslaneEntry] = []
   for _ in 0..<self.expect_int("entries") {
-    let name = self.expect_string("entry.name")
-    let value = self.read_buslane_value_id("entry.value")
-    let type_ = self.read_buslane_type("entry.type")
-    entries.push({ name, value, type_ })
+    entries.push(self.read_entry())
   }
   entries
+}
+
+///|
+fn ArtifactTextWriter::write_entry(
+  self : ArtifactTextWriter,
+  entry : @elaborate.BuslaneEntry,
+) -> Unit {
+  self.write_string("entry.name", entry.name)
+  self.write_buslane_value_id("entry.value", entry.value)
+  self.write_buslane_type("entry.type", entry.type_)
+}
+
+///|
+fn ArtifactTextReader::read_entry(
+  self : ArtifactTextReader,
+) -> @elaborate.BuslaneEntry raise ArtifactTextError {
+  let name = self.expect_string("entry.name")
+  let value = self.read_buslane_value_id("entry.value")
+  let type_ = self.read_buslane_type("entry.type")
+  { name, value, type_ }
 }
 
 ///|

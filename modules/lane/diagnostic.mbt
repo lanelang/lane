@@ -56,6 +56,7 @@ enum CliError {
   MissingArgument(name~ : String)
   InvalidRunTarget(target~ : String)
   InvalidRunObjTarget(target~ : String)
+  InvalidLinkEntry(entry~ : String)
   FileIo(action~ : CliFileAction, path~ : String, reason~ : HostFileErrorReason)
   ArtifactLoad(path~ : String, kind~ : String, message~ : String)
   DuplicateObjectArtifact(module_path_text~ : String)
@@ -151,14 +152,26 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
       command_report(
         code="E6008",
         title="invalid runobj target `\{target}`",
-        fields=[command_report_field("expected", "FILE:Module.value")],
+        fields=[command_report_field("expected", "FILE.lbp")],
         details=[
-          "`lane runobj` loads one linked program artifact and selects a public entry from it.",
+          "`lane runobj` executes the entry selected when the linked program artifact was produced.",
+        ],
+        suggestions=[
+          command_suggestion("Example:", command="lane runobj program.lbp"),
+        ],
+      )
+    InvalidLinkEntry(entry~) =>
+      command_report(
+        code="E6010",
+        title="invalid link entry `\{entry}`",
+        fields=[command_report_field("expected", "Module.value")],
+        details=[
+          "`lane link` selects one exported entry before producing a linked program artifact.",
         ],
         suggestions=[
           command_suggestion(
             "Example:",
-            command="lane runobj program.lbp:Main.main",
+            command="lane link --entry Main.main -o program.lbp Main.lmo",
           ),
         ],
       )
@@ -377,7 +390,7 @@ fn CommandReport::render_header(self : CommandReport) -> String {
 
 ///|
 fn available_entries_text(entries : Array[@elaborate.BuslaneEntry]) -> String {
-  let names = entry_names(entries)
+  let names = entries.map(fn(entry) { display_entry_name(entry.name) })
   if names.is_empty() {
     "(none)"
   } else {

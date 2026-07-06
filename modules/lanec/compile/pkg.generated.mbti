@@ -235,6 +235,15 @@ pub(all) struct LinkResult {
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 
+pub(all) struct LinkedExecutableProgram {
+  module_path_texts : Array[String]
+  program : @buslane.Program
+  externals : @elaborate.BuslaneExternalMap
+  entry : @elaborate.BuslaneEntry
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+} derive(Eq, @debug.Debug)
+pub fn LinkedExecutableProgram::to_artifact(Self) -> LinkedProgramArtifact
+
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
@@ -243,7 +252,7 @@ pub(all) struct LinkedProgram {
   runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgram::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
-pub fn LinkedProgram::to_artifact(Self) -> LinkedProgramArtifact
+pub fn LinkedProgram::to_executable(Self, @elaborate.BuslaneEntry) -> LinkedExecutableProgram
 pub fn LinkedProgram::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
 
 pub(all) struct LinkedProgramArtifact {
@@ -251,11 +260,11 @@ pub(all) struct LinkedProgramArtifact {
   module_path_texts : Array[String]
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
-  entries : Array[@elaborate.BuslaneEntry]
+  entry : @elaborate.BuslaneEntry
   runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgramArtifact::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
-pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedProgram, Array[@diagnostic.CompilerDiagnostic]]
+pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedExecutableProgram, Array[@diagnostic.CompilerDiagnostic]]
 pub fn LinkedProgramArtifact::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
 

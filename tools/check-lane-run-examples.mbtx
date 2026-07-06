@@ -423,12 +423,13 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
     return c_compile
   }
   let link = run_moon_lane([
-    "link", "--output", linked_program, c_object, b_object, a_object,
+    "link", "--entry", "C.main", "--output", linked_program, c_object,
+    b_object, a_object,
   ])
   if link.code != 0 {
     return link
   }
-  run_moon_lane(["runobj", linked_program + ":C.main"])
+  run_moon_lane(["runobj", linked_program])
 }
 
 fn ensure_dir(path : String) -> Unit raise {

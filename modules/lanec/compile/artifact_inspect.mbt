@@ -98,10 +98,7 @@ pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
       "modules:",
       artifact.module_path_texts.map(fn(module_) { text(module_) }),
     ),
-    section_doc(
-      "public entries:",
-      artifact.entries.map(fn(entry) { text(buslane.entry_text(entry)) }),
-    ),
+    section_doc("entry:", [text(buslane.entry_text(artifact.entry))]),
     section_doc(
       "externals:",
       artifact.externals.builtins.map(fn(external) {
@@ -145,6 +142,7 @@ fn linked_program_header_doc(artifact : LinkedProgramArtifact) -> Document {
   separate(@prettyprinter.hardline, [
     text("Lane program artifact"),
     text("schema: \{artifact.schema_version}"),
+    text("entry: \{artifact.entry.name}"),
   ])
 }
 

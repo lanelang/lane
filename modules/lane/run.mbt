@@ -1,18 +1,14 @@
 ///|
-async fn lane_runobj(path : String, entry_name : String) -> LaneCommandOutcome {
+async fn lane_runobj(path : String) -> LaneCommandOutcome {
   let program = match read_linked_program_artifact(path) {
     Ok(program) => program
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let entry = match find_entry(program.entries, entry_name) {
-    Ok(entry) => entry
-    Err(error) => return LaneCommandOutcome::user_error(error)
-  }
-  execute_entry(
+  execute_linked_entry(
     program.program,
     program.externals,
     program.runtime_effect_operations,
-    entry,
+    program.entry,
   )
 }
 
@@ -86,6 +82,22 @@ fn execute_entry(
 }
 
 ///|
+fn execute_linked_entry(
+  program : @buslane.Program,
+  externals : @elaborate.BuslaneExternalMap,
+  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  entry : @elaborate.BuslaneEntry,
+) -> LaneCommandOutcome {
+  execute_linked_entry_with_output(
+    program,
+    externals,
+    runtime_effect_operations,
+    entry,
+    line => println(line),
+  )
+}
+
+///|
 fn execute_entry_with_output(
   program : @buslane.Program,
   externals : @elaborate.BuslaneExternalMap,
@@ -100,23 +112,9 @@ fn execute_entry_with_output(
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let external_runtime = command_external_runtime(
-    externals, program, runtime_effect_operations, write_line,
+  execute_linked_entry_with_output(
+    program, externals, runtime_effect_operations, entry, write_line,
   )
-  let runtime = @buslane_interpreter.evaluate_buslane_program(
-    program, external_runtime,
-  ) catch {
-    error => internal_error(@prettyprinter.render(error, width=100))
-  }
-  let value = runtime.lookup(entry.value) catch {
-    error => internal_error(@prettyprinter.render(error, width=100))
-  }
-  ignore(
-    value.call([], external_runtime) catch {
-      error => internal_error(@prettyprinter.render(error, width=100))
-    },
-  )
-  Succeeded
 }
 
 ///|
@@ -161,6 +159,33 @@ fn validate_executable_entry(
     )
   }
   Ok(())
+}
+
+///|
+fn execute_linked_entry_with_output(
+  program : @buslane.Program,
+  externals : @elaborate.BuslaneExternalMap,
+  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  entry : @elaborate.BuslaneEntry,
+  write_line : (String) -> Unit,
+) -> LaneCommandOutcome {
+  let external_runtime = command_external_runtime(
+    externals, program, runtime_effect_operations, write_line,
+  )
+  let runtime = @buslane_interpreter.evaluate_buslane_program(
+    program, external_runtime,
+  ) catch {
+    error => internal_error(@prettyprinter.render(error, width=100))
+  }
+  let value = runtime.lookup(entry.value) catch {
+    error => internal_error(@prettyprinter.render(error, width=100))
+  }
+  ignore(
+    value.call([], external_runtime) catch {
+      error => internal_error(@prettyprinter.render(error, width=100))
+    },
+  )
+  Succeeded
 }
 
 ///|

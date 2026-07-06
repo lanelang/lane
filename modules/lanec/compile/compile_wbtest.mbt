@@ -519,7 +519,10 @@ test "module artifacts roundtrip through binary and link" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let linked_binary = linked_program_artifact_to_binary(program.to_artifact())
+  let executable = program.to_executable(program.entries[0])
+  let linked_binary = linked_program_artifact_to_binary(
+    executable.to_artifact(),
+  )
   inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
   let linked_decoded = match
     parse_linked_program_artifact_binary(linked_binary) {
@@ -530,10 +533,7 @@ test "module artifacts roundtrip through binary and link" {
     Ok(program) => program
     Err(_) => abort("unexpected diagnostics")
   }
-  inspect(
-    linked_program.entries.map(fn(entry) { entry.name }).join(","),
-    content="answer",
-  )
+  inspect(linked_program.entry.name, content="answer")
   let linked_inspect = match artifact_binary_to_inspect_text(linked_binary) {
     Ok(text) => text
     Err(message) => abort(message)
@@ -542,13 +542,14 @@ test "module artifacts roundtrip through binary and link" {
     artifact_inspect_without_fingerprints(linked_inspect),
     content=(
       #|Lane program artifact
-      #|schema: 1
+      #|schema: 2
+      #|entry: answer
       #|
       #|modules:
       #|  Lib
       #|  Main
       #|
-      #|public entries:
+      #|entry:
       #|  answer : Int
       #|
       #|externals:
@@ -581,38 +582,16 @@ test "module artifacts roundtrip through binary and link" {
       #|
     ),
   )
-  let duplicated_entries = linked_decoded.entries.copy()
-  duplicated_entries.push(linked_decoded.entries[0])
-  let duplicate_entry_artifact : LinkedProgramArtifact = {
-    schema_version: linked_decoded.schema_version,
-    module_path_texts: linked_decoded.module_path_texts,
-    program: linked_decoded.program,
-    externals: linked_decoded.externals,
-    entries: duplicated_entries,
-    runtime_effect_operations: linked_decoded.runtime_effect_operations,
-  }
-  guard duplicate_entry_artifact.to_linked_program()
-    is Err(duplicate_entry_diagnostics) else {
-    abort("expected duplicate linked entry diagnostic")
-  }
-  inspect(
-    duplicate_entry_diagnostics
-    .map(fn(diagnostic) { diagnostic.message })
-    .join(","),
-    content="duplicate linked entry `answer`",
-  )
   let unknown_entry_artifact : LinkedProgramArtifact = {
     schema_version: linked_decoded.schema_version,
     module_path_texts: linked_decoded.module_path_texts,
     program: linked_decoded.program,
     externals: linked_decoded.externals,
-    entries: [
-      {
-        name: "missing",
-        value: { index: 999 },
-        type_: linked_decoded.entries[0].type_,
-      },
-    ],
+    entry: {
+      name: "missing",
+      value: { index: 999 },
+      type_: linked_decoded.entry.type_,
+    },
     runtime_effect_operations: linked_decoded.runtime_effect_operations,
   }
   guard unknown_entry_artifact.to_linked_program()
@@ -633,7 +612,7 @@ test "module artifacts roundtrip through binary and link" {
       terms: [External({ index: 999 })],
     },
     externals: linked_decoded.externals,
-    entries: [],
+    entry: linked_decoded.entry,
     runtime_effect_operations: linked_decoded.runtime_effect_operations,
   }
   guard invalid_program_artifact.to_linked_program()
@@ -682,7 +661,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let artifact = program.to_artifact()
+  let artifact = program.to_executable(program.entries[0]).to_artifact()
   inspect(
     artifact.runtime_effect_operations
     .map(fn(operation) {
@@ -1019,7 +998,9 @@ test "module artifact binary rejects wrong kind" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let program_binary = linked_program_artifact_to_binary(program.to_artifact())
+  let program_binary = linked_program_artifact_to_binary(
+    program.to_executable(program.entries[0]).to_artifact(),
+  )
   if parse_module_object_artifact_binary(program_binary) is Err(message) {
     inspect(
       message,

@@ -107,7 +107,7 @@ async fn read_module_object_artifact(
 ///|
 async fn write_linked_program_artifact(
   path : String,
-  program : @compile.LinkedProgram,
+  program : @compile.LinkedExecutableProgram,
 ) -> Unit {
   write_binary_file(
     path,
@@ -118,7 +118,7 @@ async fn write_linked_program_artifact(
 ///|
 async fn read_linked_program_artifact(
   path : String,
-) -> Result[@compile.LinkedProgram, CliError] {
+) -> Result[@compile.LinkedExecutableProgram, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(RunObject, path, "\{error}"))
   }

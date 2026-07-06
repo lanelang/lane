@@ -31,33 +31,22 @@ test "reject run target without entry suffix" {
 }
 
 ///|
-test "parse runobj target from artifact and module-qualified entry" {
-  guard parse_runobj_target("program.lbp:Main.answer") is Ok(target) else {
-    abort("expected runobj target")
-  }
-  inspect(target.file, content="program.lbp")
-  inspect(target.entry, content="Main::answer")
-}
-
-///|
-test "reject runobj target without module-qualified entry" {
-  guard parse_runobj_target("program.lbp:answer") is Err(error) else {
-    abort("expected runobj target error")
-  }
+test "reject old runobj target with entry suffix" {
+  let error = InvalidRunObjTarget(target="program.lbp:Main.main")
   debug_inspect(
     error,
-    content="InvalidRunObjTarget(target=\"program.lbp:answer\")",
+    content="InvalidRunObjTarget(target=\"program.lbp:Main.main\")",
   )
   inspect(
     error.render_human(),
     content=(
-      #|error[E6008]: invalid runobj target `program.lbp:answer`
-      #|  expected: FILE:Module.value
+      #|error[E6008]: invalid runobj target `program.lbp:Main.main`
+      #|  expected: FILE.lbp
       #|
-      #|`lane runobj` loads one linked program artifact and selects a public entry from it.
+      #|`lane runobj` executes the entry selected when the linked program artifact was produced.
       #|
       #|Example:
-      #|  lane runobj program.lbp:Main.main
+      #|  lane runobj program.lbp
     ),
   )
 }
@@ -309,7 +298,10 @@ async test "native module artifacts are binary and readable" {
     cleanup_library_fixture(workspace)
     abort("expected linked program")
   }
-  write_linked_program_artifact(program_path, program)
+  write_linked_program_artifact(
+    program_path,
+    program.to_executable(program.entries[0]),
+  )
   let interface_bytes = @fs.read_file(interface_path).binary()
   let object_bytes = @fs.read_file(object_path).binary()
   let program_bytes = @fs.read_file(program_path).binary()
@@ -343,10 +335,7 @@ async test "native module artifacts are binary and readable" {
   cleanup_library_fixture(workspace)
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
-  inspect(
-    linked_program.entries.map(fn(entry) { entry.name }).join(","),
-    content="answer",
-  )
+  inspect(linked_program.entry.name, content="answer")
 }
 
 ///|
@@ -403,7 +392,13 @@ async test "runobj executes explicit Basic Io linked input" {
     cleanup_library_fixture(workspace)
     abort("expected main compile to succeed")
   }
-  guard lane_link([main_object, basic_object], program_path, false) is Succeeded else {
+  guard lane_link(
+      [main_object, basic_object],
+      "Main::main",
+      program_path,
+      false,
+    )
+    is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected link to succeed")
   }
@@ -414,17 +409,12 @@ async test "runobj executes explicit Basic Io linked input" {
       abort(error.render_human())
     }
   }
-  let entry = find_entry(linked_program.entries, "Main::main")
-  guard entry is Ok(entry) else {
-    cleanup_library_fixture(workspace)
-    abort("expected linked main entry")
-  }
   let output : Array[String] = []
-  guard execute_entry_with_output(
+  guard execute_linked_entry_with_output(
       linked_program.program,
       linked_program.externals,
       linked_program.runtime_effect_operations,
-      entry,
+      linked_program.entry,
       line => output.push(line),
     )
     is Succeeded else {

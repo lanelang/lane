@@ -12,6 +12,9 @@ pub(all) struct ModuleInterfaceArtifact {
 let module_object_artifact_schema_version = 4
 
 ///|
+let linked_program_artifact_schema_version = 2
+
+///|
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
@@ -34,7 +37,7 @@ pub(all) struct LinkedProgramArtifact {
   module_path_texts : Array[String]
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
-  entries : Array[@elaborate.BuslaneEntry]
+  entry : @elaborate.BuslaneEntry
   runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
@@ -128,15 +131,15 @@ pub fn CompiledModule::to_object_artifact(
 }
 
 ///|
-pub fn LinkedProgram::to_artifact(
-  self : LinkedProgram,
+pub fn LinkedExecutableProgram::to_artifact(
+  self : LinkedExecutableProgram,
 ) -> LinkedProgramArtifact {
   {
-    schema_version: 1,
+    schema_version: linked_program_artifact_schema_version,
     module_path_texts: self.module_path_texts,
     program: self.program,
     externals: self.externals,
-    entries: self.entries,
+    entry: self.entry,
     runtime_effect_operations: self.runtime_effect_operations,
   }
 }
@@ -144,7 +147,7 @@ pub fn LinkedProgram::to_artifact(
 ///|
 pub fn LinkedProgramArtifact::to_linked_program(
   self : LinkedProgramArtifact,
-) -> Result[LinkedProgram, Array[CompilerDiagnostic]] {
+) -> Result[LinkedExecutableProgram, Array[CompilerDiagnostic]] {
   let diagnostics = self.validate()
   if !diagnostics.is_empty() {
     Err(diagnostics)
@@ -153,7 +156,7 @@ pub fn LinkedProgramArtifact::to_linked_program(
       module_path_texts: self.module_path_texts,
       program: self.program,
       externals: self.externals,
-      entries: self.entries,
+      entry: self.entry,
       runtime_effect_operations: self.runtime_effect_operations,
     })
   }
@@ -295,7 +298,7 @@ fn LinkedProgramArtifact::validate(
   self : LinkedProgramArtifact,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  if self.schema_version != 1 {
+  if self.schema_version != linked_program_artifact_schema_version {
     diagnostics.push(
       artifact_diagnostic(UnsupportedLinkedProgramArtifactSchema, None),
     )
@@ -305,7 +308,7 @@ fn LinkedProgramArtifact::validate(
     diagnostics.push(artifact_diagnostic(InvalidLinkedBuslaneProgram, None))
   }
   self.validate_modules(diagnostics)
-  self.validate_entries(diagnostics)
+  self.validate_entry(diagnostics)
   self.validate_runtime_effect_operations(diagnostics)
   diagnostics
 }
@@ -330,24 +333,14 @@ fn LinkedProgramArtifact::validate_modules(
 }
 
 ///|
-fn LinkedProgramArtifact::validate_entries(
+fn LinkedProgramArtifact::validate_entry(
   self : LinkedProgramArtifact,
   diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
-  for index in 0..<self.entries.length() {
-    let entry = self.entries[index]
-    if self.program.metadata.value_info(entry.value) is None {
-      diagnostics.push(
-        artifact_diagnostic(LinkedEntryUnknownValue(entry.name), None),
-      )
-    }
-    for other_index in (index + 1)..<self.entries.length() {
-      if entry.name == self.entries[other_index].name {
-        diagnostics.push(
-          artifact_diagnostic(DuplicateLinkedEntry(entry.name), None),
-        )
-      }
-    }
+  if self.program.metadata.value_info(self.entry.value) is None {
+    diagnostics.push(
+      artifact_diagnostic(LinkedEntryUnknownValue(self.entry.name), None),
+    )
   }
 }
 

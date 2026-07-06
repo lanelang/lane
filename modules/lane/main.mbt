@@ -23,9 +23,10 @@ async fn main {
           lane_compile(file, interfaces, emit_interface, emit_object, verbose)
         Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
         Inspect(artifact~) => lane_inspect(artifact)
-        Link(objects~, output~, verbose~) => lane_link(objects, output, verbose)
+        Link(objects~, entry~, output~, verbose~) =>
+          lane_link(objects, entry, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)
-        RunObj(program~, entry~) => lane_runobj(program, entry)
+        RunObj(program~) => lane_runobj(program)
         Run(file~, entry~, libs~, lib_dirs~) =>
           lane_run(file, entry, libs, lib_dirs)
       }

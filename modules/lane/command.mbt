@@ -18,9 +18,14 @@ enum LaneCommand {
   )
   Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
   Inspect(artifact~ : String)
-  Link(objects~ : Array[String], output~ : String, verbose~ : Bool)
+  Link(
+    objects~ : Array[String],
+    entry~ : String,
+    output~ : String,
+    verbose~ : Bool
+  )
   Lsp(stdio~ : Bool)
-  RunObj(program~ : String, entry~ : String)
+  RunObj(program~ : String)
   Run(
     file~ : String,
     entry~ : String,
@@ -72,15 +77,13 @@ fn lane_command_spec() -> Command {
       Command(
         "link",
         about="Link compiled Lane module object artifacts.",
-        options=[output_option()],
+        options=[link_entry_option(), output_option()],
         flags=[verbose_flag()],
         positionals=[PositionArg("objects", num_args=ValueRange(lower=1))],
       ),
-      Command(
-        "runobj",
-        about="Run an entry from a linked Lane program artifact.",
-        positionals=[PositionArg("target")],
-      ),
+      Command("runobj", about="Run a linked Lane program artifact.", positionals=[
+        PositionArg("program"),
+      ]),
       Command(
         "fmt",
         about="Format Lane source files.",
@@ -166,23 +169,29 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
         Err(message) => Err(message)
       }
     Some(("link", child)) =>
-      match required_value(child, "output") {
-        Ok(output) =>
-          Ok(
-            Link(
-              objects=values(child, "objects"),
-              output~,
-              verbose=flag(child, "verbose"),
-            ),
-          )
-        Err(message) => Err(message)
+      match (required_value(child, "entry"), required_value(child, "output")) {
+        (Ok(entry_text), Ok(output)) =>
+          match public_entry_name_to_internal(entry_text) {
+            Ok(entry) =>
+              Ok(
+                Link(
+                  objects=values(child, "objects"),
+                  entry~,
+                  output~,
+                  verbose=flag(child, "verbose"),
+                ),
+              )
+            Err(_) => Err(InvalidLinkEntry(entry=entry_text))
+          }
+        (Err(message), _) | (_, Err(message)) => Err(message)
       }
     Some(("runobj", child)) =>
-      match required_value(child, "target") {
-        Ok(target_text) =>
-          match parse_runobj_target(target_text) {
-            Ok(target) => Ok(RunObj(program=target.file, entry=target.entry))
-            Err(message) => Err(message)
+      match required_value(child, "program") {
+        Ok(program) =>
+          if program.contains(":") {
+            Err(InvalidRunObjTarget(target=program))
+          } else {
+            Ok(RunObj(program~))
           }
         Err(message) => Err(message)
       }
@@ -212,18 +221,6 @@ fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
     return Err(InvalidRunTarget(target~))
   }
   Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned() })
-}
-
-///|
-fn parse_runobj_target(target : String) -> Result[RunTarget, CliError] {
-  let parts = target.split(":").collect()
-  if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-    return Err(InvalidRunObjTarget(target~))
-  }
-  match public_entry_name_to_internal(parts[1].to_owned()) {
-    Ok(entry) => Ok({ file: parts[0].to_owned(), entry })
-    Err(_) => Err(InvalidRunObjTarget(target~))
-  }
 }
 
 ///|
@@ -296,6 +293,15 @@ fn emit_object_option() -> @argparse.OptionArg {
 ///|
 fn output_option() -> @argparse.OptionArg {
   OptionArg("output", short='o', long="output", about="Write output artifact.")
+}
+
+///|
+fn link_entry_option() -> @argparse.OptionArg {
+  OptionArg(
+    "entry",
+    long="entry",
+    about="Select the exported entry for the linked executable artifact, such as Main.main.",
+  )
 }
 
 ///|

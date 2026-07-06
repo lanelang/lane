@@ -64,6 +64,15 @@ pub(all) struct LinkedProgram {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct LinkedExecutableProgram {
+  module_path_texts : Array[String]
+  program : @buslane.Program
+  externals : @elaborate.BuslaneExternalMap
+  entry : @elaborate.BuslaneEntry
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+} derive(Debug, Eq)
+
+///|
 pub(all) struct LinkResult {
   program : LinkedProgram?
   diagnostics : Array[CompilerDiagnostic]
@@ -123,6 +132,20 @@ pub fn LinkedProgramArtifact::validate_runtime_effect_operation(
   signature : RuntimeEffectOperationSignature,
 ) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
   validate_runtime_effect_operation(self.runtime_effect_operations, signature)
+}
+
+///|
+pub fn LinkedProgram::to_executable(
+  self : LinkedProgram,
+  entry : @elaborate.BuslaneEntry,
+) -> LinkedExecutableProgram {
+  {
+    module_path_texts: self.module_path_texts,
+    program: self.program,
+    externals: self.externals,
+    entry,
+    runtime_effect_operations: self.runtime_effect_operations,
+  }
 }
 
 ///|

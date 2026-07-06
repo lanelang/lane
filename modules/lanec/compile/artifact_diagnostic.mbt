@@ -19,7 +19,6 @@ priv enum ArtifactDiagnosticKind {
   InvalidLinkedBuslaneProgram
   DuplicateLinkedModule(String)
   LinkedEntryUnknownValue(String)
-  DuplicateLinkedEntry(String)
 }
 
 ///|
@@ -159,15 +158,6 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         label="entry metadata references a value that is not in the Buslane program",
         note="entry metadata is produced by the linker from public Lane entries",
         help="relink the program; if the error remains, report it as a compiler bug",
-      )
-    DuplicateLinkedEntry(entry) =>
-      compile_report(
-        "duplicate linked entry `\{entry}`",
-        diagnostic_.span,
-        code="E4404",
-        label="the linked program exports this entry name more than once",
-        note="entry lookup must resolve to exactly one linked value",
-        help="rename one of the public entries or relink from a consistent object set",
       )
   }
 }
