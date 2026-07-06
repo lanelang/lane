@@ -1,6 +1,6 @@
 {
   "lib_dirs": [
-    "../stdlib"
+    "../basic"
   ],
   "cases": [
     {
@@ -346,7 +346,7 @@
       }
     },
     {
-      "name": "39 executable Stdlib Io entry",
+      "name": "39 executable Basic Io entry",
       "file": "examples/valid/39_executable_entry.lane",
       "mode": "run",
       "entry": "answer",

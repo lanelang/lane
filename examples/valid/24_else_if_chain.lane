@@ -1,8 +1,8 @@
 module Examples.Valid.ElseIfChain
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 pub fn choose(first : Bool, second : Bool) -> Int {
   if first {

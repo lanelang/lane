@@ -1,8 +1,8 @@
 module Examples.Valid.PolymorphicEffectOperation
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 effect Prompt {
   choose[A](A, A) -> A

@@ -1,8 +1,8 @@
 module Examples.Valid12
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 pub fn compare_ints(a : Int, b : Int) -> Bool {
   if a < b {

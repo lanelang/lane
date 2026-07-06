@@ -1,8 +1,8 @@
 module Examples.Valid.EffectSetAliases
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 effect Console {
   read() -> Int

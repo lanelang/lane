@@ -37,13 +37,13 @@ _Avoid_: compiler diagnostic adapter, Lane error taxonomy, command report
 A dotted name that identifies a **Module**.
 _Avoid_: filesystem path, package URL, source filename
 
-**Standard Library Module**:
+**Basic Library Module**:
 A normal library **Module** supplied explicitly as a **Library Input**.
 _Avoid_: prelude, implicit builtin scope, compiler magic module
 
-**Conventional Standard Module**:
-A **Standard Library Module** whose module path and exported shapes are recognized by tools as conventions rather than by an official implementation fingerprint.
-_Avoid_: pinned standard library, compiler-owned module, trusted artifact
+**Conventional Basic Module**:
+A **Basic Library Module** whose module path and exported shapes are recognized by tools as conventions rather than by an official implementation fingerprint.
+_Avoid_: pinned Basic library, compiler-owned module, trusted artifact
 
 **Compilation Unit**:
 One **Module** compiled by `lanec` against an **Imported Environment**.
@@ -147,11 +147,11 @@ _Avoid_: implicit prelude, textual include, mandatory project manifest
 
 **Module Input Set**:
 The root source and supplied library modules available to one **Direct File Run**.
-_Avoid_: global module search path, implicit standard library, project registry
+_Avoid_: global module search path, implicit Basic library, project registry
 
 **Library Directory**:
 A directory supplied as a **Library Input** whose source files can provide modules.
-_Avoid_: project manifest, implicit standard library, module identity source
+_Avoid_: project manifest, implicit Basic library, module identity source
 
 **Open Import**:
 An import that places exported members of another **Module** directly in local scope.
@@ -338,7 +338,7 @@ _Avoid_: VS Code extension, compiler front end
 - A **Source File** contains exactly one **Module**, and its **Module Declaration** is first.
 - A **Module Declaration** names a **Module Path**.
 - A **Module Declaration** does not create a value or type declaration.
-- **Standard Library Modules** use ordinary **Module Paths** such as `Builtins`, `Ops`, and `Core.Int`.
+- **Basic Library Modules** use ordinary **Module Paths** such as `Basic.Builtins`, `Basic.Ops`, and `Basic.Io`.
 - A **Module Declaration** is a header declaration, not a braced block.
 - **Synthetic Modules** are limited to interactive and test drivers.
 - A **Source File** has an **Import Section** before ordinary declarations.
@@ -445,8 +445,8 @@ _Avoid_: VS Code extension, compiler front end
 - A **Library Directory** skips hidden directories and build output directories during CLI discovery.
 - Source files discovered from a **Library Directory** must be valid **Source Files**.
 - Filesystem paths do not define or validate **Module Paths**.
-- A **Standard Library Module** is never injected implicitly by compiler or command tooling; users provide its interface, object, or source as ordinary inputs.
-- A **Conventional Standard Module** may be implemented by any user-provided artifact whose exported shapes satisfy the tool convention.
+- A **Basic Library Module** is never injected implicitly by compiler or command tooling; users provide its interface, object, or source as ordinary inputs.
+- A **Conventional Basic Module** may be implemented by any user-provided artifact whose exported shapes satisfy the tool convention.
 - A **Duplicate Module Input** is an error, including duplicates between the root source and libraries.
 - All modules supplied by **Library Inputs** are compiled, even when they are not imported by the root source.
 - Every compiled module must resolve its imports within the **Module Input Set**.

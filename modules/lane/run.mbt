@@ -178,12 +178,12 @@ fn command_external_runtime(
     ) raise @buslane_interpreter.BuslaneRuntimeError {
       if arguments.length() != 1 {
         raise InvalidValue(
-          message="Stdlib.Io.Write.println expects one argument",
+          message="Basic.Io.Write.println expects one argument",
         )
       }
       guard arguments[0].as_string() is Some(line) else {
         raise InvalidValue(
-          message="Stdlib.Io.Write.println expects a string argument",
+          message="Basic.Io.Write.println expects a string argument",
         )
       }
       write_line(line)
@@ -213,7 +213,7 @@ fn command_runtime_effect_operation(
   program : @buslane.Program,
   runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
 ) -> @buslane.OperationId? {
-  let signature = stdlib_io_write_println_signature()
+  let signature = basic_io_write_println_signature()
   for operation in runtime_effect_operations {
     if runtime_effect_operation_matches(operation, signature) &&
       program.metadata.operation_info(operation.operation) is Some(_) {
@@ -236,9 +236,9 @@ fn runtime_effect_operation_matches(
 }
 
 ///|
-fn stdlib_io_write_println_signature() -> @compile.RuntimeEffectOperationSignature {
+fn basic_io_write_println_signature() -> @compile.RuntimeEffectOperationSignature {
   {
-    module_path_text: "Stdlib.Io",
+    module_path_text: "Basic.Io",
     effect_name: "Write",
     operation_name: "println",
     payload: [Primitive(String)],

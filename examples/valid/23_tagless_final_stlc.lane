@@ -1,8 +1,8 @@
 module Examples.Valid23
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 pub struct Stlc[R : [Type] -> Type] {
   int_lit : (Int) -> R[Int]

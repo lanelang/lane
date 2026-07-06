@@ -3,9 +3,9 @@
 
 module Examples.Valid16
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 pub type Id[A] = A
 

@@ -350,20 +350,20 @@ async test "native module artifacts are binary and readable" {
 }
 
 ///|
-async test "runobj executes explicit Stdlib Io linked input" {
-  let workspace = ".tmp-lane-runobj-stdlib-io"
-  let stdlib_source = "\{workspace}/io.lane"
-  let stdlib_interface = "\{workspace}/io.lmi"
-  let stdlib_object = "\{workspace}/io.lmo"
+async test "runobj executes explicit Basic Io linked input" {
+  let workspace = ".tmp-lane-runobj-basic-io"
+  let basic_source = "\{workspace}/io.lane"
+  let basic_interface = "\{workspace}/io.lmi"
+  let basic_object = "\{workspace}/io.lmo"
   let main_source = "\{workspace}/Main.lane"
   let main_object = "\{workspace}/Main.lmo"
   let program_path = "\{workspace}/program.lbp"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   write_source_file(
-    stdlib_source,
+    basic_source,
     (
-      #|module Stdlib.Io
+      #|module Basic.Io
       #|pub effect Write {
       #|  println(String) -> Unit
       #|}
@@ -375,26 +375,26 @@ async test "runobj executes explicit Stdlib Io linked input" {
     main_source,
     (
       #|module Main
-      #|import Stdlib.Io.*
+      #|import Basic.Io.*
       #|pub fn main() -> Unit ! Io {
       #|  Write::println!("hello")
       #|}
     ),
   )
   guard lane_compile(
-      stdlib_source,
+      basic_source,
       [],
-      Some(stdlib_interface),
-      Some(stdlib_object),
+      Some(basic_interface),
+      Some(basic_object),
       false,
     )
     is Succeeded else {
     cleanup_library_fixture(workspace)
-    abort("expected stdlib compile to succeed")
+    abort("expected basic compile to succeed")
   }
   guard lane_compile(
       main_source,
-      [stdlib_interface],
+      [basic_interface],
       None,
       Some(main_object),
       false,
@@ -403,8 +403,7 @@ async test "runobj executes explicit Stdlib Io linked input" {
     cleanup_library_fixture(workspace)
     abort("expected main compile to succeed")
   }
-  guard lane_link([main_object, stdlib_object], program_path, false)
-    is Succeeded else {
+  guard lane_link([main_object, basic_object], program_path, false) is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected link to succeed")
   }
@@ -511,9 +510,9 @@ test "run executes pure unit function entries without rendering Unit" {
 }
 
 ///|
-test "run accepts Stdlib Io effect aliases when supplied explicitly" {
-  let stdlib_io =
-    #|module Stdlib.Io
+test "run accepts Basic Io effect aliases when supplied explicitly" {
+  let basic_io =
+    #|module Basic.Io
     #|pub effect Write {
     #|  println(String) -> Unit
     #|}
@@ -522,12 +521,12 @@ test "run accepts Stdlib Io effect aliases when supplied explicitly" {
   let result = @compile.compile_sources(
     (
       #|module Test
-      #|import Stdlib.Io.*
+      #|import Basic.Io.*
       #|pub fn main() -> Unit ! Io {
       #|  Write::println!("hello")
       #|}
     ),
-    [stdlib_io],
+    [basic_io],
   )
   inspect(result.diagnostics.length(), content="0")
   guard result.program is Some(program) else { abort("expected program") }
@@ -544,7 +543,7 @@ test "run accepts Stdlib Io effect aliases when supplied explicitly" {
 }
 
 ///|
-test "run rejects Stdlib Io effect without explicit runtime metadata" {
+test "run rejects Basic Io effect without explicit runtime metadata" {
   let result = @compile.compile_source(
     (
       #|module Test
@@ -587,7 +586,7 @@ test "run rejects Stdlib Io effect without explicit runtime metadata" {
     content=(
       #|error[E6009]: entry `main` is not executable
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit, or supported runtime effects such as Stdlib.Io.Write
+      #|  expected: () -> Unit, or supported runtime effects such as Basic.Io.Write
       #|
       #|The selected function has unsupported effect set `effect#0`.
       #|

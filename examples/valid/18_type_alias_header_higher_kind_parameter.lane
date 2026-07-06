@@ -3,9 +3,9 @@
 
 module Examples.Valid18
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 pub struct Box[A] {
   value : A

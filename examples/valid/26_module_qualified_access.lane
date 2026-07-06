@@ -1,12 +1,12 @@
 module Examples.Valid.ModuleQualifiedAccess
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Builtins
+import Basic.Builtins
 
-pub let sum_value : Int = Stdlib.Builtins.int_add(20, 22)
+pub let sum_value : Int = Basic.Builtins.int_add(20, 22)
 
 pub fn answer() -> Unit ! Io {
   if sum_value == 42 {

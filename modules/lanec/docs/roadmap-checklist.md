@@ -10,7 +10,7 @@ affect. Items prefixed with `Existential:` refer to the design note in
 
 ## 0. Source Surface And Specification
 
-- [x] Workspace layout for `spec`, `lanec`, `lane tools`, and `stdlib`.
+- [x] Workspace layout for `spec`, `lanec`, `lane tools`, and `basic`.
 - [x] Lexer and parser.
 - [x] Syntax AST and syntax pretty printer.
 - [x] Parser tests based on pretty-printed output.
@@ -244,10 +244,10 @@ and unresolved or ambiguous states before Buslane lowering.
 - [x] Use the Buslane interpreter as the semantic oracle for the first native
   `lane run` implementation.
 
-## 8. Standard Library And Conformance
+## 8. Basic Library And Conformance
 
-- [x] Encode and check the v1 standard library modules as Lane source.
-- [x] Populate contextual offers from explicitly imported standard-library
+- [x] Encode and check the v1 Basic library modules as Lane source.
+- [x] Populate contextual offers from explicitly imported Basic library
   offered value definitions.
 - [x] Provide required standard intrinsic implementations through `lanec`
   intrinsic runtime plugins.

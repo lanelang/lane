@@ -1,8 +1,8 @@
 module Examples.Valid.StateEffect
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 pub struct StateResult {
   value : Int

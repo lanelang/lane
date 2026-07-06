@@ -13,7 +13,7 @@ The examples follow the language specification rather than the current
 implementation. Rejecting a `valid` example or accepting an `invalid` example
 is an implementation discrepancy unless the specification changes.
 
-Examples that use standard operations import the relevant standard-library
+Examples that use Basic operations import the relevant Basic library
 modules explicitly. Smoke fixtures pass those modules with `--lib-dir`, and
 only entries with executable `() -> Unit` shapes are exercised through
 `lane run`.

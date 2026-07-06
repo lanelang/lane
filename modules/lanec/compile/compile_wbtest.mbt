@@ -657,14 +657,14 @@ test "linked artifacts preserve runtime effect operation metadata" {
   let compiled = compile_modules(
     (
       #|module Main
-      #|import Stdlib.Io.*
+      #|import Basic.Io.*
       #|pub fn main() -> Unit ! Io {
       #|  Write::println!("hello")
       #|}
     ),
     [
       (
-        #|module Stdlib.Io
+        #|module Basic.Io
         #|pub effect Write {
         #|  println(String) -> Unit
         #|}
@@ -689,10 +689,10 @@ test "linked artifacts preserve runtime effect operation metadata" {
       "\{operation.module_path_text}.\{operation.effect_name}::\{operation.operation_name}/\{operation.payload.length()}->\{@prettyprinter.render(operation.result, width=100)}"
     })
     .join("\n"),
-    content="Stdlib.Io.Write::println/1->Unit",
+    content="Basic.Io.Write::println/1->Unit",
   )
   let signature : RuntimeEffectOperationSignature = {
-    module_path_text: "Stdlib.Io",
+    module_path_text: "Basic.Io",
     effect_name: "Write",
     operation_name: "println",
     payload: [Primitive(String)],
@@ -724,7 +724,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   assert_eq(
     runtime_operation_index(
       artifact.find_runtime_effect_operation({
-        module_path_text: "Stdlib.Io",
+        module_path_text: "Basic.Io",
         effect_name: "Console",
         operation_name: "println",
         payload: [Primitive(String)],
@@ -736,7 +736,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   assert_eq(
     runtime_operation_index(
       artifact.find_runtime_effect_operation({
-        module_path_text: "Stdlib.Io",
+        module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "print",
         payload: [Primitive(String)],
@@ -748,7 +748,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   assert_eq(
     runtime_operation_index(
       artifact.find_runtime_effect_operation({
-        module_path_text: "Stdlib.Io",
+        module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "println",
         payload: [Primitive(Int)],
@@ -760,7 +760,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   assert_eq(
     runtime_operation_index(
       artifact.find_runtime_effect_operation({
-        module_path_text: "Stdlib.Io",
+        module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "println",
         payload: [Primitive(String)],
@@ -772,7 +772,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   assert_eq(
     runtime_operation_result_index(
       artifact.validate_runtime_effect_operation({
-        module_path_text: "Stdlib.Io",
+        module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "println",
         payload: [Primitive(String)],

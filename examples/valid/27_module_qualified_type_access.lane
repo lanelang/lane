@@ -1,14 +1,14 @@
 module Examples.Valid.ModuleQualifiedTypeAccess
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Builtins
+import Basic.Builtins
 
-import Stdlib.Ops
+import Basic.Ops
 
-let add_ops : Stdlib.Ops.Add[Int] = Stdlib.Ops.Add::{ add: Stdlib.Builtins.int_add }
+let add_ops : Basic.Ops.Add[Int] = Basic.Ops.Add::{ add: Basic.Builtins.int_add }
 
 pub let sum_value : Int = add_ops.add(20, 22)
 

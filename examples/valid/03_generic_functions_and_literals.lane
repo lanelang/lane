@@ -1,8 +1,8 @@
 module Examples.Valid03
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 fn[A] choose(cond : Bool, left : A, right : A) -> A {
   if cond {

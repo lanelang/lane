@@ -1,7 +1,7 @@
 # Lane Contextual Resolution
 
 This context names contextual offers, contextual parameters, operator aliases,
-standard-library operation values, and builtin boundaries.
+Basic library operation values, and builtin boundaries.
 
 ## Language
 
@@ -62,11 +62,11 @@ A normal value name with an `op_` prefix that may be targeted by a fixed operato
 _Avoid_: reserved identifier, user-defined operator token
 
 **Operation Field**:
-A field inside a standard-library operation struct that stores the implementation function.
+A field inside a Basic library operation struct that stores the implementation function.
 _Avoid_: operator alias target, op-prefixed field
 
 **Standard Operation**:
-A standard-library nominal operation struct whose fields use conventional operation names.
+A Basic library nominal operation struct whose fields use conventional operation names.
 _Avoid_: compiler-only operator magic, user-defined operator trait
 
 **Short-Circuit Boolean Operation**:

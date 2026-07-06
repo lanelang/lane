@@ -1,8 +1,8 @@
 module Examples.Valid.EffectfulFunctionCalls
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 effect Console {
   read() -> Int

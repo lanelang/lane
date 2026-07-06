@@ -2,9 +2,9 @@
 
 module Examples.Valid17
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 pub type Left[A, B] = A
 

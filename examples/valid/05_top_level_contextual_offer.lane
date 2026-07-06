@@ -1,8 +1,8 @@
 module Examples.Valid05
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 pub fn custom_add(a : Int, _b : Int) -> Int {
   a

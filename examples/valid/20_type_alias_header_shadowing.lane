@@ -2,9 +2,9 @@
 
 module Examples.Valid20
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 pub type Shadow[A] = type[A] => A
 

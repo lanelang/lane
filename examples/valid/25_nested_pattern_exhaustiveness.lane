@@ -1,8 +1,8 @@
 module Examples.Valid.NestedPatternExhaustiveness
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 pub enum Option[A] {
   none()

@@ -241,7 +241,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         fields=[
           command_report_field("requested type", render_buslane_type(type_)),
           command_report_field(
-            "expected", "() -> Unit, or supported runtime effects such as Stdlib.Io.Write",
+            "expected", "() -> Unit, or supported runtime effects such as Basic.Io.Write",
           ),
         ],
         details=[reason.to_human_note()],

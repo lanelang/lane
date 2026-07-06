@@ -1,8 +1,8 @@
 module Examples.Valid.YieldEffect
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 pub enum IntList {
   nil()

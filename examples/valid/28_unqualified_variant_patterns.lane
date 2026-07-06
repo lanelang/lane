@@ -1,8 +1,8 @@
 module Examples.Valid.UnqualifiedVariantPatterns
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
 enum Left {
   same(Int)

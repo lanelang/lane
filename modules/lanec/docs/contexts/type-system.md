@@ -191,7 +191,7 @@ _Avoid_: source generic parameter name, de Bruijn index, compiler-front-end type
 
 **Primitive Type**:
 A built-in type provided by the language core: `Int`, `Bool`, `String`, or `Unit`.
-_Avoid_: standard library type, numeric tower
+_Avoid_: Basic library type, numeric tower
 
 **Primitive Literal**:
 A direct inhabitant of a primitive type, such as `true`, `42`, `"abc"`, or `()`.

@@ -1,8 +1,8 @@
 module Examples.Valid22
 
-import Stdlib.Io.{Io, Write}
+import Basic.Io.{Io, Write}
 
-import Stdlib.Ops.*
+import Basic.Ops.*
 
 pub enum Option[A] {
   none()
