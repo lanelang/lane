@@ -422,6 +422,24 @@
       }
     },
     {
+      "name": "warning 02 unused private top-level declaration",
+      "file": "examples/warnings/02_unused_private_top_level_declaration.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "warning[W2002]",
+          "unused private top-level declaration",
+          "private function `dead_function` is never used",
+          "private value `dead_value` is never used",
+          "private struct `DeadStruct` is never used",
+          "private enum `DeadEnum` is never used",
+          "private effect `DeadEffect` is never used",
+          "private type alias `DeadAlias` is never used",
+          "private effect alias `DeadEffects` is never used"
+        ]
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "mode": "check-error",

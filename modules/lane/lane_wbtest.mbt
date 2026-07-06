@@ -440,6 +440,9 @@ async test "link rejects private selected entry" {
       #|fn main() -> Unit {
       #|  ()
       #|}
+      #|pub fn keep() -> Unit {
+      #|  main()
+      #|}
     ),
   )
   guard lane_compile(source, [], None, Some(object), false) is Succeeded else {
@@ -455,7 +458,7 @@ async test "link rejects private selected entry" {
     errors.map(CliError::render_human).join("\n"),
     content=(
       #|error[E6005]: entry `Main.main` was not found
-      #|  available public entries: (none)
+      #|  available public entries: Main.keep
       #|
       #|Use one of the listed public entries, or export the value with `pub` before compiling.
     ),
@@ -575,7 +578,7 @@ test "run rejects public value entries" {
     (
       #|module Test
       #|pub let answer : Int = 42
-      #|let hidden : Int = 1
+      #|let _hidden : Int = 1
     ),
   )
   inspect(result.diagnostics.length(), content="0")

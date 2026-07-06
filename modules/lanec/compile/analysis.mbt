@@ -187,6 +187,15 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
                 },
               ),
             )
+            diagnostics.append(
+              unused_private_top_level_declaration_diagnostics(
+                resolved.source,
+                source,
+                input.text,
+              ).map(fn(diagnostic) {
+                diagnostic.with_source_id(input.source_id)
+              }),
+            )
             let interface = { ..interface, source_id: Some(input.source_id) }
             let imported_fingerprints = imported_environment_fingerprints(
               imported,

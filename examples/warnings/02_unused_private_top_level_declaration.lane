@@ -1,0 +1,27 @@
+module Examples.Warnings.UnusedPrivateTopLevelDeclaration
+
+fn dead_function() -> Int {
+  1
+}
+
+let dead_value : Int = 2
+
+struct DeadStruct {
+  value : Int
+}
+
+enum DeadEnum {
+  dead()
+}
+
+effect DeadEffect {
+  dead() -> Unit
+}
+
+type DeadAlias = Int
+
+type DeadEffects = { DeadEffect }
+
+pub fn answer() -> Int {
+  0
+}

@@ -4,7 +4,7 @@ test "compile source records builtin externals and public entries" {
     (
       #|module Test
       #|pub let int_add : (Int, Int) -> Int = builtin("%i64_add")
-      #|let private_value : Int = 1
+      #|let _private_value : Int = 1
     ),
   )
   inspect(result.diagnostics.length(), content="0")
@@ -170,6 +170,360 @@ test "compile modules keeps artifacts when unused local warning exists" {
       #|]
     ),
   )
+}
+
+///|
+test "check reports unused private top-level declarations as warnings" {
+  let result = check_source(
+    (
+      #|module Test
+      #|fn dead_function() -> Int {
+      #|  1
+      #|}
+      #|let dead_value : Int = 2
+      #|struct DeadStruct {
+      #|  value : Int
+      #|}
+      #|enum DeadEnum {
+      #|  dead()
+      #|}
+      #|effect DeadEffect {
+      #|  dead() -> Unit
+      #|}
+      #|type DeadAlias = Int
+      #|type DeadEffects = { DeadEffect }
+      #|pub fn answer() -> Int {
+      #|  0
+      #|}
+    ),
+  )
+  guard result.source is Some(_) else { abort("expected checked source") }
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused private top-level declaration",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 15,
+      #|          end_offset: 28,
+      #|          start_line: 2,
+      #|          start_column: 4,
+      #|          end_line: 2,
+      #|          end_column: 17,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2002"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 15,
+      #|            end_offset: 28,
+      #|            start_line: 2,
+      #|            start_column: 4,
+      #|            end_line: 2,
+      #|            end_column: 17,
+      #|          },
+      #|        ),
+      #|        message: "private function `dead_function` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused private top-level declaration",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 50,
+      #|          end_offset: 60,
+      #|          start_line: 5,
+      #|          start_column: 5,
+      #|          end_line: 5,
+      #|          end_column: 15,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2002"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 50,
+      #|            end_offset: 60,
+      #|            start_line: 5,
+      #|            start_column: 5,
+      #|            end_line: 5,
+      #|            end_column: 15,
+      #|          },
+      #|        ),
+      #|        message: "private value `dead_value` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused private top-level declaration",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 78,
+      #|          end_offset: 88,
+      #|          start_line: 6,
+      #|          start_column: 8,
+      #|          end_line: 6,
+      #|          end_column: 18,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2002"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 78,
+      #|            end_offset: 88,
+      #|            start_line: 6,
+      #|            start_column: 8,
+      #|            end_line: 6,
+      #|            end_column: 18,
+      #|          },
+      #|        ),
+      #|        message: "private struct `DeadStruct` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused private top-level declaration",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 112,
+      #|          end_offset: 120,
+      #|          start_line: 9,
+      #|          start_column: 6,
+      #|          end_line: 9,
+      #|          end_column: 14,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2002"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 112,
+      #|            end_offset: 120,
+      #|            start_line: 9,
+      #|            start_column: 6,
+      #|            end_line: 9,
+      #|            end_column: 14,
+      #|          },
+      #|        ),
+      #|        message: "private enum `DeadEnum` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused private top-level declaration",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 141,
+      #|          end_offset: 151,
+      #|          start_line: 12,
+      #|          start_column: 8,
+      #|          end_line: 12,
+      #|          end_column: 18,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2002"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 141,
+      #|            end_offset: 151,
+      #|            start_line: 12,
+      #|            start_column: 8,
+      #|            end_line: 12,
+      #|            end_column: 18,
+      #|          },
+      #|        ),
+      #|        message: "private effect `DeadEffect` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused private top-level declaration",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 178,
+      #|          end_offset: 187,
+      #|          start_line: 15,
+      #|          start_column: 6,
+      #|          end_line: 15,
+      #|          end_column: 15,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2002"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 178,
+      #|            end_offset: 187,
+      #|            start_line: 15,
+      #|            start_column: 6,
+      #|            end_line: 15,
+      #|            end_column: 15,
+      #|          },
+      #|        ),
+      #|        message: "private type alias `DeadAlias` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused private top-level declaration",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 199,
+      #|          end_offset: 210,
+      #|          start_line: 16,
+      #|          start_column: 6,
+      #|          end_line: 16,
+      #|          end_column: 17,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2002"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 199,
+      #|            end_offset: 210,
+      #|            start_line: 16,
+      #|            start_column: 6,
+      #|            end_line: 16,
+      #|            end_column: 17,
+      #|          },
+      #|        ),
+      #|        message: "private effect alias `DeadEffects` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "check keeps reachable private top-level declarations quiet" {
+  let result = check_source(
+    (
+      #|module Test
+      #|struct Box {
+      #|  value : Int
+      #|}
+      #|enum Option {
+      #|  some(Box)
+      #|  none()
+      #|}
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|type UI = { Console }
+      #|type Task = { UI }
+      #|fn helper(value : Option) -> Int ! Task {
+      #|  match value {
+      #|    some(box) => {
+      #|      let _read : Int = Console::read!()
+      #|      box.value
+      #|    }
+      #|    none() => 0
+      #|  }
+      #|}
+      #|pub fn answer() -> Int {
+      #|  handle helper(Option::some(Box::{ value: 1 })) with {
+      #|    Console::read(resume) => resume(41)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(_) else { abort("expected checked source") }
 }
 
 ///|
@@ -777,7 +1131,7 @@ test "effect aliases export through interface artifacts" {
     (
       #|module Main
       #|import Lib.*
-      #|fn program() -> Unit ! Lib.UI {
+      #|pub fn program() -> Unit ! Lib.UI {
       #|  let ignored : Int = Console::read!()
       #|  Log::write!("ok")
       #|}
@@ -806,8 +1160,8 @@ test "effect aliases export through interface artifacts" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 63,
-      #|          end_offset: 70,
+      #|          start_offset: 67,
+      #|          end_offset: 74,
       #|          start_line: 4,
       #|          start_column: 7,
       #|          end_line: 4,
@@ -822,8 +1176,8 @@ test "effect aliases export through interface artifacts" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 63,
-      #|            end_offset: 70,
+      #|            start_offset: 67,
+      #|            end_offset: 74,
       #|            start_line: 4,
       #|            start_column: 7,
       #|            end_line: 4,

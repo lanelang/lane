@@ -21,7 +21,7 @@ pub let id_poly : [A](A) -> A = fn[A] (value) {
 }
 
 pub fn answer() -> Unit ! Io {
-  if apply(42, id_int) == 42 {
+  if apply(42, id_int) == 42 && apply_generic(42, id_int) == 42 {
     Write::println!("apply=42")
   } else {
     Write::println!("bad:apply=42")

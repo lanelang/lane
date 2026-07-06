@@ -79,6 +79,50 @@ fn unused_local_value_binding_diagnostic(
 }
 
 ///|
+fn unused_private_top_level_declaration_diagnostics(
+  source : @resolve.ResolvedSourceFile,
+  checked : @checked.CheckedSourceFile,
+  source_text : String,
+) -> Array[CompilerDiagnostic] {
+  source
+  .top_level_use_analysis(checked)
+  .unused_private_declarations()
+  .map(fn(declaration) {
+    unused_private_top_level_declaration_diagnostic(declaration, source_text)
+  })
+}
+
+///|
+fn unused_private_top_level_declaration_diagnostic(
+  declaration : TopLevelUseDeclaration,
+  source_text : String,
+) -> CompilerDiagnostic {
+  let declaration_loc = name_span(
+    source_text,
+    declaration.name,
+    declaration.loc,
+  )
+  let kind = declaration.kind.text()
+  diagnostic(
+    "unused private top-level declaration",
+    span=Some(declaration_loc),
+    severity=Warning,
+    code=Some("W2002"),
+    labels=[
+      {
+        span: compiler_local_span(declaration_loc),
+        message: "private \{kind} `\{declaration.name}` is never used",
+        style: Primary,
+      },
+    ],
+    notes=[],
+    helps=[
+      "remove it, make it public if it is part of the module API, or prefix the name with `_` if this is intentional",
+    ],
+  )
+}
+
+///|
 fn compile_report(
   title : String,
   span : @basic.SourceSpan?,

@@ -51,7 +51,17 @@ fn compile_one_module(
       let warning_diagnostics = checked_unused_local_value_binding_diagnostics(
         checked,
         input.text,
-      ).map(fn(diagnostic) { diagnostic.with_source_id(input.source_id) })
+      )
+      warning_diagnostics.append(
+        unused_private_top_level_declaration_diagnostics(
+          resolved.source,
+          checked,
+          input.text,
+        ),
+      )
+      let warning_diagnostics = warning_diagnostics.map(fn(diagnostic) {
+        diagnostic.with_source_id(input.source_id)
+      })
       let interface = { ..interface, source_id: Some(input.source_id) }
       let imported_fingerprints = imported_environment_fingerprints(imported)
       let fingerprint = module_fingerprint(interface, imported_fingerprints)
