@@ -64,6 +64,14 @@ _Avoid_: type scope, lexical scope tree, dead-code elimination, textual name sca
 A named local value binder whose source name starts with `_`; unused-local-value warnings do not fire for these binders.
 _Avoid_: wildcard pattern, dead binding, generated temporary
 
+**GHC-Like Artifact Layering**:
+The compiler artifact policy where interfaces carry public semantics and optimization hints, module objects carry linkable Buslane/core, and execution images are produced after linking.
+_Avoid_: JVM-style runtime linking model, ANF artifact boundary, bytecode-only compiler contract
+
+**Execution Image Lowering**:
+The lowering from linked and optimized Buslane/core into a target execution image such as portable bytecode.
+_Avoid_: semantic lowering, source elaboration, module interface generation
+
 ## Relationships
 
 - `lanec` implements the language contract from `spec`.
@@ -104,3 +112,9 @@ _Avoid_: wildcard pattern, dead binding, generated temporary
 - An **Intentionally Ignored Local Binding** is still a normal resolved value
   binding when referenced; the leading `_` only suppresses unused-local-value
   warnings.
+- `lanec` follows **GHC-Like Artifact Layering**: `.lmi` records interface
+  semantics and optimization hints, `.lmo` records linkable Buslane/core, and
+  `.lbp` may carry a final execution image after linking and optimization.
+- **Execution Image Lowering** is below Buslane/core and below any
+  whole-program core optimization; ANF and bytecode are not the public semantic
+  artifact boundary.

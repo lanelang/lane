@@ -239,11 +239,12 @@ semantic constructs and making evaluation order mechanically explicit for later
 execution. Buslane now owns the semantic core boundary; ANF owns the
 normalization boundary after Buslane.
 
-The current interpreter still evaluates ANF while the compiler is being
-re-layered. The intended pipeline is:
+The current reference execution path evaluates Buslane programs directly while
+ANF remains a later normalization and execution-layout boundary. The intended
+semantic pipeline is:
 
 ```text
-Source -> Resolved -> Desugared -> Checked Source -> Buslane -> ANF -> Interpreter/VM
+Source -> Resolved -> Desugared -> Checked Source -> Buslane -> ANF/Execution Image
 ```
 
 ADR-0004 is superseded by this decision. Other older ADRs that mention "typed

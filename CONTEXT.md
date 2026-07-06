@@ -93,6 +93,26 @@ _Avoid_: Buslane identity, local compiler temporary, runtime address
 A set of compiled modules whose imported references have been connected for execution or Buslane verification.
 _Avoid_: single compilation unit, source concatenation, unchecked module graph
 
+**GHC-Like Artifact Layering**:
+A compiler artifact strategy where interfaces carry public semantics and optimization metadata, objects carry linkable semantic core plus link metadata, and execution images are derived after linking.
+_Avoid_: JVM-style runtime symbolic linking, bytecode-as-only-source, ANF-as-artifact-boundary
+
+**Canonical Core Artifact**:
+The authoritative semantic payload of a compiled or linked Lane artifact, currently Buslane core plus the metadata needed to link, inspect, verify, or lower it.
+_Avoid_: ANF cache, bytecode image, runtime execution layout
+
+**Whole-Program Core Optimization**:
+An optimization phase over a linked canonical core program after imported references have been resolved and before lowering to an execution image.
+_Avoid_: bytecode-only optimization, source rewriting, interface type checking
+
+**Execution Image**:
+A lowered representation for a concrete execution target, such as a portable bytecode image or native code, produced from a linked canonical core program.
+_Avoid_: module interface, source API surface, canonical semantic payload
+
+**Bytecode Cache**:
+An optional, invalidatable code section stored to avoid repeated lowering when the compiler version, target, options, and core fingerprint still match.
+_Avoid_: canonical module payload, interface fingerprint source, cross-module semantic record
+
 **NoBuild Model**:
 A build philosophy where running a source file is direct and higher-level compile, link, optimize, and entrypoint policies are user-authored library workflows.
 _Avoid_: hard-coded main rule, mandatory project manifest, compiler-owned build graph policy
@@ -352,6 +372,7 @@ _Avoid_: VS Code extension, compiler front end
 - A **Module Interface** is consumed during downstream compilation.
 - A **Module Interface** may carry **Optimization Hints** for downstream compilation.
 - A **Module Object** is consumed during linking.
+- A **Module Object** carries a **Canonical Core Artifact**; ANF and bytecode are not its semantic source of truth.
 - A **Compiled Module** pairs a **Module Interface** with a **Module Object**.
 - The **Module Interface** and **Module Object** in one **Compiled Module** share a **Module Fingerprint**.
 - A **Compiled Module** records the **Imported Interface Fingerprints** it used during compilation.
@@ -430,6 +451,13 @@ _Avoid_: VS Code extension, compiler front end
 - **External Origin** distinguishes runtime intrinsics from imported references.
 - A **Linked Program** connects imported references across compiled modules.
 - A build `link` primitive produces a **Linked Program** suitable for optimization or execution.
+- Lane follows **GHC-Like Artifact Layering** for compile, link, optimization, and execution artifacts.
+- **Optimization Hints** may guide downstream optimization like interface metadata, but they do not define source semantics.
+- **Whole-Program Core Optimization** runs over a linked **Canonical Core Artifact**, not over source text or per-module bytecode alone.
+- ANF is a derived normalization layer below Buslane and may be regenerated from the **Canonical Core Artifact**.
+- An **Execution Image** is produced from linked core after optimization; it may be the primary payload used by `runobj`, but it is not the public interface contract.
+- A **Bytecode Cache** may appear in a **Module Object** or **Linked Program** only as a target-specific cache guarded by fingerprints, compiler version, and lowering options.
+- `inspect` should expose semantic artifact metadata and Buslane/core information before target-specific **Execution Image** details.
 - The **NoBuild Model** leaves build policy to **Build Workflows**.
 - A **Module Input Set** is parsed for module declarations and import sections before module compilation.
 - An **Import Graph Check** runs before compiling any module in the **Module Input Set**.

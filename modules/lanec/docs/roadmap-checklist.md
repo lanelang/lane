@@ -279,8 +279,12 @@ and unresolved or ambiguous states before Buslane lowering.
 
 ## Later Execution Work
 
-- [ ] Lowered IR for closure conversion, decision trees, and execution layout.
-- [ ] Portable bytecode VM.
+- [ ] Lowered IR for closure conversion, decision trees, and execution layout
+  derived from Buslane/core rather than used as the artifact boundary.
+- [ ] Portable bytecode VM whose bytecode image is produced after linked-core
+  optimization.
+- [ ] Optional per-module bytecode caches guarded by compiler version, target,
+  lowering options, and core fingerprints.
 - [ ] Linker entrypoint selection.
 - [ ] Algebraic effects and handlers.
 - [ ] Direct native, WebAssembly, or JavaScript execution targets.

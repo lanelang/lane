@@ -10,7 +10,7 @@ A way to execute a checked Lane program, such as an interpreter or a bytecode vi
 _Avoid_: host target, MoonBit target, backend platform
 
 **Reference Interpreter**:
-The first execution target, currently evaluating ANF IR, that defines observable Lane/Core behavior.
+The first execution target, currently evaluating verified Buslane programs, that defines observable Lane/Core behavior.
 _Avoid_: source interpreter, bytecode VM
 
 **Interpreter Entry Selection**:
@@ -75,7 +75,7 @@ _Avoid_: integer trap, arbitrary precision integer
 
 ## Relationships
 
-- The first **Execution Target** currently evaluates ANF IR.
+- The first **Execution Target** currently evaluates verified Buslane programs.
 - The **Reference Interpreter** uses **Interpreter Entry Selection** over a whole checked compiler program.
 - **Run Entry Convention** is a caller policy layered on top of **Interpreter Entry Selection** and selects from the final linked top-level environment.
 - `lane run` and `lane runobj` execute only an **Executable Entry Type**; arbitrary public value inspection belongs to inspect tooling rather than run tooling.

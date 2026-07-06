@@ -119,10 +119,17 @@ _Avoid_: value type, operation set
 The effect set attached to a Buslane function type.
 _Avoid_: operation set, inferred capability
 
+**Canonical Core Artifact Role**:
+The role Buslane programs play when embedded in compiler module objects or linked program artifacts as the semantic core payload.
+_Avoid_: module interface policy, bytecode image, execution cache
+
 ## Relationships
 
 - `lanec` lowers checked Lane source into the **Buslane Core Language**.
 - `buslane` does not depend on Lane parser, resolver, or source diagnostics.
+- A Buslane program may serve the **Canonical Core Artifact Role**, but Buslane
+  itself does not own module interfaces, module objects, bytecode caches, or
+  execution image policy.
 - **Buslane Effect Core** belongs to the **Buslane Core Language**, not to
   Lane source syntax.
 - A **Handler Table** is grouped by singleton effect before **Operation
