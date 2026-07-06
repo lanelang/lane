@@ -122,6 +122,38 @@ fn TypeScope::bind_resolved_type_parameter_kinds(
 }
 
 ///|
+fn TypeScope::with_type_parameter_kinds(
+  self : TypeScope,
+  type_parameters : Array[@resolve.ResolvedTypeParameter],
+) -> TypeScope {
+  let scope = self.copy()
+  scope.bind_resolved_type_parameter_kinds(type_parameters)
+  scope
+}
+
+///|
+fn SemanticChecker::function_body_scope(
+  self : SemanticChecker,
+  parent : TypeScope,
+  type_parameters : Array[@resolve.ResolvedTypeParameter],
+  parameters : Array[@checked.CheckedValueParameter],
+) -> TypeScope {
+  let scope = parent.with_type_parameter_kinds(type_parameters)
+  for parameter in parameters {
+    scope.bind(parameter.symbol, parameter.type_)
+    if parameter.is_offered {
+      self.offer_symbol(
+        scope.offers,
+        parameter.symbol,
+        parameter.type_,
+        parameter.loc,
+      )
+    }
+  }
+  scope
+}
+
+///|
 fn TypeScope::type_parameter_kind(
   self : TypeScope,
   symbol : TypeParameterId,
@@ -348,23 +380,13 @@ fn SemanticChecker::check_local_function(
     declaration.return_type,
     declaration.effect,
   )
-  let parameters = declaration.parameters.map(fn(parameter) {
-    self.checked_value_parameter(parameter)
-  })
+  let parameters = self.checked_value_parameters(declaration.parameters)
   scope.bind_function(declaration.symbol, type_, parameters)
-  let body_scope = scope.copy()
-  body_scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
-  for parameter in parameters {
-    body_scope.bind(parameter.symbol, parameter.type_)
-    if parameter.is_offered {
-      self.offer_symbol(
-        body_scope.offers,
-        parameter.symbol,
-        parameter.type_,
-        parameter.loc,
-      )
-    }
-  }
+  let body_scope = self.function_body_scope(
+    scope,
+    declaration.type_parameters,
+    parameters,
+  )
   let body = self.check_checked_expr(
     body_scope,
     declaration.body,

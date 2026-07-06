@@ -129,22 +129,12 @@ fn SemanticChecker::checked_top_level_function(
   self : SemanticChecker,
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> @checked.CheckedTopLevelDeclaration? {
-  let body_scope = self.root_scope()
-  body_scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
-  let parameters = declaration.parameters.map(fn(parameter) {
-    self.checked_value_parameter(parameter)
-  })
-  for parameter in parameters {
-    body_scope.bind(parameter.symbol, parameter.type_)
-    if parameter.is_offered {
-      self.offer_symbol(
-        body_scope.offers,
-        parameter.symbol,
-        parameter.type_,
-        parameter.loc,
-      )
-    }
-  }
+  let parameters = self.checked_value_parameters(declaration.parameters)
+  let body_scope = self.function_body_scope(
+    self.root_scope(),
+    declaration.type_parameters,
+    parameters,
+  )
   let return_type = self.check_type(declaration.return_type)
   let checked_body = self.check_checked_expr(
     body_scope,
@@ -459,29 +449,13 @@ fn SemanticChecker::check_checked_local_function(
     declaration.return_type,
     declaration.effect,
   )
-  scope.bind_function(
-    declaration.symbol,
-    type_,
-    declaration.parameters.map(fn(parameter) {
-      self.checked_value_parameter(parameter)
-    }),
+  let parameters = self.checked_value_parameters(declaration.parameters)
+  scope.bind_function(declaration.symbol, type_, parameters)
+  let body_scope = self.function_body_scope(
+    scope,
+    declaration.type_parameters,
+    parameters,
   )
-  let body_scope = scope.copy()
-  body_scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
-  let parameters = declaration.parameters.map(fn(parameter) {
-    self.checked_value_parameter(parameter)
-  })
-  for parameter in parameters {
-    body_scope.bind(parameter.symbol, parameter.type_)
-    if parameter.is_offered {
-      self.offer_symbol(
-        body_scope.offers,
-        parameter.symbol,
-        parameter.type_,
-        parameter.loc,
-      )
-    }
-  }
   let return_type = self.check_type(declaration.return_type)
   let checked_body = self.check_checked_expr(
     body_scope,
@@ -509,6 +483,14 @@ fn SemanticChecker::check_checked_local_function(
     type_,
     loc: declaration.loc,
   })
+}
+
+///|
+fn SemanticChecker::checked_value_parameters(
+  self : SemanticChecker,
+  parameters : Array[@resolve.ResolvedValueParameter],
+) -> Array[@checked.CheckedValueParameter] {
+  parameters.map(fn(parameter) { self.checked_value_parameter(parameter) })
 }
 
 ///|

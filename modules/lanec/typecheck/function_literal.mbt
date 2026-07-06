@@ -1,4 +1,67 @@
 ///|
+fn checked_function_literal_parameter(
+  parameter : @resolve.ResolvedFunctionLiteralParameter,
+  type_ : @types.Type,
+) -> @checked.CheckedValueParameter {
+  {
+    symbol: parameter.symbol,
+    is_auto: false,
+    is_offered: parameter.is_offered,
+    name: parameter.name,
+    type_,
+    loc: parameter.loc,
+  }
+}
+
+///|
+fn SemanticChecker::synthesize_function_literal_parameters(
+  self : SemanticChecker,
+  parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
+) -> (Array[@types.Type], Array[@checked.CheckedValueParameter]) {
+  let parameter_types = []
+  let checked_parameters = []
+  for parameter in parameters {
+    let type_ = match parameter.type_annotation {
+      Some(type_annotation) => self.check_type(type_annotation)
+      None => {
+        self.diagnostics.push({
+          kind: FunctionLiteralParameterNeedsAnnotation(
+            name=Some(parameter.name),
+          ),
+          loc: parameter.loc,
+        })
+        Error
+      }
+    }
+    parameter_types.push(type_)
+    checked_parameters.push(
+      checked_function_literal_parameter(parameter, type_),
+    )
+  }
+  (parameter_types, checked_parameters)
+}
+
+///|
+fn SemanticChecker::checked_function_literal_parameters_from_expected(
+  self : SemanticChecker,
+  parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
+  expected_parameters : Array[@types.Type],
+) -> Array[@checked.CheckedValueParameter] {
+  let checked_parameters = []
+  for index in 0..<parameters.length() {
+    let parameter = parameters[index]
+    let type_ = expected_parameters[index]
+    if parameter.type_annotation is Some(type_annotation) {
+      self.expect_type(type_, self.check_type(type_annotation), parameter.loc)
+    }
+    checked_parameters.push(
+      checked_function_literal_parameter(parameter, type_),
+    )
+  }
+  checked_parameters
+}
+
+///|
 fn SemanticChecker::synthesize_function_literal(
   self : SemanticChecker,
   scope : TypeScope,
@@ -21,39 +84,12 @@ fn SemanticChecker::synthesize_function_literal(
   // parameter annotations, the expression must be checked against an expected
   // function type instead.
   ignore(loc)
-  let parameter_types = []
-  let body_scope = scope.copy()
-  body_scope.bind_resolved_type_parameter_kinds(type_parameters)
-  for parameter in parameters {
-    if parameter.type_annotation is Some(type_annotation) {
-      let type_ = self.check_type(type_annotation)
-      body_scope.bind(parameter.symbol, type_)
-      if parameter.is_offered {
-        self.offer_symbol(
-          body_scope.offers,
-          parameter.symbol,
-          type_,
-          parameter.loc,
-        )
-      }
-      parameter_types.push(type_)
-    } else {
-      self.diagnostics.push({
-        kind: FunctionLiteralParameterNeedsAnnotation(name=Some(parameter.name)),
-        loc: parameter.loc,
-      })
-      body_scope.bind(parameter.symbol, Error)
-      if parameter.is_offered {
-        self.offer_symbol(
-          body_scope.offers,
-          parameter.symbol,
-          Error,
-          parameter.loc,
-        )
-      }
-      parameter_types.push(Error)
-    }
-  }
+  let (parameter_types, checked_parameters) = self.synthesize_function_literal_parameters(
+    parameters,
+  )
+  let body_scope = self.function_body_scope(
+    scope, type_parameters, checked_parameters,
+  )
   let (result, actual_effect) = if return_type is Some(type_annotation) {
     let type_ = self.check_type(type_annotation)
     let checked_body = self.check_checked_expr(body_scope, body, type_)
@@ -112,26 +148,10 @@ fn SemanticChecker::check_function_literal(
         self.report_application_arity("function arity", loc)
         return
       }
-      let body_scope = scope.copy()
-      for index in 0..<parameters.length() {
-        let parameter = parameters[index]
-        if parameter.type_annotation is Some(type_annotation) {
-          self.expect_type(
-            expected_parameters[index],
-            self.check_type(type_annotation),
-            parameter.loc,
-          )
-        }
-        body_scope.bind(parameter.symbol, expected_parameters[index])
-        if parameter.is_offered {
-          self.offer_symbol(
-            body_scope.offers,
-            parameter.symbol,
-            expected_parameters[index],
-            parameter.loc,
-          )
-        }
-      }
+      let checked_parameters = self.checked_function_literal_parameters_from_expected(
+        parameters, expected_parameters,
+      )
+      let body_scope = self.function_body_scope(scope, [], checked_parameters)
       if return_type is Some(type_annotation) {
         self.expect_type(expected_result, self.check_type(type_annotation), loc)
       }
@@ -186,8 +206,7 @@ fn SemanticChecker::check_generic_function_literal(
       Parameter(type_parameters[index].symbol),
     )
   }
-  let scope = scope.copy()
-  scope.bind_resolved_type_parameter_kinds(type_parameters)
+  let scope = scope.with_type_parameter_kinds(type_parameters)
   self.check_function_literal(
     scope,
     [],

@@ -161,9 +161,7 @@ fn SemanticChecker::collect_top_level_function_type(
     declaration.return_type,
     declaration.effect,
   )
-  let parameters = declaration.parameters.map(fn(parameter) {
-    self.checked_value_parameter(parameter)
-  })
+  let parameters = self.checked_value_parameters(declaration.parameters)
   let binding = {
     symbol: declaration.symbol,
     type_,
@@ -213,15 +211,12 @@ fn SemanticChecker::check_top_level_function(
   self : SemanticChecker,
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> Unit {
-  let scope = self.root_scope()
-  scope.bind_resolved_type_parameter_kinds(declaration.type_parameters)
-  for parameter in declaration.parameters {
-    let type_ = self.check_type(parameter.type_)
-    scope.bind(parameter.symbol, type_)
-    if parameter.is_offered {
-      self.offer_symbol(scope.offers, parameter.symbol, type_, parameter.loc)
-    }
-  }
+  let parameters = self.checked_value_parameters(declaration.parameters)
+  let scope = self.function_body_scope(
+    self.root_scope(),
+    declaration.type_parameters,
+    parameters,
+  )
   let body = self.check_checked_expr(
     scope,
     declaration.body,

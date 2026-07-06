@@ -980,57 +980,12 @@ fn SemanticChecker::synthesize_checked_function_literal(
   body : @desugar.DesugaredExpr,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  let parameter_types = []
-  let checked_parameters : Array[@checked.CheckedValueParameter] = []
-  let body_scope = scope.copy()
-  body_scope.bind_resolved_type_parameter_kinds(type_parameters)
-  for parameter in parameters {
-    if parameter.type_annotation is Some(type_annotation) {
-      let type_ = self.check_type(type_annotation)
-      body_scope.bind(parameter.symbol, type_)
-      if parameter.is_offered {
-        self.offer_symbol(
-          body_scope.offers,
-          parameter.symbol,
-          type_,
-          parameter.loc,
-        )
-      }
-      parameter_types.push(type_)
-      checked_parameters.push({
-        symbol: parameter.symbol,
-        is_auto: false,
-        is_offered: parameter.is_offered,
-        name: parameter.name,
-        type_,
-        loc: parameter.loc,
-      })
-    } else {
-      let type_ : @types.Type = Error
-      self.diagnostics.push({
-        kind: FunctionLiteralParameterNeedsAnnotation(name=Some(parameter.name)),
-        loc: parameter.loc,
-      })
-      body_scope.bind(parameter.symbol, type_)
-      if parameter.is_offered {
-        self.offer_symbol(
-          body_scope.offers,
-          parameter.symbol,
-          type_,
-          parameter.loc,
-        )
-      }
-      parameter_types.push(type_)
-      checked_parameters.push({
-        symbol: parameter.symbol,
-        is_auto: false,
-        is_offered: parameter.is_offered,
-        name: parameter.name,
-        type_,
-        loc: parameter.loc,
-      })
-    }
-  }
+  let (parameter_types, checked_parameters) = self.synthesize_function_literal_parameters(
+    parameters,
+  )
+  let body_scope = self.function_body_scope(
+    scope, type_parameters, checked_parameters,
+  )
   let (result_type, checked_body) = if return_type is Some(type_annotation) {
     let result_type = self.check_type(type_annotation)
     (result_type, self.check_checked_expr(body_scope, body, result_type))
@@ -1115,8 +1070,7 @@ fn SemanticChecker::check_checked_function_literal(
           Parameter(type_parameters[index].symbol),
         )
       }
-      let scope = scope.copy()
-      scope.bind_resolved_type_parameter_kinds(type_parameters)
+      let scope = scope.with_type_parameter_kinds(type_parameters)
       let checked = self.check_checked_function_literal(
         scope,
         [],
@@ -1155,36 +1109,10 @@ fn SemanticChecker::check_checked_function_literal(
         self.report_application_arity("function arity", loc)
         return checked_expression_none_reported(expected)
       }
-      let body_scope = scope.copy()
-      let checked_parameters : Array[@checked.CheckedValueParameter] = []
-      for index in 0..<parameters.length() {
-        let parameter = parameters[index]
-        let type_ = expected_parameters[index]
-        if parameter.type_annotation is Some(type_annotation) {
-          self.expect_type(
-            type_,
-            self.check_type(type_annotation),
-            parameter.loc,
-          )
-        }
-        body_scope.bind(parameter.symbol, type_)
-        if parameter.is_offered {
-          self.offer_symbol(
-            body_scope.offers,
-            parameter.symbol,
-            type_,
-            parameter.loc,
-          )
-        }
-        checked_parameters.push({
-          symbol: parameter.symbol,
-          is_auto: false,
-          is_offered: parameter.is_offered,
-          name: parameter.name,
-          type_,
-          loc: parameter.loc,
-        })
-      }
+      let checked_parameters = self.checked_function_literal_parameters_from_expected(
+        parameters, expected_parameters,
+      )
+      let body_scope = self.function_body_scope(scope, [], checked_parameters)
       if return_type is Some(type_annotation) {
         self.expect_type(expected_result, self.check_type(type_annotation), loc)
       }
