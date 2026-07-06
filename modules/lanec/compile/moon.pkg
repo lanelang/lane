@@ -1,4 +1,9 @@
 import {
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+} for "wbtest"
+
+import {
   "Milky2018/buslane",
   "Milky2018/buslane/text",
   "Milky2018/lanec/compile/artifact_parser",
