@@ -1,17 +1,17 @@
 ///|
-priv struct TypeDisplayContext {
+pub struct TypeDisplayContext {
   registry : @symbol.SymbolRegistry
 }
 
 ///|
-fn TypeDisplayContext::from_registry(
+pub fn TypeDisplayContext::from_registry(
   registry : @symbol.SymbolRegistry,
 ) -> TypeDisplayContext {
   { registry, }
 }
 
 ///|
-fn TypeDisplayContext::type_text(
+pub fn TypeDisplayContext::type_text(
   self : TypeDisplayContext,
   type_ : @types.Type,
 ) -> String {
@@ -57,7 +57,7 @@ fn TypeDisplayContext::type_text(
 }
 
 ///|
-fn TypeDisplayContext::effect_text(
+pub fn TypeDisplayContext::effect_text(
   self : TypeDisplayContext,
   effect : @types.Effect,
 ) -> String {
@@ -81,7 +81,7 @@ fn TypeDisplayContext::effect_text(
 }
 
 ///|
-fn TypeDisplayContext::generic_argument_text(
+pub fn TypeDisplayContext::generic_argument_text(
   self : TypeDisplayContext,
   argument : @types.GenericArgument,
 ) -> String {
@@ -92,7 +92,7 @@ fn TypeDisplayContext::generic_argument_text(
 }
 
 ///|
-fn TypeDisplayContext::kind_text(
+pub fn TypeDisplayContext::kind_text(
   _self : TypeDisplayContext,
   kind : @types.Kind,
 ) -> String {
@@ -133,7 +133,7 @@ fn TypeDisplayContext::type_parameter_text(
 }
 
 ///|
-fn TypeDisplayContext::type_parameter_binding_text(
+pub fn TypeDisplayContext::type_parameter_binding_text(
   self : TypeDisplayContext,
   parameter : @types.TypeParameter,
 ) -> String {

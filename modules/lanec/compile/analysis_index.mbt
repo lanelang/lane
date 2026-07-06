@@ -286,7 +286,7 @@ fn add_type_inlay_hint(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
   span : @basic.SourceSpan,
-  display : TypeDisplayContext,
+  display : @typecheck.TypeDisplayContext,
   type_ : @types.Type,
 ) -> Unit {
   add_inlay_hint(

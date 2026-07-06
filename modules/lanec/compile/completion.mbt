@@ -73,7 +73,7 @@ priv struct CompletionModule {
 
 ///|
 priv struct CompletionWorld {
-  display : TypeDisplayContext
+  display : @typecheck.TypeDisplayContext
   modules : Array[CompletionModule]
 }
 
@@ -146,7 +146,7 @@ fn complete_module_input_set(
 ///|
 fn CompletionWorld::from_graph(graph : ModuleGraph) -> CompletionWorld {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let display = TypeDisplayContext::from_registry(registry)
+  let display = @typecheck.TypeDisplayContext::from_registry(registry)
   let compiled : Array[CompiledModule] = []
   let modules : Array[CompletionModule] = []
   for input in graph.modules {

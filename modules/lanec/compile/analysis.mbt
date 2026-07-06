@@ -138,7 +138,7 @@ fn AnalysisResult::from_diagnostics(
 ///|
 fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let display = TypeDisplayContext::from_registry(registry)
+  let display = @typecheck.TypeDisplayContext::from_registry(registry)
   let modules : Array[CompiledModule] = []
   let diagnostics = []
   let definitions = []

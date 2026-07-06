@@ -4,6 +4,7 @@ package "Milky2018/lanec/typecheck"
 import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
+  "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/module_interface",
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
@@ -163,6 +164,12 @@ pub(all) struct DeclarationTypeCheckResult {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DeclarationTypeCheckResult
 
+pub struct DisplayedTypeCheckDiagnostic {
+  diagnostic : TypeCheckDiagnostic
+  display : TypeDisplayContext
+}
+pub impl @diagnostic.ToCompilerDiagnostic for DisplayedTypeCheckDiagnostic
+
 pub(all) enum GenericArgumentInferenceFailure {
   MissingGenericArguments(parameters~ : Array[@types.TypeParameter])
   ConflictingGenericArgument(parameter~ : @types.TypeParameter, previous~ : @types.GenericArgument, actual~ : @types.GenericArgument)
@@ -181,6 +188,7 @@ pub(all) struct TypeCheckDiagnostic {
   kind : TypeCheckDiagnosticKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn TypeCheckDiagnostic::with_display(Self, TypeDisplayContext) -> DisplayedTypeCheckDiagnostic
 pub impl @prettyprinter.Pretty for TypeCheckDiagnostic
 
 pub(all) enum TypeCheckDiagnosticKind {
@@ -240,6 +248,16 @@ pub(all) struct TypeCheckResult {
   diagnostics : Array[TypeCheckDiagnostic]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeCheckResult
+
+pub struct TypeDisplayContext {
+  registry : @symbol.SymbolRegistry
+}
+pub fn TypeDisplayContext::effect_text(Self, @types.Effect) -> String
+pub fn TypeDisplayContext::from_registry(@symbol.SymbolRegistry) -> Self
+pub fn TypeDisplayContext::generic_argument_text(Self, @types.GenericArgument) -> String
+pub fn TypeDisplayContext::kind_text(Self, @types.Kind) -> String
+pub fn TypeDisplayContext::type_parameter_binding_text(Self, @types.TypeParameter) -> String
+pub fn TypeDisplayContext::type_text(Self, @types.Type) -> String
 
 // Type aliases
 

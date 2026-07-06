@@ -4,7 +4,7 @@ priv struct CheckedAnalysisContext {
   annotated_values : Array[@symbol.ValueSymbolId]
   parameter_signatures : Array[ParameterHintSignature]
   operation_details : Array[OperationDetail]
-  display : TypeDisplayContext
+  display : @typecheck.TypeDisplayContext
 }
 
 ///|
@@ -31,7 +31,7 @@ fn collect_checked_source_analysis(
   source_id : String,
   source_text : String,
   source : @checked.CheckedSourceFile,
-  display : TypeDisplayContext,
+  display : @typecheck.TypeDisplayContext,
   definitions : Array[DefinitionEntry],
   references : Array[ReferenceEntry],
   hovers : Array[HoverEntry],
@@ -66,7 +66,7 @@ fn checked_parameter_hint_signatures(
 ///|
 fn checked_operation_details(
   source : @checked.CheckedSourceFile,
-  display : TypeDisplayContext,
+  display : @typecheck.TypeDisplayContext,
 ) -> Array[OperationDetail] {
   let details = []
   for declaration in source.declarations {
@@ -726,7 +726,7 @@ fn collect_checked_expr(
 ///|
 fn checked_effect_detail(
   declaration : @checked.CheckedEffectDeclaration,
-  display : TypeDisplayContext,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   let parameters = checked_type_parameters_text(
     declaration.type_parameters,
@@ -739,7 +739,7 @@ fn checked_effect_detail(
 fn checked_operation_detail(
   owner : String,
   operation : @checked.CheckedEffectOperationDeclaration,
-  display : TypeDisplayContext,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   let parameters = checked_type_parameters_text(
     operation.type_parameters,
@@ -755,7 +755,7 @@ fn checked_operation_detail(
 ///|
 fn checked_type_parameters_text(
   parameters : Array[@types.TypeParameter],
-  display : TypeDisplayContext,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   if parameters.is_empty() {
     ""

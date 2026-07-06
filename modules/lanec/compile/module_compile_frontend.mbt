@@ -24,7 +24,7 @@ fn compile_one_module(
   registry : @symbol.SymbolRegistry,
   imported : @module_interface.ImportedEnvironment,
 ) -> Result[CompileOneModuleSuccess, Array[CompilerDiagnostic]] {
-  let display = TypeDisplayContext::from_registry(registry)
+  let display = @typecheck.TypeDisplayContext::from_registry(registry)
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
     registry,
