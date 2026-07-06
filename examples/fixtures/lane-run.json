@@ -400,6 +400,15 @@
       }
     },
     {
+      "name": "45 async effect",
+      "file": "examples/valid/45_async_effect.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "42"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
