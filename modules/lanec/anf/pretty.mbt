@@ -7,18 +7,16 @@ pub impl @prettyprinter.Pretty for AnfTempId with fn pretty(id : AnfTempId) {
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfProgram with fn pretty(
-  program : BuslaneAnfProgram,
+pub impl @prettyprinter.Pretty for AnfProgram with fn pretty(
+  program : AnfProgram,
 ) {
-  text("buslane_anf_program") +
+  text("anf") +
   space +
-  @pretty.braced_block(program.terms.map(BuslaneAnfTopTerm::pretty))
+  @pretty.braced_block(program.terms.map(AnfTopTerm::pretty))
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfTopTerm with fn pretty(
-  term : BuslaneAnfTopTerm,
-) {
+pub impl @prettyprinter.Pretty for AnfTopTerm with fn pretty(term : AnfTopTerm) {
   match term {
     Let(id, expr) =>
       text("let") +
@@ -27,36 +25,30 @@ pub impl @prettyprinter.Pretty for BuslaneAnfTopTerm with fn pretty(
       space +
       text("=") +
       space +
-      buslane_anf_expr_doc(expr)
+      anf_expr_doc(expr)
     LetRec(bindings) =>
       text("letrec") +
       space +
-      @pretty.braced_block(bindings.map(BuslaneAnfRecursiveBinding::pretty))
+      @pretty.braced_block(bindings.map(AnfRecursiveBinding::pretty))
     External(id) => text("external") + space + id.pretty()
   }
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfRecursiveBinding with fn pretty(
-  binding : BuslaneAnfRecursiveBinding,
+pub impl @prettyprinter.Pretty for AnfRecursiveBinding with fn pretty(
+  binding : AnfRecursiveBinding,
 ) {
-  binding.id.pretty() +
-  space +
-  text("=") +
-  space +
-  buslane_anf_atom_doc(binding.rhs)
+  binding.id.pretty() + space + text("=") + space + anf_atom_doc(binding.rhs)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfExpr with fn pretty(
-  expr : BuslaneAnfExpr,
-) {
-  buslane_anf_expr_doc(expr)
+pub impl @prettyprinter.Pretty for AnfExpr with fn pretty(expr : AnfExpr) {
+  anf_expr_doc(expr)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfBinding with fn pretty(
-  binding : BuslaneAnfBinding,
+pub impl @prettyprinter.Pretty for AnfBinding with fn pretty(
+  binding : AnfBinding,
 ) {
   match binding {
     Value(id~, rhs~) =>
@@ -66,7 +58,7 @@ pub impl @prettyprinter.Pretty for BuslaneAnfBinding with fn pretty(
       space +
       text("=") +
       space +
-      buslane_anf_rhs_doc(rhs)
+      anf_rhs_doc(rhs)
     Temp(temp~, rhs~) =>
       text("let") +
       space +
@@ -74,52 +66,46 @@ pub impl @prettyprinter.Pretty for BuslaneAnfBinding with fn pretty(
       space +
       text("=") +
       space +
-      buslane_anf_rhs_doc(rhs)
+      anf_rhs_doc(rhs)
   }
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfRhs with fn pretty(
-  rhs : BuslaneAnfRhs,
-) {
-  buslane_anf_rhs_doc(rhs)
+pub impl @prettyprinter.Pretty for AnfRhs with fn pretty(rhs : AnfRhs) {
+  anf_rhs_doc(rhs)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfConstruct with fn pretty(
-  construct : BuslaneAnfConstruct,
+pub impl @prettyprinter.Pretty for AnfConstruct with fn pretty(
+  construct : AnfConstruct,
 ) {
-  buslane_anf_construct_doc(construct)
+  anf_construct_doc(construct)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfPerform with fn pretty(
-  perform : BuslaneAnfPerform,
+pub impl @prettyprinter.Pretty for AnfPerform with fn pretty(
+  perform : AnfPerform,
 ) {
-  buslane_anf_perform_doc(perform)
+  anf_perform_doc(perform)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfHandle with fn pretty(
-  handle : BuslaneAnfHandle,
-) {
-  buslane_anf_handle_doc(handle)
+pub impl @prettyprinter.Pretty for AnfHandle with fn pretty(handle : AnfHandle) {
+  anf_handle_doc(handle)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfHandlerTable with fn pretty(
-  table : BuslaneAnfHandlerTable,
+pub impl @prettyprinter.Pretty for AnfHandlerTable with fn pretty(
+  table : AnfHandlerTable,
 ) {
   table.handled_effect.pretty() +
   space +
-  @pretty.braced_block(
-    table.operations.map(BuslaneAnfOperationAlternative::pretty),
-  )
+  @pretty.braced_block(table.operations.map(AnfOperationAlternative::pretty))
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative with fn pretty(
-  alternative : BuslaneAnfOperationAlternative,
+pub impl @prettyprinter.Pretty for AnfOperationAlternative with fn pretty(
+  alternative : AnfOperationAlternative,
 ) {
   alternative.operation.pretty() +
   buslane_type_arguments_doc(
@@ -137,19 +123,17 @@ pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative with fn pretty
   space +
   text("=>") +
   space +
-  buslane_anf_expr_doc(alternative.body)
+  anf_expr_doc(alternative.body)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfAtom with fn pretty(
-  atom : BuslaneAnfAtom,
-) {
-  buslane_anf_atom_doc(atom)
+pub impl @prettyprinter.Pretty for AnfAtom with fn pretty(atom : AnfAtom) {
+  anf_atom_doc(atom)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfFunction with fn pretty(
-  function : BuslaneAnfFunction,
+pub impl @prettyprinter.Pretty for AnfFunction with fn pretty(
+  function : AnfFunction,
 ) {
   text("fn") +
   @pretty.parenthesized_inline(
@@ -160,16 +144,14 @@ pub impl @prettyprinter.Pretty for BuslaneAnfFunction with fn pretty(
   space +
   function.result_type.pretty() +
   space +
-  buslane_anf_body_doc(function.body)
+  anf_body_doc(function.body)
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfMatch with fn pretty(
-  match_ : BuslaneAnfMatch,
-) {
+pub impl @prettyprinter.Pretty for AnfMatch with fn pretty(match_ : AnfMatch) {
   text("match") +
   space +
-  buslane_anf_atom_doc(match_.scrutinee) +
+  anf_atom_doc(match_.scrutinee) +
   space +
   text("as") +
   space +
@@ -179,28 +161,28 @@ pub impl @prettyprinter.Pretty for BuslaneAnfMatch with fn pretty(
   space +
   match_.result_type.pretty() +
   space +
-  @pretty.braced_block(match_.alternatives.map(BuslaneAnfAlternative::pretty))
+  @pretty.braced_block(match_.alternatives.map(AnfAlternative::pretty))
 }
 
 ///|
-pub impl @prettyprinter.Pretty for BuslaneAnfAlternative with fn pretty(
-  alternative : BuslaneAnfAlternative,
+pub impl @prettyprinter.Pretty for AnfAlternative with fn pretty(
+  alternative : AnfAlternative,
 ) {
   alternative.alt_constructor.pretty() +
-  buslane_anf_binders_doc(alternative.type_binders, alternative.value_binders) +
+  anf_binders_doc(alternative.type_binders, alternative.value_binders) +
   space +
   text("=>") +
   space +
-  buslane_anf_expr_doc(alternative.body)
+  anf_expr_doc(alternative.body)
 }
 
 ///|
-fn buslane_anf_expr_doc(expr : BuslaneAnfExpr) -> Document {
+fn anf_expr_doc(expr : AnfExpr) -> Document {
   match expr {
-    Atom(atom) => buslane_anf_atom_doc(atom)
+    Atom(atom) => anf_atom_doc(atom)
     Let(_, _) | LetRec(_, _) => {
       let docs : Array[Document] = []
-      push_buslane_anf_expr_docs(expr, docs)
+      push_anf_expr_docs(expr, docs)
       @pretty.braced_block(docs)
     }
     Match(match_) => match_.pretty()
@@ -208,65 +190,62 @@ fn buslane_anf_expr_doc(expr : BuslaneAnfExpr) -> Document {
 }
 
 ///|
-fn push_buslane_anf_expr_docs(
-  expr : BuslaneAnfExpr,
-  docs : Array[Document],
-) -> Unit {
+fn push_anf_expr_docs(expr : AnfExpr, docs : Array[Document]) -> Unit {
   match expr {
     Let(binding, body) => {
       docs.push(binding.pretty())
-      push_buslane_anf_expr_docs(body, docs)
+      push_anf_expr_docs(body, docs)
     }
     LetRec(bindings, body) => {
       docs.push(
         text("letrec") +
         space +
-        @pretty.braced_block(bindings.map(BuslaneAnfRecursiveBinding::pretty)),
+        @pretty.braced_block(bindings.map(AnfRecursiveBinding::pretty)),
       )
-      push_buslane_anf_expr_docs(body, docs)
+      push_anf_expr_docs(body, docs)
     }
-    _ => docs.push(buslane_anf_expr_doc(expr))
+    _ => docs.push(anf_expr_doc(expr))
   }
 }
 
 ///|
-fn buslane_anf_body_doc(body : BuslaneAnfExpr) -> Document {
+fn anf_body_doc(body : AnfExpr) -> Document {
   match body {
-    Let(_, _) | LetRec(_, _) => buslane_anf_expr_doc(body)
-    _ => @pretty.braced_block([buslane_anf_expr_doc(body)])
+    Let(_, _) | LetRec(_, _) => anf_expr_doc(body)
+    _ => @pretty.braced_block([anf_expr_doc(body)])
   }
 }
 
 ///|
-fn buslane_anf_rhs_doc(rhs : BuslaneAnfRhs) -> Document {
+fn anf_rhs_doc(rhs : AnfRhs) -> Document {
   match rhs {
-    Atom(atom) => buslane_anf_atom_doc(atom)
+    Atom(atom) => anf_atom_doc(atom)
     Call(callee~, arguments~) =>
-      buslane_anf_atom_doc(callee) +
-      @pretty.parenthesized_inline(arguments.map(buslane_anf_atom_doc))
+      anf_atom_doc(callee) +
+      @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
     TypeApply(callee~, arguments~) =>
-      buslane_anf_atom_doc(callee) + buslane_generic_arguments_doc(arguments)
-    Construct(construct) => buslane_anf_construct_doc(construct)
-    Perform(perform) => buslane_anf_perform_doc(perform)
-    Handle(handle) => buslane_anf_handle_doc(handle)
+      anf_atom_doc(callee) + buslane_generic_arguments_doc(arguments)
+    Construct(construct) => anf_construct_doc(construct)
+    Perform(perform) => anf_perform_doc(perform)
+    Handle(handle) => anf_handle_doc(handle)
   }
 }
 
 ///|
-fn buslane_anf_perform_doc(perform : BuslaneAnfPerform) -> Document {
+fn anf_perform_doc(perform : AnfPerform) -> Document {
   text("perform") +
   space +
   perform.operation.pretty() +
   buslane_type_arguments_doc(perform.effect_arguments) +
   buslane_hidden_witnesses_doc(perform.hidden_witnesses) +
-  @pretty.parenthesized_inline(perform.payloads.map(buslane_anf_atom_doc))
+  @pretty.parenthesized_inline(perform.payloads.map(anf_atom_doc))
 }
 
 ///|
-fn buslane_anf_handle_doc(handle : BuslaneAnfHandle) -> Document {
+fn anf_handle_doc(handle : AnfHandle) -> Document {
   text("handle") +
   space +
-  buslane_anf_expr_doc(handle.body) +
+  anf_expr_doc(handle.body) +
   space +
   text("as") +
   space +
@@ -277,27 +256,27 @@ fn buslane_anf_handle_doc(handle : BuslaneAnfHandle) -> Document {
   handle.result_type.pretty() +
   space +
   @pretty.braced_block(
-    handle.handlers.map(BuslaneAnfHandlerTable::pretty) +
+    handle.handlers.map(AnfHandlerTable::pretty) +
     [
       text("final") +
       space +
       text("=>") +
       space +
-      buslane_anf_expr_doc(handle.final_body),
+      anf_expr_doc(handle.final_body),
     ],
   )
 }
 
 ///|
-fn buslane_anf_construct_doc(construct : BuslaneAnfConstruct) -> Document {
+fn anf_construct_doc(construct : AnfConstruct) -> Document {
   construct.data_constructor.pretty() +
   buslane_type_arguments_doc(construct.type_arguments) +
   buslane_hidden_witnesses_doc(construct.hidden_witnesses) +
-  @pretty.parenthesized_inline(construct.payloads.map(buslane_anf_atom_doc))
+  @pretty.parenthesized_inline(construct.payloads.map(anf_atom_doc))
 }
 
 ///|
-fn buslane_anf_atom_doc(atom : BuslaneAnfAtom) -> Document {
+fn anf_atom_doc(atom : AnfAtom) -> Document {
   match atom {
     Literal(literal) => literal.pretty()
     Ref(id) => id.pretty()
@@ -307,12 +286,12 @@ fn buslane_anf_atom_doc(atom : BuslaneAnfAtom) -> Document {
       text("fn") +
       buslane_type_parameters_doc(type_parameters) +
       space +
-      buslane_anf_body_doc(body)
+      anf_body_doc(body)
   }
 }
 
 ///|
-fn buslane_anf_binders_doc(
+fn anf_binders_doc(
   type_binders : Array[@buslane.TypeParameterId],
   value_binders : Array[@buslane.ValueId],
 ) -> Document {

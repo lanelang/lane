@@ -23,7 +23,7 @@ The response is JSON:
   "panes": [
     { "name": "checked", "text": "..." },
     { "name": "buslane", "text": "..." },
-    { "name": "buslane-anf", "text": "..." }
+    { "name": "anf", "text": "..." }
   ]
 }
 ```

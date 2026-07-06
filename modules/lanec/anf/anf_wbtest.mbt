@@ -27,7 +27,7 @@ test "lower buslane function call to ANF" {
   inspect(
     @prettyprinter.render(lower_buslane_program_to_anf(program), width=100),
     content=(
-      #|buslane_anf_program {
+      #|anf {
       #|  letrec {
       #|    value#1 = fn(value#2) -> Int {
       #|      value#2
@@ -101,7 +101,7 @@ test "lower buslane handler and perform to ANF" {
   inspect(
     @prettyprinter.render(lower_buslane_program_to_anf(program), width=100),
     content=(
-      #|buslane_anf_program {
+      #|anf {
       #|  let value#0 = {
       #|    let temp#3 = handle {
       #|      let temp#0 = perform operation#0()

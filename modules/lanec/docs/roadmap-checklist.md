@@ -219,12 +219,11 @@ and unresolved or ambiguous states before Buslane lowering.
 ## 6. ANF IR
 
 - [x] Remove the previous source-aware Checked Source -> ANF path.
-- [x] Lower Buslane Core Language into Buslane ANF instead of lowering ANF
-  directly from Checked Source.
+- [x] Lower Buslane Core Language into ANF instead of lowering directly from
+  Checked Source.
 - [x] Preserve Buslane nominal data, first-class functions, type lambdas, type
   applications, existential witnesses, performs, and handlers.
-- [x] Provide a Buslane ANF pretty printer and tests based on Buslane ANF
-  output.
+- [x] Provide an ANF pretty printer and tests based on ANF output.
 
 ## 7. Reference Interpreter
 

@@ -71,7 +71,7 @@ fn explore_source(source : String) -> Json {
       response_json(status, diagnostics, [
         pane_json("checked", @prettyprinter.render(source, width=100)),
         pane_json("buslane", @prettyprinter.render(buslane, width=100)),
-        pane_json("buslane-anf", @prettyprinter.render(anf, width=100)),
+        pane_json("anf", @prettyprinter.render(anf, width=100)),
       ])
     }
   }

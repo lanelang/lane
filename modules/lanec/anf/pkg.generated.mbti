@@ -8,130 +8,130 @@ import {
 }
 
 // Values
-pub fn lower_buslane_program_to_anf(@buslane.Program) -> BuslaneAnfProgram
+pub fn lower_buslane_program_to_anf(@buslane.Program) -> AnfProgram
 
 // Errors
 
 // Types and methods
+pub(all) struct AnfAlternative {
+  alt_constructor : @buslane.AltCon
+  type_binders : Array[@buslane.TypeParameterId]
+  value_binders : Array[@buslane.ValueId]
+  body : AnfExpr
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfAlternative
+
+pub(all) enum AnfAtom {
+  Literal(@buslane.Literal)
+  Ref(@buslane.ValueId)
+  Temp(AnfTempId)
+  Function(AnfFunction)
+  TypeLambda(type_parameters~ : Array[@buslane.TypeParameterId], body~ : AnfExpr)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfAtom
+
+pub(all) enum AnfBinding {
+  Value(id~ : @buslane.ValueId, rhs~ : AnfRhs)
+  Temp(temp~ : AnfTempId, rhs~ : AnfRhs)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfBinding
+
+pub(all) struct AnfConstruct {
+  data_constructor : @buslane.DataConId
+  type_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
+  payloads : Array[AnfAtom]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfConstruct
+
+pub(all) enum AnfExpr {
+  Atom(AnfAtom)
+  Let(AnfBinding, AnfExpr)
+  LetRec(Array[AnfRecursiveBinding], AnfExpr)
+  Match(AnfMatch)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfExpr
+
+pub(all) struct AnfFunction {
+  parameters : Array[@buslane.ValueId]
+  result_type : @buslane.Type
+  body : AnfExpr
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfFunction
+
+pub(all) struct AnfHandle {
+  body : AnfExpr
+  result_binder : @buslane.ValueId
+  result_type : @buslane.Type
+  final_body : AnfExpr
+  handlers : Array[AnfHandlerTable]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfHandle
+
+pub(all) struct AnfHandlerTable {
+  handled_effect : @buslane.Effect
+  operations : Array[AnfOperationAlternative]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfHandlerTable
+
+pub(all) struct AnfMatch {
+  scrutinee : AnfAtom
+  binder : @buslane.ValueId
+  result_type : @buslane.Type
+  alternatives : Array[AnfAlternative]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfMatch
+
+pub(all) struct AnfOperationAlternative {
+  operation : @buslane.OperationId
+  type_binders : Array[@buslane.TypeParameterId]
+  payload_binders : Array[@buslane.ValueId]
+  resume_binder : @buslane.ValueId
+  body : AnfExpr
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfOperationAlternative
+
+pub(all) struct AnfPerform {
+  operation : @buslane.OperationId
+  effect_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
+  payloads : Array[AnfAtom]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfPerform
+
+pub(all) struct AnfProgram {
+  metadata : @buslane.MetadataRegistry
+  terms : Array[AnfTopTerm]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfProgram
+
+pub(all) struct AnfRecursiveBinding {
+  id : @buslane.ValueId
+  rhs : AnfAtom
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfRecursiveBinding
+
+pub(all) enum AnfRhs {
+  Atom(AnfAtom)
+  Call(callee~ : AnfAtom, arguments~ : Array[AnfAtom])
+  TypeApply(callee~ : AnfAtom, arguments~ : Array[@buslane.GenericArgument])
+  Construct(AnfConstruct)
+  Perform(AnfPerform)
+  Handle(AnfHandle)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for AnfRhs
+
 pub(all) struct AnfTempId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfTempId
 
-pub(all) struct BuslaneAnfAlternative {
-  alt_constructor : @buslane.AltCon
-  type_binders : Array[@buslane.TypeParameterId]
-  value_binders : Array[@buslane.ValueId]
-  body : BuslaneAnfExpr
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfAlternative
-
-pub(all) enum BuslaneAnfAtom {
-  Literal(@buslane.Literal)
-  Ref(@buslane.ValueId)
-  Temp(AnfTempId)
-  Function(BuslaneAnfFunction)
-  TypeLambda(type_parameters~ : Array[@buslane.TypeParameterId], body~ : BuslaneAnfExpr)
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfAtom
-
-pub(all) enum BuslaneAnfBinding {
-  Value(id~ : @buslane.ValueId, rhs~ : BuslaneAnfRhs)
-  Temp(temp~ : AnfTempId, rhs~ : BuslaneAnfRhs)
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfBinding
-
-pub(all) struct BuslaneAnfConstruct {
-  data_constructor : @buslane.DataConId
-  type_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
-  payloads : Array[BuslaneAnfAtom]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfConstruct
-
-pub(all) enum BuslaneAnfExpr {
-  Atom(BuslaneAnfAtom)
-  Let(BuslaneAnfBinding, BuslaneAnfExpr)
-  LetRec(Array[BuslaneAnfRecursiveBinding], BuslaneAnfExpr)
-  Match(BuslaneAnfMatch)
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfExpr
-
-pub(all) struct BuslaneAnfFunction {
-  parameters : Array[@buslane.ValueId]
-  result_type : @buslane.Type
-  body : BuslaneAnfExpr
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfFunction
-
-pub(all) struct BuslaneAnfHandle {
-  body : BuslaneAnfExpr
-  result_binder : @buslane.ValueId
-  result_type : @buslane.Type
-  final_body : BuslaneAnfExpr
-  handlers : Array[BuslaneAnfHandlerTable]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfHandle
-
-pub(all) struct BuslaneAnfHandlerTable {
-  handled_effect : @buslane.Effect
-  operations : Array[BuslaneAnfOperationAlternative]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfHandlerTable
-
-pub(all) struct BuslaneAnfMatch {
-  scrutinee : BuslaneAnfAtom
-  binder : @buslane.ValueId
-  result_type : @buslane.Type
-  alternatives : Array[BuslaneAnfAlternative]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfMatch
-
-pub(all) struct BuslaneAnfOperationAlternative {
-  operation : @buslane.OperationId
-  type_binders : Array[@buslane.TypeParameterId]
-  payload_binders : Array[@buslane.ValueId]
-  resume_binder : @buslane.ValueId
-  body : BuslaneAnfExpr
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfOperationAlternative
-
-pub(all) struct BuslaneAnfPerform {
-  operation : @buslane.OperationId
-  effect_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
-  payloads : Array[BuslaneAnfAtom]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfPerform
-
-pub(all) struct BuslaneAnfProgram {
-  metadata : @buslane.MetadataRegistry
-  terms : Array[BuslaneAnfTopTerm]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfProgram
-
-pub(all) struct BuslaneAnfRecursiveBinding {
-  id : @buslane.ValueId
-  rhs : BuslaneAnfAtom
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfRecursiveBinding
-
-pub(all) enum BuslaneAnfRhs {
-  Atom(BuslaneAnfAtom)
-  Call(callee~ : BuslaneAnfAtom, arguments~ : Array[BuslaneAnfAtom])
-  TypeApply(callee~ : BuslaneAnfAtom, arguments~ : Array[@buslane.GenericArgument])
-  Construct(BuslaneAnfConstruct)
-  Perform(BuslaneAnfPerform)
-  Handle(BuslaneAnfHandle)
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfRhs
-
-pub(all) enum BuslaneAnfTopTerm {
-  Let(@buslane.ValueId, BuslaneAnfExpr)
-  LetRec(Array[BuslaneAnfRecursiveBinding])
+pub(all) enum AnfTopTerm {
+  Let(@buslane.ValueId, AnfExpr)
+  LetRec(Array[AnfRecursiveBinding])
   External(@buslane.ValueId)
 } derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for BuslaneAnfTopTerm
+pub impl @prettyprinter.Pretty for AnfTopTerm
 
 // Type aliases
 

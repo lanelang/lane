@@ -1,14 +1,12 @@
 ///|
-priv struct BuslaneAnfLowerer {
+priv struct AnfLowerer {
   mut next_temp : Int
 }
 
 ///|
-/// Lowers Buslane expression-tree core into Buslane ANF.
-pub fn lower_buslane_program_to_anf(
-  program : @buslane.Program,
-) -> BuslaneAnfProgram {
-  let lowerer = BuslaneAnfLowerer::{ next_temp: 0 }
+/// Lowers Buslane expression-tree core into ANF.
+pub fn lower_buslane_program_to_anf(program : @buslane.Program) -> AnfProgram {
+  let lowerer = AnfLowerer::{ next_temp: 0 }
   {
     metadata: program.metadata,
     terms: program.terms.map(fn(term) { lowerer.lower_top_term(term) }),
@@ -16,17 +14,17 @@ pub fn lower_buslane_program_to_anf(
 }
 
 ///|
-fn BuslaneAnfLowerer::fresh_temp(self : BuslaneAnfLowerer) -> AnfTempId {
+fn AnfLowerer::fresh_temp(self : AnfLowerer) -> AnfTempId {
   let temp = AnfTempId::{ index: self.next_temp }
   self.next_temp = self.next_temp + 1
   temp
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_top_term(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_top_term(
+  self : AnfLowerer,
   term : @buslane.TopTerm,
-) -> BuslaneAnfTopTerm {
+) -> AnfTopTerm {
   match term {
     Let(id, expr) => Let(id, self.lower_expr(expr))
     LetRec(bindings) =>
@@ -38,27 +36,24 @@ fn BuslaneAnfLowerer::lower_top_term(
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_recursive_binding(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_recursive_binding(
+  self : AnfLowerer,
   binding : @buslane.RecursiveBinding,
-) -> BuslaneAnfRecursiveBinding {
+) -> AnfRecursiveBinding {
   { id: binding.id, rhs: self.lower_recursable_atom(binding.rhs) }
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_expr(
-  self : BuslaneAnfLowerer,
-  expr : @buslane.Expr,
-) -> BuslaneAnfExpr {
+fn AnfLowerer::lower_expr(self : AnfLowerer, expr : @buslane.Expr) -> AnfExpr {
   self.lower_to_atom(expr, fn(atom) { Atom(atom) })
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_to_atom(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_to_atom(
+  self : AnfLowerer,
   expr : @buslane.Expr,
-  continuation : (BuslaneAnfAtom) -> BuslaneAnfExpr,
-) -> BuslaneAnfExpr {
+  continuation : (AnfAtom) -> AnfExpr,
+) -> AnfExpr {
   match expr {
     Ref(id) => continuation(Ref(id))
     Literal(literal) => continuation(Literal(literal))
@@ -145,10 +140,10 @@ fn BuslaneAnfLowerer::lower_to_atom(
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_handler_table(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_handler_table(
+  self : AnfLowerer,
   table : @buslane.HandlerTable,
-) -> BuslaneAnfHandlerTable {
+) -> AnfHandlerTable {
   {
     handled_effect: table.handled_effect,
     operations: table.operations.map(fn(alternative) {
@@ -158,10 +153,10 @@ fn BuslaneAnfLowerer::lower_handler_table(
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_operation_alternative(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_operation_alternative(
+  self : AnfLowerer,
   alternative : @buslane.OperationAlternative,
-) -> BuslaneAnfOperationAlternative {
+) -> AnfOperationAlternative {
   {
     operation: alternative.operation,
     type_binders: alternative.type_binders,
@@ -172,10 +167,10 @@ fn BuslaneAnfLowerer::lower_operation_alternative(
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_function(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_function(
+  self : AnfLowerer,
   function : @buslane.FunctionExpr,
-) -> BuslaneAnfFunction {
+) -> AnfFunction {
   {
     parameters: function.parameters,
     result_type: function.result_type,
@@ -184,10 +179,10 @@ fn BuslaneAnfLowerer::lower_function(
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_recursable_atom(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_recursable_atom(
+  self : AnfLowerer,
   expr : @buslane.Expr,
-) -> BuslaneAnfAtom {
+) -> AnfAtom {
   match expr {
     Function(function) => Function(self.lower_function(function))
     TypeLambda(type_parameters, body) =>
@@ -197,23 +192,23 @@ fn BuslaneAnfLowerer::lower_recursable_atom(
 }
 
 ///|
-fn BuslaneAnfLowerer::bind_temp(
-  self : BuslaneAnfLowerer,
-  rhs : BuslaneAnfRhs,
-  continuation : (BuslaneAnfAtom) -> BuslaneAnfExpr,
-) -> BuslaneAnfExpr {
+fn AnfLowerer::bind_temp(
+  self : AnfLowerer,
+  rhs : AnfRhs,
+  continuation : (AnfAtom) -> AnfExpr,
+) -> AnfExpr {
   let temp = self.fresh_temp()
   Let(Temp(temp~, rhs~), continuation(Temp(temp)))
 }
 
 ///|
-fn BuslaneAnfLowerer::lower_exprs_to_atoms(
-  self : BuslaneAnfLowerer,
+fn AnfLowerer::lower_exprs_to_atoms(
+  self : AnfLowerer,
   expressions : Array[@buslane.Expr],
   index : Int,
-  atoms : Array[BuslaneAnfAtom],
-  continuation : (Array[BuslaneAnfAtom]) -> BuslaneAnfExpr,
-) -> BuslaneAnfExpr {
+  atoms : Array[AnfAtom],
+  continuation : (Array[AnfAtom]) -> AnfExpr,
+) -> AnfExpr {
   if index >= expressions.length() {
     continuation(atoms)
   } else {

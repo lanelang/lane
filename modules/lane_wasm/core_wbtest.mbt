@@ -1,5 +1,5 @@
 ///|
-test "explore_json returns checked buslane and buslane anf panes" {
+test "explore_json returns checked buslane and anf panes" {
   debug_inspect(
     parsed_response_json(
       (
@@ -29,8 +29,8 @@ test "explore_json returns checked buslane and buslane anf panes" {
       #|        ),
       #|        Object(
       #|          {
-      #|            "name": String("buslane-anf"),
-      #|            "text": String("buslane_anf_program {\n  let value#0 = 42\n}"),
+      #|            "name": String("anf"),
+      #|            "text": String("anf {\n  let value#0 = 42\n}"),
       #|          },
       #|        ),
       #|      ],
