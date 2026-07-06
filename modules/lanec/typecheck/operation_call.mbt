@@ -28,9 +28,7 @@ fn SemanticChecker::operation_call_signature(
   // witnesses are explicit or inferred from payload arguments and expected
   // result type, following the same local generic inference boundary as calls.
   let reference = match name {
-    Qualified(reference~, ..)
-    | Shorthand(reference~, ..)
-    | Unqualified(reference~, ..) => reference
+    Qualified(reference~, ..) | Unqualified(reference~, ..) => reference
   }
   guard self.operation_symbol(reference, loc) is Some(operation) else {
     return None
@@ -82,9 +80,7 @@ fn SemanticChecker::handler_operation_signature(
   // substitute the operation hidden parameters in payload/result types while
   // remaining abstract inside the arm scope.
   let reference = match name {
-    Qualified(reference~, ..)
-    | Shorthand(reference~, ..)
-    | Unqualified(reference~, ..) => reference
+    Qualified(reference~, ..) | Unqualified(reference~, ..) => reference
   }
   guard self.operation_symbol(reference, loc) is Some(operation) else {
     return None
@@ -252,7 +248,7 @@ fn SemanticChecker::operation_owner_effect(
 ) -> @types.Effect? {
   match name {
     Qualified(owner~, ..) => Some(self.check_effect(owner))
-    Shorthand(..) | Unqualified(..) => {
+    Unqualified(..) => {
       guard self.resolved_source.symbols.operation_metadata(operation)
         is Some(metadata) else {
         self.report_internal_typecheck_failure("effect operation owner", loc)

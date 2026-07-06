@@ -952,6 +952,18 @@
           "add explicit generic arguments for this call or provide an expected result type"
         ]
       }
+    },
+    {
+      "name": "invalid 45 leading double colon effect operation call",
+      "file": "examples/invalid/45_leading_double_colon_effect_operation_call.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1100]",
+          "unexpected token",
+          "the parser did not expect `::`"
+        ]
+      }
     }
   ]
 }

@@ -215,15 +215,6 @@ fn type_binders_from_type_arguments(arguments : Array[Type]) -> Array[String] {
 }
 
 ///|
-fn handler_operation_head_shorthand(
-  operation : String,
-  type_binders : Array[String],
-  loc : SourceSpan,
-) -> HandlerOperationHead {
-  { name: Shorthand(operation~, loc~), type_binders }
-}
-
-///|
 fn handler_operation_head_from_ident(
   name : String,
   suffix : HandlerOperationHeadAfterIdent,

@@ -330,8 +330,8 @@ fn SemanticChecker::check_pattern(
         scope, type_name, variant, type_binders, reference, arguments, expected,
         binders, loc,
       )
-    ShorthandVariant(variant~, type_binders~, arguments~, loc~) =>
-      self.check_shorthand_variant_pattern(
+    UnqualifiedVariant(variant~, type_binders~, arguments~, loc~) =>
+      self.check_unqualified_variant_pattern(
         scope, variant, type_binders, arguments, expected, binders, loc,
       )
     Struct(type_name~, fields~, loc~) =>
@@ -532,7 +532,7 @@ fn effect_parameter_argument(
 }
 
 ///|
-fn SemanticChecker::check_shorthand_variant_pattern(
+fn SemanticChecker::check_unqualified_variant_pattern(
   self : SemanticChecker,
   scope : TypeScope,
   variant : String,

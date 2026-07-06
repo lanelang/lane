@@ -697,7 +697,6 @@ fn EffectOperationName::to_doc(self : EffectOperationName) -> Document {
   match self {
     Qualified(owner~, operation~, ..) =>
       owner.to_doc() + text("::") + text(operation)
-    Shorthand(operation~, ..) => text("::") + text(operation)
     Unqualified(operation~, ..) => text(operation)
   }
 }
@@ -915,7 +914,7 @@ fn Pattern::to_doc(self : Pattern) -> Document {
       let head = text(type_name) + text("::") + text(variant) + binders_doc
       head + parenthesized_comma_list(arguments.map(Pattern::to_doc))
     }
-    ShorthandVariant(variant~, type_binders~, arguments~, ..) => {
+    UnqualifiedVariant(variant~, type_binders~, arguments~, ..) => {
       let binders_doc = if type_binders.is_empty() {
         empty
       } else {

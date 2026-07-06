@@ -4,6 +4,8 @@ import {
   "moonbitlang/core/list",
 }
 
+warnings = "-6"
+
 rule(
   name: "moonyacc",
   command: "moon runwasm moonbitlang/yacc@0.7.14 --no-comments $input -o $output",

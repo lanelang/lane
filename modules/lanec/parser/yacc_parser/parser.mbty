@@ -631,27 +631,7 @@ non_owner_primary_expression -> Expr
   | match_expression { $1 }
   | handler_expression { $1 }
   | function_literal { $1 }
-  | shorthand_effect_operation_call { $1 }
   | builtin_expression { $1 }
-  ;
-
-shorthand_effect_operation_call -> Expr
-  : "::" IDENT "!" "(" positional_argument_list ")" {
-    EffectOperationCall(
-      name=Shorthand(operation=$2, loc=span($sloc)),
-      type_witnesses=[],
-      arguments=$5,
-      loc=span($sloc)
-    )
-  }
-  | "::" IDENT "!" operation_type_witnesses "(" positional_argument_list ")" {
-    EffectOperationCall(
-      name=Shorthand(operation=$2, loc=span($sloc)),
-      type_witnesses=$4,
-      arguments=$6,
-      loc=span($sloc)
-    )
-  }
   ;
 
 operation_type_witnesses -> Array[Type]
@@ -807,8 +787,7 @@ handler_operation_arm -> HandlerOperationArm
   ;
 
 handler_operation_head -> HandlerOperationHead
-  : "::" IDENT handler_operation_type_binders { handler_operation_head_shorthand($2, $3, span($sloc)) }
-  | IDENT handler_operation_head_after_ident { handler_operation_head_from_ident($1, $2, span($sloc)) }
+  : IDENT handler_operation_head_after_ident { handler_operation_head_from_ident($1, $2, span($sloc)) }
   | qualified_type_name handler_operation_owner_arguments "tight ::" IDENT handler_operation_type_binders { handler_operation_head_from_qualified($1, $2, $4, $5, span($sloc)) }
   ;
 
@@ -905,7 +884,7 @@ pattern -> Pattern
   | "true" { BoolLiteral(true, loc=span($sloc)) }
   | "false" { BoolLiteral(false, loc=span($sloc)) }
   | IDENT { Binding($1, loc=span($sloc)) }
-  | IDENT variant_type_binders "(" pattern_list ")" { ShorthandVariant(variant=$1, type_binders=$2, arguments=$4, loc=span(($startpos, $endpos))) }
+  | IDENT variant_type_binders "(" pattern_list ")" { UnqualifiedVariant(variant=$1, type_binders=$2, arguments=$4, loc=span(($startpos, $endpos))) }
   | struct_pattern { $1 }
   | nominal_type_name "tight ::" IDENT variant_type_binders "(" pattern_list ")" { QualifiedVariant(type_name=$1, variant=$3, type_binders=$4, arguments=$6, loc=span(($startpos, $endpos))) }
   ;

@@ -58,7 +58,6 @@ pub impl @prettyprinter.Pretty for EffectOperationDeclaration
 
 pub(all) enum EffectOperationName {
   Qualified(owner~ : Type, operation~ : String, loc~ : @basic.SourceSpan)
-  Shorthand(operation~ : String, loc~ : @basic.SourceSpan)
   Unqualified(operation~ : String, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 
@@ -246,7 +245,7 @@ pub(all) enum Pattern {
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
-  ShorthandVariant(variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
+  UnqualifiedVariant(variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
   Struct(type_name~ : String, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Pattern::loc(Self) -> @basic.SourceSpan

@@ -349,7 +349,6 @@ pub(all) enum LocalItem {
 ///|
 pub(all) enum EffectOperationName {
   Qualified(owner~ : Type, operation~ : String, loc~ : SourceSpan)
-  Shorthand(operation~ : String, loc~ : SourceSpan)
   Unqualified(operation~ : String, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
@@ -436,7 +435,7 @@ pub(all) enum Pattern {
     arguments~ : Array[Pattern],
     loc~ : SourceSpan
   )
-  ShorthandVariant(
+  UnqualifiedVariant(
     variant~ : String,
     type_binders~ : Array[String],
     arguments~ : Array[Pattern],
@@ -459,7 +458,7 @@ pub fn Pattern::loc(self : Pattern) -> SourceSpan {
     | StringLiteral(_, loc~)
     | BoolLiteral(_, loc~)
     | QualifiedVariant(loc~, ..)
-    | ShorthandVariant(loc~, ..)
+    | UnqualifiedVariant(loc~, ..)
     | Struct(loc~, ..) => loc
   }
 }

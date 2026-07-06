@@ -486,8 +486,6 @@ pub impl @prettyprinter.Pretty for ResolvedEffectOperationName with fn pretty(
       text("::") +
       text(operation) +
       operation_reference_doc(reference)
-    Shorthand(operation~, reference~, ..) =>
-      text("::") + text(operation) + operation_reference_doc(reference)
     Unqualified(operation~, reference~, ..) =>
       text(operation) + operation_reference_doc(reference)
   }
@@ -830,7 +828,7 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
         @pretty.parenthesized_inline(arguments.map(ResolvedPattern::pretty))
       }
     }
-    ShorthandVariant(variant~, type_binders~, arguments~, ..) => {
+    UnqualifiedVariant(variant~, type_binders~, arguments~, ..) => {
       let head = text(variant) + type_parameters_doc(type_binders)
       if arguments.is_empty() {
         head

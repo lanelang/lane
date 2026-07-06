@@ -2019,12 +2019,6 @@ fn @syntax.EffectOperationName::resolve_effect_operation_name(
       }
       Qualified(owner~, operation~, reference~, loc~)
     }
-    Shorthand(operation~, loc~) =>
-      Shorthand(
-        operation~,
-        reference=resolver.unqualified_operation_reference(operation),
-        loc~,
-      )
     Unqualified(operation~, loc~) =>
       Unqualified(
         operation~,
@@ -2685,12 +2679,12 @@ fn @syntax.Pattern::resolve_pattern(
         loc~,
       )
     }
-    ShorthandVariant(variant~, type_binders~, arguments~, loc~) => {
+    UnqualifiedVariant(variant~, type_binders~, arguments~, loc~) => {
       let type_binders = resolver.resolve_type_parameter_names(
         type_binders, loc,
       )
       scope.type_parameters.append(type_binders)
-      ShorthandVariant(
+      UnqualifiedVariant(
         variant~,
         type_binders~,
         arguments=arguments.map(fn(argument) {

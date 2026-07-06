@@ -709,7 +709,7 @@ fn collect_resolved_pattern(
           source_id, argument, definitions, references, hovers,
         )
       }
-    ShorthandVariant(arguments~, ..) =>
+    UnqualifiedVariant(arguments~, ..) =>
       for argument in arguments {
         collect_resolved_pattern(
           source_id, argument, definitions, references, hovers,
@@ -824,8 +824,7 @@ fn collect_resolved_effect_operation_name(
         source_id, source_text, operation, reference, loc, references, hovers,
       )
     }
-    Shorthand(operation~, reference~, loc~)
-    | Unqualified(operation~, reference~, loc~) =>
+    Unqualified(operation~, reference~, loc~) =>
       collect_resolved_operation_reference(
         source_id, source_text, operation, reference, loc, references, hovers,
       )

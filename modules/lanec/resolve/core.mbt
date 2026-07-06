@@ -317,11 +317,6 @@ pub(all) enum ResolvedEffectOperationName {
     reference~ : ResolvedOperationReference,
     loc~ : SourceSpan
   )
-  Shorthand(
-    operation~ : String,
-    reference~ : ResolvedOperationReference,
-    loc~ : SourceSpan
-  )
   Unqualified(
     operation~ : String,
     reference~ : ResolvedOperationReference,
@@ -528,7 +523,7 @@ pub(all) enum ResolvedPattern {
     arguments~ : Array[ResolvedPattern],
     loc~ : SourceSpan
   )
-  ShorthandVariant(
+  UnqualifiedVariant(
     variant~ : String,
     type_binders~ : Array[ResolvedTypeParameter],
     arguments~ : Array[ResolvedPattern],
