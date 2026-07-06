@@ -48,7 +48,7 @@ fn parse_module_input_set_from_inputs(
     return Err(parsed.diagnostics)
   }
   guard parsed.modules.get(0) is Some(root) else {
-    return Err([CompileErrorKind::to_diagnostic(NoRootSourceModule, None)])
+    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
   }
   Ok({
     root_module_path_text: root.header.module_path_text,
@@ -67,7 +67,7 @@ fn parse_import_reachable_module_input_set_from_inputs(
     return Err(root_diagnostics)
   }
   guard parsed.modules.get(0) is Some(root) else {
-    return Err([CompileErrorKind::to_diagnostic(NoRootSourceModule, None)])
+    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
   }
   let reachable = reachable_modules(
     parsed.modules,
@@ -193,7 +193,7 @@ fn parse_module_inputs(
         })
       }
       None if source_diagnostics.is_empty() => {
-        let diagnostic = CompileErrorKind::to_diagnostic(
+        let diagnostic = compile_boundary_diagnostic(
           ParserProducedNoSourceFile,
           None,
         ).with_source_id(source.source_id)

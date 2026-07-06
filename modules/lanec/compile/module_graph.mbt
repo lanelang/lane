@@ -42,7 +42,7 @@ fn validate_module_inputs(
     for other_index in (index + 1)..<modules.length() {
       if modules[index].header.module_path_text ==
         modules[other_index].header.module_path_text {
-        let diagnostic = CompileErrorKind::to_diagnostic(
+        let diagnostic = compile_boundary_diagnostic(
           DuplicateModuleInput(modules[index].header.module_path_text),
           Some(modules[other_index].header.module_span),
         ).with_source_id(modules[other_index].source_id)
@@ -53,7 +53,7 @@ fn validate_module_inputs(
   for module_ in modules {
     for import_ in module_.header.imports {
       if find_module(modules, import_.module_path_text) is None {
-        let diagnostic = CompileErrorKind::to_diagnostic(
+        let diagnostic = compile_boundary_diagnostic(
           MissingImportWithCandidates(
             module_=import_.module_path_text,
             source_modules=module_candidates(modules),
@@ -130,7 +130,7 @@ fn visit_module(
   }
   guard find_module(modules, path) is Some(module_) else {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(
+      compile_boundary_diagnostic(
         MissingImportWithCandidates(
           module_=path,
           source_modules=module_candidates(modules),
@@ -142,7 +142,7 @@ fn visit_module(
     return
   }
   if visiting.contains(path) {
-    let diagnostic = CompileErrorKind::to_diagnostic(ImportCycle(path), None).with_source_id(
+    let diagnostic = compile_boundary_diagnostic(ImportCycle(path), None).with_source_id(
       module_.source_id,
     )
     diagnostics.push(diagnostic)

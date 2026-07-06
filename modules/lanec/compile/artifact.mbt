@@ -206,7 +206,7 @@ fn ModuleObjectArtifact::validate_all(
       if objects[index].module_path_text ==
         objects[other_index].module_path_text {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          artifact_diagnostic(
             DuplicateModuleObjectArtifact(objects[index].module_path_text),
             None,
           ),
@@ -223,7 +223,7 @@ fn ModuleObjectArtifact::validate(
 ) -> CompilerDiagnostic? {
   if self.schema_version != module_object_artifact_schema_version {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         UnsupportedModuleObjectArtifactSchema(
           schema=self.schema_version,
           module_path_text=self.module_path_text,
@@ -234,7 +234,7 @@ fn ModuleObjectArtifact::validate(
   }
   if self.interface.module_path != self.module_path_text {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         InvalidModuleObjectArtifact(
           module_path_text=self.module_path_text,
           reason="interface name mismatch",
@@ -245,7 +245,7 @@ fn ModuleObjectArtifact::validate(
   }
   if self.interface_fingerprint != interface_fingerprint(self.interface) {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         InvalidModuleObjectArtifact(
           module_path_text=self.module_path_text,
           reason="interface fingerprint mismatch",
@@ -257,7 +257,7 @@ fn ModuleObjectArtifact::validate(
   if self.module_fingerprint !=
     module_fingerprint(self.interface, self.imported_interface_fingerprints) {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         InvalidModuleObjectArtifact(
           module_path_text=self.module_path_text,
           reason="module fingerprint mismatch",
@@ -278,7 +278,7 @@ fn ModuleObjectArtifact::validate(
       self.imported_interface_fingerprints,
     ) {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         InvalidModuleObjectArtifact(
           module_path_text=self.module_path_text,
           reason="object fingerprint mismatch",
@@ -297,17 +297,12 @@ fn LinkedProgramArtifact::validate(
   let diagnostics = []
   if self.schema_version != 1 {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(
-        UnsupportedLinkedProgramArtifactSchema,
-        None,
-      ),
+      artifact_diagnostic(UnsupportedLinkedProgramArtifactSchema, None),
     )
   }
   let verify_result = @buslane.verify_program(self.program)
   if !verify_result.is_ok() {
-    diagnostics.push(
-      CompileErrorKind::to_diagnostic(InvalidLinkedBuslaneProgram, None),
-    )
+    diagnostics.push(artifact_diagnostic(InvalidLinkedBuslaneProgram, None))
   }
   self.validate_modules(diagnostics)
   self.validate_entries(diagnostics)
@@ -324,7 +319,7 @@ fn LinkedProgramArtifact::validate_modules(
     for other_index in (index + 1)..<self.module_path_texts.length() {
       if self.module_path_texts[index] == self.module_path_texts[other_index] {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          artifact_diagnostic(
             DuplicateLinkedModule(self.module_path_texts[index]),
             None,
           ),
@@ -343,19 +338,13 @@ fn LinkedProgramArtifact::validate_entries(
     let entry = self.entries[index]
     if self.program.metadata.value_info(entry.value) is None {
       diagnostics.push(
-        CompileErrorKind::to_diagnostic(
-          LinkedEntryUnknownValue(entry.name),
-          None,
-        ),
+        artifact_diagnostic(LinkedEntryUnknownValue(entry.name), None),
       )
     }
     for other_index in (index + 1)..<self.entries.length() {
       if entry.name == self.entries[other_index].name {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
-            DuplicateLinkedEntry(entry.name),
-            None,
-          ),
+          artifact_diagnostic(DuplicateLinkedEntry(entry.name), None),
         )
       }
     }
@@ -369,9 +358,7 @@ fn LinkedProgramArtifact::validate_runtime_effect_operations(
 ) -> Unit {
   for operation in self.runtime_effect_operations {
     if self.program.metadata.operation_info(operation.operation) is None {
-      diagnostics.push(
-        CompileErrorKind::to_diagnostic(InvalidLinkedBuslaneProgram, None),
-      )
+      diagnostics.push(artifact_diagnostic(InvalidLinkedBuslaneProgram, None))
     }
   }
 }
@@ -382,16 +369,13 @@ fn CompiledModuleSetArtifact::validate_schema(
 ) -> CompilerDiagnostic? {
   if self.schema_version != 1 {
     return Some(
-      CompileErrorKind::to_diagnostic(
-        UnsupportedModuleArtifactSchema(None),
-        None,
-      ),
+      artifact_diagnostic(UnsupportedModuleArtifactSchema(None), None),
     )
   }
   for module_ in self.modules {
     if module_.schema_version != 1 {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           UnsupportedModuleArtifactSchema(Some(module_.module_path_text)),
           None,
         ),
@@ -399,7 +383,7 @@ fn CompiledModuleSetArtifact::validate_schema(
     }
     if module_.interface.schema_version != 1 {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           UnsupportedModuleInterfaceArtifactSchema(module_.module_path_text),
           None,
         ),
@@ -411,7 +395,7 @@ fn CompiledModuleSetArtifact::validate_schema(
     }
     if module_.object.schema_version != module_object_artifact_schema_version {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           UnsupportedModuleObjectArtifactSchema(
             schema=module_.object.schema_version,
             module_path_text=module_.module_path_text,
@@ -423,7 +407,7 @@ fn CompiledModuleSetArtifact::validate_schema(
     if module_.interface.module_path_text != module_.module_path_text ||
       module_.object.module_path_text != module_.module_path_text {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           InvalidModuleArtifact(
             module_path_text=module_.module_path_text,
             reason="name mismatch",
@@ -437,7 +421,7 @@ fn CompiledModuleSetArtifact::validate_schema(
       module_.object.imported_interface_fingerprints !=
       module_.imported_interface_fingerprints {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           InvalidModuleArtifact(
             module_path_text=module_.module_path_text,
             reason="imported interface mismatch",
@@ -449,7 +433,7 @@ fn CompiledModuleSetArtifact::validate_schema(
     if module_.interface.module_fingerprint != module_.module_fingerprint ||
       module_.object.module_fingerprint != module_.module_fingerprint {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           InvalidModuleArtifact(
             module_path_text=module_.module_path_text,
             reason="fingerprint mismatch",
@@ -461,7 +445,7 @@ fn CompiledModuleSetArtifact::validate_schema(
     if module_.interface.interface_fingerprint !=
       interface_fingerprint(module_.interface.interface) {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           InvalidModuleInterfaceArtifact(
             module_path_text=module_.module_path_text,
             reason="fingerprint mismatch",
@@ -476,7 +460,7 @@ fn CompiledModuleSetArtifact::validate_schema(
         module_.imported_interface_fingerprints,
       ) {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           InvalidModuleArtifact(
             module_path_text=module_.module_path_text,
             reason="fingerprint mismatch",
@@ -497,7 +481,7 @@ fn CompiledModuleSetArtifact::validate_schema(
         module_.object.imported_interface_fingerprints,
       ) {
       return Some(
-        CompileErrorKind::to_diagnostic(
+        artifact_diagnostic(
           InvalidModuleArtifact(
             module_path_text=module_.module_path_text,
             reason="object fingerprint mismatch",

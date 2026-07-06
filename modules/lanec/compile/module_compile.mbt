@@ -171,7 +171,7 @@ fn compile_module_graph(
     }
   }
   if find_compiled_module(modules, graph.root_module_path_text) is None {
-    return Err([CompileErrorKind::to_diagnostic(NoRootSourceModule, None)])
+    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
   }
   Ok({
     root_module_path_text: graph.root_module_path_text,
@@ -191,7 +191,7 @@ fn compile_module_from_interface_artifacts(
     return Err(parsed.diagnostics)
   }
   guard parsed.modules.get(0) is Some(input) else {
-    return Err([CompileErrorKind::to_diagnostic(NoRootSourceModule, None)])
+    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
   }
   let ordered_interfaces = reachable_interface_artifacts(
     input.header,

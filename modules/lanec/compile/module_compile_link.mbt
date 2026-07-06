@@ -264,7 +264,7 @@ fn validate_compiled_modules(
       if modules[index].module_path_text ==
         modules[other_index].module_path_text {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          link_diagnostic(
             DuplicateModuleArtifact(modules[index].module_path_text),
             None,
           ),
@@ -324,15 +324,11 @@ fn visit_compiled_module(
     return
   }
   if visiting.contains(module_path_text) {
-    diagnostics.push(
-      CompileErrorKind::to_diagnostic(ImportCycle(module_path_text), None),
-    )
+    diagnostics.push(link_diagnostic(LinkImportCycle(module_path_text), None))
     return
   }
   guard find_compiled_module(modules, module_path_text) is Some(module_) else {
-    diagnostics.push(
-      CompileErrorKind::to_diagnostic(MissingObject(module_path_text), None),
-    )
+    diagnostics.push(link_diagnostic(MissingObject(module_path_text), None))
     return
   }
   visiting.push(module_path_text)

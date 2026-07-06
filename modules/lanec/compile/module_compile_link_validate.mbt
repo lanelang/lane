@@ -7,7 +7,7 @@ fn validate_link_object(
   let diagnostics = []
   if module_.module_path_text != object.module_path_text {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(
+      link_diagnostic(
         StaleModuleObject(
           module_path_text=module_.module_path_text,
           reason="module object mismatch",
@@ -18,7 +18,7 @@ fn validate_link_object(
   }
   if module_.fingerprint != object.fingerprint {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(
+      link_diagnostic(
         StaleModuleObject(
           module_path_text=module_.module_path_text,
           reason="module fingerprint mismatch",
@@ -39,7 +39,7 @@ fn validate_link_object(
       object.imported_interface_fingerprints,
     ) {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(
+      link_diagnostic(
         StaleModuleObject(
           module_path_text=module_.module_path_text,
           reason="object fingerprint mismatch",
@@ -54,8 +54,8 @@ fn validate_link_object(
         if interface_fingerprint(imported_module.interface) !=
           imported.fingerprint {
           diagnostics.push(
-            CompileErrorKind::to_diagnostic(
-              ImportedInterfaceFingerprintMismatch(
+            link_diagnostic(
+              LinkImportedInterfaceFingerprintMismatch(
                 importer=module_.module_path_text,
                 imported=imported.module_path_text,
               ),
@@ -67,7 +67,7 @@ fn validate_link_object(
       }
       None =>
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          link_diagnostic(
             MissingImportedObject(imported.module_path_text),
             None,
           ),
@@ -90,7 +90,7 @@ fn validate_imported_references(
       Some(imported_module) =>
         if imported.fingerprint != imported_module.fingerprint {
           diagnostics.push(
-            CompileErrorKind::to_diagnostic(
+            link_diagnostic(
               ImportedReferenceFingerprintMismatch(
                 importer=module_.module_path_text,
                 imported=imported.module_path_text,
@@ -109,7 +109,7 @@ fn validate_imported_references(
             Some(item) =>
               if !imported_reference_shape_matches_export(imported, item) {
                 diagnostics.push(
-                  CompileErrorKind::to_diagnostic(
+                  link_diagnostic(
                     ImportedReferenceMismatch(
                       importer=module_.module_path_text,
                       imported=imported.module_path_text,
@@ -124,7 +124,7 @@ fn validate_imported_references(
         }
       None =>
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          link_diagnostic(
             MissingImportedObject(imported.module_path_text),
             None,
           ),
@@ -161,7 +161,7 @@ fn validate_imported_exports(
   for value in imported.interface.values {
     if !module_exports_value(imported.object.exports, value.name) {
       diagnostics.push(
-        CompileErrorKind::to_diagnostic(
+        link_diagnostic(
           MissingExported(
             kind="value",
             provider=imported.module_path_text,
@@ -177,7 +177,7 @@ fn validate_imported_exports(
     let name = interface_type_name(type_)
     if !module_exports_type(imported.object.exports, name) {
       diagnostics.push(
-        CompileErrorKind::to_diagnostic(
+        link_diagnostic(
           MissingExported(
             kind="type",
             provider=imported.module_path_text,
@@ -195,7 +195,7 @@ fn validate_imported_exports(
           constructor_name,
         ) {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          link_diagnostic(
             MissingExported(
               kind="constructor",
               provider=imported.module_path_text,
@@ -213,7 +213,7 @@ fn validate_imported_exports(
           field_selector_name,
         ) {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          link_diagnostic(
             MissingExported(
               kind="field selector",
               provider=imported.module_path_text,
@@ -229,7 +229,7 @@ fn validate_imported_exports(
   for effect in imported.interface.effects {
     if !module_exports_effect(imported.object.exports, effect.name) {
       diagnostics.push(
-        CompileErrorKind::to_diagnostic(
+        link_diagnostic(
           MissingExported(
             kind="effect",
             provider=imported.module_path_text,
@@ -247,7 +247,7 @@ fn validate_imported_exports(
       )
       if !module_exports_operation(imported.object.exports, operation_name) {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          link_diagnostic(
             MissingExported(
               kind="operation",
               provider=imported.module_path_text,

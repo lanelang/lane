@@ -59,9 +59,7 @@ pub fn check_source_inputs(
         None =>
           {
             source: None,
-            diagnostics: [
-              CompileErrorKind::to_diagnostic(NoRootSourceModule, None),
-            ],
+            diagnostics: [compile_boundary_diagnostic(NoRootSourceModule, None)],
           }
       }
     Err(diagnostics) => { source: None, diagnostics }
@@ -98,9 +96,7 @@ pub fn check_source_input_with_interface_artifacts(
         None =>
           {
             source: None,
-            diagnostics: [
-              CompileErrorKind::to_diagnostic(NoRootSourceModule, None),
-            ],
+            diagnostics: [compile_boundary_diagnostic(NoRootSourceModule, None)],
           }
       }
     Err(diagnostics) => { source: None, diagnostics }

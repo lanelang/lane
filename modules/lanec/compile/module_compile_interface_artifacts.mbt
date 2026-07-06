@@ -48,7 +48,7 @@ fn validate_interface_artifacts(
       if interfaces[index].module_path_text ==
         interfaces[other_index].module_path_text {
         diagnostics.push(
-          CompileErrorKind::to_diagnostic(
+          artifact_diagnostic(
             DuplicateModuleInterfaceArtifact(interfaces[index].module_path_text),
             None,
           ),
@@ -65,7 +65,7 @@ fn ModuleInterfaceArtifact::validate(
 ) -> CompilerDiagnostic? {
   if self.schema_version != 1 {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         UnsupportedModuleInterfaceArtifactSchema(self.module_path_text),
         None,
       ),
@@ -73,7 +73,7 @@ fn ModuleInterfaceArtifact::validate(
   }
   if self.interface.module_path != self.module_path_text {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         InvalidModuleInterfaceArtifact(
           module_path_text=self.module_path_text,
           reason="name mismatch",
@@ -88,7 +88,7 @@ fn ModuleInterfaceArtifact::validate(
   )
   if self.interface_fingerprint != interface_fingerprint(self.interface) {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         InvalidModuleInterfaceArtifact(
           module_path_text=self.module_path_text,
           reason="fingerprint mismatch",
@@ -99,7 +99,7 @@ fn ModuleInterfaceArtifact::validate(
   }
   if self.module_fingerprint != fingerprint {
     return Some(
-      CompileErrorKind::to_diagnostic(
+      artifact_diagnostic(
         InvalidModuleInterfaceArtifact(
           module_path_text=self.module_path_text,
           reason="module fingerprint mismatch",
@@ -128,14 +128,14 @@ fn visit_interface_artifact(
   }
   if visiting.contains(module_path_text) {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(ImportCycle(module_path_text), None),
+      compile_boundary_diagnostic(ImportCycle(module_path_text), None),
     )
     return
   }
   guard find_module_interface_artifact(interfaces, module_path_text)
     is Some(interface) else {
     diagnostics.push(
-      CompileErrorKind::to_diagnostic(
+      compile_boundary_diagnostic(
         MissingImportWithCandidates(
           module_=module_path_text,
           source_modules=[],
@@ -150,8 +150,8 @@ fn visit_interface_artifact(
     Some(fingerprint) if interface_fingerprint(interface.interface) !=
       fingerprint =>
       diagnostics.push(
-        CompileErrorKind::to_diagnostic(
-          ImportedInterfaceFingerprintMismatch(
+        artifact_diagnostic(
+          ArtifactImportedInterfaceFingerprintMismatch(
             importer=importer_path_text,
             imported=module_path_text,
           ),

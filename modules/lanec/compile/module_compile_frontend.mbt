@@ -91,7 +91,7 @@ fn compile_one_module(
     }
     _ =>
       Err([
-        CompileErrorKind::to_diagnostic(CheckedSourceConstructionFailed, None).with_source_id(
+        compile_boundary_diagnostic(CheckedSourceConstructionFailed, None).with_source_id(
           input.source_id,
         ),
       ])
