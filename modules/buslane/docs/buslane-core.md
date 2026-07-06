@@ -58,6 +58,8 @@ TypeId
 TypeParameterId
 ValueId
 DataConId
+EffectId
+OperationId
 ```
 
 There is no `FieldId` or source variant id in Buslane. Source structs and enum
@@ -81,6 +83,8 @@ MetadataRegistry {
   type_parameters : TypeParameterMetadata
   values : ValueMetadata
   data_constructors : DataConMetadata
+  effects : EffectMetadata
+  operations : OperationMetadata
   order : MetadataOrder
 }
 ```
@@ -118,6 +122,7 @@ Buslane supports value types and n-ary type-level functions:
 ```text
 Kind =
   Type
+  Effect
   Function(Array[Kind], Kind)
 ```
 
@@ -151,10 +156,20 @@ Type =
   Primitive(PrimitiveType)
   Parameter(TypeParameterId)
   Constructor(TypeId)
-  Apply(Type, Array[Type])
+  Apply(Type, Array[GenericArgument])
   TypeLambda(Array[TypeParameterId], Type)
-  Function(Array[Type], Type)
+  Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
+
+Effect =
+  Empty
+  Singleton(EffectId, Array[GenericArgument])
+  Parameter(TypeParameterId)
+  Union(Array[Effect])
+
+GenericArgument =
+  TypeArgument(Type)
+  EffectArgument(Effect)
 
 PrimitiveType =
   Unit
@@ -163,14 +178,16 @@ PrimitiveType =
   String
 ```
 
-Function types use n-ary parameter lists. Buslane does not curry function types,
-does not tuple arguments implicitly, and does not support implicit partial
-application.
+Function types use n-ary parameter lists and carry a latent effect. Buslane does
+not curry function types, does not tuple arguments implicitly, and does not
+support implicit partial application.
 
 Nominal constructors are type-level values. A nullary nominal type is a
 `Constructor`; generic nominal instances use uniform `Apply(Constructor(id),
-arguments)`. Buslane stores alias-free type terms; transparent source aliases
-are expanded before lowering.
+arguments)`. The arguments are kind-aware generic arguments, so Type-kind
+parameters receive type terms and Effect-kind parameters receive effect terms.
+Buslane stores alias-free type terms; transparent source aliases are expanded
+before lowering.
 
 Buslane has no standalone `Exists` type constructor. Existential information is
 nominal: hidden type members live in data-constructor metadata, construction

@@ -34,3 +34,5 @@ Browser-facing Lane tool terms for wasm-hosted IR exploration.
   context.
 - Put tool-specific terms in the closest tool context instead of the root
   context.
+- Use **Pre-Buslane Contract** for the checked-source to Buslane boundary; the
+  detailed contract lives in `modules/lanec/docs/pre-buslane-contract.md`.

@@ -8,6 +8,9 @@ Cross-cutting language features are tracked inside the pipeline phases they
 affect. Items prefixed with `Existential:` refer to the design note in
 `docs/existential-types.md`.
 
+The checked-source to Buslane boundary is defined in
+`docs/pre-buslane-contract.md`.
+
 ## 0. Source Surface And Specification
 
 - [x] Workspace layout for `spec`, `lanec`, `lane tools`, and `basic`.
@@ -43,14 +46,17 @@ affect. Items prefixed with `Existential:` refer to the design note in
 - [x] Existential: extend type objects and kind checking so existential
   packages can carry explicit hidden type members while preserving nominal
   struct and enum identity.
-- [ ] F-Omega: replace nominal type applications with separate nominal
-  constructor objects and uniform type application.
-- [ ] F-Omega: implement structural kind checking for parameter-list kinds,
+- [x] F-Omega: represent Type, Effect, and function kinds in checked type
+  objects.
+- [x] F-Omega: represent type-level lambdas, uniform type application, and
+  kind-aware generic arguments.
+- [x] F-Omega: implement structural kind checking for parameter-list kinds,
   higher-kinded type parameters, arbitrary-kind aliases, and higher-kinded
   existential witnesses.
-- [ ] F-Omega: implement alias expansion, capture-avoiding beta normalization,
-  definitional equality, occurs checks, and internal-bug reporting for
-  exhausted normalization fuel.
+- [x] F-Omega: implement transparent alias expansion, capture-avoiding beta
+  normalization, and definitional equality.
+- [ ] F-Omega: replace normalization-fuel aborts with explicit internal-bug
+  diagnostics if type-level computation does not terminate.
 
 ## 2. Name Resolution
 
@@ -174,7 +180,7 @@ and unresolved or ambiguous states before Buslane lowering.
   interpreting intrinsic names.
 - [x] Integrate checked-source lowering with the resolved-to-checked source
   elaboration pipeline.
-- [ ] Produce a typed source-level result that contains no unresolved names,
+- [x] Produce a typed source-level result that contains no unresolved names,
   omitted contextual arguments, or source-only ambiguity states.
 - [x] Existential: preserve witness and opened-type information in Checked
   Source so later Buslane lowering does not need source syntax.
@@ -205,9 +211,9 @@ and unresolved or ambiguous states before Buslane lowering.
   let-rec RHS shape.
 - [x] Provide a pure Buslane pretty printer and tests based on stable Buslane
   identity output.
-- [ ] Upgrade Buslane type terms and verifier rules with F-omega constructs:
+- [x] Upgrade Buslane type terms and verifier rules with F-omega constructs:
   higher kinds, type-level lambdas, and type-level application.
-- [ ] Lower source aliases into alias-free Buslane type terms while preserving
+- [x] Lower source aliases into alias-free Buslane type terms while preserving
   source type presentation for diagnostics outside Buslane.
 
 ## 6. ANF IR
@@ -260,11 +266,11 @@ and unresolved or ambiguous states before Buslane lowering.
   elaborator, Buslane Core Language, ANF, and interpreter fixture coverage for
   existential enums, structs, higher-kind-ready type members, and escape
   diagnostics.
-- [ ] F-Omega: add conformance fixtures for higher-kinded polymorphism,
+- [x] F-Omega: add conformance fixtures for higher-kinded polymorphism,
   type-level lambdas, type aliases, contextual offers, and existential
   witnesses.
-- [ ] Run parser, type checker, elaborator, and interpreter tests over shared
-  fixtures where practical.
+- [ ] Continue expanding parser, type checker, elaborator, and interpreter
+  tests over shared fixtures where practical.
 
 ## 9. IDE Tooling And LSP
 

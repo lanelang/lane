@@ -19,6 +19,10 @@ _Avoid_: pure parser, Buslane verifier
 The boundary that translates checked source into Buslane.
 _Avoid_: source desugaring, ANF normalization
 
+**Pre-Buslane Contract**:
+The explicit invariant set that a successful checked source result satisfies before Buslane lowering, including resolved identities, filled contextual arguments, canonical type/effect objects, and source-only forms with known lowering rules.
+_Avoid_: Buslane verifier contract, whole-program optimization, ANF normalization
+
 **Compiler Analysis API**:
 An in-memory API used by tools and LSP code without owning file IO or process
 IO.
@@ -76,6 +80,10 @@ _Avoid_: semantic lowering, source elaboration, module interface generation
 
 - `lanec` implements the language contract from `spec`.
 - `lanec` consumes `buslane` as the semantic core target.
+- The **Pre-Buslane Contract** is documented in
+  `modules/lanec/docs/pre-buslane-contract.md`; it separates source
+  elaboration and canonicalization from Buslane, ANF, and execution
+  optimization.
 - `lane` and future tools should call compiler APIs instead of importing
   internal packages when possible.
 - Platform services such as filesystem access belong in tools, not in the

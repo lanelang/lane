@@ -317,6 +317,10 @@ _Avoid_: shallow handler, one-shot catch, implicit rehandle of arm bodies
 The Buslane `perform` and `handle` core forms produced by lowering source effect operation calls and handlers.
 _Avoid_: source syntax, ordinary function call, exception catch frame
 
+**Pre-Buslane Contract**:
+The compiler-front-end contract that checked source must satisfy before semantic lowering into Buslane.
+_Avoid_: Buslane verifier contract, whole-program core optimization, execution image lowering
+
 **Unhandled Perform State**:
 A stuck Buslane runtime state where a `perform` expression reaches no enclosing handler for its owning effect.
 _Avoid_: unchecked exception, implicit runtime catch, successful effect propagation
@@ -484,5 +488,8 @@ _Avoid_: VS Code extension, compiler front end
 - Direct **Entry Selection** is limited to **Public Entries**.
 - The **Import Graph** is acyclic.
 - Buslane core remains independent of **Module** and **Source Identity** concepts.
+- The **Pre-Buslane Contract** belongs to `lanec`; it documents checked-source
+  invariants, type/effect canonicalization ownership, and source-origin side
+  data before Buslane lowering.
 - The workspace root owns cross-module development layout only; module-specific
   design notes stay inside each module directory.

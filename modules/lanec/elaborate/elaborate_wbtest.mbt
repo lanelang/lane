@@ -81,6 +81,165 @@ fn lower_first_handler_for_elaborate_test(
 }
 
 ///|
+priv struct CheckedSuccessSummary {
+  has_source : Bool
+  diagnostics : Int
+} derive(Debug)
+
+///|
+fn CheckedSuccessSummary::from_result(
+  result : ElaborateResult,
+) -> CheckedSuccessSummary {
+  {
+    has_source: result.source is Some(_),
+    diagnostics: result.diagnostics.length(),
+  }
+}
+
+///|
+priv struct BuslaneLoweringShape {
+  types : Int
+  effects : Int
+  operations : Int
+  values : Int
+  data_constructors : Int
+  mut top_lets : Int
+  mut top_let_recs : Int
+  mut top_externals : Int
+  mut calls : Int
+  mut type_lambdas : Int
+  mut type_applications : Int
+  mut constructs : Int
+  mut construct_hidden_witnesses : Int
+  mut matches : Int
+  mut performs : Int
+  mut perform_effect_arguments : Int
+  mut perform_hidden_witnesses : Int
+  mut handles : Int
+  mut resumes : Int
+} derive(Debug)
+
+///|
+fn BuslaneLoweringShape::from_program(
+  program : @buslane.Program,
+) -> BuslaneLoweringShape {
+  let shape = {
+    types: program.metadata.types.length(),
+    effects: program.metadata.effects.length(),
+    operations: program.metadata.operations.length(),
+    values: program.metadata.values.length(),
+    data_constructors: program.metadata.data_constructors.length(),
+    top_lets: 0,
+    top_let_recs: 0,
+    top_externals: 0,
+    calls: 0,
+    type_lambdas: 0,
+    type_applications: 0,
+    constructs: 0,
+    construct_hidden_witnesses: 0,
+    matches: 0,
+    performs: 0,
+    perform_effect_arguments: 0,
+    perform_hidden_witnesses: 0,
+    handles: 0,
+    resumes: 0,
+  }
+  shape.add_terms(program.terms)
+  shape
+}
+
+///|
+fn BuslaneLoweringShape::add_terms(
+  self : BuslaneLoweringShape,
+  terms : Array[@buslane.TopTerm],
+) -> Unit {
+  for term in terms {
+    match term {
+      Let(_, body) => {
+        self.top_lets += 1
+        self.add_expr(body)
+      }
+      LetRec(bindings) => {
+        self.top_let_recs += 1
+        for binding in bindings {
+          self.add_expr(binding.rhs)
+        }
+      }
+      External(_) => self.top_externals += 1
+    }
+  }
+}
+
+///|
+fn BuslaneLoweringShape::add_expr(
+  self : BuslaneLoweringShape,
+  expression : @buslane.Expr,
+) -> Unit {
+  match expression {
+    Ref(_) | Literal(_) | Resume(_) => ()
+    Function(function) => self.add_expr(function.body)
+    Call(callee, arguments) => {
+      self.calls += 1
+      self.add_expr(callee)
+      for argument in arguments {
+        self.add_expr(argument)
+      }
+    }
+    TypeLambda(_, body) => {
+      self.type_lambdas += 1
+      self.add_expr(body)
+    }
+    TypeApply(callee, _) => {
+      self.type_applications += 1
+      self.add_expr(callee)
+    }
+    Construct(construct) => {
+      self.constructs += 1
+      self.construct_hidden_witnesses += construct.hidden_witnesses.length()
+      for payload in construct.payloads {
+        self.add_expr(payload)
+      }
+    }
+    Let(_, initializer, body) => {
+      self.add_expr(initializer)
+      self.add_expr(body)
+    }
+    LetRec(bindings, body) => {
+      for binding in bindings {
+        self.add_expr(binding.rhs)
+      }
+      self.add_expr(body)
+    }
+    Match(match_) => {
+      self.matches += 1
+      self.add_expr(match_.scrutinee)
+      for alternative in match_.alternatives {
+        self.add_expr(alternative.body)
+      }
+    }
+    Perform(perform) => {
+      self.performs += 1
+      self.perform_effect_arguments += perform.effect_arguments.length()
+      self.perform_hidden_witnesses += perform.hidden_witnesses.length()
+      for payload in perform.payloads {
+        self.add_expr(payload)
+      }
+    }
+    Handle(handle) => {
+      self.handles += 1
+      self.add_expr(handle.body)
+      self.add_expr(handle.final_body)
+      for table in handle.handlers {
+        for operation in table.operations {
+          self.add_expr(operation.body)
+          self.resumes += 1
+        }
+      }
+    }
+  }
+}
+
+///|
 fn first_checked_handler_for_elaborate_test(
   source : @checked.CheckedSourceFile,
 ) -> (Array[@checked.CheckedHandlerTable], @types.Type)? {
@@ -214,6 +373,126 @@ test "elaborate resolved source into checked source" {
       #|    let answer#1 : Int = 42
       #|  }
       #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "checked source success rejects unresolved and contextual boundary states" {
+  let unresolved = elaborate_source(
+    (
+      #|let answer : Int = missing
+    ),
+  )
+  let missing_contextual = elaborate_source(
+    (
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+      #|  op.add(a, b)
+      #|}
+      #|let answer : Int = 1 + 2
+    ),
+  )
+  debug_inspect(
+    [
+      CheckedSuccessSummary::from_result(unresolved),
+      CheckedSuccessSummary::from_result(missing_contextual),
+    ],
+    content=(
+      #|[
+      #|  { has_source: false, diagnostics: 2 },
+      #|  { has_source: false, diagnostics: 1 },
+      #|]
+    ),
+  )
+}
+
+///|
+test "pre-buslane lowering contract covers source-only forms and witnesses" {
+  let result = elaborate_buslane_source(
+    (
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+      #|  op.add(a, b)
+      #|}
+      #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|struct Cell {
+      #|  value : Int
+      #|}
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|enum Packed {
+      #|  hide[A](A)
+      #|}
+      #|effect Prompt {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|type PromptOnly = { Prompt }
+      #|fn[A] id(value : A) -> A {
+      #|  value
+      #|}
+      #|fn use_prompt() -> Int ! PromptOnly {
+      #|  Prompt::choose![Int](1, 2)
+      #|}
+      #|let packed : Packed = Packed::hide[Int](1)
+      #|fn answer() -> Int {
+      #|  handle {
+      #|    let Cell::{ value } = Cell::{ value: 1 + 2 }
+      #|    let piped : Int = value |> id[Int]
+      #|    let chosen : Int = Prompt::choose![Int](piped, 4)
+      #|    if true {
+      #|      match Option::some(chosen) {
+      #|        Option::some(result) => Box[Int]::{ value: result }.value
+      #|        Option::none() => 0
+      #|      }
+      #|    } else {
+      #|      builtin("%external_int")
+      #|    }
+      #|  } with {
+      #|    Prompt::choose[T](left, right, resume) => resume(left)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  debug_inspect(@buslane.verify_program(program), content="{ diagnostics: [] }")
+  debug_inspect(
+    BuslaneLoweringShape::from_program(program),
+    content=(
+      #|{
+      #|  types: 5,
+      #|  effects: 1,
+      #|  operations: 1,
+      #|  values: 39,
+      #|  data_constructors: 6,
+      #|  top_lets: 5,
+      #|  top_let_recs: 1,
+      #|  top_externals: 2,
+      #|  calls: 6,
+      #|  type_lambdas: 4,
+      #|  type_applications: 4,
+      #|  constructs: 4,
+      #|  construct_hidden_witnesses: 1,
+      #|  matches: 6,
+      #|  performs: 2,
+      #|  perform_effect_arguments: 0,
+      #|  perform_hidden_witnesses: 2,
+      #|  handles: 1,
+      #|  resumes: 1,
       #|}
     ),
   )

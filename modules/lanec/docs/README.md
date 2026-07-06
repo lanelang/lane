@@ -3,6 +3,8 @@
 This directory contains compiler-owned design and planning material.
 
 - `roadmap-checklist.md`: compiler pipeline checklist.
+- `pre-buslane-contract.md`: checked-source invariants and Buslane lowering
+  boundary contract.
 - `existential-types.md`: source feature design kept here because the compiler
   still tracks implementation tasks for it.
 - `adr/`: decisions that affect compiler representation, resolution,

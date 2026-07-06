@@ -88,6 +88,8 @@ coordination and independent work items can still live in the issue tracker.
   only bind positional payload values.
 - [x] Preserve source presentation and spans for diagnostics outside Buslane;
   do not add source spans to Buslane nodes.
+- [x] Document the pre-Buslane contract that keeps source elaboration,
+  canonicalization, and origin side data outside Buslane core.
 - [x] Add integration snapshots from Lane source through checked source into
   Buslane effect core.
 
