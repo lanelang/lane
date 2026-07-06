@@ -9,6 +9,17 @@ fn SemanticChecker::synthesize_function_literal(
   body : @desugar.DesugaredExpr,
   loc : SourceSpan,
 ) -> @types.Type {
+  // Function-literal synthesis has no adjacent function type:
+  //
+  //   Gamma, x_i : P_i |- body => R ! BodyEff
+  //   AnnotatedEff = written effect or {}
+  //   BodyEff <= AnnotatedEff
+  //   ---------------------------------------
+  //   Gamma |- fn(x_i : P_i...) { body } => (P_i...) -> R ! AnnotatedEff
+  //
+  // Therefore every parameter must be annotated. If a caller wants omitted
+  // parameter annotations, the expression must be checked against an expected
+  // function type instead.
   ignore(loc)
   let parameter_types = []
   let body_scope = scope.copy()
@@ -86,9 +97,12 @@ fn SemanticChecker::check_function_literal(
         self.report_application_arity("generic function arity", loc)
         return
       }
-      // Gamma, x_1 : P_1, ..., x_n : P_n |- body <= R
-      // ---
-      // Gamma |- fn(x_1, ..., x_n) { body } <= (P_1, ..., P_n) -> R
+      // Function-literal checking:
+      //
+      //   Gamma, x_1 : P_1, ..., x_n : P_n |- body <= R
+      //   BodyEff <= ExpectedEff
+      //   ------------------------------------------------
+      //   Gamma |- fn(x_1, ..., x_n) { body } <= (P_i...) -> R ! ExpectedEff
       //
       // This is the core direct-context rule for anonymous functions: omitted
       // parameter annotations are recovered only from the adjacent expected
@@ -151,9 +165,14 @@ fn SemanticChecker::check_generic_function_literal(
   body : @desugar.DesugaredExpr,
   loc : SourceSpan,
 ) -> Unit {
-  // Forall introduction is local to the function literal. The literal must
-  // declare the generic parameters it introduces; checking only aligns the
-  // expected forall parameters with those local parameters.
+  // Forall introduction is local to the function literal:
+  //
+  //   Gamma, A_i, x_j : P_j[A] |- body <= R[A]
+  //   ------------------------------------------
+  //   Gamma |- fn[A_i](x_j...) { body } <= forall A_i. (P_j...) -> R
+  //
+  // The literal must declare the generic parameters it introduces; checking
+  // only aligns the expected forall parameters with those local parameters.
   ignore(check_type_parameters(self.diagnostics, type_parameters))
   if type_parameters.length() != expected_parameters.length() {
     self.report_application_arity("generic function arity", loc)

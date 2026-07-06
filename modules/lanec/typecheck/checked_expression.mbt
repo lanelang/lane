@@ -871,6 +871,9 @@ fn SemanticChecker::check_checked_call(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  // Checked call in checking mode first synthesizes the call under the expected
+  // result type so generic callees can use that adjacent result information,
+  // then enforces the ordinary expected/actual equality.
   let checked = self.synthesize_checked_call_with_expected(
     scope,
     callee,
@@ -906,10 +909,17 @@ fn SemanticChecker::check_checked_call_arguments(
   arguments : Array[@desugar.DesugaredCallArgument],
   loc : SourceSpan,
 ) -> CheckedCallArguments? {
+  // Checked argument rule:
+  //
+  //   Gamma |- arg_i <= P_i ~~> checked_arg_i ! E_i
+  //   ------------------------------------------------
+  //   checked call arguments with effect union {E_i...}
+  //
+  // Callee effects are added by the caller; this helper accounts only for
+  // argument evaluation.
   if !self.check_application_arity(
       parameters.length(),
       arguments.length(),
-      "call arity",
       loc,
       true,
     ) {
@@ -1081,6 +1091,14 @@ fn SemanticChecker::check_checked_function_literal(
 ) -> CheckedExpressionSynthesis {
   match expected {
     Forall(expected_parameters, expected_body) => {
+      // Checked forall introduction mirrors the non-building checker:
+      //
+      //   Gamma, A_i |- fn body <= ExpectedBody[A_i]
+      //   ------------------------------------------
+      //   Gamma |- fn[A_i](...) <= forall A_i. ExpectedBody
+      //
+      // The local binder symbols replace the expected forall parameter ids
+      // before checking the body.
       let checked_type_parameters = check_type_parameters(
         self.diagnostics,
         type_parameters,

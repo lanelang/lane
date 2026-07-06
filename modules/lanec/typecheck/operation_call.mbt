@@ -18,6 +18,15 @@ fn SemanticChecker::operation_call_signature(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> OperationCallSignature? {
+  // Perform-site operation typing has two substitutions:
+  //
+  //   Owner[O...]::op[H...](args...)
+  //   Sub_owner = [O / owner_params]
+  //   Sub_hidden = [H / operation_type_params]
+  //
+  // Owner arguments come from the selected singleton effect. Operation hidden
+  // witnesses are explicit or inferred from payload arguments and expected
+  // result type, following the same local generic inference boundary as calls.
   let reference = match name {
     Qualified(reference~, ..)
     | Shorthand(reference~, ..)
@@ -64,6 +73,14 @@ fn SemanticChecker::handler_operation_signature(
   type_binders : Array[@resolve.ResolvedTypeParameter],
   loc : SourceSpan,
 ) -> OperationCallSignature? {
+  // Handler arms open operation-level hidden type parameters instead of
+  // supplying witnesses:
+  //
+  //   with Owner::op[X...](payloads..., resume) => body
+  //
+  // The opened binders must match the operation parameter arity and kind. They
+  // substitute the operation hidden parameters in payload/result types while
+  // remaining abstract inside the arm scope.
   let reference = match name {
     Qualified(reference~, ..)
     | Shorthand(reference~, ..)
@@ -149,6 +166,16 @@ fn SemanticChecker::operation_generic_witnesses(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> OperationGenericWitnesses? {
+  // Operation witness rule:
+  //
+  //   Gamma |- arg_i => Actual_i
+  //   collect(P_i, Actual_i)
+  //   collect(R, Expected)
+  //   all operation type parameters are bound
+  //   ---------------------------------------
+  //   hidden witnesses and substitution
+  //
+  // Empty written witnesses mean "infer all"; a non-empty list must be complete.
   if declaration.type_parameters.length() != generic_witnesses.length() &&
     !generic_witnesses.is_empty() {
     self.report_application_arity("effect operation generic arguments", loc)
@@ -281,6 +308,13 @@ fn SemanticChecker::check_operation_call(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> OperationCallSignature {
+  // Non-checked expression path used by ordinary type checking:
+  //
+  //   Gamma |- Owner::op[H...](arg_i...) <= Expected?
+  //
+  // Payloads check against the instantiated operation payload types. The
+  // operation's latent effect is returned in the signature for callers that
+  // build checked expressions.
   guard self.operation_call_signature(
       scope, name, generic_witnesses, arguments, expected_result, loc,
     )
@@ -314,6 +348,14 @@ fn SemanticChecker::synthesize_checked_operation_call(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  // Checked perform expression:
+  //
+  //   Gamma |- arg_i <= P_i ~~> checked_arg_i ! E_i
+  //   -------------------------------------------------------
+  //   Gamma |- perform op(arg_i...) => R ! {OwnerEffect, E_i...}
+  //
+  // The checked node stores only the operation's own effect as `effect`; the
+  // synthesis result includes payload-evaluation effects as well.
   guard self.operation_call_signature(
       scope, name, generic_witnesses, arguments, expected_result, loc,
     )

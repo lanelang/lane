@@ -20,6 +20,16 @@ fn SemanticChecker::synthesize_checked_handler(
   final_branch : @desugar.DesugaredHandlerFinalBranch,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  // Handler typing:
+  //
+  //   Gamma |- body => BodyT ! BodyEff
+  //   Gamma, value : BodyT |- final => ResultT ! FinalEff
+  //   ResidualSeed = (BodyEff - handled_effects) union FinalEff
+  //
+  // Operation arms need `ResultT` and the final residual effect to type
+  // `resume : OperationResult -> ResultT ! Residual`. Since arm bodies
+  // contribute to `Residual`, we first run a silent local pass using the seed,
+  // compute the final residual, then check arms once with the final resume type.
   let checked_body = self.synthesize_checked_expr(scope, body)
   let checked_tables = self.check_handler_table_data(scope, handlers)
   let handled_effects = checked_tables.map(fn(table) {
@@ -168,6 +178,13 @@ fn handler_operation_scope(
   result_type : @types.Type,
   residual_effect : @types.Effect,
 ) -> TypeScope {
+  // Arm scope:
+  //
+  //   Gamma, opened_type_binders, payload_pattern_binders, resume
+  //
+  // Opened type/effect binders are fresh abstract parameters from the handler
+  // arm. Payload patterns are already checked against the instantiated operation
+  // payload types before their binders are made visible to the arm body.
   let arm_scope = scope.copy()
   for type_binder in checked.type_binders {
     arm_scope.bind_type_parameter_kind(type_binder.id, type_binder.kind)
@@ -223,6 +240,13 @@ fn SemanticChecker::handler_residual_effect(
   handled_effects : Array[@types.Effect],
   loc : SourceSpan,
 ) -> @types.Effect {
+  // Residual effect rule:
+  //
+  //   Residual = BodyEff - handled_effects
+  //
+  // Closed body effects must actually contain every handled singleton. Open
+  // rows are allowed because the unknown residual may contain the handled
+  // effect; `effect_without` removes only concrete known terms.
   let mut residual = body_effect
   let removed_effects : Array[@types.Effect] = []
   for handled in handled_effects {
@@ -343,6 +367,9 @@ fn SemanticChecker::check_handler_table(
   handler : @desugar.DesugaredHandlerWithBlock,
   handled_effects : Array[@types.Effect],
 ) -> HandlerTableCheck? {
+  // A `with` block handles exactly one singleton effect. All operation arms in
+  // the block must belong to that same owner effect, and later coverage uses
+  // the effect declaration's complete operation set.
   let operations = []
   let mut handled_effect : @types.Effect? = None
   for arm in handler.arms {
@@ -399,6 +426,12 @@ fn SemanticChecker::check_handler_operation_arm(
   arm : @desugar.DesugaredHandlerOperationArm,
   signature : OperationCallSignature,
 ) -> @checked.CheckedHandlerOperationArm {
+  // Handler operation arm data checking:
+  //
+  //   Gamma |- pattern_i <= Payload_i ~~> checked_pattern_i
+  //
+  // The arm body is intentionally left unchecked here because it needs the
+  // final handler result and residual effect to type `resume`.
   let payload_patterns = []
   if signature.payload.length() != arm.payload_patterns.length() {
     self.diagnostics.push({
@@ -447,6 +480,7 @@ fn handler_resume_type(
   result_type : @types.Type,
   residual_effect : @types.Effect,
 ) -> @types.Type {
+  // resume : OperationResult -> HandlerResult ! Residual
   Function([signature.result], result_type, residual_effect)
 }
 
@@ -457,6 +491,12 @@ fn SemanticChecker::check_handler_operation_coverage(
   arms : Array[@checked.CheckedHandlerOperationArm],
   loc : SourceSpan,
 ) -> Unit {
+  // Coverage is per operation and reuses the pattern matrix:
+  //
+  //   for every operation op in handled effect:
+  //     operation arms for op are useful and exhaustive over op payload types
+  //
+  // The resume binder is not part of the pattern matrix.
   guard handled_effect is Singleton(effect_symbol, _) else { return }
   guard self.declarations.checked_effect(effect_symbol) is Some(effect) else {
     return

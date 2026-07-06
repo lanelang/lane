@@ -322,6 +322,13 @@ fn SemanticChecker::check_checked_local_let(
   scope : TypeScope,
   declaration : @desugar.DesugaredLetDeclaration,
 ) -> CheckedLocalLetSynthesis? {
+  // Local value let:
+  //
+  //   Gamma |- initializer <= Annotation  or  Gamma |- initializer => T
+  //   Gamma, x : T |- rest
+  //
+  // The initializer effect belongs to the surrounding block item sequence. The
+  // value binder becomes visible only after the initializer is checked.
   let (type_, checked_initializer) = if declaration.type_annotation
     is Some(type_annotation) {
     let type_ = self.check_type(type_annotation)
@@ -361,6 +368,9 @@ fn SemanticChecker::check_checked_local_offer(
   scope : TypeScope,
   declaration : @desugar.DesugaredOfferDeclaration,
 ) -> CheckedLocalLetSynthesis? {
+  // Local offer is a typed local let plus insertion into the contextual-offer
+  // environment. Offer resolution still happens by type after ordinary local
+  // checking has established the target type.
   let type_ = self.check_type(declaration.type_annotation)
   let checked_initializer = self.check_checked_expr(
     scope,
@@ -396,6 +406,15 @@ fn SemanticChecker::check_checked_local_pattern_let(
   scope : TypeScope,
   declaration : @desugar.DesugaredPatternLetDeclaration,
 ) -> CheckedLocalPatternLetSynthesis? {
+  // Pattern let:
+  //
+  //   Gamma |- initializer => T
+  //   Gamma |- pattern <= T ~~> checked_pattern
+  //   irrefutable(checked_pattern)
+  //
+  // The left side is a pattern syntactically; irrefutability is a semantic
+  // check after the initializer type is known. Pattern binders become visible to
+  // following block items when the enclosing block consumes this result.
   let (type_, checked_initializer) = if declaration.type_annotation
     is Some(type_annotation) {
     let type_ = self.check_type(type_annotation)
@@ -429,6 +448,10 @@ fn SemanticChecker::check_checked_local_function(
   scope : TypeScope,
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> @checked.CheckedFunctionDeclaration? {
+  // Local function declarations are visible recursively through
+  // `bind_function` before the body is checked. Parameter and result
+  // annotations define the function type; the body then checks against the
+  // annotated result and effect.
   let type_ = self.function_type(
     declaration.type_parameters,
     declaration.parameters,

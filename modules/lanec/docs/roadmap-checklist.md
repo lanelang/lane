@@ -105,6 +105,8 @@ ordinary local typing has determined their target types.
   named functions.
 - [x] Reframe the checker around explicit synthesis (`synthesize(expr) -> T`)
   and checking (`check(expr, expected)`) judgments.
+- [x] Document the main typechecking judgments, including expression,
+  generic-argument, effect-row, operation-call, handler, and pattern rules.
 - [x] Implement non-generic bidirectional local checking for function literals,
   calls, blocks, `if` branches, struct literals, field access, and non-thunked
   operator aliases.

@@ -122,6 +122,13 @@ fn GenericArgumentInference::remember(
   parameter : TypeParameterId,
   argument : @types.GenericArgument,
 ) -> Bool {
+  // Generic inference is a finite map from this call's forall parameters to
+  // concrete type/effect arguments:
+  //
+  //   Sub(parameter) = argument
+  //
+  // A repeated binding must be equal immediately. There is no later constraint
+  // solver that can reconcile two incompatible candidates.
   if argument is TypeArgument(Error) {
     return true
   }
@@ -155,9 +162,13 @@ fn GenericArgumentInference::collect(
   template : @types.Type,
   actual : @types.Type,
 ) -> Bool {
-  // Local generic-argument synthesis is first-order and boundary-local: only type
-  // parameters bound by this one forall are remembered, and only from types
-  // adjacent to this call.
+  // Type-argument collection implements the local rule:
+  //
+  //   collect(T, Actual) = Sub
+  //
+  // Only parameters bound by this one forall are remembered. Nominal and
+  // function types recurse structurally; unrelated nominal constructors produce
+  // no constraint instead of inventing a coercion or delayed equality problem.
   match (template, actual) {
     (Error, _) | (_, Error) => true
     (Parameter(parameter), actual) =>
@@ -196,6 +207,12 @@ fn GenericArgumentInference::collect_effect(
   template : @types.Effect,
   actual : @types.Effect,
 ) -> Bool {
+  // Effect-argument collection is exact row matching, not subtyping:
+  //
+  //   collect({C_1, ..., C_n, E?}, Actual)
+  //
+  // Every concrete template singleton must match one unique actual singleton.
+  // The optional tracked row parameter receives only the unmatched residual.
   match self.match_effect_rows(template, actual) {
     EffectRowsMatched(term_pairs~, residual_parameter~, residual_effect~) =>
       self.collect_effect_row_match(
@@ -217,6 +234,9 @@ fn GenericArgumentInference::match_effect_rows(
   template : @types.Effect,
   actual : @types.Effect,
 ) -> EffectRowMatch {
+  // Row matching is intentionally one-shot and terminating. If the template has
+  // more than one tracked row variable, or if a concrete singleton can match
+  // multiple actual terms, the result is ambiguous and inference fails.
   guard self.effect_row_pattern(template) is Some(pattern) else {
     return EffectRowsAmbiguous
   }
@@ -600,7 +620,6 @@ fn SemanticChecker::check_application_arity(
   self : SemanticChecker,
   expected : Int,
   actual : Int,
-  label : String,
   loc : SourceSpan,
   report_failure : Bool,
 ) -> Bool {
@@ -608,7 +627,6 @@ fn SemanticChecker::check_application_arity(
     true
   } else {
     if report_failure {
-      ignore(label)
       self.diagnostics.push({ kind: CallArityMismatch(expected~, actual~), loc })
     }
     false
@@ -629,6 +647,18 @@ fn SemanticChecker::infer_application_generic_arguments(
   loc : SourceSpan,
   report_failure : Bool,
 ) -> InferredApplicationGenericArguments? {
+  // Local generic application inference:
+  //
+  //   Gamma |- arg_i => Actual_i
+  //   collect(P_i, Actual_i)
+  //   collect(R, Expected)      when checking mode supplies Expected
+  //   all forall parameters are bound consistently
+  //   ------------------------------------------------
+  //   inferred generic arguments and substitution
+  //
+  // The order knob exists because operation calls may need result information
+  // before payload checking, while ordinary function calls prefer argument
+  // evidence first. Either way, every constraint is accepted or rejected now.
   let inference = GenericArgumentInference::GenericArgumentInference(
     type_parameters,
   )
@@ -827,7 +857,6 @@ fn SemanticChecker::instantiate_generic_callable(
   if !self.check_application_arity(
       parameters.length(),
       arguments.length(),
-      "call arity",
       loc,
       report_failure,
     ) {

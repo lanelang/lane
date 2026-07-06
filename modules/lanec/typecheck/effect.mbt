@@ -31,6 +31,13 @@ fn TypeExpressionChecker::check_effect(
   self : TypeExpressionChecker,
   effect : @resolve.ResolvedEffectTerm,
 ) -> @types.Effect {
+  // Effect checking judgment:
+  //
+  //   Gamma |- effect => Eff
+  //
+  // The result is normalized by constructors such as `effect_union` and alias
+  // expansion. A type parameter in effect position must have kind `Effect`;
+  // this is not value-level capability lookup.
   match effect {
     Empty(..) => Empty
     Singleton(symbol~, name~, arguments~, loc~) => {
@@ -123,6 +130,16 @@ fn TypeExpressionChecker::expand_effect_alias(
   arguments : Array[@resolve.ResolvedEffectAliasArgument],
   loc : SourceSpan,
 ) -> @types.Effect {
+  // Transparent effect-alias expansion:
+  //
+  //   type A[P...] : Effect = Body
+  //   Gamma |- args_i : kind(P_i)
+  //   Gamma |- Body[args/P] => Eff
+  //   ----------------------------
+  //   Gamma |- A[args] => Eff
+  //
+  // Effect aliases are not nominal effects. After checking arguments, both type
+  // and effect parameters are substituted into the body and normalized.
   if self.expanding.contains(name) {
     self.diagnostics.push({ kind: TypeAliasCycle(name~), loc })
     return Empty
@@ -247,6 +264,9 @@ fn TypeExpressionChecker::check_effect_alias_argument_for_parameter(
   type_substitution : @types.TypeSubstitution,
   effect_substitution : EffectSubstitution,
 ) -> Bool {
+  // Alias arguments are kind-directed. `Effect` parameters receive checked
+  // effect terms, while `Type` and higher-kinded parameters receive checked type
+  // terms. Crossing those channels is a kind mismatch, not an implicit coercion.
   match (parameter.kind, argument) {
     (Effect, EffectArgument(effect)) => {
       effect_substitution.insert(parameter.id, self.check_effect(effect))

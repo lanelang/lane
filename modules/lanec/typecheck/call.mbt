@@ -159,7 +159,6 @@ fn SemanticChecker::check_call_arguments(
   if !self.check_application_arity(
       parameters.length(),
       arguments.length(),
-      "call arity",
       loc,
       true,
     ) {

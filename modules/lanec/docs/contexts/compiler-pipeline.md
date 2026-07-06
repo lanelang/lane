@@ -321,12 +321,19 @@ _Avoid_: canonical artifact payload, interface fingerprint source, cross-module 
 A lowering step that makes captured lexical variables explicit in function values.
 _Avoid_: type checking, name resolution
 
+**Typechecking Judgment**:
+A local source-level typing rule used by the checker, such as synthesis, checking, type kinding, effect checking, pattern checking, or handler checking.
+_Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
+
 ## Relationships
 
 - A **Syntax AST** is resolved into a **Resolved AST** before type checking.
 - A **Resolved AST** attaches **Symbol Identity** to resolved names while preserving source names for diagnostics.
 - Lane compiler IR uses **Separated Symbol Identity** and **Separated Namespaces**.
 - **Source Elaboration** consumes type checking information and produces a **Checked Source AST**.
+- **Typechecking Judgments** are bidirectional and local: synthesis computes
+  types from syntax, while checking pushes only adjacent expected types into
+  expressions.
 - A **Checked Source AST** preserves **Source-Level Structure** while removing source-only syntax and unresolved or ambiguous references.
 - A **Compiler Facade** exposes stable parse, check, and compile entrypoints for the **Tools Project**.
 - **Semantic Lowering** transforms a **Checked Source AST** into **Buslane Core Language**.
