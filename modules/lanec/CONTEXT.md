@@ -117,12 +117,49 @@ _Avoid_: semantic lowering, source elaboration, module interface generation
   mutually recursive local definitions can be distinguished from external uses.
   It should not grow a lexical scope tree unless a separate source-tooling
   problem explicitly requires one.
+- **Core Occurrence Analysis** is a core optimization analysis over linked
+  Buslane/core identities; it is not an extension point for source-level unused
+  warnings or editor facts owned by **Checked Value-Use Analysis**.
+- **Core Occurrence Analysis** runs after link-time entry validation and before
+  final executable artifact emission, while optimization still has access to
+  type, effect, entry, and root metadata.
+- **Core Occurrence Analysis** results are optimizer-local derived facts, not
+  persisted linked-artifact semantic payload.
+- **Core Occurrence Analysis** tracks value-level Buslane/core bindings and
+  references; source type and effect symbol analysis belongs to checked-source
+  diagnostics, not to core occurrence.
+- **Core Occurrence Analysis** records structured occurrence facts for
+  optimization, including use counts, call-position use, non-call escape,
+  effectful-context use, and selected-entry reachability.
+- **Core Occurrence Analysis** runs on linked Buslane/core rather than ANF; ANF
+  may have separate lower-level liveness or occurrence analyses later.
+- **Core Occurrence Analysis** belongs to `lanec` in its own package; it should
+  not be mixed into Buslane language infrastructure or the compile/link command
+  orchestration package.
+- The package name for **Core Occurrence Analysis** is `occurrence`; the term
+  still refers to linked Buslane/core occurrence, not source unused analysis.
+- The `occurrence` package analyzes a link-pipeline internal linked core value
+  and returns an occurrence summary; it does not read CLI arguments, `.lbp`
+  files, or serialized artifacts directly.
+- Link should first build an internal linked core with a selected exported
+  entry, then validate executability, run occurrence and later optimization
+  passes, and only then emit the linked executable artifact.
 - An **Intentionally Ignored Local Binding** is still a normal resolved value
   binding when referenced; the leading `_` only suppresses unused-local-value
   warnings.
 - `lanec` follows **GHC-Like Artifact Layering**: `.lmi` records interface
   semantics and optimization hints, `.lmo` records linkable Buslane/core, and
   `.lbp` may carry a final execution image after linking and optimization.
+- The link step selects the executable entry before **Core Occurrence
+  Analysis**; `runobj` executes the selected linked program rather than
+  selecting an entry.
+- A linked executable artifact stores a single selected entry; public entry
+  catalogs belong to module objects and inspection, not to `runobj` selection.
+- A link-time executable entry is resolved from an exported module symbol, not
+  from private lowered definitions or Buslane implementation names.
+- Link validates the selected entry's executable type and supported runtime
+  effects before writing a linked executable artifact; `runobj` must not depend
+  on source-level type metadata being present in `.lbp`.
 - **Execution Image Lowering** is below Buslane/core and below any
   whole-program core optimization; ANF and bytecode are not the public semantic
   artifact boundary.

@@ -90,8 +90,8 @@ A stable source-level identity for an exported declaration in a **Module Interfa
 _Avoid_: Buslane identity, local compiler temporary, runtime address
 
 **Linked Program**:
-A set of compiled modules whose imported references have been connected for execution or Buslane verification.
-_Avoid_: single compilation unit, source concatenation, unchecked module graph
+A set of compiled modules whose imported references have been connected and whose executable entry has been selected by the link step.
+_Avoid_: single compilation unit, source concatenation, unchecked module graph, run-time entry selection
 
 **GHC-Like Artifact Layering**:
 A compiler artifact strategy where interfaces carry public semantics and optimization metadata, objects carry linkable semantic core plus link metadata, and execution images are derived after linking.
@@ -104,6 +104,10 @@ _Avoid_: ANF cache, bytecode image, runtime execution layout
 **Whole-Program Core Optimization**:
 An optimization phase over a linked canonical core program after imported references have been resolved and before lowering to an execution image.
 _Avoid_: bytecode-only optimization, source rewriting, interface type checking
+
+**Core Occurrence Analysis**:
+A read-only core analysis over a linked **Canonical Core Artifact** before final executable artifact emission that records how core values occur for later optimization decisions.
+_Avoid_: source value-use analysis, unused-warning policy, type/effect symbol analysis, raw use-count-only pass, bytecode liveness, artifact payload
 
 **Execution Image**:
 A lowered representation for a concrete execution target, such as a portable bytecode image or native code, produced from a linked canonical core program.
@@ -453,11 +457,30 @@ _Avoid_: VS Code extension, compiler front end
 - Module-level visibility is outside the **Module** milestone.
 - Imported references lower to **Imported Reference Placeholders** before linking.
 - **External Origin** distinguishes runtime intrinsics from imported references.
-- A **Linked Program** connects imported references across compiled modules.
-- A build `link` primitive produces a **Linked Program** suitable for optimization or execution.
+- A **Linked Program** connects imported references across compiled modules and records the executable entry selected by `link`.
+- A build `link` primitive chooses the executable entry before **Core Occurrence Analysis** and whole-program optimization.
+- A linked executable artifact exposes one selected entry, not a list of run-time selectable public entries.
+- A link-time executable entry is selected through an **Exported Symbol**; private lowered definitions are not command-line entry contracts.
+- Link validates the selected entry's executable type and supported runtime effects before producing a linked executable artifact.
+- `runobj` must not rely on source-level type information to decide whether an entry is executable; a linked executable artifact may omit type information needed only for link-time validation.
+- `runobj` executes the selected entry recorded in the **Linked Program**; it does not choose an entry at run time.
 - Lane follows **GHC-Like Artifact Layering** for compile, link, optimization, and execution artifacts.
 - **Optimization Hints** may guide downstream optimization like interface metadata, but they do not define source semantics.
 - **Whole-Program Core Optimization** runs over a linked **Canonical Core Artifact**, not over source text or per-module bytecode alone.
+- **Core Occurrence Analysis** is a **Whole-Program Core Optimization**
+  analysis input, not a replacement for **Checked Value-Use Analysis**.
+- **Core Occurrence Analysis** runs before final executable artifact emission,
+  while type, effect, entry, and root metadata needed for optimization are still
+  available.
+- **Core Occurrence Analysis** produces optimizer-local derived facts; linked
+  artifacts do not store those facts as semantic payload.
+- **Core Occurrence Analysis** tracks value-level Buslane/core bindings and
+  references, not source type or effect symbols.
+- **Core Occurrence Analysis** records structured occurrence facts such as use
+  count, call-position use, escape to non-call positions, effectful-context use,
+  and reachability from the selected entry.
+- **Core Occurrence Analysis** runs on linked Buslane/core, not on ANF; ANF is a
+  lower derived form that may have its own later liveness or occurrence pass.
 - ANF is a derived normalization layer below Buslane and may be regenerated from the **Canonical Core Artifact**.
 - An **Execution Image** is produced from linked core after optimization; it may be the primary payload used by `runobj`, but it is not the public interface contract.
 - A **Bytecode Cache** may appear in a **Module Object** or **Linked Program** only as a target-specific cache guarded by fingerprints, compiler version, and lowering options.
