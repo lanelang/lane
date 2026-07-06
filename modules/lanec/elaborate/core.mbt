@@ -5,7 +5,7 @@ pub(all) struct ElaborateResult {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct AnfElaborateResult {
+pub(all) struct BuslaneAnfElaborateResult {
   program : @anf.BuslaneAnfProgram?
   diagnostics : Array[@typecheck.TypeCheckDiagnostic]
 } derive(Debug, Eq)
@@ -118,9 +118,9 @@ pub fn elaborate_resolved_source_file_to_buslane(
 ///|
 /// Elaborates a resolved source file into ANF IR through Buslane Core Language
 /// when Checked Source construction succeeds.
-pub fn elaborate_resolved_source_file_to_anf(
+pub fn elaborate_resolved_source_file_to_buslane_anf(
   source : @resolve.ResolvedSourceFile,
-) -> AnfElaborateResult {
+) -> BuslaneAnfElaborateResult {
   let result = @typecheck.typecheck_checked_source_file(source)
   let program = match result.source {
     Some(source) =>
@@ -173,14 +173,14 @@ pub impl @prettyprinter.Pretty for BuslaneElaborateResult with fn pretty(
 }
 
 ///|
-pub impl @prettyprinter.Pretty for AnfElaborateResult with fn pretty(
-  result : AnfElaborateResult,
+pub impl @prettyprinter.Pretty for BuslaneAnfElaborateResult with fn pretty(
+  result : BuslaneAnfElaborateResult,
 ) {
   let program = match result.program {
     Some(program) => program.pretty()
-    None => text("<no anf program>")
+    None => text("<no buslane anf program>")
   }
-  text("anf_elaborate_result") +
+  text("buslane_anf_elaborate_result") +
   space +
   @pretty.braced_block([
     program,

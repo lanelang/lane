@@ -218,28 +218,23 @@ and unresolved or ambiguous states before Buslane lowering.
 
 ## 6. ANF IR
 
-- [x] Rename the previous structured ANF package from `core` to `anf`.
-- [x] Lower checked source semantics into structured ANF with typed nodes and
-  origin spans.
-- [x] Preserve nominal data, first-class functions, type lambdas, type
-  applications, existential packages, checked patterns, and typed unsafe
-  builtins.
-- [x] Provide an ANF pretty printer and tests based on ANF output.
-- [x] Lower Buslane Core Language into ANF IR instead of lowering ANF directly
-  from Checked Source.
+- [x] Remove the previous source-aware Checked Source -> ANF path.
+- [x] Lower Buslane Core Language into Buslane ANF instead of lowering ANF
+  directly from Checked Source.
+- [x] Preserve Buslane nominal data, first-class functions, type lambdas, type
+  applications, existential witnesses, performs, and handlers.
+- [x] Provide a Buslane ANF pretty printer and tests based on Buslane ANF
+  output.
 
 ## 7. Reference Interpreter
 
-- [x] Define uniform interpreter values, global environments, call frames,
-  closure environments, and runtime programs.
-- [x] Evaluate whole ANF programs without hard-coding `main`.
-- [x] Use the interpreter runtime model while evaluating ANF programs.
+- [x] Use the Buslane interpreter as the current reference interpreter.
+- [x] Evaluate whole Buslane programs without hard-coding `main`.
 - [x] Evaluate first-class calls, type lambdas/applications with runtime type
-  erasure, existential packages, nominal data, checked patterns, conditionals,
-  and matches.
-- [x] Existential: evaluate packages and unpacking with runtime type erasure
-  while preserving the checked scope discipline.
-- [x] Define the builtin runtime plugin contract and runtime error reports.
+  erasure, existential witnesses, nominal data, matches, performs, and
+  handlers.
+- [x] Define the builtin and runtime effect handler plugin contracts and
+  runtime error reports.
 - [x] Provide a Buslane reference interpreter with erased type applications,
   nominal data, one-level matches, closures, let-rec groups, and external value
   resolution.

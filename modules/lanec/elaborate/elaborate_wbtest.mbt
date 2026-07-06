@@ -33,10 +33,10 @@ fn elaborate_buslane_source(source : String) -> BuslaneElaborateResult {
 }
 
 ///|
-fn elaborate_anf_source(source : String) -> AnfElaborateResult {
+fn elaborate_buslane_anf_source(source : String) -> BuslaneAnfElaborateResult {
   let file = expect_parse_ok(source)
   let resolved = @resolve.resolve_source_file(file)
-  elaborate_resolved_source_file_to_anf(resolved)
+  elaborate_resolved_source_file_to_buslane_anf(resolved)
 }
 
 ///|
@@ -1182,8 +1182,8 @@ test "elaborate existential enum repack into verifiable buslane" {
 }
 
 ///|
-test "elaborate resolved source into anf" {
-  let result = elaborate_anf_source(
+test "elaborate resolved source into buslane anf" {
+  let result = elaborate_buslane_anf_source(
     (
       #|fn identity(x : Int) -> Int {
       #|  x
@@ -1194,7 +1194,7 @@ test "elaborate resolved source into anf" {
   inspect(
     @prettyprinter.render(result, width=100),
     content=(
-      #|anf_elaborate_result {
+      #|buslane_anf_elaborate_result {
       #|  buslane_anf_program {
       #|    letrec {
       #|      value#0 = fn(value#2) -> Int {
@@ -1213,8 +1213,8 @@ test "elaborate resolved source into anf" {
 }
 
 ///|
-test "elaborate effect handler source into anf" {
-  let result = elaborate_anf_source(
+test "elaborate effect handler source into buslane anf" {
+  let result = elaborate_buslane_anf_source(
     (
       #|effect Flip {
       #|  flip() -> Bool
@@ -1229,7 +1229,7 @@ test "elaborate effect handler source into anf" {
     ),
   )
   assert_eq(result.diagnostics.length(), 0)
-  guard result.program is Some(_) else { abort("expected anf program") }
+  guard result.program is Some(_) else { abort("expected buslane anf program") }
 }
 
 ///|

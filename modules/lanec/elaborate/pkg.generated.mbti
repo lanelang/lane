@@ -15,9 +15,9 @@ import {
 // Values
 pub fn elaborate_resolved_source_file(@resolve.ResolvedSourceFile) -> ElaborateResult
 
-pub fn elaborate_resolved_source_file_to_anf(@resolve.ResolvedSourceFile) -> AnfElaborateResult
-
 pub fn elaborate_resolved_source_file_to_buslane(@resolve.ResolvedSourceFile) -> BuslaneElaborateResult
+
+pub fn elaborate_resolved_source_file_to_buslane_anf(@resolve.ResolvedSourceFile) -> BuslaneAnfElaborateResult
 
 pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program
 
@@ -32,11 +32,11 @@ pub fn lower_checked_source_files_to_buslane_result(@checked.CheckedSourceFile, 
 // Errors
 
 // Types and methods
-pub(all) struct AnfElaborateResult {
+pub(all) struct BuslaneAnfElaborateResult {
   program : @anf.BuslaneAnfProgram?
   diagnostics : Array[@typecheck.TypeCheckDiagnostic]
 } derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfElaborateResult
+pub impl @prettyprinter.Pretty for BuslaneAnfElaborateResult
 
 pub(all) struct BuslaneBuiltinExternal {
   value : @buslane.ValueId

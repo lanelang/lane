@@ -61,7 +61,8 @@ _Avoid_: compiler API, language server, MoonBit runtime
 - **Lane Wasm** supports the **IR Explorer** workflow.
 - **Single-File IR Exploration** is the first supported **IR Explorer** mode.
 - An **Explorer Source** must contain a **Module Declaration**.
-- The first **IR Explorer** panes are checked source, Buslane core, and ANF.
+- The first **IR Explorer** panes are checked source, Buslane core, and
+  Buslane ANF.
 - **Explorer Diagnostics** do not prevent returning earlier available **IR
   Panes**.
 - **Lane Wasm** reports compilation failure as an **IR Explorer** result rather

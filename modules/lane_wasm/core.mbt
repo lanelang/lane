@@ -61,7 +61,7 @@ fn explore_source(source : String) -> Json {
       )
     Some(source) => {
       let buslane = @elaborate.lower_checked_source_file_to_buslane(source)
-      let anf = @anf.lower_checked_source_file_to_anf(source)
+      let anf = @anf.lower_buslane_program_to_anf(buslane)
       let diagnostics = checked.diagnostics.map(compile_diagnostic_json)
       let status = if diagnostics.is_empty() {
         status_ok
@@ -71,7 +71,7 @@ fn explore_source(source : String) -> Json {
       response_json(status, diagnostics, [
         pane_json("checked", @prettyprinter.render(source, width=100)),
         pane_json("buslane", @prettyprinter.render(buslane, width=100)),
-        pane_json("anf", @prettyprinter.render(anf, width=100)),
+        pane_json("buslane-anf", @prettyprinter.render(anf, width=100)),
       ])
     }
   }
