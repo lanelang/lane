@@ -409,6 +409,33 @@
       }
     },
     {
+      "name": "46 handler resume closure",
+      "file": "examples/valid/46_handler_resume_closure.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "resume closure=42"
+      }
+    },
+    {
+      "name": "47 unqualified effect operations",
+      "file": "examples/valid/47_unqualified_effect_operations.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "unqualified operations=40"
+      }
+    },
+    {
+      "name": "48 polymorphic operation effect parameter",
+      "file": "examples/valid/48_polymorphic_operation_effect_parameter.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "polymorphic operation effect parameter"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
@@ -1010,6 +1037,46 @@
           "error[E1100]",
           "unexpected token",
           "the parser did not expect `::`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 46 ambiguous unqualified operation",
+      "file": "examples/invalid/46_ambiguous_unqualified_operation.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3014]",
+          "ambiguous effect operation `read`",
+          "this unqualified operation name matches multiple effects",
+          "candidates: Left::read, Right::read",
+          "write the operation with an explicit effect owner"
+        ]
+      }
+    },
+    {
+      "name": "invalid 47 unqualified operation not found",
+      "file": "examples/invalid/47_unqualified_operation_not_found.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3015]",
+          "cannot find effect operation `write`",
+          "no effect operation named `write` is visible here",
+          "unqualified operation calls search the operation namespace"
+        ]
+      }
+    },
+    {
+      "name": "invalid 48 generic operation handler arity",
+      "file": "examples/invalid/48_generic_operation_handler_arity.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3012]",
+          "wrong number of application arguments",
+          "effect operation type binders",
+          "check the number of value, type, or effect arguments"
         ]
       }
     }

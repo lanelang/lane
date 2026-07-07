@@ -100,6 +100,18 @@ pub fn TypeDisplayContext::kind_text(
 }
 
 ///|
+pub fn TypeDisplayContext::operation_text(
+  self : TypeDisplayContext,
+  symbol : @symbol.OperationSymbolId,
+) -> String {
+  match self.registry.operation_metadata(symbol) {
+    Some(metadata) =>
+      self.effect_symbol_text(metadata.owner) + "::" + metadata.name
+    None => @prettyprinter.render(symbol.pretty(), width=80)
+  }
+}
+
+///|
 fn TypeDisplayContext::type_symbol_text(
   self : TypeDisplayContext,
   symbol : @symbol.TypeSymbolId,

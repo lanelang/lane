@@ -1,0 +1,41 @@
+module Examples.Valid.UnqualifiedEffectOperations
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+effect Ask {
+  read() -> Int
+}
+
+effect Log {
+  write(Int) -> Unit
+}
+
+fn task() -> Int ! { Ask, Log } {
+  let value = read!()
+  let _written = write!(value + 2)
+  value
+}
+
+fn run() -> Int {
+  handle {
+    handle task() with {
+      read(resume) => resume(40)
+    } final value {
+      value
+    }
+  } with {
+    write(_value, resume) => resume(())
+  } final value {
+    value
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if run() == 40 {
+    Write::println!("unqualified operations=40")
+  } else {
+    Write::println!("bad:unqualified operations")
+  }
+}

@@ -264,6 +264,14 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
   match kind {
     UnresolvedType(name) => text("unresolved_type") + space + text(name)
     UnresolvedValue(name) => text("unresolved_value") + space + text(name)
+    UnresolvedEffectOperation(name) =>
+      text("unresolved_effect_operation") + space + text(name)
+    AmbiguousEffectOperation(name~, candidates~) =>
+      text("ambiguous_effect_operation") +
+      space +
+      text(name) +
+      space +
+      text("candidates=\{candidates.length()}")
     MissingTopLevelLetAnnotation => text("missing_top_level_let_annotation")
     GenericArgumentArityMismatch(subject~, expected~, actual~) =>
       text("type_arity_mismatch") +

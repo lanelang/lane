@@ -1,0 +1,18 @@
+// invalid: a handler arm for a generic operation must bind the operation type parameters
+module Examples.Invalid48
+
+effect Prompt {
+  choose[A](A, A) -> A
+}
+
+fn choose_int() -> Int ! Prompt {
+  choose![Int](1, 2)
+}
+
+fn answer() -> Int {
+  handle choose_int() with {
+    choose(left, _right, resume) => resume(left)
+  } final value {
+    value
+  }
+}

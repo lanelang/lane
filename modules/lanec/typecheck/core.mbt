@@ -179,6 +179,11 @@ pub(all) enum GenericArgumentInferenceFailure {
 pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
+  UnresolvedEffectOperation(String)
+  AmbiguousEffectOperation(
+    name~ : String,
+    candidates~ : Array[OperationSymbolId]
+  )
   MissingTopLevelLetAnnotation
   GenericArgumentArityMismatch(
     subject~ : GenericArgumentSubject,

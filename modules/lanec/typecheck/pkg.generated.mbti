@@ -194,6 +194,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnostic
 pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
+  UnresolvedEffectOperation(String)
+  AmbiguousEffectOperation(name~ : String, candidates~ : Array[@symbol.OperationSymbolId])
   MissingTopLevelLetAnnotation
   GenericArgumentArityMismatch(subject~ : GenericArgumentSubject, expected~ : Int, actual~ : Int)
   ApplicationArityMismatch(label~ : String)
@@ -256,6 +258,7 @@ pub fn TypeDisplayContext::effect_text(Self, @types.Effect) -> String
 pub fn TypeDisplayContext::from_registry(@symbol.SymbolRegistry) -> Self
 pub fn TypeDisplayContext::generic_argument_text(Self, @types.GenericArgument) -> String
 pub fn TypeDisplayContext::kind_text(Self, @types.Kind) -> String
+pub fn TypeDisplayContext::operation_text(Self, @symbol.OperationSymbolId) -> String
 pub fn TypeDisplayContext::type_parameter_binding_text(Self, @types.TypeParameter) -> String
 pub fn TypeDisplayContext::type_text(Self, @types.Type) -> String
 

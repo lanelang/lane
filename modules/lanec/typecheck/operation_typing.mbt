@@ -272,14 +272,14 @@ fn SemanticChecker::select_operation(
   let operation = match reference {
     Symbol(symbol) => symbol
     Unresolved(name) => {
-      self.diagnostics.push({ kind: UnresolvedValue(name), loc })
+      self.diagnostics.push({ kind: UnresolvedEffectOperation(name), loc })
       return None
     }
-    Ambiguous(name~, ..) => {
-      self.report_internal_typecheck_failure(
-        "ambiguous effect operation " + name,
+    Ambiguous(name~, candidates~) => {
+      self.diagnostics.push({
+        kind: AmbiguousEffectOperation(name~, candidates~),
         loc,
-      )
+      })
       return None
     }
   }

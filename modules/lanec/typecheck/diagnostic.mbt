@@ -104,6 +104,49 @@ fn typecheck_diagnostic(
         ],
         helps=["define the value or fix the import that should provide it"],
       )
+    UnresolvedEffectOperation(name) =>
+      diagnostic(
+        "cannot find effect operation `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E3015"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "no effect operation named `\{name}` is visible here",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "unqualified operation calls search the operation namespace, not ordinary values",
+        ],
+        helps=[
+          "define the operation on an effect or call an existing operation with `Effect::\{name}!`",
+        ],
+      )
+    AmbiguousEffectOperation(name~, candidates~) =>
+      diagnostic(
+        "ambiguous effect operation `\{name}`",
+        span~,
+        severity=Error,
+        code=Some("E3014"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "this unqualified operation name matches multiple effects",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "candidates: " +
+          candidates
+          .map(fn(candidate) { display.operation_text(candidate) })
+          .join(", "),
+        ],
+        helps=[
+          "write the operation with an explicit effect owner, such as `Effect::\{name}!`",
+        ],
+      )
     MissingTopLevelLetAnnotation =>
       diagnostic(
         "top-level `let` needs a type annotation",

@@ -1,0 +1,30 @@
+module Examples.Valid.HandlerResumeClosure
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+effect Console {
+  read() -> Int
+}
+
+fn program() -> Int {
+  handle Console::read!() with {
+    Console::read(resume) => {
+      let callback : (Int) -> Int = fn (value) {
+        resume(value)
+      }
+      callback(42)
+    }
+  } final value {
+    value
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if program() == 42 {
+    Write::println!("resume closure=42")
+  } else {
+    Write::println!("bad:resume closure")
+  }
+}

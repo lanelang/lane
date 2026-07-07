@@ -1,0 +1,10 @@
+// invalid: an unqualified operation call must name an operation in the operation namespace
+module Examples.Invalid47
+
+effect Console {
+  read() -> Int
+}
+
+fn answer() -> Int ! Console {
+  write!()
+}

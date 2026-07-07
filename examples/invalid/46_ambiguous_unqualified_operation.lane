@@ -1,0 +1,14 @@
+// invalid: unqualified operation calls are rejected when multiple operation owners define the same name
+module Examples.Invalid46
+
+effect Left {
+  read() -> Int
+}
+
+effect Right {
+  read() -> Int
+}
+
+fn answer() -> Int ! { Left, Right } {
+  read!()
+}
