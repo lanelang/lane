@@ -282,7 +282,6 @@ fn lex_diagnostic(error : @lexer.LexError) -> CompilerDiagnostic {
 fn lex_error_code(error : @lexer.LexicalError) -> String {
   match error {
     IllegalCharacter(_) => "E1000"
-    UnterminatedBlockComment => "E1001"
     UnterminatedString => "E1002"
     InvalidStringEscape(_) => "E1003"
     InvalidHexEscape(_) => "E1004"
@@ -294,7 +293,6 @@ fn lex_error_code(error : @lexer.LexicalError) -> String {
 fn lex_error_title(error : @lexer.LexicalError) -> String {
   match error {
     IllegalCharacter(_) => "illegal character in source"
-    UnterminatedBlockComment => "unterminated block comment"
     UnterminatedString => "unterminated string literal"
     InvalidStringEscape(_) => "invalid string escape"
     InvalidHexEscape(_) => "invalid hexadecimal escape"
@@ -306,7 +304,6 @@ fn lex_error_title(error : @lexer.LexicalError) -> String {
 fn lex_error_label(error : @lexer.LexicalError) -> String {
   match error {
     IllegalCharacter(value) => "`\{value}` is not valid Lane syntax"
-    UnterminatedBlockComment => "this block comment is never closed"
     UnterminatedString => "this string literal is never closed"
     InvalidStringEscape(value) =>
       "`\{value}` is not a supported escape sequence"
@@ -332,7 +329,6 @@ fn lex_error_helps(error : @lexer.LexicalError) -> Array[String] {
   match error {
     IllegalCharacter(_) =>
       ["remove this character or replace it with a valid Lane token"]
-    UnterminatedBlockComment => ["add a closing `*/` before the end of file"]
     UnterminatedString => ["add a closing `\"` before the end of the line"]
     InvalidStringEscape(_) =>
       ["use a supported escape such as `\\n`, `\\t`, `\\\"`, or `\\\\`"]

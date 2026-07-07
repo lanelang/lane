@@ -24,7 +24,6 @@ pub struct LexResult {
 
 pub(all) enum LexicalError {
   IllegalCharacter(String)
-  UnterminatedBlockComment
   UnterminatedString
   InvalidStringEscape(String)
   InvalidHexEscape(String)

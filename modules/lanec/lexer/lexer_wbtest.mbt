@@ -95,7 +95,7 @@ test "tokenize maximal munch operators and punctuation" {
 
 ///|
 test "skip comments and preserve following token positions" {
-  let result = tokens_from_string("// hidden\nlet /* also hidden */x")
+  let result = tokens_from_string("// hidden\nlet x")
   debug_inspect(result.errors, content="[]")
   debug_inspect(
     result.tokens,
@@ -115,26 +115,37 @@ test "skip comments and preserve following token positions" {
       #|  (
       #|    IDENT("x"),
       #|    {
-      #|      start_offset: 31,
-      #|      end_offset: 32,
+      #|      start_offset: 14,
+      #|      end_offset: 15,
       #|      start_line: 2,
-      #|      start_column: 22,
+      #|      start_column: 5,
       #|      end_line: 2,
-      #|      end_column: 23,
+      #|      end_column: 6,
       #|    },
       #|  ),
       #|  (
       #|    EOF,
       #|    {
-      #|      start_offset: 32,
-      #|      end_offset: 32,
+      #|      start_offset: 15,
+      #|      end_offset: 15,
       #|      start_line: 2,
-      #|      start_column: 23,
+      #|      start_column: 6,
       #|      end_line: 2,
-      #|      end_column: 23,
+      #|      end_column: 6,
       #|    },
       #|  ),
       #|]
+    ),
+  )
+}
+
+///|
+test "block comment markers are ordinary tokens" {
+  let tokens = token_values("let /*x*/ y")
+  debug_inspect(
+    tokens,
+    content=(
+      #|[LET, SLASH, STAR, IDENT("x"), STAR, SLASH, IDENT("y"), EOF]
     ),
   )
 }
@@ -257,29 +268,6 @@ test "reject non ascii identifier character" {
       #|      start_column: 2,
       #|      end_line: 1,
       #|      end_column: 3,
-      #|    },
-      #|  },
-      #|]
-    ),
-  )
-}
-
-///|
-test "reject unterminated block comment" {
-  let result = tokens_from_string("/* open")
-  debug_inspect(
-    result.errors,
-    content=(
-      #|[
-      #|  {
-      #|    error: UnterminatedBlockComment,
-      #|    span: {
-      #|      start_offset: 7,
-      #|      end_offset: 7,
-      #|      start_line: 1,
-      #|      start_column: 8,
-      #|      end_line: 1,
-      #|      end_column: 8,
       #|    },
       #|  },
       #|]

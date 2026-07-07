@@ -163,7 +163,7 @@ test "format source preserves comments in top-level and type bodies" {
       #|  read()->Int // trailing operation
       #|}
       #|
-      #|/* before struct */
+      #|// before struct
       #|struct Pair{
       #|  // before field
       #|  left:Int
@@ -189,7 +189,7 @@ test "format source preserves comments in top-level and type bodies" {
       #|  read() -> Int // trailing operation
       #|}
       #|
-      #|/* before struct */
+      #|// before struct
       #|struct Pair {
       #|  // before field
       #|  left : Int

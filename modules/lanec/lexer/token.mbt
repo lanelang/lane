@@ -62,7 +62,6 @@ pub(all) enum Token {
 ///|
 pub(all) enum LexicalError {
   IllegalCharacter(String)
-  UnterminatedBlockComment
   UnterminatedString
   InvalidStringEscape(String)
   InvalidHexEscape(String)

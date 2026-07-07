@@ -22,10 +22,6 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
     }
     ("[\u0009\u000B\u000C\u0020]+", rest) => lex_tokens(rest, base~, env~)
     ("//[^\r\n]*", rest) => lex_tokens(rest, base~, env~)
-    ("/\*", rest) => {
-      let rest = lex_block_comment(rest, base~, env~)
-      lex_tokens(rest, base~, env~)
-    }
     ("=>", rest) => {
       env.add_token(
         FAT_ARROW,
@@ -207,28 +203,6 @@ fn starts_with_non_whitespace(input : StringView) -> Bool {
     unit != 0x0C &&
     unit != 0x0D &&
     unit != 0x20
-  }
-}
-
-///|
-fn lex_block_comment(
-  input : StringView,
-  base~ : StringView,
-  env~ : LexEnv,
-) -> StringView {
-  lexmatch input with longest {
-    ("\*/", rest) => rest
-    ("\r\n|\r|\n", rest) => {
-      env.newline(end=env.calc_offset(rest, base~))
-      lex_block_comment(rest, base~, env~)
-    }
-    "" => {
-      let end = env.calc_offset(input, base~)
-      env.add_error(UnterminatedBlockComment, start=end, end~)
-      input
-    }
-    (".", rest) => lex_block_comment(rest, base~, env~)
-    _ => panic()
   }
 }
 
