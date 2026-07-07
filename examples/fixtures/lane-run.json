@@ -1088,6 +1088,19 @@
           "check the number of value, type, or effect arguments"
         ]
       }
+    },
+    {
+      "name": "invalid 49 list literal without list import",
+      "file": "examples/invalid/49_list_literal_without_list_import.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3012]",
+          "invalid variant reference",
+          "unresolved variant cons",
+          "check the variant name and enum owner"
+        ]
+      }
     }
   ]
 }
