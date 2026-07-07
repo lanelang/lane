@@ -469,6 +469,7 @@ fn apply_buslane_kont(
 fn evaluate_buslane_literal(literal : @buslane.Literal) -> BuslaneRuntimeValue {
   match literal {
     Int(value) => BuslaneRuntimeValue::int(value)
+    Double(value) => BuslaneRuntimeValue::double(value)
     Bool(value) => BuslaneRuntimeValue::bool(value)
     String(value) => BuslaneRuntimeValue::string(value)
     Unit => BuslaneRuntimeValue::unit()
@@ -903,6 +904,12 @@ fn buslane_literal_matches(
       }
     Int(expected) =>
       if value.kind is Int(actual) {
+        actual == expected
+      } else {
+        false
+      }
+    Double(expected) =>
+      if value.kind is Double(actual) {
         actual == expected
       } else {
         false

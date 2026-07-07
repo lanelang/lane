@@ -503,6 +503,7 @@ fn Expr::to_doc_with_precedence(
 ) -> Document {
   let (precedence, doc) = match self {
     IntLiteral(value, ..) => (10, text(value))
+    DoubleLiteral(value, ..) => (10, text(value))
     StringLiteral(value, ..) => (10, source_string(value))
     BoolLiteral(value, ..) => (10, text(value.to_string()))
     UnitLiteral(..) => (10, text("()"))
@@ -905,6 +906,7 @@ fn Pattern::to_doc(self : Pattern) -> Document {
     Wildcard(_) => text("_")
     Binding(name, ..) => text(name)
     IntLiteral(value, ..) => text(value)
+    DoubleLiteral(value, ..) => text(value)
     StringLiteral(value, ..) => source_string(value)
     BoolLiteral(value, ..) => text(value.to_string())
     QualifiedVariant(type_name~, variant~, type_binders~, arguments~, ..) => {

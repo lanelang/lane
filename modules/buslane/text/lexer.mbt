@@ -63,8 +63,12 @@ fn tokens_from_string(
       tokens.push((STRING(value), ()))
       index = next
     } else if is_digit(byte) || byte == b'-' {
-      let (value, next) = read_int(input, index)
-      tokens.push((INT(value), ()))
+      let (value, next, is_double) = read_number(input, index)
+      if is_double {
+        tokens.push((DOUBLE(value), ()))
+      } else {
+        tokens.push((INT(value), ()))
+      }
       index = next
     } else if starts_with(input, index, "type#") {
       let (id, next) = read_prefixed_id(input, index, "type#")
@@ -132,6 +136,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "Unit" => UNIT_TYPE
     "Bool" => BOOL_TYPE
     "Int" => INT_TYPE
+    "Double" => DOUBLE_TYPE
     "String" => STRING_TYPE
     "kind_fn" => KIND_FN
     "empty_effect" => EMPTY_EFFECT
@@ -162,6 +167,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "true" => TRUE
     "false" => FALSE
     "int" => INT_LITERAL
+    "double" => DOUBLE_LITERAL
     "string" => STRING_LITERAL
     "unit" => UNIT_LITERAL
     _ => lexer_fail("unknown Buslane text keyword " + name)
@@ -254,10 +260,10 @@ fn read_name(
 }
 
 ///|
-fn read_int(
+fn read_number(
   input : Bytes,
   index : Int,
-) -> (String, Int) raise BuslaneTextLexerError {
+) -> (String, Int, Bool) raise BuslaneTextLexerError {
   let mut next = index
   if input[next] == b'-' {
     next = next + 1
@@ -266,13 +272,31 @@ fn read_int(
   while next < input.length() && is_digit(input[next]) {
     next = next + 1
   }
+  let mut is_double = false
+  if next < input.length() && input[next] == b'.' {
+    is_double = true
+    next = next + 1
+    while next < input.length() && is_digit(input[next]) {
+      next = next + 1
+    }
+  }
+  if next < input.length() && (input[next] == b'e' || input[next] == b'E') {
+    is_double = true
+    next = next + 1
+    if next < input.length() && (input[next] == b'+' || input[next] == b'-') {
+      next = next + 1
+    }
+    while next < input.length() && is_digit(input[next]) {
+      next = next + 1
+    }
+  }
   if next == start {
-    lexer_fail("expected integer")
+    lexer_fail("expected number")
   }
   let value = @utf8.decode(input[index:next]) catch {
-    _ => lexer_fail("invalid utf8 integer")
+    _ => lexer_fail("invalid utf8 number")
   }
-  (value, next)
+  (value, next, is_double)
 }
 
 ///|

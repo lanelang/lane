@@ -19,6 +19,7 @@ pub suberror ParseError {
 // Types and methods
 pub(all) enum Token {
   INT(String)
+  DOUBLE(String)
   STRING(String)
   IDENT(String)
   RESERVED(String)
@@ -82,6 +83,7 @@ pub fn Token::kind(Self) -> TokenKind
 
 pub(all) enum TokenKind {
   TK_INT
+  TK_DOUBLE
   TK_STRING
   TK_IDENT
   TK_RESERVED

@@ -253,6 +253,7 @@ pub fn Type::loc(self : Type) -> SourceSpan {
 ///|
 pub(all) enum Expr {
   IntLiteral(String, loc~ : SourceSpan)
+  DoubleLiteral(String, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   UnitLiteral(loc~ : SourceSpan)
@@ -317,6 +318,7 @@ pub(all) enum Expr {
 pub fn Expr::loc(self : Expr) -> SourceSpan {
   match self {
     IntLiteral(_, loc~)
+    | DoubleLiteral(_, loc~)
     | StringLiteral(_, loc~)
     | BoolLiteral(_, loc~)
     | UnitLiteral(loc~)
@@ -428,6 +430,7 @@ pub(all) enum Pattern {
   Wildcard(SourceSpan)
   Binding(String, loc~ : SourceSpan)
   IntLiteral(String, loc~ : SourceSpan)
+  DoubleLiteral(String, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   QualifiedVariant(
@@ -457,6 +460,7 @@ pub fn Pattern::loc(self : Pattern) -> SourceSpan {
     Wildcard(loc)
     | Binding(_, loc~)
     | IntLiteral(_, loc~)
+    | DoubleLiteral(_, loc~)
     | StringLiteral(_, loc~)
     | BoolLiteral(_, loc~)
     | QualifiedVariant(loc~, ..)

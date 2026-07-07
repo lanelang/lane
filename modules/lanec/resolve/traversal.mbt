@@ -2,6 +2,7 @@
 pub fn ResolvedExpr::loc(self : ResolvedExpr) -> SourceSpan {
   match self {
     IntLiteral(_, loc~)
+    | DoubleLiteral(_, loc~)
     | StringLiteral(_, loc~)
     | BoolLiteral(_, loc~)
     | UnitLiteral(loc~)
@@ -33,6 +34,7 @@ pub fn ResolvedExpr::for_each_child_expr(
 ) -> Unit {
   match self {
     IntLiteral(_)
+    | DoubleLiteral(_)
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)

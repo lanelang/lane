@@ -93,6 +93,7 @@ pub impl @prettyprinter.Pretty for DesugaredLetDeclaration
 
 pub(all) enum DesugaredLiteral {
   Int(String)
+  Double(String)
   String(String)
   Bool(Bool)
   Unit

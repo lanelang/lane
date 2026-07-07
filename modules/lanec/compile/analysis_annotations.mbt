@@ -69,6 +69,7 @@ fn collect_annotated_expr_values(
 ) -> Unit {
   match expr {
     IntLiteral(_)
+    | DoubleLiteral(_)
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)

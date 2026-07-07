@@ -108,6 +108,62 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
+    ("[0-9]+\.[0-9]+[eE]\+[0-9]+" as raw, rest) => {
+      env.add_token(
+        DOUBLE(raw.to_owned()),
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
+    ("[0-9]+\.[0-9]+[eE]-[0-9]+" as raw, rest) => {
+      env.add_token(
+        DOUBLE(raw.to_owned()),
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
+    ("[0-9]+\.[0-9]+[eE][0-9]+" as raw, rest) => {
+      env.add_token(
+        DOUBLE(raw.to_owned()),
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
+    ("[0-9]+\.[0-9]+" as raw, rest) => {
+      env.add_token(
+        DOUBLE(raw.to_owned()),
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
+    ("[0-9]+[eE]\+[0-9]+" as raw, rest) => {
+      env.add_token(
+        DOUBLE(raw.to_owned()),
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
+    ("[0-9]+[eE]-[0-9]+" as raw, rest) => {
+      env.add_token(
+        DOUBLE(raw.to_owned()),
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
+    ("[0-9]+[eE][0-9]+" as raw, rest) => {
+      env.add_token(
+        DOUBLE(raw.to_owned()),
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
     ("[0-9]+" as raw, rest) => {
       env.add_token(
         INT(raw.to_owned()),

@@ -139,6 +139,7 @@ pub(all) enum Literal {
   Unit
   Bool(Bool)
   Int(Int64)
+  Double(Double)
   String(String)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Literal
@@ -219,6 +220,7 @@ pub(all) enum PrimitiveType {
   Unit
   Bool
   Int
+  Double
   String
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for PrimitiveType

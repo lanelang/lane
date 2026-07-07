@@ -17,6 +17,7 @@ pub impl @prettyprinter.Pretty for BuslaneRuntimeValue with fn pretty(
 ) {
   match value.kind {
     Int(value) => text("int") + space + text(value.to_string())
+    Double(value) => text("double") + space + text(value.to_string())
     Bool(value) => text("bool") + space + text(value.to_string())
     String(value) => text("string") + space + quoted(value)
     Unit => text("unit")

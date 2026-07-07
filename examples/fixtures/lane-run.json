@@ -445,6 +445,15 @@
       }
     },
     {
+      "name": "50 double literals",
+      "file": "examples/valid/50_double_literals.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "double literals ok"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
@@ -1099,6 +1108,67 @@
           "invalid variant reference",
           "unresolved variant cons",
           "check the variant name and enum owner"
+        ]
+      }
+    },
+    {
+      "name": "invalid 50 double literal missing fraction digits",
+      "file": "examples/invalid/50_double_literal_missing_fraction_digits.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1100]",
+          "unexpected token",
+          "the parser did not expect end of file"
+        ]
+      }
+    },
+    {
+      "name": "invalid 51 double literal leading dot",
+      "file": "examples/invalid/51_double_literal_leading_dot.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1100]",
+          "unexpected token",
+          "the parser did not expect `.`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 52 double literal overflow",
+      "file": "examples/invalid/52_double_literal_overflow.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3025]",
+          "invalid double literal `1e309`",
+          "finite IEEE 754 binary64"
+        ]
+      }
+    },
+    {
+      "name": "invalid 53 double literal underflow",
+      "file": "examples/invalid/53_double_literal_underflow.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3025]",
+          "invalid double literal `1e-4000`",
+          "finite IEEE 754 binary64"
+        ]
+      }
+    },
+    {
+      "name": "invalid 54 double literal type mismatch",
+      "file": "examples/invalid/54_double_literal_type_mismatch.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3006]",
+          "expected `Double`, found `Int`",
+          "error[E3006]",
+          "expected `Int`, found `Double`"
         ]
       }
     }

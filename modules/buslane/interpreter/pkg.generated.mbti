@@ -44,11 +44,13 @@ pub struct BuslaneRuntimeValue {
   // private fields
 }
 pub fn BuslaneRuntimeValue::as_bool(Self) -> Bool?
+pub fn BuslaneRuntimeValue::as_double(Self) -> Double?
 pub fn BuslaneRuntimeValue::as_int(Self) -> Int64?
 pub fn BuslaneRuntimeValue::as_string(Self) -> String?
 pub fn BuslaneRuntimeValue::bool(Bool) -> Self
 pub fn BuslaneRuntimeValue::call(Self, Array[Self], BuslaneExternalRuntime) -> Self raise BuslaneRuntimeError
 pub fn BuslaneRuntimeValue::data(@buslane.DataConId, Array[Self]) -> Self
+pub fn BuslaneRuntimeValue::double(Double) -> Self
 pub fn BuslaneRuntimeValue::external(@buslane.ValueId) -> Self
 pub fn BuslaneRuntimeValue::int(Int64) -> Self
 pub fn BuslaneRuntimeValue::is_function(Self) -> Bool

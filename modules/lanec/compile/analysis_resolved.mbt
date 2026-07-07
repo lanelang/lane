@@ -350,6 +350,7 @@ fn collect_resolved_expr(
 ) -> Unit {
   match expr {
     IntLiteral(_)
+    | DoubleLiteral(_)
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(..)
@@ -694,7 +695,11 @@ fn collect_resolved_pattern(
   hovers : Array[HoverEntry],
 ) -> Unit {
   match pattern {
-    Wildcard(_) | IntLiteral(_) | StringLiteral(_) | BoolLiteral(_) => ()
+    Wildcard(_)
+    | IntLiteral(_)
+    | DoubleLiteral(_)
+    | StringLiteral(_)
+    | BoolLiteral(_) => ()
     Binding(name~, symbol~, loc~) =>
       add_definition(
         definitions,

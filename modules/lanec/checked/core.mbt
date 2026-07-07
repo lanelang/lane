@@ -142,8 +142,17 @@ pub(all) struct CheckedIntLiteral {
 } derive(Debug, Eq)
 
 ///|
+/// A checked double literal keeps the source spelling for diagnostics and
+/// pretty printing, while `value` is the compiler's semantic binary64 value.
+pub(all) struct CheckedDoubleLiteral {
+  raw : String
+  value : Double
+} derive(Debug, Eq)
+
+///|
 pub(all) enum CheckedLiteral {
   Int(CheckedIntLiteral)
+  Double(CheckedDoubleLiteral)
   String(String)
   Bool(Bool)
   Unit

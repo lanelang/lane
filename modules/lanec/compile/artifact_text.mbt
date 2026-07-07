@@ -1395,6 +1395,7 @@ fn ArtifactTextWriter::write_lane_primitive_type(
     "lane_primitive",
     match primitive {
       Int => "int"
+      Double => "double"
       Bool => "bool"
       String => "string"
       Unit => "unit"
@@ -1408,6 +1409,7 @@ fn ArtifactTextReader::read_lane_primitive_type(
 ) -> @types.PrimitiveType raise ArtifactTextError {
   match self.expect_atom("lane_primitive") {
     "int" => Int
+    "double" => Double
     "bool" => Bool
     "string" => String
     "unit" => Unit

@@ -189,6 +189,14 @@ fn SemanticChecker::check_pattern(
         loc~,
       )
     }
+    DoubleLiteral(raw, loc~) => {
+      self.expect_type(expected, Primitive(Double), loc)
+      Literal(
+        literal=Double(self.check_double_literal(raw, loc)),
+        type_=expected,
+        loc~,
+      )
+    }
     StringLiteral(value, loc~) => {
       self.expect_type(expected, Primitive(String), loc)
       Literal(literal=String(value), type_=expected, loc~)
@@ -694,6 +702,7 @@ fn PatternMatrix::is_exhaustive(
 priv enum MatrixConstructor {
   BoolConstructor(Bool)
   IntConstructor(Int64)
+  DoubleConstructor(Double)
   StringConstructor(String)
   UnitConstructor
   VariantConstructor(VariantSymbolId)
@@ -1031,7 +1040,7 @@ fn complete_constructor_signatures(
         { tag: BoolConstructor(true), argument_types: [] },
       ])
     Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [] }])
-    Primitive(Int) | Primitive(String) => None
+    Primitive(Int) | Primitive(Double) | Primitive(String) => None
     Parameter(_)
     | Constructor(_)
     | Apply(_, _)
@@ -1074,6 +1083,8 @@ fn constructor_signature_for_pattern(
         Bool(value) => Some({ tag: BoolConstructor(value), argument_types: [] })
         Int(value) =>
           Some({ tag: IntConstructor(value.value), argument_types: [] })
+        Double(value) =>
+          Some({ tag: DoubleConstructor(value.value), argument_types: [] })
         String(value) =>
           Some({ tag: StringConstructor(value), argument_types: [] })
         Unit => Some({ tag: UnitConstructor, argument_types: [] })

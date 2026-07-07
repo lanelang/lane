@@ -234,6 +234,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   PrivateTypeEscape(name~ : String)
   PrivateEffectEscape(name~ : String)
   InvalidIntLiteral(String)
+  InvalidDoubleLiteral(String)
   BuiltinNeedsExpectedType(name~ : String)
   FunctionLiteralParameterNeedsAnnotation(name~ : String?)
   EmptyMatchNeedsExpectedType

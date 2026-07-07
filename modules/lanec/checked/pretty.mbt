@@ -435,6 +435,7 @@ fn parameter_prefix_doc(parameter : CheckedValueParameter) -> Document {
 fn literal_doc(literal : CheckedLiteral) -> Document {
   match literal {
     Int(literal) => text(literal.raw)
+    Double(literal) => text(literal.raw)
     String(value) => quoted_doc(value)
     Bool(value) => text(value.to_string())
     Unit => text("()")

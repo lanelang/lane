@@ -398,6 +398,7 @@ fn GenericParameterUseCollector::collect_expr(
 ) -> Unit {
   match expr {
     IntLiteral(_)
+    | DoubleLiteral(_)
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)
@@ -547,6 +548,7 @@ fn GenericParameterUseCollector::collect_pattern(
     Wildcard(_)
     | Binding(_)
     | IntLiteral(_)
+    | DoubleLiteral(_)
     | StringLiteral(_)
     | BoolLiteral(_) => ()
     QualifiedVariant(type_binders~, arguments~, ..) => {

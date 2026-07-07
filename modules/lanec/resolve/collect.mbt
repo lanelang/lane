@@ -1995,6 +1995,7 @@ fn @syntax.Expr::resolve_expr(
 ) -> ResolvedExpr {
   match self {
     IntLiteral(value, loc~) => IntLiteral(value, loc~)
+    DoubleLiteral(value, loc~) => DoubleLiteral(value, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
     UnitLiteral(loc~) => UnitLiteral(loc~)
@@ -2916,6 +2917,7 @@ fn @syntax.Pattern::resolve_pattern(
       Binding(name~, symbol~, loc~)
     }
     IntLiteral(value, loc~) => IntLiteral(value, loc~)
+    DoubleLiteral(value, loc~) => DoubleLiteral(value, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
     QualifiedVariant(type_name~, variant~, type_binders~, arguments~, loc~) => {
@@ -3559,6 +3561,7 @@ fn resolver_report_qualified_variant(
 fn primitive_type(name : String) -> @types.PrimitiveType? {
   match name {
     "Int" => Some(Int)
+    "Double" => Some(Double)
     "Bool" => Some(Bool)
     "String" => Some(String)
     "Unit" => Some(Unit)

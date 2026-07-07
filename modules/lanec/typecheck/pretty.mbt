@@ -389,6 +389,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     PrivateEffectEscape(name~) =>
       text("private effect `") + text(name) + text("` in public interface")
     InvalidIntLiteral(raw) => text("invalid_int_literal") + space + text(raw)
+    InvalidDoubleLiteral(raw) =>
+      text("invalid_double_literal") + space + text(raw)
     BuiltinNeedsExpectedType(name~) =>
       text("builtin_needs_expected_type") + space + text(name)
     FunctionLiteralParameterNeedsAnnotation(name~) => {

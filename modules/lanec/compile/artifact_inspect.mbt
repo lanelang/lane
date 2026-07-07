@@ -729,6 +729,7 @@ fn ArtifactInspectContext::type_parameter_text(
 fn lane_primitive_text(primitive : @types.PrimitiveType) -> String {
   match primitive {
     Int => "Int"
+    Double => "Double"
     Bool => "Bool"
     String => "String"
     Unit => "Unit"
@@ -870,6 +871,7 @@ fn buslane_primitive_text(primitive : @buslane.PrimitiveType) -> String {
     Unit => "Unit"
     Bool => "Bool"
     Int => "Int"
+    Double => "Double"
     String => "String"
   }
 }

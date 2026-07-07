@@ -79,6 +79,7 @@ fn expected_syntax(
 fn token_label(token : @yacc_parser.Token) -> String {
   match token {
     INT(_) => "integer literal"
+    DOUBLE(_) => "double literal"
     STRING(_) => "string literal"
     IDENT(value) => "identifier `\{value}`"
     RESERVED(value) => "reserved word `\{value}`"
@@ -144,6 +145,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
 fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
   match kind {
     TK_INT => "integer literal"
+    TK_DOUBLE => "double literal"
     TK_STRING => "string literal"
     TK_IDENT => "identifier"
     TK_RESERVED => "reserved word"
@@ -209,6 +211,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
 fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
   match self {
     INT(value) => INT(value)
+    DOUBLE(value) => DOUBLE(value)
     STRING(value) => STRING(value)
     IDENT(value) => IDENT(value)
     RESERVED(value) => RESERVED(value)

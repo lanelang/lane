@@ -1,6 +1,7 @@
 ///|
 pub(all) enum PrimitiveType {
   Int
+  Double
   Bool
   String
   Unit

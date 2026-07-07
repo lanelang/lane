@@ -87,6 +87,7 @@ pub impl @prettyprinter.Pretty for EnumVariant
 
 pub(all) enum Expr {
   IntLiteral(String, loc~ : @basic.SourceSpan)
+  DoubleLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   UnitLiteral(loc~ : @basic.SourceSpan)
@@ -243,6 +244,7 @@ pub(all) enum Pattern {
   Wildcard(@basic.SourceSpan)
   Binding(String, loc~ : @basic.SourceSpan)
   IntLiteral(String, loc~ : @basic.SourceSpan)
+  DoubleLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)

@@ -40,6 +40,14 @@ _Avoid_: compact diagnostic pretty print, debug diagnostic output, command repor
 Formatter output that uses syntax-aware pretty-printing breakpoints to prefer lines within a configured width while allowing indivisible source atoms to exceed it.
 _Avoid_: hard line wrapping, post-render text wrapping, token splitting
 
+**Parsed Double Literal**:
+A source `Double` literal after validation, retaining the original source text for diagnostics and a binary64 value for semantic lowering.
+_Avoid_: string-only float literal, arbitrary-precision decimal constant, overloaded numeric literal
+
+**Double Literal Pattern**:
+A refutable pattern that matches a `Double` value by floating-point equality without making `Double` an exhaustively enumerable primitive.
+_Avoid_: exhaustive numeric pattern set, NaN pattern literal, arbitrary-precision decimal pattern
+
 **Semantic Completion**:
 A compiler-analysis completion result derived from Lane symbols, types, effects, modules, and source context.
 _Avoid_: keyword snippet, editor-side text scan, LSP-only completion

@@ -276,7 +276,7 @@ fn BuslaneLowerer::complete_alt_constructors_for_type(
     Error => Some([])
     Primitive(Bool) => Some([Literal(Bool(false)), Literal(Bool(true))])
     Primitive(Unit) => Some([Literal(Unit)])
-    Primitive(Int) | Primitive(String) => None
+    Primitive(Int) | Primitive(Double) | Primitive(String) => None
     _ => None
   }
 }

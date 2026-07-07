@@ -37,6 +37,14 @@ _Avoid_: compiler diagnostic adapter, Lane error taxonomy, command report
 A dotted name that identifies a **Module**.
 _Avoid_: filesystem path, package URL, source filename
 
+**Double**:
+A Lane primitive type representing IEEE 754 binary64 floating-point values.
+_Avoid_: Float, Float64, Basic library number type
+
+**Double Literal**:
+A source numeric literal containing digits with a decimal fraction or exponent and whose type is **Double**.
+_Avoid_: overloaded numeric literal, Float literal, decimal arbitrary-precision value
+
 **Basic Library Module**:
 A normal library **Module** supplied explicitly as a **Library Input**.
 _Avoid_: prelude, implicit builtin scope, compiler magic module
@@ -409,6 +417,9 @@ _Avoid_: VS Code extension, compiler front end
 - Module-qualified nominal member access combines both separators, such as `Module.Path.Type::{ ... }` and `Module.Path.Type::variant`.
 - The left side of module-qualified access must be an imported complete **Module Path**.
 - Importing `Module` does not make `Module.Child.name` or `Module.Child.Type` available.
+- **Double Literals** produce **Double** values directly; Lane does not use
+  numeric literal overloading or implicit conversion between `Int` and
+  **Double**.
 - **Typed Algebraic Effects** are the only planned language-level effect mechanism; **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
 - An **Effect Declaration** owns uniquely named **Effect Operations**; an **Effect Operation** may introduce **Operation Type Parameters**.
 - An **Operation Type Parameter** is scoped only to its owning **Effect Operation** signature and may shadow an **Effect Declaration** type parameter by normal innermost-binder lookup.

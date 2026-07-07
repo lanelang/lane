@@ -20,6 +20,11 @@ pub(all) struct CheckedCallArgument {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) struct CheckedDoubleLiteral {
+  raw : String
+  value : Double
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : @symbol.EffectSymbolId
@@ -143,6 +148,7 @@ pub impl @prettyprinter.Pretty for CheckedLetDeclaration
 
 pub(all) enum CheckedLiteral {
   Int(CheckedIntLiteral)
+  Double(CheckedDoubleLiteral)
   String(String)
   Bool(Bool)
   Unit

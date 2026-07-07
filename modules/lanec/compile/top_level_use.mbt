@@ -596,6 +596,7 @@ fn TopLevelUseCollector::collect_expr(
 ) -> Unit {
   match expr {
     IntLiteral(_)
+    | DoubleLiteral(_)
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)
@@ -760,6 +761,7 @@ fn TopLevelUseCollector::collect_pattern(
     Wildcard(_)
     | Binding(_)
     | IntLiteral(_)
+    | DoubleLiteral(_)
     | StringLiteral(_)
     | BoolLiteral(_) => ()
     QualifiedVariant(reference~, arguments~, ..) => {

@@ -118,6 +118,7 @@ pub(all) enum DesugaredCallArgument {
 ///|
 pub(all) enum DesugaredLiteral {
   Int(String)
+  Double(String)
   String(String)
   Bool(Bool)
   Unit

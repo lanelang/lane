@@ -1,6 +1,7 @@
 ///|
 enum BuslaneRuntimeValueKind {
   Int(Int64)
+  Double(Double)
   Bool(Bool)
   String(String)
   Unit
@@ -97,6 +98,12 @@ pub fn BuslaneRuntimeValue::int(value : Int64) -> BuslaneRuntimeValue {
 }
 
 ///|
+/// Creates a double Buslane runtime value.
+pub fn BuslaneRuntimeValue::double(value : Double) -> BuslaneRuntimeValue {
+  { kind: Double(value) }
+}
+
+///|
 /// Creates a boolean Buslane runtime value.
 pub fn BuslaneRuntimeValue::bool(value : Bool) -> BuslaneRuntimeValue {
   { kind: Bool(value) }
@@ -119,6 +126,15 @@ pub fn BuslaneRuntimeValue::unit() -> BuslaneRuntimeValue {
 pub fn BuslaneRuntimeValue::as_int(self : BuslaneRuntimeValue) -> Int64? {
   match self.kind {
     Int(value) => Some(value)
+    _ => None
+  }
+}
+
+///|
+/// Returns this runtime value as a double when it is a double value.
+pub fn BuslaneRuntimeValue::as_double(self : BuslaneRuntimeValue) -> Double? {
+  match self.kind {
+    Double(value) => Some(value)
     _ => None
   }
 }

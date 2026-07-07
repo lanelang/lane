@@ -1024,6 +1024,7 @@ fn VerifyContext::is_exhaustive(
     Primitive(Unit) => literals.contains(Unit)
     Primitive(Bool) =>
       literals.contains(Bool(true)) && literals.contains(Bool(false))
+    Primitive(Double) => false
     type_ if decompose_nominal_type(type_) is Some((owner, _)) =>
       match self.program.metadata.type_info(owner) {
         Some(info) =>
@@ -1384,6 +1385,7 @@ fn Literal::type_(self : Literal) -> Type {
     Unit => Primitive(Unit)
     Bool(_) => Primitive(Bool)
     Int(_) => Primitive(Int)
+    Double(_) => Primitive(Double)
     String(_) => Primitive(String)
   }
 }

@@ -4,6 +4,7 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
 ) {
   match primitive {
     Int => text("Int")
+    Double => text("Double")
     Bool => text("Bool")
     String => text("String")
     Unit => text("Unit")

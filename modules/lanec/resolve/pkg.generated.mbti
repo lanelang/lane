@@ -126,6 +126,7 @@ pub impl @prettyprinter.Pretty for ResolvedEnumVariant
 
 pub(all) enum ResolvedExpr {
   IntLiteral(String, loc~ : @basic.SourceSpan)
+  DoubleLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   UnitLiteral(loc~ : @basic.SourceSpan)
@@ -307,6 +308,7 @@ pub(all) enum ResolvedPattern {
   Wildcard(@basic.SourceSpan)
   Binding(name~ : String, symbol~ : @symbol.ValueSymbolId, loc~ : @basic.SourceSpan)
   IntLiteral(String, loc~ : @basic.SourceSpan)
+  DoubleLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, variant~ : String, type_binders~ : Array[ResolvedTypeParameter], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)

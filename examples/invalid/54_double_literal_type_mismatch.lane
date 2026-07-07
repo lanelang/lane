@@ -1,0 +1,5 @@
+module Examples.Invalid.DoubleLiteralTypeMismatch
+
+pub let bad_double : Double = 1
+
+pub let bad_int : Int = 1.0

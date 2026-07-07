@@ -31,6 +31,7 @@ pub fn CanonicalTextWriter::write_type(Self, @buslane.Type) -> String
 
 pub(all) enum Token {
   INT(String)
+  DOUBLE(String)
   STRING(String)
   TYPE_ID(Int)
   TPARAM_ID(Int)
@@ -65,6 +66,7 @@ pub(all) enum Token {
   UNIT_TYPE
   BOOL_TYPE
   INT_TYPE
+  DOUBLE_TYPE
   STRING_TYPE
   KIND_FN
   EMPTY_EFFECT
@@ -96,6 +98,7 @@ pub(all) enum Token {
   TRUE
   FALSE
   INT_LITERAL
+  DOUBLE_LITERAL
   STRING_LITERAL
   UNIT_LITERAL
   LBRACE
@@ -114,6 +117,7 @@ pub fn Token::kind(Self) -> TokenKind
 
 pub(all) enum TokenKind {
   TK_INT
+  TK_DOUBLE
   TK_STRING
   TK_TYPE_ID
   TK_TPARAM_ID
@@ -148,6 +152,7 @@ pub(all) enum TokenKind {
   TK_UNIT_TYPE
   TK_BOOL_TYPE
   TK_INT_TYPE
+  TK_DOUBLE_TYPE
   TK_STRING_TYPE
   TK_KIND_FN
   TK_EMPTY_EFFECT
@@ -179,6 +184,7 @@ pub(all) enum TokenKind {
   TK_TRUE
   TK_FALSE
   TK_INT_LITERAL
+  TK_DOUBLE_LITERAL
   TK_STRING_LITERAL
   TK_UNIT_LITERAL
   TK_LBRACE

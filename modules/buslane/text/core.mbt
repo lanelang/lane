@@ -83,6 +83,7 @@ fn token_label(token : Token) -> String {
     EFFECT_ID(index) => "effect#\{index}"
     OPERATION_ID(index) => "operation#\{index}"
     INT(value) => value
+    DOUBLE(value) => value
     STRING(_) => "string"
     EOF => "eof"
     BUSLANE => "buslane"
@@ -111,6 +112,7 @@ fn token_label(token : Token) -> String {
     UNIT_TYPE => "Unit"
     BOOL_TYPE => "Bool"
     INT_TYPE => "Int"
+    DOUBLE_TYPE => "Double"
     STRING_TYPE => "String"
     KIND_FN => "kind_fn"
     EMPTY_EFFECT => "empty_effect"
@@ -142,6 +144,7 @@ fn token_label(token : Token) -> String {
     TRUE => "true"
     FALSE => "false"
     INT_LITERAL => "int"
+    DOUBLE_LITERAL => "double"
     STRING_LITERAL => "string"
     UNIT_LITERAL => "unit"
     LBRACE => "{"
@@ -416,6 +419,7 @@ fn primitive_doc(primitive : @buslane.PrimitiveType) -> Document {
     Unit => text("Unit")
     Bool => text("Bool")
     Int => text("Int")
+    Double => text("Double")
     String => text("String")
   }
 }
@@ -579,6 +583,7 @@ fn literal_doc(literal : @buslane.Literal) -> Document {
     Unit => call_doc("unit", [])
     Bool(value) => text(if value { "true" } else { "false" })
     Int(value) => call_doc("int", [text(value.to_string())])
+    Double(value) => call_doc("double", [text(value.to_string())])
     String(value) => call_doc("string", [text(quote_string(value))])
   }
 }

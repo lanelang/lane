@@ -119,6 +119,10 @@ _Avoid_: value type, operation set
 The effect set attached to a Buslane function type.
 _Avoid_: operation set, inferred capability
 
+**Canonical Double Text**:
+A stable decimal text representation of a Buslane `Double` literal that parses back to the same binary64 value.
+_Avoid_: original source spelling, lossy display formatting, locale-dependent float text
+
 **Canonical Core Artifact Role**:
 The role Buslane programs play when embedded in compiler module objects or linked program artifacts as the semantic core payload.
 _Avoid_: module interface policy, bytecode image, execution cache
@@ -172,6 +176,9 @@ _Avoid_: module interface policy, bytecode image, execution cache
 - An unhandled **Effect Operation** is not resolved by external runtime plugins.
 - A **Function Latent Effect** is an effect set of singleton effects plus
   optional residual row information, not a flattened operation set.
+- **Canonical Double Text** is owned by Buslane/core text and artifacts, while
+  source diagnostics may still retain the user's original **Double Literal**
+  spelling before lowering.
 - **Buslane Interpreter** must evaluate **Deep Handlers** according to Buslane
   runtime semantics.
 - The formal contract for Buslane belongs in the `spec` repository; this

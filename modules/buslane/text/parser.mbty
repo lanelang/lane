@@ -9,6 +9,7 @@
 %start buslane_type
 
 %token<String> INT
+%token<String> DOUBLE
 %token<String> STRING
 %token<Int> TYPE_ID
 %token<Int> TPARAM_ID
@@ -43,6 +44,7 @@
 %token UNIT_TYPE "Unit"
 %token BOOL_TYPE "Bool"
 %token INT_TYPE "Int"
+%token DOUBLE_TYPE "Double"
 %token STRING_TYPE "String"
 %token KIND_FN "kind_fn"
 %token EMPTY_EFFECT "empty_effect"
@@ -74,6 +76,7 @@
 %token TRUE "true"
 %token FALSE "false"
 %token INT_LITERAL "int"
+%token DOUBLE_LITERAL "double"
 %token STRING_LITERAL "string"
 %token UNIT_LITERAL "unit"
 %token LBRACE "{"
@@ -278,6 +281,7 @@ literal -> Literal
   | TRUE { Bool(true) }
   | FALSE { Bool(false) }
   | "int" "(" INT ")" { Int(@string.parse_int64($3, base=10) catch { _ => 0L }) }
+  | "double" "(" DOUBLE ")" { Double(@string.parse_double($3) catch { _ => 0.0 }) }
   | "string" "(" STRING ")" { String($3) }
   ;
 
@@ -309,6 +313,7 @@ primitive_type -> PrimitiveType
   : "Unit" { Unit }
   | "Bool" { Bool }
   | "Int" { Int }
+  | "Double" { Double }
   | "String" { String }
   ;
 

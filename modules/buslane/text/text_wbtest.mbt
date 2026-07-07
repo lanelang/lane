@@ -4,6 +4,11 @@ fn int_type() -> @buslane.Type {
 }
 
 ///|
+fn double_type() -> @buslane.Type {
+  Primitive(Double)
+}
+
+///|
 fn assert_program_equal(
   actual : @buslane.Program,
   expected : @buslane.Program,
@@ -83,6 +88,30 @@ test "buslane text roundtrips standalone type" {
     Err(message) => abort(message + "\n" + text)
   }
   assert_type_equal(decoded, type_)
+}
+
+///|
+test "buslane text roundtrips double primitive and literal" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value("value", Value, double_type())
+  let program = @buslane.Program::{
+    metadata,
+    terms: [Let(value, Literal(Double(1.25)))],
+  }
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
+  let expected =
+    #|buslane {
+    #|  metadata {
+    #|    value value#0 name "value" unique 0 value : Double;
+    #|  }
+    #|  let value#0 = double(1.25);
+    #|}
+  inspect(text, content=expected)
+  let decoded = match parse_program_text(text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + text)
+  }
+  assert_program_equal(decoded, program)
 }
 
 ///|

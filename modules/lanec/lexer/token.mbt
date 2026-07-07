@@ -1,6 +1,7 @@
 ///|
 pub(all) enum Token {
   INT(String)
+  DOUBLE(String)
   STRING(String)
   IDENT(String)
   RESERVED(String)

@@ -704,6 +704,24 @@ fn typecheck_diagnostic(
         ],
         helps=["use a smaller integer literal"],
       )
+    InvalidDoubleLiteral(raw) =>
+      diagnostic(
+        "invalid double literal `\{raw}`",
+        span~,
+        severity=Error,
+        code=Some("E3025"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "`\{raw}` cannot be represented as a finite Lane `Double`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "Lane `Double` literals must parse to a finite IEEE 754 binary64 value",
+        ],
+        helps=["use a finite double literal within the binary64 range"],
+      )
     BuiltinNeedsExpectedType(name~) =>
       diagnostic(
         "builtin `\{name}` needs an expected type",

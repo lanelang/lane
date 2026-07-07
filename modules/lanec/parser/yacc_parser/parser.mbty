@@ -8,6 +8,7 @@
 %start source_file
 
 %token<String> INT
+%token<String> DOUBLE
 %token<String> STRING
 %token<String> IDENT
 %token<String> RESERVED
@@ -621,6 +622,7 @@ owner_expression -> OwnerExpression
 
 non_owner_primary_expression -> Expr
   : INT { IntLiteral($1, loc=span($sloc)) }
+  | DOUBLE { DoubleLiteral($1, loc=span($sloc)) }
   | STRING { StringLiteral($1, loc=span($sloc)) }
   | "true" { BoolLiteral(true, loc=span($sloc)) }
   | "false" { BoolLiteral(false, loc=span($sloc)) }
@@ -886,6 +888,7 @@ builtin_expression -> Expr
 pattern -> Pattern
   : "_" { Wildcard(span($sloc)) }
   | INT { IntLiteral($1, loc=span($sloc)) }
+  | DOUBLE { DoubleLiteral($1, loc=span($sloc)) }
   | STRING { StringLiteral($1, loc=span($sloc)) }
   | "true" { BoolLiteral(true, loc=span($sloc)) }
   | "false" { BoolLiteral(false, loc=span($sloc)) }

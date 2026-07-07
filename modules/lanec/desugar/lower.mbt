@@ -167,6 +167,7 @@ fn desugar_handler_final_branch(
 fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
   match expr {
     IntLiteral(value, loc~) => Literal(literal=Int(value), loc~)
+    DoubleLiteral(value, loc~) => Literal(literal=Double(value), loc~)
     StringLiteral(value, loc~) => Literal(literal=String(value), loc~)
     BoolLiteral(value, loc~) => Literal(literal=Bool(value), loc~)
     UnitLiteral(loc~) => Literal(literal=Unit, loc~)

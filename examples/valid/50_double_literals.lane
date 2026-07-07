@@ -1,0 +1,33 @@
+module Examples.Valid.DoubleLiterals
+
+import Basic.Io.{Io, Write}
+
+fn classify(value : Double) -> Int {
+  match value {
+    1.0 => 1
+    1e3 => 2
+    5e-324 => 3
+    _ => 0
+  }
+}
+
+pub let decimal : Double = 1.0
+
+pub let exponent : Double = 1e3
+
+pub let subnormal : Double = 5e-324
+
+pub fn answer() -> Unit ! Io {
+  match classify(decimal) {
+    1 =>
+      match classify(exponent) {
+        2 =>
+          match classify(subnormal) {
+            3 => Write::println!("double literals ok")
+            _ => Write::println!("double subnormal failed")
+          }
+        _ => Write::println!("double exponent failed")
+      }
+    _ => Write::println!("double decimal failed")
+  }
+}
