@@ -4,46 +4,74 @@ import Basic.Io.{Io, Write}
 
 import Basic.Ops.*
 
-struct Future[A] {
-  value : A
+effect Async[E : Effect] {
+  suspend[A](((A) -> Unit ! E) -> Unit ! E) -> A
 }
 
-effect Async {
-  ready[A](A) -> Future[A]
-  spawn[A](() -> A ! Async) -> Future[A]
-  await[A](Future[A]) -> A
+effect Schedule {
+  enqueue(Step) -> Unit
 }
 
-fn[A] run_async(main : () -> A ! Async) -> A {
-  handle main() with {
-    ready[T](value, resume) => resume(Future[T]::{ value })
-    spawn[T](body, resume) => {
-      let value : T = run_async(body)
-      resume(Future[T]::{ value })
+enum Step {
+  done(Int)
+  waiting[A](((A) -> Unit ! Schedule) -> Unit ! Schedule, (A) -> Step)
+}
+
+fn[A] ready(value : A) -> A ! Async[Schedule] {
+  Async[Schedule]::suspend![A](
+    fn (resume) {
+      resume(value)
     }
-    await[T](future, resume) => resume(future.value)
+  )
+}
+
+fn run_task(task : () -> Int ! Async[Schedule]) -> Step {
+  handle task() with {
+    Async[Schedule]::suspend[A](register, resume) => Step::waiting[A](
+      register,
+      fn (value) {
+        resume(value)
+      }
+    )
   } final value {
-    value
+    done(value)
   }
 }
 
-fn program() -> Int ! Async {
-  let first = ready!(20)
-  let flag = ready!(true)
-  let second =
-    spawn![Int](
-      fn () {
-        if await!(flag) {
-          await!(first) + 22
-        } else {
-          0
-        }
-      }
-    )
-  await!(second)
+fn[A] run_registration(
+  register : ((A) -> Unit ! Schedule) -> Unit ! Schedule,
+  resume : (A) -> Step
+) -> Step {
+  handle register(
+    fn (value) {
+      let next : Step = resume(value)
+      Schedule::enqueue!(next)
+    }
+  ) with {
+    Schedule::enqueue(next, _continue) => next
+  } final _value {
+    done(0)
+  }
 }
 
-pub let async_result : Int = run_async(program)
+fn run_loop(step : Step) -> Int {
+  match step {
+    done(value) => value
+    waiting[A](register, resume) => run_loop(run_registration[A](register, resume))
+  }
+}
+
+fn program() -> Int ! Async[Schedule] {
+  let first = ready(20)
+  let flag = ready(true)
+  if flag {
+    first + ready(22)
+  } else {
+    0
+  }
+}
+
+pub let async_result : Int = run_loop(run_task(program))
 
 pub fn answer() -> Unit ! Io {
   if async_result == 42 {
