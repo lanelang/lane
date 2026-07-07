@@ -1,0 +1,33 @@
+module Examples.Valid.DoubleOperations
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+pub fn answer() -> Unit ! Io {
+  if 1.5 + 2.5 == 4.0 {
+    if 6.0 / 2.0 == 3.0 {
+      if 5.0 - 1.0 == 4.0 {
+        if 2.0 * 3.0 == 6.0 {
+          if -1.0 < 0.0 {
+            if 2.0 >= 2.0 {
+              Write::println!("double operations ok")
+            } else {
+              Write::println!("double greater_eq failed")
+            }
+          } else {
+            Write::println!("double neg or less failed")
+          }
+        } else {
+          Write::println!("double mul failed")
+        }
+      } else {
+        Write::println!("double sub failed")
+      }
+    } else {
+      Write::println!("double div failed")
+    }
+  } else {
+    Write::println!("double add or equal failed")
+  }
+}

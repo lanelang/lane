@@ -454,6 +454,15 @@
       }
     },
     {
+      "name": "51 double operations",
+      "file": "examples/valid/51_double_operations.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "double operations ok"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
@@ -1169,6 +1178,18 @@
           "expected `Double`, found `Int`",
           "error[E3006]",
           "expected `Int`, found `Double`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 55 double remainder unavailable",
+      "file": "examples/invalid/55_double_remainder_unavailable.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3013]",
+          "missing contextual offer",
+          "Rem[Double]"
         ]
       }
     }

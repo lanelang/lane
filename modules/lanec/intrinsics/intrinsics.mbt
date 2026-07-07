@@ -65,6 +65,32 @@ fn resolve_standard_intrinsic(
       native(type_, arguments => {
         int_compare(external, arguments, (a, b) => a < b)
       })
+    "%f64_add" =>
+      native(type_, arguments => {
+        double_binary(external, arguments, (a, b) => a + b)
+      })
+    "%f64_sub" =>
+      native(type_, arguments => {
+        double_binary(external, arguments, (a, b) => a - b)
+      })
+    "%f64_mul" =>
+      native(type_, arguments => {
+        double_binary(external, arguments, (a, b) => a * b)
+      })
+    "%f64_div" =>
+      native(type_, arguments => {
+        double_binary(external, arguments, (a, b) => a / b)
+      })
+    "%f64_neg" =>
+      native(type_, arguments => double_unary(external, arguments, a => -a))
+    "%f64_equal" =>
+      native(type_, arguments => {
+        double_compare(external, arguments, (a, b) => a == b)
+      })
+    "%f64_less" =>
+      native(type_, arguments => {
+        double_compare(external, arguments, (a, b) => a < b)
+      })
     "%string_equal" =>
       native(type_, arguments => {
         string_compare(external, arguments, (a, b) => a == b)
@@ -117,6 +143,41 @@ fn int_compare(
 }
 
 ///|
+fn double_binary(
+  external : @elaborate.BuslaneBuiltinExternal,
+  arguments : Array[RuntimeValue],
+  op : (Double, Double) -> Double,
+) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
+  let (a, b) = expect_two_doubles(external, arguments)
+  RuntimeValue::double(op(a, b))
+}
+
+///|
+fn double_unary(
+  external : @elaborate.BuslaneBuiltinExternal,
+  arguments : Array[RuntimeValue],
+  op : (Double) -> Double,
+) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
+  if arguments.length() != 1 {
+    return intrinsic_failure(external, "expected one double argument")
+  }
+  guard arguments[0].as_double() is Some(value) else {
+    return intrinsic_failure(external, "expected one double argument")
+  }
+  RuntimeValue::double(op(value))
+}
+
+///|
+fn double_compare(
+  external : @elaborate.BuslaneBuiltinExternal,
+  arguments : Array[RuntimeValue],
+  op : (Double, Double) -> Bool,
+) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
+  let (a, b) = expect_two_doubles(external, arguments)
+  RuntimeValue::bool(op(a, b))
+}
+
+///|
 fn string_compare(
   external : @elaborate.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
@@ -124,6 +185,23 @@ fn string_compare(
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
   let (a, b) = expect_two_strings(external, arguments)
   RuntimeValue::bool(op(a, b))
+}
+
+///|
+fn expect_two_doubles(
+  external : @elaborate.BuslaneBuiltinExternal,
+  arguments : Array[RuntimeValue],
+) -> (Double, Double) raise @buslane_interpreter.BuslaneRuntimeError {
+  if arguments.length() != 2 {
+    return intrinsic_failure(external, "expected two double arguments")
+  }
+  guard arguments[0].as_double() is Some(a) else {
+    return intrinsic_failure(external, "expected two double arguments")
+  }
+  guard arguments[1].as_double() is Some(b) else {
+    return intrinsic_failure(external, "expected two double arguments")
+  }
+  (a, b)
 }
 
 ///|
