@@ -314,6 +314,7 @@ fn comment_edits(
         edits.push(leading_comment_edit(formatted, span, comment))
         if leading_comment_is_midline(formatted, span) {
           if next_compact_closer(tokens, index) is Some(close_span) {
+            let expanded_indent = compact_child_indent(formatted, span)
             let start = trim_space_before(
               formatted,
               line_start_offset(formatted, close_span.start_offset),
@@ -323,7 +324,7 @@ fn comment_edits(
               edits.push({
                 start,
                 end: close_span.start_offset,
-                text: "\n" + dedent(comment.indent),
+                text: "\n" + dedent(expanded_indent),
               })
             }
           }
@@ -368,14 +369,31 @@ fn leading_comment_edit(
     }
   } else {
     let start = trim_space_before(formatted, line_start, span.start_offset)
+    let indent = compact_child_indent(formatted, span)
     {
       start,
       end: span.start_offset,
       text: "\n" +
-      render_leading_comment(comment.text, comment.indent, comment.blank_after) +
-      comment.indent,
+      render_leading_comment(comment.text, indent, comment.blank_after) +
+      indent,
     }
   }
+}
+
+///|
+fn compact_child_indent(formatted : String, span : @basic.SourceSpan) -> String {
+  let line_start = line_start_offset(formatted, span.start_offset)
+  let line_indent_end = first_non_space_offset(formatted, line_start)
+  formatted.unsafe_substring(start=line_start, end=line_indent_end) + "  "
+}
+
+///|
+fn first_non_space_offset(source : String, offset : Int) -> Int {
+  let mut index = offset
+  while index < source.length() && is_space_or_tab_at(source, index) {
+    index += 1
+  }
+  index
 }
 
 ///|

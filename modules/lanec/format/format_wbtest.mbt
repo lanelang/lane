@@ -108,15 +108,14 @@ test "format source preserves leading line comment block" {
 test "format source preserves comments around declarations and blocks" {
   assert_format(
     (
-      #|module Test
+      #|module   Test
       #|
       #|// before declaration
-      #|pub let answer : Int = 42 // trailing declaration
+      #|pub   let answer   :   Int=42 // trailing declaration
       #|
-      #|pub fn main() -> Unit {
-      #|  // inside block
-      #|  ()
-      #|}
+      #|pub fn main()->Unit{
+      #|// inside block
+      #|()}
     ),
     (
       #|module Test
@@ -137,8 +136,8 @@ test "format source preserves comments around declarations and blocks" {
 test "format source does not treat comment markers inside strings as comments" {
   assert_format(
     (
-      #|module Test
-      #|pub let url : String = "http://example"
+      #|module   Test
+      #|pub   let url:String="http://example"
     ),
     (
       #|module Test
@@ -153,26 +152,26 @@ test "format source does not treat comment markers inside strings as comments" {
 test "format source preserves comments in top-level and type bodies" {
   assert_format(
     (
-      #|module Test
+      #|module   Test
       #|
       #|// before import
-      #|import Basic.Ops.* // trailing import
+      #|import   Basic.Ops.* // trailing import
       #|
       #|// before effect
-      #|effect Console {
+      #|effect Console{
       #|  // before operation
-      #|  read() -> Int // trailing operation
+      #|  read()->Int // trailing operation
       #|}
       #|
       #|/* before struct */
-      #|struct Pair {
+      #|struct Pair{
       #|  // before field
-      #|  left : Int
-      #|  right : Int // trailing field
+      #|  left:Int
+      #|  right:Int // trailing field
       #|}
       #|
       #|// before enum
-      #|enum Option {
+      #|enum Option{
       #|  // before variant
       #|  none()
       #|  some(Int) // trailing variant
@@ -212,19 +211,19 @@ test "format source preserves comments in top-level and type bodies" {
 test "format source preserves comments in control flow" {
   assert_format(
     (
-      #|module Test
+      #|module   Test
       #|
-      #|pub fn choose(input : Int) -> Int {
-      #|  // before let
-      #|  let base : Int = input + 1 // trailing let
-      #|  // before if
-      #|  if base == 0 {
-      #|    // then branch
-      #|    1
-      #|  } else {
-      #|    // else branch
-      #|    base
-      #|  }
+      #|pub fn choose(input:Int)->Int{
+      #|// before let
+      #|let base:Int=input+1 // trailing let
+      #|// before if
+      #|if base==0{
+      #|// then branch
+      #|1
+      #|}else{
+      #|// else branch
+      #|base
+      #|}
       #|}
     ),
     (
@@ -251,37 +250,37 @@ test "format source preserves comments in control flow" {
 test "format source preserves comments in match and handler arms" {
   assert_format(
     (
-      #|module Test
+      #|module   Test
       #|
-      #|effect Console {
-      #|  read() -> Int
+      #|effect Console{
+      #|  read()->Int
       #|}
       #|
-      #|enum Option {
+      #|enum Option{
       #|  none()
       #|  some(Int)
       #|}
       #|
-      #|pub fn read_or_default(value : Option) -> Int {
-      #|  match value {
-      #|    // none arm
-      #|    none() => 0 // trailing none arm
-      #|    // some arm
-      #|    some(x) => x
-      #|  }
+      #|pub fn read_or_default(value:Option)->Int{
+      #|match value{
+      #|// none arm
+      #|none()=>0 // trailing none arm
+      #|// some arm
+      #|some(x)=>x
+      #|}
       #|}
       #|
-      #|pub let handled : Int = {
-      #|  handle {
-      #|    // before perform
-      #|    Console::read!()
-      #|  } with {
-      #|    // before handler arm
-      #|    Console::read(resume) => resume(1) // trailing handler arm
-      #|  } final value {
-      #|    // final branch
-      #|    value
-      #|  }
+      #|pub let handled:Int={
+      #|handle{
+      #|// before perform
+      #|Console::read!()
+      #|}with{
+      #|// before handler arm
+      #|Console::read(resume)=>resume(1) // trailing handler arm
+      #|}final value{
+      #|// final branch
+      #|value
+      #|}
       #|}
     ),
     (
@@ -326,18 +325,18 @@ test "format source preserves comments in match and handler arms" {
 test "format source preserves comments around literals and end of file" {
   assert_format(
     (
-      #|module Test
+      #|module   Test
       #|
-      #|struct Pair {
-      #|  left : Int
-      #|  right : Int
+      #|struct Pair{
+      #|left:Int
+      #|right:Int
       #|}
       #|
-      #|pub let pair : Pair = Pair::{
-      #|  // left value
-      #|  left: 1,
-      #|  // right value
-      #|  right: 2
+      #|pub let pair:Pair=Pair::{
+      #|// left value
+      #|left:1,
+      #|// right value
+      #|right:2
       #|}
       #|
       #|// eof marker
