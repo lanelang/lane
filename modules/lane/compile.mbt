@@ -2,12 +2,10 @@
 async fn lane_compile(
   file : String,
   interfaces : Array[String],
-  emit_interface : String?,
-  emit_object : String?,
+  interface_path : String,
+  object_path : String,
   verbose : Bool,
 ) -> LaneCommandOutcome {
-  let interface_path = compile_output_path(file, emit_interface, ".lmi")
-  let object_path = compile_output_path(file, emit_object, ".lmo")
   let source = read_source_file(file) catch {
     error =>
       return LaneCommandOutcome::user_error(
@@ -68,52 +66,4 @@ async fn lane_compile(
   } else {
     Succeeded
   }
-}
-
-///|
-fn compile_output_path(
-  source_path : String,
-  explicit_path : String?,
-  suffix : String,
-) -> String {
-  if explicit_path is Some(path) {
-    path
-  } else {
-    default_compile_artifact_path(source_path, suffix)
-  }
-}
-
-///|
-fn default_compile_artifact_path(
-  source_path : String,
-  suffix : String,
-) -> String {
-  let filename_start = last_path_separator_index(source_path) + 1
-  let stem_end = match last_extension_dot_index(source_path, filename_start) {
-    Some(index) => index
-    None => source_path.length()
-  }
-  "\{source_path[:stem_end]}\{suffix}"
-}
-
-///|
-fn last_path_separator_index(path : String) -> Int {
-  let mut last = -1
-  for index in 0..<path.length() {
-    if path[index] == '/' {
-      last = index
-    }
-  }
-  last
-}
-
-///|
-fn last_extension_dot_index(path : String, filename_start : Int) -> Int? {
-  let mut last : Int? = None
-  for index in filename_start..<path.length() {
-    if path[index] == '.' {
-      last = Some(index)
-    }
-  }
-  last
 }

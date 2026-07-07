@@ -151,14 +151,14 @@ _Avoid_: semantic lowering, source elaboration, module interface generation
   semantics and optimization hints, `.lmo` records linkable Buslane/core, and
   `.lbp` may carry a final execution image after linking and optimization.
 - The link step selects the executable entry before **Core Occurrence
-  Analysis**; `runobj` executes the selected linked program rather than
+  Analysis**; `exec` executes the selected linked program rather than
   selecting an entry.
 - A linked executable artifact stores a single selected entry; public entry
-  catalogs belong to module objects and inspection, not to `runobj` selection.
+  catalogs belong to module objects and inspection, not to `exec` selection.
 - A link-time executable entry is resolved from an exported module symbol, not
   from private lowered definitions or Buslane implementation names.
 - Link validates the selected entry's executable type and supported runtime
-  effects before writing a linked executable artifact; `runobj` must not depend
+  effects before writing a linked executable artifact; `exec` must not depend
   on source-level type metadata being present in `.lbp`.
 - **Execution Image Lowering** is below Buslane/core and below any
   whole-program core optimization; ANF and bytecode are not the public semantic

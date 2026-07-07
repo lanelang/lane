@@ -51,6 +51,7 @@ pub(all) struct BuslaneElaborateResult {
 pub impl @prettyprinter.Pretty for BuslaneElaborateResult
 
 pub(all) struct BuslaneEntry {
+  module_path_text : String
   name : String
   value : @buslane.ValueId
   type_ : @buslane.Type

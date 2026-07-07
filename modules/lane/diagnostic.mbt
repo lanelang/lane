@@ -6,7 +6,7 @@ enum CliFileAction {
   Check
   Compile
   Run
-  RunObject
+  Exec
   Format
   Inspect
   Link
@@ -55,7 +55,7 @@ enum CliError {
   UnknownCommand
   MissingArgument(name~ : String)
   InvalidRunTarget(target~ : String)
-  InvalidRunObjTarget(target~ : String)
+  InvalidExecTarget(target~ : String)
   InvalidLinkEntry(entry~ : String)
   FileIo(action~ : CliFileAction, path~ : String, reason~ : HostFileErrorReason)
   ArtifactLoad(path~ : String, kind~ : String, message~ : String)
@@ -119,7 +119,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         code="E6001",
         title="unknown lane command",
         details=[
-          "The requested subcommand is not supported by this `lane` binary.", "Available commands include check, run, compile, inspect, link, runobj, fmt, and lsp.",
+          "The requested subcommand is not supported by this `lane` binary.", "Available commands include check, run, compile, inspect, link, exec, fmt, and lsp.",
         ],
         suggestions=[
           command_suggestion("Example:", command="lane check Main.lane"),
@@ -148,16 +148,16 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
           command_suggestion("Example:", command="lane run Main.lane:main"),
         ],
       )
-    InvalidRunObjTarget(target~) =>
+    InvalidExecTarget(target~) =>
       command_report(
         code="E6008",
-        title="invalid runobj target `\{target}`",
+        title="invalid exec target `\{target}`",
         fields=[command_report_field("expected", "FILE.lbp")],
         details=[
-          "`lane runobj` executes the entry selected when the linked program artifact was produced.",
+          "`lane exec` executes the entry selected when the linked program artifact was produced.",
         ],
         suggestions=[
-          command_suggestion("Example:", command="lane runobj program.lbp"),
+          command_suggestion("Example:", command="lane exec program.lbp"),
         ],
       )
     InvalidLinkEntry(entry~) =>
@@ -218,7 +218,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
     EntryNotFound(name~, entries~) =>
       command_report(
         code="E6005",
-        title="entry `\{display_entry_name(name)}` was not found",
+        title="entry `\{name}` was not found",
         fields=[
           command_report_field(
             "available public entries",
@@ -234,7 +234,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
     EntryAmbiguous(name~, entries~) =>
       command_report(
         code="E6006",
-        title="entry name `\{display_entry_name(name)}` is ambiguous",
+        title="entry name `\{name}` is ambiguous",
         fields=[
           command_report_field(
             "available public entries",
@@ -250,7 +250,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
     EntryNotExecutable(name~, type_~, reason~) =>
       command_report(
         code="E6009",
-        title="entry `\{display_entry_name(name)}` is not executable",
+        title="entry `\{name}` is not executable",
         fields=[
           command_report_field("requested type", render_buslane_type(type_)),
           command_report_field(
@@ -304,7 +304,7 @@ fn CliFileAction::to_human_text(self : CliFileAction) -> String {
     Check => "check"
     Compile => "compile"
     Run => "run"
-    RunObject => "run object"
+    Exec => "execute"
     Format => "format"
     Inspect => "inspect"
     Link => "link"
@@ -390,7 +390,7 @@ fn CommandReport::render_header(self : CommandReport) -> String {
 
 ///|
 fn available_entries_text(entries : Array[@elaborate.BuslaneEntry]) -> String {
-  let names = entries.map(fn(entry) { display_entry_name(entry.name) })
+  let names = entries.map(display_entry)
   if names.is_empty() {
     "(none)"
   } else {

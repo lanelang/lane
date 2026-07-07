@@ -142,7 +142,7 @@ fn linked_program_header_doc(artifact : LinkedProgramArtifact) -> Document {
   separate(@prettyprinter.hardline, [
     text("Lane program artifact"),
     text("schema: \{artifact.schema_version}"),
-    text("entry: \{artifact.entry.name}"),
+    text("entry: \{entry_display_name(artifact.entry)}"),
   ])
 }
 
@@ -745,7 +745,7 @@ fn BuslaneInspectContext::entry_text(
   self : BuslaneInspectContext,
   entry : @elaborate.BuslaneEntry,
 ) -> String {
-  "\{entry.name} : \{self.type_text(entry.type_)}"
+  "\{entry_display_name(entry)} : \{self.type_text(entry.type_)}"
 }
 
 ///|

@@ -120,7 +120,7 @@ async fn read_linked_program_artifact(
   path : String,
 ) -> Result[@compile.LinkedExecutableProgram, CliError] {
   let bytes = read_binary_file(path) catch {
-    error => return Err(CliError::file_io(RunObject, path, "\{error}"))
+    error => return Err(CliError::file_io(Exec, path, "\{error}"))
   }
   let artifact = match @compile.parse_linked_program_artifact_binary(bytes) {
     Ok(artifact) => artifact

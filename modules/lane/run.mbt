@@ -1,5 +1,5 @@
 ///|
-async fn lane_runobj(path : String) -> LaneCommandOutcome {
+async fn lane_exec(path : String) -> LaneCommandOutcome {
   let program = match read_linked_program_artifact(path) {
     Ok(program) => program
     Err(error) => return LaneCommandOutcome::user_error(error)
@@ -125,7 +125,7 @@ fn validate_executable_entry(
   guard entry.type_ is Function(parameters, result, effect) else {
     return Err(
       EntryNotExecutable(
-        name=entry.name,
+        name=display_entry(entry),
         type_=entry.type_,
         reason=EntryIsNotFunction,
       ),
@@ -134,7 +134,7 @@ fn validate_executable_entry(
   if !parameters.is_empty() {
     return Err(
       EntryNotExecutable(
-        name=entry.name,
+        name=display_entry(entry),
         type_=entry.type_,
         reason=EntryHasParameters(count=parameters.length()),
       ),
@@ -143,7 +143,7 @@ fn validate_executable_entry(
   if result != Primitive(Unit) {
     return Err(
       EntryNotExecutable(
-        name=entry.name,
+        name=display_entry(entry),
         type_=entry.type_,
         reason=EntryReturnsNonUnit(result~),
       ),
@@ -152,7 +152,7 @@ fn validate_executable_entry(
   if !entry_effect_is_supported(effect, runtime_effects) {
     return Err(
       EntryNotExecutable(
-        name=entry.name,
+        name=display_entry(entry),
         type_=entry.type_,
         reason=EntryHasUnsupportedEffects(effect~),
       ),
@@ -299,5 +299,22 @@ fn find_entry(
     1 => Ok(matched[0])
     0 => Err(EntryNotFound(name~, entries~))
     _ => Err(EntryAmbiguous(name~, entries~))
+  }
+}
+
+///|
+fn find_public_entry(
+  entries : Array[@elaborate.BuslaneEntry],
+  name : PublicEntryName,
+) -> Result[@elaborate.BuslaneEntry, CliError] {
+  let matched = entries.filter(fn(entry) {
+    entry.module_path_text == name.module_path_text &&
+    entry.name == name.value_name
+  })
+  let display_name = display_public_entry_name(name)
+  match matched.length() {
+    1 => Ok(matched[0])
+    0 => Err(EntryNotFound(name=display_name, entries~))
+    _ => Err(EntryAmbiguous(name=display_name, entries~))
   }
 }

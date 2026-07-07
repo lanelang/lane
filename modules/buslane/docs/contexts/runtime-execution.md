@@ -18,7 +18,7 @@ The rule that a caller chooses which checked value or function to evaluate rathe
 _Avoid_: built-in main, source entrypoint
 
 **Run Entry Convention**:
-The Lane Command convention that `lane run` selects an **Executable Entry Type** directly and `lane link` selects one for a linked artifact executed later by `lane runobj`.
+The Lane Command convention that `lane run` selects an **Executable Entry Type** directly and `lane link` selects one for a linked artifact executed later by `lane exec`.
 _Avoid_: language-level main semantics, project entrypoint, arbitrary value inspection
 
 **Run Effect Convention**:
@@ -78,15 +78,15 @@ _Avoid_: integer trap, arbitrary precision integer
 - The first **Execution Target** currently evaluates verified Buslane programs.
 - The **Reference Interpreter** uses **Interpreter Entry Selection** over a whole checked compiler program.
 - **Run Entry Convention** is a caller policy layered on top of **Interpreter Entry Selection**. `lane run` selects from the checked top-level environment after explicit library loading, while `lane link` selects from linked exported entries before artifact emission.
-- `lane run` and `lane link` accept only an **Executable Entry Type** for execution; `lane runobj` executes the entry already selected in the linked artifact.
-- `lane run` and `lane runobj` do not print the `Unit` result of an executed entry; user-visible output comes from runtime effect handlers.
+- `lane run` and `lane link` accept only an **Executable Entry Type** for execution; `lane exec` executes the entry already selected in the linked artifact.
+- `lane run` and `lane exec` do not print the `Unit` result of an executed entry; user-visible output comes from runtime effect handlers.
 - `lane inspect <artifact>` is the command-line path for reviewing artifact metadata such as public entry names, entry types, exports, externals, and Buslane code.
-- **Run Effect Convention** belongs to `lane run` and `lane runobj`; it is not a Lane language prelude or Basic library injection rule.
+- **Run Effect Convention** belongs to `lane run` and `lane exec`; it is not a Lane language prelude or Basic library injection rule.
 - The v1 **Executable Entry Type** is exactly a zero-argument function returning `Unit`; validation uses only the fully expanded closed concrete effect set, which may be empty or covered by registered runtime effect conventions such as `Basic.Io.Write`.
 - A **Runtime Effect Handler** only handles operations that are not captured by source lexical handlers.
 - A **Runtime Effect Convention** is validated against source-level exported module, effect, operation, and signature metadata before execution maps it to a Buslane operation identity.
 - The initial built-in **Runtime Effect Convention** handles only `Basic.Io.Write.println(String) -> Unit`.
-- Runtime convention validation belongs at `lane run` and `lane link` entry selection boundaries; `lane runobj` executes an already validated linked artifact.
+- Runtime convention validation belongs at `lane run` and `lane link` entry selection boundaries; `lane exec` executes an already validated linked artifact.
 - Runtime failures inside the initial `Basic.Io.Write.println` handler are execution failures rather than Lane language-level effects or exceptions.
 - The **Reference Interpreter** separates the **Global Environment**, **Call Frame**, and **Closure Environment**.
 - The **Reference Interpreter** evaluates to **Interpreter Values**.

@@ -19,14 +19,16 @@ async fn main {
       let outcome = match command {
         Check(file~, libs~, lib_dirs~, deny~) =>
           lane_check(file, libs, lib_dirs, deny)
-        Compile(file~, interfaces~, emit_interface~, emit_object~, verbose~) =>
-          lane_compile(file, interfaces, emit_interface, emit_object, verbose)
-        Fmt(files~, check~, deny~) => lane_fmt(files, check, deny)
+        Compile(file~, interfaces~, interface_output~, object_output~, verbose~) =>
+          lane_compile(
+            file, interfaces, interface_output, object_output, verbose,
+          )
+        Fmt(files~, check~) => lane_fmt(files, check)
         Inspect(artifact~) => lane_inspect(artifact)
         Link(objects~, entry~, output~, verbose~) =>
           lane_link(objects, entry, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)
-        RunObj(program~) => lane_runobj(program)
+        Exec(program~) => lane_exec(program)
         Run(file~, entry~, libs~, lib_dirs~) =>
           lane_run(file, entry, libs, lib_dirs)
       }

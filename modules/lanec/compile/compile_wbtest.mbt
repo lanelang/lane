@@ -1295,7 +1295,7 @@ test "module artifacts roundtrip through binary and link" {
     Ok(program) => program
     Err(_) => abort("unexpected diagnostics")
   }
-  inspect(linked_program.entry.name, content="answer")
+  inspect(entry_display_name(linked_program.entry), content="Main.answer")
   let linked_inspect = match artifact_binary_to_inspect_text(linked_binary) {
     Ok(text) => text
     Err(message) => abort(message)
@@ -1304,15 +1304,15 @@ test "module artifacts roundtrip through binary and link" {
     artifact_inspect_without_fingerprints(linked_inspect),
     content=(
       #|Lane program artifact
-      #|schema: 2
-      #|entry: answer
+      #|schema: 3
+      #|entry: Main.answer
       #|
       #|modules:
       #|  Lib
       #|  Main
       #|
       #|entry:
-      #|  answer : Int
+      #|  Main.answer : Int
       #|
       #|externals:
       #|  (none)
@@ -1350,6 +1350,7 @@ test "module artifacts roundtrip through binary and link" {
     program: linked_decoded.program,
     externals: linked_decoded.externals,
     entry: {
+      module_path_text: linked_decoded.entry.module_path_text,
       name: "missing",
       value: { index: 999 },
       type_: linked_decoded.entry.type_,
@@ -1364,7 +1365,7 @@ test "module artifacts roundtrip through binary and link" {
     unknown_entry_diagnostics
     .map(fn(diagnostic) { diagnostic.message })
     .join(","),
-    content="linked entry `missing` points to an unknown value",
+    content="linked entry `Main.missing` points to an unknown value",
   )
   let invalid_program_artifact : LinkedProgramArtifact = {
     schema_version: linked_decoded.schema_version,
@@ -1916,7 +1917,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 4
+      #|schema: 5
       #|
       #|imported interfaces:
       #|  (none)
@@ -1937,7 +1938,7 @@ test "module artifact binary inspect renders human readable summaries" {
       #|exports:
       #|  value answer
       #|public entries:
-      #|  answer : Int
+      #|  Main.answer : Int
       #|externals:
       #|  (none)
       #|buslane:
@@ -2202,8 +2203,8 @@ test "compile module with interface artifact then link object artifacts" {
     abort("expected linked program")
   }
   inspect(
-    program.entries.map(fn(entry) { entry.name }).join(","),
-    content="Lib::box,Main::answer",
+    program.entries.map(entry_display_name).join(","),
+    content="Lib.box,Main.answer",
   )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),

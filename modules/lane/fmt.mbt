@@ -1,9 +1,5 @@
 ///|
-async fn lane_fmt(
-  files : Array[String],
-  check : Bool,
-  deny : Bool,
-) -> LaneCommandOutcome {
+async fn lane_fmt(files : Array[String], check : Bool) -> LaneCommandOutcome {
   let errors : Array[CliError] = []
   let diagnostics : Array[@compiler_diag.CompilerDiagnostic] = []
   let sources = CompilerDiagnosticSources()
@@ -18,7 +14,7 @@ async fn lane_fmt(
     match @format.format_source(source) {
       Ok(formatted) =>
         if formatted != source {
-          if check || deny {
+          if check {
             errors.push(NotFormatted(path=file))
           } else {
             write_source_file(file, formatted) catch {

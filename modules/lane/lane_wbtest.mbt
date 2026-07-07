@@ -1,4 +1,9 @@
 ///|
+fn main_entry_name() -> PublicEntryName {
+  { module_path_text: "Main", value_name: "main" }
+}
+
+///|
 test "parse run target from file and entry suffix" {
   guard parse_run_target("examples/main.lane:answer") is Ok(target) else {
     abort("expected run target")
@@ -31,22 +36,22 @@ test "reject run target without entry suffix" {
 }
 
 ///|
-test "reject old runobj target with entry suffix" {
-  let error = InvalidRunObjTarget(target="program.lbp:Main.main")
+test "reject exec target with entry suffix" {
+  let error = InvalidExecTarget(target="program.lbp:Main.main")
   debug_inspect(
     error,
-    content="InvalidRunObjTarget(target=\"program.lbp:Main.main\")",
+    content="InvalidExecTarget(target=\"program.lbp:Main.main\")",
   )
   inspect(
     error.render_human(),
     content=(
-      #|error[E6008]: invalid runobj target `program.lbp:Main.main`
+      #|error[E6008]: invalid exec target `program.lbp:Main.main`
       #|  expected: FILE.lbp
       #|
-      #|`lane runobj` executes the entry selected when the linked program artifact was produced.
+      #|`lane exec` executes the entry selected when the linked program artifact was produced.
       #|
       #|Example:
-      #|  lane runobj program.lbp
+      #|  lane exec program.lbp
     ),
   )
 }
@@ -69,7 +74,7 @@ test "basic command parser diagnostics render as command reports" {
       #|---
       #|error[E6001]: unknown lane command
       #|The requested subcommand is not supported by this `lane` binary.
-      #|Available commands include check, run, compile, inspect, link, runobj, fmt, and lsp.
+      #|Available commands include check, run, compile, inspect, link, exec, fmt, and lsp.
       #|
       #|Example:
       #|  lane check Main.lane
@@ -132,7 +137,7 @@ test "command file diagnostics use command verbs" {
       CliError::file_io(Check, "missing.lane", error).render_human(),
       CliError::file_io(Compile, "missing.lane", error).render_human(),
       CliError::file_io(Run, "missing.lane", error).render_human(),
-      CliError::file_io(RunObject, "missing.lbp", error).render_human(),
+      CliError::file_io(Exec, "missing.lbp", error).render_human(),
       CliError::file_io(Format, "missing.lane", error).render_human(),
       CliError::file_io(Link, "missing.lmo", error).render_human(),
     ].join("\n"),
@@ -140,7 +145,7 @@ test "command file diagnostics use command verbs" {
       #|error: couldn't check `missing.lane`: No such file or directory
       #|error: couldn't compile `missing.lane`: No such file or directory
       #|error: couldn't run `missing.lane`: No such file or directory
-      #|error: couldn't run object `missing.lbp`: No such file or directory
+      #|error: couldn't execute `missing.lbp`: No such file or directory
       #|error: couldn't format `missing.lane`: No such file or directory
       #|error: couldn't link `missing.lmo`: No such file or directory
     ),
@@ -221,25 +226,8 @@ test "format diagnostics render through source-aware reports" {
 }
 
 ///|
-test "default compile artifact path replaces input suffix" {
-  inspect(
-    default_compile_artifact_path("Main.lane", ".lmi"),
-    content="Main.lmi",
-  )
-  inspect(
-    default_compile_artifact_path("src/Main.lane", ".lmo"),
-    content="src/Main.lmo",
-  )
-  inspect(
-    default_compile_artifact_path("src/Main.test.lane", ".lmi"),
-    content="src/Main.test.lmi",
-  )
-  inspect(default_compile_artifact_path("Main", ".lmo"), content="Main.lmo")
-}
-
-///|
-async test "compile writes default module artifacts beside source" {
-  let workspace = ".tmp-lane-default-compile-artifacts"
+async test "compile writes explicit module artifact outputs" {
+  let workspace = ".tmp-lane-explicit-compile-artifacts"
   let source_path = "\{workspace}/Main.lane"
   let interface_path = "\{workspace}/Main.lmi"
   let object_path = "\{workspace}/Main.lmo"
@@ -252,7 +240,13 @@ async test "compile writes default module artifacts beside source" {
       #|pub let answer : Int = 42
     ),
   )
-  let outcome = lane_compile(source_path, [], None, None, false)
+  let outcome = lane_compile(
+    source_path,
+    [],
+    interface_path,
+    object_path,
+    false,
+  )
   guard outcome is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")
@@ -339,12 +333,13 @@ async test "native module artifacts are binary and readable" {
 }
 
 ///|
-async test "runobj executes explicit Basic Io linked input" {
-  let workspace = ".tmp-lane-runobj-basic-io"
+async test "exec executes explicit Basic Io linked input" {
+  let workspace = ".tmp-lane-exec-basic-io"
   let basic_source = "\{workspace}/io.lane"
   let basic_interface = "\{workspace}/io.lmi"
   let basic_object = "\{workspace}/io.lmo"
   let main_source = "\{workspace}/Main.lane"
+  let main_interface = "\{workspace}/Main.lmi"
   let main_object = "\{workspace}/Main.lmo"
   let program_path = "\{workspace}/program.lbp"
   cleanup_library_fixture(workspace)
@@ -370,13 +365,7 @@ async test "runobj executes explicit Basic Io linked input" {
       #|}
     ),
   )
-  guard lane_compile(
-      basic_source,
-      [],
-      Some(basic_interface),
-      Some(basic_object),
-      false,
-    )
+  guard lane_compile(basic_source, [], basic_interface, basic_object, false)
     is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected basic compile to succeed")
@@ -384,8 +373,8 @@ async test "runobj executes explicit Basic Io linked input" {
   guard lane_compile(
       main_source,
       [basic_interface],
-      None,
-      Some(main_object),
+      main_interface,
+      main_object,
       false,
     )
     is Succeeded else {
@@ -394,7 +383,7 @@ async test "runobj executes explicit Basic Io linked input" {
   }
   guard lane_link(
       [main_object, basic_object],
-      "Main::main",
+      main_entry_name(),
       program_path,
       false,
     )
@@ -419,7 +408,7 @@ async test "runobj executes explicit Basic Io linked input" {
     )
     is Succeeded else {
     cleanup_library_fixture(workspace)
-    abort("expected runobj to succeed")
+    abort("expected exec to succeed")
   }
   cleanup_library_fixture(workspace)
   inspect(output.join("\n"), content="hello")
@@ -445,11 +434,12 @@ async test "link rejects private selected entry" {
       #|}
     ),
   )
-  guard lane_compile(source, [], None, Some(object), false) is Succeeded else {
+  guard lane_compile(source, [], "\{workspace}/Main.lmi", object, false)
+    is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")
   }
-  let outcome = lane_link([object], "Main::main", program, false)
+  let outcome = lane_link([object], main_entry_name(), program, false)
   cleanup_library_fixture(workspace)
   guard outcome is UserErrors(errors) else {
     abort("expected link to reject private entry")
@@ -480,11 +470,12 @@ async test "link rejects non-function selected entry" {
       #|pub let main : Int = 1
     ),
   )
-  guard lane_compile(source, [], None, Some(object), false) is Succeeded else {
+  guard lane_compile(source, [], "\{workspace}/Main.lmi", object, false)
+    is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")
   }
-  let outcome = lane_link([object], "Main::main", program, false)
+  let outcome = lane_link([object], main_entry_name(), program, false)
   cleanup_library_fixture(workspace)
   guard outcome is UserErrors(errors) else {
     abort("expected link to reject value entry")
@@ -524,11 +515,12 @@ async test "link rejects unsupported selected entry effects" {
       #|}
     ),
   )
-  guard lane_compile(source, [], None, Some(object), false) is Succeeded else {
+  guard lane_compile(source, [], "\{workspace}/Main.lmi", object, false)
+    is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")
   }
-  let outcome = lane_link([object], "Main::main", program, false)
+  let outcome = lane_link([object], main_entry_name(), program, false)
   cleanup_library_fixture(workspace)
   guard outcome is UserErrors(errors) else {
     abort("expected link to reject unsupported effect entry")
@@ -589,7 +581,7 @@ test "run rejects public value entries" {
     content=(
       #|Err(
       #|  EntryNotExecutable(
-      #|    name="answer",
+      #|    name="Test.answer",
       #|    type_=Primitive(Int),
       #|    reason=EntryIsNotFunction,
       #|  ),
@@ -614,7 +606,7 @@ test "run rejects functions with parameters" {
     content=(
       #|Err(
       #|  EntryNotExecutable(
-      #|    name="id",
+      #|    name="Test.id",
       #|    type_=Function([Primitive(Int)], Primitive(Int), Empty),
       #|    reason=EntryHasParameters(count=1),
       #|  ),
@@ -704,7 +696,7 @@ test "run rejects Basic Io effect without explicit runtime metadata" {
     content=(
       #|Err(
       #|  EntryNotExecutable(
-      #|    name="main",
+      #|    name="Test.main",
       #|    type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
       #|    reason=EntryHasUnsupportedEffects(effect=Singleton({ index: 0 }, [])),
       #|  ),
@@ -721,7 +713,7 @@ test "run rejects Basic Io effect without explicit runtime metadata" {
   inspect(
     error.render_human(),
     content=(
-      #|error[E6009]: entry `main` is not executable
+      #|error[E6009]: entry `Test.main` is not executable
       #|  requested type: () -> Unit ! effect#0
       #|  expected: () -> Unit, or supported runtime effects such as Basic.Io.Write
       #|
@@ -749,7 +741,14 @@ test "missing entry error lists available public entries" {
     content=(
       #|EntryNotFound(
       #|  name="main",
-      #|  entries=[{ name: "answer", value: { index: 0 }, type_: Primitive(Int) }],
+      #|  entries=[
+      #|    {
+      #|      module_path_text: "Test",
+      #|      name: "answer",
+      #|      value: { index: 0 },
+      #|      type_: Primitive(Int),
+      #|    },
+      #|  ],
       #|)
     ),
   )
@@ -757,7 +756,7 @@ test "missing entry error lists available public entries" {
     error.render_human(),
     content=(
       #|error[E6005]: entry `main` was not found
-      #|  available public entries: answer
+      #|  available public entries: Test.answer
       #|
       #|Use one of the listed public entries, or export the value with `pub` before compiling.
     ),
@@ -780,7 +779,7 @@ test "ambiguous entry error lists available public entries" {
     error.render_human(),
     content=(
       #|error[E6006]: entry name `answer` is ambiguous
-      #|  available public entries: answer, answer
+      #|  available public entries: Test.answer, Test.answer
       #|
       #|Qualify the requested entry with its module path when possible.
     ),

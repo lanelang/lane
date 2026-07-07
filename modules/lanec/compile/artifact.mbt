@@ -9,10 +9,10 @@ pub(all) struct ModuleInterfaceArtifact {
 } derive(Debug, Eq)
 
 ///|
-let module_object_artifact_schema_version = 4
+let module_object_artifact_schema_version = 5
 
 ///|
-let linked_program_artifact_schema_version = 2
+let linked_program_artifact_schema_version = 3
 
 ///|
 pub(all) struct ModuleObjectArtifact {
@@ -339,9 +339,17 @@ fn LinkedProgramArtifact::validate_entry(
 ) -> Unit {
   if self.program.metadata.value_info(self.entry.value) is None {
     diagnostics.push(
-      artifact_diagnostic(LinkedEntryUnknownValue(self.entry.name), None),
+      artifact_diagnostic(
+        LinkedEntryUnknownValue(entry_display_name(self.entry)),
+        None,
+      ),
     )
   }
+}
+
+///|
+fn entry_display_name(entry : @elaborate.BuslaneEntry) -> String {
+  "\{entry.module_path_text}.\{entry.name}"
 }
 
 ///|

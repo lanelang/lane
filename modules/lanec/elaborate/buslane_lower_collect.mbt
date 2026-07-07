@@ -15,11 +15,12 @@ fn BuslaneLowerer::collect_type_headers(
 ///|
 fn BuslaneLowerer::add_entry(
   self : BuslaneLowerer,
+  module_path_text : String,
   name : String,
   value : @buslane.ValueId,
   type_ : @buslane.Type,
 ) -> Unit {
-  self.entries.push({ name, value, type_ })
+  self.entries.push({ module_path_text, name, value, type_ })
 }
 
 ///|
@@ -308,6 +309,7 @@ fn BuslaneLowerer::collect_top_values(
   source : @checked.CheckedSourceFile,
   include_entries~ : Bool,
 ) -> Unit {
+  let module_path_text = checked_module_path_text(source)
   for declaration in source.declarations {
     match declaration {
       Function(declaration) => {
@@ -322,7 +324,7 @@ fn BuslaneLowerer::collect_top_values(
           type_,
         )
         if include_entries && declaration.is_public {
-          self.add_entry(declaration.name, value, type_)
+          self.add_entry(module_path_text, declaration.name, value, type_)
         }
       }
       Let(declaration) => {
@@ -339,7 +341,7 @@ fn BuslaneLowerer::collect_top_values(
         )
         if include_entries && declaration.is_public {
           if declaration.name is Some(name) {
-            self.add_entry(name, value, type_)
+            self.add_entry(module_path_text, name, value, type_)
           }
         }
       }

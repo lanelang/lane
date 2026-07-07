@@ -40,7 +40,7 @@ knowledge for separate compilation and cross-module optimization, while code
 artifacts are execution products. Lane should not adopt the JVM class-file model
 as its primary design, because JVM bytecode is the canonical distribution unit
 with symbolic references resolved and optimized mostly by the runtime. Lane's
-explicit fingerprints, link step, `runobj`, and inspectable core artifacts fit a
+explicit fingerprints, link step, `exec`, and inspectable core artifacts fit a
 static compiler pipeline better.
 
 Consequences:

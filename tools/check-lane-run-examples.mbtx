@@ -230,7 +230,7 @@ fn decode_string(json : Json, path : String) -> String {
 async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult {
   let file = case.file()
   ignore(read_text(file))
-  let fmt_args = ["fmt", "--deny", file]
+  let fmt_args = ["fmt", "--check", file]
   let (fmt_code, fmt_output) = run_lane_process(fmt_args)
   let fmt_output = fmt_output.text().trim_end(chars="\n\r").to_owned()
   if fmt_code != 0 {
@@ -371,40 +371,30 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
       #|}
     ),
   )
-  let a_artifacts = workspace + "/a-artifacts"
-  let extra_artifacts = workspace + "/extra-artifacts"
-  let b_artifacts = workspace + "/b-artifacts"
-  let c_artifacts = workspace + "/c-artifacts"
-  ensure_dir(a_artifacts)
-  ensure_dir(extra_artifacts)
-  ensure_dir(b_artifacts)
-  ensure_dir(c_artifacts)
-  let a_interface = a_artifacts + "/A.lmi"
-  let a_object = a_artifacts + "/A.lmo"
-  let extra_interface = extra_artifacts + "/Extra.lmi"
-  let extra_object = extra_artifacts + "/Extra.lmo"
-  let b_interface = b_artifacts + "/B.lmi"
-  let b_object = b_artifacts + "/B.lmo"
-  let c_interface = c_artifacts + "/C.lmi"
-  let c_object = c_artifacts + "/C.lmo"
-  let linked_program = c_artifacts + "/program.lbp"
+  let a_interface = workspace + "/a.lmi"
+  let a_object = workspace + "/a.lmo"
+  let extra_interface = workspace + "/extra.lmi"
+  let extra_object = workspace + "/extra.lmo"
+  let b_interface = workspace + "/b.lmi"
+  let b_object = workspace + "/b.lmo"
+  let c_interface = workspace + "/c.lmi"
+  let c_object = workspace + "/c.lmo"
+  let linked_program = workspace + "/program.lbp"
   let a_compile = run_moon_lane([
-    "compile", a_path, "--emit-interface", a_interface, "--emit-object",
-    a_object,
+    "compile", a_path, "-I", a_interface, "-o", a_object,
   ])
   if a_compile.code != 0 {
     return a_compile
   }
   let extra_compile = run_moon_lane([
-    "compile", extra_path, "--emit-interface", extra_interface, "--emit-object",
-    extra_object,
+    "compile", extra_path, "-I", extra_interface, "-o", extra_object,
   ])
   if extra_compile.code != 0 {
     return extra_compile
   }
   let b_compile = run_moon_lane([
     "compile", b_path, "--interface", extra_interface, "--interface",
-    a_interface, "--emit-interface", b_interface, "--emit-object", b_object,
+    a_interface, "-I", b_interface, "-o", b_object,
   ])
   if b_compile.code != 0 {
     return b_compile
@@ -417,7 +407,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   }
   let c_compile = run_moon_lane([
     "compile", c_path, "--interface", b_interface, "--interface",
-    a_interface, "--emit-interface", c_interface, "--emit-object", c_object,
+    a_interface, "-I", c_interface, "-o", c_object,
   ])
   if c_compile.code != 0 {
     return c_compile
@@ -429,13 +419,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   if link.code != 0 {
     return link
   }
-  run_moon_lane(["runobj", linked_program])
-}
-
-fn ensure_dir(path : String) -> Unit raise {
-  if !@fs.path_exists(path) {
-    @fs.create_dir(path)
-  }
+  run_moon_lane(["exec", linked_program])
 }
 
 async fn run_moon_lane(lane_args : Array[String]) -> LaneRunResult {

@@ -12,20 +12,20 @@ enum LaneCommand {
   Compile(
     file~ : String,
     interfaces~ : Array[String],
-    emit_interface~ : String?,
-    emit_object~ : String?,
+    interface_output~ : String,
+    object_output~ : String,
     verbose~ : Bool
   )
-  Fmt(files~ : Array[String], check~ : Bool, deny~ : Bool)
+  Fmt(files~ : Array[String], check~ : Bool)
   Inspect(artifact~ : String)
   Link(
     objects~ : Array[String],
-    entry~ : String,
+    entry~ : PublicEntryName,
     output~ : String,
     verbose~ : Bool
   )
   Lsp(stdio~ : Bool)
-  RunObj(program~ : String)
+  Exec(program~ : String)
   Run(
     file~ : String,
     entry~ : String,
@@ -52,27 +52,27 @@ fn lane_command_spec() -> Command {
             about="Treat warnings as check failures.",
           ),
         ],
-        positionals=[PositionArg("file")],
+        positionals=[required_positional_arg("file")],
       ),
       Command(
         "run",
         about="Run a selected top-level entry from a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
-        positionals=[PositionArg("target")],
+        positionals=[required_positional_arg("target")],
       ),
       Command(
         "compile",
         about="Compile one Lane source file into module interface/object artifacts.",
         options=[
           interface_option(),
-          emit_interface_option(),
-          emit_object_option(),
+          interface_output_option(),
+          object_output_option(),
         ],
         flags=[verbose_flag()],
-        positionals=[PositionArg("file")],
+        positionals=[required_positional_arg("file")],
       ),
       Command("inspect", about="Dump a compiled Lane module artifact.", positionals=[
-        PositionArg("artifact"),
+        required_positional_arg("artifact"),
       ]),
       Command(
         "link",
@@ -81,8 +81,8 @@ fn lane_command_spec() -> Command {
         flags=[verbose_flag()],
         positionals=[PositionArg("objects", num_args=ValueRange(lower=1))],
       ),
-      Command("runobj", about="Run a linked Lane program artifact.", positionals=[
-        PositionArg("program"),
+      Command("exec", about="Execute a linked Lane program artifact.", positionals=[
+        required_positional_arg("program"),
       ]),
       Command(
         "fmt",
@@ -92,11 +92,6 @@ fn lane_command_spec() -> Command {
             "check",
             long="check",
             about="Report files that are not formatted without writing them.",
-          ),
-          FlagArg(
-            "deny",
-            long="deny",
-            about="Treat formatting changes as failures without writing them.",
           ),
         ],
         positionals=[PositionArg("files", num_args=ValueRange(lower=1))],
@@ -150,18 +145,24 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
         Err(message) => Err(message)
       }
     Some(("compile", child)) =>
-      match required_value(child, "file") {
-        Ok(file) =>
+      match
+        (
+          required_value(child, "file"),
+          required_value(child, "interface-output"),
+          required_value(child, "object-output"),
+        ) {
+        (Ok(file), Ok(interface_output), Ok(object_output)) =>
           Ok(
             Compile(
               file~,
               interfaces=values(child, "interface"),
-              emit_interface=optional_value(child, "emit-interface"),
-              emit_object=optional_value(child, "emit-object"),
+              interface_output~,
+              object_output~,
               verbose=flag(child, "verbose"),
             ),
           )
-        Err(message) => Err(message)
+        (Err(message), _, _) | (_, Err(message), _) | (_, _, Err(message)) =>
+          Err(message)
       }
     Some(("inspect", child)) =>
       match required_value(child, "artifact") {
@@ -171,7 +172,7 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
     Some(("link", child)) =>
       match (required_value(child, "entry"), required_value(child, "output")) {
         (Ok(entry_text), Ok(output)) =>
-          match public_entry_name_to_internal(entry_text) {
+          match parse_public_entry_name(entry_text) {
             Ok(entry) =>
               Ok(
                 Link(
@@ -185,24 +186,18 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
           }
         (Err(message), _) | (_, Err(message)) => Err(message)
       }
-    Some(("runobj", child)) =>
+    Some(("exec", child)) =>
       match required_value(child, "program") {
         Ok(program) =>
           if program.contains(":") {
-            Err(InvalidRunObjTarget(target=program))
+            Err(InvalidExecTarget(target=program))
           } else {
-            Ok(RunObj(program~))
+            Ok(Exec(program~))
           }
         Err(message) => Err(message)
       }
     Some(("fmt", child)) =>
-      Ok(
-        Fmt(
-          files=values(child, "files"),
-          check=flag(child, "check"),
-          deny=flag(child, "deny"),
-        ),
-      )
+      Ok(Fmt(files=values(child, "files"), check=flag(child, "check")))
     Some(("lsp", child)) => Ok(Lsp(stdio=flag(child, "stdio")))
     _ => Err(UnknownCommand)
   }
@@ -215,6 +210,12 @@ priv struct RunTarget {
 }
 
 ///|
+priv struct PublicEntryName {
+  module_path_text : String
+  value_name : String
+}
+
+///|
 fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
   let parts = target.split(":").collect()
   if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
@@ -224,7 +225,7 @@ fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
 }
 
 ///|
-fn public_entry_name_to_internal(name : String) -> Result[String, Unit] {
+fn parse_public_entry_name(name : String) -> Result[PublicEntryName, Unit] {
   let parts = name.split(".").map(StringView::to_owned).collect()
   if parts.length() < 2 {
     return Err(())
@@ -234,9 +235,14 @@ fn public_entry_name_to_internal(name : String) -> Result[String, Unit] {
       return Err(())
     }
   }
-  let value = parts[parts.length() - 1]
+  let value_name = parts[parts.length() - 1]
   let module_path = parts[:parts.length() - 1].join(".")
-  Ok("\{module_path}::\{value}")
+  Ok({ module_path_text: module_path, value_name })
+}
+
+///|
+fn required_positional_arg(name : String) -> @argparse.PositionArg {
+  PositionArg(name, num_args=ValueRange(lower=1, upper=1))
 }
 
 ///|
@@ -271,22 +277,22 @@ fn interface_option() -> @argparse.OptionArg {
 }
 
 ///|
-fn emit_interface_option() -> @argparse.OptionArg {
+fn interface_output_option() -> @argparse.OptionArg {
   OptionArg(
-    "emit-interface",
-    short='t',
-    long="emit-interface",
-    about="Write module interface binary artifact.",
+    "interface-output",
+    short='I',
+    long="interface-output",
+    about="Write module interface artifact to this path.",
   )
 }
 
 ///|
-fn emit_object_option() -> @argparse.OptionArg {
+fn object_output_option() -> @argparse.OptionArg {
   OptionArg(
-    "emit-object",
+    "object-output",
     short='o',
-    long="emit-object",
-    about="Write module object binary artifact.",
+    long="object-output",
+    about="Write module object artifact to this path.",
   )
 }
 
@@ -325,12 +331,6 @@ fn required_value(
 fn values(matches : @argparse.Matches, name : String) -> Array[String] {
   guard matches.values.get(name) is Some(values) else { return [] }
   values
-}
-
-///|
-fn optional_value(matches : @argparse.Matches, name : String) -> String? {
-  guard matches.values.get(name) is Some(values) else { return None }
-  values.get(0)
 }
 
 ///|

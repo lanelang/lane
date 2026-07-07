@@ -153,9 +153,9 @@ fn artifact_kind_error(expected : String, actual : String) -> String {
 ///|
 fn artifact_kind_help(expected : String) -> String {
   if expected == "interface" {
-    "pass an `.lmi` file produced by `lane compile --emit-interface`"
+    "pass an `.lmi` file produced by `lane compile`"
   } else if expected == "object" {
-    "pass an `.lmo` file produced by `lane compile --emit-object`"
+    "pass an `.lmo` file produced by `lane compile`"
   } else {
     "pass an `.lbp` file produced by `lane link`"
   }
@@ -1839,6 +1839,7 @@ fn ArtifactTextWriter::write_entry(
   self : ArtifactTextWriter,
   entry : @elaborate.BuslaneEntry,
 ) -> Unit {
+  self.write_string("entry.module_path_text", entry.module_path_text)
   self.write_string("entry.name", entry.name)
   self.write_buslane_value_id("entry.value", entry.value)
   self.write_buslane_type("entry.type", entry.type_)
@@ -1848,10 +1849,11 @@ fn ArtifactTextWriter::write_entry(
 fn ArtifactTextReader::read_entry(
   self : ArtifactTextReader,
 ) -> @elaborate.BuslaneEntry raise ArtifactTextError {
+  let module_path_text = self.expect_string("entry.module_path_text")
   let name = self.expect_string("entry.name")
   let value = self.read_buslane_value_id("entry.value")
   let type_ = self.read_buslane_type("entry.type")
-  { name, value, type_ }
+  { module_path_text, name, value, type_ }
 }
 
 ///|

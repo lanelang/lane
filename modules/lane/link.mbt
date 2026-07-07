@@ -1,7 +1,7 @@
 ///|
 async fn lane_link(
   objects : Array[String],
-  entry_name : String,
+  entry_name : PublicEntryName,
   output : String,
   verbose : Bool,
 ) -> LaneCommandOutcome {
@@ -20,7 +20,7 @@ async fn lane_link(
   guard linked.program is Some(program) else {
     internal_error("linker produced no program")
   }
-  let entry = match find_entry(program.entries, entry_name) {
+  let entry = match find_public_entry(program.entries, entry_name) {
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
@@ -43,12 +43,17 @@ async fn lane_link(
     let linked_modules = program.module_path_texts.join(",")
     println("linked program \{output}")
     println("linked modules \{linked_modules}")
-    println("linked entry \{display_entry_name(entry.name)}")
+    println("linked entry \{display_public_entry_name(entry_name)}")
   }
   Succeeded
 }
 
 ///|
-fn display_entry_name(name : String) -> String {
-  name.split("::").map(StringView::to_owned).collect().join(".")
+fn display_entry(entry : @elaborate.BuslaneEntry) -> String {
+  "\{entry.module_path_text}.\{entry.name}"
+}
+
+///|
+fn display_public_entry_name(entry : PublicEntryName) -> String {
+  "\{entry.module_path_text}.\{entry.value_name}"
 }

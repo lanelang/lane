@@ -17,6 +17,7 @@ fn BuslaneLinker::remap_module_object(
     },
     entries: object.entries.map(fn(entry) {
       {
+        module_path_text: entry.module_path_text,
         name: entry.name,
         value: self.remap_value_id(object, entry.value),
         type_: self.remap_type(object, entry.type_),

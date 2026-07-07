@@ -47,10 +47,7 @@ fn link_ordered_modules(
         if object.module_path_text == root {
           entries.append(object.entries)
         }
-      QualifiedEntries =>
-        entries.append(
-          qualified_entries(object.module_path_text, object.entries),
-        )
+      QualifiedEntries => entries.append(object.entries)
     }
   }
   {
@@ -93,20 +90,6 @@ fn runtime_effect_operations_from_module(
     }
   }
   operations
-}
-
-///|
-fn qualified_entries(
-  module_path_text : String,
-  entries : Array[@elaborate.BuslaneEntry],
-) -> Array[@elaborate.BuslaneEntry] {
-  entries.map(fn(entry) {
-    {
-      name: "\{module_path_text}::\{entry.name}",
-      value: entry.value,
-      type_: entry.type_,
-    }
-  })
 }
 
 ///|

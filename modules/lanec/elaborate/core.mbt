@@ -30,6 +30,7 @@ pub(all) struct BuslaneExternalMap {
 
 ///|
 pub(all) struct BuslaneEntry {
+  module_path_text : String
   name : String
   value : @buslane.ValueId
   type_ : @buslane.Type
