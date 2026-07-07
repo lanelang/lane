@@ -105,6 +105,265 @@ test "format source preserves leading line comment block" {
 }
 
 ///|
+test "format source preserves comments around declarations and blocks" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|// before declaration
+      #|pub let answer : Int = 42 // trailing declaration
+      #|
+      #|pub fn main() -> Unit {
+      #|  // inside block
+      #|  ()
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|// before declaration
+      #|pub let answer : Int = 42 // trailing declaration
+      #|
+      #|pub fn main() -> Unit {
+      #|  // inside block
+      #|  ()
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source does not treat comment markers inside strings as comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub let url : String = "http://example"
+    ),
+    (
+      #|module Test
+      #|
+      #|pub let url : String = "http://example"
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves comments in top-level and type bodies" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|// before import
+      #|import Basic.Ops.* // trailing import
+      #|
+      #|// before effect
+      #|effect Console {
+      #|  // before operation
+      #|  read() -> Int // trailing operation
+      #|}
+      #|
+      #|/* before struct */
+      #|struct Pair {
+      #|  // before field
+      #|  left : Int
+      #|  right : Int // trailing field
+      #|}
+      #|
+      #|// before enum
+      #|enum Option {
+      #|  // before variant
+      #|  none()
+      #|  some(Int) // trailing variant
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|// before import
+      #|import Basic.Ops.* // trailing import
+      #|
+      #|// before effect
+      #|effect Console {
+      #|  // before operation
+      #|  read() -> Int // trailing operation
+      #|}
+      #|
+      #|/* before struct */
+      #|struct Pair {
+      #|  // before field
+      #|  left : Int
+      #|  right : Int // trailing field
+      #|}
+      #|
+      #|// before enum
+      #|enum Option {
+      #|  // before variant
+      #|  none()
+      #|  some(Int) // trailing variant
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves comments in control flow" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|pub fn choose(input : Int) -> Int {
+      #|  // before let
+      #|  let base : Int = input + 1 // trailing let
+      #|  // before if
+      #|  if base == 0 {
+      #|    // then branch
+      #|    1
+      #|  } else {
+      #|    // else branch
+      #|    base
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn choose(input : Int) -> Int {
+      #|  // before let
+      #|  let base : Int = input + 1 // trailing let
+      #|  // before if
+      #|  if base == 0 {
+      #|    // then branch
+      #|    1
+      #|  } else {
+      #|    // else branch
+      #|    base
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves comments in match and handler arms" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|
+      #|enum Option {
+      #|  none()
+      #|  some(Int)
+      #|}
+      #|
+      #|pub fn read_or_default(value : Option) -> Int {
+      #|  match value {
+      #|    // none arm
+      #|    none() => 0 // trailing none arm
+      #|    // some arm
+      #|    some(x) => x
+      #|  }
+      #|}
+      #|
+      #|pub let handled : Int = {
+      #|  handle {
+      #|    // before perform
+      #|    Console::read!()
+      #|  } with {
+      #|    // before handler arm
+      #|    Console::read(resume) => resume(1) // trailing handler arm
+      #|  } final value {
+      #|    // final branch
+      #|    value
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|
+      #|enum Option {
+      #|  none()
+      #|  some(Int)
+      #|}
+      #|
+      #|pub fn read_or_default(value : Option) -> Int {
+      #|  match value {
+      #|    // none arm
+      #|    none() => 0 // trailing none arm
+      #|    // some arm
+      #|    some(x) => x
+      #|  }
+      #|}
+      #|
+      #|pub let handled : Int = {
+      #|  handle {
+      #|    // before perform
+      #|    Console::read!()
+      #|  } with {
+      #|    // before handler arm
+      #|    Console::read(resume) => resume(1) // trailing handler arm
+      #|  } final value {
+      #|    // final branch
+      #|    value
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves comments around literals and end of file" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|struct Pair {
+      #|  left : Int
+      #|  right : Int
+      #|}
+      #|
+      #|pub let pair : Pair = Pair::{
+      #|  // left value
+      #|  left: 1,
+      #|  // right value
+      #|  right: 2
+      #|}
+      #|
+      #|// eof marker
+    ),
+    (
+      #|module Test
+      #|
+      #|struct Pair {
+      #|  left : Int
+      #|  right : Int
+      #|}
+      #|
+      #|pub let pair : Pair = Pair::{
+      #|  // left value
+      #|  left: 1,
+      #|  // right value
+      #|  right: 2
+      #|}
+      #|
+      #|// eof marker
+      #|
+    ),
+  )
+}
+
+///|
 test "format source keeps struct literal and pattern fields parseable" {
   let source =
     #|module Test

@@ -4,279 +4,43 @@ import Basic.Io.{Io, Write}
 
 import Basic.Ops.*
 
-struct FutureInt {
-  id : Int
+struct Future[A] {
+  value : A
 }
 
 effect Async {
-  ready_int(Int) -> FutureInt
-  spawn_int(() -> Int ! Async) -> FutureInt
-  await_int(FutureInt) -> Int
+  ready[A](A) -> Future[A]
+  spawn[A](() -> A ! Async) -> Future[A]
+  await[A](Future[A]) -> A
 }
 
-enum MaybeInt {
-  no_int()
-  some_int(Int)
-}
-
-enum ResultList {
-  no_results()
-  result(FutureInt, Int, ResultList)
-}
-
-enum Step {
-  done(Int)
-  ready(Int, (FutureInt) -> Step)
-  spawned(() -> Int ! Async, (FutureInt) -> Step)
-  waiting(FutureInt, (Int) -> Step)
-}
-
-enum Runnable {
-  runnable(FutureInt, () -> Step)
-}
-
-enum Queue {
-  empty()
-  node(Runnable, Queue)
-}
-
-enum WaitList {
-  no_waiters()
-  waiter(FutureInt, FutureInt, (Int) -> Step, WaitList)
-}
-
-struct ResumeWaitersResult {
-  queue : Queue
-  waiters : WaitList
-}
-
-struct Scheduler {
-  next_id : Int
-  queue : Queue
-  results : ResultList
-  waiters : WaitList
-}
-
-fn spawn_int(body : () -> Int ! Async) -> FutureInt ! Async {
-  Async::spawn_int!(body)
-}
-
-fn ready_int(value : Int) -> FutureInt ! Async {
-  Async::ready_int!(value)
-}
-
-fn await_int(future : FutureInt) -> Int ! Async {
-  Async::await_int!(future)
-}
-
-fn enqueue(queue : Queue, item : Runnable) -> Queue {
-  match queue {
-    empty() => node(item, empty())
-    node(head, tail) => node(head, enqueue(tail, item))
-  }
-}
-
-fn lookup_result(results : ResultList, future : FutureInt) -> MaybeInt {
-  match results {
-    no_results() => no_int()
-    result(stored_future, value, rest) =>
-      if stored_future.id == future.id {
-        some_int(value)
-      } else {
-        lookup_result(rest, future)
-      }
-  }
-}
-
-fn store_result(results : ResultList, future : FutureInt, value : Int) -> ResultList {
-  result(future, value, results)
-}
-
-fn with_queue(scheduler : Scheduler, queue : Queue) -> Scheduler {
-  Scheduler::{
-    next_id: scheduler.next_id,
-    queue,
-    results: scheduler.results,
-    waiters: scheduler.waiters
-  }
-}
-
-fn resume_waiters(
-  future : FutureInt,
-  value : Int,
-  waiters : WaitList,
-  queue : Queue
-) -> ResumeWaitersResult {
-  match waiters {
-    no_waiters() => ResumeWaitersResult::{ queue, waiters }
-    waiter(waiting_for, task, resume, rest) => {
-      let tail = resume_waiters(future, value, rest, queue)
-      if waiting_for.id == future.id {
-        ResumeWaitersResult::{
-          queue: enqueue(
-            tail.queue,
-            runnable(
-              task,
-              fn () {
-                resume(value)
-              }
-            )
-          ),
-          waiters: tail.waiters
-        }
-      } else {
-        ResumeWaitersResult::{
-          queue: tail.queue,
-          waiters: waiter(waiting_for, task, resume, tail.waiters)
-        }
-      }
+fn[A] run_async(main : () -> A ! Async) -> A {
+  handle main() with {
+    ready[T](value, resume) => resume(Future[T]::{ value })
+    spawn[T](body, resume) => {
+      let value : T = run_async(body)
+      resume(Future[T]::{ value })
     }
-  }
-}
-
-fn run_task(task : () -> Int ! Async) -> Step {
-  handle task() with {
-    Async::ready_int(value, resume) => ready(
-      value,
-      fn (future) {
-        resume(future)
-      }
-    )
-    Async::spawn_int(body, resume) => spawned(
-      body,
-      fn (future) {
-        resume(future)
-      }
-    )
-    Async::await_int(future, resume) => waiting(
-      future,
-      fn (value) {
-        resume(value)
-      }
-    )
+    await[T](future, resume) => resume(future.value)
   } final value {
-    done(value)
-  }
-}
-
-fn run_step(task : FutureInt, step : Step, scheduler : Scheduler) -> Scheduler {
-  match step {
-    done(value) => {
-      let resumed = resume_waiters(task, value, scheduler.waiters, scheduler.queue)
-      Scheduler::{
-        next_id: scheduler.next_id,
-        queue: resumed.queue,
-        results: store_result(scheduler.results, task, value),
-        waiters: resumed.waiters
-      }
-    }
-    ready(value, resume) => {
-      let future = FutureInt::{ id: scheduler.next_id }
-      let resumed = resume_waiters(future, value, scheduler.waiters, scheduler.queue)
-      Scheduler::{
-        next_id: scheduler.next_id + 1,
-        queue: enqueue(
-          resumed.queue,
-          runnable(
-            task,
-            fn () {
-              resume(future)
-            }
-          )
-        ),
-        results: store_result(scheduler.results, future, value),
-        waiters: resumed.waiters
-      }
-    }
-    spawned(body, resume) => {
-      let child = FutureInt::{ id: scheduler.next_id }
-      let continued = runnable(
-        task,
-        fn () {
-          resume(child)
-        }
-      )
-      let child_task = runnable(
-        child,
-        fn () {
-          run_task(body)
-        }
-      )
-      Scheduler::{
-        next_id: scheduler.next_id + 1,
-        queue: enqueue(enqueue(scheduler.queue, continued), child_task),
-        results: scheduler.results,
-        waiters: scheduler.waiters
-      }
-    }
-    waiting(future, resume) =>
-      match lookup_result(scheduler.results, future) {
-        some_int(value) => Scheduler::{
-          next_id: scheduler.next_id,
-          queue: enqueue(
-            scheduler.queue,
-            runnable(
-              task,
-              fn () {
-                resume(value)
-              }
-            )
-          ),
-          results: scheduler.results,
-          waiters: scheduler.waiters
-        }
-        no_int() => Scheduler::{
-          next_id: scheduler.next_id,
-          queue: scheduler.queue,
-          results: scheduler.results,
-          waiters: waiter(future, task, resume, scheduler.waiters)
-        }
-      }
-  }
-}
-
-fn run_queue(scheduler : Scheduler) -> Scheduler {
-  match scheduler.queue {
-    empty() => scheduler
-    node(item, rest) =>
-      match item {
-        runnable(task, run) => run_queue(run_step(task, run(), with_queue(scheduler, rest)))
-      }
-  }
-}
-
-fn run_async(main : () -> Int ! Async) -> Int {
-  let root = FutureInt::{ id: 0 }
-  let scheduler = run_queue(
-    Scheduler::{
-      next_id: 1,
-      queue: node(
-        runnable(
-          root,
-          fn () {
-            run_task(main)
-          }
-        ),
-        empty()
-      ),
-      results: no_results(),
-      waiters: no_waiters()
-    }
-  )
-  match lookup_result(scheduler.results, root) {
-    some_int(value) => value
-    no_int() => 0
+    value
   }
 }
 
 fn program() -> Int ! Async {
-  let first = ready_int(20)
-  let second = spawn_int(
-    fn () {
-      await_int(first) + 22
-    }
-  )
-  await_int(second)
+  let first = ready!(20)
+  let flag = ready!(true)
+  let second =
+    spawn![Int](
+      fn () {
+        if await!(flag) {
+          await!(first) + 22
+        } else {
+          0
+        }
+      }
+    )
+  await!(second)
 }
 
 pub let async_result : Int = run_async(program)
