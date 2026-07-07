@@ -213,6 +213,10 @@ _Avoid_: wildcard open import, module shorthand, member rename, private declarat
 Selection through a namespace. Module-qualified value and type access uses `.`, while nominal constructors and variants use `::`.
 _Avoid_: implicit open lookup, shadowing rule
 
+**Unambiguous Owner Elision**:
+The source-language rule that enum variant and effect operation owners may be omitted when the visible variant or operation namespace contains exactly one matching member name, and must be rejected when no member or multiple members fit.
+_Avoid_: expected-type disambiguation, overload resolution, first-match owner, mandatory qualification, delayed ambiguity
+
 **Exported Declaration**:
 A declaration explicitly made visible outside its defining **Module**.
 _Avoid_: default-public declaration, implementation helper

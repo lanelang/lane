@@ -10,6 +10,7 @@ priv struct SemanticChecker {
   ordered_value_types : Array[ValueTypeBinding]
   offers : Array[ContextualOffer]
   ordered_offers : Array[ContextualOffer]
+  expected_effects : Array[@types.Effect]
 }
 
 ///|
@@ -31,6 +32,7 @@ pub fn typecheck_source_file(
     ordered_value_types: [],
     offers: [],
     ordered_offers: [],
+    expected_effects: [],
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -46,6 +48,30 @@ pub fn typecheck_source_file(
     values: { values: checker.values },
     diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
   }
+}
+
+///|
+fn SemanticChecker::current_expected_effect(
+  self : SemanticChecker,
+) -> @types.Effect? {
+  if self.expected_effects.is_empty() {
+    None
+  } else {
+    Some(self.expected_effects[self.expected_effects.length() - 1])
+  }
+}
+
+///|
+fn SemanticChecker::push_expected_effect(
+  self : SemanticChecker,
+  effect : @types.Effect,
+) -> Unit {
+  self.expected_effects.push(effect)
+}
+
+///|
+fn SemanticChecker::pop_expected_effect(self : SemanticChecker) -> Unit {
+  ignore(self.expected_effects.pop())
 }
 
 ///|
@@ -217,16 +243,15 @@ fn SemanticChecker::check_top_level_function(
     declaration.type_parameters,
     parameters,
   )
+  let effect = self.check_effect(declaration.effect)
+  self.push_expected_effect(effect)
   let body = self.check_checked_expr(
     scope,
     declaration.body,
     self.check_type(declaration.return_type),
   )
-  self.expect_effect(
-    self.check_effect(declaration.effect),
-    body.effect,
-    declaration.body.loc(),
-  )
+  self.pop_expected_effect()
+  self.expect_effect(effect, body.effect, declaration.body.loc())
 }
 
 ///|

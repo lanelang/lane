@@ -189,12 +189,18 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         arguments=arguments.map(desugar_expr),
         loc~,
       )
-    UnqualifiedVariant(variant~, reference~, arguments~, loc~) =>
+    UnqualifiedVariant(
+      variant~,
+      variant_generic_arguments~,
+      reference~,
+      arguments~,
+      loc~
+    ) =>
       VariantCall(
         type_name=None,
         generic_arguments=[],
         variant~,
-        variant_generic_arguments=[],
+        variant_generic_arguments~,
         reference~,
         arguments=arguments.map(desugar_expr),
         loc~,

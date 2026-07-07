@@ -31,7 +31,11 @@ fn SemanticChecker::synthesize_checked_handler(
   // contribute to `Residual`, we first run a silent local pass using the seed,
   // compute the final residual, then check arms once with the final resume type.
   let checked_body = self.synthesize_checked_expr(scope, body)
-  let checked_tables = self.check_handler_table_data(scope, handlers)
+  let checked_tables = self.check_handler_table_data(
+    scope,
+    handlers,
+    checked_body.effect,
+  )
   let handled_effects = checked_tables.map(fn(table) {
     table.checked.handled_effect
   })
@@ -348,11 +352,13 @@ fn SemanticChecker::check_handler_table_data(
   self : SemanticChecker,
   scope : TypeScope,
   handlers : Array[@desugar.DesugaredHandlerWithBlock],
+  body_effect : @types.Effect,
 ) -> Array[HandlerTableCheck] {
   let checked = []
   let handled_effects = []
   for handler in handlers {
-    if self.check_handler_table(scope, handler, handled_effects) is Some(table) {
+    if self.check_handler_table(scope, handler, handled_effects, body_effect)
+      is Some(table) {
       handled_effects.push(table.checked.handled_effect)
       checked.push(table)
     }
@@ -366,6 +372,7 @@ fn SemanticChecker::check_handler_table(
   scope : TypeScope,
   handler : @desugar.DesugaredHandlerWithBlock,
   handled_effects : Array[@types.Effect],
+  body_effect : @types.Effect,
 ) -> HandlerTableCheck? {
   // A `with` block handles exactly one singleton effect. All operation arms in
   // the block must belong to that same owner effect, and later coverage uses
@@ -373,7 +380,13 @@ fn SemanticChecker::check_handler_table(
   let operations = []
   let mut handled_effect : @types.Effect? = None
   for arm in handler.arms {
-    guard self.handler_operation_signature(arm.name, arm.type_binders, arm.loc)
+    guard self.handler_operation_signature(
+        scope,
+        arm.name,
+        arm.type_binders,
+        handler_operation_owner_hint(handled_effect, body_effect),
+        arm.loc,
+      )
       is Some(signature) else {
       continue
     }
@@ -417,6 +430,17 @@ fn SemanticChecker::check_handler_table(
     },
     operations,
   })
+}
+
+///|
+fn handler_operation_owner_hint(
+  handled_effect : @types.Effect?,
+  body_effect : @types.Effect,
+) -> @types.Effect? {
+  match handled_effect {
+    Some(effect) => Some(effect)
+    None => Some(body_effect)
+  }
 }
 
 ///|

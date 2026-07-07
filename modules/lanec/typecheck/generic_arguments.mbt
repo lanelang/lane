@@ -59,6 +59,20 @@ priv struct InferredApplicationGenericArguments {
 }
 
 ///|
+priv struct GenericApplicationEvidence {
+  parameter_templates : Array[@types.Type]
+  argument_expressions : Array[@desugar.DesugaredExpr]
+  result_template : @types.Type?
+  expected_result : @types.Type?
+  effect_template : @types.Effect?
+  expected_effect : @types.Effect?
+  collect_result_first : Bool
+  failure_label : String
+  loc : SourceSpan
+  report_failure : Bool
+}
+
+///|
 priv struct ExplicitGenericApplicationResult {
   arguments : Array[@types.GenericArgument]
   type_ : @types.Type
@@ -446,6 +460,31 @@ fn GenericArgumentInference::collect_effect_row_match(
 }
 
 ///|
+fn GenericArgumentInference::collect_effect_term_from_row(
+  self : GenericArgumentInference,
+  template : @types.Effect,
+  actual : @types.Effect,
+) -> Bool {
+  let actual_terms = effect_terms(actual)
+  let used_actuals = []
+  for _ in actual_terms {
+    used_actuals.push(false)
+  }
+  match
+    self.unique_effect_term_candidate(template, actual_terms, used_actuals) {
+    UniqueEffectTermCandidate(index) =>
+      self.collect_effect_term(template, actual_terms[index])
+    NoEffectTermCandidate | AmbiguousEffectTermCandidate =>
+      self.fail(
+        GenericArgumentConstraintMismatch(
+          expected=EffectArgument(template),
+          actual=EffectArgument(actual),
+        ),
+      )
+  }
+}
+
+///|
 fn GenericArgumentInference::unique_effect_term_candidate(
   self : GenericArgumentInference,
   template : @types.Effect,
@@ -779,20 +818,15 @@ fn SemanticChecker::infer_application_generic_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   type_parameters : Array[@types.TypeParameter],
-  parameter_templates : Array[@types.Type],
-  argument_expressions : Array[@desugar.DesugaredExpr],
-  result_template : @types.Type?,
-  expected_result : @types.Type?,
-  collect_result_first : Bool,
-  failure_label : String,
-  loc : SourceSpan,
-  report_failure : Bool,
+  evidence : GenericApplicationEvidence,
 ) -> InferredApplicationGenericArguments? {
   // Local generic application inference:
   //
   //   Gamma |- arg_i => Actual_i
   //   collect(P_i, Actual_i)
   //   collect(R, Expected)      when checking mode supplies Expected
+  //   collect_term(Eff, ExpectedEff)
+  //                            when checking mode supplies ExpectedEff
   //   all forall parameters are bound consistently
   //   ------------------------------------------------
   //   inferred generic arguments and substitution
@@ -806,51 +840,65 @@ fn SemanticChecker::infer_application_generic_arguments(
     type_parameters,
   )
   let mut inference_failed = false
-  if collect_result_first &&
-    result_template is Some(template) &&
-    expected_result is Some(expected) {
+  if evidence.collect_result_first &&
+    evidence.result_template is Some(template) &&
+    evidence.expected_result is Some(expected) {
     if !inference.collect(template, expected) {
       inference_failed = true
-      inference.set_failure_loc_if_missing(loc)
+      inference.set_failure_loc_if_missing(evidence.loc)
     }
   }
-  let count = if parameter_templates.length() < argument_expressions.length() {
-    parameter_templates.length()
+  let count = if evidence.parameter_templates.length() <
+    evidence.argument_expressions.length() {
+    evidence.parameter_templates.length()
   } else {
-    argument_expressions.length()
+    evidence.argument_expressions.length()
   }
   for index in 0..<count {
     if self.synthesize_argument_for_generic_arguments(
         scope,
-        argument_expressions[index],
+        evidence.argument_expressions[index],
       )
       is Some(actual) {
-      if !inference.collect(parameter_templates[index], actual) {
+      if !inference.collect(evidence.parameter_templates[index], actual) {
         inference_failed = true
-        inference.set_failure_loc_if_missing(argument_expressions[index].loc())
+        inference.set_failure_loc_if_missing(
+          evidence.argument_expressions[index].loc(),
+        )
       }
     }
   }
-  if !collect_result_first &&
-    result_template is Some(template) &&
-    expected_result is Some(expected) {
+  if !evidence.collect_result_first &&
+    evidence.result_template is Some(template) &&
+    evidence.expected_result is Some(expected) {
     if !inference.collect(template, expected) {
       inference_failed = true
-      inference.set_failure_loc_if_missing(loc)
+      inference.set_failure_loc_if_missing(evidence.loc)
+    }
+  }
+  if evidence.effect_template is Some(template) &&
+    evidence.expected_effect is Some(expected) {
+    if !inference.collect_effect_term_from_row(template, expected) {
+      inference_failed = true
+      inference.set_failure_loc_if_missing(evidence.loc)
     }
   }
   guard !inference_failed else {
-    if report_failure {
+    if evidence.report_failure {
       self.report_generic_argument_inference_failure(
-        failure_label, inference, loc,
+        evidence.failure_label,
+        inference,
+        evidence.loc,
       )
     }
     return None
   }
   guard inference.finish() is Some(inferred) else {
-    if report_failure {
+    if evidence.report_failure {
       self.report_generic_argument_inference_failure(
-        failure_label, inference, loc,
+        evidence.failure_label,
+        inference,
+        evidence.loc,
       )
     }
     return None
@@ -1005,18 +1053,18 @@ fn SemanticChecker::instantiate_generic_callable(
     ) {
     return None
   }
-  guard self.infer_application_generic_arguments(
-      scope,
-      type_parameters,
-      parameters,
-      call_argument_expressions(arguments),
-      Some(result),
+  guard self.infer_application_generic_arguments(scope, type_parameters, {
+      parameter_templates: parameters,
+      argument_expressions: call_argument_expressions(arguments),
+      result_template: Some(result),
       expected_result,
-      false,
-      inference_label,
+      effect_template: None,
+      expected_effect: None,
+      collect_result_first: false,
+      failure_label: inference_label,
       loc,
       report_failure,
-    )
+    })
     is Some(inferred) else {
     return None
   }

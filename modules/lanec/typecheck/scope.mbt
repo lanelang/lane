@@ -387,14 +387,13 @@ fn SemanticChecker::check_local_function(
     declaration.type_parameters,
     parameters,
   )
+  let effect = self.check_effect(declaration.effect)
+  self.push_expected_effect(effect)
   let body = self.check_checked_expr(
     body_scope,
     declaration.body,
     self.check_type(declaration.return_type),
   )
-  self.expect_effect(
-    self.check_effect(declaration.effect),
-    body.effect,
-    declaration.body.loc(),
-  )
+  self.pop_expected_effect()
+  self.expect_effect(effect, body.effect, declaration.body.loc())
 }

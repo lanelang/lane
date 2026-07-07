@@ -419,10 +419,14 @@ fn GenericParameterUseCollector::collect_expr(
         self.collect_expr(argument)
       }
     }
-    UnqualifiedVariant(arguments~, ..) =>
+    UnqualifiedVariant(variant_generic_arguments~, arguments~, ..) => {
+      for argument in variant_generic_arguments {
+        self.collect_generic_argument(argument)
+      }
       for argument in arguments {
         self.collect_expr(argument)
       }
+    }
     StructLiteral(generic_arguments~, fields~, ..) => {
       for argument in generic_arguments {
         self.collect_generic_argument(argument)

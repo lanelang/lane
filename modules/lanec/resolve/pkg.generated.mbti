@@ -131,7 +131,7 @@ pub(all) enum ResolvedExpr {
   UnitLiteral(loc~ : @basic.SourceSpan)
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, generic_arguments~ : Array[ResolvedGenericArgument], variant~ : String, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
-  UnqualifiedVariant(variant~ : String, reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
+  UnqualifiedVariant(variant~ : String, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)

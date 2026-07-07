@@ -2325,13 +2325,33 @@ fn Resolver::resolve_unqualified_name_use(
   name_loc : SourceSpan,
   name_use : UnqualifiedNameUse,
 ) -> ResolvedExpr {
+  self.resolve_unqualified_name_use_with_variant_arguments(
+    scope,
+    name,
+    name_loc,
+    name_use,
+    [],
+  )
+}
+
+///|
+fn Resolver::resolve_unqualified_name_use_with_variant_arguments(
+  self : Resolver,
+  scope : ResolveScope,
+  name : String,
+  name_loc : SourceSpan,
+  name_use : UnqualifiedNameUse,
+  variant_generic_arguments : Array[@syntax.Type],
+) -> ResolvedExpr {
   match scope.value_reference(name) {
     Symbol(_) as reference => {
       self.record_import_use(scope.value_import_origin(reference), name_loc)
       name_use.resolve_as_value(self, scope, name, name_loc, reference)
     }
     Unresolved(_) =>
-      self.resolve_unqualified_variant_use(scope, name, name_loc, name_use)
+      self.resolve_unqualified_variant_use(
+        scope, name, name_loc, name_use, variant_generic_arguments,
+      )
   }
 }
 
@@ -2342,14 +2362,19 @@ fn Resolver::resolve_unqualified_variant_use(
   name : String,
   name_loc : SourceSpan,
   name_use : UnqualifiedNameUse,
+  variant_generic_arguments : Array[@syntax.Type],
 ) -> ResolvedExpr {
   match self.unqualified_variant_reference(name, name_use.loc()) {
     Symbol(symbol) as reference => {
       name_use.report_payloadless_variant_without_parens(self, symbol, name)
-      name_use.resolve_as_variant(self, scope, name, reference)
+      name_use.resolve_as_variant(
+        self, scope, name, variant_generic_arguments, reference,
+      )
     }
     Ambiguous(_) as reference =>
-      name_use.resolve_as_variant(self, scope, name, reference)
+      name_use.resolve_as_variant(
+        self, scope, name, variant_generic_arguments, reference,
+      )
     Unresolved(..) | UnresolvedUnqualified(_) =>
       name_use.resolve_as_unresolved_value(self, scope, name, name_loc)
   }
@@ -2473,14 +2498,27 @@ fn UnqualifiedNameUse::resolve_as_variant(
   resolver : Resolver,
   scope : ResolveScope,
   name : String,
+  variant_generic_arguments : Array[@syntax.Type],
   reference : ResolvedVariantReference,
 ) -> ResolvedExpr {
+  let resolved_variant_generic_arguments = variant_generic_arguments.map(fn(
+    type_,
+  ) {
+    type_.resolve_generic_argument(resolver, scope)
+  })
   match self {
     BareUse(loc) =>
-      UnqualifiedVariant(variant=name, reference~, arguments=[], loc~)
+      UnqualifiedVariant(
+        variant=name,
+        variant_generic_arguments=resolved_variant_generic_arguments,
+        reference~,
+        arguments=[],
+        loc~,
+      )
     CallUse(arguments~, loc~) =>
       UnqualifiedVariant(
         variant=name,
+        variant_generic_arguments=resolved_variant_generic_arguments,
         reference~,
         arguments=arguments.map(fn(argument) {
           argument.resolve_positional_call_argument(resolver, scope)
@@ -2539,6 +2577,29 @@ fn @syntax.Expr::resolve_call(
   loc : SourceSpan,
 ) -> ResolvedExpr {
   match self {
+    TypeApplication(
+      callee=Var(name, loc=name_loc),
+      arguments=type_arguments,
+      ..
+    ) =>
+      match scope.value_reference(name) {
+        Symbol(_) =>
+          Call(
+            callee=self.resolve_expr(resolver, scope),
+            arguments=arguments.map(fn(argument) {
+              argument.resolve_call_argument(resolver, scope)
+            }),
+            loc~,
+          )
+        Unresolved(_) =>
+          resolver.resolve_unqualified_name_use_with_variant_arguments(
+            scope,
+            name,
+            name_loc,
+            CallUse(arguments~, loc~),
+            type_arguments,
+          )
+      }
     Var(name, loc=name_loc) =>
       resolver.resolve_unqualified_name_use(
         scope,

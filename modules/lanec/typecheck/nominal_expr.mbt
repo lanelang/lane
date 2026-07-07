@@ -40,7 +40,8 @@ fn SemanticChecker::synthesize_checked_variant_call(
       )
     None =>
       self.synthesize_checked_unqualified_variant(
-        scope, variant, reference, arguments, expected_result, loc,
+        scope, variant, variant_generic_arguments, reference, arguments, expected_result,
+        loc,
       )
   }
 }
@@ -98,6 +99,7 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
   self : SemanticChecker,
   scope : TypeScope,
   variant : String,
+  variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
   expected_result : @types.Type?,
@@ -110,7 +112,7 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
         symbol,
         variant,
         [],
-        [],
+        variant_generic_arguments,
         arguments,
         expected_result,
         loc,
@@ -305,14 +307,18 @@ fn SemanticChecker::variant_hidden_generic_arguments(
   guard self.infer_application_generic_arguments(
       scope,
       variant.type_parameters,
-      templates,
-      arguments,
-      None,
-      None,
-      false,
-      "hidden generic arguments",
-      loc,
-      true,
+      {
+        parameter_templates: templates,
+        argument_expressions: arguments,
+        result_template: None,
+        expected_result: None,
+        effect_template: None,
+        expected_effect: None,
+        collect_result_first: false,
+        failure_label: "hidden generic arguments",
+        loc,
+        report_failure: true,
+      },
     )
     is Some(inferred) else {
     return None
@@ -345,14 +351,18 @@ fn SemanticChecker::infer_variant_generic_arguments(
   guard self.infer_application_generic_arguments(
       scope,
       declaration.type_parameters,
-      variant.payload,
-      arguments,
-      result_template,
-      expected_result,
-      true,
-      "generic arguments",
-      loc,
-      true,
+      {
+        parameter_templates: variant.payload,
+        argument_expressions: arguments,
+        result_template,
+        expected_result,
+        effect_template: None,
+        expected_effect: None,
+        collect_result_first: true,
+        failure_label: "generic arguments",
+        loc,
+        report_failure: true,
+      },
     )
     is Some(inferred) else {
     return None

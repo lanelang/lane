@@ -467,6 +467,7 @@ pub(all) enum ResolvedExpr {
   )
   UnqualifiedVariant(
     variant~ : String,
+    variant_generic_arguments~ : Array[ResolvedGenericArgument],
     reference~ : ResolvedVariantReference,
     arguments~ : Array[ResolvedExpr],
     loc~ : SourceSpan

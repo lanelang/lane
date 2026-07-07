@@ -698,10 +698,17 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       text(variant) +
       generic_arguments_doc(variant_generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
-    UnqualifiedVariant(variant~, reference~, arguments~, ..) =>
+    UnqualifiedVariant(
+      variant~,
+      variant_generic_arguments~,
+      reference~,
+      arguments~,
+      ..
+    ) =>
       reference.pretty() +
       space +
       text(variant) +
+      generic_arguments_doc(variant_generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     StructLiteral(type_name~, generic_arguments~, fields~, ..) =>
       text(type_name) +

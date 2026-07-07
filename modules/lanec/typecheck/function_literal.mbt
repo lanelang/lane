@@ -90,6 +90,11 @@ fn SemanticChecker::synthesize_function_literal(
   let body_scope = self.function_body_scope(
     scope, type_parameters, checked_parameters,
   )
+  let checked_effect = match effect {
+    Some(effect) => self.check_effect(effect)
+    None => Empty
+  }
+  self.push_expected_effect(checked_effect)
   let (result, actual_effect) = if return_type is Some(type_annotation) {
     let type_ = self.check_type(type_annotation)
     let checked_body = self.check_checked_expr(body_scope, body, type_)
@@ -98,10 +103,7 @@ fn SemanticChecker::synthesize_function_literal(
     let checked_body = self.synthesize_checked_expr(body_scope, body)
     (checked_body.type_, checked_body.effect)
   }
-  let checked_effect = match effect {
-    Some(effect) => self.check_effect(effect)
-    None => Empty
-  }
+  self.pop_expected_effect()
   self.expect_effect(checked_effect, actual_effect, body.loc())
   let type_ = @types.Type::Function(parameter_types, result, checked_effect)
   if type_parameters.is_empty() {
@@ -158,9 +160,11 @@ fn SemanticChecker::check_function_literal(
       if effect is Some(effect) {
         self.expect_effect(expected_effect, self.check_effect(effect), loc)
       }
+      self.push_expected_effect(expected_effect)
       let checked_body = self.check_checked_expr(
         body_scope, body, expected_result,
       )
+      self.pop_expected_effect()
       self.expect_effect(expected_effect, checked_body.effect, body.loc())
     }
     Error => ()

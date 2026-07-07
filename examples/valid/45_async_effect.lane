@@ -18,7 +18,7 @@ enum Step {
 }
 
 fn[A] ready(value : A) -> A ! Async[Schedule] {
-  Async[Schedule]::suspend![A](
+  suspend![A](
     fn (resume) {
       resume(value)
     }
@@ -27,7 +27,7 @@ fn[A] ready(value : A) -> A ! Async[Schedule] {
 
 fn run_task(task : () -> Int ! Async[Schedule]) -> Step {
   handle task() with {
-    Async[Schedule]::suspend[A](register, resume) => Step::waiting[A](
+    suspend[A](register, resume) => waiting[A](
       register,
       fn (value) {
         resume(value)
@@ -45,10 +45,10 @@ fn[A] run_registration(
   handle register(
     fn (value) {
       let next : Step = resume(value)
-      Schedule::enqueue!(next)
+      enqueue!(next)
     }
   ) with {
-    Schedule::enqueue(next, _continue) => next
+    enqueue(next, _continue) => next
   } final _value {
     done(0)
   }

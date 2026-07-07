@@ -16,5 +16,6 @@ fn SemanticChecker::copy_for_silent_analysis(
     ordered_value_types: self.ordered_value_types.copy(),
     offers: self.offers.copy(),
     ordered_offers: self.ordered_offers.copy(),
+    expected_effects: self.expected_effects.copy(),
   }
 }

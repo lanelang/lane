@@ -212,18 +212,18 @@ fn SemanticChecker::direct_parameter_types(
         templates.push(parameter_types[index])
         expressions.push(argument.value)
       }
-      guard self.infer_application_generic_arguments(
-          scope,
-          type_parameters,
-          templates,
-          expressions,
-          Some(result),
+      guard self.infer_application_generic_arguments(scope, type_parameters, {
+          parameter_templates: templates,
+          argument_expressions: expressions,
+          result_template: Some(result),
           expected_result,
-          false,
-          "generic arguments",
+          effect_template: None,
+          expected_effect: None,
+          collect_result_first: false,
+          failure_label: "generic arguments",
           loc,
-          true,
-        )
+          report_failure: true,
+        })
         is Some(inferred) else {
         return None
       }

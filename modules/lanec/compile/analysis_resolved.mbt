@@ -406,7 +406,13 @@ fn collect_resolved_expr(
         )
       }
     }
-    UnqualifiedVariant(reference=Symbol(symbol), arguments~, loc~, ..) => {
+    UnqualifiedVariant(
+      reference=Symbol(symbol),
+      variant_generic_arguments~,
+      arguments~,
+      loc~,
+      ..
+    ) => {
       let reference_loc = match definition_label(definitions, Variant(symbol)) {
         Some(name) => name_span(source_text, name, loc)
         None => loc
@@ -419,18 +425,29 @@ fn collect_resolved_expr(
         reference_loc,
         definition_detail(definitions, Variant(symbol)),
       )
+      for argument in variant_generic_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
       for argument in arguments {
         collect_resolved_expr(
           source_id, source_text, argument, definitions, references, hovers,
         )
       }
     }
-    UnqualifiedVariant(arguments~, ..) =>
+    UnqualifiedVariant(variant_generic_arguments~, arguments~, ..) => {
+      for argument in variant_generic_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
       for argument in arguments {
         collect_resolved_expr(
           source_id, source_text, argument, definitions, references, hovers,
         )
       }
+    }
     StructLiteral(generic_arguments~, fields~, ..) => {
       for argument in generic_arguments {
         collect_resolved_generic_argument_reference(

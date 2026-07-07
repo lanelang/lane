@@ -90,6 +90,7 @@ fn expect_checked_let_initializer(
     ordered_value_types: [],
     offers: [],
     ordered_offers: [],
+    expected_effects: [],
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -249,6 +250,7 @@ fn expect_first_checked_match_pattern(
     ordered_value_types: [],
     offers: [],
     ordered_offers: [],
+    expected_effects: [],
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -3415,6 +3417,98 @@ test "typecheck infers effect operation generic witnesses from payloads" {
       #|    }
       #|    fn choose_int#0() -> Int {
       #|      operation#0![Int](1, 2)
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
+test "typecheck elides unique generic effect and variant owners" {
+  let result = expect_checked_source_result(
+    (
+      #|effect Schedule {
+      #|  enqueue(Step) -> Unit
+      #|}
+      #|effect Async[E : Effect] {
+      #|  suspend[A](((A) -> Unit ! E) -> Unit ! E) -> A
+      #|}
+      #|enum Step {
+      #|  done(Int)
+      #|  waiting[A](((A) -> Unit ! Schedule) -> Unit ! Schedule, (A) -> Step)
+      #|}
+      #|fn[A] ready(value : A) -> A ! Async[Schedule] {
+      #|  suspend![A](fn (resume) { resume(value) })
+      #|}
+      #|fn run_task(task : () -> Int ! Async[Schedule]) -> Step {
+      #|  handle task() with {
+      #|    suspend[A](register, resume) => waiting[A](register, fn (value) { resume(value) })
+      #|  } final value {
+      #|    done(value)
+      #|  }
+      #|}
+      #|fn[A] run_registration(register : ((A) -> Unit ! Schedule) -> Unit ! Schedule, resume : (A) -> Step) -> Step {
+      #|  handle register(fn (value) {
+      #|    let next : Step = resume(value)
+      #|    enqueue!(next)
+      #|  }) with {
+      #|    enqueue(next, _continue) => next
+      #|  } final _value {
+      #|    done(0)
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    effect Schedule#0 {
+      #|      enqueue#0(type#0) -> Unit
+      #|    }
+      #|    effect Async#1[E#0 : Effect] {
+      #|      suspend#1[A#1 : Type](((tparam#1) -> Unit ! tparam#0) -> Unit ! tparam#0) -> tparam#1
+      #|    }
+      #|    enum Step#0 {
+      #|      done#0(Int)
+      #|      waiting#1[A#2 : Type](((tparam#2) -> Unit ! effect#0) -> Unit ! effect#0, (tparam#2) -> type#0)
+      #|    }
+      #|    fn[A#3 : Type] ready#0(value#3 : tparam#3) -> tparam#3 {
+      #|      operation#1![tparam#3](fn(resume#4 : (tparam#3) -> Unit ! effect#0) -> Unit {
+      #|        resume#4(value#3)
+      #|      })
+      #|    }
+      #|    fn run_task#1(task#5 : () -> Int ! effect#1[effect#0]) -> type#0 {
+      #|      {
+      #|        handle task#5()
+      #|        with effect#1[effect#0] {
+      #|          operation#1[A#4 : Type](register#6, resume#7) => variant#1[tparam#4](register#6, fn(value#8 : tparam#4) -> type#0 {
+      #|            resume#7(value#8)
+      #|          })
+      #|        }
+      #|        final value#9 {
+      #|          variant#0(value#9)
+      #|        }
+      #|      }
+      #|    }
+      #|    fn[A#5 : Type] run_registration#2(register#10 : (
+      #|      (tparam#5) -> Unit ! effect#0
+      #|    ) -> Unit ! effect#0, resume#11 : (tparam#5) -> type#0) -> type#0 {
+      #|      {
+      #|        handle register#10(fn(value#12 : tparam#5) -> Unit {
+      #|          let next#13 : type#0 = resume#11(value#12)
+      #|          operation#0!(next#13)
+      #|        })
+      #|        with effect#0 {
+      #|          operation#0(next#14, _continue#15) => next#14
+      #|        }
+      #|        final _value#16 {
+      #|          variant#0(0)
+      #|        }
+      #|      }
       #|    }
       #|  }
       #|  diagnostics {}

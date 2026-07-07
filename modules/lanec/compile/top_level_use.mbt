@@ -619,8 +619,11 @@ fn TopLevelUseCollector::collect_expr(
         self.collect_expr(argument)
       }
     }
-    UnqualifiedVariant(reference~, arguments~, ..) => {
+    UnqualifiedVariant(reference~, variant_generic_arguments~, arguments~, ..) => {
       self.collect_variant_reference(reference)
+      for argument in variant_generic_arguments {
+        self.collect_generic_argument(argument)
+      }
       for argument in arguments {
         self.collect_expr(argument)
       }
