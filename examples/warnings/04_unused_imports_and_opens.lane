@@ -1,0 +1,11 @@
+module Examples.Warnings.UnusedImportsAndOpens
+
+import Basic.Builtins
+
+import Basic.Ops.*
+
+import Basic.Io.{Io, Write}
+
+pub fn answer() -> Unit ! Write {
+  Write::println!("unused import example")
+}

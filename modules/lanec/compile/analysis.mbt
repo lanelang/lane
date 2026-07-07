@@ -205,6 +205,13 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
                 diagnostic.with_source_id(input.source_id)
               }),
             )
+            diagnostics.append(
+              unused_import_exposure_diagnostics(resolved.source, source).map(fn(
+                diagnostic,
+              ) {
+                diagnostic.with_source_id(input.source_id)
+              }),
+            )
             let interface = { ..interface, source_id: Some(input.source_id) }
             let imported_fingerprints = imported_environment_fingerprints(
               imported,

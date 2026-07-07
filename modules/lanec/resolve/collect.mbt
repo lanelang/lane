@@ -8,6 +8,9 @@ priv struct Resolver {
   top_values : Array[ValueBinding]
   ordered_top_values : Array[ValueBinding]
   conflicting_top_value_names : Array[String]
+  import_exposures : Array[ResolvedImportExposure]
+  import_uses : Array[ResolvedImportUse]
+  import_symbols : Array[ResolvedImportExposureSymbol]
   diagnostics : Array[ResolveDiagnostic]
 }
 
@@ -15,6 +18,7 @@ priv struct Resolver {
 priv struct ModuleBinding {
   path_text : String
   interface : @module_interface.ModuleInterface
+  import_origin : Int?
 }
 
 ///|
@@ -22,6 +26,7 @@ priv struct TypeBinding {
   name : String
   symbol : TypeSymbolId
   type_parameters : Array[@syntax.TypeParameter]
+  import_origin : Int?
 }
 
 ///|
@@ -29,12 +34,21 @@ priv struct EffectBinding {
   name : String
   symbol : EffectSymbolId
   type_parameters : Array[@syntax.TypeParameter]
+  import_origin : Int?
 }
 
 ///|
 priv struct TypeAliasBinding {
   name : String
   type_parameters : Array[@syntax.TypeParameter]
+  import_origin : Int?
+}
+
+///|
+priv struct SelectiveImportOrigin {
+  name : String
+  origin : Int
+  loc : SourceSpan
 }
 
 ///|
@@ -90,6 +104,9 @@ fn Resolver::resolve_source_file_result(
   let resolved = {
     module_path: source.module_path,
     symbols: self.registry,
+    import_exposures: self.import_exposures,
+    import_uses: self.import_uses,
+    import_symbols: self.import_symbols,
     declarations,
     loc: source.loc,
   }
@@ -107,6 +124,9 @@ fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
     top_values: [],
     ordered_top_values: [],
     conflicting_top_value_names: [],
+    import_exposures: [],
+    import_uses: [],
+    import_symbols: [],
     diagnostics: [],
   }
 }
@@ -119,20 +139,50 @@ fn Resolver::publish_imported_bindings(
 ) -> Unit {
   for import_ in source.imports {
     match import_ {
-      Qualified(module_path~, ..) =>
-        self.publish_imported_module_binding(module_path, imported_environment)
+      Qualified(module_path~, loc~) => {
+        let module_path_text = @module_interface.module_path_text(module_path)
+        let module_origin = self.define_import_exposure(
+          module_path_text,
+          QualifiedModuleBinding,
+          loc,
+        )
+        self.publish_imported_module_binding(
+          module_path,
+          imported_environment,
+          Some(module_origin),
+        )
+      }
       Open(module_path~, loc~) =>
         match
           imported_environment.find(
             @module_interface.module_path_text(module_path),
           ) {
           Some(imported) => {
-            self.publish_imported_module_binding(
-              module_path, imported_environment,
+            let module_path_text = @module_interface.module_path_text(
+              module_path,
             )
-            self.publish_imported_public_types(imported)
-            self.publish_imported_public_effects(imported)
-            self.publish_imported_public_values(imported, loc)
+            let module_origin = self.define_import_exposure(
+              module_path_text,
+              ImportedModuleBinding,
+              loc,
+            )
+            let open_origin = self.define_import_exposure(
+              module_path_text,
+              OpenBinding,
+              loc,
+            )
+            self.publish_imported_module_binding(
+              module_path,
+              imported_environment,
+              Some(module_origin),
+            )
+            self.publish_imported_public_types(imported, Some(open_origin))
+            self.publish_imported_public_effects(imported, Some(open_origin))
+            self.publish_imported_public_values(
+              imported,
+              loc,
+              Some(open_origin),
+            )
           }
           None => ()
         }
@@ -142,12 +192,25 @@ fn Resolver::publish_imported_bindings(
             @module_interface.module_path_text(module_path),
           ) {
           Some(imported) => {
-            self.publish_imported_module_binding(
-              module_path, imported_environment,
+            let module_path_text = @module_interface.module_path_text(
+              module_path,
             )
-            self.publish_imported_selected_types(imported, items)
-            self.publish_imported_selected_effects(imported, items)
-            self.publish_imported_selected_values(imported, items)
+            let module_origin = self.define_import_exposure(
+              module_path_text,
+              ImportedModuleBinding,
+              loc,
+            )
+            self.publish_imported_module_binding(
+              module_path,
+              imported_environment,
+              Some(module_origin),
+            )
+            let item_origins = self.define_selective_import_origins(
+              imported, items,
+            )
+            self.publish_imported_selected_types(imported, item_origins)
+            self.publish_imported_selected_effects(imported, item_origins)
+            self.publish_imported_selected_values(imported, item_origins)
           }
           None => ignore(loc)
         }
@@ -156,23 +219,86 @@ fn Resolver::publish_imported_bindings(
 }
 
 ///|
+fn Resolver::define_import_exposure(
+  self : Resolver,
+  module_path_text : String,
+  kind : ResolvedImportExposureKind,
+  loc : SourceSpan,
+) -> Int {
+  let id = self.import_exposures.length()
+  self.import_exposures.push({ id, module_path_text, kind, loc })
+  id
+}
+
+///|
+fn Resolver::record_import_use(
+  self : Resolver,
+  origin : Int?,
+  loc : SourceSpan,
+) -> Unit {
+  if origin is Some(exposure_id) {
+    if !self.import_uses.any(fn(use_) {
+        use_.exposure_id == exposure_id && use_.loc == loc
+      }) {
+      self.import_uses.push({ exposure_id, loc })
+    }
+  }
+}
+
+///|
+fn Resolver::record_import_symbol(
+  self : Resolver,
+  origin : Int?,
+  symbol : ResolvedImportSymbol,
+) -> Unit {
+  if origin is Some(exposure_id) {
+    if !self.import_symbols.any(fn(item) {
+        item.exposure_id == exposure_id && item.symbol == symbol
+      }) {
+      self.import_symbols.push({ exposure_id, symbol })
+    }
+  }
+}
+
+///|
+fn Resolver::define_selective_import_origins(
+  self : Resolver,
+  interface : @module_interface.ModuleInterface,
+  items : Array[@syntax.ImportItem],
+) -> Array[SelectiveImportOrigin] {
+  items.map(fn(item) {
+    {
+      name: item.name,
+      origin: self.define_import_exposure(
+        interface.module_path,
+        SelectiveBinding(name=item.name),
+        item.loc,
+      ),
+      loc: item.loc,
+    }
+  })
+}
+
+///|
 fn Resolver::publish_imported_module_binding(
   self : Resolver,
   module_path : @syntax.ModulePath,
   imported_environment : @module_interface.ImportedEnvironment,
+  import_origin : Int?,
 ) -> Unit {
   let path_text = @module_interface.module_path_text(module_path)
   guard imported_environment.find(path_text) is Some(interface) else { return }
   if self.modules.any(fn(binding) { binding.path_text == path_text }) {
     return
   }
-  self.modules.push({ path_text, interface })
+  self.modules.push({ path_text, interface, import_origin })
 }
 
 ///|
 fn Resolver::publish_imported_public_types(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
+  import_origin : Int?,
 ) -> Unit {
   for type_ in interface.types {
     match type_ {
@@ -181,12 +307,14 @@ fn Resolver::publish_imported_public_types(
           declaration.name,
           declaration.symbol,
           interface_type_parameters_to_syntax(declaration.type_parameters),
+          import_origin,
         )
       Enum(declaration) =>
         self.publish_type_binding(
           declaration.name,
           declaration.symbol,
           interface_type_parameters_to_syntax(declaration.type_parameters),
+          import_origin,
         )
     }
   }
@@ -196,6 +324,7 @@ fn Resolver::publish_imported_public_types(
       type_parameters: interface_type_parameters_to_syntax(
         type_alias.type_parameters,
       ),
+      import_origin,
     })
   }
 }
@@ -204,12 +333,14 @@ fn Resolver::publish_imported_public_types(
 fn Resolver::publish_imported_public_effects(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
+  import_origin : Int?,
 ) -> Unit {
   for effect in interface.effects {
     self.publish_effect_binding(
       effect.name,
       effect.symbol,
       interface_type_parameters_to_syntax(effect.type_parameters),
+      import_origin,
     )
   }
 }
@@ -218,9 +349,9 @@ fn Resolver::publish_imported_public_effects(
 fn Resolver::publish_imported_selected_types(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
-  items : Array[@syntax.ImportItem],
+  item_origins : Array[SelectiveImportOrigin],
 ) -> Unit {
-  for item in items {
+  for item in item_origins {
     for type_ in interface.types {
       match type_ {
         Struct(declaration) if declaration.name == item.name =>
@@ -228,12 +359,14 @@ fn Resolver::publish_imported_selected_types(
             declaration.name,
             declaration.symbol,
             interface_type_parameters_to_syntax(declaration.type_parameters),
+            Some(item.origin),
           )
         Enum(declaration) if declaration.name == item.name =>
           self.publish_type_binding(
             declaration.name,
             declaration.symbol,
             interface_type_parameters_to_syntax(declaration.type_parameters),
+            Some(item.origin),
           )
         _ => ()
       }
@@ -245,6 +378,7 @@ fn Resolver::publish_imported_selected_types(
           type_parameters: interface_type_parameters_to_syntax(
             type_alias.type_parameters,
           ),
+          import_origin: Some(item.origin),
         })
       }
     }
@@ -282,15 +416,16 @@ fn interface_kind_to_syntax(kind : @types.Kind) -> @syntax.Kind {
 fn Resolver::publish_imported_selected_effects(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
-  items : Array[@syntax.ImportItem],
+  item_origins : Array[SelectiveImportOrigin],
 ) -> Unit {
-  for item in items {
+  for item in item_origins {
     for effect in interface.effects {
       if effect.name == item.name {
         self.publish_effect_binding(
           effect.name,
           effect.symbol,
           interface_type_parameters_to_syntax(effect.type_parameters),
+          Some(item.origin),
         )
       }
     }
@@ -302,11 +437,15 @@ fn Resolver::publish_imported_public_values(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
   loc : SourceSpan,
+  import_origin : Int?,
 ) -> Unit {
   for value in interface.values {
-    let binding = imported_interface_value_binding(interface, value)
+    let binding = imported_interface_value_binding(
+      interface, value, import_origin,
+    )
     self.publish_complete_top_level_binding(binding, loc)
     self.publish_ordered_top_level_binding(binding, loc)
+    self.record_import_symbol(import_origin, ValueSymbol(value.symbol))
   }
 }
 
@@ -314,14 +453,19 @@ fn Resolver::publish_imported_public_values(
 fn Resolver::publish_imported_selected_values(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
-  items : Array[@syntax.ImportItem],
+  item_origins : Array[SelectiveImportOrigin],
 ) -> Unit {
-  for item in items {
+  for item in item_origins {
     for value in interface.values {
       if value.name == item.name {
-        let binding = imported_interface_value_binding(interface, value)
+        let binding = imported_interface_value_binding(
+          interface,
+          value,
+          Some(item.origin),
+        )
         self.publish_complete_top_level_binding(binding, item.loc)
         self.publish_ordered_top_level_binding(binding, item.loc)
+        self.record_import_symbol(Some(item.origin), ValueSymbol(value.symbol))
       }
     }
   }
@@ -331,6 +475,7 @@ fn Resolver::publish_imported_selected_values(
 fn imported_interface_value_binding(
   interface : @module_interface.ModuleInterface,
   value : @module_interface.ModuleInterfaceValue,
+  import_origin : Int?,
 ) -> ValueBinding {
   let source = match interface.source_id {
     Some(source_id) => ExternalSource(source_id~)
@@ -342,6 +487,7 @@ fn imported_interface_value_binding(
     type_: None,
     kind: Plain,
     source,
+    import_origin,
   }
 }
 
@@ -367,6 +513,7 @@ fn Resolver::collect_top_level_headers(
             declaration.loc,
           ),
           declaration.type_parameters,
+          None,
         )
       }
       Enum(declaration) => {
@@ -384,6 +531,7 @@ fn Resolver::collect_top_level_headers(
             declaration.loc,
           ),
           declaration.type_parameters,
+          None,
         )
       }
       Effect(declaration) => {
@@ -399,6 +547,7 @@ fn Resolver::collect_top_level_headers(
             declaration.loc,
           ),
           declaration.type_parameters,
+          None,
         )
       }
       TypeAlias(declaration) => {
@@ -410,6 +559,7 @@ fn Resolver::collect_top_level_headers(
         self.type_aliases.push({
           name: declaration.name,
           type_parameters: declaration.type_parameters,
+          import_origin: None,
         })
       }
       Function(declaration) => {
@@ -424,6 +574,7 @@ fn Resolver::collect_top_level_headers(
           type_: None,
           kind: Plain,
           source: CurrentSource,
+          import_origin: None,
         }
         self.publish_complete_top_level_binding(binding, declaration.name_loc)
         self.publish_ordered_top_level_binding(binding, declaration.name_loc)
@@ -445,6 +596,7 @@ fn Resolver::collect_top_level_headers(
               type_: type_annotation,
               kind: Plain,
               source: CurrentSource,
+              import_origin: None,
             },
             declaration.name_loc.unwrap_or(declaration.loc),
           )
@@ -466,6 +618,7 @@ fn Resolver::collect_top_level_headers(
             type_: Some(type_annotation),
             kind: Plain,
             source: CurrentSource,
+            import_origin: None,
           },
           declaration.name_loc,
         )
@@ -995,6 +1148,7 @@ fn Resolver::publish_top_level_let(
     type_: declaration.type_annotation,
     kind: Plain,
     source: CurrentSource,
+    import_origin: None,
   }
   match declaration.name {
     Some(_) => self.publish_ordered_top_level_binding(binding, loc)
@@ -1094,6 +1248,7 @@ fn Resolver::publish_top_level_offer(
       type_: Some(declaration.type_annotation),
       kind: Plain,
       source: CurrentSource,
+      import_origin: None,
     },
     loc,
   )
@@ -1164,14 +1319,25 @@ fn @syntax.Type::resolve_type(
           match scope.type_parameter(name) {
             Some(symbol) => Parameter(symbol~, name~, loc~)
             None =>
-              match resolver.type_symbol_opt(name) {
-                Some(symbol) => Constructor(symbol~, name~, loc~)
+              match resolver.type_binding(name) {
+                Some(binding) => {
+                  resolver.record_import_use(binding.import_origin, loc)
+                  Constructor(symbol=binding.symbol, name~, loc~)
+                }
                 None =>
-                  if resolver.has_type_alias(name) {
-                    Alias(name~, loc~)
-                  } else {
-                    resolver.report(UnresolvedType(name), loc)
-                    Unresolved(name~, arguments=[], loc~)
+                  match resolver.type_alias_binding(name) {
+                    Some(binding) => {
+                      resolver.record_import_use(binding.import_origin, loc)
+                      Alias(name~, loc~)
+                    }
+                    None =>
+                      match resolver.qualified_type_symbol_opt(name) {
+                        Some(symbol) => Constructor(symbol~, name~, loc~)
+                        None => {
+                          resolver.report(UnresolvedType(name), loc)
+                          Unresolved(name~, arguments=[], loc~)
+                        }
+                      }
                   }
               }
           }
@@ -1303,22 +1469,32 @@ fn resolve_type_name_arguments(
   scope : ResolveScope,
 ) -> Array[ResolvedGenericArgument] {
   match resolver.type_binding(type_name) {
-    Some(binding) =>
+    Some(binding) => {
+      resolver.record_import_use(
+        binding.import_origin,
+        @basic.SourceSpan::dummy(),
+      )
       resolve_generic_arguments(
         arguments,
         binding.type_parameters,
         resolver,
         scope,
       )
+    }
     None =>
       match resolver.type_alias_binding(type_name) {
-        Some(binding) =>
+        Some(binding) => {
+          resolver.record_import_use(
+            binding.import_origin,
+            @basic.SourceSpan::dummy(),
+          )
           resolve_generic_arguments(
             arguments,
             binding.type_parameters,
             resolver,
             scope,
           )
+        }
         None =>
           match qualified_type_name_parameters(resolver, type_name) {
             Some(parameters) =>
@@ -1456,40 +1632,43 @@ fn @syntax.Type::resolve_effect_type(
         Some(parameter) =>
           Parameter(symbol=parameter.symbol, name=parameter.name, loc~)
         None =>
-          match resolver.effect_symbol_opt(name) {
-            Some(symbol) => {
-              let resolved_arguments = match resolver.effect_binding(name) {
-                Some(binding) =>
-                  resolve_generic_arguments(
+          match resolver.effect_binding(name) {
+            Some(binding) => {
+              resolver.record_import_use(binding.import_origin, loc)
+              let resolved_arguments = resolve_generic_arguments(
+                arguments,
+                binding.type_parameters,
+                resolver,
+                scope,
+              )
+              Singleton(
+                symbol=binding.symbol,
+                name~,
+                arguments=resolved_arguments,
+                loc~,
+              )
+            }
+            None =>
+              match resolver.type_alias_binding(name) {
+                Some(binding) => {
+                  resolver.record_import_use(binding.import_origin, loc)
+                  let resolved_arguments = resolve_effect_alias_arguments(
                     arguments,
                     binding.type_parameters,
                     resolver,
                     scope,
                   )
-                None =>
-                  arguments.map(fn(argument) {
-                    TypeArgument(argument.resolve_type(resolver, scope))
+                  Alias(name~, arguments=resolved_arguments, loc~)
+                }
+                None => {
+                  let resolved_arguments = arguments.map(fn(argument) {
+                    ResolvedGenericArgument::TypeArgument(
+                      argument.resolve_type(resolver, scope),
+                    )
                   })
-              }
-              Singleton(symbol~, name~, arguments=resolved_arguments, loc~)
-            }
-            None =>
-              if resolver.type_alias_binding(name) is Some(binding) {
-                let resolved_arguments = resolve_effect_alias_arguments(
-                  arguments,
-                  binding.type_parameters,
-                  resolver,
-                  scope,
-                )
-                Alias(name~, arguments=resolved_arguments, loc~)
-              } else {
-                let resolved_arguments = arguments.map(fn(argument) {
-                  ResolvedGenericArgument::TypeArgument(
-                    argument.resolve_type(resolver, scope),
-                  )
-                })
-                resolver.report(UnresolvedType(name), loc)
-                Unresolved(name~, arguments=resolved_arguments, loc~)
+                  resolver.report(UnresolvedType(name), loc)
+                  Unresolved(name~, arguments=resolved_arguments, loc~)
+                }
               }
           }
       }
@@ -1528,6 +1707,7 @@ fn Resolver::resolve_module_qualified_type(
   let full_name = module_qualified_name(module_path, name)
   match self.module_binding(@module_interface.module_path_text(module_path)) {
     Some(module_) => {
+      self.record_import_use(module_.import_origin, loc)
       for type_ in module_.interface.types {
         if interface_type_name(type_) == name {
           return Constructor(
@@ -1564,6 +1744,7 @@ fn Resolver::resolve_module_qualified_effect_type(
   let full_name = module_qualified_name(module_path, name)
   match self.module_binding(@module_interface.module_path_text(module_path)) {
     Some(module_) => {
+      self.record_import_use(module_.import_origin, loc)
       for effect in module_.interface.effects {
         if effect.name == name {
           let arguments = resolve_generic_arguments(
@@ -1740,11 +1921,6 @@ fn interface_type_symbol(
     Struct(declaration) => declaration.symbol
     Enum(declaration) => declaration.symbol
   }
-}
-
-///|
-fn Resolver::has_type_alias(self : Resolver, name : String) -> Bool {
-  self.type_aliases.any(fn(type_alias) { type_alias.name == name })
 }
 
 ///|
@@ -2013,8 +2189,10 @@ fn @syntax.EffectOperationName::resolve_effect_operation_name(
     Qualified(owner~, operation~, loc~) => {
       let owner = owner.resolve_effect_type(resolver, scope, owner.loc())
       let reference = match owner {
-        Singleton(symbol~, ..) =>
+        Singleton(symbol~, ..) => {
+          resolver.record_import_use(resolver.effect_import_origin(symbol), loc)
           resolver.operation_reference(symbol, operation)
+        }
         _ => Unresolved(operation)
       }
       Qualified(owner~, operation~, reference~, loc~)
@@ -2022,7 +2200,7 @@ fn @syntax.EffectOperationName::resolve_effect_operation_name(
     Unqualified(operation~, loc~) =>
       Unqualified(
         operation~,
-        reference=resolver.unqualified_operation_reference(operation),
+        reference=resolver.unqualified_operation_reference(operation, loc),
         loc~,
       )
   }
@@ -2042,6 +2220,7 @@ fn Resolver::operator_reference(
   loc : SourceSpan,
 ) -> ResolvedValueReference {
   let reference = scope.value_reference(name)
+  self.record_import_use(scope.value_import_origin(reference), loc)
   self.report_unresolved_value(reference, loc)
   reference
 }
@@ -2147,8 +2326,10 @@ fn Resolver::resolve_unqualified_name_use(
   name_use : UnqualifiedNameUse,
 ) -> ResolvedExpr {
   match scope.value_reference(name) {
-    Symbol(_) as reference =>
+    Symbol(_) as reference => {
+      self.record_import_use(scope.value_import_origin(reference), name_loc)
       name_use.resolve_as_value(self, scope, name, name_loc, reference)
+    }
     Unresolved(_) =>
       self.resolve_unqualified_variant_use(scope, name, name_loc, name_use)
   }
@@ -2190,6 +2371,7 @@ fn Resolver::resolve_module_value_field_chain(
   let value_name = segments[segments.length() - 1]
   match self.module_binding(module_path_text) {
     Some(module_) => {
+      self.record_import_use(module_.import_origin, loc)
       if scope.value_reference(segments[0]) is Symbol(_) {
         self.report(AmbiguousModuleValue(full_name), loc)
         return Some(Var(name=full_name, reference=Unresolved(full_name), loc~))
@@ -2447,6 +2629,7 @@ fn @syntax.StructLiteralField::resolve_struct_literal_field(
         Some(_) => None
         None => {
           let reference = scope.value_reference(name)
+          resolver.record_import_use(scope.value_import_origin(reference), loc)
           resolver.report_unresolved_value(reference, loc)
           Some(reference)
         }
@@ -2886,13 +3069,25 @@ fn Resolver::type_binding(self : Resolver, name : String) -> TypeBinding? {
 }
 
 ///|
+fn Resolver::type_import_origin(self : Resolver, symbol : TypeSymbolId) -> Int? {
+  for binding in self.types {
+    if binding.symbol == symbol {
+      return binding.import_origin
+    }
+  }
+  None
+}
+
+///|
 fn Resolver::publish_type_binding(
   self : Resolver,
   name : String,
   symbol : TypeSymbolId,
   type_parameters : Array[@syntax.TypeParameter],
+  import_origin : Int?,
 ) -> Unit {
-  self.types.push({ name, symbol, type_parameters })
+  self.types.push({ name, symbol, type_parameters, import_origin })
+  self.record_import_symbol(import_origin, TypeSymbol(symbol))
 }
 
 ///|
@@ -2920,13 +3115,28 @@ fn Resolver::effect_binding(self : Resolver, name : String) -> EffectBinding? {
 }
 
 ///|
+fn Resolver::effect_import_origin(
+  self : Resolver,
+  symbol : EffectSymbolId,
+) -> Int? {
+  for binding in self.effects {
+    if binding.symbol == symbol {
+      return binding.import_origin
+    }
+  }
+  None
+}
+
+///|
 fn Resolver::publish_effect_binding(
   self : Resolver,
   name : String,
   symbol : EffectSymbolId,
   type_parameters : Array[@syntax.TypeParameter],
+  import_origin : Int?,
 ) -> Unit {
-  self.effects.push({ name, symbol, type_parameters })
+  self.effects.push({ name, symbol, type_parameters, import_origin })
+  self.record_import_symbol(import_origin, EffectSymbol(symbol))
 }
 
 ///|
@@ -2945,11 +3155,17 @@ fn Resolver::operation_reference(
 fn Resolver::unqualified_operation_reference(
   self : Resolver,
   name : String,
+  loc : SourceSpan,
 ) -> ResolvedOperationReference {
   let candidates = self.registry.operations_named(name)
   match candidates.length() {
     0 => Unresolved(name)
-    1 => Symbol(candidates[0])
+    1 => {
+      if self.registry.operation_metadata(candidates[0]) is Some(metadata) {
+        self.record_import_use(self.effect_import_origin(metadata.owner), loc)
+      }
+      Symbol(candidates[0])
+    }
     _ => Ambiguous(name~, candidates~)
   }
 }
@@ -3119,10 +3335,12 @@ fn Resolver::variant_reference(
   variant : String,
   loc : SourceSpan,
 ) -> ResolvedVariantReference {
-  if self.qualified_variant_symbol(type_name, variant) is Some(symbol) {
+  if self.qualified_variant_symbol(type_name, variant, loc) is Some(symbol) {
     return Symbol(symbol)
   }
-  if self.type_symbol_opt(type_name) is Some(owner) {
+  if self.type_binding(type_name) is Some(binding) {
+    let owner = binding.symbol
+    self.record_import_use(binding.import_origin, loc)
     if self.registry.variant_named(owner, variant) is Some(symbol) {
       Symbol(symbol)
     } else {
@@ -3140,12 +3358,15 @@ fn Resolver::qualified_variant_symbol(
   self : Resolver,
   type_name : String,
   variant : String,
+  loc : SourceSpan,
 ) -> VariantSymbolId? {
   match qualified_name_text(type_name) {
     Some(qualified) =>
       match self.module_binding(qualified.module_path) {
-        Some(module_) =>
+        Some(module_) => {
+          self.record_import_use(module_.import_origin, loc)
           module_.interface.variant_symbol_named(qualified.name, variant)
+        }
         None => None
       }
     None => None
@@ -3181,7 +3402,12 @@ fn Resolver::unqualified_variant_reference(
   let candidates = self.registry.variants_named(name)
   match candidates.length() {
     0 => UnresolvedUnqualified(name)
-    1 => Symbol(candidates[0])
+    1 => {
+      if self.registry.variant_metadata(candidates[0]) is Some(metadata) {
+        self.record_import_use(self.type_import_origin(metadata.owner), loc)
+      }
+      Symbol(candidates[0])
+    }
     _ => {
       self.report(
         AmbiguousUnqualifiedVariant(

@@ -869,6 +869,72 @@ test "check keeps used generic parameters quiet" {
 }
 
 ///|
+test "check reports unused imports and opens as warnings" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import UsedQualified
+      #|import UnusedQualified
+      #|import UnusedOpen.*
+      #|import OpenLib.*
+      #|import SelectiveLib.{ used, unused }
+      #|
+      #|pub fn answer() -> Int {
+      #|  let _qualified = UsedQualified.value
+      #|  let _open = open_value
+      #|  used
+      #|}
+    ),
+    [
+      (
+        #|module UsedQualified
+        #|pub let value : Int = 1
+      ),
+      (
+        #|module UnusedQualified
+        #|pub let value : Int = 2
+      ),
+      (
+        #|module UnusedOpen
+        #|pub let value : Int = 3
+      ),
+      (
+        #|module OpenLib
+        #|pub let open_value : Int = 4
+      ),
+      (
+        #|module SelectiveLib
+        #|pub let used : Int = 5
+        #|pub let unused : Int = 6
+      ),
+    ],
+  )
+  guard result.source is Some(_) else { abort("expected checked source") }
+  debug_inspect(
+    result.diagnostics.map(compiler_diagnostic_summary),
+    content=(
+      #|[
+      #|  {
+      #|    message: "unused import",
+      #|    code: Some("W2004"),
+      #|    labels: ["imported module `UnusedQualified` is never used"],
+      #|  },
+      #|  {
+      #|    message: "unused open import",
+      #|    code: Some("W2004"),
+      #|    labels: ["open import `UnusedOpen.*` contributes no used names"],
+      #|  },
+      #|  {
+      #|    message: "unused import item",
+      #|    code: Some("W2004"),
+      #|    labels: ["imported item `unused` from `SelectiveLib` is never used"],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "check reports payloadless variant without parentheses" {
   let result = check_source(
     (
@@ -1961,6 +2027,7 @@ test "compile module interface preserves public effects across artifact import" 
     (
       #|module Main
       #|import Lib.{State}
+      #|pub type IntState = { State[Int] }
       #|pub let answer : Int = 42
     ),
     [lib_artifact.interface],
@@ -2187,7 +2254,10 @@ test "compile module freshens independently compiled interface symbols" {
       #|module Main
       #|import Left.*
       #|import Right.*
-      #|pub let answer : Int = right.item
+      #|pub fn answer() -> Int {
+      #|  let _left = left.value
+      #|  right.item
+      #|}
     ),
     [left_artifact.interface, right_artifact.interface],
   )
@@ -4366,6 +4436,24 @@ fn implicit_inlay_hint_labels(hints : Array[InlayHintEntry]) -> Array[String] {
     }
   }
   labels
+}
+
+///|
+priv struct CompilerDiagnosticSummary {
+  message : String
+  code : String?
+  labels : Array[String]
+} derive(Debug)
+
+///|
+fn compiler_diagnostic_summary(
+  diagnostic : CompilerDiagnostic,
+) -> CompilerDiagnosticSummary {
+  {
+    message: diagnostic.message,
+    code: diagnostic.code,
+    labels: diagnostic.labels.map(fn(label) { label.message }),
+  }
 }
 
 ///|

@@ -454,6 +454,22 @@
       }
     },
     {
+      "name": "warning 04 unused imports and opens",
+      "file": "examples/warnings/04_unused_imports_and_opens.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "warning[W2004]",
+          "unused import",
+          "imported module `Basic.Builtins` is never used",
+          "unused open import",
+          "open import `Basic.Ops.*` contributes no used names",
+          "unused import item",
+          "imported item `Io` from `Basic.Io` is never used"
+        ]
+      }
+    },
+    {
       "name": "invalid 01 top-level let missing type",
       "file": "examples/invalid/01_top_level_let_missing_type.lane",
       "mode": "check-error",

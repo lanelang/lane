@@ -223,6 +223,36 @@ pub(all) struct ResolvedHandlerWithBlock {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedHandlerWithBlock
 
+pub(all) struct ResolvedImportExposure {
+  id : Int
+  module_path_text : String
+  kind : ResolvedImportExposureKind
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ResolvedImportExposureKind {
+  QualifiedModuleBinding
+  ImportedModuleBinding
+  OpenBinding
+  SelectiveBinding(name~ : String)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ResolvedImportExposureSymbol {
+  exposure_id : Int
+  symbol : ResolvedImportSymbol
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ResolvedImportSymbol {
+  TypeSymbol(@symbol.TypeSymbolId)
+  EffectSymbol(@symbol.EffectSymbolId)
+  ValueSymbol(@symbol.ValueSymbolId)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ResolvedImportUse {
+  exposure_id : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
 pub(all) enum ResolvedKind {
   Type(loc~ : @basic.SourceSpan)
   Effect(loc~ : @basic.SourceSpan)
@@ -295,6 +325,9 @@ pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
 pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
   symbols : @symbol.SymbolRegistry
+  import_exposures : Array[ResolvedImportExposure]
+  import_uses : Array[ResolvedImportUse]
+  import_symbols : Array[ResolvedImportExposureSymbol]
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

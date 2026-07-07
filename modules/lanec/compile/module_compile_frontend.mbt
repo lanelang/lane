@@ -66,6 +66,9 @@ fn compile_one_module(
           input.text,
         ),
       )
+      warning_diagnostics.append(
+        unused_import_exposure_diagnostics(resolved.source, checked),
+      )
       let warning_diagnostics = warning_diagnostics.map(fn(diagnostic) {
         diagnostic.with_source_id(input.source_id)
       })

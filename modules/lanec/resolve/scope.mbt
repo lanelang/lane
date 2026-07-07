@@ -5,6 +5,7 @@ priv struct ValueBinding {
   type_ : ResolvedType?
   kind : ValueBindingKind
   source : ValueBindingSource
+  import_origin : Int?
 }
 
 ///|
@@ -48,6 +49,7 @@ fn ResolveScope::define_value(
     type_,
     kind: Plain,
     source: CurrentSource,
+    import_origin: None,
   })
 }
 
@@ -82,6 +84,24 @@ fn ResolveScope::value_type(
     }
     _ => None
   }
+}
+
+///|
+fn ResolveScope::value_import_origin(
+  self : ResolveScope,
+  reference : ResolvedValueReference,
+) -> Int? {
+  match reference {
+    Symbol(_) =>
+      for index = self.values.length(); index > 0; index = index - 1 {
+        let binding = self.values[index - 1]
+        if binding.reference == reference {
+          return binding.import_origin
+        }
+      }
+    _ => ()
+  }
+  None
 }
 
 ///|

@@ -2,8 +2,46 @@
 pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
   symbols : SymbolRegistry
+  import_exposures : Array[ResolvedImportExposure]
+  import_uses : Array[ResolvedImportUse]
+  import_symbols : Array[ResolvedImportExposureSymbol]
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedImportExposureKind {
+  QualifiedModuleBinding
+  ImportedModuleBinding
+  OpenBinding
+  SelectiveBinding(name~ : String)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedImportExposure {
+  id : Int
+  module_path_text : String
+  kind : ResolvedImportExposureKind
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedImportUse {
+  exposure_id : Int
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedImportSymbol {
+  TypeSymbol(TypeSymbolId)
+  EffectSymbol(EffectSymbolId)
+  ValueSymbol(ValueSymbolId)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedImportExposureSymbol {
+  exposure_id : Int
+  symbol : ResolvedImportSymbol
 } derive(Debug, Eq)
 
 ///|

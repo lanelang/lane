@@ -1,7 +1,5 @@
 module Examples.Valid07
 
-import Basic.Ops.*
-
 import Basic.Io.{Io, Write}
 
 pub fn host_int() -> Int {

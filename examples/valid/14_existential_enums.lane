@@ -1,7 +1,5 @@
 module Examples.Valid14
 
-import Basic.Ops.*
-
 import Basic.Io.{Io, Write}
 
 pub enum Packed {

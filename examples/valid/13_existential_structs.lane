@@ -1,7 +1,5 @@
 module Examples.Valid13
 
-import Basic.Ops.*
-
 import Basic.Io.{Io, Write}
 
 pub struct Hide {

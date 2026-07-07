@@ -1,7 +1,5 @@
 module ExecutableEntry
 
-import Basic.Ops.*
-
 import Basic.Io.{Io, Write}
 
 pub fn main() -> Unit ! Io {

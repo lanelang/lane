@@ -159,6 +159,57 @@ fn unused_generic_parameter_diagnostic(
 }
 
 ///|
+fn unused_import_exposure_diagnostics(
+  source : @resolve.ResolvedSourceFile,
+  checked : @checked.CheckedSourceFile,
+) -> Array[CompilerDiagnostic] {
+  source.unused_import_exposures(checked).map(unused_import_exposure_diagnostic)
+}
+
+///|
+fn unused_import_exposure_diagnostic(
+  exposure : @resolve.ResolvedImportExposure,
+) -> CompilerDiagnostic {
+  let (message, label) = match exposure.kind {
+    QualifiedModuleBinding =>
+      (
+        "unused import",
+        "imported module `\{exposure.module_path_text}` is never used",
+      )
+    OpenBinding =>
+      (
+        "unused open import",
+        "open import `\{exposure.module_path_text}.*` contributes no used names",
+      )
+    SelectiveBinding(name~) =>
+      (
+        "unused import item",
+        "imported item `\{name}` from `\{exposure.module_path_text}` is never used",
+      )
+    ImportedModuleBinding =>
+      (
+        "unused import",
+        "imported module `\{exposure.module_path_text}` is never used",
+      )
+  }
+  diagnostic(
+    message,
+    span=Some(exposure.loc),
+    severity=Warning,
+    code=Some("W2004"),
+    labels=[
+      {
+        span: compiler_local_span(exposure.loc),
+        message: label,
+        style: Primary,
+      },
+    ],
+    notes=[],
+    helps=["remove the import or use a name provided by it"],
+  )
+}
+
+///|
 fn compile_report(
   title : String,
   span : @basic.SourceSpan?,
