@@ -8,7 +8,7 @@ import Basic.Data.List.*
 
 fn sum(list : List[Int]) -> Int {
   match list {
-    nil() => 0
+    empty() => 0
     cons(head, tail) => head + sum(tail)
   }
 }

@@ -480,7 +480,7 @@ pub(all) enum ResolvedExpr {
   )
   ListLiteral(
     items~ : Array[ResolvedExpr],
-    nil_reference~ : ResolvedVariantReference,
+    empty_reference~ : ResolvedVariantReference,
     cons_reference~ : ResolvedVariantReference?,
     loc~ : SourceSpan
   )

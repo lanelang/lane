@@ -2042,7 +2042,7 @@ fn @syntax.Expr::resolve_expr(
     ListLiteral(items~, loc~) =>
       ListLiteral(
         items=items.map(fn(item) { item.resolve_expr(resolver, scope) }),
-        nil_reference=resolver.unqualified_variant_reference("nil", loc),
+        empty_reference=resolver.unqualified_variant_reference("empty", loc),
         cons_reference=if items.is_empty() {
           None
         } else {

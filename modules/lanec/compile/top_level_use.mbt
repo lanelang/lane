@@ -628,8 +628,8 @@ fn TopLevelUseCollector::collect_expr(
         self.collect_expr(argument)
       }
     }
-    ListLiteral(items~, nil_reference~, cons_reference~, ..) => {
-      self.collect_variant_reference(nil_reference)
+    ListLiteral(items~, empty_reference~, cons_reference~, ..) => {
+      self.collect_variant_reference(empty_reference)
       if cons_reference is Some(cons_reference) {
         self.collect_variant_reference(cons_reference)
       }

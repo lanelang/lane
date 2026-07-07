@@ -212,8 +212,8 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         fields=desugar_struct_literal_fields(fields),
         loc~,
       )
-    ListLiteral(items~, nil_reference~, cons_reference~, loc~) =>
-      desugar_list_literal(items, nil_reference, cons_reference, loc)
+    ListLiteral(items~, empty_reference~, cons_reference~, loc~) =>
+      desugar_list_literal(items, empty_reference, cons_reference, loc)
     Builtin(name, loc~) => Builtin(name, loc~)
     FunctionLiteral(
       type_parameters~,
@@ -301,16 +301,16 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
 ///|
 fn desugar_list_literal(
   items : Array[@resolve.ResolvedExpr],
-  nil_reference : @resolve.ResolvedVariantReference,
+  empty_reference : @resolve.ResolvedVariantReference,
   cons_reference : @resolve.ResolvedVariantReference?,
   loc : @basic.SourceSpan,
 ) -> DesugaredExpr {
   let mut result = VariantCall(
     type_name=None,
     generic_arguments=[],
-    variant="nil",
+    variant="empty",
     variant_generic_arguments=[],
-    reference=nil_reference,
+    reference=empty_reference,
     arguments=[],
     loc~,
   )
