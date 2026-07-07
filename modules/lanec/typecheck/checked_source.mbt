@@ -32,7 +32,6 @@ pub fn typecheck_checked_source_file_with_imported_environment(
     ordered_value_types: [],
     offers: [],
     ordered_offers: [],
-    expected_effects: [],
   }
   checker.seed_imported_top_level_value_types(imported_environment)
   checker.collect_top_level_value_types()
@@ -138,13 +137,11 @@ fn SemanticChecker::checked_top_level_function(
   )
   let return_type = self.check_type(declaration.return_type)
   let effect = self.check_effect(declaration.effect)
-  self.push_expected_effect(effect)
   let checked_body = self.check_checked_expr(
-    body_scope,
+    body_scope.with_expected_effect(effect),
     declaration.body,
     return_type,
   )
-  self.pop_expected_effect()
   self.expect_effect(effect, checked_body.effect, declaration.body.loc())
   guard self.require_checked_expression(
       checked_body,
@@ -461,13 +458,11 @@ fn SemanticChecker::check_checked_local_function(
   )
   let return_type = self.check_type(declaration.return_type)
   let effect = self.check_effect(declaration.effect)
-  self.push_expected_effect(effect)
   let checked_body = self.check_checked_expr(
-    body_scope,
+    body_scope.with_expected_effect(effect),
     declaration.body,
     return_type,
   )
-  self.pop_expected_effect()
   self.expect_effect(effect, checked_body.effect, declaration.body.loc())
   guard self.require_checked_expression(
       checked_body,

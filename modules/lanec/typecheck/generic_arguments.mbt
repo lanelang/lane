@@ -907,6 +907,131 @@ fn SemanticChecker::infer_application_generic_arguments(
 }
 
 ///|
+fn SemanticChecker::infer_contextual_callable_generic_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_parameters : Array[@types.TypeParameter],
+  parameter_templates : Array[@types.Type],
+  argument_expressions : Array[@desugar.DesugaredExpr],
+  result_template : @types.Type,
+  expected_result : @types.Type?,
+  loc : SourceSpan,
+) -> InferredApplicationGenericArguments? {
+  self.infer_application_generic_arguments(scope, type_parameters, {
+    parameter_templates,
+    argument_expressions,
+    result_template: Some(result_template),
+    expected_result,
+    effect_template: None,
+    expected_effect: None,
+    collect_result_first: false,
+    failure_label: "generic arguments",
+    loc,
+    report_failure: true,
+  })
+}
+
+///|
+fn SemanticChecker::infer_variant_owner_generic_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_parameters : Array[@types.TypeParameter],
+  payload_templates : Array[@types.Type],
+  arguments : Array[@desugar.DesugaredExpr],
+  result_template : @types.Type?,
+  expected_result : @types.Type?,
+  loc : SourceSpan,
+) -> InferredApplicationGenericArguments? {
+  self.infer_application_generic_arguments(scope, type_parameters, {
+    parameter_templates: payload_templates,
+    argument_expressions: arguments,
+    result_template,
+    expected_result,
+    effect_template: None,
+    expected_effect: None,
+    collect_result_first: true,
+    failure_label: "generic arguments",
+    loc,
+    report_failure: true,
+  })
+}
+
+///|
+fn SemanticChecker::infer_variant_hidden_generic_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_parameters : Array[@types.TypeParameter],
+  payload_templates : Array[@types.Type],
+  arguments : Array[@desugar.DesugaredExpr],
+  loc : SourceSpan,
+) -> InferredApplicationGenericArguments? {
+  self.infer_application_generic_arguments(scope, type_parameters, {
+    parameter_templates: payload_templates,
+    argument_expressions: arguments,
+    result_template: None,
+    expected_result: None,
+    effect_template: None,
+    expected_effect: None,
+    collect_result_first: false,
+    failure_label: "hidden generic arguments",
+    loc,
+    report_failure: true,
+  })
+}
+
+///|
+fn SemanticChecker::infer_operation_hidden_generic_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_parameters : Array[@types.TypeParameter],
+  payload_templates : Array[@types.Type],
+  arguments : Array[@desugar.DesugaredExpr],
+  result_template : @types.Type,
+  expected_result : @types.Type?,
+  loc : SourceSpan,
+) -> InferredApplicationGenericArguments? {
+  self.infer_application_generic_arguments(scope, type_parameters, {
+    parameter_templates: payload_templates,
+    argument_expressions: arguments,
+    result_template: Some(result_template),
+    expected_result,
+    effect_template: None,
+    expected_effect: None,
+    collect_result_first: false,
+    failure_label: "effect operation generic arguments",
+    loc,
+    report_failure: true,
+  })
+}
+
+///|
+fn SemanticChecker::infer_operation_owner_generic_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_parameters : Array[@types.TypeParameter],
+  payload_templates : Array[@types.Type],
+  arguments : Array[@desugar.DesugaredExpr],
+  result_template : @types.Type,
+  expected_result : @types.Type?,
+  effect_template : @types.Effect,
+  expected_effect : @types.Effect?,
+  loc : SourceSpan,
+) -> InferredApplicationGenericArguments? {
+  self.infer_application_generic_arguments(scope, type_parameters, {
+    parameter_templates: payload_templates,
+    argument_expressions: arguments,
+    result_template: Some(result_template),
+    expected_result,
+    effect_template: Some(effect_template),
+    expected_effect,
+    collect_result_first: false,
+    failure_label: "effect operation owner arguments",
+    loc,
+    report_failure: true,
+  })
+}
+
+///|
 fn SemanticChecker::report_generic_argument_inference_failure(
   self : SemanticChecker,
   label : String,

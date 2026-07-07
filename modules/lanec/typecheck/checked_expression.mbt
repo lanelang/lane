@@ -990,15 +990,23 @@ fn SemanticChecker::synthesize_checked_function_literal(
     Some(effect) => self.check_effect(effect)
     None => Empty
   }
-  self.push_expected_effect(checked_effect)
   let (result_type, checked_body) = if return_type is Some(type_annotation) {
     let result_type = self.check_type(type_annotation)
-    (result_type, self.check_checked_expr(body_scope, body, result_type))
+    (
+      result_type,
+      self.check_checked_expr(
+        body_scope.with_expected_effect(checked_effect),
+        body,
+        result_type,
+      ),
+    )
   } else {
-    let checked_body = self.synthesize_checked_expr(body_scope, body)
+    let checked_body = self.synthesize_checked_expr(
+      body_scope.with_expected_effect(checked_effect),
+      body,
+    )
     (checked_body.type_, checked_body)
   }
-  self.pop_expected_effect()
   self.expect_effect(checked_effect, checked_body.effect, body.loc())
   guard self.require_checked_expression(
       checked_body,
@@ -1121,11 +1129,11 @@ fn SemanticChecker::check_checked_function_literal(
       if effect is Some(effect) {
         self.expect_effect(expected_effect, self.check_effect(effect), loc)
       }
-      self.push_expected_effect(expected_effect)
       let checked_body = self.check_checked_expr(
-        body_scope, body, expected_result,
+        body_scope.with_expected_effect(expected_effect),
+        body,
+        expected_result,
       )
-      self.pop_expected_effect()
       self.expect_effect(expected_effect, checked_body.effect, body.loc())
       guard self.require_checked_expression(
           checked_body,

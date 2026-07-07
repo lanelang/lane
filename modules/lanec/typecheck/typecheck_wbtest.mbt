@@ -90,7 +90,6 @@ fn expect_checked_let_initializer(
     ordered_value_types: [],
     offers: [],
     ordered_offers: [],
-    expected_effects: [],
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -250,7 +249,6 @@ fn expect_first_checked_match_pattern(
     ordered_value_types: [],
     offers: [],
     ordered_offers: [],
-    expected_effects: [],
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -3875,6 +3873,30 @@ test "typecheck assigns resume binder function type" {
       #|(Int) -> Int ! effect#1
     ),
   )
+}
+
+///|
+test "typecheck resolves handler resume residual inside nested pure function" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|fn program() -> Int {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => {
+      #|      let callback : (Int) -> Int = fn (value) {
+      #|        resume(value)
+      #|      }
+      #|      callback(0)
+      #|    }
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
 }
 
 ///|

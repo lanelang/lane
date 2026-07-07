@@ -146,6 +146,11 @@ graph TD
   ISS_130["ISS-130: Guard typed diagnostic architecture with tests"]
   ISS_131["ISS-131: Define and enforce pre-Buslane elaboration contract"]
   ISS_132["ISS-132: Select executable entry at link time and add core occurrence analysis"]
+  ISS_133["ISS-133: Make checked expression typing the single source of truth"]
+  ISS_134["ISS-134: Replace implicit expected-effect stack with explicit typing context"]
+  ISS_135["ISS-135: Deepen generic application inference entrypoints"]
+  ISS_136["ISS-136: Extract operation typing as a deep module"]
+  ISS_137["ISS-137: Remove whole-checker silent retyping from handler residual analysis"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -259,6 +264,10 @@ graph TD
   ISS_127 --> ISS_130
   ISS_128 --> ISS_130
   ISS_129 --> ISS_130
+  ISS_133 --> ISS_134
+  ISS_134 --> ISS_135
+  ISS_135 --> ISS_136
+  ISS_136 --> ISS_137
 ```
 
 ## Warnings

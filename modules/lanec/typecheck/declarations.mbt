@@ -417,7 +417,7 @@ fn check_resolved_nominal_generic_arguments(
       check_resolved_generic_argument(
         source,
         diagnostics,
-        { values: [], offers: [], type_parameters: [] },
+        { values: [], offers: [], type_parameters: [], expected_effect: None },
         parameters[index].kind,
         arguments[index],
       )
@@ -425,7 +425,7 @@ fn check_resolved_nominal_generic_arguments(
       check_resolved_generic_argument(
         source,
         diagnostics,
-        { values: [], offers: [], type_parameters: [] },
+        { values: [], offers: [], type_parameters: [], expected_effect: None },
         Type,
         arguments[index],
       )

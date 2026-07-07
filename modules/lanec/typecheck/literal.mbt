@@ -62,16 +62,3 @@ fn SemanticChecker::checked_literal(
     Unit => Unit
   }
 }
-
-///|
-fn SemanticChecker::check_literal(
-  self : SemanticChecker,
-  literal : @desugar.DesugaredLiteral,
-  expected : @types.Type,
-  loc : SourceSpan,
-) -> Unit {
-  if literal is Int(raw) {
-    ignore(self.check_int_literal(raw, loc))
-  }
-  self.expect_type(expected, literal.type_(), loc)
-}

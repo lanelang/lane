@@ -1,25 +1,4 @@
 ///|
-
-///|
-fn SemanticChecker::synthesize_variant_call(
-  self : SemanticChecker,
-  scope : TypeScope,
-  type_name : String?,
-  generic_arguments : Array[@resolve.ResolvedGenericArgument],
-  variant : String,
-  variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
-  reference : @resolve.ResolvedVariantReference,
-  arguments : Array[@desugar.DesugaredExpr],
-  expected_result : @types.Type?,
-  loc : SourceSpan,
-) -> @types.Type {
-  self.synthesize_checked_variant_call(
-    scope, type_name, generic_arguments, variant, variant_generic_arguments, reference,
-    arguments, expected_result, loc,
-  ).type_
-}
-
-///|
 fn SemanticChecker::synthesize_checked_variant_call(
   self : SemanticChecker,
   scope : TypeScope,
@@ -304,21 +283,12 @@ fn SemanticChecker::variant_hidden_generic_arguments(
   let templates = variant.payload.map(fn(parameter) {
     parameter.substitute(nominal_substitution)
   })
-  guard self.infer_application_generic_arguments(
+  guard self.infer_variant_hidden_generic_arguments(
       scope,
       variant.type_parameters,
-      {
-        parameter_templates: templates,
-        argument_expressions: arguments,
-        result_template: None,
-        expected_result: None,
-        effect_template: None,
-        expected_effect: None,
-        collect_result_first: false,
-        failure_label: "hidden generic arguments",
-        loc,
-        report_failure: true,
-      },
+      templates,
+      arguments,
+      loc,
     )
     is Some(inferred) else {
     return None
@@ -348,21 +318,14 @@ fn SemanticChecker::infer_variant_generic_arguments(
   } else {
     None
   }
-  guard self.infer_application_generic_arguments(
+  guard self.infer_variant_owner_generic_arguments(
       scope,
       declaration.type_parameters,
-      {
-        parameter_templates: variant.payload,
-        argument_expressions: arguments,
-        result_template,
-        expected_result,
-        effect_template: None,
-        expected_effect: None,
-        collect_result_first: true,
-        failure_label: "generic arguments",
-        loc,
-        report_failure: true,
-      },
+      variant.payload,
+      arguments,
+      result_template,
+      expected_result,
+      loc,
     )
     is Some(inferred) else {
     return None
@@ -406,25 +369,6 @@ fn variant_generic_argument_substitution(
     substitution.insert_argument(parameters[index].id, arguments[index])
   }
   substitution
-}
-
-///|
-fn SemanticChecker::synthesize_struct_literal(
-  self : SemanticChecker,
-  scope : TypeScope,
-  type_name : String,
-  generic_arguments : Array[@resolve.ResolvedGenericArgument],
-  fields : Array[@desugar.DesugaredStructLiteralField],
-  loc : SourceSpan,
-) -> @types.Type {
-  self.synthesize_checked_struct_literal(
-    scope,
-    type_name,
-    generic_arguments,
-    fields,
-    None,
-    loc,
-  ).type_
 }
 
 ///|
@@ -605,51 +549,4 @@ fn SemanticChecker::check_struct_type_witnesses(
     }
   }
   witnesses
-}
-
-///|
-fn SemanticChecker::synthesize_field(
-  self : SemanticChecker,
-  scope : TypeScope,
-  base : @desugar.DesugaredExpr,
-  name : String,
-  reference : @resolve.ResolvedFieldReference,
-  loc : SourceSpan,
-) -> @types.Type {
-  // Field projection is nominal. The resolved field symbol identifies the owner
-  // field; the base expression supplies the owner generic arguments.
-  let base_type = self.synthesize_expr(scope, base)
-  match reference {
-    Symbol(field) =>
-      self.declarations.field_type(
-        self.diagnostics,
-        base_type,
-        field,
-        name,
-        loc,
-      )
-    Unresolved(..) => {
-      self.diagnostics.push({ kind: UnknownField(name~), loc })
-      Error
-    }
-    Deferred(_) =>
-      if base_type.decompose_nominal() is Some((symbol, _)) {
-        guard self.source.symbols.field_named(symbol, name) is Some(field) else {
-          self.diagnostics.push({ kind: UnknownField(name~), loc })
-          return Error
-        }
-        self.declarations.field_type(
-          self.diagnostics,
-          base_type,
-          field,
-          name,
-          loc,
-        )
-      } else if base_type is Error {
-        Error
-      } else {
-        self.diagnostics.push({ kind: NotAStruct(base_type), loc })
-        Error
-      }
-  }
 }

@@ -69,6 +69,7 @@ pub(all) enum CheckedExpr {
 } derive(Eq, @debug.Debug)
 pub fn CheckedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
 pub fn CheckedExpr::loc(Self) -> @basic.SourceSpan
+pub fn CheckedExpr::substitute(Self, @types.TypeSubstitution) -> Self
 pub fn CheckedExpr::type_(Self) -> @types.Type
 pub impl @prettyprinter.Pretty for CheckedExpr
 

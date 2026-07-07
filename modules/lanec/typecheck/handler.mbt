@@ -12,6 +12,13 @@ priv struct HandlerOperationCheck {
 }
 
 ///|
+priv struct HandlerOperationBodyCheck {
+  table_loc : SourceSpan
+  operation : HandlerOperationCheck
+  body : @checked.CheckedExpr?
+}
+
+///|
 fn SemanticChecker::synthesize_checked_handler(
   self : SemanticChecker,
   scope : TypeScope,
@@ -28,8 +35,12 @@ fn SemanticChecker::synthesize_checked_handler(
   //
   // Operation arms need `ResultT` and the final residual effect to type
   // `resume : OperationResult -> ResultT ! Residual`. Since arm bodies
-  // contribute to `Residual`, we first run a silent local pass using the seed,
-  // compute the final residual, then check arms once with the final resume type.
+  // contribute to `Residual`, the checker gives `resume` a local effect
+  // placeholder `R`, checks arms once, computes
+  //
+  //   Residual = Seed union ArmEff[R := {}]
+  //
+  // then substitutes `R := Residual` through the checked arm bodies.
   let checked_body = self.synthesize_checked_expr(scope, body)
   let checked_tables = self.check_handler_table_data(
     scope,
@@ -55,7 +66,11 @@ fn SemanticChecker::synthesize_checked_handler(
     residual_body_effect,
     checked_final_body.effect,
   ])
-  let preliminary_arm_effects = []
+  let residual_parameter = self.fresh_handler_residual_effect_parameter(loc)
+  let residual_placeholder = @types.Effect::Parameter(residual_parameter)
+  let arm_checks : Array[HandlerOperationBodyCheck] = []
+  let arm_effect_contributions = []
+  let deferred_effect_diagnostics = []
   for table in checked_tables {
     for operation in table.operations {
       let arm_scope = handler_operation_scope(
@@ -63,62 +78,72 @@ fn SemanticChecker::synthesize_checked_handler(
         operation.checked,
         operation.signature,
         result_type,
-        residual_seed,
+        residual_placeholder,
       )
-      preliminary_arm_effects.push(
-        self.preliminary_handler_arm_effect(
-          arm_scope,
-          operation.source.body,
-          result_type,
+      let diagnostic_start = self.diagnostics.length()
+      let checked_arm_body = self.check_checked_expr(
+        arm_scope,
+        operation.source.body,
+        result_type,
+      )
+      deferred_effect_diagnostics.append(
+        self.take_deferred_handler_effect_diagnostics(
+          diagnostic_start, residual_parameter,
         ),
       )
+      arm_effect_contributions.push(
+        checked_arm_body.effect.substitute(
+          handler_residual_substitution(residual_parameter, Empty),
+        ),
+      )
+      let body = match
+        self.require_checked_expression(
+          checked_arm_body,
+          operation.source.body.loc(),
+          "handler operation arm",
+        ) {
+        Some(body) => Some(body)
+        None => None
+      }
+      arm_checks.push({ table_loc: table.checked.loc, operation, body })
     }
   }
   let residual_effect = handler_effect_union(
-    [residual_seed] + preliminary_arm_effects,
+    [residual_seed] + arm_effect_contributions,
+  )
+  let residual_substitution = handler_residual_substitution(
+    residual_parameter, residual_effect,
+  )
+  self.replay_deferred_handler_effect_diagnostics(
+    deferred_effect_diagnostics, residual_substitution,
   )
   let mut complete = checked_body.expression is Some(_) &&
     checked_final_body.expression is Some(_)
   let checked_handler_tables : Array[@checked.CheckedHandlerTable] = []
   for table in checked_tables {
     let checked_operations : Array[@checked.CheckedHandlerOperationArm] = []
-    for operation in table.operations {
-      let arm_scope = handler_operation_scope(
-        scope,
-        operation.checked,
-        operation.signature,
-        result_type,
-        residual_effect,
-      )
-      let checked_arm_body = self.check_checked_expr(
-        arm_scope,
-        operation.source.body,
-        result_type,
-      )
-      match
-        self.require_checked_expression(
-          checked_arm_body,
-          operation.source.body.loc(),
-          "handler operation arm",
-        ) {
-        Some(body) =>
-          checked_operations.push({
-            operation: operation.checked.operation,
-            type_binders: operation.checked.type_binders,
-            payload_types: operation.checked.payload_types,
-            payload_patterns: operation.checked.payload_patterns,
-            resume_symbol: operation.checked.resume_symbol,
-            resume_type: handler_resume_type(
-              operation.signature,
-              result_type,
-              residual_effect,
-            ),
-            resume_binder: operation.checked.resume_binder,
-            resume_loc: operation.checked.resume_loc,
-            body: Some(body),
-            loc: operation.checked.loc,
-          })
-        None => complete = false
+    for arm_check in arm_checks {
+      if arm_check.table_loc == table.checked.loc {
+        match arm_check.body {
+          Some(body) =>
+            checked_operations.push({
+              operation: arm_check.operation.checked.operation,
+              type_binders: arm_check.operation.checked.type_binders,
+              payload_types: arm_check.operation.checked.payload_types,
+              payload_patterns: arm_check.operation.checked.payload_patterns,
+              resume_symbol: arm_check.operation.checked.resume_symbol,
+              resume_type: handler_resume_type(
+                arm_check.operation.signature,
+                result_type,
+                residual_effect,
+              ),
+              resume_binder: arm_check.operation.checked.resume_binder,
+              resume_loc: arm_check.operation.checked.resume_loc,
+              body: Some(body.substitute(residual_substitution)),
+              loc: arm_check.operation.checked.loc,
+            })
+          None => complete = false
+        }
       }
     }
     checked_handler_tables.push({
@@ -164,14 +189,11 @@ fn SemanticChecker::synthesize_checked_handler(
 }
 
 ///|
-fn SemanticChecker::preliminary_handler_arm_effect(
+fn SemanticChecker::fresh_handler_residual_effect_parameter(
   self : SemanticChecker,
-  scope : TypeScope,
-  body : @desugar.DesugaredExpr,
-  result_type : @types.Type,
-) -> @types.Effect {
-  let checker = self.copy_for_silent_analysis()
-  checker.check_checked_expr(scope.copy(), body, result_type).effect
+  loc : SourceSpan,
+) -> TypeParameterId {
+  self.resolved_source.symbols.define_type_parameter("$handler_residual", loc)
 }
 
 ///|
@@ -509,6 +531,123 @@ fn handler_resume_type(
 }
 
 ///|
+fn handler_residual_substitution(
+  parameter : TypeParameterId,
+  effect : @types.Effect,
+) -> @types.TypeSubstitution {
+  let substitution = @types.TypeSubstitution::TypeSubstitution()
+  substitution.insert_effect(parameter, effect)
+  substitution
+}
+
+///|
+fn SemanticChecker::take_deferred_handler_effect_diagnostics(
+  self : SemanticChecker,
+  start : Int,
+  residual_parameter : TypeParameterId,
+) -> Array[TypeCheckDiagnostic] {
+  let added = []
+  let deferred = []
+  while self.diagnostics.length() > start {
+    added.push(self.diagnostics.pop().unwrap())
+  }
+  for offset in 0..<added.length() {
+    let diagnostic = added[added.length() - offset - 1]
+    if diagnostic.depends_on_handler_residual_parameter(residual_parameter) {
+      deferred.push(diagnostic)
+    } else {
+      self.diagnostics.push(diagnostic)
+    }
+  }
+  deferred
+}
+
+///|
+fn SemanticChecker::replay_deferred_handler_effect_diagnostics(
+  self : SemanticChecker,
+  diagnostics : Array[TypeCheckDiagnostic],
+  substitution : @types.TypeSubstitution,
+) -> Unit {
+  for diagnostic in diagnostics {
+    match diagnostic.kind {
+      EffectMismatch(expected~, actual~) =>
+        self.expect_effect(
+          expected.substitute(substitution),
+          actual.substitute(substitution),
+          diagnostic.loc,
+        )
+      _ => self.diagnostics.push(diagnostic)
+    }
+  }
+}
+
+///|
+fn TypeCheckDiagnostic::depends_on_handler_residual_parameter(
+  self : TypeCheckDiagnostic,
+  parameter : TypeParameterId,
+) -> Bool {
+  match self.kind {
+    EffectMismatch(expected~, actual~) =>
+      effect_mentions_parameter(expected, parameter) ||
+      effect_mentions_parameter(actual, parameter)
+    _ => false
+  }
+}
+
+///|
+fn effect_mentions_parameter(
+  effect : @types.Effect,
+  parameter : TypeParameterId,
+) -> Bool {
+  match effect {
+    Empty => false
+    Singleton(_, arguments) =>
+      arguments.any(fn(argument) {
+        generic_argument_mentions_effect_parameter(argument, parameter)
+      })
+    Parameter(id) => id == parameter
+    Union(effects) =>
+      effects.any(fn(effect) { effect_mentions_parameter(effect, parameter) })
+  }
+}
+
+///|
+fn type_mentions_effect_parameter(
+  type_ : @types.Type,
+  parameter : TypeParameterId,
+) -> Bool {
+  match type_ {
+    Error | Primitive(_) | Constructor(_) => false
+    Apply(callee, arguments) =>
+      type_mentions_effect_parameter(callee, parameter) ||
+      arguments.any(fn(argument) {
+        generic_argument_mentions_effect_parameter(argument, parameter)
+      })
+    TypeLambda(parameters, body) | Forall(parameters, body) =>
+      !parameters.any(fn(binder) { binder.id == parameter }) &&
+      type_mentions_effect_parameter(body, parameter)
+    Parameter(_) => false
+    Function(parameters, result, effect) =>
+      parameters.any(fn(parameter_type) {
+        type_mentions_effect_parameter(parameter_type, parameter)
+      }) ||
+      type_mentions_effect_parameter(result, parameter) ||
+      effect_mentions_parameter(effect, parameter)
+  }
+}
+
+///|
+fn generic_argument_mentions_effect_parameter(
+  argument : @types.GenericArgument,
+  parameter : TypeParameterId,
+) -> Bool {
+  match argument {
+    TypeArgument(type_) => type_mentions_effect_parameter(type_, parameter)
+    EffectArgument(effect) => effect_mentions_parameter(effect, parameter)
+  }
+}
+
+///|
 fn SemanticChecker::check_handler_operation_coverage(
   self : SemanticChecker,
   handled_effect : @types.Effect,
@@ -526,8 +665,8 @@ fn SemanticChecker::check_handler_operation_coverage(
     return
   }
   for operation in effect.operations {
-    let payload_types = handler_operation_payload_types(
-      self, handled_effect, operation,
+    let payload_types = self.instantiated_operation_payload_types(
+      handled_effect, operation,
     )
     let matrix = PatternMatrix::PatternMatrix()
     for arm in arms {
@@ -550,19 +689,6 @@ fn SemanticChecker::check_handler_operation_coverage(
       })
     }
   }
-}
-
-///|
-fn handler_operation_payload_types(
-  checker : SemanticChecker,
-  handled_effect : @types.Effect,
-  operation : CheckedEffectOperationDeclaration,
-) -> Array[@types.Type] {
-  let substitution = checker.operation_owner_substitution(
-    handled_effect,
-    operation.symbol,
-  )
-  operation.payload.map(fn(type_) { type_.substitute(substitution) })
 }
 
 ///|

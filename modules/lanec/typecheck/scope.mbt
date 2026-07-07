@@ -26,6 +26,7 @@ priv struct TypeScope {
   values : Array[ValueTypeBinding]
   offers : Array[ContextualOffer]
   type_parameters : Array[TypeParameterKindBinding]
+  expected_effect : @types.Effect?
 }
 
 ///|
@@ -34,6 +35,7 @@ fn SemanticChecker::root_scope(self : SemanticChecker) -> TypeScope {
     values: self.value_types.copy(),
     offers: self.offers.copy(),
     type_parameters: [],
+    expected_effect: None,
   }
 }
 
@@ -43,6 +45,7 @@ fn SemanticChecker::ordered_root_scope(self : SemanticChecker) -> TypeScope {
     values: self.ordered_value_types.copy(),
     offers: self.ordered_offers.copy(),
     type_parameters: [],
+    expected_effect: None,
   }
 }
 
@@ -96,6 +99,20 @@ fn TypeScope::copy(self : TypeScope) -> TypeScope {
     values: self.values.copy(),
     offers: self.offers.copy(),
     type_parameters: self.type_parameters.copy(),
+    expected_effect: self.expected_effect,
+  }
+}
+
+///|
+fn TypeScope::with_expected_effect(
+  self : TypeScope,
+  effect : @types.Effect,
+) -> TypeScope {
+  {
+    values: self.values.copy(),
+    offers: self.offers.copy(),
+    type_parameters: self.type_parameters.copy(),
+    expected_effect: Some(effect),
   }
 }
 
@@ -313,87 +330,4 @@ fn SemanticChecker::offer_forwarding_fields(
       )
     }
   }
-}
-
-///|
-fn SemanticChecker::check_local_let(
-  self : SemanticChecker,
-  scope : TypeScope,
-  declaration : @desugar.DesugaredLetDeclaration,
-) -> Unit {
-  let type_ = if declaration.type_annotation is Some(type_annotation) {
-    let type_ = self.check_type(type_annotation)
-    self.check_expr(scope, declaration.initializer, type_)
-    type_
-  } else {
-    self.synthesize_expr(scope, declaration.initializer)
-  }
-  scope.bind(declaration.symbol, type_)
-}
-
-///|
-fn SemanticChecker::check_local_offer(
-  self : SemanticChecker,
-  scope : TypeScope,
-  declaration : @desugar.DesugaredOfferDeclaration,
-) -> Unit {
-  let type_ = self.check_type(declaration.type_annotation)
-  self.check_expr(scope, declaration.initializer, type_)
-  scope.bind(declaration.symbol, type_)
-  self.offer_symbol(scope.offers, declaration.symbol, type_, declaration.loc)
-}
-
-///|
-fn SemanticChecker::check_local_pattern_let(
-  self : SemanticChecker,
-  scope : TypeScope,
-  declaration : @desugar.DesugaredPatternLetDeclaration,
-) -> @checked.CheckedPattern {
-  // Pattern-let is sequential elimination:
-  //
-  //   Gamma |- initializer => T
-  //   Gamma, binders(pattern : T) |- rest
-  //
-  // Existential type binders opened by the pattern are recorded in the checked
-  // pattern so block synthesis can reject hidden-type escape at the scope exit.
-  let type_ = if declaration.type_annotation is Some(type_annotation) {
-    let type_ = self.check_type(type_annotation)
-    self.check_expr(scope, declaration.initializer, type_)
-    type_
-  } else {
-    self.synthesize_expr(scope, declaration.initializer)
-  }
-  let pattern = self.check_pattern(scope, declaration.pattern, type_, [])
-  self.check_irrefutable_pattern_let(pattern)
-  pattern
-}
-
-///|
-fn SemanticChecker::check_local_function(
-  self : SemanticChecker,
-  scope : TypeScope,
-  declaration : @desugar.DesugaredFunctionDeclaration,
-) -> Unit {
-  let type_ = self.function_type(
-    declaration.type_parameters,
-    declaration.parameters,
-    declaration.return_type,
-    declaration.effect,
-  )
-  let parameters = self.checked_value_parameters(declaration.parameters)
-  scope.bind_function(declaration.symbol, type_, parameters)
-  let body_scope = self.function_body_scope(
-    scope,
-    declaration.type_parameters,
-    parameters,
-  )
-  let effect = self.check_effect(declaration.effect)
-  self.push_expected_effect(effect)
-  let body = self.check_checked_expr(
-    body_scope,
-    declaration.body,
-    self.check_type(declaration.return_type),
-  )
-  self.pop_expected_effect()
-  self.expect_effect(effect, body.effect, declaration.body.loc())
 }
