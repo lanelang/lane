@@ -1,0 +1,23 @@
+module Examples.Valid.DoubleSpecialConstants
+
+import Basic.Double.{infinity, nan, neg_infinity}
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+pub fn answer() -> Unit ! Io {
+  if infinity > 1.0 {
+    if neg_infinity < 0.0 {
+      if nan != nan {
+        Write::println!("double constants ok")
+      } else {
+        Write::println!("nan equality failed")
+      }
+    } else {
+      Write::println!("negative infinity comparison failed")
+    }
+  } else {
+    Write::println!("infinity comparison failed")
+  }
+}

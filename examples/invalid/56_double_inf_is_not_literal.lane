@@ -1,0 +1,3 @@
+module Examples.Invalid.DoubleInfIsNotLiteral
+
+pub let bad : Double = inf

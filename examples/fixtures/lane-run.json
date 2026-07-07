@@ -463,6 +463,15 @@
       }
     },
     {
+      "name": "52 double special constants",
+      "file": "examples/valid/52_double_special_constants.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "double constants ok"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
@@ -1190,6 +1199,28 @@
           "error[E3013]",
           "missing contextual offer",
           "Rem[Double]"
+        ]
+      }
+    },
+    {
+      "name": "invalid 56 double inf is not literal",
+      "file": "examples/invalid/56_double_inf_is_not_literal.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E2001]",
+          "cannot find value `inf`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 57 double nan is not literal",
+      "file": "examples/invalid/57_double_nan_is_not_literal.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E2001]",
+          "cannot find value `nan`"
         ]
       }
     }

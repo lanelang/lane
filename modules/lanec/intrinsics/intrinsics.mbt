@@ -91,6 +91,9 @@ fn resolve_standard_intrinsic(
       native(type_, arguments => {
         double_compare(external, arguments, (a, b) => a < b)
       })
+    "%f64_inf" => RuntimeValue::double(1.0 / 0.0)
+    "%f64_ninf" => RuntimeValue::double(-1.0 / 0.0)
+    "%f64_nan" => RuntimeValue::double(0.0 / 0.0)
     "%string_equal" =>
       native(type_, arguments => {
         string_compare(external, arguments, (a, b) => a == b)

@@ -1,0 +1,3 @@
+module Examples.Invalid.DoubleNanIsNotLiteral
+
+pub let bad : Double = nan
