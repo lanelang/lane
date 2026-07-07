@@ -436,6 +436,15 @@
       }
     },
     {
+      "name": "49 list literal",
+      "file": "examples/valid/49_list_literal.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "list literal=10"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",

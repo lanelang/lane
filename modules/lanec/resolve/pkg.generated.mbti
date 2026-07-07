@@ -133,6 +133,7 @@ pub(all) enum ResolvedExpr {
   QualifiedVariant(type_name~ : String, generic_arguments~ : Array[ResolvedGenericArgument], variant~ : String, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
+  ListLiteral(items~ : Array[ResolvedExpr], nil_reference~ : ResolvedVariantReference, cons_reference~ : ResolvedVariantReference?, loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : ResolvedEffectOperationName, generic_witnesses~ : Array[ResolvedGenericArgument], arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)

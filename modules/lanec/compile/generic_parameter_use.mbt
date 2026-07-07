@@ -427,6 +427,10 @@ fn GenericParameterUseCollector::collect_expr(
         self.collect_expr(argument)
       }
     }
+    ListLiteral(items~, ..) =>
+      for item in items {
+        self.collect_expr(item)
+      }
     StructLiteral(generic_arguments~, fields~, ..) => {
       for argument in generic_arguments {
         self.collect_generic_argument(argument)

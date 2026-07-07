@@ -2039,6 +2039,17 @@ fn @syntax.Expr::resolve_expr(
         loc~,
       )
     }
+    ListLiteral(items~, loc~) =>
+      ListLiteral(
+        items=items.map(fn(item) { item.resolve_expr(resolver, scope) }),
+        nil_reference=resolver.unqualified_variant_reference("nil", loc),
+        cons_reference=if items.is_empty() {
+          None
+        } else {
+          Some(resolver.unqualified_variant_reference("cons", loc))
+        },
+        loc~,
+      )
     Builtin(name, loc~) => Builtin(name, loc~)
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
       EffectOperationCall(

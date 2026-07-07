@@ -9,6 +9,7 @@ pub fn ResolvedExpr::loc(self : ResolvedExpr) -> SourceSpan {
     | QualifiedVariant(loc~, ..)
     | UnqualifiedVariant(loc~, ..)
     | StructLiteral(loc~, ..)
+    | ListLiteral(loc~, ..)
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
@@ -40,6 +41,10 @@ pub fn ResolvedExpr::for_each_child_expr(
     QualifiedVariant(arguments~, ..) | UnqualifiedVariant(arguments~, ..) =>
       for argument in arguments {
         visit(argument)
+      }
+    ListLiteral(items~, ..) =>
+      for item in items {
+        visit(item)
       }
     StructLiteral(fields~, ..) =>
       for field in fields {

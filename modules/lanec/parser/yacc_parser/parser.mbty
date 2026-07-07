@@ -631,7 +631,13 @@ non_owner_primary_expression -> Expr
   | match_expression { $1 }
   | handler_expression { $1 }
   | function_literal { $1 }
+  | "[" list_literal_items "]" { ListLiteral(items=$2, loc=span($sloc)) }
   | builtin_expression { $1 }
+  ;
+
+list_literal_items -> Array[Expr]
+  : { [] }
+  | non_empty_positional_argument_list { $1 }
   ;
 
 operation_type_witnesses -> Array[Type]

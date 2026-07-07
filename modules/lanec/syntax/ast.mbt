@@ -269,6 +269,7 @@ pub(all) enum Expr {
     fields~ : Array[StructLiteralField],
     loc~ : SourceSpan
   )
+  ListLiteral(items~ : Array[Expr], loc~ : SourceSpan)
   Builtin(String, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[TypeParameter],
@@ -322,6 +323,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | Var(_, loc~)
     | QualifiedVariant(loc~, ..)
     | StructLiteral(loc~, ..)
+    | ListLiteral(loc~, ..)
     | Builtin(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)

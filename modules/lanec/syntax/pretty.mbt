@@ -519,6 +519,8 @@ fn Expr::to_doc_with_precedence(
       let head = owner.to_doc() + text("::")
       (10, head + braced_comma_list(fields.map(StructLiteralField::to_doc)))
     }
+    ListLiteral(items~, ..) =>
+      (10, bracketed_comma_list(items.map(Expr::to_doc)))
     Builtin(name, ..) =>
       (10, keyword("builtin") + parenthesized_comma_list([source_string(name)]))
     FunctionLiteral(

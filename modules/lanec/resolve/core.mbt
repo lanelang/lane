@@ -478,6 +478,12 @@ pub(all) enum ResolvedExpr {
     fields~ : Array[ResolvedStructLiteralField],
     loc~ : SourceSpan
   )
+  ListLiteral(
+    items~ : Array[ResolvedExpr],
+    nil_reference~ : ResolvedVariantReference,
+    cons_reference~ : ResolvedVariantReference?,
+    loc~ : SourceSpan
+  )
   Builtin(String, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[ResolvedTypeParameter],

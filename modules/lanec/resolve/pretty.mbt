@@ -715,6 +715,8 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(ResolvedStructLiteralField::pretty))
+    ListLiteral(items~, ..) =>
+      @pretty.bracketed_inline(items.map(ResolvedExpr::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
     FunctionLiteral(
       type_parameters~,
