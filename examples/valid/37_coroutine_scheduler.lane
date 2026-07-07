@@ -60,10 +60,6 @@ fn[E : Effect] enqueue(queue : Queue[E], item : Runnable[E]) -> Queue[E] {
   }
 }
 
-fn[E : Effect] with_queue(_scheduler : Scheduler[E], queue : Queue[E]) -> Scheduler[E] {
-  Scheduler[E]::{ queue }
-}
-
 fn[E : Effect] run_task(task_value : Task[E]) -> Step[E] ! E {
   match task_value {
     task[A](body) =>
@@ -90,7 +86,7 @@ fn[E : Effect] run_queue(scheduler : Scheduler[E]) -> Scheduler[E] ! E {
     empty() => scheduler
     node(runnable_step, rest) =>
       match runnable_step {
-        runnable(run) => run_step(run(), with_queue(scheduler, rest))
+        runnable(run) => run_step(run(), Scheduler[E]::{ queue: rest })
       }
   }
 }
@@ -99,7 +95,7 @@ fn[E : Effect] run_step(step : Step[E], scheduler : Scheduler[E]) -> Scheduler[E
   match step {
     done() => run_queue(scheduler)
     yielded(resume) => run_queue(
-      with_queue(scheduler, enqueue(scheduler.queue, Runnable[E]::runnable(resume)))
+      Scheduler[E]::{ queue: enqueue(scheduler.queue, Runnable[E]::runnable(resume)) }
     )
     spawned[A](body, resume) => {
       let child : Runnable[E] =
@@ -108,7 +104,7 @@ fn[E : Effect] run_step(step : Step[E], scheduler : Scheduler[E]) -> Scheduler[E
             run_task(Task[E]::task[A](body))
           }
         )
-      run_step(resume(), with_queue(scheduler, enqueue(scheduler.queue, child)))
+      run_step(resume(), Scheduler[E]::{ queue: enqueue(scheduler.queue, child) })
     }
   }
 }
