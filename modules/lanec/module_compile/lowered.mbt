@@ -44,24 +44,31 @@ fn attach_lowered_object(
     imported_modules,
     module_.module_path_text,
   )
+  let runtime_effect_operations = runtime_effect_operation_signatures_from_interface(
+    module_.interface,
+  )
   let object : ModuleObject = {
     module_path_text: module_.object.module_path_text,
     checked: module_.object.checked,
+    interface_fingerprint: module_.object.interface_fingerprint,
     metadata: lowered.metadata,
     terms: lowered.terms,
     externals: lowered.externals,
     entries: lowered.entries,
     exports: lowered.exports,
     imports,
+    runtime_effect_operations,
     fingerprint: module_.object.fingerprint,
     object_fingerprint: module_object_fingerprint(
       module_.object.fingerprint,
+      module_.object.interface_fingerprint,
       lowered.metadata,
       lowered.terms,
       lowered.externals,
       lowered.entries,
       lowered.exports,
       imports,
+      runtime_effect_operations,
       module_.object.imported_interface_fingerprints,
     ),
     imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -86,24 +93,31 @@ fn attach_lowered_object_from_interfaces(
     interfaces,
     module_.module_path_text,
   )
+  let runtime_effect_operations = runtime_effect_operation_signatures_from_interface(
+    module_.interface,
+  )
   let object : ModuleObject = {
     module_path_text: module_.object.module_path_text,
     checked: module_.object.checked,
+    interface_fingerprint: module_.object.interface_fingerprint,
     metadata: lowered.metadata,
     terms: lowered.terms,
     externals: lowered.externals,
     entries: lowered.entries,
     exports: lowered.exports,
     imports,
+    runtime_effect_operations,
     fingerprint: module_.object.fingerprint,
     object_fingerprint: module_object_fingerprint(
       module_.object.fingerprint,
+      module_.object.interface_fingerprint,
       lowered.metadata,
       lowered.terms,
       lowered.externals,
       lowered.entries,
       lowered.exports,
       imports,
+      runtime_effect_operations,
       module_.object.imported_interface_fingerprints,
     ),
     imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -115,6 +129,25 @@ fn attach_lowered_object_from_interfaces(
     fingerprint: module_.fingerprint,
     imported_interface_fingerprints: module_.imported_interface_fingerprints,
   }
+}
+
+///|
+fn runtime_effect_operation_signatures_from_interface(
+  interface : @module_interface.ModuleInterface,
+) -> Array[RuntimeEffectOperationSignature] {
+  let signatures = []
+  for effect in interface.effects {
+    for operation in effect.operations {
+      signatures.push({
+        module_path_text: interface.module_path,
+        effect_name: effect.name,
+        operation_name: operation.name,
+        payload: operation.payload,
+        result: operation.result,
+      })
+    }
+  }
+  signatures
 }
 
 ///|

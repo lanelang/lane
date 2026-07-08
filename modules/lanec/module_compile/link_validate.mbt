@@ -1,47 +1,26 @@
 ///|
 fn validate_link_object(
-  modules : Array[CompiledModule],
-  module_ : CompiledModule,
-  object : ModuleObject,
+  index : LinkModuleIndex,
+  object : LinkModuleObject,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  if module_.module_path_text != object.module_path_text {
-    diagnostics.push(
-      link_diagnostic(
-        StaleModuleObject(
-          module_path_text=module_.module_path_text,
-          reason="module object mismatch",
-        ),
-        None,
-      ),
-    )
-  }
-  if module_.fingerprint != object.fingerprint {
-    diagnostics.push(
-      link_diagnostic(
-        StaleModuleObject(
-          module_path_text=module_.module_path_text,
-          reason="module fingerprint mismatch",
-        ),
-        None,
-      ),
-    )
-  }
   if object.object_fingerprint !=
     module_object_fingerprint(
       object.fingerprint,
+      object.interface_fingerprint,
       object.metadata,
       object.terms,
       object.externals,
       object.entries,
       object.exports,
       object.imports,
+      object.runtime_effect_operations,
       object.imported_interface_fingerprints,
     ) {
     diagnostics.push(
       link_diagnostic(
         StaleModuleObject(
-          module_path_text=module_.module_path_text,
+          module_path_text=object.module_path_text,
           reason="object fingerprint mismatch",
         ),
         None,
@@ -49,22 +28,19 @@ fn validate_link_object(
     )
   }
   for imported in object.imported_interface_fingerprints {
-    match find_compiled_module(modules, imported.module_path_text) {
-      Some(imported_module) => {
-        if interface_fingerprint(imported_module.interface) !=
-          imported.fingerprint {
+    match index.find(imported.module_path_text) {
+      Some(imported_module) =>
+        if imported_module.interface_fingerprint != imported.fingerprint {
           diagnostics.push(
             link_diagnostic(
               LinkImportedInterfaceFingerprintMismatch(
-                importer=module_.module_path_text,
+                importer=object.module_path_text,
                 imported=imported.module_path_text,
               ),
               None,
             ),
           )
         }
-        diagnostics.append(validate_imported_exports(module_, imported_module))
-      }
       None =>
         diagnostics.push(
           link_diagnostic(
@@ -74,25 +50,24 @@ fn validate_link_object(
         )
     }
   }
-  diagnostics.append(validate_imported_references(module_, object, modules))
+  diagnostics.append(validate_imported_references(object, index))
   diagnostics
 }
 
 ///|
 fn validate_imported_references(
-  module_ : CompiledModule,
-  object : ModuleObject,
-  modules : Array[CompiledModule],
+  object : LinkModuleObject,
+  index : LinkModuleIndex,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for imported in object.imports {
-    match find_compiled_module(modules, imported.module_path_text) {
+    match index.find(imported.module_path_text) {
       Some(imported_module) =>
         if imported.fingerprint != imported_module.fingerprint {
           diagnostics.push(
             link_diagnostic(
               ImportedReferenceFingerprintMismatch(
-                importer=module_.module_path_text,
+                importer=object.module_path_text,
                 imported=imported.module_path_text,
                 name=imported.name,
               ),
@@ -102,7 +77,7 @@ fn validate_imported_references(
         } else {
           match
             find_module_export(
-              imported_module.object.exports,
+              imported_module.exports,
               imported.kind,
               imported.name,
             ) {
@@ -111,7 +86,7 @@ fn validate_imported_references(
                 diagnostics.push(
                   link_diagnostic(
                     ImportedReferenceMismatch(
-                      importer=module_.module_path_text,
+                      importer=object.module_path_text,
                       imported=imported.module_path_text,
                       name=imported.name,
                     ),
@@ -150,6 +125,21 @@ fn imported_reference_shape_matches_export(
     Operation => imported.operation is Some(_) && item.operation is Some(_)
     FieldSelector | Value => imported.value is Some(_) && item.value is Some(_)
   }
+}
+
+///|
+fn validate_compiled_module_exports(
+  module_ : CompiledModule,
+  modules : Array[CompiledModule],
+) -> Array[CompilerDiagnostic] {
+  let diagnostics = []
+  for imported in module_.imported_interface_fingerprints {
+    if find_compiled_module(modules, imported.module_path_text)
+      is Some(imported_module) {
+      diagnostics.append(validate_imported_exports(module_, imported_module))
+    }
+  }
+  diagnostics
 }
 
 ///|

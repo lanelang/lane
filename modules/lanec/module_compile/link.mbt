@@ -1,12 +1,19 @@
 ///|
 pub fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
-  match linked_modules(modules) {
+  match link_index_from_compiled_modules(modules.modules) {
     Err(diagnostics) =>
       { program: None, diagnostics: modules.diagnostics + diagnostics }
-    Ok(ordered_modules) => {
-      let linked = link_ordered_modules(
-        ordered_modules,
+    Ok(index) => {
+      let linked = link_index(
+        index,
+        Reachable(modules.root_module_path_text),
         RootEntries(modules.root_module_path_text),
+        fn(ordered) {
+          validate_compiled_module_exports_for_link_order(
+            ordered,
+            modules.modules,
+          )
+        },
       )
       { ..linked, diagnostics: modules.diagnostics + linked.diagnostics }
     }
@@ -15,21 +22,77 @@ pub fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
 
 ///|
 pub fn link_compiled_modules(modules : Array[CompiledModule]) -> LinkResult {
-  match linked_all_modules(modules) {
+  match link_index_from_compiled_modules(modules) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(ordered_modules) =>
-      link_ordered_modules(ordered_modules, QualifiedEntries)
+    Ok(index) =>
+      link_index(index, AllModules, QualifiedEntries, fn(ordered) {
+        validate_compiled_module_exports_for_link_order(ordered, modules)
+      })
+  }
+}
+
+///|
+fn link_link_modules(modules : Array[LinkModuleObject]) -> LinkResult {
+  match LinkModuleIndex::from_modules(modules) {
+    Err(diagnostics) => { program: None, diagnostics }
+    Ok(index) => link_index(index, AllModules, QualifiedEntries, fn(_) { [] })
+  }
+}
+
+///|
+fn link_module_artifact_objects(
+  modules : Array[LinkModuleObject],
+  root_module_path_text : String,
+) -> LinkResult {
+  match LinkModuleIndex::from_modules(modules) {
+    Err(diagnostics) => { program: None, diagnostics }
+    Ok(index) =>
+      link_index(
+        index,
+        Reachable(root_module_path_text),
+        RootEntries(root_module_path_text),
+        fn(_) { [] },
+      )
+  }
+}
+
+///|
+fn link_index_from_compiled_modules(
+  modules : Array[CompiledModule],
+) -> Result[LinkModuleIndex, Array[CompilerDiagnostic]] {
+  LinkModuleIndex::from_modules(
+    modules.map(fn(module_) { module_.object.to_link_object() }),
+  )
+}
+
+///|
+fn link_index(
+  index : LinkModuleIndex,
+  selection : LinkModuleSelection,
+  entry_mode : LinkedEntryMode,
+  validate_extra : (Array[LinkModuleObject]) -> Array[CompilerDiagnostic],
+) -> LinkResult {
+  let ordered = match selection {
+    AllModules => index.all()
+    Reachable(root) => index.reachable(root)
+  }
+  let diagnostics = ordered.diagnostics + validate_extra(ordered.modules)
+  if !diagnostics.is_empty() {
+    return { program: None, diagnostics }
+  }
+  match index.validate_order(ordered.modules) {
+    Err(diagnostics) => { program: None, diagnostics }
+    Ok(modules) => link_ordered_modules(modules, entry_mode)
   }
 }
 
 ///|
 fn link_ordered_modules(
-  modules : Array[CompiledModule],
+  modules : Array[LinkModuleObject],
   entry_mode : LinkedEntryMode,
 ) -> LinkResult {
   let remapper = BuslaneLinker::BuslaneLinker()
-  let objects = modules.map(fn(module_) { module_.object })
-  let remapped_objects = remapper.remap_module_objects(objects)
+  let remapped_objects = remapper.remap_module_objects(modules)
   let module_path_texts = []
   let terms = []
   let builtins = []
@@ -66,28 +129,26 @@ fn link_ordered_modules(
 
 ///|
 fn runtime_effect_operations_from_module(
-  module_ : CompiledModule,
+  module_ : LinkModuleObject,
   object : RemappedModuleObject,
 ) -> Array[@artifact_core.LinkedRuntimeEffectOperation] {
   let operations : Array[@artifact_core.LinkedRuntimeEffectOperation] = []
-  for effect in module_.interface.effects {
-    for operation in effect.operations {
-      let export_name = effect_operation_export_name(
-        effect.name,
-        operation.name,
-      )
-      if find_module_export(object.exports, Operation, export_name)
-        is Some(export_) {
-        if export_.operation is Some(operation_id) {
-          operations.push({
-            module_path_text: module_.module_path_text,
-            effect_name: effect.name,
-            operation_name: operation.name,
-            payload: operation.payload,
-            result: operation.result,
-            operation: operation_id,
-          })
-        }
+  for operation in module_.runtime_effect_operations {
+    let export_name = effect_operation_export_name(
+      operation.effect_name,
+      operation.operation_name,
+    )
+    if find_module_export(object.exports, Operation, export_name)
+      is Some(export_) {
+      if export_.operation is Some(operation_id) {
+        operations.push({
+          module_path_text: operation.module_path_text,
+          effect_name: operation.effect_name,
+          operation_name: operation.operation_name,
+          payload: operation.payload,
+          result: operation.result,
+          operation: operation_id,
+        })
       }
     }
   }
@@ -97,7 +158,7 @@ fn runtime_effect_operations_from_module(
 ///|
 fn BuslaneLinker::remap_module_objects(
   self : BuslaneLinker,
-  objects : Array[ModuleObject],
+  objects : Array[LinkModuleObject],
 ) -> Array[RemappedModuleObject] {
   let remapped_objects = []
   let exports : Array[LinkedModuleExport] = []
@@ -125,7 +186,7 @@ fn BuslaneLinker::remap_module_objects(
 ///|
 fn BuslaneLinker::seed_imports(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   exports : Array[LinkedModuleExport],
 ) -> Unit {
   for imported in object.imports {
@@ -193,56 +254,9 @@ fn find_linked_export(
 }
 
 ///|
-fn linked_modules(
-  modules : CompiledModuleSet,
-) -> Result[Array[CompiledModule], Array[CompilerDiagnostic]] {
-  let module_diagnostics = validate_compiled_modules(modules.modules)
-  if !module_diagnostics.is_empty() {
-    return Err(module_diagnostics)
-  }
-  let ordered = reachable_compiled_modules(
-    modules.modules,
-    modules.root_module_path_text,
-  )
-  if !ordered.diagnostics.is_empty() {
-    return Err(ordered.diagnostics)
-  }
-  for module_ in ordered.modules {
-    let object = module_.object
-    let diagnostics = validate_link_object(modules.modules, module_, object)
-    if !diagnostics.is_empty() {
-      return Err(diagnostics)
-    }
-  }
-  Ok(ordered.modules)
-}
-
-///|
-fn linked_all_modules(
-  modules : Array[CompiledModule],
-) -> Result[Array[CompiledModule], Array[CompilerDiagnostic]] {
-  let module_diagnostics = validate_compiled_modules(modules)
-  if !module_diagnostics.is_empty() {
-    return Err(module_diagnostics)
-  }
-  let ordered = all_compiled_modules(modules)
-  if !ordered.diagnostics.is_empty() {
-    return Err(ordered.diagnostics)
-  }
-  for module_ in ordered.modules {
-    let object = module_.object
-    let diagnostics = validate_link_object(modules, module_, object)
-    if !diagnostics.is_empty() {
-      return Err(diagnostics)
-    }
-  }
-  Ok(ordered.modules)
-}
-
-///|
-fn validate_compiled_modules(
-  modules : Array[CompiledModule],
-) -> Array[CompilerDiagnostic] {
+fn LinkModuleIndex::from_modules(
+  modules : Array[LinkModuleObject],
+) -> Result[LinkModuleIndex, Array[CompilerDiagnostic]] {
   let diagnostics = []
   for index in 0..<modules.length() {
     for other_index in (index + 1)..<modules.length() {
@@ -257,20 +271,21 @@ fn validate_compiled_modules(
       }
     }
   }
-  diagnostics
+  if diagnostics.is_empty() {
+    Ok({ modules, })
+  } else {
+    Err(diagnostics)
+  }
 }
 
 ///|
-fn all_compiled_modules(
-  modules : Array[CompiledModule],
-) -> OrderedCompiledModulesResult {
+fn LinkModuleIndex::all(self : LinkModuleIndex) -> OrderedLinkModulesResult {
   let ordered = []
   let visiting : Array[String] = []
   let visited : Array[String] = []
   let diagnostics = []
-  for module_ in modules {
-    visit_compiled_module(
-      modules,
+  for module_ in self.modules {
+    self.visit(
       module_.module_path_text,
       visiting,
       visited,
@@ -282,27 +297,25 @@ fn all_compiled_modules(
 }
 
 ///|
-fn reachable_compiled_modules(
-  modules : Array[CompiledModule],
+fn LinkModuleIndex::reachable(
+  self : LinkModuleIndex,
   root_module_path_text : String,
-) -> OrderedCompiledModulesResult {
+) -> OrderedLinkModulesResult {
   let ordered = []
   let visiting : Array[String] = []
   let visited : Array[String] = []
   let diagnostics = []
-  visit_compiled_module(
-    modules, root_module_path_text, visiting, visited, ordered, diagnostics,
-  )
+  self.visit(root_module_path_text, visiting, visited, ordered, diagnostics)
   { modules: ordered, diagnostics }
 }
 
 ///|
-fn visit_compiled_module(
-  modules : Array[CompiledModule],
+fn LinkModuleIndex::visit(
+  self : LinkModuleIndex,
   module_path_text : String,
   visiting : Array[String],
   visited : Array[String],
-  ordered : Array[CompiledModule],
+  ordered : Array[LinkModuleObject],
   diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   if visited.contains(module_path_text) {
@@ -312,14 +325,13 @@ fn visit_compiled_module(
     diagnostics.push(link_diagnostic(LinkImportCycle(module_path_text), None))
     return
   }
-  guard find_compiled_module(modules, module_path_text) is Some(module_) else {
+  guard self.find(module_path_text) is Some(module_) else {
     diagnostics.push(link_diagnostic(MissingObject(module_path_text), None))
     return
   }
   visiting.push(module_path_text)
   for import_ in module_.imported_interface_fingerprints {
-    visit_compiled_module(
-      modules,
+    self.visit(
       import_.module_path_text,
       visiting,
       visited,
@@ -330,4 +342,46 @@ fn visit_compiled_module(
   ignore(visiting.pop())
   visited.push(module_path_text)
   ordered.push(module_)
+}
+
+///|
+fn LinkModuleIndex::find(
+  self : LinkModuleIndex,
+  path : String,
+) -> LinkModuleObject? {
+  for module_ in self.modules {
+    if module_.module_path_text == path {
+      return Some(module_)
+    }
+  }
+  None
+}
+
+///|
+fn LinkModuleIndex::validate_order(
+  self : LinkModuleIndex,
+  modules : Array[LinkModuleObject],
+) -> Result[Array[LinkModuleObject], Array[CompilerDiagnostic]] {
+  for module_ in modules {
+    let diagnostics = validate_link_object(self, module_)
+    if !diagnostics.is_empty() {
+      return Err(diagnostics)
+    }
+  }
+  Ok(modules)
+}
+
+///|
+fn validate_compiled_module_exports_for_link_order(
+  ordered : Array[LinkModuleObject],
+  modules : Array[CompiledModule],
+) -> Array[CompilerDiagnostic] {
+  let diagnostics = []
+  for link_module in ordered {
+    if find_compiled_module(modules, link_module.module_path_text)
+      is Some(module_) {
+      diagnostics.append(validate_compiled_module_exports(module_, modules))
+    }
+  }
+  diagnostics
 }

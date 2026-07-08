@@ -58,7 +58,6 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact with fn pretty(
       Some(artifact.object_fingerprint),
     ),
     imported_fingerprints_doc(artifact.imported_interface_fingerprints),
-    interface_summary_doc(artifact.interface),
     object_summary_doc(artifact),
   ])
 }

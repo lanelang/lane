@@ -80,15 +80,26 @@ priv struct LinkedModuleExport {
 }
 
 ///|
-priv struct OrderedCompiledModulesResult {
-  modules : Array[CompiledModule]
+priv struct OrderedLinkModulesResult {
+  modules : Array[LinkModuleObject]
   diagnostics : Array[CompilerDiagnostic]
+}
+
+///|
+priv struct LinkModuleIndex {
+  modules : Array[LinkModuleObject]
 }
 
 ///|
 priv enum LinkedEntryMode {
   RootEntries(String)
   QualifiedEntries
+}
+
+///|
+priv enum LinkModuleSelection {
+  AllModules
+  Reachable(String)
 }
 
 ///|

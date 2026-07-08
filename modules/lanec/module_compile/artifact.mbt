@@ -11,7 +11,7 @@ pub(all) struct ModuleInterfaceArtifact {
 } derive(Debug, Eq)
 
 ///|
-pub let module_object_artifact_schema_version = 5
+pub let module_object_artifact_schema_version = 6
 
 ///|
 pub let linked_program_artifact_schema_version = 3
@@ -20,7 +20,6 @@ pub let linked_program_artifact_schema_version = 3
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
-  interface : @module_interface.ModuleInterface
   interface_fingerprint : @artifact_core.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
@@ -28,6 +27,7 @@ pub(all) struct ModuleObjectArtifact {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
   module_fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[
@@ -118,18 +118,17 @@ pub fn CompiledModule::to_object_artifact(
   self : CompiledModule,
 ) -> ModuleObjectArtifact {
   let object = self.object
-  let interface = self.artifact_interface()
   {
     schema_version: module_object_artifact_schema_version,
     module_path_text: object.module_path_text,
-    interface,
-    interface_fingerprint: interface_fingerprint(interface),
+    interface_fingerprint: object.interface_fingerprint,
     metadata: object.metadata,
     terms: object.terms,
     externals: object.externals,
     entries: object.entries,
     exports: object.exports,
     imports: object.imports,
+    runtime_effect_operations: object.runtime_effect_operations,
     module_fingerprint: object.fingerprint,
     object_fingerprint: object.object_fingerprint,
     imported_interface_fingerprints: object.imported_interface_fingerprints,
@@ -172,9 +171,9 @@ pub fn LinkedProgramArtifact::to_linked_program(
 pub fn link_module_object_artifacts(
   objects : Array[ModuleObjectArtifact],
 ) -> LinkResult {
-  match compiled_modules_from_object_artifacts(objects) {
+  match link_modules_from_object_artifacts(objects) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(modules) => link_compiled_modules(modules)
+    Ok(modules) => link_link_modules(modules)
   }
 }
 
@@ -184,19 +183,23 @@ pub fn link_module_artifacts(
 ) -> LinkResult {
   match artifact.validate_schema() {
     Some(diagnostic) => { program: None, diagnostics: [diagnostic] }
-    None => link_compiled_module_set(artifact.to_compiled_module_set())
+    None =>
+      link_module_artifact_objects(
+        artifact.modules.map(fn(module_) { module_.object.to_link_object() }),
+        artifact.root_module_path_text,
+      )
   }
 }
 
 ///|
-fn compiled_modules_from_object_artifacts(
+fn link_modules_from_object_artifacts(
   objects : Array[ModuleObjectArtifact],
-) -> Result[Array[CompiledModule], Array[CompilerDiagnostic]] {
+) -> Result[Array[LinkModuleObject], Array[CompilerDiagnostic]] {
   let diagnostics = ModuleObjectArtifact::validate_all(objects)
   if !diagnostics.is_empty() {
     return Err(diagnostics)
   }
-  Ok(objects.map(ModuleObjectArtifact::to_compiled_module))
+  Ok(objects.map(ModuleObjectArtifact::to_link_object))
 }
 
 ///|
@@ -241,49 +244,17 @@ fn ModuleObjectArtifact::validate(
       ),
     )
   }
-  if self.interface.module_path != self.module_path_text {
-    return Some(
-      artifact_diagnostic(
-        InvalidModuleObjectArtifact(
-          module_path_text=self.module_path_text,
-          reason="interface name mismatch",
-        ),
-        None,
-      ),
-    )
-  }
-  if self.interface_fingerprint != interface_fingerprint(self.interface) {
-    return Some(
-      artifact_diagnostic(
-        InvalidModuleObjectArtifact(
-          module_path_text=self.module_path_text,
-          reason="interface fingerprint mismatch",
-        ),
-        None,
-      ),
-    )
-  }
-  if self.module_fingerprint !=
-    module_fingerprint(self.interface, self.imported_interface_fingerprints) {
-    return Some(
-      artifact_diagnostic(
-        InvalidModuleObjectArtifact(
-          module_path_text=self.module_path_text,
-          reason="module fingerprint mismatch",
-        ),
-        None,
-      ),
-    )
-  }
   if self.object_fingerprint !=
     module_object_fingerprint(
       self.module_fingerprint,
+      self.interface_fingerprint,
       self.metadata,
       self.terms,
       self.externals,
       self.entries,
       self.exports,
       self.imports,
+      self.runtime_effect_operations,
       self.imported_interface_fingerprints,
     ) {
     return Some(
@@ -450,6 +421,18 @@ fn CompiledModuleSetArtifact::validate_schema(
       )
     }
     if module_.interface.interface_fingerprint !=
+      module_.object.interface_fingerprint {
+      return Some(
+        artifact_diagnostic(
+          InvalidModuleArtifact(
+            module_path_text=module_.module_path_text,
+            reason="interface fingerprint mismatch",
+          ),
+          None,
+        ),
+      )
+    }
+    if module_.interface.interface_fingerprint !=
       interface_fingerprint(module_.interface.interface) {
       return Some(
         artifact_diagnostic(
@@ -479,12 +462,14 @@ fn CompiledModuleSetArtifact::validate_schema(
     if module_.object.object_fingerprint !=
       module_object_fingerprint(
         module_.module_fingerprint,
+        module_.object.interface_fingerprint,
         module_.object.metadata,
         module_.object.terms,
         module_.object.externals,
         module_.object.entries,
         module_.object.exports,
         module_.object.imports,
+        module_.object.runtime_effect_operations,
         module_.object.imported_interface_fingerprints,
       ) {
       return Some(
@@ -502,76 +487,21 @@ fn CompiledModuleSetArtifact::validate_schema(
 }
 
 ///|
-fn CompiledModuleSetArtifact::to_compiled_module_set(
-  self : CompiledModuleSetArtifact,
-) -> CompiledModuleSet {
-  {
-    root_module_path_text: self.root_module_path_text,
-    modules: self.modules.map(CompiledModuleArtifact::to_compiled_module),
-    reachable_module_path_texts: self.reachable_module_path_texts,
-    diagnostics: [],
-  }
-}
-
-///|
-fn CompiledModuleArtifact::to_compiled_module(
-  self : CompiledModuleArtifact,
-) -> CompiledModule {
-  {
-    module_path_text: self.module_path_text,
-    interface: self.interface.interface,
-    object: self.object.to_module_object(),
-    fingerprint: self.module_fingerprint,
-    imported_interface_fingerprints: self.imported_interface_fingerprints,
-  }
-}
-
-///|
-fn ModuleObjectArtifact::to_compiled_module(
+fn ModuleObjectArtifact::to_link_object(
   self : ModuleObjectArtifact,
-) -> CompiledModule {
+) -> LinkModuleObject {
   {
     module_path_text: self.module_path_text,
-    interface: self.interface,
-    object: self.to_module_object(),
-    fingerprint: self.module_fingerprint,
-    imported_interface_fingerprints: self.imported_interface_fingerprints,
-  }
-}
-
-///|
-fn ModuleObjectArtifact::to_module_object(
-  self : ModuleObjectArtifact,
-) -> ModuleObject {
-  {
-    module_path_text: self.module_path_text,
-    checked: empty_checked_source_file(self.module_path_text),
+    interface_fingerprint: self.interface_fingerprint,
     metadata: self.metadata,
     terms: self.terms,
     externals: self.externals,
     entries: self.entries,
     exports: self.exports,
     imports: self.imports,
+    runtime_effect_operations: self.runtime_effect_operations,
     fingerprint: self.module_fingerprint,
     object_fingerprint: self.object_fingerprint,
     imported_interface_fingerprints: self.imported_interface_fingerprints,
-  }
-}
-
-///|
-fn empty_checked_source_file(
-  module_path_text : String,
-) -> @checked.CheckedSourceFile {
-  let loc = @basic.SourceSpan::dummy()
-  {
-    module_path: {
-      components: module_path_text
-      .split(".")
-      .map(StringView::to_owned)
-      .collect(),
-      loc,
-    },
-    declarations: [],
-    loc,
   }
 }

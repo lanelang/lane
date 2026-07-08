@@ -74,12 +74,15 @@ fn compile_one_module(
       })
       let interface = { ..interface, source_id: Some(input.source_id) }
       let imported_fingerprints = imported_environment_fingerprints(imported)
+      let interface_fingerprint = interface_fingerprint(interface)
       let fingerprint = module_fingerprint(interface, imported_fingerprints)
       let object_fingerprint = module_object_fingerprint(
         fingerprint,
+        interface_fingerprint,
         MetadataRegistry(),
         [],
         { builtins: [] },
+        [],
         [],
         [],
         [],
@@ -88,12 +91,14 @@ fn compile_one_module(
       let object : ModuleObject = {
         module_path_text: input.header.module_path_text,
         checked,
+        interface_fingerprint,
         metadata: MetadataRegistry(),
         terms: [],
         externals: { builtins: [] },
         entries: [],
         exports: [],
         imports: [],
+        runtime_effect_operations: [],
         fingerprint,
         object_fingerprint,
         imported_interface_fingerprints: imported_fingerprints,

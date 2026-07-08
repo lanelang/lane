@@ -292,7 +292,6 @@ fn encode_module_object_artifact_payload(
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le(artifact.schema_version)
   writer.write_string(artifact.module_path_text)
-  writer.write_module_interface(artifact.interface)
   @artifact_core.write_compilation_fingerprint(
     writer,
     artifact.interface_fingerprint,
@@ -305,6 +304,9 @@ fn encode_module_object_artifact_payload(
   @artifact_core.write_entries(writer, artifact.entries)
   @artifact_core.write_exports(writer, artifact.exports)
   @artifact_core.write_imports(writer, artifact.imports)
+  writer.write_runtime_effect_operation_signatures(
+    artifact.runtime_effect_operations,
+  )
   @artifact_core.write_compilation_fingerprint(
     writer,
     artifact.module_fingerprint,
@@ -330,13 +332,11 @@ fn decode_module_object_artifact_payload(
     raise UnsupportedArtifactSchema(kind="object", version=schema_version)
   }
   let module_path_text = reader.read_string()
-  let interface = reader.read_module_interface()
   let interface_fingerprint = reader.read_compilation_fingerprint()
   let program = reader.read_buslane_program_section()
   let artifact : @module_compile.ModuleObjectArtifact = {
     schema_version,
     module_path_text,
-    interface,
     interface_fingerprint,
     metadata: program.metadata,
     terms: program.terms,
@@ -344,6 +344,7 @@ fn decode_module_object_artifact_payload(
     entries: reader.read_entries(),
     exports: reader.read_exports(),
     imports: reader.read_imports(),
+    runtime_effect_operations: reader.read_runtime_effect_operation_signatures(),
     module_fingerprint: reader.read_compilation_fingerprint(),
     object_fingerprint: reader.read_compilation_fingerprint(),
     imported_interface_fingerprints: reader.read_imported_interface_fingerprints(),

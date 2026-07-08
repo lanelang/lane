@@ -1,7 +1,7 @@
 ///|
 fn BuslaneLinker::remap_module_object(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
 ) -> RemappedModuleObject {
   {
     module_path_text: object.module_path_text,
@@ -47,7 +47,7 @@ fn BuslaneLinker::remap_module_object(
 ///|
 fn BuslaneLinker::remap_top_term(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   term : @buslane.TopTerm,
 ) -> @buslane.TopTerm {
   match term {
@@ -69,7 +69,7 @@ fn BuslaneLinker::remap_top_term(
 ///|
 fn BuslaneLinker::remap_expr(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   expr : @buslane.Expr,
 ) -> @buslane.Expr {
   match expr {
@@ -183,7 +183,7 @@ fn BuslaneLinker::remap_expr(
 ///|
 fn BuslaneLinker::remap_handler_table(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   table : @buslane.HandlerTable,
 ) -> @buslane.HandlerTable {
   {
@@ -197,7 +197,7 @@ fn BuslaneLinker::remap_handler_table(
 ///|
 fn BuslaneLinker::remap_operation_alternative(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   alternative : @buslane.OperationAlternative,
 ) -> @buslane.OperationAlternative {
   {
@@ -216,7 +216,7 @@ fn BuslaneLinker::remap_operation_alternative(
 ///|
 fn BuslaneLinker::remap_alt_constructor(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   alt_constructor : @buslane.AltCon,
 ) -> @buslane.AltCon {
   match alt_constructor {
@@ -229,7 +229,7 @@ fn BuslaneLinker::remap_alt_constructor(
 ///|
 fn BuslaneLinker::remap_type(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   type_ : @buslane.Type,
 ) -> @buslane.Type {
   match type_ {
@@ -265,7 +265,7 @@ fn BuslaneLinker::remap_type(
 ///|
 fn BuslaneLinker::remap_generic_argument(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   argument : @buslane.GenericArgument,
 ) -> @buslane.GenericArgument {
   match argument {
@@ -277,7 +277,7 @@ fn BuslaneLinker::remap_generic_argument(
 ///|
 fn BuslaneLinker::remap_effect(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   effect : @buslane.Effect,
 ) -> @buslane.Effect {
   match effect {
@@ -299,7 +299,7 @@ fn BuslaneLinker::remap_effect(
 ///|
 fn BuslaneLinker::remap_type_parameter_id(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   source : @buslane.TypeParameterId,
 ) -> @buslane.TypeParameterId {
   if self.identities.find_type_parameter(object.module_path_text, source)
@@ -319,7 +319,7 @@ fn BuslaneLinker::remap_type_parameter_id(
 ///|
 fn BuslaneLinker::remap_type_id(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   source : @buslane.TypeId,
 ) -> @buslane.TypeId {
   if self.identities.find_type(object.module_path_text, source) is Some(target) {
@@ -342,7 +342,7 @@ fn BuslaneLinker::remap_type_id(
 ///|
 fn BuslaneLinker::remap_effect_id(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   source : @buslane.EffectId,
 ) -> @buslane.EffectId {
   if self.identities.find_effect(object.module_path_text, source)
@@ -366,7 +366,7 @@ fn BuslaneLinker::remap_effect_id(
 ///|
 fn BuslaneLinker::remap_operation_id(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   source : @buslane.OperationId,
 ) -> @buslane.OperationId {
   if self.identities.find_operation(object.module_path_text, source)
@@ -396,7 +396,7 @@ fn BuslaneLinker::remap_operation_id(
 ///|
 fn BuslaneLinker::remap_value_id(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   source : @buslane.ValueId,
 ) -> @buslane.ValueId {
   if self.identities.find_value(object.module_path_text, source) is Some(target) {
@@ -416,7 +416,7 @@ fn BuslaneLinker::remap_value_id(
 ///|
 fn BuslaneLinker::remap_data_constructor_id(
   self : BuslaneLinker,
-  object : ModuleObject,
+  object : LinkModuleObject,
   source : @buslane.DataConId,
 ) -> @buslane.DataConId {
   if self.identities.find_data_constructor(object.module_path_text, source)

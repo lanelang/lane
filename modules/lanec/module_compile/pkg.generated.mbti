@@ -37,7 +37,7 @@ pub fn module_fingerprint(@module_interface.ModuleInterface, Array[@artifact_cor
 
 pub let module_object_artifact_schema_version : Int
 
-pub fn module_object_fingerprint(@artifact_core.CompilationFingerprint, @buslane.MetadataRegistry, Array[@buslane.TopTerm], @buslane_lowering.BuslaneExternalMap, Array[@buslane_lowering.BuslaneEntry], Array[@buslane_lowering.BuslaneModuleExport], Array[@artifact_core.ModuleImportedReference], Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
+pub fn module_object_fingerprint(@artifact_core.CompilationFingerprint, @artifact_core.CompilationFingerprint, @buslane.MetadataRegistry, Array[@buslane.TopTerm], @buslane_lowering.BuslaneExternalMap, Array[@buslane_lowering.BuslaneEntry], Array[@buslane_lowering.BuslaneModuleExport], Array[@artifact_core.ModuleImportedReference], Array[RuntimeEffectOperationSignature], Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
 
 pub fn no_root_source_module_diagnostic() -> @diagnostic.CompilerDiagnostic
 
@@ -130,12 +130,14 @@ pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact
 pub(all) struct ModuleObject {
   module_path_text : String
   checked : @checked.CheckedSourceFile
+  interface_fingerprint : @artifact_core.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
   fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
@@ -144,7 +146,6 @@ pub(all) struct ModuleObject {
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
-  interface : @module_interface.ModuleInterface
   interface_fingerprint : @artifact_core.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
@@ -152,6 +153,7 @@ pub(all) struct ModuleObjectArtifact {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
   module_fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]

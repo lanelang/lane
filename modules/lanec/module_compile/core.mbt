@@ -2,18 +2,38 @@
 pub(all) struct ModuleObject {
   module_path_text : String
   checked : @checked.CheckedSourceFile
+  interface_fingerprint : @artifact_core.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
   fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ]
 } derive(Debug, Eq)
+
+///|
+priv struct LinkModuleObject {
+  module_path_text : String
+  interface_fingerprint : @artifact_core.CompilationFingerprint
+  metadata : @buslane.MetadataRegistry
+  terms : Array[@buslane.TopTerm]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
+  exports : Array[@buslane_lowering.BuslaneModuleExport]
+  imports : Array[@artifact_core.ModuleImportedReference]
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
+  fingerprint : @artifact_core.CompilationFingerprint
+  object_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ]
+}
 
 ///|
 pub(all) struct CompiledModule {
@@ -25,6 +45,24 @@ pub(all) struct CompiledModule {
     @artifact_core.ImportedInterfaceFingerprint,
   ]
 } derive(Debug, Eq)
+
+///|
+fn ModuleObject::to_link_object(self : ModuleObject) -> LinkModuleObject {
+  {
+    module_path_text: self.module_path_text,
+    interface_fingerprint: self.interface_fingerprint,
+    metadata: self.metadata,
+    terms: self.terms,
+    externals: self.externals,
+    entries: self.entries,
+    exports: self.exports,
+    imports: self.imports,
+    runtime_effect_operations: self.runtime_effect_operations,
+    fingerprint: self.fingerprint,
+    object_fingerprint: self.object_fingerprint,
+    imported_interface_fingerprints: self.imported_interface_fingerprints,
+  }
+}
 
 ///|
 pub(all) struct CompiledModuleSet {

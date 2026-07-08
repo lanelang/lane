@@ -162,6 +162,7 @@ graph TD
   ISS_146["ISS-146: Extract Buslane lowering into a coherent package"]
   ISS_147["ISS-147: Separate compile analysis and LSP-facing analysis responsibilities"]
   ISS_148["ISS-148: Extract module compile file family into an explicit package boundary"]
+  ISS_149["ISS-149: Separate interface artifacts from object artifacts"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -283,6 +284,7 @@ graph TD
   ISS_139 --> ISS_140
   ISS_142 --> ISS_143
   ISS_143 --> ISS_144
+  ISS_148 --> ISS_149
 ```
 
 ## Warnings

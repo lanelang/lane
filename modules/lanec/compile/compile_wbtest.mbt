@@ -1929,20 +1929,10 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 5
+      #|schema: 6
       #|
       #|imported interfaces:
       #|  (none)
-      #|
-      #|interface Main:
-      #|types:
-      #|  (none)
-      #|effects:
-      #|  (none)
-      #|type aliases:
-      #|  (none)
-      #|values:
-      #|  pub let answer : Int
       #|
       #|object:
       #|imports:
@@ -2627,7 +2617,6 @@ test "link object artifacts rejects stale object fingerprint" {
   let damaged : @module_compile.ModuleObjectArtifact = {
     schema_version: object.schema_version,
     module_path_text: object.module_path_text,
-    interface: object.interface,
     interface_fingerprint: object.interface_fingerprint,
     metadata: object.metadata,
     terms: object.terms,
@@ -2635,6 +2624,7 @@ test "link object artifacts rejects stale object fingerprint" {
     entries: object.entries,
     exports: object.exports,
     imports: object.imports,
+    runtime_effect_operations: object.runtime_effect_operations,
     module_fingerprint: object.module_fingerprint,
     object_fingerprint: { value: "stale" },
     imported_interface_fingerprints: object.imported_interface_fingerprints,
@@ -2671,7 +2661,6 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
       let object : @module_compile.ModuleObjectArtifact = {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
-        interface: module_.object.interface,
         interface_fingerprint: module_.object.interface_fingerprint,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
@@ -2679,6 +2668,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports: module_.object.imports,
+        runtime_effect_operations: module_.object.runtime_effect_operations,
         module_fingerprint: { value: "stale" },
         object_fingerprint: module_.object.object_fingerprint,
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -2782,29 +2772,19 @@ test "link modules rejects stale module object fingerprint" {
   }
   let stale_modules = modules.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
-      let fingerprint = @artifact_core.CompilationFingerprint::{
-        value: "stale",
-      }
       let object : @module_compile.ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
+        interface_fingerprint: module_.object.interface_fingerprint,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
         externals: module_.object.externals,
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports: module_.object.imports,
-        fingerprint,
-        object_fingerprint: @module_compile.module_object_fingerprint(
-          fingerprint,
-          module_.object.metadata,
-          module_.object.terms,
-          module_.object.externals,
-          module_.object.entries,
-          module_.object.exports,
-          module_.object.imports,
-          module_.object.imported_interface_fingerprints,
-        ),
+        runtime_effect_operations: module_.object.runtime_effect_operations,
+        fingerprint: module_.object.fingerprint,
+        object_fingerprint: { value: "stale" },
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
       @module_compile.CompiledModule::{
@@ -2867,21 +2847,25 @@ test "link modules rejects stale imported reference fingerprint" {
       let object : @module_compile.ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
+        interface_fingerprint: module_.object.interface_fingerprint,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
         externals: module_.object.externals,
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports,
+        runtime_effect_operations: module_.object.runtime_effect_operations,
         fingerprint: module_.object.fingerprint,
         object_fingerprint: @module_compile.module_object_fingerprint(
           module_.object.fingerprint,
+          module_.object.interface_fingerprint,
           module_.object.metadata,
           module_.object.terms,
           module_.object.externals,
           module_.object.entries,
           module_.object.exports,
           imports,
+          module_.object.runtime_effect_operations,
           module_.object.imported_interface_fingerprints,
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -2931,21 +2915,25 @@ test "link modules rejects missing exported object value" {
       let object : @module_compile.ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
+        interface_fingerprint: module_.object.interface_fingerprint,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
         externals: module_.object.externals,
         entries: module_.object.entries,
         exports,
         imports: module_.object.imports,
+        runtime_effect_operations: module_.object.runtime_effect_operations,
         fingerprint: module_.object.fingerprint,
         object_fingerprint: @module_compile.module_object_fingerprint(
           module_.object.fingerprint,
+          module_.object.interface_fingerprint,
           module_.object.metadata,
           module_.object.terms,
           module_.object.externals,
           module_.object.entries,
           exports,
           module_.object.imports,
+          module_.object.runtime_effect_operations,
           module_.object.imported_interface_fingerprints,
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -4575,21 +4563,25 @@ fn module_with_imported_interfaces(
   let object : @module_compile.ModuleObject = {
     module_path_text: module_.object.module_path_text,
     checked: module_.object.checked,
+    interface_fingerprint: module_.object.interface_fingerprint,
     metadata: module_.object.metadata,
     terms: module_.object.terms,
     externals: module_.object.externals,
     entries: module_.object.entries,
     exports: module_.object.exports,
     imports: module_.object.imports,
+    runtime_effect_operations: module_.object.runtime_effect_operations,
     fingerprint: module_.object.fingerprint,
     object_fingerprint: @module_compile.module_object_fingerprint(
       module_.object.fingerprint,
+      module_.object.interface_fingerprint,
       module_.object.metadata,
       module_.object.terms,
       module_.object.externals,
       module_.object.entries,
       module_.object.exports,
       module_.object.imports,
+      module_.object.runtime_effect_operations,
       imported,
     ),
     imported_interface_fingerprints: imported,

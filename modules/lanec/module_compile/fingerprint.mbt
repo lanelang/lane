@@ -54,12 +54,14 @@ fn module_fingerprint_payload(
 ///|
 pub fn module_object_fingerprint(
   module_fingerprint : @artifact_core.CompilationFingerprint,
+  interface_fingerprint : @artifact_core.CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @buslane_lowering.BuslaneExternalMap,
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   imports : Array[@artifact_core.ModuleImportedReference],
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature],
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ],
@@ -67,8 +69,8 @@ pub fn module_object_fingerprint(
   fingerprint_hash_bytes(
     "lane-object-fingerprint-v1",
     module_object_fingerprint_payload_bytes(
-      module_fingerprint, metadata, terms, externals, entries, exports, imports,
-      imported_interface_fingerprints,
+      module_fingerprint, interface_fingerprint, metadata, terms, externals, entries,
+      exports, imports, runtime_effect_operations, imported_interface_fingerprints,
     ),
   )
 }
@@ -76,27 +78,51 @@ pub fn module_object_fingerprint(
 ///|
 fn module_object_fingerprint_payload_bytes(
   module_fingerprint : @artifact_core.CompilationFingerprint,
+  interface_fingerprint : @artifact_core.CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @buslane_lowering.BuslaneExternalMap,
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   imports : Array[@artifact_core.ModuleImportedReference],
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature],
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ],
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   @artifact_core.write_compilation_fingerprint(writer, module_fingerprint)
+  @artifact_core.write_compilation_fingerprint(writer, interface_fingerprint)
   @artifact_core.write_buslane_program_section(writer, { metadata, terms })
   @artifact_core.write_externals(writer, externals)
   @artifact_core.write_entries(writer, entries)
   @artifact_core.write_exports(writer, exports)
   @artifact_core.write_imports(writer, imports)
+  write_runtime_effect_operation_signatures(writer, runtime_effect_operations)
   @artifact_core.write_imported_interface_fingerprints(
     writer, imported_interface_fingerprints,
   )
   writer.to_bytes()
+}
+
+///|
+fn write_runtime_effect_operation_signatures(
+  writer : @bytecodec.ByteWriter,
+  signatures : Array[RuntimeEffectOperationSignature],
+) -> Unit {
+  writer.write_u32_le(signatures.length())
+  for signature in signatures {
+    writer.write_string(signature.module_path_text)
+    writer.write_string(signature.effect_name)
+    writer.write_string(signature.operation_name)
+    writer.write_u32_le(signature.payload.length())
+    for type_ in signature.payload {
+      writer.write_string(@prettyprinter.render(type_.pretty(), width=100))
+    }
+    writer.write_string(
+      @prettyprinter.render(signature.result.pretty(), width=100),
+    )
+  }
 }
 
 ///|
