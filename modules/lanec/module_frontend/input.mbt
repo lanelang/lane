@@ -1,5 +1,5 @@
 ///|
-priv struct ParsedModuleInput {
+pub(all) struct ParsedModuleInput {
   source_id : String
   text : String
   header : ModuleHeader
@@ -7,26 +7,26 @@ priv struct ParsedModuleInput {
 }
 
 ///|
-priv struct ModuleInputSet {
+pub(all) struct ModuleInputSet {
   root_module_path_text : String
   modules : Array[ParsedModuleInput]
 }
 
 ///|
-priv struct ModuleHeader {
+pub(all) struct ModuleHeader {
   module_path_text : String
   module_span : @basic.SourceSpan
   imports : Array[ImportHeader]
 }
 
 ///|
-priv struct ImportHeader {
+pub(all) struct ImportHeader {
   module_path_text : String
   import_span : @basic.SourceSpan
 }
 
 ///|
-priv struct ModuleInputHeader {
+pub(all) struct ModuleInputHeader {
   source_id : String
   module_path_text : String
   imports : Array[String]
@@ -39,16 +39,16 @@ pub(all) struct SourceInput {
 } derive(Debug, Eq)
 
 ///|
-fn parse_module_input_set_from_inputs(
+pub fn parse_module_input_set_from_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[ModuleInputSet, Array[CompilerDiagnostic]] {
+) -> Result[ModuleInputSet, Array[@compiler_diag.CompilerDiagnostic]] {
   let parsed = parse_module_inputs(root_source, library_sources)
   if !parsed.diagnostics.is_empty() {
     return Err(parsed.diagnostics)
   }
   guard parsed.modules.get(0) is Some(root) else {
-    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
+    return Err([module_frontend_diagnostic(NoRootSourceModule, None)])
   }
   Ok({
     root_module_path_text: root.header.module_path_text,
@@ -57,17 +57,17 @@ fn parse_module_input_set_from_inputs(
 }
 
 ///|
-fn parse_import_reachable_module_input_set_from_inputs(
+pub fn parse_import_reachable_module_input_set_from_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[ModuleInputSet, Array[CompilerDiagnostic]] {
+) -> Result[ModuleInputSet, Array[@compiler_diag.CompilerDiagnostic]] {
   let parsed = parse_module_inputs(root_source, library_sources)
   let root_diagnostics = parsed.diagnostics_for_source(root_source.source_id)
   if !root_diagnostics.is_empty() {
     return Err(root_diagnostics)
   }
   guard parsed.modules.get(0) is Some(root) else {
-    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
+    return Err([module_frontend_diagnostic(NoRootSourceModule, None)])
   }
   let reachable = reachable_modules(
     parsed.modules,
@@ -113,7 +113,7 @@ fn parse_import_reachable_module_input_set_from_inputs(
 pub fn import_reachable_source_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[Array[SourceInput], Array[CompilerDiagnostic]] {
+) -> Result[Array[SourceInput], Array[@compiler_diag.CompilerDiagnostic]] {
   match
     parse_import_reachable_module_input_set_from_inputs(
       root_source, library_sources,
@@ -139,31 +139,31 @@ pub fn import_reachable_source_inputs(
 }
 
 ///|
-priv struct ParseModuleInputsResult {
+pub(all) struct ParseModuleInputsResult {
   modules : Array[ParsedModuleInput]
   headers : Array[ModuleInputHeader]
-  diagnostics : Array[CompilerDiagnostic]
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
 }
 
 ///|
-fn ParseModuleInputsResult::diagnostics_for_source(
+pub fn ParseModuleInputsResult::diagnostics_for_source(
   self : ParseModuleInputsResult,
   source_id : String,
-) -> Array[CompilerDiagnostic] {
+) -> Array[@compiler_diag.CompilerDiagnostic] {
   self.diagnostics.filter(fn(diagnostic) {
     diagnostic.source_id == Some(source_id)
   })
 }
 
 ///|
-fn ParseModuleInputsResult::source_diagnostics(
+pub fn ParseModuleInputsResult::source_diagnostics(
   self : ParseModuleInputsResult,
-) -> Array[CompilerDiagnostic] {
+) -> Array[@compiler_diag.CompilerDiagnostic] {
   self.diagnostics.filter(fn(diagnostic) { diagnostic.source_id is Some(_) })
 }
 
 ///|
-fn parse_module_inputs(
+pub fn parse_module_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
 ) -> ParseModuleInputsResult {
@@ -193,7 +193,7 @@ fn parse_module_inputs(
         })
       }
       None if source_diagnostics.is_empty() => {
-        let diagnostic = compile_boundary_diagnostic(
+        let diagnostic = module_frontend_diagnostic(
           ParserProducedNoSourceFile,
           None,
         ).with_source_id(source.source_id)

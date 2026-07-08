@@ -3451,7 +3451,7 @@ test "check sources rejects duplicate module input" {
 
 ///|
 test "import reachable source inputs ignore unrelated parse diagnostics" {
-  let result = import_reachable_source_inputs(
+  let result = @module_frontend.import_reachable_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3492,7 +3492,7 @@ test "import reachable source inputs ignore unrelated parse diagnostics" {
 
 ///|
 test "import reachable analysis reports reachable parse diagnostics" {
-  let result = analyze_import_reachable_source_inputs(
+  let result = @analysis.analyze_import_reachable_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3598,7 +3598,7 @@ test "check sources rejects import cycle" {
 
 ///|
 test "analysis resolves same-file definition and hover" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3635,7 +3635,7 @@ test "analysis resolves same-file definition and hover" {
 
 ///|
 test "analysis traverses explicit generic application" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3678,7 +3678,7 @@ test "analysis traverses explicit generic application" {
 
 ///|
 test "analysis resolves cross-module definition by source identity" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3712,7 +3712,7 @@ test "analysis resolves cross-module definition by source identity" {
 
 ///|
 test "analysis resolves types fields and variants" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3781,7 +3781,7 @@ test "analysis resolves types fields and variants" {
 
 ///|
 test "analysis hovers handler binders with checked types" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3824,7 +3824,7 @@ test "analysis hovers handler binders with checked types" {
 
 ///|
 test "analysis narrows struct pattern type references" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3856,7 +3856,7 @@ test "analysis narrows struct pattern type references" {
 
 ///|
 test "analysis keeps partial definitions when unrelated diagnostics exist" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3884,7 +3884,7 @@ test "analysis keeps partial definitions when unrelated diagnostics exist" {
 
 ///|
 test "analysis produces type inlay hints for inferred binders" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3942,7 +3942,7 @@ test "analysis produces type inlay hints for inferred binders" {
 
 ///|
 test "analysis renders user-facing type names in type inlay hints" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -3993,7 +3993,7 @@ test "analysis renders user-facing type names in type inlay hints" {
 
 ///|
 test "analysis produces parameter name inlay hints for calls" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4111,7 +4111,7 @@ test "analysis produces parameter name inlay hints for calls" {
 
 ///|
 test "analysis does not synthesize constructor parameter hints from payload types" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4135,7 +4135,7 @@ test "analysis does not synthesize constructor parameter hints from payload type
 
 ///|
 test "analysis keeps nested call parameter hints at distinct positions" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4169,7 +4169,7 @@ test "analysis keeps nested call parameter hints at distinct positions" {
 
 ///|
 test "analysis anchors field argument parameter hint at argument start" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4217,7 +4217,7 @@ test "analysis anchors field argument parameter hint at argument start" {
 
 ///|
 test "analysis skips parameter name inlay hints for source operators" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4267,7 +4267,7 @@ test "analysis skips parameter name inlay hints for source operators" {
 
 ///|
 test "analysis produces implicit argument inlay hints for auto offers" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4333,7 +4333,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
 
 ///|
 test "analysis combines implicit argument inlay hints at the call end" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4375,7 +4375,7 @@ test "analysis combines implicit argument inlay hints at the call end" {
 
 ///|
 test "analysis does not mark explicit named auto arguments as implicit" {
-  let result = analyze_source_inputs(
+  let result = @analysis.analyze_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4489,7 +4489,9 @@ fn runtime_operation_result_index(
 }
 
 ///|
-fn implicit_inlay_hint_labels(hints : Array[InlayHintEntry]) -> Array[String] {
+fn implicit_inlay_hint_labels(
+  hints : Array[@analysis.InlayHintEntry],
+) -> Array[String] {
   let labels = []
   for hint in hints {
     match hint.kind {
@@ -4520,7 +4522,7 @@ fn compiler_diagnostic_summary(
 
 ///|
 fn assert_no_duplicate_parameter_hint_positions(
-  hints : Array[InlayHintEntry],
+  hints : Array[@analysis.InlayHintEntry],
 ) -> Unit {
   let positions = []
   for hint in hints {

@@ -10,7 +10,7 @@ priv struct DiagnosticPublication {
 
 ///|
 fn compiler_diagnostic_sources_from_inputs(
-  inputs : Array[@compile.SourceInput],
+  inputs : Array[@module_frontend.SourceInput],
 ) -> CompilerDiagnosticSources {
   let sources = @compiler_diag.CompilerDiagnosticSources::CompilerDiagnosticSources()
   for input in inputs {
@@ -35,7 +35,7 @@ fn publish_diagnostics(
 
 ///|
 fn diagnostic_publications(
-  inputs : Array[@compile.SourceInput],
+  inputs : Array[@module_frontend.SourceInput],
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
   fallback_uri~ : String,
 ) -> Array[DiagnosticPublication] {

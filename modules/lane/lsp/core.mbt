@@ -262,7 +262,7 @@ async fn ServerState::handle_completion(
     return respond(request, Ok(completion_list_json([])))
   }
   let trigger = match params.trigger_character {
-    Some(character) => @compile.CompletionTrigger::TriggerCharacter(character)
+    Some(character) => @analysis.CompletionTrigger::TriggerCharacter(character)
     None => Manual
   }
   let entries = self
@@ -484,12 +484,12 @@ fn internal_lsp_error(message : String) -> @jsonrpc.WireError {
 }
 
 ///|
-fn location_json(location : @compile.AnalysisLocation) -> Json {
+fn location_json(location : @analysis.AnalysisLocation) -> Json {
   { "uri": location.source_id, "range": range_json(location.span) }
 }
 
 ///|
-fn hover_json(hover : @compile.HoverEntry) -> Json {
+fn hover_json(hover : @analysis.HoverEntry) -> Json {
   {
     "contents": {
       "kind": "markdown",
@@ -500,7 +500,7 @@ fn hover_json(hover : @compile.HoverEntry) -> Json {
 }
 
 ///|
-fn inlay_hint_json(hint : @compile.InlayHintEntry) -> Json {
+fn inlay_hint_json(hint : @analysis.InlayHintEntry) -> Json {
   {
     "position": inlay_hint_position_json(hint),
     "label": hint.label,
@@ -510,7 +510,7 @@ fn inlay_hint_json(hint : @compile.InlayHintEntry) -> Json {
 
 ///|
 fn validate_inlay_hint_positions(
-  hints : Array[@compile.InlayHintEntry],
+  hints : Array[@analysis.InlayHintEntry],
 ) -> Result[Unit, String] {
   for index in 0..<hints.length() {
     for other_index in (index + 1)..<hints.length() {
@@ -526,8 +526,8 @@ fn validate_inlay_hint_positions(
 
 ///|
 fn inlay_hint_same_position(
-  left : @compile.InlayHintEntry,
-  right : @compile.InlayHintEntry,
+  left : @analysis.InlayHintEntry,
+  right : @analysis.InlayHintEntry,
 ) -> Bool {
   left.location.source_id == right.location.source_id &&
   inlay_hint_line(left) == inlay_hint_line(right) &&
@@ -536,14 +536,14 @@ fn inlay_hint_same_position(
 
 ///|
 fn inlay_hint_position_bug_message(
-  left : @compile.InlayHintEntry,
-  right : @compile.InlayHintEntry,
+  left : @analysis.InlayHintEntry,
+  right : @analysis.InlayHintEntry,
 ) -> String {
   "internal Lane compiler bug: multiple inlay hints were produced at \{left.location.source_id}:\{inlay_hint_line(left)}:\{inlay_hint_column(left)} (`\{left.label}` and `\{right.label}`)"
 }
 
 ///|
-fn inlay_hint_line(hint : @compile.InlayHintEntry) -> Int {
+fn inlay_hint_line(hint : @analysis.InlayHintEntry) -> Int {
   match hint.kind {
     TypeHint | ImplicitArgumentHint => hint.location.span.end_line
     ParameterHint => hint.location.span.start_line
@@ -551,7 +551,7 @@ fn inlay_hint_line(hint : @compile.InlayHintEntry) -> Int {
 }
 
 ///|
-fn inlay_hint_column(hint : @compile.InlayHintEntry) -> Int {
+fn inlay_hint_column(hint : @analysis.InlayHintEntry) -> Int {
   match hint.kind {
     TypeHint | ImplicitArgumentHint => hint.location.span.end_column
     ParameterHint => hint.location.span.start_column
@@ -559,12 +559,12 @@ fn inlay_hint_column(hint : @compile.InlayHintEntry) -> Int {
 }
 
 ///|
-fn inlay_hint_position_json(hint : @compile.InlayHintEntry) -> Json {
+fn inlay_hint_position_json(hint : @analysis.InlayHintEntry) -> Json {
   position_json(inlay_hint_line(hint), inlay_hint_column(hint))
 }
 
 ///|
-fn inlay_hint_kind_json(kind : @compile.InlayHintKind) -> Json {
+fn inlay_hint_kind_json(kind : @analysis.InlayHintKind) -> Json {
   match kind {
     TypeHint => 1
     ParameterHint | ImplicitArgumentHint => 2
@@ -572,7 +572,7 @@ fn inlay_hint_kind_json(kind : @compile.InlayHintKind) -> Json {
 }
 
 ///|
-fn completion_list_json(entries : Array[@compile.CompletionEntry]) -> Json {
+fn completion_list_json(entries : Array[@analysis.CompletionEntry]) -> Json {
   {
     "isIncomplete": false,
     "items": entries.map(completion_item_json).to_json(),
@@ -580,7 +580,7 @@ fn completion_list_json(entries : Array[@compile.CompletionEntry]) -> Json {
 }
 
 ///|
-fn completion_item_json(entry : @compile.CompletionEntry) -> Json {
+fn completion_item_json(entry : @analysis.CompletionEntry) -> Json {
   let fields : Map[String, Json] = {
     "label": entry.label.to_json(),
     "kind": completion_item_kind_json(entry.kind),
@@ -614,7 +614,7 @@ fn completion_item_json(entry : @compile.CompletionEntry) -> Json {
 }
 
 ///|
-fn completion_item_kind_json(kind : @compile.CompletionKind) -> Json {
+fn completion_item_kind_json(kind : @analysis.CompletionKind) -> Json {
   match kind {
     Value => 6
     Function => 3

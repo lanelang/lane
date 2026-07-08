@@ -65,7 +65,7 @@ priv enum CompletionContext {
 
 ///|
 priv struct CompletionModule {
-  input : ParsedModuleInput
+  input : @module_frontend.ParsedModuleInput
   imported : @module_interface.ImportedEnvironment
   resolved : @resolve.ResolvedSourceFile?
   checked : @checked.CheckedSourceFile?
@@ -79,14 +79,17 @@ priv struct CompletionWorld {
 
 ///|
 pub fn complete_source_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
   source_id : String,
   line : Int,
   column : Int,
   trigger : CompletionTrigger,
 ) -> Array[CompletionEntry] {
-  match parse_module_input_set_from_inputs(root_source, library_sources) {
+  match
+    @module_frontend.parse_module_input_set_from_inputs(
+      root_source, library_sources,
+    ) {
     Err(_) => []
     Ok(inputs) =>
       complete_module_input_set(inputs, source_id, line, column, trigger)
@@ -95,15 +98,15 @@ pub fn complete_source_inputs(
 
 ///|
 pub fn complete_import_reachable_source_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
   source_id : String,
   line : Int,
   column : Int,
   trigger : CompletionTrigger,
 ) -> Array[CompletionEntry] {
   match
-    parse_import_reachable_module_input_set_from_inputs(
+    @module_frontend.parse_import_reachable_module_input_set_from_inputs(
       root_source, library_sources,
     ) {
     Err(_) => []
@@ -114,13 +117,13 @@ pub fn complete_import_reachable_source_inputs(
 
 ///|
 fn complete_module_input_set(
-  inputs : ModuleInputSet,
+  inputs : @module_frontend.ModuleInputSet,
   source_id : String,
   line : Int,
   column : Int,
   trigger : CompletionTrigger,
 ) -> Array[CompletionEntry] {
-  match build_module_graph(inputs) {
+  match @module_frontend.build_module_graph(inputs) {
     Err(_) => []
     Ok(graph) => {
       let world = CompletionWorld::from_graph(graph)
@@ -144,13 +147,15 @@ fn complete_module_input_set(
 }
 
 ///|
-fn CompletionWorld::from_graph(graph : ModuleGraph) -> CompletionWorld {
+fn CompletionWorld::from_graph(
+  graph : @module_frontend.ModuleGraph,
+) -> CompletionWorld {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let display = @typecheck.TypeDisplayContext::from_registry(registry)
-  let compiled : Array[CompiledModule] = []
+  let compiled : Array[AnalysisModuleSummary] = []
   let modules : Array[CompletionModule] = []
   for input in graph.modules {
-    let imported = imported_interfaces(input.header, compiled)
+    let imported = analysis_imported_interfaces(input.header, compiled)
     let resolved = @resolve.resolve_source_file_with_imports_result(
       input.source,
       registry,
@@ -168,14 +173,11 @@ fn CompletionWorld::from_graph(graph : ModuleGraph) -> CompletionWorld {
         interface = checked.module_interface
       }
     }
-    if interface is Some(interface_) && checked_source is Some(checked_) {
-      let compiled_module = completion_compiled_module(
-        input.header.module_path_text,
-        interface_,
-        checked_,
-        imported,
-      )
-      compiled.push(compiled_module)
+    if interface is Some(interface_) && checked_source is Some(_) {
+      compiled.push({
+        module_path_text: input.header.module_path_text,
+        interface: { ..interface_, source_id: Some(input.source_id) },
+      })
     }
     modules.push({
       input,
@@ -185,47 +187,6 @@ fn CompletionWorld::from_graph(graph : ModuleGraph) -> CompletionWorld {
     })
   }
   { display, modules }
-}
-
-///|
-fn completion_compiled_module(
-  module_path_text : String,
-  interface : @module_interface.ModuleInterface,
-  checked : @checked.CheckedSourceFile,
-  imported : @module_interface.ImportedEnvironment,
-) -> CompiledModule {
-  let imported_fingerprints = imported_environment_fingerprints(imported)
-  let fingerprint = module_fingerprint(interface, imported_fingerprints)
-  let object_fingerprint = module_object_fingerprint(
-    fingerprint,
-    MetadataRegistry(),
-    [],
-    { builtins: [] },
-    [],
-    [],
-    [],
-    imported_fingerprints,
-  )
-  let object : ModuleObject = {
-    module_path_text,
-    checked,
-    metadata: MetadataRegistry(),
-    terms: [],
-    externals: { builtins: [] },
-    entries: [],
-    exports: [],
-    imports: [],
-    fingerprint,
-    object_fingerprint,
-    imported_interface_fingerprints: imported_fingerprints,
-  }
-  {
-    module_path_text,
-    interface,
-    object,
-    fingerprint,
-    imported_interface_fingerprints: imported_fingerprints,
-  }
 }
 
 ///|

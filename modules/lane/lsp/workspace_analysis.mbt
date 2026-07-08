@@ -6,8 +6,8 @@ priv struct LspWorkspaceAnalysis {
 
 ///|
 priv struct LspAnalysisSources {
-  root : @compile.SourceInput
-  libraries : Array[@compile.SourceInput]
+  root : @module_frontend.SourceInput
+  libraries : Array[@module_frontend.SourceInput]
 }
 
 ///|
@@ -36,7 +36,7 @@ async fn LspWorkspaceAnalysis::check(
 async fn LspWorkspaceAnalysis::analyze(
   self : LspWorkspaceAnalysis,
   document : DocumentSnapshot,
-) -> @compile.AnalysisResult {
+) -> @analysis.AnalysisResult {
   self.analyze_sources(self.analysis_sources(document))
 }
 
@@ -46,12 +46,12 @@ async fn LspWorkspaceAnalysis::complete(
   document : DocumentSnapshot,
   line : Int,
   column : Int,
-  trigger : @compile.CompletionTrigger,
-) -> Array[@compile.CompletionEntry] {
+  trigger : @analysis.CompletionTrigger,
+) -> Array[@analysis.CompletionEntry] {
   let sources = self.analysis_sources(document)
   match self.workspace_root {
     Some(_) =>
-      @compile.complete_import_reachable_source_inputs(
+      @analysis.complete_import_reachable_source_inputs(
         sources.root,
         sources.libraries,
         document.uri,
@@ -60,7 +60,7 @@ async fn LspWorkspaceAnalysis::complete(
         trigger,
       )
     None =>
-      @compile.complete_source_inputs(
+      @analysis.complete_source_inputs(
         sources.root,
         sources.libraries,
         document.uri,
@@ -75,14 +75,14 @@ async fn LspWorkspaceAnalysis::complete(
 fn LspWorkspaceAnalysis::analyze_sources(
   self : LspWorkspaceAnalysis,
   sources : LspAnalysisSources,
-) -> @compile.AnalysisResult {
+) -> @analysis.AnalysisResult {
   match self.workspace_root {
     Some(_) =>
-      @compile.analyze_import_reachable_source_inputs(
+      @analysis.analyze_import_reachable_source_inputs(
         sources.root,
         sources.libraries,
       )
-    None => @compile.analyze_source_inputs(sources.root, sources.libraries)
+    None => @analysis.analyze_source_inputs(sources.root, sources.libraries)
   }
 }
 
@@ -91,11 +91,14 @@ fn LspWorkspaceAnalysis::diagnostic_publication_inputs(
   self : LspWorkspaceAnalysis,
   sources : LspAnalysisSources,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
-) -> Array[@compile.SourceInput] {
+) -> Array[@module_frontend.SourceInput] {
   match self.workspace_root {
     Some(_) =>
       match
-        @compile.import_reachable_source_inputs(sources.root, sources.libraries) {
+        @module_frontend.import_reachable_source_inputs(
+          sources.root,
+          sources.libraries,
+        ) {
         Ok(inputs) => inputs
         Err(_) => sources.inputs_with_diagnostics(diagnostics)
       }
@@ -107,7 +110,7 @@ fn LspWorkspaceAnalysis::diagnostic_publication_inputs(
 fn LspAnalysisSources::inputs_with_diagnostics(
   self : LspAnalysisSources,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
-) -> Array[@compile.SourceInput] {
+) -> Array[@module_frontend.SourceInput] {
   let source_ids : Array[String] = []
   for diagnostic in diagnostics {
     for source_id in diagnostic.source_ids() {
@@ -125,7 +128,7 @@ async fn LspWorkspaceAnalysis::analysis_sources(
   self : LspWorkspaceAnalysis,
   document : DocumentSnapshot,
 ) -> LspAnalysisSources {
-  let root_input : @compile.SourceInput = {
+  let root_input : @module_frontend.SourceInput = {
     source_id: document.uri,
     text: document.text,
   }
@@ -144,7 +147,7 @@ async fn LspWorkspaceAnalysis::analysis_sources(
 async fn LspWorkspaceAnalysis::workspace_sources(
   self : LspWorkspaceAnalysis,
   root : String,
-) -> Array[@compile.SourceInput] {
+) -> Array[@module_frontend.SourceInput] {
   let library_identities = []
   let sources = self.open_document_library_sources(root, library_identities)
   append_lane_sources(root, library_identities, sources) catch {
@@ -161,8 +164,8 @@ async fn LspWorkspaceAnalysis::open_document_library_sources(
   self : LspWorkspaceAnalysis,
   root : String,
   library_identities : Array[String],
-) -> Array[@compile.SourceInput] {
-  let sources : Array[@compile.SourceInput] = []
+) -> Array[@module_frontend.SourceInput] {
+  let sources : Array[@module_frontend.SourceInput] = []
   for _, document in self.documents {
     guard file_uri_to_path(document.uri) is Some(path) else { continue }
     let identity = lsp_source_identity(path)
@@ -178,9 +181,9 @@ async fn LspWorkspaceAnalysis::open_document_library_sources(
 
 ///|
 fn Array::without_source_id(
-  self : Array[@compile.SourceInput],
+  self : Array[@module_frontend.SourceInput],
   source_id : String,
-) -> Array[@compile.SourceInput] {
+) -> Array[@module_frontend.SourceInput] {
   self.filter(fn(input) { input.source_id != source_id })
 }
 
@@ -195,7 +198,7 @@ async fn lsp_source_identity(path : String) -> String {
 async fn append_lane_sources(
   path : String,
   library_identities : Array[String],
-  sources : Array[@compile.SourceInput],
+  sources : Array[@module_frontend.SourceInput],
 ) -> Unit {
   let entries = @fs.readdir(path, sort=true)
   for entry in entries {

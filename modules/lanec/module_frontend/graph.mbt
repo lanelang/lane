@@ -1,14 +1,14 @@
 ///|
-priv struct ModuleGraph {
+pub(all) struct ModuleGraph {
   root_module_path_text : String
   modules : Array[ParsedModuleInput]
   reachable_module_path_texts : Array[String]
 }
 
 ///|
-fn build_module_graph(
+pub fn build_module_graph(
   inputs : ModuleInputSet,
-) -> Result[ModuleGraph, Array[CompilerDiagnostic]] {
+) -> Result[ModuleGraph, Array[@compiler_diag.CompilerDiagnostic]] {
   let graph_diagnostics = validate_module_inputs(inputs.modules)
   if !graph_diagnostics.is_empty() {
     return Err(graph_diagnostics)
@@ -36,13 +36,13 @@ fn build_module_graph(
 ///|
 fn validate_module_inputs(
   modules : Array[ParsedModuleInput],
-) -> Array[CompilerDiagnostic] {
+) -> Array[@compiler_diag.CompilerDiagnostic] {
   let diagnostics = []
   for index in 0..<modules.length() {
     for other_index in (index + 1)..<modules.length() {
       if modules[index].header.module_path_text ==
         modules[other_index].header.module_path_text {
-        let diagnostic = compile_boundary_diagnostic(
+        let diagnostic = module_frontend_diagnostic(
           DuplicateModuleInput(modules[index].header.module_path_text),
           Some(modules[other_index].header.module_span),
         ).with_source_id(modules[other_index].source_id)
@@ -53,7 +53,7 @@ fn validate_module_inputs(
   for module_ in modules {
     for import_ in module_.header.imports {
       if find_module(modules, import_.module_path_text) is None {
-        let diagnostic = compile_boundary_diagnostic(
+        let diagnostic = module_frontend_diagnostic(
           MissingImportWithCandidates(
             module_=import_.module_path_text,
             source_modules=module_candidates(modules),
@@ -71,13 +71,13 @@ fn validate_module_inputs(
 ///|
 priv struct ReachableModulesResult {
   modules : Array[ParsedModuleInput]
-  diagnostics : Array[CompilerDiagnostic]
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
 }
 
 ///|
 priv struct OrderedModulesResult {
   modules : Array[ParsedModuleInput]
-  diagnostics : Array[CompilerDiagnostic]
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
 }
 
 ///|
@@ -123,14 +123,14 @@ fn visit_module(
   visiting : Array[String],
   visited : Array[String],
   ordered : Array[ParsedModuleInput],
-  diagnostics : Array[CompilerDiagnostic],
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> Unit {
   if visited.contains(path) {
     return
   }
   guard find_module(modules, path) is Some(module_) else {
     diagnostics.push(
-      compile_boundary_diagnostic(
+      module_frontend_diagnostic(
         MissingImportWithCandidates(
           module_=path,
           source_modules=module_candidates(modules),
@@ -142,7 +142,7 @@ fn visit_module(
     return
   }
   if visiting.contains(path) {
-    let diagnostic = compile_boundary_diagnostic(ImportCycle(path), None).with_source_id(
+    let diagnostic = module_frontend_diagnostic(ImportCycle(path), None).with_source_id(
       module_.source_id,
     )
     diagnostics.push(diagnostic)

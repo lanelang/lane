@@ -148,7 +148,7 @@ fn validate_runtime_effect_operation(
 
 ///|
 fn compile_module_graph(
-  graph : ModuleGraph,
+  graph : @module_frontend.ModuleGraph,
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let modules : Array[CompiledModule] = []
@@ -176,10 +176,10 @@ fn compile_module_graph(
 
 ///|
 fn compile_module_from_interface_artifacts(
-  root_source : SourceInput,
+  root_source : @module_frontend.SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
-  let parsed = parse_module_inputs(root_source, [])
+  let parsed = @module_frontend.parse_module_inputs(root_source, [])
   if !parsed.diagnostics.is_empty() {
     return Err(parsed.diagnostics)
   }

@@ -31,7 +31,7 @@ pub fn check_sources(
   root_source : String,
   library_sources : Array[String],
 ) -> CheckResult {
-  let library_inputs = []
+  let library_inputs : Array[@module_frontend.SourceInput] = []
   for index, source in library_sources {
     library_inputs.push({ source_id: "<library:\{index}>", text: source })
   }
@@ -44,8 +44,8 @@ pub fn check_sources(
 ///|
 /// Checks a root Lane source module against explicitly supplied library modules.
 pub fn check_source_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> CheckResult {
   match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) =>
@@ -81,7 +81,7 @@ pub fn check_source_with_interface_artifacts(
 ///|
 /// Checks one Lane source module against already compiled module interfaces.
 pub fn check_source_input_with_interface_artifacts(
-  root_source : SourceInput,
+  root_source : @module_frontend.SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> CheckResult {
   match compile_module_from_interface_artifacts(root_source, interfaces) {
@@ -109,7 +109,7 @@ pub fn compile_modules(
   root_source : String,
   library_sources : Array[String],
 ) -> CompileModulesResult {
-  let library_inputs = []
+  let library_inputs : Array[@module_frontend.SourceInput] = []
   for index, source in library_sources {
     library_inputs.push({ source_id: "<library:\{index}>", text: source })
   }
@@ -122,8 +122,8 @@ pub fn compile_modules(
 ///|
 /// Compiles source modules into separate module artifacts without linking them.
 pub fn compile_module_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> CompileModulesResult {
   match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) => { modules: Some(modules), diagnostics: modules.diagnostics }
@@ -146,7 +146,7 @@ pub fn compile_module_with_interface_artifacts(
 ///|
 /// Compiles one Lane source module against already compiled module interfaces.
 pub fn compile_module_input_with_interface_artifacts(
-  root_source : SourceInput,
+  root_source : @module_frontend.SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> CompileModulesResult {
   match compile_module_from_interface_artifacts(root_source, interfaces) {
@@ -175,7 +175,7 @@ pub fn compile_sources(
   root_source : String,
   library_sources : Array[String],
 ) -> CompileResult {
-  let library_inputs = []
+  let library_inputs : Array[@module_frontend.SourceInput] = []
   for index, source in library_sources {
     library_inputs.push({ source_id: "<library:\{index}>", text: source })
   }
@@ -189,8 +189,8 @@ pub fn compile_sources(
 /// Compiles a root Lane source module against explicitly supplied library
 /// modules.
 pub fn compile_source_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> CompileResult {
   match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) => {
@@ -227,13 +227,16 @@ pub fn compile_source_inputs(
 
 ///|
 fn compile_module_set_from_source_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
-  match parse_module_input_set_from_inputs(root_source, library_sources) {
+  match
+    @module_frontend.parse_module_input_set_from_inputs(
+      root_source, library_sources,
+    ) {
     Err(diagnostics) => Err(diagnostics)
     Ok(inputs) =>
-      match build_module_graph(inputs) {
+      match @module_frontend.build_module_graph(inputs) {
         Err(diagnostics) => Err(diagnostics)
         Ok(graph) => compile_module_graph(graph)
       }

@@ -6,7 +6,7 @@ priv struct CompileOneModuleSuccess {
 
 ///|
 fn imported_interfaces(
-  header : ModuleHeader,
+  header : @module_frontend.ModuleHeader,
   modules : Array[CompiledModule],
 ) -> @module_interface.ImportedEnvironment {
   let imported = []
@@ -20,7 +20,7 @@ fn imported_interfaces(
 
 ///|
 fn compile_one_module(
-  input : ParsedModuleInput,
+  input : @module_frontend.ParsedModuleInput,
   registry : @symbol.SymbolRegistry,
   imported : @module_interface.ImportedEnvironment,
 ) -> Result[CompileOneModuleSuccess, Array[CompilerDiagnostic]] {
@@ -48,26 +48,26 @@ fn compile_one_module(
   }
   match (checked.source, checked.module_interface) {
     (Some(checked), Some(interface)) => {
-      let warning_diagnostics = checked_unused_local_value_binding_diagnostics(
+      let warning_diagnostics = @analysis.checked_unused_local_value_binding_diagnostics(
         checked,
         input.text,
       )
       warning_diagnostics.append(
-        unused_private_top_level_declaration_diagnostics(
+        @analysis.unused_private_top_level_declaration_diagnostics(
           resolved.source,
           checked,
           input.text,
         ),
       )
       warning_diagnostics.append(
-        unused_generic_parameter_diagnostics(
+        @analysis.unused_generic_parameter_diagnostics(
           resolved.source,
           checked,
           input.text,
         ),
       )
       warning_diagnostics.append(
-        unused_import_exposure_diagnostics(resolved.source, checked),
+        @analysis.unused_import_exposure_diagnostics(resolved.source, checked),
       )
       let warning_diagnostics = warning_diagnostics.map(fn(diagnostic) {
         diagnostic.with_source_id(input.source_id)

@@ -1,0 +1,76 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/module_frontend"
+
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/syntax",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn build_module_graph(ModuleInputSet) -> Result[ModuleGraph, Array[@diagnostic.CompilerDiagnostic]]
+
+pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[@diagnostic.CompilerDiagnostic]]
+
+pub fn parse_import_reachable_module_input_set_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
+
+pub fn parse_module_input_set_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
+
+pub fn parse_module_inputs(SourceInput, Array[SourceInput]) -> ParseModuleInputsResult
+
+// Errors
+
+// Types and methods
+pub(all) struct ImportHeader {
+  module_path_text : String
+  import_span : @basic.SourceSpan
+}
+
+pub(all) struct ModuleGraph {
+  root_module_path_text : String
+  modules : Array[ParsedModuleInput]
+  reachable_module_path_texts : Array[String]
+}
+
+pub(all) struct ModuleHeader {
+  module_path_text : String
+  module_span : @basic.SourceSpan
+  imports : Array[ImportHeader]
+}
+
+pub(all) struct ModuleInputHeader {
+  source_id : String
+  module_path_text : String
+  imports : Array[String]
+}
+
+pub(all) struct ModuleInputSet {
+  root_module_path_text : String
+  modules : Array[ParsedModuleInput]
+}
+
+pub(all) struct ParseModuleInputsResult {
+  modules : Array[ParsedModuleInput]
+  headers : Array[ModuleInputHeader]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
+}
+pub fn ParseModuleInputsResult::diagnostics_for_source(Self, String) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn ParseModuleInputsResult::source_diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
+
+pub(all) struct ParsedModuleInput {
+  source_id : String
+  text : String
+  header : ModuleHeader
+  source : @syntax.SourceFile
+}
+
+pub(all) struct SourceInput {
+  source_id : String
+  text : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

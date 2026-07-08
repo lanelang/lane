@@ -1,7 +1,6 @@
 ///|
 priv enum CompileBoundaryDiagnosticKind {
   NoRootSourceModule
-  DuplicateModuleInput(String)
   MissingImportWithCandidates(
     module_~ : String,
     source_modules~ : Array[String],
@@ -9,7 +8,6 @@ priv enum CompileBoundaryDiagnosticKind {
   )
   ImportCycle(String)
   CheckedSourceConstructionFailed
-  ParserProducedNoSourceFile
 }
 
 ///|
@@ -42,15 +40,6 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
         note="Lane compile/check needs exactly one root source module",
         help="pass a source file that starts with a `module` declaration",
       )
-    DuplicateModuleInput(module_) =>
-      compile_report(
-        "duplicate module input `\{module_}`",
-        diagnostic_.span,
-        code="E4001",
-        label="this module was supplied more than once",
-        note="a module input set cannot contain two sources with the same module name",
-        help="remove one source file or rename one of the modules",
-      )
     MissingImportWithCandidates(module_~, source_modules~, interface_modules~) =>
       missing_import_diagnostic(
         module_,
@@ -74,15 +63,6 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
         code="E4500",
         label="checked source construction failed",
         note="type checking finished without a checked source tree",
-        help="report this as a compiler bug with the input that triggered it",
-      )
-    ParserProducedNoSourceFile =>
-      compile_report(
-        "parser produced no source file",
-        diagnostic_.span,
-        code="E1102",
-        label="parser produced no source file",
-        note="the parser returned neither a source tree nor a concrete parse error",
         help="report this as a compiler bug with the input that triggered it",
       )
   }

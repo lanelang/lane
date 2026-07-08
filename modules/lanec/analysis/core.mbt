@@ -74,11 +74,17 @@ pub(all) struct AnalysisResult {
 } derive(Debug, Eq)
 
 ///|
+priv struct AnalysisModuleSummary {
+  module_path_text : String
+  interface : @module_interface.ModuleInterface
+}
+
+///|
 pub fn analyze_sources(
   root_source : String,
   library_sources : Array[String],
 ) -> AnalysisResult {
-  let library_inputs = []
+  let library_inputs : Array[@module_frontend.SourceInput] = []
   for index, source in library_sources {
     library_inputs.push({ source_id: "<library:\{index}>", text: source })
   }
@@ -90,13 +96,16 @@ pub fn analyze_sources(
 
 ///|
 pub fn analyze_source_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> AnalysisResult {
-  match parse_module_input_set_from_inputs(root_source, library_sources) {
+  match
+    @module_frontend.parse_module_input_set_from_inputs(
+      root_source, library_sources,
+    ) {
     Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
     Ok(inputs) =>
-      match build_module_graph(inputs) {
+      match @module_frontend.build_module_graph(inputs) {
         Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
         Ok(graph) => analyze_module_graph(graph)
       }
@@ -105,16 +114,16 @@ pub fn analyze_source_inputs(
 
 ///|
 pub fn analyze_import_reachable_source_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> AnalysisResult {
   match
-    parse_import_reachable_module_input_set_from_inputs(
+    @module_frontend.parse_import_reachable_module_input_set_from_inputs(
       root_source, library_sources,
     ) {
     Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
     Ok(inputs) =>
-      match build_module_graph(inputs) {
+      match @module_frontend.build_module_graph(inputs) {
         Err(diagnostics) => AnalysisResult::from_diagnostics(diagnostics)
         Ok(graph) => analyze_module_graph(graph)
       }
@@ -136,17 +145,17 @@ fn AnalysisResult::from_diagnostics(
 }
 
 ///|
-fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
+fn analyze_module_graph(graph : @module_frontend.ModuleGraph) -> AnalysisResult {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let display = @typecheck.TypeDisplayContext::from_registry(registry)
-  let modules : Array[CompiledModule] = []
+  let modules : Array[AnalysisModuleSummary] = []
   let diagnostics = []
   let definitions = []
   let references = []
   let hovers = []
   let inlay_hints = []
   for input in graph.modules {
-    let imported = imported_interfaces(input.header, modules)
+    let imported = analysis_imported_interfaces(input.header, modules)
     let resolved = @resolve.resolve_source_file_with_imports_result(
       input.source,
       registry,
@@ -213,41 +222,9 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
               }),
             )
             let interface = { ..interface, source_id: Some(input.source_id) }
-            let imported_fingerprints = imported_environment_fingerprints(
-              imported,
-            )
-            let fingerprint = module_fingerprint(
-              interface, imported_fingerprints,
-            )
-            let object_fingerprint = module_object_fingerprint(
-              fingerprint,
-              MetadataRegistry(),
-              [],
-              { builtins: [] },
-              [],
-              [],
-              [],
-              imported_fingerprints,
-            )
-            let object : ModuleObject = {
-              module_path_text: input.header.module_path_text,
-              checked: source,
-              metadata: MetadataRegistry(),
-              terms: [],
-              externals: { builtins: [] },
-              entries: [],
-              exports: [],
-              imports: [],
-              fingerprint,
-              object_fingerprint,
-              imported_interface_fingerprints: imported_fingerprints,
-            }
             modules.push({
               module_path_text: input.header.module_path_text,
               interface,
-              object,
-              fingerprint,
-              imported_interface_fingerprints: imported_fingerprints,
             })
             collect_checked_source_analysis(
               input.source_id,
@@ -292,6 +269,33 @@ fn analyze_module_graph(graph : ModuleGraph) -> AnalysisResult {
   }
   let semantic_tokens = build_semantic_tokens(definitions, references, registry)
   { diagnostics, definitions, references, hovers, semantic_tokens, inlay_hints }
+}
+
+///|
+fn analysis_imported_interfaces(
+  header : @module_frontend.ModuleHeader,
+  modules : Array[AnalysisModuleSummary],
+) -> @module_interface.ImportedEnvironment {
+  let imported = []
+  for import_ in header.imports {
+    if find_analysis_module(modules, import_.module_path_text) is Some(module_) {
+      imported.push(module_.interface)
+    }
+  }
+  { modules: imported }
+}
+
+///|
+fn find_analysis_module(
+  modules : Array[AnalysisModuleSummary],
+  module_path_text : String,
+) -> AnalysisModuleSummary? {
+  for module_ in modules {
+    if module_.module_path_text == module_path_text {
+      return Some(module_)
+    }
+  }
+  None
 }
 
 ///|

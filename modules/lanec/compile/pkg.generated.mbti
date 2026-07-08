@@ -3,38 +3,31 @@ package "Milky2018/lanec/compile"
 
 import {
   "Milky2018/buslane",
-  "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/module_frontend",
   "Milky2018/lanec/module_interface",
-  "Milky2018/lanec/symbol",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn analyze_import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> AnalysisResult
-
-pub fn analyze_source_inputs(SourceInput, Array[SourceInput]) -> AnalysisResult
-
-pub fn analyze_sources(String, Array[String]) -> AnalysisResult
-
 pub fn check_source(String) -> CheckResult
 
-pub fn check_source_input_with_interface_artifacts(SourceInput, Array[ModuleInterfaceArtifact]) -> CheckResult
+pub fn check_source_input_with_interface_artifacts(@module_frontend.SourceInput, Array[ModuleInterfaceArtifact]) -> CheckResult
 
-pub fn check_source_inputs(SourceInput, Array[SourceInput]) -> CheckResult
+pub fn check_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> CheckResult
 
 pub fn check_source_with_interface_artifacts(String, Array[ModuleInterfaceArtifact]) -> CheckResult
 
 pub fn check_sources(String, Array[String]) -> CheckResult
 
-pub fn compile_module_input_with_interface_artifacts(SourceInput, Array[ModuleInterfaceArtifact]) -> CompileModulesResult
+pub fn compile_module_input_with_interface_artifacts(@module_frontend.SourceInput, Array[ModuleInterfaceArtifact]) -> CompileModulesResult
 
-pub fn compile_module_inputs(SourceInput, Array[SourceInput]) -> CompileModulesResult
+pub fn compile_module_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> CompileModulesResult
 
 pub fn compile_module_with_interface_artifacts(String, Array[ModuleInterfaceArtifact]) -> CompileModulesResult
 
@@ -42,15 +35,9 @@ pub fn compile_modules(String, Array[String]) -> CompileModulesResult
 
 pub fn compile_source(String) -> CompileResult
 
-pub fn compile_source_inputs(SourceInput, Array[SourceInput]) -> CompileResult
+pub fn compile_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> CompileResult
 
 pub fn compile_sources(String, Array[String]) -> CompileResult
-
-pub fn complete_import_reachable_source_inputs(SourceInput, Array[SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
-
-pub fn complete_source_inputs(SourceInput, Array[SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
-
-pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[@diagnostic.CompilerDiagnostic]]
 
 pub fn link_module_artifacts(CompiledModuleSetArtifact) -> LinkResult
 
@@ -65,34 +52,6 @@ pub let module_object_artifact_schema_version : Int
 // Errors
 
 // Types and methods
-pub(all) struct AnalysisLocation {
-  source_id : String
-  span : @basic.SourceSpan
-} derive(Eq, @debug.Debug)
-
-pub(all) struct AnalysisResult {
-  diagnostics : Array[@diagnostic.CompilerDiagnostic]
-  definitions : Array[DefinitionEntry]
-  references : Array[ReferenceEntry]
-  hovers : Array[HoverEntry]
-  semantic_tokens : Array[SemanticTokenEntry]
-  inlay_hints : Array[InlayHintEntry]
-} derive(Eq, @debug.Debug)
-pub fn AnalysisResult::definition_at(Self, String, Int, Int) -> AnalysisLocation?
-pub fn AnalysisResult::hover_at(Self, String, Int, Int) -> HoverEntry?
-pub fn AnalysisResult::inlay_hints_in_range(Self, String, Int, Int, Int, Int) -> Array[InlayHintEntry]
-
-pub(all) enum AnalysisSymbol {
-  Value(@symbol.ValueSymbolId)
-  Type(@symbol.TypeSymbolId)
-  Field(@symbol.FieldSymbolId)
-  Variant(@symbol.VariantSymbolId)
-  Effect(@symbol.EffectSymbolId)
-  Operation(@symbol.OperationSymbolId)
-  TypeParameter(@symbol.TypeParameterId)
-  TypeMember(@symbol.TypeMemberSymbolId)
-} derive(Eq, @debug.Debug)
-
 pub(all) struct CheckResult {
   source : @checked.CheckedSourceFile?
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
@@ -144,58 +103,6 @@ pub(all) struct CompiledModuleSetArtifact {
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
   reachable_module_path_texts : Array[String]
-} derive(Eq, @debug.Debug)
-
-pub(all) struct CompletionEntry {
-  label : String
-  kind : CompletionKind
-  detail : String?
-  documentation : String?
-  insert_text : String?
-  replace : AnalysisLocation?
-  sort_text : String?
-} derive(Eq, @debug.Debug)
-
-pub(all) enum CompletionKind {
-  Value
-  Function
-  Type
-  TypeParameter
-  Effect
-  Operation
-  Field
-  Variant
-  Module
-  Offer
-} derive(Eq, @debug.Debug)
-
-pub(all) enum CompletionTrigger {
-  Manual
-  TriggerCharacter(String)
-} derive(Eq, @debug.Debug)
-
-pub(all) struct DefinitionEntry {
-  symbol : AnalysisSymbol
-  location : AnalysisLocation
-  label : String
-  detail : String
-} derive(Eq, @debug.Debug)
-
-pub(all) struct HoverEntry {
-  location : AnalysisLocation
-  contents : String
-} derive(Eq, @debug.Debug)
-
-pub(all) struct InlayHintEntry {
-  location : AnalysisLocation
-  kind : InlayHintKind
-  label : String
-} derive(Eq, @debug.Debug)
-
-pub(all) enum InlayHintKind {
-  TypeHint
-  ParameterHint
-  ImplicitArgumentHint
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkResult {
@@ -277,12 +184,6 @@ pub(all) struct ModuleObjectArtifact {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ModuleObjectArtifact
 
-pub(all) struct ReferenceEntry {
-  location : AnalysisLocation
-  symbol : AnalysisSymbol
-  hover : String?
-} derive(Eq, @debug.Debug)
-
 pub(all) struct RuntimeEffectOperationSignature {
   module_path_text : String
   effect_name : String
@@ -293,21 +194,6 @@ pub(all) struct RuntimeEffectOperationSignature {
 
 pub(all) enum RuntimeEffectOperationValidationError {
   MissingRuntimeEffectOperation(RuntimeEffectOperationSignature)
-} derive(Eq, @debug.Debug)
-
-pub(all) struct SemanticTokenEntry {
-  location : AnalysisLocation
-  kind : SemanticTokenKind
-} derive(Eq, @debug.Debug)
-
-pub(all) enum SemanticTokenKind {
-  VariableToken
-  ParameterToken
-} derive(Eq, @debug.Debug)
-
-pub(all) struct SourceInput {
-  source_id : String
-  text : String
 } derive(Eq, @debug.Debug)
 
 // Type aliases

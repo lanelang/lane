@@ -139,11 +139,11 @@ async test "hover reports invalid params as an LSP request shape error" {
 
 ///|
 test "inlay hint validation reports duplicate positions as compiler bugs" {
-  let location : @compile.AnalysisLocation = {
+  let location : @analysis.AnalysisLocation = {
     source_id: "file:///Main.lane",
     span: @basic.SourceSpan::dummy(),
   }
-  let hints : Array[@compile.InlayHintEntry] = [
+  let hints : Array[@analysis.InlayHintEntry] = [
     { location, kind: TypeHint, label: ": Int" },
     { location, kind: ParameterHint, label: "value=" },
   ]
@@ -812,7 +812,7 @@ async test "didOpen publishes compiler diagnostics" {
 
 ///|
 test "lsp diagnostics convert text offsets before transport" {
-  let input : @compile.SourceInput = {
+  let input : @module_frontend.SourceInput = {
     source_id: "file:///unicode.lane",
     text: (
       #|module Main
@@ -863,7 +863,7 @@ test "lsp diagnostics convert text offsets before transport" {
 
 ///|
 test "lsp generic operator conflict keeps diagnostic message concise" {
-  let input : @compile.SourceInput = {
+  let input : @module_frontend.SourceInput = {
     source_id: "file:///generic-operator.lane",
     text: (
       #|module Main
@@ -910,7 +910,7 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
 
 ///|
 test "lsp diagnostics transport unused local warnings" {
-  let input : @compile.SourceInput = {
+  let input : @module_frontend.SourceInput = {
     source_id: "file:///unused.lane",
     text: (
       #|module Main
@@ -940,7 +940,7 @@ test "lsp diagnostics transport unused local warnings" {
 
 ///|
 test "lsp duplicate top-level value diagnostic points at names" {
-  let input : @compile.SourceInput = {
+  let input : @module_frontend.SourceInput = {
     source_id: "file:///duplicate.lane",
     text: (
       #|module Main
@@ -983,7 +983,7 @@ test "lsp duplicate top-level value diagnostic points at names" {
 
 ///|
 test "lsp duplicate imported top-level value diagnostic points across sources" {
-  let main : @compile.SourceInput = {
+  let main : @module_frontend.SourceInput = {
     source_id: "file:///Main.lane",
     text: (
       #|module Main
@@ -991,7 +991,7 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
       #|pub let answer : Int = 2
     ),
   }
-  let lib : @compile.SourceInput = {
+  let lib : @module_frontend.SourceInput = {
     source_id: "file:///Lib.lane",
     text: (
       #|module Lib
@@ -1501,7 +1501,10 @@ async test "workspace analysis selects root import closure without json rpc" {
   let analysis = LspWorkspaceAnalysis(Some(workspace), {})
   let sources = analysis.analysis_sources(document)
   let inputs = match
-    @compile.import_reachable_source_inputs(sources.root, sources.libraries) {
+    @module_frontend.import_reachable_source_inputs(
+      sources.root,
+      sources.libraries,
+    ) {
     Ok(inputs) => inputs
     Err(_) => abort("expected import-reachable inputs")
   }

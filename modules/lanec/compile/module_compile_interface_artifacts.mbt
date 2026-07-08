@@ -6,7 +6,7 @@ priv struct OrderedInterfaceArtifactsResult {
 
 ///|
 fn reachable_interface_artifacts(
-  header : ModuleHeader,
+  header : @module_frontend.ModuleHeader,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> OrderedInterfaceArtifactsResult {
   let diagnostics = validate_interface_artifacts(interfaces)
@@ -201,7 +201,7 @@ fn interface_candidates(
 
 ///|
 fn imported_interface_fingerprints_from_artifacts(
-  header : ModuleHeader,
+  header : @module_frontend.ModuleHeader,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> Array[@artifact_core.ImportedInterfaceFingerprint] {
   let fingerprints = []
