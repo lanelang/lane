@@ -826,12 +826,8 @@ handler_operation_owner_arguments -> Array[Type]
   ;
 
 handler_operation_arm_parameters -> HandlerOperationArmParameters
-  : IDENT {
-    { payload_patterns: [], resume_binder: $1, resume_loc: span($sloc) }
-  }
-  | handler_payload_patterns "," IDENT {
-    { payload_patterns: $1, resume_binder: $3, resume_loc: span($sloc) }
-  }
+  : identifier { { payload_patterns: [], resume_binder: $1.name, resume_loc: $1.loc } }
+  | handler_payload_patterns "," identifier { { payload_patterns: $1, resume_binder: $3.name, resume_loc: $3.loc } }
   ;
 
 handler_payload_patterns -> Array[Pattern]
@@ -840,9 +836,7 @@ handler_payload_patterns -> Array[Pattern]
   ;
 
 handler_final_branch -> HandlerFinalBranch
-  : "final" IDENT block_expression {
-    { binder: $2, binder_loc: span($sloc), body: $3, loc: span($sloc) }
-  }
+  : "final" identifier block_expression { { binder: $2.name, binder_loc: $2.loc, body: $3, loc: span($sloc) } }
   ;
 
 function_literal -> Expr

@@ -276,6 +276,7 @@ fn CheckedHandlerFinalBranch::substitute(
   {
     binder_symbol: self.binder_symbol,
     binder: self.binder,
+    binder_type: self.binder_type.substitute(substitution),
     binder_loc: self.binder_loc,
     body: self.body.map(fn(body) { body.substitute(substitution) }),
     loc: self.loc,

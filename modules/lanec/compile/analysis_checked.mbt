@@ -170,6 +170,58 @@ fn checked_parameter_hint_parameter(
 }
 
 ///|
+fn value_detail(
+  name : String,
+  type_ : @types.Type,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  "\{name} : \{display.type_text(type_)}"
+}
+
+///|
+fn type_parameter_detail(
+  parameter : @types.TypeParameter,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  "\{parameter.name} : \{display.kind_text(parameter.kind)}"
+}
+
+///|
+fn type_member_detail(
+  name : String,
+  kind : @types.Kind,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  "type \{name} : \{display.kind_text(kind)}"
+}
+
+///|
+fn field_detail(
+  name : String,
+  type_ : @types.Type,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  "\{name} : \{display.type_text(type_)}"
+}
+
+///|
+fn type_reference_detail(
+  type_ : @types.Type,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  "type \{display.type_text(type_)}"
+}
+
+///|
+fn type_member_witness_detail(
+  name : String,
+  type_ : @types.Type,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  "\{name} = \{display.type_text(type_)}"
+}
+
+///|
 fn collect_checked_top_level_declaration(
   source_id : String,
   source_text : String,
@@ -198,7 +250,7 @@ fn collect_checked_top_level_declaration(
           TypeParameter(parameter.id),
           name_span(source_text, parameter.name, declaration.loc),
           parameter.name,
-          "\{parameter.name} : \{context.display.kind_text(parameter.kind)}",
+          type_parameter_detail(parameter, context.display),
         )
       }
       for type_member in declaration.type_members {
@@ -209,7 +261,11 @@ fn collect_checked_top_level_declaration(
           TypeMember(type_member.symbol),
           name_span(source_text, type_member.name, type_member.loc),
           type_member.name,
-          "type \{type_member.name} : \{context.display.kind_text(type_member.kind)}",
+          type_member_detail(
+            type_member.name,
+            type_member.kind,
+            context.display,
+          ),
         )
       }
       for field in declaration.fields {
@@ -220,7 +276,7 @@ fn collect_checked_top_level_declaration(
           Field(field.symbol),
           name_span(source_text, field.name, field.loc),
           field.name,
-          "\{field.name} : \{context.display.type_text(field.type_)}",
+          field_detail(field.name, field.type_, context.display),
         )
       }
     }
@@ -242,7 +298,7 @@ fn collect_checked_top_level_declaration(
           TypeParameter(parameter.id),
           name_span(source_text, parameter.name, declaration.loc),
           parameter.name,
-          "\{parameter.name} : \{context.display.kind_text(parameter.kind)}",
+          type_parameter_detail(parameter, context.display),
         )
       }
       for variant in declaration.variants {
@@ -283,7 +339,7 @@ fn collect_checked_top_level_declaration(
           TypeParameter(parameter.id),
           name_span(source_text, parameter.name, declaration.loc),
           parameter.name,
-          "\{parameter.name} : \{context.display.kind_text(parameter.kind)}",
+          type_parameter_detail(parameter, context.display),
         )
       }
       for operation in declaration.operations {
@@ -304,7 +360,7 @@ fn collect_checked_top_level_declaration(
             TypeParameter(parameter.id),
             name_span(source_text, parameter.name, operation.loc),
             parameter.name,
-            "\{parameter.name} : \{context.display.kind_text(parameter.kind)}",
+            type_parameter_detail(parameter, context.display),
           )
         }
       }
@@ -317,7 +373,7 @@ fn collect_checked_top_level_declaration(
         Value(declaration.symbol),
         name_span(source_text, declaration.name, declaration.loc),
         declaration.name,
-        "\{declaration.name} : \{context.display.type_text(declaration.type_)}",
+        value_detail(declaration.name, declaration.type_, context.display),
       )
       for parameter in declaration.parameters {
         add_definition(
@@ -327,7 +383,7 @@ fn collect_checked_top_level_declaration(
           Value(parameter.symbol),
           name_span(source_text, parameter.name, parameter.loc),
           parameter.name,
-          "\{parameter.name} : \{context.display.type_text(parameter.type_)}",
+          value_detail(parameter.name, parameter.type_, context.display),
         )
       }
       collect_checked_expr(
@@ -351,7 +407,7 @@ fn collect_checked_top_level_declaration(
             Value(declaration.symbol),
             name_loc,
             name,
-            "\{name} : \{context.display.type_text(declaration.type_)}",
+            value_detail(name, declaration.type_, context.display),
           )
           if !context.annotated_values.contains(declaration.symbol) {
             add_type_inlay_hint(
@@ -400,7 +456,7 @@ fn collect_checked_local_item(
             Value(declaration.symbol),
             name_loc,
             name,
-            "\{name} : \{context.display.type_text(declaration.type_)}",
+            value_detail(name, declaration.type_, context.display),
           )
           if !context.annotated_values.contains(declaration.symbol) {
             add_type_inlay_hint(
@@ -476,7 +532,7 @@ fn collect_checked_expr(
         source_id,
         Value(symbol),
         loc,
-        Some("\{name} : \{context.display.type_text(type_)}"),
+        Some(value_detail(name, type_, context.display)),
       )
     FunctionLiteral(parameters~, body~, ..) => {
       for parameter in parameters {
@@ -488,7 +544,7 @@ fn collect_checked_expr(
           Value(parameter.symbol),
           name_loc,
           parameter.name,
-          "\{parameter.name} : \{context.display.type_text(parameter.type_)}",
+          value_detail(parameter.name, parameter.type_, context.display),
         )
         if !context.annotated_values.contains(parameter.symbol) {
           add_type_inlay_hint(
@@ -598,7 +654,7 @@ fn collect_checked_expr(
               TypeParameter(binder.id),
               name_span(source_text, binder.name, arm.loc),
               binder.name,
-              "\{binder.name} : \{context.display.kind_text(binder.kind)}",
+              type_parameter_detail(binder, context.display),
             )
           }
           for pattern in arm.payload_patterns {
@@ -613,7 +669,7 @@ fn collect_checked_expr(
             Value(arm.resume_symbol),
             arm.resume_loc,
             arm.resume_binder,
-            "\{arm.resume_binder} : <unchecked>",
+            value_detail(arm.resume_binder, arm.resume_type, context.display),
           )
           if arm.body is Some(body) {
             collect_checked_expr(
@@ -629,7 +685,11 @@ fn collect_checked_expr(
         Value(final_branch.binder_symbol),
         final_branch.binder_loc,
         final_branch.binder,
-        "\{final_branch.binder} : <unchecked>",
+        value_detail(
+          final_branch.binder,
+          final_branch.binder_type,
+          context.display,
+        ),
       )
       if final_branch.body is Some(body) {
         collect_checked_expr(
@@ -647,7 +707,7 @@ fn collect_checked_expr(
         source_id,
         Field(field),
         loc,
-        Some("\{name} : \{context.display.type_text(type_)}"),
+        Some(field_detail(name, type_, context.display)),
       )
     }
     StructLiteral(symbol~, type_witnesses~, fields~, loc~, ..) => {
@@ -663,7 +723,7 @@ fn collect_checked_expr(
         source_id,
         Type(symbol),
         reference_loc,
-        Some("type \{context.display.type_text(Constructor(symbol))}"),
+        Some(type_reference_detail(Constructor(symbol), context.display)),
       )
       for witness in type_witnesses {
         add_reference(
@@ -672,7 +732,13 @@ fn collect_checked_expr(
           source_id,
           TypeMember(witness.symbol),
           witness.loc,
-          Some("\{witness.name} = \{context.display.type_text(witness.type_)}"),
+          Some(
+            type_member_witness_detail(
+              witness.name,
+              witness.type_,
+              context.display,
+            ),
+          ),
         )
       }
       for field in fields {
@@ -682,7 +748,7 @@ fn collect_checked_expr(
           source_id,
           Field(field.symbol),
           field.loc,
-          Some(field.name),
+          Some(field_detail(field.name, field.value.type_(), context.display)),
         )
         collect_checked_expr(
           source_id,
@@ -983,7 +1049,7 @@ fn collect_checked_pattern(
         Value(symbol),
         loc,
         name,
-        "\{name} : \{context.display.type_text(type_)}",
+        value_detail(name, type_, context.display),
       )
       if !context.annotated_values.contains(symbol) {
         add_type_inlay_hint(
@@ -1028,7 +1094,7 @@ fn collect_checked_pattern(
         source_id,
         Type(symbol),
         reference_loc,
-        Some("type \{context.display.type_text(Constructor(symbol))}"),
+        Some(type_reference_detail(Constructor(symbol), context.display)),
       )
       for binder in type_binders {
         match binder.type_parameter {
@@ -1040,7 +1106,7 @@ fn collect_checked_pattern(
               TypeParameter(parameter.id),
               binder.loc,
               parameter.name,
-              "\{parameter.name} : \{context.display.kind_text(parameter.kind)}",
+              type_parameter_detail(parameter, context.display),
             )
           None => ()
         }

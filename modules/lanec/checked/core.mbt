@@ -300,6 +300,7 @@ pub(all) struct CheckedHandlerOperationArm {
 pub(all) struct CheckedHandlerFinalBranch {
   binder_symbol : ValueSymbolId
   binder : String
+  binder_type : @types.Type
   binder_loc : SourceSpan
   body : CheckedExpr?
   loc : SourceSpan

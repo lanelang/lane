@@ -22,11 +22,356 @@ fn collect_resolved_type_references(
   references : Array[ReferenceEntry],
   hovers : Array[HoverEntry],
 ) -> Unit {
-  let definitions : Array[DefinitionEntry] = []
   for declaration in source.declarations {
-    collect_resolved_top_level_declaration(
-      source_id, source_text, declaration, definitions, references, hovers,
+    collect_resolved_top_level_type_references(
+      source_id, source_text, declaration, references, hovers,
     )
+  }
+}
+
+///|
+fn collect_resolved_top_level_type_references(
+  source_id : String,
+  source_text : String,
+  declaration : @resolve.ResolvedTopLevelDeclaration,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match declaration {
+    Struct(declaration) =>
+      for struct_member in declaration.members {
+        if struct_member is Field(field) {
+          collect_resolved_type_reference(
+            source_id,
+            field.type_,
+            references,
+            hovers,
+          )
+        }
+      }
+    Enum(declaration) =>
+      for variant in declaration.variants {
+        for payload in variant.payload {
+          collect_resolved_type_reference(
+            source_id, payload, references, hovers,
+          )
+        }
+      }
+    TypeAlias(declaration) =>
+      collect_resolved_type_alias_body_reference(
+        source_id,
+        declaration.body,
+        references,
+        hovers,
+      )
+    Effect(declaration) =>
+      for operation in declaration.operations {
+        for payload in operation.payload {
+          collect_resolved_type_reference(
+            source_id, payload, references, hovers,
+          )
+        }
+        collect_resolved_type_reference(
+          source_id,
+          operation.result,
+          references,
+          hovers,
+        )
+      }
+    Function(declaration) => {
+      for parameter in declaration.parameters {
+        collect_resolved_type_reference(
+          source_id,
+          parameter.type_,
+          references,
+          hovers,
+        )
+      }
+      collect_resolved_type_reference(
+        source_id,
+        declaration.return_type,
+        references,
+        hovers,
+      )
+      collect_resolved_effect_reference(
+        source_id,
+        declaration.effect,
+        references,
+        hovers,
+      )
+      collect_resolved_expr_type_references(
+        source_id,
+        source_text,
+        declaration.body,
+        references,
+        hovers,
+      )
+    }
+    Let(declaration) => {
+      if declaration.type_annotation is Some(type_) {
+        collect_resolved_type_reference(source_id, type_, references, hovers)
+      }
+      collect_resolved_expr_type_references(
+        source_id,
+        source_text,
+        declaration.initializer,
+        references,
+        hovers,
+      )
+    }
+    Offer(declaration) => {
+      collect_resolved_type_reference(
+        source_id,
+        declaration.type_annotation,
+        references,
+        hovers,
+      )
+      collect_resolved_expr_type_references(
+        source_id,
+        source_text,
+        declaration.initializer,
+        references,
+        hovers,
+      )
+    }
+  }
+}
+
+///|
+fn collect_resolved_local_item_type_references(
+  source_id : String,
+  source_text : String,
+  item : @resolve.ResolvedLocalItem,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match item {
+    Let(declaration) => {
+      if declaration.type_annotation is Some(type_) {
+        collect_resolved_type_reference(source_id, type_, references, hovers)
+      }
+      collect_resolved_expr_type_references(
+        source_id,
+        source_text,
+        declaration.initializer,
+        references,
+        hovers,
+      )
+    }
+    PatternLet(declaration) => {
+      if declaration.type_annotation is Some(type_) {
+        collect_resolved_type_reference(source_id, type_, references, hovers)
+      }
+      collect_resolved_expr_type_references(
+        source_id,
+        source_text,
+        declaration.initializer,
+        references,
+        hovers,
+      )
+    }
+    Function(declaration) =>
+      collect_resolved_top_level_type_references(
+        source_id,
+        source_text,
+        Function(declaration),
+        references,
+        hovers,
+      )
+    Offer(declaration) =>
+      collect_resolved_top_level_type_references(
+        source_id,
+        source_text,
+        Offer(declaration),
+        references,
+        hovers,
+      )
+  }
+}
+
+///|
+fn collect_resolved_expr_type_references(
+  source_id : String,
+  source_text : String,
+  expr : @resolve.ResolvedExpr,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  let mut recurse_children = true
+  match expr {
+    QualifiedVariant(generic_arguments~, variant_generic_arguments~, ..) => {
+      for argument in generic_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
+      for argument in variant_generic_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
+    }
+    UnqualifiedVariant(variant_generic_arguments~, ..) =>
+      for argument in variant_generic_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
+    StructLiteral(generic_arguments~, fields~, ..) => {
+      for argument in generic_arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
+      for field in fields {
+        if field is TypeWitness(witness~, ..) {
+          collect_resolved_type_reference(
+            source_id, witness, references, hovers,
+          )
+        }
+      }
+    }
+    FunctionLiteral(parameters~, return_type~, effect~, ..) => {
+      for parameter in parameters {
+        if parameter.type_annotation is Some(type_) {
+          collect_resolved_type_reference(source_id, type_, references, hovers)
+        }
+      }
+      if return_type is Some(type_) {
+        collect_resolved_type_reference(source_id, type_, references, hovers)
+      }
+      if effect is Some(effect) {
+        collect_resolved_effect_reference(source_id, effect, references, hovers)
+      }
+    }
+    EffectOperationCall(name~, generic_witnesses~, ..) => {
+      collect_resolved_effect_operation_name_type_references(
+        source_id, source_text, name, references, hovers,
+      )
+      for witness in generic_witnesses {
+        collect_resolved_generic_argument_reference(
+          source_id, witness, references, hovers,
+        )
+      }
+    }
+    GenericApplication(arguments~, ..) =>
+      for argument in arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
+    Handler(handlers~, ..) =>
+      for handler in handlers {
+        for arm in handler.arms {
+          collect_resolved_effect_operation_name_type_references(
+            source_id,
+            source_text,
+            arm.name,
+            references,
+            hovers,
+          )
+          collect_resolved_pattern_type_references(
+            source_id,
+            arm.payload_patterns,
+            references,
+            hovers,
+          )
+        }
+      }
+    Block(items~, result~, ..) => {
+      recurse_children = false
+      for item in items {
+        collect_resolved_local_item_type_references(
+          source_id, source_text, item, references, hovers,
+        )
+      }
+      collect_resolved_expr_type_references(
+        source_id, source_text, result, references, hovers,
+      )
+    }
+    Match(arms~, ..) =>
+      for arm in arms {
+        collect_resolved_pattern_type_references(
+          source_id,
+          [arm.pattern],
+          references,
+          hovers,
+        )
+      }
+    IntLiteral(_)
+    | DoubleLiteral(_)
+    | StringLiteral(_)
+    | BoolLiteral(_)
+    | UnitLiteral(_)
+    | Var(_)
+    | ListLiteral(_)
+    | Builtin(_)
+    | If(_)
+    | Call(_)
+    | Field(_)
+    | Unary(_)
+    | Binary(_)
+    | Pipeline(_) => ()
+  }
+  if recurse_children {
+    expr.for_each_child_expr(fn(child) {
+      collect_resolved_expr_type_references(
+        source_id, source_text, child, references, hovers,
+      )
+    })
+  }
+}
+
+///|
+fn collect_resolved_pattern_type_references(
+  source_id : String,
+  patterns : Array[@resolve.ResolvedPattern],
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  for pattern in patterns {
+    match pattern {
+      Wildcard(_)
+      | IntLiteral(_)
+      | DoubleLiteral(_)
+      | StringLiteral(_)
+      | BoolLiteral(_)
+      | Binding(_) => ()
+      QualifiedVariant(arguments~, ..) | UnqualifiedVariant(arguments~, ..) =>
+        collect_resolved_pattern_type_references(
+          source_id, arguments, references, hovers,
+        )
+      Struct(fields~, ..) =>
+        for field in fields {
+          match field {
+            Value(pattern~, ..) =>
+              collect_resolved_pattern_type_references(
+                source_id,
+                [pattern],
+                references,
+                hovers,
+              )
+            TypeBinder(_) | TypeWildcard(_) => ()
+          }
+        }
+    }
+  }
+}
+
+///|
+fn collect_resolved_effect_operation_name_type_references(
+  source_id : String,
+  source_text : String,
+  name : @resolve.ResolvedEffectOperationName,
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+) -> Unit {
+  match name {
+    Qualified(owner~, ..) =>
+      collect_resolved_effect_reference_with_source(
+        source_id, source_text, owner, references, hovers,
+      )
+    Unqualified(_) => ()
   }
 }
 

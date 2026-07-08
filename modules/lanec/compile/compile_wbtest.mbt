@@ -3762,6 +3762,49 @@ test "analysis resolves types fields and variants" {
 }
 
 ///|
+test "analysis hovers handler binders with checked types" {
+  let result = analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub effect Console {
+        #|  read() -> Int
+        #|}
+        #|pub effect State {
+        #|  get() -> Int
+        #|}
+        #|pub fn answer() -> Int ! State {
+        #|  handle Console::read!() with {
+        #|    Console::read(resume) => resume(0)
+        #|  } final value {
+        #|    let _state : Int = State::get!()
+        #|    value
+        #|  }
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  match result.hover_at("file:///Main.lane", 11, 20) {
+    Some(hover) =>
+      inspect(hover.contents, content="resume : (Int) -> Int ! State")
+    None => abort("expected resume binder hover")
+  }
+  match result.hover_at("file:///Main.lane", 11, 31) {
+    Some(hover) =>
+      inspect(hover.contents, content="resume : (Int) -> Int ! State")
+    None => abort("expected resume reference hover")
+  }
+  match result.hover_at("file:///Main.lane", 12, 12) {
+    Some(hover) => inspect(hover.contents, content="value : Int")
+    None => abort("expected final binder hover")
+  }
+}
+
+///|
 test "analysis narrows struct pattern type references" {
   let result = analyze_source_inputs(
     {

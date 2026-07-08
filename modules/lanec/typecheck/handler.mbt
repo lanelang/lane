@@ -173,6 +173,7 @@ fn SemanticChecker::synthesize_checked_handler(
         final_branch={
           binder_symbol: final_branch.binder_symbol,
           binder: final_branch.binder,
+          binder_type: checked_body.type_,
           binder_loc: final_branch.binder_loc,
           body: final_body,
           loc: final_branch.loc,

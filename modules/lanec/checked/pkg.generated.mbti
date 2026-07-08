@@ -104,6 +104,7 @@ pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration
 pub(all) struct CheckedHandlerFinalBranch {
   binder_symbol : @symbol.ValueSymbolId
   binder : String
+  binder_type : @types.Type
   binder_loc : @basic.SourceSpan
   body : CheckedExpr?
   loc : @basic.SourceSpan

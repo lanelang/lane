@@ -1823,6 +1823,63 @@ async test "hover returns checked value type" {
 }
 
 ///|
+async test "hover returns checked handler resume type" {
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(
+        1,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Main.lane",
+          (
+            #|module Main
+            #|
+            #|pub effect Console {
+            #|  read() -> Int
+            #|}
+            #|pub effect State {
+            #|  get() -> Int
+            #|}
+            #|pub fn answer() -> Int ! State {
+            #|  handle Console::read!() with {
+            #|    Console::read(resume) => resume(0)
+            #|  } final value {
+            #|    let _state : Int = State::get!()
+            #|    value
+            #|  }
+            #|}
+          ),
+        ),
+      ),
+    ),
+  )
+  let result = state.handle_message(
+    request(
+      2,
+      "textDocument/hover",
+      position_params("file:///Main.lane", 10, 19),
+    ),
+  )
+  json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "contents": {
+          "kind": "markdown",
+          "value": "```lane\nresume : (Int) -> Int ! State\n```",
+        },
+        "range": {
+          "start": { "line": 10, "character": 18 },
+          "end": { "line": 10, "character": 24 },
+        },
+      },
+    },
+  ])
+}
+
+///|
 async test "hover returns declaration detail" {
   let state = ServerState::ServerState()
   ignore(
