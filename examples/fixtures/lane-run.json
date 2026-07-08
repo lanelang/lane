@@ -1250,6 +1250,19 @@
           "cannot find value `nan`"
         ]
       }
+    },
+    {
+      "name": "invalid 58 struct literal generic arity",
+      "file": "examples/invalid/58_struct_literal_generic_arity.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3003]",
+          "wrong number of generic arguments for `PairBox`",
+          "`PairBox` expects 2 generic argument(s), but 1 were provided",
+          "add or remove generic arguments so the count is 2"
+        ]
+      }
     }
   ]
 }

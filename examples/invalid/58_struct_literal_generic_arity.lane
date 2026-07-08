@@ -1,0 +1,8 @@
+module Examples.Invalid.StructLiteralGenericArity
+
+struct PairBox[A, B] {
+  left : A
+  right : B
+}
+
+let value : PairBox[Int, Bool] = PairBox[Int]::{ left: 1, right: true }
