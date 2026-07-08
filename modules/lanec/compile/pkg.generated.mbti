@@ -23,8 +23,6 @@ pub fn analyze_sources(String, Array[String]) -> AnalysisResult
 
 pub fn artifact_binary_to_inspect_text(Bytes) -> Result[String, String]
 
-pub fn artifact_binary_to_text(Bytes) -> Result[String, String]
-
 pub fn check_source(String) -> CheckResult
 
 pub fn check_source_input_with_interface_artifacts(SourceInput, Array[ModuleInterfaceArtifact]) -> CheckResult
@@ -63,27 +61,15 @@ pub fn link_modules(CompiledModuleSet) -> LinkResult
 
 pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Bytes
 
-pub fn linked_program_artifact_to_text(LinkedProgramArtifact) -> String
-
 pub fn module_interface_artifact_to_binary(ModuleInterfaceArtifact) -> Bytes
-
-pub fn module_interface_artifact_to_text(ModuleInterfaceArtifact) -> String
 
 pub fn module_object_artifact_to_binary(ModuleObjectArtifact) -> Bytes
 
-pub fn module_object_artifact_to_text(ModuleObjectArtifact) -> String
-
 pub fn parse_linked_program_artifact_binary(Bytes) -> Result[LinkedProgramArtifact, String]
-
-pub fn parse_linked_program_artifact_text(String) -> Result[LinkedProgramArtifact, String]
 
 pub fn parse_module_interface_artifact_binary(Bytes) -> Result[ModuleInterfaceArtifact, String]
 
-pub fn parse_module_interface_artifact_text(String) -> Result[ModuleInterfaceArtifact, String]
-
 pub fn parse_module_object_artifact_binary(Bytes) -> Result[ModuleObjectArtifact, String]
-
-pub fn parse_module_object_artifact_text(String) -> Result[ModuleObjectArtifact, String]
 
 // Errors
 

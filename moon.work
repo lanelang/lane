@@ -1,7 +1,8 @@
 members = [
   "./modules/buslane",
+  "./modules/bytecodec",
   "./modules/diagnostic",
-  "./modules/lanec",
   "./modules/lane",
   "./modules/lane_wasm",
+  "./modules/lanec",
 ]

@@ -154,6 +154,10 @@ graph TD
   ISS_138["ISS-138: Implement Double primitive and finite literals"]
   ISS_139["ISS-139: Add Basic f64 operations"]
   ISS_140["ISS-140: Add Basic Double special constants"]
+  ISS_141["ISS-141: Hard switch Lane artifacts to binary payloads"]
+  ISS_142["ISS-142: Add shared bytecodec module"]
+  ISS_143["ISS-143: Add Buslane binary codec package"]
+  ISS_144["ISS-144: Replace artifact text load path with binary payload codec"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -273,6 +277,8 @@ graph TD
   ISS_136 --> ISS_137
   ISS_138 --> ISS_139
   ISS_139 --> ISS_140
+  ISS_142 --> ISS_143
+  ISS_143 --> ISS_144
 ```
 
 ## Warnings

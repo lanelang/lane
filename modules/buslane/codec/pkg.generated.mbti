@@ -1,0 +1,51 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/buslane/codec"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/bytecodec",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn decode_program(Bytes) -> @buslane.Program raise BuslaneDecodeError
+
+pub fn encode_program(@buslane.Program) -> Bytes
+
+pub fn read_data_con_id(@bytecodec.ByteReader) -> @buslane.DataConId raise BuslaneDecodeError
+
+pub fn read_effect_id(@bytecodec.ByteReader) -> @buslane.EffectId raise BuslaneDecodeError
+
+pub fn read_operation_id(@bytecodec.ByteReader) -> @buslane.OperationId raise BuslaneDecodeError
+
+pub fn read_type(@bytecodec.ByteReader) -> @buslane.Type raise BuslaneDecodeError
+
+pub fn read_type_id(@bytecodec.ByteReader) -> @buslane.TypeId raise BuslaneDecodeError
+
+pub fn read_value_id(@bytecodec.ByteReader) -> @buslane.ValueId raise BuslaneDecodeError
+
+pub fn write_data_con_id(@bytecodec.ByteWriter, @buslane.DataConId) -> Unit
+
+pub fn write_effect_id(@bytecodec.ByteWriter, @buslane.EffectId) -> Unit
+
+pub fn write_operation_id(@bytecodec.ByteWriter, @buslane.OperationId) -> Unit
+
+pub fn write_type(@bytecodec.ByteWriter, @buslane.Type) -> Unit
+
+pub fn write_type_id(@bytecodec.ByteWriter, @buslane.TypeId) -> Unit
+
+pub fn write_value_id(@bytecodec.ByteWriter, @buslane.ValueId) -> Unit
+
+// Errors
+pub suberror BuslaneDecodeError {
+  ByteError(@bytecodec.ByteDecodeError)
+  UnsupportedCodecVersion(version~ : Int)
+  InvalidTag(offset~ : Int, domain~ : String, tag~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

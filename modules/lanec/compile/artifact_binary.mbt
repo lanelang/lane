@@ -11,9 +11,17 @@ let artifact_binary_kind_object = 2
 let artifact_binary_kind_program = 3
 
 ///|
-priv struct BinaryArtifactText {
+priv struct BinaryArtifactPayload {
   kind : Int
-  text : String
+  payload : Bytes
+}
+
+///|
+priv struct BinaryArtifactHeader {
+  version : Int
+  kind : Int
+  payload_length : Int
+  body : BytesView
 }
 
 ///|
@@ -22,58 +30,32 @@ fn artifact_binary_magic() -> Bytes {
 }
 
 ///|
-pub fn artifact_binary_to_text(bytes : Bytes) -> Result[String, String] {
-  match decode_binary_artifact_text(bytes, subject="Lane") {
-    Ok(decoded) =>
-      match decoded.kind {
-        kind if kind == artifact_binary_kind_interface =>
-          match parse_module_interface_artifact_text(decoded.text) {
-            Ok(_) => Ok(decoded.text)
-            Err(message) => Err(message)
-          }
-        kind if kind == artifact_binary_kind_object =>
-          match parse_module_object_artifact_text(decoded.text) {
-            Ok(_) => Ok(decoded.text)
-            Err(message) => Err(message)
-          }
-        kind if kind == artifact_binary_kind_program =>
-          match parse_linked_program_artifact_text(decoded.text) {
-            Ok(_) => Ok(decoded.text)
-            Err(message) => Err(message)
-          }
-        kind =>
-          Err("unknown artifact binary kind \{artifact_binary_kind_name(kind)}")
-      }
-    Err(message) => Err(message)
-  }
-}
-
-///|
 pub fn artifact_binary_to_inspect_text(bytes : Bytes) -> Result[String, String] {
-  match decode_binary_artifact_text(bytes, subject="Lane") {
-    Ok(decoded) =>
-      match decoded.kind {
-        kind if kind == artifact_binary_kind_interface =>
-          match parse_module_interface_artifact_text(decoded.text) {
-            Ok(artifact) =>
-              Ok(module_interface_artifact_to_inspect_text(artifact))
-            Err(message) => Err(message)
-          }
-        kind if kind == artifact_binary_kind_object =>
-          match parse_module_object_artifact_text(decoded.text) {
-            Ok(artifact) => Ok(module_object_artifact_to_inspect_text(artifact))
-            Err(message) => Err(message)
-          }
-        kind if kind == artifact_binary_kind_program =>
-          match parse_linked_program_artifact_text(decoded.text) {
-            Ok(artifact) =>
-              Ok(linked_program_artifact_to_inspect_text(artifact))
-            Err(message) => Err(message)
-          }
-        kind =>
-          Err("unknown artifact binary kind \{artifact_binary_kind_name(kind)}")
-      }
-    Err(message) => Err(message)
+  try {
+    let decoded = decode_artifact_container(bytes)
+    match decoded.kind {
+      kind if kind == artifact_binary_kind_interface =>
+        Ok(
+          module_interface_artifact_to_inspect_text(
+            decode_module_interface_artifact_payload(decoded.payload),
+          ),
+        )
+      kind if kind == artifact_binary_kind_object =>
+        Ok(
+          module_object_artifact_to_inspect_text(
+            decode_module_object_artifact_payload(decoded.payload),
+          ),
+        )
+      kind if kind == artifact_binary_kind_program =>
+        Ok(
+          linked_program_artifact_to_inspect_text(
+            decode_linked_program_artifact_payload(decoded.payload),
+          ),
+        )
+      kind => raise InvalidKind(kind~)
+    }
+  } catch {
+    error => Err(artifact_binary_decode_error(error))
   }
 }
 
@@ -81,9 +63,9 @@ pub fn artifact_binary_to_inspect_text(bytes : Bytes) -> Result[String, String] 
 pub fn module_interface_artifact_to_binary(
   artifact : ModuleInterfaceArtifact,
 ) -> Bytes {
-  artifact_text_to_binary(
+  artifact_payload_to_binary(
     artifact_binary_kind_interface,
-    module_interface_artifact_to_text(artifact),
+    encode_module_interface_artifact_payload(artifact),
   )
 }
 
@@ -91,14 +73,15 @@ pub fn module_interface_artifact_to_binary(
 pub fn parse_module_interface_artifact_binary(
   bytes : Bytes,
 ) -> Result[ModuleInterfaceArtifact, String] {
-  match
-    binary_artifact_text(
-      bytes,
-      expected_kind=artifact_binary_kind_interface,
-      expected_name="interface",
-    ) {
-    Ok(text) => parse_module_interface_artifact_text(text)
-    Err(message) => Err(message)
+  Ok(
+    decode_module_interface_artifact_payload(
+      binary_artifact_payload(
+        bytes,
+        expected_kind=artifact_binary_kind_interface,
+      ),
+    ),
+  ) catch {
+    error => Err(artifact_binary_decode_error(error))
   }
 }
 
@@ -106,9 +89,9 @@ pub fn parse_module_interface_artifact_binary(
 pub fn module_object_artifact_to_binary(
   artifact : ModuleObjectArtifact,
 ) -> Bytes {
-  artifact_text_to_binary(
+  artifact_payload_to_binary(
     artifact_binary_kind_object,
-    module_object_artifact_to_text(artifact),
+    encode_module_object_artifact_payload(artifact),
   )
 }
 
@@ -116,14 +99,12 @@ pub fn module_object_artifact_to_binary(
 pub fn parse_module_object_artifact_binary(
   bytes : Bytes,
 ) -> Result[ModuleObjectArtifact, String] {
-  match
-    binary_artifact_text(
-      bytes,
-      expected_kind=artifact_binary_kind_object,
-      expected_name="object",
-    ) {
-    Ok(text) => parse_module_object_artifact_text(text)
-    Err(message) => Err(message)
+  Ok(
+    decode_module_object_artifact_payload(
+      binary_artifact_payload(bytes, expected_kind=artifact_binary_kind_object),
+    ),
+  ) catch {
+    error => Err(artifact_binary_decode_error(error))
   }
 }
 
@@ -131,9 +112,9 @@ pub fn parse_module_object_artifact_binary(
 pub fn linked_program_artifact_to_binary(
   artifact : LinkedProgramArtifact,
 ) -> Bytes {
-  artifact_text_to_binary(
+  artifact_payload_to_binary(
     artifact_binary_kind_program,
-    linked_program_artifact_to_text(artifact),
+    encode_linked_program_artifact_payload(artifact),
   )
 }
 
@@ -141,91 +122,121 @@ pub fn linked_program_artifact_to_binary(
 pub fn parse_linked_program_artifact_binary(
   bytes : Bytes,
 ) -> Result[LinkedProgramArtifact, String] {
-  match
-    binary_artifact_text(
-      bytes,
-      expected_kind=artifact_binary_kind_program,
-      expected_name="program",
-    ) {
-    Ok(text) => parse_linked_program_artifact_text(text)
-    Err(message) => Err(message)
+  Ok(
+    decode_linked_program_artifact_payload(
+      binary_artifact_payload(bytes, expected_kind=artifact_binary_kind_program),
+    ),
+  ) catch {
+    error => Err(artifact_binary_decode_error(error))
   }
 }
 
 ///|
-fn artifact_text_to_binary(kind : Int, text : String) -> Bytes {
-  let payload = @utf8.encode(text)
-  let output = artifact_binary_magic().to_array()
-  output.push(artifact_binary_version.to_byte())
-  output.push(kind.to_byte())
-  push_u32_le(output, payload.length())
-  for byte in payload {
-    output.push(byte)
-  }
-  Bytes::from_array(output)
+fn artifact_payload_to_binary(kind : Int, payload : Bytes) -> Bytes {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_raw_bytes(artifact_binary_magic())
+  writer.write_u8(artifact_binary_version)
+  writer.write_u8(kind)
+  writer.write_u32_le(payload.length())
+  writer.write_raw_bytes(payload)
+  writer.to_bytes()
 }
 
 ///|
-fn binary_artifact_text(
+fn binary_artifact_payload(
   bytes : Bytes,
   expected_kind~ : Int,
-  expected_name~ : String,
-) -> Result[String, String] {
-  match decode_binary_artifact_text(bytes, subject=expected_name) {
-    Ok(decoded) =>
-      if decoded.kind == expected_kind {
-        Ok(decoded.text)
+) -> Bytes raise ArtifactBinaryDecodeError {
+  let decoded = decode_artifact_container(bytes)
+  if decoded.kind != expected_kind {
+    raise WrongKind(expected=expected_kind, actual=decoded.kind)
+  }
+  decoded.payload
+}
+
+///|
+fn decode_artifact_container(
+  bytes : Bytes,
+) -> BinaryArtifactPayload raise ArtifactBinaryDecodeError {
+  let header = decode_artifact_header(bytes)
+  if header.version != artifact_binary_version {
+    raise UnsupportedContainerVersion(version=header.version)
+  }
+  let kind = header.kind
+  if kind != artifact_binary_kind_interface &&
+    kind != artifact_binary_kind_object &&
+    kind != artifact_binary_kind_program {
+    raise InvalidKind(kind~)
+  }
+  if header.payload_length < 0 || header.body.length() < header.payload_length {
+    raise ByteError(
+      UnexpectedEnd(
+        offset=artifact_binary_header_length(),
+        expected="artifact payload",
+        available=header.body.length(),
+      ),
+    )
+  }
+  let remaining = header.body.length() - header.payload_length
+  if remaining != 0 {
+    raise ByteError(
+      TrailingBytes(
+        offset=artifact_binary_header_length() + header.payload_length,
+        remaining~,
+      ),
+    )
+  }
+  let payload = header.body[:header.payload_length].to_owned()
+  { kind, payload }
+}
+
+///|
+fn decode_artifact_header(
+  bytes : Bytes,
+) -> BinaryArtifactHeader raise ArtifactBinaryDecodeError {
+  match bytes[:] {
+    [
+      .. b"LANEART\x00",
+      u8be(version),
+      u8be(kind),
+      i32le(payload_length),
+      .. body,
+    ] =>
+      {
+        version: version.reinterpret_as_int(),
+        kind: kind.reinterpret_as_int(),
+        payload_length,
+        body,
+      }
+    _ =>
+      if bytes.length() >= artifact_binary_magic().length() {
+        raise InvalidMagic(offset=first_artifact_magic_mismatch(bytes))
       } else {
-        Err(
-          "wrong artifact binary kind: expected \{expected_name}, got \{artifact_binary_kind_name(decoded.kind)}",
+        raise ByteError(
+          UnexpectedEnd(
+            offset=bytes.length(),
+            expected="artifact header",
+            available=bytes.length(),
+          ),
         )
       }
-    Err(message) => Err(message)
   }
 }
 
 ///|
-fn decode_binary_artifact_text(
-  bytes : Bytes,
-  subject~ : String,
-) -> Result[BinaryArtifactText, String] {
-  let magic = artifact_binary_magic()
-  let min_size = magic.length() + 6
-  if bytes.length() < min_size {
-    return Err("invalid \{subject} artifact binary: file is too short")
-  }
-  for index in 0..<magic.length() {
-    if bytes[index] != magic[index] {
-      return Err(
-        "invalid \{subject} artifact binary: expected Lane artifact binary magic",
-      )
+fn artifact_binary_header_length() -> Int {
+  14
+}
+
+///|
+fn first_artifact_magic_mismatch(bytes : Bytes) -> Int {
+  let expected = artifact_binary_magic()
+  for index in 0..<expected.length() {
+    if bytes[index] != expected[index] {
+      return index
     }
   }
-  let version_offset = magic.length()
-  let version = bytes[version_offset].to_int()
-  if version != artifact_binary_version {
-    return Err("unsupported \{subject} artifact binary version \{version}")
-  }
-  let kind = bytes[version_offset + 1].to_int()
-  let length_offset = version_offset + 2
-  let payload_length = read_u32_le(bytes, length_offset)
-  let payload_offset = length_offset + 4
-  if bytes.length() != payload_offset + payload_length {
-    return Err(
-      "invalid \{subject} artifact binary: payload length does not match file size",
-    )
-  }
-  let payload = []
-  for index in payload_offset..<bytes.length() {
-    payload.push(bytes[index])
-  }
-  let text = @utf8.decode(Bytes::from_array(payload)) catch {
-    _ =>
-      return Err(
-        "invalid \{subject} artifact binary: payload is not valid UTF-8 artifact text",
-      )
-  }
-  Ok({ kind, text })
+  expected.length()
 }
 
 ///|
@@ -242,17 +253,130 @@ fn artifact_binary_kind_name(kind : Int) -> String {
 }
 
 ///|
-fn push_u32_le(output : Array[Byte], value : Int) -> Unit {
-  output.push((value & 0xFF).to_byte())
-  output.push(((value >> 8) & 0xFF).to_byte())
-  output.push(((value >> 16) & 0xFF).to_byte())
-  output.push(((value >> 24) & 0xFF).to_byte())
+fn encode_module_interface_artifact_payload(
+  artifact : ModuleInterfaceArtifact,
+) -> Bytes {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u32_le(artifact.schema_version)
+  writer.write_string(artifact.module_path_text)
+  writer.write_module_interface(artifact.interface)
+  writer.write_compilation_fingerprint(artifact.interface_fingerprint)
+  writer.write_compilation_fingerprint(artifact.module_fingerprint)
+  writer.write_imported_interface_fingerprints(
+    artifact.imported_interface_fingerprints,
+  )
+  writer.to_bytes()
 }
 
 ///|
-fn read_u32_le(bytes : Bytes, offset : Int) -> Int {
-  bytes[offset].to_int() |
-  (bytes[offset + 1].to_int() << 8) |
-  (bytes[offset + 2].to_int() << 16) |
-  (bytes[offset + 3].to_int() << 24)
+fn decode_module_interface_artifact_payload(
+  payload : Bytes,
+) -> ModuleInterfaceArtifact raise ArtifactBinaryDecodeError {
+  let reader = @bytecodec.ByteReader::from_bytes(payload)
+  let schema_version = read_u32_le(reader)
+  if schema_version != 1 {
+    raise UnsupportedArtifactSchema(kind="interface", version=schema_version)
+  }
+  let artifact = {
+    schema_version,
+    module_path_text: read_string(reader),
+    interface: reader.read_module_interface(),
+    interface_fingerprint: reader.read_compilation_fingerprint(),
+    module_fingerprint: reader.read_compilation_fingerprint(),
+    imported_interface_fingerprints: reader.read_imported_interface_fingerprints(),
+  }
+  expect_end(reader)
+  artifact
+}
+
+///|
+fn encode_module_object_artifact_payload(
+  artifact : ModuleObjectArtifact,
+) -> Bytes {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u32_le(artifact.schema_version)
+  writer.write_string(artifact.module_path_text)
+  writer.write_module_interface(artifact.interface)
+  writer.write_compilation_fingerprint(artifact.interface_fingerprint)
+  writer.write_buslane_program_section({
+    metadata: artifact.metadata,
+    terms: artifact.terms,
+  })
+  writer.write_externals(artifact.externals)
+  writer.write_entries(artifact.entries)
+  writer.write_exports(artifact.exports)
+  writer.write_imports(artifact.imports)
+  writer.write_compilation_fingerprint(artifact.module_fingerprint)
+  writer.write_compilation_fingerprint(artifact.object_fingerprint)
+  writer.write_imported_interface_fingerprints(
+    artifact.imported_interface_fingerprints,
+  )
+  writer.to_bytes()
+}
+
+///|
+fn decode_module_object_artifact_payload(
+  payload : Bytes,
+) -> ModuleObjectArtifact raise ArtifactBinaryDecodeError {
+  let reader = @bytecodec.ByteReader::from_bytes(payload)
+  let schema_version = read_u32_le(reader)
+  if schema_version != module_object_artifact_schema_version {
+    raise UnsupportedArtifactSchema(kind="object", version=schema_version)
+  }
+  let module_path_text = read_string(reader)
+  let interface = reader.read_module_interface()
+  let interface_fingerprint = reader.read_compilation_fingerprint()
+  let program = reader.read_buslane_program_section()
+  let artifact = {
+    schema_version,
+    module_path_text,
+    interface,
+    interface_fingerprint,
+    metadata: program.metadata,
+    terms: program.terms,
+    externals: reader.read_externals(),
+    entries: reader.read_entries(),
+    exports: reader.read_exports(),
+    imports: reader.read_imports(),
+    module_fingerprint: reader.read_compilation_fingerprint(),
+    object_fingerprint: reader.read_compilation_fingerprint(),
+    imported_interface_fingerprints: reader.read_imported_interface_fingerprints(),
+  }
+  expect_end(reader)
+  artifact
+}
+
+///|
+fn encode_linked_program_artifact_payload(
+  artifact : LinkedProgramArtifact,
+) -> Bytes {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u32_le(artifact.schema_version)
+  writer.write_string_array(artifact.module_path_texts)
+  writer.write_buslane_program_section(artifact.program)
+  writer.write_externals(artifact.externals)
+  writer.write_entry(artifact.entry)
+  writer.write_runtime_effect_operations(artifact.runtime_effect_operations)
+  writer.to_bytes()
+}
+
+///|
+fn decode_linked_program_artifact_payload(
+  payload : Bytes,
+) -> LinkedProgramArtifact raise ArtifactBinaryDecodeError {
+  let reader = @bytecodec.ByteReader::from_bytes(payload)
+  let schema_version = read_u32_le(reader)
+  if schema_version != linked_program_artifact_schema_version {
+    raise UnsupportedArtifactSchema(kind="program", version=schema_version)
+  }
+  let artifact = {
+    schema_version,
+    module_path_texts: reader.read_string_array(),
+    program: reader.read_buslane_program_section(),
+    externals: reader.read_externals(),
+    entry: reader.read_entry(),
+    runtime_effect_operations: reader.read_runtime_effect_operations(),
+  }
+  expect_end(reader)
+  artifact
 }

@@ -11,5 +11,6 @@ keywords = [ "language", "compiler", "core-language", "moonbit" ]
 description = "The Buslane core language for the Lane2 compiler."
 
 import {
+  "Milky2018/bytecodec@0.1.0",
   "moonbit-community/prettyprinter@0.4.10",
 }

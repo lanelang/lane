@@ -62,9 +62,9 @@ fn module_object_fingerprint(
   imports : Array[ModuleImportedReference],
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint],
 ) -> CompilationFingerprint {
-  fingerprint_hash(
+  fingerprint_hash_bytes(
     "lane-object-fingerprint-v1",
-    module_object_fingerprint_payload(
+    module_object_fingerprint_payload_bytes(
       module_fingerprint, metadata, terms, externals, entries, exports, imports,
       imported_interface_fingerprints,
     ),
@@ -72,7 +72,7 @@ fn module_object_fingerprint(
 }
 
 ///|
-fn module_object_fingerprint_payload(
+fn module_object_fingerprint_payload_bytes(
   module_fingerprint : CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
@@ -81,16 +81,16 @@ fn module_object_fingerprint_payload(
   exports : Array[@elaborate.BuslaneModuleExport],
   imports : Array[ModuleImportedReference],
   imported_interface_fingerprints : Array[ImportedInterfaceFingerprint],
-) -> String {
-  let writer = ArtifactTextWriter::start("object-fingerprint")
-  writer.write_compilation_fingerprint("module_fingerprint", module_fingerprint)
-  writer.write_buslane_program_block({ metadata, terms })
+) -> Bytes {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_compilation_fingerprint(module_fingerprint)
+  writer.write_buslane_program_section({ metadata, terms })
   writer.write_externals(externals)
   writer.write_entries(entries)
   writer.write_exports(exports)
   writer.write_imports(imports)
   writer.write_imported_interface_fingerprints(imported_interface_fingerprints)
-  writer.finish()
+  writer.to_bytes()
 }
 
 ///|
@@ -130,6 +130,19 @@ fn interface_fingerprint_payload(
 fn fingerprint_hash(tag : String, payload : String) -> CompilationFingerprint {
   {
     value: "sha256:\{@crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode("\{tag}\n\{payload}")))}",
+  }
+}
+
+///|
+fn fingerprint_hash_bytes(
+  tag : String,
+  payload : Bytes,
+) -> CompilationFingerprint {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_string(tag)
+  writer.write_raw_bytes(payload)
+  {
+    value: "sha256:\{@crypto.bytes_to_hex_string(@crypto.sha256(writer.to_bytes()))}",
   }
 }
 

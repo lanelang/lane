@@ -1621,20 +1621,6 @@ test "effect aliases export through interface artifacts" {
       #|}
     ),
   )
-  let interface_text = module_interface_artifact_to_text(lib_artifact.interface)
-  let decoded = match parse_module_interface_artifact_text(interface_text) {
-    Ok(artifact) => artifact
-    Err(message) => abort(message)
-  }
-  inspect(
-    interface_alias_signatures(decoded.interface),
-    content=(
-      #|UI[]:Effect=effect:{
-      #|  effect#0,
-      #|  effect#1
-      #|}
-    ),
-  )
   let interface_binary = module_interface_artifact_to_binary(
     lib_artifact.interface,
   )
@@ -1755,6 +1741,17 @@ test "module artifact binary rejects wrong kind" {
     )
   } else {
     abort("expected wrong artifact binary kind")
+  }
+  let invalid_magic = object_binary.to_array()
+  invalid_magic[0] = b'X'
+  if parse_module_object_artifact_binary(Bytes::from_array(invalid_magic))
+    is Err(message) {
+    inspect(
+      message,
+      content="invalid artifact binary: expected Lane artifact magic at byte 0",
+    )
+  } else {
+    abort("expected invalid artifact magic")
   }
   let linked = link_modules(modules)
   inspect(linked.diagnostics.length(), content="0")
@@ -2015,8 +2012,10 @@ test "compile module interface preserves public effects across artifact import" 
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let interface_text = module_interface_artifact_to_text(lib_artifact.interface)
-  let decoded = match parse_module_interface_artifact_text(interface_text) {
+  let interface_binary = module_interface_artifact_to_binary(
+    lib_artifact.interface,
+  )
+  let decoded = match parse_module_interface_artifact_binary(interface_binary) {
     Ok(interface) => interface
     Err(message) => abort(message)
   }
@@ -2080,31 +2079,16 @@ fn interface_alias_body_signature(
 }
 
 ///|
-test "module object text rejects old schema one artifact" {
-  let parsed = parse_module_object_artifact_text(
-    (
-      #|lane-artifact-text-v1 object {
-      #|  schema_version: 1;
-      #|  module_path_text: "Old";
-      #|  buslane {
-      #|    metadata {
-      #|    }
-      #|  }
-      #|}
-    ),
+test "module object binary rejects old schema one artifact" {
+  let payload = @bytecodec.ByteWriter::new()
+  payload.write_u32_le(1)
+  let parsed = parse_module_object_artifact_binary(
+    artifact_payload_to_binary(artifact_binary_kind_object, payload.to_bytes()),
   )
   guard parsed is Err(message) else {
     abort("expected old object schema failure")
   }
-  inspect(
-    message,
-    content=(
-      #|error[E5016]: unsupported artifact schema
-      #|  problem: unsupported module object artifact schema 1 for Old
-      #|  context: this artifact was produced by an incompatible Lane compiler or old schema
-      #|  recovery: regenerate the artifact with the current Lane compiler
-    ),
-  )
+  inspect(message, content="unsupported object artifact schema version 1")
 }
 
 ///|

@@ -80,6 +80,10 @@ _Avoid_: wildcard pattern, dead binding, generated temporary
 The compiler artifact policy where interfaces carry public semantics and optimization hints, module objects carry linkable Buslane/core, and execution images are produced after linking.
 _Avoid_: JVM-style runtime linking model, ANF artifact boundary, bytecode-only compiler contract
 
+**Binary Artifact Payload**:
+The structured binary serialization of a Lane compiler artifact used by the official `.lmi`, `.lmo`, and `.lbp` load paths.
+_Avoid_: artifact text parser, inspect output, UTF-8 payload wrapper
+
 **Execution Image Lowering**:
 The lowering from linked and optimized Buslane/core into a target execution image such as portable bytecode.
 _Avoid_: semantic lowering, source elaboration, module interface generation
@@ -158,6 +162,9 @@ _Avoid_: semantic lowering, source elaboration, module interface generation
 - `lanec` follows **GHC-Like Artifact Layering**: `.lmi` records interface
   semantics and optimization hints, `.lmo` records linkable Buslane/core, and
   `.lbp` may carry a final execution image after linking and optimization.
+- `.lmi`, `.lmo`, and `.lbp` use **Binary Artifact Payloads** as their official
+  serialized contract; text artifact parsing is not part of the production
+  artifact load path.
 - The link step selects the executable entry before **Core Occurrence
   Analysis**; `exec` executes the selected linked program rather than
   selecting an entry.

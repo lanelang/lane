@@ -127,6 +127,11 @@ _Avoid_: original source spelling, lossy display formatting, locale-dependent fl
 The role Buslane programs play when embedded in compiler module objects or linked program artifacts as the semantic core payload.
 _Avoid_: module interface policy, bytecode image, execution cache
 
+**Buslane Codec**:
+The Buslane-owned structured binary encoder and decoder for Buslane programs,
+metadata, types, expressions, and related core identities.
+_Avoid_: artifact text parser, compiler artifact writer, inspect renderer
+
 ## Relationships
 
 - `lanec` lowers checked Lane source into the **Buslane Core Language**.
@@ -134,6 +139,11 @@ _Avoid_: module interface policy, bytecode image, execution cache
 - A Buslane program may serve the **Canonical Core Artifact Role**, but Buslane
   itself does not own module interfaces, module objects, bytecode caches, or
   execution image policy.
+- The **Buslane Codec** owns binary serialization of Buslane core structures;
+  compiler artifact codecs should delegate Buslane payloads to it rather than
+  embedding Buslane text or duplicating Buslane AST encoders in `lanec`.
+- The **Buslane Codec** should use the shared `bytecodec` module for primitive
+  byte reading and writing instead of defining its own byte-level format tools.
 - **Buslane Effect Core** belongs to the **Buslane Core Language**, not to
   Lane source syntax.
 - A **Handler Table** is grouped by singleton effect before **Operation

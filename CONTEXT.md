@@ -105,6 +105,24 @@ _Avoid_: single compilation unit, source concatenation, unchecked module graph, 
 A compiler artifact strategy where interfaces carry public semantics and optimization metadata, objects carry linkable semantic core plus link metadata, and execution images are derived after linking.
 _Avoid_: JVM-style runtime symbolic linking, bytecode-as-only-source, ANF-as-artifact-boundary
 
+**Binary Artifact Container**:
+The versioned on-disk container used by `.lmi`, `.lmo`, and `.lbp`, starting with Lane artifact magic, an artifact kind, and a structured binary payload.
+_Avoid_: text artifact file, JSON wrapper, UTF-8 payload envelope
+
+**Binary Artifact Payload**:
+The structured binary record data inside a **Binary Artifact Container** that is the authoritative serialized form for artifact loading.
+_Avoid_: artifact text roundtrip, human-readable dump, debug pretty output
+
+**Artifact Text Format**:
+A former human-readable artifact serialization that must not be part of the official artifact load path once binary artifact payloads are introduced.
+_Avoid_: compatibility parser, canonical artifact schema, inspect output
+
+**Bytecodec**:
+A small reusable MoonBit module for strict byte-level binary readers, writers,
+primitive little-endian codecs, length-prefixed strings, offset tracking, and
+decode errors.
+_Avoid_: Lane artifact schema, Buslane AST codec, generic serialization framework
+
 **Canonical Core Artifact**:
 The authoritative semantic payload of a compiled or linked Lane artifact, currently Buslane core plus the metadata needed to link, inspect, verify, or lower it.
 _Avoid_: ANF cache, bytecode image, runtime execution layout
