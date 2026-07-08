@@ -1,28 +1,4 @@
 ///|
-pub(all) struct CompilationFingerprint {
-  value : String
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ImportedInterfaceFingerprint {
-  module_path_text : String
-  fingerprint : CompilationFingerprint
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ModuleImportedReference {
-  module_path_text : String
-  kind : @elaborate.BuslaneModuleExportKind
-  name : String
-  fingerprint : CompilationFingerprint
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
-} derive(Debug, Eq)
-
-///|
 pub(all) struct ModuleObject {
   module_path_text : String
   checked : @checked.CheckedSourceFile
@@ -31,10 +7,12 @@ pub(all) struct ModuleObject {
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
   exports : Array[@elaborate.BuslaneModuleExport]
-  imports : Array[ModuleImportedReference]
-  fingerprint : CompilationFingerprint
-  object_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  imports : Array[@artifact_core.ModuleImportedReference]
+  fingerprint : @artifact_core.CompilationFingerprint
+  object_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ]
 } derive(Debug, Eq)
 
 ///|
@@ -42,8 +20,10 @@ pub(all) struct CompiledModule {
   module_path_text : String
   interface : @module_interface.ModuleInterface
   object : ModuleObject
-  fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ]
 } derive(Debug, Eq)
 
 ///|
@@ -60,7 +40,7 @@ pub(all) struct LinkedProgram {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
-  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
 ///|
@@ -69,7 +49,7 @@ pub(all) struct LinkedExecutableProgram {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entry : @elaborate.BuslaneEntry
-  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
 ///|
@@ -85,16 +65,6 @@ pub(all) struct RuntimeEffectOperationSignature {
   operation_name : String
   payload : Array[@types.Type]
   result : @types.Type
-} derive(Debug, Eq)
-
-///|
-pub(all) struct LinkedRuntimeEffectOperation {
-  module_path_text : String
-  effect_name : String
-  operation_name : String
-  payload : Array[@types.Type]
-  result : @types.Type
-  operation : @buslane.OperationId
 } derive(Debug, Eq)
 
 ///|
@@ -150,7 +120,7 @@ pub fn LinkedProgram::to_executable(
 
 ///|
 fn find_runtime_effect_operation(
-  operations : Array[LinkedRuntimeEffectOperation],
+  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   signature : RuntimeEffectOperationSignature,
 ) -> @buslane.OperationId? {
   for operation in operations {
@@ -167,7 +137,7 @@ fn find_runtime_effect_operation(
 
 ///|
 fn validate_runtime_effect_operation(
-  operations : Array[LinkedRuntimeEffectOperation],
+  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   signature : RuntimeEffectOperationSignature,
 ) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
   match find_runtime_effect_operation(operations, signature) {

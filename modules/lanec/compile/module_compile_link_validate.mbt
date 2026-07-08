@@ -136,7 +136,7 @@ fn validate_imported_references(
 
 ///|
 fn imported_reference_shape_matches_export(
-  imported : ModuleImportedReference,
+  imported : @artifact_core.ModuleImportedReference,
   item : @elaborate.BuslaneModuleExport,
 ) -> Bool {
   if imported.kind != item.kind {

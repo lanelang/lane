@@ -1,17 +1,4 @@
 ///|
-fn @bytecodec.ByteWriter::write_externals(
-  self : @bytecodec.ByteWriter,
-  externals : @elaborate.BuslaneExternalMap,
-) -> Unit {
-  self.write_u32_le(externals.builtins.length())
-  for external in externals.builtins {
-    self.write_buslane_value_id(external.value)
-    self.write_string(external.name)
-    self.write_buslane_type(external.type_)
-  }
-}
-
-///|
 fn @bytecodec.ByteReader::read_externals(
   self : @bytecodec.ByteReader,
 ) -> @elaborate.BuslaneExternalMap raise {
@@ -27,17 +14,6 @@ fn @bytecodec.ByteReader::read_externals(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_entries(
-  self : @bytecodec.ByteWriter,
-  entries : Array[@elaborate.BuslaneEntry],
-) -> Unit {
-  self.write_u32_le(entries.length())
-  for entry in entries {
-    self.write_entry(entry)
-  }
-}
-
-///|
 fn @bytecodec.ByteReader::read_entries(
   self : @bytecodec.ByteReader,
 ) -> Array[@elaborate.BuslaneEntry] raise {
@@ -46,17 +22,6 @@ fn @bytecodec.ByteReader::read_entries(
     entries.push(self.read_entry())
   }
   entries
-}
-
-///|
-fn @bytecodec.ByteWriter::write_entry(
-  self : @bytecodec.ByteWriter,
-  entry : @elaborate.BuslaneEntry,
-) -> Unit {
-  self.write_string(entry.module_path_text)
-  self.write_string(entry.name)
-  self.write_buslane_value_id(entry.value)
-  self.write_buslane_type(entry.type_)
 }
 
 ///|
@@ -69,23 +34,6 @@ fn @bytecodec.ByteReader::read_entry(
     value: self.read_buslane_value_id(),
     type_: self.read_buslane_type(),
   }
-}
-
-///|
-fn @bytecodec.ByteWriter::write_export_kind(
-  self : @bytecodec.ByteWriter,
-  kind : @elaborate.BuslaneModuleExportKind,
-) -> Unit {
-  self.write_u8(
-    match kind {
-      Type => 0
-      DataConstructor => 1
-      Effect => 2
-      Operation => 3
-      FieldSelector => 4
-      Value => 5
-    },
-  )
 }
 
 ///|
@@ -131,20 +79,6 @@ fn @bytecodec.ByteReader::read_export_kind(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_optional_type_id(
-  self : @bytecodec.ByteWriter,
-  id : @buslane.TypeId?,
-) -> Unit {
-  match id {
-    None => self.write_bool(false)
-    Some(id) => {
-      self.write_bool(true)
-      self.write_buslane_type_id(id)
-    }
-  }
-}
-
-///|
 fn @bytecodec.ByteReader::read_optional_type_id(
   self : @bytecodec.ByteReader,
 ) -> @buslane.TypeId? raise {
@@ -152,20 +86,6 @@ fn @bytecodec.ByteReader::read_optional_type_id(
     Some(self.read_buslane_type_id())
   } else {
     None
-  }
-}
-
-///|
-fn @bytecodec.ByteWriter::write_optional_data_con_id(
-  self : @bytecodec.ByteWriter,
-  id : @buslane.DataConId?,
-) -> Unit {
-  match id {
-    None => self.write_bool(false)
-    Some(id) => {
-      self.write_bool(true)
-      self.write_buslane_data_con_id(id)
-    }
   }
 }
 
@@ -181,20 +101,6 @@ fn @bytecodec.ByteReader::read_optional_data_con_id(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_optional_effect_id(
-  self : @bytecodec.ByteWriter,
-  id : @buslane.EffectId?,
-) -> Unit {
-  match id {
-    None => self.write_bool(false)
-    Some(id) => {
-      self.write_bool(true)
-      self.write_buslane_effect_id(id)
-    }
-  }
-}
-
-///|
 fn @bytecodec.ByteReader::read_optional_effect_id(
   self : @bytecodec.ByteReader,
 ) -> @buslane.EffectId? raise {
@@ -202,20 +108,6 @@ fn @bytecodec.ByteReader::read_optional_effect_id(
     Some(self.read_buslane_effect_id())
   } else {
     None
-  }
-}
-
-///|
-fn @bytecodec.ByteWriter::write_optional_operation_id(
-  self : @bytecodec.ByteWriter,
-  id : @buslane.OperationId?,
-) -> Unit {
-  match id {
-    None => self.write_bool(false)
-    Some(id) => {
-      self.write_bool(true)
-      self.write_buslane_operation_id(id)
-    }
   }
 }
 
@@ -231,20 +123,6 @@ fn @bytecodec.ByteReader::read_optional_operation_id(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_optional_value_id(
-  self : @bytecodec.ByteWriter,
-  id : @buslane.ValueId?,
-) -> Unit {
-  match id {
-    None => self.write_bool(false)
-    Some(id) => {
-      self.write_bool(true)
-      self.write_buslane_value_id(id)
-    }
-  }
-}
-
-///|
 fn @bytecodec.ByteReader::read_optional_value_id(
   self : @bytecodec.ByteReader,
 ) -> @buslane.ValueId? raise {
@@ -252,23 +130,6 @@ fn @bytecodec.ByteReader::read_optional_value_id(
     Some(self.read_buslane_value_id())
   } else {
     None
-  }
-}
-
-///|
-fn @bytecodec.ByteWriter::write_exports(
-  self : @bytecodec.ByteWriter,
-  exports : Array[@elaborate.BuslaneModuleExport],
-) -> Unit {
-  self.write_u32_le(exports.length())
-  for export_ in exports {
-    self.write_export_kind(export_.kind)
-    self.write_string(export_.name)
-    self.write_optional_type_id(export_.type_id)
-    self.write_optional_data_con_id(export_.data_constructor)
-    self.write_optional_effect_id(export_.effect_id)
-    self.write_optional_operation_id(export_.operation)
-    self.write_optional_value_id(export_.value)
   }
 }
 
@@ -292,29 +153,10 @@ fn @bytecodec.ByteReader::read_exports(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_imports(
-  self : @bytecodec.ByteWriter,
-  imports : Array[ModuleImportedReference],
-) -> Unit {
-  self.write_u32_le(imports.length())
-  for import_ in imports {
-    self.write_string(import_.module_path_text)
-    self.write_export_kind(import_.kind)
-    self.write_string(import_.name)
-    self.write_compilation_fingerprint(import_.fingerprint)
-    self.write_optional_type_id(import_.type_id)
-    self.write_optional_data_con_id(import_.data_constructor)
-    self.write_optional_effect_id(import_.effect_id)
-    self.write_optional_operation_id(import_.operation)
-    self.write_optional_value_id(import_.value)
-  }
-}
-
-///|
 fn @bytecodec.ByteReader::read_imports(
   self : @bytecodec.ByteReader,
-) -> Array[ModuleImportedReference] raise {
-  let imports : Array[ModuleImportedReference] = []
+) -> Array[@artifact_core.ModuleImportedReference] raise {
+  let imports : Array[@artifact_core.ModuleImportedReference] = []
   for _ in 0..<self.read_u32_le() {
     imports.push({
       module_path_text: self.read_string(),
@@ -334,7 +176,7 @@ fn @bytecodec.ByteReader::read_imports(
 ///|
 fn @bytecodec.ByteWriter::write_runtime_effect_operations(
   self : @bytecodec.ByteWriter,
-  operations : Array[LinkedRuntimeEffectOperation],
+  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
 ) -> Unit {
   self.write_u32_le(operations.length())
   for operation in operations {
@@ -343,15 +185,15 @@ fn @bytecodec.ByteWriter::write_runtime_effect_operations(
     self.write_string(operation.operation_name)
     self.write_lane_types(operation.payload)
     self.write_lane_type(operation.result)
-    self.write_buslane_operation_id(operation.operation)
+    @artifact_core.write_buslane_operation_id(self, operation.operation)
   }
 }
 
 ///|
 fn @bytecodec.ByteReader::read_runtime_effect_operations(
   self : @bytecodec.ByteReader,
-) -> Array[LinkedRuntimeEffectOperation] raise {
-  let operations : Array[LinkedRuntimeEffectOperation] = []
+) -> Array[@artifact_core.LinkedRuntimeEffectOperation] raise {
+  let operations : Array[@artifact_core.LinkedRuntimeEffectOperation] = []
   for _ in 0..<self.read_u32_le() {
     operations.push({
       module_path_text: self.read_string(),

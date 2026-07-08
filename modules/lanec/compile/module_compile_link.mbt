@@ -34,7 +34,9 @@ fn link_ordered_modules(
   let terms = []
   let builtins = []
   let entries : Array[@elaborate.BuslaneEntry] = []
-  let runtime_effect_operations : Array[LinkedRuntimeEffectOperation] = []
+  let runtime_effect_operations : Array[
+    @artifact_core.LinkedRuntimeEffectOperation,
+  ] = []
   for index, object in remapped_objects {
     module_path_texts.push(object.module_path_text)
     terms.append(object.terms)
@@ -66,8 +68,8 @@ fn link_ordered_modules(
 fn runtime_effect_operations_from_module(
   module_ : CompiledModule,
   object : RemappedModuleObject,
-) -> Array[LinkedRuntimeEffectOperation] {
-  let operations : Array[LinkedRuntimeEffectOperation] = []
+) -> Array[@artifact_core.LinkedRuntimeEffectOperation] {
+  let operations : Array[@artifact_core.LinkedRuntimeEffectOperation] = []
   for effect in module_.interface.effects {
     for operation in effect.operations {
       let export_name = effect_operation_export_name(
@@ -177,7 +179,7 @@ fn BuslaneLinker::seed_imports(
 ///|
 fn find_linked_export(
   exports : Array[LinkedModuleExport],
-  imported : ModuleImportedReference,
+  imported : @artifact_core.ModuleImportedReference,
 ) -> LinkedModuleExport? {
   for item in exports {
     if item.module_path_text == imported.module_path_text &&

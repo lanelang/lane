@@ -48,37 +48,17 @@ fn @bytecodec.ByteReader::read_string_array(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_compilation_fingerprint(
-  self : @bytecodec.ByteWriter,
-  fingerprint : CompilationFingerprint,
-) -> Unit {
-  self.write_string(fingerprint.value)
-}
-
-///|
 fn @bytecodec.ByteReader::read_compilation_fingerprint(
   self : @bytecodec.ByteReader,
-) -> CompilationFingerprint raise {
+) -> @artifact_core.CompilationFingerprint raise {
   { value: self.read_string() }
-}
-
-///|
-fn @bytecodec.ByteWriter::write_imported_interface_fingerprints(
-  self : @bytecodec.ByteWriter,
-  fingerprints : Array[ImportedInterfaceFingerprint],
-) -> Unit {
-  self.write_u32_le(fingerprints.length())
-  for fingerprint in fingerprints {
-    self.write_string(fingerprint.module_path_text)
-    self.write_compilation_fingerprint(fingerprint.fingerprint)
-  }
 }
 
 ///|
 fn @bytecodec.ByteReader::read_imported_interface_fingerprints(
   self : @bytecodec.ByteReader,
-) -> Array[ImportedInterfaceFingerprint] raise {
-  let fingerprints : Array[ImportedInterfaceFingerprint] = []
+) -> Array[@artifact_core.ImportedInterfaceFingerprint] raise {
+  let fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint] = []
   for _ in 0..<self.read_u32_le() {
     fingerprints.push({
       module_path_text: self.read_string(),

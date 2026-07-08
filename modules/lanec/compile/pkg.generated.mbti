@@ -5,6 +5,7 @@ import {
   "Milky2018/buslane",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
+  "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate",
   "Milky2018/lanec/module_interface",
@@ -20,8 +21,6 @@ pub fn analyze_import_reachable_source_inputs(SourceInput, Array[SourceInput]) -
 pub fn analyze_source_inputs(SourceInput, Array[SourceInput]) -> AnalysisResult
 
 pub fn analyze_sources(String, Array[String]) -> AnalysisResult
-
-pub fn artifact_binary_to_inspect_text(Bytes) -> Result[String, String]
 
 pub fn check_source(String) -> CheckResult
 
@@ -59,17 +58,9 @@ pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> LinkResult
 
 pub fn link_modules(CompiledModuleSet) -> LinkResult
 
-pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Bytes
+pub let linked_program_artifact_schema_version : Int
 
-pub fn module_interface_artifact_to_binary(ModuleInterfaceArtifact) -> Bytes
-
-pub fn module_object_artifact_to_binary(ModuleObjectArtifact) -> Bytes
-
-pub fn parse_linked_program_artifact_binary(Bytes) -> Result[LinkedProgramArtifact, String]
-
-pub fn parse_module_interface_artifact_binary(Bytes) -> Result[ModuleInterfaceArtifact, String]
-
-pub fn parse_module_object_artifact_binary(Bytes) -> Result[ModuleObjectArtifact, String]
+pub let module_object_artifact_schema_version : Int
 
 // Errors
 
@@ -107,10 +98,6 @@ pub(all) struct CheckResult {
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 
-pub(all) struct CompilationFingerprint {
-  value : String
-} derive(Eq, @debug.Debug)
-
 pub(all) struct CompileModulesResult {
   modules : CompiledModuleSet?
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
@@ -120,7 +107,7 @@ pub(all) struct CompileResult {
   program : @buslane.Program?
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
-  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 
@@ -128,8 +115,8 @@ pub(all) struct CompiledModule {
   module_path_text : String
   interface : @module_interface.ModuleInterface
   object : ModuleObject
-  fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 pub fn CompiledModule::to_artifact(Self) -> CompiledModuleArtifact
 pub fn CompiledModule::to_interface_artifact(Self) -> ModuleInterfaceArtifact
@@ -140,8 +127,8 @@ pub(all) struct CompiledModuleArtifact {
   module_path_text : String
   interface : ModuleInterfaceArtifact
   object : ModuleObjectArtifact
-  module_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  module_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CompiledModuleSet {
@@ -199,11 +186,6 @@ pub(all) struct HoverEntry {
   contents : String
 } derive(Eq, @debug.Debug)
 
-pub(all) struct ImportedInterfaceFingerprint {
-  module_path_text : String
-  fingerprint : CompilationFingerprint
-} derive(Eq, @debug.Debug)
-
 pub(all) struct InlayHintEntry {
   location : AnalysisLocation
   kind : InlayHintKind
@@ -226,7 +208,7 @@ pub(all) struct LinkedExecutableProgram {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entry : @elaborate.BuslaneEntry
-  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
 pub fn LinkedExecutableProgram::to_artifact(Self) -> LinkedProgramArtifact
 
@@ -235,7 +217,7 @@ pub(all) struct LinkedProgram {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
-  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgram::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
 pub fn LinkedProgram::to_executable(Self, @elaborate.BuslaneEntry) -> LinkedExecutableProgram
@@ -247,41 +229,20 @@ pub(all) struct LinkedProgramArtifact {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entry : @elaborate.BuslaneEntry
-  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
 pub fn LinkedProgramArtifact::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
 pub fn LinkedProgramArtifact::to_linked_program(Self) -> Result[LinkedExecutableProgram, Array[@diagnostic.CompilerDiagnostic]]
 pub fn LinkedProgramArtifact::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
 
-pub(all) struct LinkedRuntimeEffectOperation {
-  module_path_text : String
-  effect_name : String
-  operation_name : String
-  payload : Array[@types.Type]
-  result : @types.Type
-  operation : @buslane.OperationId
-} derive(Eq, @debug.Debug)
-
-pub(all) struct ModuleImportedReference {
-  module_path_text : String
-  kind : @elaborate.BuslaneModuleExportKind
-  name : String
-  fingerprint : CompilationFingerprint
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
-} derive(Eq, @debug.Debug)
-
 pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int
   module_path_text : String
   interface : @module_interface.ModuleInterface
-  interface_fingerprint : CompilationFingerprint
-  module_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  interface_fingerprint : @artifact_core.CompilationFingerprint
+  module_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact
 
@@ -293,26 +254,26 @@ pub(all) struct ModuleObject {
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
   exports : Array[@elaborate.BuslaneModuleExport]
-  imports : Array[ModuleImportedReference]
-  fingerprint : CompilationFingerprint
-  object_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  imports : Array[@artifact_core.ModuleImportedReference]
+  fingerprint : @artifact_core.CompilationFingerprint
+  object_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
   interface : @module_interface.ModuleInterface
-  interface_fingerprint : CompilationFingerprint
+  interface_fingerprint : @artifact_core.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
   exports : Array[@elaborate.BuslaneModuleExport]
-  imports : Array[ModuleImportedReference]
-  module_fingerprint : CompilationFingerprint
-  object_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  imports : Array[@artifact_core.ModuleImportedReference]
+  module_fingerprint : @artifact_core.CompilationFingerprint
+  object_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ModuleObjectArtifact
 

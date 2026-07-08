@@ -116,7 +116,7 @@ fn visit_interface_artifact(
   interfaces : Array[ModuleInterfaceArtifact],
   module_path_text : String,
   span : @basic.SourceSpan?,
-  expected_fingerprint : CompilationFingerprint?,
+  expected_fingerprint : @artifact_core.CompilationFingerprint?,
   importer_path_text : String,
   visiting : Array[String],
   visited : Array[String],
@@ -203,12 +203,12 @@ fn interface_candidates(
 fn imported_interface_fingerprints_from_artifacts(
   header : ModuleHeader,
   interfaces : Array[ModuleInterfaceArtifact],
-) -> Array[ImportedInterfaceFingerprint] {
+) -> Array[@artifact_core.ImportedInterfaceFingerprint] {
   let fingerprints = []
   for import_ in header.imports {
     if find_module_interface_artifact(interfaces, import_.module_path_text)
       is Some(interface) {
-      fingerprints.push({
+      fingerprints.push(@artifact_core.ImportedInterfaceFingerprint::{
         module_path_text: interface.module_path_text,
         fingerprint: interface_fingerprint(interface.interface),
       })
@@ -220,7 +220,7 @@ fn imported_interface_fingerprints_from_artifacts(
 ///|
 fn CompiledModule::with_imported_interface_fingerprints(
   self : CompiledModule,
-  imported : Array[ImportedInterfaceFingerprint],
+  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
 ) -> CompiledModule {
   let fingerprint = module_fingerprint(self.interface, imported)
   let object : ModuleObject = {

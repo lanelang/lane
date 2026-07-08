@@ -27,27 +27,6 @@ priv struct ArtifactInspectContext {
 }
 
 ///|
-fn module_interface_artifact_to_inspect_text(
-  artifact : ModuleInterfaceArtifact,
-) -> String {
-  @prettyprinter.render(artifact, width=100) + "\n"
-}
-
-///|
-fn module_object_artifact_to_inspect_text(
-  artifact : ModuleObjectArtifact,
-) -> String {
-  @prettyprinter.render(artifact, width=100) + "\n"
-}
-
-///|
-fn linked_program_artifact_to_inspect_text(
-  artifact : LinkedProgramArtifact,
-) -> String {
-  @prettyprinter.render(artifact, width=100) + "\n"
-}
-
-///|
 pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact with fn pretty(
   artifact : ModuleInterfaceArtifact,
 ) -> Document {
@@ -120,9 +99,9 @@ fn artifact_header_doc(
   kind : String,
   schema_version : Int,
   module_path_text : String,
-  interface_fingerprint : CompilationFingerprint,
-  module_fingerprint : CompilationFingerprint,
-  object_fingerprint : CompilationFingerprint?,
+  interface_fingerprint : @artifact_core.CompilationFingerprint,
+  module_fingerprint : @artifact_core.CompilationFingerprint,
+  object_fingerprint : @artifact_core.CompilationFingerprint?,
 ) -> Document {
   let fields = [
     text("Lane \{kind} artifact"),
@@ -148,7 +127,7 @@ fn linked_program_header_doc(artifact : LinkedProgramArtifact) -> Document {
 
 ///|
 fn imported_fingerprints_doc(
-  fingerprints : Array[ImportedInterfaceFingerprint],
+  fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint],
 ) -> Document {
   section_doc(
     "imported interfaces:",
@@ -310,7 +289,7 @@ fn ArtifactInspectContext::from_interface(
 
 ///|
 fn ArtifactInspectContext::from_runtime_effect_operations(
-  operations : Array[LinkedRuntimeEffectOperation],
+  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
 ) -> ArtifactInspectContext {
   let context = ArtifactInspectContext::{
     types: [],
@@ -329,7 +308,7 @@ fn ArtifactInspectContext::from_runtime_effect_operations(
 ///|
 fn ArtifactInspectContext::runtime_effect_operation_text(
   self : ArtifactInspectContext,
-  operation : LinkedRuntimeEffectOperation,
+  operation : @artifact_core.LinkedRuntimeEffectOperation,
 ) -> String {
   let payload = operation.payload
     .map(fn(type_) { self.type_text(type_) })
@@ -887,7 +866,9 @@ fn buslane_kind_text(kind : @buslane.Kind) -> String {
 }
 
 ///|
-fn import_reference_text(import_ : ModuleImportedReference) -> String {
+fn import_reference_text(
+  import_ : @artifact_core.ModuleImportedReference,
+) -> String {
   "\{export_kind_text(import_.kind)} \{import_.module_path_text}::\{import_.name}"
 }
 

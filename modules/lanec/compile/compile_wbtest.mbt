@@ -1249,16 +1249,19 @@ test "module artifacts roundtrip through binary and link" {
   let artifact = modules.to_artifact()
   let decoded_modules = []
   for module_ in artifact.modules {
-    let interface_binary = module_interface_artifact_to_binary(
+    let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
       module_.interface,
     )
-    let object_binary = module_object_artifact_to_binary(module_.object)
+    let object_binary = @artifact_binary.module_object_artifact_to_binary(
+      module_.object,
+    )
     let interface = match
-      parse_module_interface_artifact_binary(interface_binary) {
+      @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
       Ok(interface) => interface
       Err(message) => abort(message)
     }
-    let object = match parse_module_object_artifact_binary(object_binary) {
+    let object = match
+      @artifact_binary.parse_module_object_artifact_binary(object_binary) {
       Ok(object) => object
       Err(message) => abort(message)
     }
@@ -1282,12 +1285,12 @@ test "module artifacts roundtrip through binary and link" {
     abort("expected linked program")
   }
   let executable = program.to_executable(program.entries[0])
-  let linked_binary = linked_program_artifact_to_binary(
+  let linked_binary = @artifact_binary.linked_program_artifact_to_binary(
     executable.to_artifact(),
   )
   inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
   let linked_decoded = match
-    parse_linked_program_artifact_binary(linked_binary) {
+    @artifact_binary.parse_linked_program_artifact_binary(linked_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
@@ -1296,7 +1299,8 @@ test "module artifacts roundtrip through binary and link" {
     Err(_) => abort("unexpected diagnostics")
   }
   inspect(entry_display_name(linked_program.entry), content="Main.answer")
-  let linked_inspect = match artifact_binary_to_inspect_text(linked_binary) {
+  let linked_inspect = match
+    @artifact_binary.artifact_binary_to_inspect_text(linked_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -1523,8 +1527,9 @@ test "linked artifacts preserve runtime effect operation metadata" {
     ),
     -1,
   )
-  let binary = linked_program_artifact_to_binary(artifact)
-  let decoded = match parse_linked_program_artifact_binary(binary) {
+  let binary = @artifact_binary.linked_program_artifact_to_binary(artifact)
+  let decoded = match
+    @artifact_binary.parse_linked_program_artifact_binary(binary) {
     Ok(decoded) => decoded
     Err(message) => abort(message)
   }
@@ -1621,11 +1626,11 @@ test "effect aliases export through interface artifacts" {
       #|}
     ),
   )
-  let interface_binary = module_interface_artifact_to_binary(
+  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
     lib_artifact.interface,
   )
   let decoded_binary = match
-    parse_module_interface_artifact_binary(interface_binary) {
+    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
@@ -1638,7 +1643,8 @@ test "effect aliases export through interface artifacts" {
       #|}
     ),
   )
-  let inspect_text = match artifact_binary_to_inspect_text(interface_binary) {
+  let inspect_text = match
+    @artifact_binary.artifact_binary_to_inspect_text(interface_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -1730,11 +1736,12 @@ test "module artifact binary rejects wrong kind" {
   guard modules.modules.get(0) is Some(module_) else {
     abort("expected compiled module")
   }
-  let object_binary = module_object_artifact_to_binary(
+  let object_binary = @artifact_binary.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   )
   inspect(byte_prefix_text(object_binary, 8), content="76,65,78,69,65,82,84,0")
-  if parse_module_interface_artifact_binary(object_binary) is Err(message) {
+  if @artifact_binary.parse_module_interface_artifact_binary(object_binary)
+    is Err(message) {
     inspect(
       message,
       content="wrong artifact binary kind: expected interface, got object",
@@ -1744,7 +1751,9 @@ test "module artifact binary rejects wrong kind" {
   }
   let invalid_magic = object_binary.to_array()
   invalid_magic[0] = b'X'
-  if parse_module_object_artifact_binary(Bytes::from_array(invalid_magic))
+  if @artifact_binary.parse_module_object_artifact_binary(
+      Bytes::from_array(invalid_magic),
+    )
     is Err(message) {
     inspect(
       message,
@@ -1758,10 +1767,11 @@ test "module artifact binary rejects wrong kind" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let program_binary = linked_program_artifact_to_binary(
+  let program_binary = @artifact_binary.linked_program_artifact_to_binary(
     program.to_executable(program.entries[0]).to_artifact(),
   )
-  if parse_module_object_artifact_binary(program_binary) is Err(message) {
+  if @artifact_binary.parse_module_object_artifact_binary(program_binary)
+    is Err(message) {
     inspect(
       message,
       content="wrong artifact binary kind: expected object, got program",
@@ -1873,17 +1883,19 @@ test "module artifact binary inspect renders human readable summaries" {
   guard modules.modules.get(0) is Some(module_) else {
     abort("expected compiled module")
   }
-  let interface_binary = module_interface_artifact_to_binary(
+  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   )
-  let object_binary = module_object_artifact_to_binary(
+  let object_binary = @artifact_binary.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   )
-  let interface_text = match artifact_binary_to_inspect_text(interface_binary) {
+  let interface_text = match
+    @artifact_binary.artifact_binary_to_inspect_text(interface_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
-  let object_text = match artifact_binary_to_inspect_text(object_binary) {
+  let object_text = match
+    @artifact_binary.artifact_binary_to_inspect_text(object_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -2012,10 +2024,11 @@ test "compile module interface preserves public effects across artifact import" 
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let interface_binary = module_interface_artifact_to_binary(
+  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
     lib_artifact.interface,
   )
-  let decoded = match parse_module_interface_artifact_binary(interface_binary) {
+  let decoded = match
+    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
     Ok(interface) => interface
     Err(message) => abort(message)
   }
@@ -2080,10 +2093,29 @@ fn interface_alias_body_signature(
 
 ///|
 test "module object binary rejects old schema one artifact" {
-  let payload = @bytecodec.ByteWriter::new()
-  payload.write_u32_le(1)
-  let parsed = parse_module_object_artifact_binary(
-    artifact_payload_to_binary(artifact_binary_kind_object, payload.to_bytes()),
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|pub let answer : Int = 42
+    ),
+    [],
+  )
+  debug_inspect(compiled.diagnostics, content="[]")
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  guard modules.modules.get(0) is Some(module_) else {
+    abort("expected compiled module")
+  }
+  let damaged = @artifact_binary.module_object_artifact_to_binary(
+    module_.to_object_artifact(),
+  ).to_array()
+  damaged[14] = b'\x01'
+  damaged[15] = b'\x00'
+  damaged[16] = b'\x00'
+  damaged[17] = b'\x00'
+  let parsed = @artifact_binary.parse_module_object_artifact_binary(
+    Bytes::from_array(damaged),
   )
   guard parsed is Err(message) else {
     abort("expected old object schema failure")
@@ -2747,7 +2779,9 @@ test "link modules rejects stale module object fingerprint" {
   }
   let stale_modules = modules.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
-      let fingerprint = { value: "stale" }
+      let fingerprint = @artifact_core.CompilationFingerprint::{
+        value: "stale",
+      }
       let object : ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
@@ -2811,7 +2845,7 @@ test "link modules rejects stale imported reference fingerprint" {
   }
   let damaged_modules = modules.modules.map(fn(module_) {
     if module_.module_path_text == "Main" {
-      let imports : Array[ModuleImportedReference] = module_.object.imports.map(fn(
+      let imports : Array[@artifact_core.ModuleImportedReference] = module_.object.imports.map(fn(
           imported,
         ) {
           {
@@ -4526,7 +4560,7 @@ fn artifact_inspect_without_fingerprints(text : String) -> String {
 ///|
 fn module_with_imported_interfaces(
   module_ : CompiledModule,
-  imported : Array[ImportedInterfaceFingerprint],
+  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
 ) -> CompiledModule {
   let object : ModuleObject = {
     module_path_text: module_.object.module_path_text,

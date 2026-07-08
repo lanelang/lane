@@ -20,7 +20,7 @@ priv struct FingerprintTypeContext {
 ///|
 fn imported_environment_fingerprints(
   imported : @module_interface.ImportedEnvironment,
-) -> Array[ImportedInterfaceFingerprint] {
+) -> Array[@artifact_core.ImportedInterfaceFingerprint] {
   imported.modules.map(fn(interface) {
     {
       module_path_text: interface.module_path,
@@ -32,8 +32,8 @@ fn imported_environment_fingerprints(
 ///|
 fn module_fingerprint(
   interface : @module_interface.ModuleInterface,
-  imported : Array[ImportedInterfaceFingerprint],
-) -> CompilationFingerprint {
+  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
+) -> @artifact_core.CompilationFingerprint {
   fingerprint_hash(
     "lane-module-fingerprint-v1",
     module_fingerprint_payload(interface, imported),
@@ -43,7 +43,7 @@ fn module_fingerprint(
 ///|
 fn module_fingerprint_payload(
   interface : @module_interface.ModuleInterface,
-  imported : Array[ImportedInterfaceFingerprint],
+  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
 ) -> String {
   let imports = imported
     .map(fn(entry) { "\{entry.module_path_text}=\{entry.fingerprint.value}" })
@@ -53,15 +53,17 @@ fn module_fingerprint_payload(
 
 ///|
 fn module_object_fingerprint(
-  module_fingerprint : CompilationFingerprint,
+  module_fingerprint : @artifact_core.CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @elaborate.BuslaneExternalMap,
   entries : Array[@elaborate.BuslaneEntry],
   exports : Array[@elaborate.BuslaneModuleExport],
-  imports : Array[ModuleImportedReference],
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint],
-) -> CompilationFingerprint {
+  imports : Array[@artifact_core.ModuleImportedReference],
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ],
+) -> @artifact_core.CompilationFingerprint {
   fingerprint_hash_bytes(
     "lane-object-fingerprint-v1",
     module_object_fingerprint_payload_bytes(
@@ -73,30 +75,34 @@ fn module_object_fingerprint(
 
 ///|
 fn module_object_fingerprint_payload_bytes(
-  module_fingerprint : CompilationFingerprint,
+  module_fingerprint : @artifact_core.CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @elaborate.BuslaneExternalMap,
   entries : Array[@elaborate.BuslaneEntry],
   exports : Array[@elaborate.BuslaneModuleExport],
-  imports : Array[ModuleImportedReference],
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint],
+  imports : Array[@artifact_core.ModuleImportedReference],
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ],
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_compilation_fingerprint(module_fingerprint)
-  writer.write_buslane_program_section({ metadata, terms })
-  writer.write_externals(externals)
-  writer.write_entries(entries)
-  writer.write_exports(exports)
-  writer.write_imports(imports)
-  writer.write_imported_interface_fingerprints(imported_interface_fingerprints)
+  @artifact_core.write_compilation_fingerprint(writer, module_fingerprint)
+  @artifact_core.write_buslane_program_section(writer, { metadata, terms })
+  @artifact_core.write_externals(writer, externals)
+  @artifact_core.write_entries(writer, entries)
+  @artifact_core.write_exports(writer, exports)
+  @artifact_core.write_imports(writer, imports)
+  @artifact_core.write_imported_interface_fingerprints(
+    writer, imported_interface_fingerprints,
+  )
   writer.to_bytes()
 }
 
 ///|
 fn interface_fingerprint(
   interface : @module_interface.ModuleInterface,
-) -> CompilationFingerprint {
+) -> @artifact_core.CompilationFingerprint {
   fingerprint_hash(
     "lane-interface-fingerprint-v1",
     interface_fingerprint_payload(interface),
@@ -127,7 +133,10 @@ fn interface_fingerprint_payload(
 }
 
 ///|
-fn fingerprint_hash(tag : String, payload : String) -> CompilationFingerprint {
+fn fingerprint_hash(
+  tag : String,
+  payload : String,
+) -> @artifact_core.CompilationFingerprint {
   {
     value: "sha256:\{@crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode("\{tag}\n\{payload}")))}",
   }
@@ -137,7 +146,7 @@ fn fingerprint_hash(tag : String, payload : String) -> CompilationFingerprint {
 fn fingerprint_hash_bytes(
   tag : String,
   payload : Bytes,
-) -> CompilationFingerprint {
+) -> @artifact_core.CompilationFingerprint {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_string(tag)
   writer.write_raw_bytes(payload)

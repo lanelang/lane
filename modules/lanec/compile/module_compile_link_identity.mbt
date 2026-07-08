@@ -63,7 +63,7 @@ priv struct RemappedModuleObject {
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
   exports : Array[@elaborate.BuslaneModuleExport]
-  fingerprint : CompilationFingerprint
+  fingerprint : @artifact_core.CompilationFingerprint
 }
 
 ///|
@@ -71,7 +71,7 @@ priv struct LinkedModuleExport {
   module_path_text : String
   kind : @elaborate.BuslaneModuleExportKind
   name : String
-  fingerprint : CompilationFingerprint
+  fingerprint : @artifact_core.CompilationFingerprint
   type_id : @buslane.TypeId?
   data_constructor : @buslane.DataConId?
   effect_id : @buslane.EffectId?

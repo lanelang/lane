@@ -69,7 +69,7 @@ async fn lane_run(
 fn execute_entry(
   program : @buslane.Program,
   externals : @elaborate.BuslaneExternalMap,
-  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   entry : @elaborate.BuslaneEntry,
 ) -> LaneCommandOutcome {
   execute_entry_with_output(
@@ -85,7 +85,7 @@ fn execute_entry(
 fn execute_linked_entry(
   program : @buslane.Program,
   externals : @elaborate.BuslaneExternalMap,
-  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   entry : @elaborate.BuslaneEntry,
 ) -> LaneCommandOutcome {
   execute_linked_entry_with_output(
@@ -101,7 +101,7 @@ fn execute_linked_entry(
 fn execute_entry_with_output(
   program : @buslane.Program,
   externals : @elaborate.BuslaneExternalMap,
-  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   entry : @elaborate.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
@@ -165,7 +165,7 @@ fn validate_executable_entry(
 fn execute_linked_entry_with_output(
   program : @buslane.Program,
   externals : @elaborate.BuslaneExternalMap,
-  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   entry : @elaborate.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
@@ -192,7 +192,7 @@ fn execute_linked_entry_with_output(
 fn command_external_runtime(
   externals : @elaborate.BuslaneExternalMap,
   program : @buslane.Program,
-  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   write_line : (String) -> Unit,
 ) -> @buslane_interpreter.BuslaneExternalRuntime {
   let runtime = @intrinsics.standard_external_runtime(externals)
@@ -221,7 +221,7 @@ fn command_external_runtime(
 ///|
 fn command_runtime_effects(
   program : @buslane.Program,
-  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
 ) -> Array[@buslane.EffectId] {
   let effects = []
   if command_runtime_effect_operation(program, runtime_effect_operations)
@@ -236,7 +236,7 @@ fn command_runtime_effects(
 ///|
 fn command_runtime_effect_operation(
   program : @buslane.Program,
-  runtime_effect_operations : Array[@compile.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
 ) -> @buslane.OperationId? {
   let signature = basic_io_write_println_signature()
   for operation in runtime_effect_operations {
@@ -250,7 +250,7 @@ fn command_runtime_effect_operation(
 
 ///|
 fn runtime_effect_operation_matches(
-  operation : @compile.LinkedRuntimeEffectOperation,
+  operation : @artifact_core.LinkedRuntimeEffectOperation,
   signature : @compile.RuntimeEffectOperationSignature,
 ) -> Bool {
   operation.module_path_text == signature.module_path_text &&

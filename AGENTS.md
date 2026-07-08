@@ -35,6 +35,12 @@ You can browse and install extra skills here:
   pattern-based parser would make the code less clear or would lose necessary
   diagnostics.
 
+- Treat repeated file name prefixes as a package-boundary smell. When a
+  directory grows many files like `artifact_binary_*.mbt` or
+  `module_compile_*.mbt`, consider whether those files are really an independent
+  package. Before moving them, check dependency direction first: the new package
+  should own a coherent API and must not create a cycle with the parent package.
+
 ## Tooling
 
 - `moon fmt` is used to format your code properly.

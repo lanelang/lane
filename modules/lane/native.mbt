@@ -59,7 +59,7 @@ async fn write_module_interface_artifact(
 ) -> Unit {
   write_binary_file(
     path,
-    @compile.module_interface_artifact_to_binary(
+    @artifact_binary.module_interface_artifact_to_binary(
       module_.to_interface_artifact(),
     ),
   )
@@ -72,7 +72,9 @@ async fn write_module_object_artifact(
 ) -> Unit {
   write_binary_file(
     path,
-    @compile.module_object_artifact_to_binary(module_.to_object_artifact()),
+    @artifact_binary.module_object_artifact_to_binary(
+      module_.to_object_artifact(),
+    ),
   )
 }
 
@@ -83,7 +85,7 @@ async fn read_module_interface_artifact(
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @compile.parse_module_interface_artifact_binary(bytes) {
+  match @artifact_binary.parse_module_interface_artifact_binary(bytes) {
     Ok(artifact) => Ok(artifact)
     Err(message) =>
       Err(ArtifactLoad(path~, kind="module interface artifact", message~))
@@ -97,7 +99,7 @@ async fn read_module_object_artifact(
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @compile.parse_module_object_artifact_binary(bytes) {
+  match @artifact_binary.parse_module_object_artifact_binary(bytes) {
     Ok(artifact) => Ok(artifact)
     Err(message) =>
       Err(ArtifactLoad(path~, kind="module object artifact", message~))
@@ -111,7 +113,7 @@ async fn write_linked_program_artifact(
 ) -> Unit {
   write_binary_file(
     path,
-    @compile.linked_program_artifact_to_binary(program.to_artifact()),
+    @artifact_binary.linked_program_artifact_to_binary(program.to_artifact()),
   )
 }
 
@@ -122,7 +124,8 @@ async fn read_linked_program_artifact(
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Exec, path, "\{error}"))
   }
-  let artifact = match @compile.parse_linked_program_artifact_binary(bytes) {
+  let artifact = match
+    @artifact_binary.parse_linked_program_artifact_binary(bytes) {
     Ok(artifact) => artifact
     Err(message) =>
       return Err(ArtifactLoad(path~, kind="linked program artifact", message~))

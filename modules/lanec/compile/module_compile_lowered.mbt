@@ -21,7 +21,7 @@ fn lower_compiled_module_objects(
 
 ///|
 fn imported_interfaces_from_modules(
-  imported : Array[ImportedInterfaceFingerprint],
+  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
   modules : Array[CompiledModule],
 ) -> @module_interface.ImportedEnvironment {
   let interfaces = []
@@ -122,7 +122,7 @@ fn module_imported_references_from_lowered(
   imports : Array[@elaborate.BuslaneModuleImport],
   imported_modules : Array[CompiledModule],
   module_path_text : String,
-) -> Array[ModuleImportedReference] {
+) -> Array[@artifact_core.ModuleImportedReference] {
   imports.map(fn(item) {
     let fingerprint = match
       find_compiled_module(imported_modules, item.module_path_text) {
@@ -151,7 +151,7 @@ fn module_imported_references_from_interface_artifacts(
   imports : Array[@elaborate.BuslaneModuleImport],
   interfaces : Array[ModuleInterfaceArtifact],
   module_path_text : String,
-) -> Array[ModuleImportedReference] {
+) -> Array[@artifact_core.ModuleImportedReference] {
   imports.map(fn(item) {
     let fingerprint = match
       find_module_interface_artifact(interfaces, item.module_path_text) {

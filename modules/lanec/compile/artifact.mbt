@@ -3,32 +3,36 @@ pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int
   module_path_text : String
   interface : @module_interface.ModuleInterface
-  interface_fingerprint : CompilationFingerprint
-  module_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  interface_fingerprint : @artifact_core.CompilationFingerprint
+  module_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ]
 } derive(Debug, Eq)
 
 ///|
-let module_object_artifact_schema_version = 5
+pub let module_object_artifact_schema_version = 5
 
 ///|
-let linked_program_artifact_schema_version = 3
+pub let linked_program_artifact_schema_version = 3
 
 ///|
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
   interface : @module_interface.ModuleInterface
-  interface_fingerprint : CompilationFingerprint
+  interface_fingerprint : @artifact_core.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @elaborate.BuslaneExternalMap
   entries : Array[@elaborate.BuslaneEntry]
   exports : Array[@elaborate.BuslaneModuleExport]
-  imports : Array[ModuleImportedReference]
-  module_fingerprint : CompilationFingerprint
-  object_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  imports : Array[@artifact_core.ModuleImportedReference]
+  module_fingerprint : @artifact_core.CompilationFingerprint
+  object_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ]
 } derive(Debug, Eq)
 
 ///|
@@ -38,7 +42,7 @@ pub(all) struct LinkedProgramArtifact {
   program : @buslane.Program
   externals : @elaborate.BuslaneExternalMap
   entry : @elaborate.BuslaneEntry
-  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
 ///|
@@ -47,8 +51,10 @@ pub(all) struct CompiledModuleArtifact {
   module_path_text : String
   interface : ModuleInterfaceArtifact
   object : ModuleObjectArtifact
-  module_fingerprint : CompilationFingerprint
-  imported_interface_fingerprints : Array[ImportedInterfaceFingerprint]
+  module_fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ]
 } derive(Debug, Eq)
 
 ///|

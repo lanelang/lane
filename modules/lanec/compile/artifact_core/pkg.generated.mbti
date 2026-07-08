@@ -1,0 +1,89 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/compile/artifact_core"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/bytecodec",
+  "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/types",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn write_buslane_data_con_id(@bytecodec.ByteWriter, @buslane.DataConId) -> Unit
+
+pub fn write_buslane_effect_id(@bytecodec.ByteWriter, @buslane.EffectId) -> Unit
+
+pub fn write_buslane_operation_id(@bytecodec.ByteWriter, @buslane.OperationId) -> Unit
+
+pub fn write_buslane_program_section(@bytecodec.ByteWriter, @buslane.Program) -> Unit
+
+pub fn write_buslane_type(@bytecodec.ByteWriter, @buslane.Type) -> Unit
+
+pub fn write_buslane_type_id(@bytecodec.ByteWriter, @buslane.TypeId) -> Unit
+
+pub fn write_buslane_value_id(@bytecodec.ByteWriter, @buslane.ValueId) -> Unit
+
+pub fn write_compilation_fingerprint(@bytecodec.ByteWriter, CompilationFingerprint) -> Unit
+
+pub fn write_entries(@bytecodec.ByteWriter, Array[@elaborate.BuslaneEntry]) -> Unit
+
+pub fn write_entry(@bytecodec.ByteWriter, @elaborate.BuslaneEntry) -> Unit
+
+pub fn write_export_kind(@bytecodec.ByteWriter, @elaborate.BuslaneModuleExportKind) -> Unit
+
+pub fn write_exports(@bytecodec.ByteWriter, Array[@elaborate.BuslaneModuleExport]) -> Unit
+
+pub fn write_externals(@bytecodec.ByteWriter, @elaborate.BuslaneExternalMap) -> Unit
+
+pub fn write_imported_interface_fingerprints(@bytecodec.ByteWriter, Array[ImportedInterfaceFingerprint]) -> Unit
+
+pub fn write_imports(@bytecodec.ByteWriter, Array[ModuleImportedReference]) -> Unit
+
+pub fn write_optional_data_con_id(@bytecodec.ByteWriter, @buslane.DataConId?) -> Unit
+
+pub fn write_optional_effect_id(@bytecodec.ByteWriter, @buslane.EffectId?) -> Unit
+
+pub fn write_optional_operation_id(@bytecodec.ByteWriter, @buslane.OperationId?) -> Unit
+
+pub fn write_optional_type_id(@bytecodec.ByteWriter, @buslane.TypeId?) -> Unit
+
+pub fn write_optional_value_id(@bytecodec.ByteWriter, @buslane.ValueId?) -> Unit
+
+// Errors
+
+// Types and methods
+pub(all) struct CompilationFingerprint {
+  value : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ImportedInterfaceFingerprint {
+  module_path_text : String
+  fingerprint : CompilationFingerprint
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LinkedRuntimeEffectOperation {
+  module_path_text : String
+  effect_name : String
+  operation_name : String
+  payload : Array[@types.Type]
+  result : @types.Type
+  operation : @buslane.OperationId
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleImportedReference {
+  module_path_text : String
+  kind : @elaborate.BuslaneModuleExportKind
+  name : String
+  fingerprint : CompilationFingerprint
+  type_id : @buslane.TypeId?
+  data_constructor : @buslane.DataConId?
+  effect_id : @buslane.EffectId?
+  operation : @buslane.OperationId?
+  value : @buslane.ValueId?
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+
