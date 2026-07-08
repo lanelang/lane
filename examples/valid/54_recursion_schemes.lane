@@ -1,0 +1,88 @@
+module Examples.Valid.RecursionSchemes
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+enum Fix[F : [Type] -> Type] {
+  roll(F[Fix[F]])
+}
+
+enum ExprF[A] {
+  lit(Int)
+  add(A, A)
+  mul(A, A)
+}
+
+struct Functor[F : [Type] -> Type] {
+  map : [A, B]((A) -> B, F[A]) -> F[B]
+}
+
+fn[A, B] expr_map(transform : (A) -> B, layer : ExprF[A]) -> ExprF[B] {
+  match layer {
+    lit(value) => lit(value)
+    add(left, right) => add(transform(left), transform(right))
+    mul(left, right) => mul(transform(left), transform(right))
+  }
+}
+
+let expr_functor : Functor[ExprF] = Functor[ExprF]::{ map: expr_map }
+
+fn[F : [Type] -> Type, A] cata(functor : Functor[F], algebra : (F[A]) -> A, term : Fix[F]) -> A {
+  match term {
+    roll(layer) => algebra(
+      functor.map(
+        fn (child) {
+          cata(functor, algebra, child)
+        },
+        layer
+      )
+    )
+  }
+}
+
+fn literal(value : Int) -> Fix[ExprF] {
+  roll(lit(value))
+}
+
+fn add_expr(left : Fix[ExprF], right : Fix[ExprF]) -> Fix[ExprF] {
+  roll(add(left, right))
+}
+
+fn mul_expr(left : Fix[ExprF], right : Fix[ExprF]) -> Fix[ExprF] {
+  roll(mul(left, right))
+}
+
+fn eval(layer : ExprF[Int]) -> Int {
+  match layer {
+    lit(value) => value
+    add(left, right) => left + right
+    mul(left, right) => left * right
+  }
+}
+
+fn size(layer : ExprF[Int]) -> Int {
+  match layer {
+    lit(_value) => 1
+    add(left, right) => 1 + left + right
+    mul(left, right) => 1 + left + right
+  }
+}
+
+let program : Fix[ExprF] = add_expr(mul_expr(literal(6), literal(7)), literal(0))
+
+let program_value : Int = cata(expr_functor, eval, program)
+
+let program_size : Int = cata(expr_functor, size, program)
+
+pub fn answer() -> Unit ! Io {
+  if program_value == 42 {
+    if program_size == 5 {
+      Write::println!("recursion schemes=42")
+    } else {
+      Write::println!("recursion scheme size failed")
+    }
+  } else {
+    Write::println!("recursion scheme eval failed")
+  }
+}

@@ -1,0 +1,170 @@
+module Examples.Valid.ParserCombinators
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+import Basic.Data.List.*
+
+enum Token {
+  int(Int)
+  plus()
+}
+
+enum ParseResult[A] {
+  parsed(A, List[Token])
+  failed()
+}
+
+struct Parser[A] {
+  run : (List[Token]) -> ParseResult[A]
+}
+
+fn[A] pure(value : A) -> Parser[A] {
+  Parser[A]::{
+    run: fn (input) {
+      parsed(value, input)
+    }
+  }
+}
+
+fn[A, B] map(parser : Parser[A], transform : (A) -> B) -> Parser[B] {
+  Parser[B]::{
+    run: fn (input) {
+      match parser.run(input) {
+        parsed(value, rest) => parsed(transform(value), rest)
+        failed() => failed()
+      }
+    }
+  }
+}
+
+fn[A, B] flat_map(parser : Parser[A], transform : (A) -> Parser[B]) -> Parser[B] {
+  Parser[B]::{
+    run: fn (input) {
+      match parser.run(input) {
+        parsed(value, rest) => transform(value).run(rest)
+        failed() => failed()
+      }
+    }
+  }
+}
+
+fn[A] or_else(left : Parser[A], right : Parser[A]) -> Parser[A] {
+  Parser[A]::{
+    run: fn (input) {
+      match left.run(input) {
+        parsed(value, rest) => parsed(value, rest)
+        failed() => right.run(input)
+      }
+    }
+  }
+}
+
+fn integer() -> Parser[Int] {
+  Parser[Int]::{
+    run: fn (input) {
+      match input {
+        cons(token, rest) =>
+          match token {
+            int(value) => parsed(value, rest)
+            plus() => failed()
+          }
+        empty() => failed()
+      }
+    }
+  }
+}
+
+fn plus_token() -> Parser[Unit] {
+  Parser[Unit]::{
+    run: fn (input) {
+      match input {
+        cons(token, rest) =>
+          match token {
+            plus() => parsed((), rest)
+            int(_value) => failed()
+          }
+        empty() => failed()
+      }
+    }
+  }
+}
+
+fn parse_tail(accumulator : Int, input : List[Token]) -> ParseResult[Int] {
+  match plus_token().run(input) {
+    parsed(_unit, after_plus) =>
+      match integer().run(after_plus) {
+        parsed(value, rest) => parse_tail(accumulator + value, rest)
+        failed() => failed()
+      }
+    failed() => parsed(accumulator, input)
+  }
+}
+
+fn expression() -> Parser[Int] {
+  flat_map(
+    integer(),
+    fn (first) {
+      Parser[Int]::{
+        run: fn (input) {
+          parse_tail(first, input)
+        }
+      }
+    }
+  )
+}
+
+fn zero_or_integer() -> Parser[Int] {
+  or_else(integer(), pure(0))
+}
+
+fn[A] complete(parser : Parser[A], input : List[Token]) -> ParseResult[A] {
+  match parser.run(input) {
+    parsed(value, empty()) => parsed(value, empty())
+    parsed(_value, cons(_head, _tail)) => failed()
+    failed() => failed()
+  }
+}
+
+fn parsed_value(result : ParseResult[Int]) -> Int {
+  match result {
+    parsed(value, empty()) => value
+    parsed(_value, cons(_head, _tail)) => 0
+    failed() => 0
+  }
+}
+
+let expression_tokens : List[Token] = [int(10), plus(), int(20), plus(), int(12)]
+
+let expression_result : Int = parsed_value(complete(expression(), expression_tokens))
+
+let fallback_result : Int = parsed_value(complete(zero_or_integer(), []))
+
+let mapped_result : Int = parsed_value(
+  complete(
+    map(
+      integer(),
+      fn (value) {
+        value + 1
+      }
+    ),
+    [int(41)]
+  )
+)
+
+pub fn answer() -> Unit ! Io {
+  if expression_result == 42 {
+    if fallback_result == 0 {
+      if mapped_result == 42 {
+        Write::println!("parser combinators=42")
+      } else {
+        Write::println!("parser map failed")
+      }
+    } else {
+      Write::println!("parser fallback failed")
+    }
+  } else {
+    Write::println!("parser expression failed")
+  }
+}

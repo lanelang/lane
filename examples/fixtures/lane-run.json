@@ -472,6 +472,33 @@
       }
     },
     {
+      "name": "53 parser combinators",
+      "file": "examples/valid/53_parser_combinators.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "parser combinators=42"
+      }
+    },
+    {
+      "name": "54 recursion schemes",
+      "file": "examples/valid/54_recursion_schemes.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "recursion schemes=42"
+      }
+    },
+    {
+      "name": "55 optics",
+      "file": "examples/valid/55_optics.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "optics=42"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",

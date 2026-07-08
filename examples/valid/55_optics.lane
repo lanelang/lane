@@ -1,0 +1,134 @@
+module Examples.Valid.Optics
+
+import Basic.Io.{Io, Write}
+
+import Basic.Ops.*
+
+struct Lens[S, A] {
+  get : (S) -> A
+  set : (S, A) -> S
+}
+
+fn[S, A, B] compose(outer : Lens[S, A], inner : Lens[A, B]) -> Lens[S, B] {
+  Lens[S, B]::{
+    get: fn (source) {
+      inner.get(outer.get(source))
+    },
+    set: fn (source, value) {
+      let middle : A = outer.get(source)
+      outer.set(source, inner.set(middle, value))
+    }
+  }
+}
+
+fn[S, A] over(lens : Lens[S, A], transform : (A) -> A, source : S) -> S {
+  lens.set(source, transform(lens.get(source)))
+}
+
+struct Pool {
+  size : Int
+  timeout : Int
+}
+
+struct Database {
+  pool : Pool
+  replicas : Int
+}
+
+struct Config {
+  database : Database
+  debug : Bool
+}
+
+fn lens_config_database() -> Lens[Config, Database] {
+  Lens[Config, Database]::{
+    get: fn (config) {
+      config.database
+    },
+    set: fn (config, database) {
+      Config::{ database, debug: config.debug }
+    }
+  }
+}
+
+fn lens_database_pool() -> Lens[Database, Pool] {
+  Lens[Database, Pool]::{
+    get: fn (database) {
+      database.pool
+    },
+    set: fn (database, pool) {
+      Database::{ pool, replicas: database.replicas }
+    }
+  }
+}
+
+fn lens_pool_size() -> Lens[Pool, Int] {
+  Lens[Pool, Int]::{
+    get: fn (pool) {
+      pool.size
+    },
+    set: fn (pool, size) {
+      Pool::{ size, timeout: pool.timeout }
+    }
+  }
+}
+
+fn lens_pool_timeout() -> Lens[Pool, Int] {
+  Lens[Pool, Int]::{
+    get: fn (pool) {
+      pool.timeout
+    },
+    set: fn (pool, timeout) {
+      Pool::{ size: pool.size, timeout }
+    }
+  }
+}
+
+fn lens_config_pool() -> Lens[Config, Pool] {
+  compose(lens_config_database(), lens_database_pool())
+}
+
+fn lens_config_pool_size() -> Lens[Config, Int] {
+  compose(lens_config_pool(), lens_pool_size())
+}
+
+fn lens_config_pool_timeout() -> Lens[Config, Int] {
+  compose(lens_config_pool(), lens_pool_timeout())
+}
+
+let base_config : Config = Config::{
+  database: Database::{ pool: Pool::{ size: 40, timeout: 100 }, replicas: 2 },
+  debug: false
+}
+
+let tuned_size : Config = over(
+  lens_config_pool_size(),
+  fn (size) {
+    size + 2
+  },
+  base_config
+)
+
+let tuned_config : Config = over(
+  lens_config_pool_timeout(),
+  fn (timeout) {
+    timeout + 1
+  },
+  tuned_size
+)
+
+pub fn answer() -> Unit ! Io {
+  if tuned_config.database.pool.size == 42 {
+    if tuned_config.database.pool.timeout == 101 {
+      if tuned_config.database.replicas == 2 {
+        Write::println!("optics=42")
+      } else {
+        Write::println!("optic sibling field failed")
+      }
+    } else {
+      Write::println!("optic timeout failed")
+    }
+  } else {
+    Write::println!("optic size failed")
+  }
+}
