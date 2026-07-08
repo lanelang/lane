@@ -372,6 +372,12 @@ fn variant_generic_argument_substitution(
 }
 
 ///|
+priv struct StructLiteralGenericEvidence {
+  field_templates : Array[@types.Type]
+  field_expressions : Array[@desugar.DesugaredExpr]
+}
+
+///|
 fn SemanticChecker::synthesize_checked_struct_literal(
   self : SemanticChecker,
   scope : TypeScope,
@@ -404,10 +410,14 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     return checked_expression_none_reported(Error)
   }
   let arguments = self.struct_literal_generic_arguments(
+    scope,
     symbol,
+    struct_declaration,
     struct_declaration.type_parameters,
     generic_arguments,
+    fields,
     expected,
+    loc,
   )
   check_type_arity(
     self.source.symbols,
@@ -488,28 +498,70 @@ fn SemanticChecker::synthesize_checked_struct_literal(
 ///|
 fn SemanticChecker::struct_literal_generic_arguments(
   self : SemanticChecker,
+  scope : TypeScope,
   symbol : @symbol.TypeSymbolId,
+  struct_declaration : CheckedStructDeclaration,
   parameters : Array[@types.TypeParameter],
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
+  fields : Array[@desugar.DesugaredStructLiteralField],
   expected : @types.Type?,
+  loc : SourceSpan,
 ) -> Array[@types.GenericArgument] {
-  // Local type inference for `S::{ ... }` is intentionally one-way. If the
-  // adjacent expected type is the same nominal constructor, omitted generic
-  // arguments are copied from that expected type. Explicit generic arguments
-  // are always respected.
-  if generic_arguments.is_empty() && expected is Some(expected_type) {
-    match expected_type.decompose_nominal() {
-      Some((expected_symbol, expected_arguments)) if expected_symbol == symbol =>
-        return expected_arguments.copy()
-      _ => ()
-    }
+  if !generic_arguments.is_empty() {
+    return check_resolved_nominal_generic_arguments(
+      self.resolved_source,
+      self.diagnostics,
+      parameters,
+      generic_arguments,
+    )
   }
-  check_resolved_nominal_generic_arguments(
-    self.resolved_source,
-    self.diagnostics,
-    parameters,
-    generic_arguments,
+  if parameters.is_empty() {
+    return []
+  }
+  let evidence = struct_literal_generic_evidence(
+    self, symbol, struct_declaration, fields,
   )
+  guard self.infer_struct_literal_generic_arguments(
+      scope,
+      parameters,
+      evidence.field_templates,
+      evidence.field_expressions,
+      @types.nominal_type_generic(
+        symbol,
+        parameters.map(fn(parameter) { parameter.generic_argument() }),
+      ),
+      expected,
+      loc,
+    )
+    is Some(inferred) else {
+    return parameters.map(fn(_parameter) { TypeArgument(Error) })
+  }
+  parameters.map(fn(parameter) {
+    parameter.generic_argument().substitute(inferred.substitution)
+  })
+}
+
+///|
+fn struct_literal_generic_evidence(
+  checker : SemanticChecker,
+  symbol : @symbol.TypeSymbolId,
+  declaration : CheckedStructDeclaration,
+  fields : Array[@desugar.DesugaredStructLiteralField],
+) -> StructLiteralGenericEvidence {
+  let field_templates = []
+  let field_expressions = []
+  for field in fields {
+    guard field is Value(name~, value~, ..) else { continue }
+    guard checker.source.symbols.field_named(symbol, name) is Some(field_symbol) else {
+      continue
+    }
+    guard declaration.field(field_symbol) is Some(field_declaration) else {
+      continue
+    }
+    field_templates.push(field_declaration.type_)
+    field_expressions.push(value)
+  }
+  { field_templates, field_expressions }
 }
 
 ///|

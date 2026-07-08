@@ -1881,6 +1881,87 @@ test "typecheck generic struct construction and field access" {
 }
 
 ///|
+test "typecheck infers struct literal generic arguments from fields" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|fn use() -> Int {
+      #|  {
+      #|    let box = Box::{ value: 1 }
+      #|    box.value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck infers struct literal generic arguments from expected type" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Lens[S, A] {
+      #|  get : (S) -> A
+      #|  set : (S, A) -> S
+      #|}
+      #|struct Pool {
+      #|  size : Int
+      #|}
+      #|struct Database {
+      #|  pool : Pool
+      #|}
+      #|let lens : Lens[Database, Pool] = Lens::{
+      #|  get: fn (database) {
+      #|    database.pool
+      #|  },
+      #|  set: fn (_database, pool) {
+      #|    Database::{ pool }
+      #|  }
+      #|}
+      #|fn use() -> Int {
+      #|  lens.get(Database::{ pool: Pool::{ size: 42 } }).size
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck reports missing struct literal generic arguments" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Lens[S, A] {
+      #|  get : (S) -> A
+      #|  set : (S, A) -> S
+      #|}
+      #|struct Pool {
+      #|  size : Int
+      #|}
+      #|struct Database {
+      #|  pool : Pool
+      #|}
+      #|fn use() -> Int {
+      #|  let _lens = Lens::{
+      #|    get: fn (database) {
+      #|      database.pool
+      #|    },
+      #|    set: fn (_database, pool) {
+      #|      Database::{ pool }
+      #|    }
+      #|  }
+      #|  0
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    content="generic_argument_inference_failed struct literal generic arguments missing S,A",
+  )
+}
+
+///|
 test "typecheck existential struct construction with type witness" {
   let result = expect_checked_source_result(
     (

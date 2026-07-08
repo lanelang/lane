@@ -10,7 +10,7 @@ struct Lens[S, A] {
 }
 
 fn[S, A, B] compose(outer : Lens[S, A], inner : Lens[A, B]) -> Lens[S, B] {
-  Lens[S, B]::{
+  Lens::{
     get: fn (source) {
       inner.get(outer.get(source))
     },
@@ -41,7 +41,7 @@ struct Config {
 }
 
 fn lens_config_database() -> Lens[Config, Database] {
-  Lens[Config, Database]::{
+  Lens::{
     get: fn (config) {
       config.database
     },
@@ -52,7 +52,7 @@ fn lens_config_database() -> Lens[Config, Database] {
 }
 
 fn lens_database_pool() -> Lens[Database, Pool] {
-  Lens[Database, Pool]::{
+  Lens::{
     get: fn (database) {
       database.pool
     },
@@ -63,7 +63,7 @@ fn lens_database_pool() -> Lens[Database, Pool] {
 }
 
 fn lens_pool_size() -> Lens[Pool, Int] {
-  Lens[Pool, Int]::{
+  Lens::{
     get: fn (pool) {
       pool.size
     },
@@ -74,7 +74,7 @@ fn lens_pool_size() -> Lens[Pool, Int] {
 }
 
 fn lens_pool_timeout() -> Lens[Pool, Int] {
-  Lens[Pool, Int]::{
+  Lens::{
     get: fn (pool) {
       pool.timeout
     },

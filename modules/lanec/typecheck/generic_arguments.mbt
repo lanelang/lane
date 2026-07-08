@@ -1032,6 +1032,31 @@ fn SemanticChecker::infer_operation_owner_generic_arguments(
 }
 
 ///|
+fn SemanticChecker::infer_struct_literal_generic_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_parameters : Array[@types.TypeParameter],
+  field_templates : Array[@types.Type],
+  field_expressions : Array[@desugar.DesugaredExpr],
+  result_template : @types.Type,
+  expected_result : @types.Type?,
+  loc : SourceSpan,
+) -> InferredApplicationGenericArguments? {
+  self.infer_application_generic_arguments(scope, type_parameters, {
+    parameter_templates: field_templates,
+    argument_expressions: field_expressions,
+    result_template: Some(result_template),
+    expected_result,
+    effect_template: None,
+    expected_effect: None,
+    collect_result_first: true,
+    failure_label: "struct literal generic arguments",
+    loc,
+    report_failure: true,
+  })
+}
+
+///|
 fn SemanticChecker::report_generic_argument_inference_failure(
   self : SemanticChecker,
   label : String,
