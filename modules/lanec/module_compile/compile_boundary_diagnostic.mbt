@@ -26,6 +26,11 @@ fn compile_boundary_diagnostic(
 }
 
 ///|
+pub fn no_root_source_module_diagnostic() -> CompilerDiagnostic {
+  compile_boundary_diagnostic(NoRootSourceModule, None)
+}
+
+///|
 impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn to_compiler_diagnostic(
   diagnostic_ : CompileBoundaryDiagnostic,
   _context : @compiler_diag.DiagnosticContext,

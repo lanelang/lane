@@ -58,7 +58,7 @@ fn[T : @prettyprinter.Pretty] artifact_to_inspect_text(artifact : T) -> String {
 
 ///|
 pub fn module_interface_artifact_to_binary(
-  artifact : @compile.ModuleInterfaceArtifact,
+  artifact : @module_compile.ModuleInterfaceArtifact,
 ) -> Bytes {
   artifact_payload_to_binary(
     artifact_binary_kind_interface,
@@ -69,7 +69,7 @@ pub fn module_interface_artifact_to_binary(
 ///|
 pub fn parse_module_interface_artifact_binary(
   bytes : Bytes,
-) -> Result[@compile.ModuleInterfaceArtifact, String] {
+) -> Result[@module_compile.ModuleInterfaceArtifact, String] {
   artifact_binary_decode_result(fn() raise {
     decode_module_interface_artifact_payload(
       binary_artifact_payload(
@@ -82,7 +82,7 @@ pub fn parse_module_interface_artifact_binary(
 
 ///|
 pub fn module_object_artifact_to_binary(
-  artifact : @compile.ModuleObjectArtifact,
+  artifact : @module_compile.ModuleObjectArtifact,
 ) -> Bytes {
   artifact_payload_to_binary(
     artifact_binary_kind_object,
@@ -93,7 +93,7 @@ pub fn module_object_artifact_to_binary(
 ///|
 pub fn parse_module_object_artifact_binary(
   bytes : Bytes,
-) -> Result[@compile.ModuleObjectArtifact, String] {
+) -> Result[@module_compile.ModuleObjectArtifact, String] {
   artifact_binary_decode_result(fn() raise {
     decode_module_object_artifact_payload(
       binary_artifact_payload(bytes, expected_kind=artifact_binary_kind_object),
@@ -103,7 +103,7 @@ pub fn parse_module_object_artifact_binary(
 
 ///|
 pub fn linked_program_artifact_to_binary(
-  artifact : @compile.LinkedProgramArtifact,
+  artifact : @module_compile.LinkedProgramArtifact,
 ) -> Bytes {
   artifact_payload_to_binary(
     artifact_binary_kind_program,
@@ -114,7 +114,7 @@ pub fn linked_program_artifact_to_binary(
 ///|
 pub fn parse_linked_program_artifact_binary(
   bytes : Bytes,
-) -> Result[@compile.LinkedProgramArtifact, String] {
+) -> Result[@module_compile.LinkedProgramArtifact, String] {
   artifact_binary_decode_result(fn() raise {
     decode_linked_program_artifact_payload(
       binary_artifact_payload(bytes, expected_kind=artifact_binary_kind_program),
@@ -243,7 +243,7 @@ fn artifact_binary_kind_name(kind : Int) -> String {
 
 ///|
 fn encode_module_interface_artifact_payload(
-  artifact : @compile.ModuleInterfaceArtifact,
+  artifact : @module_compile.ModuleInterfaceArtifact,
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le(artifact.schema_version)
@@ -267,13 +267,13 @@ fn encode_module_interface_artifact_payload(
 ///|
 fn decode_module_interface_artifact_payload(
   payload : Bytes,
-) -> @compile.ModuleInterfaceArtifact raise {
+) -> @module_compile.ModuleInterfaceArtifact raise {
   let reader = @bytecodec.ByteReader::from_bytes(payload)
   let schema_version = reader.read_u32_le()
   if schema_version != 1 {
     raise UnsupportedArtifactSchema(kind="interface", version=schema_version)
   }
-  let artifact : @compile.ModuleInterfaceArtifact = {
+  let artifact : @module_compile.ModuleInterfaceArtifact = {
     schema_version,
     module_path_text: reader.read_string(),
     interface: reader.read_module_interface(),
@@ -287,7 +287,7 @@ fn decode_module_interface_artifact_payload(
 
 ///|
 fn encode_module_object_artifact_payload(
-  artifact : @compile.ModuleObjectArtifact,
+  artifact : @module_compile.ModuleObjectArtifact,
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le(artifact.schema_version)
@@ -323,17 +323,17 @@ fn encode_module_object_artifact_payload(
 ///|
 fn decode_module_object_artifact_payload(
   payload : Bytes,
-) -> @compile.ModuleObjectArtifact raise {
+) -> @module_compile.ModuleObjectArtifact raise {
   let reader = @bytecodec.ByteReader::from_bytes(payload)
   let schema_version = reader.read_u32_le()
-  if schema_version != @compile.module_object_artifact_schema_version {
+  if schema_version != @module_compile.module_object_artifact_schema_version {
     raise UnsupportedArtifactSchema(kind="object", version=schema_version)
   }
   let module_path_text = reader.read_string()
   let interface = reader.read_module_interface()
   let interface_fingerprint = reader.read_compilation_fingerprint()
   let program = reader.read_buslane_program_section()
-  let artifact : @compile.ModuleObjectArtifact = {
+  let artifact : @module_compile.ModuleObjectArtifact = {
     schema_version,
     module_path_text,
     interface,
@@ -354,7 +354,7 @@ fn decode_module_object_artifact_payload(
 
 ///|
 fn encode_linked_program_artifact_payload(
-  artifact : @compile.LinkedProgramArtifact,
+  artifact : @module_compile.LinkedProgramArtifact,
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le(artifact.schema_version)
@@ -369,13 +369,13 @@ fn encode_linked_program_artifact_payload(
 ///|
 fn decode_linked_program_artifact_payload(
   payload : Bytes,
-) -> @compile.LinkedProgramArtifact raise {
+) -> @module_compile.LinkedProgramArtifact raise {
   let reader = @bytecodec.ByteReader::from_bytes(payload)
   let schema_version = reader.read_u32_le()
-  if schema_version != @compile.linked_program_artifact_schema_version {
+  if schema_version != @module_compile.linked_program_artifact_schema_version {
     raise UnsupportedArtifactSchema(kind="program", version=schema_version)
   }
-  let artifact : @compile.LinkedProgramArtifact = {
+  let artifact : @module_compile.LinkedProgramArtifact = {
     schema_version,
     module_path_texts: reader.read_string_array(),
     program: reader.read_buslane_program_section(),

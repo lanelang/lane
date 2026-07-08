@@ -147,7 +147,7 @@ fn validate_runtime_effect_operation(
 }
 
 ///|
-fn compile_module_graph(
+pub fn compile_module_graph(
   graph : @module_frontend.ModuleGraph,
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
@@ -175,7 +175,7 @@ fn compile_module_graph(
 }
 
 ///|
-fn compile_module_from_interface_artifacts(
+pub fn compile_module_from_interface_artifacts(
   root_source : @module_frontend.SourceInput,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {

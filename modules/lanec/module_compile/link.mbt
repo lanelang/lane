@@ -1,5 +1,5 @@
 ///|
-fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
+pub fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
   match linked_modules(modules) {
     Err(diagnostics) =>
       { program: None, diagnostics: modules.diagnostics + diagnostics }
@@ -14,7 +14,7 @@ fn link_compiled_module_set(modules : CompiledModuleSet) -> LinkResult {
 }
 
 ///|
-fn link_compiled_modules(modules : Array[CompiledModule]) -> LinkResult {
+pub fn link_compiled_modules(modules : Array[CompiledModule]) -> LinkResult {
   match linked_all_modules(modules) {
     Err(diagnostics) => { program: None, diagnostics }
     Ok(ordered_modules) =>

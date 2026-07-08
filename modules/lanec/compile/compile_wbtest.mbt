@@ -1073,10 +1073,12 @@ test "compile modules returns separate module objects and interfaces" {
     modules.modules.map(fn(module_) { module_.module_path_text }).join(","),
     content="Lib,Main",
   )
-  guard find_compiled_module(modules.modules, "Lib") is Some(lib) else {
+  guard @module_compile.find_compiled_module(modules.modules, "Lib")
+    is Some(lib) else {
     abort("expected Lib module")
   }
-  guard find_compiled_module(modules.modules, "Main") is Some(main) else {
+  guard @module_compile.find_compiled_module(modules.modules, "Main")
+    is Some(main) else {
     abort("expected Main module")
   }
   inspect(lib.interface.values.length(), content="1")
@@ -1247,7 +1249,7 @@ test "module artifacts roundtrip through binary and link" {
     abort("expected compiled modules")
   }
   let artifact = modules.to_artifact()
-  let decoded_modules = []
+  let decoded_modules : Array[@module_compile.CompiledModuleArtifact] = []
   for module_ in artifact.modules {
     let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
       module_.interface,
@@ -1274,7 +1276,7 @@ test "module artifacts roundtrip through binary and link" {
       imported_interface_fingerprints: module_.imported_interface_fingerprints,
     })
   }
-  let linked = link_module_artifacts({
+  let linked = @module_compile.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: decoded_modules,
@@ -1348,7 +1350,7 @@ test "module artifacts roundtrip through binary and link" {
       #|
     ),
   )
-  let unknown_entry_artifact : LinkedProgramArtifact = {
+  let unknown_entry_artifact : @module_compile.LinkedProgramArtifact = {
     schema_version: linked_decoded.schema_version,
     module_path_texts: linked_decoded.module_path_texts,
     program: linked_decoded.program,
@@ -1371,7 +1373,7 @@ test "module artifacts roundtrip through binary and link" {
     .join(","),
     content="linked entry `Main.missing` points to an unknown value",
   )
-  let invalid_program_artifact : LinkedProgramArtifact = {
+  let invalid_program_artifact : @module_compile.LinkedProgramArtifact = {
     schema_version: linked_decoded.schema_version,
     module_path_texts: linked_decoded.module_path_texts,
     program: {
@@ -1437,7 +1439,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
     .join("\n"),
     content="Basic.Io.Write::println/1->Unit",
   )
-  let signature : RuntimeEffectOperationSignature = {
+  let signature : @module_compile.RuntimeEffectOperationSignature = {
     module_path_text: "Basic.Io",
     effect_name: "Write",
     operation_name: "println",
@@ -1613,7 +1615,8 @@ test "effect aliases export through interface artifacts" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  guard find_compiled_module(modules.modules, "Lib") is Some(lib) else {
+  guard @module_compile.find_compiled_module(modules.modules, "Lib")
+    is Some(lib) else {
     abort("expected Lib")
   }
   let lib_artifact = lib.to_artifact()
@@ -2149,7 +2152,7 @@ test "link module artifacts orders reachable modules by imports" {
   guard find_artifact_module(artifact.modules, "Lib") is Some(lib) else {
     abort("expected Lib artifact")
   }
-  let linked = link_module_artifacts({
+  let linked = @module_compile.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: "Main",
     modules: [main, lib],
@@ -2210,7 +2213,7 @@ test "compile module with interface artifact then link object artifacts" {
     abort("expected Main module")
   }
   let main_artifact = main_module.to_artifact()
-  let linked = link_module_object_artifacts([
+  let linked = @module_compile.link_module_object_artifacts([
     lib_artifact.object,
     main_artifact.object,
   ])
@@ -2286,7 +2289,7 @@ test "compile module freshens independently compiled interface symbols" {
     abort("expected Main module")
   }
   let main_artifact = main_module.to_artifact()
-  let linked = link_module_artifacts({
+  let linked = @module_compile.link_module_artifacts({
     schema_version: 1,
     root_module_path_text: "Main",
     modules: [left_artifact, right_artifact, main_artifact],
@@ -2371,7 +2374,7 @@ test "compile module follows transitive interface dependencies without extra pol
     abort("expected C module")
   }
   let c_artifact = c_module.to_artifact()
-  let linked = link_module_artifacts({
+  let linked = @module_compile.link_module_artifacts({
     schema_version: 1,
     root_module_path_text: "C",
     modules: [c_artifact, b_artifact, a_artifact],
@@ -2462,7 +2465,7 @@ test "compile module rejects interface artifact name mismatch" {
     values: interface.values,
     optimization_hints: interface.optimization_hints,
   }
-  let damaged : ModuleInterfaceArtifact = {
+  let damaged : @module_compile.ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: damaged_interface,
@@ -2501,7 +2504,7 @@ test "compile module rejects stale interface artifact fingerprint" {
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let damaged : ModuleInterfaceArtifact = {
+  let damaged : @module_compile.ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
@@ -2540,7 +2543,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let damaged : ModuleInterfaceArtifact = {
+  let damaged : @module_compile.ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
@@ -2621,7 +2624,7 @@ test "link object artifacts rejects stale object fingerprint" {
     abort("expected module")
   }
   let object = module_.to_object_artifact()
-  let damaged : ModuleObjectArtifact = {
+  let damaged : @module_compile.ModuleObjectArtifact = {
     schema_version: object.schema_version,
     module_path_text: object.module_path_text,
     interface: object.interface,
@@ -2636,7 +2639,7 @@ test "link object artifacts rejects stale object fingerprint" {
     object_fingerprint: { value: "stale" },
     imported_interface_fingerprints: object.imported_interface_fingerprints,
   }
-  let linked = link_module_object_artifacts([damaged])
+  let linked = @module_compile.link_module_object_artifacts([damaged])
   inspect(linked.diagnostics.length(), content="1")
   inspect(
     linked.diagnostics[0].message,
@@ -2665,7 +2668,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
   let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
-      let object : ModuleObjectArtifact = {
+      let object : @module_compile.ModuleObjectArtifact = {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
         interface: module_.object.interface,
@@ -2680,7 +2683,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         object_fingerprint: module_.object.object_fingerprint,
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      {
+      @module_compile.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
         module_path_text: module_.module_path_text,
         interface: module_.interface,
@@ -2692,7 +2695,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
       module_
     }
   })
-  let linked = link_module_artifacts({
+  let linked = @module_compile.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
@@ -2726,7 +2729,7 @@ test "link module artifacts rejects interface object name mismatch" {
   let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
-      let interface : ModuleInterfaceArtifact = {
+      let interface : @module_compile.ModuleInterfaceArtifact = {
         schema_version: module_.interface.schema_version,
         module_path_text: "Other",
         interface: module_.interface.interface,
@@ -2734,7 +2737,7 @@ test "link module artifacts rejects interface object name mismatch" {
         module_fingerprint: module_.interface.module_fingerprint,
         imported_interface_fingerprints: module_.interface.imported_interface_fingerprints,
       }
-      {
+      @module_compile.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
         module_path_text: module_.module_path_text,
         interface,
@@ -2746,7 +2749,7 @@ test "link module artifacts rejects interface object name mismatch" {
       module_
     }
   })
-  let linked = link_module_artifacts({
+  let linked = @module_compile.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
@@ -2782,7 +2785,7 @@ test "link modules rejects stale module object fingerprint" {
       let fingerprint = @artifact_core.CompilationFingerprint::{
         value: "stale",
       }
-      let object : ModuleObject = {
+      let object : @module_compile.ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
         metadata: module_.object.metadata,
@@ -2792,7 +2795,7 @@ test "link modules rejects stale module object fingerprint" {
         exports: module_.object.exports,
         imports: module_.object.imports,
         fingerprint,
-        object_fingerprint: module_object_fingerprint(
+        object_fingerprint: @module_compile.module_object_fingerprint(
           fingerprint,
           module_.object.metadata,
           module_.object.terms,
@@ -2804,7 +2807,7 @@ test "link modules rejects stale module object fingerprint" {
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      {
+      @module_compile.CompiledModule::{
         module_path_text: module_.module_path_text,
         interface: module_.interface,
         object,
@@ -2861,7 +2864,7 @@ test "link modules rejects stale imported reference fingerprint" {
           }
         },
       )
-      let object : ModuleObject = {
+      let object : @module_compile.ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
         metadata: module_.object.metadata,
@@ -2871,7 +2874,7 @@ test "link modules rejects stale imported reference fingerprint" {
         exports: module_.object.exports,
         imports,
         fingerprint: module_.object.fingerprint,
-        object_fingerprint: module_object_fingerprint(
+        object_fingerprint: @module_compile.module_object_fingerprint(
           module_.object.fingerprint,
           module_.object.metadata,
           module_.object.terms,
@@ -2883,7 +2886,7 @@ test "link modules rejects stale imported reference fingerprint" {
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      {
+      @module_compile.CompiledModule::{
         module_path_text: module_.module_path_text,
         interface: module_.interface,
         object,
@@ -2925,7 +2928,7 @@ test "link modules rejects missing exported object value" {
   let damaged_modules = modules.modules.map(fn(module_) {
     if module_.module_path_text == "Lib" {
       let exports = []
-      let object : ModuleObject = {
+      let object : @module_compile.ModuleObject = {
         module_path_text: module_.object.module_path_text,
         checked: module_.object.checked,
         metadata: module_.object.metadata,
@@ -2935,7 +2938,7 @@ test "link modules rejects missing exported object value" {
         exports,
         imports: module_.object.imports,
         fingerprint: module_.object.fingerprint,
-        object_fingerprint: module_object_fingerprint(
+        object_fingerprint: @module_compile.module_object_fingerprint(
           module_.object.fingerprint,
           module_.object.metadata,
           module_.object.terms,
@@ -2947,7 +2950,7 @@ test "link modules rejects missing exported object value" {
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      {
+      @module_compile.CompiledModule::{
         module_path_text: module_.module_path_text,
         interface: module_.interface,
         object,
@@ -3002,13 +3005,13 @@ test "link modules rejects compiled artifact import cycle" {
   let module_a = module_with_imported_interfaces(module_a, [
     {
       module_path_text: "B",
-      fingerprint: interface_fingerprint(module_b.interface),
+      fingerprint: @module_compile.interface_fingerprint(module_b.interface),
     },
   ])
   let module_b = module_with_imported_interfaces(module_b, [
     {
       module_path_text: "A",
-      fingerprint: interface_fingerprint(module_a.interface),
+      fingerprint: @module_compile.interface_fingerprint(module_a.interface),
     },
   ])
   let linked = link_modules({
@@ -4456,9 +4459,9 @@ test "analysis does not mark explicit named auto arguments as implicit" {
 
 ///|
 fn find_artifact_module(
-  modules : Array[CompiledModuleArtifact],
+  modules : Array[@module_compile.CompiledModuleArtifact],
   module_path_text : String,
-) -> CompiledModuleArtifact? {
+) -> @module_compile.CompiledModuleArtifact? {
   for module_ in modules {
     if module_.module_path_text == module_path_text {
       return Some(module_)
@@ -4479,7 +4482,7 @@ fn runtime_operation_index(operation : @buslane.OperationId?) -> Int {
 fn runtime_operation_result_index(
   operation : Result[
     @buslane.OperationId,
-    RuntimeEffectOperationValidationError,
+    @module_compile.RuntimeEffectOperationValidationError,
   ],
 ) -> Int {
   match operation {
@@ -4560,11 +4563,16 @@ fn artifact_inspect_without_fingerprints(text : String) -> String {
 }
 
 ///|
+fn entry_display_name(entry : @buslane_lowering.BuslaneEntry) -> String {
+  "\{entry.module_path_text}.\{entry.name}"
+}
+
+///|
 fn module_with_imported_interfaces(
-  module_ : CompiledModule,
+  module_ : @module_compile.CompiledModule,
   imported : Array[@artifact_core.ImportedInterfaceFingerprint],
-) -> CompiledModule {
-  let object : ModuleObject = {
+) -> @module_compile.CompiledModule {
+  let object : @module_compile.ModuleObject = {
     module_path_text: module_.object.module_path_text,
     checked: module_.object.checked,
     metadata: module_.object.metadata,
@@ -4574,7 +4582,7 @@ fn module_with_imported_interfaces(
     exports: module_.object.exports,
     imports: module_.object.imports,
     fingerprint: module_.object.fingerprint,
-    object_fingerprint: module_object_fingerprint(
+    object_fingerprint: @module_compile.module_object_fingerprint(
       module_.object.fingerprint,
       module_.object.metadata,
       module_.object.terms,

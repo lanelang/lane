@@ -190,7 +190,7 @@ fn find_module_export(
 }
 
 ///|
-fn find_compiled_module(
+pub fn find_compiled_module(
   modules : Array[CompiledModule],
   path : String,
 ) -> CompiledModule? {

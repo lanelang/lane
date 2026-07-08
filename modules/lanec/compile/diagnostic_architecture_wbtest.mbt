@@ -7,7 +7,7 @@ struct DiagnosticArchitectureReport {
 
 ///|
 test "diagnostic ownership stays phase-local" {
-  let diagnostic_source = read_compile_source("diagnostic.mbt")
+  let diagnostic_source = read_compile_source("compile.mbt")
   let report : DiagnosticArchitectureReport = {
     forbidden_markers: forbidden_diagnostic_markers(diagnostic_source),
     missing_owner_files: missing_diagnostic_owner_files(),
@@ -37,17 +37,20 @@ fn forbidden_diagnostic_markers(source : String) -> Array[String] {
 ///|
 fn missing_diagnostic_owner_files() -> Array[String] {
   [
-    "compile_boundary_diagnostic.mbt", "artifact_diagnostic.mbt", "link_diagnostic.mbt",
-    "../parser/diagnostic.mbt", "../resolve/diagnostic.mbt", "../typecheck/diagnostic.mbt",
+    "../module_compile/compile_boundary_diagnostic.mbt", "../module_compile/artifact_diagnostic.mbt",
+    "../module_compile/link_diagnostic.mbt", "../parser/diagnostic.mbt", "../resolve/diagnostic.mbt",
+    "../typecheck/diagnostic.mbt",
   ].filter(fn(path) { !compile_source_exists(path) })
 }
 
 ///|
 fn missing_diagnostic_owner_entries() -> Array[String] {
   let entries : Array[(String, String)] = [
-    ("compile_boundary_diagnostic.mbt", "compile_boundary_diagnostic("),
-    ("artifact_diagnostic.mbt", "artifact_diagnostic("),
-    ("link_diagnostic.mbt", "link_diagnostic("),
+    (
+      "../module_compile/compile_boundary_diagnostic.mbt", "compile_boundary_diagnostic(",
+    ),
+    ("../module_compile/artifact_diagnostic.mbt", "artifact_diagnostic("),
+    ("../module_compile/link_diagnostic.mbt", "link_diagnostic("),
     ("../parser/diagnostic.mbt", "impl @compiler_diag.ToCompilerDiagnostic"),
     ("../resolve/diagnostic.mbt", "impl @compiler_diag.ToCompilerDiagnostic"),
     ("../typecheck/diagnostic.mbt", "impl @compiler_diag.ToCompilerDiagnostic"),

@@ -55,7 +55,7 @@ async fn write_binary_file(path : String, bytes : Bytes) -> Unit {
 ///|
 async fn write_module_interface_artifact(
   path : String,
-  module_ : @compile.CompiledModule,
+  module_ : @module_compile.CompiledModule,
 ) -> Unit {
   write_binary_file(
     path,
@@ -68,7 +68,7 @@ async fn write_module_interface_artifact(
 ///|
 async fn write_module_object_artifact(
   path : String,
-  module_ : @compile.CompiledModule,
+  module_ : @module_compile.CompiledModule,
 ) -> Unit {
   write_binary_file(
     path,
@@ -81,7 +81,7 @@ async fn write_module_object_artifact(
 ///|
 async fn read_module_interface_artifact(
   path : String,
-) -> Result[@compile.ModuleInterfaceArtifact, CliError] {
+) -> Result[@module_compile.ModuleInterfaceArtifact, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
@@ -95,7 +95,7 @@ async fn read_module_interface_artifact(
 ///|
 async fn read_module_object_artifact(
   path : String,
-) -> Result[@compile.ModuleObjectArtifact, CliError] {
+) -> Result[@module_compile.ModuleObjectArtifact, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
@@ -109,7 +109,7 @@ async fn read_module_object_artifact(
 ///|
 async fn write_linked_program_artifact(
   path : String,
-  program : @compile.LinkedExecutableProgram,
+  program : @module_compile.LinkedExecutableProgram,
 ) -> Unit {
   write_binary_file(
     path,
@@ -120,7 +120,7 @@ async fn write_linked_program_artifact(
 ///|
 async fn read_linked_program_artifact(
   path : String,
-) -> Result[@compile.LinkedExecutableProgram, CliError] {
+) -> Result[@module_compile.LinkedExecutableProgram, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Exec, path, "\{error}"))
   }
@@ -148,7 +148,7 @@ async fn read_linked_program_artifact(
 ///|
 async fn read_module_object_artifacts(
   object_paths : Array[String],
-) -> Result[Array[@compile.ModuleObjectArtifact], CliError] {
+) -> Result[Array[@module_compile.ModuleObjectArtifact], CliError] {
   let objects = []
   for path in object_paths {
     let artifact = match read_module_object_artifact(path) {
@@ -169,9 +169,9 @@ async fn read_module_object_artifacts(
 
 ///|
 fn find_object_artifact(
-  objects : Array[@compile.ModuleObjectArtifact],
+  objects : Array[@module_compile.ModuleObjectArtifact],
   module_path_text : String,
-) -> @compile.ModuleObjectArtifact? {
+) -> @module_compile.ModuleObjectArtifact? {
   for object in objects {
     if object.module_path_text == module_path_text {
       return Some(object)
@@ -183,7 +183,7 @@ fn find_object_artifact(
 ///|
 async fn read_module_interface_artifacts(
   interfaces : Array[String],
-) -> Result[Array[@compile.ModuleInterfaceArtifact], CliError] {
+) -> Result[Array[@module_compile.ModuleInterfaceArtifact], CliError] {
   let artifacts = []
   for interface in interfaces {
     let artifact = match read_module_interface_artifact(interface) {

@@ -9,6 +9,7 @@ import {
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/format",
   "Milky2018/lanec/intrinsics",
+  "Milky2018/lanec/module_compile",
   "Milky2018/lanec/module_frontend",
   "Milky2018/lanec/types",
   "Milky2018/lane/lsp",

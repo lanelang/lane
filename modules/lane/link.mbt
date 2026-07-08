@@ -9,7 +9,7 @@ async fn lane_link(
     Ok(objects) => objects
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let linked = @compile.link_module_object_artifacts(object_artifacts)
+  let linked = @module_compile.link_module_object_artifacts(object_artifacts)
   if !linked.diagnostics.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
       linked.diagnostics,

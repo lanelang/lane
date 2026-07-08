@@ -161,6 +161,7 @@ graph TD
   ISS_145["ISS-145: Clean artifact binary package file names"]
   ISS_146["ISS-146: Extract Buslane lowering into a coherent package"]
   ISS_147["ISS-147: Separate compile analysis and LSP-facing analysis responsibilities"]
+  ISS_148["ISS-148: Extract module compile file family into an explicit package boundary"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

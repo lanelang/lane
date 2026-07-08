@@ -251,7 +251,7 @@ fn command_runtime_effect_operation(
 ///|
 fn runtime_effect_operation_matches(
   operation : @artifact_core.LinkedRuntimeEffectOperation,
-  signature : @compile.RuntimeEffectOperationSignature,
+  signature : @module_compile.RuntimeEffectOperationSignature,
 ) -> Bool {
   operation.module_path_text == signature.module_path_text &&
   operation.effect_name == signature.effect_name &&
@@ -261,7 +261,7 @@ fn runtime_effect_operation_matches(
 }
 
 ///|
-fn basic_io_write_println_signature() -> @compile.RuntimeEffectOperationSignature {
+fn basic_io_write_println_signature() -> @module_compile.RuntimeEffectOperationSignature {
   {
     module_path_text: "Basic.Io",
     effect_name: "Write",

@@ -15,7 +15,7 @@ pub(all) struct CompileResult {
 
 ///|
 pub(all) struct CompileModulesResult {
-  modules : CompiledModuleSet?
+  modules : @module_compile.CompiledModuleSet?
   diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
@@ -50,7 +50,10 @@ pub fn check_source_inputs(
   match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) =>
       match
-        find_compiled_module(modules.modules, modules.root_module_path_text) {
+        @module_compile.find_compiled_module(
+          modules.modules,
+          modules.root_module_path_text,
+        ) {
         Some(root) =>
           {
             source: Some(root.object.checked),
@@ -59,7 +62,7 @@ pub fn check_source_inputs(
         None =>
           {
             source: None,
-            diagnostics: [compile_boundary_diagnostic(NoRootSourceModule, None)],
+            diagnostics: [@module_compile.no_root_source_module_diagnostic()],
           }
       }
     Err(diagnostics) => { source: None, diagnostics }
@@ -70,7 +73,7 @@ pub fn check_source_inputs(
 /// Checks one Lane source module against already compiled module interfaces.
 pub fn check_source_with_interface_artifacts(
   root_source : String,
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
 ) -> CheckResult {
   check_source_input_with_interface_artifacts(
     { source_id: "<root>", text: root_source },
@@ -82,12 +85,18 @@ pub fn check_source_with_interface_artifacts(
 /// Checks one Lane source module against already compiled module interfaces.
 pub fn check_source_input_with_interface_artifacts(
   root_source : @module_frontend.SourceInput,
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
 ) -> CheckResult {
-  match compile_module_from_interface_artifacts(root_source, interfaces) {
+  match
+    @module_compile.compile_module_from_interface_artifacts(
+      root_source, interfaces,
+    ) {
     Ok(modules) =>
       match
-        find_compiled_module(modules.modules, modules.root_module_path_text) {
+        @module_compile.find_compiled_module(
+          modules.modules,
+          modules.root_module_path_text,
+        ) {
         Some(root) =>
           {
             source: Some(root.object.checked),
@@ -96,7 +105,7 @@ pub fn check_source_input_with_interface_artifacts(
         None =>
           {
             source: None,
-            diagnostics: [compile_boundary_diagnostic(NoRootSourceModule, None)],
+            diagnostics: [@module_compile.no_root_source_module_diagnostic()],
           }
       }
     Err(diagnostics) => { source: None, diagnostics }
@@ -135,7 +144,7 @@ pub fn compile_module_inputs(
 /// Compiles one Lane source module against already compiled module interfaces.
 pub fn compile_module_with_interface_artifacts(
   root_source : String,
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
 ) -> CompileModulesResult {
   compile_module_input_with_interface_artifacts(
     { source_id: "<root>", text: root_source },
@@ -147,9 +156,12 @@ pub fn compile_module_with_interface_artifacts(
 /// Compiles one Lane source module against already compiled module interfaces.
 pub fn compile_module_input_with_interface_artifacts(
   root_source : @module_frontend.SourceInput,
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
 ) -> CompileModulesResult {
-  match compile_module_from_interface_artifacts(root_source, interfaces) {
+  match
+    @module_compile.compile_module_from_interface_artifacts(
+      root_source, interfaces,
+    ) {
     Ok(modules) => { modules: Some(modules), diagnostics: modules.diagnostics }
     Err(diagnostics) => { modules: None, diagnostics }
   }
@@ -157,8 +169,10 @@ pub fn compile_module_input_with_interface_artifacts(
 
 ///|
 /// Links a compiled module set into a Buslane program.
-pub fn link_modules(modules : CompiledModuleSet) -> LinkResult {
-  link_compiled_module_set(modules)
+pub fn link_modules(
+  modules : @module_compile.CompiledModuleSet,
+) -> @module_compile.LinkResult {
+  @module_compile.link_compiled_module_set(modules)
 }
 
 ///|
@@ -194,7 +208,7 @@ pub fn compile_source_inputs(
 ) -> CompileResult {
   match compile_module_set_from_source_inputs(root_source, library_sources) {
     Ok(modules) => {
-      let linked = link_compiled_module_set(modules)
+      let linked = @module_compile.link_compiled_module_set(modules)
       match linked.program {
         Some(program) =>
           {
@@ -229,7 +243,7 @@ pub fn compile_source_inputs(
 fn compile_module_set_from_source_inputs(
   root_source : @module_frontend.SourceInput,
   library_sources : Array[@module_frontend.SourceInput],
-) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
+) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
   match
     @module_frontend.parse_module_input_set_from_inputs(
       root_source, library_sources,
@@ -238,7 +252,7 @@ fn compile_module_set_from_source_inputs(
     Ok(inputs) =>
       match @module_frontend.build_module_graph(inputs) {
         Err(diagnostics) => Err(diagnostics)
-        Ok(graph) => compile_module_graph(graph)
+        Ok(graph) => @module_compile.compile_module_graph(graph)
       }
   }
 }

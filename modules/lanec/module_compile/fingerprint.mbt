@@ -30,7 +30,7 @@ fn imported_environment_fingerprints(
 }
 
 ///|
-fn module_fingerprint(
+pub fn module_fingerprint(
   interface : @module_interface.ModuleInterface,
   imported : Array[@artifact_core.ImportedInterfaceFingerprint],
 ) -> @artifact_core.CompilationFingerprint {
@@ -52,7 +52,7 @@ fn module_fingerprint_payload(
 }
 
 ///|
-fn module_object_fingerprint(
+pub fn module_object_fingerprint(
   module_fingerprint : @artifact_core.CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
@@ -100,7 +100,7 @@ fn module_object_fingerprint_payload_bytes(
 }
 
 ///|
-fn interface_fingerprint(
+pub fn interface_fingerprint(
   interface : @module_interface.ModuleInterface,
 ) -> @artifact_core.CompilationFingerprint {
   fingerprint_hash(
