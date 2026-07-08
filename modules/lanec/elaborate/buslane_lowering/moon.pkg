@@ -2,7 +2,7 @@ import {
   "Milky2018/buslane",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
-  "Milky2018/lanec/module/interface" @module_interface,
+  "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/types",
 }

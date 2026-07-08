@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Milky2018/lanec/module/interface"
+package "Milky2018/lanec/module"
 
 import {
   "Milky2018/lanec/basic",

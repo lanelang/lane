@@ -6,7 +6,7 @@ import {
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/compile" @module_compile,
-  "Milky2018/lanec/module/interface" @module_interface,
+  "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",

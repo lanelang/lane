@@ -5,7 +5,7 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/diagnostic",
-  "Milky2018/lanec/module/interface",
+  "Milky2018/lanec/module",
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/types",
@@ -16,7 +16,7 @@ import {
 // Values
 pub fn typecheck_checked_source_file(@resolve.ResolvedSourceFile) -> CheckedSourceTypeCheckResult
 
-pub fn typecheck_checked_source_file_with_imported_environment(@resolve.ResolvedSourceFile, @interface.ImportedEnvironment) -> CheckedSourceTypeCheckResult
+pub fn typecheck_checked_source_file_with_imported_environment(@resolve.ResolvedSourceFile, @module.ImportedEnvironment) -> CheckedSourceTypeCheckResult
 
 pub fn typecheck_declarations(@resolve.ResolvedSourceFile) -> DeclarationTypeCheckResult
 
@@ -97,7 +97,7 @@ pub impl @prettyprinter.Pretty for CheckedLetDeclaration
 
 pub(all) struct CheckedSourceTypeCheckResult {
   source : @checked.CheckedSourceFile?
-  module_interface : @interface.ModuleInterface?
+  module_interface : @module.ModuleInterface?
   diagnostics : Array[TypeCheckDiagnostic]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedSourceTypeCheckResult

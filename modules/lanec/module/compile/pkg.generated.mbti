@@ -7,8 +7,8 @@ import {
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/module",
   "Milky2018/lanec/module/frontend",
-  "Milky2018/lanec/module/interface",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -21,7 +21,7 @@ pub fn compile_module_graph(@frontend.ModuleGraph) -> Result[CompiledModuleSet, 
 
 pub fn find_compiled_module(Array[CompiledModule], String) -> CompiledModule?
 
-pub fn interface_fingerprint(@interface.ModuleInterface) -> @artifact_core.CompilationFingerprint
+pub fn interface_fingerprint(@module.ModuleInterface) -> @artifact_core.CompilationFingerprint
 
 pub fn link_compiled_module_set(CompiledModuleSet) -> LinkResult
 
@@ -33,7 +33,7 @@ pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> LinkResult
 
 pub let linked_program_artifact_schema_version : Int
 
-pub fn module_fingerprint(@interface.ModuleInterface, Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
+pub fn module_fingerprint(@module.ModuleInterface, Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
 
 pub let module_object_artifact_schema_version : Int
 
@@ -46,7 +46,7 @@ pub fn no_root_source_module_diagnostic() -> @diagnostic.CompilerDiagnostic
 // Types and methods
 pub(all) struct CompiledModule {
   module_path_text : String
-  interface : @interface.ModuleInterface
+  interface : @module.ModuleInterface
   object : ModuleObject
   fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
@@ -120,7 +120,7 @@ pub impl @prettyprinter.Pretty for LinkedProgramArtifact
 pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int
   module_path_text : String
-  interface : @interface.ModuleInterface
+  interface : @module.ModuleInterface
   interface_fingerprint : @artifact_core.CompilationFingerprint
   module_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
