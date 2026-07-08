@@ -49,7 +49,7 @@ async fn lane_link(
 }
 
 ///|
-fn display_entry(entry : @elaborate.BuslaneEntry) -> String {
+fn display_entry(entry : @buslane_lowering.BuslaneEntry) -> String {
   "\{entry.module_path_text}.\{entry.name}"
 }
 

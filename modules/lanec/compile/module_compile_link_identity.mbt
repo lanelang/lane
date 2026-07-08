@@ -60,16 +60,16 @@ priv struct LinkIdentityMaps {
 priv struct RemappedModuleObject {
   module_path_text : String
   terms : Array[@buslane.TopTerm]
-  externals : @elaborate.BuslaneExternalMap
-  entries : Array[@elaborate.BuslaneEntry]
-  exports : Array[@elaborate.BuslaneModuleExport]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
+  exports : Array[@buslane_lowering.BuslaneModuleExport]
   fingerprint : @artifact_core.CompilationFingerprint
 }
 
 ///|
 priv struct LinkedModuleExport {
   module_path_text : String
-  kind : @elaborate.BuslaneModuleExportKind
+  kind : @buslane_lowering.BuslaneModuleExportKind
   name : String
   fingerprint : @artifact_core.CompilationFingerprint
   type_id : @buslane.TypeId?

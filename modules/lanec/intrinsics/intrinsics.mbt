@@ -4,7 +4,7 @@ type RuntimeValue = @buslane_interpreter.BuslaneRuntimeValue
 ///|
 /// Creates a Buslane external runtime for the standard Lane intrinsic set.
 pub fn standard_external_runtime(
-  external_map : @elaborate.BuslaneExternalMap,
+  external_map : @buslane_lowering.BuslaneExternalMap,
 ) -> @buslane_interpreter.BuslaneExternalRuntime {
   let runtime = @buslane_interpreter.BuslaneExternalRuntime()
   runtime.add_resolver((id, type_) => {
@@ -18,9 +18,9 @@ pub fn standard_external_runtime(
 
 ///|
 fn find_builtin_external(
-  external_map : @elaborate.BuslaneExternalMap,
+  external_map : @buslane_lowering.BuslaneExternalMap,
   id : @buslane.ValueId,
-) -> @elaborate.BuslaneBuiltinExternal? {
+) -> @buslane_lowering.BuslaneBuiltinExternal? {
   for external in external_map.builtins {
     if external.value == id {
       return Some(external)
@@ -31,7 +31,7 @@ fn find_builtin_external(
 
 ///|
 fn resolve_standard_intrinsic(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   type_ : @buslane.Type,
 ) -> RuntimeValue {
   match external.name {
@@ -112,7 +112,7 @@ fn native(
 
 ///|
 fn int_binary(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
   op : (Int64, Int64) -> Int64,
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
@@ -122,7 +122,7 @@ fn int_binary(
 
 ///|
 fn int_unary(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
   op : (Int64) -> Int64,
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
@@ -137,7 +137,7 @@ fn int_unary(
 
 ///|
 fn int_compare(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
   op : (Int64, Int64) -> Bool,
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
@@ -147,7 +147,7 @@ fn int_compare(
 
 ///|
 fn double_binary(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
   op : (Double, Double) -> Double,
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
@@ -157,7 +157,7 @@ fn double_binary(
 
 ///|
 fn double_unary(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
   op : (Double) -> Double,
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
@@ -172,7 +172,7 @@ fn double_unary(
 
 ///|
 fn double_compare(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
   op : (Double, Double) -> Bool,
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
@@ -182,7 +182,7 @@ fn double_compare(
 
 ///|
 fn string_compare(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
   op : (String, String) -> Bool,
 ) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
@@ -192,7 +192,7 @@ fn string_compare(
 
 ///|
 fn expect_two_doubles(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
 ) -> (Double, Double) raise @buslane_interpreter.BuslaneRuntimeError {
   if arguments.length() != 2 {
@@ -209,7 +209,7 @@ fn expect_two_doubles(
 
 ///|
 fn expect_two_ints(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
 ) -> (Int64, Int64) raise @buslane_interpreter.BuslaneRuntimeError {
   if arguments.length() != 2 {
@@ -226,7 +226,7 @@ fn expect_two_ints(
 
 ///|
 fn expect_two_strings(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   arguments : Array[RuntimeValue],
 ) -> (String, String) raise @buslane_interpreter.BuslaneRuntimeError {
   if arguments.length() != 2 {
@@ -243,7 +243,7 @@ fn expect_two_strings(
 
 ///|
 fn[T] intrinsic_failure(
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
   message : String,
 ) -> T raise @buslane_interpreter.BuslaneRuntimeError {
   raise @buslane_interpreter.external_failure(external.value, message)

@@ -68,9 +68,9 @@ async fn lane_run(
 ///|
 fn execute_entry(
   program : @buslane.Program,
-  externals : @elaborate.BuslaneExternalMap,
+  externals : @buslane_lowering.BuslaneExternalMap,
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
 ) -> LaneCommandOutcome {
   execute_entry_with_output(
     program,
@@ -84,9 +84,9 @@ fn execute_entry(
 ///|
 fn execute_linked_entry(
   program : @buslane.Program,
-  externals : @elaborate.BuslaneExternalMap,
+  externals : @buslane_lowering.BuslaneExternalMap,
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
 ) -> LaneCommandOutcome {
   execute_linked_entry_with_output(
     program,
@@ -100,9 +100,9 @@ fn execute_linked_entry(
 ///|
 fn execute_entry_with_output(
   program : @buslane.Program,
-  externals : @elaborate.BuslaneExternalMap,
+  externals : @buslane_lowering.BuslaneExternalMap,
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
   let runtime_effects = command_runtime_effects(
@@ -119,7 +119,7 @@ fn execute_entry_with_output(
 
 ///|
 fn validate_executable_entry(
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
   runtime_effects : Array[@buslane.EffectId],
 ) -> Result[Unit, CliError] {
   guard entry.type_ is Function(parameters, result, effect) else {
@@ -164,9 +164,9 @@ fn validate_executable_entry(
 ///|
 fn execute_linked_entry_with_output(
   program : @buslane.Program,
-  externals : @elaborate.BuslaneExternalMap,
+  externals : @buslane_lowering.BuslaneExternalMap,
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
   let external_runtime = command_external_runtime(
@@ -190,7 +190,7 @@ fn execute_linked_entry_with_output(
 
 ///|
 fn command_external_runtime(
-  externals : @elaborate.BuslaneExternalMap,
+  externals : @buslane_lowering.BuslaneExternalMap,
   program : @buslane.Program,
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
   write_line : (String) -> Unit,
@@ -291,9 +291,9 @@ fn entry_effect_is_supported(
 
 ///|
 fn find_entry(
-  entries : Array[@elaborate.BuslaneEntry],
+  entries : Array[@buslane_lowering.BuslaneEntry],
   name : String,
-) -> Result[@elaborate.BuslaneEntry, CliError] {
+) -> Result[@buslane_lowering.BuslaneEntry, CliError] {
   let matched = entries.filter(entry => entry.name == name)
   match matched.length() {
     1 => Ok(matched[0])
@@ -304,9 +304,9 @@ fn find_entry(
 
 ///|
 fn find_public_entry(
-  entries : Array[@elaborate.BuslaneEntry],
+  entries : Array[@buslane_lowering.BuslaneEntry],
   name : PublicEntryName,
-) -> Result[@elaborate.BuslaneEntry, CliError] {
+) -> Result[@buslane_lowering.BuslaneEntry, CliError] {
   let matched = entries.filter(fn(entry) {
     entry.module_path_text == name.module_path_text &&
     entry.name == name.value_name

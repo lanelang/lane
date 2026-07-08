@@ -1,0 +1,17 @@
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/module_interface",
+  "Milky2018/lanec/symbol",
+  "Milky2018/lanec/types",
+}
+
+import {
+  "Milky2018/lanec/parser",
+  "Milky2018/lanec/pretty",
+  "Milky2018/lanec/resolve",
+  "Milky2018/lanec/syntax",
+  "Milky2018/lanec/typecheck",
+  "moonbit-community/prettyprinter",
+} for "wbtest"

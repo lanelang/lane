@@ -1,0 +1,95 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/elaborate/buslane_lowering"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/module_interface",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program
+
+pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, @module_interface.ImportedEnvironment) -> BuslaneModuleObject
+
+pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult
+
+pub fn lower_checked_source_files_to_buslane_objects(Array[@checked.CheckedSourceFile]) -> BuslaneModuleObjectSet
+
+pub fn lower_checked_source_files_to_buslane_result(@checked.CheckedSourceFile, Array[@checked.CheckedSourceFile]) -> BuslaneLowerResult
+
+// Errors
+
+// Types and methods
+pub(all) struct BuslaneBuiltinExternal {
+  value : @buslane.ValueId
+  name : String
+  type_ : @buslane.Type
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneEntry {
+  module_path_text : String
+  name : String
+  value : @buslane.ValueId
+  type_ : @buslane.Type
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneExternalMap {
+  builtins : Array[BuslaneBuiltinExternal]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneLowerResult {
+  program : @buslane.Program
+  externals : BuslaneExternalMap
+  entries : Array[BuslaneEntry]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneModuleExport {
+  kind : BuslaneModuleExportKind
+  name : String
+  type_id : @buslane.TypeId?
+  data_constructor : @buslane.DataConId?
+  effect_id : @buslane.EffectId?
+  operation : @buslane.OperationId?
+  value : @buslane.ValueId?
+} derive(Eq, @debug.Debug)
+
+pub(all) enum BuslaneModuleExportKind {
+  Type
+  DataConstructor
+  Effect
+  Operation
+  FieldSelector
+  Value
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneModuleImport {
+  module_path_text : String
+  kind : BuslaneModuleExportKind
+  name : String
+  type_id : @buslane.TypeId?
+  data_constructor : @buslane.DataConId?
+  effect_id : @buslane.EffectId?
+  operation : @buslane.OperationId?
+  value : @buslane.ValueId?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneModuleObject {
+  module_path_text : String
+  metadata : @buslane.MetadataRegistry
+  terms : Array[@buslane.TopTerm]
+  externals : BuslaneExternalMap
+  entries : Array[BuslaneEntry]
+  exports : Array[BuslaneModuleExport]
+  imports : Array[BuslaneModuleImport]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneModuleObjectSet {
+  objects : Array[BuslaneModuleObject]
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

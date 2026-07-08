@@ -4,7 +4,7 @@ package "Milky2018/lanec/compile/artifact_core"
 import {
   "Milky2018/buslane",
   "Milky2018/bytecodec",
-  "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/types",
   "moonbitlang/core/debug",
 }
@@ -26,15 +26,15 @@ pub fn write_buslane_value_id(@bytecodec.ByteWriter, @buslane.ValueId) -> Unit
 
 pub fn write_compilation_fingerprint(@bytecodec.ByteWriter, CompilationFingerprint) -> Unit
 
-pub fn write_entries(@bytecodec.ByteWriter, Array[@elaborate.BuslaneEntry]) -> Unit
+pub fn write_entries(@bytecodec.ByteWriter, Array[@buslane_lowering.BuslaneEntry]) -> Unit
 
-pub fn write_entry(@bytecodec.ByteWriter, @elaborate.BuslaneEntry) -> Unit
+pub fn write_entry(@bytecodec.ByteWriter, @buslane_lowering.BuslaneEntry) -> Unit
 
-pub fn write_export_kind(@bytecodec.ByteWriter, @elaborate.BuslaneModuleExportKind) -> Unit
+pub fn write_export_kind(@bytecodec.ByteWriter, @buslane_lowering.BuslaneModuleExportKind) -> Unit
 
-pub fn write_exports(@bytecodec.ByteWriter, Array[@elaborate.BuslaneModuleExport]) -> Unit
+pub fn write_exports(@bytecodec.ByteWriter, Array[@buslane_lowering.BuslaneModuleExport]) -> Unit
 
-pub fn write_externals(@bytecodec.ByteWriter, @elaborate.BuslaneExternalMap) -> Unit
+pub fn write_externals(@bytecodec.ByteWriter, @buslane_lowering.BuslaneExternalMap) -> Unit
 
 pub fn write_imported_interface_fingerprints(@bytecodec.ByteWriter, Array[ImportedInterfaceFingerprint]) -> Unit
 
@@ -73,7 +73,7 @@ pub(all) struct LinkedRuntimeEffectOperation {
 
 pub(all) struct ModuleImportedReference {
   module_path_text : String
-  kind : @elaborate.BuslaneModuleExportKind
+  kind : @buslane_lowering.BuslaneModuleExportKind
   name : String
   fingerprint : CompilationFingerprint
   type_id : @buslane.TypeId?

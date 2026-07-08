@@ -12,7 +12,7 @@ pub(all) struct ImportedInterfaceFingerprint {
 ///|
 pub(all) struct ModuleImportedReference {
   module_path_text : String
-  kind : @elaborate.BuslaneModuleExportKind
+  kind : @buslane_lowering.BuslaneModuleExportKind
   name : String
   fingerprint : CompilationFingerprint
   type_id : @buslane.TypeId?

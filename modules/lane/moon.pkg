@@ -6,7 +6,7 @@ import {
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/compile/artifact_binary",
   "Milky2018/lanec/diagnostic" @compiler_diag,
-  "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/format",
   "Milky2018/lanec/intrinsics",
   "Milky2018/lanec/types",

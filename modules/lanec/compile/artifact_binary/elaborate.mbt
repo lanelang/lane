@@ -1,8 +1,8 @@
 ///|
 fn @bytecodec.ByteReader::read_externals(
   self : @bytecodec.ByteReader,
-) -> @elaborate.BuslaneExternalMap raise {
-  let builtins : Array[@elaborate.BuslaneBuiltinExternal] = []
+) -> @buslane_lowering.BuslaneExternalMap raise {
+  let builtins : Array[@buslane_lowering.BuslaneBuiltinExternal] = []
   for _ in 0..<self.read_u32_le() {
     builtins.push({
       value: self.read_buslane_value_id(),
@@ -16,8 +16,8 @@ fn @bytecodec.ByteReader::read_externals(
 ///|
 fn @bytecodec.ByteReader::read_entries(
   self : @bytecodec.ByteReader,
-) -> Array[@elaborate.BuslaneEntry] raise {
-  let entries : Array[@elaborate.BuslaneEntry] = []
+) -> Array[@buslane_lowering.BuslaneEntry] raise {
+  let entries : Array[@buslane_lowering.BuslaneEntry] = []
   for _ in 0..<self.read_u32_le() {
     entries.push(self.read_entry())
   }
@@ -27,7 +27,7 @@ fn @bytecodec.ByteReader::read_entries(
 ///|
 fn @bytecodec.ByteReader::read_entry(
   self : @bytecodec.ByteReader,
-) -> @elaborate.BuslaneEntry raise {
+) -> @buslane_lowering.BuslaneEntry raise {
   {
     module_path_text: self.read_string(),
     name: self.read_string(),
@@ -39,7 +39,7 @@ fn @bytecodec.ByteReader::read_entry(
 ///|
 fn @bytecodec.ByteReader::read_export_kind(
   self : @bytecodec.ByteReader,
-) -> @elaborate.BuslaneModuleExportKind raise {
+) -> @buslane_lowering.BuslaneModuleExportKind raise {
   let offset = self.offset()
   match self.view() {
     [u8be(0), .. rest] => {
@@ -136,8 +136,8 @@ fn @bytecodec.ByteReader::read_optional_value_id(
 ///|
 fn @bytecodec.ByteReader::read_exports(
   self : @bytecodec.ByteReader,
-) -> Array[@elaborate.BuslaneModuleExport] raise {
-  let exports : Array[@elaborate.BuslaneModuleExport] = []
+) -> Array[@buslane_lowering.BuslaneModuleExport] raise {
+  let exports : Array[@buslane_lowering.BuslaneModuleExport] = []
   for _ in 0..<self.read_u32_le() {
     exports.push({
       kind: self.read_export_kind(),

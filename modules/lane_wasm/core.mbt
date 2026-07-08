@@ -60,7 +60,9 @@ fn explore_source(source : String) -> Json {
         [],
       )
     Some(source) => {
-      let buslane = @elaborate.lower_checked_source_file_to_buslane(source)
+      let buslane = @buslane_lowering.lower_checked_source_file_to_buslane(
+        source,
+      )
       let anf = @anf.lower_buslane_program_to_anf(buslane)
       let diagnostics = checked.diagnostics.map(compile_diagnostic_json)
       let status = if diagnostics.is_empty() {

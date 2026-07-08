@@ -7,8 +7,8 @@ pub(all) struct CheckResult {
 ///|
 pub(all) struct CompileResult {
   program : @buslane.Program?
-  externals : @elaborate.BuslaneExternalMap
-  entries : Array[@elaborate.BuslaneEntry]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
   diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)

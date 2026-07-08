@@ -8,7 +8,7 @@ fn lower_compiled_module_objects(
       module_.imported_interface_fingerprints,
       lowered_modules,
     )
-    let lowered = @elaborate.lower_checked_source_file_to_buslane_object_with_imports(
+    let lowered = @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
       module_.object.checked,
       imported,
     )
@@ -36,7 +36,7 @@ fn imported_interfaces_from_modules(
 ///|
 fn attach_lowered_object(
   module_ : CompiledModule,
-  lowered : @elaborate.BuslaneModuleObject,
+  lowered : @buslane_lowering.BuslaneModuleObject,
   imported_modules : Array[CompiledModule],
 ) -> CompiledModule {
   let imports = module_imported_references_from_lowered(
@@ -78,7 +78,7 @@ fn attach_lowered_object(
 ///|
 fn attach_lowered_object_from_interfaces(
   module_ : CompiledModule,
-  lowered : @elaborate.BuslaneModuleObject,
+  lowered : @buslane_lowering.BuslaneModuleObject,
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> CompiledModule {
   let imports = module_imported_references_from_interface_artifacts(
@@ -119,7 +119,7 @@ fn attach_lowered_object_from_interfaces(
 
 ///|
 fn module_imported_references_from_lowered(
-  imports : Array[@elaborate.BuslaneModuleImport],
+  imports : Array[@buslane_lowering.BuslaneModuleImport],
   imported_modules : Array[CompiledModule],
   module_path_text : String,
 ) -> Array[@artifact_core.ModuleImportedReference] {
@@ -148,7 +148,7 @@ fn module_imported_references_from_lowered(
 
 ///|
 fn module_imported_references_from_interface_artifacts(
-  imports : Array[@elaborate.BuslaneModuleImport],
+  imports : Array[@buslane_lowering.BuslaneModuleImport],
   interfaces : Array[ModuleInterfaceArtifact],
   module_path_text : String,
 ) -> Array[@artifact_core.ModuleImportedReference] {
@@ -177,10 +177,10 @@ fn module_imported_references_from_interface_artifacts(
 
 ///|
 fn find_module_export(
-  exports : Array[@elaborate.BuslaneModuleExport],
-  kind : @elaborate.BuslaneModuleExportKind,
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
+  kind : @buslane_lowering.BuslaneModuleExportKind,
   name : String,
-) -> @elaborate.BuslaneModuleExport? {
+) -> @buslane_lowering.BuslaneModuleExport? {
   for item in exports {
     if item.kind == kind && item.name == name {
       return Some(item)

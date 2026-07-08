@@ -3,11 +3,11 @@ package "Milky2018/lanec/intrinsics"
 
 import {
   "Milky2018/buslane/interpreter",
-  "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/elaborate/buslane_lowering",
 }
 
 // Values
-pub fn standard_external_runtime(@elaborate.BuslaneExternalMap) -> @interpreter.BuslaneExternalRuntime
+pub fn standard_external_runtime(@buslane_lowering.BuslaneExternalMap) -> @interpreter.BuslaneExternalRuntime
 
 // Errors
 

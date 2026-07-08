@@ -77,7 +77,7 @@ pub fn write_buslane_operation_id(
 ///|
 pub fn write_externals(
   writer : @bytecodec.ByteWriter,
-  externals : @elaborate.BuslaneExternalMap,
+  externals : @buslane_lowering.BuslaneExternalMap,
 ) -> Unit {
   writer.write_u32_le(externals.builtins.length())
   for external in externals.builtins {
@@ -90,7 +90,7 @@ pub fn write_externals(
 ///|
 pub fn write_entries(
   writer : @bytecodec.ByteWriter,
-  entries : Array[@elaborate.BuslaneEntry],
+  entries : Array[@buslane_lowering.BuslaneEntry],
 ) -> Unit {
   writer.write_u32_le(entries.length())
   for entry in entries {
@@ -101,7 +101,7 @@ pub fn write_entries(
 ///|
 pub fn write_entry(
   writer : @bytecodec.ByteWriter,
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
 ) -> Unit {
   writer.write_string(entry.module_path_text)
   writer.write_string(entry.name)
@@ -112,7 +112,7 @@ pub fn write_entry(
 ///|
 pub fn write_export_kind(
   writer : @bytecodec.ByteWriter,
-  kind : @elaborate.BuslaneModuleExportKind,
+  kind : @buslane_lowering.BuslaneModuleExportKind,
 ) -> Unit {
   writer.write_u8(
     match kind {
@@ -194,7 +194,7 @@ pub fn write_optional_value_id(
 ///|
 pub fn write_exports(
   writer : @bytecodec.ByteWriter,
-  exports : Array[@elaborate.BuslaneModuleExport],
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
 ) -> Unit {
   writer.write_u32_le(exports.length())
   for export_ in exports {

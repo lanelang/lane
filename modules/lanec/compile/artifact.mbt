@@ -24,9 +24,9 @@ pub(all) struct ModuleObjectArtifact {
   interface_fingerprint : @artifact_core.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
-  externals : @elaborate.BuslaneExternalMap
-  entries : Array[@elaborate.BuslaneEntry]
-  exports : Array[@elaborate.BuslaneModuleExport]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
+  exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
   module_fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
@@ -40,8 +40,8 @@ pub(all) struct LinkedProgramArtifact {
   schema_version : Int
   module_path_texts : Array[String]
   program : @buslane.Program
-  externals : @elaborate.BuslaneExternalMap
-  entry : @elaborate.BuslaneEntry
+  externals : @buslane_lowering.BuslaneExternalMap
+  entry : @buslane_lowering.BuslaneEntry
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
@@ -354,7 +354,7 @@ fn LinkedProgramArtifact::validate_entry(
 }
 
 ///|
-fn entry_display_name(entry : @elaborate.BuslaneEntry) -> String {
+fn entry_display_name(entry : @buslane_lowering.BuslaneEntry) -> String {
   "\{entry.module_path_text}.\{entry.name}"
 }
 

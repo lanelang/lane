@@ -17,82 +17,6 @@ pub(all) struct BuslaneElaborateResult {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct BuslaneBuiltinExternal {
-  value : @buslane.ValueId
-  name : String
-  type_ : @buslane.Type
-} derive(Debug, Eq)
-
-///|
-pub(all) struct BuslaneExternalMap {
-  builtins : Array[BuslaneBuiltinExternal]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct BuslaneEntry {
-  module_path_text : String
-  name : String
-  value : @buslane.ValueId
-  type_ : @buslane.Type
-} derive(Debug, Eq)
-
-///|
-pub(all) enum BuslaneModuleExportKind {
-  Type
-  DataConstructor
-  Effect
-  Operation
-  FieldSelector
-  Value
-} derive(Debug, Eq)
-
-///|
-pub(all) struct BuslaneModuleExport {
-  kind : BuslaneModuleExportKind
-  name : String
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
-} derive(Debug, Eq)
-
-///|
-pub(all) struct BuslaneModuleImport {
-  module_path_text : String
-  kind : BuslaneModuleExportKind
-  name : String
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
-} derive(Debug, Eq)
-
-///|
-pub(all) struct BuslaneLowerResult {
-  program : @buslane.Program
-  externals : BuslaneExternalMap
-  entries : Array[BuslaneEntry]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct BuslaneModuleObject {
-  module_path_text : String
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
-  externals : BuslaneExternalMap
-  entries : Array[BuslaneEntry]
-  exports : Array[BuslaneModuleExport]
-  imports : Array[BuslaneModuleImport]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct BuslaneModuleObjectSet {
-  objects : Array[BuslaneModuleObject]
-} derive(Debug, Eq)
-
-///|
 /// Elaborates a resolved source file into Checked Source AST when type checking
 /// succeeds and all checked-source nodes required by the file are implemented.
 pub fn elaborate_resolved_source_file(
@@ -110,7 +34,8 @@ pub fn elaborate_resolved_source_file_to_buslane(
 ) -> BuslaneElaborateResult {
   let result = @typecheck.typecheck_checked_source_file(source)
   let program = match result.source {
-    Some(source) => Some(lower_checked_source_file_to_buslane(source))
+    Some(source) =>
+      Some(@buslane_lowering.lower_checked_source_file_to_buslane(source))
     None => None
   }
   { program, diagnostics: result.diagnostics }
@@ -127,7 +52,7 @@ pub fn elaborate_resolved_source_file_to_anf(
     Some(source) =>
       Some(
         @anf.lower_buslane_program_to_anf(
-          lower_checked_source_file_to_buslane(source),
+          @buslane_lowering.lower_checked_source_file_to_buslane(source),
         ),
       )
     None => None

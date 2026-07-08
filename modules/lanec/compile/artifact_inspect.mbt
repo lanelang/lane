@@ -723,7 +723,7 @@ priv struct BuslaneInspectContext {
 ///|
 fn BuslaneInspectContext::entry_text(
   self : BuslaneInspectContext,
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
 ) -> String {
   "\{entry_display_name(entry)} : \{self.type_text(entry.type_)}"
 }
@@ -731,7 +731,7 @@ fn BuslaneInspectContext::entry_text(
 ///|
 fn BuslaneInspectContext::external_text(
   self : BuslaneInspectContext,
-  external : @elaborate.BuslaneBuiltinExternal,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> String {
   "\{external.name} : \{self.type_text(external.type_)}"
 }
@@ -873,12 +873,12 @@ fn import_reference_text(
 }
 
 ///|
-fn export_text(export_ : @elaborate.BuslaneModuleExport) -> String {
+fn export_text(export_ : @buslane_lowering.BuslaneModuleExport) -> String {
   "\{export_kind_text(export_.kind)} \{export_.name}"
 }
 
 ///|
-fn export_kind_text(kind : @elaborate.BuslaneModuleExportKind) -> String {
+fn export_kind_text(kind : @buslane_lowering.BuslaneModuleExportKind) -> String {
   match kind {
     Type => "type"
     DataConstructor => "data constructor"

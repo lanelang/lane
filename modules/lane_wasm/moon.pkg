@@ -5,7 +5,7 @@ import {
   "Milky2018/lanec/checked",
   "Milky2018/lanec/compile",
   "Milky2018/lanec/diagnostic" @compiler_diag,
-  "Milky2018/lanec/elaborate",
+  "Milky2018/lanec/elaborate/buslane_lowering",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",

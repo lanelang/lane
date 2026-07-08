@@ -137,7 +137,7 @@ fn validate_imported_references(
 ///|
 fn imported_reference_shape_matches_export(
   imported : @artifact_core.ModuleImportedReference,
-  item : @elaborate.BuslaneModuleExport,
+  item : @buslane_lowering.BuslaneModuleExport,
 ) -> Bool {
   if imported.kind != item.kind {
     return false
@@ -265,7 +265,7 @@ fn validate_imported_exports(
 
 ///|
 fn module_exports_value(
-  exports : Array[@elaborate.BuslaneModuleExport],
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
   exports.any(fn(item) { item.kind is Value && item.name == name })
@@ -273,7 +273,7 @@ fn module_exports_value(
 
 ///|
 fn module_exports_type(
-  exports : Array[@elaborate.BuslaneModuleExport],
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
   exports.any(fn(item) { item.kind is Type && item.name == name })
@@ -281,7 +281,7 @@ fn module_exports_type(
 
 ///|
 fn module_exports_data_constructor(
-  exports : Array[@elaborate.BuslaneModuleExport],
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
   exports.any(fn(item) { item.kind is DataConstructor && item.name == name })
@@ -289,7 +289,7 @@ fn module_exports_data_constructor(
 
 ///|
 fn module_exports_effect(
-  exports : Array[@elaborate.BuslaneModuleExport],
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
   exports.any(fn(item) { item.kind is Effect && item.name == name })
@@ -297,7 +297,7 @@ fn module_exports_effect(
 
 ///|
 fn module_exports_operation(
-  exports : Array[@elaborate.BuslaneModuleExport],
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
   exports.any(fn(item) { item.kind is Operation && item.name == name })
@@ -305,7 +305,7 @@ fn module_exports_operation(
 
 ///|
 fn module_exports_field_selector(
-  exports : Array[@elaborate.BuslaneModuleExport],
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
   exports.any(fn(item) { item.kind is FieldSelector && item.name == name })

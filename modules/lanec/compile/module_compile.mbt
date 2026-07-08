@@ -4,9 +4,9 @@ pub(all) struct ModuleObject {
   checked : @checked.CheckedSourceFile
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
-  externals : @elaborate.BuslaneExternalMap
-  entries : Array[@elaborate.BuslaneEntry]
-  exports : Array[@elaborate.BuslaneModuleExport]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
+  exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
   fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
@@ -38,8 +38,8 @@ pub(all) struct CompiledModuleSet {
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
-  externals : @elaborate.BuslaneExternalMap
-  entries : Array[@elaborate.BuslaneEntry]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
@@ -47,8 +47,8 @@ pub(all) struct LinkedProgram {
 pub(all) struct LinkedExecutableProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
-  externals : @elaborate.BuslaneExternalMap
-  entry : @elaborate.BuslaneEntry
+  externals : @buslane_lowering.BuslaneExternalMap
+  entry : @buslane_lowering.BuslaneEntry
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Debug, Eq)
 
@@ -107,7 +107,7 @@ pub fn LinkedProgramArtifact::validate_runtime_effect_operation(
 ///|
 pub fn LinkedProgram::to_executable(
   self : LinkedProgram,
-  entry : @elaborate.BuslaneEntry,
+  entry : @buslane_lowering.BuslaneEntry,
 ) -> LinkedExecutableProgram {
   {
     module_path_texts: self.module_path_texts,
@@ -214,7 +214,7 @@ fn compile_module_from_interface_artifacts(
       let module_ = module_.with_imported_interface_fingerprints(
         imported_fingerprints,
       )
-      let lowered = @elaborate.lower_checked_source_file_to_buslane_object_with_imports(
+      let lowered = @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
         module_.object.checked,
         imported,
       )

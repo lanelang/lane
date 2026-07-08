@@ -61,8 +61,14 @@ enum CliError {
   ArtifactLoad(path~ : String, kind~ : String, message~ : String)
   DuplicateObjectArtifact(module_path_text~ : String)
   RootLibraryInput(root~ : String, library~ : String)
-  EntryNotFound(name~ : String, entries~ : Array[@elaborate.BuslaneEntry])
-  EntryAmbiguous(name~ : String, entries~ : Array[@elaborate.BuslaneEntry])
+  EntryNotFound(
+    name~ : String,
+    entries~ : Array[@buslane_lowering.BuslaneEntry]
+  )
+  EntryAmbiguous(
+    name~ : String,
+    entries~ : Array[@buslane_lowering.BuslaneEntry]
+  )
   EntryNotExecutable(
     name~ : String,
     type_~ : @buslane.Type,
@@ -389,7 +395,9 @@ fn CommandReport::render_header(self : CommandReport) -> String {
 }
 
 ///|
-fn available_entries_text(entries : Array[@elaborate.BuslaneEntry]) -> String {
+fn available_entries_text(
+  entries : Array[@buslane_lowering.BuslaneEntry],
+) -> String {
   let names = entries.map(display_entry)
   if names.is_empty() {
     "(none)"

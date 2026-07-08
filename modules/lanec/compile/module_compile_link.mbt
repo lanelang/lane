@@ -33,7 +33,7 @@ fn link_ordered_modules(
   let module_path_texts = []
   let terms = []
   let builtins = []
-  let entries : Array[@elaborate.BuslaneEntry] = []
+  let entries : Array[@buslane_lowering.BuslaneEntry] = []
   let runtime_effect_operations : Array[
     @artifact_core.LinkedRuntimeEffectOperation,
   ] = []
