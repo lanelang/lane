@@ -163,6 +163,7 @@ graph TD
   ISS_147["ISS-147: Separate compile analysis and LSP-facing analysis responsibilities"]
   ISS_148["ISS-148: Extract module compile file family into an explicit package boundary"]
   ISS_149["ISS-149: Separate interface artifacts from object artifacts"]
+  ISS_150["ISS-150: Group module packages under module subsystem"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -285,6 +286,7 @@ graph TD
   ISS_142 --> ISS_143
   ISS_143 --> ISS_144
   ISS_148 --> ISS_149
+  ISS_149 --> ISS_150
 ```
 
 ## Warnings

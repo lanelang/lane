@@ -5,24 +5,24 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/diagnostic",
-  "Milky2018/lanec/module_frontend",
+  "Milky2018/lanec/module/frontend",
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn analyze_import_reachable_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> AnalysisResult
+pub fn analyze_import_reachable_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> AnalysisResult
 
-pub fn analyze_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> AnalysisResult
+pub fn analyze_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> AnalysisResult
 
 pub fn analyze_sources(String, Array[String]) -> AnalysisResult
 
 pub fn checked_unused_local_value_binding_diagnostics(@checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
 
-pub fn complete_import_reachable_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
+pub fn complete_import_reachable_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
 
-pub fn complete_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
+pub fn complete_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
 
 pub fn unused_generic_parameter_diagnostics(@resolve.ResolvedSourceFile, @checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
 

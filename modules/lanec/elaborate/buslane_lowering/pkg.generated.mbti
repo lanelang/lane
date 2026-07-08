@@ -4,14 +4,14 @@ package "Milky2018/lanec/elaborate/buslane_lowering"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/checked",
-  "Milky2018/lanec/module_interface",
+  "Milky2018/lanec/module/interface",
   "moonbitlang/core/debug",
 }
 
 // Values
 pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program
 
-pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, @module_interface.ImportedEnvironment) -> BuslaneModuleObject
+pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, @interface.ImportedEnvironment) -> BuslaneModuleObject
 
 pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult
 

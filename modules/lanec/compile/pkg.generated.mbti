@@ -7,37 +7,36 @@ import {
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
-  "Milky2018/lanec/module_compile",
-  "Milky2018/lanec/module_frontend",
+  "Milky2018/lanec/module/frontend",
   "moonbitlang/core/debug",
 }
 
 // Values
 pub fn check_source(String) -> CheckResult
 
-pub fn check_source_input_with_interface_artifacts(@module_frontend.SourceInput, Array[@module_compile.ModuleInterfaceArtifact]) -> CheckResult
+pub fn check_source_input_with_interface_artifacts(@frontend.SourceInput, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CheckResult
 
-pub fn check_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> CheckResult
+pub fn check_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> CheckResult
 
-pub fn check_source_with_interface_artifacts(String, Array[@module_compile.ModuleInterfaceArtifact]) -> CheckResult
+pub fn check_source_with_interface_artifacts(String, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CheckResult
 
 pub fn check_sources(String, Array[String]) -> CheckResult
 
-pub fn compile_module_input_with_interface_artifacts(@module_frontend.SourceInput, Array[@module_compile.ModuleInterfaceArtifact]) -> CompileModulesResult
+pub fn compile_module_input_with_interface_artifacts(@frontend.SourceInput, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CompileModulesResult
 
-pub fn compile_module_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> CompileModulesResult
+pub fn compile_module_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> CompileModulesResult
 
-pub fn compile_module_with_interface_artifacts(String, Array[@module_compile.ModuleInterfaceArtifact]) -> CompileModulesResult
+pub fn compile_module_with_interface_artifacts(String, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CompileModulesResult
 
 pub fn compile_modules(String, Array[String]) -> CompileModulesResult
 
 pub fn compile_source(String) -> CompileResult
 
-pub fn compile_source_inputs(@module_frontend.SourceInput, Array[@module_frontend.SourceInput]) -> CompileResult
+pub fn compile_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> CompileResult
 
 pub fn compile_sources(String, Array[String]) -> CompileResult
 
-pub fn link_modules(@module_compile.CompiledModuleSet) -> @module_compile.LinkResult
+pub fn link_modules(@Milky2018/lanec/module/compile.CompiledModuleSet) -> @Milky2018/lanec/module/compile.LinkResult
 
 // Errors
 
@@ -48,7 +47,7 @@ pub(all) struct CheckResult {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CompileModulesResult {
-  modules : @module_compile.CompiledModuleSet?
+  modules : @Milky2018/lanec/module/compile.CompiledModuleSet?
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 

@@ -37,8 +37,8 @@ fn forbidden_diagnostic_markers(source : String) -> Array[String] {
 ///|
 fn missing_diagnostic_owner_files() -> Array[String] {
   [
-    "../module_compile/compile_boundary_diagnostic.mbt", "../module_compile/artifact_diagnostic.mbt",
-    "../module_compile/link_diagnostic.mbt", "../parser/diagnostic.mbt", "../resolve/diagnostic.mbt",
+    "../module/compile/compile_boundary_diagnostic.mbt", "../module/compile/artifact_diagnostic.mbt",
+    "../module/compile/link_diagnostic.mbt", "../parser/diagnostic.mbt", "../resolve/diagnostic.mbt",
     "../typecheck/diagnostic.mbt",
   ].filter(fn(path) { !compile_source_exists(path) })
 }
@@ -47,10 +47,10 @@ fn missing_diagnostic_owner_files() -> Array[String] {
 fn missing_diagnostic_owner_entries() -> Array[String] {
   let entries : Array[(String, String)] = [
     (
-      "../module_compile/compile_boundary_diagnostic.mbt", "compile_boundary_diagnostic(",
+      "../module/compile/compile_boundary_diagnostic.mbt", "compile_boundary_diagnostic(",
     ),
-    ("../module_compile/artifact_diagnostic.mbt", "artifact_diagnostic("),
-    ("../module_compile/link_diagnostic.mbt", "link_diagnostic("),
+    ("../module/compile/artifact_diagnostic.mbt", "artifact_diagnostic("),
+    ("../module/compile/link_diagnostic.mbt", "link_diagnostic("),
     ("../parser/diagnostic.mbt", "impl @compiler_diag.ToCompilerDiagnostic"),
     ("../resolve/diagnostic.mbt", "impl @compiler_diag.ToCompilerDiagnostic"),
     ("../typecheck/diagnostic.mbt", "impl @compiler_diag.ToCompilerDiagnostic"),

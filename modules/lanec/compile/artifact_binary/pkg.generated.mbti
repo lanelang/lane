@@ -2,23 +2,23 @@
 package "Milky2018/lanec/compile/artifact_binary"
 
 import {
-  "Milky2018/lanec/module_compile",
+  "Milky2018/lanec/module/compile",
 }
 
 // Values
 pub fn artifact_binary_to_inspect_text(Bytes) -> Result[String, String]
 
-pub fn linked_program_artifact_to_binary(@module_compile.LinkedProgramArtifact) -> Bytes
+pub fn linked_program_artifact_to_binary(@compile.LinkedProgramArtifact) -> Bytes
 
-pub fn module_interface_artifact_to_binary(@module_compile.ModuleInterfaceArtifact) -> Bytes
+pub fn module_interface_artifact_to_binary(@compile.ModuleInterfaceArtifact) -> Bytes
 
-pub fn module_object_artifact_to_binary(@module_compile.ModuleObjectArtifact) -> Bytes
+pub fn module_object_artifact_to_binary(@compile.ModuleObjectArtifact) -> Bytes
 
-pub fn parse_linked_program_artifact_binary(Bytes) -> Result[@module_compile.LinkedProgramArtifact, String]
+pub fn parse_linked_program_artifact_binary(Bytes) -> Result[@compile.LinkedProgramArtifact, String]
 
-pub fn parse_module_interface_artifact_binary(Bytes) -> Result[@module_compile.ModuleInterfaceArtifact, String]
+pub fn parse_module_interface_artifact_binary(Bytes) -> Result[@compile.ModuleInterfaceArtifact, String]
 
-pub fn parse_module_object_artifact_binary(Bytes) -> Result[@module_compile.ModuleObjectArtifact, String]
+pub fn parse_module_object_artifact_binary(Bytes) -> Result[@compile.ModuleObjectArtifact, String]
 
 // Errors
 
