@@ -73,11 +73,24 @@ fn @bytecodec.ByteReader::read_alt_con(
   self : @bytecodec.ByteReader,
 ) -> AltCon raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Default
-    1 => Literal(self.read_literal())
-    2 => DataCon(self.read_data_con_id())
-    tag => invalid_tag(offset~, domain="AltCon", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Default
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Literal(self.read_literal())
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      DataCon(self.read_data_con_id())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="AltCon", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 

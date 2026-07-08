@@ -24,6 +24,17 @@ You can browse and install extra skills here:
 - Try to keep deprecated blocks in file called `deprecated.mbt` in each
   directory.
 
+- Use MoonBit bitstring patterns for bytes parsing throughout the repository.
+  When parsing binary data, model the input as a `BytesView` and write small
+  pattern-matching parser steps for fixed layouts, tags, and byte-string
+  prefixes. Follow the style in
+  `modules/lanec/compile/artifact_binary.mbt`, for example matching artifact
+  headers with patterns such as
+  `[.. b"LANEART\x00", u8be(version), u8be(kind), i32le(payload_length), .. body]`.
+  Do not hand-roll byte-by-byte parsing for new binary formats unless a
+  pattern-based parser would make the code less clear or would lose necessary
+  diagnostics.
+
 ## Tooling
 
 - `moon fmt` is used to format your code properly.

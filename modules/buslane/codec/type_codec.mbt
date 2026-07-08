@@ -20,14 +20,36 @@ fn @bytecodec.ByteReader::read_name_namespace(
   self : @bytecodec.ByteReader,
 ) -> NameNamespace raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => TypeName
-    1 => TypeParameterName
-    2 => ValueName
-    3 => DataConstructorName
-    4 => EffectName
-    5 => OperationName
-    tag => invalid_tag(offset~, domain="NameNamespace", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      TypeName
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      TypeParameterName
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      ValueName
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      DataConstructorName
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      EffectName
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      OperationName
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="NameNamespace", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -52,11 +74,24 @@ fn @bytecodec.ByteReader::read_kind(
   self : @bytecodec.ByteReader,
 ) -> Kind raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Type
-    1 => Effect
-    2 => Function(self.read_kinds(), self.read_kind())
-    tag => invalid_tag(offset~, domain="Kind", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Type
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Effect
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Function(self.read_kinds(), self.read_kind())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="Kind", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -103,13 +138,32 @@ fn @bytecodec.ByteReader::read_primitive_type(
   self : @bytecodec.ByteReader,
 ) -> PrimitiveType raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Unit
-    1 => Bool
-    2 => Int
-    3 => Double
-    4 => String
-    tag => invalid_tag(offset~, domain="PrimitiveType", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Unit
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Bool
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Int
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Double
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      String
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="PrimitiveType", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -160,15 +214,40 @@ fn @bytecodec.ByteReader::read_type(
   self : @bytecodec.ByteReader,
 ) -> Type raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Primitive(self.read_primitive_type())
-    1 => Parameter(self.read_type_parameter_id())
-    2 => Constructor(self.read_type_id())
-    3 => Apply(self.read_type(), self.read_generic_arguments())
-    4 => TypeLambda(self.read_type_parameter_ids(), self.read_type())
-    5 => Function(self.read_types(), self.read_type(), self.read_effect())
-    6 => Forall(self.read_type_parameter_ids(), self.read_type())
-    tag => invalid_tag(offset~, domain="Type", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Primitive(self.read_primitive_type())
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Parameter(self.read_type_parameter_id())
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Constructor(self.read_type_id())
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Apply(self.read_type(), self.read_generic_arguments())
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      TypeLambda(self.read_type_parameter_ids(), self.read_type())
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      Function(self.read_types(), self.read_type(), self.read_effect())
+    }
+    [u8be(6), .. rest] => {
+      self.update_view(rest)
+      Forall(self.read_type_parameter_ids(), self.read_type())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="Type", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -200,12 +279,28 @@ fn @bytecodec.ByteReader::read_effect(
   self : @bytecodec.ByteReader,
 ) -> Effect raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Empty
-    1 => Singleton(self.read_effect_id(), self.read_generic_arguments())
-    2 => Parameter(self.read_type_parameter_id())
-    3 => Union(self.read_effects())
-    tag => invalid_tag(offset~, domain="Effect", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Empty
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Singleton(self.read_effect_id(), self.read_generic_arguments())
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Parameter(self.read_type_parameter_id())
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Union(self.read_effects())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="Effect", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -231,10 +326,24 @@ fn @bytecodec.ByteReader::read_generic_argument(
   self : @bytecodec.ByteReader,
 ) -> GenericArgument raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => TypeArgument(self.read_type())
-    1 => EffectArgument(self.read_effect())
-    tag => invalid_tag(offset~, domain="GenericArgument", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      TypeArgument(self.read_type())
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      EffectArgument(self.read_effect())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(
+        offset~,
+        domain="GenericArgument",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -260,13 +369,35 @@ fn @bytecodec.ByteReader::read_value_kind(
   self : @bytecodec.ByteReader,
 ) -> ValueKind raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Function
-    1 => Value
-    2 => External
-    3 => Parameter
-    4 => Local
-    5 => MatchBinder
-    tag => invalid_tag(offset~, domain="ValueKind", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Function
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Value
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      External
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Parameter
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      Local
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      MatchBinder
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="ValueKind", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }

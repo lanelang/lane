@@ -14,9 +14,9 @@ fn @bytecodec.ByteWriter::write_module_interface(
 ///|
 fn @bytecodec.ByteReader::read_module_interface(
   self : @bytecodec.ByteReader,
-) -> @module_interface.ModuleInterface raise ArtifactBinaryDecodeError {
+) -> @module_interface.ModuleInterface raise {
   {
-    module_path: read_string(self),
+    module_path: self.read_string(),
     source_id: None,
     types: self.read_module_interface_types(),
     effects: self.read_module_interface_effects(),
@@ -40,9 +40,9 @@ fn @bytecodec.ByteWriter::write_module_interface_types(
 ///|
 fn @bytecodec.ByteReader::read_module_interface_types(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceType] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceType] raise {
   let items : Array[@module_interface.ModuleInterfaceType] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push(self.read_module_interface_type())
   }
   items
@@ -77,27 +77,39 @@ fn @bytecodec.ByteWriter::write_module_interface_type(
 ///|
 fn @bytecodec.ByteReader::read_module_interface_type(
   self : @bytecodec.ByteReader,
-) -> @module_interface.ModuleInterfaceType raise ArtifactBinaryDecodeError {
+) -> @module_interface.ModuleInterfaceType raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 =>
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
       Struct({
         symbol: self.read_type_symbol_id(),
-        name: read_string(self),
+        name: self.read_string(),
         type_parameters: self.read_type_parameters(),
         type_members: self.read_type_members(),
         fields: self.read_fields(),
         loc: self.read_source_span(),
       })
-    1 =>
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
       Enum({
         symbol: self.read_type_symbol_id(),
-        name: read_string(self),
+        name: self.read_string(),
         type_parameters: self.read_type_parameters(),
         variants: self.read_variants(),
         loc: self.read_source_span(),
       })
-    tag => invalid_binary_tag(offset~, domain="ModuleInterfaceType", tag~)
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="ModuleInterfaceType",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -120,15 +132,15 @@ fn @bytecodec.ByteWriter::write_type_members(
 ///|
 fn @bytecodec.ByteReader::read_type_members(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceTypeMember] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceTypeMember] raise {
   let items : Array[@module_interface.ModuleInterfaceTypeMember] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_type_member_symbol_id(),
       type_parameter: self.read_type_parameter(),
-      name: read_string(self),
+      name: self.read_string(),
       kind: self.read_lane_kind(),
-      index: read_u32_le(self),
+      index: self.read_u32_le(),
       loc: self.read_source_span(),
     })
   }
@@ -154,14 +166,14 @@ fn @bytecodec.ByteWriter::write_fields(
 ///|
 fn @bytecodec.ByteReader::read_fields(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceField] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceField] raise {
   let items : Array[@module_interface.ModuleInterfaceField] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_field_symbol_id(),
-      is_offered: read_bool(self),
-      name: read_string(self),
-      index: read_u32_le(self),
+      is_offered: self.read_bool(),
+      name: self.read_string(),
+      index: self.read_u32_le(),
       type_: self.read_lane_type(),
       loc: self.read_source_span(),
     })
@@ -188,13 +200,13 @@ fn @bytecodec.ByteWriter::write_variants(
 ///|
 fn @bytecodec.ByteReader::read_variants(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceVariant] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceVariant] raise {
   let items : Array[@module_interface.ModuleInterfaceVariant] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_variant_symbol_id(),
-      name: read_string(self),
-      index: read_u32_le(self),
+      name: self.read_string(),
+      index: self.read_u32_le(),
       type_parameters: self.read_type_parameters(),
       payload: self.read_lane_types(),
       loc: self.read_source_span(),
@@ -221,12 +233,12 @@ fn @bytecodec.ByteWriter::write_module_interface_effects(
 ///|
 fn @bytecodec.ByteReader::read_module_interface_effects(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceEffect] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceEffect] raise {
   let items : Array[@module_interface.ModuleInterfaceEffect] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_effect_symbol_id(),
-      name: read_string(self),
+      name: self.read_string(),
       type_parameters: self.read_type_parameters(),
       operations: self.read_module_interface_operations(),
       loc: self.read_source_span(),
@@ -255,13 +267,13 @@ fn @bytecodec.ByteWriter::write_module_interface_operations(
 ///|
 fn @bytecodec.ByteReader::read_module_interface_operations(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceOperation] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceOperation] raise {
   let items : Array[@module_interface.ModuleInterfaceOperation] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_operation_symbol_id(),
-      name: read_string(self),
-      index: read_u32_le(self),
+      name: self.read_string(),
+      index: self.read_u32_le(),
       type_parameters: self.read_type_parameters(),
       payload: self.read_lane_types(),
       result: self.read_lane_type(),
@@ -289,11 +301,11 @@ fn @bytecodec.ByteWriter::write_module_interface_type_aliases(
 ///|
 fn @bytecodec.ByteReader::read_module_interface_type_aliases(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceTypeAlias] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceTypeAlias] raise {
   let items : Array[@module_interface.ModuleInterfaceTypeAlias] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
-      name: read_string(self),
+      name: self.read_string(),
       type_parameters: self.read_type_parameters(),
       body: self.read_type_alias_body(),
       kind: self.read_lane_kind(),
@@ -323,13 +335,26 @@ fn @bytecodec.ByteWriter::write_type_alias_body(
 ///|
 fn @bytecodec.ByteReader::read_type_alias_body(
   self : @bytecodec.ByteReader,
-) -> @module_interface.ModuleInterfaceTypeAliasBody raise ArtifactBinaryDecodeError {
+) -> @module_interface.ModuleInterfaceTypeAliasBody raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => TypeBody(self.read_lane_type())
-    1 => EffectBody(self.read_lane_effect())
-    tag =>
-      invalid_binary_tag(offset~, domain="ModuleInterfaceTypeAliasBody", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      TypeBody(self.read_lane_type())
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      EffectBody(self.read_lane_effect())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="ModuleInterfaceTypeAliasBody",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -352,13 +377,13 @@ fn @bytecodec.ByteWriter::write_module_interface_values(
 ///|
 fn @bytecodec.ByteReader::read_module_interface_values(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceValue] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceValue] raise {
   let items : Array[@module_interface.ModuleInterfaceValue] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_value_symbol_id(),
       kind: self.read_module_interface_value_kind(),
-      name: read_string(self),
+      name: self.read_string(),
       type_: self.read_lane_type(),
       parameters: self.read_optional_value_parameters(),
       loc: self.read_source_span(),
@@ -384,13 +409,30 @@ fn @bytecodec.ByteWriter::write_module_interface_value_kind(
 ///|
 fn @bytecodec.ByteReader::read_module_interface_value_kind(
   self : @bytecodec.ByteReader,
-) -> @module_interface.ModuleInterfaceValueKind raise ArtifactBinaryDecodeError {
+) -> @module_interface.ModuleInterfaceValueKind raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Function
-    1 => Let
-    2 => Offer
-    tag => invalid_binary_tag(offset~, domain="ModuleInterfaceValueKind", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Function
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Let
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Offer
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="ModuleInterfaceValueKind",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -411,8 +453,8 @@ fn @bytecodec.ByteWriter::write_optional_value_parameters(
 ///|
 fn @bytecodec.ByteReader::read_optional_value_parameters(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceValueParameter]? raise ArtifactBinaryDecodeError {
-  if read_bool(self) {
+) -> Array[@module_interface.ModuleInterfaceValueParameter]? raise {
+  if self.read_bool() {
     Some(self.read_value_parameters())
   } else {
     None
@@ -438,14 +480,14 @@ fn @bytecodec.ByteWriter::write_value_parameters(
 ///|
 fn @bytecodec.ByteReader::read_value_parameters(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.ModuleInterfaceValueParameter] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.ModuleInterfaceValueParameter] raise {
   let items : Array[@module_interface.ModuleInterfaceValueParameter] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_value_symbol_id(),
-      is_auto: read_bool(self),
-      is_offered: read_bool(self),
-      name: read_string(self),
+      is_auto: self.read_bool(),
+      is_offered: self.read_bool(),
+      name: self.read_string(),
       type_: self.read_lane_type(),
       loc: self.read_source_span(),
     })
@@ -467,10 +509,10 @@ fn @bytecodec.ByteWriter::write_optimization_hints(
 ///|
 fn @bytecodec.ByteReader::read_optimization_hints(
   self : @bytecodec.ByteReader,
-) -> Array[@module_interface.OptimizationHint] raise ArtifactBinaryDecodeError {
+) -> Array[@module_interface.OptimizationHint] raise {
   let items : Array[@module_interface.OptimizationHint] = []
-  for _ in 0..<read_u32_le(self) {
-    items.push({ name: read_string(self) })
+  for _ in 0..<self.read_u32_le() {
+    items.push({ name: self.read_string() })
   }
   items
 }

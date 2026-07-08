@@ -14,12 +14,12 @@ fn @bytecodec.ByteWriter::write_externals(
 ///|
 fn @bytecodec.ByteReader::read_externals(
   self : @bytecodec.ByteReader,
-) -> @elaborate.BuslaneExternalMap raise ArtifactBinaryDecodeError {
+) -> @elaborate.BuslaneExternalMap raise {
   let builtins : Array[@elaborate.BuslaneBuiltinExternal] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     builtins.push({
       value: self.read_buslane_value_id(),
-      name: read_string(self),
+      name: self.read_string(),
       type_: self.read_buslane_type(),
     })
   }
@@ -40,9 +40,9 @@ fn @bytecodec.ByteWriter::write_entries(
 ///|
 fn @bytecodec.ByteReader::read_entries(
   self : @bytecodec.ByteReader,
-) -> Array[@elaborate.BuslaneEntry] raise ArtifactBinaryDecodeError {
+) -> Array[@elaborate.BuslaneEntry] raise {
   let entries : Array[@elaborate.BuslaneEntry] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     entries.push(self.read_entry())
   }
   entries
@@ -62,10 +62,10 @@ fn @bytecodec.ByteWriter::write_entry(
 ///|
 fn @bytecodec.ByteReader::read_entry(
   self : @bytecodec.ByteReader,
-) -> @elaborate.BuslaneEntry raise ArtifactBinaryDecodeError {
+) -> @elaborate.BuslaneEntry raise {
   {
-    module_path_text: read_string(self),
-    name: read_string(self),
+    module_path_text: self.read_string(),
+    name: self.read_string(),
     value: self.read_buslane_value_id(),
     type_: self.read_buslane_type(),
   }
@@ -91,16 +91,42 @@ fn @bytecodec.ByteWriter::write_export_kind(
 ///|
 fn @bytecodec.ByteReader::read_export_kind(
   self : @bytecodec.ByteReader,
-) -> @elaborate.BuslaneModuleExportKind raise ArtifactBinaryDecodeError {
+) -> @elaborate.BuslaneModuleExportKind raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Type
-    1 => DataConstructor
-    2 => Effect
-    3 => Operation
-    4 => FieldSelector
-    5 => Value
-    tag => invalid_binary_tag(offset~, domain="BuslaneModuleExportKind", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Type
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      DataConstructor
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Effect
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Operation
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      FieldSelector
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      Value
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="BuslaneModuleExportKind",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -121,8 +147,8 @@ fn @bytecodec.ByteWriter::write_optional_type_id(
 ///|
 fn @bytecodec.ByteReader::read_optional_type_id(
   self : @bytecodec.ByteReader,
-) -> @buslane.TypeId? raise ArtifactBinaryDecodeError {
-  if read_bool(self) {
+) -> @buslane.TypeId? raise {
+  if self.read_bool() {
     Some(self.read_buslane_type_id())
   } else {
     None
@@ -146,8 +172,8 @@ fn @bytecodec.ByteWriter::write_optional_data_con_id(
 ///|
 fn @bytecodec.ByteReader::read_optional_data_con_id(
   self : @bytecodec.ByteReader,
-) -> @buslane.DataConId? raise ArtifactBinaryDecodeError {
-  if read_bool(self) {
+) -> @buslane.DataConId? raise {
+  if self.read_bool() {
     Some(self.read_buslane_data_con_id())
   } else {
     None
@@ -171,8 +197,8 @@ fn @bytecodec.ByteWriter::write_optional_effect_id(
 ///|
 fn @bytecodec.ByteReader::read_optional_effect_id(
   self : @bytecodec.ByteReader,
-) -> @buslane.EffectId? raise ArtifactBinaryDecodeError {
-  if read_bool(self) {
+) -> @buslane.EffectId? raise {
+  if self.read_bool() {
     Some(self.read_buslane_effect_id())
   } else {
     None
@@ -196,8 +222,8 @@ fn @bytecodec.ByteWriter::write_optional_operation_id(
 ///|
 fn @bytecodec.ByteReader::read_optional_operation_id(
   self : @bytecodec.ByteReader,
-) -> @buslane.OperationId? raise ArtifactBinaryDecodeError {
-  if read_bool(self) {
+) -> @buslane.OperationId? raise {
+  if self.read_bool() {
     Some(self.read_buslane_operation_id())
   } else {
     None
@@ -221,8 +247,8 @@ fn @bytecodec.ByteWriter::write_optional_value_id(
 ///|
 fn @bytecodec.ByteReader::read_optional_value_id(
   self : @bytecodec.ByteReader,
-) -> @buslane.ValueId? raise ArtifactBinaryDecodeError {
-  if read_bool(self) {
+) -> @buslane.ValueId? raise {
+  if self.read_bool() {
     Some(self.read_buslane_value_id())
   } else {
     None
@@ -249,12 +275,12 @@ fn @bytecodec.ByteWriter::write_exports(
 ///|
 fn @bytecodec.ByteReader::read_exports(
   self : @bytecodec.ByteReader,
-) -> Array[@elaborate.BuslaneModuleExport] raise ArtifactBinaryDecodeError {
+) -> Array[@elaborate.BuslaneModuleExport] raise {
   let exports : Array[@elaborate.BuslaneModuleExport] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     exports.push({
       kind: self.read_export_kind(),
-      name: read_string(self),
+      name: self.read_string(),
       type_id: self.read_optional_type_id(),
       data_constructor: self.read_optional_data_con_id(),
       effect_id: self.read_optional_effect_id(),
@@ -287,13 +313,13 @@ fn @bytecodec.ByteWriter::write_imports(
 ///|
 fn @bytecodec.ByteReader::read_imports(
   self : @bytecodec.ByteReader,
-) -> Array[ModuleImportedReference] raise ArtifactBinaryDecodeError {
+) -> Array[ModuleImportedReference] raise {
   let imports : Array[ModuleImportedReference] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     imports.push({
-      module_path_text: read_string(self),
+      module_path_text: self.read_string(),
       kind: self.read_export_kind(),
-      name: read_string(self),
+      name: self.read_string(),
       fingerprint: self.read_compilation_fingerprint(),
       type_id: self.read_optional_type_id(),
       data_constructor: self.read_optional_data_con_id(),
@@ -324,13 +350,13 @@ fn @bytecodec.ByteWriter::write_runtime_effect_operations(
 ///|
 fn @bytecodec.ByteReader::read_runtime_effect_operations(
   self : @bytecodec.ByteReader,
-) -> Array[LinkedRuntimeEffectOperation] raise ArtifactBinaryDecodeError {
+) -> Array[LinkedRuntimeEffectOperation] raise {
   let operations : Array[LinkedRuntimeEffectOperation] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     operations.push({
-      module_path_text: read_string(self),
-      effect_name: read_string(self),
-      operation_name: read_string(self),
+      module_path_text: self.read_string(),
+      effect_name: self.read_string(),
+      operation_name: self.read_string(),
       payload: self.read_lane_types(),
       result: self.read_lane_type(),
       operation: self.read_buslane_operation_id(),

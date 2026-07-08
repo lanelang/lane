@@ -9,8 +9,8 @@ fn @bytecodec.ByteWriter::write_type_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_type_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.TypeSymbolId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.TypeSymbolId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -24,8 +24,8 @@ fn @bytecodec.ByteWriter::write_type_parameter_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_type_parameter_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.TypeParameterId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.TypeParameterId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -39,8 +39,8 @@ fn @bytecodec.ByteWriter::write_type_member_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_type_member_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.TypeMemberSymbolId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.TypeMemberSymbolId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -54,8 +54,8 @@ fn @bytecodec.ByteWriter::write_value_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_value_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.ValueSymbolId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.ValueSymbolId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -69,8 +69,8 @@ fn @bytecodec.ByteWriter::write_field_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_field_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.FieldSymbolId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.FieldSymbolId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -84,8 +84,8 @@ fn @bytecodec.ByteWriter::write_variant_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_variant_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.VariantSymbolId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.VariantSymbolId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -99,8 +99,8 @@ fn @bytecodec.ByteWriter::write_effect_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_effect_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.EffectSymbolId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.EffectSymbolId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -114,8 +114,8 @@ fn @bytecodec.ByteWriter::write_operation_symbol_id(
 ///|
 fn @bytecodec.ByteReader::read_operation_symbol_id(
   self : @bytecodec.ByteReader,
-) -> @symbol.OperationSymbolId raise ArtifactBinaryDecodeError {
-  { index: read_u32_le(self) }
+) -> @symbol.OperationSymbolId raise {
+  { index: self.read_u32_le() }
 }
 
 ///|
@@ -137,15 +137,38 @@ fn @bytecodec.ByteWriter::write_lane_primitive_type(
 ///|
 fn @bytecodec.ByteReader::read_lane_primitive_type(
   self : @bytecodec.ByteReader,
-) -> @types.PrimitiveType raise ArtifactBinaryDecodeError {
+) -> @types.PrimitiveType raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Int
-    1 => Double
-    2 => Bool
-    3 => String
-    4 => Unit
-    tag => invalid_binary_tag(offset~, domain="LanePrimitiveType", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Int
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Double
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Bool
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      String
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      Unit
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="LanePrimitiveType",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -168,13 +191,30 @@ fn @bytecodec.ByteWriter::write_lane_kind(
 ///|
 fn @bytecodec.ByteReader::read_lane_kind(
   self : @bytecodec.ByteReader,
-) -> @types.Kind raise ArtifactBinaryDecodeError {
+) -> @types.Kind raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Type
-    1 => Effect
-    2 => Function(self.read_lane_kinds(), self.read_lane_kind())
-    tag => invalid_binary_tag(offset~, domain="LaneKind", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Type
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Effect
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Function(self.read_lane_kinds(), self.read_lane_kind())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="LaneKind",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -192,9 +232,9 @@ fn @bytecodec.ByteWriter::write_lane_kinds(
 ///|
 fn @bytecodec.ByteReader::read_lane_kinds(
   self : @bytecodec.ByteReader,
-) -> Array[@types.Kind] raise ArtifactBinaryDecodeError {
+) -> Array[@types.Kind] raise {
   let items : Array[@types.Kind] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     items.push(self.read_lane_kind())
   }
   items
@@ -213,10 +253,10 @@ fn @bytecodec.ByteWriter::write_type_parameter(
 ///|
 fn @bytecodec.ByteReader::read_type_parameter(
   self : @bytecodec.ByteReader,
-) -> @types.TypeParameter raise ArtifactBinaryDecodeError {
+) -> @types.TypeParameter raise {
   {
     id: self.read_type_parameter_symbol_id(),
-    name: read_string(self),
+    name: self.read_string(),
     kind: self.read_lane_kind(),
   }
 }
@@ -235,9 +275,9 @@ fn @bytecodec.ByteWriter::write_type_parameters(
 ///|
 fn @bytecodec.ByteReader::read_type_parameters(
   self : @bytecodec.ByteReader,
-) -> Array[@types.TypeParameter] raise ArtifactBinaryDecodeError {
+) -> Array[@types.TypeParameter] raise {
   let parameters : Array[@types.TypeParameter] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     parameters.push(self.read_type_parameter())
   }
   parameters
@@ -289,23 +329,54 @@ fn @bytecodec.ByteWriter::write_lane_type(
 ///|
 fn @bytecodec.ByteReader::read_lane_type(
   self : @bytecodec.ByteReader,
-) -> @types.Type raise ArtifactBinaryDecodeError {
+) -> @types.Type raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Error
-    1 => Primitive(self.read_lane_primitive_type())
-    2 => Constructor(self.read_type_symbol_id())
-    3 => Apply(self.read_lane_type(), self.read_lane_generic_arguments())
-    4 => TypeLambda(self.read_type_parameters(), self.read_lane_type())
-    5 => Parameter(self.read_type_parameter_symbol_id())
-    6 =>
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Error
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Primitive(self.read_lane_primitive_type())
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Constructor(self.read_type_symbol_id())
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Apply(self.read_lane_type(), self.read_lane_generic_arguments())
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      TypeLambda(self.read_type_parameters(), self.read_lane_type())
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      Parameter(self.read_type_parameter_symbol_id())
+    }
+    [u8be(6), .. rest] => {
+      self.update_view(rest)
       Function(
         self.read_lane_types(),
         self.read_lane_type(),
         self.read_lane_effect(),
       )
-    7 => Forall(self.read_type_parameters(), self.read_lane_type())
-    tag => invalid_binary_tag(offset~, domain="LaneType", tag~)
+    }
+    [u8be(7), .. rest] => {
+      self.update_view(rest)
+      Forall(self.read_type_parameters(), self.read_lane_type())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="LaneType",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -323,9 +394,9 @@ fn @bytecodec.ByteWriter::write_lane_types(
 ///|
 fn @bytecodec.ByteReader::read_lane_types(
   self : @bytecodec.ByteReader,
-) -> Array[@types.Type] raise ArtifactBinaryDecodeError {
+) -> Array[@types.Type] raise {
   let types : Array[@types.Type] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     types.push(self.read_lane_type())
   }
   types
@@ -357,18 +428,37 @@ fn @bytecodec.ByteWriter::write_lane_effect(
 ///|
 fn @bytecodec.ByteReader::read_lane_effect(
   self : @bytecodec.ByteReader,
-) -> @types.Effect raise ArtifactBinaryDecodeError {
+) -> @types.Effect raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Empty
-    1 =>
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Empty
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
       Singleton(
         self.read_effect_symbol_id(),
         self.read_lane_generic_arguments(),
       )
-    2 => Parameter(self.read_type_parameter_symbol_id())
-    3 => Union(self.read_lane_effects())
-    tag => invalid_binary_tag(offset~, domain="LaneEffect", tag~)
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Parameter(self.read_type_parameter_symbol_id())
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Union(self.read_lane_effects())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="LaneEffect",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -386,9 +476,9 @@ fn @bytecodec.ByteWriter::write_lane_effects(
 ///|
 fn @bytecodec.ByteReader::read_lane_effects(
   self : @bytecodec.ByteReader,
-) -> Array[@types.Effect] raise ArtifactBinaryDecodeError {
+) -> Array[@types.Effect] raise {
   let effects : Array[@types.Effect] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     effects.push(self.read_lane_effect())
   }
   effects
@@ -414,12 +504,26 @@ fn @bytecodec.ByteWriter::write_lane_generic_argument(
 ///|
 fn @bytecodec.ByteReader::read_lane_generic_argument(
   self : @bytecodec.ByteReader,
-) -> @types.GenericArgument raise ArtifactBinaryDecodeError {
+) -> @types.GenericArgument raise {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => TypeArgument(self.read_lane_type())
-    1 => EffectArgument(self.read_lane_effect())
-    tag => invalid_binary_tag(offset~, domain="LaneGenericArgument", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      TypeArgument(self.read_lane_type())
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      EffectArgument(self.read_lane_effect())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="LaneGenericArgument",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 
@@ -437,9 +541,9 @@ fn @bytecodec.ByteWriter::write_lane_generic_arguments(
 ///|
 fn @bytecodec.ByteReader::read_lane_generic_arguments(
   self : @bytecodec.ByteReader,
-) -> Array[@types.GenericArgument] raise ArtifactBinaryDecodeError {
+) -> Array[@types.GenericArgument] raise {
   let arguments : Array[@types.GenericArgument] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     arguments.push(self.read_lane_generic_argument())
   }
   arguments

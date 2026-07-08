@@ -11,22 +11,31 @@ priv suberror ArtifactBinaryDecodeError {
 } derive(Debug)
 
 ///|
-fn artifact_binary_decode_error(error : ArtifactBinaryDecodeError) -> String {
-  match error {
-    ByteError(error) => "invalid artifact binary: \{to_repr(error)}"
-    BuslaneError(error) => "invalid Buslane payload: \{to_repr(error)}"
+fn[T] artifact_binary_decode_result(
+  decode : () -> T raise,
+) -> Result[T, String] {
+  Ok(decode()) catch {
+    ByteError(error) => Err("invalid artifact binary: \{to_repr(error)}")
+    BuslaneError(error) => Err("invalid Buslane payload: \{to_repr(error)}")
     UnsupportedContainerVersion(version~) =>
-      "unsupported artifact binary container version \{version}"
+      Err("unsupported artifact binary container version \{version}")
     UnsupportedArtifactSchema(kind~, version~) =>
-      "unsupported \{kind} artifact schema version \{version}"
+      Err("unsupported \{kind} artifact schema version \{version}")
     InvalidMagic(offset~) =>
-      "invalid artifact binary: expected Lane artifact magic at byte \{offset}"
+      Err(
+        "invalid artifact binary: expected Lane artifact magic at byte \{offset}",
+      )
     InvalidKind(kind~) =>
-      "unknown artifact binary kind \{artifact_binary_kind_name(kind)}"
+      Err("unknown artifact binary kind \{artifact_binary_kind_name(kind)}")
     InvalidTag(offset~, domain~, tag~) =>
-      "invalid artifact binary: unknown \{domain} tag \{tag} at byte \{offset}"
+      Err(
+        "invalid artifact binary: unknown \{domain} tag \{tag} at byte \{offset}",
+      )
     WrongKind(expected~, actual~) =>
-      "wrong artifact binary kind: expected \{artifact_binary_kind_name(expected)}, got \{artifact_binary_kind_name(actual)}"
+      Err(
+        "wrong artifact binary kind: expected \{artifact_binary_kind_name(expected)}, got \{artifact_binary_kind_name(actual)}",
+      )
+    error => Err("invalid artifact binary: \{to_repr(error)}")
   }
 }
 
@@ -35,51 +44,17 @@ fn[T] invalid_binary_tag(
   offset~ : Int,
   domain~ : String,
   tag~ : Int,
-) -> T raise ArtifactBinaryDecodeError {
+) -> T raise {
   raise InvalidTag(offset~, domain~, tag~)
 }
 
 ///|
-fn read_u8(
-  reader : @bytecodec.ByteReader,
-) -> Int raise ArtifactBinaryDecodeError {
-  reader.read_u8() catch {
-    error => raise ByteError(error)
-  }
-}
-
-///|
-fn read_bool(
-  reader : @bytecodec.ByteReader,
-) -> Bool raise ArtifactBinaryDecodeError {
-  reader.read_bool() catch {
-    error => raise ByteError(error)
-  }
-}
-
-///|
-fn read_u32_le(
-  reader : @bytecodec.ByteReader,
-) -> Int raise ArtifactBinaryDecodeError {
-  reader.read_u32_le() catch {
-    error => raise ByteError(error)
-  }
-}
-
-///|
-fn read_string(
-  reader : @bytecodec.ByteReader,
-) -> String raise ArtifactBinaryDecodeError {
-  reader.read_string() catch {
-    error => raise ByteError(error)
-  }
-}
-
-///|
-fn expect_end(
-  reader : @bytecodec.ByteReader,
-) -> Unit raise ArtifactBinaryDecodeError {
-  reader.expect_end() catch {
-    error => raise ByteError(error)
-  }
+fn[T] unexpected_u8(reader : @bytecodec.ByteReader) -> T raise {
+  raise ByteError(
+    UnexpectedEnd(
+      offset=reader.offset(),
+      expected="u8",
+      available=reader.remaining(),
+    ),
+  )
 }

@@ -13,7 +13,7 @@ pub(all) struct ByteWriter {
 
 ///|
 pub(all) struct ByteReader {
-  bytes : Bytes
+  mut view : BytesView
   mut offset : Int
 } derive(Debug, Eq)
 
@@ -80,7 +80,7 @@ pub fn ByteWriter::write_string(self : ByteWriter, value : String) -> Unit {
 
 ///|
 pub fn ByteReader::from_bytes(bytes : Bytes) -> ByteReader {
-  { bytes, offset: 0 }
+  { view: bytes[:], offset: 0 }
 }
 
 ///|
@@ -89,8 +89,19 @@ pub fn ByteReader::offset(self : ByteReader) -> Int {
 }
 
 ///|
+pub fn ByteReader::view(self : ByteReader) -> BytesView {
+  self.view
+}
+
+///|
+pub fn ByteReader::update_view(self : ByteReader, rest : BytesView) -> Unit {
+  self.offset += self.view.length() - rest.length()
+  self.view = rest
+}
+
+///|
 pub fn ByteReader::remaining(self : ByteReader) -> Int {
-  self.bytes.length() - self.offset
+  self.view.length()
 }
 
 ///|
@@ -102,49 +113,51 @@ pub fn ByteReader::expect_end(self : ByteReader) -> Unit raise ByteDecodeError {
 }
 
 ///|
-pub fn ByteReader::read_u8(self : ByteReader) -> Int raise ByteDecodeError {
-  self.require(1, expected="u8")
-  let value = self.bytes[self.offset].to_int()
-  self.offset += 1
-  value
-}
-
-///|
 pub fn ByteReader::read_bool(self : ByteReader) -> Bool raise ByteDecodeError {
   let offset = self.offset
-  let value = self.read_u8()
-  if value == 0 {
-    false
-  } else if value == 1 {
-    true
-  } else {
-    raise InvalidBool(offset~, value~)
+  match self.view {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      false
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      true
+    }
+    [u8be(value), .. rest] => {
+      self.update_view(rest)
+      raise InvalidBool(offset~, value=value.reinterpret_as_int())
+    }
+    _ => raise UnexpectedEnd(offset~, expected="u8", available=self.remaining())
   }
 }
 
 ///|
 pub fn ByteReader::read_u32_le(self : ByteReader) -> Int raise ByteDecodeError {
-  self.require(4, expected="u32le")
-  let value = self.bytes[self.offset].to_int() |
-    (self.bytes[self.offset + 1].to_int() << 8) |
-    (self.bytes[self.offset + 2].to_int() << 16) |
-    (self.bytes[self.offset + 3].to_int() << 24)
-  self.offset += 4
-  value
+  let offset = self.offset
+  match self.view {
+    [i32le(value), .. rest] => {
+      self.update_view(rest)
+      value
+    }
+    _ =>
+      raise UnexpectedEnd(offset~, expected="u32le", available=self.remaining())
+  }
 }
 
 ///|
 pub fn ByteReader::read_i64_le(
   self : ByteReader,
 ) -> Int64 raise ByteDecodeError {
-  self.require(8, expected="i64le")
-  let mut value = 0L
-  for index in 0..<8 {
-    value = value |
-      (Int64::from_int(self.bytes[self.offset + index].to_int()) << (index * 8))
+  let offset = self.offset
+  match self.view {
+    [i64le(value), .. rest] => {
+      self.update_view(rest)
+      value
+    }
+    _ =>
+      raise UnexpectedEnd(offset~, expected="i64le", available=self.remaining())
   }
-  self.offset += 8
-  value
 }
 
 ///|
@@ -159,17 +172,45 @@ pub fn ByteReader::read_raw_bytes(
   self : ByteReader,
   length : Int,
 ) -> Bytes raise ByteDecodeError {
-  self.require(length, expected="byte payload")
-  let start = self.offset
-  let end = start + length
-  self.offset = end
-  self.bytes[start:end].to_owned()
+  let offset = self.offset
+  if length < 0 {
+    raise UnexpectedEnd(
+      offset~,
+      expected="byte payload",
+      available=self.remaining(),
+    )
+  }
+  if self.remaining() < length {
+    raise UnexpectedEnd(
+      offset~,
+      expected="byte payload",
+      available=self.remaining(),
+    )
+  }
+  let payload = self.view[:length].to_owned()
+  self.update_view(self.view[length:])
+  payload
 }
 
 ///|
 pub fn ByteReader::read_bytes(self : ByteReader) -> Bytes raise ByteDecodeError {
-  let length = self.read_u32_le()
-  self.read_raw_bytes(length)
+  let offset = self.offset
+  match self.view {
+    [i32le(length), .. rest] if length >= 0 => {
+      self.update_view(rest)
+      self.read_raw_bytes(length)
+    }
+    [i32le(_), ..] => {
+      self.update_view(self.view[4:])
+      raise UnexpectedEnd(
+        offset=offset + 4,
+        expected="byte payload",
+        available=self.remaining(),
+      )
+    }
+    _ =>
+      raise UnexpectedEnd(offset~, expected="u32le", available=self.remaining())
+  }
 }
 
 ///|
@@ -184,13 +225,3 @@ pub fn ByteReader::read_string(
 }
 
 ///|
-fn ByteReader::require(
-  self : ByteReader,
-  count : Int,
-  expected~ : String,
-) -> Unit raise ByteDecodeError {
-  let available = self.remaining()
-  if count < 0 || available < count {
-    raise UnexpectedEnd(offset=self.offset, expected~, available~)
-  }
-}

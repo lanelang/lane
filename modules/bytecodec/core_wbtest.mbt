@@ -57,7 +57,7 @@ test "writer and reader roundtrip primitive values" {
     ),
   )
   let reader = ByteReader::from_bytes(writer.to_bytes())
-  inspect(reader.read_u8(), content="171")
+  inspect(reader.read_raw_bytes(1).to_string(), content="b\"\\xab\"")
   inspect(reader.read_bool(), content="true")
   inspect(reader.read_bool(), content="false")
   inspect(reader.read_u32_le(), content="305419896")
@@ -118,7 +118,7 @@ test "reader rejects invalid utf8" {
 ///|
 test "reader rejects trailing bytes" {
   let reader = ByteReader::from_bytes(Bytes::from_array([b'\x00', b'\x01']))
-  inspect(reader.read_u8(), content="0")
+  inspect(reader.read_bool(), content="false")
   let error = try {
     reader.expect_end()
     None

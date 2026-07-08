@@ -29,13 +29,32 @@ fn @bytecodec.ByteReader::read_literal(
   self : @bytecodec.ByteReader,
 ) -> Literal raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Unit
-    1 => Bool(read_bool(self))
-    2 => Int(read_i64_le(self))
-    3 => Double(read_f64_le(self))
-    4 => String(read_string(self))
-    tag => invalid_tag(offset~, domain="Literal", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Unit
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Bool(read_bool(self))
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Int(read_i64_le(self))
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Double(read_f64_le(self))
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      String(read_string(self))
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="Literal", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -88,11 +107,24 @@ fn @bytecodec.ByteReader::read_top_term(
   self : @bytecodec.ByteReader,
 ) -> TopTerm raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Let(self.read_value_id(), self.read_expr())
-    1 => LetRec(self.read_recursive_bindings())
-    2 => External(self.read_value_id())
-    tag => invalid_tag(offset~, domain="TopTerm", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Let(self.read_value_id(), self.read_expr())
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      LetRec(self.read_recursive_bindings())
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      External(self.read_value_id())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="TopTerm", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -168,21 +200,64 @@ fn @bytecodec.ByteReader::read_expr(
   self : @bytecodec.ByteReader,
 ) -> Expr raise BuslaneDecodeError {
   let offset = self.offset()
-  match read_u8(self) {
-    0 => Ref(self.read_value_id())
-    1 => Literal(self.read_literal())
-    2 => Function(self.read_function_expr())
-    3 => Call(self.read_expr(), self.read_exprs())
-    4 => TypeLambda(self.read_type_parameter_ids(), self.read_expr())
-    5 => TypeApply(self.read_expr(), self.read_generic_arguments())
-    6 => Construct(self.read_construct_expr())
-    7 => Let(self.read_value_id(), self.read_expr(), self.read_expr())
-    8 => LetRec(self.read_recursive_bindings(), self.read_expr())
-    9 => Match(self.read_match_expr())
-    10 => Perform(self.read_perform_expr())
-    11 => Handle(self.read_handle_expr())
-    12 => Resume(self.read_value_id())
-    tag => invalid_tag(offset~, domain="Expr", tag~)
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Ref(self.read_value_id())
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Literal(self.read_literal())
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Function(self.read_function_expr())
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Call(self.read_expr(), self.read_exprs())
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      TypeLambda(self.read_type_parameter_ids(), self.read_expr())
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      TypeApply(self.read_expr(), self.read_generic_arguments())
+    }
+    [u8be(6), .. rest] => {
+      self.update_view(rest)
+      Construct(self.read_construct_expr())
+    }
+    [u8be(7), .. rest] => {
+      self.update_view(rest)
+      Let(self.read_value_id(), self.read_expr(), self.read_expr())
+    }
+    [u8be(8), .. rest] => {
+      self.update_view(rest)
+      LetRec(self.read_recursive_bindings(), self.read_expr())
+    }
+    [u8be(9), .. rest] => {
+      self.update_view(rest)
+      Match(self.read_match_expr())
+    }
+    [u8be(10), .. rest] => {
+      self.update_view(rest)
+      Perform(self.read_perform_expr())
+    }
+    [u8be(11), .. rest] => {
+      self.update_view(rest)
+      Handle(self.read_handle_expr())
+    }
+    [u8be(12), .. rest] => {
+      self.update_view(rest)
+      Resume(self.read_value_id())
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(offset~, domain="Expr", tag=tag.reinterpret_as_int())
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 

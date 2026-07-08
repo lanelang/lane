@@ -14,14 +14,14 @@ fn @bytecodec.ByteWriter::write_source_span(
 ///|
 fn @bytecodec.ByteReader::read_source_span(
   self : @bytecodec.ByteReader,
-) -> @basic.SourceSpan raise ArtifactBinaryDecodeError {
+) -> @basic.SourceSpan raise {
   {
-    start_offset: read_u32_le(self),
-    end_offset: read_u32_le(self),
-    start_line: read_u32_le(self),
-    start_column: read_u32_le(self),
-    end_line: read_u32_le(self),
-    end_column: read_u32_le(self),
+    start_offset: self.read_u32_le(),
+    end_offset: self.read_u32_le(),
+    start_line: self.read_u32_le(),
+    start_column: self.read_u32_le(),
+    end_line: self.read_u32_le(),
+    end_column: self.read_u32_le(),
   }
 }
 
@@ -39,10 +39,10 @@ fn @bytecodec.ByteWriter::write_string_array(
 ///|
 fn @bytecodec.ByteReader::read_string_array(
   self : @bytecodec.ByteReader,
-) -> Array[String] raise ArtifactBinaryDecodeError {
+) -> Array[String] raise {
   let items : Array[String] = []
-  for _ in 0..<read_u32_le(self) {
-    items.push(read_string(self))
+  for _ in 0..<self.read_u32_le() {
+    items.push(self.read_string())
   }
   items
 }
@@ -58,8 +58,8 @@ fn @bytecodec.ByteWriter::write_compilation_fingerprint(
 ///|
 fn @bytecodec.ByteReader::read_compilation_fingerprint(
   self : @bytecodec.ByteReader,
-) -> CompilationFingerprint raise ArtifactBinaryDecodeError {
-  { value: read_string(self) }
+) -> CompilationFingerprint raise {
+  { value: self.read_string() }
 }
 
 ///|
@@ -77,11 +77,11 @@ fn @bytecodec.ByteWriter::write_imported_interface_fingerprints(
 ///|
 fn @bytecodec.ByteReader::read_imported_interface_fingerprints(
   self : @bytecodec.ByteReader,
-) -> Array[ImportedInterfaceFingerprint] raise ArtifactBinaryDecodeError {
+) -> Array[ImportedInterfaceFingerprint] raise {
   let fingerprints : Array[ImportedInterfaceFingerprint] = []
-  for _ in 0..<read_u32_le(self) {
+  for _ in 0..<self.read_u32_le() {
     fingerprints.push({
-      module_path_text: read_string(self),
+      module_path_text: self.read_string(),
       fingerprint: self.read_compilation_fingerprint(),
     })
   }

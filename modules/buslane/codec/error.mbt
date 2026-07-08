@@ -8,10 +8,13 @@ fn[T] invalid_tag(
 }
 
 ///|
-fn read_u8(reader : @bytecodec.ByteReader) -> Int raise BuslaneDecodeError {
-  reader.read_u8() catch {
-    error => raise ByteError(error)
-  }
+fn[T] unexpected_u8(
+  reader : @bytecodec.ByteReader,
+  offset~ : Int,
+) -> T raise BuslaneDecodeError {
+  raise ByteError(
+    UnexpectedEnd(offset~, expected="u8", available=reader.remaining()),
+  )
 }
 
 ///|
