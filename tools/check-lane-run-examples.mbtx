@@ -12,7 +12,6 @@ priv suberror FixtureRunFailure {
 } derive(Debug)
 
 struct FixtureManifest {
-  lib_dirs : Array[String]
   cases : Array[FixtureCase]
 }
 
@@ -50,12 +49,13 @@ enum FixtureMode {
 } derive(Eq)
 
 async fn main raise {
+  let basic_lib_dir = required_basic_lib_dir()
   let manifest = read_fixture_manifest("examples/fixtures/lane-run.json")
   let mut failure_count = 0
   for case in manifest.cases {
     let result = @async.with_timeout_opt(
       fixture_timeout_ms,
-      () => run_lane(case, manifest.lib_dirs),
+      () => run_lane(case, [basic_lib_dir]),
     )
     guard result is Some(result) else {
       failure_count += 1
@@ -116,17 +116,56 @@ fn read_text(path : String) -> String raise {
 
 fn decode_manifest(json : Json) -> FixtureManifest {
   match json {
-    { "lib_dirs": Array(lib_dirs), "cases": Array(cases), .. } =>
+    { "cases": Array(cases), .. } =>
       {
-        lib_dirs: lib_dirs.mapi(fn(index, item) {
-          decode_string(item, "lib_dirs[" + index.to_string() + "]")
-        }),
         cases: cases.mapi(fn(index, item) {
           decode_case(item, "cases[" + index.to_string() + "]")
         }),
       }
-    _ => abort("manifest must contain array fields lib_dirs and cases")
+    _ => abort("manifest must contain array field cases")
   }
+}
+
+fn required_basic_lib_dir() -> String {
+  match @sys.get_env_var("LANE_HOME") {
+    Some(home) => {
+      let home = home.trim().to_owned()
+      if home == "" {
+        return fail_missing_basic(
+          "LANE_HOME is set but empty.",
+        )
+      }
+      let path = home + "/basic"
+      if !@fs.path_exists(path) {
+        return fail_missing_basic(
+          "LANE_HOME/basic does not exist: " + path,
+        )
+      }
+      if !(@fs.is_dir(path) catch { _ => false }) {
+        return fail_missing_basic(
+          "LANE_HOME/basic must be the Basic source directory: " + path,
+        )
+      }
+      path
+    }
+    None => fail_missing_basic("LANE_HOME is not set.")
+  }
+}
+
+fn fail_missing_basic(reason : String) -> String {
+  println("FAILED lane example fixture setup")
+  println("  reason: " + reason)
+  println("  Lane examples need the Basic library at LANE_HOME/basic.")
+  println("  Set it up with:")
+  println("    export LANE_HOME=/path/to/lane-home")
+  println("    mkdir -p \"$LANE_HOME\"")
+  println(
+    "    git clone https://github.com/lanelang/basic.git \"$LANE_HOME/basic\"",
+  )
+  println("  Then run:")
+  println("    tools/check-lane-run-examples.sh")
+  @sys.exit(1)
+  ""
 }
 
 fn decode_case(json : Json, path : String) -> FixtureCase {
