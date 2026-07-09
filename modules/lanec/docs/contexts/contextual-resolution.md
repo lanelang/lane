@@ -11,7 +11,7 @@ _Avoid_: open overload resolution, trait instance search, name resolution
 
 **Contextual Offer**:
 A named value identifier made available to Contextual Resolution.
-_Avoid_: offered expression, offered field path, open binding
+_Avoid_: offered expression, derived offer, open binding
 
 **Contextual Parameter**:
 A function parameter marked for omission at eligible call sites and supplied by Contextual Resolution.
@@ -20,10 +20,6 @@ _Avoid_: typeclass constraint, trait bound, hidden type parameter
 **Offered Parameter**:
 A function parameter that is automatically offered in the function body.
 _Avoid_: automatically propagated auto parameter, implicit local open
-
-**Contextual Forwarding Field**:
-A struct field that becomes an additional contextual offer when the containing struct value is offered.
-_Avoid_: open field, inherited field, ordinary unqualified field exposure
 
 **Explicit Contextual Argument**:
 A named call argument that explicitly supplies a Contextual Parameter instead of using Contextual Resolution.
@@ -106,7 +102,7 @@ _Avoid_: placeholder builtin, implementation-only primitive
 - A local **Offered Value Definition** is visible from its declaration point to the end of the current block.
 - A top-level **Offered Value Definition** contributes to the top-level contextual offer environment.
 - **Contextual Offers** use lexical scope and affect only **Contextual Resolution**.
-- A **Contextual Forwarding Field** is exposed only when the containing value is offered.
+- A **Contextual Parameter** is not an **Offered Parameter** unless it is explicitly marked as offered.
 - **Operator Aliases** are fixed mappings to **Operation Names**.
 - `&&` and `||` are **Short-Circuit Boolean Operations** and elaborate to **Thunked Operator Calls**.
 - Ordinary calls to `op_and` and `op_or` are strict.

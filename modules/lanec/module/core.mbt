@@ -43,7 +43,6 @@ pub(all) struct ModuleInterfaceTypeMember {
 ///|
 pub(all) struct ModuleInterfaceField {
   symbol : FieldSymbolId
-  is_offered : Bool
   name : String
   index : Int
   type_ : @types.Type

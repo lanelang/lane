@@ -422,8 +422,7 @@ fn ArtifactInspectContext::struct_text(
     "type \{member_.name} : \{self.kind_text(member_.kind)}"
   })
   let fields = declaration.fields.map(fn(field) {
-    let prefix = if field.is_offered { "offer " } else { "" }
-    "\{prefix}\{field.name} : \{self.type_text(field.type_)}"
+    "\{field.name} : \{self.type_text(field.type_)}"
   })
   let body = (members + fields).join("; ")
   if body.is_empty() {

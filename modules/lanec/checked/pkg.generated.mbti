@@ -80,7 +80,6 @@ pub impl @prettyprinter.Pretty for CheckedExpr
 
 pub(all) struct CheckedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
-  is_offered : Bool
   name : String
   index : Int
   type_ : @types.Type

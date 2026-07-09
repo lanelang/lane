@@ -172,10 +172,8 @@ pub impl @prettyprinter.Pretty for ResolvedKind with fn pretty(
 pub impl @prettyprinter.Pretty for ResolvedFieldDeclaration with fn pretty(
   field : ResolvedFieldDeclaration,
 ) {
-  let modifier = if field.is_offered { text("offer") + space } else { empty }
   text("field") +
   space +
-  modifier +
   field.symbol.pretty() +
   space +
   text(field.name) +

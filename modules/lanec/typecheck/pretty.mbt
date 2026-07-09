@@ -214,8 +214,6 @@ pub impl @prettyprinter.Pretty for CheckedLetDeclaration with fn pretty(
 pub impl @prettyprinter.Pretty for CheckedFieldDeclaration with fn pretty(
   field : CheckedFieldDeclaration,
 ) {
-  let modifier = if field.is_offered { text("offer") + space } else { empty }
-  modifier +
   field_name_doc(field.name, field.symbol) +
   space +
   text(":") +

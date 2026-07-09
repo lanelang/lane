@@ -67,12 +67,12 @@
       }
     },
     {
-      "name": "08 struct forwarding finite closure value",
+      "name": "08 explicit equality offer value",
       "file": "examples/valid/08_struct_forwarding.lane",
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "forwarded equality=1"
+        "equals": "explicit equality=1"
       }
     },
     {
@@ -1261,6 +1261,32 @@
           "wrong number of generic arguments for `PairBox`",
           "`PairBox` expects 2 generic argument(s), but 1 were provided",
           "add or remove generic arguments so the count is 2"
+        ]
+      }
+    },
+    {
+      "name": "invalid 59 field offer not allowed",
+      "file": "examples/invalid/59_field_offer_not_allowed.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1100]",
+          "unexpected token",
+          "the parser did not expect `offer`",
+          "expected one of: identifier, `type`, `}`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 60 compare offer does not offer equal",
+      "file": "examples/invalid/60_compare_offer_does_not_offer_equal.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3013]",
+          "missing contextual offer",
+          "no visible offer matches required type `Equal[Int]`",
+          "add a visible `offer` with type `Equal[Int]`"
         ]
       }
     }

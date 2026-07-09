@@ -278,8 +278,7 @@ fn SemanticChecker::contextual_offer_expr(
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
   // Offer matching is exact type equality over the already-resolved flat offer
-  // environment. It must not infer generics from the offer set or perform field
-  // search during typechecking.
+  // environment. It must not infer generics from the offer set.
   let matches = []
   for offer in scope.offers {
     if type_matches(expected, offer.type_) {

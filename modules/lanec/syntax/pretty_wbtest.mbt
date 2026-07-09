@@ -36,18 +36,8 @@ test "pretty print source file" {
         name: "Point",
         type_parameters: [],
         members: [
-          Field({
-            is_offered: false,
-            name: "x",
-            type_: int_type,
-            loc: test_loc(),
-          }),
-          Field({
-            is_offered: false,
-            name: "y",
-            type_: int_type,
-            loc: test_loc(),
-          }),
+          Field({ name: "x", type_: int_type, loc: test_loc() }),
+          Field({ name: "y", type_: int_type, loc: test_loc() }),
         ],
         loc: test_loc(),
       }),

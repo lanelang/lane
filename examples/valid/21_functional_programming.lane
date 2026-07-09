@@ -19,12 +19,12 @@ pub struct Mappable[F : [Type] -> Type] {
 }
 
 pub struct FlatMappable[F : [Type] -> Type] {
-  offer applicative_impl : Applicative[F]
+  applicative_impl : Applicative[F]
   flat_map : [A, B]((A) -> F[B], F[A]) -> F[B]
 }
 
 pub struct Applicative[F : [Type] -> Type] {
-  offer mappable_impl : Mappable[F]
+  mappable_impl : Mappable[F]
   apply : [A, B](F[(A) -> B], F[A]) -> F[B]
 }
 

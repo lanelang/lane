@@ -547,7 +547,6 @@ fn CheckedFieldDeclaration::to_checked_field_declaration(
 ) -> @checked.CheckedFieldDeclaration {
   {
     symbol: self.symbol,
-    is_offered: self.is_offered,
     name: self.name,
     index: self.index,
     type_: self.type_,

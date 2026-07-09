@@ -462,7 +462,7 @@ test "parse offered value definitions and contextual parameter syntax" {
       #|  equal : (A, A) -> Bool
       #|}
       #|struct Compare[A] {
-      #|  offer equal_impl : Equal[A]
+      #|  equal_impl : Equal[A]
       #|  less : (A, A) -> Bool
       #|}
       #|fn[A] op_equal(a : A, b : A, auto op : Equal[A]) -> Bool {
@@ -484,7 +484,7 @@ test "parse offered value definitions and contextual parameter syntax" {
       #|}
       #|
       #|struct Compare[A] {
-      #|  offer equal_impl : Equal[A]
+      #|  equal_impl : Equal[A]
       #|  less : (A, A) -> Bool
       #|}
       #|

@@ -78,7 +78,6 @@ pub(all) struct CheckedTypeMemberDeclaration {
 ///|
 pub(all) struct CheckedFieldDeclaration {
   symbol : FieldSymbolId
-  is_offered : Bool
   name : String
   index : Int
   type_ : @types.Type

@@ -164,6 +164,10 @@ graph TD
   ISS_148["ISS-148: Extract module compile file family into an explicit package boundary"]
   ISS_149["ISS-149: Separate interface artifacts from object artifacts"]
   ISS_150["ISS-150: Group module packages under module subsystem"]
+  ISS_151["ISS-151: Remove field offer from the Lane surface model"]
+  ISS_152["ISS-152: Remove derived contextual offer forwarding"]
+  ISS_153["ISS-153: Migrate Basic operations away from field offer"]
+  ISS_154["ISS-154: Document explicit-only contextual offers"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -287,6 +291,9 @@ graph TD
   ISS_143 --> ISS_144
   ISS_148 --> ISS_149
   ISS_149 --> ISS_150
+  ISS_151 --> ISS_152
+  ISS_152 --> ISS_153
+  ISS_153 --> ISS_154
 ```
 
 ## Warnings

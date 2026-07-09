@@ -13,10 +13,10 @@ pub fn meter_equal(a : Meter, b : Meter) -> Bool {
 }
 
 pub struct MeterOps {
-  offer equal_impl : Equal[Meter]
+  equal_impl : Equal[Meter]
 }
 
-pub let meter_equal_ops : Equal[Meter] = Equal::{
+pub offer meter_equal_ops : Equal[Meter] = Equal::{
   equal: meter_equal,
   not_equal: fn (a : Meter, b : Meter) -> Bool {
     if meter_equal(a, b) {
@@ -27,9 +27,9 @@ pub let meter_equal_ops : Equal[Meter] = Equal::{
   }
 }
 
-pub offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
+pub let meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
 
-pub fn use_forwarded_field() -> Int {
+pub fn use_explicit_offer() -> Int {
   if Meter::{ value: 1 } == Meter::{ value: 1 } {
     1
   } else {
@@ -38,9 +38,9 @@ pub fn use_forwarded_field() -> Int {
 }
 
 pub fn answer() -> Unit ! Io {
-  if use_forwarded_field() == 1 {
-    Write::println!("forwarded equality=1")
+  if use_explicit_offer() == 1 {
+    Write::println!("explicit equality=1")
   } else {
-    Write::println!("bad:forwarded equality=1")
+    Write::println!("bad:explicit equality=1")
   }
 }

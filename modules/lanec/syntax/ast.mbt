@@ -93,7 +93,6 @@ pub fn Kind::loc(self : Kind) -> SourceSpan {
 
 ///|
 pub(all) struct FieldDeclaration {
-  is_offered : Bool
   name : String
   type_ : Type
   loc : SourceSpan

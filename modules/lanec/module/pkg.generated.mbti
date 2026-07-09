@@ -49,7 +49,6 @@ pub(all) struct ModuleInterfaceEnum {
 
 pub(all) struct ModuleInterfaceField {
   symbol : @symbol.FieldSymbolId
-  is_offered : Bool
   name : String
   index : Int
   type_ : @types.Type

@@ -252,8 +252,7 @@ fn interface_field_fingerprint(
   context : FingerprintTypeContext,
   field : @module_interface.ModuleInterfaceField,
 ) -> String {
-  let offered = if field.is_offered { ":offer" } else { "" }
-  "\{field.name}:\{context.type_fingerprint(field.type_)}#\{field.index}\{offered}"
+  "\{field.name}:\{context.type_fingerprint(field.type_)}#\{field.index}"
 }
 
 ///|

@@ -209,7 +209,6 @@ fn InterfaceSymbolFreshener::freshen_field(
   )
   {
     symbol,
-    is_offered: field.is_offered,
     name: field.name,
     index: field.index,
     type_: self.freshen_lane_type(field.type_),

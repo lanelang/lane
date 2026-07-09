@@ -74,8 +74,8 @@ The checked-source to Buslane boundary is defined in
 - [x] Resolve offered value definitions into a contextual offer environment.
 - [x] Resolve field access into field symbol identities after enough type
   information is available.
-- [x] Resolve contextual forwarding fields declared with `offer field : Type`
-  after checked field types are available.
+- [x] Remove contextual forwarding fields so contextual resolution consumes
+  only explicit named offers and offered parameters.
 - [ ] Resolve operator aliases through ordinary operation names while
   preserving call origin metadata for diagnostics.
 - [x] Report diagnostics for unresolved types, unresolved values, unresolved

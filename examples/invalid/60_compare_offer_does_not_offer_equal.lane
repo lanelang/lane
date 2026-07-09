@@ -1,0 +1,19 @@
+// invalid: offering Compare[Int] does not derive an Equal[Int] contextual offer
+module Examples.Invalid60
+
+struct Equal[T] {
+  equal : (T, T) -> Bool
+}
+
+struct Compare[T] {
+  equal_impl : Equal[T]
+  less : (T, T) -> Bool
+}
+
+fn[T] op_equal(a : T, b : T, auto op : Equal[T]) -> Bool {
+  op.equal(a, b)
+}
+
+offer int_compare_ops : Compare[Int] = builtin("%int_compare_ops")
+
+let answer : Bool = 1 == 1

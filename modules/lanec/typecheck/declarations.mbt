@@ -143,7 +143,6 @@ fn interface_struct_declaration(
     fields: declaration.fields.map(fn(field) {
       {
         symbol: field.symbol,
-        is_offered: field.is_offered,
         name: field.name,
         index: field.index,
         type_: field.type_,
@@ -316,7 +315,6 @@ fn DeclarationChecker::check_field(
 ) -> CheckedFieldDeclaration {
   {
     symbol: field.symbol,
-    is_offered: field.is_offered,
     name: field.name,
     index: field.index,
     type_: self.check_type(field.type_),

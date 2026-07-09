@@ -678,14 +678,14 @@ test "typecheck auto offer parameter is visible in function body" {
 }
 
 ///|
-test "typecheck forwards offered struct fields" {
-  let expression = expect_checked_let_initializer(
+test "typecheck compare offer does not derive equal offer" {
+  let result = expect_typecheck_result(
     (
       #|struct Equal[A] {
       #|  equal : (A, A) -> Bool
       #|}
       #|struct Compare[A] {
-      #|  offer equal_impl : Equal[A]
+      #|  equal_impl : Equal[A]
       #|}
       #|fn[A] op_equal(a : A, b : A, auto op : Equal[A]) -> Bool {
       #|  op.equal(a, b)
@@ -693,13 +693,11 @@ test "typecheck forwards offered struct fields" {
       #|offer int_compare_ops : Compare[Int] = builtin("%int_compare_ops")
       #|let answer : Bool = 1 == 2
     ),
-    "answer",
-    Primitive(Bool),
   )
   inspect(
-    @prettyprinter.render(expression, width=100),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|op_equal#0[Int](1, 2, int_compare_ops#1.equal_impl#1) : Bool
+      #|[missing_contextual_offer type#0[Int] @ 12:26-12:27]
     ),
   )
 }

@@ -1,0 +1,7 @@
+// invalid: struct fields cannot be contextual offers
+module Examples.Invalid59
+
+struct Box {
+  offer value : Int
+}
+

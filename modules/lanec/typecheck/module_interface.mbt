@@ -132,7 +132,6 @@ fn interface_field(
 ) -> @module_interface.ModuleInterfaceField {
   {
     symbol: declaration.symbol,
-    is_offered: declaration.is_offered,
     name: declaration.name,
     index: declaration.index,
     type_: declaration.type_,

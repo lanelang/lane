@@ -241,8 +241,7 @@ pub impl @prettyprinter.Pretty for FieldDeclaration with fn pretty(
 
 ///|
 fn FieldDeclaration::to_doc(self : FieldDeclaration) -> Document {
-  let prefix = if self.is_offered { keyword("offer") + space } else { empty }
-  prefix + text(self.name) + space + text(":") + space + self.type_.to_doc()
+  text(self.name) + space + text(":") + space + self.type_.to_doc()
 }
 
 ///|

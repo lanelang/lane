@@ -155,7 +155,6 @@ pub impl @prettyprinter.Pretty for ResolvedExpr
 
 pub(all) struct ResolvedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
-  is_offered : Bool
   name : String
   type_ : ResolvedType
   index : Int

@@ -246,14 +246,9 @@ non_empty_kind_list -> Array[Kind]
   ;
 
 field_declaration -> FieldDeclaration
-  : field_offer_modifier IDENT ":" type {
-    { is_offered: $1, name: $2, type_: $4, loc: span($sloc) }
+  : IDENT ":" type {
+    { name: $1, type_: $3, loc: span($sloc) }
   }
-  ;
-
-field_offer_modifier -> Bool
-  : { false }
-  | "offer" { true }
   ;
 
 enum_declaration -> EnumDeclaration

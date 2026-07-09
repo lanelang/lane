@@ -129,7 +129,6 @@ pub(all) struct ResolvedTypeMemberDeclaration {
 ///|
 pub(all) struct ResolvedFieldDeclaration {
   symbol : FieldSymbolId
-  is_offered : Bool
   name : String
   type_ : ResolvedType
   index : Int

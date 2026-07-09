@@ -7,8 +7,7 @@ priv struct ValueTypeBinding {
 
 ///|
 priv struct ContextualOffer {
-  root : ValueSymbolId
-  path : Array[FieldSymbolId]
+  symbol : ValueSymbolId
   expression : @desugar.DesugaredExpr
   type_ : @types.Type
   source_id : String?
@@ -213,26 +212,9 @@ fn SemanticChecker::offer_symbol_with_source_id(
     reference=Symbol(symbol),
     loc~,
   )
-  self.offer_expression(offers, symbol, [], expression, type_, source_id, loc)
-}
-
-///|
-fn SemanticChecker::offer_expression(
-  self : SemanticChecker,
-  offers : Array[ContextualOffer],
-  root : ValueSymbolId,
-  path : Array[FieldSymbolId],
-  expression : @desugar.DesugaredExpr,
-  type_ : @types.Type,
-  source_id : String?,
-  loc : SourceSpan,
-) -> Unit {
-  if !contains_contextual_offer(offers, root, path) {
-    offers.push({ root, path, expression, type_, source_id, loc })
+  if !contains_contextual_offer(offers, symbol) {
+    offers.push({ symbol, expression, type_, source_id, loc })
   }
-  self.offer_forwarding_fields(
-    offers, root, path, expression, type_, source_id, loc,
-  )
 }
 
 ///|
@@ -253,81 +235,16 @@ fn SemanticChecker::contextual_offer_name(
   self : SemanticChecker,
   offer : ContextualOffer,
 ) -> String {
-  let root = match self.source.symbols.value_metadata(offer.root) {
+  match self.source.symbols.value_metadata(offer.symbol) {
     Some(metadata) => metadata.name
     None => "<unknown>"
   }
-  if offer.path.is_empty() {
-    return root
-  }
-  let parts = [root]
-  for field in offer.path {
-    let name = match self.source.symbols.field_metadata(field) {
-      Some(metadata) => metadata.name
-      None => "<unknown>"
-    }
-    parts.push(name)
-  }
-  parts.join(".")
 }
 
 ///|
 fn contains_contextual_offer(
   offers : Array[ContextualOffer],
-  root : ValueSymbolId,
-  path : Array[FieldSymbolId],
+  symbol : ValueSymbolId,
 ) -> Bool {
-  offers.any(fn(offer) {
-    offer.root == root && field_path_equals(offer.path, path)
-  })
-}
-
-///|
-fn field_path_equals(
-  left : Array[FieldSymbolId],
-  right : Array[FieldSymbolId],
-) -> Bool {
-  if left.length() != right.length() {
-    return false
-  }
-  for index in 0..<left.length() {
-    if left[index] != right[index] {
-      return false
-    }
-  }
-  true
-}
-
-///|
-fn SemanticChecker::offer_forwarding_fields(
-  self : SemanticChecker,
-  offers : Array[ContextualOffer],
-  root : ValueSymbolId,
-  path : Array[FieldSymbolId],
-  expression : @desugar.DesugaredExpr,
-  type_ : @types.Type,
-  source_id : String?,
-  loc : SourceSpan,
-) -> Unit {
-  guard type_.decompose_nominal() is Some((owner, arguments)) else { return }
-  guard self.declarations.checked_struct(owner) is Some(declaration) else {
-    return
-  }
-  let substitution = declaration.nominal_substitution(arguments)
-  for field in declaration.fields {
-    if field.is_offered && !path.contains(field.symbol) {
-      let field_type = field.type_.substitute(substitution)
-      let field_path = path.copy()
-      field_path.push(field.symbol)
-      let field_expr = @desugar.DesugaredExpr::Field(
-        base=expression,
-        name=field.name,
-        reference=Symbol(field.symbol),
-        loc~,
-      )
-      self.offer_expression(
-        offers, root, field_path, field_expr, field_type, source_id, loc,
-      )
-    }
-  }
+  offers.any(fn(offer) { offer.symbol == symbol })
 }

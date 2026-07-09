@@ -155,7 +155,6 @@ fn @bytecodec.ByteWriter::write_fields(
   self.write_u32_le(items.length())
   for item in items {
     self.write_field_symbol_id(item.symbol)
-    self.write_bool(item.is_offered)
     self.write_string(item.name)
     self.write_u32_le(item.index)
     self.write_lane_type(item.type_)
@@ -171,7 +170,6 @@ fn @bytecodec.ByteReader::read_fields(
   for _ in 0..<self.read_u32_le() {
     items.push({
       symbol: self.read_field_symbol_id(),
-      is_offered: self.read_bool(),
       name: self.read_string(),
       index: self.read_u32_le(),
       type_: self.read_lane_type(),
