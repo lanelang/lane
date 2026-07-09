@@ -194,13 +194,23 @@ fn SemanticChecker::interface_type_aliases(
             aliases.push({
               name: declaration.name,
               type_parameters,
-              body: TypeBody(result.type_.normalize()),
+              body: TypeBody(
+                checker.normalize_type_or_error(
+                  result.type_,
+                  declaration.loc,
+                  context="type alias body",
+                ),
+              ),
               kind: result.kind,
               loc: declaration.loc,
             })
           }
           EffectBody(effect) => {
-            let checked = checker.check_effect(effect).normalize()
+            let checked = checker.normalize_effect_or_empty(
+              checker.check_effect(effect),
+              declaration.loc,
+              context="effect alias body",
+            )
             self.check_public_interface_effect_fallback_with_seen(
               checked,
               declaration.loc,

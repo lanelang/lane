@@ -281,7 +281,7 @@ fn SemanticChecker::contextual_offer_expr(
   // environment. It must not infer generics from the offer set.
   let matches = []
   for offer in scope.offers {
-    if type_matches(expected, offer.type_) {
+    if self.type_matches(expected, offer.type_, loc) {
       matches.push(offer)
     }
   }

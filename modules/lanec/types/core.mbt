@@ -48,6 +48,12 @@ pub(all) enum GenericArgument {
 } derive(Debug, Eq)
 
 ///|
+pub(all) suberror TypeComputationError {
+  TypeNormalizationFuelExhausted
+  EffectNormalizationFuelExhausted
+} derive(Debug, Eq)
+
+///|
 pub fn TypeParameter::generic_argument(self : TypeParameter) -> GenericArgument {
   match self.kind {
     Effect => EffectArgument(Parameter(self.id))
@@ -270,6 +276,16 @@ fn GenericArgument::substitute_with_bound(
 
 ///|
 pub fn GenericArgument::normalize(self : GenericArgument) -> GenericArgument {
+  match self {
+    TypeArgument(type_) => TypeArgument(type_.normalize())
+    EffectArgument(effect) => EffectArgument(effect.normalize())
+  }
+}
+
+///|
+pub fn GenericArgument::try_normalize(
+  self : GenericArgument,
+) -> GenericArgument raise TypeComputationError {
   self.normalize_with_fuel(1024)
 }
 
@@ -277,7 +293,7 @@ pub fn GenericArgument::normalize(self : GenericArgument) -> GenericArgument {
 fn GenericArgument::normalize_with_fuel(
   self : GenericArgument,
   fuel : Int,
-) -> GenericArgument {
+) -> GenericArgument raise TypeComputationError {
   match self {
     TypeArgument(type_) => TypeArgument(type_.normalize_with_fuel(fuel))
     EffectArgument(effect) => EffectArgument(effect.normalize_with_fuel(fuel))
@@ -310,6 +326,12 @@ pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
 ///|
 /// Returns whether two effects are equal under Lane2 effect equality.
 pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
+  self.normalize().alpha_equal(other.normalize())
+}
+
+///|
+/// Returns whether two effects are equal up to binder renaming.
+pub fn Effect::alpha_equal(self : Effect, other : Effect) -> Bool {
   effect_alpha_equal_with([], self, other)
 }
 
@@ -542,19 +564,29 @@ fn alpha_equal_parameter(
 
 ///|
 pub fn Type::normalize(self : Type) -> Type {
+  self.try_normalize() catch {
+    TypeNormalizationFuelExhausted | EffectNormalizationFuelExhausted => Error
+  }
+}
+
+///|
+pub fn Type::try_normalize(self : Type) -> Type raise TypeComputationError {
   self.normalize_with_fuel(1024)
 }
 
 ///|
-fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
+fn Type::normalize_with_fuel(
+  self : Type,
+  fuel : Int,
+) -> Type raise TypeComputationError {
   if fuel <= 0 {
-    abort("Lane type normalization fuel exhausted")
+    raise TypeNormalizationFuelExhausted
   }
   match self {
     Error | Primitive(_) | Constructor(_) | Parameter(_) => self
     Apply(callee, arguments) => {
       let normalized_callee = callee.normalize_with_fuel(fuel - 1)
-      let normalized_arguments = arguments.map(fn(argument) {
+      let normalized_arguments = arguments.map(argument => {
         argument.normalize_with_fuel(fuel - 1)
       })
       match normalized_callee {
@@ -578,7 +610,7 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
       TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
     Function(parameters, result, effect) =>
       Function(
-        parameters.map(fn(parameter) { parameter.normalize_with_fuel(fuel - 1) }),
+        parameters.map(parameter => parameter.normalize_with_fuel(fuel - 1)),
         result.normalize_with_fuel(fuel - 1),
         effect.normalize_with_fuel(fuel - 1),
       )
@@ -589,23 +621,35 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
 
 ///|
 pub fn Effect::normalize(self : Effect) -> Effect {
+  self.try_normalize() catch {
+    TypeNormalizationFuelExhausted | EffectNormalizationFuelExhausted => Empty
+  }
+}
+
+///|
+pub fn Effect::try_normalize(
+  self : Effect,
+) -> Effect raise TypeComputationError {
   self.normalize_with_fuel(1024).canonicalize()
 }
 
 ///|
-fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
+fn Effect::normalize_with_fuel(
+  self : Effect,
+  fuel : Int,
+) -> Effect raise TypeComputationError {
   if fuel <= 0 {
-    abort("Lane effect normalization fuel exhausted")
+    raise EffectNormalizationFuelExhausted
   }
   match self {
     Empty | Parameter(_) => self
     Singleton(symbol, arguments) =>
       Singleton(
         symbol,
-        arguments.map(fn(argument) { argument.normalize_with_fuel(fuel - 1) }),
+        arguments.map(argument => argument.normalize_with_fuel(fuel - 1)),
       )
     Union(effects) =>
-      Union(effects.map(fn(effect) { effect.normalize_with_fuel(fuel - 1) }))
+      Union(effects.map(effect => effect.normalize_with_fuel(fuel - 1)))
   }
 }
 

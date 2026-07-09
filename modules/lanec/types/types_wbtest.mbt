@@ -85,3 +85,33 @@ test "pretty prints effectful function type" {
   let type_ = Type::Function([], Primitive(Unit), Singleton(console, []))
   inspect(@prettyprinter.render(type_), content="() -> Unit ! effect#0")
 }
+
+///|
+test "try normalize reports type fuel exhaustion without aborting" {
+  let mut type_ = Primitive(Unit)
+  for _ in 0..<1030 {
+    type_ = Function([type_], type_, Empty)
+  }
+  try type_.try_normalize() catch {
+    error => debug_inspect(error, content="TypeNormalizationFuelExhausted")
+  } noraise {
+    _ => fail("expected type normalization fuel exhaustion")
+  }
+  inspect(@prettyprinter.render(type_.normalize()), content="<error>")
+}
+
+///|
+test "try normalize reports effect fuel exhaustion without aborting" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())
+  let mut effect = Singleton(console, [])
+  for _ in 0..<1030 {
+    effect = Union([effect])
+  }
+  try effect.try_normalize() catch {
+    error => debug_inspect(error, content="EffectNormalizationFuelExhausted")
+  } noraise {
+    _ => fail("expected effect normalization fuel exhaustion")
+  }
+  inspect(@prettyprinter.render(effect.normalize()), content="{}")
+}

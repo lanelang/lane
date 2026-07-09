@@ -4383,3 +4383,20 @@ test "typecheck rejects type argument for effect alias parameter" {
     content="kind_mismatch expected=Effect actual=Type",
   )
 }
+
+///|
+test "typecheck reports normalization fuel exhaustion as internal diagnostic" {
+  let diagnostics : Array[TypeCheckDiagnostic] = []
+  report_type_computation_failure(
+    diagnostics,
+    "type alias body",
+    @basic.SourceSpan::dummy(),
+    TypeNormalizationFuelExhausted,
+  )
+  debug_inspect(
+    diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+    content=(
+      #|[InternalTypecheckFailure(label="type-level computation did not terminate while normalizing type alias body")]
+    ),
+  )
+}

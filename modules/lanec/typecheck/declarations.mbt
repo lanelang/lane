@@ -484,7 +484,13 @@ fn check_resolved_generic_argument(
   }
   match (expected, argument) {
     (Effect, EffectArgument(effect)) =>
-      EffectArgument(checker.check_effect(effect).normalize())
+      EffectArgument(
+        checker.normalize_effect_or_empty(
+          checker.check_effect(effect),
+          resolved_generic_argument_loc(argument),
+          context="generic effect argument",
+        ),
+      )
     (Effect, TypeArgument(type_)) => {
       let result = checker.synthesize_type(type_)
       let actual = resolved_type_kind_with_scope(scope, type_, result.kind)
@@ -507,7 +513,13 @@ fn check_resolved_generic_argument(
           loc: resolved_type_loc(type_),
         })
       }
-      TypeArgument(result.type_.normalize())
+      TypeArgument(
+        checker.normalize_type_or_error(
+          result.type_,
+          resolved_type_loc(type_),
+          context="generic type argument",
+        ),
+      )
     }
     (expected, EffectArgument(effect)) => {
       ignore(checker.check_effect(effect))
@@ -568,7 +580,11 @@ fn TypeExpressionChecker::check_value_type(
       loc: resolved_type_loc(type_),
     })
   }
-  result.type_.normalize()
+  self.normalize_type_or_error(
+    result.type_,
+    resolved_type_loc(type_),
+    context="value type annotation",
+  )
 }
 
 ///|
@@ -620,7 +636,11 @@ fn TypeExpressionChecker::synthesize_type(
             }
           }
           {
-            type_: @types.Type::Apply(callee_result.type_, checked_arguments).normalize(),
+            type_: self.normalize_type_or_error(
+              Apply(callee_result.type_, checked_arguments),
+              loc,
+              context="type application",
+            ),
             kind: result_kind,
           }
         }
@@ -700,7 +720,13 @@ fn TypeExpressionChecker::check_generic_argument(
   // not encoded as ordinary TypeArgument nodes.
   match (expected, argument) {
     (Effect, EffectArgument(effect)) =>
-      EffectArgument(self.check_effect(effect).normalize())
+      EffectArgument(
+        self.normalize_effect_or_empty(
+          self.check_effect(effect),
+          resolved_generic_argument_loc(argument),
+          context="generic effect argument",
+        ),
+      )
     (Effect, TypeArgument(type_)) => {
       let result = self.synthesize_type(type_)
       if result.kind == Effect && result.type_ is Parameter(symbol) {
@@ -721,7 +747,13 @@ fn TypeExpressionChecker::check_generic_argument(
           loc: resolved_type_loc(type_),
         })
       }
-      TypeArgument(result.type_.normalize())
+      TypeArgument(
+        self.normalize_type_or_error(
+          result.type_,
+          resolved_type_loc(type_),
+          context="generic type argument",
+        ),
+      )
     }
     (expected, EffectArgument(effect)) => {
       ignore(self.check_effect(effect))

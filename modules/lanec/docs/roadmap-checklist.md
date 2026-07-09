@@ -55,7 +55,7 @@ The checked-source to Buslane boundary is defined in
   existential witnesses.
 - [x] F-Omega: implement transparent alias expansion, capture-avoiding beta
   normalization, and definitional equality.
-- [ ] F-Omega: replace normalization-fuel aborts with explicit internal-bug
+- [x] F-Omega: replace normalization-fuel aborts with explicit internal-bug
   diagnostics if type-level computation does not terminate.
 
 ## 2. Name Resolution

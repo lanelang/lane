@@ -14,16 +14,23 @@ fn SemanticChecker::expect_type(
   actual : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  if !type_matches(expected, actual) {
+  if !self.type_matches(expected, actual, loc) {
     self.diagnostics.push({ kind: TypeMismatch(expected~, actual~), loc })
   }
 }
 
 ///|
-fn type_matches(expected : @types.Type, actual : @types.Type) -> Bool {
+fn SemanticChecker::type_matches(
+  self : SemanticChecker,
+  expected : @types.Type,
+  actual : @types.Type,
+  loc : SourceSpan,
+) -> Bool {
   expected.contains_error() ||
   actual.contains_error() ||
-  expected.equals(actual)
+  self
+  .normalize_type_or_error(expected, loc, context="expected type")
+  .alpha_equal(self.normalize_type_or_error(actual, loc, context="actual type"))
 }
 
 ///|

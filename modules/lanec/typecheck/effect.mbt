@@ -166,7 +166,11 @@ fn TypeExpressionChecker::expand_effect_alias(
       match type_alias.body {
         EffectBody(effect) => {
           let expanded = next.check_effect(effect).substitute(type_substitution)
-          expanded.substitute_effect_parameters(effect_substitution).normalize()
+          self.normalize_effect_or_empty(
+            expanded.substitute_effect_parameters(effect_substitution),
+            loc,
+            context="effect alias expansion",
+          )
         }
         TypeBody(body) => {
           let result = next.synthesize_type(body)
@@ -193,9 +197,11 @@ fn TypeExpressionChecker::expand_effect_alias(
                 return Empty
               }
               let expanded = effect.substitute(type_substitution)
-              expanded
-              .substitute_effect_parameters(effect_substitution)
-              .normalize()
+              self.normalize_effect_or_empty(
+                expanded.substitute_effect_parameters(effect_substitution),
+                loc,
+                context="imported effect alias expansion",
+              )
             }
             TypeBody(_) => {
               self.diagnostics.push({
@@ -290,7 +296,14 @@ fn TypeExpressionChecker::check_effect_alias_argument_for_parameter(
         })
         has_error = true
       }
-      type_substitution.insert(parameter.id, result.type_.normalize())
+      type_substitution.insert(
+        parameter.id,
+        self.normalize_type_or_error(
+          result.type_,
+          resolved_type_loc(type_),
+          context="effect alias type argument",
+        ),
+      )
       has_error
     }
     (expected, EffectArgument(effect)) => {
@@ -501,14 +514,23 @@ fn SemanticChecker::expect_effect(
   actual : @types.Effect,
   loc : SourceSpan,
 ) -> Unit {
-  if !effect_allowed(expected, actual) {
+  if !self.effect_allowed(expected, actual, loc) {
     self.diagnostics.push({ kind: EffectMismatch(expected~, actual~), loc })
   }
 }
 
 ///|
-fn effect_allowed(expected : @types.Effect, actual : @types.Effect) -> Bool {
-  expected.equals(actual)
+fn SemanticChecker::effect_allowed(
+  self : SemanticChecker,
+  expected : @types.Effect,
+  actual : @types.Effect,
+  loc : SourceSpan,
+) -> Bool {
+  self
+  .normalize_effect_or_empty(expected, loc, context="expected effect")
+  .alpha_equal(
+    self.normalize_effect_or_empty(actual, loc, context="actual effect"),
+  )
 }
 
 ///|

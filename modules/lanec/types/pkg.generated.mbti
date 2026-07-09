@@ -15,6 +15,10 @@ pub fn nominal_type_generic(@symbol.TypeSymbolId, Array[GenericArgument]) -> Typ
 pub fn type_arguments(Array[Type]) -> Array[GenericArgument]
 
 // Errors
+pub(all) suberror TypeComputationError {
+  TypeNormalizationFuelExhausted
+  EffectNormalizationFuelExhausted
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub(all) enum Effect {
@@ -23,10 +27,12 @@ pub(all) enum Effect {
   Parameter(@symbol.TypeParameterId)
   Union(Array[Effect])
 } derive(@debug.Debug)
+pub fn Effect::alpha_equal(Self, Self) -> Bool
 pub fn Effect::canonicalize(Self) -> Self
 pub fn Effect::equals(Self, Self) -> Bool
 pub fn Effect::normalize(Self) -> Self
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
+pub fn Effect::try_normalize(Self) -> Self raise TypeComputationError
 pub impl @prettyprinter.Pretty for Effect
 pub impl Eq for Effect
 
@@ -36,6 +42,7 @@ pub(all) enum GenericArgument {
 } derive(Eq, @debug.Debug)
 pub fn GenericArgument::normalize(Self) -> Self
 pub fn GenericArgument::substitute(Self, TypeSubstitution) -> Self
+pub fn GenericArgument::try_normalize(Self) -> Self raise TypeComputationError
 pub impl @prettyprinter.Pretty for GenericArgument
 
 pub(all) enum Kind {
@@ -69,6 +76,7 @@ pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[GenericArgu
 pub fn Type::equals(Self, Self) -> Bool
 pub fn Type::normalize(Self) -> Self
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
+pub fn Type::try_normalize(Self) -> Self raise TypeComputationError
 pub impl @prettyprinter.Pretty for Type
 pub impl Eq for Type
 
