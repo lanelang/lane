@@ -485,7 +485,8 @@ fn check_resolved_generic_argument(
   match (expected, argument) {
     (Effect, EffectArgument(effect)) =>
       EffectArgument(
-        checker.normalize_effect_or_empty(
+        normalize_effect_or_empty(
+          checker.diagnostics,
           checker.check_effect(effect),
           resolved_generic_argument_loc(argument),
           context="generic effect argument",
@@ -514,7 +515,8 @@ fn check_resolved_generic_argument(
         })
       }
       TypeArgument(
-        checker.normalize_type_or_error(
+        normalize_type_or_error(
+          checker.diagnostics,
           result.type_,
           resolved_type_loc(type_),
           context="generic type argument",
@@ -580,7 +582,8 @@ fn TypeExpressionChecker::check_value_type(
       loc: resolved_type_loc(type_),
     })
   }
-  self.normalize_type_or_error(
+  normalize_type_or_error(
+    self.diagnostics,
     result.type_,
     resolved_type_loc(type_),
     context="value type annotation",
@@ -636,7 +639,8 @@ fn TypeExpressionChecker::synthesize_type(
             }
           }
           {
-            type_: self.normalize_type_or_error(
+            type_: normalize_type_or_error(
+              self.diagnostics,
               Apply(callee_result.type_, checked_arguments),
               loc,
               context="type application",
@@ -721,7 +725,8 @@ fn TypeExpressionChecker::check_generic_argument(
   match (expected, argument) {
     (Effect, EffectArgument(effect)) =>
       EffectArgument(
-        self.normalize_effect_or_empty(
+        normalize_effect_or_empty(
+          self.diagnostics,
           self.check_effect(effect),
           resolved_generic_argument_loc(argument),
           context="generic effect argument",
@@ -748,7 +753,8 @@ fn TypeExpressionChecker::check_generic_argument(
         })
       }
       TypeArgument(
-        self.normalize_type_or_error(
+        normalize_type_or_error(
+          self.diagnostics,
           result.type_,
           resolved_type_loc(type_),
           context="generic type argument",

@@ -166,7 +166,8 @@ fn TypeExpressionChecker::expand_effect_alias(
       match type_alias.body {
         EffectBody(effect) => {
           let expanded = next.check_effect(effect).substitute(type_substitution)
-          self.normalize_effect_or_empty(
+          normalize_effect_or_empty(
+            self.diagnostics,
             expanded.substitute_effect_parameters(effect_substitution),
             loc,
             context="effect alias expansion",
@@ -197,7 +198,8 @@ fn TypeExpressionChecker::expand_effect_alias(
                 return Empty
               }
               let expanded = effect.substitute(type_substitution)
-              self.normalize_effect_or_empty(
+              normalize_effect_or_empty(
+                self.diagnostics,
                 expanded.substitute_effect_parameters(effect_substitution),
                 loc,
                 context="imported effect alias expansion",
@@ -298,7 +300,8 @@ fn TypeExpressionChecker::check_effect_alias_argument_for_parameter(
       }
       type_substitution.insert(
         parameter.id,
-        self.normalize_type_or_error(
+        normalize_type_or_error(
+          self.diagnostics,
           result.type_,
           resolved_type_loc(type_),
           context="effect alias type argument",
@@ -526,10 +529,18 @@ fn SemanticChecker::effect_allowed(
   actual : @types.Effect,
   loc : SourceSpan,
 ) -> Bool {
-  self
-  .normalize_effect_or_empty(expected, loc, context="expected effect")
-  .alpha_equal(
-    self.normalize_effect_or_empty(actual, loc, context="actual effect"),
+  normalize_effect_or_empty(
+    self.diagnostics,
+    expected,
+    loc,
+    context="expected effect",
+  ).alpha_equal(
+    normalize_effect_or_empty(
+      self.diagnostics,
+      actual,
+      loc,
+      context="actual effect",
+    ),
   )
 }
 

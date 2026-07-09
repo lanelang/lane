@@ -1126,7 +1126,8 @@ fn SemanticChecker::check_explicit_generic_application(
       }
       Some({
         arguments: checked_arguments,
-        type_: self.normalize_type_or_error(
+        type_: normalize_type_or_error(
+          self.diagnostics,
           body.substitute(substitution),
           loc,
           context="explicit generic application result",

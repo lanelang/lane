@@ -27,60 +27,30 @@ fn report_type_computation_failure(
 }
 
 ///|
-fn SemanticChecker::normalize_type_or_error(
-  self : SemanticChecker,
+fn normalize_type_or_error(
+  diagnostics : Array[TypeCheckDiagnostic],
   type_ : @types.Type,
   loc : SourceSpan,
   context~ : String,
 ) -> @types.Type {
   type_.try_normalize() catch {
     error => {
-      report_type_computation_failure(self.diagnostics, context, loc, error)
+      report_type_computation_failure(diagnostics, context, loc, error)
       Error
     }
   }
 }
 
 ///|
-fn SemanticChecker::normalize_effect_or_empty(
-  self : SemanticChecker,
+fn normalize_effect_or_empty(
+  diagnostics : Array[TypeCheckDiagnostic],
   effect : @types.Effect,
   loc : SourceSpan,
   context~ : String,
 ) -> @types.Effect {
   effect.try_normalize() catch {
     error => {
-      report_type_computation_failure(self.diagnostics, context, loc, error)
-      Empty
-    }
-  }
-}
-
-///|
-fn TypeExpressionChecker::normalize_type_or_error(
-  self : TypeExpressionChecker,
-  type_ : @types.Type,
-  loc : SourceSpan,
-  context~ : String,
-) -> @types.Type {
-  type_.try_normalize() catch {
-    error => {
-      report_type_computation_failure(self.diagnostics, context, loc, error)
-      Error
-    }
-  }
-}
-
-///|
-fn TypeExpressionChecker::normalize_effect_or_empty(
-  self : TypeExpressionChecker,
-  effect : @types.Effect,
-  loc : SourceSpan,
-  context~ : String,
-) -> @types.Effect {
-  effect.try_normalize() catch {
-    error => {
-      report_type_computation_failure(self.diagnostics, context, loc, error)
+      report_type_computation_failure(diagnostics, context, loc, error)
       Empty
     }
   }

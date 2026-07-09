@@ -28,9 +28,19 @@ fn SemanticChecker::type_matches(
 ) -> Bool {
   expected.contains_error() ||
   actual.contains_error() ||
-  self
-  .normalize_type_or_error(expected, loc, context="expected type")
-  .alpha_equal(self.normalize_type_or_error(actual, loc, context="actual type"))
+  normalize_type_or_error(
+    self.diagnostics,
+    expected,
+    loc,
+    context="expected type",
+  ).alpha_equal(
+    normalize_type_or_error(
+      self.diagnostics,
+      actual,
+      loc,
+      context="actual type",
+    ),
+  )
 }
 
 ///|

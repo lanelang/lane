@@ -195,7 +195,8 @@ fn SemanticChecker::interface_type_aliases(
               name: declaration.name,
               type_parameters,
               body: TypeBody(
-                checker.normalize_type_or_error(
+                normalize_type_or_error(
+                  checker.diagnostics,
                   result.type_,
                   declaration.loc,
                   context="type alias body",
@@ -206,7 +207,8 @@ fn SemanticChecker::interface_type_aliases(
             })
           }
           EffectBody(effect) => {
-            let checked = checker.normalize_effect_or_empty(
+            let checked = normalize_effect_or_empty(
+              checker.diagnostics,
               checker.check_effect(effect),
               declaration.loc,
               context="effect alias body",
