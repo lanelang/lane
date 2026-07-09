@@ -198,10 +198,10 @@ fn module_frontend_report(
 ///|
 fn parse_diagnostics(result : @parser.ParseResult) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  for error in result.lexical_errors {
+  for error in result.lexical_errors() {
     diagnostics.push(lex_diagnostic(error))
   }
-  for error in result.parse_errors {
+  for error in result.parse_errors() {
     diagnostics.push(parse_diagnostic(error))
   }
   diagnostics

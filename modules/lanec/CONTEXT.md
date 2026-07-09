@@ -40,6 +40,78 @@ _Avoid_: compact diagnostic pretty print, debug diagnostic output, command repor
 Formatter output that uses syntax-aware pretty-printing breakpoints to prefer lines within a configured width while allowing indivisible source atoms to exceed it.
 _Avoid_: hard line wrapping, post-render text wrapping, token splitting
 
+**Concrete Syntax Layer**:
+The formatter-facing source representation that preserves tokens, comments, whitespace, and source spans alongside parse structure.
+_Avoid_: semantic AST, checked source, resolved AST
+
+**Parsed Source**:
+The successful parser payload that pairs the syntax AST with concrete syntax sidecars for formatting and source-preserving tooling.
+_Avoid_: ParseResult, checked source, formatter output
+
+**Concrete Syntax**:
+The token and trivia sidecar produced with a parsed source file, without owning the semantic syntax AST.
+_Avoid_: SourceFile, resolved AST, checked source
+
+**Trivia Span**:
+A source span plus trivia kind that references text stored by **Concrete Syntax** rather than copying comment or whitespace text.
+_Avoid_: copied comment text, formatter string, AST span
+
+**Gap-Indexed Trivia**:
+A trivia fact that records its source span, kind, and position in the concrete token gap between two tokens, including EOF.
+_Avoid_: token-owned trivia arrays, AST-owned comments, inferred source gaps
+
+**Trivia View**:
+A formatter-local query view over **Gap-Indexed Trivia** that classifies trivia as leading, trailing, or detached for rendering.
+_Avoid_: second trivia store, lexer policy, AST attachment
+
+**EOF Token**:
+The non-printing end-of-file token kept in the concrete token stream as the anchor for final trivia.
+_Avoid_: printable token, boundary array, missing final trivia
+
+**Parse Result**:
+The parser domain result that is either a successfully **Parsed Source** or a structured parse failure.
+_Avoid_: optional parsed field, generic result, syntax AST
+
+**Parse Failure**:
+The parser domain failure that distinguishes lexical failure from grammar failure, preserving concrete syntax sidecars only when lexing succeeded.
+_Avoid_: nullable source, mixed error arrays, formatter diagnostic
+
+**Trivia-Preserving Formatting**:
+Full-file source formatting that requires successful parsing and renders canonical source text without dropping comments or meaningful blank lines.
+_Avoid_: partial formatting, error-tolerant formatting, comment reinsertion
+
+**Trivia-Aware Pretty Printing**:
+Pretty-printing that renders syntax-owned documents through a formatting context capable of consuming attached trivia at token boundaries.
+_Avoid_: second formatter, string post-processing, comment merge pass
+
+**Formatter Verification Oracle**:
+The formatter test contract that combines comment no-loss checks, AST roundtrip equivalence, and formatting idempotence.
+_Avoid_: snapshot-only testing, visual inspection, string contains checks
+
+**Trivia Stream**:
+The ordered non-semantic source material between tokens, including line comments, blank lines, newlines, and spacing needed to preserve user-written layout intent.
+_Avoid_: AST comments, semantic nodes, formatter output
+
+**Line Comment Trivia**:
+A `//` source comment preserved by formatting without assigning declaration documentation semantics.
+_Avoid_: doc comment, block comment, AST attribute
+
+**Trivia Attachment**:
+The formatter relation that associates trivia from the **Trivia Stream** with token boundaries or syntax tree positions before rendering source text.
+_Avoid_: comment parsing, AST fields, post-render reinsertion
+
+**Token Boundary Trivia**:
+Trivia whose primary location is the gap between two concrete tokens, classified before formatting as leading, trailing, or detached material.
+_Avoid_: node-owned comments, post-render comments, semantic attachment
+
+**Trailing Comment**:
+A line comment that appears on the same source line as the preceding token and remains bound to that preceding token or syntax unit during formatting.
+_Avoid_: leading comment, detached comment, documentation comment
+
+**Meaningful Blank Line**:
+A blank line preserved as source grouping trivia while its exact repeated count is canonicalized by the formatter.
+_Avoid_: raw whitespace, vertical padding, empty statement
+
 **Parsed Double Literal**:
 A source `Double` literal after validation, retaining the original source text for diagnostics and a binary64 value for semantic lowering.
 _Avoid_: string-only float literal, arbitrary-precision decimal constant, overloaded numeric literal
@@ -109,6 +181,55 @@ _Avoid_: semantic lowering, source elaboration, module interface generation
 - **Width-Sensitive Formatting** applies first to syntax-owned list and head
   structures; it does not split source atoms such as identifiers, module paths,
   comments, or string literals.
+- A complete comment-preserving formatter consumes a **Concrete Syntax Layer**
+  and **Trivia Stream** rather than adding comment fields to semantic AST nodes.
+- **Parse Result** is a domain enum rather than an optional parsed field; a
+  successful **Parsed Source** carries syntax plus **Concrete Syntax**, while a
+  failure carries lexical and parse diagnostics.
+- **Parse Failure** distinguishes lexical and grammar failures: grammar
+  failures may still carry reliable **Concrete Syntax**, while lexical failures
+  do not.
+- **Concrete Syntax** keeps token and trivia sidecars beside the syntax AST;
+  yacc grammar actions should not carry formatter trivia through semantic AST
+  fields.
+- The lexer owns **Concrete Syntax** token and **Gap-Indexed Trivia**
+  extraction; the parser consumes a trivia-free token view and produces syntax
+  AST or parse diagnostics.
+- **Concrete Syntax** owns the original source text used for formatting;
+  **Gap-Indexed Trivia** values reference that text by source span and
+  classified trivia kind instead of copying comment text.
+- **Trivia View** is derived from **Gap-Indexed Trivia** at formatting time;
+  concrete tokens do not store leading or trailing trivia arrays directly.
+- The concrete token stream includes an **EOF Token**; formatting consumes its
+  attached trivia but renders no token text for EOF.
+- **Trivia Attachment** is a formatting concern; source elaboration, type
+  checking, and semantic lowering should continue to consume comment-free AST
+  data.
+- **Trivia Attachment** is based first on **Token Boundary Trivia**; node-level
+  formatting helpers may consume attached trivia, but AST nodes do not own
+  comments directly.
+- A **Trailing Comment** should remain trailing on the syntax unit it originally
+  followed; the formatter should not silently convert it into a leading or
+  detached comment when a group breaks.
+- The formatter preserves comments and meaningful blank lines from the
+  **Trivia Stream**, but ordinary spacing, indentation, and line breaks remain
+  generated by **Width-Sensitive Formatting**.
+- **Line Comment Trivia** is source layout trivia for formatter purposes; doc
+  comment binding is a separate language/tooling feature and should not be
+  introduced implicitly by comment preservation.
+- A **Meaningful Blank Line** records grouping intent, not exact vertical
+  padding; repeated blank lines should be canonicalized before rendering.
+- **Trivia-Preserving Formatting** still requires parse success; preserving
+  trivia does not imply partial or error-tolerant formatting.
+- **Trivia-Preserving Formatting** is a full-file operation in v1; range
+  formatting requires separate boundary-expansion rules and is out of scope for
+  this formatter architecture.
+- **Trivia-Aware Pretty Printing** extends the current width-sensitive syntax
+  pretty-printer; comment preservation should not be implemented as a second
+  formatter or as post-render string merging.
+- A **Formatter Verification Oracle** is required for trivia-preserving
+  formatting so comment preservation, AST equivalence, and idempotence are
+  checked structurally rather than by snapshots alone.
 - **Semantic Completion** belongs to the **Compiler Analysis API**; LSP adapters
   only transport it as protocol-specific completion items.
 - A **Completion Trigger** informs a **Semantic Completion** query but does not

@@ -177,8 +177,8 @@ pub fn parse_module_inputs(
       diagnostic.with_source_id(source.source_id)
     })
     diagnostics.append(source_diagnostics)
-    match parsed.source {
-      Some(file) => {
+    match parsed {
+      Parsed({ syntax: file, .. }) => {
         let header = module_header(file)
         headers.push({
           source_id: source.source_id,
@@ -192,14 +192,14 @@ pub fn parse_module_inputs(
           source: file,
         })
       }
-      None if source_diagnostics.is_empty() => {
+      Failed(_) if source_diagnostics.is_empty() => {
         let diagnostic = module_frontend_diagnostic(
           ParserProducedNoSourceFile,
           None,
         ).with_source_id(source.source_id)
         diagnostics.push(diagnostic)
       }
-      None =>
+      Failed(_) =>
         match source_module_header(source) {
           Some(header) => headers.push(header)
           None => ()

@@ -76,7 +76,28 @@ pub(all) struct LexError {
 } derive(Debug, Eq)
 
 ///|
-pub struct LexResult {
+pub(all) enum TriviaKind {
+  Whitespace
+  Newline
+  LineComment
+} derive(Debug, Eq)
+
+///|
+pub(all) struct GapIndexedTrivia {
+  kind : TriviaKind
+  span : SourceSpan
+  gap : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ConcreteSyntax {
+  source_text : String
   tokens : Array[(Token, SourceSpan)]
+  trivia : Array[GapIndexedTrivia]
+} derive(Debug, Eq)
+
+///|
+pub struct LexResult {
+  concrete : ConcreteSyntax
   errors : Array[LexError]
 } derive(Debug, Eq)

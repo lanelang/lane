@@ -168,6 +168,12 @@ graph TD
   ISS_152["ISS-152: Remove derived contextual offer forwarding"]
   ISS_153["ISS-153: Migrate Basic operations away from field offer"]
   ISS_154["ISS-154: Document explicit-only contextual offers"]
+  ISS_155["ISS-155: Implement trivia-preserving source formatting"]
+  ISS_156["ISS-156: Add concrete syntax token and trivia extraction"]
+  ISS_157["ISS-157: Replace parser result payload with parsed and failed states"]
+  ISS_158["ISS-158: Build trivia view for formatter attachment"]
+  ISS_159["ISS-159: Migrate formatter to trivia-aware pretty printing"]
+  ISS_160["ISS-160: Add formatter verification oracle and comment fixtures"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -294,6 +300,10 @@ graph TD
   ISS_151 --> ISS_152
   ISS_152 --> ISS_153
   ISS_153 --> ISS_154
+  ISS_156 --> ISS_157
+  ISS_157 --> ISS_158
+  ISS_158 --> ISS_159
+  ISS_159 --> ISS_160
 ```
 
 ## Warnings

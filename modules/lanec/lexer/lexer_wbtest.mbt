@@ -4,7 +4,7 @@ fn token_values(source : String) -> Array[Token] {
   if !result.errors.is_empty() {
     abort("unexpected lexer error")
   }
-  result.tokens.map(fn(item) {
+  result.concrete.tokens.map(fn(item) {
     let (token, _span) = item
     token
   })
@@ -98,7 +98,7 @@ test "skip comments and preserve following token positions" {
   let result = tokens_from_string("// hidden\nlet x")
   debug_inspect(result.errors, content="[]")
   debug_inspect(
-    result.tokens,
+    result.concrete.tokens,
     content=(
       #|[
       #|  (
@@ -134,6 +134,91 @@ test "skip comments and preserve following token positions" {
       #|      end_column: 6,
       #|    },
       #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
+test "collect comments and whitespace as gap indexed trivia" {
+  let result = tokens_from_string("// hidden\nlet x // tail\n")
+  debug_inspect(result.errors, content="[]")
+  debug_inspect(
+    result.concrete.trivia,
+    content=(
+      #|[
+      #|  {
+      #|    kind: LineComment,
+      #|    span: {
+      #|      start_offset: 0,
+      #|      end_offset: 9,
+      #|      start_line: 1,
+      #|      start_column: 1,
+      #|      end_line: 1,
+      #|      end_column: 10,
+      #|    },
+      #|    gap: 0,
+      #|  },
+      #|  {
+      #|    kind: Newline,
+      #|    span: {
+      #|      start_offset: 9,
+      #|      end_offset: 10,
+      #|      start_line: 1,
+      #|      start_column: 10,
+      #|      end_line: 1,
+      #|      end_column: 11,
+      #|    },
+      #|    gap: 0,
+      #|  },
+      #|  {
+      #|    kind: Whitespace,
+      #|    span: {
+      #|      start_offset: 13,
+      #|      end_offset: 14,
+      #|      start_line: 2,
+      #|      start_column: 4,
+      #|      end_line: 2,
+      #|      end_column: 5,
+      #|    },
+      #|    gap: 1,
+      #|  },
+      #|  {
+      #|    kind: Whitespace,
+      #|    span: {
+      #|      start_offset: 15,
+      #|      end_offset: 16,
+      #|      start_line: 2,
+      #|      start_column: 6,
+      #|      end_line: 2,
+      #|      end_column: 7,
+      #|    },
+      #|    gap: 2,
+      #|  },
+      #|  {
+      #|    kind: LineComment,
+      #|    span: {
+      #|      start_offset: 16,
+      #|      end_offset: 23,
+      #|      start_line: 2,
+      #|      start_column: 7,
+      #|      end_line: 2,
+      #|      end_column: 14,
+      #|    },
+      #|    gap: 2,
+      #|  },
+      #|  {
+      #|    kind: Newline,
+      #|    span: {
+      #|      start_offset: 23,
+      #|      end_offset: 24,
+      #|      start_line: 2,
+      #|      start_column: 14,
+      #|      end_line: 2,
+      #|      end_column: 15,
+      #|    },
+      #|    gap: 2,
+      #|  },
       #|]
     ),
   )

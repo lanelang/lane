@@ -3,43 +3,34 @@
 pub fn parse_string(source : String) -> ParseResult {
   let lexed = @lexer.tokens_from_string(source)
   if !lexed.errors.is_empty() {
-    { source: None, lexical_errors: lexed.errors, parse_errors: [] }
+    Failed(Lexical(lexed.errors))
   } else {
-    let result = parse_tokens(lexed.tokens)
-    {
-      source: result.source,
-      lexical_errors: [],
-      parse_errors: result.parse_errors,
-    }
+    parse_concrete(lexed.concrete)
   }
 }
 
 ///|
-/// Parses an already lexed token stream into a source file.
-pub fn parse_tokens(tokens : Array[(@lexer.Token, SourceSpan)]) -> ParseResult {
-  let yacc_tokens = tokens.map(fn(item) {
+/// Parses a concrete token stream into a source file.
+pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
+  let yacc_tokens = concrete.tokens.map(fn(item) {
     let (token, loc) = item
     (token.to_yacc_token(), loc, loc)
   })
   let source = @yacc_parser.source_file(yacc_tokens) catch {
     UnexpectedEndOfInput(loc, expected) =>
-      return {
-        source: None,
-        lexical_errors: [],
-        parse_errors: [
+      return Failed(
+        Grammar(concrete, [
           { kind: UnexpectedEndOfInput(expected_syntax(expected)), loc },
-        ],
-      }
+        ]),
+      )
     UnexpectedToken(token, (start, end), expected) => {
       let kind = unexpected_token_error_kind(token, expected)
-      return {
-        source: None,
-        lexical_errors: [],
-        parse_errors: [{ kind, loc: SourceSpan::join(start, end) }],
-      }
+      return Failed(
+        Grammar(concrete, [{ kind, loc: SourceSpan::join(start, end) }]),
+      )
     }
   }
-  { source: Some(source), lexical_errors: [], parse_errors: [] }
+  Parsed({ syntax: source, concrete })
 }
 
 ///|

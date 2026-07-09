@@ -1,6 +1,8 @@
 ///|
 priv struct LexEnv {
   tokens : Array[(Token, SourceSpan)]
+  trivia : Array[GapIndexedTrivia]
+  pending_trivia : Array[(TriviaKind, SourceSpan)]
   errors : Array[LexError]
   mut current_line : Int
   mut current_bol : Int
@@ -36,9 +38,25 @@ fn LexEnv::add_token(
   start~ : Int,
   end~ : Int,
 ) -> Unit {
+  let gap = self.tokens.length()
+  for item in self.pending_trivia {
+    let (kind, span) = item
+    self.trivia.push({ kind, span, gap })
+  }
+  self.pending_trivia.clear()
   self.tokens.push((token, self.span(start~, end~)))
   self.last_token = Some(token)
   self.last_token_end = end
+}
+
+///|
+fn LexEnv::add_trivia(
+  self : LexEnv,
+  kind : TriviaKind,
+  start~ : Int,
+  end~ : Int,
+) -> Unit {
+  self.pending_trivia.push((kind, self.span(start~, end~)))
 }
 
 ///|

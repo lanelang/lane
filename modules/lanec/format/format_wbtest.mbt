@@ -9,10 +9,30 @@ fn assert_format(
     abort("expected formatted source")
   }
   assert_eq(formatted, expected)
+  if line_comments(formatted) != line_comments(source) {
+    abort("formatted source lost or reordered line comments")
+  }
   guard format_source_with_options(formatted, options) is Ok(reformatted) else {
     abort("expected formatted source to parse after formatting")
   }
   assert_eq(reformatted, formatted)
+}
+
+///|
+fn line_comments(source : String) -> Array[String] {
+  let result = @lexer.tokens_from_string(source)
+  result.concrete.trivia.filter_map(fn(item) {
+    if item.kind is LineComment {
+      Some(
+        result.concrete.source_text.unsafe_substring(
+          start=item.span.start_offset,
+          end=item.span.end_offset,
+        ),
+      )
+    } else {
+      None
+    }
+  })
 }
 
 ///|

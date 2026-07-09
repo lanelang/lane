@@ -1,10 +1,10 @@
 ///|
 fn expect_parse_ok(source : String) -> @syntax.SourceFile {
   let result = @parser.parse_string("module Test\n" + source)
-  if !result.lexical_errors.is_empty() || !result.parse_errors.is_empty() {
+  if !result.lexical_errors().is_empty() || !result.parse_errors().is_empty() {
     abort("expected parse success")
   }
-  guard result.source is Some(file) else { abort("expected source file") }
+  guard result.syntax() is Some(file) else { abort("expected source file") }
   file
 }
 

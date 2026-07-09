@@ -3,6 +3,8 @@
 pub fn tokens_from_string(source : String) -> LexResult {
   let env = LexEnv::{
     tokens: [],
+    trivia: [],
+    pending_trivia: [],
     errors: [],
     current_line: 1,
     current_bol: 0,
@@ -10,18 +12,40 @@ pub fn tokens_from_string(source : String) -> LexResult {
     last_token_end: -1,
   }
   lex_tokens(source, base=source, env~)
-  { tokens: env.tokens, errors: env.errors }
+  {
+    concrete: { source_text: source, tokens: env.tokens, trivia: env.trivia },
+    errors: env.errors,
+  }
 }
 
 ///|
 fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
   lexmatch input with longest {
     ("\r\n|\r|\n", rest) => {
+      env.add_trivia(
+        Newline,
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
       env.newline(end=env.calc_offset(rest, base~))
       lex_tokens(rest, base~, env~)
     }
-    ("[\u0009\u000B\u000C\u0020]+", rest) => lex_tokens(rest, base~, env~)
-    ("//[^\r\n]*", rest) => lex_tokens(rest, base~, env~)
+    ("[\u0009\u000B\u000C\u0020]+", rest) => {
+      env.add_trivia(
+        Whitespace,
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
+    ("//[^\r\n]*", rest) => {
+      env.add_trivia(
+        LineComment,
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+      lex_tokens(rest, base~, env~)
+    }
     ("=>", rest) => {
       env.add_token(
         FAT_ARROW,

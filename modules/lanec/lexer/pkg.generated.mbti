@@ -12,13 +12,25 @@ pub fn tokens_from_string(String) -> LexResult
 // Errors
 
 // Types and methods
+pub(all) struct ConcreteSyntax {
+  source_text : String
+  tokens : Array[(Token, @basic.SourceSpan)]
+  trivia : Array[GapIndexedTrivia]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct GapIndexedTrivia {
+  kind : TriviaKind
+  span : @basic.SourceSpan
+  gap : Int
+} derive(Eq, @debug.Debug)
+
 pub(all) struct LexError {
   error : LexicalError
   span : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
 pub struct LexResult {
-  tokens : Array[(Token, @basic.SourceSpan)]
+  concrete : ConcreteSyntax
   errors : Array[LexError]
 } derive(Eq, @debug.Debug)
 
@@ -89,6 +101,12 @@ pub(all) enum Token {
   FAT_ARROW
   EQUAL
   UNDERSCORE
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TriviaKind {
+  Whitespace
+  Newline
+  LineComment
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -127,3 +127,46 @@ fn source_assignment(
     }
   })
 }
+
+///|
+pub(all) struct SourceFormatTrivia {
+  leading : (SourceSpan) -> Document
+  trailing : (SourceSpan) -> Document
+  eof : () -> Document
+}
+
+///|
+pub fn SourceFormatTrivia::empty() -> SourceFormatTrivia {
+  {
+    leading: fn(_span) { empty },
+    trailing: fn(_span) { empty },
+    eof: fn() { empty },
+  }
+}
+
+///|
+fn SourceFormatTrivia::decorate(
+  self : SourceFormatTrivia,
+  span : SourceSpan,
+  doc : Document,
+) -> Document {
+  (self.leading)(span) + doc + (self.trailing)(span)
+}
+
+///|
+fn SourceFormatTrivia::decorate_leading(
+  self : SourceFormatTrivia,
+  span : SourceSpan,
+  doc : Document,
+) -> Document {
+  (self.leading)(span) + doc
+}
+
+///|
+fn SourceFormatTrivia::decorate_trailing(
+  self : SourceFormatTrivia,
+  span : SourceSpan,
+  doc : Document,
+) -> Document {
+  doc + (self.trailing)(span)
+}

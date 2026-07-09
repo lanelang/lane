@@ -10,9 +10,9 @@ import {
 }
 
 // Values
-pub fn parse_string(String) -> ParseResult
+pub fn parse_concrete(@lexer.ConcreteSyntax) -> ParseResult
 
-pub fn parse_tokens(Array[(@lexer.Token, @basic.SourceSpan)]) -> ParseResult
+pub fn parse_string(String) -> ParseResult
 
 // Errors
 
@@ -39,10 +39,22 @@ pub fn ParseErrorKind::diagnostic_label(Self) -> String
 pub fn ParseErrorKind::diagnostic_notes(Self) -> Array[String]
 pub fn ParseErrorKind::diagnostic_title(Self) -> String
 
-pub struct ParseResult {
-  source : @syntax.SourceFile?
-  lexical_errors : Array[@lexer.LexError]
-  parse_errors : Array[ParseError]
+pub(all) enum ParseFailure {
+  Lexical(Array[@lexer.LexError])
+  Grammar(@lexer.ConcreteSyntax, Array[ParseError])
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ParseResult {
+  Parsed(ParsedSource)
+  Failed(ParseFailure)
+} derive(Eq, @debug.Debug)
+pub fn ParseResult::lexical_errors(Self) -> Array[@lexer.LexError]
+pub fn ParseResult::parse_errors(Self) -> Array[ParseError]
+pub fn ParseResult::syntax(Self) -> @syntax.SourceFile?
+
+pub(all) struct ParsedSource {
+  syntax : @syntax.SourceFile
+  concrete : @lexer.ConcreteSyntax
 } derive(Eq, @debug.Debug)
 
 pub(all) struct TokenSummary {

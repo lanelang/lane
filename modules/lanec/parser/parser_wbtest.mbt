@@ -1,27 +1,71 @@
 ///|
 fn expect_parse_ok(source : String) -> @syntax.SourceFile {
   let result = parse_string("module Test\n" + source)
-  if !result.lexical_errors.is_empty() || !result.parse_errors.is_empty() {
+  if !result.lexical_errors().is_empty() || !result.parse_errors().is_empty() {
     abort(
-      "expected parse success, got lexical_errors=\{to_repr(result.lexical_errors)} parse_errors=\{to_repr(result.parse_errors)}",
+      "expected parse success, got lexical_errors=\{to_repr(result.lexical_errors())} parse_errors=\{to_repr(result.parse_errors())}",
     )
   }
-  guard result.source is Some(file) else { abort("expected source file") }
+  guard result.syntax() is Some(file) else { abort("expected source file") }
   file
 }
 
 ///|
 fn parse_errors(source : String) -> Array[ParseError] {
   let result = parse_string("module Test\n" + source)
-  if !result.lexical_errors.is_empty() {
+  if !result.lexical_errors().is_empty() {
     abort("expected parser errors, got lexer errors")
   }
-  result.parse_errors
+  result.parse_errors()
 }
 
 ///|
 fn parse_error_kinds(source : String) -> Array[ParseErrorKind] {
   parse_errors(source).map(fn(error) { error.kind })
+}
+
+///|
+priv struct ParseFailureConcreteSummary {
+  errors : Array[ParseErrorKind]
+  trivia : Array[@lexer.TriviaKind]
+} derive(Debug)
+
+///|
+test "parse grammar failure keeps concrete syntax" {
+  let result = parse_string("module Test\nlet x : = // keep")
+  guard result is Failed(Grammar(concrete, errors)) else {
+    abort("expected grammar parse failure")
+  }
+  debug_inspect(
+    ParseFailureConcreteSummary::{
+      errors: errors.map(fn(error) { error.kind }),
+      trivia: concrete.trivia.map(fn(item) { item.kind }),
+    },
+    content=(
+      #|{
+      #|  errors: [
+      #|    UnexpectedToken(
+      #|      { label: "`=`" },
+      #|      [
+      #|        { label: "identifier" },
+      #|        { label: "`type`" },
+      #|        { label: "`(`" },
+      #|        { label: "`[`" },
+      #|      ],
+      #|    ),
+      #|  ],
+      #|  trivia: [
+      #|    Whitespace,
+      #|    Newline,
+      #|    Whitespace,
+      #|    Whitespace,
+      #|    Whitespace,
+      #|    Whitespace,
+      #|    LineComment,
+      #|  ],
+      #|}
+    ),
+  )
 }
 
 ///|

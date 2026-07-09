@@ -8,6 +8,7 @@ import {
 }
 
 // Values
+pub fn format_source_file_with_trivia(SourceFile, SourceFormatTrivia) -> @prettyprinter.Document
 
 // Errors
 
@@ -268,6 +269,13 @@ pub(all) struct SourceFile {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for SourceFile
+
+pub(all) struct SourceFormatTrivia {
+  leading : (@basic.SourceSpan) -> @prettyprinter.Document
+  trailing : (@basic.SourceSpan) -> @prettyprinter.Document
+  eof : () -> @prettyprinter.Document
+}
+pub fn SourceFormatTrivia::empty() -> Self
 
 pub(all) struct StructDeclaration {
   is_public : Bool

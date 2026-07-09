@@ -1,6 +1,22 @@
 ///|
-fn assignment_expr_doc(head : Document, value : Expr) -> Document {
-  source_assignment(head, value.first_line_doc(), value.to_doc())
+fn assignment_expr_doc(
+  head : Document,
+  value : Expr,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  source_assignment(
+    head,
+    value.first_line_doc(),
+    trivia.decorate_trailing(value.loc(), value.to_doc(trivia~)),
+  )
+}
+
+///|
+fn standalone_expr_doc(
+  expression : Expr,
+  trivia : SourceFormatTrivia,
+) -> Document {
+  trivia.decorate(expression.loc(), expression.to_doc(trivia~))
 }
 
 ///|
@@ -23,19 +39,38 @@ fn bracketed_type_arguments(arguments : Array[Type]) -> Document {
 
 ///|
 pub impl @prettyprinter.Pretty for SourceFile with fn pretty(file : SourceFile) {
-  let docs = [keyword("module") + space + file.module_path.to_doc()]
-  for import_ in file.imports {
-    docs.push(import_.to_doc())
+  file.to_doc()
+}
+
+///|
+pub fn format_source_file_with_trivia(
+  file : SourceFile,
+  trivia : SourceFormatTrivia,
+) -> Document {
+  file.to_doc(trivia~)
+}
+
+///|
+fn SourceFile::to_doc(
+  self : SourceFile,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let docs = [keyword("module") + space + self.module_path.to_doc()]
+  for import_ in self.imports {
+    docs.push(import_.to_doc(trivia~))
   }
-  if !file.declarations.is_empty() {
+  if !self.declarations.is_empty() {
     docs.push(
       separate(
         hardline + hardline,
-        file.declarations.map(TopLevelDeclaration::to_doc),
+        self.declarations.map(fn(declaration) { declaration.to_doc(trivia~) }),
       ),
     )
   }
-  separate(hardline + hardline, docs)
+  trivia.decorate_leading(
+    self.loc,
+    separate(hardline + hardline, docs) + (trivia.eof)(),
+  )
 }
 
 ///|
@@ -56,8 +91,11 @@ pub impl @prettyprinter.Pretty for ImportDeclaration with fn pretty(
 }
 
 ///|
-fn ImportDeclaration::to_doc(self : ImportDeclaration) -> Document {
-  match self {
+fn ImportDeclaration::to_doc(
+  self : ImportDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = match self {
     Qualified(module_path~, ..) =>
       keyword("import") + space + module_path.to_doc()
     Open(module_path~, ..) =>
@@ -69,6 +107,7 @@ fn ImportDeclaration::to_doc(self : ImportDeclaration) -> Document {
       text(".") +
       braced_comma_list_compact(items.map(ImportItem::to_doc))
   }
+  trivia.decorate(self.loc(), doc)
 }
 
 ///|
@@ -98,15 +137,18 @@ pub impl @prettyprinter.Pretty for TopLevelDeclaration with fn pretty(
 }
 
 ///|
-fn TopLevelDeclaration::to_doc(self : TopLevelDeclaration) -> Document {
+fn TopLevelDeclaration::to_doc(
+  self : TopLevelDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   match self {
-    Struct(declaration) => declaration.to_doc()
-    Enum(declaration) => declaration.to_doc()
-    Effect(declaration) => declaration.to_doc()
-    TypeAlias(declaration) => declaration.to_doc()
-    Function(declaration) => declaration.to_doc()
-    Let(declaration) => declaration.to_doc()
-    Offer(declaration) => declaration.to_doc()
+    Struct(declaration) => declaration.to_doc(trivia~)
+    Enum(declaration) => declaration.to_doc(trivia~)
+    Effect(declaration) => declaration.to_doc(trivia~)
+    TypeAlias(declaration) => declaration.to_doc(trivia~)
+    Function(declaration) => declaration.to_doc(trivia~)
+    Let(declaration) => declaration.to_doc(trivia~)
+    Offer(declaration) => declaration.to_doc(trivia~)
   }
 }
 
@@ -133,21 +175,28 @@ pub impl @prettyprinter.Pretty for StructDeclaration with fn pretty(
 }
 
 ///|
-fn StructDeclaration::to_doc(self : StructDeclaration) -> Document {
-  public_prefix(self.is_public) +
-  keyword("struct") +
-  space +
-  text(self.name) +
-  bracketed_type_parameters(self.type_parameters) +
-  space +
-  brace_block(self.members.map(StructMember::to_doc))
+fn StructDeclaration::to_doc(
+  self : StructDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = public_prefix(self.is_public) +
+    keyword("struct") +
+    space +
+    text(self.name) +
+    bracketed_type_parameters(self.type_parameters) +
+    space +
+    brace_block(self.members.map(fn(item) { item.to_doc(trivia~) }))
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
-fn StructMember::to_doc(self : StructMember) -> Document {
+fn StructMember::to_doc(
+  self : StructMember,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   match self {
-    TypeMember(declaration) => declaration.to_doc()
-    Field(field) => field.to_doc()
+    TypeMember(declaration) => declaration.to_doc(trivia~)
+    Field(field) => field.to_doc(trivia~)
   }
 }
 
@@ -166,14 +215,18 @@ pub impl @prettyprinter.Pretty for TypeMemberDeclaration with fn pretty(
 }
 
 ///|
-fn TypeMemberDeclaration::to_doc(self : TypeMemberDeclaration) -> Document {
-  keyword("type") +
-  space +
-  text(self.name) +
-  space +
-  text(":") +
-  space +
-  self.kind.to_doc()
+fn TypeMemberDeclaration::to_doc(
+  self : TypeMemberDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = keyword("type") +
+    space +
+    text(self.name) +
+    space +
+    text(":") +
+    space +
+    self.kind.to_doc()
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
@@ -203,14 +256,20 @@ pub impl @prettyprinter.Pretty for EffectDeclaration with fn pretty(
 }
 
 ///|
-fn EffectDeclaration::to_doc(self : EffectDeclaration) -> Document {
-  public_prefix(self.is_public) +
-  keyword("effect") +
-  space +
-  text(self.name) +
-  bracketed_type_parameters(self.type_parameters) +
-  space +
-  brace_block(self.operations.map(EffectOperationDeclaration::to_doc))
+fn EffectDeclaration::to_doc(
+  self : EffectDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = public_prefix(self.is_public) +
+    keyword("effect") +
+    space +
+    text(self.name) +
+    bracketed_type_parameters(self.type_parameters) +
+    space +
+    brace_block(
+      self.operations.map(fn(operation) { operation.to_doc(trivia~) }),
+    )
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
@@ -223,13 +282,15 @@ pub impl @prettyprinter.Pretty for EffectOperationDeclaration with fn pretty(
 ///|
 fn EffectOperationDeclaration::to_doc(
   self : EffectOperationDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
-  text(self.name) +
-  bracketed_type_parameters(self.type_parameters) +
-  parenthesized_comma_list_with_suffix(
-    self.payload.map(Type::to_doc),
-    space + text("->") + space + self.result.to_doc(),
-  )
+  let doc = text(self.name) +
+    bracketed_type_parameters(self.type_parameters) +
+    parenthesized_comma_list_with_suffix(
+      self.payload.map(Type::to_doc),
+      space + text("->") + space + self.result.to_doc(),
+    )
+  trivia.decorate(self.loc, doc)
 }
 
 ///|
@@ -240,8 +301,12 @@ pub impl @prettyprinter.Pretty for FieldDeclaration with fn pretty(
 }
 
 ///|
-fn FieldDeclaration::to_doc(self : FieldDeclaration) -> Document {
-  text(self.name) + space + text(":") + space + self.type_.to_doc()
+fn FieldDeclaration::to_doc(
+  self : FieldDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = text(self.name) + space + text(":") + space + self.type_.to_doc()
+  trivia.decorate(self.loc, doc)
 }
 
 ///|
@@ -252,22 +317,30 @@ pub impl @prettyprinter.Pretty for EnumDeclaration with fn pretty(
 }
 
 ///|
-fn EnumDeclaration::to_doc(self : EnumDeclaration) -> Document {
-  public_prefix(self.is_public) +
-  keyword("enum") +
-  space +
-  text(self.name) +
-  bracketed_type_parameters(self.type_parameters) +
-  space +
-  brace_block(self.variants.map(EnumVariant::to_doc))
+fn EnumDeclaration::to_doc(
+  self : EnumDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = public_prefix(self.is_public) +
+    keyword("enum") +
+    space +
+    text(self.name) +
+    bracketed_type_parameters(self.type_parameters) +
+    space +
+    brace_block(self.variants.map(fn(variant) { variant.to_doc(trivia~) }))
+  trivia.decorate(self.loc, doc)
 }
 
 ///|
-fn EnumVariant::to_doc(self : EnumVariant) -> Document {
+fn EnumVariant::to_doc(
+  self : EnumVariant,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let type_parameters = bracketed_type_parameters(self.type_parameters)
-  text(self.name) +
-  type_parameters +
-  parenthesized_comma_list(self.payload.map(Type::to_doc))
+  let doc = text(self.name) +
+    type_parameters +
+    parenthesized_comma_list(self.payload.map(Type::to_doc))
+  trivia.decorate(self.loc, doc)
 }
 
 ///|
@@ -285,16 +358,20 @@ pub impl @prettyprinter.Pretty for TypeAliasDeclaration with fn pretty(
 }
 
 ///|
-fn TypeAliasDeclaration::to_doc(self : TypeAliasDeclaration) -> Document {
-  public_prefix(self.is_public) +
-  keyword("type") +
-  space +
-  text(self.name) +
-  bracketed_type_parameters(self.type_parameters) +
-  space +
-  text("=") +
-  space +
-  self.body.to_doc()
+fn TypeAliasDeclaration::to_doc(
+  self : TypeAliasDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = public_prefix(self.is_public) +
+    keyword("type") +
+    space +
+    text(self.name) +
+    bracketed_type_parameters(self.type_parameters) +
+    space +
+    text("=") +
+    space +
+    self.body.to_doc()
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
@@ -320,23 +397,27 @@ pub impl @prettyprinter.Pretty for FunctionDeclaration with fn pretty(
 }
 
 ///|
-fn FunctionDeclaration::to_doc(self : FunctionDeclaration) -> Document {
+fn FunctionDeclaration::to_doc(
+  self : FunctionDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let suffix = space +
     text("->") +
     space +
     self.return_type.to_doc() +
     self.effect.to_annotation_doc()
-  public_prefix(self.is_public) +
-  keyword("fn") +
-  bracketed_type_parameters(self.type_parameters) +
-  space +
-  text(self.name) +
-  parenthesized_comma_list_with_suffix(
-    self.parameters.map(Parameter::to_doc),
-    suffix,
-  ) +
-  space +
-  self.body.to_doc()
+  let doc = public_prefix(self.is_public) +
+    keyword("fn") +
+    bracketed_type_parameters(self.type_parameters) +
+    space +
+    text(self.name) +
+    parenthesized_comma_list_with_suffix(
+      self.parameters.map(Parameter::to_doc),
+      suffix,
+    ) +
+    space +
+    self.body.to_doc(trivia~)
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
@@ -364,7 +445,10 @@ pub impl @prettyprinter.Pretty for LetDeclaration with fn pretty(
 }
 
 ///|
-fn LetDeclaration::to_doc(self : LetDeclaration) -> Document {
+fn LetDeclaration::to_doc(
+  self : LetDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let name_doc = match self.name {
     Some(name) => space + text(name)
     None => empty
@@ -373,10 +457,12 @@ fn LetDeclaration::to_doc(self : LetDeclaration) -> Document {
     Some(type_) => space + text(":") + space + type_.to_doc()
     None => empty
   }
-  assignment_expr_doc(
+  let doc = assignment_expr_doc(
     public_prefix(self.is_public) + keyword("let") + name_doc + type_doc,
     self.initializer,
+    trivia~,
   )
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
@@ -387,8 +473,11 @@ pub impl @prettyprinter.Pretty for OfferDeclaration with fn pretty(
 }
 
 ///|
-fn OfferDeclaration::to_doc(self : OfferDeclaration) -> Document {
-  assignment_expr_doc(
+fn OfferDeclaration::to_doc(
+  self : OfferDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = assignment_expr_doc(
     public_prefix(self.is_public) +
     keyword("offer") +
     space +
@@ -398,7 +487,9 @@ fn OfferDeclaration::to_doc(self : OfferDeclaration) -> Document {
     space +
     self.type_annotation.to_doc(),
     self.initializer,
+    trivia~,
   )
+  trivia.decorate(self.loc, doc)
 }
 
 ///|
@@ -455,8 +546,11 @@ pub impl @prettyprinter.Pretty for Expr with fn pretty(expression : Expr) {
 }
 
 ///|
-fn Expr::to_doc(self : Expr) -> Document {
-  self.to_doc_with_precedence(0)
+fn Expr::to_doc(
+  self : Expr,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  self.to_doc_with_precedence(0, trivia~)
 }
 
 ///|
@@ -488,7 +582,9 @@ fn Expr::first_line_doc(self : Expr) -> Document {
       keyword("match") + space + scrutinee.to_doc() + space + char('{')
     Call(callee~, arguments~, ..) =>
       callee.to_doc_with_precedence(9) +
-      parenthesized_comma_list(arguments.map(CallArgument::first_line_doc))
+      parenthesized_comma_list(
+        arguments.map(fn(argument) { argument.first_line_doc() }),
+      )
     TypeApplication(callee~, arguments~, ..) =>
       callee.to_doc_with_precedence(9) + bracketed_type_arguments(arguments)
     _ => self.to_doc()
@@ -499,6 +595,7 @@ fn Expr::first_line_doc(self : Expr) -> Document {
 fn Expr::to_doc_with_precedence(
   self : Expr,
   context_precedence : Int,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
   let (precedence, doc) = match self {
     IntLiteral(value, ..) => (10, text(value))
@@ -512,15 +609,22 @@ fn Expr::to_doc_with_precedence(
         text("::") +
         text(variant) +
         bracketed_type_arguments(variant_type_arguments)
-      let doc = head + parenthesized_comma_list(arguments.map(Expr::to_doc))
+      let doc = head +
+        parenthesized_comma_list(
+          arguments.map(fn(argument) { argument.to_doc(trivia~) }),
+        )
       (10, doc)
     }
     StructLiteral(owner~, fields~, ..) => {
       let head = owner.to_doc() + text("::")
-      (10, head + braced_comma_list(fields.map(StructLiteralField::to_doc)))
+      (
+        10,
+        head +
+        braced_comma_list(fields.map(fn(field) { field.to_doc(trivia~) })),
+      )
     }
     ListLiteral(items~, ..) =>
-      (10, bracketed_comma_list(items.map(Expr::to_doc)))
+      (10, bracketed_comma_list(items.map(fn(item) { item.to_doc(trivia~) })))
     Builtin(name, ..) =>
       (10, keyword("builtin") + parenthesized_comma_list([source_string(name)]))
     FunctionLiteral(
@@ -537,7 +641,7 @@ fn Expr::to_doc_with_precedence(
           type_parameters, parameters, return_type, effect,
         ) +
         space +
-        body.to_doc(),
+        standalone_expr_doc(body, trivia),
       )
     EffectOperationCall(name~, type_witnesses~, arguments~, ..) =>
       (
@@ -545,83 +649,92 @@ fn Expr::to_doc_with_precedence(
         name.to_doc() +
         text("!") +
         bracketed_type_arguments(type_witnesses) +
-        parenthesized_comma_list(arguments.map(Expr::to_doc)),
+        parenthesized_comma_list(
+          arguments.map(fn(argument) { argument.to_doc(trivia~) }),
+        ),
       )
     TypeApplication(callee~, arguments~, ..) =>
       (
         9,
-        callee.to_doc_with_precedence(9) + bracketed_type_arguments(arguments),
+        callee.to_doc_with_precedence(9, trivia~) +
+        bracketed_type_arguments(arguments),
       )
     Handler(body~, handlers~, final_branch~, ..) => {
       let docs = [
-        source_prefixed(keyword("handle"), body.first_line_doc(), body.to_doc()),
+        source_prefixed(
+          keyword("handle"),
+          body.first_line_doc(),
+          body.to_doc(trivia~),
+        ),
       ]
       for handler in handlers {
-        docs.push(handler.to_doc())
+        docs.push(handler.to_doc(trivia~))
       }
-      docs.push(final_branch.to_doc())
+      docs.push(final_branch.to_doc(trivia~))
       (10, separate(space, docs))
     }
     Block(items~, result~, ..) => {
-      let docs = items.map(LocalItem::to_doc)
-      docs.push(result.to_doc())
+      let docs = items.map(fn(item) { item.to_doc(trivia~) })
+      docs.push(standalone_expr_doc(result, trivia))
       (10, brace_block(docs))
     }
     If(condition~, then_branch~, else_branch~, ..) =>
       (
         10,
-        breakable_head(keyword("if"), condition.to_doc()) +
+        breakable_head(keyword("if"), condition.to_doc(trivia~)) +
         space +
-        then_branch.to_doc() +
+        standalone_expr_doc(then_branch, trivia) +
         space +
         keyword("else") +
         space +
-        else_branch.to_doc(),
+        standalone_expr_doc(else_branch, trivia),
       )
     Match(scrutinee~, arms~, ..) =>
       (
         10,
-        breakable_head(keyword("match"), scrutinee.to_doc()) +
+        breakable_head(keyword("match"), scrutinee.to_doc(trivia~)) +
         space +
-        brace_block(arms.map(MatchArm::to_doc)),
+        brace_block(arms.map(fn(arm) { arm.to_doc(trivia~) })),
       )
     Call(callee~, arguments~, ..) =>
       (
         9,
-        callee.to_doc_with_precedence(9) +
-        parenthesized_comma_list(arguments.map(CallArgument::to_doc)),
+        callee.to_doc_with_precedence(9, trivia~) +
+        parenthesized_comma_list(
+          arguments.map(fn(argument) { argument.to_doc(trivia~) }),
+        ),
       )
-    Field(..) => (9, self.field_chain_doc())
+    Field(..) => (9, self.field_chain_doc(trivia~))
     Unary(operator~, operand~, ..) =>
-      (8, operator.to_doc() + operand.to_doc_with_precedence(8))
+      (8, operator.to_doc() + operand.to_doc_with_precedence(8, trivia~))
     Binary(operator~, left~, right~, ..) => {
       let precedence = operator.precedence()
       (
         precedence,
         group(
-          left.to_doc_with_precedence(precedence) +
+          left.to_doc_with_precedence(precedence, trivia~) +
           nest(
             line +
             operator.to_doc() +
             space +
-            right.to_doc_with_precedence(precedence + 1),
+            right.to_doc_with_precedence(precedence + 1, trivia~),
           ),
         ),
       )
     }
-    Pipeline(..) => (1, self.pipeline_chain_doc())
+    Pipeline(..) => (1, self.pipeline_chain_doc(trivia~))
   }
-  if precedence < context_precedence {
-    parens(doc)
-  } else {
-    doc
-  }
+  let result = if precedence < context_precedence { parens(doc) } else { doc }
+  result
 }
 
 ///|
-fn Expr::pipeline_chain_doc(self : Expr) -> Document {
+fn Expr::pipeline_chain_doc(
+  self : Expr,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let (root, segments) = self.pipeline_chain_parts()
-  let root_doc = root.to_doc_with_precedence(1)
+  let root_doc = root.to_doc_with_precedence(1, trivia~)
   let mut inline_first_line = root_doc
   for segment in segments {
     inline_first_line = inline_first_line +
@@ -638,7 +751,7 @@ fn Expr::pipeline_chain_doc(self : Expr) -> Document {
           space +
           text("|>") +
           space +
-          segment.to_doc_with_precedence(2)
+          segment.to_doc_with_precedence(2, trivia~)
       }
       inline_doc
     } else {
@@ -649,7 +762,7 @@ fn Expr::pipeline_chain_doc(self : Expr) -> Document {
           separate(
             line,
             segments.map(fn(segment) {
-              text("|>") + space + segment.to_doc_with_precedence(2)
+              text("|>") + space + segment.to_doc_with_precedence(2, trivia~)
             }),
           ),
         ),
@@ -671,10 +784,13 @@ fn Expr::pipeline_chain_parts(self : Expr) -> (Expr, Array[Expr]) {
 }
 
 ///|
-fn Expr::field_chain_doc(self : Expr) -> Document {
+fn Expr::field_chain_doc(
+  self : Expr,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let (root, fields) = self.field_chain_parts()
   group(
-    root.to_doc_with_precedence(9) +
+    root.to_doc_with_precedence(9, trivia~) +
     nest(
       softline +
       separate(softline, fields.map(fn(field) { text(".") + text(field) })),
@@ -704,14 +820,20 @@ fn EffectOperationName::to_doc(self : EffectOperationName) -> Document {
 }
 
 ///|
-fn HandlerWithBlock::to_doc(self : HandlerWithBlock) -> Document {
+fn HandlerWithBlock::to_doc(
+  self : HandlerWithBlock,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   keyword("with") +
   space +
-  brace_block(self.arms.map(HandlerOperationArm::to_doc))
+  brace_block(self.arms.map(fn(arm) { arm.to_doc(trivia~) }))
 }
 
 ///|
-fn HandlerOperationArm::to_doc(self : HandlerOperationArm) -> Document {
+fn HandlerOperationArm::to_doc(
+  self : HandlerOperationArm,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let parameters = self.payload_patterns.map(Pattern::to_doc)
   parameters.push(text(self.resume_binder))
   let binders = if self.type_binders.is_empty() {
@@ -724,29 +846,49 @@ fn HandlerOperationArm::to_doc(self : HandlerOperationArm) -> Document {
     parenthesized_comma_list(parameters) +
     space +
     text("=>")
-  if self.body.breaks_after_match_arrow() {
-    head + nest(hardline + self.body.to_doc())
+  let doc = if self.body.breaks_after_match_arrow() {
+    head +
+    nest(
+      hardline +
+      trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~)),
+    )
   } else {
-    head + space + self.body.to_doc()
+    head +
+    space +
+    trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~))
   }
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
-fn HandlerFinalBranch::to_doc(self : HandlerFinalBranch) -> Document {
-  keyword("final") + space + text(self.binder) + space + self.body.to_doc()
+fn HandlerFinalBranch::to_doc(
+  self : HandlerFinalBranch,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = keyword("final") +
+    space +
+    text(self.binder) +
+    space +
+    standalone_expr_doc(self.body, trivia)
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
-fn StructLiteralField::to_doc(self : StructLiteralField) -> Document {
-  match self {
-    Value(name~, value~, ..) =>
+fn StructLiteralField::to_doc(
+  self : StructLiteralField,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let (span, doc) = match self {
+    Value(name~, value~, loc~) =>
       match value {
-        Some(value) => text(name) + text(":") + space + value.to_doc()
-        None => text(name)
+        Some(value) =>
+          (loc, text(name) + text(":") + space + value.to_doc(trivia~))
+        None => (loc, text(name))
       }
-    TypeWitness(name~, witness~, ..) =>
-      text(name) + space + text("=") + space + witness.to_doc()
+    TypeWitness(name~, witness~, loc~) =>
+      (loc, text(name) + space + text("=") + space + witness.to_doc())
   }
+  trivia.decorate_leading(span, doc)
 }
 
 ///|
@@ -757,12 +899,15 @@ pub impl @prettyprinter.Pretty for StructLiteralField with fn pretty(
 }
 
 ///|
-fn LocalItem::to_doc(self : LocalItem) -> Document {
+fn LocalItem::to_doc(
+  self : LocalItem,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   match self {
-    Let(declaration) => declaration.to_doc()
-    PatternLet(declaration) => declaration.to_doc()
-    Function(declaration) => declaration.to_doc()
-    Offer(declaration) => declaration.to_doc()
+    Let(declaration) => declaration.to_doc(trivia~)
+    PatternLet(declaration) => declaration.to_doc(trivia~)
+    Function(declaration) => declaration.to_doc(trivia~)
+    Offer(declaration) => declaration.to_doc(trivia~)
   }
 }
 
@@ -779,15 +924,20 @@ pub impl @prettyprinter.Pretty for PatternLetDeclaration with fn pretty(
 }
 
 ///|
-fn PatternLetDeclaration::to_doc(self : PatternLetDeclaration) -> Document {
+fn PatternLetDeclaration::to_doc(
+  self : PatternLetDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let type_doc = match self.type_annotation {
     Some(type_) => space + text(":") + space + type_.to_doc()
     None => empty
   }
-  assignment_expr_doc(
+  let doc = assignment_expr_doc(
     keyword("let") + space + self.pattern.to_doc() + type_doc,
     self.initializer,
+    trivia~,
   )
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
@@ -833,10 +983,16 @@ pub impl @prettyprinter.Pretty for FunctionLiteralParameter with fn pretty(
 }
 
 ///|
-fn CallArgument::to_doc(self : CallArgument) -> Document {
+fn CallArgument::to_doc(
+  self : CallArgument,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   match self {
-    Positional(value~, ..) => value.to_doc()
-    Named(name~, value~, ..) => text(name) + text("=") + value.to_doc()
+    Positional(value~, ..) => value.to_doc(trivia~)
+    Named(name~, value~, ..) => {
+      let doc = text(name) + text("=") + value.to_doc(trivia~)
+      trivia.decorate_leading(self.loc(), doc)
+    }
   }
 }
 
@@ -872,13 +1028,23 @@ fn parameter_modifiers(is_auto : Bool, is_offered : Bool) -> Document {
 }
 
 ///|
-fn MatchArm::to_doc(self : MatchArm) -> Document {
+fn MatchArm::to_doc(
+  self : MatchArm,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let head = self.pattern.to_doc() + space + text("=>")
-  if self.body.breaks_after_match_arrow() {
-    head + nest(hardline + self.body.to_doc())
+  let doc = if self.body.breaks_after_match_arrow() {
+    head +
+    nest(
+      hardline +
+      trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~)),
+    )
   } else {
-    head + space + self.body.to_doc()
+    head +
+    space +
+    trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~))
   }
+  trivia.decorate_leading(self.loc, doc)
 }
 
 ///|
