@@ -52,6 +52,16 @@ Input is handler-elaborated effect-lowering core. Function types and call sites 
 
 `Invoke` becomes a call to the statically selected operation callable from the current concrete-effect dictionary, supplying payloads and the current continuation. No runtime operation identifier remains. `Install` constructs an immutable dictionary from its ordinary clause closures, substitutes that dictionary while transforming the handled body, transforms clause bodies and the final clause under the outer context, and then disappears.
 
+The `Answer` parameter of a dictionary is the answer of the computation currently interpreted by that dictionary; it is not necessarily the enclosing function's final CPS answer. For an install whose result is `H` and whose unhandled residual row is `F`, `mon-trans` uses the Church-encoded residual computation
+
+```text
+M_F<H> = [Answer](context_arguments(F, Answer)..., continuation : (H) -> Answer) -> Answer
+```
+
+as the handled body's local answer. The installed effect dictionary is therefore instantiated as `Dictionary_E<M_F<H>>`. Each captured body continuation returns a fresh `M_F<H>`, so the clause-visible resume callable retains its source meaning `OperationResult -> H ! F`; after CPS rewriting it can run that residual computation with whichever residual contexts and continuation its call site supplies. Repeated calls rerun the immutable continuation closure and implement multi-shot resume.
+
+Residual effects inside the handled body cannot reuse enclosing dictionaries whose answer type differs. `mon-trans` instead creates ordinary relay dictionaries at answer `M_F<H>`. A relay operation returns a suspended `M_F<H>` which, when later run, invokes the corresponding residual dictionary at the caller's actual answer type and recursively runs the captured continuation. The final clause and operation clauses are translated into the same residual computation. Once the handled body produces `M_F<H>`, the install is eliminated by running that computation with the actual outer contexts and continuation. When `F` is empty, `M_F<H>` simplifies to `H`, relay dictionaries are unnecessary, and elimination directly applies the outer continuation.
+
 Output contains no `Invoke`, `Install`, Buslane effect expression, or source handler table. It may contain `Bind`, local continuation functions, explicit context arguments, and abstract `OpenContext` adaptations at effect-subsuming calls. All transformed function types have `Empty` latent effect, although compiler-private effect terms remain attached to context-selection plans until `open-resolve`.
 
 ## `open-resolve` contract
