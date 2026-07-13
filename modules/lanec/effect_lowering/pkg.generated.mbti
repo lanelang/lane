@@ -9,7 +9,21 @@ import {
 // Values
 pub fn elaborate_handlers(@buslane.Program) -> Program
 
+pub fn synthesize_expr(Program, Expr) -> Result[ExprFacts, SynthesisError]
+
 // Errors
+pub(all) suberror SynthesisError {
+  UnknownValue(@buslane.ValueId)
+  UnknownType(@buslane.TypeId)
+  UnknownDataConstructor(@buslane.DataConId)
+  UnknownEffect(@buslane.EffectId)
+  UnknownOperation(@buslane.OperationId)
+  ExpectedFunction(@buslane.Type)
+  ExpectedForall(@buslane.Type)
+  ArityMismatch(expected~ : Int, actual~ : Int)
+  EffectfulTypeLambda(@buslane.Effect)
+  EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub(all) struct Alternative {
@@ -44,6 +58,11 @@ pub(all) enum Expr {
   Match(MatchExpr)
   Invoke(InvokeExpr)
   Install(InstallExpr)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExprFacts {
+  type_ : @buslane.Type
+  effect : @buslane.Effect
 } derive(Eq, @debug.Debug)
 
 pub(all) struct FunctionExpr {
