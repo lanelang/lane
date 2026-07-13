@@ -13,11 +13,15 @@ pub fn introduce_monadic_binds(Program) -> Result[Program, SynthesisError]
 
 pub fn plan_dictionary_cps_types(@buslane.MetadataRegistry, Array[@buslane.Type]) -> Result[Array[@buslane.Type], SynthesisError]
 
+pub fn resolve_open_contexts(Program) -> Result[Program, SynthesisError]
+
 pub fn rewrite_selective_cps_abis(Program) -> Result[Program, SynthesisError]
 
 pub fn synthesize_expr(Program, Expr) -> Result[ExprFacts, SynthesisError]
 
 pub fn validate_mon_trans_output(Program) -> Result[Unit, SynthesisError]
+
+pub fn validate_open_resolve_output(Program) -> Result[Unit, SynthesisError]
 
 // Errors
 pub(all) suberror SynthesisError {
@@ -40,6 +44,7 @@ pub(all) suberror SynthesisError {
   ResidualEffectArgument(@buslane.Effect)
   ResidualLatentEffect(@buslane.Effect)
   ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
+  ResidualOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   UnsupportedTopLevelEffect(@buslane.Effect)
 } derive(Eq, @debug.Debug)
 

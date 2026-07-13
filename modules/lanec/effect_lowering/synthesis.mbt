@@ -25,6 +25,7 @@ pub(all) suberror SynthesisError {
   ResidualEffectArgument(@buslane.Effect)
   ResidualLatentEffect(@buslane.Effect)
   ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
+  ResidualOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   UnsupportedTopLevelEffect(@buslane.Effect)
 } derive(Debug, Eq)
 

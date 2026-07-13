@@ -31,8 +31,10 @@ fn cps_test_plus_runtime(
 
 ///|
 fn lower_cps_test_source(source : @buslane.Program) -> @buslane.Program {
-  let lowered = rewrite_selective_cps_abis(
-    introduce_monadic_binds(elaborate_handlers(source)).unwrap(),
+  let lowered = resolve_open_contexts(
+    rewrite_selective_cps_abis(
+      introduce_monadic_binds(elaborate_handlers(source)).unwrap(),
+    ).unwrap(),
   ).unwrap()
   {
     metadata: lowered.metadata,
