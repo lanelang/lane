@@ -212,3 +212,28 @@ test "effect lowering agrees for reusable resumptions with owned captures" {
     ["single", "multi", "multi"],
   )
 }
+
+///|
+test "effect lowering agrees for generic resumptions with layout witnesses" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Prompt {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|fn choose_message() -> String ! Prompt {
+      #|  Prompt::choose![String]("selected", "ignored")
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let selected : String = handle choose_message() with {
+      #|    Prompt::choose[T](left, _right, resume) => resume(left)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|  Write::println!(selected)
+      #|}
+    ),
+    ["selected"],
+  )
+}
