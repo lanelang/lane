@@ -36,6 +36,9 @@ terms.
   `Milky2018/lane_wasm` only for the MoonBit packaging identity.
 - Use **LoisVM** for the portable bytecode and bytecode interpreter module,
   including `loisvm/bytecode` and `loisvm/interp` package boundaries.
+- Define LoisVM bytecode, runtime, host-ABI, and bytecode-to-Wasm terms only in
+  `modules/loisvm/CONTEXT.md`; root and compiler contexts should link there
+  instead of copying those definitions or ADR summaries.
 - Put terms that apply across compiler, core language, and tools in the root
   context.
 - Put tool-specific terms in the closest tool context instead of the root
