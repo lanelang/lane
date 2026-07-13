@@ -34,6 +34,7 @@ fn rewrite_selective_cps_abis_or_raise(
   })
   rewrite_cps_source_metadata(schema, counts)
   let output = Program::{ metadata: program.metadata, terms }
+  synchronize_cps_top_level_value_types(output)
   validate_mon_trans_output_or_raise(output)
   output
 }

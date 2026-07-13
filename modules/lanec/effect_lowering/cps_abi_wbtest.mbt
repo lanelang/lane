@@ -62,6 +62,12 @@ test "selective CPS rewrites monadic function and tail call ABI" {
   }
   assert_eq(transformed_input, input)
   assert_eq(transformed.result_type, Parameter(answer))
+  guard metadata.value_info(outer).unwrap().type_
+    is Forall([metadata_answer], Function(_, metadata_result, Empty)) else {
+    abort("expected synchronized CPS metadata")
+  }
+  assert_eq(metadata_answer, answer)
+  assert_eq(metadata_result, Parameter(answer))
   assert_eq(
     transformed.body,
     Call(TypeApply(Ref(callee), [TypeArgument(Parameter(answer))]), [

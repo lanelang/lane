@@ -36,3 +36,40 @@ fn rewrite_cps_source_metadata(
     }
   }
 }
+
+///|
+fn synchronize_cps_top_level_value_types(
+  program : Program,
+) -> Unit raise SynthesisError {
+  for term in program.terms {
+    match term {
+      Let(id, expression) =>
+        synchronize_cps_value_type(
+          program.metadata,
+          id,
+          synthesize_expr_or_raise(program.metadata, expression).type_,
+        )
+      LetRec(bindings) =>
+        for binding in bindings {
+          synchronize_cps_value_type(
+            program.metadata,
+            binding.id,
+            synthesize_expr_or_raise(program.metadata, binding.rhs).type_,
+          )
+        }
+      External(_) => ()
+    }
+  }
+}
+
+///|
+fn synchronize_cps_value_type(
+  metadata : @buslane.MetadataRegistry,
+  value : @buslane.ValueId,
+  type_ : @buslane.Type,
+) -> Unit raise SynthesisError {
+  guard metadata.values.get(value.index) is Some(info) else {
+    raise UnknownValue(value)
+  }
+  metadata.values[value.index] = { ..info, type_, }
+}
