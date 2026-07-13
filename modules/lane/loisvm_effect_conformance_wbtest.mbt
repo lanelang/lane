@@ -132,3 +132,40 @@ test "effect lowering agrees for a direct deep handler and runtime effect" {
     ["handled", "final", "after"],
   )
 }
+
+///|
+test "effect lowering agrees for nested deep handlers and arm effects" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Ping {
+      #|  ping() -> Unit
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let _handled : Unit = handle {
+      #|    handle Ping::ping!() with {
+      #|      Ping::ping(resume) => {
+      #|        let _inner : Unit = Write::println!("inner")
+      #|        let _outer : Unit = Ping::ping!()
+      #|        resume(())
+      #|      }
+      #|    } final value {
+      #|      let _inner_final : Unit = Write::println!("inner-final")
+      #|      value
+      #|    }
+      #|  } with {
+      #|    Ping::ping(resume) => {
+      #|      let _outer : Unit = Write::println!("outer")
+      #|      resume(())
+      #|    }
+      #|  } final value {
+      #|    let _outer_final : Unit = Write::println!("outer-final")
+      #|    value
+      #|  }
+      #|  Write::println!("after")
+      #|}
+    ),
+    ["inner", "outer", "inner-final", "outer-final", "after"],
+  )
+}
