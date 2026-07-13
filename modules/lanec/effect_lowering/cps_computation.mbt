@@ -42,7 +42,11 @@ fn lower_cps_computation(
       lower_cps_monadic_match(
         schema, program, match_, environment, answer_type, continuation,
       )
-    Invoke(_) | Install(_) =>
+    Invoke(invoke) =>
+      lower_cps_invoke(
+        schema, program, invoke, environment, answer_type, continuation,
+      )
+    Install(_) =>
       lower_cps_residual_computation(
         schema, program, computation, answer_type, continuation, binder,
       )
@@ -180,18 +184,8 @@ fn lower_cps_residual_computation(
     Some(parameter) => parameter
     None => program.metadata.define_value("%residual", Parameter, value_type)
   }
-  let transformed = match computation {
-    Invoke(invoke) =>
-      Invoke({
-        ..invoke,
-        payloads: invoke.payloads.map(payload => {
-          lower_cps_direct_expr(schema, program, payload, Some(answer_type))
-        }),
-      })
-    _ => computation
-  }
   Bind({
-    computation: transformed,
+    computation,
     binder: parameter,
     continuation: {
       parameters: [parameter],

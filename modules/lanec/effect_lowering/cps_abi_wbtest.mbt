@@ -450,20 +450,24 @@ test "selective CPS shares one continuation after monadic match branches" {
 }
 
 ///|
-test "selective CPS leaves invokes behind one residual bind" {
+test "selective CPS selects a generic operation dictionary field" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let effect = metadata.define_effect("Effect", [])
+  let element = metadata.define_type_parameter("Element", Type)
+  let hidden = metadata.define_type_parameter("Hidden", Type)
+  let effect = metadata.define_effect("Effect", [element])
+  ignore(metadata.define_operation("first", effect, [], [], Primitive(Int)))
   let operation = metadata.define_operation(
-    "operation",
+    "second",
     effect,
-    [],
-    [],
-    Primitive(Int),
+    [hidden],
+    [Parameter(hidden), Parameter(element)],
+    Primitive(Unit),
   )
+  let latent = @buslane.Effect::Singleton(effect, [TypeArgument(Primitive(Int))])
   let outer = metadata.define_value(
     "outer",
     Function,
-    Function([], Primitive(Int), Singleton(effect, [])),
+    Function([], Primitive(Unit), latent),
   )
   let output = rewrite_test_program({
     metadata,
@@ -473,12 +477,12 @@ test "selective CPS leaves invokes behind one residual bind" {
           id: outer,
           rhs: Function({
             parameters: [],
-            result_type: Primitive(Int),
+            result_type: Primitive(Unit),
             body: Invoke({
               operation,
-              effect_arguments: [],
-              hidden_witnesses: [],
-              payloads: [],
+              effect_arguments: [TypeArgument(Primitive(Int))],
+              hidden_witnesses: [TypeArgument(Primitive(String))],
+              payloads: [Literal(String("payload")), Literal(Int(1L))],
             }),
           }),
         },
@@ -492,18 +496,24 @@ test "selective CPS leaves invokes behind one residual bind" {
   guard transformed.parameters is [_, continuation] else {
     abort("expected context and continuation")
   }
-  guard transformed.body is Bind(bind) else {
-    abort("expected residual invoke bind")
+  guard transformed.body
+    is Match(
+      {
+        alternatives: [{ value_binders: [first_field, second_field], body, .. }],
+        ..,
+      }
+    ) else {
+    abort("expected static dictionary projection")
   }
+  assert_true(first_field != second_field)
   assert_eq(
-    bind.computation,
-    Invoke({
-      operation,
-      effect_arguments: [],
-      hidden_witnesses: [],
-      payloads: [],
-    }),
+    body,
+    Call(TypeApply(Ref(second_field), [TypeArgument(Primitive(String))]), [
+      Literal(String("payload")),
+      Literal(Int(1L)),
+      Ref(continuation),
+    ]),
   )
-  assert_eq(bind.continuation.result_type, Parameter(answer))
-  assert_eq(bind.continuation.body, Call(Ref(continuation), [Ref(bind.binder)]))
+  assert_eq(transformed.result_type, Parameter(answer))
+  assert_cps_ordinary_output(output)
 }
