@@ -18,6 +18,13 @@ pub(all) suberror SynthesisError {
   EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
   MissingEffectContext(@buslane.Effect)
   MissingOperationClause(@buslane.OperationId)
+  ResidualInvoke(@buslane.OperationId)
+  ResidualInstall
+  ResidualBind
+  ResidualEffectParameter(@buslane.TypeParameterId)
+  ResidualEffectArgument(@buslane.Effect)
+  ResidualLatentEffect(@buslane.Effect)
+  ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   UnsupportedTopLevelEffect(@buslane.Effect)
 } derive(Debug, Eq)
 

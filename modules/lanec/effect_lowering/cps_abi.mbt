@@ -33,7 +33,9 @@ fn rewrite_selective_cps_abis_or_raise(
     lower_cps_top_term(schema, program, term)
   })
   rewrite_cps_source_metadata(schema, counts)
-  { metadata: program.metadata, terms }
+  let output = Program::{ metadata: program.metadata, terms }
+  validate_mon_trans_output_or_raise(output)
+  output
 }
 
 ///|
@@ -46,7 +48,17 @@ fn lower_cps_top_term(
     Let(id, expression) => {
       let facts = synthesize_expr_or_raise(program.metadata, expression)
       if facts.effect == Empty {
-        Let(id, lower_cps_direct_expr(schema, program, expression, None))
+        let lowered = match expression {
+          Function(_) | TypeLambda(_, _) =>
+            lower_cps_recursable(
+              schema,
+              program,
+              expression,
+              Some(value_type(program.metadata, id)),
+            )
+          _ => lower_cps_direct_expr(schema, program, expression, None)
+        }
+        Let(id, lowered)
       } else {
         raise UnsupportedTopLevelEffect(facts.effect)
       }
@@ -55,7 +67,12 @@ fn lower_cps_top_term(
       LetRec(
         bindings.map(binding => {
           id: binding.id,
-          rhs: lower_cps_recursable(schema, program, binding.rhs),
+          rhs: lower_cps_recursable(
+            schema,
+            program,
+            binding.rhs,
+            Some(value_type(program.metadata, binding.id)),
+          ),
         }),
       )
     External(id) => External(id)
@@ -67,14 +84,21 @@ fn lower_cps_recursable(
   schema : DictionaryCpsSchema,
   program : Program,
   expression : Expr,
+  expected_type : @buslane.Type?,
 ) -> Expr raise SynthesisError {
   match expression {
-    TypeLambda(parameters, body) =>
+    TypeLambda(parameters, body) => {
+      let expected_body = match expected_type {
+        Some(Forall(_, body)) => Some(body)
+        _ => None
+      }
       TypeLambda(
         parameters.map(parameter => schema.companion_parameter(parameter)),
-        lower_cps_recursable(schema, program, body),
+        lower_cps_recursable(schema, program, body, expected_body),
       )
-    Function(function) => lower_cps_function(schema, program, function)
+    }
+    Function(function) =>
+      lower_cps_function(schema, program, function, expected_type)
     _ => lower_cps_direct_expr(schema, program, expression, None)
   }
 }
@@ -84,10 +108,15 @@ fn lower_cps_function(
   schema : DictionaryCpsSchema,
   program : Program,
   function : FunctionExpr,
+  expected_type : @buslane.Type?,
 ) -> Expr raise SynthesisError {
   let body_facts = synthesize_expr_or_raise(program.metadata, function.body)
+  let latent_effect = match expected_type {
+    Some(Function(_, _, effect)) => effect
+    _ => body_facts.effect
+  }
   let result_type = schema.rewrite_type(function.result_type)
-  if body_facts.effect == Empty {
+  if latent_effect == Empty {
     Function({
       parameters: function.parameters,
       result_type,
@@ -99,7 +128,7 @@ fn lower_cps_function(
       Type,
     )
     let answer_type = @buslane.Type::Parameter(answer_parameter)
-    let context_terms = effect_terms(body_facts.effect)
+    let context_terms = effect_terms(latent_effect)
     let context_parameters = []
     let bindings = []
     for term in context_terms {
@@ -116,7 +145,7 @@ fn lower_cps_function(
       Parameter,
       Function([result_type], answer_type, Empty),
     )
-    let environment = CpsEnvironment::{ effect: body_facts.effect, bindings }
+    let environment = CpsEnvironment::{ effect: latent_effect, bindings }
     TypeLambda(
       [answer_parameter],
       Function({
@@ -144,7 +173,7 @@ fn lower_cps_direct_expr(
 ) -> Expr raise SynthesisError {
   match expression {
     Ref(_) | Literal(_) => expression
-    Function(function) => lower_cps_function(schema, program, function)
+    Function(function) => lower_cps_function(schema, program, function, None)
     TypeLambda(parameters, body) =>
       TypeLambda(
         parameters.map(parameter => schema.companion_parameter(parameter)),
@@ -195,7 +224,12 @@ fn lower_cps_direct_expr(
       LetRec(
         bindings.map(binding => {
           id: binding.id,
-          rhs: lower_cps_recursable(schema, program, binding.rhs),
+          rhs: lower_cps_recursable(
+            schema,
+            program,
+            binding.rhs,
+            Some(value_type(program.metadata, binding.id)),
+          ),
         }),
         lower_cps_direct_expr(schema, program, body, current_answer),
       )
@@ -268,7 +302,12 @@ fn lower_cps_with_continuation(
       LetRec(
         bindings.map(binding => {
           id: binding.id,
-          rhs: lower_cps_recursable(schema, program, binding.rhs),
+          rhs: lower_cps_recursable(
+            schema,
+            program,
+            binding.rhs,
+            Some(value_type(program.metadata, binding.id)),
+          ),
         }),
         lower_cps_with_continuation(
           schema, program, body, environment, answer_type, continuation,

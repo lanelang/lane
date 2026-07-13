@@ -17,6 +17,8 @@ pub fn rewrite_selective_cps_abis(Program) -> Result[Program, SynthesisError]
 
 pub fn synthesize_expr(Program, Expr) -> Result[ExprFacts, SynthesisError]
 
+pub fn validate_mon_trans_output(Program) -> Result[Unit, SynthesisError]
+
 // Errors
 pub(all) suberror SynthesisError {
   UnknownValue(@buslane.ValueId)
@@ -31,6 +33,13 @@ pub(all) suberror SynthesisError {
   EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
   MissingEffectContext(@buslane.Effect)
   MissingOperationClause(@buslane.OperationId)
+  ResidualInvoke(@buslane.OperationId)
+  ResidualInstall
+  ResidualBind
+  ResidualEffectParameter(@buslane.TypeParameterId)
+  ResidualEffectArgument(@buslane.Effect)
+  ResidualLatentEffect(@buslane.Effect)
+  ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   UnsupportedTopLevelEffect(@buslane.Effect)
 } derive(Eq, @debug.Debug)
 

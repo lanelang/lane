@@ -85,7 +85,11 @@ fn lower_cps_monadic_call(
     }) +
     [continuation],
   )
-  if force_open || selected.adapted || latent_effect != environment.effect {
+  if (force_open || selected.adapted || latent_effect != environment.effect) &&
+    (
+      effect_has_parameter(latent_effect) ||
+      effect_has_parameter(environment.effect)
+    ) {
     OpenContext({
       source_effect: latent_effect,
       target_effect: environment.effect,
