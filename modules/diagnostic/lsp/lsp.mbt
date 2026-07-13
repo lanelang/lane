@@ -55,7 +55,7 @@ fn edits_by_uri_json(
   edits : Array[@core.TextEdit],
   sources : @source.SourceDatabase,
 ) -> Json {
-  let changes : Map[String, Json] = {}
+  let changes : Map[String, Json] = Map([])
   for edit in edits {
     guard sources.file(edit.span.source_id) is Some(file) else { continue }
     let uri = file.display_name()
@@ -141,7 +141,7 @@ fn diagnostic_data_json(diagnostic : @core.Diagnostic) -> Json? {
     diagnostic.helps.is_empty() {
     return None
   }
-  let fields : Map[String, Json] = {}
+  let fields : Map[String, Json] = Map([])
   if !diagnostic.notes.is_empty() {
     fields["notes"] = diagnostic.notes.to_json()
   }

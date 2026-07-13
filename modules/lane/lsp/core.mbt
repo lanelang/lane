@@ -22,7 +22,7 @@ priv struct HandlerResult {
 
 ///|
 fn ServerState::ServerState() -> ServerState {
-  { documents: {}, workspace_root: None, shutdown_requested: false }
+  { documents: Map([]), workspace_root: None, shutdown_requested: false }
 }
 
 ///|

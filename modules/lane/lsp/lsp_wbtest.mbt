@@ -124,7 +124,9 @@ test "position params accept parsed json numbers" {
 ///|
 async test "hover reports invalid params as an LSP request shape error" {
   let state = ServerState::ServerState()
-  let result = state.handle_message(request(7, "textDocument/hover", {}))
+  let result = state.handle_message(
+    request(7, "textDocument/hover", Json::empty_object()),
+  )
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
     {
       "jsonrpc": "2.0",
@@ -750,7 +752,9 @@ async test "completion routes colon triggers to owner members" {
 ///|
 async test "completion reports invalid params as an LSP request shape error" {
   let state = ServerState::ServerState()
-  let result = state.handle_message(request(4, "textDocument/completion", {}))
+  let result = state.handle_message(
+    request(4, "textDocument/completion", Json::empty_object()),
+  )
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
     {
       "jsonrpc": "2.0",
@@ -1498,7 +1502,7 @@ async test "workspace analysis selects root import closure without json rpc" {
     #|
     #|pub let answer : Int = value
   let document = { uri: "file://\{main_path}", text: main_text }
-  let analysis = LspWorkspaceAnalysis(Some(workspace), {})
+  let analysis = LspWorkspaceAnalysis(Some(workspace), Map([]))
   let sources = analysis.analysis_sources(document)
   let inputs = match
     @module_frontend.import_reachable_source_inputs(
