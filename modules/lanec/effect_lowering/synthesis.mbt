@@ -16,6 +16,8 @@ pub(all) suberror SynthesisError {
   ArityMismatch(expected~ : Int, actual~ : Int)
   EffectfulTypeLambda(@buslane.Effect)
   EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
+  MissingEffectContext(@buslane.Effect)
+  UnsupportedTopLevelEffect(@buslane.Effect)
 } derive(Debug, Eq)
 
 ///|
