@@ -84,7 +84,7 @@ The existing ANF-to-LoisVM lowering remains the single owner of physical closure
 
 The lifted resume closure is reusable. Repeated calls are ordinary non-linear closure uses and therefore become retain-copy or borrow/transfer decisions during later VM CFG ownership analysis. A continuation closure captures the inner handler dictionaries needed to resume deeply; an operation-clause closure captures only the outer context in which the clause body executes. A generated handler dictionary never strongly captures itself, preventing an ARC cycle by construction.
 
-Output is ordinary effect-free Buslane accepted by the ordinary ANF lowerer. It contains only ordinary functions, type abstractions over kind `Type`, data, projections, calls, matches, and control flow. Compiler-private bind nodes, effect metadata, context plans, and effect-kind parameters are absent. Free references in local functions are intentional inputs to the existing closure-lifting stage.
+Output is ordinary effect-free Buslane accepted by the ordinary ANF lowerer. It contains only ordinary functions, callable context abstractions over kind `Type`, data, projections, calls, matches, and control flow. Compiler-private bind nodes, source latent effects, and context plans are absent. Kind-`Effect` arguments that occur only in nominal data applications or hidden existential witnesses remain as compile-time metadata and are erased by the existing data-layout path; they are never converted into runtime context companions or layout witnesses. Free references in local functions are intentional inputs to the existing closure-lifting stage.
 
 ## Outer runtime operations
 

@@ -252,8 +252,7 @@ fn DictionaryCpsSchema::rewrite_generic_argument(
 ) -> @buslane.GenericArgument raise SynthesisError {
   match argument {
     TypeArgument(type_) => TypeArgument(self.rewrite_type(type_))
-    EffectArgument(effect) =>
-      TypeArgument(self.packed_context_type(effect, Primitive(Unit)))
+    EffectArgument(effect) => EffectArgument(effect)
   }
 }
 
@@ -297,12 +296,27 @@ fn DictionaryCpsSchema::context_term_type(
       let dictionary = self.dictionary(effect)
       Apply(
         Constructor(dictionary.type_id),
-        arguments.map(argument => self.rewrite_generic_argument(argument)) +
+        arguments.map(argument => {
+          self.rewrite_context_argument(argument, answer_type)
+        }) +
         [TypeArgument(answer_type)],
       )
     }
     Parameter(parameter) => Parameter(self.companion_parameter(parameter))
     Empty | Union(_) => abort("canonical effect term expected")
+  }
+}
+
+///|
+fn DictionaryCpsSchema::rewrite_context_argument(
+  self : DictionaryCpsSchema,
+  argument : @buslane.GenericArgument,
+  answer_type : @buslane.Type,
+) -> @buslane.GenericArgument raise SynthesisError {
+  match argument {
+    TypeArgument(type_) => TypeArgument(self.rewrite_type(type_))
+    EffectArgument(effect) =>
+      TypeArgument(self.packed_context_type(effect, answer_type))
   }
 }
 

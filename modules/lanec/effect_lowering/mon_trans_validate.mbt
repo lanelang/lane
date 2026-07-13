@@ -14,15 +14,7 @@ fn validate_mon_trans_output_or_raise(
   for info in program.metadata.values {
     validate_mon_trans_type(program.metadata, info.type_)
   }
-  for info in program.metadata.types {
-    for parameter in info.parameters {
-      validate_mon_trans_type_parameter(program.metadata, parameter)
-    }
-  }
   for info in program.metadata.data_constructors {
-    for parameter in info.hidden_type_parameters {
-      validate_mon_trans_type_parameter(program.metadata, parameter)
-    }
     for type_ in info.payload_types {
       validate_mon_trans_type(program.metadata, type_)
     }
@@ -78,10 +70,10 @@ fn validate_mon_trans_expr(
     }
     Construct(construct) => {
       for argument in construct.type_arguments {
-        validate_mon_trans_generic_argument(metadata, argument)
+        validate_erased_data_argument(metadata, argument)
       }
       for witness in construct.hidden_witnesses {
-        validate_mon_trans_generic_argument(metadata, witness)
+        validate_erased_data_argument(metadata, witness)
       }
       for payload in construct.payloads {
         validate_mon_trans_expr(metadata, payload)
@@ -101,9 +93,6 @@ fn validate_mon_trans_expr(
       validate_mon_trans_type(metadata, match_.result_type)
       validate_mon_trans_expr(metadata, match_.scrutinee)
       for alternative in match_.alternatives {
-        for parameter in alternative.type_binders {
-          validate_mon_trans_type_parameter(metadata, parameter)
-        }
         validate_mon_trans_expr(metadata, alternative.body)
       }
     }
@@ -135,7 +124,7 @@ fn validate_mon_trans_type(
     Apply(callee, arguments) => {
       validate_mon_trans_type(metadata, callee)
       for argument in arguments {
-        validate_mon_trans_generic_argument(metadata, argument)
+        validate_erased_data_argument(metadata, argument)
       }
     }
     TypeLambda(parameters, body) | Forall(parameters, body) => {
@@ -153,6 +142,17 @@ fn validate_mon_trans_type(
       }
       validate_mon_trans_type(metadata, result)
     }
+  }
+}
+
+///|
+fn validate_erased_data_argument(
+  metadata : @buslane.MetadataRegistry,
+  argument : @buslane.GenericArgument,
+) -> Unit raise SynthesisError {
+  match argument {
+    TypeArgument(type_) => validate_mon_trans_type(metadata, type_)
+    EffectArgument(_) => ()
   }
 }
 

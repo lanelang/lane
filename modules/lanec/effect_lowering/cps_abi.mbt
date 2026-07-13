@@ -205,10 +205,10 @@ fn lower_cps_direct_expr(
       Construct({
         data_constructor: construct.data_constructor,
         type_arguments: construct.type_arguments.map(argument => {
-          rewrite_cps_expression_argument(schema, argument, current_answer)
+          schema.rewrite_generic_argument(argument)
         }),
         hidden_witnesses: construct.hidden_witnesses.map(argument => {
-          rewrite_cps_expression_argument(schema, argument, current_answer)
+          schema.rewrite_generic_argument(argument)
         }),
         payloads: construct.payloads.map(payload => {
           lower_cps_direct_expr(schema, program, payload, current_answer)
@@ -245,9 +245,7 @@ fn lower_cps_direct_expr(
         result_type: schema.rewrite_type(match_.result_type),
         alternatives: match_.alternatives.map(alternative => {
           alt_constructor: alternative.alt_constructor,
-          type_binders: alternative.type_binders.map(parameter => {
-            schema.companion_parameter(parameter)
-          }),
+          type_binders: alternative.type_binders,
           value_binders: alternative.value_binders,
           body: lower_cps_direct_expr(
             schema,
