@@ -202,6 +202,7 @@ graph TD
   ISS_182["ISS-182: Align monadic-lift with closure lowering"]
   ISS_183["ISS-183: Preserve erased effect-kind existentials"]
   ISS_184["ISS-184: Synchronize generated CPS answer binders"]
+  ISS_185["ISS-185: Inline single-constructor data matches"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -371,6 +372,7 @@ graph TD
   ISS_164 --> ISS_182
   ISS_165 --> ISS_183
   ISS_165 --> ISS_184
+  ISS_184 --> ISS_185
 ```
 
 ## Warnings

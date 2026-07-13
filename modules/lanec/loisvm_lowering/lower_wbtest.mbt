@@ -1489,6 +1489,104 @@ test "generic nested closures capture erased values and layout witnesses" {
 }
 
 ///|
+test "single-constructor matches keep owned captures in the current block" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let box = metadata.define_type("Box", [])
+  let boxed = metadata.define_data_constructor("Box", box, [], [])
+  let box_type = @buslane.Type::Constructor(box)
+  let observe_type = test_function_type([], unit_type)
+  let observe = metadata.define_value("observe", External, observe_type)
+  let continuation = metadata.define_value("continuation", Local, observe_type)
+  let scrutinee = metadata.define_value("scrutinee", Local, box_type)
+  let match_binder = metadata.define_value("box", MatchBinder, box_type)
+  let main_type = test_function_type([], unit_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(observe),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Let(
+            continuation,
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Call(Ref(observe), []),
+            }),
+            Let(
+              scrutinee,
+              Construct({
+                data_constructor: boxed,
+                type_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
+              Match({
+                scrutinee: Ref(scrutinee),
+                binder: match_binder,
+                result_type: unit_type,
+                alternatives: [
+                  {
+                    alt_constructor: DataCon(boxed),
+                    type_binders: [],
+                    value_binders: [],
+                    body: Call(Ref(continuation), []),
+                  },
+                ],
+              }),
+            ),
+          ),
+        }),
+      ),
+    ],
+  }
+  let image = match
+    lower_linked_program_to_bytecode(
+      program,
+      {
+        builtins: [
+          { value: observe, name: "lane.test.single_box", type_: observe_type },
+        ],
+      },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    ) {
+    Ok(value) => value
+    Err(error) => fail("lowering failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(main_body) else {
+    fail("expected main bytecode body")
+  }
+  assert_false(
+    main_body.blocks.any(block => block.terminator is SwitchTag(_, _, _)),
+  )
+  let mut observed = false
+  let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.single_box",
+      abi_major=1,
+      parameters=[],
+      result=Unit,
+      invoke=fn(_context, _arguments) {
+        observed = true
+        Unit
+      },
+    ),
+  )
+  let loaded = match @interp.load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  assert_eq(loaded.new_instance().execute(), Ok(()))
+  assert_true(observed)
+}
+
+///|
 test "generic data stores layout witnesses beside erased payloads" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)

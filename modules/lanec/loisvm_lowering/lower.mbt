@@ -1495,6 +1495,24 @@ fn FunctionLowerer::lower_data_match(
     owner_info.parameters,
     type_arguments,
   )
+  if owner_info.constructors is [data_constructor] {
+    let alternative = match
+      find_data_alternative(match_.alternatives, data_constructor) {
+      Some(alternative) => alternative
+      None =>
+        raise UnsupportedExpression(
+          detail="data match lacks a constructor or default alternative",
+        )
+    }
+    return self.lower_irrefutable_data_alternative(
+      match_.binder,
+      scrutinee,
+      scrutinee_type,
+      data_constructor,
+      alternative,
+      substitutions,
+    )
+  }
   let tag_type = @buslane.Type::Primitive(Bool)
   let tag = self.fresh_slot(tag_type)
   self.emit(LoadTag(tag, scrutinee))
@@ -1572,6 +1590,28 @@ fn FunctionLowerer::lower_data_match(
 }
 
 ///|
+fn FunctionLowerer::lower_irrefutable_data_alternative(
+  self : FunctionLowerer,
+  binder : @buslane.ValueId,
+  scrutinee : @vmcfg.ValueId,
+  scrutinee_type : @buslane.Type,
+  data_constructor : @buslane.DataConId,
+  alternative : @anf.AnfAlternative,
+  substitutions : Array[TypeArgumentBinding],
+) -> LocalValue raise LoisvmLoweringError {
+  let value_count = self.bindings.length()
+  let temp_count = self.temps.length()
+  let witness_count = self.witnesses.length()
+  self.bind_data_alternative(
+    binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
+  )
+  let result = self.materialize_local(self.lower_expr(alternative.body))
+  self.restore_bindings(value_count, temp_count)
+  self.restore_witnesses(witness_count)
+  result
+}
+
+///|
 fn FunctionLowerer::lower_data_alternative(
   self : FunctionLowerer,
   block : @bytecode.BlockId,
@@ -1582,6 +1622,43 @@ fn FunctionLowerer::lower_data_alternative(
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
+  substitutions : Array[TypeArgumentBinding],
+) -> Unit raise LoisvmLoweringError {
+  let value_count = self.bindings.length()
+  let temp_count = self.temps.length()
+  let witness_count = self.witnesses.length()
+  self.enter_block(block)
+  let original_environment = self.environment
+  self.enter_branch_environment(original_environment, branch_environment)
+  self.bind_data_alternative(
+    binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
+  )
+  let result = self.materialize_local(self.lower_expr(alternative.body))
+  let arguments = match result {
+    Unit => []
+    Slot(slot, _) => [slot]
+    Global(_)
+    | RecursiveFunction(_, _, _)
+    | TypeApplied(_, _)
+    | TypeAppliedCallable(_, _, _) =>
+      raise UnsupportedExpression(
+        detail="match alternative returns an unapplied callable",
+      )
+  }
+  self.terminate(Jump({ target: join, arguments }))
+  self.restore_bindings(value_count, temp_count)
+  self.restore_witnesses(witness_count)
+  self.environment = original_environment
+}
+
+///|
+fn FunctionLowerer::bind_data_alternative(
+  self : FunctionLowerer,
+  binder : @buslane.ValueId,
+  scrutinee : @vmcfg.ValueId,
+  scrutinee_type : @buslane.Type,
+  data_constructor : @buslane.DataConId,
+  alternative : @anf.AnfAlternative,
   substitutions : Array[TypeArgumentBinding],
 ) -> Unit raise LoisvmLoweringError {
   let info = match self.image.metadata.data_constructor_info(data_constructor) {
@@ -1612,12 +1689,6 @@ fn FunctionLowerer::lower_data_alternative(
       actual=alternative.value_binders.length(),
     )
   }
-  let value_count = self.bindings.length()
-  let temp_count = self.temps.length()
-  let witness_count = self.witnesses.length()
-  self.enter_block(block)
-  let original_environment = self.environment
-  self.enter_branch_environment(original_environment, branch_environment)
   self.bindings.push({ value: binder, lowered: Slot(scrutinee, scrutinee_type) })
   let branch_substitutions = substitutions.copy()
   if binds_payloads {
@@ -1684,22 +1755,6 @@ fn FunctionLowerer::lower_data_alternative(
       self.bindings.push({ value: value_binder, lowered })
     }
   }
-  let result = self.materialize_local(self.lower_expr(alternative.body))
-  let arguments = match result {
-    Unit => []
-    Slot(slot, _) => [slot]
-    Global(_)
-    | RecursiveFunction(_, _, _)
-    | TypeApplied(_, _)
-    | TypeAppliedCallable(_, _, _) =>
-      raise UnsupportedExpression(
-        detail="match alternative returns an unapplied callable",
-      )
-  }
-  self.terminate(Jump({ target: join, arguments }))
-  self.restore_bindings(value_count, temp_count)
-  self.restore_witnesses(witness_count)
-  self.environment = original_environment
 }
 
 ///|
