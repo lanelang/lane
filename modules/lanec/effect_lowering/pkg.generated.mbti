@@ -9,6 +9,8 @@ import {
 // Values
 pub fn elaborate_handlers(@buslane.Program) -> Program
 
+pub fn introduce_monadic_binds(Program) -> Result[Program, SynthesisError]
+
 pub fn synthesize_expr(Program, Expr) -> Result[ExprFacts, SynthesisError]
 
 // Errors
@@ -31,6 +33,12 @@ pub(all) struct Alternative {
   type_binders : Array[@buslane.TypeParameterId]
   value_binders : Array[@buslane.ValueId]
   body : Expr
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BindExpr {
+  computation : Expr
+  binder : @buslane.ValueId
+  continuation : FunctionExpr
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ClauseCallable {
@@ -58,6 +66,8 @@ pub(all) enum Expr {
   Match(MatchExpr)
   Invoke(InvokeExpr)
   Install(InstallExpr)
+  Bind(BindExpr)
+  OpenContext(OpenContextExpr)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExprFacts {
@@ -95,6 +105,12 @@ pub(all) struct MatchExpr {
   binder : @buslane.ValueId
   result_type : @buslane.Type
   alternatives : Array[Alternative]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct OpenContextExpr {
+  source_effect : @buslane.Effect
+  target_effect : @buslane.Effect
+  body : Expr
 } derive(Eq, @debug.Debug)
 
 pub(all) struct OperationClause {

@@ -31,6 +31,8 @@ pub(all) enum Expr {
   Match(MatchExpr)
   Invoke(InvokeExpr)
   Install(InstallExpr)
+  Bind(BindExpr)
+  OpenContext(OpenContextExpr)
 } derive(Debug, Eq)
 
 ///|
@@ -96,4 +98,18 @@ pub(all) struct OperationClause {
 pub(all) enum ClauseCallable {
   Monomorphic(FunctionExpr)
   Polymorphic(Array[@buslane.TypeParameterId], FunctionExpr)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct BindExpr {
+  computation : Expr
+  binder : @buslane.ValueId
+  continuation : FunctionExpr
+} derive(Debug, Eq)
+
+///|
+pub(all) struct OpenContextExpr {
+  source_effect : @buslane.Effect
+  target_effect : @buslane.Effect
+  body : Expr
 } derive(Debug, Eq)

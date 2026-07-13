@@ -78,6 +78,21 @@ fn synthesize_expr_or_raise(
     }
     Invoke(invoke) => synthesize_invoke(metadata, invoke)
     Install(install) => synthesize_install(metadata, install)
+    Bind(bind) => {
+      let computation_facts = synthesize_expr_or_raise(
+        metadata,
+        bind.computation,
+      )
+      let continuation_facts = synthesize_function(metadata, bind.continuation)
+      guard continuation_facts.type_ is Function(_, result_type, latent_effect) else {
+        raise ExpectedFunction(continuation_facts.type_)
+      }
+      {
+        type_: result_type,
+        effect: effect_union([computation_facts.effect, latent_effect]),
+      }
+    }
+    OpenContext(open) => synthesize_expr_or_raise(metadata, open.body)
   }
 }
 
