@@ -174,40 +174,6 @@ fn @bytecodec.ByteReader::read_imports(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_runtime_effect_operations(
-  self : @bytecodec.ByteWriter,
-  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-) -> Unit {
-  self.write_u32_le(operations.length())
-  for operation in operations {
-    self.write_string(operation.module_path_text)
-    self.write_string(operation.effect_name)
-    self.write_string(operation.operation_name)
-    self.write_lane_types(operation.payload)
-    self.write_lane_type(operation.result)
-    @artifact_core.write_buslane_operation_id(self, operation.operation)
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_runtime_effect_operations(
-  self : @bytecodec.ByteReader,
-) -> Array[@artifact_core.LinkedRuntimeEffectOperation] raise {
-  let operations : Array[@artifact_core.LinkedRuntimeEffectOperation] = []
-  for _ in 0..<self.read_u32_le() {
-    operations.push({
-      module_path_text: self.read_string(),
-      effect_name: self.read_string(),
-      operation_name: self.read_string(),
-      payload: self.read_lane_types(),
-      result: self.read_lane_type(),
-      operation: self.read_buslane_operation_id(),
-    })
-  }
-  operations
-}
-
-///|
 fn @bytecodec.ByteWriter::write_runtime_effect_operation_signatures(
   self : @bytecodec.ByteWriter,
   operations : Array[@module_compile.RuntimeEffectOperationSignature],

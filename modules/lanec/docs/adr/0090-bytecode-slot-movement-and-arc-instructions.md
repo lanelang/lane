@@ -10,7 +10,7 @@ LoisVM v1 has no generic slot-assignment instruction. Every value-producing inst
 
 `release(slot)` consumes one owned slot. `OwnedRef`, `OwnedCallable`, and `OwnedErased` use their established cleanup paths. Releasing `Trivial` or an already logically dead slot is invalid trusted bytecode. Release does not clear the stale physical bits after consuming the owner.
 
-`OwnedCallable` values never use `copy`. `move` transfers the callable owner, `retain_copy` establishes an additional callable owner, and `release` destroys one callable owner. For the interpreter this applies to the closure shell; for Wasm it applies directly to the packed callable's nonzero environment component.
+`OwnedCallable` values never use `copy`. `move` transfers the callable owner, `retain_copy` establishes an additional callable owner, and `release` destroys one callable owner. In both execution tiers these operations apply directly to the packed callable's nonzero environment component.
 
 The binary operand shapes are fixed: copy, move, and retain-copy each encode destination `SlotId` then source `SlotId`; release encodes one `SlotId`. All are ordinary non-terminating instructions.
 

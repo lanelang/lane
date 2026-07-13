@@ -1,15 +1,10 @@
 ///|
 async fn lane_exec(path : String) -> LaneCommandOutcome {
-  let program = match read_linked_program_artifact(path) {
-    Ok(program) => program
+  let image = match read_linked_program_artifact(path) {
+    Ok(image) => image
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_linked_entry(
-    program.program,
-    program.externals,
-    program.runtime_effect_operations,
-    program.entry,
-  )
+  execute_loisvm_image_with_output(image, line => println(line))
 }
 
 ///|
@@ -82,22 +77,6 @@ fn execute_entry(
 }
 
 ///|
-fn execute_linked_entry(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  entry : @buslane_lowering.BuslaneEntry,
-) -> LaneCommandOutcome {
-  execute_linked_entry_with_output(
-    program,
-    externals,
-    runtime_effect_operations,
-    entry,
-    line => println(line),
-  )
-}
-
-///|
 fn execute_entry_with_output(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
@@ -112,9 +91,17 @@ fn execute_entry_with_output(
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_linked_entry_with_output(
-    program, externals, runtime_effect_operations, entry, write_line,
-  )
+  let image = match
+    @loisvm_lowering.lower_linked_program_to_bytecode_with_runtime_effects(
+      program, externals, entry, runtime_effect_operations,
+    ) {
+    Ok(image) => image
+    Err(error) =>
+      return LaneCommandOutcome::user_error(
+        ExecutionImageLowering(message="\{to_repr(error)}"),
+      )
+  }
+  execute_loisvm_image_with_output(image, write_line)
 }
 
 ///|
@@ -162,60 +149,57 @@ fn validate_executable_entry(
 }
 
 ///|
-fn execute_linked_entry_with_output(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  entry : @buslane_lowering.BuslaneEntry,
+fn execute_loisvm_image_with_output(
+  image : @loisvm_bytecode.BytecodeImage,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
-  let external_runtime = command_external_runtime(
-    externals, program, runtime_effect_operations, write_line,
-  )
-  let runtime = @buslane_interpreter.evaluate_buslane_program(
-    program, external_runtime,
-  ) catch {
-    error => internal_error(@prettyprinter.render(error, width=100))
+  let loaded = match
+    @loisvm_wasm.load(image, command_loisvm_runtime(write_line)) {
+    Ok(loaded) => loaded
+    Err(error) =>
+      return LaneCommandOutcome::user_error(
+        ExecutionImageLoad(message="\{to_repr(error)}"),
+      )
   }
-  let value = runtime.lookup(entry.value) catch {
-    error => internal_error(@prettyprinter.render(error, width=100))
+  let instance = match loaded.new_instance() {
+    Ok(instance) => instance
+    Err(error) =>
+      return LaneCommandOutcome::user_error(
+        ExecutionImageLoad(message="\{to_repr(error)}"),
+      )
   }
-  ignore(
-    value.call([], external_runtime) catch {
-      error => internal_error(@prettyprinter.render(error, width=100))
-    },
-  )
-  Succeeded
+  match instance.execute() {
+    Ok(_) => Succeeded
+    Err(error) =>
+      LaneCommandOutcome::user_error(
+        ExecutionFailed(message="\{to_repr(error)}"),
+      )
+  }
 }
 
 ///|
-fn command_external_runtime(
-  externals : @buslane_lowering.BuslaneExternalMap,
-  program : @buslane.Program,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+fn command_loisvm_runtime(
   write_line : (String) -> Unit,
-) -> @buslane_interpreter.BuslaneExternalRuntime {
-  let runtime = @intrinsics.standard_external_runtime(externals)
-  if command_runtime_effect_operation(program, runtime_effect_operations)
-    is Some(operation) {
-    runtime.add_effect_handler(operation, fn(
-      arguments,
-    ) raise @buslane_interpreter.BuslaneRuntimeError {
-      if arguments.length() != 1 {
-        raise InvalidValue(
-          message="Basic.Io.Write.println expects one argument",
-        )
-      }
-      guard arguments[0].as_string() is Some(line) else {
-        raise InvalidValue(
-          message="Basic.Io.Write.println expects a string argument",
-        )
-      }
-      write_line(line)
-      @buslane_interpreter.BuslaneRuntimeValue::unit()
-    })
-  }
-  runtime
+) -> @loisvm_runtime.RuntimeRegistry {
+  let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.effect.v1/Basic.Io/Write/println",
+      abi_major=1,
+      parameters=[String],
+      result=Unit,
+      invoke=(_context, arguments) => {
+        guard arguments is [BorrowedString(line)] else {
+          raise Failure(
+            message="Basic.Io.Write.println expects one String argument",
+          )
+        }
+        write_line(line.to_string())
+        Unit
+      },
+    ),
+  )
+  registry
 }
 
 ///|

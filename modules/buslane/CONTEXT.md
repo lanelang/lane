@@ -124,8 +124,8 @@ A stable decimal text representation of a Buslane `Double` literal that parses b
 _Avoid_: original source spelling, lossy display formatting, locale-dependent float text
 
 **Canonical Core Artifact Role**:
-The role Buslane programs play when embedded in compiler module objects or linked program artifacts as the semantic core payload.
-_Avoid_: module interface policy, bytecode image, execution cache
+The role Buslane programs play in compiler module objects and the in-memory linked core as the semantic payload used before executable lowering.
+_Avoid_: linked `.lbp` payload, module interface policy, bytecode image, execution cache
 
 **Buslane Codec**:
 The Buslane-owned structured binary encoder and decoder for Buslane programs,
@@ -137,7 +137,7 @@ _Avoid_: artifact text parser, compiler artifact writer, inspect renderer
 - `lanec` lowers checked Lane source into the **Buslane Core Language**.
 - `buslane` does not depend on Lane parser, resolver, or source diagnostics.
 - A Buslane program may serve the **Canonical Core Artifact Role**, but Buslane
-  itself does not own module interfaces, module objects, bytecode caches, or
+  itself does not own module interfaces, module objects, linked artifacts, bytecode caches, or
   execution image policy.
 - The **Buslane Codec** owns binary serialization of Buslane core structures;
   compiler artifact codecs should delegate Buslane payloads to it rather than

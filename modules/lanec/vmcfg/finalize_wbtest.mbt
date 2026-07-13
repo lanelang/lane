@@ -1,0 +1,315 @@
+///|
+fn trivial_value(representation : @bytecode.Representation) -> ValueMetadata {
+  {
+    representation,
+    cleanup: Trivial,
+    ownership: Trivial,
+    erased_companion: None,
+  }
+}
+
+///|
+fn owned_ref_value() -> ValueMetadata {
+  {
+    representation: I32,
+    cleanup: OwnedRef,
+    ownership: Owned,
+    erased_companion: None,
+  }
+}
+
+///|
+fn borrowed_ref_value() -> ValueMetadata {
+  {
+    representation: I32,
+    cleanup: OwnedRef,
+    ownership: Borrowed,
+    erased_companion: None,
+  }
+}
+
+///|
+fn test_image(body : FunctionBody) -> Image {
+  {
+    entry: { value: 1 },
+    functions: [Body(body)],
+    layouts: [String],
+    object_shapes: [],
+    constants: [b"Lane"],
+  }
+}
+
+///|
+test "finalize promotes a borrowed call argument to an owner" {
+  let body : FunctionBody = {
+    values: [borrowed_ref_value()],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [CallDirect({ value: 2 }, None, [], [{ value: 0 }], None)],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = match
+    finalize({
+      ..test_image(body),
+      functions: [
+        Body(body),
+        RuntimeImport({
+          abi_major: 1,
+          user_arity: 1,
+          symbol: "lane.test.consume",
+        }),
+      ],
+    }) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.slots.length(), 2)
+  assert_eq(lowered.blocks[0].instructions, [
+    RetainCopy({ value: 1 }, { value: 0 }),
+    CallDirect({ value: 2 }, None, [], [{ value: 1 }], None),
+  ])
+}
+
+///|
+test "finalize releases an owned value left live at return" {
+  let body : FunctionBody = {
+    values: [owned_ref_value()],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [ConstString({ value: 0 }, { value: 0 })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = match finalize(test_image(body)) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.blocks[0].instructions, [
+    ConstString({ value: 0 }, { value: 0 }),
+    Release({ value: 0 }),
+  ])
+}
+
+///|
+test "finalize transfers an owned return without releasing it" {
+  let body : FunctionBody = {
+    values: [owned_ref_value()],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: I32,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [ConstString({ value: 0 }, { value: 0 })],
+        terminator: Return(Some({ value: 0 })),
+      },
+    ],
+  }
+  let image = match finalize(test_image(body)) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.blocks[0].instructions, [
+    ConstString({ value: 0 }, { value: 0 }),
+  ])
+}
+
+///|
+test "finalize preserves object witness loads as non-consuming reads" {
+  let body : FunctionBody = {
+    values: [owned_ref_value(), trivial_value(I32)],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: I32,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          LoadObjectWitness({ value: 1 }, { value: 0 }, { value: 0 }, 2),
+        ],
+        terminator: Return(Some({ value: 1 })),
+      },
+    ],
+  }
+  let image = match finalize(test_image(body)) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.blocks[0].instructions, [
+    LoadObjectWitness({ value: 1 }, { value: 0 }, { value: 0 }, 2),
+    Release({ value: 0 }),
+  ])
+}
+
+///|
+test "finalize retains an owned call argument that is used afterward" {
+  let body : FunctionBody = {
+    values: [owned_ref_value(), trivial_value(I64)],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
+          StringLength({ value: 1 }, { value: 0 }),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = match
+    finalize({
+      ..test_image(body),
+      functions: [
+        Body(body),
+        RuntimeImport({
+          abi_major: 1,
+          user_arity: 1,
+          symbol: "lane.test.consume",
+        }),
+      ],
+    }) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.slots.length(), 3)
+  assert_eq(lowered.blocks[0].instructions, [
+    RetainCopy({ value: 2 }, { value: 0 }),
+    CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
+    StringLength({ value: 1 }, { value: 0 }),
+    Release({ value: 0 }),
+  ])
+}
+
+///|
+test "finalize inserts path-specific releases for owned values at a branch" {
+  let body : FunctionBody = {
+    values: [owned_ref_value(), trivial_value(I32)],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          ConstString({ value: 0 }, { value: 0 }),
+          ConstBool({ value: 1 }, true),
+        ],
+        terminator: BranchBool(
+          { value: 1 },
+          { target: { value: 1 }, arguments: [] },
+          { target: { value: 1 }, arguments: [] },
+        ),
+      },
+      { parameters: [], instructions: [], terminator: Return(None) },
+    ],
+  }
+  let image = match finalize(test_image(body)) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.blocks.length(), 4)
+  assert_eq(
+    lowered.blocks[0].terminator,
+    BranchBool({ value: 1 }, { target: { value: 2 }, arguments: [] }, {
+      target: { value: 3 },
+      arguments: [],
+    }),
+  )
+  assert_eq(lowered.blocks[2], {
+    parameters: [],
+    instructions: [Release({ value: 0 })],
+    terminator: Jump({ target: { value: 1 }, arguments: [] }),
+  })
+  assert_eq(lowered.blocks[3], {
+    parameters: [],
+    instructions: [Release({ value: 0 })],
+    terminator: Jump({ target: { value: 1 }, arguments: [] }),
+  })
+}
+
+///|
+test "finalize inserts path-specific releases for every switch edge" {
+  let body : FunctionBody = {
+    values: [owned_ref_value(), trivial_value(I32)],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          ConstString({ value: 0 }, { value: 0 }),
+          ConstBool({ value: 1 }, true),
+        ],
+        terminator: SwitchTag(
+          { value: 1 },
+          [
+            { target: { value: 1 }, arguments: [] },
+            { target: { value: 1 }, arguments: [] },
+          ],
+          { target: { value: 1 }, arguments: [] },
+        ),
+      },
+      { parameters: [], instructions: [], terminator: Return(None) },
+    ],
+  }
+  let image = match finalize(test_image(body)) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.blocks.length(), 5)
+  assert_eq(
+    lowered.blocks[0].terminator,
+    SwitchTag(
+      { value: 1 },
+      [
+        { target: { value: 2 }, arguments: [] },
+        { target: { value: 3 }, arguments: [] },
+      ],
+      { target: { value: 4 }, arguments: [] },
+    ),
+  )
+  for block in lowered.blocks[2:] {
+    assert_eq(block.instructions, [Release({ value: 0 })])
+  }
+}

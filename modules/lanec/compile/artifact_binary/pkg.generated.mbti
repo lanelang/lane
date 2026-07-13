@@ -2,13 +2,20 @@
 package "Milky2018/lanec/compile/artifact_binary"
 
 import {
+  "Milky2018/lanec/loisvm_lowering",
   "Milky2018/lanec/module/compile",
+  "Milky2018/loisvm/bytecode",
+  "moonbitlang/core/debug",
 }
 
 // Values
 pub fn artifact_binary_to_inspect_text(Bytes) -> Result[String, String]
 
+pub fn linked_executable_to_loisvm_binary(@compile.LinkedExecutableProgram) -> Result[Bytes, @loisvm_lowering.LoisvmLoweringError]
+
 pub fn linked_program_artifact_to_binary(@compile.LinkedProgramArtifact) -> Bytes
+
+pub fn loisvm_linked_program_to_binary(@bytecode.BytecodeImage) -> Bytes
 
 pub fn module_interface_artifact_to_binary(@compile.ModuleInterfaceArtifact) -> Bytes
 
@@ -16,11 +23,14 @@ pub fn module_object_artifact_to_binary(@compile.ModuleObjectArtifact) -> Bytes
 
 pub fn parse_linked_program_artifact_binary(Bytes) -> Result[@compile.LinkedProgramArtifact, String]
 
+pub fn parse_loisvm_linked_program_binary(Bytes) -> Result[@bytecode.BytecodeImage, String]
+
 pub fn parse_module_interface_artifact_binary(Bytes) -> Result[@compile.ModuleInterfaceArtifact, String]
 
 pub fn parse_module_object_artifact_binary(Bytes) -> Result[@compile.ModuleObjectArtifact, String]
 
 // Errors
+type ArtifactBinaryDecodeError derive(@debug.Debug)
 
 // Types and methods
 

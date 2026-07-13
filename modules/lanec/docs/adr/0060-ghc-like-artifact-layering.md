@@ -73,6 +73,6 @@ Consequences:
   canonical semantic artifact.
 - The bytecode VM must be tested against the Buslane reference interpreter
   rather than defining Lane semantics first.
-- `lane inspect` should primarily display semantic artifact structure and
-  Buslane/core code; execution-image dumps should be clearly labeled as lowered
-  code.
+- `lane inspect` displays semantic structure and Buslane/core for module objects;
+  linked `.lbp` artifacts instead display clearly labeled canonical LoisVM
+  disassembly because they contain no semantic core.

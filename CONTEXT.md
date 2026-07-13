@@ -131,8 +131,8 @@ decode errors.
 _Avoid_: Lane artifact schema, Buslane AST codec, generic serialization framework
 
 **Canonical Core Artifact**:
-The authoritative semantic payload of a compiled or linked Lane artifact, currently Buslane core plus the metadata needed to link, inspect, verify, or lower it.
-_Avoid_: ANF cache, bytecode image, runtime execution layout
+The authoritative semantic payload of a Lane **Module Object** and the in-memory linked core, currently Buslane core plus the metadata needed to link, inspect, verify, optimize, or lower it.
+_Avoid_: `.lbp` payload, ANF cache, bytecode image, runtime execution layout
 
 **Whole-Program Core Optimization**:
 An optimization phase over a linked canonical core program after imported references have been resolved and before lowering to an execution image.
@@ -516,7 +516,7 @@ _Avoid_: VS Code extension, compiler front end
 - ANF is a derived normalization layer below Buslane and may be regenerated from the **Canonical Core Artifact**.
 - An **Execution Image** is produced from linked core after optimization; it may be the primary payload used by `runobj`, but it is not the public interface contract.
 - A **Bytecode Cache** may appear in a **Module Object** or **Linked Program** only as a target-specific cache guarded by fingerprints, compiler version, and lowering options.
-- `inspect` should expose semantic artifact metadata and Buslane/core information before target-specific **Execution Image** details.
+- `inspect` should expose semantic metadata and Buslane/core for module objects, while `.lbp` inspection uses **Canonical Linked Disassembly** because linked artifacts contain only the execution image.
 - The **NoBuild Model** leaves build policy to **Build Workflows**.
 - A **Module Input Set** is parsed for module declarations and import sections before module compilation.
 - An **Import Graph Check** runs before compiling any module in the **Module Input Set**.

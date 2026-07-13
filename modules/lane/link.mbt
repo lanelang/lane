@@ -33,11 +33,9 @@ async fn lane_link(
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let executable = program.to_executable(entry)
-  write_linked_program_artifact(output, executable) catch {
-    error =>
-      return LaneCommandOutcome::user_error(
-        CliError::file_io(Write, output, "\{error}"),
-      )
+  match write_linked_program_artifact(output, executable) {
+    Ok(_) => ()
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   if verbose {
     let linked_modules = program.module_path_texts.join(",")

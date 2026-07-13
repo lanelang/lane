@@ -110,37 +110,31 @@ async fn read_module_object_artifact(
 async fn write_linked_program_artifact(
   path : String,
   program : @module_compile.LinkedExecutableProgram,
-) -> Unit {
-  write_binary_file(
-    path,
-    @artifact_binary.linked_program_artifact_to_binary(program.to_artifact()),
-  )
+) -> Result[Unit, CliError] {
+  let bytes = match
+    @artifact_binary.linked_executable_to_loisvm_binary(program) {
+    Ok(bytes) => bytes
+    Err(error) =>
+      return Err(ExecutionImageLowering(message="\{to_repr(error)}"))
+  }
+  write_binary_file(path, bytes) catch {
+    error => return Err(CliError::file_io(Write, path, "\{error}"))
+  }
+  Ok(())
 }
 
 ///|
 async fn read_linked_program_artifact(
   path : String,
-) -> Result[@module_compile.LinkedExecutableProgram, CliError] {
+) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
   let bytes = read_binary_file(path) catch {
-    error => return Err(CliError::file_io(Exec, path, "\{error}"))
+    error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  let artifact = match
-    @artifact_binary.parse_linked_program_artifact_binary(bytes) {
-    Ok(artifact) => artifact
+  match @artifact_binary.parse_loisvm_linked_program_binary(bytes) {
+    Ok(image) => Ok(image)
     Err(message) =>
-      return Err(ArtifactLoad(path~, kind="linked program artifact", message~))
-  }
-  match artifact.to_linked_program() {
-    Ok(program) => Ok(program)
-    Err(diagnostics) =>
       Err(
-        ArtifactLoad(
-          path~,
-          kind="linked program artifact",
-          message=diagnostics
-            .map(fn(diagnostic) { diagnostic.message })
-            .join("; "),
-        ),
+        ArtifactLoad(path~, kind="linked program bytecode artifact", message~),
       )
   }
 }

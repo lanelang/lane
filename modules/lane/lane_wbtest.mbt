@@ -137,7 +137,6 @@ test "command file diagnostics use command verbs" {
       CliError::file_io(Check, "missing.lane", error).render_human(),
       CliError::file_io(Compile, "missing.lane", error).render_human(),
       CliError::file_io(Run, "missing.lane", error).render_human(),
-      CliError::file_io(Exec, "missing.lbp", error).render_human(),
       CliError::file_io(Format, "missing.lane", error).render_human(),
       CliError::file_io(Link, "missing.lmo", error).render_human(),
     ].join("\n"),
@@ -145,7 +144,6 @@ test "command file diagnostics use command verbs" {
       #|error: couldn't check `missing.lane`: No such file or directory
       #|error: couldn't compile `missing.lane`: No such file or directory
       #|error: couldn't run `missing.lane`: No such file or directory
-      #|error: couldn't execute `missing.lbp`: No such file or directory
       #|error: couldn't format `missing.lane`: No such file or directory
       #|error: couldn't link `missing.lmo`: No such file or directory
     ),
@@ -272,7 +270,9 @@ async test "native module artifacts are binary and readable" {
   let compiled = @compile.compile_module_with_interface_artifacts(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub fn main() -> Unit {
+      #|  ()
+      #|}
     ),
     [],
   )
@@ -292,10 +292,17 @@ async test "native module artifacts are binary and readable" {
     cleanup_library_fixture(workspace)
     abort("expected linked program")
   }
-  write_linked_program_artifact(
-    program_path,
-    program.to_executable(program.entries[0]),
-  )
+  match
+    write_linked_program_artifact(
+      program_path,
+      program.to_executable(program.entries[0]),
+    ) {
+    Ok(_) => ()
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort(error.render_human())
+    }
+  }
   let interface_bytes = @fs.read_file(interface_path).binary()
   let object_bytes = @fs.read_file(object_path).binary()
   let program_bytes = @fs.read_file(program_path).binary()
@@ -329,7 +336,7 @@ async test "native module artifacts are binary and readable" {
   cleanup_library_fixture(workspace)
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
-  inspect(linked_program.entry.name, content="answer")
+  inspect(linked_program.entry.value, content="1")
 }
 
 ///|
@@ -391,21 +398,15 @@ async test "exec executes explicit Basic Io linked input" {
     cleanup_library_fixture(workspace)
     abort("expected link to succeed")
   }
-  let linked_program = match read_linked_program_artifact(program_path) {
-    Ok(program) => program
+  let image = match read_linked_program_artifact(program_path) {
+    Ok(image) => image
     Err(error) => {
       cleanup_library_fixture(workspace)
       abort(error.render_human())
     }
   }
   let output : Array[String] = []
-  guard execute_linked_entry_with_output(
-      linked_program.program,
-      linked_program.externals,
-      linked_program.runtime_effect_operations,
-      linked_program.entry,
-      line => output.push(line),
-    )
+  guard execute_loisvm_image_with_output(image, line => output.push(line))
     is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected exec to succeed")
@@ -669,6 +670,18 @@ test "run accepts Basic Io effect aliases when supplied explicitly" {
     validate_executable_entry(entry, runtime_effects),
     content="Ok(())",
   )
+  let output : Array[String] = []
+  guard execute_entry_with_output(
+      program,
+      result.externals,
+      result.runtime_effect_operations,
+      entry,
+      line => output.push(line),
+    )
+    is Succeeded else {
+    abort("expected run entry to succeed through LoisVM")
+  }
+  assert_eq(output, ["hello"])
 }
 
 ///|

@@ -1,0 +1,186 @@
+///|
+pub(all) struct ValueId {
+  value : Int
+} derive(Debug, Eq, Compare)
+
+///|
+pub(all) enum Ownership {
+  Trivial
+  Owned
+  Borrowed
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ValueMetadata {
+  representation : @bytecode.Representation
+  cleanup : @bytecode.Cleanup
+  ownership : Ownership
+  erased_companion : ValueId?
+} derive(Debug, Eq)
+
+///|
+pub(all) struct FunctionInputs {
+  environment : ValueId?
+  witnesses : Array[ValueId]
+  user_parameters : Array[ValueId]
+} derive(Debug, Eq)
+
+///|
+pub(all) enum LayoutOperand {
+  Immediate(@bytecode.LayoutId)
+  Witness(ValueId)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ProjectionResult {
+  value_destination : ValueId
+  witness_destination : ValueId?
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ProjectionSelection {
+  member_index : Int
+  result : ProjectionResult
+} derive(Debug, Eq)
+
+///|
+pub(all) enum Instruction {
+  Copy(ValueId, ValueId)
+  Move(ValueId, ValueId)
+  RetainCopy(ValueId, ValueId)
+  Release(ValueId)
+  ConstInt(ValueId, Int64)
+  ConstDouble(ValueId, Int64)
+  ConstBool(ValueId, Bool)
+  ConstLayout(ValueId, @bytecode.LayoutId)
+  ConstFunction(ValueId, @bytecode.FunctionId)
+  ConstString(ValueId, @bytecode.ConstantId)
+  CallDirect(
+    @bytecode.FunctionId,
+    ValueId?,
+    Array[ValueId],
+    Array[ValueId],
+    ValueId?
+  )
+  CallValue(ValueId, Array[ValueId], Array[ValueId], ValueId?)
+  MakeData(
+    ValueId,
+    @bytecode.ObjectShapeId,
+    LayoutOperand,
+    Array[ValueId],
+    Array[ValueId]
+  )
+  LoadTag(ValueId, ValueId)
+  LoadObjectWitness(ValueId, @bytecode.ObjectShapeId, ValueId, Int)
+  BorrowField(@bytecode.ObjectShapeId, ValueId, Int, ProjectionResult)
+  ConsumeFields(@bytecode.ObjectShapeId, ValueId, Array[ProjectionSelection])
+  MakeEnv(
+    ValueId,
+    @bytecode.ObjectShapeId,
+    LayoutOperand,
+    Array[ValueId],
+    Array[ValueId]
+  )
+  BorrowCapture(@bytecode.ObjectShapeId, ValueId, Int, ProjectionResult)
+  ConsumeCaptures(@bytecode.ObjectShapeId, ValueId, Array[ProjectionSelection])
+  MakeClosure(ValueId, @bytecode.FunctionId, ValueId)
+  StringLength(ValueId, ValueId)
+  StringConcat(ValueId, ValueId, ValueId)
+  StringSlice(ValueId, ValueId, ValueId, ValueId)
+  StringEq(ValueId, ValueId, ValueId)
+  IntAdd(ValueId, ValueId, ValueId)
+  IntSub(ValueId, ValueId, ValueId)
+  IntMul(ValueId, ValueId, ValueId)
+  IntNeg(ValueId, ValueId)
+  IntDiv(ValueId, ValueId, ValueId)
+  IntRem(ValueId, ValueId, ValueId)
+  IntAnd(ValueId, ValueId, ValueId)
+  IntOr(ValueId, ValueId, ValueId)
+  IntXor(ValueId, ValueId, ValueId)
+  IntNot(ValueId, ValueId)
+  IntShl(ValueId, ValueId, ValueId)
+  IntShrS(ValueId, ValueId, ValueId)
+  IntEq(ValueId, ValueId, ValueId)
+  IntNe(ValueId, ValueId, ValueId)
+  IntLt(ValueId, ValueId, ValueId)
+  IntLe(ValueId, ValueId, ValueId)
+  IntGt(ValueId, ValueId, ValueId)
+  IntGe(ValueId, ValueId, ValueId)
+  BoolNot(ValueId, ValueId)
+  BoolEq(ValueId, ValueId, ValueId)
+  BoolNe(ValueId, ValueId, ValueId)
+  DoubleAdd(ValueId, ValueId, ValueId)
+  DoubleSub(ValueId, ValueId, ValueId)
+  DoubleMul(ValueId, ValueId, ValueId)
+  DoubleDiv(ValueId, ValueId, ValueId)
+  DoubleNeg(ValueId, ValueId)
+  DoubleEq(ValueId, ValueId, ValueId)
+  DoubleNe(ValueId, ValueId, ValueId)
+  DoubleLt(ValueId, ValueId, ValueId)
+  DoubleLe(ValueId, ValueId, ValueId)
+  DoubleGt(ValueId, ValueId, ValueId)
+  DoubleGe(ValueId, ValueId, ValueId)
+  IntToDouble(ValueId, ValueId)
+  DoubleToInt(ValueId, ValueId)
+  EraseI32(ValueId, ValueId)
+  UneraseI32(ValueId, ValueId)
+  EraseI64(ValueId, ValueId)
+  UneraseI64(ValueId, ValueId)
+  EraseF64(ValueId, ValueId)
+  UneraseF64(ValueId, ValueId)
+  EraseUnit(ValueId)
+  UneraseUnit(ValueId)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct Edge {
+  target : @bytecode.BlockId
+  arguments : Array[ValueId]
+} derive(Debug, Eq)
+
+///|
+pub(all) enum Terminator {
+  Jump(Edge)
+  BranchBool(ValueId, Edge, Edge)
+  SwitchTag(ValueId, Array[Edge], Edge)
+  Return(ValueId?)
+  TailCallDirect(@bytecode.FunctionId, ValueId?, Array[ValueId], Array[ValueId])
+  TailCallValue(ValueId, Array[ValueId], Array[ValueId])
+  Unreachable
+} derive(Debug, Eq)
+
+///|
+pub(all) struct Block {
+  parameters : Array[ValueId]
+  instructions : Array[Instruction]
+  terminator : Terminator
+} derive(Debug, Eq)
+
+///|
+pub(all) struct FunctionBody {
+  values : Array[ValueMetadata]
+  inputs : FunctionInputs
+  result : @bytecode.ResultRepresentation
+  blocks : Array[Block]
+} derive(Debug, Eq)
+
+///|
+pub(all) enum FunctionEntry {
+  Body(FunctionBody)
+  RuntimeImport(@bytecode.RuntimeImport)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct Image {
+  entry : @bytecode.FunctionId
+  functions : Array[FunctionEntry]
+  layouts : Array[@bytecode.LayoutRecipe]
+  object_shapes : Array[@bytecode.ObjectShape]
+  constants : Array[Bytes]
+} derive(Debug, Eq)
+
+///|
+pub(all) suberror FinalizeError {
+  IllegalValueMetadata(value~ : ValueId)
+  UseBeforeOwnership(value~ : ValueId, block~ : Int)
+} derive(Debug, Eq)

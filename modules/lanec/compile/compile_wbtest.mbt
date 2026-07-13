@@ -1227,20 +1227,21 @@ test "link modules remaps data constructors through one identity" {
 }
 
 ///|
-test "module artifacts roundtrip through binary and link" {
+test "module artifacts roundtrip through binary, link, and bytecode" {
   let compiled = compile_modules(
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = box.value
+      #|pub fn main() -> Unit {
+      #|  answer()
+      #|}
     ),
     [
       (
         #|module Lib
-        #|pub struct Box {
-        #|  value : Int
+        #|pub fn answer() -> Unit {
+        #|  ()
         #|}
-        #|pub let box : Box = Box::{ value: 42 }
       ),
     ],
   )
@@ -1287,8 +1288,12 @@ test "module artifacts roundtrip through binary and link" {
     abort("expected linked program")
   }
   let executable = program.to_executable(program.entries[0])
+  let linked_artifact = match executable.to_artifact() {
+    Ok(artifact) => artifact
+    Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
+  }
   let linked_binary = @artifact_binary.linked_program_artifact_to_binary(
-    executable.to_artifact(),
+    linked_artifact,
   )
   inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
   let linked_decoded = match
@@ -1296,104 +1301,8 @@ test "module artifacts roundtrip through binary and link" {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
-  let linked_program = match linked_decoded.to_linked_program() {
-    Ok(program) => program
-    Err(_) => abort("unexpected diagnostics")
-  }
-  inspect(entry_display_name(linked_program.entry), content="Main.answer")
-  let linked_inspect = match
-    @artifact_binary.artifact_binary_to_inspect_text(linked_binary) {
-    Ok(text) => text
-    Err(message) => abort(message)
-  }
-  inspect(
-    artifact_inspect_without_fingerprints(linked_inspect),
-    content=(
-      #|Lane program artifact
-      #|schema: 3
-      #|entry: Main.answer
-      #|
-      #|modules:
-      #|  Lib
-      #|  Main
-      #|
-      #|entry:
-      #|  Main.answer : Int
-      #|
-      #|externals:
-      #|  (none)
-      #|
-      #|runtime effects:
-      #|  (none)
-      #|
-      #|buslane:
-      #|  buslane {
-      #|    metadata {
-      #|      type Box#0 {
-      #|        Box#1(Int)
-      #|      }
-      #|      function value#2 : (type#0) -> Int
-      #|      parameter receiver#3 : type#0
-      #|      match_binder match#4 : type#0
-      #|      match_binder value#5 : Int
-      #|      value box#6 : type#0
-      #|      value answer#7 : Int
-      #|    }
-      #|    let value#0 = fn(value#1) -> Int {
-      #|      match value#1 as value#2 -> Int {
-      #|        datacon#0(value#3) => value#3
-      #|      }
-      #|    }
-      #|    let value#4 = datacon#0(42)
-      #|    let value#5 = value#0(value#4)
-      #|  }
-      #|
-    ),
-  )
-  let unknown_entry_artifact : @module_compile.LinkedProgramArtifact = {
-    schema_version: linked_decoded.schema_version,
-    module_path_texts: linked_decoded.module_path_texts,
-    program: linked_decoded.program,
-    externals: linked_decoded.externals,
-    entry: {
-      module_path_text: linked_decoded.entry.module_path_text,
-      name: "missing",
-      value: { index: 999 },
-      type_: linked_decoded.entry.type_,
-    },
-    runtime_effect_operations: linked_decoded.runtime_effect_operations,
-  }
-  guard unknown_entry_artifact.to_linked_program()
-    is Err(unknown_entry_diagnostics) else {
-    abort("expected unknown linked entry diagnostic")
-  }
-  inspect(
-    unknown_entry_diagnostics
-    .map(fn(diagnostic) { diagnostic.message })
-    .join(","),
-    content="linked entry `Main.missing` points to an unknown value",
-  )
-  let invalid_program_artifact : @module_compile.LinkedProgramArtifact = {
-    schema_version: linked_decoded.schema_version,
-    module_path_texts: linked_decoded.module_path_texts,
-    program: {
-      metadata: linked_decoded.program.metadata,
-      terms: [External({ index: 999 })],
-    },
-    externals: linked_decoded.externals,
-    entry: linked_decoded.entry,
-    runtime_effect_operations: linked_decoded.runtime_effect_operations,
-  }
-  guard invalid_program_artifact.to_linked_program()
-    is Err(invalid_program_diagnostics) else {
-    abort("expected invalid linked program diagnostic")
-  }
-  inspect(
-    invalid_program_diagnostics
-    .map(fn(diagnostic) { diagnostic.message })
-    .join(","),
-    content="linked program contains invalid Buslane",
-  )
+  assert_eq(linked_decoded, linked_artifact)
+  assert_eq(linked_decoded.schema_version, 4)
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
     content="verify_result {}",
@@ -1430,9 +1339,8 @@ test "linked artifacts preserve runtime effect operation metadata" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let artifact = program.to_executable(program.entries[0]).to_artifact()
   inspect(
-    artifact.runtime_effect_operations
+    program.runtime_effect_operations
     .map(fn(operation) {
       "\{operation.module_path_text}.\{operation.effect_name}::\{operation.operation_name}/\{operation.payload.length()}->\{@prettyprinter.render(operation.result, width=100)}"
     })
@@ -1446,20 +1354,20 @@ test "linked artifacts preserve runtime effect operation metadata" {
     payload: [Primitive(String)],
     result: Primitive(Unit),
   }
-  let found = artifact.find_runtime_effect_operation(signature)
+  let found = program.find_runtime_effect_operation(signature)
   assert_eq(
     runtime_operation_index(found),
-    artifact.runtime_effect_operations[0].operation.index,
+    program.runtime_effect_operations[0].operation.index,
   )
   assert_eq(
     runtime_operation_result_index(
-      artifact.validate_runtime_effect_operation(signature),
+      program.validate_runtime_effect_operation(signature),
     ),
-    artifact.runtime_effect_operations[0].operation.index,
+    program.runtime_effect_operations[0].operation.index,
   )
   assert_eq(
     runtime_operation_index(
-      artifact.find_runtime_effect_operation({
+      program.find_runtime_effect_operation({
         module_path_text: "Other.Io",
         effect_name: "Write",
         operation_name: "println",
@@ -1471,7 +1379,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   )
   assert_eq(
     runtime_operation_index(
-      artifact.find_runtime_effect_operation({
+      program.find_runtime_effect_operation({
         module_path_text: "Basic.Io",
         effect_name: "Console",
         operation_name: "println",
@@ -1483,7 +1391,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   )
   assert_eq(
     runtime_operation_index(
-      artifact.find_runtime_effect_operation({
+      program.find_runtime_effect_operation({
         module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "print",
@@ -1495,7 +1403,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   )
   assert_eq(
     runtime_operation_index(
-      artifact.find_runtime_effect_operation({
+      program.find_runtime_effect_operation({
         module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "println",
@@ -1507,7 +1415,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   )
   assert_eq(
     runtime_operation_index(
-      artifact.find_runtime_effect_operation({
+      program.find_runtime_effect_operation({
         module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "println",
@@ -1519,7 +1427,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
   )
   assert_eq(
     runtime_operation_result_index(
-      artifact.validate_runtime_effect_operation({
+      program.validate_runtime_effect_operation({
         module_path_text: "Basic.Io",
         effect_name: "Write",
         operation_name: "println",
@@ -1529,16 +1437,30 @@ test "linked artifacts preserve runtime effect operation metadata" {
     ),
     -1,
   )
+  let artifact = match program.to_executable(program.entries[0]).to_artifact() {
+    Ok(artifact) => artifact
+    Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
+  }
+  assert_true(
+    artifact.bytecode.functions
+    is [
+      BytecodeBody(_),
+      RuntimeImport(
+        {
+          abi_major: 1,
+          user_arity: 1,
+          symbol: "lane.effect.v1/Basic.Io/Write/println",
+        }
+      ),
+    ],
+  )
   let binary = @artifact_binary.linked_program_artifact_to_binary(artifact)
   let decoded = match
     @artifact_binary.parse_linked_program_artifact_binary(binary) {
     Ok(decoded) => decoded
     Err(message) => abort(message)
   }
-  assert_eq(
-    runtime_operation_index(decoded.find_runtime_effect_operation(signature)),
-    runtime_operation_index(found),
-  )
+  assert_eq(decoded, artifact)
 }
 
 ///|
@@ -1728,7 +1650,9 @@ test "module artifact binary rejects wrong kind" {
   let compiled = compile_modules(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub fn main() -> Unit {
+      #|  ()
+      #|}
     ),
     [],
   )
@@ -1770,8 +1694,12 @@ test "module artifact binary rejects wrong kind" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
+  let artifact = match program.to_executable(program.entries[0]).to_artifact() {
+    Ok(artifact) => artifact
+    Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
+  }
   let program_binary = @artifact_binary.linked_program_artifact_to_binary(
-    program.to_executable(program.entries[0]).to_artifact(),
+    artifact,
   )
   if @artifact_binary.parse_module_object_artifact_binary(program_binary)
     is Err(message) {

@@ -14,7 +14,7 @@ pub(all) struct ModuleInterfaceArtifact {
 pub let module_object_artifact_schema_version = 6
 
 ///|
-pub let linked_program_artifact_schema_version = 3
+pub let linked_program_artifact_schema_version = 4
 
 ///|
 pub(all) struct ModuleObjectArtifact {
@@ -38,11 +38,7 @@ pub(all) struct ModuleObjectArtifact {
 ///|
 pub(all) struct LinkedProgramArtifact {
   schema_version : Int
-  module_path_texts : Array[String]
-  program : @buslane.Program
-  externals : @buslane_lowering.BuslaneExternalMap
-  entry : @buslane_lowering.BuslaneEntry
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
+  bytecode : @loisvm_bytecode.BytecodeImage
 } derive(Debug, Eq)
 
 ///|
@@ -132,38 +128,6 @@ pub fn CompiledModule::to_object_artifact(
     module_fingerprint: object.fingerprint,
     object_fingerprint: object.object_fingerprint,
     imported_interface_fingerprints: object.imported_interface_fingerprints,
-  }
-}
-
-///|
-pub fn LinkedExecutableProgram::to_artifact(
-  self : LinkedExecutableProgram,
-) -> LinkedProgramArtifact {
-  {
-    schema_version: linked_program_artifact_schema_version,
-    module_path_texts: self.module_path_texts,
-    program: self.program,
-    externals: self.externals,
-    entry: self.entry,
-    runtime_effect_operations: self.runtime_effect_operations,
-  }
-}
-
-///|
-pub fn LinkedProgramArtifact::to_linked_program(
-  self : LinkedProgramArtifact,
-) -> Result[LinkedExecutableProgram, Array[CompilerDiagnostic]] {
-  let diagnostics = self.validate()
-  if !diagnostics.is_empty() {
-    Err(diagnostics)
-  } else {
-    Ok({
-      module_path_texts: self.module_path_texts,
-      program: self.program,
-      externals: self.externals,
-      entry: self.entry,
-      runtime_effect_operations: self.runtime_effect_operations,
-    })
   }
 }
 
@@ -268,77 +232,6 @@ fn ModuleObjectArtifact::validate(
     )
   }
   None
-}
-
-///|
-fn LinkedProgramArtifact::validate(
-  self : LinkedProgramArtifact,
-) -> Array[CompilerDiagnostic] {
-  let diagnostics = []
-  if self.schema_version != linked_program_artifact_schema_version {
-    diagnostics.push(
-      artifact_diagnostic(UnsupportedLinkedProgramArtifactSchema, None),
-    )
-  }
-  let verify_result = @buslane.verify_program(self.program)
-  if !verify_result.is_ok() {
-    diagnostics.push(artifact_diagnostic(InvalidLinkedBuslaneProgram, None))
-  }
-  self.validate_modules(diagnostics)
-  self.validate_entry(diagnostics)
-  self.validate_runtime_effect_operations(diagnostics)
-  diagnostics
-}
-
-///|
-fn LinkedProgramArtifact::validate_modules(
-  self : LinkedProgramArtifact,
-  diagnostics : Array[CompilerDiagnostic],
-) -> Unit {
-  for index in 0..<self.module_path_texts.length() {
-    for other_index in (index + 1)..<self.module_path_texts.length() {
-      if self.module_path_texts[index] == self.module_path_texts[other_index] {
-        diagnostics.push(
-          artifact_diagnostic(
-            DuplicateLinkedModule(self.module_path_texts[index]),
-            None,
-          ),
-        )
-      }
-    }
-  }
-}
-
-///|
-fn LinkedProgramArtifact::validate_entry(
-  self : LinkedProgramArtifact,
-  diagnostics : Array[CompilerDiagnostic],
-) -> Unit {
-  if self.program.metadata.value_info(self.entry.value) is None {
-    diagnostics.push(
-      artifact_diagnostic(
-        LinkedEntryUnknownValue(entry_display_name(self.entry)),
-        None,
-      ),
-    )
-  }
-}
-
-///|
-fn entry_display_name(entry : @buslane_lowering.BuslaneEntry) -> String {
-  "\{entry.module_path_text}.\{entry.name}"
-}
-
-///|
-fn LinkedProgramArtifact::validate_runtime_effect_operations(
-  self : LinkedProgramArtifact,
-  diagnostics : Array[CompilerDiagnostic],
-) -> Unit {
-  for operation in self.runtime_effect_operations {
-    if self.program.metadata.operation_info(operation.operation) is None {
-      diagnostics.push(artifact_diagnostic(InvalidLinkedBuslaneProgram, None))
-    }
-  }
 }
 
 ///|

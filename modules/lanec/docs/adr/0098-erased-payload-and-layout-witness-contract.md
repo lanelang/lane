@@ -8,6 +8,8 @@ An erase bridge consults the destination erased slot's companion. That companion
 
 The companion witness remains unchanged for the complete live interval of every erased payload that names it. One witness slot may serve multiple simultaneously live erased payloads when they use the same LayoutId. It may be reused only after all dependent payloads have been consumed.
 
+Opening an existential constructor may establish a branch-local witness independently of payload projection. The witness is loaded from the selected object's stored witness array and can serve generic calls, generic construction, or ARC for the opened binder even when the constructor has no payload field of that type. This does not reify the erased type or permit dynamic type comparison.
+
 Natural bridge endpoints follow representation and cleanup categories. I32 bridges accept or produce `Trivial` Bool and `OwnedRef` references. I64 bridges accept or produce `Trivial` Int and `OwnedCallable` callables. F64 bridges accept or produce `Trivial` Double. Every erased endpoint is `I64 + OwnedErased`.
 
 Natural Unit has no slot. `erase_unit(destination)` establishes canonical zero in an erased destination whose companion already contains the nonzero Unit LayoutId. `unerase_unit(source)` consumes that erased payload and produces no destination. Trusted bytecode guarantees that erased Unit bits are zero. The Unit layout has no-op retain and release behavior and does not describe a heap allocation.
@@ -15,6 +17,8 @@ Natural Unit has no slot. `erase_unit(destination)` establishes canonical zero i
 Every bridge consumes its source and writes a logically dead destination without implicit retain, release, or overwrite cleanup. Preserving a trivial source requires a prior `copy`; preserving an owned source requires a prior `retain_copy`. Trusted metadata guarantees that LayoutId, payload kind, Bool bits, reference alignment, and callable structure agree. LoisVM performs no dynamic type or representation check.
 
 Call instructions do not erase or unerase operands implicitly. Lowering establishes the required erased argument slots before a generic call and explicitly unerases generic results before natural-representation use. Ordinary `move` remains a cleanup-compatible ownership transfer and never crosses the erasure boundary.
+
+When the erased payload itself contains a callable, an `erase_i64` bridge still moves only the packed callable bits and ownership. Before that bridge, lowering adapts the callable to the canonical erased-callable ABI when its typed parameter or result representations would otherwise differ. Unerasing performs the inverse sequence: move the packed bits into a callable slot, then wrap that callable in an ordinary adapter targeting the natural typed ABI. Layout witnesses guide the recursive conversions but never cause runtime type inspection.
 
 Consequences:
 
@@ -30,4 +34,6 @@ Consequences:
 - Bridges consume sources and never clean overwritten destinations.
 - Trusted bytecode establishes payload and witness compatibility.
 - Calls contain no implicit representation conversion.
+- Callable erasure adapts typed call ABI before moving packed bits.
+- Callable unerasure adapts from the canonical erased-callable ABI afterward.
 - Ordinary move does not perform erasure.

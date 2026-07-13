@@ -1,0 +1,41 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/loisvm_lowering"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/compile/artifact_core",
+  "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/vmcfg",
+  "Milky2018/loisvm/bytecode",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn lower_linked_program_to_bytecode(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
+
+pub fn lower_linked_program_to_bytecode_with_runtime_effects(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry, Array[@artifact_core.LinkedRuntimeEffectOperation]) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
+
+// Errors
+pub(all) suberror LoisvmLoweringError {
+  MissingValueMetadata(value~ : @buslane.ValueId)
+  MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
+  MissingExternal(value~ : @buslane.ValueId)
+  MissingEntry(value~ : @buslane.ValueId)
+  InvalidFunctionType(value~ : @buslane.ValueId, type_~ : @buslane.Type)
+  UnsupportedType(type_~ : @buslane.Type)
+  UnsupportedTopLevel(value~ : @buslane.ValueId)
+  UnsupportedExpression(detail~ : String)
+  UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
+  InvalidDataPayloadCount(data_constructor~ : @buslane.DataConId, expected~ : Int, actual~ : Int)
+  InvalidTypeApplication(detail~ : String)
+  UnsupportedIntrinsic(name~ : String)
+  NonAsciiString(value~ : String)
+  UnterminatedBlock(block~ : Int)
+  VmcfgFinalizeError(@vmcfg.FinalizeError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

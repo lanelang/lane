@@ -15,10 +15,6 @@ priv enum ArtifactDiagnosticKind {
     importer~ : String,
     imported~ : String
   )
-  UnsupportedLinkedProgramArtifactSchema
-  InvalidLinkedBuslaneProgram
-  DuplicateLinkedModule(String)
-  LinkedEntryUnknownValue(String)
 }
 
 ///|
@@ -122,42 +118,6 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         label="imported interface fingerprint mismatch \{importer} -> \{imported}",
         note="the importer was compiled against a different interface fingerprint",
         help="recompile the importer and provider modules together",
-      )
-    UnsupportedLinkedProgramArtifactSchema =>
-      compile_report(
-        "unsupported linked program artifact schema",
-        diagnostic_.span,
-        code="E4400",
-        label="unsupported linked program artifact schema",
-        note="this linked program artifact is not compatible with the current runtime",
-        help="link the program again with the current `lane link`",
-      )
-    InvalidLinkedBuslaneProgram =>
-      compile_report(
-        "linked program contains invalid Buslane",
-        diagnostic_.span,
-        code="E4401",
-        label="the Buslane verifier rejected the linked program",
-        note="this usually means the compiler or linker emitted inconsistent core terms",
-        help="recompile and relink; if the error remains, report it as a compiler bug",
-      )
-    DuplicateLinkedModule(module_) =>
-      compile_report(
-        "duplicate linked module `\{module_}`",
-        diagnostic_.span,
-        code="E4402",
-        label="the linked program lists this module more than once",
-        note="linked program metadata must contain each module once",
-        help="relink from a deduplicated object input set",
-      )
-    LinkedEntryUnknownValue(entry) =>
-      compile_report(
-        "linked entry `\{entry}` points to an unknown value",
-        diagnostic_.span,
-        code="E4403",
-        label="entry metadata references a value that is not in the Buslane program",
-        note="entry metadata is produced by the linker from public Lane entries",
-        help="relink the program; if the error remains, report it as a compiler bug",
       )
   }
 }

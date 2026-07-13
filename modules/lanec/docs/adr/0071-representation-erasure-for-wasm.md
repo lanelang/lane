@@ -14,7 +14,13 @@ These erasure bridges are consuming representation moves. They transfer any sour
 
 A callable also fits the erased payload directly. Its low 32 bits hold the `FunctionId` or Wasm table index and its high 32 bits hold the wasm32 closure-environment offset. The callable's layout witness retains or releases the nonzero environment component.
 
+The packed bits alone are insufficient when a callable crosses a representation-polymorphic boundary and substitution changes an argument or result representation. Monomorphic callables retain their natural Wasm signatures. The compiler therefore synthesizes ordinary adapter closures at such boundaries. A direct erased callable value uses a canonical callable ABI in which each represented immediate argument or result crossing the erased type boundary uses `i64`; Unit remains absent. The adapter recursively erases contravariant arguments before calling the captured source callable and unerases covariant results afterward.
+
+An adapter environment captures the source callable and every free LayoutId witness required by those conversions. Explicit `forall` witnesses remain explicit callable inputs and are forwarded in declaration order; they are not duplicated as captured source types. Nested callable values are adapted recursively through the same rule. Nominal objects are not deep-copied merely because a field contains a callable: their own generic field construction and projection boundaries perform the required adaptation.
+
 Each erased type parameter that affects runtime representation is accompanied by a hidden representation layout witness identified by `LayoutId`. The descriptor contains only the layout and ownership behavior required by generic code, including retain, release, destruction, and generic field handling. It is not a full Lane type, does not support source-level reflection or dynamic typechecking, and is not visible as a Lane function parameter.
+
+Nominal data values share the witness-only Reference recipe when they cross an erased boundary. Its retain and release helpers operate on the wasm32 reference and obtain the concrete destruction LayoutId from that object's header if the count reaches zero. Reference is never written into an allocated object's header, does not select a representative constructor shape, and carries no source nominal identity.
 
 `LayoutId` is an immediate `u32` index into an image-owned static layout table. Layout entries remain valid for the loaded image's lifetime and are neither dynamically allocated nor reference-counted. An entry records the erased representation kind, size, alignment, and ownership behavior required by generic code.
 
@@ -30,8 +36,13 @@ Consequences:
 - Erased Unit uses canonical zero payload and a no-op Unit LayoutId.
 - I32 width changes, I64 identity transfers, and F64 bit reinterpretation use explicit erasure bridges.
 - Erasure bridges consume and transfer ownership without ARC.
+- Callable ABI changes use compiler-generated ordinary adapter closures.
+- Adapter environments own the source callable and capture only required free layout witnesses.
+- Explicit `forall` witnesses remain explicit and are forwarded by adapters.
+- Nested callable coercions recurse through argument and result boundaries.
 - Full source types and source-level type arguments remain absent from bytecode.
 - Layout witnesses are runtime representation metadata, not a bytecode type system or verifier.
+- Nominal erased values share the witness-only Reference recipe.
 - Layout witnesses index static image-owned entries and have no ARC behavior.
 - Generic ARC is descriptor-directed; monomorphic ARC remains direct.
 - Generic objects that outlive a call retain the descriptor information needed by destruction.

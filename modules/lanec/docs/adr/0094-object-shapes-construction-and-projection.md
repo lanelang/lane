@@ -8,9 +8,13 @@ Instructions that allocate by runtime layout use `layout_operand_tag:u8 + payloa
 
 `make_data(destination, shape, layout, witnesses, fields)` serializes destination, Data shape, LayoutOperand, counted witness array, then counted field array. The explicit counts preserve instruction framing before the Object Shape table is available. The shape determines payload organization and local constructor tag; the layout operand supplies the header LayoutId and size behavior. The instruction reads Trivial witnesses and fields, consumes owned fields, writes all observable words, and publishes a logically dead `I32 + OwnedRef` destination only after initialization completes.
 
+For generic data, the witness array first contains Type-kind owner arguments and then Type-kind constructor-hidden arguments, each in declaration order. Effect-kind arguments are omitted. Pattern matching reconstructs no source type: a constructor branch maps each hidden Type-kind binder to the corresponding stored LayoutId and leaves hidden Effect-kind binders erased. Default branches open neither kind.
+
 `make_env(destination, shape, layout, witnesses, captures)` uses the symmetric destination, Environment shape, LayoutOperand, counted witness array, and counted capture array form. The instruction reads Trivial witnesses and captures, consumes owned captures, writes the complete tagless payload, and publishes a logically dead `I32 + OwnedRef` destination only after initialization completes.
 
 `load_tag(destination, object)` reads a data object's local constructor tag non-consumingly into `I32 + Trivial`. Pattern decision-tree lowering selects a constructor before any data-field projection.
+
+`load_object_witness(destination, shape, object, witness_ordinal)` non-consumingly copies one stored LayoutId from either a Data or Environment object into `I32 + Trivial`. This supports opened representation-polymorphic binders even when no projected member directly carries that binder. The source existential type remains erased: the witness controls representation and ARC only and cannot be used for dynamic typecase.
 
 A projection result contains value destination `SlotId:u32le` followed by `witness_destination_slot_plus_one:u32le`. Zero means no witness destination; nonzero N means `SlotId = N - 1`. The witness destination is required for an erased generic member and has `I32 + Trivial`; it receives the stored LayoutId associated with that member.
 
@@ -30,9 +34,12 @@ Consequences:
 - Object Shapes contain member schemas but no raw byte offsets.
 - Variable-size special objects remain outside the Object Shape table.
 - Generic allocation combines static shape with a runtime layout operand.
+- Owner witnesses precede constructor-hidden witnesses in declaration order.
+- Hidden Effect-kind parameters remain fully erased.
 - Construction operand arrays carry explicit counts for framing.
 - Construction consumes owned members and copies trivial witnesses.
 - Tag loading is non-consuming and applies only to data objects.
+- Stored witnesses may be loaded independently without reifying erased types.
 - Projection results explicitly return erased-member witnesses.
 - Borrowing data projection produces block-local non-owning reference payloads.
 - Consuming data projection preserves unique/shared ownership equivalence.

@@ -1,0 +1,15 @@
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/anf",
+  "Milky2018/lanec/compile/artifact_core",
+  "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/vmcfg",
+  "Milky2018/loisvm/bytecode",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "Milky2018/lanec/types",
+  "Milky2018/loisvm/interp",
+  "Milky2018/loisvm/runtime" @loisvm_runtime,
+} for "wbtest"

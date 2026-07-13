@@ -6,7 +6,6 @@ enum CliFileAction {
   Check
   Compile
   Run
-  Exec
   Format
   Inspect
   Link
@@ -59,6 +58,9 @@ enum CliError {
   InvalidLinkEntry(entry~ : String)
   FileIo(action~ : CliFileAction, path~ : String, reason~ : HostFileErrorReason)
   ArtifactLoad(path~ : String, kind~ : String, message~ : String)
+  ExecutionImageLowering(message~ : String)
+  ExecutionImageLoad(message~ : String)
+  ExecutionFailed(message~ : String)
   DuplicateObjectArtifact(module_path_text~ : String)
   RootLibraryInput(root~ : String, library~ : String)
   EntryNotFound(
@@ -189,6 +191,22 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
       command_report(title="couldn't load \{kind} `\{path}`", fields=[
         command_report_field("reason", message),
       ])
+    ExecutionImageLowering(message~) =>
+      command_report(
+        code="E6011",
+        title="couldn't lower the linked program to LoisVM bytecode",
+        fields=[command_report_field("reason", message)],
+      )
+    ExecutionImageLoad(message~) =>
+      command_report(
+        code="E6012",
+        title="couldn't load the LoisVM execution image",
+        fields=[command_report_field("reason", message)],
+      )
+    ExecutionFailed(message~) =>
+      command_report(code="E6013", title="LoisVM execution failed", fields=[
+        command_report_field("reason", message),
+      ])
     DuplicateObjectArtifact(module_path_text~) =>
       command_report(
         code="E6007",
@@ -310,7 +328,6 @@ fn CliFileAction::to_human_text(self : CliFileAction) -> String {
     Check => "check"
     Compile => "compile"
     Run => "run"
-    Exec => "execute"
     Format => "format"
     Inspect => "inspect"
     Link => "link"

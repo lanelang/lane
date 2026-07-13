@@ -127,22 +127,6 @@ pub fn LinkedProgram::validate_runtime_effect_operation(
 }
 
 ///|
-pub fn LinkedProgramArtifact::find_runtime_effect_operation(
-  self : LinkedProgramArtifact,
-  signature : RuntimeEffectOperationSignature,
-) -> @buslane.OperationId? {
-  find_runtime_effect_operation(self.runtime_effect_operations, signature)
-}
-
-///|
-pub fn LinkedProgramArtifact::validate_runtime_effect_operation(
-  self : LinkedProgramArtifact,
-  signature : RuntimeEffectOperationSignature,
-) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
-  validate_runtime_effect_operation(self.runtime_effect_operations, signature)
-}
-
-///|
 pub fn LinkedProgram::to_executable(
   self : LinkedProgram,
   entry : @buslane_lowering.BuslaneEntry,

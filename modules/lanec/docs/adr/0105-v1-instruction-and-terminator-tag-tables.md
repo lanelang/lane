@@ -37,6 +37,7 @@ LoisVM v1 assigns one explicit opcode to every portable instruction. The instruc
 | `0x3D` | `erase_i64` | `0x3E` | `unerase_i64` |
 | `0x3F` | `erase_f64` | `0x40` | `unerase_f64` |
 | `0x41` | `erase_unit` | `0x42` | `unerase_unit` |
+| `0x43` | `load_object_witness` |  |  |
 
 The independent terminator namespace is:
 
@@ -60,7 +61,7 @@ The tables are normative encoder and decoder requirements. Adding an instruction
 
 Consequences:
 
-- V1 has 66 instruction tags from `0x01` through `0x42`.
+- V1 has 67 instruction tags from `0x01` through `0x43`.
 - V1 has seven terminator tags from `0x01` through `0x07`.
 - Instruction and terminator positions decode against different namespaces.
 - Calls return normally only as instructions and transfer tail control only as terminators.

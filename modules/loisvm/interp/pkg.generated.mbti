@@ -1,0 +1,82 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/loisvm/interp"
+
+import {
+  "Milky2018/loisvm/bytecode",
+  "Milky2018/loisvm/runtime",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn load(@bytecode.BytecodeImage, @runtime.RuntimeRegistry) -> Result[LoadedImage, LoadError]
+
+// Errors
+pub(all) suberror LoadError {
+  UnresolvedImport(symbol~ : String)
+  AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
+  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ExecutionInstance {
+  loaded : LoadedImage
+  config : @runtime.ExecutionConfig
+  heap : Heap
+  frames : Array[Frame]
+  mut state : InstanceState
+}
+pub fn ExecutionInstance::execute(Self) -> Result[Unit, @runtime.ExecutionError]
+
+pub struct Frame {
+  body : @bytecode.FunctionBody
+  slots : Array[VMValue?]
+  owned_live : Array[Bool]
+  mut block : Int
+  mut instruction : Int
+  return_destination : @bytecode.SlotId?
+}
+
+pub struct Heap {
+  image : @bytecode.BytecodeImage
+  objects : Array[HeapObject?]
+  constant_refs : Array[Int]
+  singleton_refs : Array[Int?]
+  mut live_bytes : Int
+  max_live_bytes : Int?
+}
+
+pub struct HeapObject {
+  mut ref_count : Int
+  layout : @bytecode.LayoutId
+  payload : ObjectPayload
+  size : Int
+  immortal : Bool
+}
+
+pub enum InstanceState {
+  Ready
+  Running
+  Terminal
+} derive(Eq)
+
+pub struct LoadedImage {
+  image : @bytecode.BytecodeImage
+  bindings : Array[@runtime.RuntimeBinding?]
+}
+pub fn LoadedImage::new_instance(Self, config? : @runtime.ExecutionConfig) -> ExecutionInstance
+
+pub enum ObjectPayload {
+  String(Bytes)
+  Data(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
+  Environment(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
+}
+
+pub enum VMValue {
+  I32(Int)
+  I64(Int64)
+  F64(Double)
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

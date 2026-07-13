@@ -129,9 +129,16 @@ and ownership behavior.
 _Avoid_: dynamic type object, heap descriptor, reference-counted metadata
 
 **Portable Layout Recipe**:
-The tagged Unit, Bool, Int, Double, Callable, String, Data, or Environment recipe
+The tagged Unit, Bool, Int, Double, Callable, String, Data, Environment, or
+Reference recipe
 serialized for one LayoutId before backend-specific descriptor materialization.
 _Avoid_: source type descriptor, Wasm helper index, raw member offset
+
+**Erased Reference Layout**:
+The canonical witness-only Reference recipe shared by nominal values at erased
+generic boundaries; retain and release follow the referenced object's own
+header LayoutId, and the recipe is never installed in an object header.
+_Avoid_: representative constructor shape, String descriptor reuse, source nominal type
 
 **Representation Layout Witness**:
 A hidden `LayoutId` descriptor retained in erased bytecode for a generic runtime
@@ -164,6 +171,12 @@ _Avoid_: separate runtime-function value, mandatory empty closure, source functi
 The creation of a no-context callable by `const_function` or a context-requiring
 callable by consuming one nonzero environment owner in `make_closure`.
 _Avoid_: implicit environment retain, closure layout operand, mandatory shell allocation
+
+**Erased Callable Adapter**:
+A compiler-generated ordinary closure that recursively converts callable
+parameters and results when representation erasure changes their physical call
+ABI, capturing the source callable and any free layout witnesses it requires.
+_Avoid_: bytecode typecase, universal monomorphic callable ABI, implicit call conversion
 
 **Function Context Kind**:
 Function-table metadata declaring whether a function has no hidden context or

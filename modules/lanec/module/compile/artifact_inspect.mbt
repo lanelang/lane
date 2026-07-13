@@ -66,31 +66,17 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact with fn pretty(
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
   artifact : LinkedProgramArtifact,
 ) -> Document {
-  let buslane = BuslaneInspectContext::{ metadata: artifact.program.metadata }
-  let runtime_context = ArtifactInspectContext::from_runtime_effect_operations(
-    artifact.runtime_effect_operations,
+  let disassembly = @loisvm_bytecode.bytecode_image_to_disassembly(
+      artifact.bytecode,
+    )
+    .split("\n")
+    .map(StringView::to_owned)
+    .collect()
+  ignore(disassembly.pop())
+  text(
+    "Lane program artifact\nschema: \{artifact.schema_version}\n\n" +
+    disassembly.join("\n"),
   )
-  separate(@prettyprinter.hardline + @prettyprinter.hardline, [
-    linked_program_header_doc(artifact),
-    section_doc(
-      "modules:",
-      artifact.module_path_texts.map(fn(module_) { text(module_) }),
-    ),
-    section_doc("entry:", [text(buslane.entry_text(artifact.entry))]),
-    section_doc(
-      "externals:",
-      artifact.externals.builtins.map(fn(external) {
-        text(buslane.external_text(external))
-      }),
-    ),
-    section_doc(
-      "runtime effects:",
-      artifact.runtime_effect_operations.map(fn(operation) {
-        text(runtime_context.runtime_effect_operation_text(operation))
-      }),
-    ),
-    buslane_program_doc(artifact.program.metadata, artifact.program.terms),
-  ])
 }
 
 ///|
@@ -113,15 +99,6 @@ fn artifact_header_doc(
     fields.push(text("object fingerprint: \{fingerprint.value}"))
   }
   separate(@prettyprinter.hardline, fields)
-}
-
-///|
-fn linked_program_header_doc(artifact : LinkedProgramArtifact) -> Document {
-  separate(@prettyprinter.hardline, [
-    text("Lane program artifact"),
-    text("schema: \{artifact.schema_version}"),
-    text("entry: \{entry_display_name(artifact.entry)}"),
-  ])
 }
 
 ///|
@@ -284,35 +261,6 @@ fn ArtifactInspectContext::from_interface(
     }
   }
   context
-}
-
-///|
-fn ArtifactInspectContext::from_runtime_effect_operations(
-  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-) -> ArtifactInspectContext {
-  let context = ArtifactInspectContext::{
-    types: [],
-    effects: [],
-    type_parameters: [],
-  }
-  for operation in operations {
-    for payload in operation.payload {
-      context.add_type_parameters_from_type(payload)
-    }
-    context.add_type_parameters_from_type(operation.result)
-  }
-  context
-}
-
-///|
-fn ArtifactInspectContext::runtime_effect_operation_text(
-  self : ArtifactInspectContext,
-  operation : @artifact_core.LinkedRuntimeEffectOperation,
-) -> String {
-  let payload = operation.payload
-    .map(fn(type_) { self.type_text(type_) })
-    .join(", ")
-  "\{operation.module_path_text}.\{operation.effect_name}::\{operation.operation_name}(\{payload}) -> \{self.type_text(operation.result)} => operation#\{operation.operation.index}"
 }
 
 ///|
@@ -716,6 +664,11 @@ fn lane_primitive_text(primitive : @types.PrimitiveType) -> String {
 ///|
 priv struct BuslaneInspectContext {
   metadata : @buslane.MetadataRegistry
+}
+
+///|
+fn entry_display_name(entry : @buslane_lowering.BuslaneEntry) -> String {
+  "\{entry.module_path_text}.\{entry.name}"
 }
 
 ///|

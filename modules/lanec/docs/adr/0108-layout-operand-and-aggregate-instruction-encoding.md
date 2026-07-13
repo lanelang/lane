@@ -18,6 +18,8 @@ Construction reads witness and Trivial member operands non-consumingly. Owned fi
 
 `load_tag` encodes destination SlotId then object SlotId. It reads the Data object non-consumingly and writes an `I32 + Trivial` destination.
 
+`load_object_witness` encodes destination SlotId, ObjectShapeId, object source SlotId, then `witness_ordinal:u32le`. It reads either a Data or Environment object non-consumingly and copies the selected stored LayoutId into an `I32 + Trivial` destination. The ObjectShapeId fixes the static witness layout; the instruction does not recover a source type, compare types, or expose a backend byte offset.
+
 Every ProjectionResult contains `value_destination_slot_id:u32le` followed by `witness_destination_slot_plus_one:u32le`. Zero means no witness destination; nonzero N means `SlotId = N - 1`. Both destinations are logically dead. An erased member requires a nonzero `I32 + Trivial` witness destination, while a non-erased member uses zero, under the trusted-bytecode contract.
 
 `borrow_field` encodes Data ObjectShapeId, object source SlotId, `field_index:u32le`, then one ProjectionResult. `borrow_capture` encodes Environment ObjectShapeId, environment source SlotId, `capture_index:u32le`, then one ProjectionResult. Both preserve source-object ownership. Immediate members are copied; reference-bearing members produce block-local non-owning results.
@@ -38,4 +40,5 @@ Consequences:
 - Borrowing projections preserve their source object.
 - Consuming projections permit zero results and use canonical increasing indices.
 - Aggregate instruction semantics expose no raw byte offsets or backend memory operations.
+- Independent object-witness loads expose only representation and ARC metadata.
 - Cross-record aggregate agreement remains trusted rather than load-verified.

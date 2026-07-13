@@ -26,28 +26,6 @@ fn @bytecodec.ByteReader::read_source_span(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_string_array(
-  self : @bytecodec.ByteWriter,
-  items : Array[String],
-) -> Unit {
-  self.write_u32_le(items.length())
-  for item in items {
-    self.write_string(item)
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_string_array(
-  self : @bytecodec.ByteReader,
-) -> Array[String] raise {
-  let items : Array[String] = []
-  for _ in 0..<self.read_u32_le() {
-    items.push(self.read_string())
-  }
-  items
-}
-
-///|
 fn @bytecodec.ByteReader::read_compilation_fingerprint(
   self : @bytecodec.ByteReader,
 ) -> @artifact_core.CompilationFingerprint raise {

@@ -14,13 +14,15 @@ After the hidden environment, the target receives required `LayoutId` witnesses 
 
 The Lane Wasm feature profile permits Typed Function References, but they do not replace this canonical representation. A `funcref` cannot be stored directly in Lane's linear-memory heap or in the generic `i64` erased payload. Canonical value calls therefore use `call_indirect`, and canonical tail value calls use `return_call_indirect`. `call_ref` and `return_call_ref` may be used for backend-local optimizations only when the packed storage, ownership, and generic-erasure contracts remain unchanged.
 
-The Wasm representation does not allocate a closure shell. Each owned packed callable whose environment is nonzero directly owns one strong reference to that environment. Retaining the callable retains the environment; releasing it releases the environment; consuming invocation transfers that environment owner into the callee. Multiple callable owners are established by compiler-inserted retains, so consuming a packed callable requires no dynamic unique-versus-shared shell-count branch.
+The callable representation does not allocate a closure shell. Each owned packed callable whose environment is nonzero directly owns one strong reference to that environment. Retaining the callable retains the environment; releasing it releases the environment; consuming invocation transfers that environment owner into the callee. Multiple callable owners are established by compiler-inserted retains, so consuming a packed callable requires no dynamic unique-versus-shared shell-count branch.
 
 `make_closure(destination, FunctionId, environment)` consumes one nonzero environment owner and packs it with a context-requiring function identifier. It performs no Wasm allocation. `const_function` constructs only a no-context callable with environment zero. Neither instruction carries a LayoutId, ObjectShapeId, call-shape identifier, or function type operand; trusted function-table metadata establishes the required context kind and call signature.
 
-This differs physically from the LoisVM interpreter, where a callable may be an immediate `FunctionId` or a reference-counted closure shell that owns an environment. The representations are ownership-equivalent: interpreter shell ownership and Wasm direct environment ownership preserve the same observable callable behavior, and Lane exposes no closure-shell identity.
+The LoisVM interpreter uses the same logical pair inside its tagged `I64` VM value, so interpretation and Wasm execution share direct environment ownership rather than relying on ownership-equivalent but physically different closure objects.
 
 The packed callable is also a valid representation-polymorphic `i64` payload. Its `LayoutId` descriptor knows that the high 32-bit environment component is reference-bearing and applies retain or release only when that component is nonzero.
+
+Packed storage compatibility does not imply typed call-signature compatibility. When type substitution changes a callable argument or result from a natural representation to an erased `i64` representation or back, compiler lowering inserts an ordinary closure adapter. The adapter retains the same packed callable representation, captures the source callable plus required free LayoutIds, and recursively converts arguments and results around a typed call. No new bytecode callable form or dynamic signature dispatch is introduced.
 
 Consequences:
 
@@ -39,3 +41,5 @@ Consequences:
 - `call_value` lowers to unpacking plus typed `call_indirect`.
 - Typed Function References are available but do not define the canonical callable ABI.
 - Wasm consuming call has no closure-shell uniqueness branch.
+- Typed callable ABI changes are bridged by compiler-generated closure adapters.
+- Adapter callables use the same packed representation and ordinary call instructions.

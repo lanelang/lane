@@ -1,0 +1,94 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/loisvm/runtime"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror ExecutionError {
+  RuntimeImportFailure(symbol~ : String, message~ : String)
+  ExecutionResourceLimit(kind~ : ResourceLimitKind)
+  Interrupted
+  EngineTrap(detail~ : String)
+  InternalRuntimeFailure(detail~ : String)
+  InstanceNotReady
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror RuntimeImportFailure {
+  Failure(message~ : String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) struct ExecutionConfig {
+  max_call_depth : Int?
+  max_live_heap_bytes : Int?
+} derive(Eq, @debug.Debug)
+pub fn ExecutionConfig::defaults() -> Self
+
+pub struct HostStringView {
+  length : Int
+  read_byte : (Int) -> Byte
+}
+pub fn HostStringView::byte(Self, Int) -> Byte?
+pub fn HostStringView::length(Self) -> Int
+pub fn HostStringView::new(length~ : Int, read_byte~ : (Int) -> Byte) -> Self
+pub fn HostStringView::to_bytes(Self) -> Bytes
+pub fn HostStringView::to_string(Self) -> String
+pub impl Eq for HostStringView
+pub impl @debug.Debug for HostStringView
+
+pub(all) enum HostValue {
+  Unit
+  Bool(Bool)
+  Int(Int64)
+  Double(Double)
+  BorrowedString(HostStringView)
+  String(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PrimitiveKind {
+  Unit
+  Bool
+  Int
+  Double
+  String
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ResourceLimitKind {
+  CallDepth
+  LiveHeapBytes
+} derive(Eq, @debug.Debug)
+
+pub struct RuntimeBinding {
+  symbol : String
+  abi_major : Int
+  parameters : Array[PrimitiveKind]
+  result : PrimitiveKind
+  invoke : (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure
+}
+pub fn RuntimeBinding::abi_major(Self) -> Int
+pub fn RuntimeBinding::call(Self, RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure
+pub fn RuntimeBinding::new(symbol~ : String, abi_major~ : Int, parameters~ : Array[PrimitiveKind], result~ : PrimitiveKind, invoke~ : (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure) -> Self
+pub fn RuntimeBinding::parameters(Self) -> Array[PrimitiveKind]
+pub fn RuntimeBinding::result(Self) -> PrimitiveKind
+pub fn RuntimeBinding::symbol(Self) -> String
+
+pub struct RuntimeContext {
+  token : Unit
+}
+pub fn RuntimeContext::new() -> Self
+
+pub struct RuntimeRegistry {
+  bindings : Array[RuntimeBinding]
+}
+pub fn RuntimeRegistry::find(Self, String) -> RuntimeBinding?
+pub fn RuntimeRegistry::new() -> Self
+pub fn RuntimeRegistry::register(Self, RuntimeBinding) -> Unit
+
+// Type aliases
+pub type RuntimeFunction = (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure
+
+// Traits

@@ -1,0 +1,12 @@
+import {
+  "Milky2018/bytecodec",
+  "Milky2018/loisvm/bytecode",
+  "Milky2018/loisvm/runtime" @loisvm_runtime,
+  "Milky2018/wasm_core/types" @wasm_types,
+  "Milky2018/wasmoon/executor",
+  "Milky2018/wasmoon/runtime" @wasmoon_runtime,
+  "Milky2018/wasmoon/validator",
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

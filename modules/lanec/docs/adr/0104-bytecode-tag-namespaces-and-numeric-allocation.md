@@ -30,9 +30,9 @@ The v1 function-result namespace is:
 - `I64 = 0x03`
 - `F64 = 0x04`
 
-The v1 function-entry namespace is BytecodeBody `0x01` and RuntimeImport `0x02`. The layout-recipe namespace follows canonical recipe order from Unit `0x01` through Environment `0x08`. The Object Shape namespace is Data `0x01` and Environment `0x02`. LayoutOperand is Immediate `0x01` and Witness `0x02`.
+The v1 function-entry namespace is BytecodeBody `0x01` and RuntimeImport `0x02`. The layout-recipe namespace uses Unit `0x01` through Environment `0x08`, plus witness-only Reference `0x09`. The Object Shape namespace is Data `0x01` and Environment `0x02`. LayoutOperand is Immediate `0x01` and Witness `0x02`.
 
-Instruction and terminator tags use independent namespaces. ADR-0105 defines the exact canonical v1 tables: instructions occupy `0x01..0x42`, and terminators occupy `0x01..0x07`. Neither namespace shares ordinals with the other or with Wasm opcodes.
+Instruction and terminator tags use independent namespaces. ADR-0105 defines the exact canonical v1 tables: instructions occupy `0x01..0x43`, and terminators occupy `0x01..0x07`. Neither namespace shares ordinals with the other or with Wasm opcodes.
 
 Consequences:
 

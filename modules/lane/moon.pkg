@@ -1,6 +1,5 @@
 import {
   "Milky2018/buslane",
-  "Milky2018/buslane/interpreter" @buslane_interpreter,
   "Milky2018/diagnostic/render" @diag_render,
   "Milky2018/lanec/compile",
   "Milky2018/lanec/compile/artifact_core",
@@ -8,12 +7,15 @@ import {
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/format",
-  "Milky2018/lanec/intrinsics",
+  "Milky2018/lanec/loisvm_lowering",
   "Milky2018/lanec/module/compile" @module_compile,
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/lanec/types",
   "Milky2018/lane/lsp",
   "Milky2018/lane/terminal",
+  "Milky2018/loisvm/bytecode" @loisvm_bytecode,
+  "Milky2018/loisvm/runtime" @loisvm_runtime,
+  "Milky2018/loisvm/wasm" @loisvm_wasm,
   "moonbit-community/prettyprinter",
   "moonbitlang/async",
   "moonbitlang/async/fs",
@@ -28,10 +30,9 @@ import {
 
 import {
   "Milky2018/lanec/basic",
+  "Milky2018/loisvm/interp" @loisvm_interp,
 } for "wbtest"
 
 supported_targets = "native"
 
-options(
-  "is-main": true,
-)
+pkgtype(kind: "executable")

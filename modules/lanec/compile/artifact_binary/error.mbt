@@ -1,7 +1,8 @@
 ///|
-priv suberror ArtifactBinaryDecodeError {
+suberror ArtifactBinaryDecodeError {
   ByteError(@bytecodec.ByteDecodeError)
   BuslaneError(@buslane_codec.BuslaneDecodeError)
+  LoisvmBytecodeError(@loisvm_bytecode.BytecodeDecodeError)
   UnsupportedContainerVersion(version~ : Int)
   UnsupportedArtifactSchema(kind~ : String, version~ : Int)
   InvalidMagic(offset~ : Int)
@@ -17,6 +18,8 @@ fn[T] artifact_binary_decode_result(
   Ok(decode()) catch {
     ByteError(error) => Err("invalid artifact binary: \{to_repr(error)}")
     BuslaneError(error) => Err("invalid Buslane payload: \{to_repr(error)}")
+    LoisvmBytecodeError(error) =>
+      Err("invalid LoisVM bytecode payload: \{to_repr(error)}")
     UnsupportedContainerVersion(version~) =>
       Err("unsupported artifact binary container version \{version}")
     UnsupportedArtifactSchema(kind~, version~) =>

@@ -359,11 +359,9 @@ fn encode_linked_program_artifact_payload(
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le(artifact.schema_version)
-  writer.write_string_array(artifact.module_path_texts)
-  @artifact_core.write_buslane_program_section(writer, artifact.program)
-  @artifact_core.write_externals(writer, artifact.externals)
-  @artifact_core.write_entry(writer, artifact.entry)
-  writer.write_runtime_effect_operations(artifact.runtime_effect_operations)
+  writer.write_raw_bytes(
+    @loisvm_bytecode.bytecode_image_to_binary(artifact.bytecode),
+  )
   writer.to_bytes()
 }
 
@@ -376,14 +374,10 @@ fn decode_linked_program_artifact_payload(
   if schema_version != @module_compile.linked_program_artifact_schema_version {
     raise UnsupportedArtifactSchema(kind="program", version=schema_version)
   }
-  let artifact : @module_compile.LinkedProgramArtifact = {
-    schema_version,
-    module_path_texts: reader.read_string_array(),
-    program: reader.read_buslane_program_section(),
-    externals: reader.read_externals(),
-    entry: reader.read_entry(),
-    runtime_effect_operations: reader.read_runtime_effect_operations(),
+  let bytes = reader.read_raw_bytes(reader.remaining())
+  let bytecode = match @loisvm_bytecode.parse_bytecode_image_binary(bytes) {
+    Ok(bytecode) => bytecode
+    Err(error) => raise LoisvmBytecodeError(error)
   }
-  reader.expect_end()
-  artifact
+  { schema_version, bytecode }
 }

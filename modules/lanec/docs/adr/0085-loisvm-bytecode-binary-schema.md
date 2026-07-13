@@ -10,7 +10,7 @@ Instructions and terminators have separate `u8` tag domains. A tag determines th
 
 The v1 instruction tags are `copy=0x01`, `move=0x02`, `retain_copy=0x03`, `release=0x04`, `const_int=0x05`, `const_double=0x06`, `const_bool=0x07`, `const_layout=0x08`, `const_function=0x09`, `const_string=0x0A`, `call_direct=0x0B`, `call_value=0x0C`, `make_data=0x0D`, `load_tag=0x0E`, `borrow_field=0x0F`, `consume_fields=0x10`, `make_env=0x11`, `borrow_capture=0x12`, `consume_captures=0x13`, `make_closure=0x14`, `string_length=0x15`, `string_concat=0x16`, `string_slice=0x17`, and `string_eq=0x18`.
 
-Numeric and bridge instruction tags continue with `int_add=0x19`, `int_sub=0x1A`, `int_mul=0x1B`, `int_neg=0x1C`, `int_div=0x1D`, `int_rem=0x1E`, `int_and=0x1F`, `int_or=0x20`, `int_xor=0x21`, `int_not=0x22`, `int_shl=0x23`, `int_shr_s=0x24`, `int_eq=0x25`, `int_ne=0x26`, `int_lt=0x27`, `int_le=0x28`, `int_gt=0x29`, `int_ge=0x2A`, `bool_not=0x2B`, `bool_eq=0x2C`, `bool_ne=0x2D`, `double_add=0x2E`, `double_sub=0x2F`, `double_mul=0x30`, `double_div=0x31`, `double_neg=0x32`, `double_eq=0x33`, `double_ne=0x34`, `double_lt=0x35`, `double_le=0x36`, `double_gt=0x37`, `double_ge=0x38`, `int_to_double=0x39`, `double_to_int=0x3A`, `erase_i32=0x3B`, `unerase_i32=0x3C`, `erase_i64=0x3D`, `unerase_i64=0x3E`, `erase_f64=0x3F`, `unerase_f64=0x40`, `erase_unit=0x41`, and `unerase_unit=0x42`.
+Numeric and bridge instruction tags continue with `int_add=0x19`, `int_sub=0x1A`, `int_mul=0x1B`, `int_neg=0x1C`, `int_div=0x1D`, `int_rem=0x1E`, `int_and=0x1F`, `int_or=0x20`, `int_xor=0x21`, `int_not=0x22`, `int_shl=0x23`, `int_shr_s=0x24`, `int_eq=0x25`, `int_ne=0x26`, `int_lt=0x27`, `int_le=0x28`, `int_gt=0x29`, `int_ge=0x2A`, `bool_not=0x2B`, `bool_eq=0x2C`, `bool_ne=0x2D`, `double_add=0x2E`, `double_sub=0x2F`, `double_mul=0x30`, `double_div=0x31`, `double_neg=0x32`, `double_eq=0x33`, `double_ne=0x34`, `double_lt=0x35`, `double_le=0x36`, `double_gt=0x37`, `double_ge=0x38`, `int_to_double=0x39`, `double_to_int=0x3A`, `erase_i32=0x3B`, `unerase_i32=0x3C`, `erase_i64=0x3D`, `unerase_i64=0x3E`, `erase_f64=0x3F`, `unerase_f64=0x40`, `erase_unit=0x41`, `unerase_unit=0x42`, and `load_object_witness=0x43`.
 
 The independent v1 terminator tags are `jump=0x01`, `branch_bool=0x02`, `switch_tag=0x03`, `return=0x04`, `tail_call_direct=0x05`, `tail_call_value=0x06`, and `unreachable=0x07`. The instruction count excludes the required final terminator. Normal calls are instructions; returns, tail calls, CFG transfers, and unreachable are terminators. V1 has no nop, generic operation-subtag instruction, opcode alias, or executable debug instruction.
 
@@ -64,7 +64,7 @@ Each member schema stores `representation_tag:u8`, `cleanup_tag:u8`, and `witnes
 
 Canonical layout starts after the common eight-byte header. Data stores its u32 constructor tag, then all u32 witnesses in ordinal order; Environment starts witnesses immediately after the header. Members follow in schema order with I32 size/alignment four and I64/F64 size/alignment eight. Total allocation size rounds up to eight bytes.
 
-`make_data` encodes destination, direct zero-based Data `ObjectShapeId`, LayoutOperand, counted witness-slot array, and counted field-slot array. The constructor tag comes from the shape. `load_tag` encodes destination and object source. `borrow_field` encodes Data ObjectShapeId, object source, field index, and one ProjectionResult. `consume_fields` encodes Data ObjectShapeId, object source, selected-result count, then strictly increasing pairs of field index and ProjectionResult. Zero selected results are permitted.
+`make_data` encodes destination, direct zero-based Data `ObjectShapeId`, LayoutOperand, counted witness-slot array, and counted field-slot array. The constructor tag comes from the shape. `load_tag` encodes destination and object source. `load_object_witness` encodes destination SlotId, ObjectShapeId, object source SlotId, and witness ordinal. It non-consumingly copies one stored `LayoutId` into an `I32 + Trivial` destination and applies equally to Data and Environment shapes. It exposes representation and ARC metadata only, not an erased source type or a dynamic typecase facility. `borrow_field` encodes Data ObjectShapeId, object source, field index, and one ProjectionResult. `consume_fields` encodes Data ObjectShapeId, object source, selected-result count, then strictly increasing pairs of field index and ProjectionResult. Zero selected results are permitted.
 
 The linker deduplicates exact canonical Object Shape encodings. Data shapes are sorted lexicographically by canonical encoded bytes before Environment shapes, which are sorted the same way. ObjectShapeId is the resulting zero-based table position.
 
@@ -90,7 +90,7 @@ Consequences:
 - Function entries are tagged BytecodeBody or RuntimeImport records.
 - Function-entry tags are BytecodeBody `0x01` and RuntimeImport `0x02`.
 - Layout entries are tagged backend-independent recipes.
-- Layout-recipe tags are contiguous `0x01..0x08` in canonical recipe order.
+- Layout-recipe tags are contiguous `0x01..0x09` in canonical recipe order; `Reference` uses `0x09` as a witness-only erased-reference recipe.
 - LayoutId is one-based over zero-based recipe-table position.
 - Layout recipes are deduplicated and deterministically ordered.
 - Runtime imports carry major version, user arity, and nonempty ASCII symbol.
@@ -102,7 +102,7 @@ Consequences:
 - `FunctionId` and `LayoutId` are one-based; other current IDs are zero-based.
 - Ordered tables omit redundant serialized ID fields.
 - Instructions and terminators use separate fixed-shape `u8` tags.
-- V1 instruction tags occupy `0x01..0x42`; terminator tags occupy `0x01..0x07`.
+- V1 instruction tags occupy `0x01..0x43`; terminator tags occupy `0x01..0x07`.
 - Instruction counts exclude each block's required terminator.
 - V1 has no nop, opcode alias, generic operation subtag, or debug instruction.
 - Tag namespaces reserve `0x00` and `0xFF` and assign explicit contiguous values.
