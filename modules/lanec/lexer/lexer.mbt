@@ -20,8 +20,8 @@ pub fn tokens_from_string(source : String) -> LexResult {
 
 ///|
 fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
-  lexmatch input with longest {
-    ("\r\n|\r|\n", rest) => {
+  lexscan input with longest {
+    (re"^(\r\n|\r|\n)", after=rest) => {
       env.add_trivia(
         Newline,
         start=env.calc_offset(input, base~),
@@ -30,7 +30,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       env.newline(end=env.calc_offset(rest, base~))
       lex_tokens(rest, base~, env~)
     }
-    ("[\u0009\u000B\u000C\u0020]+", rest) => {
+    (re"^[\u0009\u000B\u000C\u0020]+", after=rest) => {
       env.add_trivia(
         Whitespace,
         start=env.calc_offset(input, base~),
@@ -38,7 +38,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("//[^\r\n]*", rest) => {
+    (re"^//[^\r\n]*", after=rest) => {
       env.add_trivia(
         LineComment,
         start=env.calc_offset(input, base~),
@@ -46,7 +46,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("=>", rest) => {
+    (re"^=>", after=rest) => {
       env.add_token(
         FAT_ARROW,
         start=env.calc_offset(input, base~),
@@ -54,7 +54,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("->", rest) => {
+    (re"^->", after=rest) => {
       env.add_token(
         THIN_ARROW,
         start=env.calc_offset(input, base~),
@@ -62,7 +62,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("::", rest) => {
+    (re"^::", after=rest) => {
       let start = env.calc_offset(input, base~)
       let right_tight = starts_with_non_whitespace(rest)
       let end = env.calc_offset(rest, base~)
@@ -76,7 +76,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       }
       lex_tokens(rest, base~, env~)
     }
-    ("==", rest) => {
+    (re"^==", after=rest) => {
       env.add_token(
         EQEQ,
         start=env.calc_offset(input, base~),
@@ -84,7 +84,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("!=", rest) => {
+    (re"^!=", after=rest) => {
       env.add_token(
         BANGEQ,
         start=env.calc_offset(input, base~),
@@ -92,7 +92,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("<=", rest) => {
+    (re"^<=", after=rest) => {
       env.add_token(
         LTEQ,
         start=env.calc_offset(input, base~),
@@ -100,7 +100,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    (">=", rest) => {
+    (re"^>=", after=rest) => {
       env.add_token(
         GTEQ,
         start=env.calc_offset(input, base~),
@@ -108,7 +108,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("&&", rest) => {
+    (re"^&&", after=rest) => {
       env.add_token(
         AMPAMP,
         start=env.calc_offset(input, base~),
@@ -116,7 +116,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("\|\|", rest) => {
+    (re"^[|][|]", after=rest) => {
       env.add_token(
         BARBAR,
         start=env.calc_offset(input, base~),
@@ -124,7 +124,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("\|>", rest) => {
+    (re"^[|]>", after=rest) => {
       env.add_token(
         PIPE,
         start=env.calc_offset(input, base~),
@@ -132,7 +132,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+\.[0-9]+[eE]\+[0-9]+" as raw, rest) => {
+    (re"^[0-9]+[.][0-9]+[eE][+][0-9]+" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -140,7 +140,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+\.[0-9]+[eE]-[0-9]+" as raw, rest) => {
+    (re"^[0-9]+[.][0-9]+[eE]-[0-9]+" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -148,7 +148,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+\.[0-9]+[eE][0-9]+" as raw, rest) => {
+    (re"^[0-9]+[.][0-9]+[eE][0-9]+" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -156,7 +156,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+\.[0-9]+" as raw, rest) => {
+    (re"^[0-9]+[.][0-9]+" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -164,7 +164,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+[eE]\+[0-9]+" as raw, rest) => {
+    (re"^[0-9]+[eE][+][0-9]+" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -172,7 +172,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+[eE]-[0-9]+" as raw, rest) => {
+    (re"^[0-9]+[eE]-[0-9]+" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -180,7 +180,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+[eE][0-9]+" as raw, rest) => {
+    (re"^[0-9]+[eE][0-9]+" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -188,7 +188,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[0-9]+" as raw, rest) => {
+    (re"^[0-9]+" as raw, after=rest) => {
       env.add_token(
         INT(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -196,7 +196,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("[A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+" as raw, rest) => {
+    (re"^([A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)" as raw, after=rest) => {
       let name = raw.to_owned()
       let token = if keyword_table.get(name) is Some(token) {
         token
@@ -212,38 +212,43 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
       )
       lex_tokens(rest, base~, env~)
     }
-    ("\"", rest) => {
+    (re"^\"", after=rest) => {
       let start = env.calc_offset(input, base~)
       let (rest, repr) = lex_string(rest, base~, env~, start~)
       env.add_token(STRING(repr), start~, end=env.calc_offset(rest, base~))
       lex_tokens(rest, base~, env~)
     }
-    ("\(", rest) => add_simple_token(LPAREN, input, rest, base~, env~)
-    ("\)", rest) => add_simple_token(RPAREN, input, rest, base~, env~)
-    ("[{]", rest) => add_simple_token(LBRACE, input, rest, base~, env~)
-    ("[}]", rest) => add_simple_token(RBRACE, input, rest, base~, env~)
-    ("\[", rest) => add_simple_token(LBRACKET, input, rest, base~, env~)
-    ("\]", rest) => add_simple_token(RBRACKET, input, rest, base~, env~)
-    (",", rest) => add_simple_token(COMMA, input, rest, base~, env~)
-    ("\.\*", rest) => add_simple_token(DOTSTAR, input, rest, base~, env~)
-    ("\.[{]", rest) => add_simple_token(DOTLBRACE, input, rest, base~, env~)
-    ("\.", rest) => add_simple_token(DOT, input, rest, base~, env~)
-    (":", rest) => add_simple_token(COLON, input, rest, base~, env~)
-    ("\+", rest) => add_simple_token(PLUS, input, rest, base~, env~)
-    ("-", rest) => add_simple_token(MINUS, input, rest, base~, env~)
-    ("\*", rest) => add_simple_token(STAR, input, rest, base~, env~)
-    ("/", rest) => add_simple_token(SLASH, input, rest, base~, env~)
-    ("%", rest) => add_simple_token(PERCENT, input, rest, base~, env~)
-    ("_", rest) => add_simple_token(UNDERSCORE, input, rest, base~, env~)
-    ("<", rest) => add_simple_token(LT, input, rest, base~, env~)
-    (">", rest) => add_simple_token(GT, input, rest, base~, env~)
-    ("!", rest) => add_simple_token(BANG, input, rest, base~, env~)
-    ("=", rest) => add_simple_token(EQUAL, input, rest, base~, env~)
-    ("$", _) => {
+    (re"^[(]", after=rest) => add_simple_token(LPAREN, input, rest, base~, env~)
+    (re"^[)]", after=rest) => add_simple_token(RPAREN, input, rest, base~, env~)
+    (re"^[{]", after=rest) => add_simple_token(LBRACE, input, rest, base~, env~)
+    (re"^[}]", after=rest) => add_simple_token(RBRACE, input, rest, base~, env~)
+    (re"^\[", after=rest) =>
+      add_simple_token(LBRACKET, input, rest, base~, env~)
+    (re"^\]", after=rest) =>
+      add_simple_token(RBRACKET, input, rest, base~, env~)
+    (re"^,", after=rest) => add_simple_token(COMMA, input, rest, base~, env~)
+    (re"^[.][*]", after=rest) =>
+      add_simple_token(DOTSTAR, input, rest, base~, env~)
+    (re"^[.][{]", after=rest) =>
+      add_simple_token(DOTLBRACE, input, rest, base~, env~)
+    (re"^[.]", after=rest) => add_simple_token(DOT, input, rest, base~, env~)
+    (re"^:", after=rest) => add_simple_token(COLON, input, rest, base~, env~)
+    (re"^[+]", after=rest) => add_simple_token(PLUS, input, rest, base~, env~)
+    (re"^-", after=rest) => add_simple_token(MINUS, input, rest, base~, env~)
+    (re"^[*]", after=rest) => add_simple_token(STAR, input, rest, base~, env~)
+    (re"^/", after=rest) => add_simple_token(SLASH, input, rest, base~, env~)
+    (re"^%", after=rest) => add_simple_token(PERCENT, input, rest, base~, env~)
+    (re"^_", after=rest) =>
+      add_simple_token(UNDERSCORE, input, rest, base~, env~)
+    (re"^<", after=rest) => add_simple_token(LT, input, rest, base~, env~)
+    (re"^>", after=rest) => add_simple_token(GT, input, rest, base~, env~)
+    (re"^!", after=rest) => add_simple_token(BANG, input, rest, base~, env~)
+    (re"^=", after=rest) => add_simple_token(EQUAL, input, rest, base~, env~)
+    re"^$" => {
       let end = env.calc_offset(input, base~)
       env.add_token(EOF, start=end, end~)
     }
-    ("." as raw, rest) => {
+    (re"^." as raw, after=rest) => {
       env.add_error(
         IllegalCharacter(raw.to_string()),
         start=env.calc_offset(input, base~),
@@ -295,17 +300,17 @@ fn lex_string(
 ) -> (StringView, String) {
   let buf = StringBuilder::new()
   fn process(input : StringView) -> StringView {
-    lexmatch input with longest {
-      ("\"", rest) => rest
-      ("\\[\\\"nrt]" as raw, rest) => {
+    lexscan input with longest {
+      (re"^\"", after=rest) => rest
+      (re"^\\[\\\"nrt]" as raw, after=rest) => {
         buf.write_string(raw.to_owned())
         process(rest)
       }
-      ("\\x([0-6][0-9a-fA-F]|7[0-7])" as raw, rest) => {
+      (re"^\\x([0-6][0-9a-fA-F]|7[0-7])" as raw, after=rest) => {
         buf.write_string(raw.to_owned())
         process(rest)
       }
-      ("\\x[0-9a-fA-F]{2}" as raw, rest) => {
+      (re"^\\x[0-9a-fA-F]{2}" as raw, after=rest) => {
         env.add_error(
           InvalidHexEscape(raw.to_owned()),
           start=env.calc_offset(input, base~),
@@ -314,7 +319,7 @@ fn lex_string(
         buf.write_string(raw.to_owned())
         process(rest)
       }
-      ("\\." as raw, rest) => {
+      (re"^\\." as raw, after=rest) => {
         env.add_error(
           InvalidStringEscape(raw.to_owned()),
           start=env.calc_offset(input, base~),
@@ -323,11 +328,11 @@ fn lex_string(
         buf.write_string(raw.to_owned())
         process(rest)
       }
-      ("[\x20-\x21\x23-\x5B\x5D-\x7E]+" as raw, rest) => {
+      (re"^[\x20-\x21\x23-\x5B\x5D-\x7E]+" as raw, after=rest) => {
         buf.write_string(raw.to_owned())
         process(rest)
       }
-      ("\r\n|\r|\n", _) => {
+      (re"^(\r\n|\r|\n)", after=_) => {
         env.add_error(
           UnterminatedString,
           start~,
@@ -335,7 +340,7 @@ fn lex_string(
         )
         input
       }
-      "" => {
+      re"^$" => {
         env.add_error(
           UnterminatedString,
           start~,
@@ -343,7 +348,7 @@ fn lex_string(
         )
         input
       }
-      ("." as raw, rest) => {
+      (re"^." as raw, after=rest) => {
         if raw.to_int() > 127 {
           env.add_error(
             NonAsciiStringCharacter,
