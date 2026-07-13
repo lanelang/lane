@@ -11,7 +11,8 @@ No ready issues.
 | ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
 | [ISS-173](ISS-173.md) | in_progress | 1 | feature | unassigned | ISS-176, ISS-177 | ISS-163 | Lower effect core to dictionary CPS |
-| [ISS-176](ISS-176.md) | in_progress | 1 | feature | codex | none | ISS-173, ISS-177 | Lower handlers through lexical dictionaries |
+| [ISS-176](ISS-176.md) | in_progress | 1 | feature | codex | ISS-179, ISS-180, ISS-181 | ISS-173, ISS-177 | Lower handlers through lexical dictionaries |
+| [ISS-179](ISS-179.md) | in_progress | 1 | task | codex | none | ISS-176, ISS-180 | Lower invokes to static dictionary fields |
 | [ISS-161](ISS-161.md) | open | 1 | epic | unassigned | ISS-163, ISS-164, ISS-165, ISS-166, ISS-167 | none | Complete effect-erased Lane-to-LoisVM lowering |
 | [ISS-163](ISS-163.md) | open | 1 | epic | unassigned | ISS-173 | ISS-161, ISS-164 | Implement mon-trans lowering |
 | [ISS-164](ISS-164.md) | open | 1 | feature | unassigned | ISS-163 | ISS-161, ISS-165 | Implement open-resolve lowering |
@@ -19,6 +20,8 @@ No ready issues.
 | [ISS-166](ISS-166.md) | open | 1 | task | unassigned | ISS-165 | ISS-161, ISS-167 | Integrate effect erasure into LoisVM compilation |
 | [ISS-167](ISS-167.md) | open | 1 | task | unassigned | ISS-166 | ISS-161 | Validate effect lowering across LoisVM backends |
 | [ISS-177](ISS-177.md) | open | 1 | task | unassigned | ISS-176 | ISS-173 | Validate dictionary CPS residual form |
+| [ISS-180](ISS-180.md) | open | 1 | task | unassigned | ISS-179 | ISS-176, ISS-181 | Build residual effect relay dictionaries |
+| [ISS-181](ISS-181.md) | open | 1 | task | unassigned | ISS-180 | ISS-176 | Eliminate installs with residual computations |
 
 ## Dependency Graph
 
@@ -202,6 +205,9 @@ graph TD
   ISS_176["ISS-176: Lower handlers through lexical dictionaries"]
   ISS_177["ISS-177: Validate dictionary CPS residual form"]
   ISS_178["ISS-178: Define handler-local residual computation answers"]
+  ISS_179["ISS-179: Lower invokes to static dictionary fields"]
+  ISS_180["ISS-180: Build residual effect relay dictionaries"]
+  ISS_181["ISS-181: Eliminate installs with residual computations"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -359,8 +365,14 @@ graph TD
   ISS_174 --> ISS_175
   ISS_175 --> ISS_176
   ISS_178 --> ISS_176
+  ISS_179 --> ISS_176
+  ISS_180 --> ISS_176
+  ISS_181 --> ISS_176
   ISS_176 --> ISS_177
   ISS_175 --> ISS_178
+  ISS_178 --> ISS_179
+  ISS_179 --> ISS_180
+  ISS_180 --> ISS_181
 ```
 
 ## Warnings
