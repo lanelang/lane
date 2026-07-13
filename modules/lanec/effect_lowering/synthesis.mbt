@@ -17,6 +17,7 @@ pub(all) suberror SynthesisError {
   EffectfulTypeLambda(@buslane.Effect)
   EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
   MissingEffectContext(@buslane.Effect)
+  MissingOperationClause(@buslane.OperationId)
   UnsupportedTopLevelEffect(@buslane.Effect)
 } derive(Debug, Eq)
 

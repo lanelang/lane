@@ -230,7 +230,8 @@ fn lower_cps_direct_expr(
           lower_cps_direct_expr(schema, program, payload, current_answer)
         }),
       })
-    Install(_) | Bind(_) | OpenContext(_) => expression
+    Install(install) => lower_cps_direct_install(schema, program, install)
+    Bind(_) | OpenContext(_) => expression
   }
 }
 

@@ -17,6 +17,7 @@ pub fn introduce_monadic_binds(
 fn introduce_monadic_binds_or_raise(
   program : Program,
 ) -> Program raise SynthesisError {
+  normalize_install_resume_effects(program)
   {
     metadata: program.metadata,
     terms: program.terms.map(term => transform_top_term(program, term)),

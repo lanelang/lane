@@ -46,9 +46,9 @@ fn lower_cps_computation(
       lower_cps_invoke(
         schema, program, invoke, environment, answer_type, continuation,
       )
-    Install(_) =>
-      lower_cps_residual_computation(
-        schema, program, computation, answer_type, continuation, binder,
+    Install(install) =>
+      lower_cps_install(
+        schema, program, install, environment, answer_type, continuation,
       )
     _ =>
       lower_cps_with_continuation(

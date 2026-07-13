@@ -24,34 +24,14 @@ fn lower_cps_invoke(
     MatchBinder,
     dictionary_type,
   )
-  let header = schema.dictionary(operation.owner)
-  guard program.metadata.type_info(header.type_id) is Some(dictionary) else {
-    raise UnknownType(header.type_id)
-  }
-  guard dictionary.constructors is [data_constructor] else {
-    raise UnknownType(header.type_id)
-  }
-  guard program.metadata.data_constructor_info(data_constructor)
-    is Some(data_info) else {
-    raise UnknownDataConstructor(data_constructor)
-  }
-  let type_arguments = invoke.effect_arguments.map(argument => {
-      rewrite_cps_expression_argument(schema, argument, Some(answer_type))
-    }) +
-    [TypeArgument(answer_type)]
-  let substitution = @buslane.TypeSubstitution::TypeSubstitution()
-  for index in 0..<dictionary.parameters.length() {
-    substitution.insert_argument(
-      dictionary.parameters[index],
-      type_arguments[index],
-    )
-  }
-  let field_binders = data_info.payload_types.map(type_ => {
-    program.metadata.define_value(
-      "%operation",
-      MatchBinder,
-      type_.substitute(substitution),
-    )
+  let instance = instantiate_dictionary(
+    schema,
+    operation.owner,
+    invoke.effect_arguments,
+    answer_type,
+  )
+  let field_binders = instance.field_types.map(type_ => {
+    program.metadata.define_value("%operation", MatchBinder, type_)
   })
   let field_index = operation_field_index(effect.operations, invoke.operation)
   let field = Expr::Ref(field_binders[field_index])
@@ -71,7 +51,7 @@ fn lower_cps_invoke(
     result_type: answer_type,
     alternatives: [
       {
-        alt_constructor: DataCon(data_constructor),
+        alt_constructor: DataCon(instance.data_constructor),
         type_binders: [],
         value_binders: field_binders,
         body: Call(
