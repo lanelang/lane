@@ -169,3 +169,46 @@ test "effect lowering agrees for nested deep handlers and arm effects" {
     ["inner", "outer", "inner-final", "outer-final", "after"],
   )
 }
+
+///|
+test "effect lowering agrees for reusable resumptions with owned captures" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Tick {
+      #|  tick() -> Unit
+      #|}
+      #|fn resume_once() -> Unit ! Io {
+      #|  let captured : String = "single"
+      #|  handle {
+      #|    let _tick : Unit = Tick::tick!()
+      #|    Write::println!(captured)
+      #|  } with {
+      #|    Tick::tick(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|fn resume_twice() -> Unit ! Io {
+      #|  let captured : String = "multi"
+      #|  handle {
+      #|    let _tick : Unit = Tick::tick!()
+      #|    Write::println!(captured)
+      #|  } with {
+      #|    Tick::tick(resume) => {
+      #|      let _first : Unit = resume(())
+      #|      resume(())
+      #|    }
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let _single : Unit = resume_once()
+      #|  resume_twice()
+      #|}
+    ),
+    ["single", "multi", "multi"],
+  )
+}
