@@ -78,11 +78,13 @@ Output contains no `OpenContext`, effect-row comparison, runtime effect tag, dyn
 
 Input is open-resolved selective CPS with local bind continuations. All context passing is already explicit ordinary typed data flow.
 
-`monadic-lift` computes each bind continuation's free value variables and free ordinary type variables, creates a compiler-generated function with those captures as explicit inputs, and replaces the local continuation with an ordinary closure construction. Continuations are not split into Koka-style yielding and inline variants because Lane has no global yielding side channel: the direct fast path is the unchanged pure-function ABI, while every monadic path is explicit CPS.
+`monadic-lift` validates the open-resolved compiler-private program and converts every generated local continuation into an ordinary Buslane function or type abstraction. It is the boundary from effect-lowering IR to ordinary effect-free Buslane; it does not introduce a second explicit closure/environment representation before ANF. Continuations are not split into Koka-style yielding and inline variants because Lane has no global yielding side channel: the direct fast path is the unchanged pure-function ABI, while every monadic path is explicit CPS.
+
+The existing ANF-to-LoisVM lowering remains the single owner of physical closure lifting. It computes each ordinary nested function's free value bindings and free runtime type parameters, records generic layout-witness captures, creates environment shapes, and emits `MakeEnv`/`MakeClosure`. Keeping capture analysis there avoids duplicate environments and keeps closure representation, ownership, and ARC insertion aligned for source closures and generated continuations.
 
 The lifted resume closure is reusable. Repeated calls are ordinary non-linear closure uses and therefore become retain-copy or borrow/transfer decisions during later VM CFG ownership analysis. A continuation closure captures the inner handler dictionaries needed to resume deeply; an operation-clause closure captures only the outer context in which the clause body executes. A generated handler dictionary never strongly captures itself, preventing an ARC cycle by construction.
 
-Output is ordinary effect-free Buslane accepted by the ordinary ANF lowerer. It contains only ordinary functions, type abstractions over kind `Type`, closures, data, projections, calls, matches, and control flow. Compiler-private bind nodes, effect metadata, context plans, and effect-kind parameters are absent.
+Output is ordinary effect-free Buslane accepted by the ordinary ANF lowerer. It contains only ordinary functions, type abstractions over kind `Type`, data, projections, calls, matches, and control flow. Compiler-private bind nodes, effect metadata, context plans, and effect-kind parameters are absent. Free references in local functions are intentional inputs to the existing closure-lifting stage.
 
 ## Outer runtime operations
 
