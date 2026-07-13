@@ -23,17 +23,27 @@ still useful, but it should be late and local: instruction selection,
 peepholes, slot allocation, jump cleanup, constant-pool layout, and similar
 execution-layout work.
 
-The linked program artifact may eventually store an optimized bytecode image as
-its primary execution payload. It should also keep enough semantic metadata for
-entry validation, runtime effect validation, inspection, debugging, and stable
-diagnostics. Embedding a Buslane/core snapshot is acceptable when it keeps
-`lane inspect` and future debugging tools useful.
+The linked program artifact stores the final optimized bytecode image. The
+selected entry and runtime-import descriptors are stored only inside the
+image's unified `FunctionId` table rather than duplicated by the outer artifact
+payload. They are not effect-operation dispatch data. Ordinary linked artifacts do not embed
+linked Buslane/core or source debug metadata; semantic inspection remains
+available through module objects, while future debug support must use an
+explicit separate artifact section or mode.
 
-Module objects may store per-module bytecode only as an optional cache. Such a
-cache must be invalidated by the compiler version, target, lowering options,
-and core fingerprint. It must not become the cross-module semantic record, the
-source of interface fingerprints, or the only representation available to the
-linker.
+The same LoisVM bytecode image is also the compiled execution backend input.
+That backend decodes bytecode, lowers it into a WebAssembly module, and executes
+the module with a WebAssembly engine. Milky2018/wasmoon is Lane's default engine
+and may be extended alongside Lane. The backend does not bypass bytecode by
+consuming a `lanec`-internal Buslane or ANF representation. This keeps `.lbp`
+sufficient for either interpreted or compiled execution without embedding
+compiler core IR.
+
+Lane v1 module objects do not store per-module bytecode. If link performance
+later justifies a bytecode cache, that cache must remain outside the
+authoritative `.lmo` and `.lbp` contracts and be invalidated by the compiler
+version, target, lowering options, and core fingerprint. It must not become the
+cross-module semantic record or the source of interface fingerprints.
 
 This follows the useful part of GHC's split: interface files carry compiler
 knowledge for separate compilation and cross-module optimization, while code
@@ -48,8 +58,17 @@ Consequences:
 - `.lmi` is the interface and optimization-summary artifact.
 - `.lmo` is the relocatable module object whose authoritative payload is
   linkable Buslane/core.
-- `.lbp` is the linked program artifact; it may store final optimized bytecode
-  plus entry tables, runtime effect tables, constant pools, and debug metadata.
+- `.lbp` is the executable-only linked program artifact containing final
+  optimized bytecode, which itself contains the selected entry and
+  execution-required runtime tables.
+- All LoisVM bytecode lowering happens after `.lmo` linking and whole-program
+  core optimization.
+- Compiled execution lowers the `.lbp` LoisVM bytecode image into WebAssembly
+  rather than introducing a parallel executable lowering from Buslane or ANF.
+- Milky2018/wasmoon is the default WebAssembly engine. Lane may extend its
+  interpreter, JIT, runtime integration, and supported WebAssembly capabilities
+  instead of limiting the backend to the current feature floor of unrelated
+  engines.
 - ANF and bytecode are lowerings from Buslane/core, not replacements for the
   canonical semantic artifact.
 - The bytecode VM must be tested against the Buslane reference interpreter

@@ -22,6 +22,10 @@ Native command-line tool and language-server command terms.
 **Lane Wasm**: [modules/lane_wasm/CONTEXT.md](modules/lane_wasm/CONTEXT.md)
 Browser-facing Lane tool terms for wasm-hosted IR exploration.
 
+**LoisVM**: [modules/loisvm/CONTEXT.md](modules/loisvm/CONTEXT.md)
+Portable bytecode image, bytecode interpreter, and VM runtime representation
+terms.
+
 ## Routing Notes
 
 - Use **Module** for the Lane source-language namespace defined in the root
@@ -30,6 +34,8 @@ Browser-facing Lane tool terms for wasm-hosted IR exploration.
   packaging boundaries.
 - Use **Lane Wasm** for the browser-facing wasm tool surface, and use
   `Milky2018/lane_wasm` only for the MoonBit packaging identity.
+- Use **LoisVM** for the portable bytecode and bytecode interpreter module,
+  including `loisvm/bytecode` and `loisvm/interp` package boundaries.
 - Put terms that apply across compiler, core language, and tools in the root
   context.
 - Put tool-specific terms in the closest tool context instead of the root
