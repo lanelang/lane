@@ -36,10 +36,7 @@ fn lower_cps_test_source(source : @buslane.Program) -> @buslane.Program {
       introduce_monadic_binds(elaborate_handlers(source)).unwrap(),
     ).unwrap(),
   ).unwrap()
-  {
-    metadata: lowered.metadata,
-    terms: lowered.terms.map(cps_ordinary_top_term),
-  }
+  lift_monadic_continuations(lowered).unwrap()
 }
 
 ///|
