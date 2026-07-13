@@ -216,7 +216,7 @@ test "effect forms fail before bytecode emission" {
   let unit_type = @buslane.Type::Primitive(Unit)
   let effect = metadata.define_effect("Test", [])
   let operation = metadata.define_operation("run", effect, [], [], unit_type)
-  let main_type = test_function_type([], unit_type)
+  let main_type = @buslane.Type::Function([], unit_type, Singleton(effect, []))
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
     metadata,
@@ -304,17 +304,12 @@ test "linked runtime effects become ordinary stable-symbol imports" {
     Err(error) => fail("lowering failed: \{to_repr(error)}")
   }
   assert_true(
-    image.functions[1]
-    is RuntimeImport(
-      { abi_major: 1, user_arity: 1, symbol: "lane.effect.v1/Main/Io/print" }
-    ),
-  )
-  guard image.functions[0] is BytecodeBody(main_body) else {
-    fail("expected main bytecode body")
-  }
-  assert_true(
-    main_body.blocks[0].terminator
-    is TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
+    image.functions.any(function => {
+      function
+      is RuntimeImport(
+        { abi_major: 1, user_arity: 1, symbol: "lane.effect.v1/Main/Io/print" }
+      )
+    }),
   )
   let mut observed = ""
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -338,6 +333,172 @@ test "linked runtime effects become ordinary stable-symbol imports" {
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, "Lane")
+}
+
+///|
+test "lexical handlers and resume lower before LoisVM bytecode" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let int_type = @buslane.Type::Primitive(Int)
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let effect = metadata.define_effect("Choose", [])
+  let operation = metadata.define_operation("choose", effect, [], [], int_type)
+  let observe_type = test_function_type([int_type], unit_type)
+  let observe = metadata.define_value("observe", External, observe_type)
+  let selected = metadata.define_value("selected", Local, int_type)
+  let handler_result = metadata.define_value("result", Local, unit_type)
+  let resume_binder = metadata.define_value(
+    "resume",
+    Parameter,
+    Function([int_type], unit_type, Empty),
+  )
+  let main_type = test_function_type([], unit_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(observe),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Handle({
+            body: Let(
+              selected,
+              Perform({
+                operation,
+                effect_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
+              Call(Ref(observe), [Ref(selected)]),
+            ),
+            result_binder: handler_result,
+            result_type: unit_type,
+            final_body: Ref(handler_result),
+            handlers: [
+              {
+                handled_effect: Singleton(effect, []),
+                operations: [
+                  {
+                    operation,
+                    type_binders: [],
+                    payload_binders: [],
+                    resume_binder,
+                    body: Call(Resume(resume_binder), [Literal(Int(42L))]),
+                  },
+                ],
+              },
+            ],
+          }),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(program).is_ok())
+  let image = match
+    lower_linked_program_to_bytecode(
+      program,
+      {
+        builtins: [
+          {
+            value: observe,
+            name: "lane.test.observe_handled_value",
+            type_: observe_type,
+          },
+        ],
+      },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    ) {
+    Ok(value) => value
+    Err(error) => fail("lowering failed: \{to_repr(error)}")
+  }
+  let mut observed = 0L
+  let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.observe_handled_value",
+      abi_major=1,
+      parameters=[Int],
+      result=Unit,
+      invoke=fn(_context, arguments) {
+        if arguments is [Int(value)] {
+          observed = value
+        }
+        Unit
+      },
+    ),
+  )
+  let loaded = match @interp.load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  assert_eq(loaded.new_instance().execute(), Ok(()))
+  assert_eq(observed, 42L)
+}
+
+///|
+test "runtime effects reject nonprimitive host signatures" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let box = metadata.define_type("Box", [])
+  ignore(metadata.define_data_constructor("Box", box, [], []))
+  let box_type = @buslane.Type::Constructor(box)
+  let effect = metadata.define_effect("Host", [])
+  let operation = metadata.define_operation(
+    "send",
+    effect,
+    [],
+    [box_type],
+    unit_type,
+  )
+  let payload = metadata.define_value("payload", Parameter, box_type)
+  let main_type = @buslane.Type::Function(
+    [box_type],
+    unit_type,
+    Singleton(effect, []),
+  )
+  let main = metadata.define_value("main", Function, main_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        main,
+        Function({
+          parameters: [payload],
+          result_type: unit_type,
+          body: Perform({
+            operation,
+            effect_arguments: [],
+            hidden_witnesses: [],
+            payloads: [Ref(payload)],
+          }),
+        }),
+      ),
+    ],
+  }
+  assert_true(
+    lower_linked_program_to_bytecode_with_runtime_effects(
+      program,
+      { builtins: [] },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      [
+        {
+          module_path_text: "Main",
+          effect_name: "Host",
+          operation_name: "send",
+          payload: [Primitive(Unit)],
+          result: Primitive(Unit),
+          operation,
+        },
+      ],
+    )
+    is Err(
+      UnsupportedExpression(
+        detail="runtime effect operations must use only v1 host primitive types"
+      )
+    ),
+  )
 }
 
 ///|

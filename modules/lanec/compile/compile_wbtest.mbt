@@ -1442,17 +1442,25 @@ test "linked artifacts preserve runtime effect operation metadata" {
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
   }
   assert_true(
+    artifact.bytecode.functions.any(function => function is BytecodeBody(_)),
+  )
+  assert_eq(
     artifact.bytecode.functions
-    is [
-      BytecodeBody(_),
-      RuntimeImport(
+    .filter(function => function is RuntimeImport(_))
+    .length(),
+    1,
+  )
+  assert_true(
+    artifact.bytecode.functions.any(function => {
+      function
+      is RuntimeImport(
         {
           abi_major: 1,
           user_arity: 1,
           symbol: "lane.effect.v1/Basic.Io/Write/println",
         }
-      ),
-    ],
+      )
+    }),
   )
   let binary = @artifact_binary.linked_program_artifact_to_binary(artifact)
   let decoded = match

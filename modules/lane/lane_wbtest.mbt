@@ -685,6 +685,54 @@ test "run accepts Basic Io effect aliases when supplied explicitly" {
 }
 
 ///|
+test "run lowers lexical handlers before runtime effects" {
+  let basic_io =
+    #|module Basic.Io
+    #|pub effect Write {
+    #|  println(String) -> Unit
+    #|}
+    #|pub type Console = { Write }
+    #|pub type Io = { Console }
+  let result = @compile.compile_sources(
+    (
+      #|module Test
+      #|import Basic.Io.*
+      #|effect Tick {
+      #|  tick() -> Unit
+      #|}
+      #|fn handled() -> Unit {
+      #|  handle Tick::tick!() with {
+      #|    Tick::tick(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let _handled : Unit = handled()
+      #|  Write::println!("handled")
+      #|}
+    ),
+    [basic_io],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  guard result.program is Some(program) else { abort("expected program") }
+  let entry = find_entry(result.entries, "main")
+  guard entry is Ok(entry) else { abort("expected entry") }
+  let output : Array[String] = []
+  guard execute_entry_with_output(
+      program,
+      result.externals,
+      result.runtime_effect_operations,
+      entry,
+      line => output.push(line),
+    )
+    is Succeeded else {
+    abort("expected handled entry to succeed through LoisVM")
+  }
+  assert_eq(output, ["handled"])
+}
+
+///|
 test "run rejects Basic Io effect without explicit runtime metadata" {
   let result = @compile.compile_source(
     (

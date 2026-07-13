@@ -5,25 +5,74 @@ priv struct RuntimeEffectExternal {
 }
 
 ///|
-fn erase_effects_before_anf(
+fn lower_effects_before_anf(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
   operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-) -> (@buslane.Program, @buslane_lowering.BuslaneExternalMap) raise LoisvmLoweringError {
+) -> (
+  @buslane.Program,
+  @buslane_lowering.BuslaneExternalMap,
+  @buslane_lowering.BuslaneEntry,
+) raise LoisvmLoweringError {
+  let (program, externals, entry) = install_root_runtime_handlers(
+    program, externals, entry, operations,
+  )
+  let elaborated = @effect_lowering.elaborate_handlers(program)
+  let bound = unwrap_effect_lowering(
+    @effect_lowering.introduce_monadic_binds(elaborated),
+  )
+  let transformed = unwrap_effect_lowering(
+    @effect_lowering.rewrite_selective_cps_abis(bound),
+  )
+  let resolved = unwrap_effect_lowering(
+    @effect_lowering.resolve_open_contexts(transformed),
+  )
+  let lifted = unwrap_effect_lowering(
+    @effect_lowering.lift_monadic_continuations(resolved),
+  )
+  (lifted, externals, entry)
+}
+
+///|
+fn[T] unwrap_effect_lowering(
+  result : Result[T, @effect_lowering.SynthesisError],
+) -> T raise LoisvmLoweringError {
+  match result {
+    Ok(value) => value
+    Err(error) => raise EffectLoweringError(error)
+  }
+}
+
+///|
+fn install_root_runtime_handlers(
+  program : @buslane.Program,
+  externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
+  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+) -> (
+  @buslane.Program,
+  @buslane_lowering.BuslaneExternalMap,
+  @buslane_lowering.BuslaneEntry,
+) raise LoisvmLoweringError {
   let bindings : Array[RuntimeEffectExternal] = []
   let terms = program.terms.copy()
   let builtins = externals.builtins.copy()
   for operation in operations {
-    let info = match program.metadata.operation_info(operation.operation) {
-      Some(info) => info
-      None =>
-        raise UnsupportedExpression(
-          detail="linked runtime effect operation metadata is missing",
-        )
-    }
+    let info = runtime_operation_info(program.metadata, operation.operation)
     if !info.hidden_type_parameters.is_empty() {
       raise UnsupportedExpression(
         detail="generic runtime effect operations are outside the v1 primitive host ABI",
+      )
+    }
+    guard program.metadata.effect_info(info.owner) is Some(effect_info) else {
+      raise UnsupportedExpression(
+        detail="linked runtime effect metadata is missing",
+      )
+    }
+    if !effect_info.parameters.is_empty() {
+      raise UnsupportedExpression(
+        detail="generic runtime effects are outside the v1 primitive host ABI",
       )
     }
     let type_ = @buslane.Type::Function(
@@ -45,10 +94,152 @@ fn erase_effects_before_anf(
     terms.push(External(value))
     builtins.push({ value, name: runtime_effect_symbol(operation), type_ })
   }
-  let resolved_terms = terms.map(term => {
-    resolve_runtime_effect_term(term, bindings)
+  guard entry.type_ is Function(parameters, result, effect) else {
+    raise InvalidFunctionType(value=entry.value, type_=entry.type_)
+  }
+  if effect.canonicalize() == Empty {
+    return ({ metadata: program.metadata, terms }, { builtins, }, entry)
+  }
+  let wrapper_parameters = parameters.map(type_ => {
+    program.metadata.define_value("%entry_parameter", Parameter, type_)
   })
-  ({ metadata: program.metadata, terms: resolved_terms }, { builtins, })
+  let result_binder = program.metadata.define_value(
+    "%entry_result",
+    Local,
+    result,
+  )
+  let wrapper_type = @buslane.Type::Function(parameters, result, Empty)
+  let wrapper = program.metadata.define_value(
+    "%runtime_entry",
+    Function,
+    wrapper_type,
+  )
+  let handlers = root_runtime_handler_tables(
+    program.metadata,
+    effect,
+    result,
+    bindings,
+  )
+  terms.push(
+    Let(
+      wrapper,
+      Function({
+        parameters: wrapper_parameters,
+        result_type: result,
+        body: Handle({
+          body: Call(
+            Ref(entry.value),
+            wrapper_parameters.map(parameter => Ref(parameter)),
+          ),
+          result_binder,
+          result_type: result,
+          final_body: Ref(result_binder),
+          handlers,
+        }),
+      }),
+    ),
+  )
+  (
+    { metadata: program.metadata, terms },
+    { builtins, },
+    { ..entry, value: wrapper, type_: wrapper_type },
+  )
+}
+
+///|
+fn root_runtime_handler_tables(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+  handler_result : @buslane.Type,
+  bindings : Array[RuntimeEffectExternal],
+) -> Array[@buslane.HandlerTable] raise LoisvmLoweringError {
+  root_effect_terms(effect).map(term => {
+    guard term is Singleton(effect_id, arguments) else {
+      raise UnsupportedExpression(
+        detail="abstract entry effects cannot cross the v1 runtime boundary",
+      )
+    }
+    if !arguments.is_empty() {
+      raise UnsupportedExpression(
+        detail="generic runtime effects are outside the v1 primitive host ABI",
+      )
+    }
+    guard metadata.effect_info(effect_id) is Some(info) else {
+      raise UnsupportedExpression(
+        detail="linked runtime effect metadata is missing",
+      )
+    }
+    {
+      handled_effect: term,
+      operations: info.operations.map(operation => {
+        root_runtime_operation_clause(
+          metadata, operation, handler_result, bindings,
+        )
+      }),
+    }
+  })
+}
+
+///|
+fn root_runtime_operation_clause(
+  metadata : @buslane.MetadataRegistry,
+  operation : @buslane.OperationId,
+  handler_result : @buslane.Type,
+  bindings : Array[RuntimeEffectExternal],
+) -> @buslane.OperationAlternative raise LoisvmLoweringError {
+  let info = runtime_operation_info(metadata, operation)
+  if !info.hidden_type_parameters.is_empty() {
+    raise UnsupportedExpression(
+      detail="generic runtime effect operations are outside the v1 primitive host ABI",
+    )
+  }
+  let target = match find_runtime_effect_external(bindings, operation) {
+    Some(value) => value
+    None =>
+      raise UnsupportedExpression(
+        detail="non-runtime effects must be erased before VM CFG lowering",
+      )
+  }
+  let payload_binders = info.payload_types.map(type_ => {
+    metadata.define_value("%runtime_payload", Parameter, type_)
+  })
+  let resume_binder = metadata.define_value(
+    "%runtime_resume",
+    Parameter,
+    Function([info.result_type], handler_result, Empty),
+  )
+  {
+    operation,
+    type_binders: [],
+    payload_binders,
+    resume_binder,
+    body: Call(Resume(resume_binder), [
+      Call(Ref(target), payload_binders.map(payload => Ref(payload))),
+    ]),
+  }
+}
+
+///|
+fn runtime_operation_info(
+  metadata : @buslane.MetadataRegistry,
+  operation : @buslane.OperationId,
+) -> @buslane.OperationInfo raise LoisvmLoweringError {
+  match metadata.operation_info(operation) {
+    Some(info) => info
+    None =>
+      raise UnsupportedExpression(
+        detail="linked runtime effect operation metadata is missing",
+      )
+  }
+}
+
+///|
+fn root_effect_terms(effect : @buslane.Effect) -> Array[@buslane.Effect] {
+  match effect.canonicalize() {
+    Empty => []
+    Union(effects) => effects
+    effect => [effect]
+  }
 }
 
 ///|
@@ -56,111 +247,6 @@ fn runtime_effect_symbol(
   operation : @artifact_core.LinkedRuntimeEffectOperation,
 ) -> String {
   "lane.effect.v1/\{operation.module_path_text}/\{operation.effect_name}/\{operation.operation_name}"
-}
-
-///|
-fn resolve_runtime_effect_term(
-  term : @buslane.TopTerm,
-  bindings : Array[RuntimeEffectExternal],
-) -> @buslane.TopTerm raise LoisvmLoweringError {
-  match term {
-    Let(value, expression) =>
-      Let(value, resolve_runtime_effect_expr(expression, bindings))
-    LetRec(recursive) =>
-      LetRec(
-        recursive.map(binding => {
-          ..binding,
-          rhs: resolve_runtime_effect_expr(binding.rhs, bindings),
-        }),
-      )
-    External(_) => term
-  }
-}
-
-///|
-fn resolve_runtime_effect_expr(
-  expression : @buslane.Expr,
-  bindings : Array[RuntimeEffectExternal],
-) -> @buslane.Expr raise LoisvmLoweringError {
-  match expression {
-    Ref(_) | Literal(_) => expression
-    Function(function) =>
-      Function({
-        ..function,
-        body: resolve_runtime_effect_expr(function.body, bindings),
-      })
-    Call(callee, arguments) =>
-      Call(
-        resolve_runtime_effect_expr(callee, bindings),
-        arguments.map(argument => {
-          resolve_runtime_effect_expr(argument, bindings)
-        }),
-      )
-    TypeLambda(parameters, body) =>
-      TypeLambda(parameters, resolve_runtime_effect_expr(body, bindings))
-    TypeApply(callee, arguments) =>
-      TypeApply(resolve_runtime_effect_expr(callee, bindings), arguments)
-    Construct(construct) =>
-      Construct({
-        ..construct,
-        payloads: construct.payloads.map(payload => {
-          resolve_runtime_effect_expr(payload, bindings)
-        }),
-      })
-    Let(value, initializer, body) =>
-      Let(
-        value,
-        resolve_runtime_effect_expr(initializer, bindings),
-        resolve_runtime_effect_expr(body, bindings),
-      )
-    LetRec(recursive, body) =>
-      LetRec(
-        recursive.map(binding => {
-          ..binding,
-          rhs: resolve_runtime_effect_expr(binding.rhs, bindings),
-        }),
-        resolve_runtime_effect_expr(body, bindings),
-      )
-    Match(match_) =>
-      Match({
-        ..match_,
-        scrutinee: resolve_runtime_effect_expr(match_.scrutinee, bindings),
-        alternatives: match_.alternatives.map(alternative => {
-          ..alternative,
-          body: resolve_runtime_effect_expr(alternative.body, bindings),
-        }),
-      })
-    Perform(perform) => {
-      if !perform.effect_arguments.is_empty() ||
-        !perform.hidden_witnesses.is_empty() {
-        raise UnsupportedExpression(
-          detail="generic runtime effect operations are outside the v1 primitive host ABI",
-        )
-      }
-      let target = match
-        find_runtime_effect_external(bindings, perform.operation) {
-        Some(value) => value
-        None =>
-          raise UnsupportedExpression(
-            detail="non-runtime effects must be erased before VM CFG lowering",
-          )
-      }
-      Call(
-        Ref(target),
-        perform.payloads.map(payload => {
-          resolve_runtime_effect_expr(payload, bindings)
-        }),
-      )
-    }
-    Handle(_) =>
-      raise UnsupportedExpression(
-        detail="handlers must be erased before VM CFG lowering",
-      )
-    Resume(_) =>
-      raise UnsupportedExpression(
-        detail="resume must be erased before VM CFG lowering",
-      )
-  }
 }
 
 ///|

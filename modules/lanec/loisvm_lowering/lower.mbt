@@ -61,8 +61,8 @@ fn lower_linked_program_to_bytecode_or_raise(
   entry : @buslane_lowering.BuslaneEntry,
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
 ) -> @bytecode.BytecodeImage raise LoisvmLoweringError {
-  let (program, externals) = erase_effects_before_anf(
-    program, externals, runtime_effect_operations,
+  let (program, externals, entry) = lower_effects_before_anf(
+    program, externals, entry, runtime_effect_operations,
   )
   let anf = @anf.lower_buslane_program_to_anf(program)
   let lowerer : ImageLowerer = {

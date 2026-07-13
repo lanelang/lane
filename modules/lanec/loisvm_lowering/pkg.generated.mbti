@@ -4,6 +4,7 @@ package "Milky2018/lanec/loisvm_lowering"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/compile/artifact_core",
+  "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/vmcfg",
   "Milky2018/loisvm/bytecode",
@@ -31,6 +32,7 @@ pub(all) suberror LoisvmLoweringError {
   UnsupportedIntrinsic(name~ : String)
   NonAsciiString(value~ : String)
   UnterminatedBlock(block~ : Int)
+  EffectLoweringError(@effect_lowering.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)
 } derive(Eq, @debug.Debug)
 
