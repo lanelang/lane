@@ -11,6 +11,8 @@ pub fn elaborate_handlers(@buslane.Program) -> Program
 
 pub fn introduce_monadic_binds(Program) -> Result[Program, SynthesisError]
 
+pub fn plan_dictionary_cps_types(@buslane.MetadataRegistry, Array[@buslane.Type]) -> Result[Array[@buslane.Type], SynthesisError]
+
 pub fn synthesize_expr(Program, Expr) -> Result[ExprFacts, SynthesisError]
 
 // Errors
