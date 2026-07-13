@@ -96,11 +96,25 @@ fn run_effect_conformance_wasm(
 }
 
 ///|
+fn assert_effect_erased_host_boundary(
+  image : @loisvm_bytecode.BytecodeImage,
+) -> Unit raise {
+  let imports : Array[(String, Int, Int)] = []
+  for function in image.functions {
+    if function is RuntimeImport(import_) {
+      imports.push((import_.symbol, import_.abi_major, import_.user_arity))
+    }
+  }
+  assert_eq(imports, [("lane.effect.v1/Basic.Io/Write/println", 1, 1)])
+}
+
+///|
 fn assert_effect_conformance(
   source : String,
   expected : Array[String],
 ) -> Unit raise {
   let image = compile_effect_conformance_image(source)
+  assert_effect_erased_host_boundary(image)
   let interpreter_output = run_effect_conformance_interpreter(image)
   let wasm_output = run_effect_conformance_wasm(image)
   assert_eq(interpreter_output, expected)
