@@ -202,8 +202,32 @@ The closure-conversion rule that represents recursive group member references th
 _Avoid_: EnvRef-to-closure ownership cycle, runtime cycle collector, weak-reference source semantics
 
 **Effect-Erasure Pipeline**:
-The pre-bytecode `mon-trans`, `open-resolve`, and `monadic-lift` sequence that removes all effect-specific forms and runtime effect-dispatch structures before compiler-private VM CFG lowering.
+The pre-ANF handler elaboration, `mon-trans`, `open-resolve`, and `monadic-lift` sequence that converts source effects through explicit compiler-private dictionaries and selective answer-type CPS, then removes all effect-specific forms before compiler-private VM CFG lowering.
 _Avoid_: LoisVM effect instruction, bytecode handler lowering, runtime stack capture
+
+**Handler Dictionary**:
+The compiler-private immutable product of ordinary operation-clause callables supplied for one concrete effect during effect erasure; its fields are selected statically and lose handler identity before VM CFG lowering.
+_Avoid_: runtime operation table, dynamic effect map, LoisVM handler object
+
+**Effect Context Argument**:
+An ordered compiler-private ordinary value argument carrying either one concrete Handler Dictionary or one opaque companion context for an abstract effect parameter during selective CPS lowering.
+_Avoid_: global evidence vector, LoisVM hidden ABI field, runtime handler lookup
+
+**Effect Context Companion**:
+The compiler-generated kind-Type parameter and value parameter paired with one kind-Effect parameter so polymorphic code can forward an opaque effect context without runtime operation tags or heterogeneous lookup.
+_Avoid_: source type parameter, layout witness, universal operation table
+
+**Answer-Type CPS**:
+The selective transformation of a non-pure function from `(args) -> A ! E` to an effect-free conceptual shape `[Answer](context, args, (A) -> Answer) -> Answer`, while pure functions remain direct style.
+_Avoid_: whole-program CPS, VM stack capture, yielding side channel
+
+**Open Context Plan**:
+The compiler-private effect-subsumption record resolved into ordered ordinary context arguments, projections, and aggregate construction by `open-resolve`.
+_Avoid_: lexical operation dispatch, dynamic evidence search, bytecode metadata
+
+**Resume Closure**:
+The ordinary reusable continuation closure produced by effect erasure whose captured inner context reinstalls a deep handler when called and whose repeated uses are managed by ordinary ARC insertion.
+_Avoid_: captured VM stack, dedicated continuation object, one-shot assumption
 
 **One-Shot Continuation Analysis**:
 A conservative analysis that may classify a resume continuation as linearly used only when repeated or escaping resume is impossible.
@@ -214,7 +238,7 @@ The pre-bytecode lowering pass that turns nested functions and continuation clos
 _Avoid_: runtime code generation, nested bytecode function, source lambda lifting
 
 **Bytecode Lowering Pipeline**:
-The ordered compiler path from linked Buslane/core through optimization, ANF, the effect-erasure pipeline, closure lifting, compiler-private VM CFG lowering, runtime ownership analysis, ARC insertion, slot allocation, and bytecode emission.
+The ordered compiler path from linked Buslane/core through the effect-erasure pipeline, ordinary ANF, closure lifting, compiler-private VM CFG lowering, runtime ownership analysis, ARC insertion, slot allocation, and bytecode emission.
 _Avoid_: source elaboration pipeline, runtime execution loop, artifact parser
 
 **LoisVM Bytecode Target**:
