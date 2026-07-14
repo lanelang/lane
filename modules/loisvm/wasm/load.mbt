@@ -147,6 +147,12 @@ pub fn ExecutionInstance::execute(
           I32(1) => Err(ExecutionResourceLimit(kind=CallDepth))
           I32(2) => Err(ExecutionResourceLimit(kind=LiveHeapBytes))
           I32(3) => Err(EngineTrap(detail="Wasm allocation or ARC failure"))
+          I32(4) =>
+            Err(
+              InternalRuntimeFailure(
+                detail="Wasm instance-global lifecycle failure",
+              ),
+            )
           _ => Err(EngineTrap(detail=failure.message))
         }
       }

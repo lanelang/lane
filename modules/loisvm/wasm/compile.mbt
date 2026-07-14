@@ -27,8 +27,10 @@ fn compile_or_raise(
   image : @bytecode.BytecodeImage,
   bindings : Array[@loisvm_runtime.RuntimeBinding],
 ) -> @wasm_types.Module raise WasmCompileError {
-  if image.initializer is Some(_) || !image.globals.is_empty() {
-    raise ValidationFailure(detail="instance globals are not implemented")
+  if !image.globals.is_empty() && image.initializer is None {
+    raise ValidationFailure(
+      detail="nonempty instance global table requires an initializer",
+    )
   }
   let wasm_module = @wasm_types.Module::empty()
   let import_count = bindings.length()
@@ -88,10 +90,9 @@ fn compile_or_raise(
   wasm_module.funcs.push(entry_wrapper_type)
   wasm_module.codes.push({
     locals: [],
-    body: [
-      I32Const(0),
-      Call(static_image.wasm_function_offset + image.entry.value - 1),
-    ],
+    body: compile_entry_lifecycle(
+      image, wasm_module, static_image, runtime_functions,
+    ),
   })
   let entry_wrapper_index = import_count + wasm_module.funcs.length() - 1
   let initial_pages = (static_image.heap_base + 65535) / 65536

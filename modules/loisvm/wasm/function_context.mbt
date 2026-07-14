@@ -13,9 +13,8 @@ priv struct FunctionCompilationContext {
 fn FunctionCompilationContext::compile_instruction(
   self : FunctionCompilationContext,
   instruction : @bytecode.Instruction,
-) -> Array[@wasm_types.Instruction] raise WasmCompileError {
+) -> Array[@wasm_types.Instruction] {
   compile_instruction(
-    self.function_id,
     self.parameter_count,
     self.live_base,
     self.body.slots,

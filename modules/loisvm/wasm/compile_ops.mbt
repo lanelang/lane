@@ -1,6 +1,5 @@
 ///|
 fn compile_instruction(
-  function_id : Int,
   parameter_count : Int,
   live_base : Int,
   slots : Array[@bytecode.SlotMetadata],
@@ -8,7 +7,7 @@ fn compile_instruction(
   static_image : StaticImage,
   runtime_functions : RuntimeFunctions,
   instruction : @bytecode.Instruction,
-) -> Array[@wasm_types.Instruction] raise WasmCompileError {
+) -> Array[@wasm_types.Instruction] {
   match instruction {
     Copy(destination, source) =>
       [
@@ -428,10 +427,13 @@ fn compile_instruction(
     EraseUnit(destination) =>
       [I64Const(0L), LocalSet(slot_local(parameter_count, destination))]
     UneraseUnit(_) => []
-    InitGlobal(_, _) | BorrowGlobal(_, _) =>
-      raise UnsupportedInstruction(
-        function_id~,
-        instruction="instance globals are not implemented",
+    InitGlobal(global, source) =>
+      compile_global_initialization(
+        parameter_count, live_base, slots, static_image, global, source,
+      )
+    BorrowGlobal(destination, global) =>
+      compile_global_borrow(
+        parameter_count, slots, static_image, destination, global,
       )
   }
 }

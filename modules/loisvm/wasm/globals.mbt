@@ -29,6 +29,9 @@ let failure_code_global_index = 8
 let runtime_import_failed_global_index = 9
 
 ///|
+let initializing_global_index = 10
+
+///|
 fn append_runtime_globals(
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
@@ -90,6 +93,12 @@ fn append_runtime_globals(
   append_i32_global(
     wasm_module,
     index=runtime_import_failed_global_index,
+    is_mutable=true,
+    initial=0,
+  )
+  append_i32_global(
+    wasm_module,
+    index=initializing_global_index,
     is_mutable=true,
     initial=0,
   )

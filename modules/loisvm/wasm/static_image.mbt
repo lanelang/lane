@@ -2,6 +2,7 @@
 priv struct StaticImage {
   bytes : Bytes
   layout_table_base : Int
+  global_table_base : Int
   heap_base : Int
   constant_refs : Array[Int]
   singleton_refs : Array[Int]
@@ -9,6 +10,7 @@ priv struct StaticImage {
   string_layout_id : Int
   shape_layouts : Array[ShapeLayout]
   object_shapes : Array[@bytecode.ObjectShape]
+  globals : Array[@bytecode.GlobalMetadata]
   wasm_function_offset : Int
 }
 
@@ -196,10 +198,14 @@ fn build_static_image(
     }
   }
   pad_to(writer, 8)
+  let global_table_base = writer.length()
+  write_zeroes(writer, image.globals.length() * 16)
+  pad_to(writer, 8)
   let heap_base = writer.length()
   {
     bytes: writer.to_bytes(),
     layout_table_base,
+    global_table_base,
     heap_base,
     constant_refs,
     singleton_refs,
@@ -207,6 +213,7 @@ fn build_static_image(
     string_layout_id,
     shape_layouts,
     object_shapes: image.object_shapes,
+    globals: image.globals,
     wasm_function_offset,
   }
 }
