@@ -217,19 +217,6 @@ fn tail_destination_matches(
 }
 
 ///|
-fn ImageLowerer::function_signature(
-  self : ImageLowerer,
-  value : @buslane.ValueId,
-  type_ : @buslane.Type,
-) -> (Array[@buslane.Type], @buslane.Type) raise LoisvmLoweringError {
-  ignore(self)
-  match strip_forall(type_) {
-    Function(parameters, result, _) => (parameters, result)
-    _ => raise InvalidFunctionType(value~, type_~)
-  }
-}
-
-///|
 fn ImageLowerer::requires_layout_witness(
   self : ImageLowerer,
   parameter : @buslane.TypeParameterId,

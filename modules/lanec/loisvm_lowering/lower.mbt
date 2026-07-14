@@ -114,16 +114,10 @@ fn lower_executable_program_to_bytecode_or_raise(
         functions.push(Body(lowerer.lower_intrinsic_wrapper(plan)))
       CallableAdapter(plan) =>
         functions.push(Body(lowerer.lower_callable_adapter(plan)))
-      RuntimeImport(value, external) => {
-        let (parameters, _) = lowerer.function_signature(value, external.type_)
+      RuntimeImport(external, user_arity) =>
         functions.push(
-          RuntimeImport({
-            abi_major: 1,
-            user_arity: parameters.length(),
-            symbol: external.name,
-          }),
+          RuntimeImport({ abi_major: 1, user_arity, symbol: external.name }),
         )
-      }
     }
     plan_index += 1
   }

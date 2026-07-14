@@ -94,13 +94,23 @@ fn ImageLowerer::plan_external(
     })
   } else if scalar_double_constant(external.name) is Some(bits) {
     self.globals.push({ value, lowered: DoubleConstant(bits, external.type_) })
+  } else if runtime_import_primitive_type(external.type_) {
+    let function : @bytecode.FunctionId = { value: self.plans.length() + 1 }
+    self.plans.push(RuntimeImport(external, 0))
+    self.globals.push({
+      value,
+      lowered: ScalarExternal(function, external.type_),
+    })
   } else {
     if !runtime_import_signature_supported(external.type_) {
       raise UnsupportedExpression(
         detail="runtime imports must use only v1 host primitive types",
       )
     }
-    self.add_plan(value, RuntimeImport(value, external))
+    guard external.type_ is Function(parameters, _, _) else {
+      abort("validated runtime import is not a function")
+    }
+    self.add_plan(value, RuntimeImport(external, parameters.length()))
   }
 }
 
