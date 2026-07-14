@@ -1,5 +1,7 @@
 # LoisVM bytecode binary schema
 
+This ADR defines schema v1. ADR-0113 reserves schema v2 for the incompatible addition of Instance Globals and an optional Instance Initializer, and ADR-0114 defines their binary encoding; v1 remains unchanged.
+
 Each LoisVM bytecode section begins with independent `bytecode_schema_version:u8`; v1 encodes `0x01`. Zero, `0xFF`, and every unsupported version are rejected. The enclosing linked-program section already identifies the payload kind and byte length, so the bytecode section does not repeat artifact magic. Bytecode schema changes do not require changing the artifact-container version, linked-program metadata schema, or Buslane codec version.
 
 The schema version is followed by nonzero `entry_function_id:u32le`, then `function_count:u32le`. A zero function count is invalid. Function table position zero corresponds to `FunctionId = 1`, so valid identifiers are `1..function_count`. The selected entry must be a no-context bytecode body with zero witnesses, zero user parameters, and Unit result.

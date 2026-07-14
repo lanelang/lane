@@ -1,6 +1,6 @@
 # Static Wasm image and function table
 
-Lane Wasm modules use declarative instantiation rather than executable startup logic. Active data segments materialize static Strings, nullary constructor singletons, layout descriptors, and other image-owned bytes in canonical memory. Active element segments initialize the canonical function table. Immutable globals and allocator state use constant initializers. The module defines no Wasm start function.
+Lane Wasm modules use declarative instantiation for image-owned static state. Active data segments materialize static Strings, nullary constructor singletons, layout descriptors, and other image-owned bytes in canonical memory. Active element segments initialize the canonical function table. Immutable Wasm globals and allocator state use constant initializers. The module defines no Wasm start function. ADR-0113 separately defines the explicit per-execution Instance Initializer invoked by the exported entry wrapper; it is not module-instantiation startup logic.
 
 The canonical function table is one private `funcref` table. It is not exported, generated code does not use `table.grow`, and its declared minimum and maximum are both the exact emitted entry count. Host code therefore cannot replace callable targets, and execution cannot add targets after instantiation.
 
@@ -12,7 +12,7 @@ Canonical memory uses standard 64-KiB pages. Its initial page count is the minim
 
 Consequences:
 
-- Static memory and table contents are ready after successful instantiation.
+- Static memory and table contents are ready after successful instantiation; dynamic Instance Globals are not.
 - Generated modules have no Wasm start function.
 - Active data and element segments perform image initialization.
 - One private fixed-size `funcref` table contains all indirect targets.

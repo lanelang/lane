@@ -57,11 +57,12 @@ state consistent. Non-unwinding arithmetic, conversion, unreachable, native
 stack, and external interruption paths may skip cleanup and also require
 discarding the instance.
 
-Successful selected-entry return performs no defensive frame scan, heap scan,
-or implicit release sweep. Compiler-inserted ARC must already establish an
-ownership-empty normal exit. The single-shot instance is then destroyed as a
-whole; this teardown is not observable Lane destruction semantics and does not
-repair leaked owners or reference cycles.
+Successful selected-entry return performs the explicit reverse-order Instance
+Global cleanup defined by ADR-0113, but no defensive frame scan, heap scan, or
+implicit release sweep. Compiler-inserted ARC must already establish an
+ownership-empty normal exit after those roots are released. The single-shot
+instance is then destroyed as a whole; this teardown is not observable Lane
+destruction semantics and does not repair leaked owners or reference cycles.
 
 The shared execution API distinguishes at least:
 
@@ -98,6 +99,6 @@ exact budget, and a zero or negative configured value means zero budget.
 - V1 has no portable fuel or timeout semantics.
 - External interruption and engine traps may bypass cleanup and always discard
   the instance.
-- Successful exit performs no defensive ownership sweep.
+- Successful exit releases Instance Globals but performs no defensive ownership sweep.
 - Both execution tiers share structured top-level failure categories.
 - Runtime limits are host configuration rather than artifact data.

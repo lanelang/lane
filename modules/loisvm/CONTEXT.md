@@ -69,6 +69,26 @@ The nonzero FunctionId stored in executable bytecode for the link-validated
 no-context, witness-free, zero-argument Unit body invoked by execution.
 _Avoid_: source export symbol, runtime entry selection, runtime import
 
+**Instance Global**:
+An immutable per-execution value initialized exactly once before the selected entry and rooted outside ordinary call frames until instance lifecycle cleanup.
+_Avoid_: Wasm global, mutable static variable, image constant
+
+**GlobalId**:
+The zero-based dense identifier of one Instance Global in a LoisVM bytecode image.
+_Avoid_: Wasm global index, SlotId, source value symbol
+
+**Instance Initializer**:
+The optional no-context, witness-free, zero-argument Unit bytecode body that initializes all dynamic Instance Globals before the selected entry may run.
+_Avoid_: Wasm start function, source effect handler, lazy global initializer
+
+**Initialization Phase**:
+The execution phase rooted at the Instance Initializer during which initializer code and its callees may initialize Instance Globals.
+_Avoid_: Wasm instantiation, source module loading, selected-entry execution
+
+**Instance Root Table**:
+The per-execution linear-memory or interpreter-owned storage that roots initialized Instance Globals independently of ordinary call frames.
+_Avoid_: bytecode local slots, Wasm global section, image constant pool
+
 **Runtime Import Entry**:
 A unified function-table entry containing a stable runtime symbol and erased ABI
 descriptor instead of a LoisVM bytecode body.

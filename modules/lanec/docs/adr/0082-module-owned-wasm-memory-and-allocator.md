@@ -2,7 +2,7 @@
 
 A generated Lane Wasm module defines one canonical non-shared wasm32 memory and exports it under the stable internal ABI name `"lane.memory"`. The module does not import host-owned memory. Wasmoon runtime imports use the current RuntimeContext to access approved String and byte-buffer ranges through this export. RuntimeContext may also invoke a designated module-owned allocation service such as `"lane.runtime.string.new"` while ordinary Lane execution is paused.
 
-Linear-memory address zero is reserved. Active data segments materialize image-owned pooled String objects, layout descriptors, and other static execution data at low addresses during instantiation. Immutable global `heap_base:i32` identifies the first eight-byte-aligned address available to the dynamic Lane heap. The module has no start function; allocator globals use constant initializers.
+Linear-memory address zero is reserved. Active data segments materialize image-owned pooled String objects, layout descriptors, and other static execution data at low addresses during instantiation. Immutable global `heap_base:i32` identifies the first eight-byte-aligned address available to the dynamic Lane heap. The module has no start function; allocator globals use constant initializers. Per-execution Lane Instance Globals are initialized later in the linear-memory Instance Root Table as specified by ADR-0113.
 
 The memory's initial standard 64-KiB page count is the minimum that covers `heap_base`. Any bytes between `heap_base` and the initial page boundary are immediately available to the dynamic heap. The memory type declares no maximum; the allocator invokes `memory.grow` as needed and relies on the engine or embedding environment for the effective limit.
 

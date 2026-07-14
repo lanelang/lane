@@ -151,11 +151,35 @@ _Avoid_: wildcard pattern, dead binding, generated temporary
 The lowering from linked and optimized Buslane/core into a target execution image such as portable bytecode.
 _Avoid_: semantic lowering, source elaboration, module interface generation
 
+**Module Link Package**:
+The target-independent `lanec/module/link` package that owns module-linking algorithms and the Linked Program model consumed by Whole-Program Elaboration.
+_Avoid_: compilation orchestrator, artifact codec, execution-image target
+
+**Whole-Program Elaboration**:
+The post-link compiler phase that makes one program's selected entry, ordered top-level initialization, runtime boundary, and execution roots explicit before execution-image lowering.
+_Avoid_: source elaboration, linking, LoisVM bytecode emission
+
+**Executable Program**:
+The compiler-owned result of Whole-Program Elaboration, containing one selected entry, explicit execution roots, and the complete initialization and runtime policy needed for execution-image lowering without consulting the original link product.
+_Avoid_: shallow linked-program wrapper, LoisVM bytecode image, loaded execution instance
+
+**Executable Program Package**:
+The target-independent `lanec/executable` package that owns Whole-Program Elaboration and the Executable Program model consumed by execution-image targets.
+_Avoid_: LoisVM lowering subpackage, link implementation, command orchestration
+
+**Execution Root Set**:
+The selected entry and every ordered top-level initializer computation that Execution Image Reachability Collection must preserve and traverse.
+_Avoid_: exported symbol set, already-computed dependency closure, bytecode function table
+
 ### LoisVM Lowering
 
 **Register Bytecode Lowering**:
 The execution-image lowering strategy that maps ANF values and temporaries to bytecode frame local slots instead of rebuilding an operand-stack program.
 _Avoid_: stack bytecode lowering, source lowering, Buslane verification
+
+**Execution Image Reachability Collection**:
+The execution-image-lowering analysis that starts from an Executable Program's Execution Root Set and retains only transitively required functions, externals, and runtime imports for code generation.
+_Avoid_: Whole-Program Elaboration, source unused-declaration analysis, linker export selection
 
 **Flat Bytecode Control Flow**:
 The execution-image control-flow strategy that lowers ANF control constructs into labeled blocks and explicit jumps.
@@ -267,6 +291,12 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   optimization.
 - `lane` and future tools should call compiler APIs instead of importing
   internal packages when possible.
+- The **Executable Program Package** owns Lane execution semantics between
+  linking and target-specific execution-image lowering; target lowerers depend
+  on it, never the reverse.
+- The **Module Link Package** owns Linked Program construction independently of
+  compilation orchestration and execution-image targets; the executable package
+  depends on this link model.
 - Platform services such as filesystem access belong in tools, not in the
   compiler core.
 - A **Compiler Diagnostic Adapter** may depend on **Diagnostic Infrastructure**
