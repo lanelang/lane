@@ -2,13 +2,17 @@ name = "Milky2018/loisvm"
 
 version = "0.1.0"
 
+readme = "README.mbt.md"
+
 repository = ""
 
 license = "MIT"
 
 keywords = [ "language", "virtual-machine", "bytecode", "wasm" ]
 
-description = "The LoisVM bytecode and execution runtime for Lane."
+description = "A language-independent bytecode and execution runtime for MoonBit hosts."
+
+preferred_target = "native"
 
 import {
   "Milky2018/bytecodec@0.1.0",

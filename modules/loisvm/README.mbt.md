@@ -1,0 +1,226 @@
+# LoisVM
+
+A small, language-independent virtual-machine platform.
+
+- Portable register-style bytecode
+- Either the LoisVM interpreter or WebAssembly as backend
+
+## Installation
+
+### Source workspace
+
+The source checkout works today without any Lane compiler package:
+
+```bash
+moon add Milky2018/loisvm
+```
+
+The application module declares the local LoisVM module by its normal identity:
+
+```toml
+import {
+  "Milky2018/loisvm",
+}
+```
+
+Its `moon.pkg` imports only the platform packages it uses:
+
+```moonbit nocheck
+import {
+  "Milky2018/loisvm/bytecode",
+  "Milky2018/loisvm/interp",
+  "Milky2018/loisvm/runtime",
+  "Milky2018/loisvm/wasm",
+}
+```
+
+The Wasm tier currently targets MoonBit native builds because it embeds Wasmoon. The bytecode, runtime, and interpreter packages remain usable without the Wasm package.
+
+## Runnable end-to-end example
+
+The following tested example constructs a bytecode image without Lane, round-trips it through the binary codec, binds a host function, and runs the exact decoded image through both backends. The bytecode computes `40 + 2` and sends the result to `example.observe_int`.
+
+```moonbit check
+///|
+fn example_trivial_slot(
+  representation : @bytecode.Representation,
+) -> @bytecode.SlotMetadata {
+  { representation, cleanup: Trivial, erased_companion: None }
+}
+
+///|
+fn example_image() -> @bytecode.BytecodeImage {
+  let left : @bytecode.SlotId = { value: 0 }
+  let right : @bytecode.SlotId = { value: 1 }
+  let sum : @bytecode.SlotId = { value: 2 }
+  let entry : @bytecode.FunctionBody = {
+    slots: [
+      example_trivial_slot(I64),
+      example_trivial_slot(I64),
+      example_trivial_slot(I64),
+    ],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          ConstInt(left, 40L),
+          ConstInt(right, 2L),
+          IntAdd(sum, left, right),
+          CallDirect({ value: 2 }, None, [], [sum], None),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  {
+    entry: { value: 1 },
+    functions: [
+      BytecodeBody(entry),
+      RuntimeImport({
+        abi_major: 1,
+        user_arity: 1,
+        symbol: "example.observe_int",
+      }),
+    ],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+}
+
+///|
+fn example_registry(observed : Array[Int64]) -> @runtime.RuntimeRegistry {
+  let registry = @runtime.RuntimeRegistry::new()
+  registry.register(
+    @runtime.RuntimeBinding::new(
+      symbol="example.observe_int",
+      abi_major=1,
+      parameters=[Int],
+      result=Unit,
+      invoke=(_context, arguments) => {
+        guard arguments is [Int(value)] else {
+          raise Failure(message="example.observe_int expects one Int")
+        }
+        observed.push(value)
+        Unit
+      },
+    ),
+  )
+  registry
+}
+
+///|
+fn run_with_interpreter(image : @bytecode.BytecodeImage) -> Array[Int64] raise {
+  let observed : Array[Int64] = []
+  let loaded = match @interp.load(image, example_registry(observed)) {
+    Ok(value) => value
+    Err(error) => fail("interpreter load failed: \{to_repr(error)}")
+  }
+  assert_eq(loaded.new_instance().execute(), Ok(()))
+  observed
+}
+
+///|
+fn run_with_wasm(image : @bytecode.BytecodeImage) -> Array[Int64] raise {
+  let observed : Array[Int64] = []
+  let loaded = match @wasm.load(image, example_registry(observed)) {
+    Ok(value) => value
+    Err(error) => fail("Wasm load failed: \{to_repr(error)}")
+  }
+  let instance = match loaded.new_instance() {
+    Ok(value) => value
+    Err(error) => fail("Wasm instantiation failed: \{to_repr(error)}")
+  }
+  assert_eq(instance.execute(), Ok(()))
+  observed
+}
+
+///|
+test "one LoisVM image runs through both execution tiers" {
+  let original = example_image()
+  let bytes = @bytecode.bytecode_image_to_binary(original)
+  let decoded = match @bytecode.parse_bytecode_image_binary(bytes) {
+    Ok(value) => value
+    Err(error) => fail("bytecode decode failed: \{to_repr(error)}")
+  }
+  assert_eq(decoded, original)
+  assert_eq(run_with_interpreter(decoded), [42L])
+  assert_eq(run_with_wasm(decoded), [42L])
+}
+```
+
+Run this README from the LoisVM module directory:
+
+```bash
+cd modules/loisvm
+moon test --target native
+```
+
+## Ownership and ARC contract
+
+LoisVM does not infer ownership from bytecode. The producer must finish ownership analysis before emitting an image.
+
+- `SlotMetadata.cleanup` declares whether a slot is trivial, an owned reference, an owned callable, or an owned erased value.
+- `Move` transfers an owner; `RetainCopy` creates another owner; `Release` destroys one owner.
+- Returning calls, returns, tail calls, consuming projections, closure construction, object construction, and selected CFG edges transfer their owned operands.
+- Borrowing projections and ordinary non-consuming reads do not transfer ownership.
+- An `OwnedErased` slot names a trivial companion slot containing the runtime `LayoutId` needed for descriptor-directed release.
+- Heap objects use nonzero linear-memory references and compiler-directed reference counts in both backends.
+
+Incorrect ownership bytecode is outside the trusted producer contract and may leak, double-release, or trap. A frontend should keep ownership tests at CFG joins, repeated calls, closure captures, object projections, runtime-import failure paths, and tail calls.
+
+## Runtime imports
+
+Runtime imports are ordinary entries in the unified function table. Loading resolves every import by exact symbol, ABI major version, and user arity before publishing a loaded image.
+
+Bindings declare their full primitive signature through `RuntimeBinding`:
+
+- `Unit`
+- `Bool`
+- `Int`, represented to the host as `Int64`
+- `Double`
+- `String`
+
+String parameters arrive as `BorrowedString(HostStringView)` and are valid only for the duration of the call. Copy them with `to_string()` or `to_bytes()` if the host needs an owned value. String results use `HostValue::String`. V1 Strings and bytecode constants are ASCII.
+
+Host calls are synchronous. A binding must not retain a borrowed VM value or re-enter the active execution instance. Report host failures by raising `RuntimeImportFailure::Failure`; both backends convert it into `ExecutionError::RuntimeImportFailure`.
+
+## Loading and execution lifecycle
+
+Use this lifecycle for either backend:
+
+1. Construct or decode a `BytecodeImage`.
+2. Build a `RuntimeRegistry` containing every required import.
+3. Call `load`; import resolution and backend preparation complete atomically.
+4. Reuse the loaded image to create independent execution instances.
+5. Call `execute` once on each instance.
+
+`LoadedImage` is reusable. `ExecutionInstance` is single-shot and thread-confined. Calling `execute` a second time returns `InstanceNotReady`.
+
+Resource limits are selected per instance with `ExecutionConfig`:
+
+```moonbit nocheck
+///|
+let config : @runtime.ExecutionConfig = {
+  max_call_depth: Some(1024),
+  max_live_heap_bytes: Some(64 * 1024 * 1024),
+}
+```
+
+The interpreter returns an instance directly from `loaded.new_instance(config~)`. The Wasm tier returns `Result[ExecutionInstance, ExecutionError]` because Wasmoon instantiation can fail.
+
+## Persistence and diagnostics
+
+Use `bytecode_image_to_binary` and `parse_bytecode_image_binary` as the persistence boundary. The binary begins with an independent bytecode schema version; incompatible schema versions fail with `UnsupportedSchema`.
+
+Use `bytecode_image_to_disassembly` for human-readable diagnostics, snapshots, and producer debugging. Disassembly is not a stable persistence or parsing format.
+
+Binary decoding validates framing, tags, lengths, and basic image structure. LoisVM deliberately does not include a full bytecode verifier. Images are trusted compiler output, so a producer remains responsible for slot data flow, control-flow compatibility, call signatures, ownership balance, object-shape compatibility, and all other semantic invariants.
+
+## Backend choice
+
+Use `loisvm/interp` when startup latency, portability, or debugging simplicity matters most. Use `loisvm/wasm` when the embedding application runs natively and wants Wasmoon to compile the same bytecode into WebAssembly, including tail-call instructions where supported.
+
+The backend decision can remain an embedding policy because bytecode and runtime bindings are shared. A common application pattern is to start execution in the interpreter, cache or prepare a Wasm-loaded image, then select the Wasm tier for later instances without recompiling the source language.

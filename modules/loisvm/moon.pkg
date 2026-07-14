@@ -1,0 +1,8 @@
+import {
+  "Milky2018/loisvm/bytecode",
+  "Milky2018/loisvm/interp",
+  "Milky2018/loisvm/runtime",
+  "Milky2018/loisvm/wasm",
+} for "test"
+
+supported_targets = "native"
