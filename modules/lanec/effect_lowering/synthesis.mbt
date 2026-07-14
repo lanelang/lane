@@ -127,6 +127,24 @@ fn synthesize_call(
   guard callee_facts.type_ is Function(parameters, result, latent_effect) else {
     raise ExpectedFunction(callee_facts.type_)
   }
+  if arguments.length() > parameters.length() &&
+    latent_effect.canonicalize() != Empty {
+    guard arguments.last() is Some(continuation) else {
+      raise ArityMismatch(
+        expected=parameters.length(),
+        actual=arguments.length(),
+      )
+    }
+    let continuation_facts = synthesize_expr_or_raise(metadata, continuation)
+    guard continuation_facts.type_ is Function(_, answer, Empty) else {
+      raise ExpectedFunction(continuation_facts.type_)
+    }
+    let effects = [callee_facts.effect]
+    for argument in arguments {
+      effects.push(synthesize_expr_or_raise(metadata, argument).effect)
+    }
+    return { type_: answer, effect: effect_union(effects) }
+  }
   require_arity(parameters.length(), arguments.length())
   let effects = [callee_facts.effect]
   for argument in arguments {
@@ -144,9 +162,14 @@ fn synthesize_type_apply(
 ) -> ExprFacts raise SynthesisError {
   let callee_facts = synthesize_expr_or_raise(metadata, callee)
   guard callee_facts.type_ is Forall(parameters, body) else {
+    if callee_facts.type_ is Function(_, _, _) {
+      return callee_facts
+    }
     raise ExpectedForall(callee_facts.type_)
   }
-  require_arity(parameters.length(), arguments.length())
+  if arguments.length() < parameters.length() {
+    raise ArityMismatch(expected=parameters.length(), actual=arguments.length())
+  }
   let substitution = @buslane.TypeSubstitution::TypeSubstitution()
   for index in 0..<parameters.length() {
     substitution.insert_argument(parameters[index], arguments[index])

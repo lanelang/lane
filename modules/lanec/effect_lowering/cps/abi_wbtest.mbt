@@ -22,6 +22,39 @@ test "selective CPS keeps pure definitions and calls direct" {
 }
 
 ///|
+test "direct calls bridge Unit-specialized CPS callables" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let answer = metadata.define_type_parameter("Answer", Type)
+  let encoded_type = @buslane.Type::Forall(
+    [answer],
+    Function(
+      [Primitive(Unit), Function([Primitive(Int)], Parameter(answer), Empty)],
+      Parameter(answer),
+      Empty,
+    ),
+  )
+  let encoded = metadata.define_value("encoded", External, encoded_type)
+  let program : Program = { metadata, terms: [External(encoded)] }
+  let bridged = lower_cps_direct_call(
+    program,
+    Ref(encoded),
+    [],
+    Primitive(Int),
+    1,
+  )
+  guard bridged
+    is Call(
+      TypeApply(Ref(callee), [TypeArgument(Primitive(Int))]),
+      [Literal(Unit), Function(identity)]
+    ) else {
+    abort("expected direct CPS bridge")
+  }
+  assert_eq(callee, encoded)
+  assert_eq(identity.result_type, Primitive(Int))
+  assert_eq(identity.body, Ref(identity.parameters[0]))
+}
+
+///|
 test "selective CPS rewrites monadic function and tail call ABI" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])

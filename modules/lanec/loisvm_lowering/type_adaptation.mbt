@@ -3,9 +3,12 @@ fn ImageLowerer::callable_adapter(
   self : ImageLowerer,
   source_type : @buslane.Type,
   target_type : @buslane.Type,
+  source_parameter_targets : Array[Int],
 ) -> CallableAdapterPlan {
   for adapter in self.callable_adapters {
-    if adapter.source_type == source_type && adapter.target_type == target_type {
+    if adapter.source_type == source_type &&
+      adapter.target_type == target_type &&
+      adapter.source_parameter_targets == source_parameter_targets {
       return adapter
     }
   }
@@ -24,6 +27,7 @@ fn ImageLowerer::callable_adapter(
     function: { value: self.plans.length() + 1 },
     source_type,
     target_type,
+    source_parameter_targets,
     captured_parameters,
     environment_shape,
   }
@@ -188,7 +192,12 @@ fn FunctionLowerer::make_callable_adapter(
   if source_type == target_type {
     return Slot(source, target_type)
   }
-  let plan = self.image.callable_adapter(source_type, target_type)
+  let source_parameter_targets = callable_parameter_targets(
+    source_type, target_type, substitutions,
+  )
+  let plan = self.image.callable_adapter(
+    source_type, target_type, source_parameter_targets,
+  )
   let witnesses = plan.captured_parameters.map(parameter => {
     self.adapter_witness(parameter, substitutions)
   })
@@ -208,6 +217,57 @@ fn FunctionLowerer::make_callable_adapter(
   let callable = self.fresh_slot(target_type)
   self.emit(MakeClosure(callable, plan.function, environment))
   Slot(callable, target_type)
+}
+
+///|
+fn callable_parameter_targets(
+  source_type : @buslane.Type,
+  target_type : @buslane.Type,
+  substitutions : Array[TypeArgumentBinding],
+) -> Array[Int] raise LoisvmLoweringError {
+  let (source_type_parameters, source_parameters, _) = function_type_parts(
+    source_type,
+  )
+  let (target_type_parameters, target_parameters, _) = function_type_parts(
+    target_type,
+  )
+  if source_type_parameters.length() != target_type_parameters.length() {
+    raise InvalidTypeApplication(
+      detail="callable adapter source and target type arities differ",
+    )
+  }
+  if source_parameters.length() == target_parameters.length() {
+    return source_parameters.mapi((index, _parameter) => index)
+  }
+  let alignment_substitutions = substitutions.copy()
+  for index, target_parameter in target_type_parameters {
+    alignment_substitutions.push({
+      parameter: target_parameter,
+      argument: TypeArgument(Parameter(source_type_parameters[index])),
+    })
+  }
+  let source_parameter_targets = []
+  let mut source_index = 0
+  for target_index, target_parameter in target_parameters {
+    let actual_target = substitute_type(
+      target_parameter, alignment_substitutions,
+    )
+    if source_index < source_parameters.length() &&
+      source_parameters[source_index] == actual_target {
+      source_parameter_targets.push(target_index)
+      source_index += 1
+    } else if actual_target != Primitive(Unit) {
+      raise InvalidTypeApplication(
+        detail="callable adapter source parameter \{source_index}/\{source_parameters.length()} does not align with target parameter \{target_index}/\{target_parameters.length()}",
+      )
+    }
+  }
+  if source_index != source_parameters.length() {
+    raise InvalidTypeApplication(
+      detail="callable adapter source and target parameters cannot be aligned",
+    )
+  }
+  source_parameter_targets
 }
 
 ///|
@@ -314,7 +374,7 @@ fn ImageLowerer::lower_callable_adapter(
     plan.target_type,
   )
   if source_type_parameters.length() != target_type_parameters.length() ||
-    source_parameter_types.length() != target_parameter_types.length() {
+    plan.source_parameter_targets.length() != source_parameter_types.length() {
     raise InvalidTypeApplication(
       detail="callable adapter source and target arities differ",
     )
@@ -371,9 +431,10 @@ fn ImageLowerer::lower_callable_adapter(
   }
   let source_arguments = []
   for index, source_parameter_type in source_parameter_types {
+    let target_index = plan.source_parameter_targets[index]
     let adapted = lowerer.adapt_local_value(
-      target_parameters[index],
-      target_parameter_types[index],
+      target_parameters[target_index],
+      target_parameter_types[target_index],
       source_parameter_type,
     )
     if adapted is Slot(slot, _) {
@@ -433,5 +494,3 @@ fn ImageLowerer::lower_callable_adapter(
     ],
   }
 }
-
-///|

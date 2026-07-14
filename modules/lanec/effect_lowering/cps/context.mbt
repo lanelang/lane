@@ -17,37 +17,91 @@ priv struct SelectedContexts {
 }
 
 ///|
+fn generated_cps_answer_type(
+  metadata : @buslane.MetadataRegistry,
+  expression : Expr,
+) -> @buslane.Type? raise SynthesisError {
+  let argument_groups = []
+  let base = collect_cps_type_applications(expression, argument_groups)
+  if argument_groups.is_empty() {
+    return None
+  }
+  let parameters = []
+  ignore(
+    collect_cps_forall_parameters(
+      synthesize_expr_or_raise(metadata, base).type_,
+      parameters,
+    ),
+  )
+  let arguments = []
+  for group in argument_groups {
+    arguments.append(group)
+  }
+  if arguments.length() <= parameters.length() {
+    return None
+  }
+  let mut index = arguments.length()
+  while index > parameters.length() {
+    index -= 1
+    if arguments[index] is TypeArgument(answer) {
+      return Some(answer)
+    }
+  }
+  None
+}
+
+///|
 fn lower_cps_type_apply_chain(
   schema : DictionaryCpsSchema,
   program : Program,
   expression : Expr,
   answer_type : @buslane.Type,
 ) -> Expr raise SynthesisError {
-  match expression {
-    TypeApply(callee, arguments) => {
-      let callee_facts = synthesize_expr_or_raise(program.metadata, callee)
-      guard callee_facts.type_ is Forall(parameters, _) else {
-        raise ExpectedForall(callee_facts.type_)
-      }
-      require_arity(parameters.length(), arguments.length())
-      let rewritten_arguments = []
-      for index in 0..<arguments.length() {
+  let argument_groups = []
+  let base = collect_cps_type_applications(expression, argument_groups)
+  let parameters = []
+  ignore(
+    collect_cps_forall_parameters(
+      synthesize_expr_or_raise(program.metadata, base).type_,
+      parameters,
+    ),
+  )
+  let mut argument_count = 0
+  for group in argument_groups {
+    argument_count += group.length()
+  }
+  if argument_count < parameters.length() {
+    raise ArityMismatch(expected=parameters.length(), actual=argument_count)
+  }
+  let mut result = lower_cps_direct_expr(
+    schema,
+    program,
+    base,
+    Some(answer_type),
+  )
+  let mut parameter_index = 0
+  for group in argument_groups {
+    let rewritten_arguments = []
+    for argument in group {
+      if parameter_index < parameters.length() {
         rewritten_arguments.push(
           rewrite_cps_application_argument(
             schema,
-            parameters[index],
-            arguments[index],
+            parameters[parameter_index],
+            argument,
             answer_type,
           ),
         )
+        parameter_index += 1
+      } else {
+        rewritten_arguments.push(
+          rewrite_cps_expression_argument(schema, argument, Some(answer_type)),
+        )
       }
-      TypeApply(
-        lower_cps_type_apply_chain(schema, program, callee, answer_type),
-        rewritten_arguments,
-      )
     }
-    _ => lower_cps_direct_expr(schema, program, expression, Some(answer_type))
+    result = TypeApply(result, rewritten_arguments)
   }
+  result
 }
 
 ///|
@@ -100,7 +154,9 @@ fn cps_call_context_requirements(
       arguments.push(argument)
     }
   }
-  require_arity(parameters.length(), arguments.length())
+  if arguments.length() < parameters.length() {
+    raise ArityMismatch(expected=parameters.length(), actual=arguments.length())
+  }
   let applied = []
   let substitution = @buslane.TypeSubstitution::TypeSubstitution()
   for index in 0..<parameters.length() {

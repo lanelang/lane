@@ -2737,18 +2737,15 @@ test "type substitution resolves parameters inside replacement types" {
   let element : @buslane.TypeParameterId = { index: 112 }
   let result : @buslane.TypeParameterId = { index: 113 }
   assert_eq(
-    substitute_type(
-      Parameter(result),
-      [
-        { parameter: element, argument: TypeArgument(Primitive(Int)) },
-        {
-          parameter: result,
-          argument: TypeArgument(
-            Function([Parameter(element)], Parameter(element), Empty),
-          ),
-        },
-      ],
-    ),
+    substitute_type(Parameter(result), [
+      { parameter: element, argument: TypeArgument(Primitive(Int)) },
+      {
+        parameter: result,
+        argument: TypeArgument(
+          Function([Parameter(element)], Parameter(element), Empty),
+        ),
+      },
+    ]),
     Function([Primitive(Int)], Primitive(Int), Empty),
   )
 }
@@ -2775,4 +2772,40 @@ test "local value types override substituted formal types during adaptation" {
     Some(concrete),
   )
   assert_eq(local_value_type(Unit), None)
+}
+
+///|
+test "callable adapters skip target parameters specialized to Unit" {
+  let source_answer : @buslane.TypeParameterId = { index: 120 }
+  let target_answer : @buslane.TypeParameterId = { index: 121 }
+  let empty_context : @buslane.TypeParameterId = { index: 122 }
+  assert_eq(
+    callable_parameter_targets(
+      Forall(
+        [source_answer],
+        Function(
+          [
+            Primitive(Int),
+            Function([Primitive(Int)], Parameter(source_answer), Empty),
+          ],
+          Parameter(source_answer),
+          Empty,
+        ),
+      ),
+      Forall(
+        [target_answer],
+        Function(
+          [
+            Primitive(Int),
+            Parameter(empty_context),
+            Function([Primitive(Int)], Parameter(target_answer), Empty),
+          ],
+          Parameter(target_answer),
+          Empty,
+        ),
+      ),
+      [{ parameter: empty_context, argument: TypeArgument(Primitive(Unit)) }],
+    ),
+    [0, 2],
+  )
 }

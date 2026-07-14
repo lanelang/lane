@@ -197,18 +197,38 @@ fn lower_cps_direct_expr(
         lower_cps_direct_expr(schema, program, body, current_answer),
       )
     Call(callee, arguments) => {
-      let callee_facts = synthesize_expr_or_raise(program.metadata, callee)
-      guard callee_facts.type_ is Function(_, _, latent_effect) else {
+      if generated_cps_answer_type(program.metadata, callee) is Some(answer) {
+        return Call(
+          lower_cps_type_apply_chain(schema, program, callee, answer),
+          arguments.map(argument => {
+            lower_cps_direct_expr(schema, program, argument, Some(answer))
+          }),
+        )
+      }
+      let callee_facts = synthesize_cps_callee_or_raise(
+        program.metadata,
+        callee,
+      )
+      guard callee_facts.type_ is Function(_, source_result, latent_effect) else {
         raise ExpectedFunction(callee_facts.type_)
       }
       if latent_effect != Empty {
         raise MissingEffectContext(latent_effect)
       }
-      Call(
+      if source_result is Function(_, _, result_effect) &&
+        result_effect.canonicalize() != Empty {
+        return lower_cps_effectful_result_call(
+          schema, program, callee, arguments, source_result,
+        )
+      }
+      lower_cps_direct_call(
+        program,
         lower_cps_direct_expr(schema, program, callee, current_answer),
         arguments.map(argument => {
           lower_cps_direct_expr(schema, program, argument, current_answer)
         }),
+        schema.rewrite_type(source_result),
+        empty_result_context_count(program.metadata, callee),
       )
     }
     TypeApply(_, _) =>
@@ -285,6 +305,211 @@ fn lower_cps_direct_expr(
 }
 
 ///|
+fn lower_cps_effectful_result_call(
+  schema : DictionaryCpsSchema,
+  program : Program,
+  callee : Expr,
+  arguments : Array[Expr],
+  source_result : @buslane.Type,
+) -> Expr raise SynthesisError {
+  guard source_result is Function(parameter_types, result_type, latent_effect) else {
+    raise ExpectedFunction(source_result)
+  }
+  let bindings : Array[(@buslane.ValueId, Expr)] = []
+  let lowered_arguments : Array[Expr] = []
+  for argument in arguments {
+    let lowered = lower_cps_direct_expr(schema, program, argument, None)
+    match lowered {
+      Ref(_) | Literal(_) => lowered_arguments.push(lowered)
+      _ => {
+        let facts = synthesize_expr_or_raise(program.metadata, argument)
+        let binding = program.metadata.define_value(
+          "%effectful_result_argument",
+          Value,
+          schema.rewrite_type(facts.type_),
+        )
+        bindings.push((binding, lowered))
+        lowered_arguments.push(Ref(binding))
+      }
+    }
+  }
+  let answer_parameter = program.metadata.define_type_parameter("%answer", Type)
+  let answer_type = @buslane.Type::Parameter(answer_parameter)
+  let context_parameters = schema
+    .context_argument_types(latent_effect, answer_type)
+    .map(type_ => program.metadata.define_value("%context", Parameter, type_))
+  let value_parameters = parameter_types.map(type_ => {
+    program.metadata.define_value(
+      "%effectful_result_parameter",
+      Parameter,
+      schema.rewrite_type(type_),
+    )
+  })
+  let rewritten_result = schema.rewrite_type(result_type)
+  let continuation = program.metadata.define_value(
+    "%continuation",
+    Parameter,
+    Function([rewritten_result], answer_type, Empty),
+  )
+  let produced : Expr = Call(
+    lower_cps_direct_expr(schema, program, callee, Some(answer_type)),
+    lowered_arguments,
+  )
+  let expanded : Expr = TypeLambda(
+    [answer_parameter],
+    Function({
+      parameters: context_parameters + value_parameters + [continuation],
+      result_type: answer_type,
+      body: Call(
+        TypeApply(produced, [TypeArgument(answer_type)]),
+        context_parameters.map(parameter => Ref(parameter)) +
+        value_parameters.map(parameter => Ref(parameter)) +
+        [Ref(continuation)],
+      ),
+    }),
+  )
+  let mut result = expanded
+  for binding in bindings.rev_iter() {
+    result = Let(binding.0, binding.1, result)
+  }
+  result
+}
+
+///|
+fn lower_cps_direct_call(
+  program : Program,
+  callee : Expr,
+  arguments : Array[Expr],
+  result_type : @buslane.Type,
+  empty_context_count : Int,
+) -> Expr raise SynthesisError {
+  if empty_context_count > 0 {
+    return build_empty_context_direct_call(
+      program, callee, arguments, result_type, empty_context_count,
+    )
+  }
+  let callee_type = synthesize_expr_or_raise(program.metadata, callee).type_
+  match callee_type {
+    Function(_, _, _) => Call(callee, arguments)
+    Forall(
+      [answer_parameter],
+      Function(parameters, Parameter(result_parameter), Empty)
+    ) if answer_parameter == result_parameter => {
+      let non_context_count = arguments.length() + 1
+      if parameters.length() < non_context_count {
+        raise ArityMismatch(
+          expected=non_context_count,
+          actual=parameters.length(),
+        )
+      }
+      let context_count = parameters.length() - non_context_count
+      for index in 0..<context_count {
+        if parameters[index] != Primitive(Unit) {
+          raise ExpectedFunction(callee_type)
+        }
+      }
+      guard parameters.last()
+        is Some(
+          Function([continuation_input], Parameter(continuation_result), Empty)
+        ) &&
+        continuation_input == result_type &&
+        continuation_result == answer_parameter else {
+        raise ExpectedFunction(callee_type)
+      }
+      build_empty_context_direct_call(
+        program, callee, arguments, result_type, context_count,
+      )
+    }
+    _ => raise ExpectedFunction(callee_type)
+  }
+}
+
+///|
+fn build_empty_context_direct_call(
+  program : Program,
+  callee : Expr,
+  arguments : Array[Expr],
+  result_type : @buslane.Type,
+  context_count : Int,
+) -> Expr {
+  let continuation_parameter = program.metadata.define_value(
+    "%direct_result",
+    Parameter,
+    result_type,
+  )
+  let call_arguments : Array[Expr] = []
+  for _index in 0..<context_count {
+    call_arguments.push(Literal(Unit))
+  }
+  call_arguments.append(arguments)
+  call_arguments.push(
+    Function({
+      parameters: [continuation_parameter],
+      result_type,
+      body: Ref(continuation_parameter),
+    }),
+  )
+  Call(TypeApply(callee, [TypeArgument(result_type)]), call_arguments)
+}
+
+///|
+fn empty_result_context_count(
+  metadata : @buslane.MetadataRegistry,
+  expression : Expr,
+) -> Int raise SynthesisError {
+  guard expression is Call(callee, _) else { return 0 }
+  let argument_groups = []
+  let base = collect_cps_type_applications(callee, argument_groups)
+  let parameters = []
+  let terminal_type = collect_cps_forall_parameters(
+    synthesize_expr_or_raise(metadata, base).type_,
+    parameters,
+  )
+  let arguments = []
+  for group in argument_groups {
+    arguments.append(group)
+  }
+  if arguments.length() < parameters.length() {
+    raise ArityMismatch(expected=parameters.length(), actual=arguments.length())
+  }
+  guard terminal_type is Function(_, result_type, _) else { return 0 }
+  guard source_callable_effect(result_type) is Some(result_effect) else {
+    return 0
+  }
+  let mut count = 0
+  for term in effect_terms(result_effect) {
+    if term is Parameter(parameter) &&
+      applied_empty_effect_argument(parameters, arguments, parameter) {
+      count += 1
+    }
+  }
+  count
+}
+
+///|
+fn source_callable_effect(type_ : @buslane.Type) -> @buslane.Effect? {
+  match type_ {
+    Forall(_, body) => source_callable_effect(body)
+    Function(_, _, effect) => Some(effect)
+    _ => None
+  }
+}
+
+///|
+fn applied_empty_effect_argument(
+  parameters : Array[@buslane.TypeParameterId],
+  arguments : Array[@buslane.GenericArgument],
+  parameter : @buslane.TypeParameterId,
+) -> Bool {
+  for index in 0..<parameters.length() {
+    if parameters[index] == parameter {
+      return arguments[index] is EffectArgument(Empty)
+    }
+  }
+  false
+}
+
+///|
 fn lower_cps_with_continuation(
   schema : DictionaryCpsSchema,
   program : Program,
@@ -352,7 +577,20 @@ fn lower_cps_with_continuation(
       )
     }
     Call(callee, arguments) => {
-      let callee_facts = synthesize_expr_or_raise(program.metadata, callee)
+      if generated_cps_answer_type(program.metadata, callee) is Some(_) {
+        return Call(continuation, [
+          lower_cps_direct_expr(
+            schema,
+            program,
+            Call(callee, arguments),
+            Some(answer_type),
+          ),
+        ])
+      }
+      let callee_facts = synthesize_cps_callee_or_raise(
+        program.metadata,
+        callee,
+      )
       guard callee_facts.type_ is Function(_, _, latent_effect) else {
         raise ExpectedFunction(callee_facts.type_)
       }

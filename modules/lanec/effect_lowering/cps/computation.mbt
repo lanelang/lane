@@ -10,7 +10,10 @@ fn lower_cps_computation(
 ) -> Expr raise SynthesisError {
   match computation {
     Call(callee, arguments) => {
-      let callee_facts = synthesize_expr_or_raise(program.metadata, callee)
+      let callee_facts = synthesize_cps_callee_or_raise(
+        program.metadata,
+        callee,
+      )
       guard callee_facts.type_ is Function(_, _, latent_effect) else {
         raise ExpectedFunction(callee_facts.type_)
       }
