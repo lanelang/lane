@@ -211,6 +211,8 @@ let config : @runtime.ExecutionConfig = {
 
 The interpreter returns an instance directly from `loaded.new_instance(config~)`. The Wasm tier returns `Result[ExecutionInstance, ExecutionError]` because Wasmoon instantiation can fail.
 
+Both tiers accept an optional cancellation poll callback through `execute(cancel=Some(check))`. Returning `true` stops execution with `Interrupted`, makes the single-shot instance terminal, and does not guarantee ARC unwinding. The interpreter polls in its dispatch loop; the Wasm tier delegates polling to Wasmoon function and loop safepoints. A blocking runtime import is not interrupted while the host function is running.
+
 ## Persistence and diagnostics
 
 Use `bytecode_image_to_binary` and `parse_bytecode_image_binary` as the persistence boundary. The binary begins with an independent bytecode schema version; incompatible schema versions fail with `UnsupportedSchema`.

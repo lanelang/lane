@@ -136,19 +136,25 @@ fn LoadedImage::new_instance_or_raise(
 ///|
 pub fn ExecutionInstance::execute(
   self : ExecutionInstance,
+  cancel? : (() -> Bool)? = None,
 ) -> Result[Unit, @loisvm_runtime.ExecutionError] {
   if !self.ready {
     return Err(InstanceNotReady)
   }
   self.ready = false
-  try {
-    ignore(
-      @executor.call_exported_func(self.store, self.instance, "lane.entry", []),
-    )
-    Ok(())
-  } catch {
-    error =>
-      if self.failure.symbol is Some(symbol) &&
+  let result = @executor.call_exported_func_with_options(
+    self.store,
+    self.instance,
+    "lane.entry",
+    [],
+    options=CallExportOptions(cancel~),
+  )
+  match result {
+    Ok(_) => Ok(())
+    Err(failure) =>
+      if failure.kind is Cancelled {
+        Err(Interrupted)
+      } else if self.failure.symbol is Some(symbol) &&
         self.failure.message is Some(message) {
         Err(RuntimeImportFailure(symbol~, message~))
       } else {
@@ -161,7 +167,7 @@ pub fn ExecutionInstance::execute(
           I32(1) => Err(ExecutionResourceLimit(kind=CallDepth))
           I32(2) => Err(ExecutionResourceLimit(kind=LiveHeapBytes))
           I32(3) => Err(EngineTrap(detail="Wasm allocation or ARC failure"))
-          _ => Err(EngineTrap(detail=error.to_string()))
+          _ => Err(EngineTrap(detail=failure.message))
         }
       }
   }

@@ -41,6 +41,7 @@ pub fn LoadedImage::new_instance(
 ///|
 pub fn ExecutionInstance::execute(
   self : ExecutionInstance,
+  cancel? : (() -> Bool)? = None,
 ) -> Result[Unit, @runtime.ExecutionError] {
   if self.state != Ready {
     return Err(InstanceNotReady)
@@ -48,12 +49,16 @@ pub fn ExecutionInstance::execute(
   self.state = Running
   let mut should_cleanup = true
   let result = try {
-    self.run()
+    self.run(cancel)
     Ok(())
   } catch {
     ImportFailure(symbol~, message~) =>
       Err(@runtime.ExecutionError::RuntimeImportFailure(symbol~, message~))
     ResourceLimit(kind) => Err(ExecutionResourceLimit(kind~))
+    InterruptedExecution => {
+      should_cleanup = false
+      Err(Interrupted)
+    }
     Trap(detail~) => {
       should_cleanup = false
       Err(EngineTrap(detail~))
@@ -70,11 +75,18 @@ pub fn ExecutionInstance::execute(
 ///|
 fn ExecutionInstance::run(
   self : ExecutionInstance,
+  cancel : (() -> Bool)?,
 ) -> Unit raise ExecutionFailure {
+  if cancel is Some(check) && check() {
+    raise InterruptedExecution
+  }
   let entry = self.loaded.image.entry
   let body = self.bytecode_body(entry)
   self.frames.push(make_frame(body, None, [], [], None))
   while !self.frames.is_empty() {
+    if cancel is Some(check) && check() {
+      raise InterruptedExecution
+    }
     let frame = self.frames[self.frames.length() - 1]
     let block = frame.body.blocks[frame.block]
     if frame.instruction < block.instructions.length() {

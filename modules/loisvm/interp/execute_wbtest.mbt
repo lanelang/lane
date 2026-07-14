@@ -84,6 +84,39 @@ test "interpreter executes direct and runtime calls once" {
 }
 
 ///|
+test "interpreter execution can be interrupted" {
+  let entry = body(
+    slots=[],
+    result=Unit,
+    instructions=[],
+    terminator=TailCallDirect({ value: 1 }, None, [], []),
+  )
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    functions: [BytecodeBody(entry)],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+  let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  let polls = [0]
+  let instance = loaded.new_instance()
+  assert_eq(
+    instance.execute(
+      cancel=Some(fn() {
+        polls[0] += 1
+        polls[0] >= 4
+      }),
+    ),
+    Err(Interrupted),
+  )
+  assert_eq(instance.execute(), Err(InstanceNotReady))
+}
+
+///|
 test "interpreter synthesizes logical Unit runtime arguments" {
   let mut called = false
   let mut valid_arguments = false

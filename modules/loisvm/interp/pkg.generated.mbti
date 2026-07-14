@@ -25,7 +25,7 @@ pub struct ExecutionInstance {
   frames : Array[Frame]
   mut state : InstanceState
 }
-pub fn ExecutionInstance::execute(Self) -> Result[Unit, @runtime.ExecutionError]
+pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @runtime.ExecutionError]
 
 pub struct Frame {
   body : @bytecode.FunctionBody

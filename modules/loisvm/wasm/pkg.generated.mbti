@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/loisvm/wasm"
+
+import {
+  "Milky2018/loisvm/bytecode",
+  "Milky2018/wasm_core/types",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compile(@bytecode.BytecodeImage) -> Result[@types.Module, WasmCompileError]
+
+pub fn load(@bytecode.BytecodeImage, @Milky2018/loisvm/runtime.RuntimeRegistry) -> Result[LoadedImage, WasmLoadError]
+
+// Errors
+pub(all) suberror WasmCompileError {
+  UnsupportedRuntimeImport(function_id~ : Int)
+  UnsupportedInstruction(function_id~ : Int, instruction~ : String)
+  InvalidBlockTarget(function_id~ : Int, target~ : Int)
+  InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)
+  MissingStringLayout
+  ValidationFailure(detail~ : String)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror WasmLoadError {
+  UnresolvedImport(symbol~ : String)
+  AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
+  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+  BackendCompileFailure(detail~ : String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ExecutionInstance {
+  store : @Milky2018/wasmoon/runtime.Store
+  instance : @Milky2018/wasmoon/runtime.ModuleInstance
+  failure : ImportFailureState
+  mut ready : Bool
+}
+pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @Milky2018/loisvm/runtime.ExecutionError]
+
+type ImportFailureState
+
+pub struct LoadedImage {
+  wasm_module : @types.Module
+  bindings : Array[@Milky2018/loisvm/runtime.RuntimeBinding]
+}
+pub fn LoadedImage::new_instance(Self, config? : @Milky2018/loisvm/runtime.ExecutionConfig) -> Result[ExecutionInstance, @Milky2018/loisvm/runtime.ExecutionError]
+pub fn LoadedImage::wasm_module(Self) -> @types.Module
+
+// Type aliases
+
+// Traits

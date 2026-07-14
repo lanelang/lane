@@ -917,6 +917,31 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
 }
 
 ///|
+test "Wasmoon execution can be interrupted at a Wasm safepoint" {
+  let entry = body(terminator=TailCallDirect({ value: 1 }, None, [], []))
+  let loaded = match
+    load(image([BytecodeBody(entry)]), @loisvm_runtime.RuntimeRegistry::new()) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  let instance = match loaded.new_instance() {
+    Ok(value) => value
+    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+  }
+  let polls = [0]
+  assert_eq(
+    instance.execute(
+      cancel=Some(fn() {
+        polls[0] += 1
+        polls[0] >= 4
+      }),
+    ),
+    Err(Interrupted),
+  )
+  assert_eq(instance.execute(), Err(InstanceNotReady))
+}
+
+///|
 test "call depth exhaustion releases arguments transferred into the callee" {
   let ref_slot = owned_slot(I32, OwnedRef)
   let entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
