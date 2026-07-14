@@ -55,11 +55,26 @@ fn install_root_runtime_handlers(
   @buslane_lowering.BuslaneExternalMap,
   @buslane_lowering.BuslaneEntry,
 ) raise LoisvmLoweringError {
+  guard entry.type_ is Function(parameters, result, effect) else {
+    raise InvalidFunctionType(value=entry.value, type_=entry.type_)
+  }
+  let effect = effect.canonicalize()
+  let selected_effect_owners : Array[@buslane.EffectId] = []
+  for term in root_effect_terms(effect) {
+    if term is Singleton(owner, _) {
+      selected_effect_owners.push(owner)
+    }
+  }
   let bindings : Array[RuntimeEffectExternal] = []
   let terms = program.terms.copy()
   let builtins = externals.builtins.copy()
   for operation in operations {
-    let info = runtime_operation_info(program.metadata, operation.operation)
+    guard program.metadata.operation_info(operation.operation) is Some(info) else {
+      continue
+    }
+    if !selected_effect_owners.any(owner => owner == info.owner) {
+      continue
+    }
     if !info.hidden_type_parameters.is_empty() {
       raise UnsupportedExpression(
         detail="generic runtime effect operations are outside the v1 primitive host ABI",
@@ -94,10 +109,7 @@ fn install_root_runtime_handlers(
     terms.push(External(value))
     builtins.push({ value, name: runtime_effect_symbol(operation), type_ })
   }
-  guard entry.type_ is Function(parameters, result, effect) else {
-    raise InvalidFunctionType(value=entry.value, type_=entry.type_)
-  }
-  if effect.canonicalize() == Empty {
+  if effect == Empty {
     return ({ metadata: program.metadata, terms }, { builtins, }, entry)
   }
   let wrapper_parameters = parameters.map(type_ => {
