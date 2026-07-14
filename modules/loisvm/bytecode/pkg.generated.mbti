@@ -32,7 +32,9 @@ pub(all) struct BlockId {
 
 pub(all) struct BytecodeImage {
   entry : FunctionId
+  initializer : FunctionId?
   functions : Array[FunctionEntry]
+  globals : Array[GlobalMetadata]
   layouts : Array[LayoutRecipe]
   object_shapes : Array[ObjectShape]
   constants : Array[Bytes]
@@ -85,6 +87,16 @@ pub(all) struct FunctionInputs {
   environment : SlotId?
   witnesses : Array[SlotId]
   user_parameters : Array[SlotId]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct GlobalId {
+  value : Int
+} derive(Compare, Eq, @debug.Debug)
+
+pub(all) struct GlobalMetadata {
+  representation : Representation
+  cleanup : Cleanup
+  erased_companion : GlobalId?
 } derive(Eq, @debug.Debug)
 
 pub(all) enum Instruction {
@@ -155,6 +167,8 @@ pub(all) enum Instruction {
   UneraseF64(SlotId, SlotId)
   EraseUnit(SlotId)
   UneraseUnit(SlotId)
+  InitGlobal(GlobalId, SlotId)
+  BorrowGlobal(SlotId, GlobalId)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LayoutId {

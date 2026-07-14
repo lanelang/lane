@@ -27,6 +27,9 @@ fn compile_or_raise(
   image : @bytecode.BytecodeImage,
   bindings : Array[@loisvm_runtime.RuntimeBinding],
 ) -> @wasm_types.Module raise WasmCompileError {
+  if image.initializer is Some(_) || !image.globals.is_empty() {
+    raise ValidationFailure(detail="instance globals are not implemented")
+  }
   let wasm_module = @wasm_types.Module::empty()
   let import_count = bindings.length()
   let runtime_functions = runtime_function_indices(

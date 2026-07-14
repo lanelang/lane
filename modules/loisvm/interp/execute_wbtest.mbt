@@ -52,6 +52,8 @@ test "ARC releases dynamic runtime String owners" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [
       BytecodeBody(entry),
       RuntimeImport({ abi_major: 1, user_arity: 0, symbol: "lane.test.string" }),
@@ -92,6 +94,8 @@ test "fieldless data construction reuses an immortal image singleton" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
     object_shapes: [
@@ -131,6 +135,8 @@ test "engine traps discard the instance without ARC unwinding" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
     object_shapes: [

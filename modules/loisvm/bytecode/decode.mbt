@@ -10,6 +10,7 @@ priv struct Decoder {
   source : BytesView
   mut offset : Int
   mut limit : Int
+  mut schema_version : Int
 }
 
 ///|
@@ -25,22 +26,50 @@ pub fn parse_bytecode_image_binary(
 fn decode_bytecode_image(
   bytes : Bytes,
 ) -> BytecodeImage raise BytecodeDecodeError {
-  let decoder = Decoder::{ source: bytes[:], offset: 0, limit: bytes.length() }
+  let decoder = Decoder::{
+    source: bytes[:],
+    offset: 0,
+    limit: bytes.length(),
+    schema_version: 0,
+  }
   let version = match decoder.view() {
     [u8be(value), .. rest] => decoder.consume(rest, value.reinterpret_as_int())
     _ => decoder.fail("expected bytecode schema version")
   }
-  if version != bytecode_schema_version {
+  if version != bytecode_schema_v1 && version != bytecode_schema_v2 {
     raise UnsupportedSchema(version~)
   }
+  decoder.schema_version = version
   let entry = decoder.read_function_id()
+  let initializer = if version == bytecode_schema_v2 {
+    decoder.read_optional_function_id()
+  } else {
+    None
+  }
   let function_count = decoder.read_count(minimum_size=1, table="function")
   if function_count == 0 {
-    decoder.fail_at(5, "function table must be nonempty")
+    decoder.fail_at(
+      if version == bytecode_schema_v1 {
+        5
+      } else {
+        9
+      },
+      "function table must be nonempty",
+    )
   }
   let functions : Array[FunctionEntry] = []
   for _index in 0..<function_count {
     functions.push(decoder.read_function_entry())
+  }
+  let globals : Array[GlobalMetadata] = []
+  if version == bytecode_schema_v2 {
+    let global_count = decoder.read_count(
+      minimum_size=2,
+      table="instance global",
+    )
+    for _index in 0..<global_count {
+      globals.push(decoder.read_global_metadata())
+    }
   }
   let layout_count = decoder.read_count(minimum_size=1, table="layout")
   let layouts : Array[LayoutRecipe] = []
@@ -63,7 +92,9 @@ fn decode_bytecode_image(
   decoder.expect_end(what="bytecode section")
   let image : BytecodeImage = {
     entry,
+    initializer,
     functions,
+    globals,
     layouts,
     object_shapes,
     constants,
@@ -162,6 +193,20 @@ fn Decoder::read_slot_metadata(
   let cleanup = self.read_cleanup()
   let erased_companion = if cleanup is OwnedErased {
     Some(self.read_slot_id())
+  } else {
+    None
+  }
+  { representation, cleanup, erased_companion }
+}
+
+///|
+fn Decoder::read_global_metadata(
+  self : Decoder,
+) -> GlobalMetadata raise BytecodeDecodeError {
+  let representation = self.read_representation()
+  let cleanup = self.read_cleanup()
+  let erased_companion = if cleanup is OwnedErased {
+    Some(self.read_global_id())
   } else {
     None
   }
@@ -456,6 +501,10 @@ fn Decoder::read_instruction(
         self.read_slot_id(),
         self.read_nonnegative_u32(expected="witness ordinal"),
       )
+    0x44 if self.schema_version == bytecode_schema_v2 =>
+      InitGlobal(self.read_global_id(), self.read_slot_id())
+    0x45 if self.schema_version == bytecode_schema_v2 =>
+      BorrowGlobal(self.read_slot_id(), self.read_global_id())
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }
@@ -580,6 +629,25 @@ fn Decoder::read_function_id(
     self.fail_at(offset, "FunctionId zero is reserved")
   }
   { value, }
+}
+
+///|
+fn Decoder::read_optional_function_id(
+  self : Decoder,
+) -> FunctionId? raise BytecodeDecodeError {
+  let value = self.read_nonnegative_u32(expected="optional FunctionId")
+  if value == 0 {
+    None
+  } else {
+    Some({ value, })
+  }
+}
+
+///|
+fn Decoder::read_global_id(
+  self : Decoder,
+) -> GlobalId raise BytecodeDecodeError {
+  { value: self.read_nonnegative_u32(expected="GlobalId") }
 }
 
 ///|
@@ -803,29 +871,29 @@ fn validate_ascii_bytes(
 fn validate_local_metadata(
   image : BytecodeImage,
 ) -> Unit raise BytecodeDecodeError {
-  if image.entry.value > image.functions.length() {
-    raise MalformedEncoding(
-      offset=1,
-      detail="selected entry FunctionId is out of range",
-    )
-  }
-  match image.functions[image.entry.value - 1] {
-    BytecodeBody(body) =>
-      if body.inputs.environment is Some(_) ||
-        !body.inputs.witnesses.is_empty() ||
-        !body.inputs.user_parameters.is_empty() ||
-        body.result != Unit {
+  validate_root_function(
+    image.functions,
+    image.entry,
+    offset=1,
+    what="selected entry",
+  )
+  match image.initializer {
+    Some(initializer) =>
+      validate_root_function(
+        image.functions,
+        initializer,
+        offset=5,
+        what="instance initializer",
+      )
+    None =>
+      if !image.globals.is_empty() {
         raise MalformedEncoding(
-          offset=1,
-          detail="selected entry must be a no-context, zero-argument Unit bytecode body",
+          offset=5,
+          detail="nonempty instance global table requires an initializer",
         )
       }
-    RuntimeImport(_) =>
-      raise MalformedEncoding(
-        offset=1,
-        detail="selected entry must be a bytecode body",
-      )
   }
+  validate_global_metadata(image.globals)
   for entry in image.functions {
     if entry is BytecodeBody(body) {
       validate_function_body_metadata(body)
@@ -849,6 +917,85 @@ fn validate_local_metadata(
           environment.members,
           environment.stored_witness_count,
         )
+    }
+  }
+}
+
+///|
+fn validate_root_function(
+  functions : Array[FunctionEntry],
+  function : FunctionId,
+  offset~ : Int,
+  what~ : String,
+) -> Unit raise BytecodeDecodeError {
+  if function.value <= 0 || function.value > functions.length() {
+    raise MalformedEncoding(
+      offset~,
+      detail="\{what} FunctionId is out of range",
+    )
+  }
+  match functions[function.value - 1] {
+    BytecodeBody(body) =>
+      if body.inputs.environment is Some(_) ||
+        !body.inputs.witnesses.is_empty() ||
+        !body.inputs.user_parameters.is_empty() ||
+        body.result != Unit {
+        raise MalformedEncoding(
+          offset~,
+          detail="\{what} must be a no-context, zero-argument Unit bytecode body",
+        )
+      }
+    RuntimeImport(_) =>
+      raise MalformedEncoding(offset~, detail="\{what} must be a bytecode body")
+  }
+}
+
+///|
+fn validate_global_metadata(
+  globals : Array[GlobalMetadata],
+) -> Unit raise BytecodeDecodeError {
+  for index, global in globals {
+    let legal = match (global.representation, global.cleanup) {
+      (I32, Trivial | OwnedRef) => true
+      (I64, Trivial | OwnedCallable | OwnedErased) => true
+      (F64, Trivial) => true
+      _ => false
+    }
+    if !legal {
+      raise MalformedEncoding(
+        offset=0,
+        detail="illegal global representation and cleanup combination",
+      )
+    }
+    match (global.cleanup, global.erased_companion) {
+      (OwnedErased, Some(companion)) => {
+        if index == 0 || companion.value != index - 1 {
+          raise MalformedEncoding(
+            offset=0,
+            detail="OwnedErased global companion must immediately precede its owner",
+          )
+        }
+        let companion_global = globals[companion.value]
+        if companion_global.representation != I32 ||
+          companion_global.cleanup != Trivial ||
+          companion_global.erased_companion is Some(_) {
+          raise MalformedEncoding(
+            offset=0,
+            detail="erased global companion must be an I32 Trivial global",
+          )
+        }
+      }
+      (OwnedErased, None) =>
+        raise MalformedEncoding(
+          offset=0,
+          detail="OwnedErased global requires a companion",
+        )
+      (_, Some(_)) =>
+        raise MalformedEncoding(
+          offset=0,
+          detail="only OwnedErased globals have companions",
+        )
+      _ => ()
     }
   }
 }

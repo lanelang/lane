@@ -116,6 +116,8 @@ fn body(
 fn image(functions : Array[@bytecode.FunctionEntry]) -> @bytecode.BytecodeImage {
   {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions,
     layouts: [],
     object_shapes: [],
@@ -484,6 +486,8 @@ test "static image materializes layout descriptors and immortal strings" {
   }
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [String],
     object_shapes: [],
@@ -517,6 +521,8 @@ test "fieldless data construction reuses an immortal static singleton" {
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
     object_shapes: [
@@ -591,6 +597,8 @@ test "dynamic String primitives allocate, copy, compare, and release" {
   }
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [String],
     object_shapes: [],
@@ -699,6 +707,8 @@ test "canonical Data and Environment layouts construct and project" {
   ]
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 }), Environment({ value: 1 })],
     object_shapes: shapes,
@@ -745,6 +755,8 @@ test "descriptor destructors preserve owners across consuming projection" {
   ]
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 }), Data({ value: 1 })],
     object_shapes: shapes,
@@ -802,6 +814,8 @@ test "Wasm loads an object witness independently from members" {
   }
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Bool, Data({ value: 0 })],
     object_shapes: [
@@ -846,6 +860,8 @@ test "OwnedErased ARC dispatches through its layout witness" {
   )
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
     object_shapes: [
@@ -955,6 +971,8 @@ test "call depth exhaustion releases arguments transferred into the callee" {
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
     layouts: [String],
     object_shapes: [],
@@ -991,6 +1009,8 @@ test "Wasm allocator enforces canonical live heap bytes" {
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [String],
     object_shapes: [],
@@ -1036,6 +1056,8 @@ test "live heap exhaustion unwinds owners from the current frame" {
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [String],
     object_shapes: [],
@@ -1088,6 +1110,8 @@ test "non-positive execution limits provide zero budget" {
   ])
   let allocating_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(allocating_entry)],
     layouts: [String],
     object_shapes: [],

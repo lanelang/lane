@@ -20,7 +20,9 @@ fn finalize_or_raise(
   }
   {
     entry: image.entry,
+    initializer: None,
     functions,
+    globals: [],
     layouts: image.layouts,
     object_shapes: image.object_shapes,
     constants: image.constants,

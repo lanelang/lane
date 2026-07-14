@@ -64,6 +64,8 @@ test "interpreter executes direct and runtime calls once" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [
       BytecodeBody(entry),
       BytecodeBody(add_one),
@@ -93,6 +95,8 @@ test "interpreter execution can be interrupted" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [],
     object_shapes: [],
@@ -142,6 +146,8 @@ test "interpreter synthesizes logical Unit runtime arguments" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [
       BytecodeBody(entry),
       RuntimeImport({
@@ -179,6 +185,8 @@ test "tail calls preserve logical call depth" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
     layouts: [],
     object_shapes: [],
@@ -254,6 +262,8 @@ test "object witnesses load independently from data and environment members" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [
       BytecodeBody(entry),
       RuntimeImport({
@@ -293,6 +303,8 @@ test "returning calls enforce logical depth" {
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
     layouts: [],
     object_shapes: [],
@@ -319,6 +331,8 @@ test "non-positive execution limits provide zero budget" {
   )
   let empty_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(empty_entry)],
     layouts: [],
     object_shapes: [],
@@ -353,6 +367,8 @@ test "non-positive execution limits provide zero budget" {
   )
   let allocating_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [BytecodeBody(allocating_entry)],
     layouts: [String],
     object_shapes: [],

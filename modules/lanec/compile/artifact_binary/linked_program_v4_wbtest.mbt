@@ -8,7 +8,9 @@ fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
   }
   {
     entry: { value: 1 },
+    initializer: None,
     functions: [BytecodeBody(body)],
+    globals: [],
     layouts: [],
     object_shapes: [],
     constants: [],

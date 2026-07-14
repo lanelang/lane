@@ -1,14 +1,27 @@
 ///|
-let bytecode_schema_version = 1
+let bytecode_schema_v1 = 1
+
+///|
+let bytecode_schema_v2 = 2
 
 ///|
 pub fn bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u8(bytecode_schema_version)
+  let schema_version = image.schema_version()
+  writer.write_u8(schema_version)
   writer.write_function_id(image.entry)
+  if schema_version == bytecode_schema_v2 {
+    writer.write_optional_function_id(image.initializer)
+  }
   writer.write_u32_le(image.functions.length())
   for function in image.functions {
     writer.write_function_entry(function)
+  }
+  if schema_version == bytecode_schema_v2 {
+    writer.write_u32_le(image.globals.length())
+    for global in image.globals {
+      writer.write_global_metadata(global)
+    }
   }
   writer.write_u32_le(image.layouts.length())
   for layout in image.layouts {
@@ -23,6 +36,30 @@ pub fn bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
     writer.write_bytes(constant)
   }
   writer.to_bytes()
+}
+
+///|
+fn BytecodeImage::schema_version(self : BytecodeImage) -> Int {
+  if self.initializer is Some(_) ||
+    !self.globals.is_empty() ||
+    self.functions.any(function_entry_uses_globals) {
+    bytecode_schema_v2
+  } else {
+    bytecode_schema_v1
+  }
+}
+
+///|
+fn function_entry_uses_globals(entry : FunctionEntry) -> Bool {
+  match entry {
+    RuntimeImport(_) => false
+    BytecodeBody(body) =>
+      body.blocks.any(block => {
+        block.instructions.any(instruction => {
+          instruction is InitGlobal(_, _) || instruction is BorrowGlobal(_, _)
+        })
+      })
+  }
 }
 
 ///|
@@ -77,6 +114,21 @@ fn @bytecodec.ByteWriter::write_slot_metadata(
   if slot.cleanup is OwnedErased {
     match slot.erased_companion {
       Some(companion) => self.write_slot_id(companion)
+      None => self.write_u32_le(0)
+    }
+  }
+}
+
+///|
+fn @bytecodec.ByteWriter::write_global_metadata(
+  self : @bytecodec.ByteWriter,
+  global : GlobalMetadata,
+) -> Unit {
+  self.write_representation(global.representation)
+  self.write_cleanup(global.cleanup)
+  if global.cleanup is OwnedErased {
+    match global.erased_companion {
+      Some(companion) => self.write_global_id(companion)
       None => self.write_u32_le(0)
     }
   }
@@ -421,6 +473,16 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_slot_id(object)
       self.write_u32_le(ordinal)
     }
+    InitGlobal(global, source) => {
+      self.write_u8(0x44)
+      self.write_global_id(global)
+      self.write_slot_id(source)
+    }
+    BorrowGlobal(destination, global) => {
+      self.write_u8(0x45)
+      self.write_slot_id(destination)
+      self.write_global_id(global)
+    }
   }
 }
 
@@ -569,6 +631,25 @@ fn @bytecodec.ByteWriter::write_optional_slot(
 fn @bytecodec.ByteWriter::write_function_id(
   self : @bytecodec.ByteWriter,
   id : FunctionId,
+) -> Unit {
+  self.write_u32_le(id.value)
+}
+
+///|
+fn @bytecodec.ByteWriter::write_optional_function_id(
+  self : @bytecodec.ByteWriter,
+  id : FunctionId?,
+) -> Unit {
+  match id {
+    None => self.write_u32_le(0)
+    Some(id) => self.write_function_id(id)
+  }
+}
+
+///|
+fn @bytecodec.ByteWriter::write_global_id(
+  self : @bytecodec.ByteWriter,
+  id : GlobalId,
 ) -> Unit {
   self.write_u32_le(id.value)
 }

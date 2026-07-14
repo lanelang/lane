@@ -77,6 +77,10 @@ fn ExecutionInstance::run(
   self : ExecutionInstance,
   cancel : (() -> Bool)?,
 ) -> Unit raise ExecutionFailure {
+  if self.loaded.image.initializer is Some(_) ||
+    !self.loaded.image.globals.is_empty() {
+    raise InternalFailure(detail="instance globals are not implemented")
+  }
   if cancel is Some(check) && check() {
     raise InterruptedExecution
   }
@@ -325,6 +329,10 @@ fn ExecutionInstance::execute_instruction(
       self.borrow_member(frame, shape, source, index, result, environment=true)
     ConsumeCaptures(shape, source, selections) =>
       self.consume_members(frame, shape, source, selections, environment=true)
+    InitGlobal(_, _) | BorrowGlobal(_, _) =>
+      raise InternalFailure(
+        detail="instance global execution is not implemented",
+      )
   }
 }
 

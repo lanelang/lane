@@ -4,6 +4,11 @@ pub(all) struct FunctionId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) struct GlobalId {
+  value : Int
+} derive(Debug, Eq, Compare)
+
+///|
 pub(all) struct LayoutId {
   value : Int
 } derive(Debug, Eq, Compare)
@@ -48,6 +53,13 @@ pub(all) struct SlotMetadata {
   representation : Representation
   cleanup : Cleanup
   erased_companion : SlotId?
+} derive(Debug, Eq)
+
+///|
+pub(all) struct GlobalMetadata {
+  representation : Representation
+  cleanup : Cleanup
+  erased_companion : GlobalId?
 } derive(Debug, Eq)
 
 ///|
@@ -198,6 +210,8 @@ pub(all) enum Instruction {
   UneraseF64(SlotId, SlotId)
   EraseUnit(SlotId)
   UneraseUnit(SlotId)
+  InitGlobal(GlobalId, SlotId)
+  BorrowGlobal(SlotId, GlobalId)
 } derive(Debug, Eq)
 
 ///|
@@ -241,7 +255,9 @@ pub(all) enum FunctionEntry {
 ///|
 pub(all) struct BytecodeImage {
   entry : FunctionId
+  initializer : FunctionId?
   functions : Array[FunctionEntry]
+  globals : Array[GlobalMetadata]
   layouts : Array[LayoutRecipe]
   object_shapes : Array[ObjectShape]
   constants : Array[Bytes]

@@ -2,16 +2,29 @@
 pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
   let lines = [
     "LoisVM bytecode",
-    "schema: 1",
+    "schema: \{image.schema_version()}",
     "entry: \{render_function(image.entry)}",
-    "functions: \{image.functions.length()}",
-    "layouts: \{image.layouts.length()}",
-    "object shapes: \{image.object_shapes.length()}",
-    "constants: \{image.constants.length()}",
-    "",
   ]
+  if image.schema_version() == bytecode_schema_v2 {
+    lines.push("initializer: \{render_optional_function(image.initializer)}")
+  }
+  lines.push("functions: \{image.functions.length()}")
+  if image.schema_version() == bytecode_schema_v2 {
+    lines.push("globals: \{image.globals.length()}")
+  }
+  lines.push("layouts: \{image.layouts.length()}")
+  lines.push("object shapes: \{image.object_shapes.length()}")
+  lines.push("constants: \{image.constants.length()}")
+  lines.push("")
   for index, function in image.functions {
     lines.append(render_function_entry(index + 1, function))
+    lines.push("")
+  }
+  if !image.globals.is_empty() {
+    lines.push("instance global table:")
+    for index, global in image.globals {
+      lines.push("  g\{index} = \{render_global_metadata(global)}")
+    }
     lines.push("")
   }
   if !image.layouts.is_empty() {
@@ -211,6 +224,10 @@ fn render_instruction(instruction : Instruction) -> String {
       unary_instruction("unerase_f64", destination, source)
     EraseUnit(destination) => "erase_unit \{render_slot(destination)}"
     UneraseUnit(source) => "unerase_unit \{render_slot(source)}"
+    InitGlobal(global, source) =>
+      "init_global \{render_global(global)}, \{render_slot(source)}"
+    BorrowGlobal(destination, global) =>
+      "borrow_global \{render_slot(destination)}, \{render_global(global)}"
   }
 }
 
@@ -282,6 +299,19 @@ fn render_function(function : FunctionId) -> String {
 }
 
 ///|
+fn render_optional_function(function : FunctionId?) -> String {
+  match function {
+    Some(function) => render_function(function)
+    None => "none"
+  }
+}
+
+///|
+fn render_global(global : GlobalId) -> String {
+  "g\{global.value}"
+}
+
+///|
 fn render_layout(layout : LayoutId) -> String {
   "l\{layout.value}"
 }
@@ -331,6 +361,15 @@ fn render_layout_operand(operand : LayoutOperand) -> String {
 fn render_slot_metadata(metadata : SlotMetadata) -> String {
   let companion = match metadata.erased_companion {
     Some(slot) => ", companion=\{render_slot(slot)}"
+    None => ""
+  }
+  "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)}\{companion}"
+}
+
+///|
+fn render_global_metadata(metadata : GlobalMetadata) -> String {
+  let companion = match metadata.erased_companion {
+    Some(global) => ", companion=\{render_global(global)}"
     None => ""
   }
   "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)}\{companion}"

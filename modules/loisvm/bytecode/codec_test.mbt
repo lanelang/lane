@@ -9,6 +9,11 @@ fn function(value : Int) -> FunctionId {
 }
 
 ///|
+fn global(value : Int) -> GlobalId {
+  { value, }
+}
+
+///|
 fn layout(value : Int) -> LayoutId {
   { value, }
 }
@@ -37,7 +42,48 @@ fn minimal_body(instructions? : Array[Instruction] = []) -> FunctionBody {
 fn minimal_image() -> BytecodeImage {
   {
     entry: function(1),
+    initializer: None,
     functions: [BytecodeBody(minimal_body())],
+    globals: [],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+}
+
+///|
+fn v2_image() -> BytecodeImage {
+  let initializer = {
+    ..minimal_body(instructions=[
+      InitGlobal(global(1), slot(1)),
+      BorrowGlobal(slot(2), global(1)),
+    ]),
+    slots: [
+      { representation: I32, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        erased_companion: Some(slot(0)),
+      },
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        erased_companion: Some(slot(0)),
+      },
+    ],
+  }
+  {
+    entry: function(1),
+    initializer: Some(function(2)),
+    functions: [BytecodeBody(minimal_body()), BytecodeBody(initializer)],
+    globals: [
+      { representation: I32, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        erased_companion: Some(global(0)),
+      },
+    ],
     layouts: [],
     object_shapes: [],
     constants: [],
@@ -78,6 +124,70 @@ test "minimal bytecode image has canonical disassembly" {
       #|  b0([]):
       #|    return none
       #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "schema 2 globals and initializer roundtrip" {
+  let image = v2_image()
+  let binary = bytecode_image_to_binary(image)
+  assert_eq(binary[0], b'\x02')
+  assert_eq(parse_bytecode_image_binary(binary), Ok(image))
+  let initializer_only = { ..minimal_image(), initializer: Some(function(1)) }
+  let initializer_only_binary = bytecode_image_to_binary(initializer_only)
+  assert_eq(initializer_only_binary[0], b'\x02')
+  assert_eq(
+    parse_bytecode_image_binary(initializer_only_binary),
+    Ok(initializer_only),
+  )
+}
+
+///|
+test "schema 2 image has canonical disassembly" {
+  inspect(
+    bytecode_image_to_disassembly(v2_image()),
+    content=(
+      #|LoisVM bytecode
+      #|schema: 2
+      #|entry: f1
+      #|initializer: f2
+      #|functions: 2
+      #|globals: 2
+      #|layouts: 0
+      #|object shapes: 0
+      #|constants: 0
+      #|
+      #|function f1(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> unit {
+      #|  slots:
+      #|    (none)
+      #|  b0([]):
+      #|    return none
+      #|}
+      #|
+      #|function f2(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> unit {
+      #|  slots:
+      #|    %0: i32 + trivial
+      #|    %1: i64 + owned_erased, companion=%0
+      #|    %2: i64 + owned_erased, companion=%0
+      #|  b0([]):
+      #|    init_global g1, %1
+      #|    borrow_global %2, g1
+      #|    return none
+      #|}
+      #|
+      #|instance global table:
+      #|  g0 = i32 + trivial
+      #|  g1 = i64 + owned_erased, companion=g0
       #|
     ),
   )
@@ -164,6 +274,7 @@ test "all v1 instructions roundtrip" {
   let body = minimal_body(instructions~)
   let image : BytecodeImage = {
     entry: function(1),
+    initializer: None,
     functions: [
       BytecodeBody({
         ..body,
@@ -174,6 +285,7 @@ test "all v1 instructions roundtrip" {
         ],
       }),
     ],
+    globals: [],
     layouts: [Unit],
     object_shapes: [
       Data({ constructor_tag: 0, stored_witness_count: 0, members: [] }),
@@ -191,10 +303,12 @@ test "all v1 instructions roundtrip" {
 test "function, layout, shape, and constant tables roundtrip" {
   let image : BytecodeImage = {
     entry: function(1),
+    initializer: None,
     functions: [
       BytecodeBody(minimal_body()),
       RuntimeImport({ abi_major: 1, user_arity: 2, symbol: "lane.host.print" }),
     ],
+    globals: [],
     layouts: [
       Unit,
       Bool,
@@ -236,8 +350,8 @@ test "function, layout, shape, and constant tables roundtrip" {
 ///|
 test "decoder rejects unsupported schema and unknown function tag" {
   assert_eq(
-    parse_bytecode_image_binary(Bytes::from_array([b'\x02'])),
-    Err(UnsupportedSchema(version=2)),
+    parse_bytecode_image_binary(Bytes::from_array([b'\x03'])),
+    Err(UnsupportedSchema(version=3)),
   )
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u8(1)
@@ -302,6 +416,107 @@ test "decoder reports schema-valid u32 values beyond host Int as resource limits
         detail="runtime import ABI major exceeds implementation limit",
       ),
     ),
+  )
+}
+
+///|
+test "schema 2 validates initializer and global metadata" {
+  let missing_initializer = { ..v2_image(), initializer: None }
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(missing_initializer)),
+    Err(
+      MalformedEncoding(
+        offset=5,
+        detail="nonempty instance global table requires an initializer",
+      ),
+    ),
+  )
+  let invalid_initializer = { ..v2_image(), initializer: Some(function(3)) }
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(invalid_initializer)),
+    Err(
+      MalformedEncoding(
+        offset=5,
+        detail="instance initializer FunctionId is out of range",
+      ),
+    ),
+  )
+  let invalid_companion = {
+    ..v2_image(),
+    globals: [
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        erased_companion: Some(global(0)),
+      },
+    ],
+  }
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(invalid_companion)),
+    Err(
+      MalformedEncoding(
+        offset=0,
+        detail="OwnedErased global companion must immediately precede its owner",
+      ),
+    ),
+  )
+}
+
+///|
+test "schema 2 global count beyond host Int is a resource limit" {
+  let image = {
+    ..minimal_image(),
+    initializer: Some(function(1)),
+    globals: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
+  }
+  let bytes = bytecode_image_to_binary(image).to_array()
+  bytes[52] = b'\xFF'
+  bytes[53] = b'\xFF'
+  bytes[54] = b'\xFF'
+  bytes[55] = b'\xFF'
+  assert_eq(
+    parse_bytecode_image_binary(Bytes::from_array(bytes)),
+    Err(
+      ResourceLimit(
+        offset=52,
+        detail="instance global count exceeds implementation limit",
+      ),
+    ),
+  )
+}
+
+///|
+test "schema 1 rejects schema 2 instruction tags" {
+  let body = @bytecodec.ByteWriter::new()
+  body.write_u32_le(1)
+  body.write_u8(1)
+  body.write_u8(1)
+  body.write_u32_le(0)
+  body.write_u32_le(0)
+  body.write_u32_le(0)
+  body.write_u8(1)
+  body.write_u32_le(1)
+  body.write_u32_le(0)
+  body.write_u32_le(1)
+  body.write_u8(0x44)
+  body.write_u32_le(0)
+  body.write_u32_le(0)
+  body.write_u8(4)
+  body.write_u32_le(0)
+  let body_bytes = body.to_bytes()
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u8(1)
+  writer.write_u32_le(1)
+  writer.write_u32_le(1)
+  writer.write_u8(1)
+  writer.write_u32_le(body_bytes.length())
+  writer.write_raw_bytes(body_bytes)
+  writer.write_u32_le(0)
+  writer.write_u32_le(0)
+  writer.write_u32_le(0)
+  assert_true(
+    parse_bytecode_image_binary(writer.to_bytes())
+    is Err(MalformedEncoding(detail="unknown instruction tag 68", ..)),
   )
 }
 

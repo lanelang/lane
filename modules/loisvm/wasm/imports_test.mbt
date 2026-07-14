@@ -29,7 +29,9 @@ fn import_test_image(
 ) -> @bytecode.BytecodeImage {
   {
     entry: { value: 1 },
+    initializer: None,
     functions: [BytecodeBody(body), RuntimeImport(import_)],
+    globals: [],
     layouts,
     object_shapes: [],
     constants,

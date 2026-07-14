@@ -23,6 +23,8 @@ test "loader resolves all runtime imports atomically" {
   }
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
+    initializer: None,
+    globals: [],
     functions: [
       BytecodeBody(body),
       RuntimeImport({
