@@ -73,7 +73,7 @@ fn lower_cps_monadic_call(
   let selected = select_cps_contexts(
     schema, requirements, environment, answer_type,
   )
-  let transformed_callee = TypeApply(
+  let transformed_callee = Expr::TypeApply(
     lower_cps_type_apply_chain(schema, program, callee, answer_type),
     [TypeArgument(answer_type)],
   )

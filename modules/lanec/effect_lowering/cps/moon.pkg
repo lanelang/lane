@@ -1,0 +1,9 @@
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/effect_lowering",
+}
+
+import {
+  "Milky2018/lanec/anf",
+  "Milky2018/buslane/interpreter" @buslane_interpreter,
+} for "wbtest"

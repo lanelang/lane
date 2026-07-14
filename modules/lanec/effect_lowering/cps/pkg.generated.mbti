@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/effect_lowering/cps"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/effect_lowering",
+}
+
+// Values
+pub fn plan_dictionary_cps_types(@buslane.MetadataRegistry, Array[@buslane.Type]) -> Result[Array[@buslane.Type], @effect_lowering.SynthesisError]
+
+pub fn rewrite_selective_cps_abis(@effect_lowering.Program) -> Result[@effect_lowering.Program, @effect_lowering.SynthesisError]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

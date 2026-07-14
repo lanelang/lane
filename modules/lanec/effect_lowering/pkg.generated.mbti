@@ -13,11 +13,7 @@ pub fn introduce_monadic_binds(Program) -> Result[Program, SynthesisError]
 
 pub fn lift_monadic_continuations(Program) -> Result[@buslane.Program, SynthesisError]
 
-pub fn plan_dictionary_cps_types(@buslane.MetadataRegistry, Array[@buslane.Type]) -> Result[Array[@buslane.Type], SynthesisError]
-
 pub fn resolve_open_contexts(Program) -> Result[Program, SynthesisError]
-
-pub fn rewrite_selective_cps_abis(Program) -> Result[Program, SynthesisError]
 
 pub fn synthesize_expr(Program, Expr) -> Result[ExprFacts, SynthesisError]
 

@@ -249,7 +249,9 @@ fn build_residual_relay_field(
     Parameter,
     operation_result,
   )
-  let resumed = Call(Ref(resume_parameter), [Ref(operation_result_parameter)])
+  let resumed = Expr::Call(Ref(resume_parameter), [
+    Ref(operation_result_parameter),
+  ])
   let resume_continuation = Expr::Function({
     parameters: [operation_result_parameter],
     result_type: frame.answer_type,
@@ -263,7 +265,7 @@ fn build_residual_relay_field(
   guard term is Singleton(_, arguments) else {
     abort("concrete relay term expected")
   }
-  let payloads = []
+  let payloads : Array[Expr] = []
   for index in 0..<(parameters.length() - 1) {
     payloads.push(Ref(parameters[index]))
   }

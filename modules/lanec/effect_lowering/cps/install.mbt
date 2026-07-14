@@ -255,7 +255,7 @@ fn build_handler_resume_value(
     Parameter,
     operation_result,
   )
-  let resumed = Call(Ref(direct_resume), [Ref(parameter)])
+  let resumed = Expr::Call(Ref(direct_resume), [Ref(parameter)])
   if residual.effect == Empty {
     Function({
       parameters: [parameter],

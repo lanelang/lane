@@ -23,7 +23,7 @@ fn lower_effects_before_anf(
     @effect_lowering.introduce_monadic_binds(elaborated),
   )
   let transformed = unwrap_effect_lowering(
-    @effect_lowering.rewrite_selective_cps_abis(bound),
+    @effect_lowering_cps.rewrite_selective_cps_abis(bound),
   )
   let resolved = unwrap_effect_lowering(
     @effect_lowering.resolve_open_contexts(transformed),

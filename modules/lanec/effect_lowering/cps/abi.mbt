@@ -313,7 +313,7 @@ fn lower_cps_with_continuation(
         ),
       )
     Bind(bind) => {
-      let next = Function({
+      let next = Expr::Function({
         parameters: [bind.binder],
         result_type: answer_type,
         body: lower_cps_with_continuation(

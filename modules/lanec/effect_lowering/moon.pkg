@@ -1,8 +1,3 @@
 import {
   "Milky2018/buslane",
 }
-
-import {
-  "Milky2018/lanec/anf",
-  "Milky2018/buslane/interpreter" @buslane_interpreter,
-} for "wbtest"

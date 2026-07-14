@@ -221,8 +221,12 @@ _Avoid_: source type parameter, layout witness, universal operation table
 The selective transformation of a non-pure function from `(args) -> A ! E` to an effect-free conceptual shape `[Answer](context, args, (A) -> Answer) -> Answer`, while pure functions remain direct style.
 _Avoid_: whole-program CPS, VM stack capture, yielding side channel
 
+**Selective CPS Package**:
+The `lanec/effect_lowering/cps` package that owns dictionary schema generation, selective CPS ABI rewriting, context selection, relay dictionaries, and CPS-specific integration tests behind the `rewrite_selective_cps_abis` entrypoint.
+_Avoid_: `cps_*.mbt` files in the parent effect-lowering package, LoisVM callable ABI, runtime continuation machinery
+
 **Open Context Plan**:
-The compiler-private effect-subsumption record resolved into ordered ordinary context arguments, projections, and aggregate construction by `open-resolve`.
+The compiler-private effect-subsumption proof marker recording source contexts consumed by a generated call and ambient target contexts claimed to supply them; selective CPS materializes the arguments, and `open-resolve` validates the claim before erasing the marker.
 _Avoid_: lexical operation dispatch, dynamic evidence search, bytecode metadata
 
 **Resume Closure**:
