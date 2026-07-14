@@ -146,11 +146,13 @@ fn FunctionLowerer::lower_construct(
   for index, payload in construct.payloads {
     let formal_type = info.payload_types[index]
     let actual_type = substitute_type(formal_type, substitutions)
-    let lowered = self.adapt_local_value_with_substitutions(
-      self.lower_atom(payload),
-      actual_type,
-      formal_type,
-      substitutions,
+    let lowered = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        self.lower_atom(payload),
+        actual_type,
+        formal_type,
+        substitutions,
+      ),
     )
     match lowered {
       Unit =>

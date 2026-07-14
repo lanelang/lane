@@ -94,3 +94,66 @@ test "executable lowering emits reachable instance globals in source order" {
     TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
   )
 }
+
+///|
+test "executable initializer materializes function-valued data fields" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let callable_type = global_test_function_type([], unit_type)
+  let holder = metadata.define_type("Holder", [])
+  let make_holder = metadata.define_data_constructor("Holder", holder, [], [
+    callable_type,
+  ])
+  let holder_type = @buslane.Type::Constructor(holder)
+  let helper = metadata.define_value("helper", Function, callable_type)
+  let stored = metadata.define_value("stored", Local, holder_type)
+  let main = metadata.define_value("main", Function, callable_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        helper,
+        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+      ),
+      Let(
+        stored,
+        Construct({
+          data_constructor: make_holder,
+          type_arguments: [],
+          hidden_witnesses: [],
+          payloads: [Ref(helper)],
+        }),
+      ),
+      Let(
+        main,
+        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+      ),
+    ],
+  }
+  let image = match
+    lower_linked_program_to_bytecode(program, { builtins: [] }, {
+      module_path_text: "Main",
+      name: "main",
+      value: main,
+      type_: callable_type,
+    }) {
+    Ok(image) => image
+    Err(error) => fail("lowering failed: \{to_repr(error)}")
+  }
+  guard image.initializer is Some(initializer) else {
+    fail("expected executable initializer")
+  }
+  guard image.functions[initializer.value - 1] is BytecodeBody(body) else {
+    fail("expected initializer bytecode body")
+  }
+  guard body.blocks[0].instructions
+    is [
+      ConstFunction(field, _),
+      MakeData(global, _, _, [], [actual_field]),
+      InitGlobal({ value: 0 }, actual_global),
+    ] else {
+    fail("expected materialized function field in global initializer")
+  }
+  assert_eq(actual_field, field)
+  assert_eq(actual_global, global)
+}
