@@ -12,7 +12,7 @@ pub fn repack(p : Packed) -> Packed {
   }
 }
 
-pub let packed_int : Packed = Packed::hide[Int](builtin("%external_int"))
+pub let packed_int : Packed = Packed::hide[Int](42)
 
 pub let repacked_int : Packed = repack(packed_int)
 

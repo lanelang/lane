@@ -14,7 +14,7 @@ pub fn repack(h : Hide) -> Hide {
   }
 }
 
-pub let packed_int : Hide = Hide::{ T = Int, val: builtin("%external_int") }
+pub let packed_int : Hide = Hide::{ T = Int, val: 42 }
 
 pub let repacked_int : Hide = repack(packed_int)
 

@@ -30,7 +30,7 @@ pub let wrapped_int : Id[Int] = Id::id(42)
 
 pub let unwrapped_int : Int = unwrap(wrapped_int)
 
-pub let packed_int : Packed = Packed::hide[Int](builtin("%external_int"))
+pub let packed_int : Packed = Packed::hide[Int](42)
 
 pub let repacked_int : Packed = repack(packed_int)
 
