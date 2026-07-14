@@ -98,22 +98,36 @@ fn execute_entry_with_output(
     entries: [entry],
     runtime_effect_operations,
   }
-  let executable = match @executable.elaborate(linked, entry) {
+  let executable = match elaborate_linked_executable(linked, entry) {
     Ok(executable) => executable
-    Err(error) =>
-      return LaneCommandOutcome::user_error(
-        ExecutionImageLowering(message="\{to_repr(error)}"),
-      )
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let image = match
-    @loisvm_lowering.lower_executable_program_to_bytecode(executable) {
+  let image = match lower_executable_image(executable) {
     Ok(image) => image
-    Err(error) =>
-      return LaneCommandOutcome::user_error(
-        ExecutionImageLowering(message="\{to_repr(error)}"),
-      )
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   execute_loisvm_image_with_output(image, write_line)
+}
+
+///|
+fn elaborate_linked_executable(
+  linked : @module_link.LinkedProgram,
+  entry : @buslane_lowering.BuslaneEntry,
+) -> Result[@executable.ExecutableProgram, CliError] {
+  match @executable.elaborate(linked, entry) {
+    Ok(executable) => Ok(executable)
+    Err(error) => Err(ExecutionImageLowering(message="\{to_repr(error)}"))
+  }
+}
+
+///|
+fn lower_executable_image(
+  executable : @executable.ExecutableProgram,
+) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
+  match @artifact_binary.lower_executable_to_loisvm_bytecode(executable) {
+    Ok(image) => Ok(image)
+    Err(error) => Err(ExecutionImageLowering(message="\{to_repr(error)}"))
+  }
 }
 
 ///|

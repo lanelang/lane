@@ -117,3 +117,109 @@ test "linked executable lowers through the LoisVM boundary" {
     is Ok({ entry: { value: 1 }, functions: [BytecodeBody(_)], .. }),
   )
 }
+
+///|
+test "schema 4 roundtrips and inspects schema 2 instance globals" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let string_type = @buslane.Type::Primitive(String)
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let message = metadata.define_value("message", Local, string_type)
+  let main_type = @buslane.Type::Function([], unit_type, Empty)
+  let main = metadata.define_value("main", Function, main_type)
+  let entry : @buslane_lowering.BuslaneEntry = {
+    module_path_text: "Main",
+    name: "main",
+    value: main,
+    type_: main_type,
+  }
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: ["Main"],
+    program: {
+      metadata,
+      terms: [
+        Let(message, Literal(String("hello"))),
+        Let(
+          main,
+          Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Literal(Unit),
+          }),
+        ),
+      ],
+    },
+    externals: { builtins: [] },
+    entries: [entry],
+    runtime_effect_operations: [],
+  }
+  let executable = match @executable.elaborate(linked, entry) {
+    Ok(executable) => executable
+    Err(error) => fail("elaboration failed: \{to_repr(error)}")
+  }
+  let binary = match executable_to_loisvm_binary(executable) {
+    Ok(binary) => binary
+    Err(error) => fail("lowering failed: \{to_repr(error)}")
+  }
+  guard parse_loisvm_linked_program_binary(binary) is Ok(image) else {
+    fail("schema 2 linked program did not roundtrip")
+  }
+  assert_eq(image.initializer, Some({ value: 2 }))
+  assert_eq(image.globals, [
+    { representation: I32, cleanup: OwnedRef, erased_companion: None },
+  ])
+  let text = match artifact_binary_to_inspect_text(binary) {
+    Ok(text) => text
+    Err(message) => fail(message)
+  }
+  inspect(
+    text,
+    content=(
+      #|Lane program artifact
+      #|schema: 4
+      #|
+      #|LoisVM bytecode
+      #|schema: 2
+      #|entry: f1
+      #|initializer: f2
+      #|functions: 2
+      #|globals: 1
+      #|layouts: 1
+      #|object shapes: 0
+      #|constants: 1
+      #|
+      #|function f1(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> unit {
+      #|  slots:
+      #|    (none)
+      #|  b0([]):
+      #|    return none
+      #|}
+      #|
+      #|function f2(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> unit {
+      #|  slots:
+      #|    %0: i32 + owned_ref
+      #|  b0([]):
+      #|    const_string %0, c0
+      #|    init_global g0, %0
+      #|    return none
+      #|}
+      #|
+      #|instance global table:
+      #|  g0 = i32 + owned_ref
+      #|
+      #|layout table:
+      #|  l1 = string
+      #|
+      #|constant table:
+      #|  c0 = "hello"
+      #|
+    ),
+  )
+}

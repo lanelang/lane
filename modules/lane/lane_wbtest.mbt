@@ -260,6 +260,27 @@ async test "compile writes explicit module artifact outputs" {
 }
 
 ///|
+async test "run executes schema 2 top-level initialization" {
+  let workspace = ".tmp-lane-run-instance-global"
+  let source = "\{workspace}/Main.lane"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  write_source_file(
+    source,
+    (
+      #|module Main
+      #|pub let message : String = "hello"
+      #|pub fn main() -> Unit {
+      #|  ()
+      #|}
+    ),
+  )
+  let outcome = lane_run(source, "main", [], [])
+  cleanup_library_fixture(workspace)
+  assert_true(outcome is Succeeded)
+}
+
+///|
 async test "native module artifacts are binary and readable" {
   let workspace = ".tmp-lane-binary-artifacts"
   let interface_path = "\{workspace}/Main.lmi"
@@ -270,6 +291,7 @@ async test "native module artifacts are binary and readable" {
   let compiled = @compile.compile_module_with_interface_artifacts(
     (
       #|module Main
+      #|pub let message : String = "hello"
       #|pub fn main() -> Unit {
       #|  ()
       #|}
@@ -292,7 +314,11 @@ async test "native module artifacts are binary and readable" {
     cleanup_library_fixture(workspace)
     abort("expected linked program")
   }
-  let executable = match @executable.elaborate(program, program.entries[0]) {
+  guard find_entry(program.entries, "main") is Ok(main_entry) else {
+    cleanup_library_fixture(workspace)
+    abort("expected main entry")
+  }
+  let executable = match @executable.elaborate(program, main_entry) {
     Ok(executable) => executable
     Err(error) => {
       cleanup_library_fixture(workspace)
@@ -340,6 +366,8 @@ async test "native module artifacts are binary and readable" {
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
   inspect(linked_program.entry.value, content="1")
+  assert_eq(linked_program.initializer, Some({ value: 2 }))
+  assert_eq(linked_program.globals.length(), 1)
 }
 
 ///|
@@ -370,8 +398,9 @@ async test "exec executes explicit Basic Io linked input" {
     (
       #|module Main
       #|import Basic.Io.*
+      #|pub let message : String = "hello"
       #|pub fn main() -> Unit ! Io {
-      #|  Write::println!("hello")
+      #|  Write::println!(message)
       #|}
     ),
   )
@@ -408,6 +437,8 @@ async test "exec executes explicit Basic Io linked input" {
       abort(error.render_human())
     }
   }
+  assert_true(image.initializer is Some(_))
+  assert_eq(image.globals.length(), 1)
   let output : Array[String] = []
   guard execute_loisvm_image_with_output(image, line => output.push(line))
     is Succeeded else {
@@ -655,8 +686,9 @@ test "run accepts Basic Io effect aliases when supplied explicitly" {
     (
       #|module Test
       #|import Basic.Io.*
+      #|pub let message : String = "hello"
       #|pub fn main() -> Unit ! Io {
-      #|  Write::println!("hello")
+      #|  Write::println!(message)
       #|}
     ),
     [basic_io],

@@ -32,12 +32,9 @@ async fn lane_link(
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let executable = match @executable.elaborate(program, entry) {
+  let executable = match elaborate_linked_executable(program, entry) {
     Ok(executable) => executable
-    Err(error) =>
-      return LaneCommandOutcome::user_error(
-        ExecutionImageLowering(message="\{to_repr(error)}"),
-      )
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   match write_linked_program_artifact(output, executable) {
     Ok(_) => ()
