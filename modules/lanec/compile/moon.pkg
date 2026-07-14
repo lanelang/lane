@@ -17,4 +17,5 @@ import {
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/compile" @module_compile,
   "Milky2018/lanec/module/frontend" @module_frontend,
+  "Milky2018/lanec/module/link" @module_link,
 }

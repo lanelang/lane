@@ -9,6 +9,7 @@ import {
   "Milky2018/lanec/module/compile" @module_compile,
   "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/symbol",
+  "Milky2018/lanec/module/link" @module_link,
   "Milky2018/lanec/types",
   "Milky2018/loisvm/bytecode" @loisvm_bytecode,
   "moonbit-community/prettyprinter",

@@ -61,7 +61,9 @@ pub fn module_object_fingerprint(
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   imports : Array[@artifact_core.ModuleImportedReference],
-  runtime_effect_operations : Array[RuntimeEffectOperationSignature],
+  runtime_effect_operations : Array[
+    @module_link.RuntimeEffectOperationSignature,
+  ],
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ],
@@ -85,7 +87,9 @@ fn module_object_fingerprint_payload_bytes(
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   imports : Array[@artifact_core.ModuleImportedReference],
-  runtime_effect_operations : Array[RuntimeEffectOperationSignature],
+  runtime_effect_operations : Array[
+    @module_link.RuntimeEffectOperationSignature,
+  ],
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ],
@@ -108,7 +112,7 @@ fn module_object_fingerprint_payload_bytes(
 ///|
 fn write_runtime_effect_operation_signatures(
   writer : @bytecodec.ByteWriter,
-  signatures : Array[RuntimeEffectOperationSignature],
+  signatures : Array[@module_link.RuntimeEffectOperationSignature],
 ) -> Unit {
   writer.write_u32_le(signatures.length())
   for signature in signatures {

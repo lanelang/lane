@@ -171,7 +171,7 @@ pub fn compile_module_input_with_interface_artifacts(
 /// Links a compiled module set into a Buslane program.
 pub fn link_modules(
   modules : @module_compile.CompiledModuleSet,
-) -> @module_compile.LinkResult {
+) -> @module_link.LinkResult {
   @module_compile.link_compiled_module_set(modules)
 }
 

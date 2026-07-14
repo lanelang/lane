@@ -1287,8 +1287,12 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let executable = program.to_executable(program.entries[0])
-  let linked_artifact = match executable.to_artifact() {
+  let executable = @module_compile.linked_program_to_executable(
+    program,
+    program.entries[0],
+  )
+  let linked_artifact = match
+    @artifact_binary.linked_executable_to_loisvm_artifact(executable) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
   }
@@ -1347,7 +1351,7 @@ test "linked artifacts preserve runtime effect operation metadata" {
     .join("\n"),
     content="Basic.Io.Write::println/1->Unit",
   )
-  let signature : @module_compile.RuntimeEffectOperationSignature = {
+  let signature : @module_link.RuntimeEffectOperationSignature = {
     module_path_text: "Basic.Io",
     effect_name: "Write",
     operation_name: "println",
@@ -1437,7 +1441,10 @@ test "linked artifacts preserve runtime effect operation metadata" {
     ),
     -1,
   )
-  let artifact = match program.to_executable(program.entries[0]).to_artifact() {
+  let artifact = match
+    @artifact_binary.linked_executable_to_loisvm_artifact(
+      @module_compile.linked_program_to_executable(program, program.entries[0]),
+    ) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
   }
@@ -1702,7 +1709,10 @@ test "module artifact binary rejects wrong kind" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let artifact = match program.to_executable(program.entries[0]).to_artifact() {
+  let artifact = match
+    @artifact_binary.linked_executable_to_loisvm_artifact(
+      @module_compile.linked_program_to_executable(program, program.entries[0]),
+    ) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
   }
@@ -4406,7 +4416,7 @@ fn runtime_operation_index(operation : @buslane.OperationId?) -> Int {
 fn runtime_operation_result_index(
   operation : Result[
     @buslane.OperationId,
-    @module_compile.RuntimeEffectOperationValidationError,
+    @module_link.RuntimeEffectOperationValidationError,
   ],
 ) -> Int {
   match operation {

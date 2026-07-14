@@ -1,0 +1,68 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/module/link"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/compile/artifact_core",
+  "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/module",
+  "Milky2018/lanec/types",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn link_modules(Array[LinkModuleObject]) -> LinkResult
+
+pub fn link_reachable_modules(Array[LinkModuleObject], String) -> LinkResult
+
+// Errors
+
+// Types and methods
+pub(all) struct LinkModuleObject {
+  module_path_text : String
+  interface : @module.ModuleInterface?
+  interface_fingerprint : @artifact_core.CompilationFingerprint
+  metadata : @buslane.MetadataRegistry
+  terms : Array[@buslane.TopTerm]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
+  exports : Array[@buslane_lowering.BuslaneModuleExport]
+  imports : Array[@artifact_core.ModuleImportedReference]
+  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
+  fingerprint : @artifact_core.CompilationFingerprint
+  object_fingerprint_valid : Bool
+  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LinkResult {
+  program : LinkedProgram?
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LinkedProgram {
+  module_path_texts : Array[String]
+  program : @buslane.Program
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
+  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
+} derive(Eq, @debug.Debug)
+pub fn LinkedProgram::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
+pub fn LinkedProgram::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
+
+pub(all) struct RuntimeEffectOperationSignature {
+  module_path_text : String
+  effect_name : String
+  operation_name : String
+  payload : Array[@types.Type]
+  result : @types.Type
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeEffectOperationValidationError {
+  MissingRuntimeEffectOperation(RuntimeEffectOperationSignature)
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

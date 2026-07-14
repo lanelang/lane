@@ -27,7 +27,9 @@ pub(all) struct ModuleObjectArtifact {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
-  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
+  runtime_effect_operations : Array[
+    @module_link.RuntimeEffectOperationSignature,
+  ]
   module_fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[
@@ -134,21 +136,21 @@ pub fn CompiledModule::to_object_artifact(
 ///|
 pub fn link_module_object_artifacts(
   objects : Array[ModuleObjectArtifact],
-) -> LinkResult {
+) -> @module_link.LinkResult {
   match link_modules_from_object_artifacts(objects) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(modules) => link_link_modules(modules)
+    Ok(modules) => @module_link.link_modules(modules)
   }
 }
 
 ///|
 pub fn link_module_artifacts(
   artifact : CompiledModuleSetArtifact,
-) -> LinkResult {
+) -> @module_link.LinkResult {
   match artifact.validate_schema() {
     Some(diagnostic) => { program: None, diagnostics: [diagnostic] }
     None =>
-      link_module_artifact_objects(
+      @module_link.link_reachable_modules(
         artifact.modules.map(fn(module_) { module_.object.to_link_object() }),
         artifact.root_module_path_text,
       )
@@ -158,7 +160,7 @@ pub fn link_module_artifacts(
 ///|
 fn link_modules_from_object_artifacts(
   objects : Array[ModuleObjectArtifact],
-) -> Result[Array[LinkModuleObject], Array[CompilerDiagnostic]] {
+) -> Result[Array[@module_link.LinkModuleObject], Array[CompilerDiagnostic]] {
   let diagnostics = ModuleObjectArtifact::validate_all(objects)
   if !diagnostics.is_empty() {
     return Err(diagnostics)
@@ -382,9 +384,10 @@ fn CompiledModuleSetArtifact::validate_schema(
 ///|
 fn ModuleObjectArtifact::to_link_object(
   self : ModuleObjectArtifact,
-) -> LinkModuleObject {
+) -> @module_link.LinkModuleObject {
   {
     module_path_text: self.module_path_text,
+    interface: None,
     interface_fingerprint: self.interface_fingerprint,
     metadata: self.metadata,
     terms: self.terms,
@@ -394,7 +397,7 @@ fn ModuleObjectArtifact::to_link_object(
     imports: self.imports,
     runtime_effect_operations: self.runtime_effect_operations,
     fingerprint: self.module_fingerprint,
-    object_fingerprint: self.object_fingerprint,
+    object_fingerprint_valid: true,
     imported_interface_fingerprints: self.imported_interface_fingerprints,
   }
 }

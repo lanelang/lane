@@ -4,19 +4,7 @@ fn validate_link_object(
   object : LinkModuleObject,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  if object.object_fingerprint !=
-    module_object_fingerprint(
-      object.fingerprint,
-      object.interface_fingerprint,
-      object.metadata,
-      object.terms,
-      object.externals,
-      object.entries,
-      object.exports,
-      object.imports,
-      object.runtime_effect_operations,
-      object.imported_interface_fingerprints,
-    ) {
+  if !object.object_fingerprint_valid {
     diagnostics.push(
       link_diagnostic(
         StaleModuleObject(
@@ -110,6 +98,20 @@ fn validate_imported_references(
 }
 
 ///|
+fn find_module_export(
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
+  kind : @buslane_lowering.BuslaneModuleExportKind,
+  name : String,
+) -> @buslane_lowering.BuslaneModuleExport? {
+  for item in exports {
+    if item.kind == kind && item.name == name {
+      return Some(item)
+    }
+  }
+  None
+}
+
+///|
 fn imported_reference_shape_matches_export(
   imported : @artifact_core.ModuleImportedReference,
   item : @buslane_lowering.BuslaneModuleExport,
@@ -128,15 +130,24 @@ fn imported_reference_shape_matches_export(
 }
 
 ///|
-fn validate_compiled_module_exports(
-  module_ : CompiledModule,
-  modules : Array[CompiledModule],
+fn validate_module_exports_for_link_order(
+  ordered : Array[LinkModuleObject],
+  index : LinkModuleIndex,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  for imported in module_.imported_interface_fingerprints {
-    if find_compiled_module(modules, imported.module_path_text)
-      is Some(imported_module) {
-      diagnostics.append(validate_imported_exports(module_, imported_module))
+  for module_ in ordered {
+    for imported in module_.imported_interface_fingerprints {
+      if index.find(imported.module_path_text) is Some(imported_module) &&
+        imported_module.interface is Some(interface) {
+        diagnostics.append(
+          validate_imported_exports(
+            importer=module_.module_path_text,
+            provider=imported_module.module_path_text,
+            interface~,
+            exports=imported_module.exports,
+          ),
+        )
+      }
     }
   }
   diagnostics
@@ -144,53 +155,42 @@ fn validate_compiled_module_exports(
 
 ///|
 fn validate_imported_exports(
-  module_ : CompiledModule,
-  imported : CompiledModule,
+  importer~ : String,
+  provider~ : String,
+  interface~ : @module_interface.ModuleInterface,
+  exports~ : Array[@buslane_lowering.BuslaneModuleExport],
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  for value in imported.interface.values {
-    if !module_exports_value(imported.object.exports, value.name) {
+  for value in interface.values {
+    if !module_exports_value(exports, value.name) {
       diagnostics.push(
         link_diagnostic(
-          MissingExported(
-            kind="value",
-            provider=imported.module_path_text,
-            name=value.name,
-            importer=module_.module_path_text,
-          ),
+          MissingExported(kind="value", provider~, name=value.name, importer~),
           None,
         ),
       )
     }
   }
-  for type_ in imported.interface.types {
+  for type_ in interface.types {
     let name = interface_type_name(type_)
-    if !module_exports_type(imported.object.exports, name) {
+    if !module_exports_type(exports, name) {
       diagnostics.push(
         link_diagnostic(
-          MissingExported(
-            kind="type",
-            provider=imported.module_path_text,
-            name~,
-            importer=module_.module_path_text,
-          ),
+          MissingExported(kind="type", provider~, name~, importer~),
           None,
         ),
       )
     }
     let constructor_names = interface_type_constructors(type_)
     for constructor_name in constructor_names {
-      if !module_exports_data_constructor(
-          imported.object.exports,
-          constructor_name,
-        ) {
+      if !module_exports_data_constructor(exports, constructor_name) {
         diagnostics.push(
           link_diagnostic(
             MissingExported(
               kind="constructor",
-              provider=imported.module_path_text,
+              provider~,
               name=constructor_name,
-              importer=module_.module_path_text,
+              importer~,
             ),
             None,
           ),
@@ -198,17 +198,14 @@ fn validate_imported_exports(
       }
     }
     for field_selector_name in interface_type_field_selectors(type_) {
-      if !module_exports_field_selector(
-          imported.object.exports,
-          field_selector_name,
-        ) {
+      if !module_exports_field_selector(exports, field_selector_name) {
         diagnostics.push(
           link_diagnostic(
             MissingExported(
               kind="field selector",
-              provider=imported.module_path_text,
+              provider~,
               name=field_selector_name,
-              importer=module_.module_path_text,
+              importer~,
             ),
             None,
           ),
@@ -216,16 +213,11 @@ fn validate_imported_exports(
       }
     }
   }
-  for effect in imported.interface.effects {
-    if !module_exports_effect(imported.object.exports, effect.name) {
+  for effect in interface.effects {
+    if !module_exports_effect(exports, effect.name) {
       diagnostics.push(
         link_diagnostic(
-          MissingExported(
-            kind="effect",
-            provider=imported.module_path_text,
-            name=effect.name,
-            importer=module_.module_path_text,
-          ),
+          MissingExported(kind="effect", provider~, name=effect.name, importer~),
           None,
         ),
       )
@@ -235,14 +227,14 @@ fn validate_imported_exports(
         effect.name,
         operation.name,
       )
-      if !module_exports_operation(imported.object.exports, operation_name) {
+      if !module_exports_operation(exports, operation_name) {
         diagnostics.push(
           link_diagnostic(
             MissingExported(
               kind="operation",
-              provider=imported.module_path_text,
+              provider~,
               name=operation_name,
-              importer=module_.module_path_text,
+              importer~,
             ),
             None,
           ),

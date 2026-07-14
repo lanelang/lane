@@ -134,8 +134,8 @@ fn attach_lowered_object_from_interfaces(
 ///|
 fn runtime_effect_operation_signatures_from_interface(
   interface : @module_interface.ModuleInterface,
-) -> Array[RuntimeEffectOperationSignature] {
-  let signatures = []
+) -> Array[@module_link.RuntimeEffectOperationSignature] {
+  let signatures : Array[@module_link.RuntimeEffectOperationSignature] = []
   for effect in interface.effects {
     for operation in effect.operations {
       signatures.push({
@@ -206,20 +206,6 @@ fn module_imported_references_from_interface_artifacts(
       value: item.value,
     }
   })
-}
-
-///|
-fn find_module_export(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  kind : @buslane_lowering.BuslaneModuleExportKind,
-  name : String,
-) -> @buslane_lowering.BuslaneModuleExport? {
-  for item in exports {
-    if item.kind == kind && item.name == name {
-      return Some(item)
-    }
-  }
-  None
 }
 
 ///|

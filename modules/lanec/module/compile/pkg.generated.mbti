@@ -7,10 +7,9 @@ import {
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
-  "Milky2018/lanec/loisvm_lowering",
   "Milky2018/lanec/module",
   "Milky2018/lanec/module/frontend",
-  "Milky2018/lanec/types",
+  "Milky2018/lanec/module/link",
   "Milky2018/loisvm/bytecode",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -25,21 +24,23 @@ pub fn find_compiled_module(Array[CompiledModule], String) -> CompiledModule?
 
 pub fn interface_fingerprint(@module.ModuleInterface) -> @artifact_core.CompilationFingerprint
 
-pub fn link_compiled_module_set(CompiledModuleSet) -> LinkResult
+pub fn link_compiled_module_set(CompiledModuleSet) -> @link.LinkResult
 
-pub fn link_compiled_modules(Array[CompiledModule]) -> LinkResult
+pub fn link_compiled_modules(Array[CompiledModule]) -> @link.LinkResult
 
-pub fn link_module_artifacts(CompiledModuleSetArtifact) -> LinkResult
+pub fn link_module_artifacts(CompiledModuleSetArtifact) -> @link.LinkResult
 
-pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> LinkResult
+pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> @link.LinkResult
 
 pub let linked_program_artifact_schema_version : Int
+
+pub fn linked_program_to_executable(@link.LinkedProgram, @buslane_lowering.BuslaneEntry) -> LinkedExecutableProgram
 
 pub fn module_fingerprint(@module.ModuleInterface, Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
 
 pub let module_object_artifact_schema_version : Int
 
-pub fn module_object_fingerprint(@artifact_core.CompilationFingerprint, @artifact_core.CompilationFingerprint, @buslane.MetadataRegistry, Array[@buslane.TopTerm], @buslane_lowering.BuslaneExternalMap, Array[@buslane_lowering.BuslaneEntry], Array[@buslane_lowering.BuslaneModuleExport], Array[@artifact_core.ModuleImportedReference], Array[RuntimeEffectOperationSignature], Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
+pub fn module_object_fingerprint(@artifact_core.CompilationFingerprint, @artifact_core.CompilationFingerprint, @buslane.MetadataRegistry, Array[@buslane.TopTerm], @buslane_lowering.BuslaneExternalMap, Array[@buslane_lowering.BuslaneEntry], Array[@buslane_lowering.BuslaneModuleExport], Array[@artifact_core.ModuleImportedReference], Array[@link.RuntimeEffectOperationSignature], Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
 
 pub fn no_root_source_module_diagnostic() -> @diagnostic.CompilerDiagnostic
 
@@ -81,11 +82,6 @@ pub(all) struct CompiledModuleSetArtifact {
   reachable_module_path_texts : Array[String]
 } derive(Eq, @debug.Debug)
 
-pub(all) struct LinkResult {
-  program : LinkedProgram?
-  diagnostics : Array[@diagnostic.CompilerDiagnostic]
-} derive(Eq, @debug.Debug)
-
 pub(all) struct LinkedExecutableProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
@@ -93,19 +89,6 @@ pub(all) struct LinkedExecutableProgram {
   entry : @buslane_lowering.BuslaneEntry
   runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
-pub fn LinkedExecutableProgram::lower_to_loisvm_bytecode(Self) -> Result[@bytecode.BytecodeImage, @loisvm_lowering.LoisvmLoweringError]
-pub fn LinkedExecutableProgram::to_artifact(Self) -> Result[LinkedProgramArtifact, @loisvm_lowering.LoisvmLoweringError]
-
-pub(all) struct LinkedProgram {
-  module_path_texts : Array[String]
-  program : @buslane.Program
-  externals : @buslane_lowering.BuslaneExternalMap
-  entries : Array[@buslane_lowering.BuslaneEntry]
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
-} derive(Eq, @debug.Debug)
-pub fn LinkedProgram::find_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> @buslane.OperationId?
-pub fn LinkedProgram::to_executable(Self, @buslane_lowering.BuslaneEntry) -> LinkedExecutableProgram
-pub fn LinkedProgram::validate_runtime_effect_operation(Self, RuntimeEffectOperationSignature) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError]
 
 pub(all) struct LinkedProgramArtifact {
   schema_version : Int
@@ -133,7 +116,7 @@ pub(all) struct ModuleObject {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
-  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
+  runtime_effect_operations : Array[@link.RuntimeEffectOperationSignature]
   fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
@@ -149,24 +132,12 @@ pub(all) struct ModuleObjectArtifact {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
-  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
+  runtime_effect_operations : Array[@link.RuntimeEffectOperationSignature]
   module_fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ModuleObjectArtifact
-
-pub(all) struct RuntimeEffectOperationSignature {
-  module_path_text : String
-  effect_name : String
-  operation_name : String
-  payload : Array[@types.Type]
-  result : @types.Type
-} derive(Eq, @debug.Debug)
-
-pub(all) enum RuntimeEffectOperationValidationError {
-  MissingRuntimeEffectOperation(RuntimeEffectOperationSignature)
-} derive(Eq, @debug.Debug)
 
 // Type aliases
 

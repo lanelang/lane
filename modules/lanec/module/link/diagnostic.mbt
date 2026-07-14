@@ -1,4 +1,42 @@
 ///|
+using @compiler_diag {
+  type CompilerDiagnostic,
+  type CompilerDiagnosticLabel,
+  compiler_diagnostic,
+  compiler_primary_labels,
+}
+
+///|
+fn compile_report(
+  title : String,
+  span : @basic.SourceSpan?,
+  code~ : String,
+  label~ : String,
+  note~ : String,
+  help~ : String,
+) -> CompilerDiagnostic {
+  compiler_diagnostic(
+    title,
+    span~,
+    severity=Error,
+    code=Some(code),
+    labels=primary_labels(span, label),
+    notes=[note],
+    helps=[help],
+    facts=[],
+    suggestions=[],
+  )
+}
+
+///|
+fn primary_labels(
+  span : @basic.SourceSpan?,
+  message : String,
+) -> Array[CompilerDiagnosticLabel] {
+  compiler_primary_labels(span, message)
+}
+
+///|
 priv enum LinkDiagnosticKind {
   DuplicateModuleArtifact(String)
   LinkImportCycle(String)

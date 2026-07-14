@@ -8,6 +8,7 @@ import {
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/frontend",
+  "Milky2018/lanec/module/link",
   "moonbitlang/core/debug",
 }
 
@@ -36,7 +37,7 @@ pub fn compile_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]
 
 pub fn compile_sources(String, Array[String]) -> CompileResult
 
-pub fn link_modules(@Milky2018/lanec/module/compile.CompiledModuleSet) -> @Milky2018/lanec/module/compile.LinkResult
+pub fn link_modules(@Milky2018/lanec/module/compile.CompiledModuleSet) -> @link.LinkResult
 
 // Errors
 

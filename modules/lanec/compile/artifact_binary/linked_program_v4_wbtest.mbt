@@ -74,3 +74,39 @@ test "schema 4 rejects schema 3 linked program payload" {
   let result = parse_loisvm_linked_program_binary(writer.to_bytes())
   assert_true(result is Err(_))
 }
+
+///|
+test "linked executable lowers through the LoisVM boundary" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let main_type = @buslane.Type::Function([], unit_type, Empty)
+  let main = metadata.define_value("main", Function, main_type)
+  let linked : @module_compile.LinkedExecutableProgram = {
+    module_path_texts: ["Main"],
+    program: {
+      metadata,
+      terms: [
+        Let(
+          main,
+          Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Literal(Unit),
+          }),
+        ),
+      ],
+    },
+    externals: { builtins: [] },
+    entry: {
+      module_path_text: "Main",
+      name: "main",
+      value: main,
+      type_: main_type,
+    },
+    runtime_effect_operations: [],
+  }
+  assert_true(
+    lower_linked_executable_to_loisvm_bytecode(linked)
+    is Ok({ entry: { value: 1 }, functions: [BytecodeBody(_)], .. }),
+  )
+}

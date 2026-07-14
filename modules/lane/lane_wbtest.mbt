@@ -295,7 +295,7 @@ async test "native module artifacts are binary and readable" {
   match
     write_linked_program_artifact(
       program_path,
-      program.to_executable(program.entries[0]),
+      @module_compile.linked_program_to_executable(program, program.entries[0]),
     ) {
     Ok(_) => ()
     Err(error) => {

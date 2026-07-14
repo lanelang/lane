@@ -9,31 +9,15 @@ pub(all) struct ModuleObject {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
-  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
+  runtime_effect_operations : Array[
+    @module_link.RuntimeEffectOperationSignature,
+  ]
   fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ]
 } derive(Debug, Eq)
-
-///|
-priv struct LinkModuleObject {
-  module_path_text : String
-  interface_fingerprint : @artifact_core.CompilationFingerprint
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
-  externals : @buslane_lowering.BuslaneExternalMap
-  entries : Array[@buslane_lowering.BuslaneEntry]
-  exports : Array[@buslane_lowering.BuslaneModuleExport]
-  imports : Array[@artifact_core.ModuleImportedReference]
-  runtime_effect_operations : Array[RuntimeEffectOperationSignature]
-  fingerprint : @artifact_core.CompilationFingerprint
-  object_fingerprint : @artifact_core.CompilationFingerprint
-  imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
-  ]
-}
 
 ///|
 pub(all) struct CompiledModule {
@@ -47,20 +31,36 @@ pub(all) struct CompiledModule {
 } derive(Debug, Eq)
 
 ///|
-fn ModuleObject::to_link_object(self : ModuleObject) -> LinkModuleObject {
+fn CompiledModule::to_link_object(
+  self : CompiledModule,
+) -> @module_link.LinkModuleObject {
+  let object = self.object
   {
-    module_path_text: self.module_path_text,
-    interface_fingerprint: self.interface_fingerprint,
-    metadata: self.metadata,
-    terms: self.terms,
-    externals: self.externals,
-    entries: self.entries,
-    exports: self.exports,
-    imports: self.imports,
-    runtime_effect_operations: self.runtime_effect_operations,
+    module_path_text: object.module_path_text,
+    interface: Some(self.interface),
+    interface_fingerprint: object.interface_fingerprint,
+    metadata: object.metadata,
+    terms: object.terms,
+    externals: object.externals,
+    entries: object.entries,
+    exports: object.exports,
+    imports: object.imports,
+    runtime_effect_operations: object.runtime_effect_operations,
     fingerprint: self.fingerprint,
-    object_fingerprint: self.object_fingerprint,
-    imported_interface_fingerprints: self.imported_interface_fingerprints,
+    object_fingerprint_valid: object.object_fingerprint ==
+    module_object_fingerprint(
+      object.fingerprint,
+      object.interface_fingerprint,
+      object.metadata,
+      object.terms,
+      object.externals,
+      object.entries,
+      object.exports,
+      object.imports,
+      object.runtime_effect_operations,
+      object.imported_interface_fingerprints,
+    ),
+    imported_interface_fingerprints: object.imported_interface_fingerprints,
   }
 }
 
@@ -73,15 +73,6 @@ pub(all) struct CompiledModuleSet {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct LinkedProgram {
-  module_path_texts : Array[String]
-  program : @buslane.Program
-  externals : @buslane_lowering.BuslaneExternalMap
-  entries : Array[@buslane_lowering.BuslaneEntry]
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
-} derive(Debug, Eq)
-
-///|
 pub(all) struct LinkedExecutableProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
@@ -91,80 +82,16 @@ pub(all) struct LinkedExecutableProgram {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct LinkResult {
-  program : LinkedProgram?
-  diagnostics : Array[CompilerDiagnostic]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct RuntimeEffectOperationSignature {
-  module_path_text : String
-  effect_name : String
-  operation_name : String
-  payload : Array[@types.Type]
-  result : @types.Type
-} derive(Debug, Eq)
-
-///|
-pub(all) enum RuntimeEffectOperationValidationError {
-  MissingRuntimeEffectOperation(RuntimeEffectOperationSignature)
-} derive(Debug, Eq)
-
-///|
-pub fn LinkedProgram::find_runtime_effect_operation(
-  self : LinkedProgram,
-  signature : RuntimeEffectOperationSignature,
-) -> @buslane.OperationId? {
-  find_runtime_effect_operation(self.runtime_effect_operations, signature)
-}
-
-///|
-pub fn LinkedProgram::validate_runtime_effect_operation(
-  self : LinkedProgram,
-  signature : RuntimeEffectOperationSignature,
-) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
-  validate_runtime_effect_operation(self.runtime_effect_operations, signature)
-}
-
-///|
-pub fn LinkedProgram::to_executable(
-  self : LinkedProgram,
+pub fn linked_program_to_executable(
+  program : @module_link.LinkedProgram,
   entry : @buslane_lowering.BuslaneEntry,
 ) -> LinkedExecutableProgram {
   {
-    module_path_texts: self.module_path_texts,
-    program: self.program,
-    externals: self.externals,
+    module_path_texts: program.module_path_texts,
+    program: program.program,
+    externals: program.externals,
     entry,
-    runtime_effect_operations: self.runtime_effect_operations,
-  }
-}
-
-///|
-fn find_runtime_effect_operation(
-  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  signature : RuntimeEffectOperationSignature,
-) -> @buslane.OperationId? {
-  for operation in operations {
-    if operation.module_path_text == signature.module_path_text &&
-      operation.effect_name == signature.effect_name &&
-      operation.operation_name == signature.operation_name &&
-      operation.payload == signature.payload &&
-      operation.result == signature.result {
-      return Some(operation.operation)
-    }
-  }
-  None
-}
-
-///|
-fn validate_runtime_effect_operation(
-  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-  signature : RuntimeEffectOperationSignature,
-) -> Result[@buslane.OperationId, RuntimeEffectOperationValidationError] {
-  match find_runtime_effect_operation(operations, signature) {
-    Some(operation) => Ok(operation)
-    None => Err(MissingRuntimeEffectOperation(signature))
+    runtime_effect_operations: program.runtime_effect_operations,
   }
 }
 

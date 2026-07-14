@@ -176,7 +176,7 @@ fn @bytecodec.ByteReader::read_imports(
 ///|
 fn @bytecodec.ByteWriter::write_runtime_effect_operation_signatures(
   self : @bytecodec.ByteWriter,
-  operations : Array[@module_compile.RuntimeEffectOperationSignature],
+  operations : Array[@module_link.RuntimeEffectOperationSignature],
 ) -> Unit {
   self.write_u32_le(operations.length())
   for operation in operations {
@@ -191,8 +191,8 @@ fn @bytecodec.ByteWriter::write_runtime_effect_operation_signatures(
 ///|
 fn @bytecodec.ByteReader::read_runtime_effect_operation_signatures(
   self : @bytecodec.ByteReader,
-) -> Array[@module_compile.RuntimeEffectOperationSignature] raise {
-  let operations : Array[@module_compile.RuntimeEffectOperationSignature] = []
+) -> Array[@module_link.RuntimeEffectOperationSignature] raise {
+  let operations : Array[@module_link.RuntimeEffectOperationSignature] = []
   for _ in 0..<self.read_u32_le() {
     operations.push({
       module_path_text: self.read_string(),
