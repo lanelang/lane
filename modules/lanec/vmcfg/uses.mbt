@@ -34,7 +34,8 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | UneraseI64(_, source)
     | EraseF64(_, source)
     | UneraseF64(_, source)
-    | UneraseUnit(source) => [source]
+    | UneraseUnit(source)
+    | InitGlobal(_, source) => [source]
     StringConcat(_, left, right)
     | StringEq(_, left, right)
     | IntAdd(_, left, right)
@@ -95,7 +96,8 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | ConstLayout(_, _)
     | ConstFunction(_, _)
     | ConstString(_, _)
-    | EraseUnit(_) => []
+    | EraseUnit(_)
+    | BorrowGlobal(_, _) => []
   }
 }
 

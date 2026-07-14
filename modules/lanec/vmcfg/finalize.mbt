@@ -20,9 +20,9 @@ fn finalize_or_raise(
   }
   {
     entry: image.entry,
-    initializer: None,
+    initializer: image.initializer,
     functions,
-    globals: [],
+    globals: image.globals,
     layouts: image.layouts,
     object_shapes: image.object_shapes,
     constants: image.constants,
@@ -633,6 +633,15 @@ fn finalize_instruction(
           consume_value(body, block, live, remaining, prefix, source),
         ),
       )
+    InitGlobal(global, source) =>
+      InitGlobal(
+        global,
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, source),
+        ),
+      )
+    BorrowGlobal(destination, global) =>
+      BorrowGlobal(value_to_slot(destination), global)
   }
   for destination in instruction_destinations(instruction) {
     mark_destination(body, live, destination)
@@ -741,7 +750,8 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | UneraseI64(destination, _)
     | EraseF64(destination, _)
     | UneraseF64(destination, _)
-    | EraseUnit(destination) => [destination]
+    | EraseUnit(destination)
+    | BorrowGlobal(destination, _) => [destination]
     CallDirect(_, _, _, _, destination) | CallValue(_, _, _, destination) =>
       destination.map(value => [value]).unwrap_or([])
     BorrowField(_, _, _, result) | BorrowCapture(_, _, _, result) =>
@@ -753,7 +763,7 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
       }
       destinations
     }
-    Release(_) | UneraseUnit(_) => []
+    Release(_) | UneraseUnit(_) | InitGlobal(_, _) => []
   }
 }
 

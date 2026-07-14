@@ -32,11 +32,68 @@ fn borrowed_ref_value() -> ValueMetadata {
 fn test_image(body : FunctionBody) -> Image {
   {
     entry: { value: 1 },
+    initializer: None,
     functions: [Body(body)],
+    globals: [],
     layouts: [String],
     object_shapes: [],
     constants: [b"Lane"],
   }
+}
+
+///|
+test "finalize transfers global owners and promotes global borrows" {
+  let body : FunctionBody = {
+    values: [owned_ref_value(), borrowed_ref_value()],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          ConstString({ value: 0 }, { value: 0 }),
+          InitGlobal({ value: 0 }, { value: 0 }),
+          BorrowGlobal({ value: 1 }, { value: 0 }),
+          CallDirect({ value: 2 }, None, [], [{ value: 1 }], None),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = match
+    finalize({
+      ..test_image(body),
+      initializer: Some({ value: 1 }),
+      functions: [
+        Body(body),
+        RuntimeImport({
+          abi_major: 1,
+          user_arity: 1,
+          symbol: "lane.test.consume",
+        }),
+      ],
+      globals: [
+        { representation: I32, cleanup: OwnedRef, erased_companion: None },
+      ],
+    }) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(image.initializer, Some({ value: 1 }))
+  assert_eq(image.globals, [
+    { representation: I32, cleanup: OwnedRef, erased_companion: None },
+  ])
+  assert_eq(lowered.slots.length(), 3)
+  assert_eq(lowered.blocks[0].instructions, [
+    ConstString({ value: 0 }, { value: 0 }),
+    InitGlobal({ value: 0 }, { value: 0 }),
+    BorrowGlobal({ value: 1 }, { value: 0 }),
+    RetainCopy({ value: 2 }, { value: 1 }),
+    CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
+  ])
 }
 
 ///|

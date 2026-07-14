@@ -130,6 +130,8 @@ pub(all) enum Instruction {
   UneraseF64(ValueId, ValueId)
   EraseUnit(ValueId)
   UneraseUnit(ValueId)
+  InitGlobal(@bytecode.GlobalId, ValueId)
+  BorrowGlobal(ValueId, @bytecode.GlobalId)
 } derive(Debug, Eq)
 
 ///|
@@ -173,7 +175,9 @@ pub(all) enum FunctionEntry {
 ///|
 pub(all) struct Image {
   entry : @bytecode.FunctionId
+  initializer : @bytecode.FunctionId?
   functions : Array[FunctionEntry]
+  globals : Array[@bytecode.GlobalMetadata]
   layouts : Array[@bytecode.LayoutRecipe]
   object_shapes : Array[@bytecode.ObjectShape]
   constants : Array[Bytes]

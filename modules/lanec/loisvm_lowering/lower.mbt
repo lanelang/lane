@@ -120,7 +120,9 @@ fn lower_executable_program_to_bytecode_or_raise(
   }
   let virtual_image = canonicalize_function_table({
     entry: entry_function,
+    initializer: None,
     functions,
+    globals: [],
     layouts: lowerer.layouts,
     object_shapes: lowerer.object_shapes,
     constants: lowerer.constants,
