@@ -215,66 +215,44 @@ fn compile_body(
     uses_cfg,
     use_dispatcher,
   )
+  let context : FunctionCompilationContext = {
+    function_id,
+    parameter_count,
+    live_base,
+    body,
+    wasm_module,
+    static_image,
+    runtime_functions,
+  }
   let instructions : Array[@wasm_types.Instruction] = []
   let mut parameter_index = 1
   if body.inputs.environment is Some(slot) {
     instructions.push(LocalGet(0))
     instructions.push(LocalSet(parameter_count + slot.value))
-    instructions.append(mark_slot_live(live_base, body.slots, slot))
+    instructions.append(context.mark_slot_live(slot))
   }
   for slot in body.inputs.witnesses {
     instructions.push(LocalGet(parameter_index))
     instructions.push(LocalSet(parameter_count + slot.value))
-    instructions.append(mark_slot_live(live_base, body.slots, slot))
+    instructions.append(context.mark_slot_live(slot))
     parameter_index += 1
   }
   for slot in body.inputs.user_parameters {
     instructions.push(LocalGet(parameter_index))
     instructions.push(LocalSet(parameter_count + slot.value))
-    instructions.append(mark_slot_live(live_base, body.slots, slot))
+    instructions.append(context.mark_slot_live(slot))
     parameter_index += 1
   }
   let guarded_body : Array[@wasm_types.Instruction] = call_depth_prologue()
   if structured is Some(sequence) {
-    guarded_body.append(
-      compile_structured_cfg(
-        function_id, parameter_count, live_base, body, wasm_module, static_image,
-        runtime_functions, sequence,
-      ),
-    )
+    guarded_body.append(compile_structured_cfg(context, sequence))
   } else if use_dispatcher {
-    guarded_body.push(
-      compile_dispatcher(
-        function_id, parameter_count, live_base, body, wasm_module, static_image,
-        runtime_functions,
-      ),
-    )
+    guarded_body.push(compile_dispatcher(context))
   } else {
     for instruction in body.blocks[0].instructions {
-      guarded_body.append(
-        compile_instruction(
-          parameter_count,
-          live_base,
-          body.slots,
-          wasm_module,
-          static_image,
-          runtime_functions,
-          instruction,
-        ),
-      )
+      guarded_body.append(context.compile_instruction(instruction))
     }
-    guarded_body.append(
-      compile_terminator(
-        function_id,
-        parameter_count,
-        live_base,
-        body.slots,
-        body.result,
-        wasm_module,
-        static_image,
-        body.blocks[0].terminator,
-      ),
-    )
+    guarded_body.append(context.compile_terminator(body.blocks[0].terminator))
   }
   instructions.push(
     Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded_body), Unreachable]),

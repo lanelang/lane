@@ -297,37 +297,15 @@ fn StructuredPart::entry(self : StructuredPart) -> Int {
 
 ///|
 fn compile_structured_cfg(
-  function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  body : @bytecode.FunctionBody,
-  wasm_module : @wasm_types.Module,
-  static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
+  context : FunctionCompilationContext,
   sequence : StructuredSequence,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
-  compile_structured_sequence(
-    function_id,
-    parameter_count,
-    live_base,
-    body,
-    wasm_module,
-    static_image,
-    runtime_functions,
-    sequence,
-    [],
-  )
+  compile_structured_sequence(context, sequence, [])
 }
 
 ///|
 fn compile_structured_sequence(
-  function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  body : @bytecode.FunctionBody,
-  wasm_module : @wasm_types.Module,
-  static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
+  context : FunctionCompilationContext,
   sequence : StructuredSequence,
   external_labels : Array[StructuredLabel],
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
@@ -344,12 +322,7 @@ fn compile_structured_sequence(
         depth: future - index - 1,
       })
     }
-    compiled.push(
-      compile_structured_part(
-        function_id, parameter_count, live_base, body, wasm_module, static_image,
-        runtime_functions, part, labels,
-      ),
-    )
+    compiled.push(compile_structured_part(context, part, labels))
   }
   let result = compiled[0]
   for index in 1..<compiled.length() {
@@ -363,150 +336,77 @@ fn compile_structured_sequence(
 
 ///|
 fn compile_structured_part(
-  function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  body : @bytecode.FunctionBody,
-  wasm_module : @wasm_types.Module,
-  static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
+  context : FunctionCompilationContext,
   part : StructuredPart,
   labels : Array[StructuredLabel],
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   match part {
-    Plain(block) =>
-      compile_structured_block(
-        function_id, parameter_count, live_base, body, wasm_module, static_image,
-        runtime_functions, block, labels,
-      )
+    Plain(block) => compile_structured_block(context, block, labels)
     Loop(header, nested) => {
       let loop_labels = labels.map(label => { ..label, depth: label.depth + 1 })
       loop_labels.insert(0, { target: header, depth: 0 })
-      [
-        Loop(
-          Empty,
-          compile_structured_sequence(
-            function_id, parameter_count, live_base, body, wasm_module, static_image,
-            runtime_functions, nested, loop_labels,
-          ),
-        ),
-      ]
+      [Loop(Empty, compile_structured_sequence(context, nested, loop_labels))]
     }
   }
 }
 
 ///|
 fn compile_structured_block(
-  function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  body : @bytecode.FunctionBody,
-  wasm_module : @wasm_types.Module,
-  static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
+  context : FunctionCompilationContext,
   block_index : Int,
   labels : Array[StructuredLabel],
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
-  let block = body.blocks[block_index]
+  let block = context.body.blocks[block_index]
   let instructions : Array[@wasm_types.Instruction] = []
   for instruction in block.instructions {
-    instructions.append(
-      compile_instruction(
-        parameter_count,
-        live_base,
-        body.slots,
-        wasm_module,
-        static_image,
-        runtime_functions,
-        instruction,
-      ),
-    )
+    instructions.append(context.compile_instruction(instruction))
   }
   instructions.append(
-    compile_structured_terminator(
-      function_id,
-      parameter_count,
-      live_base,
-      body,
-      wasm_module,
-      static_image,
-      labels,
-      block.terminator,
-    ),
+    compile_structured_terminator(context, labels, block.terminator),
   )
   instructions
 }
 
 ///|
 fn compile_structured_terminator(
-  function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  body : @bytecode.FunctionBody,
-  wasm_module : @wasm_types.Module,
-  static_image : StaticImage,
+  context : FunctionCompilationContext,
   labels : Array[StructuredLabel],
   terminator : @bytecode.Terminator,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   match terminator {
-    Jump(edge) =>
-      compile_structured_edge(
-        function_id, parameter_count, live_base, body, labels, edge, 0,
-      )
+    Jump(edge) => compile_structured_edge(context, labels, edge, 0)
     BranchBool(condition, if_true, if_false) =>
       [
-        LocalGet(slot_local(parameter_count, condition)),
+        LocalGet(context.slot_local(condition)),
         If(
           Empty,
-          compile_structured_edge(
-            function_id, parameter_count, live_base, body, labels, if_true, 1,
-          ),
-          compile_structured_edge(
-            function_id, parameter_count, live_base, body, labels, if_false, 1,
-          ),
+          compile_structured_edge(context, labels, if_true, 1),
+          compile_structured_edge(context, labels, if_false, 1),
         ),
       ]
     SwitchTag(discriminator, cases, default) =>
-      compile_structured_switch(
-        function_id, parameter_count, live_base, body, labels, discriminator, cases,
-        default,
-      )
-    terminal =>
-      compile_terminator(
-        function_id,
-        parameter_count,
-        live_base,
-        body.slots,
-        body.result,
-        wasm_module,
-        static_image,
-        terminal,
-      )
+      compile_structured_switch(context, labels, discriminator, cases, default)
+    terminal => context.compile_terminator(terminal)
   }
 }
 
 ///|
 fn compile_structured_switch(
-  function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  body : @bytecode.FunctionBody,
+  context : FunctionCompilationContext,
   labels : Array[StructuredLabel],
   discriminator : @bytecode.SlotId,
   cases : Array[@bytecode.Edge],
   default : @bytecode.Edge,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   if cases.is_empty() {
-    return compile_structured_edge(
-      function_id, parameter_count, live_base, body, labels, default, 0,
-    )
+    return compile_structured_edge(context, labels, default, 0)
   }
   let branch_labels = []
   for index in 0..<cases.length() {
     branch_labels.push(index)
   }
   let selection : Array[@wasm_types.Instruction] = [
-    LocalGet(slot_local(parameter_count, discriminator)),
+    LocalGet(context.slot_local(discriminator)),
     BrTable(branch_labels, cases.length()),
   ]
   for case_index in 0..<cases.length() {
@@ -515,10 +415,7 @@ fn compile_structured_switch(
     ]
     wrapped.append(
       compile_structured_edge(
-        function_id,
-        parameter_count,
-        live_base,
-        body,
+        context,
         labels,
         cases[case_index],
         cases.length() - case_index,
@@ -528,31 +425,27 @@ fn compile_structured_switch(
     selection.append(wrapped)
   }
   let result : Array[@wasm_types.Instruction] = [Block(Empty, selection)]
-  result.append(
-    compile_structured_edge(
-      function_id, parameter_count, live_base, body, labels, default, 0,
-    ),
-  )
+  result.append(compile_structured_edge(context, labels, default, 0))
   result
 }
 
 ///|
 fn compile_structured_edge(
-  function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  body : @bytecode.FunctionBody,
+  context : FunctionCompilationContext,
   labels : Array[StructuredLabel],
   edge : @bytecode.Edge,
   extra_depth : Int,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
-  if edge.target.value < 0 || edge.target.value >= body.blocks.length() {
-    raise InvalidBlockTarget(function_id~, target=edge.target.value)
+  if edge.target.value < 0 || edge.target.value >= context.body.blocks.length() {
+    raise InvalidBlockTarget(
+      function_id=context.function_id,
+      target=edge.target.value,
+    )
   }
-  let target_parameters = body.blocks[edge.target.value].parameters
+  let target_parameters = context.body.blocks[edge.target.value].parameters
   if target_parameters.length() != edge.arguments.length() {
     raise InvalidEdgeArity(
-      function_id~,
+      function_id=context.function_id,
       target=edge.target.value,
       expected=target_parameters.length(),
       actual=edge.arguments.length(),
@@ -560,26 +453,16 @@ fn compile_structured_edge(
   }
   let instructions : Array[@wasm_types.Instruction] = []
   for index, destination in target_parameters {
-    instructions.push(
-      LocalGet(slot_local(parameter_count, edge.arguments[index])),
-    )
-    instructions.push(
-      LocalSet(
-        transfer_local(parameter_count, body.slots.length(), destination),
-      ),
-    )
+    instructions.push(LocalGet(context.slot_local(edge.arguments[index])))
+    instructions.push(LocalSet(context.transfer_local(destination)))
   }
   for source in edge.arguments {
-    instructions.append(mark_slot_dead(live_base, body.slots, source))
+    instructions.append(context.mark_slot_dead(source))
   }
   for destination in target_parameters {
-    instructions.push(
-      LocalGet(
-        transfer_local(parameter_count, body.slots.length(), destination),
-      ),
-    )
-    instructions.push(LocalSet(slot_local(parameter_count, destination)))
-    instructions.append(mark_slot_live(live_base, body.slots, destination))
+    instructions.push(LocalGet(context.transfer_local(destination)))
+    instructions.push(LocalSet(context.slot_local(destination)))
+    instructions.append(context.mark_slot_live(destination))
   }
   let depth = match structured_label_depth(labels, edge.target.value) {
     Some(depth) => depth
