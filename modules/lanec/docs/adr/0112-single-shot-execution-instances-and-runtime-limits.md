@@ -82,6 +82,8 @@ failure contract.
 Resource configuration belongs to the host invocation and is not serialized in
 `.lbp`. Implementations choose defaults when the caller omits a limit. Callers
 that require reproducible resource behavior must provide explicit configuration.
+For each resource, `None` means unlimited, a positive configured value is the
+exact budget, and a zero or negative configured value means zero budget.
 
 ## Consequences
 

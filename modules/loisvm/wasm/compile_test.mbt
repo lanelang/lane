@@ -1060,3 +1060,56 @@ test "live heap exhaustion unwinds owners from the current frame" {
     I32(0),
   )
 }
+
+///|
+test "non-positive execution limits provide zero budget" {
+  let empty_loaded = match
+    load(image([BytecodeBody(body())]), @loisvm_runtime.RuntimeRegistry::new()) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  for limit in [0, -1] {
+    let instance = match
+      empty_loaded.new_instance(config={
+        max_call_depth: Some(limit),
+        max_live_heap_bytes: None,
+      }) {
+      Ok(value) => value
+      Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    }
+    assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
+  }
+  let ref_slot = owned_slot(I32, OwnedRef)
+  let allocating_entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
+    ConstString({ value: 0 }, { value: 0 }),
+    ConstString({ value: 1 }, { value: 1 }),
+    StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+    Release({ value: 2 }),
+  ])
+  let allocating_image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    functions: [BytecodeBody(allocating_entry)],
+    layouts: [String],
+    object_shapes: [],
+    constants: [b"a", b"b"],
+  }
+  let allocating_loaded = match
+    load(allocating_image, @loisvm_runtime.RuntimeRegistry::new()) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  for limit in [0, -1] {
+    let instance = match
+      allocating_loaded.new_instance(config={
+        max_call_depth: None,
+        max_live_heap_bytes: Some(limit),
+      }) {
+      Ok(value) => value
+      Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    }
+    assert_eq(
+      instance.execute(),
+      Err(ExecutionResourceLimit(kind=LiveHeapBytes)),
+    )
+  }
+}

@@ -308,3 +308,69 @@ test "returning calls enforce logical depth" {
   })
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
 }
+
+///|
+test "non-positive execution limits provide zero budget" {
+  let empty_entry = body(
+    slots=[],
+    result=Unit,
+    instructions=[],
+    terminator=Return(None),
+  )
+  let empty_image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    functions: [BytecodeBody(empty_entry)],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+  let empty_loaded = match load(empty_image, @runtime.RuntimeRegistry::new()) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  for limit in [0, -1] {
+    let instance = empty_loaded.new_instance(config={
+      max_call_depth: Some(limit),
+      max_live_heap_bytes: None,
+    })
+    assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
+  }
+  let owned_string : @bytecode.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    erased_companion: None,
+  }
+  let allocating_entry = body(
+    slots=[owned_string, owned_string, owned_string],
+    result=Unit,
+    instructions=[
+      ConstString({ value: 0 }, { value: 0 }),
+      ConstString({ value: 1 }, { value: 1 }),
+      StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+      Release({ value: 2 }),
+    ],
+    terminator=Return(None),
+  )
+  let allocating_image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    functions: [BytecodeBody(allocating_entry)],
+    layouts: [String],
+    object_shapes: [],
+    constants: [b"a", b"b"],
+  }
+  let allocating_loaded = match
+    load(allocating_image, @runtime.RuntimeRegistry::new()) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  for limit in [0, -1] {
+    let instance = allocating_loaded.new_instance(config={
+      max_call_depth: None,
+      max_live_heap_bytes: Some(limit),
+    })
+    assert_eq(
+      instance.execute(),
+      Err(ExecutionResourceLimit(kind=LiveHeapBytes)),
+    )
+  }
+}

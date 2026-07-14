@@ -146,7 +146,8 @@ fn Heap::allocate(
   payload~ : ObjectPayload,
   size~ : Int,
 ) -> Int raise ExecutionFailure {
-  if self.max_live_bytes is Some(maximum) && self.live_bytes > maximum - size {
+  if self.max_live_bytes is Some(maximum) &&
+    (maximum < size || self.live_bytes > maximum - size) {
     raise ResourceLimit(LiveHeapBytes)
   }
   let reference = self.objects.length()

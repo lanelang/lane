@@ -297,14 +297,10 @@ fn call_depth_prologue() -> Array[@wasm_types.Instruction] {
     I32Const(1),
     I32Add,
     GlobalSet(call_depth_global_index),
+    GlobalGet(call_depth_global_index),
     GlobalGet(max_call_depth_global_index),
-    I32Eqz,
-    If(Empty, [], [
-      GlobalGet(call_depth_global_index),
-      GlobalGet(max_call_depth_global_index),
-      I32GtU,
-      If(Empty, [I32Const(1), GlobalSet(failure_code_global_index), Throw(0)], []),
-    ]),
+    I32GtU,
+    If(Empty, [I32Const(1), GlobalSet(failure_code_global_index), Throw(0)], []),
   ]
 }
 

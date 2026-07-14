@@ -80,6 +80,9 @@ fn ExecutionInstance::run(
   if cancel is Some(check) && check() {
     raise InterruptedExecution
   }
+  if self.config.max_call_depth is Some(maximum) && maximum < 1 {
+    raise ResourceLimit(CallDepth)
+  }
   let entry = self.loaded.image.entry
   let body = self.bytecode_body(entry)
   self.frames.push(make_frame(body, None, [], [], None))

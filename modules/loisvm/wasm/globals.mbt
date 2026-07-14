@@ -67,7 +67,7 @@ fn append_runtime_globals(
     wasm_module,
     index=max_live_heap_bytes_global_index,
     is_mutable=true,
-    initial=0,
+    initial=-1,
   )
   append_i32_global(
     wasm_module,
@@ -79,7 +79,7 @@ fn append_runtime_globals(
     wasm_module,
     index=max_call_depth_global_index,
     is_mutable=true,
-    initial=0,
+    initial=-1,
   )
   append_i32_global(
     wasm_module,

@@ -61,6 +61,15 @@ pub fn LoadedImage::wasm_module(self : LoadedImage) -> @wasm_types.Module {
 }
 
 ///|
+fn encode_execution_limit(limit : Int?) -> Int {
+  match limit {
+    None => -1
+    Some(value) if value > 0 => value
+    Some(_) => 0
+  }
+}
+
+///|
 pub fn LoadedImage::new_instance(
   self : LoadedImage,
   config? : @loisvm_runtime.ExecutionConfig = @loisvm_runtime.ExecutionConfig::defaults(),
@@ -97,24 +106,10 @@ fn LoadedImage::new_instance_or_raise(
   )
   store
   .get_global(instance.global_addrs[max_live_heap_bytes_global_index])
-  .set(
-    I32(
-      match config.max_live_heap_bytes {
-        Some(value) => value
-        None => 0
-      },
-    ),
-  )
+  .set(I32(encode_execution_limit(config.max_live_heap_bytes)))
   store
   .get_global(instance.global_addrs[max_call_depth_global_index])
-  .set(
-    I32(
-      match config.max_call_depth {
-        Some(value) => value
-        None => 0
-      },
-    ),
-  )
+  .set(I32(encode_execution_limit(config.max_call_depth)))
   { store, instance, failure, ready: true }
 }
 
