@@ -251,6 +251,36 @@ test "decoder rejects unsupported schema and unknown function tag" {
 }
 
 ///|
+test "decoder preserves truncation offsets with pattern parsing" {
+  assert_eq(
+    parse_bytecode_image_binary(Bytes::from_array([])),
+    Err(MalformedEncoding(offset=0, detail="expected bytecode schema version")),
+  )
+  assert_eq(
+    parse_bytecode_image_binary(Bytes::from_array([b'\x01'])),
+    Err(MalformedEncoding(offset=1, detail="expected FunctionId")),
+  )
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u8(1)
+  writer.write_u32_le(1)
+  writer.write_u32_le(1)
+  assert_eq(
+    parse_bytecode_image_binary(writer.to_bytes()),
+    Err(
+      MalformedEncoding(
+        offset=5,
+        detail="function count exceeds enclosing payload",
+      ),
+    ),
+  )
+  writer.write_u8(1)
+  assert_eq(
+    parse_bytecode_image_binary(writer.to_bytes()),
+    Err(MalformedEncoding(offset=10, detail="expected function body length")),
+  )
+}
+
+///|
 test "decoder rejects non-ASCII constants and illegal slot metadata" {
   let non_ascii = {
     ..minimal_image(),

@@ -6,7 +6,8 @@ pub(all) suberror BytecodeDecodeError {
 
 ///|
 priv struct Decoder {
-  reader : @bytecodec.ByteReader
+  source : BytesView
+  mut offset : Int
   mut limit : Int
 }
 
@@ -23,11 +24,11 @@ pub fn parse_bytecode_image_binary(
 fn decode_bytecode_image(
   bytes : Bytes,
 ) -> BytecodeImage raise BytecodeDecodeError {
-  let decoder = Decoder::{
-    reader: @bytecodec.ByteReader::from_bytes(bytes),
-    limit: bytes.length(),
+  let decoder = Decoder::{ source: bytes[:], offset: 0, limit: bytes.length() }
+  let version = match decoder.view() {
+    [u8be(value), .. rest] => decoder.consume(rest, value.reinterpret_as_int())
+    _ => decoder.fail("expected bytecode schema version")
   }
-  let version = decoder.read_u8(expected="bytecode schema version")
   if version != bytecode_schema_version {
     raise UnsupportedSchema(version~)
   }
@@ -75,7 +76,7 @@ fn Decoder::read_function_entry(
   self : Decoder,
 ) -> FunctionEntry raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="function entry tag") {
+  match self.read_tag(expected="function entry tag") {
     0x01 => BytecodeBody(self.read_function_body())
     0x02 => RuntimeImport(self.read_runtime_import())
     tag => self.invalid_tag(offset~, domain="function entry", tag~)
@@ -171,7 +172,7 @@ fn Decoder::read_representation(
   self : Decoder,
 ) -> Representation raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="representation tag") {
+  match self.read_tag(expected="representation tag") {
     0x01 => I32
     0x02 => I64
     0x03 => F64
@@ -182,7 +183,7 @@ fn Decoder::read_representation(
 ///|
 fn Decoder::read_cleanup(self : Decoder) -> Cleanup raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="cleanup tag") {
+  match self.read_tag(expected="cleanup tag") {
     0x01 => Trivial
     0x02 => OwnedRef
     0x03 => OwnedCallable
@@ -196,7 +197,7 @@ fn Decoder::read_result_representation(
   self : Decoder,
 ) -> ResultRepresentation raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="result tag") {
+  match self.read_tag(expected="result tag") {
     0x01 => Unit
     0x02 => I32
     0x03 => I64
@@ -210,7 +211,7 @@ fn Decoder::read_layout_recipe(
   self : Decoder,
 ) -> LayoutRecipe raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="layout recipe tag") {
+  match self.read_tag(expected="layout recipe tag") {
     0x01 => Unit
     0x02 => Bool
     0x03 => Int
@@ -229,7 +230,7 @@ fn Decoder::read_object_shape(
   self : Decoder,
 ) -> ObjectShape raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="object shape tag") {
+  match self.read_tag(expected="object shape tag") {
     0x01 => {
       let constructor_tag = self.read_nonnegative_u32(
         expected="constructor tag",
@@ -291,7 +292,7 @@ fn Decoder::read_instruction(
   self : Decoder,
 ) -> Instruction raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="instruction tag") {
+  match self.read_tag(expected="instruction tag") {
     0x01 => Copy(self.read_slot_id(), self.read_slot_id())
     0x02 => Move(self.read_slot_id(), self.read_slot_id())
     0x03 => RetainCopy(self.read_slot_id(), self.read_slot_id())
@@ -463,7 +464,7 @@ fn Decoder::read_terminator(
   self : Decoder,
 ) -> Terminator raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="terminator tag") {
+  match self.read_tag(expected="terminator tag") {
     0x01 => Jump(self.read_edge())
     0x02 => BranchBool(self.read_slot_id(), self.read_edge(), self.read_edge())
     0x03 => {
@@ -504,7 +505,7 @@ fn Decoder::read_layout_operand(
   self : Decoder,
 ) -> LayoutOperand raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.read_u8(expected="layout operand tag") {
+  match self.read_tag(expected="layout operand tag") {
     0x01 => Immediate(self.read_layout_id())
     0x02 => Witness(self.read_slot_id())
     tag => self.invalid_tag(offset~, domain="layout operand", tag~)
@@ -644,29 +645,28 @@ fn Decoder::read_bytes(
 }
 
 ///|
-fn Decoder::read_bool(self : Decoder) -> Bool raise BytecodeDecodeError {
-  let offset = self.offset()
-  match self.read_u8(expected="Bool") {
-    0 => false
-    1 => true
-    value => self.fail_at(offset, "Bool byte must be zero or one, got \{value}")
+fn Decoder::read_tag(
+  self : Decoder,
+  expected~ : String,
+) -> Int raise BytecodeDecodeError {
+  match self.view() {
+    [u8be(value), .. rest] => self.consume(rest, value.reinterpret_as_int())
+    _ => self.fail("expected \{expected}")
   }
 }
 
 ///|
-fn Decoder::read_u8(
-  self : Decoder,
-  expected~ : String,
-) -> Int raise BytecodeDecodeError {
-  if self.remaining() < 1 {
-    self.fail("expected \{expected}")
-  }
-  match self.reader.view() {
-    [u8be(value), .. rest] => {
-      self.reader.update_view(rest)
-      value.reinterpret_as_int()
-    }
-    _ => self.fail("expected \{expected}")
+fn Decoder::read_bool(self : Decoder) -> Bool raise BytecodeDecodeError {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => self.consume(rest, false)
+    [u8be(1), .. rest] => self.consume(rest, true)
+    [u8be(value), ..] =>
+      self.fail_at(
+        offset,
+        "Bool byte must be zero or one, got \{value.reinterpret_as_int()}",
+      )
+    _ => self.fail("expected Bool")
   }
 }
 
@@ -676,16 +676,16 @@ fn Decoder::read_nonnegative_u32(
   expected~ : String,
 ) -> Int raise BytecodeDecodeError {
   let offset = self.offset()
-  if self.remaining() < 4 {
-    self.fail("expected \{expected}")
-  }
-  let value = self.reader.read_u32_le() catch {
+  match self.view() {
+    [i32le(value), .. rest] => {
+      self.consume_rest(rest)
+      if value < 0 {
+        self.fail_at(offset, "\{expected} exceeds implementation limit")
+      }
+      value
+    }
     _ => self.fail_at(offset, "expected \{expected}")
   }
-  if value < 0 {
-    self.fail_at(offset, "\{expected} exceeds implementation limit")
-  }
-  value
 }
 
 ///|
@@ -694,10 +694,8 @@ fn Decoder::read_i64(
   expected~ : String,
 ) -> Int64 raise BytecodeDecodeError {
   let offset = self.offset()
-  if self.remaining() < 8 {
-    self.fail("expected \{expected}")
-  }
-  self.reader.read_i64_le() catch {
+  match self.view() {
+    [i64le(value), .. rest] => self.consume(rest, value)
     _ => self.fail_at(offset, "expected \{expected}")
   }
 }
@@ -712,19 +710,35 @@ fn Decoder::read_raw_bytes(
   if length < 0 || length > self.remaining() {
     self.fail_at(offset, "expected \{expected}")
   }
-  self.reader.read_raw_bytes(length) catch {
-    _ => self.fail_at(offset, "expected \{expected}")
-  }
+  let bytes = self.view()[:length].to_owned()
+  self.offset += length
+  bytes
 }
 
 ///|
 fn Decoder::offset(self : Decoder) -> Int {
-  self.reader.offset()
+  self.offset
 }
 
 ///|
 fn Decoder::remaining(self : Decoder) -> Int {
   self.limit - self.offset()
+}
+
+///|
+fn Decoder::view(self : Decoder) -> BytesView {
+  self.source[self.offset():self.limit]
+}
+
+///|
+fn[T] Decoder::consume(self : Decoder, rest : BytesView, value : T) -> T {
+  self.consume_rest(rest)
+  value
+}
+
+///|
+fn Decoder::consume_rest(self : Decoder, rest : BytesView) -> Unit {
+  self.offset += self.remaining() - rest.length()
 }
 
 ///|
