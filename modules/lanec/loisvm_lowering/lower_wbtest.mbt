@@ -2702,3 +2702,56 @@ test "generic nested functions lower as type-applied callable values" {
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
 }
+
+///|
+test "function type parts collect every nested forall layer" {
+  let outer : @buslane.TypeParameterId = { index: 100 }
+  let inner : @buslane.TypeParameterId = { index: 101 }
+  assert_eq(
+    function_type_parts(
+      Forall(
+        [outer],
+        Forall([inner], Function([Parameter(outer)], Parameter(inner), Empty)),
+      ),
+    ),
+    ([outer, inner], [Parameter(outer)], Parameter(inner)),
+  )
+}
+
+///|
+test "type substitution propagates nominal effect arguments" {
+  let formal : @buslane.TypeParameterId = { index: 110 }
+  let actual : @buslane.TypeParameterId = { index: 111 }
+  let type_id : @buslane.TypeId = { index: 12 }
+  assert_eq(
+    substitute_type(
+      Apply(Constructor(type_id), [EffectArgument(Parameter(formal))]),
+      [{ parameter: formal, argument: EffectArgument(Parameter(actual)) }],
+    ),
+    Apply(Constructor(type_id), [EffectArgument(Parameter(actual))]),
+  )
+}
+
+///|
+test "concrete effect contexts use erased Unit or reference layouts" {
+  let effect : @buslane.EffectId = { index: 3 }
+  assert_eq(effect_context_layout_recipe(Empty), Unit)
+  assert_eq(effect_context_layout_recipe(Singleton(effect, [])), Reference)
+  assert_eq(
+    effect_context_layout_recipe(Union([Empty, Singleton(effect, [])])),
+    Reference,
+  )
+}
+
+///|
+test "local value types override substituted formal types during adaptation" {
+  let slot : @vmcfg.ValueId = { value: 7 }
+  let function : @bytecode.FunctionId = { value: 3 }
+  let concrete = @buslane.Type::Apply(Constructor({ index: 4 }), [])
+  assert_eq(local_value_type(Slot(slot, concrete)), Some(concrete))
+  assert_eq(
+    local_value_type(Global(Function(function, concrete))),
+    Some(concrete),
+  )
+  assert_eq(local_value_type(Unit), None)
+}

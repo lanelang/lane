@@ -123,7 +123,10 @@ fn FunctionLowerer::lower_generic_direct_call(
   }
   let substitutions : Array[TypeArgumentBinding] = []
   for index, parameter in parameters {
-    substitutions.push({ parameter, argument: arguments[index] })
+    let argument = self.substitute_generic_argument(arguments[index])
+    self.append_type_application_substitution(
+      substitutions, parameter, argument,
+    )
   }
   let witnesses = []
   for substitution in substitutions {
@@ -197,7 +200,10 @@ fn FunctionLowerer::lower_generic_value_call(
   }
   let substitutions : Array[TypeArgumentBinding] = []
   for index, parameter in parameters {
-    substitutions.push({ parameter, argument: arguments[index] })
+    let argument = self.substitute_generic_argument(arguments[index])
+    self.append_type_application_substitution(
+      substitutions, parameter, argument,
+    )
   }
   let witnesses = []
   for substitution in substitutions {
@@ -253,7 +259,7 @@ fn substitute_type(
 ) -> @buslane.Type raise LoisvmLoweringError {
   match type_ {
     Parameter(parameter) => {
-      for substitution in substitutions {
+      for substitution in substitutions.rev_iter() {
         if substitution.parameter == parameter {
           guard substitution.argument is TypeArgument(type_) else {
             raise InvalidTypeApplication(
@@ -272,7 +278,8 @@ fn substitute_type(
           match argument {
             TypeArgument(type_) =>
               TypeArgument(substitute_type(type_, substitutions))
-            EffectArgument(effect) => EffectArgument(effect)
+            EffectArgument(effect) =>
+              EffectArgument(substitute_effect(effect, substitutions))
           }
         }),
       )
@@ -299,7 +306,45 @@ fn substitute_type(
 }
 
 ///|
-fn data_type_substitutions(
+fn substitute_effect(
+  effect : @buslane.Effect,
+  substitutions : Array[TypeArgumentBinding],
+) -> @buslane.Effect raise LoisvmLoweringError {
+  match effect {
+    Parameter(parameter) => {
+      for substitution in substitutions.rev_iter() {
+        if substitution.parameter == parameter {
+          guard substitution.argument is EffectArgument(effect) else {
+            raise InvalidTypeApplication(
+              detail="a type argument cannot substitute an effect",
+            )
+          }
+          return effect
+        }
+      }
+      effect
+    }
+    Singleton(effect_id, arguments) =>
+      Singleton(
+        effect_id,
+        arguments.map(argument => {
+          match argument {
+            TypeArgument(type_) =>
+              TypeArgument(substitute_type(type_, substitutions))
+            EffectArgument(effect) =>
+              EffectArgument(substitute_effect(effect, substitutions))
+          }
+        }),
+      )
+    Union(effects) =>
+      Union(effects.map(effect => substitute_effect(effect, substitutions)))
+    Empty => Empty
+  }
+}
+
+///|
+fn ImageLowerer::data_type_substitutions(
+  self : ImageLowerer,
   parameters : Array[@buslane.TypeParameterId],
   arguments : Array[@buslane.GenericArgument],
 ) -> Array[TypeArgumentBinding] raise LoisvmLoweringError {
@@ -310,9 +355,87 @@ fn data_type_substitutions(
   }
   let substitutions = []
   for index, parameter in parameters {
-    substitutions.push({ parameter, argument: arguments[index] })
+    let argument = arguments[index]
+    substitutions.push({ parameter, argument })
+    if argument is EffectArgument(Parameter(actual)) &&
+      self.effect_companion(parameter) is Some(formal_companion) &&
+      self.effect_companion(actual) is Some(actual_companion) {
+      substitutions.push({
+        parameter: formal_companion,
+        argument: TypeArgument(Parameter(actual_companion)),
+      })
+    }
   }
   substitutions
+}
+
+///|
+fn FunctionLowerer::data_type_substitutions(
+  self : FunctionLowerer,
+  parameters : Array[@buslane.TypeParameterId],
+  arguments : Array[@buslane.GenericArgument],
+) -> Array[TypeArgumentBinding] raise LoisvmLoweringError {
+  self.image.data_type_substitutions(
+    parameters,
+    arguments.map(argument => self.substitute_generic_argument(argument)),
+  )
+}
+
+///|
+fn FunctionLowerer::append_type_application_substitution(
+  self : FunctionLowerer,
+  substitutions : Array[TypeArgumentBinding],
+  parameter : @buslane.TypeParameterId,
+  argument : @buslane.GenericArgument,
+) -> Unit {
+  substitutions.push({ parameter, argument })
+  if argument is TypeArgument(Parameter(actual_companion)) &&
+    self.image.effect_source(parameter) is Some(formal_source) &&
+    self.image.effect_source(actual_companion) is Some(actual_source) {
+    substitutions.push({
+      parameter: formal_source,
+      argument: EffectArgument(Parameter(actual_source)),
+    })
+  }
+}
+
+///|
+fn FunctionLowerer::substitute_generic_argument(
+  self : FunctionLowerer,
+  argument : @buslane.GenericArgument,
+) -> @buslane.GenericArgument raise LoisvmLoweringError {
+  match argument {
+    TypeArgument(type_) =>
+      TypeArgument(substitute_type(type_, self.substitutions))
+    EffectArgument(effect) =>
+      EffectArgument(substitute_effect(effect, self.substitutions))
+  }
+}
+
+///|
+fn ImageLowerer::effect_companion(
+  self : ImageLowerer,
+  parameter : @buslane.TypeParameterId,
+) -> @buslane.TypeParameterId? {
+  for binding in self.effect_companions {
+    if binding.source == parameter {
+      return Some(binding.companion)
+    }
+  }
+  None
+}
+
+///|
+fn ImageLowerer::effect_source(
+  self : ImageLowerer,
+  companion : @buslane.TypeParameterId,
+) -> @buslane.TypeParameterId? {
+  for binding in self.effect_companions {
+    if binding.companion == companion {
+      return Some(binding.source)
+    }
+  }
+  None
 }
 
 ///|

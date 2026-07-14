@@ -12,7 +12,7 @@ fn FunctionLowerer::lower_data_match(
     None =>
       raise UnsupportedExpression(detail="data match owner metadata is missing")
   }
-  let substitutions = data_type_substitutions(
+  let substitutions = self.data_type_substitutions(
     owner_info.parameters,
     type_arguments,
   )
@@ -123,12 +123,14 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
+  let substitution_count = self.substitutions.length()
   self.bind_data_alternative(
     binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
   )
   let result = self.materialize_local(self.lower_expr(alternative.body))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
+  self.restore_substitutions(substitution_count)
   result
 }
 
@@ -148,6 +150,7 @@ fn FunctionLowerer::lower_data_alternative(
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
+  let substitution_count = self.substitutions.length()
   self.enter_block(block)
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
@@ -169,6 +172,7 @@ fn FunctionLowerer::lower_data_alternative(
   self.terminate(Jump({ target: join, arguments }))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
+  self.restore_substitutions(substitution_count)
   self.environment = original_environment
 }
 
@@ -276,6 +280,7 @@ fn FunctionLowerer::bind_data_alternative(
       self.bindings.push({ value: value_binder, lowered })
     }
   }
+  self.substitutions.append(branch_substitutions)
 }
 
 ///|
@@ -364,6 +369,16 @@ fn FunctionLowerer::restore_witnesses(
 ) -> Unit {
   while self.witnesses.length() > witness_count {
     ignore(self.witnesses.pop())
+  }
+}
+
+///|
+fn FunctionLowerer::restore_substitutions(
+  self : FunctionLowerer,
+  substitution_count : Int,
+) -> Unit {
+  while self.substitutions.length() > substitution_count {
+    ignore(self.substitutions.pop())
   }
 }
 

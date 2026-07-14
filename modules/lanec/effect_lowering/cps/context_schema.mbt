@@ -1,8 +1,8 @@
 ///|
-priv struct EffectCompanion {
+pub(all) struct EffectCompanionBinding {
   source : @buslane.TypeParameterId
   companion : @buslane.TypeParameterId
-}
+} derive(Debug, Eq)
 
 ///|
 priv struct DictionaryHeader {
@@ -20,7 +20,7 @@ priv struct ContextPackSchema {
 ///|
 priv struct DictionaryCpsSchema {
   metadata : @buslane.MetadataRegistry
-  companions : Array[EffectCompanion]
+  companions : Array[EffectCompanionBinding]
   dictionaries : Array[DictionaryHeader]
   context_packs : Array[ContextPackSchema]
 }
@@ -71,14 +71,14 @@ fn build_dictionary_cps_schema_or_raise(
 ///|
 fn define_effect_companions(
   metadata : @buslane.MetadataRegistry,
-) -> Array[EffectCompanion] {
+) -> Array[EffectCompanionBinding] {
   let companions = []
   let source_parameter_count = metadata.type_parameters.length()
   for index in 0..<source_parameter_count {
     let source = @buslane.TypeParameterId::{ index, }
     let info = metadata.type_parameters[index]
     if info.kind == Effect {
-      companions.push({
+      companions.push(EffectCompanionBinding::{
         source,
         companion: metadata.define_type_parameter(
           info.name.occurrence + "%context",
@@ -93,7 +93,7 @@ fn define_effect_companions(
 ///|
 fn define_dictionary_headers(
   metadata : @buslane.MetadataRegistry,
-  companions : Array[EffectCompanion],
+  companions : Array[EffectCompanionBinding],
 ) -> Array[DictionaryHeader] raise SynthesisError {
   let headers = []
   let effect_count = metadata.effects.length()
@@ -166,7 +166,7 @@ fn DictionaryCpsSchema::companion_parameter(
 
 ///|
 fn companion_parameter(
-  companions : Array[EffectCompanion],
+  companions : Array[EffectCompanionBinding],
   source : @buslane.TypeParameterId,
 ) -> @buslane.TypeParameterId {
   for entry in companions {

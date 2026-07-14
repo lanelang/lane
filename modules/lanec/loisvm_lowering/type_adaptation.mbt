@@ -156,7 +156,7 @@ fn FunctionLowerer::adapter_witness(
   parameter : @buslane.TypeParameterId,
   substitutions : Array[TypeArgumentBinding],
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  for substitution in substitutions {
+  for substitution in substitutions.rev_iter() {
     if substitution.parameter == parameter {
       guard substitution.argument is TypeArgument(type_) else {
         raise InvalidTypeApplication(
@@ -164,6 +164,14 @@ fn FunctionLowerer::adapter_witness(
         )
       }
       return self.layout_witness(type_)
+    }
+  }
+  if self.image.effect_source(parameter) is Some(source) {
+    for substitution in substitutions.rev_iter() {
+      if substitution.parameter == source &&
+        substitution.argument is EffectArgument(effect) {
+        return self.effect_context_witness(effect)
+      }
     }
   }
   self.find_witness(parameter)
@@ -220,6 +228,7 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
   target_type : @buslane.Type,
   substitutions : Array[TypeArgumentBinding],
 ) -> LocalValue raise LoisvmLoweringError {
+  let source_type = local_value_type(value).unwrap_or(source_type)
   if source_type == target_type {
     return match value {
       Unit => Unit
@@ -238,7 +247,11 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
           )
       }
     (_, Parameter(parameter)) => {
-      let witness = self.adapter_witness(parameter, substitutions)
+      let witness = if source_type is Parameter(_) {
+        self.adapter_witness(parameter, substitutions)
+      } else {
+        self.layout_witness(source_type)
+      }
       Slot(self.erase_value(value, source_type, witness), target_type)
     }
     (Parameter(_), _) => {
@@ -275,6 +288,21 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
 }
 
 ///|
+fn local_value_type(value : LocalValue) -> @buslane.Type? {
+  match value {
+    Slot(_, type_) => Some(type_)
+    Global(Function(_, type_))
+    | Global(Intrinsic(_, type_))
+    | Global(DoubleConstant(_, type_))
+    | Global(ScalarExternal(_, type_))
+    | Global(InstanceGlobal(_, type_)) => Some(type_)
+    RecursiveFunction(_, type_, _) | TypeAppliedCallable(_, type_, _) =>
+      Some(type_)
+    Global(UnitValue) | Unit | TypeApplied(_, _) => None
+  }
+}
+
+///|
 fn ImageLowerer::lower_callable_adapter(
   self : ImageLowerer,
   plan : CallableAdapterPlan,
@@ -300,6 +328,7 @@ fn ImageLowerer::lower_callable_adapter(
     temps: [],
     environment: None,
     witnesses: [],
+    substitutions: [],
   }
   let input_witnesses = []
   for index, parameter in target_type_parameters {

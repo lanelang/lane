@@ -14,6 +14,22 @@ priv struct CpsEnvironment {
 pub fn rewrite_selective_cps_abis(
   program : Program,
 ) -> Result[Program, SynthesisError] {
+  match rewrite_selective_cps_abis_with_companions(program) {
+    Ok(result) => Ok(result.program)
+    Err(error) => Err(error)
+  }
+}
+
+///|
+pub(all) struct SelectiveCpsRewrite {
+  program : Program
+  effect_companions : Array[EffectCompanionBinding]
+} derive(Debug, Eq)
+
+///|
+pub fn rewrite_selective_cps_abis_with_companions(
+  program : Program,
+) -> Result[SelectiveCpsRewrite, SynthesisError] {
   Ok(rewrite_selective_cps_abis_or_raise(program)) catch {
     error => Err(error)
   }
@@ -22,7 +38,7 @@ pub fn rewrite_selective_cps_abis(
 ///|
 fn rewrite_selective_cps_abis_or_raise(
   program : Program,
-) -> Program raise SynthesisError {
+) -> SelectiveCpsRewrite raise SynthesisError {
   let counts = CpsSourceCounts::{
     types: program.metadata.types.length(),
     data_constructors: program.metadata.data_constructors.length(),
@@ -36,7 +52,7 @@ fn rewrite_selective_cps_abis_or_raise(
   let output = Program::{ metadata: program.metadata, terms }
   synchronize_cps_top_level_value_types(output)
   validate_mon_trans_output_or_raise(output)
-  output
+  { program: output, effect_companions: schema.companions }
 }
 
 ///|

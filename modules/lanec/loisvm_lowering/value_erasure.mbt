@@ -8,7 +8,31 @@ fn FunctionLowerer::find_witness(
       return binding.value
     }
   }
-  raise InvalidTypeApplication(detail="missing in-scope layout witness")
+  raise InvalidTypeApplication(
+    detail="missing in-scope layout witness for \{to_repr(parameter)}",
+  )
+}
+
+///|
+fn FunctionLowerer::effect_context_witness(
+  self : FunctionLowerer,
+  effect : @buslane.Effect,
+) -> @vmcfg.ValueId {
+  let layout = self.image.intern_layout(effect_context_layout_recipe(effect))
+  let witness = self.fresh_metadata(layout_witness_metadata())
+  self.emit(ConstLayout(witness, layout))
+  witness
+}
+
+///|
+fn effect_context_layout_recipe(
+  effect : @buslane.Effect,
+) -> @bytecode.LayoutRecipe {
+  if effect.canonicalize() == Empty {
+    Unit
+  } else {
+    Reference
+  }
 }
 
 ///|
@@ -44,6 +68,7 @@ fn FunctionLowerer::erase_value(
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let destination = self.fresh_erased_slot(witness, Owned)
   let materialized = self.materialize_local(value)
+  let type_ = local_value_type(materialized).unwrap_or(type_)
   match (materialized, type_) {
     (Unit, Primitive(Unit)) => self.emit(EraseUnit(destination))
     (

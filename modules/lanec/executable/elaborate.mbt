@@ -22,7 +22,8 @@ fn elaborate_or_raise(
     selected_entry,
     linked.runtime_effect_operations,
   )
-  let program = lower_effects(program)
+  let lowered = lower_effects(program)
+  let program = lowered.program
   let initializers = collect_top_level_initializers(program)
   let execution_roots = initializers.mapi((index, _) => Initializer(index))
   execution_roots.push(Entry(entry.value))
@@ -34,24 +35,36 @@ fn elaborate_or_raise(
     initializers,
     runtime_boundary: { effect_operations, },
     execution_roots,
+    effect_companions: lowered.effect_companions,
   }
+}
+
+///|
+priv struct LoweredEffects {
+  program : @buslane.Program
+  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
 }
 
 ///|
 fn lower_effects(
   program : @buslane.Program,
-) -> @buslane.Program raise ExecutableElaborationError {
+) -> LoweredEffects raise ExecutableElaborationError {
   let elaborated = @effect_lowering.elaborate_handlers(program)
   let bound = unwrap_effect_lowering(
     @effect_lowering.introduce_monadic_binds(elaborated),
   )
   let transformed = unwrap_effect_lowering(
-    @effect_lowering_cps.rewrite_selective_cps_abis(bound),
+    @effect_lowering_cps.rewrite_selective_cps_abis_with_companions(bound),
   )
   let resolved = unwrap_effect_lowering(
-    @effect_lowering.resolve_open_contexts(transformed),
+    @effect_lowering.resolve_open_contexts(transformed.program),
   )
-  unwrap_effect_lowering(@effect_lowering.lift_monadic_continuations(resolved))
+  {
+    program: unwrap_effect_lowering(
+      @effect_lowering.lift_monadic_continuations(resolved),
+    ),
+    effect_companions: transformed.effect_companions,
+  }
 }
 
 ///|

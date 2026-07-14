@@ -19,6 +19,7 @@ fn ImageLowerer::lower_function_body(
     temps: [],
     environment: None,
     witnesses: [],
+    substitutions: [],
   }
   let input_witnesses = []
   for parameter in type_parameters {
@@ -232,11 +233,10 @@ fn function_type_parts(
   type_ : @buslane.Type,
 ) -> (Array[@buslane.TypeParameterId], Array[@buslane.Type], @buslane.Type) raise LoisvmLoweringError {
   match type_ {
-    Forall(parameters, body) =>
-      match strip_forall(body) {
-        Function(arguments, result, _) => (parameters, arguments, result)
-        _ => raise UnsupportedType(type_~)
-      }
+    Forall(parameters, body) => {
+      let (nested_parameters, arguments, result) = function_type_parts(body)
+      (parameters + nested_parameters, arguments, result)
+    }
     Function(parameters, result, _) => ([], parameters, result)
     _ => raise UnsupportedType(type_~)
   }

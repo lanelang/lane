@@ -10,6 +10,7 @@ priv struct ImageLowerer {
   object_shapes : Array[@bytecode.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
   callable_adapters : Array[CallableAdapterPlan]
+  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
   mut next_synthetic_parameter : Int
 }
 
@@ -23,6 +24,7 @@ priv struct FunctionLowerer {
   temps : Array[TempBinding]
   mut environment : @vmcfg.ValueId?
   witnesses : Array[WitnessBinding]
+  substitutions : Array[TypeArgumentBinding]
 }
 
 ///|
@@ -92,6 +94,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    effect_companions: executable.effect_companions,
     next_synthetic_parameter: -1,
   }
   let initializer = lowerer.plan(anf, occurrence)

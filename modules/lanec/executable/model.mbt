@@ -7,6 +7,7 @@ pub(all) struct ExecutableProgram {
   initializers : Array[TopLevelInitializer]
   runtime_boundary : RuntimeBoundary
   execution_roots : Array[ExecutionRoot]
+  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
 } derive(Debug, Eq)
 
 ///|

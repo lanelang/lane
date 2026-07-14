@@ -211,6 +211,7 @@ fn ImageLowerer::lower_initializer(
     temps: [],
     environment: None,
     witnesses: [],
+    substitutions: [],
   }
   for binding in bindings {
     let result = lowerer.materialize_local(
@@ -287,6 +288,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     temps: [],
     environment: None,
     witnesses: [],
+    substitutions: [],
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
   let arguments = []

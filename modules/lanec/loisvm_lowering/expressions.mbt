@@ -81,6 +81,9 @@ fn FunctionLowerer::lower_type_apply(
   match self.lower_atom(callee) {
     Global(global) => TypeApplied(global, arguments)
     Slot(callable, type_) => TypeAppliedCallable(callable, type_, arguments)
+    TypeApplied(global, applied) => TypeApplied(global, applied + arguments)
+    TypeAppliedCallable(callable, type_, applied) =>
+      TypeAppliedCallable(callable, type_, applied + arguments)
     RecursiveFunction(_, _, _) as recursive => {
       guard self.materialize_local(recursive) is Slot(callable, type_) else {
         abort("recursive callable was not materialized")
@@ -114,12 +117,12 @@ fn FunctionLowerer::lower_construct(
         data_constructor=construct.data_constructor,
       )
   }
-  let substitutions = data_type_substitutions(
+  let substitutions = self.data_type_substitutions(
     owner_info.parameters,
     construct.type_arguments,
   )
   substitutions.append(
-    data_type_substitutions(
+    self.data_type_substitutions(
       info.hidden_type_parameters,
       construct.hidden_witnesses,
     ),

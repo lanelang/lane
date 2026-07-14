@@ -56,6 +56,21 @@ test "effect parameters receive one stable ordinary companion" {
 }
 
 ///|
+test "selective CPS exposes effect companion identities" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let result = rewrite_selective_cps_abis_with_companions({
+    metadata,
+    terms: [],
+  }).unwrap()
+  guard result.effect_companions is [{ source, companion }] else {
+    abort("expected one effect companion binding")
+  }
+  assert_eq(source, effect_parameter)
+  assert_eq(metadata.type_parameter_info(companion).unwrap().kind, Type)
+}
+
+///|
 test "public type planning shares one generated schema" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
