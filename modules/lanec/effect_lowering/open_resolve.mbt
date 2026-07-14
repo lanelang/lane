@@ -21,7 +21,7 @@ fn resolve_open_contexts_or_raise(
 }
 
 ///|
-fn resolve_open_top_term(term : TopTerm) -> TopTerm {
+fn resolve_open_top_term(term : TopTerm) -> TopTerm raise SynthesisError {
   match term {
     Let(id, expression) => Let(id, resolve_open_expr(expression))
     LetRec(bindings) =>
@@ -36,7 +36,7 @@ fn resolve_open_top_term(term : TopTerm) -> TopTerm {
 }
 
 ///|
-fn resolve_open_expr(expression : Expr) -> Expr {
+fn resolve_open_expr(expression : Expr) -> Expr raise SynthesisError {
   match expression {
     Ref(_) | Literal(_) => expression
     Function(function) =>
@@ -71,8 +71,24 @@ fn resolve_open_expr(expression : Expr) -> Expr {
           body: resolve_open_expr(alternative.body),
         }),
       })
-    OpenContext(open) => resolve_open_expr(open.body)
+    OpenContext(open) => {
+      require_open_contexts(open.source_effect, open.target_effect)
+      resolve_open_expr(open.body)
+    }
     Invoke(_) | Install(_) | Bind(_) => expression
+  }
+}
+
+///|
+fn require_open_contexts(
+  source : @buslane.Effect,
+  target : @buslane.Effect,
+) -> Unit raise SynthesisError {
+  let available = effect_terms(target)
+  for required in effect_terms(source) {
+    if !available.any(context => context == required) {
+      raise MissingEffectContext(required)
+    }
   }
 }
 
