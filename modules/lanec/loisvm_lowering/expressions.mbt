@@ -271,6 +271,12 @@ fn FunctionLowerer::find_value(
     }
   }
   match self.image.find_global(value) {
+    Some(UnitValue) => Unit
+    Some(InstanceGlobal(global, type_)) => {
+      let destination = self.fresh_borrowed_slot(type_)
+      self.emit(BorrowGlobal(destination, global))
+      Slot(destination, type_)
+    }
     Some(global) => Global(global)
     None => raise MissingValueMetadata(value~)
   }

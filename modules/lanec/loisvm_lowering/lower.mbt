@@ -3,6 +3,7 @@ priv struct ImageLowerer {
   metadata : @buslane.MetadataRegistry
   externals : @buslane_lowering.BuslaneExternalMap
   globals : Array[GlobalBinding]
+  instance_globals : Array[@bytecode.GlobalMetadata]
   plans : Array[PlannedEntry]
   constants : Array[Bytes]
   layouts : Array[@bytecode.LayoutRecipe]
@@ -75,10 +76,16 @@ fn lower_executable_program_to_bytecode_or_raise(
   let externals = executable.externals
   let entry = executable.entry
   let anf = @anf.lower_buslane_program_to_anf(program)
+  let occurrence = @occurrence.analyze({
+    program,
+    entry: entry.value,
+    roots: executable_initializer_roots(executable),
+  })
   let lowerer : ImageLowerer = {
     metadata: program.metadata,
     externals,
     globals: [],
+    instance_globals: [],
     plans: [],
     constants: [],
     layouts: [],
@@ -87,7 +94,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     callable_adapters: [],
     next_synthetic_parameter: -1,
   }
-  lowerer.plan(anf)
+  let initializer = lowerer.plan(anf, occurrence)
   let entry_function = match lowerer.find_global(entry.value) {
     Some(Function(function, _)) => function
     _ => raise MissingEntry(value=entry.value)
@@ -99,6 +106,8 @@ fn lower_executable_program_to_bytecode_or_raise(
     match plan {
       Function(value, function) =>
         functions.push(Body(lowerer.lower_function(value, function)))
+      Initializer(bindings) =>
+        functions.push(Body(lowerer.lower_initializer(bindings)))
       LiftedFunction(plan) =>
         functions.push(Body(lowerer.lower_lifted_function(plan)))
       IntrinsicWrapper(plan) =>
@@ -120,9 +129,9 @@ fn lower_executable_program_to_bytecode_or_raise(
   }
   let virtual_image = canonicalize_function_table({
     entry: entry_function,
-    initializer: None,
+    initializer,
     functions,
-    globals: [],
+    globals: lowerer.instance_globals,
     layouts: lowerer.layouts,
     object_shapes: lowerer.object_shapes,
     constants: lowerer.constants,
@@ -131,6 +140,24 @@ fn lower_executable_program_to_bytecode_or_raise(
     Ok(image) => image
     Err(error) => raise VmcfgFinalizeError(error)
   }
+}
+
+///|
+fn executable_initializer_roots(
+  executable : @executable.ExecutableProgram,
+) -> Array[@buslane.ValueId] {
+  let roots = []
+  for root in executable.execution_roots {
+    guard root is Initializer(index) else { continue }
+    match executable.initializers[index] {
+      Value(value, _) => roots.push(value)
+      Recursive(bindings) =>
+        for binding in bindings {
+          roots.push(binding.id)
+        }
+    }
+  }
+  roots
 }
 
 ///|

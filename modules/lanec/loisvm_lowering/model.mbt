@@ -24,9 +24,11 @@ pub(all) suberror LoisvmLoweringError {
 
 ///|
 priv enum GlobalValue {
+  UnitValue
   Function(@bytecode.FunctionId, @buslane.Type)
   Intrinsic(String, @buslane.Type)
   DoubleConstant(Int64, @buslane.Type)
+  InstanceGlobal(@bytecode.GlobalId, @buslane.Type)
 }
 
 ///|
@@ -38,10 +40,17 @@ priv struct GlobalBinding {
 ///|
 priv enum PlannedEntry {
   Function(@buslane.ValueId, @anf.AnfFunction)
+  Initializer(Array[InitializerBinding])
   LiftedFunction(LiftedFunctionPlan)
   IntrinsicWrapper(IntrinsicWrapperPlan)
   CallableAdapter(CallableAdapterPlan)
   RuntimeImport(@buslane.ValueId, @buslane_lowering.BuslaneBuiltinExternal)
+}
+
+///|
+priv struct InitializerBinding {
+  value : @buslane.ValueId
+  expression : @anf.AnfExpr
 }
 
 ///|

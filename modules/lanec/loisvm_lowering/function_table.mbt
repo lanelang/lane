@@ -57,7 +57,14 @@ fn canonicalize_function_table(image : @vmcfg.Image) -> @vmcfg.Image {
   for import_ in imports {
     functions.push(RuntimeImport(import_.descriptor))
   }
-  { ..image, entry: remap_function_id(image.entry, mappings), functions }
+  {
+    ..image,
+    entry: remap_function_id(image.entry, mappings),
+    initializer: image.initializer.map(function => {
+      remap_function_id(function, mappings)
+    }),
+    functions,
+  }
 }
 
 ///|

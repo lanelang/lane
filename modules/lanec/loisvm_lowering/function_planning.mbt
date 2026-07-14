@@ -2,25 +2,80 @@
 fn ImageLowerer::plan(
   self : ImageLowerer,
   program : @anf.AnfProgram,
-) -> Unit raise LoisvmLoweringError {
+  occurrence : @occurrence.OccurrenceSummary,
+) -> @bytecode.FunctionId? raise LoisvmLoweringError {
+  let initializers : Array[InitializerBinding] = []
   for term in program.terms {
     match term {
-      External(value) => self.plan_external(value)
+      External(value) =>
+        if occurrence.is_reachable(value) {
+          self.plan_external(value)
+        }
       Let(value, expression) =>
         match extract_top_function(expression) {
-          Some(function) => self.add_plan(value, Function(value, function))
-          None => raise UnsupportedTopLevel(value~)
+          Some(function) =>
+            if occurrence.is_reachable(value) {
+              self.add_plan(value, Function(value, function))
+            }
+          None =>
+            if occurrence.is_reachable(value) {
+              self.add_instance_global(value)
+              initializers.push({ value, expression })
+            }
         }
       LetRec(bindings) =>
         for binding in bindings {
-          match extract_top_atom_function(binding.rhs) {
-            Some(function) =>
-              self.add_plan(binding.id, Function(binding.id, function))
-            None => raise UnsupportedTopLevel(value=binding.id)
+          if occurrence.is_reachable(binding.id) {
+            match extract_top_atom_function(binding.rhs) {
+              Some(function) =>
+                self.add_plan(binding.id, Function(binding.id, function))
+              None => raise UnsupportedTopLevel(value=binding.id)
+            }
           }
         }
     }
   }
+  if initializers.is_empty() {
+    None
+  } else {
+    let initializer : @bytecode.FunctionId = { value: self.plans.length() + 1 }
+    self.plans.push(Initializer(initializers))
+    Some(initializer)
+  }
+}
+
+///|
+fn @occurrence.OccurrenceSummary::is_reachable(
+  self : @occurrence.OccurrenceSummary,
+  value : @buslane.ValueId,
+) -> Bool {
+  match self.facts.get(value.index) {
+    Some(fact) => fact.reachable_from_entry
+    None => false
+  }
+}
+
+///|
+fn ImageLowerer::add_instance_global(
+  self : ImageLowerer,
+  value : @buslane.ValueId,
+) -> Unit raise LoisvmLoweringError {
+  let type_ = match self.metadata.value_info(value) {
+    Some(info) => info.type_
+    None => raise MissingValueMetadata(value~)
+  }
+  if type_ == Primitive(Unit) {
+    self.globals.push({ value, lowered: UnitValue })
+    return
+  }
+  let metadata = slot_metadata(type_)
+  let global : @bytecode.GlobalId = { value: self.instance_globals.length() }
+  self.instance_globals.push({
+    representation: metadata.representation,
+    cleanup: metadata.cleanup,
+    erased_companion: None,
+  })
+  self.globals.push({ value, lowered: InstanceGlobal(global, type_) })
 }
 
 ///|
@@ -130,6 +185,56 @@ fn ImageLowerer::lower_function(
     None,
     [],
   )
+}
+
+///|
+fn ImageLowerer::lower_initializer(
+  self : ImageLowerer,
+  bindings : Array[InitializerBinding],
+) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
+  let lowerer : FunctionLowerer = {
+    image: self,
+    values: [],
+    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    current_block: 0,
+    bindings: [],
+    temps: [],
+    environment: None,
+    witnesses: [],
+  }
+  for binding in bindings {
+    let result = lowerer.materialize_local(
+      lowerer.lower_expr(binding.expression),
+    )
+    match (self.find_global(binding.value), result) {
+      (Some(UnitValue), Unit) => ()
+      (Some(InstanceGlobal(global, _)), Slot(source, _)) =>
+        lowerer.emit(InitGlobal(global, source))
+      _ =>
+        raise UnsupportedExpression(
+          detail="top-level initializer result does not match its instance global",
+        )
+    }
+  }
+  lowerer.terminate(Return(None))
+  let blocks : Array[@vmcfg.Block] = []
+  for index, block in lowerer.blocks {
+    let terminator = match block.terminator {
+      Some(terminator) => terminator
+      None => raise UnterminatedBlock(block=index)
+    }
+    blocks.push({
+      parameters: block.parameters,
+      instructions: block.instructions,
+      terminator,
+    })
+  }
+  {
+    values: lowerer.values,
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks,
+  }
 }
 
 ///|
