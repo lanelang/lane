@@ -43,27 +43,37 @@ pub fn lower_linked_program_to_bytecode_with_runtime_effects(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
-  Ok(
-    lower_linked_program_to_bytecode_or_raise(
-      program, externals, entry, runtime_effect_operations,
-    ),
-  ) catch {
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: [],
+    program,
+    externals,
+    entries: [entry],
+    runtime_effect_operations,
+  }
+  match @executable.elaborate(linked, entry) {
+    Ok(executable) => lower_executable_program_to_bytecode(executable)
+    Err(error) => Err(executable_elaboration_error(error))
+  }
+}
+
+///|
+pub fn lower_executable_program_to_bytecode(
+  executable : @executable.ExecutableProgram,
+) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
+  Ok(lower_executable_program_to_bytecode_or_raise(executable)) catch {
     error => Err(error)
   }
 }
 
 ///|
-fn lower_linked_program_to_bytecode_or_raise(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  entry : @buslane_lowering.BuslaneEntry,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+fn lower_executable_program_to_bytecode_or_raise(
+  executable : @executable.ExecutableProgram,
 ) -> @bytecode.BytecodeImage raise LoisvmLoweringError {
-  let (program, externals, entry) = lower_effects_before_anf(
-    program, externals, entry, runtime_effect_operations,
-  )
+  let program = executable.program
+  let externals = executable.externals
+  let entry = executable.entry
   let anf = @anf.lower_buslane_program_to_anf(program)
   let lowerer : ImageLowerer = {
     metadata: program.metadata,
@@ -118,6 +128,18 @@ fn lower_linked_program_to_bytecode_or_raise(
   match @vmcfg.finalize(virtual_image) {
     Ok(image) => image
     Err(error) => raise VmcfgFinalizeError(error)
+  }
+}
+
+///|
+fn executable_elaboration_error(
+  error : @executable.ExecutableElaborationError,
+) -> LoisvmLoweringError {
+  match error {
+    EntryNotLinked(value) => MissingEntry(value~)
+    InvalidEntryFunction(value~, type_~) => InvalidFunctionType(value~, type_~)
+    UnsupportedRuntimeBoundary(detail~) => UnsupportedExpression(detail~)
+    EffectLoweringError(error) => EffectLoweringError(error)
   }
 }
 

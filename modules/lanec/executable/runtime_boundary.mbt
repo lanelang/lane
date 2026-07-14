@@ -1,62 +1,23 @@
 ///|
-priv struct RuntimeEffectExternal {
+priv struct RuntimeEffectBinding {
   operation : @buslane.OperationId
   value : @buslane.ValueId
 }
 
 ///|
-fn lower_effects_before_anf(
+fn install_runtime_boundary(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
-  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+  operations : Array[@module_link.LinkedRuntimeEffectOperation],
 ) -> (
   @buslane.Program,
   @buslane_lowering.BuslaneExternalMap,
   @buslane_lowering.BuslaneEntry,
-) raise LoisvmLoweringError {
-  let (program, externals, entry) = install_root_runtime_handlers(
-    program, externals, entry, operations,
-  )
-  let elaborated = @effect_lowering.elaborate_handlers(program)
-  let bound = unwrap_effect_lowering(
-    @effect_lowering.introduce_monadic_binds(elaborated),
-  )
-  let transformed = unwrap_effect_lowering(
-    @effect_lowering_cps.rewrite_selective_cps_abis(bound),
-  )
-  let resolved = unwrap_effect_lowering(
-    @effect_lowering.resolve_open_contexts(transformed),
-  )
-  let lifted = unwrap_effect_lowering(
-    @effect_lowering.lift_monadic_continuations(resolved),
-  )
-  (lifted, externals, entry)
-}
-
-///|
-fn[T] unwrap_effect_lowering(
-  result : Result[T, @effect_lowering.SynthesisError],
-) -> T raise LoisvmLoweringError {
-  match result {
-    Ok(value) => value
-    Err(error) => raise EffectLoweringError(error)
-  }
-}
-
-///|
-fn install_root_runtime_handlers(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  entry : @buslane_lowering.BuslaneEntry,
-  operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
-) -> (
-  @buslane.Program,
-  @buslane_lowering.BuslaneExternalMap,
-  @buslane_lowering.BuslaneEntry,
-) raise LoisvmLoweringError {
+  Array[@module_link.LinkedRuntimeEffectOperation],
+) raise ExecutableElaborationError {
   guard entry.type_ is Function(parameters, result, effect) else {
-    raise InvalidFunctionType(value=entry.value, type_=entry.type_)
+    raise InvalidEntryFunction(value=entry.value, type_=entry.type_)
   }
   let effect = effect.canonicalize()
   let selected_effect_owners : Array[@buslane.EffectId] = []
@@ -65,7 +26,8 @@ fn install_root_runtime_handlers(
       selected_effect_owners.push(owner)
     }
   }
-  let bindings : Array[RuntimeEffectExternal] = []
+  let bindings : Array[RuntimeEffectBinding] = []
+  let selected_operations : Array[@module_link.LinkedRuntimeEffectOperation] = []
   let terms = program.terms.copy()
   let builtins = externals.builtins.copy()
   for operation in operations {
@@ -75,18 +37,19 @@ fn install_root_runtime_handlers(
     if !selected_effect_owners.any(owner => owner == info.owner) {
       continue
     }
+    selected_operations.push(operation)
     if !info.hidden_type_parameters.is_empty() {
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="generic runtime effect operations are outside the v1 primitive host ABI",
       )
     }
     guard program.metadata.effect_info(info.owner) is Some(effect_info) else {
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="linked runtime effect metadata is missing",
       )
     }
     if !effect_info.parameters.is_empty() {
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="generic runtime effects are outside the v1 primitive host ABI",
       )
     }
@@ -96,7 +59,7 @@ fn install_root_runtime_handlers(
       Empty,
     )
     if !runtime_import_signature_supported(type_) {
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="runtime effect operations must use only v1 host primitive types",
       )
     }
@@ -110,7 +73,12 @@ fn install_root_runtime_handlers(
     builtins.push({ value, name: runtime_effect_symbol(operation), type_ })
   }
   if effect == Empty {
-    return ({ metadata: program.metadata, terms }, { builtins, }, entry)
+    return (
+      { metadata: program.metadata, terms },
+      { builtins, },
+      entry,
+      selected_operations,
+    )
   }
   let wrapper_parameters = parameters.map(type_ => {
     program.metadata.define_value("%entry_parameter", Parameter, type_)
@@ -155,6 +123,7 @@ fn install_root_runtime_handlers(
     { metadata: program.metadata, terms },
     { builtins, },
     { ..entry, value: wrapper, type_: wrapper_type },
+    selected_operations,
   )
 }
 
@@ -163,21 +132,21 @@ fn root_runtime_handler_tables(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
   handler_result : @buslane.Type,
-  bindings : Array[RuntimeEffectExternal],
-) -> Array[@buslane.HandlerTable] raise LoisvmLoweringError {
+  bindings : Array[RuntimeEffectBinding],
+) -> Array[@buslane.HandlerTable] raise ExecutableElaborationError {
   root_effect_terms(effect).map(term => {
     guard term is Singleton(effect_id, arguments) else {
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="abstract entry effects cannot cross the v1 runtime boundary",
       )
     }
     if !arguments.is_empty() {
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="generic runtime effects are outside the v1 primitive host ABI",
       )
     }
     guard metadata.effect_info(effect_id) is Some(info) else {
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="linked runtime effect metadata is missing",
       )
     }
@@ -197,18 +166,18 @@ fn root_runtime_operation_clause(
   metadata : @buslane.MetadataRegistry,
   operation : @buslane.OperationId,
   handler_result : @buslane.Type,
-  bindings : Array[RuntimeEffectExternal],
-) -> @buslane.OperationAlternative raise LoisvmLoweringError {
+  bindings : Array[RuntimeEffectBinding],
+) -> @buslane.OperationAlternative raise ExecutableElaborationError {
   let info = runtime_operation_info(metadata, operation)
   if !info.hidden_type_parameters.is_empty() {
-    raise UnsupportedExpression(
+    raise UnsupportedRuntimeBoundary(
       detail="generic runtime effect operations are outside the v1 primitive host ABI",
     )
   }
   let target = match find_runtime_effect_external(bindings, operation) {
     Some(value) => value
     None =>
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="non-runtime effects must be erased before VM CFG lowering",
       )
   }
@@ -235,11 +204,11 @@ fn root_runtime_operation_clause(
 fn runtime_operation_info(
   metadata : @buslane.MetadataRegistry,
   operation : @buslane.OperationId,
-) -> @buslane.OperationInfo raise LoisvmLoweringError {
+) -> @buslane.OperationInfo raise ExecutableElaborationError {
   match metadata.operation_info(operation) {
     Some(info) => info
     None =>
-      raise UnsupportedExpression(
+      raise UnsupportedRuntimeBoundary(
         detail="linked runtime effect operation metadata is missing",
       )
   }
@@ -256,14 +225,14 @@ fn root_effect_terms(effect : @buslane.Effect) -> Array[@buslane.Effect] {
 
 ///|
 fn runtime_effect_symbol(
-  operation : @artifact_core.LinkedRuntimeEffectOperation,
+  operation : @module_link.LinkedRuntimeEffectOperation,
 ) -> String {
   "lane.effect.v1/\{operation.module_path_text}/\{operation.effect_name}/\{operation.operation_name}"
 }
 
 ///|
 fn find_runtime_effect_external(
-  bindings : Array[RuntimeEffectExternal],
+  bindings : Array[RuntimeEffectBinding],
   operation : @buslane.OperationId,
 ) -> @buslane.ValueId? {
   for binding in bindings {
@@ -272,4 +241,20 @@ fn find_runtime_effect_external(
     }
   }
   None
+}
+
+///|
+fn runtime_import_signature_supported(type_ : @buslane.Type) -> Bool {
+  guard type_ is Function(parameters, result, _) else { return false }
+  parameters.all(runtime_import_primitive_type) &&
+  runtime_import_primitive_type(result)
+}
+
+///|
+fn runtime_import_primitive_type(type_ : @buslane.Type) -> Bool {
+  type_ is Primitive(Unit) ||
+  type_ is Primitive(Bool) ||
+  type_ is Primitive(Int) ||
+  type_ is Primitive(Double) ||
+  type_ is Primitive(String)
 }

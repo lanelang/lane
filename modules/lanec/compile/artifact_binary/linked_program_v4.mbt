@@ -1,26 +1,21 @@
 ///|
-pub fn lower_linked_executable_to_loisvm_bytecode(
-  program : @module_compile.LinkedExecutableProgram,
+pub fn lower_executable_to_loisvm_bytecode(
+  program : @executable.ExecutableProgram,
 ) -> Result[
   @loisvm_bytecode.BytecodeImage,
   @loisvm_lowering.LoisvmLoweringError,
 ] {
-  @loisvm_lowering.lower_linked_program_to_bytecode_with_runtime_effects(
-    program.program,
-    program.externals,
-    program.entry,
-    program.runtime_effect_operations,
-  )
+  @loisvm_lowering.lower_executable_program_to_bytecode(program)
 }
 
 ///|
-pub fn linked_executable_to_loisvm_artifact(
-  program : @module_compile.LinkedExecutableProgram,
+pub fn executable_to_loisvm_artifact(
+  program : @executable.ExecutableProgram,
 ) -> Result[
   @module_compile.LinkedProgramArtifact,
   @loisvm_lowering.LoisvmLoweringError,
 ] {
-  match lower_linked_executable_to_loisvm_bytecode(program) {
+  match lower_executable_to_loisvm_bytecode(program) {
     Ok(bytecode) =>
       Ok({
         schema_version: @module_compile.linked_program_artifact_schema_version,
@@ -31,10 +26,10 @@ pub fn linked_executable_to_loisvm_artifact(
 }
 
 ///|
-pub fn linked_executable_to_loisvm_binary(
-  program : @module_compile.LinkedExecutableProgram,
+pub fn executable_to_loisvm_binary(
+  program : @executable.ExecutableProgram,
 ) -> Result[Bytes, @loisvm_lowering.LoisvmLoweringError] {
-  match linked_executable_to_loisvm_artifact(program) {
+  match executable_to_loisvm_artifact(program) {
     Ok(artifact) => Ok(linked_program_artifact_to_binary(artifact))
     Err(error) => Err(error)
   }

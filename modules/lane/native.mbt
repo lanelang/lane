@@ -109,10 +109,9 @@ async fn read_module_object_artifact(
 ///|
 async fn write_linked_program_artifact(
   path : String,
-  program : @module_compile.LinkedExecutableProgram,
+  program : @executable.ExecutableProgram,
 ) -> Result[Unit, CliError] {
-  let bytes = match
-    @artifact_binary.linked_executable_to_loisvm_binary(program) {
+  let bytes = match @artifact_binary.executable_to_loisvm_binary(program) {
     Ok(bytes) => bytes
     Err(error) =>
       return Err(ExecutionImageLowering(message="\{to_repr(error)}"))

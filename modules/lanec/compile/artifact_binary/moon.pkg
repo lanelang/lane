@@ -5,6 +5,7 @@ import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/executable",
   "Milky2018/lanec/loisvm_lowering",
   "Milky2018/lanec/module/compile" @module_compile,
   "Milky2018/lanec/module" @module_interface,

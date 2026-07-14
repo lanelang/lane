@@ -4,7 +4,6 @@ package "Milky2018/lanec/compile"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/checked",
-  "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/frontend",
@@ -56,7 +55,7 @@ pub(all) struct CompileResult {
   program : @buslane.Program?
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@link.LinkedRuntimeEffectOperation]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 

@@ -64,7 +64,7 @@ async fn lane_run(
 fn execute_entry(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
   entry : @buslane_lowering.BuslaneEntry,
 ) -> LaneCommandOutcome {
   execute_entry_with_output(
@@ -80,7 +80,7 @@ fn execute_entry(
 fn execute_entry_with_output(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
   entry : @buslane_lowering.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
@@ -91,10 +91,22 @@ fn execute_entry_with_output(
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: [],
+    program,
+    externals,
+    entries: [entry],
+    runtime_effect_operations,
+  }
+  let executable = match @executable.elaborate(linked, entry) {
+    Ok(executable) => executable
+    Err(error) =>
+      return LaneCommandOutcome::user_error(
+        ExecutionImageLowering(message="\{to_repr(error)}"),
+      )
+  }
   let image = match
-    @loisvm_lowering.lower_linked_program_to_bytecode_with_runtime_effects(
-      program, externals, entry, runtime_effect_operations,
-    ) {
+    @loisvm_lowering.lower_executable_program_to_bytecode(executable) {
     Ok(image) => image
     Err(error) =>
       return LaneCommandOutcome::user_error(
@@ -205,7 +217,7 @@ fn command_loisvm_runtime(
 ///|
 fn command_runtime_effects(
   program : @buslane.Program,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
 ) -> Array[@buslane.EffectId] {
   let effects = []
   if command_runtime_effect_operation(program, runtime_effect_operations)
@@ -220,7 +232,7 @@ fn command_runtime_effects(
 ///|
 fn command_runtime_effect_operation(
   program : @buslane.Program,
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation],
+  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
 ) -> @buslane.OperationId? {
   let signature = basic_io_write_println_signature()
   for operation in runtime_effect_operations {
@@ -234,7 +246,7 @@ fn command_runtime_effect_operation(
 
 ///|
 fn runtime_effect_operation_matches(
-  operation : @artifact_core.LinkedRuntimeEffectOperation,
+  operation : @module_link.LinkedRuntimeEffectOperation,
   signature : @module_link.RuntimeEffectOperationSignature,
 ) -> Bool {
   operation.module_path_text == signature.module_path_text &&

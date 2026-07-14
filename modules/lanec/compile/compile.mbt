@@ -9,7 +9,7 @@ pub(all) struct CompileResult {
   program : @buslane.Program?
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation]
   diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 

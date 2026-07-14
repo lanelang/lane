@@ -1,6 +1,8 @@
 import {
   "Milky2018/lanec/analysis",
+  "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/compile/artifact_binary",
+  "Milky2018/lanec/executable",
   "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/lanec/types",
@@ -12,7 +14,6 @@ import {
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/checked",
-  "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/compile" @module_compile,

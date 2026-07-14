@@ -34,8 +34,6 @@ pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> @link.LinkRe
 
 pub let linked_program_artifact_schema_version : Int
 
-pub fn linked_program_to_executable(@link.LinkedProgram, @buslane_lowering.BuslaneEntry) -> LinkedExecutableProgram
-
 pub fn module_fingerprint(@module.ModuleInterface, Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
 
 pub let module_object_artifact_schema_version : Int
@@ -80,14 +78,6 @@ pub(all) struct CompiledModuleSetArtifact {
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
   reachable_module_path_texts : Array[String]
-} derive(Eq, @debug.Debug)
-
-pub(all) struct LinkedExecutableProgram {
-  module_path_texts : Array[String]
-  program : @buslane.Program
-  externals : @buslane_lowering.BuslaneExternalMap
-  entry : @buslane_lowering.BuslaneEntry
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkedProgramArtifact {

@@ -292,11 +292,14 @@ async test "native module artifacts are binary and readable" {
     cleanup_library_fixture(workspace)
     abort("expected linked program")
   }
-  match
-    write_linked_program_artifact(
-      program_path,
-      @module_compile.linked_program_to_executable(program, program.entries[0]),
-    ) {
+  let executable = match @executable.elaborate(program, program.entries[0]) {
+    Ok(executable) => executable
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort("executable elaboration failed: \{to_repr(error)}")
+    }
+  }
+  match write_linked_program_artifact(program_path, executable) {
     Ok(_) => ()
     Err(error) => {
       cleanup_library_fixture(workspace)

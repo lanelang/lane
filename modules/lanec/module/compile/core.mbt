@@ -73,29 +73,6 @@ pub(all) struct CompiledModuleSet {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct LinkedExecutableProgram {
-  module_path_texts : Array[String]
-  program : @buslane.Program
-  externals : @buslane_lowering.BuslaneExternalMap
-  entry : @buslane_lowering.BuslaneEntry
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
-} derive(Debug, Eq)
-
-///|
-pub fn linked_program_to_executable(
-  program : @module_link.LinkedProgram,
-  entry : @buslane_lowering.BuslaneEntry,
-) -> LinkedExecutableProgram {
-  {
-    module_path_texts: program.module_path_texts,
-    program: program.program,
-    externals: program.externals,
-    entry,
-    runtime_effect_operations: program.runtime_effect_operations,
-  }
-}
-
-///|
 pub fn compile_module_graph(
   graph : @module_frontend.ModuleGraph,
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {

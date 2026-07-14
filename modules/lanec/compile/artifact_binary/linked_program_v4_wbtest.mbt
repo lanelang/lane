@@ -81,7 +81,13 @@ test "linked executable lowers through the LoisVM boundary" {
   let unit_type = @buslane.Type::Primitive(Unit)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("main", Function, main_type)
-  let linked : @module_compile.LinkedExecutableProgram = {
+  let entry : @buslane_lowering.BuslaneEntry = {
+    module_path_text: "Main",
+    name: "main",
+    value: main,
+    type_: main_type,
+  }
+  let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
       metadata,
@@ -97,16 +103,15 @@ test "linked executable lowers through the LoisVM boundary" {
       ],
     },
     externals: { builtins: [] },
-    entry: {
-      module_path_text: "Main",
-      name: "main",
-      value: main,
-      type_: main_type,
-    },
+    entries: [entry],
     runtime_effect_operations: [],
   }
+  let executable = match @executable.elaborate(linked, entry) {
+    Ok(executable) => executable
+    Err(error) => fail("elaboration failed: \{to_repr(error)}")
+  }
   assert_true(
-    lower_linked_executable_to_loisvm_bytecode(linked)
+    lower_executable_to_loisvm_bytecode(executable)
     is Ok({ entry: { value: 1 }, functions: [BytecodeBody(_)], .. }),
   )
 }

@@ -1,4 +1,15 @@
 ///|
+fn test_executable_program(
+  program : @module_link.LinkedProgram,
+) -> @executable.ExecutableProgram {
+  match @executable.elaborate(program, program.entries[0]) {
+    Ok(executable) => executable
+    Err(error) =>
+      abort("unexpected executable elaboration error: \{to_repr(error)}")
+  }
+}
+
+///|
 test "compile source records builtin externals and public entries" {
   let result = compile_source(
     (
@@ -1287,12 +1298,9 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let executable = @module_compile.linked_program_to_executable(
-    program,
-    program.entries[0],
-  )
+  let executable = test_executable_program(program)
   let linked_artifact = match
-    @artifact_binary.linked_executable_to_loisvm_artifact(executable) {
+    @artifact_binary.executable_to_loisvm_artifact(executable) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
   }
@@ -1442,8 +1450,8 @@ test "linked artifacts preserve runtime effect operation metadata" {
     -1,
   )
   let artifact = match
-    @artifact_binary.linked_executable_to_loisvm_artifact(
-      @module_compile.linked_program_to_executable(program, program.entries[0]),
+    @artifact_binary.executable_to_loisvm_artifact(
+      test_executable_program(program),
     ) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
@@ -1710,8 +1718,8 @@ test "module artifact binary rejects wrong kind" {
     abort("expected linked program")
   }
   let artifact = match
-    @artifact_binary.linked_executable_to_loisvm_artifact(
-      @module_compile.linked_program_to_executable(program, program.entries[0]),
+    @artifact_binary.executable_to_loisvm_artifact(
+      test_executable_program(program),
     ) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")

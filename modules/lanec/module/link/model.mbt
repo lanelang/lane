@@ -23,7 +23,17 @@ pub(all) struct LinkedProgram {
   program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
-  runtime_effect_operations : Array[@artifact_core.LinkedRuntimeEffectOperation]
+  runtime_effect_operations : Array[LinkedRuntimeEffectOperation]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LinkedRuntimeEffectOperation {
+  module_path_text : String
+  effect_name : String
+  operation_name : String
+  payload : Array[@types.Type]
+  result : @types.Type
+  operation : @buslane.OperationId
 } derive(Debug, Eq)
 
 ///|

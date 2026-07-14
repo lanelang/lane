@@ -5,7 +5,6 @@ import {
   "Milky2018/buslane",
   "Milky2018/bytecodec",
   "Milky2018/lanec/elaborate/buslane_lowering",
-  "Milky2018/lanec/types",
   "moonbitlang/core/debug",
 }
 
@@ -60,15 +59,6 @@ pub(all) struct CompilationFingerprint {
 pub(all) struct ImportedInterfaceFingerprint {
   module_path_text : String
   fingerprint : CompilationFingerprint
-} derive(Eq, @debug.Debug)
-
-pub(all) struct LinkedRuntimeEffectOperation {
-  module_path_text : String
-  effect_name : String
-  operation_name : String
-  payload : Array[@types.Type]
-  result : @types.Type
-  operation : @buslane.OperationId
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleImportedReference {
