@@ -1,8 +1,6 @@
 ///|
 pub(all) suberror WasmLoadError {
-  UnresolvedImport(symbol~ : String)
-  AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
-  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+  RuntimeImportResolution(error~ : @loisvm_runtime.RuntimeImportResolutionError)
   BackendCompileFailure(detail~ : String)
 } derive(Debug, Eq)
 
@@ -34,27 +32,14 @@ pub fn load(
   let bindings : Array[@loisvm_runtime.RuntimeBinding] = []
   for entry in image.functions {
     if entry is RuntimeImport(import_) {
-      let binding = match registry.find(import_.symbol) {
-        Some(value) => value
-        None => return Err(UnresolvedImport(symbol=import_.symbol))
-      }
-      if binding.abi_major() != import_.abi_major {
-        return Err(
-          AbiMismatch(
-            symbol=import_.symbol,
-            expected_major=import_.abi_major,
-            actual_major=binding.abi_major(),
-          ),
-        )
-      }
-      if binding.parameters().length() != import_.user_arity {
-        return Err(
-          ArityMismatch(
-            symbol=import_.symbol,
-            expected=import_.user_arity,
-            actual=binding.parameters().length(),
-          ),
-        )
+      let binding = match
+        registry.resolve(
+          import_.symbol,
+          expected_abi_major=import_.abi_major,
+          expected_arity=import_.user_arity,
+        ) {
+        Ok(binding) => binding
+        Err(error) => return Err(RuntimeImportResolution(error~))
       }
       bindings.push(binding)
     }
@@ -111,7 +96,7 @@ fn LoadedImage::new_instance_or_raise(
     imports,
   )
   store
-  .get_global(instance.global_addrs[5])
+  .get_global(instance.global_addrs[max_live_heap_bytes_global_index])
   .set(
     I32(
       match config.max_live_heap_bytes {
@@ -121,7 +106,7 @@ fn LoadedImage::new_instance_or_raise(
     ),
   )
   store
-  .get_global(instance.global_addrs[7])
+  .get_global(instance.global_addrs[max_call_depth_global_index])
   .set(
     I32(
       match config.max_call_depth {
@@ -159,7 +144,7 @@ pub fn ExecutionInstance::execute(
         Err(RuntimeImportFailure(symbol~, message~))
       } else {
         let failure_code = self.store
-          .get_global(self.instance.global_addrs[8])
+          .get_global(self.instance.global_addrs[failure_code_global_index])
           .get() catch {
             _ => I32(0)
           }
@@ -230,7 +215,12 @@ fn invoke_runtime_binding(
     Failure(message~) => {
       failure.symbol = Some(binding.symbol())
       failure.message = Some(message)
-      caller.store().get_global(caller.instance().global_addrs[9]).set(I32(1))
+      caller
+      .store()
+      .get_global(
+        caller.instance().global_addrs[runtime_import_failed_global_index],
+      )
+      .set(I32(1))
       return default_runtime_result(binding.result())
     }
   } noraise {
@@ -240,14 +230,19 @@ fn invoke_runtime_binding(
     error => {
       let failure_code = caller
         .store()
-        .get_global(caller.instance().global_addrs[8])
+        .get_global(caller.instance().global_addrs[failure_code_global_index])
         .get() catch {
           _ => I32(0)
         }
       if failure_code is I32(0) {
         failure.symbol = Some(binding.symbol())
         failure.message = Some(error.to_string())
-        caller.store().get_global(caller.instance().global_addrs[9]).set(I32(1))
+        caller
+        .store()
+        .get_global(
+          caller.instance().global_addrs[runtime_import_failed_global_index],
+        )
+        .set(I32(1))
       }
       default_runtime_result(binding.result())
     }

@@ -162,7 +162,7 @@ fn destroy_shape_body(
         )
         instructions.push(I32Const(5))
         instructions.push(I32Shl)
-        instructions.push(GlobalGet(0))
+        instructions.push(GlobalGet(layout_table_base_global_index))
         instructions.push(I32Add)
         instructions.push(I32Load(0, 2, 20L))
         instructions.push(CallIndirect(erased_release_type, 0))

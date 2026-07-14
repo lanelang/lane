@@ -103,8 +103,8 @@ fn append_runtime_import_adapter(
     instructions.push(LocalGet(string_parameter))
     instructions.push(Call(runtime.release_ref))
   }
-  instructions.push(GlobalGet(8))
-  instructions.push(GlobalGet(9))
+  instructions.push(GlobalGet(failure_code_global_index))
+  instructions.push(GlobalGet(runtime_import_failed_global_index))
   instructions.push(I32Or)
   instructions.push(If(Empty, [Throw(0)], []))
   if !results.is_empty() {

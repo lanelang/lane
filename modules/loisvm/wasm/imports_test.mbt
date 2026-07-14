@@ -351,7 +351,11 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
   })
   assert_true(
     load(image, @loisvm_runtime.RuntimeRegistry::new())
-    is Err(UnresolvedImport(symbol="lane.test.missing")),
+    is Err(
+      RuntimeImportResolution(
+        error=UnresolvedImport(symbol="lane.test.missing")
+      )
+    ),
   )
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
@@ -366,7 +370,13 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
   assert_true(
     load(image, registry)
     is Err(
-      AbiMismatch(symbol="lane.test.missing", expected_major=1, actual_major=2)
+      RuntimeImportResolution(
+        error=AbiMismatch(
+          symbol="lane.test.missing",
+          expected_major=1,
+          actual_major=2
+        )
+      )
     ),
   )
 }

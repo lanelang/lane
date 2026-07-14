@@ -23,9 +23,7 @@ pub(all) suberror WasmCompileError {
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror WasmLoadError {
-  UnresolvedImport(symbol~ : String)
-  AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
-  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+  RuntimeImportResolution(error~ : @Milky2018/loisvm/runtime.RuntimeImportResolutionError)
   BackendCompileFailure(detail~ : String)
 } derive(Eq, @debug.Debug)
 

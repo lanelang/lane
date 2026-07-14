@@ -21,6 +21,12 @@ pub(all) suberror RuntimeImportFailure {
   Failure(message~ : String)
 } derive(Eq, @debug.Debug)
 
+pub(all) suberror RuntimeImportResolutionError {
+  UnresolvedImport(symbol~ : String)
+  AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
+  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+} derive(Eq, @debug.Debug)
+
 // Types and methods
 pub(all) struct ExecutionConfig {
   max_call_depth : Int?
@@ -87,6 +93,7 @@ pub struct RuntimeRegistry {
 pub fn RuntimeRegistry::find(Self, String) -> RuntimeBinding?
 pub fn RuntimeRegistry::new() -> Self
 pub fn RuntimeRegistry::register(Self, RuntimeBinding) -> Unit
+pub fn RuntimeRegistry::resolve(Self, String, expected_abi_major~ : Int, expected_arity~ : Int) -> Result[RuntimeBinding, RuntimeImportResolutionError]
 
 // Type aliases
 pub type RuntimeFunction = (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure

@@ -98,6 +98,13 @@ pub(all) suberror RuntimeImportFailure {
 } derive(Debug, Eq)
 
 ///|
+pub(all) suberror RuntimeImportResolutionError {
+  UnresolvedImport(symbol~ : String)
+  AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
+  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+} derive(Debug, Eq)
+
+///|
 pub(all) enum ResourceLimitKind {
   CallDepth
   LiveHeapBytes
@@ -207,4 +214,36 @@ pub fn RuntimeRegistry::find(
     }
   }
   None
+}
+
+///|
+pub fn RuntimeRegistry::resolve(
+  self : RuntimeRegistry,
+  symbol : String,
+  expected_abi_major~ : Int,
+  expected_arity~ : Int,
+) -> Result[RuntimeBinding, RuntimeImportResolutionError] {
+  let binding = match self.find(symbol) {
+    Some(binding) => binding
+    None => return Err(UnresolvedImport(symbol~))
+  }
+  if binding.abi_major() != expected_abi_major {
+    return Err(
+      AbiMismatch(
+        symbol~,
+        expected_major=expected_abi_major,
+        actual_major=binding.abi_major(),
+      ),
+    )
+  }
+  if binding.parameters().length() != expected_arity {
+    return Err(
+      ArityMismatch(
+        symbol~,
+        expected=expected_arity,
+        actual=binding.parameters().length(),
+      ),
+    )
+  }
+  Ok(binding)
 }

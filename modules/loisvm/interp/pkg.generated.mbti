@@ -8,14 +8,9 @@ import {
 }
 
 // Values
-pub fn load(@bytecode.BytecodeImage, @runtime.RuntimeRegistry) -> Result[LoadedImage, LoadError]
+pub fn load(@bytecode.BytecodeImage, @runtime.RuntimeRegistry) -> Result[LoadedImage, @runtime.RuntimeImportResolutionError]
 
 // Errors
-pub(all) suberror LoadError {
-  UnresolvedImport(symbol~ : String)
-  AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
-  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
-} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub struct ExecutionInstance {
@@ -78,5 +73,6 @@ pub enum VMValue {
 } derive(Eq, @debug.Debug)
 
 // Type aliases
+pub using @runtime {type RuntimeImportResolutionError as LoadError}
 
 // Traits

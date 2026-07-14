@@ -444,7 +444,7 @@ fn compile_erased_ownership_call(
     LocalGet(slot_local(parameter_count, witness)),
     I32Const(5),
     I32Shl,
-    GlobalGet(0),
+    GlobalGet(layout_table_base_global_index),
     I32Add,
     I32Load(0, 2, descriptor_offset.to_int64()),
     CallIndirect(type_index, 0),
@@ -708,10 +708,10 @@ fn compile_terminator(
   match terminator {
     Return(source) => {
       let instructions : Array[@wasm_types.Instruction] = [
-        GlobalGet(6),
+        GlobalGet(call_depth_global_index),
         I32Const(1),
         I32Sub,
-        GlobalSet(6),
+        GlobalSet(call_depth_global_index),
       ]
       if source is Some(slot) {
         instructions.push(LocalGet(slot_local(parameter_count, slot)))
@@ -721,10 +721,10 @@ fn compile_terminator(
     }
     TailCallDirect(target, environment, witnesses, arguments) => {
       let instructions : Array[@wasm_types.Instruction] = [
-        GlobalGet(6),
+        GlobalGet(call_depth_global_index),
         I32Const(1),
         I32Sub,
-        GlobalSet(6),
+        GlobalSet(call_depth_global_index),
       ]
       match environment {
         Some(slot) =>
@@ -750,10 +750,10 @@ fn compile_terminator(
     }
     TailCallValue(callable, witnesses, arguments) => {
       let instructions : Array[@wasm_types.Instruction] = [
-        GlobalGet(6),
+        GlobalGet(call_depth_global_index),
         I32Const(1),
         I32Sub,
-        GlobalSet(6),
+        GlobalSet(call_depth_global_index),
         LocalGet(slot_local(parameter_count, callable)),
         I64Const(32L),
         I64ShrU,

@@ -97,28 +97,7 @@ fn compile_or_raise(
     is_memory64: false,
     page_size_log2: 16,
   })
-  wasm_module.globals.push({
-    type_: { value_type: I32, mutable: false },
-    init: [I32Const(static_image.layout_table_base)],
-  })
-  wasm_module.globals.push({
-    type_: { value_type: I32, mutable: false },
-    init: [I32Const(static_image.heap_base)],
-  })
-  wasm_module.globals.push({
-    type_: { value_type: I32, mutable: true },
-    init: [I32Const(static_image.heap_base)],
-  })
-  wasm_module.globals.push({
-    type_: { value_type: I32, mutable: true },
-    init: [I32Const(0)],
-  })
-  for _ in 0..<6 {
-    wasm_module.globals.push({
-      type_: { value_type: I32, mutable: true },
-      init: [I32Const(0)],
-    })
-  }
+  append_runtime_globals(wasm_module, static_image)
   wasm_module.datas.push({
     memory_idx: 0,
     offset: [I32Const(0)],
@@ -310,10 +289,10 @@ fn compile_body(
     ),
   )
   instructions.append([
-    GlobalGet(6),
+    GlobalGet(call_depth_global_index),
     I32Const(1),
     I32Sub,
-    GlobalSet(6),
+    GlobalSet(call_depth_global_index),
     Throw(0),
   ])
   let locals = body.slots.map(fn(slot) {
@@ -336,17 +315,17 @@ fn compile_body(
 ///|
 fn call_depth_prologue() -> Array[@wasm_types.Instruction] {
   [
-    GlobalGet(6),
+    GlobalGet(call_depth_global_index),
     I32Const(1),
     I32Add,
-    GlobalSet(6),
-    GlobalGet(7),
+    GlobalSet(call_depth_global_index),
+    GlobalGet(max_call_depth_global_index),
     I32Eqz,
     If(Empty, [], [
-      GlobalGet(6),
-      GlobalGet(7),
+      GlobalGet(call_depth_global_index),
+      GlobalGet(max_call_depth_global_index),
       I32GtU,
-      If(Empty, [I32Const(1), GlobalSet(8), Throw(0)], []),
+      If(Empty, [I32Const(1), GlobalSet(failure_code_global_index), Throw(0)], []),
     ]),
   ]
 }
