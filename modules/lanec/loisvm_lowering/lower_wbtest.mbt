@@ -2733,6 +2733,27 @@ test "type substitution propagates nominal effect arguments" {
 }
 
 ///|
+test "type substitution resolves parameters inside replacement types" {
+  let element : @buslane.TypeParameterId = { index: 112 }
+  let result : @buslane.TypeParameterId = { index: 113 }
+  assert_eq(
+    substitute_type(
+      Parameter(result),
+      [
+        { parameter: element, argument: TypeArgument(Primitive(Int)) },
+        {
+          parameter: result,
+          argument: TypeArgument(
+            Function([Parameter(element)], Parameter(element), Empty),
+          ),
+        },
+      ],
+    ),
+    Function([Primitive(Int)], Primitive(Int), Empty),
+  )
+}
+
+///|
 test "concrete effect contexts use erased Unit or reference layouts" {
   let effect : @buslane.EffectId = { index: 3 }
   assert_eq(effect_context_layout_recipe(Empty), Unit)

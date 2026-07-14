@@ -266,7 +266,10 @@ fn substitute_type(
               detail="an effect argument cannot substitute a value type",
             )
           }
-          return type_
+          return substitute_type(
+            type_,
+            substitutions.filter(binding => binding.parameter != parameter),
+          )
         }
       }
       type_
