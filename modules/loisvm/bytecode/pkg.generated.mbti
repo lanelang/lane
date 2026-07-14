@@ -16,6 +16,7 @@ pub fn parse_bytecode_image_binary(Bytes) -> Result[BytecodeImage, BytecodeDecod
 pub(all) suberror BytecodeDecodeError {
   UnsupportedSchema(version~ : Int)
   MalformedEncoding(offset~ : Int, detail~ : String)
+  ResourceLimit(offset~ : Int, detail~ : String)
 } derive(Eq, @debug.Debug)
 
 // Types and methods

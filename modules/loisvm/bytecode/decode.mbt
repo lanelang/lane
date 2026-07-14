@@ -2,6 +2,7 @@
 pub(all) suberror BytecodeDecodeError {
   UnsupportedSchema(version~ : Int)
   MalformedEncoding(offset~ : Int, detail~ : String)
+  ResourceLimit(offset~ : Int, detail~ : String)
 } derive(Debug, Eq)
 
 ///|
@@ -680,7 +681,10 @@ fn Decoder::read_nonnegative_u32(
     [i32le(value), .. rest] => {
       self.consume_rest(rest)
       if value < 0 {
-        self.fail_at(offset, "\{expected} exceeds implementation limit")
+        raise ResourceLimit(
+          offset~,
+          detail="\{expected} exceeds implementation limit",
+        )
       }
       value
     }

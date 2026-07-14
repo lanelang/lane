@@ -281,6 +281,31 @@ test "decoder preserves truncation offsets with pattern parsing" {
 }
 
 ///|
+test "decoder reports schema-valid u32 values beyond host Int as resource limits" {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u8(1)
+  writer.write_u32_le(1)
+  writer.write_u32_le(1)
+  writer.write_u8(2)
+  writer.write_u32_le(-1)
+  writer.write_u32_le(0)
+  writer.write_u32_le(1)
+  writer.write_u8(b'x'.to_int())
+  writer.write_u32_le(0)
+  writer.write_u32_le(0)
+  writer.write_u32_le(0)
+  assert_eq(
+    parse_bytecode_image_binary(writer.to_bytes()),
+    Err(
+      ResourceLimit(
+        offset=10,
+        detail="runtime import ABI major exceeds implementation limit",
+      ),
+    ),
+  )
+}
+
+///|
 test "decoder rejects non-ASCII constants and illegal slot metadata" {
   let non_ascii = {
     ..minimal_image(),
