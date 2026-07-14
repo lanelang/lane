@@ -128,7 +128,7 @@ fn ExecutionInstance::borrow_member(
     shape,
     environment~,
   )
-  frame.write(result.value_destination, values[index])
+  frame.write_borrowed(result.value_destination, values[index])
   self.write_projection_witness(frame, result, schemas[index], witnesses)
 }
 

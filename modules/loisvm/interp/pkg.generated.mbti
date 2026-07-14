@@ -18,6 +18,9 @@ pub struct ExecutionInstance {
   config : @runtime.ExecutionConfig
   heap : Heap
   frames : Array[Frame]
+  globals : Array[VMValue?]
+  initialized_globals : Array[@bytecode.GlobalId]
+  mut initializing : Bool
   mut state : InstanceState
 }
 pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @runtime.ExecutionError]

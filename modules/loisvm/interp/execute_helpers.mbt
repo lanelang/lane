@@ -53,6 +53,16 @@ fn Frame::write(self : Frame, slot : @bytecode.SlotId, value : VMValue) -> Unit 
 }
 
 ///|
+fn Frame::write_borrowed(
+  self : Frame,
+  slot : @bytecode.SlotId,
+  value : VMValue,
+) -> Unit {
+  self.slots[slot.value] = Some(value)
+  self.owned_live[slot.value] = false
+}
+
+///|
 fn Frame::consume_owner(self : Frame, slot : @bytecode.SlotId) -> Unit {
   if self.body.slots[slot.value].cleanup != Trivial {
     self.owned_live[slot.value] = false

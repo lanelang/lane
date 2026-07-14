@@ -21,6 +21,9 @@ pub struct ExecutionInstance {
   config : @runtime.ExecutionConfig
   heap : Heap
   frames : Array[Frame]
+  globals : Array[VMValue?]
+  initialized_globals : Array[@bytecode.GlobalId]
+  mut initializing : Bool
   mut state : InstanceState
 }
 
@@ -34,6 +37,9 @@ pub fn LoadedImage::new_instance(
     config,
     heap: Heap::new(self.image, config.max_live_heap_bytes),
     frames: [],
+    globals: Array::make(self.image.globals.length(), None),
+    initialized_globals: [],
+    initializing: false,
     state: Ready,
   }
 }
@@ -50,6 +56,7 @@ pub fn ExecutionInstance::execute(
   let mut should_cleanup = true
   let result = try {
     self.run(cancel)
+    self.cleanup_globals()
     Ok(())
   } catch {
     ImportFailure(symbol~, message~) =>
@@ -67,6 +74,9 @@ pub fn ExecutionInstance::execute(
   }
   if result is Err(_) && should_cleanup {
     self.cleanup_frames()
+    self.cleanup_globals() catch {
+      _ => ()
+    }
   }
   self.state = Terminal
   result
@@ -77,18 +87,34 @@ fn ExecutionInstance::run(
   self : ExecutionInstance,
   cancel : (() -> Bool)?,
 ) -> Unit raise ExecutionFailure {
-  if self.loaded.image.initializer is Some(_) ||
-    !self.loaded.image.globals.is_empty() {
-    raise InternalFailure(detail="instance globals are not implemented")
-  }
   if cancel is Some(check) && check() {
     raise InterruptedExecution
   }
   if self.config.max_call_depth is Some(maximum) && maximum < 1 {
     raise ResourceLimit(CallDepth)
   }
-  let entry = self.loaded.image.entry
-  let body = self.bytecode_body(entry)
+  match self.loaded.image.initializer {
+    Some(initializer) => {
+      self.initializing = true
+      self.run_root(initializer, cancel)
+      self.validate_initialized_globals()
+      self.initializing = false
+    }
+    None =>
+      if !self.loaded.image.globals.is_empty() {
+        raise InternalFailure(detail="instance globals require an initializer")
+      }
+  }
+  self.run_root(self.loaded.image.entry, cancel)
+}
+
+///|
+fn ExecutionInstance::run_root(
+  self : ExecutionInstance,
+  function : @bytecode.FunctionId,
+  cancel : (() -> Bool)?,
+) -> Unit raise ExecutionFailure {
+  let body = self.bytecode_body(function)
   self.frames.push(make_frame(body, None, [], [], None))
   while !self.frames.is_empty() {
     if cancel is Some(check) && check() {
@@ -329,10 +355,9 @@ fn ExecutionInstance::execute_instruction(
       self.borrow_member(frame, shape, source, index, result, environment=true)
     ConsumeCaptures(shape, source, selections) =>
       self.consume_members(frame, shape, source, selections, environment=true)
-    InitGlobal(_, _) | BorrowGlobal(_, _) =>
-      raise InternalFailure(
-        detail="instance global execution is not implemented",
-      )
+    InitGlobal(global, source) => self.initialize_global(frame, global, source)
+    BorrowGlobal(destination, global) =>
+      self.borrow_global(frame, destination, global)
   }
 }
 

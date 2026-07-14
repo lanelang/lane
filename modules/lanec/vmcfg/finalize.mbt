@@ -75,6 +75,13 @@ fn validate_metadata(
 
 ///|
 fn value_metadata_to_slot(metadata : ValueMetadata) -> @bytecode.SlotMetadata {
+  if metadata.ownership is Borrowed && metadata.cleanup is OwnedErased {
+    return {
+      representation: metadata.representation,
+      cleanup: OwnedErased,
+      erased_companion: metadata.erased_companion.map(value_to_slot),
+    }
+  }
   {
     representation: metadata.representation,
     cleanup: match metadata.ownership {

@@ -29,6 +29,16 @@ fn borrowed_ref_value() -> ValueMetadata {
 }
 
 ///|
+fn borrowed_erased_value(companion : ValueId) -> ValueMetadata {
+  {
+    representation: I64,
+    cleanup: OwnedErased,
+    ownership: Borrowed,
+    erased_companion: Some(companion),
+  }
+}
+
+///|
 fn test_image(body : FunctionBody) -> Image {
   {
     entry: { value: 1 },
@@ -91,6 +101,61 @@ test "finalize transfers global owners and promotes global borrows" {
     ConstString({ value: 0 }, { value: 0 }),
     InitGlobal({ value: 0 }, { value: 0 }),
     BorrowGlobal({ value: 1 }, { value: 0 }),
+    RetainCopy({ value: 2 }, { value: 1 }),
+    CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
+  ])
+}
+
+///|
+test "finalize preserves erased companions for promoted global borrows" {
+  let body : FunctionBody = {
+    values: [trivial_value(I32), borrowed_erased_value({ value: 0 })],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          BorrowGlobal({ value: 1 }, { value: 1 }),
+          CallDirect({ value: 2 }, None, [], [{ value: 1 }], None),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = match
+    finalize({
+      ..test_image(body),
+      functions: [
+        Body(body),
+        RuntimeImport({
+          abi_major: 1,
+          user_arity: 1,
+          symbol: "lane.test.consume_erased",
+        }),
+      ],
+    }) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.slots, [
+    { representation: I32, cleanup: Trivial, erased_companion: None },
+    {
+      representation: I64,
+      cleanup: OwnedErased,
+      erased_companion: Some({ value: 0 }),
+    },
+    {
+      representation: I64,
+      cleanup: OwnedErased,
+      erased_companion: Some({ value: 0 }),
+    },
+  ])
+  assert_eq(lowered.blocks[0].instructions, [
+    BorrowGlobal({ value: 1 }, { value: 1 }),
     RetainCopy({ value: 2 }, { value: 1 }),
     CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
   ])
