@@ -435,3 +435,60 @@ test "finalize inserts path-specific releases for every switch edge" {
     assert_eq(block.instructions, [Release({ value: 0 })])
   }
 }
+
+///|
+test "finalize threads an owned function input into its using branch" {
+  let callable : ValueMetadata = {
+    representation: I64,
+    cleanup: OwnedCallable,
+    ownership: Owned,
+    erased_companion: None,
+  }
+  let body : FunctionBody = {
+    values: [trivial_value(I32), callable, trivial_value(I32)],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }, { value: 1 }],
+    },
+    result: I32,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [],
+        terminator: BranchBool(
+          { value: 0 },
+          { target: { value: 1 }, arguments: [] },
+          { target: { value: 2 }, arguments: [] },
+        ),
+      },
+      {
+        parameters: [],
+        instructions: [],
+        terminator: TailCallValue({ value: 1 }, [], []),
+      },
+      {
+        parameters: [],
+        instructions: [ConstBool({ value: 2 }, false)],
+        terminator: Return(Some({ value: 2 })),
+      },
+    ],
+  }
+  let image = match finalize(test_image(body)) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.blocks[1].parameters, [{ value: 1 }])
+  assert_eq(
+    lowered.blocks[0].terminator,
+    BranchBool(
+      { value: 0 },
+      { target: { value: 1 }, arguments: [{ value: 1 }] },
+      { target: { value: 3 }, arguments: [] },
+    ),
+  )
+  assert_eq(lowered.blocks[3].instructions, [Release({ value: 1 })])
+}

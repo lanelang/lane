@@ -33,6 +33,7 @@ fn finalize_or_raise(
 fn finalize_body(
   body : FunctionBody,
 ) -> @bytecode.FunctionBody raise FinalizeError {
+  let body = thread_owned_block_values(body)
   for index, metadata in body.values {
     validate_metadata({ value: index }, metadata)
   }
