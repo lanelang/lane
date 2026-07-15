@@ -90,8 +90,8 @@ The per-execution linear-memory or interpreter-owned storage that roots initiali
 _Avoid_: bytecode local slots, Wasm global section, image constant pool
 
 **Runtime Import Entry**:
-A unified function-table entry containing a stable runtime symbol and erased ABI
-descriptor instead of a LoisVM bytecode body.
+A unified function-table entry produced from a Lane extern binding and containing
+a stable runtime symbol and erased ABI descriptor instead of a LoisVM bytecode body.
 _Avoid_: effect operation entry, per-call symbol lookup, synthetic bytecode stub
 
 **Build-Local FunctionId**:
@@ -332,7 +332,7 @@ _Avoid_: Lane source signature, varargs, typed unboxed bytecode ABI
 **Runtime Symbol Registry**:
 The runtime-owned mapping from a stable symbol and ABI major version to its
 primitive signature and resolved host implementation.
-_Avoid_: bytecode type metadata, per-call symbol lookup, duplicated signature table
+_Avoid_: bytecode type metadata, per-call symbol lookup, duplicated signature table, host effect handler registry
 
 **Runtime Context**:
 Borrowed non-Lane host state supplied implicitly to runtime imports for services

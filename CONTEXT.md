@@ -170,13 +170,17 @@ _Avoid_: language-level main rule, implicit export, compiler-owned policy
 An exported value or function selected for execution or inspection by a workflow.
 _Avoid_: private debug entry, implicit main, unexported root symbol
 
+**Executable Entry Contract**:
+The requirement that a selected executable entry be a zero-argument function returning `Unit` whose residual effect is empty or exactly `Io`.
+_Avoid_: value entry, parameterized main, non-Unit result, implicit host handler, arbitrary residual effect
+
 **Imported Reference Placeholder**:
 A Buslane-level placeholder for an imported exported symbol before linking connects it to its defining module.
 _Avoid_: source symbol, prelude text, final linked identity
 
 **External Origin**:
-The compiler-side classification of a Buslane external value as a runtime intrinsic or an imported reference.
-_Avoid_: Buslane source syntax, module namespace in core, untyped runtime lookup
+The compiler-side classification of a Buslane external value as a compiler intrinsic, an extern binding, or an imported reference.
+_Avoid_: Buslane source syntax, module namespace in core, untyped runtime lookup, effect operation
 
 **Import Graph**:
 The acyclic dependency graph between modules through their imports.
@@ -270,6 +274,22 @@ _Avoid_: opaque representation, private constructor, hidden variant set
 A declared source-language operation whose use is statically tracked in effect sets and discharged by effect handlers.
 _Avoid_: unchecked exception, runtime panic, implicit IO
 
+**Built-in Effect Type**:
+A compiler-defined, import-free inhabitant of **Effect Kind** with an intrinsic identity independent of nominal effect declarations. It participates in effect sets and effect polymorphism, makes a computation non-pure, but has no source-declared operations and cannot be discharged by an **Effect Handler**. `Io` is the built-in effect type for observable interaction with the execution environment, including terminal, file, clock, randomness, environment, and network access.
+_Avoid_: Basic library effect declaration, implicit untracked IO, runtime linkage marker, runtime capability object, pure host marker
+
+**Compiler Intrinsic**:
+A compiler-known operation named through `builtin("...")` whose type, effects, semantics, and lowering are defined by a closed compiler-owned symbol table and require no host symbol resolution. The compiler rejects unknown names and signature mismatches.
+_Avoid_: extern binding, runtime import, user-defined symbol, open plugin name, effect operation
+
+**Extern Binding**:
+A user-accessible `extern("...")` binding from an open stable runtime-symbol namespace to a programmer-asserted monomorphic Lane function type whose parameters and result use the primitive host ABI and whose latent effect is either empty or exactly `Io`. The construct can be checked only against a complete expected function type; it never synthesizes a signature or defaults a missing effect to pure. Extern bindings cannot have scalar or global-value types; external values are exposed through zero-argument functions so invocation and effects remain explicit. Algebraic effects, open effect rows, and effect parameters require a handler interface rather than an extern call. The compiler does not know the symbol's semantics; an incorrect assertion invalidates the program's type and effect guarantees. Basic library declarations may wrap extern bindings in ordinary typed functions.
+_Avoid_: compiler intrinsic, scalar extern, implicit initializer, inferred extern signature, default-pure extern, generic extern, aggregate host ABI, algebraic-effect extern, effect-polymorphic extern, host effect handler, verified foreign declaration
+
+**Host Effect Handler**:
+A future execution-host adapter for a typed algebraic effect operation that receives evaluated payloads and a first-class multi-shot resume continuation. It is a separate host interface from extern calls and is not an implementation of `Io`.
+_Avoid_: runtime import, extern callback, built-in effect implementation, current executable entry convention
+
 **Effect Declaration**:
 A top-level nominal declaration that owns a complete set of effect operations and any shared effect type parameters.
 _Avoid_: value declaration, operation namespace, runtime plugin
@@ -291,7 +311,7 @@ An effectful operation invocation written with `!`, such as `Console::print!("hi
 _Avoid_: ordinary function call, omitted call parentheses, implicit perform expression, unchecked command dispatch
 
 **Effect Set**:
-The finite, order-insensitive set of typed algebraic effects that an expression or function may perform.
+The finite, order-insensitive set of typed effects, including **Typed Algebraic Effects** and **Built-in Effect Types**, that an expression or function may perform.
 _Avoid_: exception list, ordered runtime list, runtime capability bag, implicit ambient state
 
 **Effect Set Alias**:
@@ -437,7 +457,10 @@ _Avoid_: VS Code extension, compiler front end
 - **Double Literals** produce **Double** values directly; Lane does not use
   numeric literal overloading or implicit conversion between `Int` and
   **Double**.
-- **Typed Algebraic Effects** are the only planned language-level effect mechanism; **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
+- Lane effect sets contain **Typed Algebraic Effects** and **Built-in Effect Types**; **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
+- A closed effect row containing only **Built-in Effect Types** does not require monadic translation because it has neither an open tail nor handled operations that may resume repeatedly; this follows from the general monadic-effect predicate rather than a built-in-effect special case. Such a row remains non-pure and visible to effect-sensitive optimization until type erasure.
+- A **Compiler Intrinsic** is understood and lowered by the compiler, while an **Extern Binding** is resolved by the execution host and is checked only against its asserted surrounding type.
+- An **Extern Binding** lowers to an ordinary LoisVM runtime import without a continuation; a **Host Effect Handler** is a separate future interface that may resume an algebraic operation zero or more times.
 - An **Effect Declaration** owns uniquely named **Effect Operations**; an **Effect Operation** may introduce **Operation Type Parameters**.
 - An **Operation Type Parameter** is scoped only to its owning **Effect Operation** signature and may shadow an **Effect Declaration** type parameter by normal innermost-binder lookup.
 - An **Effect Operation Call** may qualify a generic owning **Effect Declaration** with ordinary owner type arguments, and separately supplies **Operation Type Parameter** witnesses at the perform site.
@@ -493,7 +516,7 @@ _Avoid_: VS Code extension, compiler front end
 - A build `link` primitive chooses the executable entry before **Core Occurrence Analysis** and whole-program optimization.
 - A linked executable artifact exposes one selected entry, not a list of run-time selectable public entries.
 - A link-time executable entry is selected through an **Exported Symbol**; private lowered definitions are not command-line entry contracts.
-- Link validates the selected entry's executable type and supported runtime effects before producing a linked executable artifact.
+- Link validates the selected entry against the **Executable Entry Contract** before producing a linked executable artifact; no runtime algebraic-effect table extends the accepted residual effects.
 - `runobj` must not rely on source-level type information to decide whether an entry is executable; a linked executable artifact may omit type information needed only for link-time validation.
 - `runobj` executes the selected entry recorded in the **Linked Program**; it does not choose an entry at run time.
 - Lane follows **GHC-Like Artifact Layering** for compile, link, optimization, and execution artifacts.

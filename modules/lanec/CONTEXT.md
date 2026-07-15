@@ -156,11 +156,11 @@ The target-independent `lanec/module/link` package that owns module-linking algo
 _Avoid_: compilation orchestrator, artifact codec, execution-image target
 
 **Whole-Program Elaboration**:
-The post-link compiler phase that makes one program's selected entry, ordered top-level initialization, runtime boundary, and execution roots explicit before execution-image lowering.
+The post-link compiler phase that makes one program's selected entry, ordered top-level initialization, executable effect boundary, and execution roots explicit before execution-image lowering.
 _Avoid_: source elaboration, linking, LoisVM bytecode emission
 
 **Executable Program**:
-The compiler-owned result of Whole-Program Elaboration, containing one selected entry, explicit execution roots, and the complete initialization and runtime policy needed for execution-image lowering without consulting the original link product.
+The compiler-owned result of Whole-Program Elaboration, containing one selected entry, explicit execution roots, and the complete initialization and executable-effect policy needed for execution-image lowering without consulting the original link product.
 _Avoid_: shallow linked-program wrapper, LoisVM bytecode image, loaded execution instance
 
 **Executable Program Package**:
@@ -226,7 +226,7 @@ The closure-conversion rule that represents recursive group member references th
 _Avoid_: EnvRef-to-closure ownership cycle, runtime cycle collector, weak-reference source semantics
 
 **Effect-Erasure Pipeline**:
-The pre-ANF handler elaboration, `mon-trans`, `open-resolve`, and `monadic-lift` sequence that converts source effects through explicit compiler-private dictionaries and selective answer-type CPS, then removes all effect-specific forms before compiler-private VM CFG lowering.
+The pre-ANF handler elaboration, `mon-trans`, `open-resolve`, `monadic-lift`, and residual-effect-erasure sequence that converts source effects through explicit compiler-private dictionaries and selective answer-type CPS, preserves non-monadic residual effects through effect-sensitive optimization, and finally removes all effect-specific forms before compiler-private VM CFG lowering.
 _Avoid_: LoisVM effect instruction, bytecode handler lowering, runtime stack capture
 
 **Handler Dictionary**:
@@ -241,8 +241,24 @@ _Avoid_: global evidence vector, LoisVM hidden ABI field, runtime handler lookup
 The compiler-generated kind-Type parameter and value parameter paired with one kind-Effect parameter so polymorphic code can forward an opaque effect context without runtime operation tags or heterogeneous lookup.
 _Avoid_: source type parameter, layout witness, universal operation table
 
+**Monadic Effect Predicate**:
+The conservative classification used by `mon-trans` that holds when an effect row has an open tail or contains any handled operation. Every handled operation is potentially multi-shot, so the predicate does not analyze or infer resume counts. It determines whether monadic translation is required, independently of whether the computation is pure or otherwise observable.
+_Avoid_: nonempty-effect test, `Io` special case, optimizer purity test, resume-count analysis
+
+**Non-Monadic Residual Effect**:
+The portion of an effect row that does not require monadic translation and therefore remains on direct and CPS-transformed function types until residual effect erasure. `Io` is the initial built-in non-monadic effect.
+_Avoid_: pure effect, discarded CPS effect, handler context
+
+**Residual Effect Erasure**:
+The final effect-lowering pass that removes non-monadic residual effects after all effect-sensitive optimization while preserving their ordinary extern calls and other observable operations.
+_Avoid_: monadic translation, extern-call deletion, early purity rewrite
+
+**Built-in Effect Atom**:
+The compiler-IR effect term for an intrinsically identified built-in effect such as `Io`; it is not represented by an EffectId and has no effect or operation metadata to remap across modules.
+_Avoid_: reserved EffectId, synthetic effect declaration, module-qualified nominal effect
+
 **Answer-Type CPS**:
-The selective transformation of a non-pure function from `(args) -> A ! E` to an effect-free conceptual shape `[Answer](context, args, (A) -> Answer) -> Answer`, while pure functions remain direct style.
+The selective transformation of a function whose latent effect satisfies the **Monadic Effect Predicate** from `(args) -> A ! E` to the conceptual shape `[Answer](context, args, (A) -> Answer ! R) -> Answer ! R`, where `R` is the **Non-Monadic Residual Effect**; functions whose effects do not satisfy the predicate remain direct style even when they are non-pure.
 _Avoid_: whole-program CPS, VM stack capture, yielding side channel
 
 **Effect Lowering Core Package**:
