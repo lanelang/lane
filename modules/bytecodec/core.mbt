@@ -223,5 +223,3 @@ pub fn ByteReader::read_string(
     _ => raise InvalidUtf8(offset~)
   }
 }
-
-///|

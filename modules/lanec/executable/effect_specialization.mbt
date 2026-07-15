@@ -19,6 +19,18 @@ priv struct EffectSpecializationInstance {
 }
 
 ///|
+priv struct EffectLocalDefinitionGroup {
+  definitions : Array[EffectGenericDefinition]
+  instances : Array[EffectSpecializationInstance]
+}
+
+///|
+priv enum EffectGenericDefinitionSite {
+  TopLevel(EffectGenericDefinition)
+  Local(EffectGenericDefinition, Array[EffectSpecializationInstance])
+}
+
+///|
 priv struct EffectValueBinding {
   source : @buslane.ValueId
   target : @buslane.ValueId
@@ -28,13 +40,14 @@ priv struct EffectValueBinding {
 priv struct EffectRewriteScope {
   type_bindings : Array[EffectSpecializationBinding]
   value_bindings : Array[EffectValueBinding]
+  local_definition_groups : Array[EffectLocalDefinitionGroup]
 }
 
 ///|
 fn EffectRewriteScope::new(
   type_bindings : Array[EffectSpecializationBinding],
 ) -> EffectRewriteScope {
-  { type_bindings, value_bindings: [] }
+  { type_bindings, value_bindings: [], local_definition_groups: [] }
 }
 
 ///|
@@ -44,6 +57,21 @@ fn EffectRewriteScope::enter_scope(
   {
     type_bindings: self.type_bindings,
     value_bindings: self.value_bindings.copy(),
+    local_definition_groups: self.local_definition_groups.copy(),
+  }
+}
+
+///|
+fn EffectRewriteScope::with_type_bindings(
+  self : EffectRewriteScope,
+  bindings : Array[EffectSpecializationBinding],
+) -> EffectRewriteScope {
+  let type_bindings = self.type_bindings.copy()
+  type_bindings.append(bindings)
+  {
+    type_bindings,
+    value_bindings: self.value_bindings.copy(),
+    local_definition_groups: self.local_definition_groups.copy(),
   }
 }
 
@@ -67,6 +95,29 @@ fn EffectRewriteScope::bind_value(
   target : @buslane.ValueId,
 ) -> Unit {
   self.value_bindings.push({ source, target })
+}
+
+///|
+fn EffectRewriteScope::bind_local_definition_group(
+  self : EffectRewriteScope,
+  group : EffectLocalDefinitionGroup,
+) -> Unit {
+  self.local_definition_groups.push(group)
+}
+
+///|
+fn EffectRewriteScope::find_local_definition(
+  self : EffectRewriteScope,
+  id : @buslane.ValueId,
+) -> (EffectGenericDefinition, Array[EffectSpecializationInstance])? {
+  for group in self.local_definition_groups.rev_iter() {
+    for definition in group.definitions {
+      if definition.id == id {
+        return Some((definition, group.instances))
+      }
+    }
+  }
+  None
 }
 
 ///|
@@ -250,6 +301,31 @@ fn EffectSpecializer::find_definition(
 }
 
 ///|
+fn EffectLocalDefinitionGroup::find_definition(
+  self : EffectLocalDefinitionGroup,
+  id : @buslane.ValueId,
+) -> EffectGenericDefinition? {
+  for definition in self.definitions {
+    if definition.id == id {
+      return Some(definition)
+    }
+  }
+  None
+}
+
+///|
+fn EffectSpecializer::resolve_definition(
+  self : EffectSpecializer,
+  scope : EffectRewriteScope,
+  id : @buslane.ValueId,
+) -> EffectGenericDefinitionSite? {
+  match scope.find_local_definition(id) {
+    Some((definition, instances)) => Some(Local(definition, instances))
+    None => self.find_definition(id).map(definition => TopLevel(definition))
+  }
+}
+
+///|
 fn EffectSpecializer::is_reachable(
   self : EffectSpecializer,
   id : @buslane.ValueId,
@@ -263,13 +339,27 @@ fn EffectSpecializer::rewrite_specialized_definition(
   definition : EffectGenericDefinition,
   instance : EffectSpecializationInstance,
 ) -> @buslane.Expr raise ExecutableElaborationError {
+  self.rewrite_specialized_definition_in_scope(
+    definition,
+    instance,
+    EffectRewriteScope::new([]),
+  )
+}
+
+///|
+fn EffectSpecializer::rewrite_specialized_definition_in_scope(
+  self : EffectSpecializer,
+  definition : EffectGenericDefinition,
+  instance : EffectSpecializationInstance,
+  scope : EffectRewriteScope,
+) -> @buslane.Expr raise ExecutableElaborationError {
   let (parameters, body) = collect_type_lambda(definition.rhs)
   let retained = parameters.filter(parameter => {
     !instance.bindings.any(binding => binding.parameter == parameter)
   })
   let rewritten = self.rewrite_expr(
     body,
-    EffectRewriteScope::new(instance.bindings),
+    scope.with_type_bindings(instance.bindings),
   )
   if retained.is_empty() {
     rewritten
@@ -311,7 +401,7 @@ fn EffectSpecializer::rewrite_expr(
     Ref(id) =>
       if scope.lookup_value(id) is Some(target) {
         Ref(target)
-      } else if self.find_definition(id) is Some(_) {
+      } else if self.resolve_definition(scope, id) is Some(_) {
         raise UnsupportedEffectSpecialization(
           detail="a reachable effect-polymorphic value must be explicitly applied",
         )
@@ -325,8 +415,16 @@ fn EffectSpecializer::rewrite_expr(
         self.rewrite_expr(callee, scope),
         arguments.map(argument => self.rewrite_expr(argument, scope)),
       )
-    TypeLambda(parameters, body) =>
+    TypeLambda(parameters, body) => {
+      if parameters.any(parameter => {
+          type_parameter_is_effect(self.program.metadata, parameter)
+        }) {
+        raise UnsupportedEffectSpecialization(
+          detail="an executable effect-polymorphic type lambda must be bound before specialization",
+        )
+      }
       TypeLambda(parameters, self.rewrite_expr(body, scope))
+    }
     TypeApply(_, _) => self.rewrite_type_application(expression, scope)
     Construct(construct) => {
       let type_arguments = construct.type_arguments.map(argument => {
@@ -397,10 +495,30 @@ fn EffectSpecializer::rewrite_let(
   body : @buslane.Expr,
   scope : EffectRewriteScope,
 ) -> @buslane.Expr raise ExecutableElaborationError {
-  let rewritten_initializer = self.rewrite_expr(initializer, scope)
-  let body_scope = scope.enter_scope()
-  let target = self.fresh_bound_value(id, body_scope)
-  Let(target, rewritten_initializer, self.rewrite_expr(body, body_scope))
+  match effect_scheme_parameters(self.program.metadata, id) {
+    Some(parameters) => {
+      let group = EffectLocalDefinitionGroup::{
+        definitions: [{ id, parameters, rhs: initializer }],
+        instances: [],
+      }
+      let body_scope = scope.enter_scope()
+      body_scope.bind_local_definition_group(group)
+      let rewritten_body = self.rewrite_expr(body, body_scope)
+      let specialized_bindings = []
+      self.rewrite_local_instances(group, body_scope, specialized_bindings)
+      if specialized_bindings.is_empty() {
+        rewritten_body
+      } else {
+        LetRec(specialized_bindings, rewritten_body)
+      }
+    }
+    None => {
+      let rewritten_initializer = self.rewrite_expr(initializer, scope)
+      let body_scope = scope.enter_scope()
+      let target = self.fresh_bound_value(id, body_scope)
+      Let(target, rewritten_initializer, self.rewrite_expr(body, body_scope))
+    }
+  }
 }
 
 ///|
@@ -411,16 +529,64 @@ fn EffectSpecializer::rewrite_let_rec(
   scope : EffectRewriteScope,
 ) -> @buslane.Expr raise ExecutableElaborationError {
   let recursive_scope = scope.enter_scope()
-  let targets = bindings.map(binding => {
-    self.fresh_bound_value(binding.id, recursive_scope)
-  })
-  LetRec(
-    bindings.mapi((index, binding) => {
-      id: targets[index],
-      rhs: self.rewrite_expr(binding.rhs, recursive_scope),
-    }),
-    self.rewrite_expr(body, recursive_scope),
-  )
+  let definitions = []
+  let ordinary_bindings = []
+  let ordinary_targets = []
+  for binding in bindings {
+    match effect_scheme_parameters(self.program.metadata, binding.id) {
+      Some(parameters) =>
+        definitions.push({ id: binding.id, parameters, rhs: binding.rhs })
+      None => {
+        ordinary_bindings.push(binding)
+        ordinary_targets.push(
+          self.fresh_bound_value(binding.id, recursive_scope),
+        )
+      }
+    }
+  }
+  let group = EffectLocalDefinitionGroup::{ definitions, instances: [] }
+  if !definitions.is_empty() {
+    recursive_scope.bind_local_definition_group(group)
+  }
+  let rewritten_bindings : Array[@buslane.RecursiveBinding] = []
+  for index in 0..<ordinary_bindings.length() {
+    rewritten_bindings.push({
+      id: ordinary_targets[index],
+      rhs: self.rewrite_expr(ordinary_bindings[index].rhs, recursive_scope),
+    })
+  }
+  let rewritten_body = self.rewrite_expr(body, recursive_scope)
+  self.rewrite_local_instances(group, recursive_scope, rewritten_bindings)
+  if rewritten_bindings.is_empty() {
+    rewritten_body
+  } else {
+    LetRec(rewritten_bindings, rewritten_body)
+  }
+}
+
+///|
+fn EffectSpecializer::rewrite_local_instances(
+  self : EffectSpecializer,
+  group : EffectLocalDefinitionGroup,
+  scope : EffectRewriteScope,
+  rewritten_bindings : Array[@buslane.RecursiveBinding],
+) -> Unit raise ExecutableElaborationError {
+  let mut index = 0
+  while index < group.instances.length() {
+    let instance = group.instances[index]
+    guard group.find_definition(instance.source) is Some(definition) else {
+      raise UnsupportedEffectSpecialization(
+        detail="a requested local effect specialization has no lexical definition",
+      )
+    }
+    rewritten_bindings.push({
+      id: instance.target,
+      rhs: self.rewrite_specialized_definition_in_scope(
+        definition, instance, scope,
+      ),
+    })
+    index = index + 1
+  }
 }
 
 ///|
@@ -506,13 +672,21 @@ fn EffectSpecializer::rewrite_type_application(
       arguments.push(self.specialize_argument(argument, scope.type_bindings))
     }
   }
-  if base is Ref(source) && self.find_definition(source) is Some(definition) {
+  if base is Ref(source) &&
+    self.resolve_definition(scope, source) is Some(definition_site) {
+    let (definition, instances, ambient_bindings) = match definition_site {
+      TopLevel(definition) => (definition, self.instances, [])
+      Local(definition, instances) =>
+        (definition, instances, scope.type_bindings)
+    }
     if arguments.length() < definition.parameters.length() {
       raise UnsupportedEffectSpecialization(
         detail="a reachable effect-polymorphic value is only partially applied",
       )
     }
-    let instance = self.require_instance(definition, arguments)
+    let instance = self.require_instance(
+      definition, arguments, instances, ambient_bindings,
+    )
     let retained_arguments = []
     for index in 0..<definition.parameters.length() {
       if !type_parameter_is_effect(
@@ -565,6 +739,8 @@ fn EffectSpecializer::require_instance(
   self : EffectSpecializer,
   definition : EffectGenericDefinition,
   arguments : Array[@buslane.GenericArgument],
+  instances : Array[EffectSpecializationInstance],
+  ambient_bindings : Array[EffectSpecializationBinding],
 ) -> EffectSpecializationInstance raise ExecutableElaborationError {
   let bindings = []
   for index in 0..<definition.parameters.length() {
@@ -589,7 +765,7 @@ fn EffectSpecializer::require_instance(
       bindings.push({ parameter, argument: EffectArgument(specialized) })
     }
   }
-  for instance in self.instances {
+  for instance in instances {
     if instance.source == definition.id && instance.bindings == bindings {
       return instance
     }
@@ -599,7 +775,12 @@ fn EffectSpecializer::require_instance(
       detail="effect-polymorphic value metadata is missing",
     )
   }
-  let specialized_type = self.specialize_type_scheme(info.type_, bindings)
+  let specialized_bindings = ambient_bindings.copy()
+  specialized_bindings.append(bindings)
+  let specialized_type = self.specialize_type_scheme(
+    info.type_,
+    specialized_bindings,
+  )
   let target = self.program.metadata.define_value(
     "\{info.name.occurrence}%effect",
     info.kind,
@@ -610,7 +791,7 @@ fn EffectSpecializer::require_instance(
     bindings,
     target,
   }
-  self.instances.push(instance)
+  instances.push(instance)
   instance
 }
 
@@ -705,9 +886,37 @@ fn effect_specialization_substitution(
 ///|
 fn effect_contains_parameter(effect : @buslane.Effect) -> Bool {
   match effect {
-    Empty | Singleton(_, _) => false
+    Empty => false
     Parameter(_) => true
+    Singleton(_, arguments) =>
+      arguments.any(generic_argument_contains_effect_parameter)
     Union(effects) => effects.any(effect_contains_parameter)
+  }
+}
+
+///|
+fn generic_argument_contains_effect_parameter(
+  argument : @buslane.GenericArgument,
+) -> Bool {
+  match argument {
+    TypeArgument(type_) => type_contains_effect_parameter(type_)
+    EffectArgument(effect) => effect_contains_parameter(effect)
+  }
+}
+
+///|
+fn type_contains_effect_parameter(type_ : @buslane.Type) -> Bool {
+  match type_ {
+    Primitive(_) | Parameter(_) | Constructor(_) => false
+    Apply(callee, arguments) =>
+      type_contains_effect_parameter(callee) ||
+      arguments.any(generic_argument_contains_effect_parameter)
+    TypeLambda(_, body) | Forall(_, body) =>
+      type_contains_effect_parameter(body)
+    Function(parameters, result, effect) =>
+      parameters.any(type_contains_effect_parameter) ||
+      type_contains_effect_parameter(result) ||
+      effect_contains_parameter(effect)
   }
 }
 

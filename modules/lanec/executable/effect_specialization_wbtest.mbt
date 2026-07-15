@@ -14,6 +14,89 @@ test "effect rewrite child scopes isolate shadowed value bindings" {
 }
 
 ///|
+test "reachable local effect-generic functions specialize in lexical scope" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let log_effect = metadata.define_effect("Log", [])
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let local_type = @buslane.Type::Forall(
+    [effect_parameter],
+    Function([], unit_type, Parameter(effect_parameter)),
+  )
+  let captured = metadata.define_value("captured", Local, unit_type)
+  let local_function = metadata.define_value("local", Local, local_type)
+  let entry_type = @buslane.Type::Function([], unit_type, Empty)
+  let entry = metadata.define_value("entry", Function, entry_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Let(
+            captured,
+            Literal(Unit),
+            LetRec(
+              [
+                {
+                  id: local_function,
+                  rhs: TypeLambda(
+                    [effect_parameter],
+                    Function({
+                      parameters: [],
+                      result_type: unit_type,
+                      body: Ref(captured),
+                    }),
+                  ),
+                },
+              ],
+              Call(
+                TypeApply(Ref(local_function), [
+                  EffectArgument(Singleton(log_effect, [])),
+                ]),
+                [],
+              ),
+            ),
+          ),
+        }),
+      ),
+    ],
+  }
+  let specialized = specialize_reachable_effects(program, entry)
+  guard specialized.terms is [Let(_, Function({ body, .. }))] &&
+    body is Let(captured_target, Literal(Unit), nested) &&
+    nested
+    is LetRec(
+      [{ id: target, rhs: Function({ body: Ref(captured_reference), .. }) }],
+      Call(Ref(callee), [])
+    ) else {
+    abort("expected one lexical concrete specialization")
+  }
+  assert_eq(captured_target, captured_reference)
+  assert_true(captured_target != captured)
+  assert_eq(target, callee)
+  assert_true(target != local_function)
+  assert_eq(
+    specialized.metadata.value_info(target).map(info => info.type_),
+    Some(Function([], unit_type, Singleton(log_effect, []))),
+  )
+}
+
+///|
+test "effect parameter detection traverses singleton arguments" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let outer_effect = metadata.define_effect("Outer", [])
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  assert_true(
+    effect_contains_parameter(
+      Singleton(outer_effect, [EffectArgument(Parameter(effect_parameter))]),
+    ),
+  )
+}
+
+///|
 test "reachable effect applications create concrete callable instances" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
