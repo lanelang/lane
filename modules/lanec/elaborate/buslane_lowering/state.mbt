@@ -65,6 +65,7 @@ priv struct BuslaneLowerer {
   selector_terms : Array[SelectorTermEntry]
   external_terms : Array[@buslane.TopTerm]
   builtin_externals : Array[BuslaneBuiltinExternal]
+  runtime_imports : Array[BuslaneRuntimeImport]
   entries : Array[BuslaneEntry]
   imports : Array[BuslaneModuleImport]
 }
@@ -126,6 +127,7 @@ fn BuslaneLowerer::BuslaneLowerer() -> BuslaneLowerer {
     selector_terms: [],
     external_terms: [],
     builtin_externals: [],
+    runtime_imports: [],
     entries: [],
     imports: [],
   }

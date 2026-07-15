@@ -28,7 +28,6 @@ priv enum GlobalValue {
   Function(@bytecode.FunctionId, @buslane.Type)
   Intrinsic(String, @buslane.Type)
   DoubleConstant(Int64, @buslane.Type)
-  ScalarExternal(@bytecode.FunctionId, @buslane.Type)
   InstanceGlobal(@bytecode.GlobalId, @buslane.Type)
 }
 
@@ -45,7 +44,7 @@ priv enum PlannedEntry {
   LiftedFunction(LiftedFunctionPlan)
   IntrinsicWrapper(IntrinsicWrapperPlan)
   CallableAdapter(CallableAdapterPlan)
-  RuntimeImport(@buslane_lowering.BuslaneBuiltinExternal, Int)
+  RuntimeImport(@buslane_lowering.BuslaneRuntimeImport, Int)
 }
 
 ///|

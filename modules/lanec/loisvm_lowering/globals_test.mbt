@@ -49,11 +49,12 @@ test "executable lowering emits reachable instance globals in source order" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
-          { value: consume, name: "lane.test.consume", type_: consume_type },
+        builtins: [],
+        runtime_imports: [
+          { value: consume, symbol: "lane.test.consume", type_: consume_type },
           {
             value: unused_import,
-            name: "lane.test.unused",
+            symbol: "lane.test.unused",
             type_: consume_type,
           },
         ],
@@ -131,12 +132,16 @@ test "executable initializer materializes function-valued data fields" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(program, { builtins: [] }, {
-      module_path_text: "Main",
-      name: "main",
-      value: main,
-      type_: callable_type,
-    }) {
+    lower_linked_program_to_bytecode(
+      program,
+      { builtins: [], runtime_imports: [] },
+      {
+        module_path_text: "Main",
+        name: "main",
+        value: main,
+        type_: callable_type,
+      },
+    ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{to_repr(error)}")
   }
@@ -156,56 +161,4 @@ test "executable initializer materializes function-valued data fields" {
   }
   assert_eq(actual_field, field)
   assert_eq(actual_global, global)
-}
-
-///|
-test "executable initializer invokes scalar externals as zero-argument imports" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let external = metadata.define_value("host_value", External, int_type)
-  let stored = metadata.define_value("stored", Local, int_type)
-  let main_type = global_test_function_type([], unit_type)
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      External(external),
-      Let(stored, Ref(external)),
-      Let(
-        main,
-        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
-      ),
-    ],
-  }
-  let image = match
-    lower_linked_program_to_bytecode(
-      program,
-      {
-        builtins: [
-          { value: external, name: "lane.test.host_value", type_: int_type },
-        ],
-      },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
-    ) {
-    Ok(image) => image
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
-  }
-  guard image.initializer is Some(initializer) else {
-    fail("expected executable initializer")
-  }
-  guard image.functions
-    is [BytecodeBody(_), BytecodeBody(initializer_body), RuntimeImport(import_)] else {
-    fail("expected entry, initializer, and scalar runtime import")
-  }
-  assert_eq(import_, {
-    abi_major: 1,
-    user_arity: 0,
-    symbol: "lane.test.host_value",
-  })
-  assert_eq(initializer_body.blocks[0].instructions, [
-    CallDirect({ value: 3 }, None, [], [], Some({ value: 0 })),
-    InitGlobal({ value: 0 }, { value: 0 }),
-  ])
-  assert_eq(initializer, { value: 2 })
 }

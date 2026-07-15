@@ -138,7 +138,7 @@ test "existential lowering executes through Wasm with opened ARC witnesses" {
   let image = match
     @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
-      { builtins: [] },
+      { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
@@ -269,15 +269,16 @@ test "existential callable fields adapt covariant results and contravariant para
     @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.string_length",
+            symbol: "lane.test.string_length",
             type_: string_mapper_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_callable_boundary",
+            symbol: "lane.test.observe_callable_boundary",
             type_: observe_type,
           },
         ],
@@ -451,15 +452,16 @@ test "existential callable adapters recurse through callable parameters" {
     @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.string_length",
+            symbol: "lane.test.string_length",
             type_: string_mapper_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_callable_boundary",
+            symbol: "lane.test.observe_callable_boundary",
             type_: observe_type,
           },
         ],
@@ -654,15 +656,16 @@ test "generic container fields round-trip callable values through erasure" {
     @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.string_length",
+            symbol: "lane.test.string_length",
             type_: string_mapper_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_callable_boundary",
+            symbol: "lane.test.observe_callable_boundary",
             type_: observe_type,
           },
         ],
@@ -825,15 +828,16 @@ test "existential callable adapters forward explicit forall witnesses" {
     @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.string_length",
+            symbol: "lane.test.string_length",
             type_: string_mapper_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_callable_boundary",
+            symbol: "lane.test.observe_callable_boundary",
             type_: observe_type,
           },
         ],

@@ -354,7 +354,6 @@ fn local_value_type(value : LocalValue) -> @buslane.Type? {
     Global(Function(_, type_))
     | Global(Intrinsic(_, type_))
     | Global(DoubleConstant(_, type_))
-    | Global(ScalarExternal(_, type_))
     | Global(InstanceGlobal(_, type_)) => Some(type_)
     RecursiveFunction(_, type_, _) | TypeAppliedCallable(_, type_, _) =>
       Some(type_)

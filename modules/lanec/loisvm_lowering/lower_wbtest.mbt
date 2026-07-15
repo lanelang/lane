@@ -63,7 +63,10 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   let image = match
     lower_linked_program_to_bytecode(
       program,
-      { builtins: [{ value: add, name: "%i64_add", type_: add_type }] },
+      {
+        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        runtime_imports: [],
+      },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
@@ -89,6 +92,100 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
     Err(error) => fail("load failed: \{to_repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
+}
+
+///|
+test "runtime import origin wins over intrinsic-looking symbol" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let int_type = @buslane.Type::Primitive(Int)
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let import_type = test_function_type([int_type, int_type], int_type)
+  let import_ = metadata.define_value("host_add", External, import_type)
+  let result = metadata.define_value("result", Local, int_type)
+  let main_type = test_function_type([], unit_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(import_),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Let(
+            result,
+            Call(Ref(import_), [Literal(Int(20L)), Literal(Int(22L))]),
+            Literal(Unit),
+          ),
+        }),
+      ),
+    ],
+  }
+  let image = match
+    lower_linked_program_to_bytecode(
+      program,
+      {
+        builtins: [],
+        runtime_imports: [
+          { value: import_, symbol: "%i64_add", type_: import_type },
+        ],
+      },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    ) {
+    Ok(image) => image
+    Err(error) => fail("lowering failed: \{to_repr(error)}")
+  }
+  guard image.functions is [BytecodeBody(_), RuntimeImport(import_)] else {
+    fail("expected entry body and one runtime import")
+  }
+  debug_inspect(
+    import_,
+    content=(
+      #|{ abi_major: 1, user_arity: 2, symbol: "%i64_add" }
+    ),
+  )
+}
+
+///|
+test "unknown intrinsic never falls back to runtime import" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let intrinsic_type = test_function_type([], unit_type)
+  let intrinsic = metadata.define_value("unknown", External, intrinsic_type)
+  let main = metadata.define_value("main", Function, intrinsic_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(intrinsic),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Call(Ref(intrinsic), []),
+        }),
+      ),
+    ],
+  }
+  assert_eq(
+    lower_linked_program_to_bytecode(
+      program,
+      {
+        builtins: [
+          { value: intrinsic, name: "lane.test.unknown", type_: intrinsic_type },
+        ],
+        runtime_imports: [],
+      },
+      {
+        module_path_text: "Main",
+        name: "main",
+        value: main,
+        type_: intrinsic_type,
+      },
+    ),
+    Err(UnsupportedIntrinsic(name="lane.test.unknown")),
+  )
 }
 
 ///|
@@ -152,11 +249,11 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
-          { value: add, name: "%i64_add", type_: add_type },
+        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_intrinsic_value",
+            symbol: "lane.test.observe_intrinsic_value",
             type_: observe_type,
           },
         ],
@@ -237,12 +334,11 @@ test "effect forms fail before bytecode emission" {
     ],
   }
   assert_true(
-    lower_linked_program_to_bytecode(program, { builtins: [] }, {
-      module_path_text: "Main",
-      name: "main",
-      value: main,
-      type_: main_type,
-    })
+    lower_linked_program_to_bytecode(
+      program,
+      { builtins: [], runtime_imports: [] },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    )
     is Err(
       UnsupportedExpression(
         detail="non-runtime effects must be erased before VM CFG lowering"
@@ -287,7 +383,7 @@ test "linked runtime effects become ordinary stable-symbol imports" {
   let image = match
     lower_linked_program_to_bytecode_with_runtime_effects(
       program,
-      { builtins: [] },
+      { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
       [
         {
@@ -362,7 +458,7 @@ test "pure entry ignores unused generic runtime effects" {
   let image = match
     lower_linked_program_to_bytecode_with_runtime_effects(
       program,
-      { builtins: [] },
+      { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
       [
         {
@@ -428,7 +524,7 @@ test "runtime effect imports exclude effects outside the entry row" {
   let image = match
     lower_linked_program_to_bytecode_with_runtime_effects(
       program,
-      { builtins: [] },
+      { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
       [
         {
@@ -543,10 +639,11 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_handled_value",
+            symbol: "lane.test.observe_handled_value",
             type_: observe_type,
           },
         ],
@@ -623,7 +720,7 @@ test "runtime effects reject nonprimitive host signatures" {
   assert_true(
     lower_linked_program_to_bytecode_with_runtime_effects(
       program,
-      { builtins: [] },
+      { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
       [
         {
@@ -671,8 +768,9 @@ test "primitive external functions become runtime imports" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
-          { value: observe, name: "lane.test.observe", type_: observe_type },
+        builtins: [],
+        runtime_imports: [
+          { value: observe, symbol: "lane.test.observe", type_: observe_type },
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -749,10 +847,11 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
-          { value: z_first, name: "lane.test.z", type_: import_type },
-          { value: a, name: "lane.test.a", type_: import_type },
-          { value: z_second, name: "lane.test.z", type_: import_type },
+        builtins: [],
+        runtime_imports: [
+          { value: z_first, symbol: "lane.test.z", type_: import_type },
+          { value: a, symbol: "lane.test.a", type_: import_type },
+          { value: z_second, symbol: "lane.test.z", type_: import_type },
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -812,10 +911,11 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_string",
+            symbol: "lane.test.observe_string",
             type_: observe_type,
           },
         ],
@@ -903,10 +1003,11 @@ test "Bool matches lower to explicit CFG branches" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_branch",
+            symbol: "lane.test.observe_branch",
             type_: observe_type,
           },
         ],
@@ -1006,10 +1107,11 @@ test "non-generic data construction and matching lower through object shapes" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_data",
+            symbol: "lane.test.observe_data",
             type_: observe_type,
           },
         ],
@@ -1115,11 +1217,11 @@ test "capture-free functions lower as callable values for higher-order calls" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
-          { value: add, name: "%i64_add", type_: add_type },
+        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_higher_order",
+            symbol: "lane.test.observe_higher_order",
             type_: observe_type,
           },
         ],
@@ -1216,11 +1318,11 @@ test "nested functions lift with explicit reference-counted environments" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
-          { value: add, name: "%i64_add", type_: add_type },
+        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_closure",
+            symbol: "lane.test.observe_closure",
             type_: observe_type,
           },
         ],
@@ -1358,9 +1460,11 @@ test "local recursive functions share a cycle-free captured environment" {
         builtins: [
           { value: sub, name: "%i64_sub", type_: sub_type },
           { value: equal, name: "%i64_equal", type_: equal_type },
+        ],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_recursive",
+            symbol: "lane.test.observe_recursive",
             type_: observe_type,
           },
         ],
@@ -1460,10 +1564,11 @@ test "generic identity calls cross explicit representation erasure bridges" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_generic",
+            symbol: "lane.test.observe_generic",
             type_: observe_type,
           },
         ],
@@ -1608,15 +1713,16 @@ test "generic calls adapt callable arguments and callable results" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.generic_string_length",
+            symbol: "lane.test.generic_string_length",
             type_: measure_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_generic_callable",
+            symbol: "lane.test.observe_generic_callable",
             type_: observe_type,
           },
         ],
@@ -1735,15 +1841,16 @@ test "generic nested closures capture erased values and layout witnesses" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.captured_string_length",
+            symbol: "lane.test.captured_string_length",
             type_: measure_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_generic_capture",
+            symbol: "lane.test.observe_generic_capture",
             type_: observe_type,
           },
         ],
@@ -1853,8 +1960,13 @@ test "single-constructor matches keep owned captures in the current block" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
-          { value: observe, name: "lane.test.single_box", type_: observe_type },
+        builtins: [],
+        runtime_imports: [
+          {
+            value: observe,
+            symbol: "lane.test.single_box",
+            type_: observe_type,
+          },
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -1956,10 +2068,11 @@ test "generic data stores layout witnesses beside erased payloads" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_generic_data",
+            symbol: "lane.test.observe_generic_data",
             type_: observe_type,
           },
         ],
@@ -2106,10 +2219,11 @@ test "existential data opens hidden witnesses beside erased payloads" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_existential_payload",
+            symbol: "lane.test.observe_existential_payload",
             type_: observe_type,
           },
         ],
@@ -2246,10 +2360,11 @@ test "payload-free existential data still opens its hidden witness" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_existential_witness",
+            symbol: "lane.test.observe_existential_witness",
             type_: observe_type,
           },
         ],
@@ -2354,12 +2469,11 @@ test "effect-kind existential binders remain fully erased" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(program, { builtins: [] }, {
-      module_path_text: "Main",
-      name: "main",
-      value: main,
-      type_: main_type,
-    }) {
+    lower_linked_program_to_bytecode(
+      program,
+      { builtins: [], runtime_imports: [] },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{to_repr(error)}")
   }
@@ -2460,10 +2574,11 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_unit_abi",
+            symbol: "lane.test.observe_unit_abi",
             type_: observe_type,
           },
         ],
@@ -2558,10 +2673,11 @@ test "primitive literal matches lower to comparison decision chains" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_literal_match",
+            symbol: "lane.test.observe_literal_match",
             type_: observe_type,
           },
         ],
@@ -2658,10 +2774,11 @@ test "generic nested functions lower as type-applied callable values" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: observe,
-            name: "lane.test.observe_nested_generic",
+            symbol: "lane.test.observe_nested_generic",
             type_: observe_type,
           },
         ],

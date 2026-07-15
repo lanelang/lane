@@ -21,6 +21,17 @@ fn BuslaneLowerer::define_builtin_external(
 }
 
 ///|
+fn BuslaneLowerer::define_runtime_import(
+  self : BuslaneLowerer,
+  symbol : String,
+  type_ : @buslane.Type,
+) -> @buslane.ValueId {
+  let value = self.define_external(symbol, type_)
+  self.runtime_imports.push({ value, symbol, type_ })
+  value
+}
+
+///|
 fn BuslaneLowerer::define_fresh_value(
   self : BuslaneLowerer,
   occurrence : String,

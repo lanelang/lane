@@ -221,7 +221,7 @@ pub fn compile_source_inputs(
         None =>
           {
             program: None,
-            externals: { builtins: [] },
+            externals: { builtins: [], runtime_imports: [] },
             entries: [],
             runtime_effect_operations: [],
             diagnostics: linked.diagnostics,
@@ -231,7 +231,7 @@ pub fn compile_source_inputs(
     Err(diagnostics) =>
       {
         program: None,
-        externals: { builtins: [] },
+        externals: { builtins: [], runtime_imports: [] },
         entries: [],
         runtime_effect_operations: [],
         diagnostics,

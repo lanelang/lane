@@ -33,7 +33,7 @@ test "whole-program elaboration preserves the selected entry" {
         Let(second, pure_function(unit_type, Literal(Unit))),
       ],
     },
-    externals: { builtins: [] },
+    externals: { builtins: [], runtime_imports: [] },
     entries: [first_entry, second_entry],
     runtime_effect_operations: [],
   }
@@ -65,7 +65,7 @@ test "whole-program elaboration records ordered initializer roots" {
         Let(main, pure_function(unit_type, Literal(Unit))),
       ],
     },
-    externals: { builtins: [] },
+    externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
     runtime_effect_operations: [],
   }
@@ -105,7 +105,7 @@ test "pure entry excludes unused generic runtime operations" {
       metadata,
       terms: [Let(main, pure_function(unit_type, Literal(Unit)))],
     },
-    externals: { builtins: [] },
+    externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
     runtime_effect_operations: [
       {
@@ -122,5 +122,5 @@ test "pure entry excludes unused generic runtime operations" {
     abort("expected executable elaboration to ignore unused runtime operation")
   }
   assert_eq(executable.runtime_boundary.effect_operations, [])
-  assert_eq(executable.externals.builtins, [])
+  assert_eq(executable.externals, { builtins: [], runtime_imports: [] })
 }

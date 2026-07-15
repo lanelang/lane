@@ -53,12 +53,14 @@ fn link_ordered_modules(
   let module_path_texts = []
   let terms = []
   let builtins = []
+  let runtime_imports = []
   let entries : Array[@buslane_lowering.BuslaneEntry] = []
   let runtime_effect_operations : Array[LinkedRuntimeEffectOperation] = []
   for index, object in remapped_objects {
     module_path_texts.push(object.module_path_text)
     terms.append(object.terms)
     builtins.append(object.externals.builtins)
+    runtime_imports.append(object.externals.runtime_imports)
     runtime_effect_operations.append(
       runtime_effect_operations_from_module(modules[index], object),
     )
@@ -74,7 +76,7 @@ fn link_ordered_modules(
     program: Some({
       module_path_texts,
       program: { metadata: remapper.metadata, terms },
-      externals: { builtins, },
+      externals: { builtins, runtime_imports },
       entries,
       runtime_effect_operations,
     }),

@@ -14,6 +14,13 @@ fn BuslaneLinker::remap_module_object(
           type_: self.remap_type(object, builtin.type_),
         }
       }),
+      runtime_imports: object.externals.runtime_imports.map(fn(import_) {
+        {
+          value: self.remap_value_id(object, import_.value),
+          symbol: import_.symbol,
+          type_: self.remap_type(object, import_.type_),
+        }
+      }),
     },
     entries: object.entries.map(fn(entry) {
       {

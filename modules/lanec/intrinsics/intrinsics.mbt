@@ -33,7 +33,7 @@ fn find_builtin_external(
 fn resolve_standard_intrinsic(
   external : @buslane_lowering.BuslaneBuiltinExternal,
   type_ : @buslane.Type,
-) -> RuntimeValue {
+) -> RuntimeValue raise @buslane_interpreter.BuslaneRuntimeError {
   match external.name {
     "%i64_add" =>
       native(type_, arguments => {
@@ -98,7 +98,11 @@ fn resolve_standard_intrinsic(
       native(type_, arguments => {
         string_compare(external, arguments, (a, b) => a == b)
       })
-    _ => RuntimeValue::external(external.value)
+    _ =>
+      raise @buslane_interpreter.external_failure(
+        external.value,
+        "unsupported compiler intrinsic `\{external.name}`",
+      )
   }
 }
 

@@ -104,7 +104,7 @@ test "linked executable lowers through the LoisVM boundary" {
         ),
       ],
     },
-    externals: { builtins: [] },
+    externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
     runtime_effect_operations: [],
   }
@@ -148,7 +148,7 @@ test "schema 4 roundtrips and inspects schema 2 instance globals" {
         ),
       ],
     },
-    externals: { builtins: [] },
+    externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
     runtime_effect_operations: [],
   }

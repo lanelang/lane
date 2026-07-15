@@ -6,8 +6,16 @@ pub(all) struct BuslaneBuiltinExternal {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct BuslaneRuntimeImport {
+  value : @buslane.ValueId
+  symbol : String
+  type_ : @buslane.Type
+} derive(Debug, Eq)
+
+///|
 pub(all) struct BuslaneExternalMap {
   builtins : Array[BuslaneBuiltinExternal]
+  runtime_imports : Array[BuslaneRuntimeImport]
 } derive(Debug, Eq)
 
 ///|

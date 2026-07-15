@@ -165,9 +165,15 @@ fn object_summary_doc(artifact : ModuleObjectArtifact) -> Document {
       artifact.entries.map(fn(entry) { text(buslane.entry_text(entry)) }),
     ),
     section_doc(
-      "externals:",
+      "compiler intrinsics:",
       artifact.externals.builtins.map(fn(external) {
-        text(buslane.external_text(external))
+        text(buslane.intrinsic_text(external))
+      }),
+    ),
+    section_doc(
+      "runtime imports:",
+      artifact.externals.runtime_imports.map(fn(import_) {
+        text(buslane.runtime_import_text(import_))
       }),
     ),
     buslane_program_doc(artifact.metadata, artifact.terms),
@@ -681,11 +687,19 @@ fn BuslaneInspectContext::entry_text(
 }
 
 ///|
-fn BuslaneInspectContext::external_text(
+fn BuslaneInspectContext::intrinsic_text(
   self : BuslaneInspectContext,
   external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> String {
   "\{external.name} : \{self.type_text(external.type_)}"
+}
+
+///|
+fn BuslaneInspectContext::runtime_import_text(
+  self : BuslaneInspectContext,
+  import_ : @buslane_lowering.BuslaneRuntimeImport,
+) -> String {
+  "\{import_.symbol} : \{self.type_text(import_.type_)}"
 }
 
 ///|

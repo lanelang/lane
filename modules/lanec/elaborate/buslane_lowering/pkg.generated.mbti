@@ -37,6 +37,7 @@ pub(all) struct BuslaneEntry {
 
 pub(all) struct BuslaneExternalMap {
   builtins : Array[BuslaneBuiltinExternal]
+  runtime_imports : Array[BuslaneRuntimeImport]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneLowerResult {
@@ -87,6 +88,12 @@ pub(all) struct BuslaneModuleObject {
 
 pub(all) struct BuslaneModuleObjectSet {
   objects : Array[BuslaneModuleObject]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneRuntimeImport {
+  value : @buslane.ValueId
+  symbol : String
+  type_ : @buslane.Type
 } derive(Eq, @debug.Debug)
 
 // Type aliases

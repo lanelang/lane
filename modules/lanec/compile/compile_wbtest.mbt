@@ -10,17 +10,25 @@ fn test_executable_program(
 }
 
 ///|
-test "compile source records builtin externals and public entries" {
+test "compile source records intrinsic and runtime import origins" {
   let result = compile_source(
     (
       #|module Test
       #|pub let int_add : (Int, Int) -> Int = builtin("%i64_add")
+      #|let _host : (Int) -> Int = extern("lane.test.host")
       #|let _private_value : Int = 1
     ),
   )
   inspect(result.diagnostics.length(), content="0")
-  inspect(result.externals.builtins.length(), content="1")
-  inspect(result.externals.builtins[0].name, content="%i64_add")
+  debug_inspect(
+    (
+      result.externals.builtins.map(fn(external) { external.name }),
+      result.externals.runtime_imports.map(fn(import_) { import_.symbol }),
+    ),
+    content=(
+      #|(["%i64_add"], ["lane.test.host"])
+    ),
+  )
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="int_add",
@@ -1250,8 +1258,9 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
     [
       (
         #|module Lib
+        #|let host_answer : () -> Unit = extern("lane.test.answer")
         #|pub fn answer() -> Unit {
-        #|  ()
+        #|  host_answer()
         #|}
       ),
     ],
@@ -1298,12 +1307,35 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
+  debug_inspect(
+    (
+      program.externals.builtins.map(fn(external) { external.name }),
+      program.externals.runtime_imports.map(fn(import_) { import_.symbol }),
+    ),
+    content=(
+      #|([], ["lane.test.answer"])
+    ),
+  )
   let executable = test_executable_program(program)
   let linked_artifact = match
     @artifact_binary.executable_to_loisvm_artifact(executable) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
   }
+  let runtime_imports = linked_artifact.bytecode.functions.filter_map(fn(
+    function,
+  ) {
+    match function {
+      RuntimeImport(import_) => Some(import_)
+      BytecodeBody(_) => None
+    }
+  })
+  debug_inspect(
+    runtime_imports,
+    content=(
+      #|[{ abi_major: 1, user_arity: 0, symbol: "lane.test.answer" }]
+    ),
+  )
   let linked_binary = @artifact_binary.linked_program_artifact_to_binary(
     linked_artifact,
   )
@@ -1918,7 +1950,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 6
+      #|schema: 7
       #|
       #|imported interfaces:
       #|  (none)
@@ -1930,7 +1962,9 @@ test "module artifact binary inspect renders human readable summaries" {
       #|  value answer
       #|public entries:
       #|  Main.answer : Int
-      #|externals:
+      #|compiler intrinsics:
+      #|  (none)
+      #|runtime imports:
       #|  (none)
       #|buslane:
       #|  buslane {

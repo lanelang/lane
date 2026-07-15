@@ -10,7 +10,15 @@ fn @bytecodec.ByteReader::read_externals(
       type_: self.read_buslane_type(),
     })
   }
-  { builtins, }
+  let runtime_imports : Array[@buslane_lowering.BuslaneRuntimeImport] = []
+  for _ in 0..<self.read_u32_le() {
+    runtime_imports.push({
+      value: self.read_buslane_value_id(),
+      symbol: self.read_string(),
+      type_: self.read_buslane_type(),
+    })
+  }
+  { builtins, runtime_imports }
 }
 
 ///|

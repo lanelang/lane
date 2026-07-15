@@ -71,15 +71,16 @@ test "generic nested closures preserve erased captures in both backends" {
     @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.string_length",
+            symbol: "lane.test.string_length",
             type_: measure_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_callable_boundary",
+            symbol: "lane.test.observe_callable_boundary",
             type_: observe_type,
           },
         ],
@@ -186,15 +187,16 @@ test "nominal values cross erased generic boundaries in both backends" {
     @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [
+        builtins: [],
+        runtime_imports: [
           {
             value: measure,
-            name: "lane.test.string_length",
+            symbol: "lane.test.string_length",
             type_: measure_type,
           },
           {
             value: observe,
-            name: "lane.test.observe_callable_boundary",
+            symbol: "lane.test.observe_callable_boundary",
             type_: observe_type,
           },
         ],

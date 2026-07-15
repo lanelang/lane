@@ -85,6 +85,12 @@ pub fn write_externals(
     writer.write_string(external.name)
     write_buslane_type(writer, external.type_)
   }
+  writer.write_u32_le(externals.runtime_imports.length())
+  for import_ in externals.runtime_imports {
+    write_buslane_value_id(writer, import_.value)
+    writer.write_string(import_.symbol)
+    write_buslane_type(writer, import_.type_)
+  }
 }
 
 ///|

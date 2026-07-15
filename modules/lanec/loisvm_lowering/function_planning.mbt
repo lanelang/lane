@@ -83,10 +83,22 @@ fn ImageLowerer::plan_external(
   self : ImageLowerer,
   value : @buslane.ValueId,
 ) -> Unit raise LoisvmLoweringError {
-  let external = match self.find_external(value) {
-    Some(external) => external
-    None => raise MissingExternal(value~)
+  match self.find_builtin_external(value) {
+    Some(external) => self.plan_intrinsic(value, external)
+    None =>
+      match self.find_runtime_import(value) {
+        Some(import_) => self.plan_runtime_import(value, import_)
+        None => raise MissingExternal(value~)
+      }
   }
+}
+
+///|
+fn ImageLowerer::plan_intrinsic(
+  self : ImageLowerer,
+  value : @buslane.ValueId,
+  external : @buslane_lowering.BuslaneBuiltinExternal,
+) -> Unit raise LoisvmLoweringError {
   if is_scalar_intrinsic(external.name) {
     self.globals.push({
       value,
@@ -94,24 +106,26 @@ fn ImageLowerer::plan_external(
     })
   } else if scalar_double_constant(external.name) is Some(bits) {
     self.globals.push({ value, lowered: DoubleConstant(bits, external.type_) })
-  } else if runtime_import_primitive_type(external.type_) {
-    let function : @bytecode.FunctionId = { value: self.plans.length() + 1 }
-    self.plans.push(RuntimeImport(external, 0))
-    self.globals.push({
-      value,
-      lowered: ScalarExternal(function, external.type_),
-    })
   } else {
-    if !runtime_import_signature_supported(external.type_) {
-      raise UnsupportedExpression(
-        detail="runtime imports must use only v1 host primitive types",
-      )
-    }
-    guard external.type_ is Function(parameters, _, _) else {
-      abort("validated runtime import is not a function")
-    }
-    self.add_plan(value, RuntimeImport(external, parameters.length()))
+    raise UnsupportedIntrinsic(name=external.name)
   }
+}
+
+///|
+fn ImageLowerer::plan_runtime_import(
+  self : ImageLowerer,
+  value : @buslane.ValueId,
+  import_ : @buslane_lowering.BuslaneRuntimeImport,
+) -> Unit raise LoisvmLoweringError {
+  if !runtime_import_signature_supported(import_.type_) {
+    raise UnsupportedExpression(
+      detail="runtime imports must use only v1 host primitive function types",
+    )
+  }
+  guard import_.type_ is Function(parameters, _, _) else {
+    abort("validated runtime import is not a function")
+  }
+  self.add_plan(value, RuntimeImport(import_, parameters.length()))
 }
 
 ///|
@@ -130,13 +144,26 @@ fn ImageLowerer::add_plan(
 }
 
 ///|
-fn ImageLowerer::find_external(
+fn ImageLowerer::find_builtin_external(
   self : ImageLowerer,
   value : @buslane.ValueId,
 ) -> @buslane_lowering.BuslaneBuiltinExternal? {
   for external in self.externals.builtins {
     if external.value == value {
       return Some(external)
+    }
+  }
+  None
+}
+
+///|
+fn ImageLowerer::find_runtime_import(
+  self : ImageLowerer,
+  value : @buslane.ValueId,
+) -> @buslane_lowering.BuslaneRuntimeImport? {
+  for import_ in self.externals.runtime_imports {
+    if import_.value == value {
+      return Some(import_)
     }
   }
   None

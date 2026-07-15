@@ -26,17 +26,19 @@ pub fn lower_checked_source_files_to_buslane_result(
   let root_module_path_text = checked_module_path_text(root)
   let terms = []
   let builtins = []
+  let runtime_imports = []
   let mut entries : Array[BuslaneEntry] = []
   for object in object_set.objects {
     terms.append(object.terms)
     builtins.append(object.externals.builtins)
+    runtime_imports.append(object.externals.runtime_imports)
     if object.module_path_text == root_module_path_text {
       entries = object.entries
     }
   }
   {
     program: { metadata: object_set.objects[0].metadata, terms },
-    externals: { builtins, },
+    externals: { builtins, runtime_imports },
     entries,
   }
 }
@@ -74,6 +76,7 @@ pub fn lower_checked_source_files_to_buslane_objects(
   for source in sources {
     let external_start = lowerer.external_terms.length()
     let builtin_start = lowerer.builtin_externals.length()
+    let runtime_import_start = lowerer.runtime_imports.length()
     let terms = lowerer.lower_top_terms(source)
     let external_terms = buslane_top_terms_from(
       lowerer.external_terms,
@@ -89,6 +92,10 @@ pub fn lower_checked_source_files_to_buslane_objects(
         builtins: buslane_builtins_from(
           lowerer.builtin_externals,
           builtin_start,
+        ),
+        runtime_imports: buslane_runtime_imports_from(
+          lowerer.runtime_imports,
+          runtime_import_start,
         ),
       },
       entries: find_module_entries(module_entries, module_path_text),
@@ -114,6 +121,7 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
   lowerer.collect_top_values(source, include_entries=true)
   let external_start = lowerer.external_terms.length()
   let builtin_start = lowerer.builtin_externals.length()
+  let runtime_import_start = lowerer.runtime_imports.length()
   let terms = lowerer.lower_top_terms(source)
   let external_terms = buslane_top_terms_from(
     lowerer.external_terms,
@@ -126,6 +134,10 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
     terms: external_terms,
     externals: {
       builtins: buslane_builtins_from(lowerer.builtin_externals, builtin_start),
+      runtime_imports: buslane_runtime_imports_from(
+        lowerer.runtime_imports,
+        runtime_import_start,
+      ),
     },
     entries: lowerer.entries,
     exports: lowerer.module_exports(source),
@@ -183,6 +195,18 @@ fn buslane_builtins_from(
   let result = []
   for index in start..<builtins.length() {
     result.push(builtins[index])
+  }
+  result
+}
+
+///|
+fn buslane_runtime_imports_from(
+  imports : Array[BuslaneRuntimeImport],
+  start : Int,
+) -> Array[BuslaneRuntimeImport] {
+  let result = []
+  for index in start..<imports.length() {
+    result.push(imports[index])
   }
   result
 }

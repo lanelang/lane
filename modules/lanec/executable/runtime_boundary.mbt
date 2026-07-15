@@ -30,6 +30,7 @@ fn install_runtime_boundary(
   let selected_operations : Array[@module_link.LinkedRuntimeEffectOperation] = []
   let terms = program.terms.copy()
   let builtins = externals.builtins.copy()
+  let runtime_imports = externals.runtime_imports.copy()
   for operation in operations {
     guard program.metadata.operation_info(operation.operation) is Some(info) else {
       continue
@@ -70,12 +71,16 @@ fn install_runtime_boundary(
     )
     bindings.push({ operation: operation.operation, value })
     terms.push(External(value))
-    builtins.push({ value, name: runtime_effect_symbol(operation), type_ })
+    runtime_imports.push({
+      value,
+      symbol: runtime_effect_symbol(operation),
+      type_,
+    })
   }
   if effect == Empty {
     return (
       { metadata: program.metadata, terms },
-      { builtins, },
+      { builtins, runtime_imports },
       entry,
       selected_operations,
     )
@@ -121,7 +126,7 @@ fn install_runtime_boundary(
   )
   (
     { metadata: program.metadata, terms },
-    { builtins, },
+    { builtins, runtime_imports },
     { ..entry, value: wrapper, type_: wrapper_type },
     selected_operations,
   )

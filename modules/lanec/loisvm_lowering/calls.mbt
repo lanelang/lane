@@ -56,11 +56,6 @@ fn FunctionLowerer::materialize_local(
       self.emit(ConstDouble(destination, bits))
       Slot(destination, type_)
     }
-    Global(ScalarExternal(function, type_)) => {
-      let destination = self.fresh_optional_slot(type_)
-      self.emit(CallDirect(function, None, [], [], destination.0))
-      destination.1
-    }
     RecursiveFunction(function, type_, environment) => {
       let destination = self.fresh_slot(type_)
       match environment {
