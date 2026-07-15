@@ -311,5 +311,5 @@ fn SemanticChecker::contextual_offer_expr(
 
 ///|
 fn error_contextual_argument(loc : SourceSpan) -> @desugar.DesugaredExpr {
-  Builtin("%contextual_error", loc~)
+  ErrorRecovery(loc~)
 }

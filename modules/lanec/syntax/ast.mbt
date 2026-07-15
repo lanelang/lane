@@ -271,6 +271,7 @@ pub(all) enum Expr {
   )
   ListLiteral(items~ : Array[Expr], loc~ : SourceSpan)
   Builtin(String, loc~ : SourceSpan)
+  Extern(String, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[TypeParameter],
     parameters~ : Array[FunctionLiteralParameter],
@@ -326,6 +327,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | StructLiteral(loc~, ..)
     | ListLiteral(loc~, ..)
     | Builtin(_, loc~)
+    | Extern(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
     | TypeApplication(loc~, ..)

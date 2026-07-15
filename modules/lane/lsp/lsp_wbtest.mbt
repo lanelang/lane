@@ -464,7 +464,7 @@ async test "inlay hint returns implicit auto offer hints at call end" {
             #|  op.add(a, b)
             #|}
             #|
-            #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+            #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
             #|
             #|pub fn answer(seed : Int) -> Int {
             #|  let local = seed + 1
@@ -877,7 +877,7 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
       #|fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|pub let x : Int = 1 + true
     ),
   }

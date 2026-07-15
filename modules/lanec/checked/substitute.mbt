@@ -8,8 +8,10 @@ pub fn CheckedExpr::substitute(
       Literal(literal~, type_=type_.substitute(substitution), loc~)
     Value(name~, symbol~, type_~, loc~) =>
       Value(name~, symbol~, type_=type_.substitute(substitution), loc~)
-    UnsafeBuiltin(name~, type_~, loc~) =>
-      UnsafeBuiltin(name~, type_=type_.substitute(substitution), loc~)
+    CompilerIntrinsic(name~, type_~, loc~) =>
+      CompilerIntrinsic(name~, type_=type_.substitute(substitution), loc~)
+    ExternBinding(name~, type_~, loc~) =>
+      ExternBinding(name~, type_=type_.substitute(substitution), loc~)
     FunctionLiteral(
       type_parameters~,
       parameters~,

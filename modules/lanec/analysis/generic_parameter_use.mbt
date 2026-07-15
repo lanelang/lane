@@ -258,8 +258,10 @@ fn GenericParameterUseCollector::collect_checked_expr(
   expr : @checked.CheckedExpr,
 ) -> Unit {
   match expr {
-    Literal(type_~, ..) | Value(type_~, ..) | UnsafeBuiltin(type_~, ..) =>
-      self.collect_checked_type(type_)
+    Literal(type_~, ..)
+    | Value(type_~, ..)
+    | CompilerIntrinsic(type_~, ..)
+    | ExternBinding(type_~, ..) => self.collect_checked_type(type_)
     FunctionLiteral(parameters~, return_type~, body~, type_~, ..) => {
       for parameter in parameters {
         self.collect_checked_type(parameter.type_)
@@ -403,7 +405,8 @@ fn GenericParameterUseCollector::collect_expr(
     | BoolLiteral(_)
     | UnitLiteral(_)
     | Var(_)
-    | Builtin(_) => ()
+    | Builtin(_)
+    | Extern(_) => ()
     QualifiedVariant(
       generic_arguments~,
       variant_generic_arguments~,

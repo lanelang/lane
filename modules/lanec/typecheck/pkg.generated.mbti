@@ -169,6 +169,15 @@ pub struct DisplayedTypeCheckDiagnostic {
 }
 pub impl @diagnostic.ToCompilerDiagnostic for DisplayedTypeCheckDiagnostic
 
+pub(all) enum ExternTypeRestriction {
+  FunctionRequired
+  MonomorphicRequired
+  PrimitiveParameterRequired(index~ : Int)
+  PrimitiveResultRequired
+  EffectMustBeEmptyOrIo
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ExternTypeRestriction
+
 pub(all) enum GenericArgumentInferenceFailure {
   MissingGenericArguments(parameters~ : Array[@types.TypeParameter])
   ConflictingGenericArgument(parameter~ : @types.TypeParameter, previous~ : @types.GenericArgument, actual~ : @types.GenericArgument)
@@ -206,7 +215,6 @@ pub(all) enum TypeCheckDiagnosticKind {
   DuplicateNamedArgument(name~ : String)
   UnknownContextualArgument(name~ : String)
   InvalidNamedArgument(name~ : String)
-  InvalidNamedBuiltinArgument(name~ : String)
   MissingContextualOffer(expected~ : @types.Type)
   AmbiguousContextualOffer(expected~ : @types.Type, candidates~ : Array[ContextualOfferDiagnosticCandidate])
   TypeAliasCycle(name~ : String)
@@ -236,7 +244,10 @@ pub(all) enum TypeCheckDiagnosticKind {
   PrivateEffectEscape(name~ : String)
   InvalidIntLiteral(String)
   InvalidDoubleLiteral(String)
-  BuiltinNeedsExpectedType(name~ : String)
+  UnknownBuiltin(name~ : String)
+  BuiltinSignatureMismatch(name~ : String, expected~ : @types.Type, actual~ : @types.Type)
+  ExternNeedsExpectedType(name~ : String)
+  InvalidExternType(name~ : String, type_~ : @types.Type, restriction~ : ExternTypeRestriction)
   FunctionLiteralParameterNeedsAnnotation(name~ : String?)
   EmptyMatchNeedsExpectedType
   UnqualifiedVariantPatternNeedsExpectedEnum(variant~ : String)

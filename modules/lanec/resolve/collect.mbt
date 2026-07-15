@@ -2068,6 +2068,7 @@ fn @syntax.Expr::resolve_expr(
         loc~,
       )
     Builtin(name, loc~) => Builtin(name, loc~)
+    Extern(name, loc~) => Extern(name, loc~)
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
       EffectOperationCall(
         name=name.resolve_effect_operation_name(resolver, scope),

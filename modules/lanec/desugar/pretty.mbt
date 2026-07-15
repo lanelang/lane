@@ -212,6 +212,8 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       text("::") +
       @pretty.braced_block(fields.map(DesugaredStructLiteralField::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
+    Extern(name, ..) => text("extern") + text("(") + text(name) + text(")")
+    ErrorRecovery(..) => text("<error-recovery>")
     FunctionLiteral(
       type_parameters~,
       parameters~,

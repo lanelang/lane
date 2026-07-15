@@ -23,10 +23,10 @@ fn assert_diagnostic_headline(
   message : String,
 ) -> Unit {
   guard diagnostic.code == Some(code) else {
-    abort("unexpected diagnostic code: \{to_repr(diagnostic.code)}")
+    abort("unexpected diagnostic: \{to_repr(diagnostic)}")
   }
   guard diagnostic.message == message else {
-    abort("unexpected diagnostic message: " + diagnostic.message)
+    abort("unexpected diagnostic: \{to_repr(diagnostic)}")
   }
 }
 
@@ -39,7 +39,7 @@ fn assert_single_help(diagnostic : CompilerDiagnostic, help : String) -> Unit {
 }
 
 ///|
-test "golden builtin missing expected type diagnostic is specific" {
+test "golden unknown builtin diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
@@ -52,10 +52,63 @@ test "golden builtin missing expected type diagnostic is specific" {
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3010", "builtin `%external_int` needs an expected type",
+    diagnostic, "E3026", "unknown builtin `%external_int`",
   )
   assert_single_help(
-    diagnostic, "add a type annotation to the binding, parameter, or surrounding expression",
+    diagnostic, "check the intrinsic name or use `extern` for a host symbol",
+  )
+}
+
+///|
+test "golden builtin signature mismatch diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|let bad : (Int) -> Int = builtin("%i64_add")
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3027", "builtin `%i64_add` has the wrong type",
+  )
+  assert_single_help(
+    diagnostic, "change the annotation or use the builtin with its canonical type",
+  )
+}
+
+///|
+test "golden extern missing expected type diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn bad() -> Bool {
+      #|  {
+      #|    let host = extern("host")
+      #|    true
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3028", "extern `host` needs a complete expected function type",
+  )
+  assert_single_help(
+    diagnostic, "add a complete function type annotation next to this extern",
+  )
+}
+
+///|
+test "golden unsupported extern type diagnostic is specific" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|let bad : Int = extern("host")
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3029", "extern `host` has an unsupported type",
+  )
+  assert_single_help(
+    diagnostic, "change the declaration to a supported primitive function signature",
   )
 }
 
@@ -127,8 +180,11 @@ test "golden missing generic argument inference diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|fn[A] make() -> A {
-      #|  builtin("%make")
+      #|enum Marker[A] {
+      #|  marker()
+      #|}
+      #|fn[A] make() -> Marker[A] {
+      #|  Marker::marker()
       #|}
       #|fn use() -> Bool {
       #|  {
@@ -201,8 +257,8 @@ test "golden ambiguous contextual offer diagnostic is specific" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let add_a : Add[Int] = builtin("%add_a")
-      #|let add_b : Add[Int] = builtin("%add_b")
+      #|let add_a : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+      #|let add_b : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_sub")(a, b) } }
       #|offer offer_a : Add[Int] = add_a
       #|offer offer_b : Add[Int] = add_b
       #|fn use() -> Int {
@@ -217,19 +273,21 @@ test "golden ambiguous contextual offer diagnostic is specific" {
 }
 
 ///|
-test "golden named builtin argument diagnostic is specific" {
+test "golden named compiler intrinsic argument uses ordinary call diagnostic" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
       #|fn use() -> Int {
-      #|  builtin("%id")(value=1)
+      #|  builtin("%i64_add")(1, value=2)
       #|}
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3012", "builtin call argument `value` cannot be named",
+    diagnostic, "E3012", "named argument `value` is not accepted here",
   )
-  assert_single_help(diagnostic, "remove the argument name")
+  assert_single_help(
+    diagnostic, "remove the name or call a function with an auto parameter named `value`",
+  )
 }
 
 ///|

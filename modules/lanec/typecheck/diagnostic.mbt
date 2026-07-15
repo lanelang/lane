@@ -62,6 +62,24 @@ fn diagnostic(
 }
 
 ///|
+fn extern_type_restriction_message(
+  display : TypeDisplayContext,
+  type_ : @types.Type,
+  restriction : ExternTypeRestriction,
+) -> String {
+  match restriction {
+    FunctionRequired =>
+      "extern declarations must be functions, found `\{display.type_text(type_)}`"
+    MonomorphicRequired => "extern declarations cannot have type parameters"
+    PrimitiveParameterRequired(index~) =>
+      "extern parameter \{index + 1} must use a host primitive type"
+    PrimitiveResultRequired => "extern results must use a host primitive type"
+    EffectMustBeEmptyOrIo =>
+      "extern latent effects must be empty or exactly `Io`"
+  }
+}
+
+///|
 fn typecheck_diagnostic(
   diagnostic_ : TypeCheckDiagnostic,
   display : TypeDisplayContext,
@@ -214,14 +232,6 @@ fn typecheck_diagnostic(
         "named argument `\{name}` is not accepted here",
         "this call position only accepts positional arguments",
         "remove the name or call a function with an auto parameter named `\{name}`",
-      )
-    InvalidNamedBuiltinArgument(name~) =>
-      simple_typecheck_diagnostic(
-        diagnostic_,
-        span,
-        "builtin call argument `\{name}` cannot be named",
-        "`builtin` calls derive their parameter types from positional arguments",
-        "remove the argument name",
       )
     MissingContextualOffer(expected~) =>
       contextual_offer_diagnostic(diagnostic_, display, span, expected, [])
@@ -722,31 +732,80 @@ fn typecheck_diagnostic(
         ],
         helps=["use a finite double literal within the binary64 range"],
       )
-    BuiltinNeedsExpectedType(name~) =>
+    UnknownBuiltin(name~) =>
       diagnostic(
-        "builtin `\{name}` needs an expected type",
+        "unknown builtin `\{name}`",
         span~,
         severity=Error,
-        code=Some("E3010"),
+        code=Some("E3026"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "the result type of this builtin is unknown here",
+            message: "the compiler does not define a builtin named `\{name}`",
             style: Primary,
           },
         ],
         notes=[
-          "`builtin` is unsafe and opaque; Lane checks it only against an adjacent expected type",
+          "`builtin` selects from the compiler-owned intrinsic table and never falls back to host linkage",
+        ],
+        helps=["check the intrinsic name or use `extern` for a host symbol"],
+      )
+    BuiltinSignatureMismatch(name~, expected~, actual~) =>
+      diagnostic(
+        "builtin `\{name}` has the wrong type",
+        span~,
+        severity=Error,
+        code=Some("E3027"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "expected `\{display.type_text(expected)}`, but `\{name}` has compiler type `\{display.type_text(actual)}`",
+            style: Primary,
+          },
+        ],
+        notes=["builtin signatures and effects are fixed by the compiler"],
+        helps=[
+          "change the annotation or use the builtin with its canonical type",
+        ],
+      )
+    ExternNeedsExpectedType(name~) =>
+      diagnostic(
+        "extern `\{name}` needs a complete expected function type",
+        span~,
+        severity=Error,
+        code=Some("E3028"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "the host signature cannot be inferred here",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "extern declarations are unsafe signature assertions and never infer parameters, results, or effects from use",
+        ],
+        helps=["add a complete function type annotation next to this extern"],
+      )
+    InvalidExternType(name~, type_~, restriction~) =>
+      diagnostic(
+        "extern `\{name}` has an unsupported type",
+        span~,
+        severity=Error,
+        code=Some("E3029"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: extern_type_restriction_message(
+              display, type_, restriction,
+            ),
+            style: Primary,
+          },
+        ],
+        notes=[
+          "extern ABI v1 accepts monomorphic functions over Unit, Bool, Int, Double, and String with an empty effect or exactly Io",
         ],
         helps=[
-          "add a type annotation to the binding, parameter, or surrounding expression",
-        ],
-        suggestions=[
-          {
-            message: "add an explicit type annotation near this builtin",
-            edits: [],
-            applicability: HasPlaceholders,
-          },
+          "change the declaration to a supported primitive function signature",
         ],
       )
     FunctionLiteralParameterNeedsAnnotation(name~) => {

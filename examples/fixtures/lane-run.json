@@ -55,13 +55,9 @@
       }
     },
     {
-      "name": "07 builtin expected types compile",
+      "name": "07 extern expected types compile",
       "file": "examples/valid/07_builtin_expected_type.lane",
-      "mode": "run",
-      "entry": "answer",
-      "expect": {
-        "equals": "builtin external typed"
-      }
+      "mode": "check"
     },
     {
       "name": "08 explicit equality offer value",
@@ -712,14 +708,14 @@
       }
     },
     {
-      "name": "invalid 14 builtin without expected type",
+      "name": "invalid 14 unknown builtin",
       "file": "examples/invalid/14_builtin_without_expected_type.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3010]",
-          "builtin `%anything` needs an expected type",
-          "add a type annotation to the binding, parameter, or surrounding expression"
+          "error[E3026]",
+          "unknown builtin `%anything`",
+          "check the intrinsic name or use `extern` for a host symbol"
         ]
       }
     },

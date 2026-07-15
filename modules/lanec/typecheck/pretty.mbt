@@ -1,4 +1,20 @@
 ///|
+pub impl @prettyprinter.Pretty for ExternTypeRestriction with fn pretty(
+  restriction : ExternTypeRestriction,
+) {
+  match restriction {
+    FunctionRequired => text("function_required")
+    MonomorphicRequired => text("monomorphic_required")
+    PrimitiveParameterRequired(index~) =>
+      text("primitive_parameter_required[") +
+      text(index.to_string()) +
+      text("]")
+    PrimitiveResultRequired => text("primitive_result_required")
+    EffectMustBeEmptyOrIo => text("effect_must_be_empty_or_io")
+  }
+}
+
+///|
 pub impl @prettyprinter.Pretty for DeclarationTypeCheckResult with fn pretty(
   result : DeclarationTypeCheckResult,
 ) {
@@ -299,8 +315,6 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text("unknown_contextual_argument") + space + text(name)
     InvalidNamedArgument(name~) =>
       text("invalid_named_argument") + space + text(name)
-    InvalidNamedBuiltinArgument(name~) =>
-      text("invalid_named_builtin_argument") + space + text(name)
     MissingContextualOffer(expected~) =>
       text("missing_contextual_offer") + space + expected.pretty()
     AmbiguousContextualOffer(expected~, candidates~) =>
@@ -389,8 +403,27 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     InvalidIntLiteral(raw) => text("invalid_int_literal") + space + text(raw)
     InvalidDoubleLiteral(raw) =>
       text("invalid_double_literal") + space + text(raw)
-    BuiltinNeedsExpectedType(name~) =>
-      text("builtin_needs_expected_type") + space + text(name)
+    UnknownBuiltin(name~) => text("unknown_builtin") + space + text(name)
+    BuiltinSignatureMismatch(name~, expected~, actual~) =>
+      text("builtin_signature_mismatch") +
+      space +
+      text(name) +
+      space +
+      text("expected=") +
+      expected.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty()
+    ExternNeedsExpectedType(name~) =>
+      text("extern_needs_expected_type") + space + text(name)
+    InvalidExternType(name~, type_~, restriction~) =>
+      text("invalid_extern_type") +
+      space +
+      text(name) +
+      space +
+      type_.pretty() +
+      space +
+      restriction.pretty()
     FunctionLiteralParameterNeedsAnnotation(name~) => {
       let name = match name {
         Some(name) => text(name)

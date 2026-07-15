@@ -486,6 +486,7 @@ pub(all) enum ResolvedExpr {
     loc~ : SourceSpan
   )
   Builtin(String, loc~ : SourceSpan)
+  Extern(String, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[ResolvedTypeParameter],
     parameters~ : Array[ResolvedFunctionLiteralParameter],

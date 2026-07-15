@@ -344,7 +344,11 @@ fn first_checked_handler_expr_for_elaborate_test(
       } nobreak {
         None
       }
-    Literal(..) | Value(..) | UnsafeBuiltin(..) | FunctionLiteral(..) => None
+    Literal(..)
+    | Value(..)
+    | CompilerIntrinsic(..)
+    | ExternBinding(..)
+    | FunctionLiteral(..) => None
   }
 }
 
@@ -358,7 +362,8 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+      #|let external_int : () -> Int = extern("%external_int")
       #|struct Box[A] {
       #|  value : A
       #|}
@@ -394,7 +399,7 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|        Option::none() => 0
       #|      }
       #|    } else {
-      #|      builtin("%external_int")
+      #|      external_int()
       #|    }
       #|  } with {
       #|    Prompt::choose[T](left, right, resume) => resume(left)
@@ -415,15 +420,15 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|  types: 5,
       #|  effects: 1,
       #|  operations: 1,
-      #|  values: 39,
+      #|  values: 42,
       #|  data_constructors: 6,
-      #|  top_lets: 5,
+      #|  top_lets: 6,
       #|  top_let_recs: 1,
       #|  top_externals: 2,
-      #|  calls: 6,
+      #|  calls: 8,
       #|  type_lambdas: 4,
       #|  type_applications: 4,
-      #|  constructs: 4,
+      #|  constructs: 5,
       #|  construct_hidden_witnesses: 1,
       #|  matches: 6,
       #|  performs: 2,

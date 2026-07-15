@@ -14,6 +14,15 @@ fn[T] op_equal(a : T, b : T, auto op : Equal[T]) -> Bool {
   op.equal(a, b)
 }
 
-offer int_compare_ops : Compare[Int] = builtin("%int_compare_ops")
+offer int_compare_ops : Compare[Int] = Compare::{
+  equal_impl: Equal::{
+    equal: fn (a : Int, b : Int) -> Bool {
+      builtin("%i64_equal")(a, b)
+    }
+  },
+  less: fn (a : Int, b : Int) -> Bool {
+    builtin("%i64_less")(a, b)
+  }
+}
 
 let answer : Bool = 1 == 1

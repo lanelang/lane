@@ -175,6 +175,15 @@ pub(all) enum GenericArgumentInferenceFailure {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ExternTypeRestriction {
+  FunctionRequired
+  MonomorphicRequired
+  PrimitiveParameterRequired(index~ : Int)
+  PrimitiveResultRequired
+  EffectMustBeEmptyOrIo
+} derive(Debug, Eq)
+
+///|
 pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
@@ -198,7 +207,6 @@ pub(all) enum TypeCheckDiagnosticKind {
   DuplicateNamedArgument(name~ : String)
   UnknownContextualArgument(name~ : String)
   InvalidNamedArgument(name~ : String)
-  InvalidNamedBuiltinArgument(name~ : String)
   MissingContextualOffer(expected~ : @types.Type)
   AmbiguousContextualOffer(
     expected~ : @types.Type,
@@ -234,7 +242,18 @@ pub(all) enum TypeCheckDiagnosticKind {
   PrivateEffectEscape(name~ : String)
   InvalidIntLiteral(String)
   InvalidDoubleLiteral(String)
-  BuiltinNeedsExpectedType(name~ : String)
+  UnknownBuiltin(name~ : String)
+  BuiltinSignatureMismatch(
+    name~ : String,
+    expected~ : @types.Type,
+    actual~ : @types.Type
+  )
+  ExternNeedsExpectedType(name~ : String)
+  InvalidExternType(
+    name~ : String,
+    type_~ : @types.Type,
+    restriction~ : ExternTypeRestriction
+  )
   FunctionLiteralParameterNeedsAnnotation(name~ : String?)
   EmptyMatchNeedsExpectedType
   UnqualifiedVariantPatternNeedsExpectedEnum(variant~ : String)

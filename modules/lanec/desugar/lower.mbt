@@ -216,6 +216,7 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     ListLiteral(items~, empty_reference~, cons_reference~, loc~) =>
       desugar_list_literal(items, empty_reference, cons_reference, loc)
     Builtin(name, loc~) => Builtin(name, loc~)
+    Extern(name, loc~) => Extern(name, loc~)
     FunctionLiteral(
       type_parameters~,
       parameters~,

@@ -30,6 +30,7 @@
 %token WITH "with"
 %token FINAL "final"
 %token BUILTIN "builtin"
+%token EXTERN "extern"
 %token MODULE "module"
 %token IMPORT "import"
 %token PUB "pub"
@@ -630,6 +631,7 @@ non_owner_primary_expression -> Expr
   | function_literal { $1 }
   | "[" list_literal_items "]" { ListLiteral(items=$2, loc=span($sloc)) }
   | builtin_expression { $1 }
+  | extern_expression { $1 }
   ;
 
 list_literal_items -> Array[Expr]
@@ -872,6 +874,10 @@ builtin_expression -> Expr
   : "builtin" "(" STRING ")" {
     Builtin($3, loc=span($sloc))
   }
+  ;
+
+extern_expression -> Expr
+  : "extern" "(" STRING ")" { Extern($3, loc=span($sloc)) }
   ;
 
 pattern -> Pattern

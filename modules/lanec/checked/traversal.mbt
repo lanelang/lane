@@ -4,7 +4,7 @@ pub fn CheckedExpr::for_each_child_expr(
   visit : (CheckedExpr) -> Unit,
 ) -> Unit {
   match self {
-    Literal(_) | Value(_) | UnsafeBuiltin(_) => ()
+    Literal(_) | Value(_) | CompilerIntrinsic(_) | ExternBinding(_) => ()
     FunctionLiteral(body~, ..) => visit(body)
     GenericApplication(callee~, ..) => visit(callee)
     Block(items~, result~, ..) => {

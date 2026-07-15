@@ -137,7 +137,7 @@ fn collect_checked_expr_parameter_signatures(
   signatures : Array[ParameterHintSignature],
 ) -> Unit {
   match expr {
-    Literal(_) | Value(_) | UnsafeBuiltin(_) => ()
+    Literal(_) | Value(_) | CompilerIntrinsic(_) | ExternBinding(_) => ()
     Block(items~, result~, ..) => {
       for item in items {
         collect_checked_local_parameter_signatures(item, signatures)
@@ -524,7 +524,7 @@ fn collect_checked_expr(
   context : CheckedAnalysisContext,
 ) -> Unit {
   match expr {
-    Literal(..) | UnsafeBuiltin(..) => ()
+    Literal(..) | CompilerIntrinsic(..) | ExternBinding(..) => ()
     Value(name~, symbol~, type_~, loc~) =>
       add_reference(
         references,

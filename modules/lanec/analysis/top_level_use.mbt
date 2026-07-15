@@ -421,8 +421,9 @@ fn TopLevelUseCollector::collect_checked_expr(
   expr : @checked.CheckedExpr,
 ) -> Unit {
   match expr {
-    Literal(type_~, ..) | UnsafeBuiltin(type_~, ..) =>
-      self.collect_checked_type(type_)
+    Literal(type_~, ..)
+    | CompilerIntrinsic(type_~, ..)
+    | ExternBinding(type_~, ..) => self.collect_checked_type(type_)
     Value(symbol~, type_~, ..) => {
       self.add_reference(TopLevelValueSymbol(symbol))
       self.collect_checked_type(type_)
@@ -600,7 +601,8 @@ fn TopLevelUseCollector::collect_expr(
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)
-    | Builtin(_) => ()
+    | Builtin(_)
+    | Extern(_) => ()
     Var(reference~, ..) => self.collect_value_reference(reference)
     QualifiedVariant(
       generic_arguments~,

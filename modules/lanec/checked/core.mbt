@@ -172,7 +172,8 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
-  UnsafeBuiltin(name~ : String, type_~ : @types.Type, loc~ : SourceSpan)
+  CompilerIntrinsic(name~ : String, type_~ : @types.Type, loc~ : SourceSpan)
+  ExternBinding(name~ : String, type_~ : @types.Type, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[@types.TypeParameter],
     parameters~ : Array[CheckedValueParameter],
@@ -353,7 +354,8 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
   match self {
     Literal(type_~, ..)
     | Value(type_~, ..)
-    | UnsafeBuiltin(type_~, ..)
+    | CompilerIntrinsic(type_~, ..)
+    | ExternBinding(type_~, ..)
     | FunctionLiteral(type_~, ..)
     | GenericApplication(type_~, ..)
     | Block(type_~, ..)
@@ -374,7 +376,8 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
   match self {
     Literal(loc~, ..)
     | Value(loc~, ..)
-    | UnsafeBuiltin(loc~, ..)
+    | CompilerIntrinsic(loc~, ..)
+    | ExternBinding(loc~, ..)
     | FunctionLiteral(loc~, ..)
     | GenericApplication(loc~, ..)
     | Block(loc~, ..)

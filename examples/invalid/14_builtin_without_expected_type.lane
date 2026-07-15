@@ -1,4 +1,4 @@
-// invalid: builtin requires a direct expected type
+// invalid: builtin names must belong to the compiler-owned intrinsic table
 module Examples.Invalid14
 
 pub fn bad() -> Int {

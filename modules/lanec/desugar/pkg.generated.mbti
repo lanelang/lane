@@ -28,6 +28,8 @@ pub(all) enum DesugaredExpr {
   VariantCall(type_name~ : String?, generic_arguments~ : Array[@resolve.ResolvedGenericArgument], variant~ : String, variant_generic_arguments~ : Array[@resolve.ResolvedGenericArgument], reference~ : @resolve.ResolvedVariantReference, arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, generic_arguments~ : Array[@resolve.ResolvedGenericArgument], fields~ : Array[DesugaredStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
+  Extern(String, loc~ : @basic.SourceSpan)
+  ErrorRecovery(loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@resolve.ResolvedTypeParameter], parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter], return_type~ : @resolve.ResolvedType?, effect~ : @resolve.ResolvedEffectTerm?, body~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : @resolve.ResolvedEffectOperationName, generic_witnesses~ : Array[@resolve.ResolvedGenericArgument], arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : DesugaredExpr, arguments~ : Array[@resolve.ResolvedGenericArgument], loc~ : @basic.SourceSpan)

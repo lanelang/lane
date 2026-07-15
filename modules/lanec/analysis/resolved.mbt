@@ -306,6 +306,7 @@ fn collect_resolved_expr_type_references(
     | Var(_)
     | ListLiteral(_)
     | Builtin(_)
+    | Extern(_)
     | If(_)
     | Call(_)
     | Field(_)
@@ -699,7 +700,8 @@ fn collect_resolved_expr(
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(..)
-    | Builtin(_) => ()
+    | Builtin(_)
+    | Extern(_) => ()
     Var(name~, reference=Symbol(symbol), loc~) =>
       add_reference(
         references,

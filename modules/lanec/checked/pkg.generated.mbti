@@ -59,7 +59,8 @@ pub impl @prettyprinter.Pretty for CheckedEnumDeclaration
 pub(all) enum CheckedExpr {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Value(name~ : String, symbol~ : @symbol.ValueSymbolId, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  UnsafeBuiltin(name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  CompilerIntrinsic(name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  ExternBinding(name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : CheckedExpr, arguments~ : Array[@types.GenericArgument], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Block(items~ : Array[CheckedLocalItem], result~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)

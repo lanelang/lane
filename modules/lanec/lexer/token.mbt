@@ -23,6 +23,7 @@ pub(all) enum Token {
   WITH
   FINAL
   BUILTIN
+  EXTERN
   MODULE
   IMPORT
   PUB

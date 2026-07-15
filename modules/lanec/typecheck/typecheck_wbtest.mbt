@@ -227,7 +227,11 @@ fn find_first_handler_resume_callee_type(
       } nobreak {
         None
       }
-    Literal(..) | Value(..) | UnsafeBuiltin(..) | FunctionLiteral(..) => None
+    Literal(..)
+    | Value(..)
+    | CompilerIntrinsic(..)
+    | ExternBinding(..)
+    | FunctionLiteral(..) => None
   }
 }
 
@@ -474,15 +478,79 @@ fn module_interface_effect_signatures(
 test "typecheck builds checked builtin from direct expected type" {
   let expression = expect_checked_let_initializer(
     (
-      #|let host_value : Int = builtin("%host_value")
+      #|let int_add : (Int, Int) -> Int = builtin("%i64_add")
     ),
-    "host_value",
-    Primitive(Int),
+    "int_add",
+    Function([Primitive(Int), Primitive(Int)], Primitive(Int), Empty),
   )
   inspect(
     @prettyprinter.render(expression),
     content=(
-      #|builtin("%host_value") : Int
+      #|builtin("%i64_add") : (Int, Int) -> Int
+    ),
+  )
+}
+
+///|
+test "typecheck distinguishes compiler intrinsics from extern bindings" {
+  let result = expect_checked_source_result(
+    (
+      #|let int_add : (Int, Int) -> Int = builtin("%i64_add")
+      #|let host_clock : () -> Int = extern("clock")
+      #|let host_println : (String) -> Unit ! Io = extern("println")
+    ),
+  )
+  guard result.source is Some(source) else { abort("expected checked source") }
+  guard source.declarations[0]
+    is Let({ initializer: CompilerIntrinsic(..), .. }) else {
+    abort("expected compiler intrinsic")
+  }
+  guard source.declarations[1] is Let({ initializer: ExternBinding(..), .. }) else {
+    abort("expected pure extern binding")
+  }
+  guard source.declarations[2] is Let({ initializer: ExternBinding(..), .. }) else {
+    abort("expected Io extern binding")
+  }
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck rejects unsupported extern ABI shapes" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Log {
+      #|  write(String) -> Unit
+      #|}
+      #|struct Box {
+      #|  value : Int
+      #|}
+      #|let scalar : Int = extern("scalar")
+      #|let generic : [A](A) -> A = extern("generic")
+      #|let aggregate_parameter : (Box) -> Int = extern("aggregate_parameter")
+      #|let aggregate_result : () -> Box = extern("aggregate_result")
+      #|fn[E : Effect] open_effect() -> (Int) -> Int ! E {
+      #|  extern("open_effect")
+      #|}
+      #|let algebraic_effect : () -> Unit ! Log = extern("algebraic_effect")
+    ),
+  )
+  let restrictions = result.diagnostics.map(fn(diagnostic) {
+    guard diagnostic.kind is InvalidExternType(name~, restriction~, ..) else {
+      abort("expected invalid extern type diagnostic")
+    }
+    (name, restriction)
+  })
+  debug_inspect(
+    restrictions,
+    content=(
+      #|[
+      #|  ("scalar", FunctionRequired),
+      #|  ("generic", MonomorphicRequired),
+      #|  ("aggregate_parameter", PrimitiveParameterRequired(index=0)),
+      #|  ("aggregate_result", PrimitiveResultRequired),
+      #|  ("open_effect", EffectMustBeEmptyOrIo),
+      #|  ("algebraic_effect", EffectMustBeEmptyOrIo),
+      #|]
     ),
   )
 }
@@ -572,7 +640,7 @@ test "typecheck inserts contextual auto argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|let answer : Int = 1 + 2
     ),
     "answer",
@@ -596,7 +664,7 @@ test "typecheck accepts explicit named contextual argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let custom_add : Add[Int] = builtin("%custom_add")
+      #|let custom_add : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|let answer : Int = op_add(1, 2, op=custom_add)
     ),
     "answer",
@@ -620,7 +688,7 @@ test "typecheck offer value declaration supplies contextual argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|let answer : Int = 1 + 2
     ),
     "answer",
@@ -647,7 +715,7 @@ test "typecheck auto offer parameter is visible in function body" {
       #|fn[A] twice(x : A, auto offer op : Add[A]) -> A {
       #|  x + x
       #|}
-      #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|let answer : Int = twice(1)
     ),
   )
@@ -692,7 +760,7 @@ test "typecheck compare offer does not derive equal offer" {
       #|fn[A] op_equal(a : A, b : A, auto op : Equal[A]) -> Bool {
       #|  op.equal(a, b)
       #|}
-      #|offer int_compare_ops : Compare[Int] = builtin("%int_compare_ops")
+      #|offer int_compare_ops : Compare[Int] = Compare::{ equal_impl: Equal::{ equal: fn(a : Int, b : Int) -> Bool { builtin("%i64_equal")(a, b) } } }
       #|let answer : Bool = 1 == 2
     ),
   )
@@ -715,7 +783,7 @@ test "typecheck local offer value declaration supplies contextual argument" {
       #|  op.add(a, b)
       #|}
       #|let answer : Int = {
-      #|  offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+      #|  offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|  1 + 2
       #|}
     ),
@@ -726,7 +794,11 @@ test "typecheck local offer value declaration supplies contextual argument" {
     @prettyprinter.render(expression, width=100),
     content=(
       #|{
-      #|  let int_add_ops#5 : type#0[Int] = builtin("%int_add_ops")
+      #|  let int_add_ops#5 : type#0[Int] = type#0[Int]::{
+      #|    add#0: fn(a#6 : Int, b#7 : Int) -> Int {
+      #|      builtin("%i64_add")(a#6, b#7)
+      #|    }
+      #|  }
       #|  op_add#0[Int](1, 2, int_add_ops#5)
       #|} : Int
     ),
@@ -784,8 +856,8 @@ test "typecheck reports ambiguous contextual offer" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer add_a : Add[Int] = builtin("%add_a")
-      #|offer add_b : Add[Int] = builtin("%add_b")
+      #|offer add_a : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+      #|offer add_b : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_sub")(a, b) } }
       #|let answer : Int = 1 + 2
     ),
   )
@@ -848,7 +920,7 @@ test "typecheck reports positional auto argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let custom : Add[Int] = builtin("%custom")
+      #|let custom : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|let answer : Int = op_add(1, 2, custom)
     ),
   )
@@ -868,7 +940,7 @@ test "typecheck reports duplicate named contextual argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let custom : Add[Int] = builtin("%custom")
+      #|let custom : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
       #|let answer : Int = op_add(1, 2, op=custom, op=custom)
     ),
   )
@@ -1494,10 +1566,13 @@ test "typecheck synthesizes direct generic call from argument type" {
 test "typecheck generic call uses expected result type" {
   let result = expect_typecheck_result(
     (
-      #|fn[A] make() -> A {
-      #|  builtin("%make")
+      #|enum Marker[A] {
+      #|  marker()
       #|}
-      #|fn use() -> Int {
+      #|fn[A] make() -> Marker[A] {
+      #|  Marker::marker()
+      #|}
+      #|fn use() -> Marker[Int] {
       #|  make()
       #|}
     ),
@@ -1507,14 +1582,20 @@ test "typecheck generic call uses expected result type" {
     content=(
       #|typecheck_result {
       #|  checked_declarations {
-      #|    types {}
+      #|    types {
+      #|      enum Marker#0[A#0 : Type] {
+      #|        marker#0
+      #|      }
+      #|    }
       #|    type_members {}
       #|    fields {}
-      #|    variants {}
+      #|    variants {
+      #|      marker#0
+      #|    }
       #|  }
       #|  checked_values {
-      #|    fn make#0 : forall [tparam#0 A : Type]. () -> tparam#0
-      #|    fn use#1 : () -> Int
+      #|    fn make#0 : forall [tparam#1 A : Type]. () -> type#0[tparam#1]
+      #|    fn use#1 : () -> type#0[Int]
       #|  }
       #|  diagnostics {}
       #|}
@@ -1688,7 +1769,13 @@ test "typecheck infers empty residual effect row in generic function argument" {
       #|  42
       #|}
       #|fn[A, E : Effect] handle_log(task : () -> A ! { Log, E }) -> () -> A ! E {
-      #|  builtin("%handle_log")
+      #|  fn () {
+      #|    handle task() with {
+      #|      Log::write(_value, resume) => resume(())
+      #|    } final value {
+      #|      value
+      #|    }
+      #|  }
       #|}
       #|fn use() -> Int {
       #|  handle_log(program)()
@@ -1719,7 +1806,13 @@ test "typecheck infers non-empty residual effect row in generic function argumen
       #|  value
       #|}
       #|fn[A, E : Effect] handle_ask(task : () -> A ! { Ask, E }) -> () -> A ! E {
-      #|  builtin("%handle_ask")
+      #|  fn () {
+      #|    handle task() with {
+      #|      Ask::read(resume) => resume(0)
+      #|    } final value {
+      #|      value
+      #|    }
+      #|  }
       #|}
       #|fn use() -> Int ! Log {
       #|  handle_ask(program)()
@@ -1798,8 +1891,11 @@ test "typecheck reports generic arguments on non-generic function" {
 test "typecheck reports unresolved generic arguments" {
   let result = expect_typecheck_result(
     (
-      #|fn[A] make() -> A {
-      #|  builtin("%make")
+      #|enum Marker[A] {
+      #|  marker()
+      #|}
+      #|fn[A] make() -> Marker[A] {
+      #|  Marker::marker()
       #|}
       #|fn use() -> Bool {
       #|  {
@@ -1812,7 +1908,7 @@ test "typecheck reports unresolved generic arguments" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|generic_argument_inference_failed make missing A @ 7:22-7:23
+      #|generic_argument_inference_failed make missing A @ 10:22-10:23
     ),
   )
 }
@@ -2734,7 +2830,7 @@ test "typecheck uses pattern let annotation as initializer expected type" {
     (
       #|fn use() -> Int {
       #|  {
-      #|    let _ : Int = builtin("%external_int")
+      #|    let _ : Double = builtin("%f64_inf")
       #|    42
       #|  }
       #|}

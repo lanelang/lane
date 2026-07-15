@@ -627,6 +627,8 @@ fn Expr::to_doc_with_precedence(
       (10, bracketed_comma_list(items.map(fn(item) { item.to_doc(trivia~) })))
     Builtin(name, ..) =>
       (10, keyword("builtin") + parenthesized_comma_list([source_string(name)]))
+    Extern(name, ..) =>
+      (10, keyword("extern") + parenthesized_comma_list([source_string(name)]))
     FunctionLiteral(
       type_parameters~,
       parameters~,

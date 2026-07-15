@@ -27,10 +27,17 @@ fn SemanticChecker::check_checked_expr(
   // this expression: block results, if branches, function literals, calls, and
   // operation payloads.
   match expression {
-    Builtin(name, loc~) =>
-      // `builtin` is unsafe and opaque to the checker. The adjacent expected
-      // type is the whole type of the resulting checked node.
-      checked_expression(UnsafeBuiltin(name~, type_=expected, loc~), expected)
+    Builtin(name, loc~) => self.check_compiler_intrinsic(name, expected, loc)
+    Extern(name, loc~) => self.check_extern_binding(name, expected, loc)
+    ErrorRecovery(loc~) =>
+      checked_expression(
+        @checked.CheckedExpr::CompilerIntrinsic(
+          name="%contextual_error",
+          type_=expected,
+          loc~,
+        ),
+        expected,
+      )
     Literal(..) | Field(..) => {
       let checked = self.synthesize_checked_expr(scope, expression)
       self.expect_type(expected, checked.type_, expression.loc())
@@ -215,10 +222,9 @@ fn SemanticChecker::synthesize_checked_expr(
         None,
         loc,
       )
-    Builtin(name, loc~) => {
-      self.diagnostics.push({ kind: BuiltinNeedsExpectedType(name~), loc })
-      checked_expression_none_reported(Error)
-    }
+    Builtin(name, loc~) => self.synthesize_compiler_intrinsic(name, loc)
+    Extern(name, loc~) => self.synthesize_extern_binding(name, loc)
+    ErrorRecovery(..) => checked_expression_none_reported(Error)
   }
 }
 
@@ -696,12 +702,6 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
   expected_result : @types.Type?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  if callee is Builtin(name, loc=callee_loc) &&
-    expected_result is Some(expected_result) {
-    return self.synthesize_checked_builtin_callee_call(
-      scope, name, arguments, expected_result, callee_loc, loc,
-    )
-  }
   let checked_callee = self.synthesize_checked_expr(scope, callee)
   guard self.require_checked_expression(
       checked_callee,
@@ -794,72 +794,6 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
       checked_expression_none_reported(Error)
     }
   }
-}
-
-///|
-fn SemanticChecker::synthesize_checked_builtin_callee_call(
-  self : SemanticChecker,
-  scope : TypeScope,
-  name : String,
-  arguments : Array[@desugar.DesugaredCallArgument],
-  expected_result : @types.Type,
-  callee_loc : SourceSpan,
-  loc : SourceSpan,
-) -> CheckedExpressionSynthesis {
-  // Checked expression construction for unsafe builtin calls mirrors the
-  // type-only rule in `check_builtin_callee_call`: argument types are local
-  // synthesized facts, and the surrounding call result is the direct expected
-  // result type.
-  let parameters = []
-  let checked_arguments : Array[@checked.CheckedCallArgument] = []
-  let effects = []
-  let mut complete = true
-  for argument in arguments {
-    match argument {
-      Positional(value~, loc~) => {
-        let checked = self.synthesize_checked_expr(scope, value)
-        parameters.push(checked.type_)
-        effects.push(checked.effect)
-        match
-          self.require_checked_expression(
-            checked,
-            value.loc(),
-            "builtin call argument",
-          ) {
-          Some(value) => checked_arguments.push({ value, loc })
-          None => complete = false
-        }
-      }
-      Named(name~, value~, loc~) => {
-        self.diagnostics.push({ kind: InvalidNamedBuiltinArgument(name~), loc })
-        let checked = self.synthesize_checked_expr(scope, value)
-        parameters.push(checked.type_)
-        effects.push(checked.effect)
-        match
-          self.require_checked_expression(
-            checked,
-            value.loc(),
-            "builtin call argument",
-          ) {
-          Some(value) => checked_arguments.push({ value, loc })
-          None => complete = false
-        }
-      }
-    }
-  }
-  if !complete {
-    return checked_expression_none_reported(expected_result)
-  }
-  let callee = @checked.CheckedExpr::UnsafeBuiltin(
-    name~,
-    type_=Function(parameters, expected_result, Empty),
-    loc=callee_loc,
-  )
-  checked_expression_with_effect(
-    Call(callee~, arguments=checked_arguments, type_=expected_result, loc~),
-    expected_result,
-    effect_union(effects),
-  )
 }
 
 ///|

@@ -718,6 +718,7 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
     ListLiteral(items~, ..) =>
       @pretty.bracketed_inline(items.map(ResolvedExpr::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
+    Extern(name, ..) => text("extern") + text("(") + text(name) + text(")")
     FunctionLiteral(
       type_parameters~,
       parameters~,

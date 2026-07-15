@@ -243,7 +243,7 @@ fn CheckedValueUseCollector::collect_expr(
   current_origin : ValueSymbolId?,
 ) -> Unit {
   match expr {
-    Literal(_) | UnsafeBuiltin(_) => ()
+    Literal(_) | CompilerIntrinsic(_) | ExternBinding(_) => ()
     Value(symbol~, loc~, ..) =>
       self.references.push({
         target: symbol,

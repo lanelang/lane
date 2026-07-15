@@ -4261,7 +4261,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
         #|  op.add(a, b)
         #|}
         #|
-        #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
+        #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
         #|
         #|pub fn answer(seed : Int) -> Int {
         #|  let local = seed + 1
@@ -4280,8 +4280,8 @@ test "analysis produces implicit argument inlay hints for auto offers" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 227,
-      #|        end_offset: 232,
+      #|        start_offset: 275,
+      #|        end_offset: 280,
       #|        start_line: 14,
       #|        start_column: 7,
       #|        end_line: 14,
@@ -4295,8 +4295,8 @@ test "analysis produces implicit argument inlay hints for auto offers" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 242,
-      #|        end_offset: 243,
+      #|        start_offset: 290,
+      #|        end_offset: 291,
       #|        start_line: 14,
       #|        start_column: 22,
       #|        end_line: 14,
@@ -4335,8 +4335,8 @@ test "analysis combines implicit argument inlay hints at the call end" {
         #|  }
         #|}
         #|
-        #|offer int_add_ops : Add[Int] = builtin("%int_add_ops")
-        #|offer int_eq_ops : Eq[Int] = builtin("%int_eq_ops")
+        #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+        #|offer int_eq_ops : Eq[Int] = Eq::{ eq: fn(a : Int, b : Int) -> Bool { builtin("%i64_equal")(a, b) } }
         #|
         #|pub fn answer(seed : Int) -> Int {
         #|  let local = choose(seed, 1)
@@ -4369,7 +4369,7 @@ test "analysis does not mark explicit named auto arguments as implicit" {
         #|  op.add(a, b)
         #|}
         #|
-        #|let int_add_ops : Add[Int] = builtin("%int_add_ops")
+        #|let int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
         #|
         #|pub fn answer(seed : Int) -> Int {
         #|  let local = op_add(seed, 1, op=int_add_ops)
@@ -4388,8 +4388,8 @@ test "analysis does not mark explicit named auto arguments as implicit" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 225,
-      #|        end_offset: 230,
+      #|        start_offset: 273,
+      #|        end_offset: 278,
       #|        start_line: 14,
       #|        start_column: 7,
       #|        end_line: 14,
@@ -4403,8 +4403,8 @@ test "analysis does not mark explicit named auto arguments as implicit" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 240,
-      #|        end_offset: 244,
+      #|        start_offset: 288,
+      #|        end_offset: 292,
       #|        start_line: 14,
       #|        start_column: 22,
       #|        end_line: 14,
@@ -4418,8 +4418,8 @@ test "analysis does not mark explicit named auto arguments as implicit" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 246,
-      #|        end_offset: 247,
+      #|        start_offset: 294,
+      #|        end_offset: 295,
       #|        start_line: 14,
       #|        start_column: 28,
       #|        end_line: 14,

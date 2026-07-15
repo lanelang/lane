@@ -2,14 +2,10 @@ module Examples.Valid07
 
 import Basic.Io.{Io, Write}
 
-pub fn host_int() -> Int {
-  builtin("%host_int")
-}
+pub let host_int : () -> Int = extern("%host_int")
 
-pub fn host_value() -> Int {
-  builtin("%host_value")
-}
+pub let host_value : () -> Int = extern("%host_value")
 
 pub fn answer() -> Unit ! Io {
-  Write::println!("builtin external typed")
+  Write::println!("extern bindings typed")
 }

@@ -150,7 +150,13 @@ fn collect_import_used_symbols_from_expr(
       for argument in generic_arguments {
         collect_import_used_symbols_from_generic_argument(argument, symbols)
       }
-    Literal(_) | Value(_) | UnsafeBuiltin(_) | If(_) | Call(_) | Field(_) => ()
+    Literal(_)
+    | Value(_)
+    | CompilerIntrinsic(_)
+    | ExternBinding(_)
+    | If(_)
+    | Call(_)
+    | Field(_) => ()
   }
   expr.for_each_child_expr(fn(child) {
     collect_import_used_symbols_from_expr(child, symbols)

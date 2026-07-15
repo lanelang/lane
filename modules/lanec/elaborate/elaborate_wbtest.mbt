@@ -160,13 +160,13 @@ test "elaborate builtins through contextual expected types" {
       #|fn identity(value : Int) -> Int {
       #|  value
       #|}
-      #|let top : Int = builtin("%top")
+      #|let top : Double = builtin("%f64_inf")
       #|fn direct() -> Int {
-      #|  builtin("%direct")
+      #|  builtin("%i64_neg")(1)
       #|}
       #|fn use() -> Int {
-      #|  let local : Int = builtin("%local")
-      #|  identity(builtin("%argument"))
+      #|  let local : Double = builtin("%f64_nan")
+      #|  identity(builtin("%i64_neg")(1))
       #|}
     ),
   )
@@ -178,13 +178,13 @@ test "elaborate builtins through contextual expected types" {
       #|    fn identity#0(value#4 : Int) -> Int {
       #|      value#4
       #|    }
-      #|    let top#1 : Int = builtin("%top")
+      #|    let top#1 : Double = builtin("%f64_inf")
       #|    fn direct#2() -> Int {
-      #|      builtin("%direct")
+      #|      builtin("%i64_neg")(1)
       #|    }
       #|    fn use#3() -> Int {
-      #|      let local#5 : Int = builtin("%local")
-      #|      identity#0(builtin("%argument"))
+      #|      let local#5 : Double = builtin("%f64_nan")
+      #|      identity#0(builtin("%i64_neg")(1))
       #|    }
       #|  }
       #|  diagnostics {}
@@ -228,7 +228,7 @@ test "elaborate top level offer value declarations" {
       #|struct Box {
       #|  value : Int
       #|}
-      #|offer box : Box = builtin("%box")
+      #|offer box : Box = Box::{ value: 42 }
       #|fn use() -> Box {
       #|  box
       #|}
@@ -242,7 +242,9 @@ test "elaborate top level offer value declarations" {
       #|    struct Box#0 {
       #|      value#0 : Int
       #|    }
-      #|    let box#0 : type#0 = builtin("%box")
+      #|    let box#0 : type#0 = type#0::{
+      #|      value#0: 42
+      #|    }
       #|    fn use#1() -> type#0 {
       #|      box#0
       #|    }

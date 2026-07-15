@@ -12,6 +12,7 @@ pub fn ResolvedExpr::loc(self : ResolvedExpr) -> SourceSpan {
     | StructLiteral(loc~, ..)
     | ListLiteral(loc~, ..)
     | Builtin(_, loc~)
+    | Extern(_, loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
     | GenericApplication(loc~, ..)
@@ -39,7 +40,8 @@ pub fn ResolvedExpr::for_each_child_expr(
     | BoolLiteral(_)
     | UnitLiteral(_)
     | Var(_)
-    | Builtin(_) => ()
+    | Builtin(_)
+    | Extern(_) => ()
     QualifiedVariant(arguments~, ..) | UnqualifiedVariant(arguments~, ..) =>
       for argument in arguments {
         visit(argument)

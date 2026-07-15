@@ -97,6 +97,7 @@ pub(all) enum Expr {
   StructLiteral(owner~ : Type, fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   ListLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
+  Extern(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : EffectOperationName, type_witnesses~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   TypeApplication(callee~ : Expr, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
