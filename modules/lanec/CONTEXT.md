@@ -156,11 +156,11 @@ The target-independent `lanec/module/link` package that owns module-linking algo
 _Avoid_: compilation orchestrator, artifact codec, execution-image target
 
 **Whole-Program Elaboration**:
-The post-link compiler phase that makes one program's selected entry, ordered top-level initialization, executable effect boundary, and execution roots explicit before execution-image lowering.
+The post-link compiler phase that validates one program's selected entry and makes ordered top-level initialization, effect-lowering companions, and execution roots explicit before execution-image lowering.
 _Avoid_: source elaboration, linking, LoisVM bytecode emission
 
 **Executable Program**:
-The compiler-owned result of Whole-Program Elaboration, containing one selected entry, explicit execution roots, and the complete initialization and executable-effect policy needed for execution-image lowering without consulting the original link product.
+The compiler-owned result of Whole-Program Elaboration, containing one selected entry, explicit execution roots, ordered initializers, lowered core, externals, and effect companions needed for execution-image lowering without consulting the original link product.
 _Avoid_: shallow linked-program wrapper, LoisVM bytecode image, loaded execution instance
 
 **Executable Program Package**:

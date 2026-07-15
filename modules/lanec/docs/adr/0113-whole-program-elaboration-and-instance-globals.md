@@ -1,6 +1,6 @@
 # Whole-program elaboration and instance globals
 
-Lane inserts Whole-Program Elaboration between linked Buslane and LoisVM execution-image lowering. It accepts a linked program and selected entry and produces one Executable Program that owns the complete top-level initialization plan, residual-runtime-effect selection, runtime boundary, and explicit Execution Root Set. LoisVM lowering consumes this product rather than the linked program, entry, external map, and runtime-operation list as parallel inputs.
+Lane inserts Whole-Program Elaboration between linked Buslane and LoisVM execution-image lowering. It accepts a linked program and selected entry and produces one Executable Program that owns the complete top-level initialization plan, lowered core, externals, effect companions, and explicit Execution Root Set. LoisVM lowering consumes this product rather than the linked program, entry, and external map as parallel inputs.
 
 The target-independent `lanec/executable` package owns Whole-Program Elaboration and the Executable Program model. Execution-image targets such as `lanec/loisvm_lowering` depend on this package. The executable package does not depend on LoisVM bytecode, VM CFG, Wasm, or another execution-image target.
 

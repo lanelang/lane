@@ -10,8 +10,9 @@ server startup, and future project workflows.
 _Avoid_: compiler library, language server
 
 **Single-File Run**:
-The v1 command behavior that checks one root Lane module with explicitly
-supplied library modules and prints a selected entry value.
+The command behavior that checks one root Lane module with explicitly supplied
+library modules and executes a selected public `() -> Unit` or `() -> Unit ! Io`
+entry through LoisVM.
 _Avoid_: language-level main, project execution
 
 **Root Source**:

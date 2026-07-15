@@ -139,7 +139,7 @@ _Avoid_: value expression, runtime expression
 
 **Effect-Level Expression**:
 A type-level expression whose kind is **Effect Kind** and whose value denotes an effect set.
-_Avoid_: runtime effect operation, handler expression, effect declaration body
+_Avoid_: effect operation invocation, handler expression, effect declaration body
 
 **Kinded Alias Body**:
 The right-hand side of a top-level alias, parsed as a type-level form that may have ordinary type kind, constructor kind, or effect kind.

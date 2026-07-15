@@ -116,6 +116,144 @@ fn assert_effect_conformance(
 }
 
 ///|
+fn interpreter_resolution_error(
+  image : @loisvm_bytecode.BytecodeImage,
+  registry : @loisvm_runtime.RuntimeRegistry,
+) -> @loisvm_runtime.RuntimeImportResolutionError raise {
+  match @loisvm_interp.load(image, registry) {
+    Err(error) => error
+    Ok(_) => fail("expected LoisVM interpreter load to fail")
+  }
+}
+
+///|
+fn wasm_resolution_error(
+  image : @loisvm_bytecode.BytecodeImage,
+  registry : @loisvm_runtime.RuntimeRegistry,
+) -> @loisvm_runtime.RuntimeImportResolutionError raise {
+  match @loisvm_wasm.load(image, registry) {
+    Err(RuntimeImportResolution(error~)) => error
+    Err(error) => fail("unexpected LoisVM Wasm load failure: \{to_repr(error)}")
+    Ok(_) => fail("expected LoisVM Wasm load to fail")
+  }
+}
+
+///|
+fn effect_conformance_failing_registry(
+  message : String,
+) -> @loisvm_runtime.RuntimeRegistry {
+  let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="%println",
+      abi_major=1,
+      parameters=[String],
+      result=Unit,
+      invoke=(_context, _arguments) => raise Failure(message~),
+    ),
+  )
+  registry
+}
+
+///|
+fn run_effect_conformance_interpreter_failure(
+  image : @loisvm_bytecode.BytecodeImage,
+  registry : @loisvm_runtime.RuntimeRegistry,
+) -> Result[Unit, @loisvm_runtime.ExecutionError] raise {
+  let loaded = match @loisvm_interp.load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("LoisVM interpreter load failed: \{to_repr(error)}")
+  }
+  loaded.new_instance().execute()
+}
+
+///|
+fn run_effect_conformance_wasm_failure(
+  image : @loisvm_bytecode.BytecodeImage,
+  registry : @loisvm_runtime.RuntimeRegistry,
+) -> Result[Unit, @loisvm_runtime.ExecutionError] raise {
+  let loaded = match @loisvm_wasm.load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("LoisVM Wasm load failed: \{to_repr(error)}")
+  }
+  let instance = match loaded.new_instance() {
+    Ok(value) => value
+    Err(error) => fail("LoisVM Wasm instantiation failed: \{to_repr(error)}")
+  }
+  instance.execute()
+}
+
+///|
+test "runtime import resolution agrees across production backends" {
+  let image = compile_effect_conformance_image(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|pub fn main() -> Unit ! Io {
+      #|  println("hello")
+      #|}
+    ),
+  )
+  let missing = @loisvm_runtime.RuntimeRegistry::new()
+  let incompatible = @loisvm_runtime.RuntimeRegistry::new()
+  incompatible.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="%println",
+      abi_major=2,
+      parameters=[String],
+      result=Unit,
+      invoke=(_context, _arguments) => Unit,
+    ),
+  )
+  debug_inspect(
+    (
+      interpreter_resolution_error(image, missing),
+      wasm_resolution_error(image, missing),
+      interpreter_resolution_error(image, incompatible),
+      wasm_resolution_error(image, incompatible),
+    ),
+    content=(
+      #|(
+      #|  UnresolvedImport(symbol="%println"),
+      #|  UnresolvedImport(symbol="%println"),
+      #|  AbiMismatch(symbol="%println", expected_major=1, actual_major=2),
+      #|  AbiMismatch(symbol="%println", expected_major=1, actual_major=2),
+      #|)
+    ),
+  )
+}
+
+///|
+test "runtime import failures agree across production backends" {
+  let image = compile_effect_conformance_image(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|pub fn main() -> Unit ! Io {
+      #|  println("hello")
+      #|}
+    ),
+  )
+  let interpreter = run_effect_conformance_interpreter_failure(
+    image,
+    effect_conformance_failing_registry("boom"),
+  )
+  let wasm = run_effect_conformance_wasm_failure(
+    image,
+    effect_conformance_failing_registry("boom"),
+  )
+  debug_inspect(
+    (interpreter, wasm),
+    content=(
+      #|(
+      #|  Err(RuntimeImportFailure(symbol="%println", message="boom")),
+      #|  Err(RuntimeImportFailure(symbol="%println", message="boom")),
+      #|)
+    ),
+  )
+}
+
+///|
 test "effect lowering agrees for a direct deep handler and runtime effect" {
   assert_effect_conformance(
     (

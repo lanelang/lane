@@ -232,7 +232,7 @@ and unresolved or ambiguous states before Buslane lowering.
 - [x] Evaluate first-class calls, type lambdas/applications with runtime type
   erasure, existential witnesses, nominal data, matches, performs, and
   handlers.
-- [x] Define the builtin and runtime effect handler plugin contracts and
+- [x] Define compiler-intrinsic and external-value resolver contracts and
   runtime error reports.
 - [x] Provide a Buslane reference interpreter with erased type applications,
   nominal data, one-level matches, closures, let-rec groups, and external value
