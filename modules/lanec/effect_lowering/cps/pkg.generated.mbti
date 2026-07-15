@@ -3,14 +3,14 @@ package "Milky2018/lanec/effect_lowering/cps"
 
 import {
   "Milky2018/buslane",
-  "Milky2018/lanec/effect_lowering",
+  "Milky2018/lanec/effect_lowering/core",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn rewrite_selective_cps_abis(@effect_lowering.Program) -> Result[@effect_lowering.Program, @effect_lowering.SynthesisError]
+pub fn rewrite_selective_cps_abis(@core.Program) -> Result[@core.Program, @core.SynthesisError]
 
-pub fn rewrite_selective_cps_abis_with_companions(@effect_lowering.Program) -> Result[SelectiveCpsRewrite, @effect_lowering.SynthesisError]
+pub fn rewrite_selective_cps_abis_with_companions(@core.Program) -> Result[SelectiveCpsRewrite, @core.SynthesisError]
 
 // Errors
 
@@ -21,7 +21,7 @@ pub(all) struct EffectCompanionBinding {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct SelectiveCpsRewrite {
-  program : @effect_lowering.Program
+  program : @core.Program
   effect_companions : Array[EffectCompanionBinding]
 } derive(Eq, @debug.Debug)
 

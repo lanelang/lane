@@ -1,6 +1,6 @@
 import {
   "Milky2018/buslane",
-  "Milky2018/lanec/effect_lowering",
+  "Milky2018/lanec/effect_lowering/core" @effect_lowering_core,
 }
 
 import {

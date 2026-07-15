@@ -1,5 +1,5 @@
 ///|
-using @effect_lowering {
+using @effect_lowering_core {
   elaborate_handlers,
   introduce_monadic_binds,
   lift_monadic_continuations,

@@ -3,156 +3,61 @@ package "Milky2018/lanec/effect_lowering"
 
 import {
   "Milky2018/buslane",
-  "moonbitlang/core/debug",
+  "Milky2018/lanec/effect_lowering/core",
 }
 
 // Values
-pub fn elaborate_handlers(@buslane.Program) -> Program
+pub fn elaborate_handlers(@buslane.Program) -> @core.Program
 
-pub fn introduce_monadic_binds(Program) -> Result[Program, SynthesisError]
+pub fn introduce_monadic_binds(@core.Program) -> Result[@core.Program, @core.SynthesisError]
 
-pub fn lift_monadic_continuations(Program) -> Result[@buslane.Program, SynthesisError]
+pub fn lift_monadic_continuations(@core.Program) -> Result[@buslane.Program, @core.SynthesisError]
 
-pub fn resolve_open_contexts(Program) -> Result[Program, SynthesisError]
+pub fn resolve_open_contexts(@core.Program) -> Result[@core.Program, @core.SynthesisError]
 
-pub fn synthesize_expr(Program, Expr) -> Result[ExprFacts, SynthesisError]
+pub fn synthesize_expr(@core.Program, @core.Expr) -> Result[@core.ExprFacts, @core.SynthesisError]
 
-pub fn validate_mon_trans_output(Program) -> Result[Unit, SynthesisError]
+pub fn validate_mon_trans_output(@core.Program) -> Result[Unit, @core.SynthesisError]
 
-pub fn validate_open_resolve_output(Program) -> Result[Unit, SynthesisError]
+pub fn validate_open_resolve_output(@core.Program) -> Result[Unit, @core.SynthesisError]
 
 // Errors
-pub(all) suberror SynthesisError {
-  UnknownValue(@buslane.ValueId)
-  UnknownType(@buslane.TypeId)
-  UnknownDataConstructor(@buslane.DataConId)
-  UnknownEffect(@buslane.EffectId)
-  UnknownOperation(@buslane.OperationId)
-  ExpectedFunction(@buslane.Type)
-  ExpectedForall(@buslane.Type)
-  ArityMismatch(expected~ : Int, actual~ : Int)
-  EffectfulTypeLambda(@buslane.Effect)
-  EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
-  MissingEffectContext(@buslane.Effect)
-  MissingOperationClause(@buslane.OperationId)
-  ResidualInvoke(@buslane.OperationId)
-  ResidualInstall
-  ResidualBind
-  ResidualEffectParameter(@buslane.TypeParameterId)
-  ResidualEffectArgument(@buslane.Effect)
-  ResidualLatentEffect(@buslane.Effect)
-  ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
-  ResidualOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
-  UnsupportedTopLevelEffect(@buslane.Effect)
-} derive(Eq, @debug.Debug)
 
 // Types and methods
-pub(all) struct Alternative {
-  alt_constructor : @buslane.AltCon
-  type_binders : Array[@buslane.TypeParameterId]
-  value_binders : Array[@buslane.ValueId]
-  body : Expr
-} derive(Eq, @debug.Debug)
-
-pub(all) struct BindExpr {
-  computation : Expr
-  binder : @buslane.ValueId
-  continuation : FunctionExpr
-} derive(Eq, @debug.Debug)
-
-pub(all) enum ClauseCallable {
-  Monomorphic(FunctionExpr)
-  Polymorphic(Array[@buslane.TypeParameterId], FunctionExpr)
-} derive(Eq, @debug.Debug)
-
-pub(all) struct ConstructExpr {
-  data_constructor : @buslane.DataConId
-  type_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
-  payloads : Array[Expr]
-} derive(Eq, @debug.Debug)
-
-pub(all) enum Expr {
-  Ref(@buslane.ValueId)
-  Literal(@buslane.Literal)
-  Function(FunctionExpr)
-  Call(Expr, Array[Expr])
-  TypeLambda(Array[@buslane.TypeParameterId], Expr)
-  TypeApply(Expr, Array[@buslane.GenericArgument])
-  Construct(ConstructExpr)
-  Let(@buslane.ValueId, Expr, Expr)
-  LetRec(Array[RecursiveBinding], Expr)
-  Match(MatchExpr)
-  Invoke(InvokeExpr)
-  Install(InstallExpr)
-  Bind(BindExpr)
-  OpenContext(OpenContextExpr)
-} derive(Eq, @debug.Debug)
-
-pub(all) struct ExprFacts {
-  type_ : @buslane.Type
-  effect : @buslane.Effect
-} derive(Eq, @debug.Debug)
-
-pub(all) struct FunctionExpr {
-  parameters : Array[@buslane.ValueId]
-  result_type : @buslane.Type
-  body : Expr
-} derive(Eq, @debug.Debug)
-
-pub(all) struct HandlerDictionary {
-  handled_effect : @buslane.Effect
-  operations : Array[OperationClause]
-} derive(Eq, @debug.Debug)
-
-pub(all) struct InstallExpr {
-  body : Expr
-  result_type : @buslane.Type
-  dictionaries : Array[HandlerDictionary]
-  final_clause : FunctionExpr
-} derive(Eq, @debug.Debug)
-
-pub(all) struct InvokeExpr {
-  operation : @buslane.OperationId
-  effect_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
-  payloads : Array[Expr]
-} derive(Eq, @debug.Debug)
-
-pub(all) struct MatchExpr {
-  scrutinee : Expr
-  binder : @buslane.ValueId
-  result_type : @buslane.Type
-  alternatives : Array[Alternative]
-} derive(Eq, @debug.Debug)
-
-pub(all) struct OpenContextExpr {
-  source_effect : @buslane.Effect
-  target_effect : @buslane.Effect
-  body : Expr
-} derive(Eq, @debug.Debug)
-
-pub(all) struct OperationClause {
-  operation : @buslane.OperationId
-  callable : ClauseCallable
-} derive(Eq, @debug.Debug)
-
-pub(all) struct Program {
-  metadata : @buslane.MetadataRegistry
-  terms : Array[TopTerm]
-} derive(Eq, @debug.Debug)
-
-pub(all) struct RecursiveBinding {
-  id : @buslane.ValueId
-  rhs : Expr
-} derive(Eq, @debug.Debug)
-
-pub(all) enum TopTerm {
-  Let(@buslane.ValueId, Expr)
-  LetRec(Array[RecursiveBinding])
-  External(@buslane.ValueId)
-} derive(Eq, @debug.Debug)
 
 // Type aliases
+pub using @core {type Alternative}
+
+pub using @core {type BindExpr}
+
+pub using @core {type ClauseCallable}
+
+pub using @core {type ConstructExpr}
+
+pub using @core {type Expr}
+
+pub using @core {type ExprFacts}
+
+pub using @core {type FunctionExpr}
+
+pub using @core {type HandlerDictionary}
+
+pub using @core {type InstallExpr}
+
+pub using @core {type InvokeExpr}
+
+pub using @core {type MatchExpr}
+
+pub using @core {type OpenContextExpr}
+
+pub using @core {type OperationClause}
+
+pub using @core {type Program}
+
+pub using @core {type RecursiveBinding}
+
+pub using @core {type SynthesisError}
+
+pub using @core {type TopTerm}
 
 // Traits

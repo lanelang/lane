@@ -176,8 +176,3 @@ fn validate_mon_trans_type_parameter(
     raise ResidualEffectParameter(parameter)
   }
 }
-
-///|
-fn effect_has_parameter(effect : @buslane.Effect) -> Bool {
-  effect_terms(effect).any(term => term is Parameter(_))
-}

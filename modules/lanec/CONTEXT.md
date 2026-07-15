@@ -245,6 +245,10 @@ _Avoid_: source type parameter, layout witness, universal operation table
 The selective transformation of a non-pure function from `(args) -> A ! E` to an effect-free conceptual shape `[Answer](context, args, (A) -> Answer) -> Answer`, while pure functions remain direct style.
 _Avoid_: whole-program CPS, VM stack capture, yielding side channel
 
+**Effect Lowering Core Package**:
+The `lanec/effect_lowering/core` package that owns the shared effect-lowering IR, synthesis and error semantics, and the complete non-CPS effect-erasure pipeline; the parent `lanec/effect_lowering` package is a compatibility facade, while sibling lowering packages depend on `core` directly.
+_Avoid_: duplicated semantic helpers, implementation state in the compatibility facade, sibling-to-parent dependency cycles
+
 **Selective CPS Package**:
 The `lanec/effect_lowering/cps` package that owns dictionary schema generation, selective CPS ABI rewriting, context selection, relay dictionaries, and CPS-specific integration tests behind the `rewrite_selective_cps_abis` entrypoint.
 _Avoid_: `cps_*.mbt` files in the parent effect-lowering package, LoisVM callable ABI, runtime continuation machinery
