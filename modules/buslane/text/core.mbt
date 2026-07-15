@@ -116,6 +116,7 @@ fn token_label(token : Token) -> String {
     STRING_TYPE => "String"
     KIND_FN => "kind_fn"
     EMPTY_EFFECT => "empty_effect"
+    IO_EFFECT => "io_effect"
     EFFECT_SINGLETON => "effect_singleton"
     EFFECT_UNION => "effect_union"
     APPLY => "apply"
@@ -378,6 +379,7 @@ fn type_doc(type_ : @buslane.Type) -> Document {
 fn effect_doc(effect : @buslane.Effect) -> Document {
   match effect {
     Empty => call_doc("empty_effect", [])
+    Io => call_doc("io_effect", [])
     Singleton(id, arguments) =>
       call_doc("effect_singleton", [
         effect_id_doc(id),

@@ -1074,6 +1074,14 @@ fn find_kind_in_effect(
 ) -> @types.Kind? {
   match effect {
     Empty(..) => None
+    Io(arguments~, ..) => {
+      for argument in arguments {
+        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
+          return Some(kind)
+        }
+      }
+      None
+    }
     Singleton(arguments~, ..) => {
       for argument in arguments {
         if find_kind_in_generic_argument(argument, symbol) is Some(kind) {

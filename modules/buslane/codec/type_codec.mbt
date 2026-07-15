@@ -258,6 +258,7 @@ fn @bytecodec.ByteWriter::write_effect(
 ) -> Unit {
   match value {
     Empty => self.write_u8(0)
+    Io => self.write_u8(4)
     Singleton(id, arguments) => {
       self.write_u8(1)
       self.write_effect_id(id)
@@ -295,6 +296,10 @@ fn @bytecodec.ByteReader::read_effect(
     [u8be(3), .. rest] => {
       self.update_view(rest)
       Union(self.read_effects())
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      Io
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

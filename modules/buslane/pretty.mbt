@@ -109,6 +109,7 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
 pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
   match effect {
     Empty => text("{}")
+    Io => text("Io")
     Singleton(id, arguments) => id.pretty() + generic_arguments_doc(arguments)
     Parameter(parameter) => parameter.pretty()
     Union(effects) => braced_inline(effects.map(Effect::pretty))

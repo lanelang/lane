@@ -104,6 +104,7 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
 pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
   match effect {
     Empty => text("{}")
+    Io => text("Io")
     Singleton(symbol, arguments) =>
       if arguments.is_empty() {
         symbol.pretty()

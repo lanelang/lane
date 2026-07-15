@@ -40,6 +40,22 @@ fn TypeExpressionChecker::check_effect(
   // this is not value-level capability lookup.
   match effect {
     Empty(..) => Empty
+    Io(arguments~, loc~) => {
+      if !arguments.is_empty() {
+        self.diagnostics.push({
+          kind: GenericArgumentArityMismatch(
+            subject=Named(name="Io"),
+            expected=0,
+            actual=arguments.length(),
+          ),
+          loc,
+        })
+      }
+      for argument in arguments {
+        ignore(self.check_generic_argument(Type, argument))
+      }
+      Io
+    }
     Singleton(symbol~, name~, arguments~, loc~) => {
       self.check_effect_arity(symbol, name, arguments.length(), loc)
       let parameters = self.effect_type_parameters(symbol)
@@ -346,7 +362,7 @@ fn @types.Effect::substitute_effect_parameters_with_bound(
   bound : Array[TypeParameterId],
 ) -> @types.Effect {
   match self {
-    Empty => Empty
+    Empty | Io => self
     Singleton(symbol, arguments) =>
       Singleton(
         symbol,
@@ -446,6 +462,7 @@ fn resolved_effect_alias_argument_loc(
 fn resolved_effect_loc(effect : @resolve.ResolvedEffectTerm) -> SourceSpan {
   match effect {
     Empty(loc~) => loc
+    Io(loc~, ..) => loc
     Singleton(loc~, ..) => loc
     Parameter(loc~, ..) => loc
     Alias(loc~, ..) => loc

@@ -80,6 +80,7 @@ pub(all) enum Type {
 ///|
 pub(all) enum Effect {
   Empty
+  Io
   Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
@@ -565,6 +566,7 @@ fn collect_effect_terms(
 ) -> Unit {
   match effect {
     Empty => ()
+    Io => push_unique_effect_term(bindings, terms, Io)
     Singleton(id, arguments) => {
       let term = Singleton(
         id,
@@ -601,6 +603,7 @@ fn alpha_equal_effect_term_with(
   right : Effect,
 ) -> Bool {
   match (left, right) {
+    (Io, Io) => true
     (Singleton(left_id, left_arguments), Singleton(right_id, right_arguments)) =>
       left_id == right_id &&
       same_length_generic_argument_alpha_equal(
@@ -860,7 +863,7 @@ fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
     abort("Buslane effect normalization fuel exhausted")
   }
   match self {
-    Empty | Parameter(_) => self
+    Empty | Io | Parameter(_) => self
     Singleton(id, arguments) =>
       Singleton(
         id,
@@ -931,7 +934,7 @@ fn Effect::substitute_types_with_bound(
   bound : Array[TypeParameterId],
 ) -> Effect {
   match self {
-    Empty => self
+    Empty | Io => self
     Parameter(parameter) =>
       match substitution.lookup_effect(parameter, bound) {
         Some(replacement) => replacement

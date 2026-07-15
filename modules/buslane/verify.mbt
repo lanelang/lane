@@ -1194,7 +1194,7 @@ fn VerifyContext::verify_effect(
   scope : TypeScope,
 ) -> Unit {
   match effect {
-    Empty => ()
+    Empty | Io => ()
     Singleton(id, arguments) => {
       guard self.program.metadata.effect_info(id) is Some(info) else {
         self.report(UnknownEffect(id))

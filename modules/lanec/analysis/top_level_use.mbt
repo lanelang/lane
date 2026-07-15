@@ -821,6 +821,10 @@ fn TopLevelUseCollector::collect_effect(
 ) -> Unit {
   match effect {
     Empty(_) | Parameter(_) => ()
+    Io(arguments~, ..) =>
+      for argument in arguments {
+        self.collect_generic_argument(argument)
+      }
     Singleton(symbol~, arguments~, ..) => {
       self.add_reference(TopLevelEffectSymbol(symbol))
       for argument in arguments {
@@ -876,7 +880,7 @@ fn TopLevelUseCollector::collect_checked_effect(
   effect : @types.Effect,
 ) -> Unit {
   match effect {
-    Empty | Parameter(_) => ()
+    Empty | Io | Parameter(_) => ()
     Singleton(symbol, arguments) => {
       self.add_reference(TopLevelEffectSymbol(symbol))
       for argument in arguments {

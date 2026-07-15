@@ -382,7 +382,9 @@ fn SemanticChecker::check_public_interface_resolved_effect(
   effect : @resolve.ResolvedEffectTerm,
 ) -> Unit {
   match effect {
-    Singleton(arguments~, ..) | Unresolved(arguments~, ..) =>
+    Io(arguments~, ..)
+    | Singleton(arguments~, ..)
+    | Unresolved(arguments~, ..) =>
       for argument in arguments {
         self.check_public_interface_resolved_generic_argument(argument)
       }
@@ -470,7 +472,7 @@ fn SemanticChecker::check_public_interface_effect_fallback_with_seen(
   seen : Array[@symbol.TypeSymbolId],
 ) -> Unit {
   match effect {
-    Empty | Parameter(_) => ()
+    Empty | Io | Parameter(_) => ()
     Singleton(symbol, arguments) => {
       self.check_public_interface_effect_fallback(symbol, loc)
       for argument in arguments {

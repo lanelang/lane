@@ -96,6 +96,7 @@ pub impl @prettyprinter.Pretty for ResolvedEffectOperationName
 
 pub(all) enum ResolvedEffectTerm {
   Empty(loc~ : @basic.SourceSpan)
+  Io(arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Singleton(symbol~ : @symbol.EffectSymbolId, name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
   Alias(name~ : String, arguments~ : Array[ResolvedEffectAliasArgument], loc~ : @basic.SourceSpan)

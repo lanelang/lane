@@ -310,7 +310,7 @@ fn ArtifactInspectContext::add_type_parameters_from_effect(
   effect : @types.Effect,
 ) -> Unit {
   match effect {
-    Empty => ()
+    Empty | Io => ()
     Singleton(_, arguments) =>
       for argument in arguments {
         self.add_type_parameters_from_generic_argument(argument)
@@ -529,6 +529,7 @@ fn ArtifactInspectContext::effect_text(
 ) -> String {
   match effect {
     Empty => "{}"
+    Io => "Io"
     Singleton(symbol, arguments) =>
       if arguments.is_empty() {
         self.effect_symbol_text(symbol)
@@ -724,6 +725,7 @@ fn BuslaneInspectContext::effect_text(
 ) -> String {
   match effect {
     Empty => "{}"
+    Io => "Io"
     Singleton(id, arguments) =>
       if arguments.is_empty() {
         self.effect_id_text(id)

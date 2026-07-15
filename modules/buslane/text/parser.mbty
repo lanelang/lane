@@ -48,6 +48,7 @@
 %token STRING_TYPE "String"
 %token KIND_FN "kind_fn"
 %token EMPTY_EFFECT "empty_effect"
+%token IO_EFFECT "io_effect"
 %token EFFECT_SINGLETON "effect_singleton"
 %token EFFECT_UNION "effect_union"
 %token APPLY "apply"
@@ -304,6 +305,7 @@ type -> Type
 
 effect -> Effect
   : "empty_effect" "(" ")" { Empty }
+  | "io_effect" "(" ")" { Io }
   | type_parameter_id { Parameter($1) }
   | "effect_singleton" "(" effect_id "," generic_argument_list ")" { Singleton($3, $5) }
   | "effect_union" "(" effect_list ")" { Union($3) }

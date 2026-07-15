@@ -297,7 +297,7 @@ fn effect_is_open(effect : @types.Effect) -> Bool {
   match effect.normalize() {
     Parameter(_) => true
     Union(items) => items.any(effect_is_open)
-    Empty | Singleton(_, _) => false
+    Empty | Io | Singleton(_, _) => false
   }
 }
 
@@ -305,6 +305,7 @@ fn effect_is_open(effect : @types.Effect) -> Bool {
 fn effect_contains(effect : @types.Effect, needle : @types.Effect) -> Bool {
   match effect.normalize() {
     Empty | Parameter(_) => false
+    Io as item => item.equals(needle)
     Singleton(_, _) as item => item.equals(needle)
     Union(items) => items.any(fn(item) { effect_contains(item, needle) })
   }
@@ -317,6 +318,7 @@ fn effect_without(
 ) -> @types.Effect {
   match effect.normalize() {
     Empty => Empty
+    Io as item => if item.equals(removed) { Empty } else { item }
     Singleton(_, _) as item => if item.equals(removed) { Empty } else { item }
     Parameter(_) as item => item
     Union(items) =>
@@ -601,7 +603,7 @@ fn effect_mentions_parameter(
   parameter : TypeParameterId,
 ) -> Bool {
   match effect {
-    Empty => false
+    Empty | Io => false
     Singleton(_, arguments) =>
       arguments.any(fn(argument) {
         generic_argument_mentions_effect_parameter(argument, parameter)

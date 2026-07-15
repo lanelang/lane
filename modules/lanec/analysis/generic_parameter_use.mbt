@@ -614,7 +614,7 @@ fn GenericParameterUseCollector::collect_effect(
 ) -> Unit {
   match effect {
     Empty(_) => ()
-    Singleton(arguments~, ..) =>
+    Io(arguments~, ..) | Singleton(arguments~, ..) =>
       for argument in arguments {
         self.collect_generic_argument(argument)
       }
@@ -666,7 +666,7 @@ fn GenericParameterUseCollector::collect_checked_effect(
   effect : @types.Effect,
 ) -> Unit {
   match effect {
-    Empty => ()
+    Empty | Io => ()
     Singleton(_, arguments) =>
       for argument in arguments {
         self.collect_checked_generic_argument(argument)

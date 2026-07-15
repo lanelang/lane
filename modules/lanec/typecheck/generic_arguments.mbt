@@ -707,7 +707,7 @@ fn effect_mentions_free_parameter(
   parameter : TypeParameterId,
 ) -> Bool {
   match effect {
-    Empty => false
+    Empty | Io => false
     Parameter(id) => id == parameter
     Singleton(_, arguments) =>
       arguments.any(fn(argument) {

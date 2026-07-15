@@ -1229,6 +1229,12 @@ fn collect_resolved_effect_reference(
 ) -> Unit {
   match effect {
     Empty(..) | Unresolved(..) => ()
+    Io(arguments~, ..) =>
+      for argument in arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
     Singleton(symbol~, name~, arguments~, loc~) => {
       add_reference(
         references,
@@ -1311,6 +1317,12 @@ fn collect_resolved_effect_reference_with_source(
 ) -> Unit {
   match effect {
     Empty(..) | Unresolved(..) => ()
+    Io(arguments~, ..) =>
+      for argument in arguments {
+        collect_resolved_generic_argument_reference(
+          source_id, argument, references, hovers,
+        )
+      }
     Singleton(symbol~, name~, arguments~, loc~) => {
       add_reference(
         references,

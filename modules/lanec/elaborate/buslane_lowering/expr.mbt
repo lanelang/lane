@@ -307,6 +307,7 @@ fn BuslaneLowerer::lower_effect(
 ) -> @buslane.Effect {
   match effect {
     Empty => Empty
+    Io => Io
     Singleton(symbol, arguments) =>
       Singleton(
         self.effect_id(symbol),

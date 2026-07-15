@@ -4247,6 +4247,39 @@ test "typecheck represents effect row variables" {
 }
 
 ///|
+test "typecheck resolves import-free built-in Io effect" {
+  let result = expect_typecheck_result(
+    (
+      #|fn run(action : () -> Unit ! Io) -> Unit ! Io {
+      #|  action()
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  debug_inspect(checked_function_effect(result, "run"), content="Io")
+}
+
+///|
+test "typecheck rejects generic arguments on built-in Io" {
+  let result = expect_typecheck_result(
+    (
+      #|fn run(action : () -> Unit ! Io[Int]) -> Unit ! Io[Int] {
+      #|  action()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[
+      #|  type_arity_mismatch Io expected=0 actual=1 @ 2:30-2:37,
+      #|  type_arity_mismatch Io expected=0 actual=1 @ 2:49-2:56
+      #|]
+    ),
+  )
+}
+
+///|
 test "typecheck expands effect set alias in function annotations" {
   let result = expect_typecheck_result(
     (

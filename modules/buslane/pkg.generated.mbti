@@ -61,6 +61,7 @@ pub impl @prettyprinter.Pretty for DataConInfo
 
 pub(all) enum Effect {
   Empty
+  Io
   Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])

@@ -886,7 +886,7 @@ fn effect_specialization_substitution(
 ///|
 fn effect_contains_parameter(effect : @buslane.Effect) -> Bool {
   match effect {
-    Empty => false
+    Empty | Io => false
     Parameter(_) => true
     Singleton(_, arguments) =>
       arguments.any(generic_argument_contains_effect_parameter)
@@ -928,7 +928,7 @@ fn abstract_effect_type_arguments(
   metadata : @buslane.MetadataRegistry,
 ) -> @buslane.Effect {
   match effect {
-    Empty | Parameter(_) => effect
+    Empty | Io | Parameter(_) => effect
     Singleton(id, effect_arguments) =>
       Singleton(
         id,

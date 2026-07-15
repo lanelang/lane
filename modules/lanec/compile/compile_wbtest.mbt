@@ -1622,6 +1622,41 @@ test "effect aliases export through interface artifacts" {
 }
 
 ///|
+test "built-in Io roundtrips through interface artifacts" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|pub fn run(action : () -> Unit ! Io) -> Unit ! Io {
+      #|  action()
+      #|}
+    ),
+    [],
+  )
+  debug_inspect(compiled.diagnostics, content="[]")
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  let artifacts = modules.to_artifact()
+  let module_ = artifacts.modules[0]
+  let binary = @artifact_binary.module_interface_artifact_to_binary(
+    module_.interface,
+  )
+  let decoded = match
+    @artifact_binary.parse_module_interface_artifact_binary(binary) {
+    Ok(artifact) => artifact
+    Err(message) => abort(message)
+  }
+  inspect(
+    decoded.interface.values
+    .map(value => {
+      value.name + ": " + @prettyprinter.render(value.type_, width=100)
+    })
+    .join("\n"),
+    content="run: (() -> Unit ! Io) -> Unit ! Io",
+  )
+}
+
+///|
 test "effect alias interface fingerprint tracks body changes" {
   let first_compiled = compile_modules(
     (

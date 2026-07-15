@@ -27,11 +27,7 @@ test "program binary codec roundtrips core structures" {
   let body = metadata.define_value(
     "body",
     Parameter,
-    Function(
-      [],
-      Primitive(Int),
-      Singleton(async_effect, [EffectArgument(Empty)]),
-    ),
+    Function([], Primitive(Int), Singleton(async_effect, [EffectArgument(Io)])),
   )
   let resume_value = metadata.define_value(
     "resume",
@@ -70,7 +66,7 @@ test "program binary codec roundtrips core structures" {
             final_body: Ref(payload),
             handlers: [
               {
-                handled_effect: Singleton(async_effect, [EffectArgument(Empty)]),
+                handled_effect: Singleton(async_effect, [EffectArgument(Io)]),
                 operations: [
                   {
                     operation: await_op,

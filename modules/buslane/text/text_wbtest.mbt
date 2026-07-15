@@ -120,6 +120,7 @@ test "buslane text roundtrips effectful function type" {
     [Primitive(String)],
     Primitive(Unit),
     Union([
+      Io,
       Singleton({ index: 0 }, [TypeArgument(Primitive(Int))]),
       Parameter({ index: 0 }),
     ]),

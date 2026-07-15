@@ -1620,6 +1620,29 @@ fn @syntax.Type::resolve_effect_type(
 ) -> ResolvedEffectTerm {
   let (base, arguments) = self.effect_type_parts()
   match base {
+    Name(name="Io", ..) =>
+      match resolver.type_alias_binding("Io") {
+        Some(binding) => {
+          resolver.record_import_use(binding.import_origin, loc)
+          Alias(
+            name="Io",
+            arguments=resolve_effect_alias_arguments(
+              arguments,
+              binding.type_parameters,
+              resolver,
+              scope,
+            ),
+            loc~,
+          )
+        }
+        None =>
+          Io(
+            arguments=resolve_default_generic_arguments(
+              arguments, resolver, scope,
+            ),
+            loc~,
+          )
+      }
     Name(name~, ..) =>
       match scope.type_parameter_info(name) {
         Some(parameter) =>

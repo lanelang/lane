@@ -72,7 +72,7 @@ fn @types.GenericArgument::contains_error(
 ///|
 fn @types.Effect::contains_error(self : @types.Effect) -> Bool {
   match self {
-    Empty | Parameter(_) => false
+    Empty | Io | Parameter(_) => false
     Singleton(_, arguments) =>
       arguments.any(fn(argument) { argument.contains_error() })
     Union(effects) => effects.any(fn(effect) { effect.contains_error() })

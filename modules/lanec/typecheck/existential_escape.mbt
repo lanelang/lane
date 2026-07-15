@@ -122,7 +122,7 @@ fn @types.Effect::mentions_any_type_parameter_with_bound(
   bound : Array[TypeParameterId],
 ) -> Bool {
   match self {
-    Empty => false
+    Empty | Io => false
     Singleton(_, arguments) =>
       arguments.any(fn(argument) {
         argument.mentions_any_type_parameter_with_bound(parameters, bound)

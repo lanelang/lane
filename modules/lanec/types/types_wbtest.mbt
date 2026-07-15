@@ -87,6 +87,25 @@ test "pretty prints effectful function type" {
 }
 
 ///|
+test "Io is a canonical built-in effect atom" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let parameter_id = registry.define_type_parameter(
+    "E",
+    @basic.SourceSpan::dummy(),
+  )
+  let parameter = TypeParameter::{ id: parameter_id, name: "E", kind: Effect }
+  let effect = Effect::Union([Io, Empty, Io, Parameter(parameter.id)])
+  debug_inspect(
+    effect.canonicalize(),
+    content="Union([Io, Parameter({ index: 0 })])",
+  )
+  let substitution = TypeSubstitution::TypeSubstitution()
+  substitution.insert_effect(parameter.id, Io)
+  debug_inspect(effect.substitute(substitution).canonicalize(), content="Io")
+  assert_false(Io == Empty)
+}
+
+///|
 test "try normalize reports type fuel exhaustion without aborting" {
   let mut type_ = Primitive(Unit)
   for _ in 0..<1030 {

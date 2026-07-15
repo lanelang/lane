@@ -140,6 +140,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "String" => STRING_TYPE
     "kind_fn" => KIND_FN
     "empty_effect" => EMPTY_EFFECT
+    "io_effect" => IO_EFFECT
     "effect_singleton" => EFFECT_SINGLETON
     "effect_union" => EFFECT_UNION
     "apply" => APPLY

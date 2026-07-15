@@ -426,6 +426,7 @@ fn InterfaceSymbolFreshener::freshen_lane_effect(
 ) -> @types.Effect {
   match effect {
     Empty => Empty
+    Io => Io
     Singleton(symbol, arguments) =>
       Singleton(
         self.remap_effect_symbol(symbol),

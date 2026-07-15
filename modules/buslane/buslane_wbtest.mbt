@@ -249,6 +249,26 @@ test "buslane canonical effect equality ignores ordering and duplicates" {
 }
 
 ///|
+test "buslane preserves the built-in Io effect atom" {
+  let row = TypeParameterId::{ index: 0 }
+  let effect = Effect::Union([Io, Empty, Parameter(row), Io])
+  inspect(
+    @prettyprinter.render(effect.canonicalize(), width=100),
+    content="{Io, tparam#0}",
+  )
+  let substitution = TypeSubstitution::TypeSubstitution()
+  substitution.insert_effect(row, Io)
+  let substituted = Type::Function([], Primitive(Unit), effect).substitute(
+    substitution,
+  )
+  guard substituted is Function(_, _, substituted_effect) else {
+    fail("expected substituted function type")
+  }
+  debug_inspect(substituted_effect.canonicalize(), content="Io")
+  assert_false(Io == Empty)
+}
+
+///|
 test "verify buslane reports malformed effect terms" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let ordinary_parameter = metadata.define_type_parameter("T", Type)

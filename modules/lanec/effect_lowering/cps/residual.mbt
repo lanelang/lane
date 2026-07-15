@@ -155,6 +155,7 @@ fn build_residual_relay_bindings(
   let initializers = []
   for term in effect_terms(residual.effect) {
     match term {
+      Io => ()
       Singleton(effect, arguments) => {
         let value = build_concrete_relay_dictionary(
           schema, program, residual, effect, arguments,

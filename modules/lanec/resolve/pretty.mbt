@@ -426,6 +426,7 @@ pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
 ) {
   match effect {
     Empty(..) => text("{}")
+    Io(arguments~, ..) => text("Io") + generic_arguments_doc(arguments)
     Singleton(symbol~, name~, arguments~, ..) =>
       symbol.pretty() + space + text(name) + generic_arguments_doc(arguments)
     Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)

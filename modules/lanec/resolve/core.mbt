@@ -286,6 +286,7 @@ pub(all) enum ResolvedType {
 ///|
 pub(all) enum ResolvedEffectTerm {
   Empty(loc~ : SourceSpan)
+  Io(arguments~ : Array[ResolvedGenericArgument], loc~ : SourceSpan)
   Singleton(
     symbol~ : EffectSymbolId,
     name~ : String,

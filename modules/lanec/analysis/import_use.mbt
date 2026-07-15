@@ -224,7 +224,7 @@ fn collect_import_used_symbols_from_effect(
       for effect in effects {
         collect_import_used_symbols_from_effect(effect, symbols)
       }
-    Empty | Parameter(_) => ()
+    Empty | Io | Parameter(_) => ()
   }
 }
 

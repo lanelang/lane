@@ -442,6 +442,7 @@ fn FingerprintTypeContext::effect_fingerprint(
 ) -> String {
   match effect {
     Empty => "{}"
+    Io => "Io"
     Singleton(symbol, arguments) => {
       let arguments = arguments
         .map(fn(argument) { self.generic_argument_fingerprint(argument) })

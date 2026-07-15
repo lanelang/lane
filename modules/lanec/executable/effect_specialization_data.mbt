@@ -93,7 +93,7 @@ fn EffectSpecializer::specialize_substituted_effect(
   effect : @buslane.Effect,
 ) -> @buslane.Effect raise ExecutableElaborationError {
   match effect {
-    Empty | Parameter(_) => effect
+    Empty | Io | Parameter(_) => effect
     Singleton(id, arguments) =>
       Singleton(
         id,

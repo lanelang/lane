@@ -314,6 +314,7 @@ fn substitute_effect(
   substitutions : Array[TypeArgumentBinding],
 ) -> @buslane.Effect raise LoisvmLoweringError {
   match effect {
+    Io => Io
     Parameter(parameter) => {
       for substitution in substitutions.rev_iter() {
         if substitution.parameter == parameter {

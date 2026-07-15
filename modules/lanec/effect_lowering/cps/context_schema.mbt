@@ -275,6 +275,7 @@ fn DictionaryCpsSchema::context_term_type(
   answer_type : @buslane.Type,
 ) -> @buslane.Type raise SynthesisError {
   match term {
+    Io => abort("Io has no effect dictionary")
     Singleton(effect, arguments) => {
       let dictionary = self.dictionary(effect)
       Apply(

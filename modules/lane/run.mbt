@@ -287,7 +287,7 @@ fn entry_effect_is_supported(
   runtime_effects : Array[@buslane.EffectId],
 ) -> Bool {
   match effect {
-    Empty => true
+    Empty | Io => true
     Singleton(id, arguments) =>
       arguments.is_empty() &&
       runtime_effects.any(fn(effect_id) { effect_id == id })

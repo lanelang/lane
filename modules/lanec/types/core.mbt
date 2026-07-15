@@ -36,6 +36,7 @@ pub(all) enum Type {
 ///|
 pub(all) enum Effect {
   Empty
+  Io
   Singleton(EffectSymbolId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
@@ -230,7 +231,7 @@ fn Effect::substitute_with_bound(
   bound : Array[TypeParameterId],
 ) -> Effect {
   match self {
-    Empty => Empty
+    Empty | Io => self
     Singleton(symbol, arguments) =>
       Singleton(
         symbol,
@@ -424,6 +425,7 @@ fn collect_effect_terms(
 ) -> Unit {
   match effect {
     Empty => ()
+    Io => push_unique_effect_term(bindings, terms, Io)
     Singleton(symbol, arguments) => {
       let term = Singleton(
         symbol,
@@ -461,6 +463,7 @@ fn effect_term_alpha_equal_with(
 ) -> Bool {
   match (left, right) {
     (Empty, Empty) => true
+    (Io, Io) => true
     (
       Singleton(left_symbol, left_arguments),
       Singleton(right_symbol, right_arguments),
@@ -642,7 +645,7 @@ fn Effect::normalize_with_fuel(
     raise EffectNormalizationFuelExhausted
   }
   match self {
-    Empty | Parameter(_) => self
+    Empty | Io | Parameter(_) => self
     Singleton(symbol, arguments) =>
       Singleton(
         symbol,

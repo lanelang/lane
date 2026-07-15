@@ -282,6 +282,7 @@ fn BuslaneLinker::remap_effect(
 ) -> @buslane.Effect {
   match effect {
     Empty => Empty
+    Io => Io
     Singleton(id, arguments) =>
       Singleton(
         self.remap_effect_id(object, id),

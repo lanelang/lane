@@ -23,6 +23,7 @@ pub(all) suberror TypeComputationError {
 // Types and methods
 pub(all) enum Effect {
   Empty
+  Io
   Singleton(@symbol.EffectSymbolId, Array[GenericArgument])
   Parameter(@symbol.TypeParameterId)
   Union(Array[Effect])
