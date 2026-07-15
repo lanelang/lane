@@ -529,7 +529,7 @@ fn EffectSpecializer::rewrite_type_application(
     )
     let mut rewritten = rewritten_base
     for group in groups {
-      rewritten = @buslane.Expr::TypeApply(
+      rewritten = TypeApply(
         rewritten,
         group.map(argument => self.specialize_argument(argument, type_bindings)),
       )

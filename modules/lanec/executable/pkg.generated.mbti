@@ -4,6 +4,7 @@ package "Milky2018/lanec/executable"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/effect_lowering",
+  "Milky2018/lanec/effect_lowering/cps",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/link",
   "moonbitlang/core/debug",
@@ -17,6 +18,7 @@ pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedRuntimeBoundary(detail~ : String)
+  UnsupportedEffectSpecialization(detail~ : String)
   EffectLoweringError(@effect_lowering.SynthesisError)
 } derive(Eq, @debug.Debug)
 
@@ -29,6 +31,7 @@ pub(all) struct ExecutableProgram {
   initializers : Array[TopLevelInitializer]
   runtime_boundary : RuntimeBoundary
   execution_roots : Array[ExecutionRoot]
+  effect_companions : Array[@cps.EffectCompanionBinding]
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ExecutionRoot {
