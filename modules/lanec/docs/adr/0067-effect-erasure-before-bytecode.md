@@ -1,6 +1,6 @@
 # Effect erasure before bytecode
 
-LoisVM bytecode is effect-erased. Before ordinary ANF, compiler-private VM CFG lowering, or bytecode construction, `lanec` runs handler elaboration, `mon-trans`, `open-resolve`, and `monadic-lift`. Their output contains no `perform`, `resume`, `handle`, abstract effect-context opening, effect parameter, latent effect, or effect-specific compiler node. LoisVM therefore requires no effect instruction, handler stack, operation table, stack capture, or effect-aware calling convention.
+LoisVM bytecode is effect-erased. After linking and executable selection, but before ordinary ANF, compiler-private VM CFG lowering, or bytecode construction, `lanec` runs reachable effect specialization, handler elaboration, `mon-trans`, `open-resolve`, and `monadic-lift`. Their output contains no `perform`, `resume`, `handle`, abstract effect-context opening, effect parameter, latent effect, or effect-specific compiler node. LoisVM therefore requires no effect instruction, handler stack, operation table, stack capture, or effect-aware calling convention.
 
 ## Lane-specific protocol
 
@@ -34,9 +34,19 @@ The effect-erasure package may use the following temporary semantic forms. They 
 
 These forms belong to one compiler-private effect-lowering representation. Separate pass result types are not required, but each pass must reject forms that violate its input contract and its result must satisfy the next invariant.
 
+## Reachable effect specialization contract
+
+Input is the linked whole-program executable with a selected entry, ordered instance initializers, and runtime roots. Module artifacts remain generic Buslane; specialization is an executable-construction step and does not change the `.lmo` format.
+
+The pass starts from executable roots and creates a callable instance for every reachable concrete tuple of kind-`Effect` arguments. It substitutes those arguments through the callable's type, latent effects, body metadata, and nested calls, then continues the worklist from the specialized body. Ordinary kind-`Type` polymorphism remains generic. Calls are rewritten to their specialized callable identities, and unreachable unspecialized effect-polymorphic callable bodies are not passed to effect lowering.
+
+This specialization is required before selective CPS because an opaque companion context is tied to the `Answer` at which its concrete dictionary was constructed. Such a value may be forwarded at the same `Answer`, but it cannot be reused when a handler changes the local answer to `M_F<H>`. Specialization makes each reachable residual row concrete, allowing `mon-trans` to construct the relay dictionaries described below. If a reachable handler still has an abstract residual row after specialization, compilation fails at this boundary rather than generating an answer-unsafe context reuse or a runtime effect lookup.
+
+Output is a root-reachable executable program in which every handler residual effect that crosses an answer change is concrete. Kind-`Effect` parameters may remain only in compile-time-only nominal metadata that the existing representation-erasure path removes; they cannot determine executable effect control flow or runtime context selection.
+
 ## Handler elaboration contract
 
-Input is a linked, verified Buslane program with normalized effect objects and explicit `Perform`, `Handle`, and `Resume` expressions. Linked operation metadata, type applications, handler tables, and the selected runtime-operation conventions are available.
+Input is a reachable-effect-specialized, verified Buslane executable with normalized effect objects and explicit `Perform`, `Handle`, and `Resume` expressions. Linked operation metadata, type applications, handler tables, and the selected runtime-operation conventions are available.
 
 Handler elaboration replaces Buslane handler syntax with `Invoke` and `Install`. Every operation alternative becomes an ordinary typed clause function taking its payloads and one resume callable. `Resume(id)` becomes an ordinary reference to that callable. A final clause remains associated with its `Install` until `mon-trans` gives it the correct outer context and continuation.
 
@@ -99,10 +109,11 @@ VM CFG lowering treats every residual effect-lowering form, kind-`Effect` parame
 Consequences:
 
 - Effect semantics belong to pre-bytecode compiler lowering rather than LoisVM.
-- Handler elaboration precedes `mon-trans`, `open-resolve`, and `monadic-lift`.
+- Reachable effect specialization follows linking and executable selection, then precedes handler elaboration, `mon-trans`, `open-resolve`, and `monadic-lift`.
 - Lane uses explicit compiler-private dictionaries and selective answer-type CPS, not a global evidence vector.
 - Pure functions preserve their existing direct ABI.
-- Effect-polymorphic functions use ordinary companion type/value parameters during lowering.
+- Reachable concrete effect instantiations are specialized while ordinary type polymorphism remains generic.
+- Remaining effect-polymorphic forwarding may use ordinary companion type/value parameters only when the context stays at the same `Answer`.
 - Deep reinstallation follows from continuation capture; multi-shot resume is an ordinary reusable closure.
 - LoisVM needs no `perform`, `resume`, `handle`, yield-state, or handler-context instruction.
 - LoisVM function metadata has no distinguished handler-context or continuation field.
