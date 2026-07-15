@@ -71,7 +71,7 @@ test "selective CPS exposes effect companion identities" {
 }
 
 ///|
-test "public type planning shares one generated schema" {
+test "type planning shares one generated schema" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
   let pure_type = @buslane.Type::Function(
@@ -79,10 +79,11 @@ test "public type planning shares one generated schema" {
     Primitive(Int),
     Empty,
   )
-  let planned = plan_dictionary_cps_types(metadata, [
-    pure_type,
-    Function([], Primitive(Int), Singleton(effect, [])),
-  ]).unwrap()
+  let schema = build_dictionary_cps_schema_or_raise(metadata)
+  let planned = [
+    schema.rewrite_type(pure_type),
+    schema.rewrite_type(Function([], Primitive(Int), Singleton(effect, []))),
+  ]
   assert_eq(planned[0], pure_type)
   guard planned[1] is Forall([_], Function(_, _, Empty)) else {
     abort("expected planned CPS type")

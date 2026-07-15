@@ -26,23 +26,6 @@ priv struct DictionaryCpsSchema {
 }
 
 ///|
-/// Generates dictionary/context metadata once and rewrites source types to the
-/// ordinary selective-CPS type protocol.
-pub fn plan_dictionary_cps_types(
-  metadata : @buslane.MetadataRegistry,
-  types : Array[@buslane.Type],
-) -> Result[Array[@buslane.Type], SynthesisError] {
-  Ok(
-    {
-      let schema = build_dictionary_cps_schema_or_raise(metadata)
-      types.map(type_ => schema.rewrite_type(type_))
-    },
-  ) catch {
-    error => Err(error)
-  }
-}
-
-///|
 fn build_dictionary_cps_schema_or_raise(
   metadata : @buslane.MetadataRegistry,
 ) -> DictionaryCpsSchema raise SynthesisError {
