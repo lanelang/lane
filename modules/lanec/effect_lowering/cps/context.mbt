@@ -167,7 +167,7 @@ fn cps_call_context_requirements(
     let actual = terminal_type.substitute(substitution)
     raise ExpectedFunction(actual)
   }
-  effect_terms(latent_effect).map(term => {
+  effect_terms(mon_effect_part(latent_effect)).map(term => {
     match term {
       Parameter(parameter) =>
         match applied_effect_argument(applied, parameter) {
@@ -282,7 +282,7 @@ fn pack_cps_context(
   effect : @buslane.Effect,
   answer_type : @buslane.Type,
 ) -> (Expr, Bool) raise SynthesisError {
-  let terms = effect_terms(effect)
+  let terms = effect_terms(mon_effect_part(effect))
   let values = terms.map(term => find_cps_context(environment, term))
   match values {
     [] => (Literal(Unit), true)
@@ -299,7 +299,13 @@ fn pack_cps_context(
         Construct({
           data_constructor,
           type_arguments: terms.map(term => {
-            TypeArgument(schema.context_term_type(term, answer_type))
+            TypeArgument(
+              schema.context_term_type(
+                term,
+                answer_type,
+                residual_effect_part(effect),
+              ),
+            )
           }),
           hidden_witnesses: [],
           payloads: values,

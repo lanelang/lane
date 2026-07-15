@@ -88,7 +88,11 @@ fn lower_cps_monadic_call(
     }) +
     [continuation],
   )
-  if (force_open || selected.adapted || latent_effect != environment.effect) &&
+  if (
+      force_open ||
+      selected.adapted ||
+      mon_effect_part(latent_effect) != mon_effect_part(environment.effect)
+    ) &&
     (
       effect_has_parameter(latent_effect) ||
       effect_has_parameter(environment.effect)

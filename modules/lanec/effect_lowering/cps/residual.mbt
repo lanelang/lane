@@ -1,6 +1,7 @@
 ///|
 priv struct ResidualComputationSchema {
   effect : @buslane.Effect
+  residual_effect : @buslane.Effect
   result_type : @buslane.Type
   type_ : @buslane.Type
 }
@@ -32,11 +33,13 @@ fn build_residual_computation_schema(
   effect : @buslane.Effect,
   result_type : @buslane.Type,
 ) -> ResidualComputationSchema raise SynthesisError {
-  let canonical = effect.canonicalize()
+  let canonical = mon_effect_part(effect)
+  let residual_effect = residual_effect_part(effect)
   let rewritten_result = schema.rewrite_type(result_type)
   if canonical == Empty {
     {
       effect: canonical,
+      residual_effect,
       result_type: rewritten_result,
       type_: rewritten_result,
     }
@@ -48,14 +51,15 @@ fn build_residual_computation_schema(
     let answer_type = @buslane.Type::Parameter(answer_parameter)
     {
       effect: canonical,
+      residual_effect,
       result_type: rewritten_result,
       type_: Forall(
         [answer_parameter],
         Function(
           schema.context_argument_types(canonical, answer_type) +
-          [Function([rewritten_result], answer_type, Empty)],
+          [Function([rewritten_result], answer_type, residual_effect)],
           answer_type,
-          Empty,
+          residual_effect,
         ),
       ),
     }
@@ -79,7 +83,7 @@ fn ResidualComputationSchema::fresh_frame(
     let parameter = program.metadata.define_value(
       "%residual_context",
       Parameter,
-      schema.context_term_type(term, answer_type),
+      schema.context_term_type(term, answer_type, self.residual_effect),
     )
     context_parameters.push(parameter)
     bindings.push({ term, value: Ref(parameter) })
@@ -87,7 +91,7 @@ fn ResidualComputationSchema::fresh_frame(
   let continuation = program.metadata.define_value(
     "%residual_continuation",
     Parameter,
-    Function([self.result_type], answer_type, Empty),
+    Function([self.result_type], answer_type, self.residual_effect),
   )
   {
     answer_parameter,
@@ -163,7 +167,11 @@ fn build_residual_relay_bindings(
         let id = program.metadata.define_value(
           "%relay_dictionary",
           Local,
-          schema.context_term_type(term, residual.type_),
+          schema.context_term_type(
+            term,
+            residual.type_,
+            residual.residual_effect,
+          ),
         )
         bindings.push({ term, value: Ref(id) })
         initializers.push({ id, value })
@@ -192,6 +200,7 @@ fn build_concrete_relay_dictionary(
     effect,
     arguments,
     residual.type_,
+    residual.residual_effect,
   )
   let fields = []
   for index in 0..<effect_info.operations.length() {
@@ -227,7 +236,8 @@ fn build_residual_relay_field(
     program.metadata,
     field_type,
   )
-  guard function_type is Function(parameter_types, result_type, Empty) else {
+  guard function_type is Function(parameter_types, result_type, function_effect) &&
+    function_effect == residual.residual_effect else {
     raise ExpectedFunction(function_type)
   }
   let parameters = parameter_types.map(type_ => {
@@ -237,7 +247,8 @@ fn build_residual_relay_field(
     raise ArityMismatch(expected=1, actual=0)
   }
   guard parameter_types.last()
-    is Some(Function([operation_result], resume_result, Empty)) else {
+    is Some(Function([operation_result], resume_result, resume_effect)) &&
+    resume_effect == residual.residual_effect else {
     raise ExpectedFunction(parameter_types.last().unwrap())
   }
   if !resume_result.equals(residual.type_) ||

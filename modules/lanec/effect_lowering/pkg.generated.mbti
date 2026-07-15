@@ -9,6 +9,8 @@ import {
 // Values
 pub fn elaborate_handlers(@buslane.Program) -> @core.Program
 
+pub fn erase_residual_effects(@buslane.Program) -> @buslane.Program
+
 pub fn introduce_monadic_binds(@core.Program) -> Result[@core.Program, @core.SynthesisError]
 
 pub fn lift_monadic_continuations(@core.Program) -> Result[@buslane.Program, @core.SynthesisError]

@@ -22,6 +22,140 @@ test "selective CPS keeps pure definitions and calls direct" {
 }
 
 ///|
+test "selective CPS keeps Io-only definitions and calls direct" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let println = metadata.define_value(
+    "println",
+    External,
+    Function([Primitive(String)], Primitive(Unit), Io),
+  )
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], Primitive(Unit), Io),
+  )
+  let input = Program::{
+    metadata,
+    terms: [
+      External(println),
+      LetRec([
+        {
+          id: main,
+          rhs: Function({
+            parameters: [],
+            result_type: Primitive(Unit),
+            body: Call(Ref(println), [Literal(String("hello"))]),
+          }),
+        },
+      ]),
+    ],
+  }
+  let output = rewrite_test_program(input)
+  assert_eq(output, input)
+  debug_inspect(
+    output.metadata.value_info(main).unwrap().type_,
+    content="Function([], Primitive(Unit), Io)",
+  )
+}
+
+///|
+test "selective CPS preserves Io on mixed callable and continuation types" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let handled = metadata.define_effect("Handled", [])
+  let invoke = metadata.define_operation(
+    "invoke",
+    handled,
+    [],
+    [],
+    Primitive(Unit),
+  )
+  let println = metadata.define_value(
+    "println",
+    External,
+    Function([Primitive(String)], Primitive(Unit), Io),
+  )
+  let mixed_effect : @buslane.Effect = Union([Io, Singleton(handled, [])])
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], Primitive(Unit), mixed_effect),
+  )
+  let written = metadata.define_value("written", Local, Primitive(Unit))
+  let output = rewrite_test_program({
+    metadata,
+    terms: [
+      External(println),
+      LetRec([
+        {
+          id: main,
+          rhs: Function({
+            parameters: [],
+            result_type: Primitive(Unit),
+            body: Let(
+              written,
+              Call(Ref(println), [Literal(String("before"))]),
+              Invoke({
+                operation: invoke,
+                effect_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
+            ),
+          }),
+        },
+      ]),
+    ],
+  })
+  guard output.metadata.value_info(main).unwrap().type_
+    is Forall([answer], Function([_, continuation], result, Io)) else {
+    abort("expected mixed CPS callable type")
+  }
+  assert_eq(result, Parameter(answer))
+  assert_eq(continuation, Function([Primitive(Unit)], Parameter(answer), Io))
+  assert_cps_ordinary_output(output)
+  debug_inspect(
+    output.terms[1],
+    content=(
+      #|LetRec(
+      #|  [
+      #|    {
+      #|      id: { index: 1 },
+      #|      rhs: TypeLambda(
+      #|        [{ index: 1 }],
+      #|        Function(
+      #|          {
+      #|            parameters: [{ index: 3 }, { index: 4 }],
+      #|            result_type: Parameter({ index: 1 }),
+      #|            body: Let(
+      #|              { index: 2 },
+      #|              Call(Ref({ index: 0 }), [Literal(String("before"))]),
+      #|              Match(
+      #|                {
+      #|                  scrutinee: Ref({ index: 3 }),
+      #|                  binder: { index: 5 },
+      #|                  result_type: Parameter({ index: 1 }),
+      #|                  alternatives: [
+      #|                    {
+      #|                      alt_constructor: DataCon({ index: 1 }),
+      #|                      type_binders: [],
+      #|                      value_binders: [{ index: 6 }],
+      #|                      body: Call(Ref({ index: 6 }), [Ref({ index: 4 })]),
+      #|                    },
+      #|                  ],
+      #|                },
+      #|              ),
+      #|            ),
+      #|          },
+      #|        ),
+      #|      ),
+      #|    },
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
 test "direct calls bridge Unit-specialized CPS callables" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_type_parameter("Answer", Type)

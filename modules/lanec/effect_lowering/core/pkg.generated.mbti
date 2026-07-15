@@ -13,11 +13,19 @@ pub fn effect_terms(@buslane.Effect) -> Array[@buslane.Effect]
 
 pub fn elaborate_handlers(@buslane.Program) -> Program
 
+pub fn erase_residual_effects(@buslane.Program) -> @buslane.Program
+
 pub fn introduce_monadic_binds(Program) -> Result[Program, SynthesisError]
+
+pub fn is_mon_effect(@buslane.Effect) -> Bool
 
 pub fn lift_monadic_continuations(Program) -> Result[@buslane.Program, SynthesisError]
 
+pub fn mon_effect_part(@buslane.Effect) -> @buslane.Effect
+
 pub fn require_arity(Int, Int) -> Unit raise SynthesisError
+
+pub fn residual_effect_part(@buslane.Effect) -> @buslane.Effect
 
 pub fn resolve_open_contexts(Program) -> Result[Program, SynthesisError]
 

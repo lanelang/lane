@@ -4,7 +4,10 @@ fn assert_cps_ordinary_output(program : Program) -> Unit raise {
     metadata: program.metadata,
     terms: program.terms.map(cps_ordinary_top_term),
   }
-  assert_true(@buslane.verify_program(ordinary).is_ok())
+  let result = @buslane.verify_program(ordinary)
+  if !result.is_ok() {
+    fail("ordinary CPS verification failed: \{to_repr(result)}")
+  }
 }
 
 ///|

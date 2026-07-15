@@ -11,8 +11,9 @@ fn instantiate_dictionary(
   effect : @buslane.EffectId,
   arguments : Array[@buslane.GenericArgument],
   answer_type : @buslane.Type,
+  residual_effect : @buslane.Effect,
 ) -> DictionaryInstance raise SynthesisError {
-  let header = schema.dictionary(effect)
+  let header = schema.dictionary(effect, residual_effect)
   guard schema.metadata.type_info(header.type_id) is Some(dictionary) else {
     raise UnknownType(header.type_id)
   }

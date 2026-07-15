@@ -134,7 +134,7 @@ fn validate_mon_trans_type(
       validate_mon_trans_type(metadata, body)
     }
     Function(parameters, result, effect) => {
-      if effect.canonicalize() != Empty {
+      if is_mon_effect(effect) {
         raise ResidualLatentEffect(effect)
       }
       for parameter in parameters {

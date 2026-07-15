@@ -18,7 +18,10 @@ fn lower_cps_invoke(
     invoke.effect_arguments,
   )
   let dictionary_expression = find_cps_context(environment, term)
-  let dictionary_type = schema.context_term_type(term, answer_type)
+  let residual_effect = residual_effect_part(environment.effect)
+  let dictionary_type = schema.context_term_type(
+    term, answer_type, residual_effect,
+  )
   let dictionary_binder = program.metadata.define_value(
     "%dictionary",
     MatchBinder,
@@ -29,6 +32,7 @@ fn lower_cps_invoke(
     operation.owner,
     invoke.effect_arguments,
     answer_type,
+    residual_effect,
   )
   let field_binders = instance.field_types.map(type_ => {
     program.metadata.define_value("%operation", MatchBinder, type_)

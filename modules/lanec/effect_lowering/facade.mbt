@@ -4,6 +4,11 @@ pub fn elaborate_handlers(program : @buslane.Program) -> Program {
 }
 
 ///|
+pub fn erase_residual_effects(program : @buslane.Program) -> @buslane.Program {
+  @effect_lowering_core.erase_residual_effects(program)
+}
+
+///|
 pub fn introduce_monadic_binds(
   program : Program,
 ) -> Result[Program, SynthesisError] {

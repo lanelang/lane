@@ -60,10 +60,11 @@ fn lower_effects(
   let resolved = unwrap_effect_lowering(
     @effect_lowering.resolve_open_contexts(transformed.program),
   )
+  let lifted = unwrap_effect_lowering(
+    @effect_lowering.lift_monadic_continuations(resolved),
+  )
   {
-    program: unwrap_effect_lowering(
-      @effect_lowering.lift_monadic_continuations(resolved),
-    ),
+    program: @effect_lowering.erase_residual_effects(lifted),
     effect_companions: transformed.effect_companions,
   }
 }

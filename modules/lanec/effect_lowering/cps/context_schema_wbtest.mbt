@@ -13,7 +13,7 @@ test "dictionary schema follows operation order and CPS field types" {
     Primitive(Unit),
   )
   let schema = build_dictionary_cps_schema_or_raise(metadata)
-  let dictionary = schema.dictionary(effect)
+  let dictionary = schema.dictionary(effect, Empty)
   let dictionary_info = metadata.type_info(dictionary.type_id).unwrap()
   assert_eq(dictionary_info.constructors.length(), 1)
   assert_eq(dictionary_info.parameters, [element, dictionary.answer_parameter])
@@ -99,7 +99,11 @@ test "context types cover empty singleton and ordered unions" {
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let answer : @buslane.Type = Primitive(Int)
   assert_eq(schema.packed_context_type(Empty, answer), Primitive(Unit))
-  let first_type = schema.context_term_type(Singleton(first_effect, []), answer)
+  let first_type = schema.context_term_type(
+    Singleton(first_effect, []),
+    answer,
+    Empty,
+  )
   assert_eq(
     schema.packed_context_type(Singleton(first_effect, []), answer),
     first_type,
@@ -124,14 +128,38 @@ test "context types cover empty singleton and ordered unions" {
 }
 
 ///|
-test "type rewriting erases nested and abstract latent effects" {
+test "type rewriting preserves residual effects and rewrites monadic effects" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let handled = metadata.define_effect("Handled", [])
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let companion = schema.companion_parameter(effect_parameter)
   assert_eq(
     schema.rewrite_type(Function([Primitive(Int)], Primitive(Int), Empty)),
     Function([Primitive(Int)], Primitive(Int), Empty),
+  )
+  assert_eq(
+    schema.rewrite_type(Function([Primitive(String)], Primitive(Unit), Io)),
+    Function([Primitive(String)], Primitive(Unit), Io),
+  )
+  let mixed = schema.rewrite_type(
+    Function(
+      [Primitive(String)],
+      Primitive(Unit),
+      Union([Io, Singleton(handled, [])]),
+    ),
+  )
+  guard mixed
+    is Forall(
+      [mixed_answer],
+      Function([_, Primitive(String), mixed_continuation], mixed_result, Io)
+    ) else {
+    abort("expected mixed effect CPS type")
+  }
+  assert_eq(mixed_result, Parameter(mixed_answer))
+  assert_eq(
+    mixed_continuation,
+    Function([Primitive(Unit)], Parameter(mixed_answer), Io),
   )
   let rewritten = schema.rewrite_type(
     Forall(

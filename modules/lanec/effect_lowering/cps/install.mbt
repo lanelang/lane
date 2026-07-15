@@ -11,7 +11,7 @@ fn lower_cps_direct_install(
   install : InstallExpr,
 ) -> Expr raise SynthesisError {
   let facts = synthesize_expr_or_raise(program.metadata, Install(install))
-  if facts.effect != Empty {
+  if is_mon_effect(facts.effect) {
     raise MissingEffectContext(facts.effect)
   }
   let result_type = schema.rewrite_type(install.result_type)
@@ -24,7 +24,7 @@ fn lower_cps_direct_install(
     schema,
     program,
     install,
-    { effect: Empty, bindings: [] },
+    { effect: facts.effect, bindings: [] },
     result_type,
     Function({ parameters: [result], result_type, body: Ref(result) }),
   )
@@ -53,7 +53,7 @@ fn lower_cps_install(
     schema, program, residual, outer_environment,
   )
   let relay_environment = CpsEnvironment::{
-    effect: residual.effect,
+    effect: @buslane.Effect::Union([residual.effect, residual.residual_effect]).canonicalize(),
     bindings: relay.bindings,
   }
   let handlers = build_handler_dictionary_plan(
@@ -108,6 +108,7 @@ fn build_handler_dictionary_plan(
       effect,
       arguments,
       residual.type_,
+      residual.residual_effect,
     )
     let fields = []
     for index in 0..<effect_info.operations.length() {
@@ -133,7 +134,11 @@ fn build_handler_dictionary_plan(
     let id = program.metadata.define_value(
       "%handler_dictionary",
       Local,
-      schema.context_term_type(dictionary.handled_effect, residual.type_),
+      schema.context_term_type(
+        dictionary.handled_effect,
+        residual.type_,
+        residual.residual_effect,
+      ),
     )
     bindings.push({ term: dictionary.handled_effect, value: Ref(id) })
     initializers.push({ id, value })
@@ -171,7 +176,8 @@ fn lower_handler_operation_clause(
     schema.companion_parameter(parameter)
   })
   let function_type = instantiate_clause_field_type(field_type, type_binders)
-  guard function_type is Function(parameter_types, result_type, Empty) else {
+  guard function_type is Function(parameter_types, result_type, function_effect) &&
+    function_effect == residual.residual_effect else {
     raise ExpectedFunction(function_type)
   }
   if !result_type.equals(residual.type_) {
@@ -185,7 +191,9 @@ fn lower_handler_operation_clause(
   guard parameter_types.last() is Some(direct_resume_type) else {
     raise ArityMismatch(expected=1, actual=0)
   }
-  guard direct_resume_type is Function([operation_result], direct_result, Empty) else {
+  guard direct_resume_type
+    is Function([operation_result], direct_result, resume_effect) &&
+    resume_effect == residual.residual_effect else {
     raise ExpectedFunction(direct_resume_type)
   }
   if !direct_result.equals(residual.type_) {

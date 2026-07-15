@@ -7,6 +7,7 @@ pub(all) struct EffectCompanionBinding {
 ///|
 priv struct DictionaryHeader {
   effect : @buslane.EffectId
+  residual_effect : @buslane.Effect
   type_id : @buslane.TypeId
   answer_parameter : @buslane.TypeParameterId
 }
@@ -30,7 +31,13 @@ fn build_dictionary_cps_schema_or_raise(
   metadata : @buslane.MetadataRegistry,
 ) -> DictionaryCpsSchema raise SynthesisError {
   let companions = define_effect_companions(metadata)
-  let headers = define_dictionary_headers(metadata, companions)
+  let headers = []
+  let effect_count = metadata.effects.length()
+  for index in 0..<effect_count {
+    headers.push(
+      define_dictionary_header(metadata, companions, { index, }, Empty),
+    )
+  }
   let schema = DictionaryCpsSchema::{
     metadata,
     companions,
@@ -74,31 +81,28 @@ fn define_effect_companions(
 }
 
 ///|
-fn define_dictionary_headers(
+fn define_dictionary_header(
   metadata : @buslane.MetadataRegistry,
   companions : Array[EffectCompanionBinding],
-) -> Array[DictionaryHeader] raise SynthesisError {
-  let headers = []
-  let effect_count = metadata.effects.length()
-  for index in 0..<effect_count {
-    let effect = @buslane.EffectId::{ index, }
-    guard metadata.effect_info(effect) is Some(info) else {
-      raise UnknownEffect(effect)
-    }
-    let parameters = info.parameters.map(parameter => {
-      companion_parameter(companions, parameter)
-    })
-    let answer_parameter = metadata.define_type_parameter(
-      info.name.occurrence + "%answer",
-      Type,
-    )
-    let type_id = metadata.define_type(
-      info.name.occurrence + "%dictionary",
-      parameters + [answer_parameter],
-    )
-    headers.push({ effect, type_id, answer_parameter })
+  effect : @buslane.EffectId,
+  residual_effect : @buslane.Effect,
+) -> DictionaryHeader raise SynthesisError {
+  guard metadata.effect_info(effect) is Some(info) else {
+    raise UnknownEffect(effect)
   }
-  headers
+  let parameters = info.parameters.map(parameter => {
+    companion_parameter(companions, parameter)
+  })
+  let answer_parameter = metadata.define_type_parameter(
+    info.name.occurrence + "%answer",
+    Type,
+  )
+  let suffix = if residual_effect == Io { "%io" } else { "" }
+  let type_id = metadata.define_type(
+    info.name.occurrence + "%dictionary" + suffix,
+    parameters + [answer_parameter],
+  )
+  { effect, residual_effect, type_id, answer_parameter }
 }
 
 ///|
@@ -119,11 +123,15 @@ fn define_operation_field_types(
       schema.rewrite_type(type_)
     })
     let result_type = schema.rewrite_type(operation_info.result_type)
-    let resume_type = @buslane.Type::Function([result_type], answer_type, Empty)
+    let resume_type = @buslane.Type::Function(
+      [result_type],
+      answer_type,
+      header.residual_effect,
+    )
     let callable = @buslane.Type::Function(
       payload_types + [resume_type],
       answer_type,
-      Empty,
+      header.residual_effect,
     )
     let hidden_parameters = operation_info.hidden_type_parameters.map(parameter => {
       schema.companion_parameter(parameter)
@@ -164,13 +172,31 @@ fn companion_parameter(
 fn DictionaryCpsSchema::dictionary(
   self : DictionaryCpsSchema,
   effect : @buslane.EffectId,
+  residual_effect : @buslane.Effect,
 ) -> DictionaryHeader raise SynthesisError {
   for dictionary in self.dictionaries {
-    if dictionary.effect == effect {
+    if dictionary.effect == effect &&
+      dictionary.residual_effect == residual_effect {
       return dictionary
     }
   }
-  raise UnknownEffect(effect)
+  let header = define_dictionary_header(
+    self.metadata,
+    self.companions,
+    effect,
+    residual_effect,
+  )
+  self.dictionaries.push(header)
+  let field_types = define_operation_field_types(self, header)
+  ignore(
+    self.metadata.define_data_constructor(
+      "%effect_dictionary",
+      header.type_id,
+      [],
+      field_types,
+    ),
+  )
+  header
 }
 
 ///|
@@ -196,8 +222,9 @@ fn DictionaryCpsSchema::rewrite_type(
         self.rewrite_type(parameter)
       })
       let rewritten_result = self.rewrite_type(result)
-      if effect.canonicalize() == Empty {
-        Function(rewritten_parameters, rewritten_result, Empty)
+      let residual_effect = residual_effect_part(effect)
+      if !is_mon_effect(effect) {
+        Function(rewritten_parameters, rewritten_result, residual_effect)
       } else {
         let answer_parameter = self.metadata.define_type_parameter(
           "%answer",
@@ -208,14 +235,14 @@ fn DictionaryCpsSchema::rewrite_type(
         let continuation_type = @buslane.Type::Function(
           [rewritten_result],
           answer_type,
-          Empty,
+          residual_effect,
         )
         Forall(
           [answer_parameter],
           Function(
             context_types + rewritten_parameters + [continuation_type],
             answer_type,
-            Empty,
+            residual_effect,
           ),
         )
       }
@@ -245,7 +272,10 @@ fn DictionaryCpsSchema::context_argument_types(
   effect : @buslane.Effect,
   answer_type : @buslane.Type,
 ) -> Array[@buslane.Type] raise SynthesisError {
-  effect_terms(effect).map(term => self.context_term_type(term, answer_type))
+  let residual_effect = residual_effect_part(effect)
+  effect_terms(mon_effect_part(effect)).map(term => {
+    self.context_term_type(term, answer_type, residual_effect)
+  })
 }
 
 ///|
@@ -273,11 +303,12 @@ fn DictionaryCpsSchema::context_term_type(
   self : DictionaryCpsSchema,
   term : @buslane.Effect,
   answer_type : @buslane.Type,
+  residual_effect : @buslane.Effect,
 ) -> @buslane.Type raise SynthesisError {
   match term {
     Io => abort("Io has no effect dictionary")
     Singleton(effect, arguments) => {
-      let dictionary = self.dictionary(effect)
+      let dictionary = self.dictionary(effect, residual_effect)
       Apply(
         Constructor(dictionary.type_id),
         arguments.map(argument => {

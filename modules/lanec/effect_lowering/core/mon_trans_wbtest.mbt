@@ -20,6 +20,43 @@ test "mon-trans keeps pure calls direct" {
 }
 
 ///|
+test "mon-trans keeps Io calls direct" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let println = metadata.define_value(
+    "println",
+    Value,
+    Function([Primitive(String)], Primitive(Unit), Io),
+  )
+  let local_value = metadata.define_value("local", Local, Primitive(Unit))
+  let input = test_program(
+    metadata,
+    Let(
+      local_value,
+      Call(Ref(println), [Literal(String("hello"))]),
+      Literal(Int(1L)),
+    ),
+  )
+  assert_eq(introduce_monadic_binds(input), Ok(input))
+}
+
+///|
+test "mon effect classification separates Io from handled effects" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let handled = metadata.define_effect("Handled", [])
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  assert_false(is_mon_effect(Empty))
+  assert_false(is_mon_effect(Io))
+  assert_true(is_mon_effect(Singleton(handled, [])))
+  assert_true(is_mon_effect(Parameter(effect_parameter)))
+  assert_true(is_mon_effect(Union([Io, Singleton(handled, [])])))
+  assert_eq(
+    mon_effect_part(Union([Io, Singleton(handled, [])])),
+    Singleton(handled, []),
+  )
+  assert_eq(residual_effect_part(Union([Io, Singleton(handled, [])])), Io)
+}
+
+///|
 test "mon-trans keeps pure sequencing direct" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let local_value = metadata.define_value("local", Local, Primitive(Int))
