@@ -36,7 +36,7 @@ emitted by the matching Lane linker.
 _Avoid_: verified bytecode, untrusted artifact, sandbox input
 
 **LoisVM Bytecode Schema Version**:
-The independent leading `u8`, `0x01` for v1, governing the tables, records, opcodes, and operand layouts of one LoisVM bytecode section.
+The independent leading `u8`, `0x01` for v1 or `0x02` for v2, governing the tables, records, opcodes, and operand layouts of one LoisVM bytecode section. V2 adds the optional Instance Initializer, Instance Global table, and global instructions while preserving the v1 encoding for images that use none of those features.
 _Avoid_: artifact container version, linked-program schema version, Buslane codec version
 
 **Loaded Executable Image**:
