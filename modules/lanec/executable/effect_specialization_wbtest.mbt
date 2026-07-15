@@ -58,3 +58,120 @@ test "reachable effect applications create concrete callable instances" {
   )
   assert_true(instance.rhs is Function(_))
 }
+
+///|
+test "handler residual effects specialize before answer-type CPS" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let coroutine = metadata.define_effect("Coroutine", [])
+  let yield_operation = metadata.define_operation(
+    "yield",
+    coroutine,
+    [],
+    [],
+    unit_type,
+  )
+  let log_effect = metadata.define_effect("Log", [])
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let residual = @buslane.Effect::Parameter(effect_parameter)
+  let handled = @buslane.Effect::Singleton(coroutine, [])
+  let action_effect = @buslane.Effect::Union([handled, residual])
+  let action_type = @buslane.Type::Function([], unit_type, action_effect)
+  let run_type = @buslane.Type::Forall(
+    [effect_parameter],
+    Function([action_type], unit_type, residual),
+  )
+  let run = metadata.define_value("run", Function, run_type)
+  let action = metadata.define_value("action", Parameter, action_type)
+  let handled_result = metadata.define_value("result", Local, unit_type)
+  let resume_value = metadata.define_value(
+    "resume",
+    Parameter,
+    Function([unit_type], unit_type, residual),
+  )
+  let entry_type = @buslane.Type::Function([], unit_type, Empty)
+  let entry = metadata.define_value("entry", Function, entry_type)
+  let concrete_residual = @buslane.Effect::Singleton(log_effect, [])
+  let concrete_action_type = @buslane.Type::Function(
+    [],
+    unit_type,
+    Union([handled, concrete_residual]),
+  )
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: run,
+          rhs: TypeLambda(
+            [effect_parameter],
+            Function({
+              parameters: [action],
+              result_type: unit_type,
+              body: Handle({
+                body: Call(Ref(action), []),
+                result_binder: handled_result,
+                result_type: unit_type,
+                final_body: Ref(handled_result),
+                handlers: [
+                  {
+                    handled_effect: handled,
+                    operations: [
+                      {
+                        operation: yield_operation,
+                        type_binders: [],
+                        payload_binders: [],
+                        resume_binder: resume_value,
+                        body: Call(Ref(resume_value), [Literal(Unit)]),
+                      },
+                    ],
+                  },
+                ],
+              }),
+            }),
+          ),
+        },
+        {
+          id: entry,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Call(
+              TypeApply(Ref(run), [EffectArgument(concrete_residual)]),
+              [
+                Function({
+                  parameters: [],
+                  result_type: unit_type,
+                  body: Literal(Unit),
+                }),
+              ],
+            ),
+          }),
+        },
+      ]),
+    ],
+  }
+  let specialized = specialize_reachable_effects(program, entry)
+  guard specialized.terms is [LetRec(_), LetRec([instance])] &&
+    instance.rhs is Function(function) &&
+    function.body is Handle(handle) &&
+    handle.handlers is [{ operations: [operation], .. }] else {
+    abort("expected a specialized handler instance")
+  }
+  assert_eq(
+    specialized.metadata.value_info(instance.id).map(info => info.type_),
+    Some(Function([concrete_action_type], unit_type, concrete_residual)),
+  )
+  assert_eq(
+    specialized.metadata
+    .value_info(function.parameters[0])
+    .map(info => info.type_),
+    Some(concrete_action_type),
+  )
+  assert_eq(
+    specialized.metadata
+    .value_info(operation.resume_binder)
+    .map(info => info.type_),
+    Some(Function([unit_type], unit_type, concrete_residual)),
+  )
+}
