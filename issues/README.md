@@ -8,11 +8,7 @@ No ready issues.
 
 ## Unresolved Issues
 
-| ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
-| --- | --- | ---: | --- | --- | --- | --- | --- |
-| [ISS-186](ISS-186.md) | in_progress | 0 | epic | codex | none | none | Complete the whole-program LoisVM executable pipeline |
-| [ISS-196](ISS-196.md) | in_progress | 0 | bug | codex | none | ISS-195 | Make abstract residual contexts safe across CPS answer changes |
-| [ISS-195](ISS-195.md) | blocked | 0 | task | codex | ISS-196 | none | Validate and close the LoisVM executable migration |
+No unresolved issues.
 
 ## Dependency Graph
 
