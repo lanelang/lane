@@ -35,7 +35,6 @@ test "whole-program elaboration preserves the selected entry" {
     },
     externals: { builtins: [], runtime_imports: [] },
     entries: [first_entry, second_entry],
-    runtime_effect_operations: [],
   }
   guard elaborate(linked, second_entry) is Ok(executable) else {
     abort("expected executable elaboration to succeed")
@@ -67,7 +66,6 @@ test "whole-program elaboration records ordered initializer roots" {
     },
     externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
-    runtime_effect_operations: [],
   }
   guard elaborate(linked, entry) is Ok(executable) else {
     abort("expected executable elaboration to succeed")
@@ -115,7 +113,6 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       ],
     },
     entries: [entry],
-    runtime_effect_operations: [],
   }
   guard elaborate(linked, entry) is Ok(executable) else {
     abort("expected Io entry elaboration to succeed")
@@ -123,7 +120,6 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
   debug_inspect(
     (
       executable.entry,
-      executable.runtime_boundary,
       executable.externals,
       executable.program.metadata.value_info(println).unwrap().type_,
       executable.program.metadata.value_info(main).unwrap().type_,
@@ -136,7 +132,6 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|    value: { index: 1 },
       #|    type_: Function([], Primitive(Unit), Io),
       #|  },
-      #|  { effect_operations: [] },
       #|  {
       #|    builtins: [],
       #|    runtime_imports: [
@@ -185,16 +180,6 @@ test "whole-program elaboration rejects an algebraic entry effect" {
     },
     externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
-    runtime_effect_operations: [
-      {
-        module_path_text: "Main",
-        effect_name: "Console",
-        operation_name: "write",
-        payload: [],
-        result: @types.Type::Primitive(Unit),
-        operation,
-      },
-    ],
   }
   debug_inspect(
     elaborate(linked, entry),
@@ -207,46 +192,4 @@ test "whole-program elaboration rejects an algebraic entry effect" {
       #|)
     ),
   )
-}
-
-///|
-test "pure entry excludes unused generic runtime operations" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let hidden = metadata.define_type_parameter("Hidden", Type)
-  let unused_effect = metadata.define_effect("Unused", [])
-  let unused_operation = metadata.define_operation(
-    "generic",
-    unused_effect,
-    [hidden],
-    [Parameter(hidden)],
-    Parameter(hidden),
-  )
-  let function_type = @buslane.Type::Function([], unit_type, Empty)
-  let main = metadata.define_value("main", Function, function_type)
-  let entry = executable_test_entry("main", main, function_type)
-  let linked : @module_link.LinkedProgram = {
-    module_path_texts: ["Main", "Unused"],
-    program: {
-      metadata,
-      terms: [Let(main, pure_function(unit_type, Literal(Unit)))],
-    },
-    externals: { builtins: [], runtime_imports: [] },
-    entries: [entry],
-    runtime_effect_operations: [
-      {
-        module_path_text: "Unused",
-        effect_name: "Unused",
-        operation_name: "generic",
-        payload: [Primitive(Unit)],
-        result: Primitive(Unit),
-        operation: unused_operation,
-      },
-    ],
-  }
-  guard elaborate(linked, entry) is Ok(executable) else {
-    abort("expected executable elaboration to ignore unused runtime operation")
-  }
-  assert_eq(executable.runtime_boundary.effect_operations, [])
-  assert_eq(executable.externals, { builtins: [], runtime_imports: [] })
 }

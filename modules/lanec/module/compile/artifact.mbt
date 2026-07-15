@@ -11,7 +11,7 @@ pub(all) struct ModuleInterfaceArtifact {
 } derive(Debug, Eq)
 
 ///|
-pub let module_object_artifact_schema_version = 7
+pub let module_object_artifact_schema_version = 8
 
 ///|
 pub let linked_program_artifact_schema_version = 4
@@ -27,9 +27,6 @@ pub(all) struct ModuleObjectArtifact {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
-  runtime_effect_operations : Array[
-    @module_link.RuntimeEffectOperationSignature,
-  ]
   module_fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[
@@ -126,7 +123,6 @@ pub fn CompiledModule::to_object_artifact(
     entries: object.entries,
     exports: object.exports,
     imports: object.imports,
-    runtime_effect_operations: object.runtime_effect_operations,
     module_fingerprint: object.fingerprint,
     object_fingerprint: object.object_fingerprint,
     imported_interface_fingerprints: object.imported_interface_fingerprints,
@@ -220,7 +216,6 @@ fn ModuleObjectArtifact::validate(
       self.entries,
       self.exports,
       self.imports,
-      self.runtime_effect_operations,
       self.imported_interface_fingerprints,
     ) {
     return Some(
@@ -364,7 +359,6 @@ fn CompiledModuleSetArtifact::validate_schema(
         module_.object.entries,
         module_.object.exports,
         module_.object.imports,
-        module_.object.runtime_effect_operations,
         module_.object.imported_interface_fingerprints,
       ) {
       return Some(
@@ -395,7 +389,6 @@ fn ModuleObjectArtifact::to_link_object(
     entries: self.entries,
     exports: self.exports,
     imports: self.imports,
-    runtime_effect_operations: self.runtime_effect_operations,
     fingerprint: self.module_fingerprint,
     object_fingerprint_valid: true,
     imported_interface_fingerprints: self.imported_interface_fingerprints,

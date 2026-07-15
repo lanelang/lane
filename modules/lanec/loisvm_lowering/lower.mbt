@@ -33,27 +33,11 @@ pub fn lower_linked_program_to_bytecode(
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
-  lower_linked_program_to_bytecode_with_runtime_effects(
-    program,
-    externals,
-    entry,
-    [],
-  )
-}
-
-///|
-pub fn lower_linked_program_to_bytecode_with_runtime_effects(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  entry : @buslane_lowering.BuslaneEntry,
-  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
-) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
   let linked : @module_link.LinkedProgram = {
     module_path_texts: [],
     program,
     externals,
     entries: [entry],
-    runtime_effect_operations,
   }
   match @executable.elaborate(linked, entry) {
     Ok(executable) => lower_executable_program_to_bytecode(executable)
@@ -164,7 +148,6 @@ fn executable_elaboration_error(
   match error {
     EntryNotLinked(value) => MissingEntry(value~)
     InvalidEntryFunction(value~, type_~) => InvalidFunctionType(value~, type_~)
-    UnsupportedRuntimeBoundary(detail~) => UnsupportedExpression(detail~)
     UnsupportedEffectSpecialization(detail~) => UnsupportedExpression(detail~)
     EffectLoweringError(error) => EffectLoweringError(error)
   }

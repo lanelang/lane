@@ -16,12 +16,10 @@ fn elaborate_or_raise(
   if !linked.entries.any(entry => entry == selected_entry) {
     raise EntryNotLinked(selected_entry.value)
   }
-  let (program, externals, entry, effect_operations) = install_runtime_boundary(
-    linked.program,
-    linked.externals,
-    selected_entry,
-    linked.runtime_effect_operations,
-  )
+  validate_executable_entry(selected_entry)
+  let program = linked.program
+  let externals = linked.externals
+  let entry = selected_entry
   let program = specialize_reachable_effects(program, entry.value)
   let lowered = lower_effects(program)
   let program = lowered.program
@@ -34,7 +32,6 @@ fn elaborate_or_raise(
     externals,
     entry,
     initializers,
-    runtime_boundary: { effect_operations, },
     execution_roots,
     effect_companions: lowered.effect_companions,
   }

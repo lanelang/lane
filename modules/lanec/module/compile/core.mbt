@@ -9,9 +9,6 @@ pub(all) struct ModuleObject {
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
   imports : Array[@artifact_core.ModuleImportedReference]
-  runtime_effect_operations : Array[
-    @module_link.RuntimeEffectOperationSignature,
-  ]
   fingerprint : @artifact_core.CompilationFingerprint
   object_fingerprint : @artifact_core.CompilationFingerprint
   imported_interface_fingerprints : Array[
@@ -45,7 +42,6 @@ fn CompiledModule::to_link_object(
     entries: object.entries,
     exports: object.exports,
     imports: object.imports,
-    runtime_effect_operations: object.runtime_effect_operations,
     fingerprint: self.fingerprint,
     object_fingerprint_valid: object.object_fingerprint ==
     module_object_fingerprint(
@@ -57,7 +53,6 @@ fn CompiledModule::to_link_object(
       object.entries,
       object.exports,
       object.imports,
-      object.runtime_effect_operations,
       object.imported_interface_fingerprints,
     ),
     imported_interface_fingerprints: object.imported_interface_fingerprints,

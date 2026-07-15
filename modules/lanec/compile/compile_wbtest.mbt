@@ -1489,10 +1489,11 @@ test "effect aliases export through interface artifacts" {
 }
 
 ///|
-test "built-in Io roundtrips through interface artifacts" {
+test "built-in Io roundtrips through typed artifacts" {
   let compiled = compile_modules(
     (
       #|module Main
+      #|pub let println : (String) -> Unit ! Io = extern("%println")
       #|pub fn run(action : () -> Unit ! Io) -> Unit ! Io {
       #|  action()
       #|}
@@ -1505,21 +1506,80 @@ test "built-in Io roundtrips through interface artifacts" {
   }
   let artifacts = modules.to_artifact()
   let module_ = artifacts.modules[0]
-  let binary = @artifact_binary.module_interface_artifact_to_binary(
+  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
     module_.interface,
   )
-  let decoded = match
-    @artifact_binary.parse_module_interface_artifact_binary(binary) {
+  let decoded_interface = match
+    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
+  let object_binary = @artifact_binary.module_object_artifact_to_binary(
+    module_.object,
+  )
+  let decoded_object = match
+    @artifact_binary.parse_module_object_artifact_binary(object_binary) {
+    Ok(artifact) => artifact
+    Err(message) => abort(message)
+  }
+  debug_inspect(decoded_object == module_.object, content="true")
   inspect(
-    decoded.interface.values
+    decoded_interface.interface.values
     .map(value => {
       value.name + ": " + @prettyprinter.render(value.type_, width=100)
     })
     .join("\n"),
-    content="run: (() -> Unit ! Io) -> Unit ! Io",
+    content=(
+      #|println: (String) -> Unit ! Io
+      #|run: (() -> Unit ! Io) -> Unit ! Io
+    ),
+  )
+  let object_text = match
+    @artifact_binary.artifact_binary_to_inspect_text(object_binary) {
+    Ok(text) => text
+    Err(message) => abort(message)
+  }
+  inspect(
+    artifact_inspect_without_fingerprints(object_text),
+    content=(
+      #|Lane object artifact
+      #|module: Main
+      #|schema: 8
+      #|
+      #|imported interfaces:
+      #|  (none)
+      #|
+      #|object:
+      #|imports:
+      #|  (none)
+      #|exports:
+      #|  value println
+      #|  value run
+      #|public entries:
+      #|  Main.println : (String) -> Unit ! Io
+      #|  Main.run : (() -> Unit ! Io) -> Unit ! Io
+      #|compiler intrinsics:
+      #|  (none)
+      #|runtime imports:
+      #|  %println : (String) -> Unit ! Io
+      #|buslane:
+      #|  buslane {
+      #|    metadata {
+      #|      value println#0 : (String) -> Unit ! Io
+      #|      function run#1 : (() -> Unit ! Io) -> Unit ! Io
+      #|      parameter action#2 : () -> Unit ! Io
+      #|      external %println#3 : (String) -> Unit ! Io
+      #|    }
+      #|    external value#3
+      #|    letrec {
+      #|      value#1 = fn(value#2) -> Unit {
+      #|        value#2()
+      #|      }
+      #|    }
+      #|    let value#0 = value#3
+      #|  }
+      #|
+    ),
   )
 }
 
@@ -1785,7 +1845,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  (none)
@@ -1943,7 +2003,7 @@ fn interface_alias_body_signature(
 }
 
 ///|
-test "module object binary rejects old schema one artifact" {
+test "module object binary rejects obsolete schema seven artifact" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -1961,7 +2021,7 @@ test "module object binary rejects old schema one artifact" {
   let damaged = @artifact_binary.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  damaged[14] = b'\x01'
+  damaged[14] = b'\x07'
   damaged[15] = b'\x00'
   damaged[16] = b'\x00'
   damaged[17] = b'\x00'
@@ -1971,7 +2031,7 @@ test "module object binary rejects old schema one artifact" {
   guard parsed is Err(message) else {
     abort("expected old object schema failure")
   }
-  inspect(message, content="unsupported object artifact schema version 1")
+  inspect(message, content="unsupported object artifact schema version 7")
 }
 
 ///|
@@ -2482,7 +2542,6 @@ test "link object artifacts rejects stale object fingerprint" {
     entries: object.entries,
     exports: object.exports,
     imports: object.imports,
-    runtime_effect_operations: object.runtime_effect_operations,
     module_fingerprint: object.module_fingerprint,
     object_fingerprint: { value: "stale" },
     imported_interface_fingerprints: object.imported_interface_fingerprints,
@@ -2526,7 +2585,6 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports: module_.object.imports,
-        runtime_effect_operations: module_.object.runtime_effect_operations,
         module_fingerprint: { value: "stale" },
         object_fingerprint: module_.object.object_fingerprint,
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -2640,7 +2698,6 @@ test "link modules rejects stale module object fingerprint" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports: module_.object.imports,
-        runtime_effect_operations: module_.object.runtime_effect_operations,
         fingerprint: module_.object.fingerprint,
         object_fingerprint: { value: "stale" },
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -2712,7 +2769,6 @@ test "link modules rejects stale imported reference fingerprint" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports,
-        runtime_effect_operations: module_.object.runtime_effect_operations,
         fingerprint: module_.object.fingerprint,
         object_fingerprint: @module_compile.module_object_fingerprint(
           module_.object.fingerprint,
@@ -2723,7 +2779,6 @@ test "link modules rejects stale imported reference fingerprint" {
           module_.object.entries,
           module_.object.exports,
           imports,
-          module_.object.runtime_effect_operations,
           module_.object.imported_interface_fingerprints,
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -2780,7 +2835,6 @@ test "link modules rejects missing exported object value" {
         entries: module_.object.entries,
         exports,
         imports: module_.object.imports,
-        runtime_effect_operations: module_.object.runtime_effect_operations,
         fingerprint: module_.object.fingerprint,
         object_fingerprint: @module_compile.module_object_fingerprint(
           module_.object.fingerprint,
@@ -2791,7 +2845,6 @@ test "link modules rejects missing exported object value" {
           module_.object.entries,
           exports,
           module_.object.imports,
-          module_.object.runtime_effect_operations,
           module_.object.imported_interface_fingerprints,
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
@@ -4407,7 +4460,6 @@ fn module_with_imported_interfaces(
     entries: module_.object.entries,
     exports: module_.object.exports,
     imports: module_.object.imports,
-    runtime_effect_operations: module_.object.runtime_effect_operations,
     fingerprint: module_.object.fingerprint,
     object_fingerprint: @module_compile.module_object_fingerprint(
       module_.object.fingerprint,
@@ -4418,7 +4470,6 @@ fn module_with_imported_interfaces(
       module_.object.entries,
       module_.object.exports,
       module_.object.imports,
-      module_.object.runtime_effect_operations,
       imported,
     ),
     imported_interface_fingerprints: imported,

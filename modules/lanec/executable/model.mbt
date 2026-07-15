@@ -5,7 +5,6 @@ pub(all) struct ExecutableProgram {
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
   initializers : Array[TopLevelInitializer]
-  runtime_boundary : RuntimeBoundary
   execution_roots : Array[ExecutionRoot]
   effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
 } derive(Debug, Eq)
@@ -23,15 +22,9 @@ pub(all) enum ExecutionRoot {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct RuntimeBoundary {
-  effect_operations : Array[@module_link.LinkedRuntimeEffectOperation]
-} derive(Debug, Eq)
-
-///|
 pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
-  UnsupportedRuntimeBoundary(detail~ : String)
   UnsupportedEffectSpecialization(detail~ : String)
   EffectLoweringError(@effect_lowering.SynthesisError)
 } derive(Debug, Eq)

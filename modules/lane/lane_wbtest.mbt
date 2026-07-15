@@ -660,12 +660,7 @@ test "run executes pure unit function entries without rendering Unit" {
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  let outcome = execute_entry(
-    program,
-    result.externals,
-    result.runtime_effect_operations,
-    entry,
-  )
+  let outcome = execute_entry(program, result.externals, entry)
   guard outcome is Succeeded else { abort("expected run entry to succeed") }
 }
 
@@ -691,13 +686,9 @@ test "run accepts built-in Io through an explicit Basic extern" {
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(validate_executable_entry(entry), content="Ok(())")
   let output : Array[String] = []
-  guard execute_entry_with_output(
-      program,
-      result.externals,
-      result.runtime_effect_operations,
-      entry,
-      line => output.push(line),
-    )
+  guard execute_entry_with_output(program, result.externals, entry, line => {
+      output.push(line)
+    })
     is Succeeded else {
     abort("expected run entry to succeed through LoisVM")
   }
@@ -735,13 +726,9 @@ test "run lowers lexical handlers before runtime effects" {
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   let output : Array[String] = []
-  guard execute_entry_with_output(
-      program,
-      result.externals,
-      result.runtime_effect_operations,
-      entry,
-      line => output.push(line),
-    )
+  guard execute_entry_with_output(program, result.externals, entry, line => {
+      output.push(line)
+    })
     is Succeeded else {
     abort("expected handled entry to succeed through LoisVM")
   }

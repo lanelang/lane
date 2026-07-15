@@ -5,5 +5,4 @@ import {
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module" @module_interface,
-  "Milky2018/lanec/types",
 }

@@ -13,7 +13,6 @@ import {
 }
 
 import {
-  "Milky2018/lanec/types",
   "Milky2018/loisvm/interp",
   "Milky2018/loisvm/runtime" @loisvm_runtime,
 } for "wbtest"

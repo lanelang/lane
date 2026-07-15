@@ -61,18 +61,15 @@ pub fn module_object_fingerprint(
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   imports : Array[@artifact_core.ModuleImportedReference],
-  runtime_effect_operations : Array[
-    @module_link.RuntimeEffectOperationSignature,
-  ],
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ],
 ) -> @artifact_core.CompilationFingerprint {
   fingerprint_hash_bytes(
-    "lane-object-fingerprint-v1",
+    "lane-object-fingerprint-v2",
     module_object_fingerprint_payload_bytes(
       module_fingerprint, interface_fingerprint, metadata, terms, externals, entries,
-      exports, imports, runtime_effect_operations, imported_interface_fingerprints,
+      exports, imports, imported_interface_fingerprints,
     ),
   )
 }
@@ -87,9 +84,6 @@ fn module_object_fingerprint_payload_bytes(
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   imports : Array[@artifact_core.ModuleImportedReference],
-  runtime_effect_operations : Array[
-    @module_link.RuntimeEffectOperationSignature,
-  ],
   imported_interface_fingerprints : Array[
     @artifact_core.ImportedInterfaceFingerprint,
   ],
@@ -102,31 +96,10 @@ fn module_object_fingerprint_payload_bytes(
   @artifact_core.write_entries(writer, entries)
   @artifact_core.write_exports(writer, exports)
   @artifact_core.write_imports(writer, imports)
-  write_runtime_effect_operation_signatures(writer, runtime_effect_operations)
   @artifact_core.write_imported_interface_fingerprints(
     writer, imported_interface_fingerprints,
   )
   writer.to_bytes()
-}
-
-///|
-fn write_runtime_effect_operation_signatures(
-  writer : @bytecodec.ByteWriter,
-  signatures : Array[@module_link.RuntimeEffectOperationSignature],
-) -> Unit {
-  writer.write_u32_le(signatures.length())
-  for signature in signatures {
-    writer.write_string(signature.module_path_text)
-    writer.write_string(signature.effect_name)
-    writer.write_string(signature.operation_name)
-    writer.write_u32_le(signature.payload.length())
-    for type_ in signature.payload {
-      writer.write_string(@prettyprinter.render(type_.pretty(), width=100))
-    }
-    writer.write_string(
-      @prettyprinter.render(signature.result.pretty(), width=100),
-    )
-  }
 }
 
 ///|

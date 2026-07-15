@@ -85,7 +85,6 @@ fn compile_one_module(
         [],
         [],
         [],
-        [],
         imported_fingerprints,
       )
       let object : ModuleObject = {
@@ -98,7 +97,6 @@ fn compile_one_module(
         entries: [],
         exports: [],
         imports: [],
-        runtime_effect_operations: [],
         fingerprint,
         object_fingerprint,
         imported_interface_fingerprints: imported_fingerprints,

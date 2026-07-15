@@ -23,11 +23,10 @@ fn compile_effect_conformance_image(
     fail("effect conformance source produced no main entry")
   }
   match
-    @loisvm_lowering.lower_linked_program_to_bytecode_with_runtime_effects(
+    @loisvm_lowering.lower_linked_program_to_bytecode(
       program,
       result.externals,
       entry,
-      result.runtime_effect_operations,
     ) {
     Ok(image) => image
     Err(error) => fail("effect conformance lowering failed: \{to_repr(error)}")

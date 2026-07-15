@@ -52,35 +52,22 @@ async fn lane_run(
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_entry(
-    program,
-    result.externals,
-    result.runtime_effect_operations,
-    entry,
-  )
+  execute_entry(program, result.externals, entry)
 }
 
 ///|
 fn execute_entry(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
-  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
   entry : @buslane_lowering.BuslaneEntry,
 ) -> LaneCommandOutcome {
-  execute_entry_with_output(
-    program,
-    externals,
-    runtime_effect_operations,
-    entry,
-    line => println(line),
-  )
+  execute_entry_with_output(program, externals, entry, line => println(line))
 }
 
 ///|
 fn execute_entry_with_output(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
-  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
   entry : @buslane_lowering.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
@@ -93,7 +80,6 @@ fn execute_entry_with_output(
     program,
     externals,
     entries: [entry],
-    runtime_effect_operations,
   }
   let executable = match elaborate_linked_executable(linked, entry) {
     Ok(executable) => executable

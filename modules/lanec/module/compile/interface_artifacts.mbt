@@ -233,7 +233,6 @@ fn CompiledModule::with_imported_interface_fingerprints(
     entries: self.object.entries,
     exports: self.object.exports,
     imports: self.object.imports,
-    runtime_effect_operations: self.object.runtime_effect_operations,
     fingerprint,
     object_fingerprint: module_object_fingerprint(
       fingerprint,
@@ -244,7 +243,6 @@ fn CompiledModule::with_imported_interface_fingerprints(
       self.object.entries,
       self.object.exports,
       self.object.imports,
-      self.object.runtime_effect_operations,
       imported,
     ),
     imported_interface_fingerprints: imported,

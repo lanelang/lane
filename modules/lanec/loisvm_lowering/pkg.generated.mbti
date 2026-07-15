@@ -6,7 +6,6 @@ import {
   "Milky2018/lanec/effect_lowering/core",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/executable",
-  "Milky2018/lanec/module/link",
   "Milky2018/lanec/vmcfg",
   "Milky2018/loisvm/bytecode",
   "moonbitlang/core/debug",
@@ -16,8 +15,6 @@ import {
 pub fn lower_executable_program_to_bytecode(@executable.ExecutableProgram) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 pub fn lower_linked_program_to_bytecode(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
-
-pub fn lower_linked_program_to_bytecode_with_runtime_effects(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry, Array[@link.LinkedRuntimeEffectOperation]) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 // Errors
 pub(all) suberror LoisvmLoweringError {

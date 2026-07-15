@@ -304,9 +304,6 @@ fn encode_module_object_artifact_payload(
   @artifact_core.write_entries(writer, artifact.entries)
   @artifact_core.write_exports(writer, artifact.exports)
   @artifact_core.write_imports(writer, artifact.imports)
-  writer.write_runtime_effect_operation_signatures(
-    artifact.runtime_effect_operations,
-  )
   @artifact_core.write_compilation_fingerprint(
     writer,
     artifact.module_fingerprint,
@@ -344,7 +341,6 @@ fn decode_module_object_artifact_payload(
     entries: reader.read_entries(),
     exports: reader.read_exports(),
     imports: reader.read_imports(),
-    runtime_effect_operations: reader.read_runtime_effect_operation_signatures(),
     module_fingerprint: reader.read_compilation_fingerprint(),
     object_fingerprint: reader.read_compilation_fingerprint(),
     imported_interface_fingerprints: reader.read_imported_interface_fingerprints(),

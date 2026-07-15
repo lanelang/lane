@@ -55,15 +55,11 @@ fn link_ordered_modules(
   let builtins = []
   let runtime_imports = []
   let entries : Array[@buslane_lowering.BuslaneEntry] = []
-  let runtime_effect_operations : Array[LinkedRuntimeEffectOperation] = []
-  for index, object in remapped_objects {
+  for object in remapped_objects {
     module_path_texts.push(object.module_path_text)
     terms.append(object.terms)
     builtins.append(object.externals.builtins)
     runtime_imports.append(object.externals.runtime_imports)
-    runtime_effect_operations.append(
-      runtime_effect_operations_from_module(modules[index], object),
-    )
     match entry_mode {
       RootEntries(root) =>
         if object.module_path_text == root {
@@ -78,38 +74,9 @@ fn link_ordered_modules(
       program: { metadata: remapper.metadata, terms },
       externals: { builtins, runtime_imports },
       entries,
-      runtime_effect_operations,
     }),
     diagnostics: [],
   }
-}
-
-///|
-fn runtime_effect_operations_from_module(
-  module_ : LinkModuleObject,
-  object : RemappedModuleObject,
-) -> Array[LinkedRuntimeEffectOperation] {
-  let operations : Array[LinkedRuntimeEffectOperation] = []
-  for operation in module_.runtime_effect_operations {
-    let export_name = effect_operation_export_name(
-      operation.effect_name,
-      operation.operation_name,
-    )
-    if find_module_export(object.exports, Operation, export_name)
-      is Some(export_) {
-      if export_.operation is Some(operation_id) {
-        operations.push({
-          module_path_text: operation.module_path_text,
-          effect_name: operation.effect_name,
-          operation_name: operation.operation_name,
-          payload: operation.payload,
-          result: operation.result,
-          operation: operation_id,
-        })
-      }
-    }
-  }
-  operations
 }
 
 ///|

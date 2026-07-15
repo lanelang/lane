@@ -106,7 +106,6 @@ test "linked executable lowers through the LoisVM boundary" {
     },
     externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
-    runtime_effect_operations: [],
   }
   let executable = match @executable.elaborate(linked, entry) {
     Ok(executable) => executable
@@ -150,7 +149,6 @@ test "schema 4 roundtrips and inspects schema 2 instance globals" {
     },
     externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
-    runtime_effect_operations: [],
   }
   let executable = match @executable.elaborate(linked, entry) {
     Ok(executable) => executable

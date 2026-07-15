@@ -351,52 +351,6 @@ test "effect forms fail before bytecode emission" {
 }
 
 ///|
-test "pure entry ignores unused generic runtime effects" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let hidden = metadata.define_type_parameter("Hidden", Type)
-  let unused_effect = metadata.define_effect("Unused", [])
-  let unused_operation = metadata.define_operation(
-    "generic",
-    unused_effect,
-    [hidden],
-    [Parameter(hidden)],
-    Parameter(hidden),
-  )
-  let main_type = test_function_type([], unit_type)
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      Let(
-        main,
-        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
-      ),
-    ],
-  }
-  let image = match
-    lower_linked_program_to_bytecode_with_runtime_effects(
-      program,
-      { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
-      [
-        {
-          module_path_text: "Unused",
-          effect_name: "Unused",
-          operation_name: "generic",
-          payload: [Primitive(Unit)],
-          result: Primitive(Unit),
-          operation: unused_operation,
-        },
-      ],
-    ) {
-    Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
-  }
-  assert_false(image.functions.any(function => function is RuntimeImport(_)))
-}
-
-///|
 test "lexical handlers and resume lower before LoisVM bytecode" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let int_type = @buslane.Type::Primitive(Int)
