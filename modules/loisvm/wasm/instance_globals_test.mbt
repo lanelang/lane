@@ -83,6 +83,95 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
 }
 
 ///|
+struct RuntimeContextObservation {
+  import_call_count : Int
+  identity_matrix : Array[Array[Bool]]
+} derive(Debug)
+
+///|
+fn runtime_context_observation(
+  contexts : Array[@loisvm_runtime.RuntimeContext],
+) -> RuntimeContextObservation {
+  {
+    import_call_count: contexts.length(),
+    identity_matrix: contexts.map(fn(left) {
+      contexts.map(fn(right) { physical_equal(left, right) })
+    }),
+  }
+}
+
+///|
+test "Wasm initializer and entry share one runtime context" {
+  let contexts : Array[@loisvm_runtime.RuntimeContext] = []
+  let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.context",
+      abi_major=1,
+      parameters=[],
+      result=Unit,
+      invoke=fn(context, _arguments) {
+        contexts.push(context)
+        Unit
+      },
+    ),
+  )
+  let call_import = wasm_global_body([], [
+    CallDirect({ value: 3 }, None, [], [], None),
+  ])
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 2 },
+    initializer: Some({ value: 1 }),
+    functions: [
+      BytecodeBody(call_import),
+      BytecodeBody(call_import),
+      RuntimeImport({ abi_major: 1, user_arity: 0, symbol: "lane.test.context" }),
+    ],
+    globals: [],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+  let loaded = match load(image, registry) {
+    Ok(loaded) => loaded
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  let instance = match loaded.new_instance() {
+    Ok(instance) => instance
+    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+  }
+  assert_eq(instance.execute(), Ok(()))
+  debug_inspect(
+    runtime_context_observation(contexts),
+    content=(
+      #|{
+      #|  import_call_count: 2,
+      #|  identity_matrix: [[true, true], [true, true]],
+      #|}
+    ),
+  )
+  let second_instance = match loaded.new_instance() {
+    Ok(instance) => instance
+    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+  }
+  assert_eq(second_instance.execute(), Ok(()))
+  debug_inspect(
+    runtime_context_observation(contexts),
+    content=(
+      #|{
+      #|  import_call_count: 4,
+      #|  identity_matrix: [
+      #|    [true, true, false, false],
+      #|    [true, true, false, false],
+      #|    [false, false, true, true],
+      #|    [false, false, true, true],
+      #|  ],
+      #|}
+    ),
+  )
+}
+
+///|
 fn wasm_lifecycle_initializer() -> @bytecode.FunctionBody {
   let owned_ref = wasm_global_slot(I32, cleanup=OwnedRef)
   wasm_global_body(

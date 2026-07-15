@@ -22,6 +22,7 @@ pub struct ExecutionInstance {
   initialized_globals : Array[@bytecode.GlobalId]
   mut initializing : Bool
   mut state : InstanceState
+  // private fields
 }
 pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @runtime.ExecutionError]
 

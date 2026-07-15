@@ -87,11 +87,12 @@ fn LoadedImage::new_instance_or_raise(
   let store = @wasmoon_runtime.Store::Store()
   let imports = @wasmoon_runtime.Imports::Imports()
   let failure : ImportFailureState = { symbol: None, message: None }
+  let runtime_context = @loisvm_runtime.RuntimeContext::new()
   for binding in self.bindings {
     let host_function : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
       @wasm_types.Value,
     ] raise @wasmoon_runtime.RuntimeError = (caller, values) => {
-      invoke_runtime_binding(caller, binding, failure, values)
+      invoke_runtime_binding(caller, binding, failure, runtime_context, values)
     }
     let address = store.alloc_host_func_with_caller(host_function, func_type={
       params: physical_runtime_parameters(binding),
@@ -164,6 +165,7 @@ fn invoke_runtime_binding(
   caller : @wasmoon_runtime.Caller,
   binding : @loisvm_runtime.RuntimeBinding,
   failure : ImportFailureState,
+  runtime_context : @loisvm_runtime.RuntimeContext,
   values : Array[@wasm_types.Value],
 ) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError {
   let arguments : Array[@loisvm_runtime.HostValue] = []
@@ -210,9 +212,7 @@ fn invoke_runtime_binding(
       }
     }
   }
-  let result = try
-    binding.call(@loisvm_runtime.RuntimeContext::new(), arguments)
-  catch {
+  let result = try binding.call(runtime_context, arguments) catch {
     Failure(message~) => {
       failure.symbol = Some(binding.symbol())
       failure.message = Some(message)

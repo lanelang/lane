@@ -86,6 +86,90 @@ test "interpreter executes direct and runtime calls once" {
 }
 
 ///|
+struct RuntimeContextObservation {
+  import_call_count : Int
+  identity_matrix : Array[Array[Bool]]
+} derive(Debug)
+
+///|
+fn runtime_context_observation(
+  contexts : Array[@runtime.RuntimeContext],
+) -> RuntimeContextObservation {
+  {
+    import_call_count: contexts.length(),
+    identity_matrix: contexts.map(fn(left) {
+      contexts.map(fn(right) { physical_equal(left, right) })
+    }),
+  }
+}
+
+///|
+test "interpreter initializer and entry share one runtime context" {
+  let contexts : Array[@runtime.RuntimeContext] = []
+  let registry = @runtime.RuntimeRegistry::new()
+  registry.register(
+    @runtime.RuntimeBinding::new(
+      symbol="lane.test.context",
+      abi_major=1,
+      parameters=[],
+      result=Unit,
+      invoke=fn(context, _arguments) {
+        contexts.push(context)
+        Unit
+      },
+    ),
+  )
+  let call_import = body(
+    slots=[],
+    result=Unit,
+    instructions=[CallDirect({ value: 3 }, None, [], [], None)],
+    terminator=Return(None),
+  )
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 2 },
+    initializer: Some({ value: 1 }),
+    globals: [],
+    functions: [
+      BytecodeBody(call_import),
+      BytecodeBody(call_import),
+      RuntimeImport({ abi_major: 1, user_arity: 0, symbol: "lane.test.context" }),
+    ],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+  let loaded = match load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{to_repr(error)}")
+  }
+  assert_eq(loaded.new_instance().execute(), Ok(()))
+  debug_inspect(
+    runtime_context_observation(contexts),
+    content=(
+      #|{
+      #|  import_call_count: 2,
+      #|  identity_matrix: [[true, true], [true, true]],
+      #|}
+    ),
+  )
+  assert_eq(loaded.new_instance().execute(), Ok(()))
+  debug_inspect(
+    runtime_context_observation(contexts),
+    content=(
+      #|{
+      #|  import_call_count: 4,
+      #|  identity_matrix: [
+      #|    [true, true, false, false],
+      #|    [true, true, false, false],
+      #|    [false, false, true, true],
+      #|    [false, false, true, true],
+      #|  ],
+      #|}
+    ),
+  )
+}
+
+///|
 test "interpreter execution can be interrupted" {
   let entry = body(
     slots=[],
