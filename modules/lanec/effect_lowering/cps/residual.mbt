@@ -97,7 +97,10 @@ fn ResidualComputationSchema::fresh_frame(
     answer_parameter,
     answer_type,
     context_parameters,
-    environment: { effect: self.effect, bindings },
+    environment: {
+      effect: @buslane.Effect::Union([self.effect, self.residual_effect]).canonicalize(),
+      bindings,
+    },
     continuation,
   }
 }

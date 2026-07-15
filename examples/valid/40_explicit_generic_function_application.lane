@@ -1,6 +1,6 @@
 module Examples.Valid.ExplicitGenericFunctionApplication
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -37,8 +37,8 @@ fn explicit_id() -> Int {
 
 pub fn answer() -> Unit ! Io {
   if explicit_id() == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

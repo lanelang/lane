@@ -1,11 +1,11 @@
 module ExecutableEntry
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub fn main() -> Unit ! Io {
-  Write::println!("hello from Lane")
+  println("hello from Lane")
 }
 
 pub fn answer() -> Unit ! Io {
-  Write::println!("hello from Lane")
+  println("hello from Lane")
 }

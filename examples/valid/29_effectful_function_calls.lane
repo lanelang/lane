@@ -2,7 +2,7 @@ module Examples.Valid.EffectfulFunctionCalls
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 effect Console {
   read() -> Int
@@ -26,8 +26,8 @@ pub let handled_value : Int = {
 
 pub fn answer() -> Unit ! Io {
   if handled_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

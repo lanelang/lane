@@ -2,7 +2,7 @@ module Examples.Valid.UnqualifiedVariantPatterns
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 enum Left {
   same(Int)
@@ -28,8 +28,8 @@ pub let left_payload : Int = read_left(Left::same(42))
 
 pub fn answer() -> Unit ! Io {
   if left_payload == 42 && read_right(Right::same(true)) == 1 {
-    Write::println!("left=42 right=1")
+    println("left=42 right=1")
   } else {
-    Write::println!("bad:left=42 right=1")
+    println("bad:left=42 right=1")
   }
 }

@@ -2,7 +2,7 @@ module Examples.Valid01
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub fn read_stored_value() -> Int {
   stored_value
@@ -12,8 +12,8 @@ pub let stored_value : Int = 42
 
 pub fn answer() -> Unit ! Io {
   if read_stored_value() == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

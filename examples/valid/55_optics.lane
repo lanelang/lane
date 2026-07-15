@@ -1,6 +1,6 @@
 module Examples.Valid.Optics
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -121,14 +121,14 @@ pub fn answer() -> Unit ! Io {
   if tuned_config.database.pool.size == 42 {
     if tuned_config.database.pool.timeout == 101 {
       if tuned_config.database.replicas == 2 {
-        Write::println!("optics=42")
+        println("optics=42")
       } else {
-        Write::println!("optic sibling field failed")
+        println("optic sibling field failed")
       }
     } else {
-      Write::println!("optic timeout failed")
+      println("optic timeout failed")
     }
   } else {
-    Write::println!("optic size failed")
+    println("optic size failed")
   }
 }

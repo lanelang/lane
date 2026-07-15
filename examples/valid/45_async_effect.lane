@@ -1,6 +1,6 @@
 module Examples.Valid.AsyncEffect
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -75,8 +75,8 @@ pub let async_result : Int = run_loop(run_task(program))
 
 pub fn answer() -> Unit ! Io {
   if async_result == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

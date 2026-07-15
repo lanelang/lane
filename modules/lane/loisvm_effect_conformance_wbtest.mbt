@@ -2,11 +2,7 @@
 fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
-    #|pub effect Write {
-    #|  println(String) -> Unit
-    #|}
-    #|pub type Console = { Write }
-    #|pub type Io = { Console }
+    #|pub let println : (String) -> Unit ! Io = extern("%println")
   )
 }
 
@@ -45,15 +41,13 @@ fn effect_conformance_registry(
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="lane.effect.v1/Basic.Io/Write/println",
+      symbol="%println",
       abi_major=1,
       parameters=[String],
       result=Unit,
       invoke=(_context, arguments) => {
         guard arguments is [BorrowedString(line)] else {
-          raise Failure(
-            message="Basic.Io.Write.println expects one String argument",
-          )
+          raise Failure(message="%println expects one String argument")
         }
         output.push(line.to_string())
         Unit
@@ -105,7 +99,7 @@ fn assert_effect_erased_host_boundary(
       imports.push((import_.symbol, import_.abi_major, import_.user_arity))
     }
   }
-  assert_eq(imports, [("lane.effect.v1/Basic.Io/Write/println", 1, 1)])
+  assert_eq(imports, [("%println", 1, 1)])
 }
 
 ///|
@@ -134,13 +128,13 @@ test "effect lowering agrees for a direct deep handler and runtime effect" {
       #|pub fn main() -> Unit ! Io {
       #|  let _handled : Unit = handle Tick::tick!() with {
       #|    Tick::tick(resume) => {
-      #|      let _written : Unit = Write::println!("handled")
+      #|      let _written : Unit = println("handled")
       #|      resume(())
       #|    }
       #|  } final _value {
-      #|    Write::println!("final")
+      #|    println("final")
       #|  }
-      #|  Write::println!("after")
+      #|  println("after")
       #|}
     ),
     ["handled", "final", "after"],
@@ -160,24 +154,24 @@ test "effect lowering agrees for nested deep handlers and arm effects" {
       #|  let _handled : Unit = handle {
       #|    handle Ping::ping!() with {
       #|      Ping::ping(resume) => {
-      #|        let _inner : Unit = Write::println!("inner")
+      #|        let _inner : Unit = println("inner")
       #|        let _outer : Unit = Ping::ping!()
       #|        resume(())
       #|      }
       #|    } final value {
-      #|      let _inner_final : Unit = Write::println!("inner-final")
+      #|      let _inner_final : Unit = println("inner-final")
       #|      value
       #|    }
       #|  } with {
       #|    Ping::ping(resume) => {
-      #|      let _outer : Unit = Write::println!("outer")
+      #|      let _outer : Unit = println("outer")
       #|      resume(())
       #|    }
       #|  } final value {
-      #|    let _outer_final : Unit = Write::println!("outer-final")
+      #|    let _outer_final : Unit = println("outer-final")
       #|    value
       #|  }
-      #|  Write::println!("after")
+      #|  println("after")
       #|}
     ),
     ["inner", "outer", "inner-final", "outer-final", "after"],
@@ -197,7 +191,7 @@ test "effect lowering agrees for reusable resumptions with owned captures" {
       #|  let captured : String = "single"
       #|  handle {
       #|    let _tick : Unit = Tick::tick!()
-      #|    Write::println!(captured)
+      #|    println(captured)
       #|  } with {
       #|    Tick::tick(resume) => resume(())
       #|  } final value {
@@ -208,7 +202,7 @@ test "effect lowering agrees for reusable resumptions with owned captures" {
       #|  let captured : String = "multi"
       #|  handle {
       #|    let _tick : Unit = Tick::tick!()
-      #|    Write::println!(captured)
+      #|    println(captured)
       #|  } with {
       #|    Tick::tick(resume) => {
       #|      let _first : Unit = resume(())
@@ -245,7 +239,7 @@ test "effect lowering agrees for generic resumptions with layout witnesses" {
       #|  } final value {
       #|    value
       #|  }
-      #|  Write::println!(selected)
+      #|  println(selected)
       #|}
     ),
     ["selected"],

@@ -1,6 +1,6 @@
 module Examples.Valid23
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -135,8 +135,8 @@ pub let evaluated_value : Int = evaluated.value
 
 pub fn answer() -> Unit ! Io {
   if evaluated_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

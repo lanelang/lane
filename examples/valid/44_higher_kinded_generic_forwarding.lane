@@ -1,6 +1,6 @@
 module Examples.Valid44
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -24,8 +24,8 @@ let forwarded : Int = run_box(Box::{ value: 1 })
 
 pub fn answer() -> Unit ! Io {
   if forwarded == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

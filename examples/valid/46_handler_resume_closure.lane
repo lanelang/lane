@@ -1,6 +1,6 @@
 module Examples.Valid.HandlerResumeClosure
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -23,8 +23,8 @@ fn program() -> Int {
 
 pub fn answer() -> Unit ! Io {
   if program() == 42 {
-    Write::println!("resume closure=42")
+    println("resume closure=42")
   } else {
-    Write::println!("bad:resume closure")
+    println("bad:resume closure")
   }
 }

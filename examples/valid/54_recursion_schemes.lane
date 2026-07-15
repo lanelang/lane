@@ -1,6 +1,6 @@
 module Examples.Valid.RecursionSchemes
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -78,11 +78,11 @@ let program_size : Int = cata(expr_functor, size, program)
 pub fn answer() -> Unit ! Io {
   if program_value == 42 {
     if program_size == 5 {
-      Write::println!("recursion schemes=42")
+      println("recursion schemes=42")
     } else {
-      Write::println!("recursion scheme size failed")
+      println("recursion scheme size failed")
     }
   } else {
-    Write::println!("recursion scheme eval failed")
+    println("recursion scheme eval failed")
   }
 }

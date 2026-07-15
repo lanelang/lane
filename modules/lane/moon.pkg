@@ -10,7 +10,6 @@ import {
   "Milky2018/lanec/module/compile" @module_compile,
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/lanec/module/link" @module_link,
-  "Milky2018/lanec/types",
   "Milky2018/lane/lsp",
   "Milky2018/lane/terminal",
   "Milky2018/loisvm/bytecode" @loisvm_bytecode,

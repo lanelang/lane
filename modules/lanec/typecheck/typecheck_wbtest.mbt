@@ -4356,6 +4356,24 @@ test "typecheck resolves import-free built-in Io effect" {
 }
 
 ///|
+test "typecheck does not let an effect alias shadow built-in Io" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  write(String) -> Unit
+      #|}
+      #|type Io = { Console }
+      #|let write : (String) -> Unit ! Io = extern("%write")
+      #|fn run() -> Unit ! Io {
+      #|  write("hello")
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  debug_inspect(checked_function_effect(result, "run"), content="Io")
+}
+
+///|
 test "typecheck rejects generic arguments on built-in Io" {
   let result = expect_typecheck_result(
     (

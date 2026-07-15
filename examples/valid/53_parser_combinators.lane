@@ -1,6 +1,6 @@
 module Examples.Valid.ParserCombinators
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -157,14 +157,14 @@ pub fn answer() -> Unit ! Io {
   if expression_result == 42 {
     if fallback_result == 0 {
       if mapped_result == 42 {
-        Write::println!("parser combinators=42")
+        println("parser combinators=42")
       } else {
-        Write::println!("parser map failed")
+        println("parser map failed")
       }
     } else {
-      Write::println!("parser fallback failed")
+      println("parser fallback failed")
     }
   } else {
-    Write::println!("parser expression failed")
+    println("parser expression failed")
   }
 }

@@ -2,7 +2,7 @@ module Examples.Valid.NestedPatternExhaustiveness
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub enum Option[A] {
   none()
@@ -32,8 +32,8 @@ pub let flattened_value : Int = flatten(some(some(42)))
 
 pub fn answer() -> Unit ! Io {
   if flattened_value == 42 && boxed(Box::{ value: some(42) }) == 42 {
-    Write::println!("flatten=42 boxed=42")
+    println("flatten=42 boxed=42")
   } else {
-    Write::println!("bad:flatten=42 boxed=42")
+    println("bad:flatten=42 boxed=42")
   }
 }

@@ -2,7 +2,7 @@ module Examples.Valid11
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub fn apply(value : Int, f : (Int) -> Int) -> Int {
   f(value)
@@ -22,8 +22,8 @@ pub let id_poly : [A](A) -> A = fn[A] (value) {
 
 pub fn answer() -> Unit ! Io {
   if apply(42, id_int) == 42 && apply_generic(42, id_int) == 42 {
-    Write::println!("apply=42")
+    println("apply=42")
   } else {
-    Write::println!("bad:apply=42")
+    println("bad:apply=42")
   }
 }

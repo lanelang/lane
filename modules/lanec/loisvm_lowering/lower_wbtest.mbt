@@ -333,102 +333,21 @@ test "effect forms fail before bytecode emission" {
       ),
     ],
   }
-  assert_true(
+  debug_inspect(
     lower_linked_program_to_bytecode(
       program,
       { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
-    )
-    is Err(
-      UnsupportedExpression(
-        detail="non-runtime effects must be erased before VM CFG lowering"
-      )
+    ),
+    content=(
+      #|Err(
+      #|  InvalidFunctionType(
+      #|    value={ index: 0 },
+      #|    type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
+      #|  ),
+      #|)
     ),
   )
-}
-
-///|
-test "linked runtime effects become ordinary stable-symbol imports" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let string_type = @buslane.Type::Primitive(String)
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let effect = metadata.define_effect("Io", [])
-  let operation = metadata.define_operation(
-    "print",
-    effect,
-    [],
-    [string_type],
-    unit_type,
-  )
-  let main_type = @buslane.Type::Function([], unit_type, Singleton(effect, []))
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      Let(
-        main,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Perform({
-            operation,
-            effect_arguments: [],
-            hidden_witnesses: [],
-            payloads: [Literal(String("Lane"))],
-          }),
-        }),
-      ),
-    ],
-  }
-  let image = match
-    lower_linked_program_to_bytecode_with_runtime_effects(
-      program,
-      { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
-      [
-        {
-          module_path_text: "Main",
-          effect_name: "Io",
-          operation_name: "print",
-          payload: [Primitive(String)],
-          result: Primitive(Unit),
-          operation,
-        },
-      ],
-    ) {
-    Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
-  }
-  assert_true(
-    image.functions.any(function => {
-      function
-      is RuntimeImport(
-        { abi_major: 1, user_arity: 1, symbol: "lane.effect.v1/Main/Io/print" }
-      )
-    }),
-  )
-  let mut observed = ""
-  let registry = @loisvm_runtime.RuntimeRegistry::new()
-  registry.register(
-    @loisvm_runtime.RuntimeBinding::new(
-      symbol="lane.effect.v1/Main/Io/print",
-      abi_major=1,
-      parameters=[String],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [BorrowedString(value)] {
-          observed = value.to_string()
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match @interp.load(image, registry) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
-  }
-  assert_eq(loaded.new_instance().execute(), Ok(()))
-  assert_eq(observed, "Lane")
 }
 
 ///|
@@ -475,103 +394,6 @@ test "pure entry ignores unused generic runtime effects" {
     Err(error) => fail("lowering failed: \{to_repr(error)}")
   }
   assert_false(image.functions.any(function => function is RuntimeImport(_)))
-}
-
-///|
-test "runtime effect imports exclude effects outside the entry row" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let selected_effect = metadata.define_effect("Selected", [])
-  let selected_operation = metadata.define_operation(
-    "run",
-    selected_effect,
-    [],
-    [],
-    unit_type,
-  )
-  let unused_effect = metadata.define_effect("Unused", [])
-  let unused_operation = metadata.define_operation(
-    "skip",
-    unused_effect,
-    [],
-    [],
-    unit_type,
-  )
-  let main_type = @buslane.Type::Function(
-    [],
-    unit_type,
-    Singleton(selected_effect, []),
-  )
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      Let(
-        main,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Perform({
-            operation: selected_operation,
-            effect_arguments: [],
-            hidden_witnesses: [],
-            payloads: [],
-          }),
-        }),
-      ),
-    ],
-  }
-  let image = match
-    lower_linked_program_to_bytecode_with_runtime_effects(
-      program,
-      { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
-      [
-        {
-          module_path_text: "Main",
-          effect_name: "Selected",
-          operation_name: "run",
-          payload: [],
-          result: Primitive(Unit),
-          operation: selected_operation,
-        },
-        {
-          module_path_text: "Unused",
-          effect_name: "Unused",
-          operation_name: "skip",
-          payload: [],
-          result: Primitive(Unit),
-          operation: unused_operation,
-        },
-      ],
-    ) {
-    Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
-  }
-  assert_true(
-    image.functions.any(function => {
-      function
-      is RuntimeImport(
-        {
-          abi_major: 1,
-          user_arity: 0,
-          symbol: "lane.effect.v1/Main/Selected/run",
-        }
-      )
-    }),
-  )
-  assert_false(
-    image.functions.any(function => {
-      function
-      is RuntimeImport(
-        {
-          abi_major: 1,
-          user_arity: 0,
-          symbol: "lane.effect.v1/Unused/Unused/skip",
-        }
-      )
-    }),
-  )
 }
 
 ///|
@@ -675,70 +497,6 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
-}
-
-///|
-test "runtime effects reject nonprimitive host signatures" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let box = metadata.define_type("Box", [])
-  ignore(metadata.define_data_constructor("Box", box, [], []))
-  let box_type = @buslane.Type::Constructor(box)
-  let effect = metadata.define_effect("Host", [])
-  let operation = metadata.define_operation(
-    "send",
-    effect,
-    [],
-    [box_type],
-    unit_type,
-  )
-  let payload = metadata.define_value("payload", Parameter, box_type)
-  let main_type = @buslane.Type::Function(
-    [box_type],
-    unit_type,
-    Singleton(effect, []),
-  )
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      Let(
-        main,
-        Function({
-          parameters: [payload],
-          result_type: unit_type,
-          body: Perform({
-            operation,
-            effect_arguments: [],
-            hidden_witnesses: [],
-            payloads: [Ref(payload)],
-          }),
-        }),
-      ),
-    ],
-  }
-  assert_true(
-    lower_linked_program_to_bytecode_with_runtime_effects(
-      program,
-      { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
-      [
-        {
-          module_path_text: "Main",
-          effect_name: "Host",
-          operation_name: "send",
-          payload: [Primitive(Unit)],
-          result: Primitive(Unit),
-          operation,
-        },
-      ],
-    )
-    is Err(
-      UnsupportedExpression(
-        detail="runtime effect operations must use only v1 host primitive types"
-      )
-    ),
-  )
 }
 
 ///|

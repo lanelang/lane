@@ -4,7 +4,7 @@ module Examples.Valid17
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub type Left[A, _B] = A
 
@@ -12,8 +12,8 @@ pub let left_value : Left[Int, Bool] = 42
 
 pub fn answer() -> Unit ! Io {
   if left_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

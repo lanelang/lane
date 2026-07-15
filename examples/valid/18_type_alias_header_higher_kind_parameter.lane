@@ -5,7 +5,7 @@ module Examples.Valid18
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub struct Box[A] {
   value : A
@@ -21,8 +21,8 @@ pub let higher_kind_value : Int = get(Box::{ value: 42 })
 
 pub fn answer() -> Unit ! Io {
   if higher_kind_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

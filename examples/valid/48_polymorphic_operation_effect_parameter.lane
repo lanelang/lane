@@ -1,6 +1,6 @@
 module Examples.Valid.PolymorphicOperationEffectParameter
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub effect Control {
   suspend[A, E : Effect](((A) -> Unit ! E) -> Unit ! E) -> A
@@ -20,5 +20,5 @@ pub fn[A] scheduled(value : A) -> A ! Control {
 }
 
 pub fn answer() -> Unit ! Io {
-  Write::println!("polymorphic operation effect parameter")
+  println("polymorphic operation effect parameter")
 }

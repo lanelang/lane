@@ -386,11 +386,7 @@ async test "exec executes explicit Basic Io linked input" {
     basic_source,
     (
       #|module Basic.Io
-      #|pub effect Write {
-      #|  println(String) -> Unit
-      #|}
-      #|pub type Console = { Write }
-      #|pub type Io = { Console }
+      #|pub let println : (String) -> Unit ! Io = extern("%println")
     ),
   )
   write_source_file(
@@ -400,7 +396,7 @@ async test "exec executes explicit Basic Io linked input" {
       #|import Basic.Io.*
       #|pub let message : String = "hello"
       #|pub fn main() -> Unit ! Io {
-      #|  Write::println!(message)
+      #|  println(message)
       #|}
     ),
   )
@@ -438,7 +434,7 @@ async test "exec executes explicit Basic Io linked input" {
     }
   }
   assert_true(image.initializer is Some(_))
-  assert_eq(image.globals.length(), 1)
+  assert_eq(image.globals.length(), 2)
   let output : Array[String] = []
   guard execute_loisvm_image_with_output(image, line => output.push(line))
     is Succeeded else {
@@ -520,7 +516,7 @@ async test "link rejects non-function selected entry" {
     content=(
       #|error[E6009]: entry `Main.main` is not executable
       #|  requested type: Int
-      #|  expected: () -> Unit, or supported runtime effects such as Basic.Io.Write
+      #|  expected: () -> Unit or () -> Unit ! Io
       #|
       #|The selected public entry is a value, not a function.
       #|
@@ -565,7 +561,7 @@ async test "link rejects unsupported selected entry effects" {
     content=(
       #|error[E6009]: entry `Main.main` is not executable
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit, or supported runtime effects such as Basic.Io.Write
+      #|  expected: () -> Unit or () -> Unit ! Io
       #|
       #|The selected function has unsupported effect set `effect#0`.
       #|
@@ -612,7 +608,7 @@ test "run rejects public value entries" {
   let entry = find_entry(result.entries, "answer")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, []),
+    validate_executable_entry(entry),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -637,7 +633,7 @@ test "run rejects functions with parameters" {
   let entry = find_entry(result.entries, "id")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, []),
+    validate_executable_entry(entry),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -674,21 +670,17 @@ test "run executes pure unit function entries without rendering Unit" {
 }
 
 ///|
-test "run accepts Basic Io effect aliases when supplied explicitly" {
+test "run accepts built-in Io through an explicit Basic extern" {
   let basic_io =
     #|module Basic.Io
-    #|pub effect Write {
-    #|  println(String) -> Unit
-    #|}
-    #|pub type Console = { Write }
-    #|pub type Io = { Console }
+    #|pub let println : (String) -> Unit ! Io = extern("%println")
   let result = @compile.compile_sources(
     (
       #|module Test
       #|import Basic.Io.*
       #|pub let message : String = "hello"
       #|pub fn main() -> Unit ! Io {
-      #|  Write::println!(message)
+      #|  println(message)
       #|}
     ),
     [basic_io],
@@ -697,14 +689,7 @@ test "run accepts Basic Io effect aliases when supplied explicitly" {
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  let runtime_effects = command_runtime_effects(
-    program,
-    result.runtime_effect_operations,
-  )
-  debug_inspect(
-    validate_executable_entry(entry, runtime_effects),
-    content="Ok(())",
-  )
+  debug_inspect(validate_executable_entry(entry), content="Ok(())")
   let output : Array[String] = []
   guard execute_entry_with_output(
       program,
@@ -723,11 +708,7 @@ test "run accepts Basic Io effect aliases when supplied explicitly" {
 test "run lowers lexical handlers before runtime effects" {
   let basic_io =
     #|module Basic.Io
-    #|pub effect Write {
-    #|  println(String) -> Unit
-    #|}
-    #|pub type Console = { Write }
-    #|pub type Io = { Console }
+    #|pub let println : (String) -> Unit ! Io = extern("%println")
   let result = @compile.compile_sources(
     (
       #|module Test
@@ -744,7 +725,7 @@ test "run lowers lexical handlers before runtime effects" {
       #|}
       #|pub fn main() -> Unit ! Io {
       #|  let _handled : Unit = handled()
-      #|  Write::println!("handled")
+      #|  println("handled")
       #|}
     ),
     [basic_io],
@@ -768,7 +749,7 @@ test "run lowers lexical handlers before runtime effects" {
 }
 
 ///|
-test "run rejects Basic Io effect without explicit runtime metadata" {
+test "run rejects residual algebraic entry effects" {
   let result = @compile.compile_source(
     (
       #|module Test
@@ -781,14 +762,10 @@ test "run rejects Basic Io effect without explicit runtime metadata" {
     ),
   )
   inspect(result.diagnostics.length(), content="0")
-  guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(
-      entry,
-      command_runtime_effects(program, result.runtime_effect_operations),
-    ),
+    validate_executable_entry(entry),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -799,11 +776,7 @@ test "run rejects Basic Io effect without explicit runtime metadata" {
       #|)
     ),
   )
-  guard validate_executable_entry(
-      entry,
-      command_runtime_effects(program, result.runtime_effect_operations),
-    )
-    is Err(error) else {
+  guard validate_executable_entry(entry) is Err(error) else {
     abort("expected unsupported effect diagnostic")
   }
   inspect(
@@ -811,7 +784,7 @@ test "run rejects Basic Io effect without explicit runtime metadata" {
     content=(
       #|error[E6009]: entry `Test.main` is not executable
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit, or supported runtime effects such as Basic.Io.Write
+      #|  expected: () -> Unit or () -> Unit ! Io
       #|
       #|The selected function has unsupported effect set `effect#0`.
       #|

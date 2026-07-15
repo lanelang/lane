@@ -1,6 +1,6 @@
 module Examples.Valid22
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -123,8 +123,8 @@ pub let normalized_size : Int = if is_identity(normal_identity) {
 
 pub fn answer() -> Unit ! Io {
   if normalized_size == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

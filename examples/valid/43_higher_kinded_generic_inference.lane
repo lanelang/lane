@@ -1,6 +1,6 @@
 module Examples.Valid43
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -23,8 +23,8 @@ let inferred_constructor_and_value : Int = choose(Option::some(1), 41)
 
 pub fn answer() -> Unit ! Io {
   if inferred_constructor + inferred_constructor_and_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

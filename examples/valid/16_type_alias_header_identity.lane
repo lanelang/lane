@@ -5,7 +5,7 @@ module Examples.Valid16
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub type Id[A] = A
 
@@ -13,8 +13,8 @@ pub let identity_value : Id[Int] = 42
 
 pub fn answer() -> Unit ! Io {
   if identity_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

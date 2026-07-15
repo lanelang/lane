@@ -2,7 +2,7 @@ module Examples.Valid.ElseIfChain
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub fn choose(first : Bool, second : Bool) -> Int {
   if first {
@@ -22,8 +22,8 @@ pub let fallback : Int = choose(false, false)
 
 pub fn answer() -> Unit ! Io {
   if first == 1 && second == 2 && fallback == 3 {
-    Write::println!("1,2,3")
+    println("1,2,3")
   } else {
-    Write::println!("bad:1,2,3")
+    println("bad:1,2,3")
   }
 }

@@ -1,6 +1,6 @@
 module Examples.Valid12
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -14,8 +14,8 @@ pub fn compare_ints(a : Int, b : Int) -> Bool {
 
 pub fn answer() -> Unit ! Io {
   if compare_ints(1, 2) && compare_ints(2, 1) {
-    Write::println!("compare=true")
+    println("compare=true")
   } else {
-    Write::println!("bad:compare=true")
+    println("bad:compare=true")
   }
 }

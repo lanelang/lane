@@ -67,7 +67,7 @@ fn lower_cps_install(
     relay_environment,
   )
   let inner_environment = CpsEnvironment::{
-    effect: body_facts.effect,
+    effect: @buslane.Effect::Union([body_facts.effect, residual.residual_effect]).canonicalize(),
     bindings: handlers.bindings + relay.bindings,
   }
   let body = lower_cps_with_continuation(

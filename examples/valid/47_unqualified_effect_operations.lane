@@ -1,6 +1,6 @@
 module Examples.Valid.UnqualifiedEffectOperations
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -34,8 +34,8 @@ fn run() -> Int {
 
 pub fn answer() -> Unit ! Io {
   if run() == 40 {
-    Write::println!("unqualified operations=40")
+    println("unqualified operations=40")
   } else {
-    Write::println!("bad:unqualified operations")
+    println("bad:unqualified operations")
   }
 }

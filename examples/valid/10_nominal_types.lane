@@ -2,7 +2,7 @@ module Examples.Valid10
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub struct UserId {
   value : Int
@@ -22,8 +22,8 @@ pub let order_id : OrderId = OrderId::{ value: 1 }
 
 pub fn answer() -> Unit ! Io {
   if user_value(user_id) == 1 {
-    Write::println!("user_id=1")
+    println("user_id=1")
   } else {
-    Write::println!("bad:user_id=1")
+    println("bad:user_id=1")
   }
 }

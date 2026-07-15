@@ -2,7 +2,7 @@
 
 module Examples.Valid20
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub type Shadow[_A] = type[A] => A
 
@@ -12,8 +12,8 @@ pub let shadowed_value : BoolAlias = true
 
 pub fn answer() -> Unit ! Io {
   if shadowed_value {
-    Write::println!("true")
+    println("true")
   } else {
-    Write::println!("bad:true")
+    println("bad:true")
   }
 }

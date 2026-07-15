@@ -1,6 +1,6 @@
 module Examples.Valid21
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -198,8 +198,8 @@ pub let final_score : Int = unwrap_or(selected_value, 0) + found_score(elem(numb
 
 pub fn answer() -> Unit ! Io {
   if final_score == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

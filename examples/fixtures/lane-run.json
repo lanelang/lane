@@ -548,7 +548,7 @@
           "unused open import",
           "open import `Basic.Ops.*` contributes no used names",
           "unused import item",
-          "imported item `Io` from `Basic.Io` is never used"
+          "imported item `nan` from `Basic.Double` is never used"
         ]
       }
     },

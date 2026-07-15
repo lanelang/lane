@@ -1,6 +1,6 @@
 module Examples.Valid13
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub struct Hide {
   type T : Type
@@ -19,5 +19,5 @@ pub let packed_int : Hide = Hide::{ T = Int, val: 42 }
 pub let repacked_int : Hide = repack(packed_int)
 
 pub fn answer() -> Unit ! Io {
-  Write::println!("existential struct packed")
+  println("existential struct packed")
 }

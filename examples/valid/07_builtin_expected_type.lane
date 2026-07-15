@@ -1,11 +1,11 @@
 module Examples.Valid07
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub let host_int : () -> Int = extern("%host_int")
 
 pub let host_value : () -> Int = extern("%host_value")
 
 pub fn answer() -> Unit ! Io {
-  Write::println!("extern bindings typed")
+  println("extern bindings typed")
 }

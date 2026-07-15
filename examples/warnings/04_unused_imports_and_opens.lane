@@ -4,8 +4,10 @@ import Basic.Builtins
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
-pub fn answer() -> Unit ! Write {
-  Write::println!("unused import example")
+import Basic.Double.{nan}
+
+pub fn answer() -> Unit ! Io {
+  println("unused import example")
 }

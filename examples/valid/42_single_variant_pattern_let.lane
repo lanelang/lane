@@ -2,7 +2,7 @@ module Examples.Valid.SingleVariantPatternLet
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 pub enum Id[A] {
   id(A)
@@ -36,8 +36,8 @@ pub let repacked_int : Packed = repack(packed_int)
 
 pub fn answer() -> Unit ! Io {
   if unwrapped_int == 42 {
-    Write::println!("pattern-let=42")
+    println("pattern-let=42")
   } else {
-    Write::println!("bad:pattern-let")
+    println("bad:pattern-let")
   }
 }

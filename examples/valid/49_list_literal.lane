@@ -1,6 +1,6 @@
 module Examples.Valid.ListLiteral
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -20,11 +20,11 @@ pub let empty_numbers : List[Int] = []
 pub fn answer() -> Unit ! Io {
   if sum(numbers) == 10 {
     if sum(empty_numbers) == 0 {
-      Write::println!("list literal=10")
+      println("list literal=10")
     } else {
-      Write::println!("empty list literal failed")
+      println("empty list literal failed")
     }
   } else {
-    Write::println!("list literal failed")
+    println("list literal failed")
   }
 }

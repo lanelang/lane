@@ -3,7 +3,7 @@
 
 module Examples.Valid15
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -23,8 +23,8 @@ pub let aliased_value : Id[Int] = get(Box::{ value: 42 })
 
 pub fn answer() -> Unit ! Io {
   if aliased_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

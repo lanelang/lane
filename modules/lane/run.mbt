@@ -84,10 +84,7 @@ fn execute_entry_with_output(
   entry : @buslane_lowering.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
-  let runtime_effects = command_runtime_effects(
-    program, runtime_effect_operations,
-  )
-  match validate_executable_entry(entry, runtime_effects) {
+  match validate_executable_entry(entry) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
@@ -133,7 +130,6 @@ fn lower_executable_image(
 ///|
 fn validate_executable_entry(
   entry : @buslane_lowering.BuslaneEntry,
-  runtime_effects : Array[@buslane.EffectId],
 ) -> Result[Unit, CliError] {
   guard entry.type_ is Function(parameters, result, effect) else {
     return Err(
@@ -162,7 +158,7 @@ fn validate_executable_entry(
       ),
     )
   }
-  if !entry_effect_is_supported(effect, runtime_effects) {
+  if !entry_effect_is_supported(effect) {
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),
@@ -210,15 +206,13 @@ fn command_loisvm_runtime(
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="lane.effect.v1/Basic.Io/Write/println",
+      symbol="%println",
       abi_major=1,
       parameters=[String],
       result=Unit,
       invoke=(_context, arguments) => {
         guard arguments is [BorrowedString(line)] else {
-          raise Failure(
-            message="Basic.Io.Write.println expects one String argument",
-          )
+          raise Failure(message="%println expects one String argument")
         }
         write_line(line.to_string())
         Unit
@@ -229,73 +223,10 @@ fn command_loisvm_runtime(
 }
 
 ///|
-fn command_runtime_effects(
-  program : @buslane.Program,
-  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
-) -> Array[@buslane.EffectId] {
-  let effects = []
-  if command_runtime_effect_operation(program, runtime_effect_operations)
-    is Some(operation) {
-    if program.metadata.operation_info(operation) is Some(info) {
-      effects.push(info.owner)
-    }
-  }
-  effects
-}
-
-///|
-fn command_runtime_effect_operation(
-  program : @buslane.Program,
-  runtime_effect_operations : Array[@module_link.LinkedRuntimeEffectOperation],
-) -> @buslane.OperationId? {
-  let signature = basic_io_write_println_signature()
-  for operation in runtime_effect_operations {
-    if runtime_effect_operation_matches(operation, signature) &&
-      program.metadata.operation_info(operation.operation) is Some(_) {
-      return Some(operation.operation)
-    }
-  }
-  None
-}
-
-///|
-fn runtime_effect_operation_matches(
-  operation : @module_link.LinkedRuntimeEffectOperation,
-  signature : @module_link.RuntimeEffectOperationSignature,
-) -> Bool {
-  operation.module_path_text == signature.module_path_text &&
-  operation.effect_name == signature.effect_name &&
-  operation.operation_name == signature.operation_name &&
-  operation.payload == signature.payload &&
-  operation.result == signature.result
-}
-
-///|
-fn basic_io_write_println_signature() -> @module_link.RuntimeEffectOperationSignature {
-  {
-    module_path_text: "Basic.Io",
-    effect_name: "Write",
-    operation_name: "println",
-    payload: [Primitive(String)],
-    result: Primitive(Unit),
-  }
-}
-
-///|
-fn entry_effect_is_supported(
-  effect : @buslane.Effect,
-  runtime_effects : Array[@buslane.EffectId],
-) -> Bool {
-  match effect {
+fn entry_effect_is_supported(effect : @buslane.Effect) -> Bool {
+  match effect.canonicalize() {
     Empty | Io => true
-    Singleton(id, arguments) =>
-      arguments.is_empty() &&
-      runtime_effects.any(fn(effect_id) { effect_id == id })
-    Parameter(_) => false
-    Union(effects) =>
-      effects.all(fn(effect) {
-        entry_effect_is_supported(effect, runtime_effects)
-      })
+    _ => false
   }
 }
 

@@ -2,7 +2,7 @@ module Examples.Valid.ModuleQualifiedTypeAccess
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Builtins
 
@@ -12,8 +12,8 @@ pub let sum_value : Int = add_ops.add(20, 22)
 
 pub fn answer() -> Unit ! Io {
   if sum_value == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

@@ -1,6 +1,6 @@
 module Examples.Valid08
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -39,8 +39,8 @@ pub fn use_explicit_offer() -> Int {
 
 pub fn answer() -> Unit ! Io {
   if use_explicit_offer() == 1 {
-    Write::println!("explicit equality=1")
+    println("explicit equality=1")
   } else {
-    Write::println!("bad:explicit equality=1")
+    println("bad:explicit equality=1")
   }
 }

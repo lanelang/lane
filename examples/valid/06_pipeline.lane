@@ -1,6 +1,6 @@
 module Examples.Valid06
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -20,8 +20,8 @@ pub fn pipeline_literal(x : Int) -> Int {
 
 pub fn answer() -> Unit ! Io {
   if pipeline_call(39) == 42 && pipeline_literal(41) == 42 {
-    Write::println!("pipeline=42")
+    println("pipeline=42")
   } else {
-    Write::println!("bad:pipeline=42")
+    println("bad:pipeline=42")
   }
 }

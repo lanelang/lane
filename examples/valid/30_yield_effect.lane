@@ -1,6 +1,6 @@
 module Examples.Valid.YieldEffect
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -38,8 +38,8 @@ pub let emitted_sum : Int = sum(emitted)
 
 pub fn answer() -> Unit ! Io {
   if emitted_sum == 42 {
-    Write::println!("42")
+    println("42")
   } else {
-    Write::println!("bad:42")
+    println("bad:42")
   }
 }

@@ -2,7 +2,7 @@ module Examples.Valid03
 
 import Basic.Ops.*
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 fn[A] choose(cond : Bool, left : A, right : A) -> A {
   if cond {
@@ -28,8 +28,8 @@ pub fn check_expected_function() -> Int {
 
 pub fn answer() -> Unit ! Io {
   if choose(true, 1, 2) == 1 && use_local_id(41) == 41 && check_expected_function() == 1 {
-    Write::println!("generic=1")
+    println("generic=1")
   } else {
-    Write::println!("bad:generic=1")
+    println("bad:generic=1")
   }
 }

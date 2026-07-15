@@ -277,9 +277,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         title="entry `\{name}` is not executable",
         fields=[
           command_report_field("requested type", render_buslane_type(type_)),
-          command_report_field(
-            "expected", "() -> Unit, or supported runtime effects such as Basic.Io.Write",
-          ),
+          command_report_field("expected", "() -> Unit or () -> Unit ! Io"),
         ],
         details=[reason.to_human_note()],
         suggestions=[

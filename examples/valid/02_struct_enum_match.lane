@@ -1,6 +1,6 @@
 module Examples.Valid02
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -33,8 +33,8 @@ pub let chosen : Option[Int] = some(1)
 
 pub fn answer() -> Unit ! Io {
   if sum_point(origin) == 0 && unwrap_or(chosen, 0) == 1 {
-    Write::println!("point=0 option=1")
+    println("point=0 option=1")
   } else {
-    Write::println!("bad:point=0 option=1")
+    println("bad:point=0 option=1")
   }
 }

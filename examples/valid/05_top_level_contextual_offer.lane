@@ -1,6 +1,6 @@
 module Examples.Valid05
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 import Basic.Ops.*
 
@@ -18,8 +18,8 @@ pub fn use_offered_add() -> Int {
 
 pub fn answer() -> Unit ! Io {
   if use_offered_add() == 1 {
-    Write::println!("chosen=1")
+    println("chosen=1")
   } else {
-    Write::println!("bad:chosen=1")
+    println("bad:chosen=1")
   }
 }

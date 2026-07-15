@@ -24,11 +24,7 @@ async fn lane_link(
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let runtime_effects = command_runtime_effects(
-    program.program,
-    program.runtime_effect_operations,
-  )
-  match validate_executable_entry(entry, runtime_effects) {
+  match validate_executable_entry(entry) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }

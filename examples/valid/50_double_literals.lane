@@ -1,6 +1,6 @@
 module Examples.Valid.DoubleLiterals
 
-import Basic.Io.{Io, Write}
+import Basic.Io.{println}
 
 fn classify(value : Double) -> Int {
   match value {
@@ -23,11 +23,11 @@ pub fn answer() -> Unit ! Io {
       match classify(exponent) {
         2 =>
           match classify(subnormal) {
-            3 => Write::println!("double literals ok")
-            _ => Write::println!("double subnormal failed")
+            3 => println("double literals ok")
+            _ => println("double subnormal failed")
           }
-        _ => Write::println!("double exponent failed")
+        _ => println("double exponent failed")
       }
-    _ => Write::println!("double decimal failed")
+    _ => println("double decimal failed")
   }
 }
