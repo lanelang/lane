@@ -165,6 +165,7 @@ fn executable_elaboration_error(
     EntryNotLinked(value) => MissingEntry(value~)
     InvalidEntryFunction(value~, type_~) => InvalidFunctionType(value~, type_~)
     UnsupportedRuntimeBoundary(detail~) => UnsupportedExpression(detail~)
+    UnsupportedEffectSpecialization(detail~) => UnsupportedExpression(detail~)
     EffectLoweringError(error) => EffectLoweringError(error)
   }
 }

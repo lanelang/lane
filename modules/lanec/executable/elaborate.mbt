@@ -22,6 +22,7 @@ fn elaborate_or_raise(
     selected_entry,
     linked.runtime_effect_operations,
   )
+  let program = specialize_reachable_effects(program, entry.value)
   let lowered = lower_effects(program)
   let program = lowered.program
   let initializers = collect_top_level_initializers(program)

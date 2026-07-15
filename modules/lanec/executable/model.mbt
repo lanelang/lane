@@ -32,5 +32,6 @@ pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedRuntimeBoundary(detail~ : String)
+  UnsupportedEffectSpecialization(detail~ : String)
   EffectLoweringError(@effect_lowering.SynthesisError)
 } derive(Debug, Eq)
