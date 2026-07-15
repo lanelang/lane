@@ -25,6 +25,51 @@ priv struct EffectValueBinding {
 }
 
 ///|
+priv struct EffectRewriteScope {
+  type_bindings : Array[EffectSpecializationBinding]
+  value_bindings : Array[EffectValueBinding]
+}
+
+///|
+fn EffectRewriteScope::new(
+  type_bindings : Array[EffectSpecializationBinding],
+) -> EffectRewriteScope {
+  { type_bindings, value_bindings: [] }
+}
+
+///|
+fn EffectRewriteScope::enter_scope(
+  self : EffectRewriteScope,
+) -> EffectRewriteScope {
+  {
+    type_bindings: self.type_bindings,
+    value_bindings: self.value_bindings.copy(),
+  }
+}
+
+///|
+fn EffectRewriteScope::lookup_value(
+  self : EffectRewriteScope,
+  source : @buslane.ValueId,
+) -> @buslane.ValueId? {
+  for binding in self.value_bindings.rev_iter() {
+    if binding.source == source {
+      return Some(binding.target)
+    }
+  }
+  None
+}
+
+///|
+fn EffectRewriteScope::bind_value(
+  self : EffectRewriteScope,
+  source : @buslane.ValueId,
+  target : @buslane.ValueId,
+) -> Unit {
+  self.value_bindings.push({ source, target })
+}
+
+///|
 priv struct EffectDataConstructorBinding {
   source : @buslane.DataConId
   target : @buslane.DataConId
@@ -73,7 +118,9 @@ fn specialize_reachable_effects(
       Let(id, rhs) =>
         if specializer.is_reachable(id) &&
           specializer.find_definition(id) is None {
-          terms.push(Let(id, specializer.rewrite_expr(rhs, [], [], true)))
+          terms.push(
+            Let(id, specializer.rewrite_expr(rhs, EffectRewriteScope::new([]))),
+          )
         }
       LetRec(bindings) => {
         let rewritten : Array[@buslane.RecursiveBinding] = []
@@ -82,7 +129,10 @@ fn specialize_reachable_effects(
             specializer.find_definition(binding.id) is None {
             rewritten.push({
               id: binding.id,
-              rhs: specializer.rewrite_expr(binding.rhs, [], [], true),
+              rhs: specializer.rewrite_expr(
+                binding.rhs,
+                EffectRewriteScope::new([]),
+              ),
             })
           }
         }
@@ -217,7 +267,10 @@ fn EffectSpecializer::rewrite_specialized_definition(
   let retained = parameters.filter(parameter => {
     !instance.bindings.any(binding => binding.parameter == parameter)
   })
-  let rewritten = self.rewrite_expr(body, instance.bindings, [], true)
+  let rewritten = self.rewrite_expr(
+    body,
+    EffectRewriteScope::new(instance.bindings),
+  )
   if retained.is_empty() {
     rewritten
   } else {
@@ -252,13 +305,11 @@ fn collect_type_lambda_into(
 fn EffectSpecializer::rewrite_expr(
   self : EffectSpecializer,
   expression : @buslane.Expr,
-  type_bindings : Array[EffectSpecializationBinding],
-  value_bindings : Array[EffectValueBinding],
-  clone_values : Bool,
+  scope : EffectRewriteScope,
 ) -> @buslane.Expr raise ExecutableElaborationError {
   match expression {
     Ref(id) =>
-      if find_effect_value_binding(value_bindings, id) is Some(target) {
+      if scope.lookup_value(id) is Some(target) {
         Ref(target)
       } else if self.find_definition(id) is Some(_) {
         raise UnsupportedEffectSpecialization(
@@ -268,45 +319,18 @@ fn EffectSpecializer::rewrite_expr(
         Ref(id)
       }
     Literal(_) => expression
-    Function(function) => {
-      let next_values = value_bindings.copy()
-      let parameters = function.parameters.map(parameter => {
-        self.fresh_bound_value(
-          parameter, type_bindings, next_values, clone_values,
-        )
-      })
-      Function({
-        parameters,
-        result_type: self.specialize_type(function.result_type, type_bindings),
-        body: self.rewrite_expr(
-          function.body,
-          type_bindings,
-          next_values,
-          clone_values,
-        ),
-      })
-    }
+    Function(function) => self.rewrite_function(function, scope)
     Call(callee, arguments) =>
       Call(
-        self.rewrite_expr(callee, type_bindings, value_bindings, clone_values),
-        arguments.map(argument => {
-          self.rewrite_expr(
-            argument, type_bindings, value_bindings, clone_values,
-          )
-        }),
+        self.rewrite_expr(callee, scope),
+        arguments.map(argument => self.rewrite_expr(argument, scope)),
       )
     TypeLambda(parameters, body) =>
-      TypeLambda(
-        parameters,
-        self.rewrite_expr(body, type_bindings, value_bindings, clone_values),
-      )
-    TypeApply(_, _) =>
-      self.rewrite_type_application(
-        expression, type_bindings, value_bindings, clone_values,
-      )
+      TypeLambda(parameters, self.rewrite_expr(body, scope))
+    TypeApply(_, _) => self.rewrite_type_application(expression, scope)
     Construct(construct) => {
       let type_arguments = construct.type_arguments.map(argument => {
-        self.specialize_argument(argument, type_bindings)
+        self.specialize_argument(argument, scope.type_bindings)
       })
       let (data_constructor, type_arguments) = self.specialize_constructor(
         construct.data_constructor,
@@ -316,167 +340,32 @@ fn EffectSpecializer::rewrite_expr(
         data_constructor,
         type_arguments,
         hidden_witnesses: construct.hidden_witnesses.map(argument => {
-          self.specialize_argument(argument, type_bindings)
+          self.specialize_argument(argument, scope.type_bindings)
         }),
         payloads: construct.payloads.map(payload => {
-          self.rewrite_expr(
-            payload, type_bindings, value_bindings, clone_values,
-          )
+          self.rewrite_expr(payload, scope)
         }),
       })
     }
-    Let(id, initializer, body) => {
-      let rewritten_initializer = self.rewrite_expr(
-        initializer, type_bindings, value_bindings, clone_values,
-      )
-      let next_values = value_bindings.copy()
-      let target = self.fresh_bound_value(
-        id, type_bindings, next_values, clone_values,
-      )
-      Let(
-        target,
-        rewritten_initializer,
-        self.rewrite_expr(body, type_bindings, next_values, clone_values),
-      )
-    }
-    LetRec(bindings, body) => {
-      let next_values = value_bindings.copy()
-      let targets = bindings.map(binding => {
-        self.fresh_bound_value(
-          binding.id,
-          type_bindings,
-          next_values,
-          clone_values,
-        )
-      })
-      LetRec(
-        bindings.mapi((index, binding) => {
-          id: targets[index],
-          rhs: self.rewrite_expr(
-            binding.rhs,
-            type_bindings,
-            next_values,
-            clone_values,
-          ),
-        }),
-        self.rewrite_expr(body, type_bindings, next_values, clone_values),
-      )
-    }
-    Match(match_) => {
-      let next_values = value_bindings.copy()
-      let binder = self.fresh_bound_value(
-        match_.binder,
-        type_bindings,
-        next_values,
-        clone_values,
-      )
-      Match({
-        scrutinee: self.rewrite_expr(
-          match_.scrutinee,
-          type_bindings,
-          value_bindings,
-          clone_values,
-        ),
-        binder,
-        result_type: self.specialize_type(match_.result_type, type_bindings),
-        alternatives: match_.alternatives.map(alternative => {
-          let alternative_values = next_values.copy()
-          let value_binders = alternative.value_binders.map(value => {
-            self.fresh_bound_value(
-              value, type_bindings, alternative_values, clone_values,
-            )
-          })
-          {
-            alt_constructor: self.specialize_alt_constructor(
-              alternative.alt_constructor,
-              binder,
-            ),
-            type_binders: alternative.type_binders,
-            value_binders,
-            body: self.rewrite_expr(
-              alternative.body,
-              type_bindings,
-              alternative_values,
-              clone_values,
-            ),
-          }
-        }),
-      })
-    }
+    Let(id, initializer, body) => self.rewrite_let(id, initializer, body, scope)
+    LetRec(bindings, body) => self.rewrite_let_rec(bindings, body, scope)
+    Match(match_) => self.rewrite_match(match_, scope)
     Perform(perform) =>
       Perform({
         operation: perform.operation,
         effect_arguments: perform.effect_arguments.map(argument => {
-          self.specialize_argument(argument, type_bindings)
+          self.specialize_argument(argument, scope.type_bindings)
         }),
         hidden_witnesses: perform.hidden_witnesses.map(argument => {
-          self.specialize_argument(argument, type_bindings)
+          self.specialize_argument(argument, scope.type_bindings)
         }),
         payloads: perform.payloads.map(payload => {
-          self.rewrite_expr(
-            payload, type_bindings, value_bindings, clone_values,
-          )
+          self.rewrite_expr(payload, scope)
         }),
       })
-    Handle(handle) => {
-      let final_values = value_bindings.copy()
-      let result_binder = self.fresh_bound_value(
-        handle.result_binder,
-        type_bindings,
-        final_values,
-        clone_values,
-      )
-      Handle({
-        body: self.rewrite_expr(
-          handle.body,
-          type_bindings,
-          value_bindings,
-          clone_values,
-        ),
-        result_binder,
-        result_type: self.specialize_type(handle.result_type, type_bindings),
-        final_body: self.rewrite_expr(
-          handle.final_body,
-          type_bindings,
-          final_values,
-          clone_values,
-        ),
-        handlers: handle.handlers.map(table => {
-          handled_effect: self.specialize_effect(
-            table.handled_effect,
-            type_bindings,
-          ),
-          operations: table.operations.map(alternative => {
-            let operation_values = value_bindings.copy()
-            let payload_binders = alternative.payload_binders.map(value => {
-              self.fresh_bound_value(
-                value, type_bindings, operation_values, clone_values,
-              )
-            })
-            let resume_binder = self.fresh_bound_value(
-              alternative.resume_binder,
-              type_bindings,
-              operation_values,
-              clone_values,
-            )
-            {
-              operation: alternative.operation,
-              type_binders: alternative.type_binders,
-              payload_binders,
-              resume_binder,
-              body: self.rewrite_expr(
-                alternative.body,
-                type_bindings,
-                operation_values,
-                clone_values,
-              ),
-            }
-          }),
-        }),
-      })
-    }
+    Handle(handle) => self.rewrite_handle(handle, scope)
     Resume(id) =>
-      match find_effect_value_binding(value_bindings, id) {
+      match scope.lookup_value(id) {
         Some(target) => Resume(target)
         None => Resume(id)
       }
@@ -484,19 +373,137 @@ fn EffectSpecializer::rewrite_expr(
 }
 
 ///|
+fn EffectSpecializer::rewrite_function(
+  self : EffectSpecializer,
+  function : @buslane.FunctionExpr,
+  scope : EffectRewriteScope,
+) -> @buslane.Expr raise ExecutableElaborationError {
+  let body_scope = scope.enter_scope()
+  let parameters = function.parameters.map(parameter => {
+    self.fresh_bound_value(parameter, body_scope)
+  })
+  Function({
+    parameters,
+    result_type: self.specialize_type(function.result_type, scope.type_bindings),
+    body: self.rewrite_expr(function.body, body_scope),
+  })
+}
+
+///|
+fn EffectSpecializer::rewrite_let(
+  self : EffectSpecializer,
+  id : @buslane.ValueId,
+  initializer : @buslane.Expr,
+  body : @buslane.Expr,
+  scope : EffectRewriteScope,
+) -> @buslane.Expr raise ExecutableElaborationError {
+  let rewritten_initializer = self.rewrite_expr(initializer, scope)
+  let body_scope = scope.enter_scope()
+  let target = self.fresh_bound_value(id, body_scope)
+  Let(target, rewritten_initializer, self.rewrite_expr(body, body_scope))
+}
+
+///|
+fn EffectSpecializer::rewrite_let_rec(
+  self : EffectSpecializer,
+  bindings : Array[@buslane.RecursiveBinding],
+  body : @buslane.Expr,
+  scope : EffectRewriteScope,
+) -> @buslane.Expr raise ExecutableElaborationError {
+  let recursive_scope = scope.enter_scope()
+  let targets = bindings.map(binding => {
+    self.fresh_bound_value(binding.id, recursive_scope)
+  })
+  LetRec(
+    bindings.mapi((index, binding) => {
+      id: targets[index],
+      rhs: self.rewrite_expr(binding.rhs, recursive_scope),
+    }),
+    self.rewrite_expr(body, recursive_scope),
+  )
+}
+
+///|
+fn EffectSpecializer::rewrite_match(
+  self : EffectSpecializer,
+  match_ : @buslane.MatchExpr,
+  scope : EffectRewriteScope,
+) -> @buslane.Expr raise ExecutableElaborationError {
+  let match_scope = scope.enter_scope()
+  let binder = self.fresh_bound_value(match_.binder, match_scope)
+  Match({
+    scrutinee: self.rewrite_expr(match_.scrutinee, scope),
+    binder,
+    result_type: self.specialize_type(match_.result_type, scope.type_bindings),
+    alternatives: match_.alternatives.map(alternative => {
+      let alternative_scope = match_scope.enter_scope()
+      let value_binders = alternative.value_binders.map(value => {
+        self.fresh_bound_value(value, alternative_scope)
+      })
+      {
+        alt_constructor: self.specialize_alt_constructor(
+          alternative.alt_constructor,
+          binder,
+        ),
+        type_binders: alternative.type_binders,
+        value_binders,
+        body: self.rewrite_expr(alternative.body, alternative_scope),
+      }
+    }),
+  })
+}
+
+///|
+fn EffectSpecializer::rewrite_handle(
+  self : EffectSpecializer,
+  handle : @buslane.HandleExpr,
+  scope : EffectRewriteScope,
+) -> @buslane.Expr raise ExecutableElaborationError {
+  let final_scope = scope.enter_scope()
+  let result_binder = self.fresh_bound_value(handle.result_binder, final_scope)
+  Handle({
+    body: self.rewrite_expr(handle.body, scope),
+    result_binder,
+    result_type: self.specialize_type(handle.result_type, scope.type_bindings),
+    final_body: self.rewrite_expr(handle.final_body, final_scope),
+    handlers: handle.handlers.map(table => {
+      handled_effect: self.specialize_effect(
+        table.handled_effect,
+        scope.type_bindings,
+      ),
+      operations: table.operations.map(alternative => {
+        let operation_scope = scope.enter_scope()
+        let payload_binders = alternative.payload_binders.map(value => {
+          self.fresh_bound_value(value, operation_scope)
+        })
+        let resume_binder = self.fresh_bound_value(
+          alternative.resume_binder,
+          operation_scope,
+        )
+        {
+          operation: alternative.operation,
+          type_binders: alternative.type_binders,
+          payload_binders,
+          resume_binder,
+          body: self.rewrite_expr(alternative.body, operation_scope),
+        }
+      }),
+    }),
+  })
+}
+
+///|
 fn EffectSpecializer::rewrite_type_application(
   self : EffectSpecializer,
   expression : @buslane.Expr,
-  type_bindings : Array[EffectSpecializationBinding],
-  value_bindings : Array[EffectValueBinding],
-  clone_values : Bool,
+  scope : EffectRewriteScope,
 ) -> @buslane.Expr raise ExecutableElaborationError {
   let groups : Array[Array[@buslane.GenericArgument]] = []
   let base = collect_type_application_groups(expression, groups)
   let arguments = []
   for group in groups {
     for argument in group {
-      arguments.push(self.specialize_argument(argument, type_bindings))
+      arguments.push(self.specialize_argument(argument, scope.type_bindings))
     }
   }
   if base is Ref(source) && self.find_definition(source) is Some(definition) {
@@ -524,14 +531,14 @@ fn EffectSpecializer::rewrite_type_application(
       TypeApply(Ref(instance.target), retained_arguments)
     }
   } else {
-    let rewritten_base = self.rewrite_expr(
-      base, type_bindings, value_bindings, clone_values,
-    )
+    let rewritten_base = self.rewrite_expr(base, scope)
     let mut rewritten = rewritten_base
     for group in groups {
       rewritten = TypeApply(
         rewritten,
-        group.map(argument => self.specialize_argument(argument, type_bindings)),
+        group.map(argument => {
+          self.specialize_argument(argument, scope.type_bindings)
+        }),
       )
     }
     rewritten
@@ -633,13 +640,8 @@ fn EffectSpecializer::specialize_type_scheme(
 fn EffectSpecializer::fresh_bound_value(
   self : EffectSpecializer,
   source : @buslane.ValueId,
-  type_bindings : Array[EffectSpecializationBinding],
-  value_bindings : Array[EffectValueBinding],
-  clone_values : Bool,
+  scope : EffectRewriteScope,
 ) -> @buslane.ValueId raise ExecutableElaborationError {
-  if !clone_values {
-    return source
-  }
   guard self.program.metadata.value_info(source) is Some(info) else {
     raise UnsupportedEffectSpecialization(
       detail="a specialized local value is missing metadata",
@@ -648,23 +650,10 @@ fn EffectSpecializer::fresh_bound_value(
   let target = self.program.metadata.define_value(
     info.name.occurrence,
     info.kind,
-    self.specialize_type(info.type_, type_bindings),
+    self.specialize_type(info.type_, scope.type_bindings),
   )
-  value_bindings.push({ source, target })
+  scope.bind_value(source, target)
   target
-}
-
-///|
-fn find_effect_value_binding(
-  bindings : Array[EffectValueBinding],
-  source : @buslane.ValueId,
-) -> @buslane.ValueId? {
-  for binding in bindings.rev_iter() {
-    if binding.source == source {
-      return Some(binding.target)
-    }
-  }
-  None
 }
 
 ///|

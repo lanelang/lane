@@ -3,7 +3,7 @@ package "Milky2018/lanec/executable"
 
 import {
   "Milky2018/buslane",
-  "Milky2018/lanec/effect_lowering",
+  "Milky2018/lanec/effect_lowering/core",
   "Milky2018/lanec/effect_lowering/cps",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/link",
@@ -19,7 +19,7 @@ pub(all) suberror ExecutableElaborationError {
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedRuntimeBoundary(detail~ : String)
   UnsupportedEffectSpecialization(detail~ : String)
-  EffectLoweringError(@effect_lowering.SynthesisError)
+  EffectLoweringError(@core.SynthesisError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods

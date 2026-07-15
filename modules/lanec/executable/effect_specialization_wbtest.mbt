@@ -1,4 +1,19 @@
 ///|
+test "effect rewrite child scopes isolate shadowed value bindings" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let source = metadata.define_value("source", Local, unit_type)
+  let parent_target = metadata.define_value("parent", Local, unit_type)
+  let child_target = metadata.define_value("child", Local, unit_type)
+  let parent = EffectRewriteScope::new([])
+  parent.bind_value(source, parent_target)
+  let child = parent.enter_scope()
+  child.bind_value(source, child_target)
+  assert_eq(parent.lookup_value(source), Some(parent_target))
+  assert_eq(child.lookup_value(source), Some(child_target))
+}
+
+///|
 test "reachable effect applications create concrete callable instances" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
