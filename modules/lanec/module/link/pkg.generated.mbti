@@ -74,4 +74,3 @@ pub(all) enum RuntimeEffectOperationValidationError {
 // Type aliases
 
 // Traits
-
