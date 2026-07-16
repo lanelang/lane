@@ -76,11 +76,14 @@ The artifact format optimizes for simple strict decoding and clear byte offsets
 before compactness. If artifact size later matters, compression can be added at
 the container level without changing every primitive codec.
 
-Primitive byte-level reading and writing belongs in a reusable `bytecodec`
-module. `bytecodec` owns strict byte readers, byte writers, little-endian
-primitive codecs, length-prefixed UTF-8 strings, raw byte arrays, offset
-tracking, and low-level decode errors. It does not know about Lane artifacts,
-Buslane AST nodes, schema versions, command diagnostics, or inspect output.
+Primitive byte-level reading and writing belongs in the independent reusable
+`bytecodec` module. `bytecodec` owns strict byte readers, byte writers,
+little-endian primitive codecs, bounded child readers, length-prefixed UTF-8
+strings, raw byte arrays, offset tracking, and low-level decode errors. Its
+canonical u32 interface uses `UInt`; explicit checked adapters serve callers
+whose in-memory models use nonnegative `Int`. It does not know about Lane
+artifacts, Buslane AST nodes, LoisVM instructions, schema versions, resource
+policy, command diagnostics, or inspect output.
 `bytecodec` may use MoonBit bitstring patterns internally for compact primitive
 decoding and fixed header parsing, but artifact and Buslane schema codecs should
 use the reader/writer API. Higher-level schemas need composable nested decoding,

@@ -3,7 +3,7 @@ fn @bytecodec.ByteReader::read_externals(
   self : @bytecodec.ByteReader,
 ) -> @buslane_lowering.BuslaneExternalMap raise {
   let builtins : Array[@buslane_lowering.BuslaneBuiltinExternal] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     builtins.push({
       value: self.read_buslane_value_id(),
       name: self.read_string(),
@@ -11,7 +11,7 @@ fn @bytecodec.ByteReader::read_externals(
     })
   }
   let runtime_imports : Array[@buslane_lowering.BuslaneRuntimeImport] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     runtime_imports.push({
       value: self.read_buslane_value_id(),
       symbol: self.read_string(),
@@ -26,7 +26,7 @@ fn @bytecodec.ByteReader::read_entries(
   self : @bytecodec.ByteReader,
 ) -> Array[@buslane_lowering.BuslaneEntry] raise {
   let entries : Array[@buslane_lowering.BuslaneEntry] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     entries.push(self.read_entry())
   }
   entries
@@ -146,7 +146,7 @@ fn @bytecodec.ByteReader::read_exports(
   self : @bytecodec.ByteReader,
 ) -> Array[@buslane_lowering.BuslaneModuleExport] raise {
   let exports : Array[@buslane_lowering.BuslaneModuleExport] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     exports.push({
       kind: self.read_export_kind(),
       name: self.read_string(),
@@ -165,7 +165,7 @@ fn @bytecodec.ByteReader::read_imports(
   self : @bytecodec.ByteReader,
 ) -> Array[@artifact_core.ModuleImportedReference] raise {
   let imports : Array[@artifact_core.ModuleImportedReference] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     imports.push({
       module_path_text: self.read_string(),
       kind: self.read_export_kind(),

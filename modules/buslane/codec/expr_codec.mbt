@@ -63,7 +63,7 @@ fn @bytecodec.ByteWriter::write_top_terms(
   self : @bytecodec.ByteWriter,
   terms : Array[TopTerm],
 ) -> Unit {
-  self.write_u32_le(terms.length())
+  self.write_u32_le_int(terms.length())
   for term in terms {
     self.write_top_term(term)
   }

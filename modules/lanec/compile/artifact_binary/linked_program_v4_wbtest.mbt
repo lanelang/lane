@@ -71,8 +71,8 @@ test "schema 4 rejects schema 3 linked program payload" {
   )
   writer.write_u8(1)
   writer.write_u8(3)
-  writer.write_u32_le(4)
-  writer.write_u32_le(3)
+  writer.write_u32_le_int(4)
+  writer.write_u32_le_int(3)
   let result = parse_loisvm_linked_program_binary(writer.to_bytes())
   assert_true(result is Err(_))
 }

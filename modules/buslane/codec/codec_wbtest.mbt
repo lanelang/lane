@@ -99,7 +99,7 @@ test "program binary codec roundtrips core structures" {
 ///|
 test "program decoder rejects invalid version" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le(999)
+  writer.write_u32_le_int(999)
   let error = try {
     ignore(decode_program(writer.to_bytes()))
     None
@@ -132,15 +132,15 @@ test "program decoder rejects trailing bytes" {
 ///|
 test "program decoder rejects invalid top term tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le(1) // codec version
-  writer.write_u32_le(0) // metadata next_unique
-  writer.write_u32_le(0) // types
-  writer.write_u32_le(0) // type parameters
-  writer.write_u32_le(0) // values
-  writer.write_u32_le(0) // data constructors
-  writer.write_u32_le(0) // effects
-  writer.write_u32_le(0) // operations
-  writer.write_u32_le(1) // terms
+  writer.write_u32_le_int(1) // codec version
+  writer.write_u32_le_int(0) // metadata next_unique
+  writer.write_u32_le_int(0) // types
+  writer.write_u32_le_int(0) // type parameters
+  writer.write_u32_le_int(0) // values
+  writer.write_u32_le_int(0) // data constructors
+  writer.write_u32_le_int(0) // effects
+  writer.write_u32_le_int(0) // operations
+  writer.write_u32_le_int(1) // terms
   writer.write_u8(99)
   let error = try {
     ignore(decode_program(writer.to_bytes()))

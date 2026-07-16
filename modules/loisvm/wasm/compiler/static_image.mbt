@@ -118,24 +118,24 @@ fn build_static_image(
     if layout == String {
       string_layout_id = index + 1
     }
-    writer.write_u32_le(layout_rep_kind(layout))
+    writer.write_u32_le_int(layout_rep_kind(layout))
     match layout_fixed_size(image, shape_layouts, layout) {
       Some(size) => {
-        writer.write_u32_le(1)
-        writer.write_u32_le(size)
+        writer.write_u32_le_int(1)
+        writer.write_u32_le_int(size)
       }
       None => {
-        writer.write_u32_le(2)
-        writer.write_u32_le(helper_functions.string_sizer_table)
+        writer.write_u32_le_int(2)
+        writer.write_u32_le_int(helper_functions.string_sizer_table)
       }
     }
-    writer.write_u32_le(
+    writer.write_u32_le_int(
       match layout {
         Unit | Bool | Int | Double | Callable => 1
         String | Data(_) | Environment(_) | Reference => 8
       },
     )
-    writer.write_u32_le(
+    writer.write_u32_le_int(
       match layout {
         Unit | Bool | Int | Double => helper_functions.noop_erased_table
         Callable => helper_functions.retain_callable_table
@@ -143,7 +143,7 @@ fn build_static_image(
           helper_functions.retain_ref_erased_table
       },
     )
-    writer.write_u32_le(
+    writer.write_u32_le_int(
       match layout {
         Unit | Bool | Int | Double => helper_functions.noop_erased_table
         Callable => helper_functions.release_callable_table
@@ -151,7 +151,7 @@ fn build_static_image(
           helper_functions.release_ref_erased_table
       },
     )
-    writer.write_u32_le(
+    writer.write_u32_le_int(
       match layout {
         Data(shape) | Environment(shape) =>
           helper_functions.destroy_shape_table_base + shape.value
@@ -159,7 +159,7 @@ fn build_static_image(
           helper_functions.destroy_noop_table
       },
     )
-    writer.write_u32_le(0)
+    writer.write_u32_le_int(0)
   }
   if !image.constants.is_empty() && string_layout_id == 0 {
     raise MissingStringLayout
@@ -168,9 +168,9 @@ fn build_static_image(
   for constant in image.constants {
     pad_to(writer, 8)
     constant_refs.push(writer.length())
-    writer.write_u32_le(-1)
-    writer.write_u32_le(string_layout_id)
-    writer.write_u32_le(constant.length())
+    writer.write_i32_le(-1)
+    writer.write_u32_le_int(string_layout_id)
+    writer.write_u32_le_int(constant.length())
     writer.write_raw_bytes(constant)
     pad_to(writer, 8)
   }
@@ -190,9 +190,9 @@ fn build_static_image(
         pad_to(writer, 8)
         singleton_refs[shape_index] = writer.length()
         singleton_layout_ids[shape_index] = layout_id
-        writer.write_u32_le(-1)
-        writer.write_u32_le(layout_id)
-        writer.write_u32_le(data.constructor_tag)
+        writer.write_i32_le(-1)
+        writer.write_u32_le_int(layout_id)
+        writer.write_u32_le_int(data.constructor_tag)
         pad_to(writer, 8)
       }
     }

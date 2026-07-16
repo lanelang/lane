@@ -26,7 +26,7 @@ fn read_bool(reader : @bytecodec.ByteReader) -> Bool raise BuslaneDecodeError {
 
 ///|
 fn read_u32_le(reader : @bytecodec.ByteReader) -> Int raise BuslaneDecodeError {
-  reader.read_u32_le() catch {
+  reader.read_u32_le_int() catch {
     error => raise ByteError(error)
   }
 }

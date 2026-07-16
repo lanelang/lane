@@ -31,7 +31,7 @@ fn @bytecodec.ByteWriter::write_module_interface_types(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceType],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_module_interface_type(item)
   }
@@ -42,7 +42,7 @@ fn @bytecodec.ByteReader::read_module_interface_types(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceType] raise {
   let items : Array[@module_interface.ModuleInterfaceType] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push(self.read_module_interface_type())
   }
   items
@@ -118,13 +118,13 @@ fn @bytecodec.ByteWriter::write_type_members(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceTypeMember],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_type_member_symbol_id(item.symbol)
     self.write_type_parameter(item.type_parameter)
     self.write_string(item.name)
     self.write_lane_kind(item.kind)
-    self.write_u32_le(item.index)
+    self.write_u32_le_int(item.index)
     self.write_source_span(item.loc)
   }
 }
@@ -134,13 +134,13 @@ fn @bytecodec.ByteReader::read_type_members(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceTypeMember] raise {
   let items : Array[@module_interface.ModuleInterfaceTypeMember] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       symbol: self.read_type_member_symbol_id(),
       type_parameter: self.read_type_parameter(),
       name: self.read_string(),
       kind: self.read_lane_kind(),
-      index: self.read_u32_le(),
+      index: self.read_u32_le_int(),
       loc: self.read_source_span(),
     })
   }
@@ -152,11 +152,11 @@ fn @bytecodec.ByteWriter::write_fields(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceField],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_field_symbol_id(item.symbol)
     self.write_string(item.name)
-    self.write_u32_le(item.index)
+    self.write_u32_le_int(item.index)
     self.write_lane_type(item.type_)
     self.write_source_span(item.loc)
   }
@@ -167,11 +167,11 @@ fn @bytecodec.ByteReader::read_fields(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceField] raise {
   let items : Array[@module_interface.ModuleInterfaceField] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       symbol: self.read_field_symbol_id(),
       name: self.read_string(),
-      index: self.read_u32_le(),
+      index: self.read_u32_le_int(),
       type_: self.read_lane_type(),
       loc: self.read_source_span(),
     })
@@ -184,11 +184,11 @@ fn @bytecodec.ByteWriter::write_variants(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceVariant],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_variant_symbol_id(item.symbol)
     self.write_string(item.name)
-    self.write_u32_le(item.index)
+    self.write_u32_le_int(item.index)
     self.write_type_parameters(item.type_parameters)
     self.write_lane_types(item.payload)
     self.write_source_span(item.loc)
@@ -200,11 +200,11 @@ fn @bytecodec.ByteReader::read_variants(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceVariant] raise {
   let items : Array[@module_interface.ModuleInterfaceVariant] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       symbol: self.read_variant_symbol_id(),
       name: self.read_string(),
-      index: self.read_u32_le(),
+      index: self.read_u32_le_int(),
       type_parameters: self.read_type_parameters(),
       payload: self.read_lane_types(),
       loc: self.read_source_span(),
@@ -218,7 +218,7 @@ fn @bytecodec.ByteWriter::write_module_interface_effects(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceEffect],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_effect_symbol_id(item.symbol)
     self.write_string(item.name)
@@ -233,7 +233,7 @@ fn @bytecodec.ByteReader::read_module_interface_effects(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceEffect] raise {
   let items : Array[@module_interface.ModuleInterfaceEffect] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       symbol: self.read_effect_symbol_id(),
       name: self.read_string(),
@@ -250,11 +250,11 @@ fn @bytecodec.ByteWriter::write_module_interface_operations(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceOperation],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_operation_symbol_id(item.symbol)
     self.write_string(item.name)
-    self.write_u32_le(item.index)
+    self.write_u32_le_int(item.index)
     self.write_type_parameters(item.type_parameters)
     self.write_lane_types(item.payload)
     self.write_lane_type(item.result)
@@ -267,11 +267,11 @@ fn @bytecodec.ByteReader::read_module_interface_operations(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceOperation] raise {
   let items : Array[@module_interface.ModuleInterfaceOperation] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       symbol: self.read_operation_symbol_id(),
       name: self.read_string(),
-      index: self.read_u32_le(),
+      index: self.read_u32_le_int(),
       type_parameters: self.read_type_parameters(),
       payload: self.read_lane_types(),
       result: self.read_lane_type(),
@@ -286,7 +286,7 @@ fn @bytecodec.ByteWriter::write_module_interface_type_aliases(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceTypeAlias],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_string(item.name)
     self.write_type_parameters(item.type_parameters)
@@ -301,7 +301,7 @@ fn @bytecodec.ByteReader::read_module_interface_type_aliases(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceTypeAlias] raise {
   let items : Array[@module_interface.ModuleInterfaceTypeAlias] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       name: self.read_string(),
       type_parameters: self.read_type_parameters(),
@@ -361,7 +361,7 @@ fn @bytecodec.ByteWriter::write_module_interface_values(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceValue],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_value_symbol_id(item.symbol)
     self.write_module_interface_value_kind(item.kind)
@@ -377,7 +377,7 @@ fn @bytecodec.ByteReader::read_module_interface_values(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceValue] raise {
   let items : Array[@module_interface.ModuleInterfaceValue] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       symbol: self.read_value_symbol_id(),
       kind: self.read_module_interface_value_kind(),
@@ -464,7 +464,7 @@ fn @bytecodec.ByteWriter::write_value_parameters(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.ModuleInterfaceValueParameter],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_value_symbol_id(item.symbol)
     self.write_bool(item.is_auto)
@@ -480,7 +480,7 @@ fn @bytecodec.ByteReader::read_value_parameters(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.ModuleInterfaceValueParameter] raise {
   let items : Array[@module_interface.ModuleInterfaceValueParameter] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({
       symbol: self.read_value_symbol_id(),
       is_auto: self.read_bool(),
@@ -498,7 +498,7 @@ fn @bytecodec.ByteWriter::write_optimization_hints(
   self : @bytecodec.ByteWriter,
   items : Array[@module_interface.OptimizationHint],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_string(item.name)
   }
@@ -509,7 +509,7 @@ fn @bytecodec.ByteReader::read_optimization_hints(
   self : @bytecodec.ByteReader,
 ) -> Array[@module_interface.OptimizationHint] raise {
   let items : Array[@module_interface.OptimizationHint] = []
-  for _ in 0..<self.read_u32_le() {
+  for _ in 0..<self.read_u32_le_int() {
     items.push({ name: self.read_string() })
   }
   items

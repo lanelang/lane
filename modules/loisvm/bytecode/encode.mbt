@@ -13,25 +13,25 @@ pub fn bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
   if schema_version == bytecode_schema_v2 {
     writer.write_optional_function_id(image.initializer)
   }
-  writer.write_u32_le(image.functions.length())
+  writer.write_u32_le_int(image.functions.length())
   for function in image.functions {
     writer.write_function_entry(function)
   }
   if schema_version == bytecode_schema_v2 {
-    writer.write_u32_le(image.globals.length())
+    writer.write_u32_le_int(image.globals.length())
     for global in image.globals {
       writer.write_global_metadata(global)
     }
   }
-  writer.write_u32_le(image.layouts.length())
+  writer.write_u32_le_int(image.layouts.length())
   for layout in image.layouts {
     writer.write_layout_recipe(layout)
   }
-  writer.write_u32_le(image.object_shapes.length())
+  writer.write_u32_le_int(image.object_shapes.length())
   for shape in image.object_shapes {
     writer.write_object_shape(shape)
   }
-  writer.write_u32_le(image.constants.length())
+  writer.write_u32_le_int(image.constants.length())
   for constant in image.constants {
     writer.write_bytes(constant)
   }
@@ -74,8 +74,8 @@ fn @bytecodec.ByteWriter::write_function_entry(
     }
     RuntimeImport(import_) => {
       self.write_u8(0x02)
-      self.write_u32_le(import_.abi_major)
-      self.write_u32_le(import_.user_arity)
+      self.write_u32_le_int(import_.abi_major)
+      self.write_u32_le_int(import_.user_arity)
       self.write_bytes(@utf8.encode(import_.symbol))
     }
   }
@@ -87,7 +87,7 @@ fn @bytecodec.ByteWriter::write_function_body(
   body : FunctionBody,
 ) -> Unit {
   let payload = @bytecodec.ByteWriter::new()
-  payload.write_u32_le(body.slots.length())
+  payload.write_u32_le_int(body.slots.length())
   for slot in body.slots {
     payload.write_slot_metadata(slot)
   }
@@ -95,12 +95,12 @@ fn @bytecodec.ByteWriter::write_function_body(
   payload.write_slot_ids(body.inputs.witnesses)
   payload.write_slot_ids(body.inputs.user_parameters)
   payload.write_result_representation(body.result)
-  payload.write_u32_le(body.blocks.length())
+  payload.write_u32_le_int(body.blocks.length())
   for block in body.blocks {
     payload.write_block(block)
   }
   let bytes = payload.to_bytes()
-  self.write_u32_le(bytes.length())
+  self.write_u32_le_int(bytes.length())
   self.write_raw_bytes(bytes)
 }
 
@@ -114,7 +114,7 @@ fn @bytecodec.ByteWriter::write_slot_metadata(
   if slot.cleanup is OwnedErased {
     match slot.erased_companion {
       Some(companion) => self.write_slot_id(companion)
-      None => self.write_u32_le(0)
+      None => self.write_u32_le_int(0)
     }
   }
 }
@@ -129,7 +129,7 @@ fn @bytecodec.ByteWriter::write_global_metadata(
   if global.cleanup is OwnedErased {
     match global.erased_companion {
       Some(companion) => self.write_global_id(companion)
-      None => self.write_u32_le(0)
+      None => self.write_u32_le_int(0)
     }
   }
 }
@@ -210,17 +210,17 @@ fn @bytecodec.ByteWriter::write_object_shape(
   match shape {
     Data(data) => {
       self.write_u8(0x01)
-      self.write_u32_le(data.constructor_tag)
-      self.write_u32_le(data.stored_witness_count)
-      self.write_u32_le(data.members.length())
+      self.write_u32_le_int(data.constructor_tag)
+      self.write_u32_le_int(data.stored_witness_count)
+      self.write_u32_le_int(data.members.length())
       for schema in data.members {
         self.write_member_schema(schema)
       }
     }
     Environment(environment) => {
       self.write_u8(0x02)
-      self.write_u32_le(environment.stored_witness_count)
-      self.write_u32_le(environment.members.length())
+      self.write_u32_le_int(environment.stored_witness_count)
+      self.write_u32_le_int(environment.members.length())
       for schema in environment.members {
         self.write_member_schema(schema)
       }
@@ -236,8 +236,8 @@ fn @bytecodec.ByteWriter::write_member_schema(
   self.write_representation(schema.representation)
   self.write_cleanup(schema.cleanup)
   match schema.witness_ordinal {
-    None => self.write_u32_le(0)
-    Some(ordinal) => self.write_u32_le(ordinal + 1)
+    None => self.write_u32_le_int(0)
+    Some(ordinal) => self.write_u32_le_int(ordinal + 1)
   }
 }
 
@@ -247,7 +247,7 @@ fn @bytecodec.ByteWriter::write_block(
   block : Block,
 ) -> Unit {
   self.write_slot_ids(block.parameters)
-  self.write_u32_le(block.instructions.length())
+  self.write_u32_le_int(block.instructions.length())
   for instruction in block.instructions {
     self.write_instruction(instruction)
   }
@@ -329,7 +329,7 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_u8(0x0F)
       self.write_object_shape_id(shape)
       self.write_slot_id(source)
-      self.write_u32_le(index)
+      self.write_u32_le_int(index)
       self.write_projection_result(result)
     }
     ConsumeFields(shape, source, selections) => {
@@ -350,7 +350,7 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_u8(0x12)
       self.write_object_shape_id(shape)
       self.write_slot_id(source)
-      self.write_u32_le(index)
+      self.write_u32_le_int(index)
       self.write_projection_result(result)
     }
     ConsumeCaptures(shape, source, selections) => {
@@ -471,7 +471,7 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_slot_id(destination)
       self.write_object_shape_id(shape)
       self.write_slot_id(object)
-      self.write_u32_le(ordinal)
+      self.write_u32_le_int(ordinal)
     }
     InitGlobal(global, source) => {
       self.write_u8(0x44)
@@ -505,7 +505,7 @@ fn @bytecodec.ByteWriter::write_terminator(
     SwitchTag(tag, cases, default) => {
       self.write_u8(0x03)
       self.write_slot_id(tag)
-      self.write_u32_le(cases.length())
+      self.write_u32_le_int(cases.length())
       for edge in cases {
         self.write_edge(edge)
       }
@@ -572,9 +572,9 @@ fn @bytecodec.ByteWriter::write_projection_selections(
   self : @bytecodec.ByteWriter,
   selections : Array[ProjectionSelection],
 ) -> Unit {
-  self.write_u32_le(selections.length())
+  self.write_u32_le_int(selections.length())
   for selection in selections {
-    self.write_u32_le(selection.member_index)
+    self.write_u32_le_int(selection.member_index)
     self.write_projection_result(selection.result)
   }
 }
@@ -610,7 +610,7 @@ fn @bytecodec.ByteWriter::write_slot_ids(
   self : @bytecodec.ByteWriter,
   slots : Array[SlotId],
 ) -> Unit {
-  self.write_u32_le(slots.length())
+  self.write_u32_le_int(slots.length())
   for slot in slots {
     self.write_slot_id(slot)
   }
@@ -622,8 +622,8 @@ fn @bytecodec.ByteWriter::write_optional_slot(
   slot : SlotId?,
 ) -> Unit {
   match slot {
-    None => self.write_u32_le(0)
-    Some(slot) => self.write_u32_le(slot.value + 1)
+    None => self.write_u32_le_int(0)
+    Some(slot) => self.write_u32_le_int(slot.value + 1)
   }
 }
 
@@ -632,7 +632,7 @@ fn @bytecodec.ByteWriter::write_function_id(
   self : @bytecodec.ByteWriter,
   id : FunctionId,
 ) -> Unit {
-  self.write_u32_le(id.value)
+  self.write_u32_le_int(id.value)
 }
 
 ///|
@@ -641,7 +641,7 @@ fn @bytecodec.ByteWriter::write_optional_function_id(
   id : FunctionId?,
 ) -> Unit {
   match id {
-    None => self.write_u32_le(0)
+    None => self.write_u32_le_int(0)
     Some(id) => self.write_function_id(id)
   }
 }
@@ -651,7 +651,7 @@ fn @bytecodec.ByteWriter::write_global_id(
   self : @bytecodec.ByteWriter,
   id : GlobalId,
 ) -> Unit {
-  self.write_u32_le(id.value)
+  self.write_u32_le_int(id.value)
 }
 
 ///|
@@ -659,7 +659,7 @@ fn @bytecodec.ByteWriter::write_layout_id(
   self : @bytecodec.ByteWriter,
   id : LayoutId,
 ) -> Unit {
-  self.write_u32_le(id.value)
+  self.write_u32_le_int(id.value)
 }
 
 ///|
@@ -667,7 +667,7 @@ fn @bytecodec.ByteWriter::write_block_id(
   self : @bytecodec.ByteWriter,
   id : BlockId,
 ) -> Unit {
-  self.write_u32_le(id.value)
+  self.write_u32_le_int(id.value)
 }
 
 ///|
@@ -675,7 +675,7 @@ fn @bytecodec.ByteWriter::write_slot_id(
   self : @bytecodec.ByteWriter,
   id : SlotId,
 ) -> Unit {
-  self.write_u32_le(id.value)
+  self.write_u32_le_int(id.value)
 }
 
 ///|
@@ -683,7 +683,7 @@ fn @bytecodec.ByteWriter::write_constant_id(
   self : @bytecodec.ByteWriter,
   id : ConstantId,
 ) -> Unit {
-  self.write_u32_le(id.value)
+  self.write_u32_le_int(id.value)
 }
 
 ///|
@@ -691,5 +691,5 @@ fn @bytecodec.ByteWriter::write_object_shape_id(
   self : @bytecodec.ByteWriter,
   id : ObjectShapeId,
 ) -> Unit {
-  self.write_u32_le(id.value)
+  self.write_u32_le_int(id.value)
 }

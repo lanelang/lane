@@ -4,7 +4,7 @@ test "writer and reader roundtrip primitive values" {
   writer.write_u8(0xAB)
   writer.write_bool(true)
   writer.write_bool(false)
-  writer.write_u32_le(0x12345678)
+  writer.write_u32_le(0x12345678U)
   writer.write_i64_le(-42L)
   writer.write_f64_le(1.25)
   writer.write_raw_bytes(Bytes::from_array([b'L', b'A']))
@@ -57,10 +57,10 @@ test "writer and reader roundtrip primitive values" {
     ),
   )
   let reader = ByteReader::from_bytes(writer.to_bytes())
-  inspect(reader.read_raw_bytes(1).to_string(), content="b\"\\xab\"")
+  inspect(reader.read_u8(), content="171")
   inspect(reader.read_bool(), content="true")
   inspect(reader.read_bool(), content="false")
-  inspect(reader.read_u32_le(), content="305419896")
+  inspect(reader.read_u32_le_int(), content="305419896")
   inspect(reader.read_i64_le(), content="-42")
   inspect(reader.read_f64_le(), content="1.25")
   inspect(reader.read_raw_bytes(2).to_string(), content="b\"LA\"")
@@ -73,10 +73,88 @@ test "writer and reader roundtrip primitive values" {
 }
 
 ///|
+test "fixed-width codecs preserve exact bit patterns" {
+  let writer = ByteWriter::new()
+  writer.write_i32_le(-1)
+  writer.write_u32_le(0xFFFFFFFFU)
+  writer.write_u64_le(0xFEDCBA9876543210UL)
+  writer.write_f32_le(Float::from_double(-0.0))
+  let reader = ByteReader::from_bytes(writer.to_bytes())
+  inspect(reader.read_i32_le(), content="-1")
+  inspect(reader.read_u32_le(), content="4294967295")
+  inspect(reader.read_u64_le(), content="18364758544493064720")
+  inspect(reader.read_f32_le().reinterpret_as_int(), content="-2147483648")
+  reader.expect_end()
+}
+
+///|
+test "signed-host u32 conversion reports its implementation limit" {
+  let writer = ByteWriter::new()
+  writer.write_u32_le(0xFFFFFFFFU)
+  let reader = ByteReader::from_bytes(writer.to_bytes())
+  let error = try {
+    ignore(reader.read_u32_le_int())
+    None
+  } catch {
+    error => Some(error)
+  }
+  debug_inspect(
+    (error, reader.offset(), reader.remaining()),
+    content=(
+      #|(Some(ImplementationLimit(offset=0, expected="u32le")), 4, 0)
+    ),
+  )
+}
+
+///|
+test "panic writer rejects negative unsigned Int adapter input" {
+  let writer = ByteWriter::new()
+  writer.write_u32_le_int(-1)
+}
+
+///|
+test "bounded readers preserve absolute offsets" {
+  let reader = ByteReader::from_bytes(b"\x01\x02\x03\x04")
+  inspect(reader.read_u8(), content="1")
+  let section = reader.read_section(2, expected="test section")
+  debug_inspect(
+    (
+      section.offset(),
+      section.read_raw_view(2).to_owned(),
+      section.offset(),
+      reader.offset(),
+      reader.read_u8(),
+    ),
+    content=(
+      #|(1, <Bytes: [0x02, 0x03]>, 3, 3, 4)
+    ),
+  )
+  section.expect_end()
+  reader.expect_end()
+}
+
+///|
+test "bounded reader rejects overrun without consuming its parent" {
+  let reader = ByteReader::from_bytes(b"\x01\x02")
+  let error = try {
+    ignore(reader.read_section(3, expected="record"))
+    None
+  } catch {
+    error => Some(error)
+  }
+  debug_inspect(
+    (error, reader.offset(), reader.remaining()),
+    content=(
+      #|(Some(UnexpectedEnd(offset=0, expected="record", available=2)), 0, 2)
+    ),
+  )
+}
+
+///|
 test "reader reports unexpected end with offset" {
   let reader = ByteReader::from_bytes(Bytes::from_array([b'\x01', b'\x02']))
   let error = try {
-    ignore(reader.read_u32_le())
+    ignore(reader.read_u32_le_int())
     None
   } catch {
     error => Some(error)

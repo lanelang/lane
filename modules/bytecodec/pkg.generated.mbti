@@ -12,41 +12,54 @@ pub(all) suberror ByteDecodeError {
   UnexpectedEnd(offset~ : Int, expected~ : String, available~ : Int)
   InvalidUtf8(offset~ : Int)
   InvalidBool(offset~ : Int, value~ : Int)
+  ImplementationLimit(offset~ : Int, expected~ : String)
   TrailingBytes(offset~ : Int, remaining~ : Int)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
-pub(all) struct ByteReader {
-  mut view : BytesView
-  mut offset : Int
-} derive(Eq, @debug.Debug)
+pub struct ByteReader {
+  // private fields
+}
 pub fn ByteReader::expect_end(Self) -> Unit raise ByteDecodeError
 pub fn ByteReader::from_bytes(Bytes) -> Self
 pub fn ByteReader::offset(Self) -> Int
 pub fn ByteReader::read_bool(Self) -> Bool raise ByteDecodeError
 pub fn ByteReader::read_bytes(Self) -> Bytes raise ByteDecodeError
+pub fn ByteReader::read_f32_le(Self) -> Float raise ByteDecodeError
 pub fn ByteReader::read_f64_le(Self) -> Double raise ByteDecodeError
+pub fn ByteReader::read_i32_le(Self) -> Int raise ByteDecodeError
 pub fn ByteReader::read_i64_le(Self) -> Int64 raise ByteDecodeError
 pub fn ByteReader::read_raw_bytes(Self, Int) -> Bytes raise ByteDecodeError
+pub fn ByteReader::read_raw_view(Self, Int, expected? : String) -> BytesView raise ByteDecodeError
+pub fn ByteReader::read_section(Self, Int, expected? : String) -> Self raise ByteDecodeError
 pub fn ByteReader::read_string(Self) -> String raise ByteDecodeError
-pub fn ByteReader::read_u32_le(Self) -> Int raise ByteDecodeError
+#alias(read_u32_le_uint, deprecated)
+pub fn ByteReader::read_u32_le(Self) -> UInt raise ByteDecodeError
+pub fn ByteReader::read_u32_le_int(Self) -> Int raise ByteDecodeError
+pub fn ByteReader::read_u64_le(Self) -> UInt64 raise ByteDecodeError
+pub fn ByteReader::read_u8(Self) -> Int raise ByteDecodeError
 pub fn ByteReader::remaining(Self) -> Int
 pub fn ByteReader::update_view(Self, BytesView) -> Unit
 pub fn ByteReader::view(Self) -> BytesView
 
-pub(all) struct ByteWriter {
-  bytes : Array[Byte]
-} derive(Eq, @debug.Debug)
+pub struct ByteWriter {
+  // private fields
+}
 pub fn ByteWriter::length(Self) -> Int
 pub fn ByteWriter::new() -> Self
 pub fn ByteWriter::to_bytes(Self) -> Bytes
 pub fn ByteWriter::write_bool(Self, Bool) -> Unit
 pub fn ByteWriter::write_bytes(Self, Bytes) -> Unit
+pub fn ByteWriter::write_f32_le(Self, Float) -> Unit
 pub fn ByteWriter::write_f64_le(Self, Double) -> Unit
+pub fn ByteWriter::write_i32_le(Self, Int) -> Unit
 pub fn ByteWriter::write_i64_le(Self, Int64) -> Unit
 pub fn ByteWriter::write_raw_bytes(Self, Bytes) -> Unit
 pub fn ByteWriter::write_string(Self, String) -> Unit
-pub fn ByteWriter::write_u32_le(Self, Int) -> Unit
+#alias(write_u32_le_uint, deprecated)
+pub fn ByteWriter::write_u32_le(Self, UInt) -> Unit
+pub fn ByteWriter::write_u32_le_int(Self, Int) -> Unit
+pub fn ByteWriter::write_u64_le(Self, UInt64) -> Unit
 pub fn ByteWriter::write_u8(Self, Int) -> Unit
 
 // Type aliases

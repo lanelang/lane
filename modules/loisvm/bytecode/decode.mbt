@@ -7,9 +7,7 @@ pub(all) suberror BytecodeDecodeError {
 
 ///|
 priv struct Decoder {
-  source : BytesView
-  mut offset : Int
-  mut limit : Int
+  reader : @bytecodec.ByteReader
   mut schema_version : Int
 }
 
@@ -27,9 +25,7 @@ fn decode_bytecode_image(
   bytes : Bytes,
 ) -> BytecodeImage raise BytecodeDecodeError {
   let decoder = Decoder::{
-    source: bytes[:],
-    offset: 0,
-    limit: bytes.length(),
+    reader: @bytecodec.ByteReader::from_bytes(bytes),
     schema_version: 0,
   }
   let version = match decoder.view() {
@@ -158,30 +154,39 @@ fn Decoder::read_function_body(
       length_offset, "function body exceeds enclosing bytecode section",
     )
   }
-  let body_end = self.offset() + body_length
-  let outer_limit = self.limit
-  self.limit = body_end
-  let slot_count = self.read_count(minimum_size=2, table="slot")
+  let body_reader = self.reader.read_section(
+    body_length,
+    expected="function body",
+  ) catch {
+    _ =>
+      self.fail_at(
+        length_offset, "function body exceeds enclosing bytecode section",
+      )
+  }
+  let body_decoder = Decoder::{
+    reader: body_reader,
+    schema_version: self.schema_version,
+  }
+  let slot_count = body_decoder.read_count(minimum_size=2, table="slot")
   let slots : Array[SlotMetadata] = []
   for _index in 0..<slot_count {
-    slots.push(self.read_slot_metadata())
+    slots.push(body_decoder.read_slot_metadata())
   }
   let inputs : FunctionInputs = {
-    environment: self.read_optional_slot(),
-    witnesses: self.read_slot_ids(),
-    user_parameters: self.read_slot_ids(),
+    environment: body_decoder.read_optional_slot(),
+    witnesses: body_decoder.read_slot_ids(),
+    user_parameters: body_decoder.read_slot_ids(),
   }
-  let result = self.read_result_representation()
-  let block_count = self.read_count(minimum_size=9, table="block")
+  let result = body_decoder.read_result_representation()
+  let block_count = body_decoder.read_count(minimum_size=9, table="block")
   if block_count == 0 {
-    self.fail("block table must be nonempty")
+    body_decoder.fail("block table must be nonempty")
   }
   let blocks : Array[Block] = []
   for _index in 0..<block_count {
-    blocks.push(self.read_block())
+    blocks.push(body_decoder.read_block())
   }
-  self.expect_end(what="function body")
-  self.limit = outer_limit
+  body_decoder.expect_end(what="function body")
   { slots, inputs, result, blocks }
 }
 
@@ -745,19 +750,16 @@ fn Decoder::read_nonnegative_u32(
   expected~ : String,
 ) -> Int raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.view() {
-    [i32le(value), .. rest] => {
-      self.consume_rest(rest)
-      if value < 0 {
-        raise ResourceLimit(
-          offset~,
-          detail="\{expected} exceeds implementation limit",
-        )
-      }
-      value
-    }
+  let value = self.reader.read_u32_le() catch {
     _ => self.fail_at(offset, "expected \{expected}")
   }
+  if value > 0x7FFFFFFFU {
+    raise ResourceLimit(
+      offset~,
+      detail="\{expected} exceeds implementation limit",
+    )
+  }
+  value.reinterpret_as_int()
 }
 
 ///|
@@ -766,8 +768,7 @@ fn Decoder::read_i64(
   expected~ : String,
 ) -> Int64 raise BytecodeDecodeError {
   let offset = self.offset()
-  match self.view() {
-    [i64le(value), .. rest] => self.consume(rest, value)
+  self.reader.read_i64_le() catch {
     _ => self.fail_at(offset, "expected \{expected}")
   }
 }
@@ -779,27 +780,24 @@ fn Decoder::read_raw_bytes(
   expected~ : String,
 ) -> Bytes raise BytecodeDecodeError {
   let offset = self.offset()
-  if length < 0 || length > self.remaining() {
-    self.fail_at(offset, "expected \{expected}")
+  self.reader.read_raw_bytes(length) catch {
+    _ => self.fail_at(offset, "expected \{expected}")
   }
-  let bytes = self.view()[:length].to_owned()
-  self.offset += length
-  bytes
 }
 
 ///|
 fn Decoder::offset(self : Decoder) -> Int {
-  self.offset
+  self.reader.offset()
 }
 
 ///|
 fn Decoder::remaining(self : Decoder) -> Int {
-  self.limit - self.offset()
+  self.reader.remaining()
 }
 
 ///|
 fn Decoder::view(self : Decoder) -> BytesView {
-  self.source[self.offset():self.limit]
+  self.reader.view()
 }
 
 ///|
@@ -810,7 +808,7 @@ fn[T] Decoder::consume(self : Decoder, rest : BytesView, value : T) -> T {
 
 ///|
 fn Decoder::consume_rest(self : Decoder, rest : BytesView) -> Unit {
-  self.offset += self.remaining() - rest.length()
+  self.reader.update_view(rest)
 }
 
 ///|

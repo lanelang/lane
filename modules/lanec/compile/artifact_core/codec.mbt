@@ -11,7 +11,7 @@ pub fn write_imported_interface_fingerprints(
   writer : @bytecodec.ByteWriter,
   fingerprints : Array[ImportedInterfaceFingerprint],
 ) -> Unit {
-  writer.write_u32_le(fingerprints.length())
+  writer.write_u32_le_int(fingerprints.length())
   for fingerprint in fingerprints {
     writer.write_string(fingerprint.module_path_text)
     write_compilation_fingerprint(writer, fingerprint.fingerprint)
@@ -79,13 +79,13 @@ pub fn write_externals(
   writer : @bytecodec.ByteWriter,
   externals : @buslane_lowering.BuslaneExternalMap,
 ) -> Unit {
-  writer.write_u32_le(externals.builtins.length())
+  writer.write_u32_le_int(externals.builtins.length())
   for external in externals.builtins {
     write_buslane_value_id(writer, external.value)
     writer.write_string(external.name)
     write_buslane_type(writer, external.type_)
   }
-  writer.write_u32_le(externals.runtime_imports.length())
+  writer.write_u32_le_int(externals.runtime_imports.length())
   for import_ in externals.runtime_imports {
     write_buslane_value_id(writer, import_.value)
     writer.write_string(import_.symbol)
@@ -98,7 +98,7 @@ pub fn write_entries(
   writer : @bytecodec.ByteWriter,
   entries : Array[@buslane_lowering.BuslaneEntry],
 ) -> Unit {
-  writer.write_u32_le(entries.length())
+  writer.write_u32_le_int(entries.length())
   for entry in entries {
     write_entry(writer, entry)
   }
@@ -202,7 +202,7 @@ pub fn write_exports(
   writer : @bytecodec.ByteWriter,
   exports : Array[@buslane_lowering.BuslaneModuleExport],
 ) -> Unit {
-  writer.write_u32_le(exports.length())
+  writer.write_u32_le_int(exports.length())
   for export_ in exports {
     write_export_kind(writer, export_.kind)
     writer.write_string(export_.name)
@@ -219,7 +219,7 @@ pub fn write_imports(
   writer : @bytecodec.ByteWriter,
   imports : Array[ModuleImportedReference],
 ) -> Unit {
-  writer.write_u32_le(imports.length())
+  writer.write_u32_le_int(imports.length())
   for import_ in imports {
     writer.write_string(import_.module_path_text)
     write_export_kind(writer, import_.kind)

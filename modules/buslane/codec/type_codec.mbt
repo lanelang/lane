@@ -100,7 +100,7 @@ fn @bytecodec.ByteWriter::write_kinds(
   self : @bytecodec.ByteWriter,
   items : Array[Kind],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_kind(item)
   }

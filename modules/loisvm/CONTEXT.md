@@ -374,6 +374,10 @@ _Avoid_: retained host pointer, copied input, owned string result
 
 ### Loading And Failure
 
+**Bytecode Binary Adapter**:
+The LoisVM-owned schema decoder that composes the domain-independent Bytecodec reader, maps primitive framing failures into bytecode-relative MalformedEncoding or ResourceLimit failures, and retains all LoisVM tag and table semantics.
+_Avoid_: duplicated byte cursor, Bytecodec-owned instruction schema, signed u32 interpretation
+
 **Atomic Bytecode Load**:
 The all-or-nothing path from complete section decoding through import binding and backend construction to publication of one reusable loaded executable image.
 _Avoid_: partial execution image, cached failed binding, Lane callback during load

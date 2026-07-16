@@ -11,7 +11,7 @@ pub suberror BuslaneDecodeError {
 ///|
 pub fn encode_program(program : Program) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le(buslane_codec_version)
+  writer.write_u32_le_int(buslane_codec_version)
   writer.write_program(program)
   writer.to_bytes()
 }
@@ -49,7 +49,7 @@ fn @bytecodec.ByteWriter::write_metadata_registry(
   self : @bytecodec.ByteWriter,
   registry : MetadataRegistry,
 ) -> Unit {
-  self.write_u32_le(registry.next_unique)
+  self.write_u32_le_int(registry.next_unique)
   self.write_type_infos(registry.types)
   self.write_type_parameter_infos(registry.type_parameters)
   self.write_value_infos(registry.values)
@@ -78,7 +78,7 @@ fn @bytecodec.ByteWriter::write_type_infos(
   self : @bytecodec.ByteWriter,
   items : Array[TypeInfo],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
     self.write_type_parameter_ids(item.parameters)
@@ -106,7 +106,7 @@ fn @bytecodec.ByteWriter::write_type_parameter_infos(
   self : @bytecodec.ByteWriter,
   items : Array[TypeParameterInfo],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
     self.write_kind(item.kind)
@@ -129,7 +129,7 @@ fn @bytecodec.ByteWriter::write_value_infos(
   self : @bytecodec.ByteWriter,
   items : Array[ValueInfo],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
     self.write_value_kind(item.kind)
@@ -157,7 +157,7 @@ fn @bytecodec.ByteWriter::write_data_con_infos(
   self : @bytecodec.ByteWriter,
   items : Array[DataConInfo],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
     self.write_type_id(item.owner)
@@ -187,7 +187,7 @@ fn @bytecodec.ByteWriter::write_effect_infos(
   self : @bytecodec.ByteWriter,
   items : Array[EffectInfo],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
     self.write_type_parameter_ids(item.parameters)
@@ -215,7 +215,7 @@ fn @bytecodec.ByteWriter::write_operation_infos(
   self : @bytecodec.ByteWriter,
   items : Array[OperationInfo],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
     self.write_effect_id(item.owner)
@@ -249,7 +249,7 @@ fn @bytecodec.ByteWriter::write_buslane_name(
 ) -> Unit {
   self.write_name_namespace(name.name_space)
   self.write_string(name.occurrence)
-  self.write_u32_le(name.unique.value)
+  self.write_u32_le_int(name.unique.value)
 }
 
 ///|
@@ -268,7 +268,7 @@ fn @bytecodec.ByteWriter::write_type_id(
   self : @bytecodec.ByteWriter,
   id : TypeId,
 ) -> Unit {
-  self.write_u32_le(id.index)
+  self.write_u32_le_int(id.index)
 }
 
 ///|
@@ -283,7 +283,7 @@ fn @bytecodec.ByteWriter::write_type_parameter_id(
   self : @bytecodec.ByteWriter,
   id : TypeParameterId,
 ) -> Unit {
-  self.write_u32_le(id.index)
+  self.write_u32_le_int(id.index)
 }
 
 ///|
@@ -298,7 +298,7 @@ fn @bytecodec.ByteWriter::write_value_id(
   self : @bytecodec.ByteWriter,
   id : ValueId,
 ) -> Unit {
-  self.write_u32_le(id.index)
+  self.write_u32_le_int(id.index)
 }
 
 ///|
@@ -313,7 +313,7 @@ fn @bytecodec.ByteWriter::write_data_con_id(
   self : @bytecodec.ByteWriter,
   id : DataConId,
 ) -> Unit {
-  self.write_u32_le(id.index)
+  self.write_u32_le_int(id.index)
 }
 
 ///|
@@ -328,7 +328,7 @@ fn @bytecodec.ByteWriter::write_effect_id(
   self : @bytecodec.ByteWriter,
   id : EffectId,
 ) -> Unit {
-  self.write_u32_le(id.index)
+  self.write_u32_le_int(id.index)
 }
 
 ///|
@@ -343,7 +343,7 @@ fn @bytecodec.ByteWriter::write_operation_id(
   self : @bytecodec.ByteWriter,
   id : OperationId,
 ) -> Unit {
-  self.write_u32_le(id.index)
+  self.write_u32_le_int(id.index)
 }
 
 ///|
@@ -358,7 +358,7 @@ fn @bytecodec.ByteWriter::write_type_parameter_ids(
   self : @bytecodec.ByteWriter,
   items : Array[TypeParameterId],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_type_parameter_id(item)
   }
@@ -380,7 +380,7 @@ fn @bytecodec.ByteWriter::write_data_con_ids(
   self : @bytecodec.ByteWriter,
   items : Array[DataConId],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_data_con_id(item)
   }
@@ -402,7 +402,7 @@ fn @bytecodec.ByteWriter::write_operation_ids(
   self : @bytecodec.ByteWriter,
   items : Array[OperationId],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_operation_id(item)
   }
@@ -424,7 +424,7 @@ fn @bytecodec.ByteWriter::write_types(
   self : @bytecodec.ByteWriter,
   items : Array[Type],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_type(item)
   }
@@ -446,7 +446,7 @@ fn @bytecodec.ByteWriter::write_generic_arguments(
   self : @bytecodec.ByteWriter,
   items : Array[GenericArgument],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_generic_argument(item)
   }
@@ -468,7 +468,7 @@ fn @bytecodec.ByteWriter::write_effects(
   self : @bytecodec.ByteWriter,
   items : Array[Effect],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_effect(item)
   }
@@ -490,7 +490,7 @@ fn @bytecodec.ByteWriter::write_exprs(
   self : @bytecodec.ByteWriter,
   items : Array[Expr],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_expr(item)
   }
@@ -512,7 +512,7 @@ fn @bytecodec.ByteWriter::write_recursive_bindings(
   self : @bytecodec.ByteWriter,
   items : Array[RecursiveBinding],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_value_id(item.id)
     self.write_expr(item.rhs)

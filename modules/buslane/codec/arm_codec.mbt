@@ -3,7 +3,7 @@ fn @bytecodec.ByteWriter::write_value_ids(
   self : @bytecodec.ByteWriter,
   items : Array[ValueId],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_value_id(item)
   }
@@ -25,7 +25,7 @@ fn @bytecodec.ByteWriter::write_alternatives(
   self : @bytecodec.ByteWriter,
   items : Array[Alternative],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_alt_con(item.alt_constructor)
     self.write_type_parameter_ids(item.type_binders)
@@ -99,7 +99,7 @@ fn @bytecodec.ByteWriter::write_handler_tables(
   self : @bytecodec.ByteWriter,
   items : Array[HandlerTable],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_effect(item.handled_effect)
     self.write_operation_alternatives(item.operations)
@@ -125,7 +125,7 @@ fn @bytecodec.ByteWriter::write_operation_alternatives(
   self : @bytecodec.ByteWriter,
   items : Array[OperationAlternative],
 ) -> Unit {
-  self.write_u32_le(items.length())
+  self.write_u32_le_int(items.length())
   for item in items {
     self.write_operation_id(item.operation)
     self.write_type_parameter_ids(item.type_binders)

@@ -2,7 +2,9 @@ name = "Milky2018/bytecodec"
 
 version = "0.1.0"
 
-repository = ""
+readme = "README.mbt.md"
+
+repository = "https://github.com/lanelang/lane"
 
 license = "MIT"
 

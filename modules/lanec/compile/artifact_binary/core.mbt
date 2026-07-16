@@ -128,7 +128,7 @@ fn artifact_payload_to_binary(kind : Int, payload : Bytes) -> Bytes {
   writer.write_raw_bytes(artifact_binary_magic())
   writer.write_u8(artifact_binary_version)
   writer.write_u8(kind)
-  writer.write_u32_le(payload.length())
+  writer.write_u32_le_int(payload.length())
   writer.write_raw_bytes(payload)
   writer.to_bytes()
 }
@@ -246,7 +246,7 @@ fn encode_module_interface_artifact_payload(
   artifact : @module_compile.ModuleInterfaceArtifact,
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le(artifact.schema_version)
+  writer.write_u32_le_int(artifact.schema_version)
   writer.write_string(artifact.module_path_text)
   writer.write_module_interface(artifact.interface)
   @artifact_core.write_compilation_fingerprint(
@@ -269,7 +269,7 @@ fn decode_module_interface_artifact_payload(
   payload : Bytes,
 ) -> @module_compile.ModuleInterfaceArtifact raise {
   let reader = @bytecodec.ByteReader::from_bytes(payload)
-  let schema_version = reader.read_u32_le()
+  let schema_version = reader.read_u32_le_int()
   if schema_version != 1 {
     raise UnsupportedArtifactSchema(kind="interface", version=schema_version)
   }
@@ -290,7 +290,7 @@ fn encode_module_object_artifact_payload(
   artifact : @module_compile.ModuleObjectArtifact,
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le(artifact.schema_version)
+  writer.write_u32_le_int(artifact.schema_version)
   writer.write_string(artifact.module_path_text)
   @artifact_core.write_compilation_fingerprint(
     writer,
@@ -324,7 +324,7 @@ fn decode_module_object_artifact_payload(
   payload : Bytes,
 ) -> @module_compile.ModuleObjectArtifact raise {
   let reader = @bytecodec.ByteReader::from_bytes(payload)
-  let schema_version = reader.read_u32_le()
+  let schema_version = reader.read_u32_le_int()
   if schema_version != @module_compile.module_object_artifact_schema_version {
     raise UnsupportedArtifactSchema(kind="object", version=schema_version)
   }
@@ -354,7 +354,7 @@ fn encode_linked_program_artifact_payload(
   artifact : @module_compile.LinkedProgramArtifact,
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le(artifact.schema_version)
+  writer.write_u32_le_int(artifact.schema_version)
   writer.write_raw_bytes(
     @loisvm_bytecode.bytecode_image_to_binary(artifact.bytecode),
   )
@@ -366,7 +366,7 @@ fn decode_linked_program_artifact_payload(
   payload : Bytes,
 ) -> @module_compile.LinkedProgramArtifact raise {
   let reader = @bytecodec.ByteReader::from_bytes(payload)
-  let schema_version = reader.read_u32_le()
+  let schema_version = reader.read_u32_le_int()
   if schema_version != @module_compile.linked_program_artifact_schema_version {
     raise UnsupportedArtifactSchema(kind="program", version=schema_version)
   }
