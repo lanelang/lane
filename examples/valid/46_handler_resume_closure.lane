@@ -11,7 +11,7 @@ effect Console {
 fn program() -> Int {
   handle Console::read!() with {
     Console::read(resume) => {
-      let callback : (Int) -> Int = fn (value) {
+      let callback : (Int) -> Int = fn(value) {
         resume(value)
       }
       callback(42)

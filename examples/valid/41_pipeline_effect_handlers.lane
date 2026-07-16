@@ -19,7 +19,7 @@ fn program() -> Int ! { Ask, Log } {
 }
 
 fn[A, E : Effect] handle_ask(task : () -> A ! { Ask, E }) -> () -> A ! E {
-  fn () {
+  fn() {
     handle task() with {
       Ask::read(resume) => resume(40)
     } final value {
@@ -29,7 +29,7 @@ fn[A, E : Effect] handle_ask(task : () -> A ! { Ask, E }) -> () -> A ! E {
 }
 
 fn[A, E : Effect] handle_log(task : () -> A ! { Log, E }) -> () -> A ! E {
-  fn () {
+  fn() {
     handle task() with {
       Log::write(_value, resume) => resume(())
     } final value {

@@ -19,7 +19,7 @@ enum Step {
 
 fn[A] ready(value : A) -> A ! Async[Schedule] {
   suspend![A](
-    fn (resume) {
+    fn(resume) {
       resume(value)
     }
   )
@@ -29,7 +29,7 @@ fn run_task(task : () -> Int ! Async[Schedule]) -> Step {
   handle task() with {
     suspend[A](register, resume) => waiting[A](
       register,
-      fn (value) {
+      fn(value) {
         resume(value)
       }
     )
@@ -43,7 +43,7 @@ fn[A] run_registration(
   resume : (A) -> Step
 ) -> Step {
   handle register(
-    fn (value) {
+    fn(value) {
       let next : Step = resume(value)
       enqueue!(next)
     }

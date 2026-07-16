@@ -52,7 +52,7 @@ pub fn eval_if_int(
 
 pub fn eval_lam_int(body : (Eval[Int]) -> Eval[Int]) -> Eval[(Int) -> Int] {
   Eval::{
-    value: fn (input : Int) {
+    value: fn(input : Int) {
       body(Eval::{ value: input }).value
     }
   }
@@ -117,7 +117,7 @@ pub let size_stlc : Stlc[Size] = Stlc::{
 
 pub fn[R : [Type] -> Type] object_program(stlc : Stlc[R]) -> R[Int] {
   let inc : R[(Int) -> Int] = stlc.lam_int(
-    fn (x) {
+    fn(x) {
       stlc.add(x, stlc.int_lit(1))
     }
   )

@@ -13,14 +13,14 @@ fn[A] choose(cond : Bool, left : A, right : A) -> A {
 }
 
 pub fn use_local_id(value : Int) -> Int {
-  let id = fn[A] (x : A) {
+  let id = fn[A](x : A) {
     x
   }
   id(value)
 }
 
 pub fn check_expected_function() -> Int {
-  let f : (Int) -> Int = fn (x) {
+  let f : (Int) -> Int = fn(x) {
     x
   }
   f(1)

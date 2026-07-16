@@ -32,7 +32,7 @@ fn[F : [Type] -> Type, A] cata(functor : Functor[F], algebra : (F[A]) -> A, term
   match term {
     roll(layer) => algebra(
       functor.map(
-        fn (child) {
+        fn(child) {
           cata(functor, algebra, child)
         },
         layer

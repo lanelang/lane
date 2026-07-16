@@ -22,7 +22,7 @@ struct Parser[A] {
 
 fn[A] pure(value : A) -> Parser[A] {
   Parser[A]::{
-    run: fn (input) {
+    run: fn(input) {
       parsed(value, input)
     }
   }
@@ -30,7 +30,7 @@ fn[A] pure(value : A) -> Parser[A] {
 
 fn[A, B] map(parser : Parser[A], transform : (A) -> B) -> Parser[B] {
   Parser[B]::{
-    run: fn (input) {
+    run: fn(input) {
       match parser.run(input) {
         parsed(value, rest) => parsed(transform(value), rest)
         failed() => failed()
@@ -41,7 +41,7 @@ fn[A, B] map(parser : Parser[A], transform : (A) -> B) -> Parser[B] {
 
 fn[A, B] flat_map(parser : Parser[A], transform : (A) -> Parser[B]) -> Parser[B] {
   Parser[B]::{
-    run: fn (input) {
+    run: fn(input) {
       match parser.run(input) {
         parsed(value, rest) => transform(value).run(rest)
         failed() => failed()
@@ -52,7 +52,7 @@ fn[A, B] flat_map(parser : Parser[A], transform : (A) -> Parser[B]) -> Parser[B]
 
 fn[A] or_else(left : Parser[A], right : Parser[A]) -> Parser[A] {
   Parser[A]::{
-    run: fn (input) {
+    run: fn(input) {
       match left.run(input) {
         parsed(value, rest) => parsed(value, rest)
         failed() => right.run(input)
@@ -63,7 +63,7 @@ fn[A] or_else(left : Parser[A], right : Parser[A]) -> Parser[A] {
 
 fn integer() -> Parser[Int] {
   Parser[Int]::{
-    run: fn (input) {
+    run: fn(input) {
       match input {
         cons(token, rest) =>
           match token {
@@ -78,7 +78,7 @@ fn integer() -> Parser[Int] {
 
 fn plus_token() -> Parser[Unit] {
   Parser[Unit]::{
-    run: fn (input) {
+    run: fn(input) {
       match input {
         cons(token, rest) =>
           match token {
@@ -105,9 +105,9 @@ fn parse_tail(accumulator : Int, input : List[Token]) -> ParseResult[Int] {
 fn expression() -> Parser[Int] {
   flat_map(
     integer(),
-    fn (first) {
+    fn(first) {
       Parser[Int]::{
-        run: fn (input) {
+        run: fn(input) {
           parse_tail(first, input)
         }
       }
@@ -145,7 +145,7 @@ let mapped_result : Int = parsed_value(
   complete(
     map(
       integer(),
-      fn (value) {
+      fn(value) {
         value + 1
       }
     ),

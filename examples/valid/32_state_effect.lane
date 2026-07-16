@@ -22,14 +22,14 @@ fn tick() -> Int ! State {
 
 fn run_tick() -> (Int) -> StateResult {
   handle tick() with {
-    State::get(resume) => fn (state : Int) -> StateResult {
+    State::get(resume) => fn(state : Int) -> StateResult {
       resume(state)(state)
     }
-    State::put(next, resume) => fn (_state : Int) -> StateResult {
+    State::put(next, resume) => fn(_state : Int) -> StateResult {
       resume(())(next)
     }
   } final value {
-    fn (state : Int) -> StateResult {
+    fn(state : Int) -> StateResult {
       StateResult::{ value, state }
     }
   }

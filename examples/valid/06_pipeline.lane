@@ -13,7 +13,7 @@ pub fn pipeline_call(x : Int) -> Int {
 }
 
 pub fn pipeline_literal(x : Int) -> Int {
-  x |> fn (value : Int) {
+  x |> fn(value : Int) {
     value + 1
   }
 }

@@ -697,7 +697,7 @@ test "format source keeps short block-like assignment attached" {
       #|}
       #|
       #|pub fn bad(flag : Bool, item : Maybe) -> Int {
-      #|  let id = fn (value) {
+      #|  let id = fn(value) {
       #|    value
       #|  }
       #|  let choice = if flag {
@@ -710,7 +710,7 @@ test "format source keeps short block-like assignment attached" {
       #|    Maybe::none() => 0
       #|  }
       #|  let called = apply(
-      #|    fn (value) {
+      #|    fn(value) {
       #|      value
       #|    },
       #|    choice

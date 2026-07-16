@@ -65,13 +65,13 @@ fn[E : Effect] run_task(task_value : Task[E]) -> Step[E] ! E {
     task[A](body) =>
       handle body() with {
         Coroutine[E]::yield(resume) => Step[E]::yielded(
-          fn () -> Step[E] ! E {
+          fn() -> Step[E] ! E {
             resume(())
           }
         )
         Coroutine[E]::spawn[B](body, resume) => Step[E]::spawned[B](
           body,
-          fn () -> Step[E] ! E {
+          fn() -> Step[E] ! E {
             resume(())
           }
         )
@@ -100,7 +100,7 @@ fn[E : Effect] run_step(step : Step[E], scheduler : Scheduler[E]) -> Scheduler[E
     spawned[A](body, resume) => {
       let child : Runnable[E] =
         Runnable[E]::runnable(
-          fn () -> Step[E] ! E {
+          fn() -> Step[E] ! E {
             run_task(Task[E]::task[A](body))
           }
         )
@@ -111,11 +111,11 @@ fn[E : Effect] run_step(step : Step[E], scheduler : Scheduler[E]) -> Scheduler[E
 
 fn collect_logs(scheduler : Scheduler[Log]) -> (Int) -> RunResult {
   handle run_queue(scheduler) with {
-    Log::log(event, resume) => fn (checksum : Int) -> RunResult {
+    Log::log(event, resume) => fn(checksum : Int) -> RunResult {
       resume(())(checksum * 100 + event)
     }
   } final scheduler {
-    fn (checksum : Int) -> RunResult {
+    fn(checksum : Int) -> RunResult {
       RunResult::{ scheduler, checksum }
     }
   }
@@ -142,7 +142,7 @@ let result : RunResult =
     Scheduler[Log]::{
       queue: Queue[Log]::node(
         Runnable[Log]::runnable(
-          fn () {
+          fn() {
             run_task(Task[Log]::task[Int](parent))
           }
         ),

@@ -2,7 +2,7 @@
 module Examples.Invalid13
 
 pub fn bad() -> (Int) -> Int {
-  let id = fn (value) {
+  let id = fn(value) {
     value
   }
   id

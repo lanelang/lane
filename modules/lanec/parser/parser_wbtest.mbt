@@ -463,7 +463,7 @@ test "parse function literal and pipeline" {
       #|module Test
       #|
       #|fn pipeline_literal(x : Int) -> Int {
-      #|  x |> fn (value : Int) {
+      #|  x |> fn(value : Int) {
       #|    value
       #|  }
       #|}

@@ -999,7 +999,6 @@ fn function_literal_head_doc(
   }
   keyword("fn") +
   bracketed_type_parameters(type_parameters) +
-  space +
   parenthesized_comma_list(parameters.map(FunctionLiteralParameter::to_doc)) +
   return_doc +
   effect_doc

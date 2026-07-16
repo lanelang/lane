@@ -12,7 +12,7 @@ pub effect Schedule {
 
 pub fn[A] scheduled(value : A) -> A ! Control {
   suspend![A, Schedule](
-    fn (resume) {
+    fn(resume) {
       let _ticked = tick!()
       resume(value)
     }

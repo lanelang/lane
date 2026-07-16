@@ -11,10 +11,10 @@ struct Lens[S, A] {
 
 fn[S, A, B] compose(outer : Lens[S, A], inner : Lens[A, B]) -> Lens[S, B] {
   Lens::{
-    get: fn (source) {
+    get: fn(source) {
       inner.get(outer.get(source))
     },
-    set: fn (source, value) {
+    set: fn(source, value) {
       let middle : A = outer.get(source)
       outer.set(source, inner.set(middle, value))
     }
@@ -42,10 +42,10 @@ struct Config {
 
 fn lens_config_database() -> Lens[Config, Database] {
   Lens::{
-    get: fn (config) {
+    get: fn(config) {
       config.database
     },
-    set: fn (config, database) {
+    set: fn(config, database) {
       Config::{ database, debug: config.debug }
     }
   }
@@ -53,10 +53,10 @@ fn lens_config_database() -> Lens[Config, Database] {
 
 fn lens_database_pool() -> Lens[Database, Pool] {
   Lens::{
-    get: fn (database) {
+    get: fn(database) {
       database.pool
     },
-    set: fn (database, pool) {
+    set: fn(database, pool) {
       Database::{ pool, replicas: database.replicas }
     }
   }
@@ -64,10 +64,10 @@ fn lens_database_pool() -> Lens[Database, Pool] {
 
 fn lens_pool_size() -> Lens[Pool, Int] {
   Lens::{
-    get: fn (pool) {
+    get: fn(pool) {
       pool.size
     },
-    set: fn (pool, size) {
+    set: fn(pool, size) {
       Pool::{ size, timeout: pool.timeout }
     }
   }
@@ -75,10 +75,10 @@ fn lens_pool_size() -> Lens[Pool, Int] {
 
 fn lens_pool_timeout() -> Lens[Pool, Int] {
   Lens::{
-    get: fn (pool) {
+    get: fn(pool) {
       pool.timeout
     },
-    set: fn (pool, timeout) {
+    set: fn(pool, timeout) {
       Pool::{ size: pool.size, timeout }
     }
   }
@@ -103,7 +103,7 @@ let base_config : Config = Config::{
 
 let tuned_size : Config = over(
   lens_config_pool_size(),
-  fn (size) {
+  fn(size) {
     size + 2
   },
   base_config
@@ -111,7 +111,7 @@ let tuned_size : Config = over(
 
 let tuned_config : Config = over(
   lens_config_pool_timeout(),
-  fn (timeout) {
+  fn(timeout) {
     timeout + 1
   },
   tuned_size

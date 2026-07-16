@@ -23,7 +23,7 @@ fn start() -> CoroutineStep {
   handle worker() with {
     Coroutine::yield(value, resume) => yielded(
       value,
-      fn (input : Int) -> CoroutineStep {
+      fn(input : Int) -> CoroutineStep {
         resume(input)
       }
     )

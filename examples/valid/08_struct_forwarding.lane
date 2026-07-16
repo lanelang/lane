@@ -18,7 +18,7 @@ pub struct MeterOps {
 
 pub offer meter_equal_ops : Equal[Meter] = Equal::{
   equal: meter_equal,
-  not_equal: fn (a : Meter, b : Meter) -> Bool {
+  not_equal: fn(a : Meter, b : Meter) -> Bool {
     if meter_equal(a, b) {
       false
     } else {
