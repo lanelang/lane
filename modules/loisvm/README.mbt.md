@@ -82,7 +82,8 @@ fn example_image() -> @bytecode.BytecodeImage {
       BytecodeBody(entry),
       RuntimeImport({
         abi_major: 1,
-        user_arity: 1,
+        parameters: [Int],
+        result: Unit,
         symbol: "example.observe_int",
       }),
     ],
@@ -175,7 +176,7 @@ Incorrect ownership bytecode is outside the trusted producer contract and may le
 
 ## Runtime imports
 
-Runtime imports are ordinary entries in the unified function table. Loading resolves every import by exact symbol, ABI major version, and user arity before publishing a loaded image.
+Runtime imports are ordinary entries in the unified function table. Loading resolves every import by exact symbol, ABI major version, parameter kinds, and result kind before publishing a loaded image.
 
 Bindings declare their full primitive signature through `RuntimeBinding`:
 

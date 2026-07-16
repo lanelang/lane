@@ -14,7 +14,7 @@ After whole-program optimization and final body formation, the linker emits byte
 
 The selected entry is stored explicitly and need not be FunctionId 1. FunctionId is not a module ABI identity or persistent symbol. The linker performs no call-graph canonical labeling, body-hash ordering, sparse allocation, or hash-derived identifier assignment.
 
-Strict decoding rejects malformed fields, unknown entry or ABI-kind tags, invalid `Unit` parameters, and non-ASCII or otherwise invalid symbols before runtime import resolution begins. Loading additionally rejects zero function count, an out-of-range or incompatible selected entry, unresolved imports, and any ABI-major, parameter-kind, or result-kind mismatch. Resolution occurs only after complete bytecode-section decoding and may not execute or re-enter Lane code. Any failure discards partial bindings. No host pointer or resolved binding is serialized.
+Strict decoding rejects malformed fields, unknown entry or ABI-kind tags, and non-ASCII or otherwise invalid symbols before runtime import resolution begins. Loading additionally rejects zero function count, an out-of-range or incompatible selected entry, unresolved imports, and any ABI-major, parameter-kind, or result-kind mismatch. Resolution occurs only after complete bytecode-section decoding and may not execute or re-enter Lane code. Any failure discards partial bindings. No host pointer or resolved binding is serialized.
 
 Consequences:
 

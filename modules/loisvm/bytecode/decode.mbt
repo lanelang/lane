@@ -88,9 +88,14 @@ fn Decoder::read_runtime_import(
   self : Decoder,
 ) -> RuntimeImport raise BytecodeDecodeError {
   let abi_major = self.read_nonnegative_u32(expected="runtime import ABI major")
-  let user_arity = self.read_nonnegative_u32(
-    expected="runtime import user arity",
+  let parameter_count = self.read_nonnegative_u32(
+    expected="runtime import parameter count",
   )
+  let parameters = []
+  for _ in 0..<parameter_count {
+    parameters.push(self.read_runtime_value_kind())
+  }
+  let result = self.read_runtime_value_kind()
   let symbol_offset = self.offset()
   let symbol_bytes = self.read_bytes(expected="runtime import symbol")
   if symbol_bytes.length() == 0 {
@@ -112,7 +117,23 @@ fn Decoder::read_runtime_import(
   let symbol = @utf8.decode(symbol_bytes) catch {
     _ => self.fail_at(symbol_offset + 4, "runtime import symbol is not ASCII")
   }
-  { abi_major, user_arity, symbol }
+  { abi_major, parameters, result, symbol }
+}
+
+///|
+fn Decoder::read_runtime_value_kind(
+  self : Decoder,
+) -> RuntimeValueKind raise BytecodeDecodeError {
+  let offset = self.offset()
+  match self.read_tag(expected="runtime value kind") {
+    0x00 => Unit
+    0x01 => Bool
+    0x02 => Int
+    0x03 => Double
+    0x04 => String
+    0x05 => Opaque
+    tag => self.invalid_tag(offset~, domain="runtime value kind", tag~)
+  }
 }
 
 ///|

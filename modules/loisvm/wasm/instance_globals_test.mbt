@@ -54,7 +54,8 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
       BytecodeBody(entry),
       RuntimeImport({
         abi_major: 1,
-        user_arity: 1,
+        parameters: [Int],
+        result: Unit,
         symbol: "lane.test.observe_global",
       }),
     ],
@@ -125,7 +126,12 @@ test "Wasm initializer and entry share one runtime context" {
     functions: [
       BytecodeBody(call_import),
       BytecodeBody(call_import),
-      RuntimeImport({ abi_major: 1, user_arity: 0, symbol: "lane.test.context" }),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [],
+        result: Unit,
+        symbol: "lane.test.context",
+      }),
     ],
     globals: [],
     layouts: [],

@@ -13,7 +13,7 @@ struct ImportFailureState {
 ///|
 pub struct LoadedImage {
   wasm_module : @wasm_types.Module
-  bindings : Array[@loisvm_runtime.RuntimeBinding]
+  imports : Array[(@bytecode.RuntimeImport, @loisvm_runtime.RuntimeBinding)]
 }
 
 ///|
@@ -29,24 +29,25 @@ pub fn load(
   image : @bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,
 ) -> Result[LoadedImage, WasmLoadError] {
-  let bindings : Array[@loisvm_runtime.RuntimeBinding] = []
+  let imports : Array[(@bytecode.RuntimeImport, @loisvm_runtime.RuntimeBinding)] = []
   for entry in image.functions {
     if entry is RuntimeImport(import_) {
       let binding = match
         registry.resolve(
           import_.symbol,
           expected_abi_major=import_.abi_major,
-          expected_arity=import_.user_arity,
+          expected_parameters=import_.parameters,
+          expected_result=import_.result,
         ) {
         Ok(binding) => binding
         Err(error) => return Err(RuntimeImportResolution(error~))
       }
-      bindings.push(binding)
+      imports.push((import_, binding))
     }
   }
-  let compiled = compile_with_runtime_bindings(image, bindings)
+  let compiled = compile(image)
   match compiled {
-    Ok(wasm_module) => Ok({ wasm_module, bindings })
+    Ok(wasm_module) => Ok({ wasm_module, imports })
     Err(error) => Err(BackendCompileFailure(detail=to_repr(error).to_string()))
   }
 }
@@ -84,15 +85,17 @@ fn LoadedImage::new_instance_or_raise(
   let imports = @wasmoon_runtime.Imports::Imports()
   let failure : ImportFailureState = { symbol: None, message: None }
   let runtime_context = @loisvm_runtime.RuntimeContext::new()
-  for binding in self.bindings {
+  for resolved in self.imports {
+    let descriptor = resolved.0
+    let binding = resolved.1
     let host_function : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
       @wasm_types.Value,
     ] raise @wasmoon_runtime.RuntimeError = (caller, values) => {
       invoke_runtime_binding(caller, binding, failure, runtime_context, values)
     }
     let address = store.alloc_host_func_with_caller(host_function, func_type={
-      params: @compiler.physical_runtime_parameters_for_binding(binding),
-      results: @compiler.runtime_results_for_binding(binding),
+      params: @compiler.physical_runtime_parameters_for_import(descriptor),
+      results: @compiler.runtime_results_for_import(descriptor),
     })
     imports.add_func("lane.runtime.v1", binding.symbol(), address)
   }
@@ -208,6 +211,7 @@ fn invoke_runtime_binding(
         )
         value_index += 2
       }
+      Opaque => raise TypeMismatch
     }
   }
   let result = try binding.call(runtime_context, arguments) catch {
@@ -254,7 +258,7 @@ fn invoke_runtime_binding(
 
 ///|
 fn default_runtime_result(
-  kind : @loisvm_runtime.PrimitiveKind,
+  kind : @loisvm_runtime.RuntimeValueKind,
 ) -> Array[@wasm_types.Value] {
   match kind {
     Unit => []
@@ -262,13 +266,14 @@ fn default_runtime_result(
     Int => [I64(0L)]
     Double => [F64(0.0)]
     String => [I32(0)]
+    Opaque => [I32(0)]
   }
 }
 
 ///|
 fn host_result_to_wasm(
   caller : @wasmoon_runtime.Caller,
-  kind : @loisvm_runtime.PrimitiveKind,
+  kind : @loisvm_runtime.RuntimeValueKind,
   value : @loisvm_runtime.HostValue,
 ) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError {
   match (kind, value) {

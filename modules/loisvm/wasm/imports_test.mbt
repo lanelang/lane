@@ -75,7 +75,8 @@ test "registry-backed scalar import uses its generated adapter" {
   let instance = loaded_instance(
     import_test_image(body, {
       abi_major: 1,
-      user_arity: 1,
+      parameters: [Int],
+      result: Int,
       symbol: "lane.test.add_one",
     }),
     registry,
@@ -106,7 +107,8 @@ test "Wasm adapters synthesize logical Unit runtime arguments" {
   let instance = loaded_instance(
     import_test_image(body, {
       abi_major: 1,
-      user_arity: 1,
+      parameters: [Unit],
+      result: Unit,
       symbol: "lane.test.unit_argument",
     }),
     registry,
@@ -145,7 +147,12 @@ test "String import reads borrowed bytes and allocates its result in Lane memory
   let instance = loaded_instance(
     import_test_image(
       body,
-      { abi_major: 1, user_arity: 1, symbol: "lane.test.suffix" },
+      {
+        abi_major: 1,
+        parameters: [String],
+        result: String,
+        symbol: "lane.test.suffix",
+      },
       layouts=[String],
       constants=[b"Lane"],
     ),
@@ -170,7 +177,8 @@ test "runtime import failure is reported out of band" {
   let instance = loaded_instance(
     import_test_image(body, {
       abi_major: 1,
-      user_arity: 0,
+      parameters: [],
+      result: Unit,
       symbol: "lane.test.fail",
     }),
     registry,
@@ -209,7 +217,12 @@ test "failing String import releases its transferred argument" {
   let instance = loaded_instance(
     import_test_image(
       body,
-      { abi_major: 1, user_arity: 1, symbol: "lane.test.fail_string" },
+      {
+        abi_major: 1,
+        parameters: [String],
+        result: Unit,
+        symbol: "lane.test.fail_string",
+      },
       layouts=[String],
       constants=[b"Lane", b"!"],
     ),
@@ -254,7 +267,12 @@ test "fatal import unwinding releases owners retained by the caller frame" {
   let instance = loaded_instance(
     import_test_image(
       body,
-      { abi_major: 1, user_arity: 0, symbol: "lane.test.fail_with_live_owner" },
+      {
+        abi_major: 1,
+        parameters: [],
+        result: Unit,
+        symbol: "lane.test.fail_with_live_owner",
+      },
       layouts=[String],
       constants=[b"Lane", b"!"],
     ),
@@ -294,7 +312,12 @@ test "invalid host String results become runtime import failures" {
   let instance = loaded_instance(
     import_test_image(
       body,
-      { abi_major: 1, user_arity: 0, symbol: "lane.test.non_ascii" },
+      {
+        abi_major: 1,
+        parameters: [],
+        result: String,
+        symbol: "lane.test.non_ascii",
+      },
       layouts=[String],
     ),
     registry,
@@ -325,7 +348,12 @@ test "host String allocation preserves live heap resource failures" {
     load(
       import_test_image(
         body,
-        { abi_major: 1, user_arity: 0, symbol: "lane.test.host_string" },
+        {
+          abi_major: 1,
+          parameters: [],
+          result: String,
+          symbol: "lane.test.host_string",
+        },
         layouts=[String],
       ),
       registry,
@@ -348,7 +376,8 @@ test "host String allocation preserves live heap resource failures" {
 test "Wasm loading rejects missing and incompatible bindings before compilation" {
   let image = import_test_image(import_test_body([], []), {
     abi_major: 1,
-    user_arity: 0,
+    parameters: [],
+    result: Unit,
     symbol: "lane.test.missing",
   })
   assert_true(
@@ -377,6 +406,50 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
           symbol="lane.test.missing",
           expected_major=1,
           actual_major=2
+        )
+      )
+    ),
+  )
+  let wrong_parameter = @loisvm_runtime.RuntimeRegistry::new()
+  wrong_parameter.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.missing",
+      abi_major=1,
+      parameters=[Int],
+      result=Unit,
+      invoke=fn(_context, _arguments) { Unit },
+    ),
+  )
+  assert_true(
+    load(image, wrong_parameter)
+    is Err(
+      RuntimeImportResolution(
+        error=ParameterKindsMismatch(
+          symbol="lane.test.missing",
+          expected=[],
+          actual=[Int]
+        )
+      )
+    ),
+  )
+  let wrong_result = @loisvm_runtime.RuntimeRegistry::new()
+  wrong_result.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.missing",
+      abi_major=1,
+      parameters=[],
+      result=Int,
+      invoke=fn(_context, _arguments) { Int(0L) },
+    ),
+  )
+  assert_true(
+    load(image, wrong_result)
+    is Err(
+      RuntimeImportResolution(
+        error=ResultKindMismatch(
+          symbol="lane.test.missing",
+          expected=Unit,
+          actual=Int
         )
       )
     ),

@@ -50,14 +50,19 @@ pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
 ///|
 fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
   match entry {
-    RuntimeImport(import_) =>
+    RuntimeImport(import_) => {
+      let parameters = import_.parameters
+        .map(render_runtime_value_kind)
+        .join(", ")
       [
         "function f\{id} = runtime_import(",
         "  symbol=\{to_repr(import_.symbol)},",
         "  abi_major=\{import_.abi_major},",
-        "  user_arity=\{import_.user_arity}",
+        "  parameters=[\{parameters}],",
+        "  result=\{render_runtime_value_kind(import_.result)}",
         ")",
       ]
+    }
     BytecodeBody(body) => {
       let lines = [
         "function f\{id}(",
@@ -84,6 +89,18 @@ fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
       lines.push("}")
       lines
     }
+  }
+}
+
+///|
+fn render_runtime_value_kind(kind : RuntimeValueKind) -> String {
+  match kind {
+    Unit => "unit"
+    Bool => "bool"
+    Int => "int"
+    Double => "double"
+    String => "string"
+    Opaque => "opaque"
   }
 }
 

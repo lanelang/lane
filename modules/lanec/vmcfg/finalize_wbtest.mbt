@@ -78,7 +78,8 @@ test "finalize transfers global owners and promotes global borrows" {
         Body(body),
         RuntimeImport({
           abi_major: 1,
-          user_arity: 1,
+          parameters: [String],
+          result: Unit,
           symbol: "lane.test.consume",
         }),
       ],
@@ -130,7 +131,8 @@ test "finalize preserves erased companions for promoted global borrows" {
         Body(body),
         RuntimeImport({
           abi_major: 1,
-          user_arity: 1,
+          parameters: [Opaque],
+          result: Unit,
           symbol: "lane.test.consume_erased",
         }),
       ],
@@ -186,7 +188,8 @@ test "finalize promotes a borrowed call argument to an owner" {
         Body(body),
         RuntimeImport({
           abi_major: 1,
-          user_arity: 1,
+          parameters: [String],
+          result: Unit,
           symbol: "lane.test.consume",
         }),
       ],
@@ -318,7 +321,8 @@ test "finalize retains an owned call argument that is used afterward" {
         Body(body),
         RuntimeImport({
           abi_major: 1,
-          user_arity: 1,
+          parameters: [String],
+          result: Unit,
           symbol: "lane.test.consume",
         }),
       ],

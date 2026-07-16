@@ -117,15 +117,35 @@ fn ImageLowerer::plan_runtime_import(
   value : @buslane.ValueId,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
 ) -> Unit raise LoisvmLoweringError {
-  if !runtime_import_signature_supported(import_.type_) {
-    raise UnsupportedExpression(
-      detail="runtime imports must use only v1 host primitive function types",
-    )
+  guard import_.type_ is Function(parameters, result, _) else {
+    raise UnsupportedExpression(detail="runtime import must be a function")
   }
-  guard import_.type_ is Function(parameters, _, _) else {
-    abort("validated runtime import is not a function")
+  let parameter_kinds = []
+  for parameter in parameters {
+    match runtime_import_value_kind(self.metadata, parameter) {
+      Some(kind) => parameter_kinds.push(kind)
+      None =>
+        raise UnsupportedExpression(
+          detail="runtime import parameters must use direct host ABI types",
+        )
+    }
   }
-  self.add_plan(value, RuntimeImport(import_, parameters.length()))
+  let result_kind = match runtime_import_value_kind(self.metadata, result) {
+    Some(kind) => kind
+    None =>
+      raise UnsupportedExpression(
+        detail="runtime import result must use a direct host ABI type",
+      )
+  }
+  self.add_plan(
+    value,
+    RuntimeImport({
+      abi_major: 1,
+      parameters: parameter_kinds,
+      result: result_kind,
+      symbol: import_.symbol,
+    }),
+  )
 }
 
 ///|

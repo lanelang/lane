@@ -78,9 +78,20 @@ pub(all) struct FunctionInputs {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum RuntimeValueKind {
+  Unit
+  Bool
+  Int
+  Double
+  String
+  Opaque
+} derive(Debug, Eq)
+
+///|
 pub(all) struct RuntimeImport {
   abi_major : Int
-  user_arity : Int
+  parameters : Array[RuntimeValueKind]
+  result : RuntimeValueKind
   symbol : String
 } derive(Debug, Eq)
 

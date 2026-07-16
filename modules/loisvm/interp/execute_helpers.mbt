@@ -401,7 +401,7 @@ fn ExecutionInstance::invoke_import(
 fn ExecutionInstance::to_host_value(
   self : ExecutionInstance,
   value : VMValue,
-  kind : @runtime.PrimitiveKind,
+  kind : @runtime.RuntimeValueKind,
 ) -> @runtime.HostValue raise ExecutionFailure {
   match (kind, value) {
     (Bool, I32(value)) => Bool(value != 0)
@@ -428,7 +428,7 @@ fn ExecutionInstance::from_host_value(
   self : ExecutionInstance,
   symbol : String,
   value : @runtime.HostValue,
-  kind : @runtime.PrimitiveKind,
+  kind : @runtime.RuntimeValueKind,
 ) -> VMValue? raise ExecutionFailure {
   match (kind, value) {
     (Unit, Unit) => None
@@ -459,7 +459,7 @@ fn ExecutionInstance::from_host_value(
 fn ExecutionInstance::release_import_arguments(
   self : ExecutionInstance,
   arguments : Array[VMValue],
-  kinds : Array[@runtime.PrimitiveKind],
+  kinds : Array[@runtime.RuntimeValueKind],
 ) -> Unit raise ExecutionFailure {
   let mut argument_index = 0
   for kind in kinds {

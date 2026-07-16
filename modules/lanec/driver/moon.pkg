@@ -8,7 +8,6 @@ import {
   "Milky2018/lanec/module/compile" @module_compile,
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/loisvm/bytecode",
-  "Milky2018/loisvm/runtime" @loisvm_runtime,
   "Milky2018/loisvm/wasm/compiler" @wasm_compiler,
   "moonbit-community/prettyprinter",
 }

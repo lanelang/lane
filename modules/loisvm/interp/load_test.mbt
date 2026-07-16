@@ -29,7 +29,8 @@ test "loader resolves all runtime imports atomically" {
       BytecodeBody(body),
       RuntimeImport({
         abi_major: 1,
-        user_arity: 1,
+        parameters: [Int],
+        result: Int,
         symbol: "lane.test.identity",
       }),
     ],
@@ -44,4 +45,53 @@ test "loader resolves all runtime imports atomically" {
     Ok(_) => None
   }
   assert_eq(error, Some(UnresolvedImport(symbol="lane.test.identity")))
+  let wrong_parameter = @runtime.RuntimeRegistry::new()
+  wrong_parameter.register(
+    @runtime.RuntimeBinding::new(
+      symbol="lane.test.identity",
+      abi_major=1,
+      parameters=[Bool],
+      result=Int,
+      invoke=fn(_context, _arguments) { Int(0L) },
+    ),
+  )
+  let wrong_result = @runtime.RuntimeRegistry::new()
+  wrong_result.register(
+    @runtime.RuntimeBinding::new(
+      symbol="lane.test.identity",
+      abi_major=1,
+      parameters=[Int],
+      result=Bool,
+      invoke=fn(_context, _arguments) { Bool(false) },
+    ),
+  )
+  let parameter_error = match load(image, wrong_parameter) {
+    Err(error) => Some(error)
+    Ok(_) => None
+  }
+  let result_error = match load(image, wrong_result) {
+    Err(error) => Some(error)
+    Ok(_) => None
+  }
+  debug_inspect(
+    (parameter_error, result_error),
+    content=(
+      #|(
+      #|  Some(
+      #|    ParameterKindsMismatch(
+      #|      symbol="lane.test.identity",
+      #|      expected=[Int],
+      #|      actual=[Bool],
+      #|    ),
+      #|  ),
+      #|  Some(
+      #|    ResultKindMismatch(
+      #|      symbol="lane.test.identity",
+      #|      expected=Int,
+      #|      actual=Bool,
+      #|    ),
+      #|  ),
+      #|)
+    ),
+  )
 }

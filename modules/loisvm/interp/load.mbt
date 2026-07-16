@@ -21,7 +21,8 @@ pub fn load(
           registry.resolve(
             import_.symbol,
             expected_abi_major=import_.abi_major,
-            expected_arity=import_.user_arity,
+            expected_parameters=import_.parameters,
+            expected_result=import_.result,
           ) {
           Ok(binding) => binding
           Err(error) => return Err(error)

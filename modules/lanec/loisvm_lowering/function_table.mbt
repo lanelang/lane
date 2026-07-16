@@ -40,7 +40,16 @@ fn canonicalize_function_table(image : @vmcfg.Image) -> @vmcfg.Image {
       if abi_order != 0 {
         abi_order
       } else {
-        left.descriptor.user_arity - right.descriptor.user_arity
+        let parameter_order = compare_runtime_value_kinds(
+          left.descriptor.parameters,
+          right.descriptor.parameters,
+        )
+        if parameter_order != 0 {
+          parameter_order
+        } else {
+          runtime_value_kind_rank(left.descriptor.result) -
+          runtime_value_kind_rank(right.descriptor.result)
+        }
       }
     }
   })
@@ -64,6 +73,38 @@ fn canonicalize_function_table(image : @vmcfg.Image) -> @vmcfg.Image {
       remap_function_id(function, mappings)
     }),
     functions,
+  }
+}
+
+///|
+fn compare_runtime_value_kinds(
+  left : Array[@bytecode.RuntimeValueKind],
+  right : Array[@bytecode.RuntimeValueKind],
+) -> Int {
+  let common = if left.length() < right.length() {
+    left.length()
+  } else {
+    right.length()
+  }
+  for index in 0..<common {
+    let order = runtime_value_kind_rank(left[index]) -
+      runtime_value_kind_rank(right[index])
+    if order != 0 {
+      return order
+    }
+  }
+  left.length() - right.length()
+}
+
+///|
+fn runtime_value_kind_rank(kind : @bytecode.RuntimeValueKind) -> Int {
+  match kind {
+    Unit => 0
+    Bool => 1
+    Int => 2
+    Double => 3
+    String => 4
+    Opaque => 5
   }
 }
 

@@ -14,7 +14,6 @@ pub fn load(@bytecode.BytecodeImage, @Milky2018/loisvm/runtime.RuntimeRegistry) 
 
 // Errors
 pub(all) suberror WasmCompileError {
-  UnsupportedRuntimeImport(function_id~ : Int)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)
@@ -40,7 +39,7 @@ type ImportFailureState
 
 pub struct LoadedImage {
   wasm_module : @types.Module
-  bindings : Array[@Milky2018/loisvm/runtime.RuntimeBinding]
+  imports : Array[(@bytecode.RuntimeImport, @Milky2018/loisvm/runtime.RuntimeBinding)]
 }
 pub fn LoadedImage::new_instance(Self, config? : @Milky2018/loisvm/runtime.ExecutionConfig) -> Result[ExecutionInstance, @Milky2018/loisvm/runtime.ExecutionError]
 pub fn LoadedImage::wasm_module(Self) -> @types.Module

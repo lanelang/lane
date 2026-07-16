@@ -69,7 +69,12 @@ test "interpreter executes direct and runtime calls once" {
     functions: [
       BytecodeBody(entry),
       BytecodeBody(add_one),
-      RuntimeImport({ abi_major: 1, user_arity: 1, symbol: "lane.test.observe" }),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [Int],
+        result: Unit,
+        symbol: "lane.test.observe",
+      }),
     ],
     layouts: [],
     object_shapes: [],
@@ -132,7 +137,12 @@ test "interpreter initializer and entry share one runtime context" {
     functions: [
       BytecodeBody(call_import),
       BytecodeBody(call_import),
-      RuntimeImport({ abi_major: 1, user_arity: 0, symbol: "lane.test.context" }),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [],
+        result: Unit,
+        symbol: "lane.test.context",
+      }),
     ],
     layouts: [],
     object_shapes: [],
@@ -236,7 +246,8 @@ test "interpreter synthesizes logical Unit runtime arguments" {
       BytecodeBody(entry),
       RuntimeImport({
         abi_major: 1,
-        user_arity: 1,
+        parameters: [Unit],
+        result: Unit,
         symbol: "lane.test.unit_argument",
       }),
     ],
@@ -352,7 +363,8 @@ test "object witnesses load independently from data and environment members" {
       BytecodeBody(entry),
       RuntimeImport({
         abi_major: 1,
-        user_arity: 1,
+        parameters: [Bool],
+        result: Unit,
         symbol: "lane.test.object_witness",
       }),
     ],

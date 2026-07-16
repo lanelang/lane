@@ -1,17 +1,22 @@
 ///|
-fn runtime_import_signature_supported(type_ : @buslane.Type) -> Bool {
-  guard type_ is Function(parameters, result, _) else { return false }
-  parameters.all(runtime_import_primitive_type) &&
-  runtime_import_primitive_type(result)
-}
-
-///|
-fn runtime_import_primitive_type(type_ : @buslane.Type) -> Bool {
-  type_ is Primitive(Unit) ||
-  type_ is Primitive(Bool) ||
-  type_ is Primitive(Int) ||
-  type_ is Primitive(Double) ||
-  type_ is Primitive(String)
+fn runtime_import_value_kind(
+  metadata : @buslane.MetadataRegistry,
+  type_ : @buslane.Type,
+) -> @bytecode.RuntimeValueKind? {
+  match type_ {
+    Primitive(Unit) => Some(@bytecode.RuntimeValueKind::Unit)
+    Primitive(Bool) => Some(@bytecode.RuntimeValueKind::Bool)
+    Primitive(Int) => Some(@bytecode.RuntimeValueKind::Int)
+    Primitive(Double) => Some(@bytecode.RuntimeValueKind::Double)
+    Primitive(String) => Some(@bytecode.RuntimeValueKind::String)
+    Constructor(type_id) =>
+      match metadata.type_info(type_id) {
+        Some(info) if info.flavor is @buslane.TypeFlavor::External =>
+          Some(@bytecode.RuntimeValueKind::Opaque)
+        _ => None
+      }
+    _ => None
+  }
 }
 
 ///|

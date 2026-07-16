@@ -1,11 +1,5 @@
 ///|
-pub(all) enum PrimitiveKind {
-  Unit
-  Bool
-  Int
-  Double
-  String
-} derive(Debug, Eq)
+pub using @bytecode {type RuntimeValueKind}
 
 ///|
 pub struct HostStringView {
@@ -101,7 +95,16 @@ pub(all) suberror RuntimeImportFailure {
 pub(all) suberror RuntimeImportResolutionError {
   UnresolvedImport(symbol~ : String)
   AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
-  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+  ParameterKindsMismatch(
+    symbol~ : String,
+    expected~ : Array[RuntimeValueKind],
+    actual~ : Array[RuntimeValueKind]
+  )
+  ResultKindMismatch(
+    symbol~ : String,
+    expected~ : RuntimeValueKind,
+    actual~ : RuntimeValueKind
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -138,8 +141,8 @@ pub type RuntimeFunction = (RuntimeContext, Array[HostValue]) -> HostValue raise
 pub struct RuntimeBinding {
   symbol : String
   abi_major : Int
-  parameters : Array[PrimitiveKind]
-  result : PrimitiveKind
+  parameters : Array[RuntimeValueKind]
+  result : RuntimeValueKind
   invoke : RuntimeFunction
 }
 
@@ -147,8 +150,8 @@ pub struct RuntimeBinding {
 pub fn RuntimeBinding::new(
   symbol~ : String,
   abi_major~ : Int,
-  parameters~ : Array[PrimitiveKind],
-  result~ : PrimitiveKind,
+  parameters~ : Array[RuntimeValueKind],
+  result~ : RuntimeValueKind,
   invoke~ : RuntimeFunction,
 ) -> RuntimeBinding {
   { symbol, abi_major, parameters, result, invoke }
@@ -167,12 +170,12 @@ pub fn RuntimeBinding::abi_major(self : RuntimeBinding) -> Int {
 ///|
 pub fn RuntimeBinding::parameters(
   self : RuntimeBinding,
-) -> Array[PrimitiveKind] {
+) -> Array[RuntimeValueKind] {
   self.parameters
 }
 
 ///|
-pub fn RuntimeBinding::result(self : RuntimeBinding) -> PrimitiveKind {
+pub fn RuntimeBinding::result(self : RuntimeBinding) -> RuntimeValueKind {
   self.result
 }
 
@@ -221,7 +224,8 @@ pub fn RuntimeRegistry::resolve(
   self : RuntimeRegistry,
   symbol : String,
   expected_abi_major~ : Int,
-  expected_arity~ : Int,
+  expected_parameters~ : Array[RuntimeValueKind],
+  expected_result~ : RuntimeValueKind,
 ) -> Result[RuntimeBinding, RuntimeImportResolutionError] {
   let binding = match self.find(symbol) {
     Some(binding) => binding
@@ -236,12 +240,21 @@ pub fn RuntimeRegistry::resolve(
       ),
     )
   }
-  if binding.parameters().length() != expected_arity {
+  if binding.parameters() != expected_parameters {
     return Err(
-      ArityMismatch(
+      ParameterKindsMismatch(
         symbol~,
-        expected=expected_arity,
-        actual=binding.parameters().length(),
+        expected=expected_parameters,
+        actual=binding.parameters(),
+      ),
+    )
+  }
+  if binding.result() != expected_result {
+    return Err(
+      ResultKindMismatch(
+        symbol~,
+        expected=expected_result,
+        actual=binding.result(),
       ),
     )
   }

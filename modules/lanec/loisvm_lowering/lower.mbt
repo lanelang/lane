@@ -117,10 +117,7 @@ fn lower_executable_program_to_bytecode_or_raise(
         functions.push(Body(lowerer.lower_intrinsic_wrapper(plan)))
       CallableAdapter(plan) =>
         functions.push(Body(lowerer.lower_callable_adapter(plan)))
-      RuntimeImport(external, user_arity) =>
-        functions.push(
-          RuntimeImport({ abi_major: 1, user_arity, symbol: external.symbol }),
-        )
+      RuntimeImport(import_) => functions.push(RuntimeImport(import_))
     }
     plan_index += 1
   }

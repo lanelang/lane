@@ -214,14 +214,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       @bytecode.bytecode_image_to_disassembly(image),
     ),
   )
-  let signatures = match
-    runtime_import_signatures(image, executable.externals) {
-    Ok(signatures) => signatures
-    Err(message) =>
-      return failed_report(request.entry, stages, diagnostics, Some(message))
-  }
-  let wasm_module = match
-    @wasm_compiler.compile_with_runtime_imports(image, signatures) {
+  let wasm_module = match @wasm_compiler.compile(image) {
     Ok(wasm_module) => wasm_module
     Err(error) =>
       return failed_report(
@@ -325,72 +318,4 @@ fn select_entry(
   } else {
     None
   }
-}
-
-///|
-fn runtime_import_signatures(
-  image : @bytecode.BytecodeImage,
-  externals : @buslane_lowering.BuslaneExternalMap,
-) -> Result[Array[@wasm_compiler.RuntimeImportSignature], String] {
-  let signatures = []
-  for function in image.functions {
-    guard function is RuntimeImport(import_) else { continue }
-    guard find_runtime_import(externals.runtime_imports, import_.symbol)
-      is Some(external) else {
-      return Err(
-        "missing checked signature for runtime import `\{import_.symbol}`",
-      )
-    }
-    guard external.type_ is Function(parameters, result, _) else {
-      return Err("runtime import `\{import_.symbol}` is not a function")
-    }
-    let primitive_parameters = []
-    for parameter in parameters {
-      match primitive_kind(parameter) {
-        Some(kind) => primitive_parameters.push(kind)
-        None =>
-          return Err(
-            "runtime import `\{import_.symbol}` has a non-primitive parameter",
-          )
-      }
-    }
-    guard primitive_kind(result) is Some(primitive_result) else {
-      return Err(
-        "runtime import `\{import_.symbol}` has a non-primitive result",
-      )
-    }
-    signatures.push(
-      @wasm_compiler.RuntimeImportSignature::new(
-        symbol=import_.symbol,
-        parameters=primitive_parameters,
-        result=primitive_result,
-      ),
-    )
-  }
-  Ok(signatures)
-}
-
-///|
-fn primitive_kind(type_ : @buslane.Type) -> @loisvm_runtime.PrimitiveKind? {
-  match type_ {
-    Primitive(Unit) => Some(Unit)
-    Primitive(Bool) => Some(Bool)
-    Primitive(Int) => Some(Int)
-    Primitive(Double) => Some(Double)
-    Primitive(String) => Some(String)
-    _ => None
-  }
-}
-
-///|
-fn find_runtime_import(
-  imports : Array[@buslane_lowering.BuslaneRuntimeImport],
-  symbol : String,
-) -> @buslane_lowering.BuslaneRuntimeImport? {
-  for import_ in imports {
-    if import_.symbol == symbol {
-      return Some(import_)
-    }
-  }
-  None
 }

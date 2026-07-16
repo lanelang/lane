@@ -2,6 +2,7 @@
 package "Milky2018/loisvm/runtime"
 
 import {
+  "Milky2018/loisvm/bytecode",
   "moonbitlang/core/debug",
 }
 
@@ -24,7 +25,8 @@ pub(all) suberror RuntimeImportFailure {
 pub(all) suberror RuntimeImportResolutionError {
   UnresolvedImport(symbol~ : String)
   AbiMismatch(symbol~ : String, expected_major~ : Int, actual_major~ : Int)
-  ArityMismatch(symbol~ : String, expected~ : Int, actual~ : Int)
+  ParameterKindsMismatch(symbol~ : String, expected~ : Array[@bytecode.RuntimeValueKind], actual~ : Array[@bytecode.RuntimeValueKind])
+  ResultKindMismatch(symbol~ : String, expected~ : @bytecode.RuntimeValueKind, actual~ : @bytecode.RuntimeValueKind)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -55,14 +57,6 @@ pub(all) enum HostValue {
   String(String)
 } derive(Eq, @debug.Debug)
 
-pub(all) enum PrimitiveKind {
-  Unit
-  Bool
-  Int
-  Double
-  String
-} derive(Eq, @debug.Debug)
-
 pub(all) enum ResourceLimitKind {
   CallDepth
   LiveHeapBytes
@@ -71,15 +65,15 @@ pub(all) enum ResourceLimitKind {
 pub struct RuntimeBinding {
   symbol : String
   abi_major : Int
-  parameters : Array[PrimitiveKind]
-  result : PrimitiveKind
+  parameters : Array[@bytecode.RuntimeValueKind]
+  result : @bytecode.RuntimeValueKind
   invoke : (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure
 }
 pub fn RuntimeBinding::abi_major(Self) -> Int
 pub fn RuntimeBinding::call(Self, RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure
-pub fn RuntimeBinding::new(symbol~ : String, abi_major~ : Int, parameters~ : Array[PrimitiveKind], result~ : PrimitiveKind, invoke~ : (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure) -> Self
-pub fn RuntimeBinding::parameters(Self) -> Array[PrimitiveKind]
-pub fn RuntimeBinding::result(Self) -> PrimitiveKind
+pub fn RuntimeBinding::new(symbol~ : String, abi_major~ : Int, parameters~ : Array[@bytecode.RuntimeValueKind], result~ : @bytecode.RuntimeValueKind, invoke~ : (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure) -> Self
+pub fn RuntimeBinding::parameters(Self) -> Array[@bytecode.RuntimeValueKind]
+pub fn RuntimeBinding::result(Self) -> @bytecode.RuntimeValueKind
 pub fn RuntimeBinding::symbol(Self) -> String
 
 pub struct RuntimeContext {
@@ -93,9 +87,11 @@ pub struct RuntimeRegistry {
 pub fn RuntimeRegistry::find(Self, String) -> RuntimeBinding?
 pub fn RuntimeRegistry::new() -> Self
 pub fn RuntimeRegistry::register(Self, RuntimeBinding) -> Unit
-pub fn RuntimeRegistry::resolve(Self, String, expected_abi_major~ : Int, expected_arity~ : Int) -> Result[RuntimeBinding, RuntimeImportResolutionError]
+pub fn RuntimeRegistry::resolve(Self, String, expected_abi_major~ : Int, expected_parameters~ : Array[@bytecode.RuntimeValueKind], expected_result~ : @bytecode.RuntimeValueKind) -> Result[RuntimeBinding, RuntimeImportResolutionError]
 
 // Type aliases
 pub type RuntimeFunction = (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure
+
+pub using @bytecode {type RuntimeValueKind}
 
 // Traits

@@ -39,10 +39,31 @@ fn @bytecodec.ByteWriter::write_function_entry(
     RuntimeImport(import_) => {
       self.write_u8(0x02)
       self.write_u32_le_int(import_.abi_major)
-      self.write_u32_le_int(import_.user_arity)
+      self.write_u32_le_int(import_.parameters.length())
+      for parameter in import_.parameters {
+        self.write_runtime_value_kind(parameter)
+      }
+      self.write_runtime_value_kind(import_.result)
       self.write_bytes(@utf8.encode(import_.symbol))
     }
   }
+}
+
+///|
+fn @bytecodec.ByteWriter::write_runtime_value_kind(
+  self : @bytecodec.ByteWriter,
+  kind : RuntimeValueKind,
+) -> Unit {
+  self.write_u8(
+    match kind {
+      Unit => 0x00
+      Bool => 0x01
+      Int => 0x02
+      Double => 0x03
+      String => 0x04
+      Opaque => 0x05
+    },
+  )
 }
 
 ///|

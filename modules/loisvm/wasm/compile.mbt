@@ -1,6 +1,5 @@
 ///|
 pub(all) suberror WasmCompileError {
-  UnsupportedRuntimeImport(function_id~ : Int)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(
@@ -24,17 +23,6 @@ pub fn compile(
 }
 
 ///|
-fn compile_with_runtime_bindings(
-  image : @bytecode.BytecodeImage,
-  bindings : Array[@loisvm_runtime.RuntimeBinding],
-) -> Result[@wasm_types.Module, WasmCompileError] {
-  match @compiler.compile_with_runtime_bindings(image, bindings) {
-    Ok(wasm_module) => validate_compiled_module(wasm_module)
-    Err(error) => Err(import_compile_error(error))
-  }
-}
-
-///|
 fn validate_compiled_module(
   wasm_module : @wasm_types.Module,
 ) -> Result[@wasm_types.Module, WasmCompileError] {
@@ -50,8 +38,6 @@ fn validate_compiled_module(
 ///|
 fn import_compile_error(error : @compiler.WasmCompileError) -> WasmCompileError {
   match error {
-    UnsupportedRuntimeImport(function_id~) =>
-      UnsupportedRuntimeImport(function_id~)
     UnsupportedInstruction(function_id~, instruction~) =>
       UnsupportedInstruction(function_id~, instruction~)
     InvalidBlockTarget(function_id~, target~) =>

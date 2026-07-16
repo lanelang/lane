@@ -304,7 +304,12 @@ test "function, layout, shape, and constant tables roundtrip" {
     initializer: None,
     functions: [
       BytecodeBody(minimal_body()),
-      RuntimeImport({ abi_major: 1, user_arity: 2, symbol: "lane.host.print" }),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [Int, Opaque],
+        result: String,
+        symbol: "lane.host.print",
+      }),
     ],
     globals: [],
     layouts: [
@@ -339,9 +344,69 @@ test "function, layout, shape, and constant tables roundtrip" {
     ],
     constants: [Bytes::from_array([]), Bytes::from_array([b'a', b'b', b'c'])],
   }
-  assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(image)),
-    Ok(image),
+  let decoded = parse_bytecode_image_binary(bytecode_image_to_binary(image))
+  assert_eq(decoded, Ok(image))
+  guard decoded is Ok(decoded) else { fail("expected decoded image") }
+  debug_inspect(
+    decoded.functions[1],
+    content=(
+      #|RuntimeImport(
+      #|  {
+      #|    abi_major: 1,
+      #|    parameters: [Int, Opaque],
+      #|    result: String,
+      #|    symbol: "lane.host.print",
+      #|  },
+      #|)
+    ),
+  )
+}
+
+///|
+test "runtime import disassembly renders complete direct ABI signature" {
+  let image = {
+    ..minimal_image(),
+    functions: [
+      BytecodeBody(minimal_body()),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [Unit, Bool, Int, Double, String, Opaque],
+        result: Opaque,
+        symbol: "lane.host.all",
+      }),
+    ],
+  }
+  inspect(
+    bytecode_image_to_disassembly(image),
+    content=(
+      #|LoisVM bytecode
+      #|entry: f1
+      #|initializer: none
+      #|functions: 2
+      #|globals: 0
+      #|layouts: 0
+      #|object shapes: 0
+      #|constants: 0
+      #|
+      #|function f1(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> unit {
+      #|  slots:
+      #|    (none)
+      #|  b0([]):
+      #|    return none
+      #|}
+      #|
+      #|function f2 = runtime_import(
+      #|  symbol="lane.host.all",
+      #|  abi_major=1,
+      #|  parameters=[unit, bool, int, double, string, opaque],
+      #|  result=opaque
+      #|)
+      #|
+    ),
   )
 }
 
@@ -355,6 +420,24 @@ test "decoder rejects unknown function tag" {
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(MalformedEncoding(offset=12, detail="unknown function entry tag 0")),
+  )
+}
+
+///|
+test "decoder rejects unknown runtime value kind" {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u32_le_int(1)
+  writer.write_u32_le_int(0)
+  writer.write_u32_le_int(1)
+  writer.write_u8(2)
+  writer.write_u32_le_int(1)
+  writer.write_u32_le_int(1)
+  writer.write_u8(99)
+  assert_eq(
+    parse_bytecode_image_binary(writer.to_bytes()),
+    Err(
+      MalformedEncoding(offset=21, detail="unknown runtime value kind tag 99"),
+    ),
   )
 }
 

@@ -1,6 +1,5 @@
 ///|
 pub(all) suberror WasmCompileError {
-  UnsupportedRuntimeImport(function_id~ : Int)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(
@@ -17,28 +16,7 @@ pub(all) suberror WasmCompileError {
 pub fn compile(
   image : @bytecode.BytecodeImage,
 ) -> Result[@wasm_types.Module, WasmCompileError] {
-  Ok(compile_or_raise(image, [])) catch {
-    error => Err(error)
-  }
-}
-
-///|
-pub fn compile_with_runtime_bindings(
-  image : @bytecode.BytecodeImage,
-  bindings : Array[@loisvm_runtime.RuntimeBinding],
-) -> Result[@wasm_types.Module, WasmCompileError] {
-  let signatures = bindings.map(RuntimeImportSignature::from_binding)
-  Ok(compile_or_raise(image, signatures)) catch {
-    error => Err(error)
-  }
-}
-
-///|
-pub fn compile_with_runtime_imports(
-  image : @bytecode.BytecodeImage,
-  imports : Array[RuntimeImportSignature],
-) -> Result[@wasm_types.Module, WasmCompileError] {
-  Ok(compile_or_raise(image, imports)) catch {
+  Ok(compile_or_raise(image)) catch {
     error => Err(error)
   }
 }
@@ -46,7 +24,6 @@ pub fn compile_with_runtime_imports(
 ///|
 fn compile_or_raise(
   image : @bytecode.BytecodeImage,
-  imports : Array[RuntimeImportSignature],
 ) -> @wasm_types.Module raise WasmCompileError {
   if !image.globals.is_empty() && image.initializer is None {
     raise ValidationFailure(
@@ -54,6 +31,12 @@ fn compile_or_raise(
     )
   }
   let wasm_module = @wasm_types.Module::empty()
+  let imports = image.functions.filter_map(fn(entry) {
+    match entry {
+      RuntimeImport(import_) => Some(import_)
+      BytecodeBody(_) => None
+    }
+  })
   let import_count = imports.length()
   let runtime_functions = runtime_function_indices(
     import_count + image.functions.length(),
@@ -87,15 +70,9 @@ fn compile_or_raise(
           ),
         )
       }
-      RuntimeImport(_) => {
-        if import_index >= imports.length() {
-          raise UnsupportedRuntimeImport(function_id=index + 1)
-        }
+      RuntimeImport(import_) => {
         append_runtime_import_adapter(
-          wasm_module,
-          imports[import_index],
-          import_index,
-          runtime_functions,
+          wasm_module, import_, import_index, runtime_functions,
         )
         import_index += 1
       }

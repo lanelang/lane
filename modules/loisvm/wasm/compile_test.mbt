@@ -183,15 +183,20 @@ test "compiled tail calls use Wasmoon tail-call support" {
 }
 
 ///|
-test "runtime imports require the registry-backed loader" {
+test "runtime imports compile from bytecode descriptors" {
   assert_true(
     compile(
       image([
         BytecodeBody(body()),
-        RuntimeImport({ abi_major: 1, user_arity: 0, symbol: "lane.test" }),
+        RuntimeImport({
+          abi_major: 1,
+          parameters: [Opaque],
+          result: Opaque,
+          symbol: "lane.test",
+        }),
       ]),
     )
-    is Err(UnsupportedRuntimeImport(..)),
+    is Ok(_),
   )
 }
 

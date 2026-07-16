@@ -56,7 +56,12 @@ test "ARC releases dynamic runtime String owners" {
     globals: [],
     functions: [
       BytecodeBody(entry),
-      RuntimeImport({ abi_major: 1, user_arity: 0, symbol: "lane.test.string" }),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [],
+        result: String,
+        symbol: "lane.test.string",
+      }),
     ],
     layouts: [String],
     object_shapes: [],

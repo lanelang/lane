@@ -92,13 +92,22 @@ fn run_effect_conformance_wasm(
 fn assert_effect_erased_host_boundary(
   image : @loisvm_bytecode.BytecodeImage,
 ) -> Unit raise {
-  let imports : Array[(String, Int, Int)] = []
+  let imports : Array[
+    (
+      String,
+      Int,
+      Array[@loisvm_bytecode.RuntimeValueKind],
+      @loisvm_bytecode.RuntimeValueKind,
+    ),
+  ] = []
   for function in image.functions {
     if function is RuntimeImport(import_) {
-      imports.push((import_.symbol, import_.abi_major, import_.user_arity))
+      imports.push(
+        (import_.symbol, import_.abi_major, import_.parameters, import_.result),
+      )
     }
   }
-  assert_eq(imports, [("println", 1, 1)])
+  assert_eq(imports, [("println", 1, [String], Unit)])
 }
 
 ///|

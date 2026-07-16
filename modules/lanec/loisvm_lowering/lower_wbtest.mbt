@@ -142,7 +142,12 @@ test "runtime import origin wins over intrinsic-looking symbol" {
   debug_inspect(
     import_,
     content=(
-      #|{ abi_major: 1, user_arity: 2, symbol: "%i64_add" }
+      #|{
+      #|  abi_major: 1,
+      #|  parameters: [Int, Int],
+      #|  result: Int,
+      #|  symbol: "%i64_add",
+      #|}
     ),
   )
 }
@@ -495,7 +500,12 @@ test "primitive external functions become runtime imports" {
     is [
       BytecodeBody(_),
       RuntimeImport(
-        { abi_major: 1, user_arity: 1, symbol: "lane.test.observe" }
+        {
+          abi_major: 1,
+          parameters: [Int],
+          result: Unit,
+          symbol: "lane.test.observe",
+        }
       ),
     ],
   )
@@ -521,6 +531,78 @@ test "primitive external functions become runtime imports" {
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
+}
+
+///|
+test "external host types erase to Opaque runtime import kinds" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let fd = metadata.define_type("Fd", [], flavor=@buslane.TypeFlavor::External)
+  let fd_type = @buslane.Type::Constructor(fd)
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let open_type = test_function_type([], fd_type)
+  let close_type = test_function_type([fd_type], unit_type)
+  let open = metadata.define_value("open", External, open_type)
+  let close = metadata.define_value("close", External, close_type)
+  let handle = metadata.define_value("handle", Local, fd_type)
+  let main_type = test_function_type([], unit_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let image = match
+    lower_linked_program_to_bytecode(
+      {
+        metadata,
+        terms: [
+          External(open),
+          External(close),
+          Let(
+            main,
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Let(
+                handle,
+                Call(Ref(open), []),
+                Call(Ref(close), [Ref(handle)]),
+              ),
+            }),
+          ),
+        ],
+      },
+      {
+        builtins: [],
+        runtime_imports: [
+          { value: open, symbol: "lane.test.open", type_: open_type },
+          { value: close, symbol: "lane.test.close", type_: close_type },
+        ],
+      },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    ) {
+    Ok(image) => image
+    Err(error) => fail("lowering failed: \{to_repr(error)}")
+  }
+  debug_inspect(
+    image.functions.filter_map(fn(entry) {
+      match entry {
+        RuntimeImport(import_) => Some(import_)
+        BytecodeBody(_) => None
+      }
+    }),
+    content=(
+      #|[
+      #|  {
+      #|    abi_major: 1,
+      #|    parameters: [],
+      #|    result: Opaque,
+      #|    symbol: "lane.test.open",
+      #|  },
+      #|  {
+      #|    abi_major: 1,
+      #|    parameters: [Opaque],
+      #|    result: Unit,
+      #|    symbol: "lane.test.close",
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|
@@ -594,6 +676,98 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
     }
   }
   assert_eq(direct_targets, [{ value: 3 }, { value: 2 }, { value: 3 }])
+}
+
+///|
+test "runtime imports with equal symbols and distinct kinds remain distinct" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let int_import_type = test_function_type(
+    [@buslane.Type::Primitive(Int)],
+    unit_type,
+  )
+  let bool_import_type = test_function_type(
+    [@buslane.Type::Primitive(Bool)],
+    unit_type,
+  )
+  let int_import = metadata.define_value(
+    "observe_int",
+    External,
+    int_import_type,
+  )
+  let bool_import = metadata.define_value(
+    "observe_bool",
+    External,
+    bool_import_type,
+  )
+  let first = metadata.define_value("first", Local, unit_type)
+  let main_type = test_function_type([], unit_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let image = match
+    lower_linked_program_to_bytecode(
+      {
+        metadata,
+        terms: [
+          External(int_import),
+          External(bool_import),
+          Let(
+            main,
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Let(
+                first,
+                Call(Ref(int_import), [Literal(Int(1L))]),
+                Call(Ref(bool_import), [Literal(Bool(true))]),
+              ),
+            }),
+          ),
+        ],
+      },
+      {
+        builtins: [],
+        runtime_imports: [
+          {
+            value: int_import,
+            symbol: "lane.test.observe",
+            type_: int_import_type,
+          },
+          {
+            value: bool_import,
+            symbol: "lane.test.observe",
+            type_: bool_import_type,
+          },
+        ],
+      },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    ) {
+    Ok(image) => image
+    Err(error) => fail("lowering failed: \{to_repr(error)}")
+  }
+  debug_inspect(
+    image.functions.filter_map(fn(entry) {
+      match entry {
+        RuntimeImport(import_) => Some(import_)
+        BytecodeBody(_) => None
+      }
+    }),
+    content=(
+      #|[
+      #|  {
+      #|    abi_major: 1,
+      #|    parameters: [Bool],
+      #|    result: Unit,
+      #|    symbol: "lane.test.observe",
+      #|  },
+      #|  {
+      #|    abi_major: 1,
+      #|    parameters: [Int],
+      #|    result: Unit,
+      #|    symbol: "lane.test.observe",
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|

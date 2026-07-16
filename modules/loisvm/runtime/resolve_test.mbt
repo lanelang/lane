@@ -1,5 +1,5 @@
 ///|
-test "runtime registry resolves imports by symbol, ABI, and arity" {
+test "runtime registry resolves imports by complete direct ABI signature" {
   let registry = RuntimeRegistry::new()
   registry.register(
     RuntimeBinding::new(
@@ -19,7 +19,8 @@ test "runtime registry resolves imports by symbol, ABI, and arity" {
     registry.resolve(
       "lane.test.identity",
       expected_abi_major=1,
-      expected_arity=1,
+      expected_parameters=[Int],
+      expected_result=Int,
     )
     is Ok(_),
   )
@@ -27,7 +28,8 @@ test "runtime registry resolves imports by symbol, ABI, and arity" {
     registry.resolve(
       "lane.test.missing",
       expected_abi_major=1,
-      expected_arity=1,
+      expected_parameters=[Int],
+      expected_result=Int,
     )
     is Err(UnresolvedImport(symbol="lane.test.missing")),
   )
@@ -35,7 +37,8 @@ test "runtime registry resolves imports by symbol, ABI, and arity" {
     registry.resolve(
       "lane.test.identity",
       expected_abi_major=2,
-      expected_arity=1,
+      expected_parameters=[Int],
+      expected_result=Int,
     )
     is Err(
       AbiMismatch(symbol="lane.test.identity", expected_major=2, actual_major=1)
@@ -45,8 +48,26 @@ test "runtime registry resolves imports by symbol, ABI, and arity" {
     registry.resolve(
       "lane.test.identity",
       expected_abi_major=1,
-      expected_arity=0,
+      expected_parameters=[],
+      expected_result=Int,
     )
-    is Err(ArityMismatch(symbol="lane.test.identity", expected=0, actual=1)),
+    is Err(
+      ParameterKindsMismatch(
+        symbol="lane.test.identity",
+        expected=[],
+        actual=[Int]
+      )
+    ),
+  )
+  assert_true(
+    registry.resolve(
+      "lane.test.identity",
+      expected_abi_major=1,
+      expected_parameters=[Int],
+      expected_result=Bool,
+    )
+    is Err(
+      ResultKindMismatch(symbol="lane.test.identity", expected=Bool, actual=Int)
+    ),
   )
 }

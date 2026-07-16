@@ -1333,7 +1333,14 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   debug_inspect(
     runtime_imports,
     content=(
-      #|[{ abi_major: 1, user_arity: 0, symbol: "lane.test.answer" }]
+      #|[
+      #|  {
+      #|    abi_major: 1,
+      #|    parameters: [],
+      #|    result: Unit,
+      #|    symbol: "lane.test.answer",
+      #|  },
+      #|]
     ),
   )
   let linked_binary = @artifact_binary.linked_program_artifact_to_binary(

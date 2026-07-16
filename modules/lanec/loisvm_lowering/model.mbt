@@ -44,7 +44,7 @@ priv enum PlannedEntry {
   LiftedFunction(LiftedFunctionPlan)
   IntrinsicWrapper(IntrinsicWrapperPlan)
   CallableAdapter(CallableAdapterPlan)
-  RuntimeImport(@buslane_lowering.BuslaneRuntimeImport, Int)
+  RuntimeImport(@bytecode.RuntimeImport)
 }
 
 ///|
