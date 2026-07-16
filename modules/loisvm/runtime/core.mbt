@@ -74,16 +74,39 @@ pub(all) enum HostValue {
   Double(Double)
   BorrowedString(HostStringView)
   String(String)
-} derive(Debug, Eq)
+  BorrowedOpaque(BorrowedHostObject)
+  OwnedOpaque(OwnedHostObject)
+} derive(Debug)
 
 ///|
-pub struct RuntimeContext {
-  token : Unit
+priv struct RuntimeContextState {
+  host_objects : HostObjectTable
 }
 
 ///|
-pub fn RuntimeContext::new() -> RuntimeContext {
-  { token: () }
+struct RuntimeContext {
+  state : RuntimeContextState
+}
+
+///|
+struct ExecutionRuntime {
+  context : RuntimeContext
+}
+
+///|
+pub fn ExecutionRuntime::new(
+  config? : ExecutionConfig = ExecutionConfig::defaults(),
+) -> ExecutionRuntime {
+  {
+    context: {
+      state: { host_objects: HostObjectTable::new(config.max_host_objects) },
+    },
+  }
+}
+
+///|
+pub fn ExecutionRuntime::context(self : ExecutionRuntime) -> RuntimeContext {
+  self.context
 }
 
 ///|
@@ -111,6 +134,7 @@ pub(all) suberror RuntimeImportResolutionError {
 pub(all) enum ResourceLimitKind {
   CallDepth
   LiveHeapBytes
+  HostObjects
 } derive(Debug, Eq)
 
 ///|
@@ -127,11 +151,12 @@ pub(all) suberror ExecutionError {
 pub(all) struct ExecutionConfig {
   max_call_depth : Int?
   max_live_heap_bytes : Int?
+  max_host_objects : Int?
 } derive(Debug, Eq)
 
 ///|
 pub fn ExecutionConfig::defaults() -> ExecutionConfig {
-  { max_call_depth: None, max_live_heap_bytes: None }
+  { max_call_depth: None, max_live_heap_bytes: None, max_host_objects: None }
 }
 
 ///|

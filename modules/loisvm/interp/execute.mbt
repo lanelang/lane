@@ -19,7 +19,7 @@ pub struct Frame {
 pub struct ExecutionInstance {
   loaded : LoadedImage
   config : @runtime.ExecutionConfig
-  priv runtime_context : @runtime.RuntimeContext
+  priv runtime : @runtime.ExecutionRuntime
   heap : Heap
   frames : Array[Frame]
   globals : Array[VMValue?]
@@ -36,7 +36,7 @@ pub fn LoadedImage::new_instance(
   {
     loaded: self,
     config,
-    runtime_context: @runtime.RuntimeContext::new(),
+    runtime: @runtime.ExecutionRuntime::new(config~),
     heap: Heap::new(self.image, config.max_live_heap_bytes),
     frames: [],
     globals: Array::make(self.image.globals.length(), None),

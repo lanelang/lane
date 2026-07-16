@@ -909,6 +909,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
     returning_loaded.new_instance(config={
       max_call_depth: Some(1),
       max_live_heap_bytes: None,
+      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")
@@ -930,6 +931,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
     tail_loaded.new_instance(config={
       max_call_depth: Some(1),
       max_live_heap_bytes: None,
+      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")
@@ -992,6 +994,7 @@ test "call depth exhaustion releases arguments transferred into the callee" {
     loaded.new_instance(config={
       max_call_depth: Some(1),
       max_live_heap_bytes: None,
+      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")
@@ -1030,6 +1033,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
     loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(8),
+      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")
@@ -1039,6 +1043,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
     loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(16),
+      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")
@@ -1077,6 +1082,7 @@ test "live heap exhaustion unwinds owners from the current frame" {
     loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(16),
+      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")
@@ -1100,6 +1106,7 @@ test "non-positive execution limits provide zero budget" {
       empty_loaded.new_instance(config={
         max_call_depth: Some(limit),
         max_live_heap_bytes: None,
+        max_host_objects: None,
       }) {
       Ok(value) => value
       Err(error) => fail("instantiate failed: \{to_repr(error)}")
@@ -1132,6 +1139,7 @@ test "non-positive execution limits provide zero budget" {
       allocating_loaded.new_instance(config={
         max_call_depth: None,
         max_live_heap_bytes: Some(limit),
+        max_host_objects: None,
       }) {
       Ok(value) => value
       Err(error) => fail("instantiate failed: \{to_repr(error)}")

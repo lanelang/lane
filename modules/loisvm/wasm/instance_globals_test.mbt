@@ -315,6 +315,7 @@ test "Wasm initializer limits clean roots initialized before failure" {
   let instance = wasm_global_instance(wasm_lifecycle_image(), config={
     max_call_depth: None,
     max_live_heap_bytes: Some(16),
+    max_host_objects: None,
   })
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
   assert_eq(

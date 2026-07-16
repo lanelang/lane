@@ -74,6 +74,7 @@ test "ARC releases dynamic runtime String owners" {
   let instance = loaded.new_instance(config={
     max_call_depth: None,
     max_live_heap_bytes: Some(16),
+    max_host_objects: None,
   })
   assert_eq(instance.execute(), Ok(()))
   assert_eq(instance.heap.live_bytes, 0)

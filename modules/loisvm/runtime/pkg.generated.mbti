@@ -18,6 +18,12 @@ pub(all) suberror ExecutionError {
   InstanceNotReady
 } derive(Eq, @debug.Debug)
 
+pub(all) suberror HostObjectFailure {
+  HostObjectLimitExceeded
+  InvalidHostObjectHandle(detail~ : String)
+  InvalidOwnedResult(detail~ : String)
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror RuntimeImportFailure {
   Failure(message~ : String)
 } derive(Eq, @debug.Debug)
@@ -30,11 +36,48 @@ pub(all) suberror RuntimeImportResolutionError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+type BorrowedHostObject
+pub fn[T] BorrowedHostObject::project(Self) -> T
+pub impl @debug.Debug for BorrowedHostObject
+
 pub(all) struct ExecutionConfig {
   max_call_depth : Int?
   max_live_heap_bytes : Int?
+  max_host_objects : Int?
 } derive(Eq, @debug.Debug)
 pub fn ExecutionConfig::defaults() -> Self
+
+type ExecutionRuntime
+pub fn[R] ExecutionRuntime::adopt_host_object(Self, OwnedHostObject, (HostObjectHandle) -> R raise) -> R raise
+pub fn ExecutionRuntime::context(Self) -> RuntimeContext
+pub fn ExecutionRuntime::live_host_objects(Self) -> Int
+pub fn ExecutionRuntime::new(config? : ExecutionConfig) -> Self
+pub fn ExecutionRuntime::release_host_object(Self, HostObjectHandle) -> Unit raise HostObjectFailure
+pub fn ExecutionRuntime::resolve_host_object(Self, HostObjectHandle) -> BorrowedHostObject raise HostObjectFailure
+
+type HostObjectHandle
+pub impl @debug.Debug for HostObjectHandle
+
+type HostParameter[T]
+pub fn HostParameter::bool() -> Self[Bool]
+pub fn HostParameter::double() -> Self[Double]
+pub fn[T] HostParameter::host_object() -> Self[T]
+pub fn HostParameter::int() -> Self[Int64]
+pub fn HostParameter::string() -> Self[HostStringView]
+pub fn HostParameter::unit() -> Self[Unit]
+
+type HostParameters[T]
+pub fn HostParameters::none() -> Self[Unit]
+pub fn[T] HostParameters::one(HostParameter[T]) -> Self[T]
+pub fn[A, B] HostParameters::pair(Self[A], Self[B]) -> Self[(A, B)]
+
+type HostResult[T]
+pub fn HostResult::bool() -> Self[Bool]
+pub fn HostResult::double() -> Self[Double]
+pub fn[T] HostResult::host_object(finalizer~ : (T) -> Unit) -> Self[T]
+pub fn HostResult::int() -> Self[Int64]
+pub fn HostResult::string() -> Self[String]
+pub fn HostResult::unit() -> Self[Unit]
 
 pub struct HostStringView {
   length : Int
@@ -55,11 +98,18 @@ pub(all) enum HostValue {
   Double(Double)
   BorrowedString(HostStringView)
   String(String)
-} derive(Eq, @debug.Debug)
+  BorrowedOpaque(BorrowedHostObject)
+  OwnedOpaque(OwnedHostObject)
+} derive(@debug.Debug)
+
+type OwnedHostObject
+pub fn[T] OwnedHostObject::new(T, finalizer~ : (T) -> Unit) -> Self
+pub impl @debug.Debug for OwnedHostObject
 
 pub(all) enum ResourceLimitKind {
   CallDepth
   LiveHeapBytes
+  HostObjects
 } derive(Eq, @debug.Debug)
 
 pub struct RuntimeBinding {
@@ -75,11 +125,9 @@ pub fn RuntimeBinding::new(symbol~ : String, abi_major~ : Int, parameters~ : Arr
 pub fn RuntimeBinding::parameters(Self) -> Array[@bytecode.RuntimeValueKind]
 pub fn RuntimeBinding::result(Self) -> @bytecode.RuntimeValueKind
 pub fn RuntimeBinding::symbol(Self) -> String
+pub fn[Arguments, Result] RuntimeBinding::typed(symbol~ : String, abi_major~ : Int, parameters~ : HostParameters[Arguments], result~ : HostResult[Result], invoke~ : (RuntimeContext, Arguments) -> Result raise RuntimeImportFailure) -> Self
 
-pub struct RuntimeContext {
-  token : Unit
-}
-pub fn RuntimeContext::new() -> Self
+type RuntimeContext
 
 pub struct RuntimeRegistry {
   bindings : Array[RuntimeBinding]

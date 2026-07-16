@@ -185,8 +185,16 @@ Bindings declare their full primitive signature through `RuntimeBinding`:
 - `Int`, represented to the host as `Int64`
 - `Double`
 - `String`
+- `Opaque`, represented to bindings as borrowed or owned Host Objects
 
 String parameters arrive as `BorrowedString(HostStringView)` and are valid only for the duration of the call. Copy them with `to_string()` or `to_bytes()` if the host needs an owned value. String results use `HostValue::String`. V1 Strings and bytecode constants are ASCII.
+
+Use `RuntimeBinding::typed`, `HostParameters`, `HostParameter`, and `HostResult`
+to register typed host functions without manually indexing erased argument
+arrays. `HostParameter::host_object()` performs the trusted unbranded projection
+for an `Opaque` parameter. `HostResult::host_object(finalizer~)` creates an
+independently owned result whose finalizer runs when Lane releases its final
+wrapper.
 
 Host calls are synchronous. A binding must not retain a borrowed VM value or re-enter the active execution instance. Report host failures by raising `RuntimeImportFailure::Failure`; both backends convert it into `ExecutionError::RuntimeImportFailure`.
 
@@ -209,6 +217,7 @@ Resource limits are selected per instance with `ExecutionConfig`:
 let config : @runtime.ExecutionConfig = {
   max_call_depth: Some(1024),
   max_live_heap_bytes: Some(64 * 1024 * 1024),
+  max_host_objects: Some(4096),
 }
 ```
 

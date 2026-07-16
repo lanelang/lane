@@ -84,7 +84,8 @@ fn LoadedImage::new_instance_or_raise(
   let store = @wasmoon_runtime.Store::Store()
   let imports = @wasmoon_runtime.Imports::Imports()
   let failure : ImportFailureState = { symbol: None, message: None }
-  let runtime_context = @loisvm_runtime.RuntimeContext::new()
+  let runtime = @loisvm_runtime.ExecutionRuntime::new(config~)
+  let runtime_context = runtime.context()
   for resolved in self.imports {
     let descriptor = resolved.0
     let binding = resolved.1

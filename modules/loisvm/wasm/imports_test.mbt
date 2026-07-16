@@ -97,7 +97,7 @@ test "Wasm adapters synthesize logical Unit runtime arguments" {
       parameters=[Unit],
       result=Unit,
       invoke=(_context, arguments) => {
-        valid_arguments = arguments == [Unit]
+        valid_arguments = arguments is [Unit]
         called = true
         Unit
       },
@@ -365,6 +365,7 @@ test "host String allocation preserves live heap resource failures" {
     loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(8),
+      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")

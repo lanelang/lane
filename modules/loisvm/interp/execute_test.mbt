@@ -226,7 +226,7 @@ test "interpreter synthesizes logical Unit runtime arguments" {
       parameters=[Unit],
       result=Unit,
       invoke=(_context, arguments) => {
-        valid_arguments = arguments == [Unit]
+        valid_arguments = arguments is [Unit]
         called = true
         Unit
       },
@@ -294,6 +294,7 @@ test "tail calls preserve logical call depth" {
   let instance = loaded.new_instance(config={
     max_call_depth: Some(1),
     max_live_heap_bytes: None,
+    max_host_objects: None,
   })
   assert_eq(instance.execute(), Ok(()))
 }
@@ -309,7 +310,7 @@ test "object witnesses load independently from data and environment members" {
       parameters=[Bool],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments == [Bool(true)] {
+        if arguments is [Bool(true)] {
           observed += 1
         }
         Unit
@@ -413,6 +414,7 @@ test "returning calls enforce logical depth" {
   let instance = loaded.new_instance(config={
     max_call_depth: Some(1),
     max_live_heap_bytes: None,
+    max_host_objects: None,
   })
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
 }
@@ -442,6 +444,7 @@ test "non-positive execution limits provide zero budget" {
     let instance = empty_loaded.new_instance(config={
       max_call_depth: Some(limit),
       max_live_heap_bytes: None,
+      max_host_objects: None,
     })
     assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
   }
@@ -479,6 +482,7 @@ test "non-positive execution limits provide zero budget" {
     let instance = allocating_loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(limit),
+      max_host_objects: None,
     })
     assert_eq(
       instance.execute(),
