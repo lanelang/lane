@@ -8,6 +8,7 @@ priv struct RuntimeFunctions {
   string_eq : Int
   string_concat : Int
   string_slice : Int
+  host_object_new : Int
 }
 
 ///|
@@ -21,6 +22,7 @@ fn runtime_function_indices(first_index : Int) -> RuntimeFunctions {
     string_eq: first_index + 5,
     string_concat: first_index + 6,
     string_slice: first_index + 7,
+    host_object_new: first_index + 8,
   }
 }
 
@@ -86,6 +88,13 @@ fn append_runtime_functions(
     [I32],
     [I64, I32, I32, I32],
     string_slice_body(functions.string_new, functions.release_ref),
+  )
+  append_runtime_function(
+    wasm_module,
+    [I64],
+    [I32],
+    [I32],
+    host_object_new_body(functions.allocate, static_image.reference_layout_id),
   )
 }
 
@@ -354,6 +363,28 @@ fn string_new_body(
     LocalGet(1),
     LocalGet(0),
     I32Store(0, 2, 8L),
+    LocalGet(1),
+  ]
+}
+
+///|
+fn host_object_new_body(
+  allocate_index : Int,
+  reference_layout_id : Int,
+) -> Array[@wasm_types.Instruction] {
+  [
+    I32Const(16),
+    Call(allocate_index),
+    LocalSet(1),
+    LocalGet(1),
+    I32Const(1),
+    I32Store(0, 2, 0L),
+    LocalGet(1),
+    I32Const(reference_layout_id),
+    I32Store(0, 2, 4L),
+    LocalGet(1),
+    LocalGet(0),
+    I64Store(0, 3, 8L),
     LocalGet(1),
   ]
 }

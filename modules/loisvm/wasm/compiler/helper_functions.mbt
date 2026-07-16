@@ -7,6 +7,7 @@ priv struct HelperFunctions {
   retain_callable_wasm : Int
   release_callable_wasm : Int
   destroy_noop_wasm : Int
+  destroy_host_object_wasm : Int
   destroy_shape_wasm_base : Int
   string_sizer_wasm : Int
   noop_erased_table : Int
@@ -15,6 +16,7 @@ priv struct HelperFunctions {
   retain_callable_table : Int
   release_callable_table : Int
   destroy_noop_table : Int
+  destroy_host_object_table : Int
   destroy_shape_table_base : Int
   string_sizer_table : Int
 }
@@ -25,26 +27,28 @@ fn helper_function_indices(
   shape_count : Int,
   runtime_wasm_base : Int,
 ) -> HelperFunctions {
-  let wasm_base = runtime_wasm_base + 8
+  let wasm_base = runtime_wasm_base + 9
   let table_base = lane_function_count + 1
   {
-    count: 7 + shape_count,
+    count: 8 + shape_count,
     noop_erased_wasm: wasm_base,
     retain_ref_erased_wasm: wasm_base + 1,
     release_ref_erased_wasm: wasm_base + 2,
     retain_callable_wasm: wasm_base + 3,
     release_callable_wasm: wasm_base + 4,
     destroy_noop_wasm: wasm_base + 5,
-    destroy_shape_wasm_base: wasm_base + 6,
-    string_sizer_wasm: wasm_base + 6 + shape_count,
+    destroy_host_object_wasm: wasm_base + 6,
+    destroy_shape_wasm_base: wasm_base + 7,
+    string_sizer_wasm: wasm_base + 7 + shape_count,
     noop_erased_table: table_base,
     retain_ref_erased_table: table_base + 1,
     release_ref_erased_table: table_base + 2,
     retain_callable_table: table_base + 3,
     release_callable_table: table_base + 4,
     destroy_noop_table: table_base + 5,
-    destroy_shape_table_base: table_base + 6,
-    string_sizer_table: table_base + 6 + shape_count,
+    destroy_host_object_table: table_base + 6,
+    destroy_shape_table_base: table_base + 7,
+    string_sizer_table: table_base + 7 + shape_count,
   }
 }
 
@@ -57,8 +61,9 @@ fn HelperFunctions::wasm_indices(self : HelperFunctions) -> Array[Int] {
     self.retain_callable_wasm,
     self.release_callable_wasm,
     self.destroy_noop_wasm,
+    self.destroy_host_object_wasm,
   ]
-  for index in 0..<(self.count - 7) {
+  for index in 0..<(self.count - 8) {
     result.push(self.destroy_shape_wasm_base + index)
   }
   result.push(self.string_sizer_wasm)
@@ -71,6 +76,8 @@ fn append_helper_functions(
   static_image : StaticImage,
   runtime : RuntimeFunctions,
   helpers : HelperFunctions,
+  host_objects_enabled : Bool,
+  host_object_release_import : Int,
 ) -> Unit {
   append_runtime_function(wasm_module, [I64], [], [], [])
   append_runtime_function(wasm_module, [I64], [], [], [
@@ -98,6 +105,17 @@ fn append_helper_functions(
     Call(runtime.release_ref),
   ])
   append_runtime_function(wasm_module, [I32], [], [], [])
+  append_runtime_function(
+    wasm_module,
+    [I32],
+    [],
+    [],
+    if host_objects_enabled {
+      [LocalGet(0), I64Load(0, 3, 8L), Call(host_object_release_import)]
+    } else {
+      []
+    },
+  )
   let erased_release_type = intern_function_type(wasm_module, [I64], [])
   for shape_index in 0..<static_image.object_shapes.length() {
     append_runtime_function(

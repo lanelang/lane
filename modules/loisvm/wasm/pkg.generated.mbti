@@ -30,12 +30,10 @@ pub(all) suberror WasmLoadError {
 pub struct ExecutionInstance {
   store : @Milky2018/wasmoon/runtime.Store
   instance : @Milky2018/wasmoon/runtime.ModuleInstance
-  failure : ImportFailureState
   mut ready : Bool
+  // private fields
 }
 pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @Milky2018/loisvm/runtime.ExecutionError]
-
-type ImportFailureState
 
 pub struct LoadedImage {
   wasm_module : @types.Module
@@ -43,6 +41,8 @@ pub struct LoadedImage {
 }
 pub fn LoadedImage::new_instance(Self, config? : @Milky2018/loisvm/runtime.ExecutionConfig) -> Result[ExecutionInstance, @Milky2018/loisvm/runtime.ExecutionError]
 pub fn LoadedImage::wasm_module(Self) -> @types.Module
+
+type RuntimeFailureState
 
 // Type aliases
 

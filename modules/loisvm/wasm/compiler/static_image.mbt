@@ -8,6 +8,7 @@ priv struct StaticImage {
   singleton_refs : Array[Int]
   singleton_layout_ids : Array[Int]
   string_layout_id : Int
+  reference_layout_id : Int
   shape_layouts : Array[ShapeLayout]
   object_shapes : Array[@bytecode.ObjectShape]
   globals : Array[@bytecode.GlobalMetadata]
@@ -79,9 +80,11 @@ fn layout_fixed_size(
   image : @bytecode.BytecodeImage,
   shape_layouts : Array[ShapeLayout],
   layout : @bytecode.LayoutRecipe,
+  host_objects_enabled : Bool,
 ) -> Int? {
   match layout {
-    Unit | Bool | Int | Double | Callable | Reference => Some(0)
+    Unit | Bool | Int | Double | Callable => Some(0)
+    Reference => Some(if host_objects_enabled { 16 } else { 0 })
     String => None
     Data(shape) | Environment(shape) => {
       ignore(image)
@@ -107,6 +110,7 @@ fn build_static_image(
   image : @bytecode.BytecodeImage,
   helper_functions : HelperFunctions,
   wasm_function_offset : Int,
+  host_objects_enabled : Bool,
 ) -> StaticImage raise WasmCompileError {
   let writer = @bytecodec.ByteWriter::new()
   let shape_layouts = image.object_shapes.map(object_shape_layout)
@@ -114,12 +118,17 @@ fn build_static_image(
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
   let mut string_layout_id = 0
+  let mut reference_layout_id = 0
   for index, layout in image.layouts {
     if layout == String {
       string_layout_id = index + 1
     }
+    if layout == Reference {
+      reference_layout_id = index + 1
+    }
     writer.write_u32_le_int(layout_rep_kind(layout))
-    match layout_fixed_size(image, shape_layouts, layout) {
+    match
+      layout_fixed_size(image, shape_layouts, layout, host_objects_enabled) {
       Some(size) => {
         writer.write_u32_le_int(1)
         writer.write_u32_le_int(size)
@@ -155,6 +164,8 @@ fn build_static_image(
       match layout {
         Data(shape) | Environment(shape) =>
           helper_functions.destroy_shape_table_base + shape.value
+        Reference if host_objects_enabled =>
+          helper_functions.destroy_host_object_table
         Unit | Bool | Int | Double | Callable | String | Reference =>
           helper_functions.destroy_noop_table
       },
@@ -211,6 +222,7 @@ fn build_static_image(
     singleton_refs,
     singleton_layout_ids,
     string_layout_id,
+    reference_layout_id,
     shape_layouts,
     object_shapes: image.object_shapes,
     globals: image.globals,

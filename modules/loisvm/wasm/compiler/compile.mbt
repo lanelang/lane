@@ -37,7 +37,14 @@ fn compile_or_raise(
       BytecodeBody(_) => None
     }
   })
-  let import_count = imports.length()
+  let host_objects_enabled = imports.any(runtime_import_uses_host_objects)
+  if host_objects_enabled && !image.layouts.any(layout => layout is Reference) {
+    raise ValidationFailure(
+      detail="Opaque runtime imports require a Reference layout",
+    )
+  }
+  let host_service_count = if host_objects_enabled { 1 } else { 0 }
+  let import_count = host_service_count + imports.length()
   let runtime_functions = runtime_function_indices(
     import_count + image.functions.length(),
   )
@@ -46,7 +53,12 @@ fn compile_or_raise(
     image.object_shapes.length(),
     runtime_functions.allocate,
   )
-  let static_image = build_static_image(image, helper_functions, import_count)
+  let static_image = build_static_image(
+    image, helper_functions, import_count, host_objects_enabled,
+  )
+  if host_objects_enabled {
+    append_host_object_release_import(wasm_module)
+  }
   for import_ in imports {
     append_physical_runtime_import(wasm_module, import_)
   }
@@ -72,7 +84,10 @@ fn compile_or_raise(
       }
       RuntimeImport(import_) => {
         append_runtime_import_adapter(
-          wasm_module, import_, import_index, runtime_functions,
+          wasm_module,
+          import_,
+          host_service_count + import_index,
+          runtime_functions,
         )
         import_index += 1
       }
@@ -80,7 +95,8 @@ fn compile_or_raise(
   }
   append_runtime_functions(wasm_module, static_image, runtime_functions)
   append_helper_functions(
-    wasm_module, static_image, runtime_functions, helper_functions,
+    wasm_module, static_image, runtime_functions, helper_functions, host_objects_enabled,
+    0,
   )
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
   wasm_module.tags.push({ type_idx: fatal_tag_type })
@@ -134,6 +150,10 @@ fn compile_or_raise(
   wasm_module.exports.push({
     name: "lane.runtime.string.new",
     desc: Func(runtime_functions.string_new),
+  })
+  wasm_module.exports.push({
+    name: "lane.runtime.host_object.new",
+    desc: Func(runtime_functions.host_object_new),
   })
   wasm_module
 }

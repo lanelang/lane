@@ -23,7 +23,7 @@ fn physical_runtime_parameters(
       Bool => parameters.push(I32)
       Int => parameters.push(I64)
       Double => parameters.push(F64)
-      Opaque => parameters.push(I32)
+      Opaque => parameters.push(I64)
       String => {
         parameters.push(I32)
         parameters.push(I32)
@@ -58,6 +58,21 @@ pub fn runtime_results_for_import(
 }
 
 ///|
+fn runtime_import_uses_host_objects(import_ : @bytecode.RuntimeImport) -> Bool {
+  import_.result is Opaque || import_.parameters.any(kind => kind is Opaque)
+}
+
+///|
+fn append_host_object_release_import(wasm_module : @wasm_types.Module) -> Unit {
+  let type_index = intern_function_type(wasm_module, [I64], [])
+  wasm_module.imports.push({
+    mod_name: "lane.runtime.internal.v1",
+    name: "host_object.release",
+    desc: Func(type_index),
+  })
+}
+
+///|
 fn append_physical_runtime_import(
   wasm_module : @wasm_types.Module,
   import_ : @bytecode.RuntimeImport,
@@ -89,17 +104,23 @@ fn append_runtime_import_adapter(
   }
   let results = runtime_results(import_)
   let instructions : Array[@wasm_types.Instruction] = []
-  let string_parameters : Array[Int] = []
+  let reference_parameters : Array[Int] = []
   let mut parameter_index = 1
   for kind in import_.parameters {
     match kind {
       Unit => ()
-      Bool | Int | Double | Opaque => {
+      Bool | Int | Double => {
         instructions.push(LocalGet(parameter_index))
         parameter_index += 1
       }
+      Opaque => {
+        reference_parameters.push(parameter_index)
+        instructions.push(LocalGet(parameter_index))
+        instructions.push(I64Load(0, 3, 8L))
+        parameter_index += 1
+      }
       String => {
-        string_parameters.push(parameter_index)
+        reference_parameters.push(parameter_index)
         instructions.push(LocalGet(parameter_index))
         instructions.push(I32Const(12))
         instructions.push(I32Add)
@@ -115,8 +136,8 @@ fn append_runtime_import_adapter(
     locals.push(result_type)
     instructions.push(LocalSet(parameters.length()))
   }
-  for string_parameter in string_parameters {
-    instructions.push(LocalGet(string_parameter))
+  for reference_parameter in reference_parameters {
+    instructions.push(LocalGet(reference_parameter))
     instructions.push(Call(runtime.release_ref))
   }
   instructions.push(GlobalGet(failure_code_global_index))

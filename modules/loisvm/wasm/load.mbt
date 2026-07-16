@@ -5,12 +5,6 @@ pub(all) suberror WasmLoadError {
 } derive(Debug, Eq)
 
 ///|
-struct ImportFailureState {
-  mut symbol : String?
-  mut message : String?
-}
-
-///|
 pub struct LoadedImage {
   wasm_module : @wasm_types.Module
   imports : Array[(@bytecode.RuntimeImport, @loisvm_runtime.RuntimeBinding)]
@@ -20,7 +14,8 @@ pub struct LoadedImage {
 pub struct ExecutionInstance {
   store : @wasmoon_runtime.Store
   instance : @wasmoon_runtime.ModuleInstance
-  failure : ImportFailureState
+  priv failure : RuntimeFailureState
+  priv host_objects : WasmHostObjects
   mut ready : Bool
 }
 
@@ -83,16 +78,46 @@ fn LoadedImage::new_instance_or_raise(
 ) -> ExecutionInstance raise @wasmoon_runtime.RuntimeError {
   let store = @wasmoon_runtime.Store::Store()
   let imports = @wasmoon_runtime.Imports::Imports()
-  let failure : ImportFailureState = { symbol: None, message: None }
+  let failure : RuntimeFailureState = { error: None }
   let runtime = @loisvm_runtime.ExecutionRuntime::new(config~)
+  let host_objects = WasmHostObjects::new(runtime)
   let runtime_context = runtime.context()
+  if self.imports.any(resolved => runtime_import_uses_host_objects(resolved.0)) {
+    let release_host_object : (
+      @wasmoon_runtime.Caller,
+      Array[@wasm_types.Value],
+    ) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError = (
+      _caller,
+      values,
+    ) => {
+      guard values is [I64(token)] else { raise TypeMismatch }
+      host_objects.release(token) catch {
+        error => {
+          failure.error = Some(
+            InternalRuntimeFailure(
+              detail=wasm_host_object_failure_detail(error),
+            ),
+          )
+          raise TypeMismatch
+        }
+      }
+      []
+    }
+    let address = store.alloc_host_func_with_caller(release_host_object, func_type={
+      params: [I64],
+      results: [],
+    })
+    imports.add_func("lane.runtime.internal.v1", "host_object.release", address)
+  }
   for resolved in self.imports {
     let descriptor = resolved.0
     let binding = resolved.1
     let host_function : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
       @wasm_types.Value,
     ] raise @wasmoon_runtime.RuntimeError = (caller, values) => {
-      invoke_runtime_binding(caller, binding, failure, runtime_context, values)
+      invoke_runtime_binding(
+        caller, binding, failure, runtime, runtime_context, host_objects, values,
+      )
     }
     let address = store.alloc_host_func_with_caller(host_function, func_type={
       params: @compiler.physical_runtime_parameters_for_import(descriptor),
@@ -111,7 +136,7 @@ fn LoadedImage::new_instance_or_raise(
   store
   .get_global(instance.global_addrs[@compiler.max_call_depth_global()])
   .set(I32(encode_execution_limit(config.max_call_depth)))
-  { store, instance, failure, ready: true }
+  { store, instance, failure, host_objects, ready: true }
 }
 
 ///|
@@ -119,6 +144,7 @@ pub fn ExecutionInstance::execute(
   self : ExecutionInstance,
   cancel? : (() -> Bool)? = None,
 ) -> Result[Unit, @loisvm_runtime.ExecutionError] {
+  ignore(self.host_objects)
   if !self.ready {
     return Err(InstanceNotReady)
   }
@@ -135,9 +161,8 @@ pub fn ExecutionInstance::execute(
     Err(failure) =>
       if failure.kind is Cancelled {
         Err(Interrupted)
-      } else if self.failure.symbol is Some(symbol) &&
-        self.failure.message is Some(message) {
-        Err(RuntimeImportFailure(symbol~, message~))
+      } else if self.failure.error is Some(error) {
+        Err(error)
       } else {
         let failure_code = self.store
           .get_global(
@@ -160,167 +185,4 @@ pub fn ExecutionInstance::execute(
         }
       }
   }
-}
-
-///|
-fn invoke_runtime_binding(
-  caller : @wasmoon_runtime.Caller,
-  binding : @loisvm_runtime.RuntimeBinding,
-  failure : ImportFailureState,
-  runtime_context : @loisvm_runtime.RuntimeContext,
-  values : Array[@wasm_types.Value],
-) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError {
-  let arguments : Array[@loisvm_runtime.HostValue] = []
-  let mut value_index = 0
-  for kind in binding.parameters() {
-    match kind {
-      Unit => arguments.push(Unit)
-      Bool => {
-        guard values[value_index] is I32(value) else { raise TypeMismatch }
-        arguments.push(Bool(value != 0))
-        value_index += 1
-      }
-      Int => {
-        guard values[value_index] is I64(value) else { raise TypeMismatch }
-        arguments.push(Int(value))
-        value_index += 1
-      }
-      Double => {
-        guard values[value_index] is F64(value) else { raise TypeMismatch }
-        arguments.push(Double(value))
-        value_index += 1
-      }
-      String => {
-        guard values[value_index] is I32(pointer) else { raise TypeMismatch }
-        guard values[value_index + 1] is I32(length) else { raise TypeMismatch }
-        let memory = match caller.get_exported_memory("lane.memory") {
-          Some(value) => value
-          None => raise UndefinedElement
-        }
-        for index in 0..<length {
-          let byte = memory.read_byte(pointer + index)
-          if byte.to_int() > 0x7F {
-            raise TypeMismatch
-          }
-        }
-        arguments.push(
-          BorrowedString(
-            @loisvm_runtime.HostStringView::new(length~, read_byte=index => {
-              memory.read_byte(pointer + index)
-            }),
-          ),
-        )
-        value_index += 2
-      }
-      Opaque => raise TypeMismatch
-    }
-  }
-  let result = try binding.call(runtime_context, arguments) catch {
-    Failure(message~) => {
-      failure.symbol = Some(binding.symbol())
-      failure.message = Some(message)
-      caller
-      .store()
-      .get_global(
-        caller.instance().global_addrs[@compiler.runtime_import_failed_global()],
-      )
-      .set(I32(1))
-      return default_runtime_result(binding.result())
-    }
-  } noraise {
-    value => value
-  }
-  try host_result_to_wasm(caller, binding.result(), result) catch {
-    error => {
-      let failure_code = caller
-        .store()
-        .get_global(
-          caller.instance().global_addrs[@compiler.failure_code_global()],
-        )
-        .get() catch {
-          _ => I32(0)
-        }
-      if failure_code is I32(0) {
-        failure.symbol = Some(binding.symbol())
-        failure.message = Some(error.to_string())
-        caller
-        .store()
-        .get_global(
-          caller.instance().global_addrs[@compiler.runtime_import_failed_global()],
-        )
-        .set(I32(1))
-      }
-      default_runtime_result(binding.result())
-    }
-  } noraise {
-    value => value
-  }
-}
-
-///|
-fn default_runtime_result(
-  kind : @loisvm_runtime.RuntimeValueKind,
-) -> Array[@wasm_types.Value] {
-  match kind {
-    Unit => []
-    Bool => [I32(0)]
-    Int => [I64(0L)]
-    Double => [F64(0.0)]
-    String => [I32(0)]
-    Opaque => [I32(0)]
-  }
-}
-
-///|
-fn host_result_to_wasm(
-  caller : @wasmoon_runtime.Caller,
-  kind : @loisvm_runtime.RuntimeValueKind,
-  value : @loisvm_runtime.HostValue,
-) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError {
-  match (kind, value) {
-    (Unit, Unit) => []
-    (Bool, Bool(value)) => [I32(if value { 1 } else { 0 })]
-    (Int, Int(value)) => [I64(value)]
-    (Double, Double(value)) => [F64(value)]
-    (String, String(value)) => [I32(copy_host_string(caller, value))]
-    _ => raise TypeMismatch
-  }
-}
-
-///|
-fn copy_host_string(
-  caller : @wasmoon_runtime.Caller,
-  value : String,
-) -> Int raise @wasmoon_runtime.RuntimeError {
-  let bytes = @utf8.encode(value)
-  for byte in bytes {
-    if byte.to_int() > 0x7F {
-      raise TypeMismatch
-    }
-  }
-  let instance = caller.instance()
-  let mut service_index = -1
-  for export_ in instance.exports {
-    if export_.name == "lane.runtime.string.new" && export_.desc is Func(index) {
-      service_index = index
-    }
-  }
-  if service_index < 0 {
-    raise UndefinedElement
-  }
-  let allocated = @executor.call_func_by_index(
-    caller.store(),
-    instance,
-    service_index,
-    [I32(bytes.length())],
-  )
-  guard allocated is [I32(reference)] else { raise TypeMismatch }
-  let memory = match caller.get_exported_memory("lane.memory") {
-    Some(value) => value
-    None => raise UndefinedElement
-  }
-  for index, byte in bytes {
-    memory.store_byte(reference + 12 + index, byte)
-  }
-  reference
 }

@@ -184,20 +184,27 @@ test "compiled tail calls use Wasmoon tail-call support" {
 
 ///|
 test "runtime imports compile from bytecode descriptors" {
+  let import_ : @bytecode.RuntimeImport = {
+    abi_major: 1,
+    parameters: [Opaque],
+    result: Opaque,
+    symbol: "lane.test",
+  }
+  let bytecode = {
+    ..image([BytecodeBody(body()), RuntimeImport(import_)]),
+    layouts: [Reference],
+  }
+  assert_eq(@compiler.physical_runtime_parameters_for_import(import_), [I64])
+  assert_eq(@compiler.runtime_results_for_import(import_), [I32])
   assert_true(
-    compile(
-      image([
-        BytecodeBody(body()),
-        RuntimeImport({
-          abi_major: 1,
-          parameters: [Opaque],
-          result: Opaque,
-          symbol: "lane.test",
-        }),
-      ]),
-    )
-    is Ok(_),
+    compile(image([BytecodeBody(body()), RuntimeImport(import_)]))
+    is Err(
+      ValidationFailure(
+        detail="Opaque runtime imports require a Reference layout",
+      ),
+    ),
   )
+  assert_true(compile(bytecode) is Ok(_))
 }
 
 ///|
