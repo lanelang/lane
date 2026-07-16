@@ -10,8 +10,8 @@ No ready issues.
 
 | ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
-| [ISS-205](ISS-205.md) | in_progress | 1 | epic | Codex | ISS-213 | none | Implement external effects and opaque host types |
-| [ISS-213](ISS-213.md) | in_progress | 1 | task | Codex | none | ISS-205 | Complete external host-boundary integration |
+| [ISS-205](ISS-205.md) | in_progress | 1 | epic | Codex | none | none | Implement external effects and opaque host types |
+| [ISS-216](ISS-216.md) | deferred | 4 | epic | unassigned | none | none | Design advanced external host ABI capabilities |
 
 ## Dependency Graph
 
@@ -232,6 +232,7 @@ graph TD
   ISS_213["ISS-213: Complete external host-boundary integration"]
   ISS_214["ISS-214: Accept external effects on executable entries"]
   ISS_215["ISS-215: Emit the Reference layout for opaque imports"]
+  ISS_216["ISS-216: Design advanced external host ABI capabilities"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

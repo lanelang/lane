@@ -1336,6 +1336,37 @@
           "found `[[Type] -> Type] -> [Type] -> Type`"
         ]
       }
+    },
+    {
+      "name": "58 external host types",
+      "file": "examples/valid/58_external_host_types.lane",
+      "mode": "check"
+    },
+    {
+      "name": "invalid 64 external type parameters",
+      "file": "examples/invalid/64_external_type_parameters.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3107]",
+          "external type `Box` cannot have type parameters",
+          "external host values use a single opaque nominal identity",
+          "remove the type parameter list from this external type"
+        ]
+      }
+    },
+    {
+      "name": "invalid 65 extern aggregate parameter",
+      "file": "examples/invalid/65_extern_aggregate_parameter.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3029]",
+          "extern `fd.close_box` has an unsupported type",
+          "extern parameter 1 must use a direct host ABI type",
+          "change the declaration to a supported direct host function signature"
+        ]
+      }
     }
   ]
 }

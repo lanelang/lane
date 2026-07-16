@@ -1,0 +1,10 @@
+module InvalidExternAggregateParameter
+
+extern type Fd : Type
+
+struct FdBox {
+  value : Fd
+}
+
+// Host ABI values must cross the boundary directly, not inside Lane aggregates.
+let close_box : (FdBox) -> Unit = extern("fd.close_box")

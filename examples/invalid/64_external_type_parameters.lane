@@ -1,0 +1,4 @@
+module InvalidExternalTypeParameters
+
+// External host types are zero-parameter nominal types.
+extern type Box[A : Type] : Type

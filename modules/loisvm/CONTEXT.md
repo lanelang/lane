@@ -436,11 +436,11 @@ Borrowed non-Lane host state supplied implicitly to runtime imports for services
 such as allocation and I/O.
 _Avoid_: local slot, handler context, reference-counted value
 
-**Synchronous Primitive Host Call**:
+**Synchronous Direct Host Call**:
 A runtime import that returns before VM execution continues, cannot re-enter
 Lane program execution, retains no VM values after return, and crosses only
-primitive value kinds; approved runtime-service nested calls are not Lane
-reentry.
+direct primitive or `Opaque` value kinds; approved runtime-service nested calls
+are not Lane reentry.
 _Avoid_: asynchronous import, VM callback, closure argument, opaque handle result
 
 **Runtime Import Failure**:

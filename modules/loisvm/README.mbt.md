@@ -178,7 +178,7 @@ Incorrect ownership bytecode is outside the trusted producer contract and may le
 
 Runtime imports are ordinary entries in the unified function table. Loading resolves every import by exact symbol, ABI major version, parameter kinds, and result kind before publishing a loaded image.
 
-Bindings declare their full primitive signature through `RuntimeBinding`:
+Bindings declare their full direct-value signature through `RuntimeBinding`:
 
 - `Unit`
 - `Bool`
@@ -195,6 +195,142 @@ arrays. `HostParameter::host_object()` performs the trusted unbranded projection
 for an `Opaque` parameter. `HostResult::host_object(finalizer~)` creates an
 independently owned result whose finalizer runs when Lane releases its final
 wrapper.
+
+For a Lane library, an opaque host API can be declared without teaching the
+compiler any symbol-specific behavior:
+
+```lane
+extern type Counter : Type
+extern type CounterIo : Effect
+
+let counter_new : () -> Counter ! CounterIo = extern("counter.new")
+let counter_add : (Counter, Int) -> Int ! CounterIo = extern("counter.add")
+let counter_close : (Counter) -> Unit ! CounterIo = extern("counter.close")
+```
+
+The embedding registers the corresponding direct ABI. Primitive descriptors
+decode to ordinary MoonBit values. `HostParameter::host_object()` borrows the
+payload for one synchronous call, while `HostResult::host_object` transfers a
+new independently finalized payload into Lane:
+
+```moonbit check
+///|
+priv struct ReadmeCounter {
+  mut value : Int64
+  mut closed : Bool
+}
+
+///|
+fn readme_counter_registry(
+  observed : Array[Int64],
+  closed : Ref[Int],
+  finalized : Ref[Int],
+) -> @runtime.RuntimeRegistry {
+  let registry = @runtime.RuntimeRegistry::new()
+  registry.register(
+    @runtime.RuntimeBinding::typed(
+      symbol="counter.new",
+      abi_major=1,
+      parameters=@runtime.HostParameters::none(),
+      result=@runtime.HostResult::host_object(finalizer=(
+        counter : ReadmeCounter,
+      ) => {
+        if !counter.closed {
+          counter.closed = true
+        }
+        finalized.val += 1
+      }),
+      invoke=(_context, _arguments) => ReadmeCounter::{
+        value: 0L,
+        closed: false,
+      },
+    ),
+  )
+  registry.register(
+    @runtime.RuntimeBinding::typed(
+      symbol="counter.add",
+      abi_major=1,
+      parameters=@runtime.HostParameters::pair(
+        @runtime.HostParameters::one(@runtime.HostParameter::host_object()),
+        @runtime.HostParameters::one(@runtime.HostParameter::int()),
+      ),
+      result=@runtime.HostResult::int(),
+      invoke=(_context, arguments : (ReadmeCounter, Int64)) => {
+        if arguments.0.closed {
+          raise @runtime.RuntimeImportFailure::Failure(
+            message="counter is closed",
+          )
+        }
+        arguments.0.value += arguments.1
+        arguments.0.value
+      },
+    ),
+  )
+  registry.register(
+    @runtime.RuntimeBinding::typed(
+      symbol="counter.observe",
+      abi_major=1,
+      parameters=@runtime.HostParameters::one(@runtime.HostParameter::int()),
+      result=@runtime.HostResult::unit(),
+      invoke=(_context, value : Int64) => observed.push(value),
+    ),
+  )
+  registry.register(
+    @runtime.RuntimeBinding::typed(
+      symbol="counter.close",
+      abi_major=1,
+      parameters=@runtime.HostParameters::one(
+        @runtime.HostParameter::host_object(),
+      ),
+      result=@runtime.HostResult::unit(),
+      invoke=(_context, counter : ReadmeCounter) => {
+        if counter.closed {
+          raise @runtime.RuntimeImportFailure::Failure(
+            message="counter is already closed",
+          )
+        }
+        counter.closed = true
+        closed.val += 1
+      },
+    ),
+  )
+  registry
+}
+
+///|
+test "typed host registration declares primitive and Opaque ABI kinds" {
+  let registry = readme_counter_registry([], Ref(0), Ref(0))
+  debug_inspect(
+    ["counter.new", "counter.add", "counter.observe", "counter.close"].map(symbol => {
+      registry
+      .find(symbol)
+      .map(binding => (binding.symbol(), binding.parameters(), binding.result()))
+    }),
+    content=(
+      #|[
+      #|  Some(("counter.new", [], Opaque)),
+      #|  Some(("counter.add", [Opaque, Int], Int)),
+      #|  Some(("counter.observe", [Int], Unit)),
+      #|  Some(("counter.close", [Opaque], Unit)),
+      #|]
+    ),
+  )
+}
+```
+
+Every `Opaque` result creates one execution-local Host Object Table entry and
+one Lane ARC wrapper. Lane copies retain the wrapper and share the same mutable
+payload. An `Opaque` parameter is borrowed and must not be retained by the
+binding. The per-result finalizer runs exactly once after the last wrapper is
+released during normal execution; explicit effectful cleanup such as
+`counter.close` should mark the payload closed so the finalizer can act as a
+non-observable fallback without releasing the resource twice.
+
+Host Object handles never enter the public binding API, bytecode, or Wasm
+linear memory. Payload projection is intentionally unbranded and trusted:
+runtime linking verifies `Opaque` versus primitive kinds but cannot distinguish
+two source External Types. Host Objects are execution-local and thread-affine,
+and `ExecutionConfig.max_host_objects` bounds the number of live entries.
 
 Host calls are synchronous. A binding must not retain a borrowed VM value or re-enter the active execution instance. Report host failures by raising `RuntimeImportFailure::Failure`; both backends convert it into `ExecutionError::RuntimeImportFailure`.
 

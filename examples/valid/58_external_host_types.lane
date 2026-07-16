@@ -1,0 +1,13 @@
+module ExternalHostTypes
+
+pub extern type Vector : Type
+
+pub extern type VectorIo : Effect
+
+pub let vector_new : (Int) -> Vector ! VectorIo = extern("vector.new")
+
+pub let vector_get : (Vector, Int) -> Int ! VectorIo = extern("vector.get")
+
+pub let vector_set : (Vector, Int, Int) -> Unit ! VectorIo = extern("vector.set")
+
+pub let vector_close : (Vector) -> Unit ! VectorIo = extern("vector.close")
