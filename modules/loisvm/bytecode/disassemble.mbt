@@ -2,19 +2,14 @@
 pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
   let lines = [
     "LoisVM bytecode",
-    "schema: \{image.schema_version()}",
     "entry: \{render_function(image.entry)}",
+    "initializer: \{render_optional_function(image.initializer)}",
+    "functions: \{image.functions.length()}",
+    "globals: \{image.globals.length()}",
+    "layouts: \{image.layouts.length()}",
+    "object shapes: \{image.object_shapes.length()}",
+    "constants: \{image.constants.length()}",
   ]
-  if image.schema_version() == bytecode_schema_v2 {
-    lines.push("initializer: \{render_optional_function(image.initializer)}")
-  }
-  lines.push("functions: \{image.functions.length()}")
-  if image.schema_version() == bytecode_schema_v2 {
-    lines.push("globals: \{image.globals.length()}")
-  }
-  lines.push("layouts: \{image.layouts.length()}")
-  lines.push("object shapes: \{image.object_shapes.length()}")
-  lines.push("constants: \{image.constants.length()}")
   lines.push("")
   for index, function in image.functions {
     lines.append(render_function_entry(index + 1, function))

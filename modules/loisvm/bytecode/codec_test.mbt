@@ -52,7 +52,7 @@ fn minimal_image() -> BytecodeImage {
 }
 
 ///|
-fn v2_image() -> BytecodeImage {
+fn global_image() -> BytecodeImage {
   let initializer = {
     ..minimal_body(instructions=[
       InitGlobal(global(1), slot(1)),
@@ -94,9 +94,9 @@ fn v2_image() -> BytecodeImage {
 test "minimal bytecode image has stable encoding" {
   let binary = bytecode_image_to_binary(minimal_image())
   assert_eq(binary.to_array().map(fn(byte) { byte.to_int() }), [
-    1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ])
   assert_eq(parse_bytecode_image_binary(binary), Ok(minimal_image()))
 }
@@ -107,9 +107,10 @@ test "minimal bytecode image has canonical disassembly" {
     bytecode_image_to_disassembly(minimal_image()),
     content=(
       #|LoisVM bytecode
-      #|schema: 1
       #|entry: f1
+      #|initializer: none
       #|functions: 1
+      #|globals: 0
       #|layouts: 0
       #|object shapes: 0
       #|constants: 0
@@ -130,14 +131,12 @@ test "minimal bytecode image has canonical disassembly" {
 }
 
 ///|
-test "schema 2 globals and initializer roundtrip" {
-  let image = v2_image()
+test "globals and initializer roundtrip" {
+  let image = global_image()
   let binary = bytecode_image_to_binary(image)
-  assert_eq(binary[0], b'\x02')
   assert_eq(parse_bytecode_image_binary(binary), Ok(image))
   let initializer_only = { ..minimal_image(), initializer: Some(function(1)) }
   let initializer_only_binary = bytecode_image_to_binary(initializer_only)
-  assert_eq(initializer_only_binary[0], b'\x02')
   assert_eq(
     parse_bytecode_image_binary(initializer_only_binary),
     Ok(initializer_only),
@@ -145,12 +144,11 @@ test "schema 2 globals and initializer roundtrip" {
 }
 
 ///|
-test "schema 2 image has canonical disassembly" {
+test "global image has canonical disassembly" {
   inspect(
-    bytecode_image_to_disassembly(v2_image()),
+    bytecode_image_to_disassembly(global_image()),
     content=(
       #|LoisVM bytecode
-      #|schema: 2
       #|entry: f1
       #|initializer: f2
       #|functions: 2
@@ -194,7 +192,7 @@ test "schema 2 image has canonical disassembly" {
 }
 
 ///|
-test "all v1 instructions roundtrip" {
+test "all instructions roundtrip" {
   let zero = slot(0)
   let one = slot(1)
   let two = slot(2)
@@ -348,19 +346,15 @@ test "function, layout, shape, and constant tables roundtrip" {
 }
 
 ///|
-test "decoder rejects unsupported schema and unknown function tag" {
-  assert_eq(
-    parse_bytecode_image_binary(Bytes::from_array([b'\x03'])),
-    Err(UnsupportedSchema(version=3)),
-  )
+test "decoder rejects unknown function tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u8(1)
   writer.write_u32_le_int(1)
+  writer.write_u32_le_int(0)
   writer.write_u32_le_int(1)
   writer.write_u8(0)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
-    Err(MalformedEncoding(offset=9, detail="unknown function entry tag 0")),
+    Err(MalformedEncoding(offset=12, detail="unknown function entry tag 0")),
   )
 }
 
@@ -368,21 +362,23 @@ test "decoder rejects unsupported schema and unknown function tag" {
 test "decoder preserves truncation offsets with pattern parsing" {
   assert_eq(
     parse_bytecode_image_binary(Bytes::from_array([])),
-    Err(MalformedEncoding(offset=0, detail="expected bytecode schema version")),
+    Err(MalformedEncoding(offset=0, detail="expected FunctionId")),
   )
   assert_eq(
-    parse_bytecode_image_binary(Bytes::from_array([b'\x01'])),
-    Err(MalformedEncoding(offset=1, detail="expected FunctionId")),
+    parse_bytecode_image_binary(
+      Bytes::from_array([b'\x01', b'\x00', b'\x00', b'\x00']),
+    ),
+    Err(MalformedEncoding(offset=4, detail="expected optional FunctionId")),
   )
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u8(1)
   writer.write_u32_le_int(1)
+  writer.write_u32_le_int(0)
   writer.write_u32_le_int(1)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(
       MalformedEncoding(
-        offset=5,
+        offset=8,
         detail="function count exceeds enclosing payload",
       ),
     ),
@@ -390,15 +386,15 @@ test "decoder preserves truncation offsets with pattern parsing" {
   writer.write_u8(1)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
-    Err(MalformedEncoding(offset=10, detail="expected function body length")),
+    Err(MalformedEncoding(offset=13, detail="expected function body length")),
   )
 }
 
 ///|
-test "decoder reports schema-valid u32 values beyond host Int as resource limits" {
+test "decoder reports u32 values beyond host Int as resource limits" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u8(1)
   writer.write_u32_le_int(1)
+  writer.write_u32_le_int(0)
   writer.write_u32_le_int(1)
   writer.write_u8(2)
   writer.write_i32_le(-1)
@@ -408,11 +404,12 @@ test "decoder reports schema-valid u32 values beyond host Int as resource limits
   writer.write_u32_le_int(0)
   writer.write_u32_le_int(0)
   writer.write_u32_le_int(0)
+  writer.write_u32_le_int(0)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(
       ResourceLimit(
-        offset=10,
+        offset=13,
         detail="runtime import ABI major exceeds implementation limit",
       ),
     ),
@@ -420,29 +417,29 @@ test "decoder reports schema-valid u32 values beyond host Int as resource limits
 }
 
 ///|
-test "schema 2 validates initializer and global metadata" {
-  let missing_initializer = { ..v2_image(), initializer: None }
+test "decoder validates initializer and global metadata" {
+  let missing_initializer = { ..global_image(), initializer: None }
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(missing_initializer)),
     Err(
       MalformedEncoding(
-        offset=5,
+        offset=4,
         detail="nonempty instance global table requires an initializer",
       ),
     ),
   )
-  let invalid_initializer = { ..v2_image(), initializer: Some(function(3)) }
+  let invalid_initializer = { ..global_image(), initializer: Some(function(3)) }
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(invalid_initializer)),
     Err(
       MalformedEncoding(
-        offset=5,
+        offset=4,
         detail="instance initializer FunctionId is out of range",
       ),
     ),
   )
   let invalid_companion = {
-    ..v2_image(),
+    ..global_image(),
     globals: [
       {
         representation: I64,
@@ -463,60 +460,25 @@ test "schema 2 validates initializer and global metadata" {
 }
 
 ///|
-test "schema 2 global count beyond host Int is a resource limit" {
+test "global count beyond host Int is a resource limit" {
   let image = {
     ..minimal_image(),
     initializer: Some(function(1)),
     globals: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
   }
   let bytes = bytecode_image_to_binary(image).to_array()
+  bytes[51] = b'\xFF'
   bytes[52] = b'\xFF'
   bytes[53] = b'\xFF'
   bytes[54] = b'\xFF'
-  bytes[55] = b'\xFF'
   assert_eq(
     parse_bytecode_image_binary(Bytes::from_array(bytes)),
     Err(
       ResourceLimit(
-        offset=52,
+        offset=51,
         detail="instance global count exceeds implementation limit",
       ),
     ),
-  )
-}
-
-///|
-test "schema 1 rejects schema 2 instruction tags" {
-  let body = @bytecodec.ByteWriter::new()
-  body.write_u32_le_int(1)
-  body.write_u8(1)
-  body.write_u8(1)
-  body.write_u32_le_int(0)
-  body.write_u32_le_int(0)
-  body.write_u32_le_int(0)
-  body.write_u8(1)
-  body.write_u32_le_int(1)
-  body.write_u32_le_int(0)
-  body.write_u32_le_int(1)
-  body.write_u8(0x44)
-  body.write_u32_le_int(0)
-  body.write_u32_le_int(0)
-  body.write_u8(4)
-  body.write_u32_le_int(0)
-  let body_bytes = body.to_bytes()
-  let writer = @bytecodec.ByteWriter::new()
-  writer.write_u8(1)
-  writer.write_u32_le_int(1)
-  writer.write_u32_le_int(1)
-  writer.write_u8(1)
-  writer.write_u32_le_int(body_bytes.length())
-  writer.write_raw_bytes(body_bytes)
-  writer.write_u32_le_int(0)
-  writer.write_u32_le_int(0)
-  writer.write_u32_le_int(0)
-  assert_true(
-    parse_bytecode_image_binary(writer.to_bytes())
-    is Err(MalformedEncoding(detail="unknown instruction tag 68", ..)),
   )
 }
 

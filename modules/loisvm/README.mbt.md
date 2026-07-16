@@ -219,9 +219,9 @@ Both tiers accept an optional cancellation poll callback through `execute(cancel
 
 ## Persistence and diagnostics
 
-Use `bytecode_image_to_binary` and `parse_bytecode_image_binary` as the persistence boundary. The binary begins with an independent bytecode schema version; incompatible schema versions fail with `UnsupportedSchema`.
+Use `bytecode_image_to_binary` and `parse_bytecode_image_binary` as the persistence boundary. The binary stores the current canonical bytecode layout directly, without an independent bytecode version or compatibility decoder. Producers and consumers must use the matching LoisVM implementation; persisted `.lbp` compatibility is owned by the enclosing linked-program artifact schema.
 
-Images without an instance initializer, instance globals, or global instructions retain the stable schema-v1 encoding. Setting `initializer`, adding `globals`, or using `InitGlobal`/`BorrowGlobal` selects schema v2; `GlobalId` is a dense zero-based table index, while `FunctionId` remains nonzero and one-based.
+Every image encodes the optional instance initializer and Instance Global table, including their empty forms. `GlobalId` is a dense zero-based table index, while `FunctionId` remains nonzero and one-based.
 
 Use `bytecode_image_to_disassembly` for human-readable diagnostics, snapshots, and producer debugging. Disassembly is not a stable persistence or parsing format.
 

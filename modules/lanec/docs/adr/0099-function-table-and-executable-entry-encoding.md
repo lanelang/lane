@@ -1,6 +1,6 @@
 # Function table and executable entry encoding
 
-After `bytecode_schema_version:u8 = 0x01`, a LoisVM v1 section stores nonzero `entry_function_id:u32le` and `function_count:u32le`. A zero function count is invalid. Function table position zero corresponds to `FunctionId = 1`; valid identifiers are the contiguous range `1..function_count`.
+A LoisVM bytecode section starts with nonzero `entry_function_id:u32le`, `initializer_function_id:u32le`, and `function_count:u32le`. Zero initializer means absent. A zero function count is invalid. Function table position zero corresponds to `FunctionId = 1`; valid identifiers are the contiguous range `1..function_count`.
 
 The selected executable entry must identify a BytecodeBody entry whose body metadata declares no environment, zero layout-witness parameters, zero user parameters, and Unit result. A RuntimeImport entry cannot be the selected entry. Link validates the original exported symbol, source type, and supported effects; executable bytecode retains only FunctionId.
 
@@ -21,7 +21,7 @@ Consequences:
 - Executable bytecode stores one selected FunctionId.
 - The selected entry is a no-context, witness-free, zero-argument Unit bytecode body.
 - FunctionId is one-based over zero-based table position.
-- V1 function entries are BytecodeBody or RuntimeImport.
+- Function entries are BytecodeBody or RuntimeImport.
 - Their wire tags are BytecodeBody `0x01` and RuntimeImport `0x02`.
 - Bytecode body signature metadata is not duplicated in its entry header.
 - Runtime imports are no-context and witness-free.

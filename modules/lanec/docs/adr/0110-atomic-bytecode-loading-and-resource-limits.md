@@ -1,10 +1,10 @@
 # Atomic bytecode loading and resource limits
 
-The LoisVM bytecode schema uses its existing `u32le` fields as the only normative representational limits. V1 defines no smaller fixed maximum for function count, body length, slot count, block count, instruction count, String length, or other counted tables. The compiler must reject any artifact component, count, length, offset, or identifier that cannot be represented by its schema field.
+The LoisVM bytecode format uses its existing `u32le` fields as the only normative representational limits. It defines no smaller fixed maximum for function count, body length, slot count, block count, instruction count, String length, or other counted tables. The compiler must reject any artifact component, count, length, offset, or identifier that cannot be represented by its format field.
 
 Decoding performs checked arithmetic for every length addition, offset update, count multiplication, and slice calculation. Before allocating storage from a declared count, the decoder proves that the remaining enclosing slice can contain at least the minimum encoded size of those records. These requirements enforce safe framing and do not constitute CFG, type, data-flow, call-shape, or ownership verification.
 
-An implementation may impose lower memory, item-count, body-size, compilation-time, or other resource limits. Such limits are implementation policy: they are not serialized in `.lbp`, negotiated by the bytecode, included in `bytecode_schema_version`, or required to match across hosts. Exceeding one is a ResourceLimit load failure rather than malformed encoding.
+An implementation may impose lower memory, item-count, body-size, compilation-time, or other resource limits. Such limits are implementation policy: they are not serialized in `.lbp`, negotiated by the bytecode, or required to match across hosts. Exceeding one is a ResourceLimit load failure rather than malformed encoding.
 
 Loading proceeds in this order:
 
@@ -16,11 +16,11 @@ Loading proceeds in this order:
 
 Runtime import resolution begins only after the complete section has decoded successfully. Resolution may query and bind the runtime registry but may not execute Lane code, invoke Lane closures, re-enter Lane execution, or produce Lane-observable effects.
 
-Runtime-import symbols and String-pool bytes are validated as ASCII during decoding. Invalid bytes, NUL in a runtime symbol, malformed framing, unsupported schema version, and illegal local encodings are MalformedEncoding or UnsupportedSchema failures before import resolution.
+Runtime-import symbols and String-pool bytes are validated as ASCII during decoding. Invalid bytes, NUL in a runtime symbol, malformed framing, and illegal local encodings are MalformedEncoding failures before import resolution.
 
 Loading is atomic. Any failure discards all partially decoded tables, resolved bindings, temporary compiler state, partial Wasm modules, and unpublished execution-image resources. A retry starts from the original artifact and registry state; it does not reuse partial bindings or compiled state left by the failed attempt. Successful loading publishes a reusable image or instance factory; each selected-entry invocation later creates its own single-shot execution instance.
 
-The load API distinguishes at least UnsupportedSchema, MalformedEncoding, UnresolvedImport, AbiMismatch, ResourceLimit, and BackendCompileFailure. MalformedEncoding diagnostics carry a byte offset relative to the LoisVM bytecode section. Runtime-import failures carry the offending symbol. Source locations are not required because executable bytecode need not retain source metadata.
+The load API distinguishes at least MalformedEncoding, UnresolvedImport, AbiMismatch, ResourceLimit, and BackendCompileFailure. MalformedEncoding diagnostics carry a byte offset relative to the LoisVM bytecode section. Runtime-import failures carry the offending symbol. Source locations are not required because executable bytecode need not retain source metadata.
 
 A structurally valid trusted image may still fail to load because of unavailable imports, implementation resource policy, or backend compilation failure. No entry function executes and no loaded executable image becomes visible until every loading phase succeeds.
 

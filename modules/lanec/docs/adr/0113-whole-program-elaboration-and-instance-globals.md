@@ -12,7 +12,7 @@ Lane type checking requires the empty effect for top-level `let` initializers, b
 
 Whole-Program Elaboration identifies the selected entry and every ordered top-level initializer computation as execution roots but does not compute or prune the complete transitive dependency closure. Execution Image Reachability Collection belongs to the subsequent lowering pipeline. It traverses those roots and retains only the functions, externals, and runtime imports needed by them. This keeps startup semantics in the Buslane-level Executable Program while leaving code-generation selection with the execution-image target.
 
-LoisVM bytecode schema v2 adds an ordered Instance Global table and an optional Instance Initializer `FunctionId`. A dynamic Instance Global requires an initializer. The initializer is a bytecode body with no context, layout witnesses, user parameters, or result value. Execution runs it exactly once before the selected entry; an image without dynamic globals may omit it.
+LoisVM bytecode contains an ordered Instance Global table and an optional Instance Initializer `FunctionId`. A dynamic Instance Global requires an initializer. The initializer is a bytecode body with no context, layout witnesses, user parameters, or result value. Execution runs it exactly once before the selected entry; an image without dynamic globals may omit it.
 
 Each Instance Global records the same erased representation and cleanup category used by a local slot. An `OwnedErased` global has an immutable companion Instance Global containing its `LayoutId`. Bytecode can initialize a global exactly once by consuming a local owner into it and can borrow an initialized global into a local slot. Bytecode has no general global mutation, swap, or consuming global load. A later consuming or escaping use of a borrowed global value requires compiler-inserted retain-copy in the ordinary ARC insertion pipeline.
 
@@ -22,11 +22,9 @@ Creating an execution instance allocates only uninitialized per-instance state. 
 
 The Wasm tier does not map heterogeneous Lane values to Wasm globals and does not add a Wasm start function. It stores globals in a linear-memory Instance Root Table owned by the execution instance. The exported `"lane.entry"` wrapper performs initializer invocation, selected-entry invocation, and cleanup. Static image bytes, immutable allocator constants, and active data or element segments retain their existing declarative-instantiation role.
 
-A scalar external used to initialize a Lane global is represented as a zero-argument runtime import invoked by the Instance Initializer. Bytecode schema v2 continues to restrict its result to the supported primitive host ABI; richer host-owned values require a later decision.
+A scalar external used to initialize a Lane global is represented as a zero-argument runtime import invoked by the Instance Initializer. The current bytecode format restricts its result to the supported primitive host ABI; richer host-owned values require a later decision.
 
-These additions are an incompatible LoisVM bytecode schema change. They use bytecode schema version `0x02` rather than silently extending v1. The containing linked-program schema need not change because it already delegates all remaining payload bytes to the independently versioned LoisVM bytecode section.
-
-ADR-0114 defines the exact schema-v2 table order, GlobalId representation, metadata records, and global instruction encodings.
+ADR-0114 records the historical introduction of the exact table order, GlobalId representation, metadata records, and global instruction encodings. ADR-0116 retains those fields in the sole current format while removing bytecode-local versioning.
 
 ## Consequences
 
@@ -44,4 +42,4 @@ ADR-0114 defines the exact schema-v2 table order, GlobalId representation, metad
 - Initialization failure prevents selected-entry execution.
 - Interpreter and Wasm execution share one initializer-entry-cleanup lifecycle.
 - Wasm output keeps declarative instantiation and has no start function.
-- LoisVM bytecode schema v2, not v1, carries globals and the optional initializer.
+- LoisVM bytecode carries globals and the optional initializer in every current-format image.

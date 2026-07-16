@@ -1,6 +1,5 @@
 ///|
 pub(all) suberror BytecodeDecodeError {
-  UnsupportedSchema(version~ : Int)
   MalformedEncoding(offset~ : Int, detail~ : String)
   ResourceLimit(offset~ : Int, detail~ : String)
 } derive(Debug, Eq)
@@ -8,7 +7,6 @@ pub(all) suberror BytecodeDecodeError {
 ///|
 priv struct Decoder {
   reader : @bytecodec.ByteReader
-  mut schema_version : Int
 }
 
 ///|
@@ -24,48 +22,22 @@ pub fn parse_bytecode_image_binary(
 fn decode_bytecode_image(
   bytes : Bytes,
 ) -> BytecodeImage raise BytecodeDecodeError {
-  let decoder = Decoder::{
-    reader: @bytecodec.ByteReader::from_bytes(bytes),
-    schema_version: 0,
-  }
-  let version = match decoder.view() {
-    [u8be(value), .. rest] => decoder.consume(rest, value.reinterpret_as_int())
-    _ => decoder.fail("expected bytecode schema version")
-  }
-  if version != bytecode_schema_v1 && version != bytecode_schema_v2 {
-    raise UnsupportedSchema(version~)
-  }
-  decoder.schema_version = version
+  let decoder = Decoder::{ reader: @bytecodec.ByteReader::from_bytes(bytes) }
   let entry = decoder.read_function_id()
-  let initializer = if version == bytecode_schema_v2 {
-    decoder.read_optional_function_id()
-  } else {
-    None
-  }
+  let initializer = decoder.read_optional_function_id()
+  let function_count_offset = decoder.offset()
   let function_count = decoder.read_count(minimum_size=1, table="function")
   if function_count == 0 {
-    decoder.fail_at(
-      if version == bytecode_schema_v1 {
-        5
-      } else {
-        9
-      },
-      "function table must be nonempty",
-    )
+    decoder.fail_at(function_count_offset, "function table must be nonempty")
   }
   let functions : Array[FunctionEntry] = []
   for _index in 0..<function_count {
     functions.push(decoder.read_function_entry())
   }
   let globals : Array[GlobalMetadata] = []
-  if version == bytecode_schema_v2 {
-    let global_count = decoder.read_count(
-      minimum_size=2,
-      table="instance global",
-    )
-    for _index in 0..<global_count {
-      globals.push(decoder.read_global_metadata())
-    }
+  let global_count = decoder.read_count(minimum_size=2, table="instance global")
+  for _index in 0..<global_count {
+    globals.push(decoder.read_global_metadata())
   }
   let layout_count = decoder.read_count(minimum_size=1, table="layout")
   let layouts : Array[LayoutRecipe] = []
@@ -163,10 +135,7 @@ fn Decoder::read_function_body(
         length_offset, "function body exceeds enclosing bytecode section",
       )
   }
-  let body_decoder = Decoder::{
-    reader: body_reader,
-    schema_version: self.schema_version,
-  }
+  let body_decoder = Decoder::{ reader: body_reader }
   let slot_count = body_decoder.read_count(minimum_size=2, table="slot")
   let slots : Array[SlotMetadata] = []
   for _index in 0..<slot_count {
@@ -506,10 +475,8 @@ fn Decoder::read_instruction(
         self.read_slot_id(),
         self.read_nonnegative_u32(expected="witness ordinal"),
       )
-    0x44 if self.schema_version == bytecode_schema_v2 =>
-      InitGlobal(self.read_global_id(), self.read_slot_id())
-    0x45 if self.schema_version == bytecode_schema_v2 =>
-      BorrowGlobal(self.read_slot_id(), self.read_global_id())
+    0x44 => InitGlobal(self.read_global_id(), self.read_slot_id())
+    0x45 => BorrowGlobal(self.read_slot_id(), self.read_global_id())
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }
@@ -872,7 +839,7 @@ fn validate_local_metadata(
   validate_root_function(
     image.functions,
     image.entry,
-    offset=1,
+    offset=0,
     what="selected entry",
   )
   match image.initializer {
@@ -880,13 +847,13 @@ fn validate_local_metadata(
       validate_root_function(
         image.functions,
         initializer,
-        offset=5,
+        offset=4,
         what="instance initializer",
       )
     None =>
       if !image.globals.is_empty() {
         raise MalformedEncoding(
-          offset=5,
+          offset=4,
           detail="nonempty instance global table requires an initializer",
         )
       }

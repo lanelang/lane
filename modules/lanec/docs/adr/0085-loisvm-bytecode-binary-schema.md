@@ -1,5 +1,7 @@
 # LoisVM bytecode binary schema
 
+Status: Superseded by ADR-0116. This document records the historical versioned bytecode design.
+
 This ADR defines schema v1. ADR-0113 reserves schema v2 for the incompatible addition of Instance Globals and an optional Instance Initializer, and ADR-0114 defines their binary encoding; v1 remains unchanged.
 
 Each LoisVM bytecode section begins with independent `bytecode_schema_version:u8`; v1 encodes `0x01`. Zero, `0xFF`, and every unsupported version are rejected. The enclosing linked-program section already identifies the payload kind and byte length, so the bytecode section does not repeat artifact magic. Bytecode schema changes do not require changing the artifact-container version, linked-program metadata schema, or Buslane codec version.

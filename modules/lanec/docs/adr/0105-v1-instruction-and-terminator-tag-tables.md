@@ -57,7 +57,7 @@ V1 contains no `nop`, generic arithmetic instruction with an operation subtag, o
 
 The lowercase snake-case names are canonical for specification text, disassembly, and diagnostics, but no name string appears in the binary. Numeric order improves human readability only; it has no relationship to Wasm opcodes, compiler enum ordinals, interpreter dispatch indices, or semantic family ranges.
 
-The tables are normative encoder and decoder requirements. Adding an instruction or terminator, removing one, introducing an alias, or changing an assignment requires a new bytecode schema version rather than filling or reusing a v1 value.
+The tables are normative encoder and decoder requirements. Adding an instruction or terminator, removing one, introducing an alias, or changing an assignment replaces the current bytecode format and requires every enclosing persisted-artifact schema to advance rather than filling or reusing an assigned value.
 
 Consequences:
 
@@ -68,4 +68,4 @@ Consequences:
 - Every block stores its terminator outside the counted instruction array.
 - Portable bytecode has no no-op, opcode alias, or embedded debug instruction.
 - Opcode names are diagnostic vocabulary rather than serialized operands.
-- Opcode evolution requires a bytecode schema-version change.
+- Opcode evolution replaces the current format and advances enclosing persisted-artifact schemas.

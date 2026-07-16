@@ -57,11 +57,10 @@ callables are loader state and are never serialized.
 
 A linked-program payload stores `linked_program_schema_version:u32le` followed
 by one LoisVM bytecode section occupying every remaining payload byte. It has no
-section directory or nested bytecode-length field. The bytecode section begins
-with its own `bytecode_schema_version:u8`; the enclosing artifact container
-already supplies kind and payload length, so bytecode does not repeat artifact
-magic. Bytecode schema evolution is independent from artifact-container
-framing, linked-program payload schema, and Buslane/core encoding.
+section directory or nested bytecode-length field. The bytecode section stores
+the current canonical layout directly, without its own magic or version field.
+The linked-program schema version is the compatibility boundary for persisted
+bytecode artifacts.
 
 Primitive encodings are fixed-width little-endian encodings, not varints:
 
@@ -99,8 +98,8 @@ Versioning is split by layer:
   artifact kind such as interface, module object, or linked program;
 - the Buslane codec version describes the binary schema for Buslane/core
   structures embedded inside artifacts.
-- the LoisVM bytecode schema version describes bytecode tables, records,
-  opcodes, and operand layouts embedded in a linked program.
+- the linked-program schema version also selects the current LoisVM bytecode
+  tables, records, opcodes, and operand layouts embedded in that payload.
 
 These versions are bumped independently. Changing `.lmo` fields should not
 change the container version; changing Buslane expression tags should not
@@ -161,7 +160,7 @@ with the current compiler rather than migrated field by field.
   `modules/buslane/codec` and compiler artifact codecs.
 - Container, artifact payload, and Buslane/core schema versions are separate
   compatibility boundaries.
-- LoisVM bytecode has an independent `u8` schema version and no duplicate magic.
+- LoisVM bytecode has neither an independent version nor duplicate magic.
 - MoonBit bitstring patterns are an implementation technique for `bytecodec`,
   not the public style for artifact or Buslane schema decoders.
 - Decoders must reject trailing bytes at every top-level or section boundary.

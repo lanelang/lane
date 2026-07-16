@@ -18,15 +18,15 @@ fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
 }
 
 ///|
-test "schema 4 linked program contains only LoisVM bytecode" {
+test "linked program contains only current LoisVM bytecode" {
   let image = minimal_loisvm_image()
   let binary = loisvm_linked_program_to_binary(image)
   assert_eq(parse_loisvm_linked_program_binary(binary), Ok(image))
-  assert_eq(binary.length(), 78)
+  assert_eq(binary.length(), 85)
 }
 
 ///|
-test "schema 4 linked program inspection delegates to LoisVM" {
+test "linked program inspection delegates to LoisVM" {
   let text = match
     artifact_binary_to_inspect_text(
       loisvm_linked_program_to_binary(minimal_loisvm_image()),
@@ -38,12 +38,13 @@ test "schema 4 linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 4
+      #|schema: 5
       #|
       #|LoisVM bytecode
-      #|schema: 1
       #|entry: f1
+      #|initializer: none
       #|functions: 1
+      #|globals: 0
       #|layouts: 0
       #|object shapes: 0
       #|constants: 0
@@ -64,7 +65,7 @@ test "schema 4 linked program inspection delegates to LoisVM" {
 }
 
 ///|
-test "schema 4 rejects schema 3 linked program payload" {
+test "schema 5 rejects older linked program payload" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(
     Bytes::from_array([b'L', b'A', b'N', b'E', b'A', b'R', b'T', b'\x00']),
@@ -72,7 +73,7 @@ test "schema 4 rejects schema 3 linked program payload" {
   writer.write_u8(1)
   writer.write_u8(3)
   writer.write_u32_le_int(4)
-  writer.write_u32_le_int(3)
+  writer.write_u32_le_int(4)
   let result = parse_loisvm_linked_program_binary(writer.to_bytes())
   assert_true(result is Err(_))
 }
@@ -118,7 +119,7 @@ test "linked executable lowers through the LoisVM boundary" {
 }
 
 ///|
-test "schema 4 roundtrips and inspects schema 2 instance globals" {
+test "linked program roundtrips and inspects instance globals" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let string_type = @buslane.Type::Primitive(String)
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -159,7 +160,7 @@ test "schema 4 roundtrips and inspects schema 2 instance globals" {
     Err(error) => fail("lowering failed: \{to_repr(error)}")
   }
   guard parse_loisvm_linked_program_binary(binary) is Ok(image) else {
-    fail("schema 2 linked program did not roundtrip")
+    fail("linked program did not roundtrip")
   }
   assert_eq(image.initializer, Some({ value: 2 }))
   assert_eq(image.globals, [
@@ -173,10 +174,9 @@ test "schema 4 roundtrips and inspects schema 2 instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 4
+      #|schema: 5
       #|
       #|LoisVM bytecode
-      #|schema: 2
       #|entry: f1
       #|initializer: f2
       #|functions: 2

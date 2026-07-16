@@ -22,7 +22,7 @@ instructions, function tables, layouts, and bytecode serialization.
 _Avoid_: compiler lowering pass, command runtime handler, artifact wrapper
 
 **LoisVM Bytecode Section**:
-The execution-only bytecode payload occupying every byte after the linked-program schema version inside a v1 Lane `.lbp` payload and decoded by `loisvm/bytecode`.
+The execution-only current-format bytecode payload occupying every byte after the linked-program schema version inside a Lane `.lbp` payload and decoded by `loisvm/bytecode`.
 _Avoid_: whole `.lbp` artifact, Lane artifact header, section directory, source map section
 
 **LoisVM Interpreter Package**:
@@ -35,9 +35,9 @@ A decoded LoisVM image assumed to satisfy bytecode invariants because it was
 emitted by the matching Lane linker.
 _Avoid_: verified bytecode, untrusted artifact, sandbox input
 
-**LoisVM Bytecode Schema Version**:
-The independent leading `u8`, `0x01` for v1 or `0x02` for v2, governing the tables, records, opcodes, and operand layouts of one LoisVM bytecode section. V2 adds the optional Instance Initializer, Instance Global table, and global instructions while preserving the v1 encoding for images that use none of those features.
-_Avoid_: artifact container version, linked-program schema version, Buslane codec version
+**LoisVM Bytecode Format Compatibility**:
+The lockstep producer-consumer contract in which a bytecode section contains only the current canonical layout and carries no independent version field or backward-compatibility discriminator. Persisted `.lbp` compatibility is owned by the enclosing linked-program schema version.
+_Avoid_: bytecode version negotiation, legacy bytecode decoder, optional old-format branch
 
 **Loaded Executable Image**:
 The reusable successfully decoded and bound bytecode product, including optional reusable backend compilation state, used to create fresh executions.
@@ -55,7 +55,7 @@ primitive cases such as `Double`.
 _Avoid_: Lane type object, typed unboxed slot, Buslane interpreter value
 
 **Image Constant Pool**:
-The single image-wide v1 table of deduplicated ASCII String constants referenced
+The single image-wide table of deduplicated ASCII String constants referenced
 through zero-based `ConstantId` values.
 _Avoid_: per-function constant table, function table, debug metadata
 
@@ -375,7 +375,7 @@ _Avoid_: retained host pointer, copied input, owned string result
 ### Loading And Failure
 
 **Bytecode Binary Adapter**:
-The LoisVM-owned schema decoder that composes the domain-independent Bytecodec reader, maps primitive framing failures into bytecode-relative MalformedEncoding or ResourceLimit failures, and retains all LoisVM tag and table semantics.
+The LoisVM-owned current-format decoder that composes the domain-independent Bytecodec reader, maps primitive framing failures into bytecode-relative MalformedEncoding or ResourceLimit failures, and retains all LoisVM tag and table semantics.
 _Avoid_: duplicated byte cursor, Bytecodec-owned instruction schema, signed u32 interpretation
 
 **Atomic Bytecode Load**:

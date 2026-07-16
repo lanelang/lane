@@ -1,5 +1,7 @@
 # LoisVM bytecode v2 global encoding
 
+Status: Superseded by ADR-0116. The initializer, globals, and global instructions remain in the current format, but the version discriminator and legacy branch were removed.
+
 LoisVM bytecode schema v2 encodes its image in this fixed order:
 
 1. `bytecode_schema_version:u8 = 0x02`;
