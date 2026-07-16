@@ -819,6 +819,7 @@ fn @syntax.TypeAliasDeclaration::resolve_type_alias(
     is_public: self.is_public,
     name: self.name,
     type_parameters,
+    result_kind: self.result_kind.map(fn(kind) { kind.resolve_kind() }),
     body: if type_parameters.is_empty() {
       body
     } else {

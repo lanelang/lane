@@ -411,8 +411,10 @@ test "parse type alias with effect set body" {
       #|effect Log {
       #|  write(Int) -> Unit
       #|}
-      #|type UI = { Console, Log }
-      #|type Task[E : Effect] = { UI, E }
+      #|type Answer : Type = Int
+      #|type Identity : [Type] -> Type = type[A] => A
+      #|type UI : Effect = { Console, Log }
+      #|type Task[E : Effect] : Effect = { UI, E }
     ),
   )
   inspect(
@@ -428,9 +430,13 @@ test "parse type alias with effect set body" {
       #|  write(Int) -> Unit
       #|}
       #|
-      #|type UI = { Console, Log }
+      #|type Answer : Type = Int
       #|
-      #|type Task[E : Effect] = { UI, E }
+      #|type Identity : [Type] -> Type = type[A] => A
+      #|
+      #|type UI : Effect = { Console, Log }
+      #|
+      #|type Task[E : Effect] : Effect = { UI, E }
     ),
   )
 }
@@ -1017,7 +1023,12 @@ test "parse rejects multi-layer type alias parameter header" {
   debug_inspect(
     parse_error_kinds("type Result[E][A] = Int"),
     content=(
-      #|[UnexpectedToken({ label: "`[`" }, [{ label: "`=`" }])]
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`[`" },
+      #|    [{ label: "`:`" }, { label: "`=`" }],
+      #|  ),
+      #|]
     ),
   )
 }

@@ -138,6 +138,7 @@ pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
   type_parameters : Array[TypeParameter]
+  result_kind : Kind?
   body : TypeAliasBody
   loc : SourceSpan
 } derive(Debug, Eq)

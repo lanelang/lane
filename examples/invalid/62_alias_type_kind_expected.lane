@@ -1,0 +1,3 @@
+module Examples.Invalid.AliasTypeKindExpected
+
+type Bad : Type = type[A] => A

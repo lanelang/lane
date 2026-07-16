@@ -194,13 +194,13 @@ fn command_loisvm_runtime(
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="%println",
+      symbol="println",
       abi_major=1,
       parameters=[String],
       result=Unit,
       invoke=(_context, arguments) => {
         guard arguments is [BorrowedString(line)] else {
-          raise Failure(message="%println expects one String argument")
+          raise Failure(message="println expects one String argument")
         }
         write_line(line.to_string())
         Unit

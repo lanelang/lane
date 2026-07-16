@@ -205,17 +205,15 @@ fn DeclarationChecker::check_type_alias(
   self : DeclarationChecker,
   declaration : @resolve.ResolvedTypeAliasDeclaration,
 ) -> Unit {
-  match declaration.body {
+  let actual_kind = match declaration.body {
     TypeBody(body) =>
-      ignore(
-        TypeExpressionChecker::{
-          source: self.source,
-          imported_environment: self.imported_environment,
-          diagnostics: self.diagnostics,
-          expanding: [declaration.name],
-        }.synthesize_type(body),
-      )
-    EffectBody(effect) =>
+      TypeExpressionChecker::{
+        source: self.source,
+        imported_environment: self.imported_environment,
+        diagnostics: self.diagnostics,
+        expanding: [declaration.name],
+      }.synthesize_type(body).kind
+    EffectBody(effect) => {
       ignore(
         TypeExpressionChecker::{
           source: self.source,
@@ -224,6 +222,39 @@ fn DeclarationChecker::check_type_alias(
           expanding: [declaration.name],
         }.check_effect(effect),
       )
+      type_alias_kind(declaration.type_parameters, Effect)
+    }
+  }
+  if declaration.result_kind is Some(result_kind) {
+    let expected_kind = type_alias_kind(
+      declaration.type_parameters,
+      check_resolved_kind(result_kind),
+    )
+    if expected_kind != actual_kind {
+      self.diagnostics.push({
+        kind: KindMismatch(expected=expected_kind, actual=actual_kind),
+        loc: resolved_kind_loc(result_kind),
+      })
+    }
+  }
+}
+
+///|
+fn type_alias_kind(
+  parameters : Array[@resolve.ResolvedTypeParameter],
+  result : @types.Kind,
+) -> @types.Kind {
+  if parameters.is_empty() {
+    result
+  } else {
+    Function(parameters.map(resolve_type_parameter_kind), result)
+  }
+}
+
+///|
+fn resolved_kind_loc(kind : @resolve.ResolvedKind) -> SourceSpan {
+  match kind {
+    Type(loc~) | Effect(loc~) | Function(loc~, ..) => loc
   }
 }
 

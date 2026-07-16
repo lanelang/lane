@@ -1,0 +1,26 @@
+// Valid: the annotation after an alias parameter list describes the result
+// kind; the parameters form the outer function kind.
+
+module Examples.Valid.ParameterizedHigherKindedAliasResultKind
+
+import Basic.Io.{println}
+
+import Basic.Ops.*
+
+pub struct Box[A] {
+  value : A
+}
+
+pub type Mapper[F : [Type] -> Type] : [Type] -> Type = type[A] => F[A]
+
+pub type BoxInt = Mapper[Box][Int]
+
+pub let boxed : BoxInt = Box::{ value: 42 }
+
+pub fn answer() -> Unit ! Io {
+  if boxed.value == 42 {
+    println("parameterized higher-kinded alias=42")
+  } else {
+    println("bad:parameterized higher-kinded alias")
+  }
+}

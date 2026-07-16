@@ -8,7 +8,7 @@ Lane separates effect semantics, compiler intrinsics, host linkage, and host eff
 
 An extern requires a complete expected monomorphic function type, primitive host parameters and result, and a latent effect of `Empty` or exactly `Io`. Scalar externs, inferred/default-pure signatures, generic externs, algebraic-effect externs, and fallback between extern and intrinsic lookup are rejected. The extern declaration is an unsafe programmer assertion; an incorrect type or effect invalidates the program's guarantees.
 
-`Basic.Io` exports `println : (String) -> Unit ! Io = extern("%println")`. Neither `Basic.Io` nor `%println` receives compiler or command special treatment. The selected executable entry remains `() -> Unit` or `() -> Unit ! Io`; residual algebraic effects are rejected. Runtime-import resolution and invocation failures are fatal execution errors rather than Lane effects.
+`Basic.Io` exports `println : (String) -> Unit ! Io = extern("println")`. Neither `Basic.Io` nor the `println` runtime symbol receives compiler or command special treatment. The selected executable entry remains `() -> Unit` or `() -> Unit ! Io`; residual algebraic effects are rejected. Runtime-import resolution and invocation failures are fatal execution errors rather than Lane effects.
 
 Extern calls are synchronous and receive no continuation. A future Host Effect Handler may separately receive algebraic-operation payloads and a first-class multi-shot resume continuation, but that interface is not part of runtime imports, does not implement `Io`, and does not change the current entry contract.
 

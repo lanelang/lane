@@ -492,6 +492,24 @@
       }
     },
     {
+      "name": "56 higher-kinded alias result kind",
+      "file": "examples/valid/56_higher_kinded_alias_result_kind.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "higher-kinded alias result=42"
+      }
+    },
+    {
+      "name": "57 parameterized higher-kinded alias result kind",
+      "file": "examples/valid/57_parameterized_higher_kinded_alias_result_kind.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "parameterized higher-kinded alias=42"
+      }
+    },
+    {
       "name": "warning 01 unused local value binding",
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
@@ -1280,6 +1298,42 @@
           "missing contextual offer",
           "no visible offer matches required type `Equal[Int]`",
           "add a visible `offer` with type `Equal[Int]`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 61 alias higher kind expected",
+      "file": "examples/invalid/61_alias_higher_kind_expected.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3005]",
+          "expected kind `[Type] -> Type`, found `Type`",
+          "function kinds such as `[Type] -> Type` describe type constructors"
+        ]
+      }
+    },
+    {
+      "name": "invalid 62 alias type kind expected",
+      "file": "examples/invalid/62_alias_type_kind_expected.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3005]",
+          "expected kind `Type`, found `[Type] -> Type`",
+          "function kinds such as `[Type] -> Type` describe type constructors"
+        ]
+      }
+    },
+    {
+      "name": "invalid 63 parameterized alias result kind mismatch",
+      "file": "examples/invalid/63_parameterized_alias_result_kind_mismatch.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3005]",
+          "expected kind `[[Type] -> Type] -> Type`",
+          "found `[[Type] -> Type] -> [Type] -> Type`"
         ]
       }
     }

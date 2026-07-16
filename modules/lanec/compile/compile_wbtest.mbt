@@ -1496,7 +1496,7 @@ test "built-in Io roundtrips through typed artifacts" {
   let compiled = compile_modules(
     (
       #|module Main
-      #|pub let println : (String) -> Unit ! Io = extern("%println")
+      #|pub let println : (String) -> Unit ! Io = extern("println")
       #|pub fn run(action : () -> Unit ! Io) -> Unit ! Io {
       #|  action()
       #|}
@@ -1564,14 +1564,14 @@ test "built-in Io roundtrips through typed artifacts" {
       #|compiler intrinsics:
       #|  (none)
       #|runtime imports:
-      #|  %println : (String) -> Unit ! Io
+      #|  println : (String) -> Unit ! Io
       #|buslane:
       #|  buslane {
       #|    metadata {
       #|      value println#0 : (String) -> Unit ! Io
       #|      function run#1 : (() -> Unit ! Io) -> Unit ! Io
       #|      parameter action#2 : () -> Unit ! Io
-      #|      external %println#3 : (String) -> Unit ! Io
+      #|      external println#3 : (String) -> Unit ! Io
       #|    }
       #|    external value#3
       #|    letrec {

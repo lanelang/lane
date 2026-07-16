@@ -4403,7 +4403,7 @@ test "typecheck expands effect set alias in function annotations" {
       #|effect Log {
       #|  write(String) -> Unit
       #|}
-      #|type UI = { Console, Log }
+      #|type UI : Effect = { Console, Log }
       #|fn program() -> Unit ! UI {
       #|  let ignored : Int = Console::read!()
       #|  Log::write!("ok")
@@ -4432,7 +4432,7 @@ test "typecheck applies generic effect set alias" {
       #|effect Log {
       #|  write(String) -> Unit
       #|}
-      #|type Task[E : Effect] = { Coroutine, E }
+      #|type Task[E : Effect] : Effect = { Coroutine, E }
       #|fn program() -> Unit ! Task[Log] {
       #|  let ignored : Unit = Coroutine::pause!()
       #|  Log::write!("ok")
@@ -4511,6 +4511,33 @@ test "typecheck rejects type-kind alias in effect position" {
   inspect(
     @prettyprinter.render(result.diagnostics[0].kind, width=100),
     content="kind_mismatch expected=Effect actual=Type",
+  )
+}
+
+///|
+test "typecheck validates explicit type alias result kinds" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|type Identity : [Type] -> Type = type[A] => A
+      #|type WrongType : Type = { Console }
+      #|type WrongEffect : Effect = Int
+      #|type WrongConstructor : [Type] -> Type = Int
+      #|type WrongValueType : Type = type[A] => A
+    ),
+  )
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+    content=(
+      #|[
+      #|  KindMismatch(expected=Type, actual=Effect),
+      #|  KindMismatch(expected=Effect, actual=Type),
+      #|  KindMismatch(expected=Function([Type], Type), actual=Type),
+      #|  KindMismatch(expected=Type, actual=Function([Type], Type)),
+      #|]
+    ),
   )
 }
 

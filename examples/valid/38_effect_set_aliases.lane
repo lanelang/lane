@@ -12,9 +12,9 @@ effect Log {
   write(Int) -> Unit
 }
 
-type UI = { Console, Log }
+type UI : Effect = { Console, Log }
 
-type Task[E : Effect] = { Console, E }
+type Task[E : Effect] : Effect = { Console, E }
 
 fn read_and_log() -> Int ! UI {
   let value : Int = Console::read!()

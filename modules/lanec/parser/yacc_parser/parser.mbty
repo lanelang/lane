@@ -166,14 +166,14 @@ public_top_level_declaration -> TopLevelDeclaration
   ;
 
 type_alias_declaration -> TypeAliasDeclaration
-  : "type" IDENT type_parameters "=" type_alias_body {
-    { is_public: false, name: $2, type_parameters: $3, body: $5, loc: span($sloc) }
+  : "type" IDENT type_parameters type_alias_result_kind_opt "=" type_alias_body {
+    { is_public: false, name: $2, type_parameters: $3, result_kind: $4, body: $6, loc: span($sloc) }
   }
   ;
 
 public_type_alias_declaration -> TypeAliasDeclaration
-  : "type" IDENT type_parameters "=" type_alias_body {
-    { is_public: true, name: $2, type_parameters: $3, body: $5, loc: span($sloc) }
+  : "type" IDENT type_parameters type_alias_result_kind_opt "=" type_alias_body {
+    { is_public: true, name: $2, type_parameters: $3, result_kind: $4, body: $6, loc: span($sloc) }
   }
   ;
 
@@ -942,4 +942,9 @@ struct_pattern_field -> StructPatternField
   | IDENT ":" pattern {
     Value(name=$1, pattern=Some($3), loc=span($sloc))
   }
+  ;
+
+type_alias_result_kind_opt -> Kind?
+  : { None }
+  | ":" kind { Some($2) }
   ;

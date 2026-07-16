@@ -109,7 +109,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
     externals: {
       builtins: [],
       runtime_imports: [
-        { value: println, symbol: "%println", type_: println_type },
+        { value: println, symbol: "println", type_: println_type },
       ],
     },
     entries: [entry],
@@ -137,7 +137,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|    runtime_imports: [
       #|      {
       #|        value: { index: 0 },
-      #|        symbol: "%println",
+      #|        symbol: "println",
       #|        type_: Function([Primitive(String)], Primitive(Unit), Io),
       #|      },
       #|    ],

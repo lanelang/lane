@@ -1,0 +1,3 @@
+module Examples.Invalid.ParameterizedAliasResultKindMismatch
+
+type Bad[F : [Type] -> Type] : Type = type[A] => F[A]

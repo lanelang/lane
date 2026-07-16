@@ -1,0 +1,3 @@
+module Examples.Invalid.AliasHigherKindExpected
+
+type Bad : [Type] -> Type = Int

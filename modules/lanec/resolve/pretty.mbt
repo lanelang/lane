@@ -220,10 +220,15 @@ pub impl @prettyprinter.Pretty for ResolvedEnumVariant with fn pretty(
 pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration with fn pretty(
   declaration : ResolvedTypeAliasDeclaration,
 ) {
+  let result_kind = match declaration.result_kind {
+    Some(kind) => space + text(":") + space + kind.pretty()
+    None => empty
+  }
   text("type") +
   space +
   text(declaration.name) +
   type_parameters_doc(declaration.type_parameters) +
+  result_kind +
   space +
   text("=") +
   space +

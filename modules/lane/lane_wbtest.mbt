@@ -386,7 +386,7 @@ async test "exec executes explicit Basic Io linked input" {
     basic_source,
     (
       #|module Basic.Io
-      #|pub let println : (String) -> Unit ! Io = extern("%println")
+      #|pub let println : (String) -> Unit ! Io = extern("println")
     ),
   )
   write_source_file(
@@ -668,7 +668,7 @@ test "run executes pure unit function entries without rendering Unit" {
 test "run accepts built-in Io through an explicit Basic extern" {
   let basic_io =
     #|module Basic.Io
-    #|pub let println : (String) -> Unit ! Io = extern("%println")
+    #|pub let println : (String) -> Unit ! Io = extern("println")
   let result = @compile.compile_sources(
     (
       #|module Test
@@ -699,7 +699,7 @@ test "run accepts built-in Io through an explicit Basic extern" {
 test "run lowers lexical handlers before runtime effects" {
   let basic_io =
     #|module Basic.Io
-    #|pub let println : (String) -> Unit ! Io = extern("%println")
+    #|pub let println : (String) -> Unit ! Io = extern("println")
   let result = @compile.compile_sources(
     (
       #|module Test

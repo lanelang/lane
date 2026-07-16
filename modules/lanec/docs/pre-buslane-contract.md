@@ -28,6 +28,9 @@ A successful checked source result must satisfy these invariants:
 - Contextual offer ambiguity is rejected before checked source success.
 - Transparent type and effect aliases are expanded in semantic type/effect
   objects; user-written aliases survive only as diagnostic presentation data.
+- A type alias may declare its result kind after the parameter list, as in
+  `type Task[E : Effect] : Effect = { E }`; the checker verifies the annotation
+  against the alias body.
 - Source field punning, operator syntax, pipeline syntax, and unqualified
   variant syntax are desugared before or during checked source construction.
 

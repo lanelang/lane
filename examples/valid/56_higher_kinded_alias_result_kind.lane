@@ -1,0 +1,30 @@
+// Valid: a type alias may explicitly declare a higher-kinded result and
+// implement it with a type-level lambda.
+
+module Examples.Valid.HigherKindedAliasResultKind
+
+import Basic.Io.{println}
+
+import Basic.Ops.*
+
+pub struct Box[A] {
+  value : A
+}
+
+pub type Identity : [Type] -> Type = type[A] => A
+
+pub type Boxed : [Type] -> Type = type[A] => Box[A]
+
+pub type BoxInt = Boxed[Int]
+
+pub let value : Identity[Int] = 40
+
+pub let boxed : BoxInt = Box::{ value: value + 2 }
+
+pub fn answer() -> Unit ! Io {
+  if boxed.value == 42 {
+    println("higher-kinded alias result=42")
+  } else {
+    println("bad:higher-kinded alias result")
+  }
+}

@@ -362,11 +362,16 @@ fn TypeAliasDeclaration::to_doc(
   self : TypeAliasDeclaration,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
+  let result_kind = match self.result_kind {
+    Some(kind) => space + text(":") + space + kind.to_doc()
+    None => empty
+  }
   let doc = public_prefix(self.is_public) +
     keyword("type") +
     space +
     text(self.name) +
     bracketed_type_parameters(self.type_parameters) +
+    result_kind +
     space +
     text("=") +
     space +

@@ -181,6 +181,7 @@ pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
   type_parameters : Array[ResolvedTypeParameter]
+  result_kind : ResolvedKind?
   body : ResolvedTypeAliasBody
   loc : SourceSpan
 } derive(Debug, Eq)

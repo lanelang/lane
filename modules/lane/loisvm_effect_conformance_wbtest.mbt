@@ -2,7 +2,7 @@
 fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
-    #|pub let println : (String) -> Unit ! Io = extern("%println")
+    #|pub let println : (String) -> Unit ! Io = extern("println")
   )
 }
 
@@ -40,13 +40,13 @@ fn effect_conformance_registry(
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="%println",
+      symbol="println",
       abi_major=1,
       parameters=[String],
       result=Unit,
       invoke=(_context, arguments) => {
         guard arguments is [BorrowedString(line)] else {
-          raise Failure(message="%println expects one String argument")
+          raise Failure(message="println expects one String argument")
         }
         output.push(line.to_string())
         Unit
@@ -98,7 +98,7 @@ fn assert_effect_erased_host_boundary(
       imports.push((import_.symbol, import_.abi_major, import_.user_arity))
     }
   }
-  assert_eq(imports, [("%println", 1, 1)])
+  assert_eq(imports, [("println", 1, 1)])
 }
 
 ///|
@@ -145,7 +145,7 @@ fn effect_conformance_failing_registry(
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="%println",
+      symbol="println",
       abi_major=1,
       parameters=[String],
       result=Unit,
@@ -198,7 +198,7 @@ test "runtime import resolution agrees across production backends" {
   let incompatible = @loisvm_runtime.RuntimeRegistry::new()
   incompatible.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="%println",
+      symbol="println",
       abi_major=2,
       parameters=[String],
       result=Unit,
@@ -214,10 +214,10 @@ test "runtime import resolution agrees across production backends" {
     ),
     content=(
       #|(
-      #|  UnresolvedImport(symbol="%println"),
-      #|  UnresolvedImport(symbol="%println"),
-      #|  AbiMismatch(symbol="%println", expected_major=1, actual_major=2),
-      #|  AbiMismatch(symbol="%println", expected_major=1, actual_major=2),
+      #|  UnresolvedImport(symbol="println"),
+      #|  UnresolvedImport(symbol="println"),
+      #|  AbiMismatch(symbol="println", expected_major=1, actual_major=2),
+      #|  AbiMismatch(symbol="println", expected_major=1, actual_major=2),
       #|)
     ),
   )
@@ -246,8 +246,8 @@ test "runtime import failures agree across production backends" {
     (interpreter, wasm),
     content=(
       #|(
-      #|  Err(RuntimeImportFailure(symbol="%println", message="boom")),
-      #|  Err(RuntimeImportFailure(symbol="%println", message="boom")),
+      #|  Err(RuntimeImportFailure(symbol="println", message="boom")),
+      #|  Err(RuntimeImportFailure(symbol="println", message="boom")),
       #|)
     ),
   )
