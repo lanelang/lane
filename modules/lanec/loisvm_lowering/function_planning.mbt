@@ -137,6 +137,9 @@ fn ImageLowerer::plan_runtime_import(
         detail="runtime import result must use a direct host ABI type",
       )
   }
+  if parameter_kinds.any(kind => kind is Opaque) || result_kind is Opaque {
+    let _reference_layout = self.intern_layout(Reference)
+  }
   self.add_plan(
     value,
     RuntimeImport({

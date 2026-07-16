@@ -231,6 +231,7 @@ graph TD
   ISS_212["ISS-212: Execute opaque runtime imports through Wasm"]
   ISS_213["ISS-213: Complete external host-boundary integration"]
   ISS_214["ISS-214: Accept external effects on executable entries"]
+  ISS_215["ISS-215: Emit the Reference layout for opaque imports"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -437,8 +438,12 @@ graph TD
   ISS_211 --> ISS_213
   ISS_212 --> ISS_213
   ISS_214 --> ISS_213
+  ISS_215 --> ISS_213
   ISS_207 --> ISS_214
   ISS_208 --> ISS_214
+  ISS_209 --> ISS_215
+  ISS_212 --> ISS_215
+  ISS_214 --> ISS_215
 ```
 
 ## Warnings

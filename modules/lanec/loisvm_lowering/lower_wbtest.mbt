@@ -509,6 +509,7 @@ test "primitive external functions become runtime imports" {
       ),
     ],
   )
+  assert_eq(image.layouts, [])
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
@@ -580,27 +581,33 @@ test "external host types erase to Opaque runtime import kinds" {
     Err(error) => fail("lowering failed: \{to_repr(error)}")
   }
   debug_inspect(
-    image.functions.filter_map(fn(entry) {
-      match entry {
-        RuntimeImport(import_) => Some(import_)
-        BytecodeBody(_) => None
-      }
-    }),
+    (
+      image.layouts,
+      image.functions.filter_map(fn(entry) {
+        match entry {
+          RuntimeImport(import_) => Some(import_)
+          BytecodeBody(_) => None
+        }
+      }),
+    ),
     content=(
-      #|[
-      #|  {
-      #|    abi_major: 1,
-      #|    parameters: [],
-      #|    result: Opaque,
-      #|    symbol: "lane.test.open",
-      #|  },
-      #|  {
-      #|    abi_major: 1,
-      #|    parameters: [Opaque],
-      #|    result: Unit,
-      #|    symbol: "lane.test.close",
-      #|  },
-      #|]
+      #|(
+      #|  [Reference],
+      #|  [
+      #|    {
+      #|      abi_major: 1,
+      #|      parameters: [],
+      #|      result: Opaque,
+      #|      symbol: "lane.test.open",
+      #|    },
+      #|    {
+      #|      abi_major: 1,
+      #|      parameters: [Opaque],
+      #|      result: Unit,
+      #|      symbol: "lane.test.close",
+      #|    },
+      #|  ],
+      #|)
     ),
   )
 }
