@@ -10,7 +10,6 @@ No ready issues.
 
 | ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
-| [ISS-205](ISS-205.md) | in_progress | 1 | epic | Codex | none | none | Implement external effects and opaque host types |
 | [ISS-216](ISS-216.md) | deferred | 4 | epic | unassigned | none | none | Design advanced external host ABI capabilities |
 
 ## Dependency Graph
