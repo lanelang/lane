@@ -2,17 +2,13 @@
 package "Milky2018/lane_wasm"
 
 // Values
-pub fn arena_alloc(Int) -> Int
+pub fn entries() -> Int
 
-pub fn arena_capacity() -> Int
+pub fn explore() -> Int
 
-pub fn arena_reset() -> Unit
+pub fn transfer_capacity() -> Int
 
-pub fn explore(Int, Int) -> Int
-
-pub fn last_result_len() -> Int
-
-pub fn last_result_ptr() -> Int
+pub fn transfer_ptr() -> Int
 
 // Errors
 

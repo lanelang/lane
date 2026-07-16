@@ -147,6 +147,50 @@ _Avoid_: type scope, lexical scope tree, dead-code elimination, textual name sca
 A named local value binder whose source name starts with `_`; unused-local-value warnings do not fire for these binders.
 _Avoid_: wildcard pattern, dead binding, generated temporary
 
+**Explore Stage**:
+A compiler-owned, named, and intentionally stable observation point exposed by Executable IR Exploration. Its identity combines the represented IR with the semantic transformation boundary, so one IR form may appear in multiple stages. An Explore Stage represents a useful semantic boundary and does not automatically correspond to every internal compiler pass.
+_Avoid_: arbitrary pass output, compiler trace event, private helper boundary
+
+**Executable IR Exploration**:
+A non-executing compilation of one selected top-level entry from a multi-module source set that records its Explore Stages from source-level representations through the final execution image and the selected execution backend's lowering result. Compiler stages and backend stages are presented as separate domains. The Lane Command and Lane Wasm expose the same stages and failure semantics for this workflow.
+_Avoid_: module-only inspection, artifact inspection, program execution, compiler event tracing
+
+**Explore Source Set**:
+The complete in-memory collection of identified Lane source inputs supplied to IR exploration, together with the selected root source. Host adapters collect files, while the compiler builds the module graph without performing host file-system discovery. Entry selection happens after the source set is known.
+_Avoid_: source directory, compiler-owned file discovery, anonymous concatenated source
+
+**Backend Explore Stage**:
+An Explore Stage owned by an execution backend after the Lane execution image has been produced, such as `Wasm (LoisVM Backend Lowering)`. It is identified as backend output rather than Lane compiler IR.
+_Avoid_: Lane IR, loaded runtime instance, execution state
+
+**Partial Explore Report**:
+A failed Executable IR Exploration result that preserves every completed Explore Stage, identifies the stage that failed with its diagnostics, and marks later stages as unavailable. Producing a Partial Explore Report does not turn a failed compilation into a successful command.
+_Avoid_: successful compilation, empty fallback report, recovered execution image
+
+**Compilation Observer**:
+An optional read-only recipient of Explore Stage snapshots emitted by the canonical compilation orchestrator. Installing an observer may record completed stages but cannot alter IR, select passes, recover failures, or otherwise change compilation semantics.
+_Avoid_: alternate explore pipeline, compiler plugin, pass manager, transformation callback
+
+**Explore Snapshot**:
+A single human-readable textual document emitted for one completed Explore Stage, together with its stable identity, display metadata, text format, and diagnostics. Pre-link snapshots show only the module that owns the selected entry; linked and later snapshots show the complete whole-program IR consumed by the next stage. It is an observation payload rather than the stage's typed compiler IR.
+_Avoid_: typed IR ownership transfer, serialization contract, mutable compiler state
+
+**Explore Report**:
+The fixed ordered sequence of Explore Snapshots produced for one selected entry. Hosts present the sequence as one level of stage tabs; they do not introduce a second module-selection level.
+_Avoid_: entry chooser, module tree, mutable compilation session, runtime trace
+
+**Explore Report Protocol**:
+The explicitly versioned public data schema for an Explore Report, including compiler identity, root, selected entry, status, diagnostics, and ordered snapshots with stable machine stage identities. The protocol does not make IR pretty text a machine-readable serialization format.
+_Avoid_: IR interchange format, HTML template, unversioned ad hoc JSON, compiler debug object
+
+**Artifact Entry Enumeration**:
+A stateless compiler query over an Explore Source Set that returns the root module artifact's existing entries and diagnostics without redefining entry identity or executable eligibility. Executable IR Exploration is a separate stateless request that resubmits the source set with one selected artifact entry.
+_Avoid_: new entry model, persistent compilation session, host-side symbol scan
+
+**Compiler Driver Package**:
+The platform-neutral `lanec/driver` package that owns Artifact Entry Enumeration and Explore Report assembly for native and browser exploration hosts. It invokes the same stage-owning module compilation, executable elaboration, and LoisVM lowering entrypoints used by direct execution, accepts in-memory source inputs, and does not own file discovery, HTML, JSON transport, or execution.
+_Avoid_: Lane CLI, alternate explore pipeline, Wasmoon loader, browser wrapper
+
 **Execution Image Lowering**:
 The lowering from linked and optimized Buslane/core into a target execution image such as portable bytecode.
 _Avoid_: semantic lowering, source elaboration, module interface generation
@@ -302,6 +346,24 @@ The Lane-controlled default WebAssembly execution backend whose interpreter, JIT
 _Avoid_: current third-party engine feature floor, automatic browser portability, unspecified non-Wasm execution format
 
 ## Relationships
+
+- Executable IR Exploration exposes this fixed initial Explore Stage order:
+  Syntax AST; Resolved AST; Checked Source AST; Buslane (Module Lowering);
+  Buslane (Linking); Buslane (Reachable Effect Specialization); Buslane
+  (Handler Elaboration); Buslane (Monadic Transformation); Buslane (Selective
+  CPS); Buslane (Open Context Resolution); Buslane (Monadic Lift); Buslane
+  (Effect Erasure); Executable Program (Whole-Program Elaboration); ANF; VM
+  CFG (Initial Lowering); LoisVM Bytecode (ARC and Slot Finalization); and Wasm
+  (LoisVM Backend Lowering).
+- Whole-Program Elaboration is the enclosing process that produces an
+  Executable Program; it is not itself one Buslane transformation stage.
+- Exploration observes existing transformation outputs and does not split a
+  fused compiler pass solely to create another display stage.
+- Wasm exploration code generation uses the checked signatures of reachable
+  `extern` bindings and does not require resolving or invoking host runtime
+  bindings.
+- Compilation still checks required dependencies and reports their diagnostics;
+  the entry-module focus changes only pre-link snapshot presentation.
 
 - `lanec` implements the language contract from `spec`.
 - `lanec` consumes `buslane` as the semantic core target.

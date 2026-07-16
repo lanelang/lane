@@ -26,6 +26,13 @@ enum LaneCommand {
   )
   Lsp(stdio~ : Bool)
   Exec(program~ : String)
+  Explore(
+    file~ : String,
+    entry~ : String,
+    libs~ : Array[String],
+    lib_dirs~ : Array[String],
+    output~ : String
+  )
   Run(
     file~ : String,
     entry~ : String,
@@ -58,6 +65,12 @@ fn lane_command_spec() -> Command {
         "run",
         about="Run a selected top-level entry from a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
+        positionals=[required_positional_arg("target")],
+      ),
+      Command(
+        "explore",
+        about="Write an HTML report for every curated compiler stage.",
+        options=[lib_option(), lib_dir_option(), output_option()],
         positionals=[required_positional_arg("target")],
       ),
       Command(
@@ -143,6 +156,24 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
             Err(message) => Err(message)
           }
         Err(message) => Err(message)
+      }
+    Some(("explore", child)) =>
+      match (required_value(child, "target"), required_value(child, "output")) {
+        (Ok(target_text), Ok(output)) =>
+          match parse_run_target(target_text) {
+            Ok(target) =>
+              Ok(
+                Explore(
+                  file=target.file,
+                  entry=target.entry,
+                  libs=values(child, "lib"),
+                  lib_dirs=values(child, "lib-dir"),
+                  output~,
+                ),
+              )
+            Err(_) => Err(InvalidExploreTarget(target=target_text))
+          }
+        (Err(message), _) | (_, Err(message)) => Err(message)
       }
     Some(("compile", child)) =>
       match

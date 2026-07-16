@@ -74,7 +74,7 @@ test "basic command parser diagnostics render as command reports" {
       #|---
       #|error[E6001]: unknown lane command
       #|The requested subcommand is not supported by this `lane` binary.
-      #|Available commands include check, run, compile, inspect, link, exec, fmt, and lsp.
+      #|Available commands include check, run, explore, compile, inspect, link, exec, fmt, and lsp.
       #|
       #|Example:
       #|  lane check Main.lane

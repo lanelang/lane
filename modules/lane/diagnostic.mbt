@@ -54,6 +54,7 @@ enum CliError {
   UnknownCommand
   MissingArgument(name~ : String)
   InvalidRunTarget(target~ : String)
+  InvalidExploreTarget(target~ : String)
   InvalidExecTarget(target~ : String)
   InvalidLinkEntry(entry~ : String)
   FileIo(action~ : CliFileAction, path~ : String, reason~ : HostFileErrorReason)
@@ -127,7 +128,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         code="E6001",
         title="unknown lane command",
         details=[
-          "The requested subcommand is not supported by this `lane` binary.", "Available commands include check, run, compile, inspect, link, exec, fmt, and lsp.",
+          "The requested subcommand is not supported by this `lane` binary.", "Available commands include check, run, explore, compile, inspect, link, exec, fmt, and lsp.",
         ],
         suggestions=[
           command_suggestion("Example:", command="lane check Main.lane"),
@@ -154,6 +155,18 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         ],
         suggestions=[
           command_suggestion("Example:", command="lane run Main.lane:main"),
+        ],
+      )
+    InvalidExploreTarget(target~) =>
+      command_report(
+        code="E6014",
+        title="invalid explore target `\{target}`",
+        fields=[command_report_field("expected", "FILE:ENTRY")],
+        suggestions=[
+          command_suggestion(
+            "Example:",
+            command="lane explore Main.lane:main -o report.html",
+          ),
         ],
       )
     InvalidExecTarget(target~) =>

@@ -68,15 +68,28 @@ pub(all) struct CompiledModuleSet {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ModuleCompileStage {
+  Resolved(@resolve.ResolvedSourceFile)
+}
+
+///|
 pub fn compile_module_graph(
   graph : @module_frontend.ModuleGraph,
+) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
+  compile_module_graph_observed(graph, (_, _) => ())
+}
+
+///|
+pub fn compile_module_graph_observed(
+  graph : @module_frontend.ModuleGraph,
+  observe : (String, ModuleCompileStage) -> Unit,
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let modules : Array[CompiledModule] = []
   let diagnostics : Array[CompilerDiagnostic] = []
   for input in graph.modules {
     let imported = imported_interfaces(input.header, modules)
-    match compile_one_module(input, registry, imported) {
+    match compile_one_module(input, registry, imported, observe) {
       Ok(compiled) => {
         modules.push(compiled.module_)
         diagnostics.append(compiled.diagnostics)
@@ -124,7 +137,7 @@ pub fn compile_module_from_interface_artifacts(
     registry,
     ordered_interfaces.interfaces,
   )
-  match compile_one_module(input, registry, imported) {
+  match compile_one_module(input, registry, imported, (_, _) => ()) {
     Err(diagnostics) => Err(diagnostics)
     Ok(success) => {
       let module_ = success.module_

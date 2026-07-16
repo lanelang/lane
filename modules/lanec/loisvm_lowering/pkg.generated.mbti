@@ -3,6 +3,7 @@ package "Milky2018/lanec/loisvm_lowering"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/anf",
   "Milky2018/lanec/effect_lowering/core",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/executable",
@@ -13,6 +14,8 @@ import {
 
 // Values
 pub fn lower_executable_program_to_bytecode(@executable.ExecutableProgram) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
+
+pub fn lower_executable_program_to_bytecode_observed(@executable.ExecutableProgram, (LoisvmLoweringStage) -> Unit) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 pub fn lower_linked_program_to_bytecode(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
@@ -37,6 +40,10 @@ pub(all) suberror LoisvmLoweringError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum LoisvmLoweringStage {
+  Anf(@anf.AnfProgram)
+  InitialVmcfg(@vmcfg.Image)
+}
 
 // Type aliases
 

@@ -1,0 +1,50 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/loisvm/wasm/compiler"
+
+import {
+  "Milky2018/loisvm/bytecode",
+  "Milky2018/loisvm/runtime",
+  "Milky2018/wasm_core/types",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compile(@bytecode.BytecodeImage) -> Result[@types.Module, WasmCompileError]
+
+pub fn compile_with_runtime_bindings(@bytecode.BytecodeImage, Array[@runtime.RuntimeBinding]) -> Result[@types.Module, WasmCompileError]
+
+pub fn compile_with_runtime_imports(@bytecode.BytecodeImage, Array[RuntimeImportSignature]) -> Result[@types.Module, WasmCompileError]
+
+pub fn failure_code_global() -> Int
+
+pub fn max_call_depth_global() -> Int
+
+pub fn max_live_heap_bytes_global() -> Int
+
+pub fn physical_runtime_parameters_for_binding(@runtime.RuntimeBinding) -> Array[@types.ValueType]
+
+pub fn runtime_import_failed_global() -> Int
+
+pub fn runtime_results_for_binding(@runtime.RuntimeBinding) -> Array[@types.ValueType]
+
+// Errors
+pub(all) suberror WasmCompileError {
+  UnsupportedRuntimeImport(function_id~ : Int)
+  UnsupportedInstruction(function_id~ : Int, instruction~ : String)
+  InvalidBlockTarget(function_id~ : Int, target~ : Int)
+  InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)
+  MissingStringLayout
+  ValidationFailure(detail~ : String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) struct RuntimeImportSignature {
+  symbol : String
+  parameters : Array[@runtime.PrimitiveKind]
+  result : @runtime.PrimitiveKind
+} derive(Eq, @debug.Debug)
+pub fn RuntimeImportSignature::new(symbol~ : String, parameters~ : Array[@runtime.PrimitiveKind], result~ : @runtime.PrimitiveKind) -> Self
+
+// Type aliases
+
+// Traits

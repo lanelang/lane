@@ -1,5 +1,7 @@
 # Lane Wasm uses a wasm1 fixed-arena ABI
 
+This decision is superseded by ADR-0002, which replaces the fixed whole-message arena with a streaming Explorer ABI.
+
 Lane Wasm targets wasm1 for the first IR Explorer surface, so it cannot expose
 MoonBit `String` values directly to JavaScript. We use a fixed Explorer Arena
 in exported linear memory, bulk-copy UTF-8 Explorer JSON through a JavaScript

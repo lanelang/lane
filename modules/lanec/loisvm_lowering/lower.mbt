@@ -49,7 +49,21 @@ pub fn lower_linked_program_to_bytecode(
 pub fn lower_executable_program_to_bytecode(
   executable : @executable.ExecutableProgram,
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
-  Ok(lower_executable_program_to_bytecode_or_raise(executable)) catch {
+  lower_executable_program_to_bytecode_observed(executable, _ => ())
+}
+
+///|
+pub(all) enum LoisvmLoweringStage {
+  Anf(@anf.AnfProgram)
+  InitialVmcfg(@vmcfg.Image)
+}
+
+///|
+pub fn lower_executable_program_to_bytecode_observed(
+  executable : @executable.ExecutableProgram,
+  observe : (LoisvmLoweringStage) -> Unit,
+) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
+  Ok(lower_executable_program_to_bytecode_or_raise(executable, observe)) catch {
     error => Err(error)
   }
 }
@@ -57,11 +71,13 @@ pub fn lower_executable_program_to_bytecode(
 ///|
 fn lower_executable_program_to_bytecode_or_raise(
   executable : @executable.ExecutableProgram,
+  observe : (LoisvmLoweringStage) -> Unit,
 ) -> @bytecode.BytecodeImage raise LoisvmLoweringError {
   let program = executable.program
   let externals = executable.externals
   let entry = executable.entry
   let anf = @anf.lower_buslane_program_to_anf(program)
+  observe(Anf(anf))
   let occurrence = @occurrence.analyze({
     program,
     entry: entry.value,
@@ -117,6 +133,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     object_shapes: lowerer.object_shapes,
     constants: lowerer.constants,
   })
+  observe(InitialVmcfg(virtual_image))
   match @vmcfg.finalize(virtual_image) {
     Ok(image) => image
     Err(error) => raise VmcfgFinalizeError(error)

@@ -1,6 +1,6 @@
 # Lane Wasm
 
-`Milky2018/lane_wasm` is the wasm1 browser-facing Lane IR explorer module.
+`Milky2018/lane_wasm` is the wasm1 browser bridge for the Lane IR explorer. It accepts host-collected source files, enumerates public entries, and returns the same curated compiler stages as `lane explore`.
 
 Build it with:
 
@@ -8,43 +8,50 @@ Build it with:
 moon build modules/lane_wasm --target wasm
 ```
 
-The semantic request is JSON:
+## Requests
 
-```json
-{ "source": "module Test\npub let sample_value : Int = 42" }
-```
-
-The response is JSON:
+Entry enumeration uses this JSON request:
 
 ```json
 {
-  "status": 0,
-  "diagnostics": [],
-  "panes": [
-    { "name": "checked", "text": "..." },
-    { "name": "buslane", "text": "..." },
-    { "name": "anf", "text": "..." }
+  "root": { "sourceId": "main.lane", "text": "module Main\n..." },
+  "libraries": [
+    { "sourceId": "lib.lane", "text": "module Lib\n..." }
   ]
 }
 ```
 
-The wasm1 physical ABI uses exported linear memory and one fixed arena:
+Call the exported `entries()` function. The response contains artifact-defined entries with `module`, `name`, and `type` fields.
+
+Exploration adds the selected entry:
+
+```json
+{
+  "root": { "sourceId": "main.lane", "text": "module Main\n..." },
+  "libraries": [],
+  "entry": "main"
+}
+```
+
+Call the exported `explore()` function. The response contains `schemaVersion`, `status`, `entry`, `diagnostics`, `stages`, and an optional `failure`. Each stage has a stable `id`, a display `title`, and human-readable `text`.
+
+## Streaming ABI
+
+The Wasm module exports:
 
 - `memory`
-- `arena_reset() -> Unit`
-- `arena_alloc(len : Int) -> Int`
-- `arena_capacity() -> Int`
-- `explore(input_ptr : Int, input_len : Int) -> Int`
-- `last_result_ptr() -> Int`
-- `last_result_len() -> Int`
+- `transfer_ptr() -> i32`
+- `transfer_capacity() -> i32`
+- `entries() -> i32`
+- `explore() -> i32`
 
-Status values:
+The host provides these imports under `lane.explorer`:
 
-- `0`: success
-- `1`: compile diagnostics were returned
-- `2`: arena overflow; the host should create its own fallback response
-- `3`: invalid request or invalid input buffer
+- `request_length() -> i32`
+- `request_read(offset, ptr, capacity) -> i32`
+- `response_begin(length) -> i32`
+- `response_write(offset, ptr, length) -> i32`
 
-The host should call `arena_reset`, allocate and bulk-write UTF-8 request bytes
-into `memory`, call `explore`, then bulk-read `last_result_len` bytes from
-`last_result_ptr`.
+Requests and responses are UTF-8. The module repeatedly fills a 64 KiB transfer window, so semantic payload size is not limited by a fixed result arena.
+
+Status values are `0` for success, `1` for compiler or lowering failure, `2` for transport failure, and `3` for an invalid request.

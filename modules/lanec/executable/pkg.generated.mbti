@@ -13,6 +13,8 @@ import {
 // Values
 pub fn elaborate(@link.LinkedProgram, @buslane_lowering.BuslaneEntry) -> Result[ExecutableProgram, ExecutableElaborationError]
 
+pub fn elaborate_observed(@link.LinkedProgram, @buslane_lowering.BuslaneEntry, (ExecutableElaborationStage) -> Unit) -> Result[ExecutableProgram, ExecutableElaborationError]
+
 // Errors
 pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
@@ -22,6 +24,16 @@ pub(all) suberror ExecutableElaborationError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum ExecutableElaborationStage {
+  EffectSpecialized(@buslane.Program)
+  HandlersElaborated(@core.Program)
+  MonadicTransformed(@core.Program)
+  SelectiveCpsRewritten(@core.Program)
+  OpenContextsResolved(@core.Program)
+  MonadicContinuationsLifted(@buslane.Program)
+  EffectsErased(@buslane.Program)
+}
+
 pub(all) struct ExecutableProgram {
   module_path_texts : Array[String]
   program : @buslane.Program

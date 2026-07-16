@@ -1,88 +1,47 @@
 # Lane Wasm
 
-Lane Wasm is the browser-facing Lane tool surface for exploring compiler and
-core-language artifacts from a page.
+Lane Wasm is the wasm-hosted compiler bridge intended for a website-based Lane IR Explorer.
 
 ## Language
 
 **Lane Wasm**:
-The wasm-hosted Lane tool surface for page-driven inspection workflows.
-_Avoid_: Lane Module, Lane Command, LSP server
+The browser-compatible host adapter for compiler-owned Artifact Entry Enumeration and Executable IR Exploration.
+_Avoid_: independent compiler pipeline, Lane Command, language server, execution engine
 
-**IR Explorer**:
-A page-driven inspection workflow that turns Lane source input into readable
-intermediate representations.
-_Avoid_: compiler front end, command-line runner, language server
-
-**Single-File IR Exploration**:
-An **IR Explorer** mode that inspects exactly one Lane **Source File** without
-library inputs or project discovery.
-_Avoid_: project explorer, workspace compilation, multi-module explorer
-
-**Explorer Source**:
-The complete Lane **Source File** submitted to **Single-File IR Exploration**.
-_Avoid_: anonymous snippet, synthetic module, partial source
-
-**IR Pane**:
-A named display-ready text view produced by **Single-File IR Exploration**.
-_Avoid_: stable IR JSON schema, compiler artifact, editor diagnostic
-
-**Explorer Diagnostic**:
-A compiler diagnostic returned as part of a normal **IR Explorer** result.
-_Avoid_: wasm exception, API failure, JavaScript error
-
-**Explorer Overflow**:
-An **Explorer Arena** capacity failure reported to the **Explorer JavaScript
-Wrapper** without trapping the wasm instance.
-_Avoid_: compiler diagnostic, wasm trap, silent truncation
+**Website IR Explorer**:
+The page-driven interface that submits an Explore Source Set, enumerates artifact-defined entries, selects one entry, and presents the resulting Explore Report.
+_Avoid_: compiler front end, native command wrapper, runtime debugger
 
 **Explorer JSON**:
-The JSON request and response format used by the **IR Explorer**.
-_Avoid_: MoonBit ABI, stable IR JSON schema, internal compiler object
+The JSON encoding of Artifact Entry Enumeration requests and the versioned Explore Report Protocol.
+_Avoid_: stable IR syntax, compiler debug object, HTML report
 
-**Explorer Byte Buffer ABI**:
-The wasm1 import/export boundary that moves UTF-8 encoded **Explorer JSON**
-between JavaScript and **Lane Wasm** through linear memory.
-_Avoid_: direct String ABI, wasm-gc string interop, JavaScript object ABI,
-per-byte accessor protocol
+**Explorer Streaming ABI**:
+The wasm1 boundary that transfers UTF-8 Explorer JSON through bulk request-read and response-write callbacks instead of placing a complete request or response in a fixed linear-memory arena.
+_Avoid_: direct String ABI, wasm-gc string interop, fixed whole-report arena, per-byte accessor protocol
 
-**Explorer Arena**:
-A fixed-size linear-memory region used by the **Explorer Byte Buffer ABI** for
-one-at-a-time request and response buffers.
-_Avoid_: general allocator, concurrent session storage, unbounded output buffer
+**Explorer Transport State**:
+Temporary request, response, or chunk state used by the Explorer Streaming ABI. The public result of a request depends only on that request even when an implementation retains bounded transport state or reusable internal caches.
+_Avoid_: execution instance, semantically stateful compilation session, fixed report buffer
 
 **Explorer JavaScript Wrapper**:
-The JavaScript helper that encodes **Explorer JSON** into the **Explorer Byte
-Buffer ABI** and decodes the result back into JavaScript strings or objects.
+The website helper that supplies request chunks, consumes response chunks, and performs UTF-8 encoding and decoding around the Explorer Streaming ABI.
 _Avoid_: compiler API, language server, MoonBit runtime
 
 ## Relationships
 
-- **Lane Wasm** supports the **IR Explorer** workflow.
-- **Single-File IR Exploration** is the first supported **IR Explorer** mode.
-- An **Explorer Source** must contain a **Module Declaration**.
-- The first **IR Explorer** panes are checked source, Buslane core, and
-  ANF.
-- **Explorer Diagnostics** do not prevent returning earlier available **IR
-  Panes**.
-- **Lane Wasm** reports compilation failure as an **IR Explorer** result rather
-  than as a wasm exception.
-- **Explorer Overflow** is reported as a wrapper-handled fallback failure rather
-  than as a wasm trap.
-- **Explorer JSON** is the semantic API format for **Single-File IR
-  Exploration**.
-- **Explorer Byte Buffer ABI** is the physical wasm1 boundary for **Explorer
-  JSON**.
-- **Explorer Arena** is the first memory model for the **Explorer Byte Buffer
-  ABI**.
-- **Explorer JavaScript Wrapper** owns UTF-8 encoding and decoding across the
-  **Explorer Byte Buffer ABI**.
-- **Lane Wasm** is separate from the native **Lane Command**.
-- **Lane Wasm** consumes compiler and core-language artifacts without becoming
-  a Lane source-language **Module**.
+- Lane Wasm and the native Lane Command consume the same `lanec/driver` orchestration, Explore Stage order, diagnostics, and Partial Explore Report semantics.
+- The website supplies a complete in-memory Explore Source Set; Lane Wasm does not discover project files.
+- Artifact Entry Enumeration returns the root module artifact's existing entries and does not define a second entry model.
+- The website selects an entry before requesting an Explore Report.
+- Lane Wasm generates the same compiler and backend snapshots as `lane explore`, including Wasm text produced by the Pure Wasm Compiler Package.
+- Lane Wasm does not load, instantiate, JIT-compile, or execute the generated Wasm module.
+- Explorer JSON is the semantic website API; the Explorer Streaming ABI is its physical wasm1 transport.
+- Streaming chunks are byte sequences and may split UTF-8 code points; the JavaScript wrapper decodes only the assembled response stream.
+- Transport or callback failure never turns a truncated response into a successful Explore Report.
+- Lane Wasm remains separate from the native Lane Command and does not become a Lane source-language module.
 
 ## Example dialogue
 
-> **Dev:** "Should the page call the Lane Command to inspect IR?"
-> **Domain expert:** "No — the **IR Explorer** belongs to **Lane Wasm**, while
-> the **Lane Command** remains the native command-line surface."
+> **Dev:** "Does the website need its own compiler pipeline?"
+> **Domain expert:** "No. Lane Wasm hosts the same compiler-owned exploration workflow as the Lane Command and differs only in input and output transport."

@@ -1,133 +1,176 @@
 ///|
-test "explore_json returns checked buslane and anf panes" {
+priv struct ResponseSummary {
+  status : Int
+  stage_ids : Array[String]
+  diagnostic_messages : Array[String]
+  failure : String?
+} derive(Debug)
+
+///|
+priv struct EntryResponseSummary {
+  status : Int
+  entries : Array[String]
+  diagnostic_messages : Array[String]
+} derive(Debug)
+
+///|
+test "entry request enumerates artifact-defined entries" {
   debug_inspect(
-    parsed_response_json(
-      (
-        #|{
-        #|  "source": "module Test\npub let answer : Int = 42"
-        #|}
+    entry_response_summary(
+      parsed_entries_json(
+        (
+          #|{
+          #|  "root": {
+          #|    "sourceId": "main.lane",
+          #|    "text": "module Main\npub fn main() -> Unit { () }"
+          #|  },
+          #|  "libraries": []
+          #|}
+        ),
       ),
     ),
     content=(
-      #|Object(
-      #|  {
-      #|    "status": Number(0),
-      #|    "diagnostics": Array([]),
-      #|    "panes": Array(
-      #|      [
-      #|        Object(
-      #|          {
-      #|            "name": String("checked"),
-      #|            "text": String("checked {\n  let answer#0 : Int = 42\n}"),
-      #|          },
-      #|        ),
-      #|        Object(
-      #|          {
-      #|            "name": String("buslane"),
-      #|            "text": String("buslane {\n  metadata {\n    value answer#0 : Int\n  }\n  let value#0 = 42\n}"),
-      #|          },
-      #|        ),
-      #|        Object(
-      #|          {
-      #|            "name": String("anf"),
-      #|            "text": String("anf {\n  let value#0 = 42\n}"),
-      #|          },
-      #|        ),
-      #|      ],
-      #|    ),
-      #|  },
-      #|)
+      #|{ status: 0, entries: ["Main.main"], diagnostic_messages: [] }
     ),
   )
 }
 
 ///|
-test "explore_json returns diagnostics for invalid source" {
+test "explore request returns every curated stage" {
   debug_inspect(
-    parsed_response_json(
-      (
-        #|{
-        #|  "source": "module Test\npub let answer = 42"
-        #|}
+    response_summary(
+      parsed_response_json(
+        (
+          #|{
+          #|  "root": {
+          #|    "sourceId": "main.lane",
+          #|    "text": "module Main\npub fn main() -> Unit { () }"
+          #|  },
+          #|  "libraries": [],
+          #|  "entry": "main"
+          #|}
+        ),
       ),
     ),
     content=(
-      #|Object(
-      #|  {
-      #|    "status": Number(1),
-      #|    "diagnostics": Array(
-      #|      [
-      #|        Object(
-      #|          {
-      #|            "source": String("lane"),
-      #|            "severity": String("error"),
-      #|            "message": String("declaration needs a type annotation"),
-      #|            "range": Object(
-      #|              {
-      #|                "start": Object({ "line": Number(2), "column": Number(16), "offset": Number(27) }),
-      #|                "end": Object({ "line": Number(2), "column": Number(17), "offset": Number(28) }),
-      #|              },
-      #|            ),
-      #|            "sourceId": String("<root>"),
-      #|            "code": String("E1100"),
-      #|            "labels": Array(
-      #|              [
-      #|                Object(
-      #|                  {
-      #|                    "message": String("write `: Type` before `=`"),
-      #|                    "style": String("primary"),
-      #|                    "range": Object(
-      #|                      {
-      #|                        "start": Object({ "line": Number(2), "column": Number(16), "offset": Number(27) }),
-      #|                        "end": Object({ "line": Number(2), "column": Number(17), "offset": Number(28) }),
-      #|                      },
-      #|                    ),
-      #|                    "sourceId": String("<root>"),
-      #|                  },
-      #|                ),
-      #|              ],
-      #|            ),
-      #|            "notes": Array([String("top-level declarations and local `let` bindings use `name : Type = expression`")]),
-      #|            "helps": Array([String("write the binding as `name : Type = expression`")]),
-      #|          },
-      #|        ),
-      #|      ],
-      #|    ),
-      #|    "panes": Array([]),
-      #|  },
-      #|)
+      #|{
+      #|  status: 0,
+      #|  stage_ids: [
+      #|    "syntax",
+      #|    "resolved",
+      #|    "checked",
+      #|    "buslane.module",
+      #|    "buslane.linked",
+      #|    "buslane.effect-specialized",
+      #|    "buslane.handlers-elaborated",
+      #|    "buslane.monadic",
+      #|    "buslane.selective-cps",
+      #|    "buslane.open-context-resolved",
+      #|    "buslane.monadic-lifted",
+      #|    "buslane.effects-erased",
+      #|    "executable",
+      #|    "anf",
+      #|    "vmcfg.initial",
+      #|    "loisvm.bytecode",
+      #|    "wasm",
+      #|  ],
+      #|  diagnostic_messages: [],
+      #|  failure: None,
+      #|}
     ),
   )
 }
 
 ///|
-test "explore_json rejects malformed requests" {
+test "explore request accepts multiple source files" {
   debug_inspect(
-    parsed_response_json("{\"text\":\"module Test\"}"),
+    response_summary(
+      parsed_response_json(
+        (
+          #|{
+          #|  "root": {
+          #|    "sourceId": "main.lane",
+          #|    "text": "module Main\nimport Lib.{value}\npub let copied : Int = value\npub fn main() -> Unit { () }"
+          #|  },
+          #|  "libraries": [
+          #|    {
+          #|      "sourceId": "lib.lane",
+          #|      "text": "module Lib\npub let value : Int = 42"
+          #|    }
+          #|  ],
+          #|  "entry": "main"
+          #|}
+        ),
+      ),
+    ),
     content=(
-      #|Object(
-      #|  {
-      #|    "status": Number(3),
-      #|    "diagnostics": Array(
-      #|      [
-      #|        Object(
-      #|          {
-      #|            "source": String("lane_wasm"),
-      #|            "severity": String("error"),
-      #|            "message": String("expected request object with string field `source`"),
-      #|            "range": Object(
-      #|              {
-      #|                "start": Object({ "line": Number(1), "column": Number(1), "offset": Number(0) }),
-      #|                "end": Object({ "line": Number(1), "column": Number(1), "offset": Number(0) }),
-      #|              },
-      #|            ),
-      #|          },
-      #|        ),
-      #|      ],
-      #|    ),
-      #|    "panes": Array([]),
-      #|  },
-      #|)
+      #|{
+      #|  status: 0,
+      #|  stage_ids: [
+      #|    "syntax",
+      #|    "resolved",
+      #|    "checked",
+      #|    "buslane.module",
+      #|    "buslane.linked",
+      #|    "buslane.effect-specialized",
+      #|    "buslane.handlers-elaborated",
+      #|    "buslane.monadic",
+      #|    "buslane.selective-cps",
+      #|    "buslane.open-context-resolved",
+      #|    "buslane.monadic-lifted",
+      #|    "buslane.effects-erased",
+      #|    "executable",
+      #|    "anf",
+      #|    "vmcfg.initial",
+      #|    "loisvm.bytecode",
+      #|    "wasm",
+      #|  ],
+      #|  diagnostic_messages: [],
+      #|  failure: None,
+      #|}
+    ),
+  )
+}
+
+///|
+test "explore request preserves partial stages on diagnostics" {
+  debug_inspect(
+    response_summary(
+      parsed_response_json(
+        (
+          #|{
+          #|  "root": {
+          #|    "sourceId": "main.lane",
+          #|    "text": "module Main\npub let answer = 42"
+          #|  },
+          #|  "libraries": [],
+          #|  "entry": "answer"
+          #|}
+        ),
+      ),
+    ),
+    content=(
+      #|{
+      #|  status: 1,
+      #|  stage_ids: [],
+      #|  diagnostic_messages: ["declaration needs a type annotation"],
+      #|  failure: None,
+      #|}
+    ),
+  )
+}
+
+///|
+test "explore request rejects malformed requests" {
+  debug_inspect(
+    response_summary(parsed_response_json("{\"text\":\"module Test\"}")),
+    content=(
+      #|{
+      #|  status: 3,
+      #|  stage_ids: [],
+      #|  diagnostic_messages: ["expected `root`, `libraries`, and `entry` fields in the request object"],
+      #|  failure: None,
+      #|}
     ),
   )
 }
@@ -137,4 +180,65 @@ fn parsed_response_json(request_text : String) -> Json {
   @json.parse(explore_request(request_text).json) catch {
     _ => abort("expected JSON response")
   }
+}
+
+///|
+fn parsed_entries_json(request_text : String) -> Json {
+  @json.parse(entries_request(request_text).json) catch {
+    _ => abort("expected JSON response")
+  }
+}
+
+///|
+fn entry_response_summary(response : Json) -> EntryResponseSummary {
+  guard response
+    is {
+      "status": Number(status, ..),
+      "diagnostics": Array(diagnostics),
+      "entries": Array(entries),
+      ..
+    } else {
+    abort("expected entry response object")
+  }
+  let entry_names = entries.map(entry => {
+    guard entry is { "module": String(module_), "name": String(name), .. } else {
+      abort("expected entry object")
+    }
+    "\{module_}.\{name}"
+  })
+  let diagnostic_messages = diagnostics.map(diagnostic => {
+    guard diagnostic is { "message": String(message), .. } else {
+      abort("expected diagnostic message")
+    }
+    message
+  })
+  { status: status.to_int(), entries: entry_names, diagnostic_messages }
+}
+
+///|
+fn response_summary(response : Json) -> ResponseSummary {
+  guard response
+    is {
+      "status": Number(status, ..),
+      "diagnostics": Array(diagnostics),
+      "stages": Array(stages),
+      ..
+    } else {
+    abort("expected explorer response object")
+  }
+  let stage_ids = stages.map(stage => {
+    guard stage is { "id": String(id), .. } else { abort("expected stage id") }
+    id
+  })
+  let diagnostic_messages = diagnostics.map(diagnostic => {
+    guard diagnostic is { "message": String(message), .. } else {
+      abort("expected diagnostic message")
+    }
+    message
+  })
+  let failure = match response {
+    { "failure": String(message), .. } => Some(message)
+    _ => None
+  }
+  { status: status.to_int(), stage_ids, diagnostic_messages, failure }
 }

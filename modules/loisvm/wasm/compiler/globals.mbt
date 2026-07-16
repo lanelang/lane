@@ -32,6 +32,26 @@ let runtime_import_failed_global_index = 9
 let initializing_global_index = 10
 
 ///|
+pub fn max_live_heap_bytes_global() -> Int {
+  max_live_heap_bytes_global_index
+}
+
+///|
+pub fn max_call_depth_global() -> Int {
+  max_call_depth_global_index
+}
+
+///|
+pub fn failure_code_global() -> Int {
+  failure_code_global_index
+}
+
+///|
+pub fn runtime_import_failed_global() -> Int {
+  runtime_import_failed_global_index
+}
+
+///|
 fn append_runtime_globals(
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,

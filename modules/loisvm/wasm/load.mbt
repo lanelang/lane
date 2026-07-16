@@ -44,11 +44,7 @@ pub fn load(
       bindings.push(binding)
     }
   }
-  let compiled = try compile_or_raise(image, bindings) catch {
-    error => Err(error)
-  } noraise {
-    value => Ok(value)
-  }
+  let compiled = compile_with_runtime_bindings(image, bindings)
   match compiled {
     Ok(wasm_module) => Ok({ wasm_module, bindings })
     Err(error) => Err(BackendCompileFailure(detail=to_repr(error).to_string()))
@@ -95,8 +91,8 @@ fn LoadedImage::new_instance_or_raise(
       invoke_runtime_binding(caller, binding, failure, runtime_context, values)
     }
     let address = store.alloc_host_func_with_caller(host_function, func_type={
-      params: physical_runtime_parameters(binding),
-      results: runtime_results(binding),
+      params: @compiler.physical_runtime_parameters_for_binding(binding),
+      results: @compiler.runtime_results_for_binding(binding),
     })
     imports.add_func("lane.runtime.v1", binding.symbol(), address)
   }
@@ -106,10 +102,10 @@ fn LoadedImage::new_instance_or_raise(
     imports,
   )
   store
-  .get_global(instance.global_addrs[max_live_heap_bytes_global_index])
+  .get_global(instance.global_addrs[@compiler.max_live_heap_bytes_global()])
   .set(I32(encode_execution_limit(config.max_live_heap_bytes)))
   store
-  .get_global(instance.global_addrs[max_call_depth_global_index])
+  .get_global(instance.global_addrs[@compiler.max_call_depth_global()])
   .set(I32(encode_execution_limit(config.max_call_depth)))
   { store, instance, failure, ready: true }
 }
@@ -140,7 +136,9 @@ pub fn ExecutionInstance::execute(
         Err(RuntimeImportFailure(symbol~, message~))
       } else {
         let failure_code = self.store
-          .get_global(self.instance.global_addrs[failure_code_global_index])
+          .get_global(
+            self.instance.global_addrs[@compiler.failure_code_global()],
+          )
           .get() catch {
             _ => I32(0)
           }
@@ -219,7 +217,7 @@ fn invoke_runtime_binding(
       caller
       .store()
       .get_global(
-        caller.instance().global_addrs[runtime_import_failed_global_index],
+        caller.instance().global_addrs[@compiler.runtime_import_failed_global()],
       )
       .set(I32(1))
       return default_runtime_result(binding.result())
@@ -231,7 +229,9 @@ fn invoke_runtime_binding(
     error => {
       let failure_code = caller
         .store()
-        .get_global(caller.instance().global_addrs[failure_code_global_index])
+        .get_global(
+          caller.instance().global_addrs[@compiler.failure_code_global()],
+        )
         .get() catch {
           _ => I32(0)
         }
@@ -241,7 +241,7 @@ fn invoke_runtime_binding(
         caller
         .store()
         .get_global(
-          caller.instance().global_addrs[runtime_import_failed_global_index],
+          caller.instance().global_addrs[@compiler.runtime_import_failed_global()],
         )
         .set(I32(1))
       }

@@ -29,6 +29,8 @@ async fn main {
           lane_link(objects, entry, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)
         Exec(program~) => lane_exec(program)
+        Explore(file~, entry~, libs~, lib_dirs~, output~) =>
+          lane_explore(file, entry, libs, lib_dirs, output)
         Run(file~, entry~, libs~, lib_dirs~) =>
           lane_run(file, entry, libs, lib_dirs)
       }

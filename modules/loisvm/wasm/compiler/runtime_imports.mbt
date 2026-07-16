@@ -1,4 +1,31 @@
 ///|
+pub(all) struct RuntimeImportSignature {
+  symbol : String
+  parameters : Array[@loisvm_runtime.PrimitiveKind]
+  result : @loisvm_runtime.PrimitiveKind
+} derive(Debug, Eq)
+
+///|
+pub fn RuntimeImportSignature::new(
+  symbol~ : String,
+  parameters~ : Array[@loisvm_runtime.PrimitiveKind],
+  result~ : @loisvm_runtime.PrimitiveKind,
+) -> RuntimeImportSignature {
+  { symbol, parameters, result }
+}
+
+///|
+fn RuntimeImportSignature::from_binding(
+  binding : @loisvm_runtime.RuntimeBinding,
+) -> RuntimeImportSignature {
+  {
+    symbol: binding.symbol(),
+    parameters: binding.parameters(),
+    result: binding.result(),
+  }
+}
+
+///|
 fn canonical_runtime_type(
   kind : @loisvm_runtime.PrimitiveKind,
 ) -> @wasm_types.ValueType? {
@@ -13,10 +40,10 @@ fn canonical_runtime_type(
 
 ///|
 fn physical_runtime_parameters(
-  binding : @loisvm_runtime.RuntimeBinding,
+  import_ : RuntimeImportSignature,
 ) -> Array[@wasm_types.ValueType] {
   let parameters : Array[@wasm_types.ValueType] = []
-  for kind in binding.parameters() {
+  for kind in import_.parameters {
     match kind {
       Unit => ()
       Bool => parameters.push(I32)
@@ -33,27 +60,41 @@ fn physical_runtime_parameters(
 
 ///|
 fn runtime_results(
-  binding : @loisvm_runtime.RuntimeBinding,
+  import_ : RuntimeImportSignature,
 ) -> Array[@wasm_types.ValueType] {
-  match canonical_runtime_type(binding.result()) {
+  match canonical_runtime_type(import_.result) {
     Some(value_type) => [value_type]
     None => []
   }
 }
 
 ///|
+pub fn physical_runtime_parameters_for_binding(
+  binding : @loisvm_runtime.RuntimeBinding,
+) -> Array[@wasm_types.ValueType] {
+  physical_runtime_parameters(RuntimeImportSignature::from_binding(binding))
+}
+
+///|
+pub fn runtime_results_for_binding(
+  binding : @loisvm_runtime.RuntimeBinding,
+) -> Array[@wasm_types.ValueType] {
+  runtime_results(RuntimeImportSignature::from_binding(binding))
+}
+
+///|
 fn append_physical_runtime_import(
   wasm_module : @wasm_types.Module,
-  binding : @loisvm_runtime.RuntimeBinding,
+  import_ : RuntimeImportSignature,
 ) -> Unit {
   let type_index = intern_function_type(
     wasm_module,
-    physical_runtime_parameters(binding),
-    runtime_results(binding),
+    physical_runtime_parameters(import_),
+    runtime_results(import_),
   )
   wasm_module.imports.push({
     mod_name: "lane.runtime.v1",
-    name: binding.symbol(),
+    name: import_.symbol,
     desc: Func(type_index),
   })
 }
@@ -61,21 +102,21 @@ fn append_physical_runtime_import(
 ///|
 fn append_runtime_import_adapter(
   wasm_module : @wasm_types.Module,
-  binding : @loisvm_runtime.RuntimeBinding,
+  import_ : RuntimeImportSignature,
   physical_import_index : Int,
   runtime : RuntimeFunctions,
 ) -> Unit {
   let parameters : Array[@wasm_types.ValueType] = [I32]
-  for kind in binding.parameters() {
+  for kind in import_.parameters {
     if canonical_runtime_type(kind) is Some(value_type) {
       parameters.push(value_type)
     }
   }
-  let results = runtime_results(binding)
+  let results = runtime_results(import_)
   let instructions : Array[@wasm_types.Instruction] = []
   let string_parameters : Array[Int] = []
   let mut parameter_index = 1
-  for kind in binding.parameters() {
+  for kind in import_.parameters {
     match kind {
       Unit => ()
       Bool | Int | Double => {

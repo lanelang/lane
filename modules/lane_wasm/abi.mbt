@@ -1,97 +1,113 @@
 ///|
-let arena_start : Int = 1048576
+let transfer_start : Int = 1048576
 
 ///|
-let arena_size : Int = 15728640
+let transfer_size : Int = 65536
 
 ///|
-let arena_end : Int = arena_start + arena_size
-
-///|
-let arena_state : Array[Int] = [arena_start, 0, 0]
-
-///|
-fn arena_next() -> Int {
-  arena_state[0]
+pub fn transfer_ptr() -> Int {
+  transfer_start
 }
 
 ///|
-pub fn arena_reset() -> Unit {
-  arena_state[0] = arena_start
-  arena_state[1] = 0
-  arena_state[2] = 0
+pub fn transfer_capacity() -> Int {
+  transfer_size
 }
 
 ///|
-pub fn arena_capacity() -> Int {
-  arena_size
-}
-
-///|
-pub fn arena_alloc(len : Int) -> Int {
-  if len < 0 {
-    return 0
-  }
-  let next = arena_next() + len
-  if next > arena_end {
-    0
-  } else {
-    let ptr = arena_next()
-    arena_state[0] = next
-    ptr
-  }
-}
-
-///|
-pub fn explore(input_ptr : Int, input_len : Int) -> Int {
-  arena_state[1] = 0
-  arena_state[2] = 0
-  guard input_ptr >= arena_start &&
-    input_len >= 0 &&
-    input_ptr + input_len <= arena_end else {
-    return status_invalid_request
-  }
-  let request_bytes : Array[Byte] = []
-  for index = 0; index < input_len; index = index + 1 {
-    request_bytes.push(wasm_load_u8(input_ptr + index).to_byte())
-  }
-  let request = @utf8.decode(Bytes::from_array(request_bytes)) catch {
-    _ =>
-      return write_output(
-        invalid_request_response("request bytes must be valid UTF-8").stringify(),
+pub fn explore() -> Int {
+  let request = match read_request() {
+    Ok(request) => request
+    Err(reason) =>
+      return write_response(
+        invalid_request_response(reason).stringify(),
         status_invalid_request,
       )
   }
   let result = explore_request(request)
-  write_output(result.json, result.status)
+  write_response(result.json, result.status)
 }
 
 ///|
-fn write_output(output : String, status : Int) -> Int {
+pub fn entries() -> Int {
+  let request = match read_request() {
+    Ok(request) => request
+    Err(reason) =>
+      return write_response(
+        invalid_request_response(reason).stringify(),
+        status_invalid_request,
+      )
+  }
+  let result = entries_request(request)
+  write_response(result.json, result.status)
+}
+
+///|
+fn read_request() -> Result[String, String] {
+  let length = host_request_length()
+  if length < 0 {
+    return Err("request length must not be negative")
+  }
+  let request_bytes : Array[Byte] = []
+  let mut offset = 0
+  while offset < length {
+    let capacity = if length - offset < transfer_size {
+      length - offset
+    } else {
+      transfer_size
+    }
+    let read = host_request_read(offset, transfer_start, capacity)
+    if read <= 0 || read > capacity {
+      return Err("request stream ended before the declared length")
+    }
+    for index in 0..<read {
+      request_bytes.push(wasm_load_u8(transfer_start + index).to_byte())
+    }
+    offset += read
+  }
+  Ok(@utf8.decode(Bytes::from_array(request_bytes))) catch {
+    _ => Err("request bytes must be valid UTF-8")
+  }
+}
+
+///|
+fn write_response(output : String, status : Int) -> Int {
   let output_bytes = @utf8.encode(output)
-  let ptr = arena_alloc(output_bytes.length())
-  if ptr == 0 {
-    return status_overflow
+  if host_response_begin(output_bytes.length()) != 0 {
+    return status_transport_error
   }
-  let mut index = 0
-  for byte in output_bytes {
-    wasm_store_u8(ptr + index, byte.to_int())
-    index = index + 1
+  let mut offset = 0
+  while offset < output_bytes.length() {
+    let length = if output_bytes.length() - offset < transfer_size {
+      output_bytes.length() - offset
+    } else {
+      transfer_size
+    }
+    for index in 0..<length {
+      wasm_store_u8(
+        transfer_start + index,
+        output_bytes[offset + index].to_int(),
+      )
+    }
+    if host_response_write(offset, transfer_start, length) != length {
+      return status_transport_error
+    }
+    offset += length
   }
-  arena_state[1] = ptr
-  arena_state[2] = output_bytes.length()
   status
 }
 
 ///|
-pub fn last_result_ptr() -> Int {
-  arena_state[1]
-}
+fn host_request_length() -> Int = "lane.explorer" "request_length"
 
 ///|
-pub fn last_result_len() -> Int {
-  arena_state[2]
-}
+fn host_request_read(offset : Int, ptr : Int, capacity : Int) -> Int = "lane.explorer" "request_read"
+
+///|
+fn host_response_begin(length : Int) -> Int = "lane.explorer" "response_begin"
+
+///|
+fn host_response_write(offset : Int, ptr : Int, length : Int) -> Int = "lane.explorer" "response_write"
 
 ///|
 extern "wasm" fn wasm_load_u8(ptr : Int) -> Int =

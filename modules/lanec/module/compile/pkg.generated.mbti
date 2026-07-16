@@ -10,6 +10,7 @@ import {
   "Milky2018/lanec/module",
   "Milky2018/lanec/module/frontend",
   "Milky2018/lanec/module/link",
+  "Milky2018/lanec/resolve",
   "Milky2018/loisvm/bytecode",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -19,6 +20,8 @@ import {
 pub fn compile_module_from_interface_artifacts(@frontend.SourceInput, Array[ModuleInterfaceArtifact]) -> Result[CompiledModuleSet, Array[@diagnostic.CompilerDiagnostic]]
 
 pub fn compile_module_graph(@frontend.ModuleGraph) -> Result[CompiledModuleSet, Array[@diagnostic.CompilerDiagnostic]]
+
+pub fn compile_module_graph_observed(@frontend.ModuleGraph, (String, ModuleCompileStage) -> Unit) -> Result[CompiledModuleSet, Array[@diagnostic.CompilerDiagnostic]]
 
 pub fn find_compiled_module(Array[CompiledModule], String) -> CompiledModule?
 
@@ -85,6 +88,10 @@ pub(all) struct LinkedProgramArtifact {
   bytecode : @bytecode.BytecodeImage
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
+
+pub(all) enum ModuleCompileStage {
+  Resolved(@resolve.ResolvedSourceFile)
+}
 
 pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int

@@ -401,6 +401,10 @@ _Avoid_: Lane value, effect, recoverable status
 
 ### Wasm Backend
 
+**Pure Wasm Compiler Package**:
+The cross-target `loisvm/wasm/compiler` package that lowers a LoisVM Bytecode Image into a WebAssembly module without loading, instantiating, JIT-compiling, or executing it. The native `loisvm/wasm` package owns Wasmoon integration and delegates code generation to this package.
+_Avoid_: Wasmoon loader, execution instance, browser host, direct Buslane-to-Wasm lowering
+
 **Wasm Compiled Tier**:
 The compiled execution path that lowers decoded LoisVM bytecode into a
 WebAssembly module and executes it with Milky2018/wasmoon by default.

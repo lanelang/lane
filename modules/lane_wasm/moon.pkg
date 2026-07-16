@@ -1,12 +1,8 @@
 import {
-  "Milky2018/buslane",
-  "Milky2018/lanec/anf",
   "Milky2018/lanec/basic",
-  "Milky2018/lanec/checked",
-  "Milky2018/lanec/compile",
   "Milky2018/lanec/diagnostic" @compiler_diag,
-  "Milky2018/lanec/elaborate/buslane_lowering",
-  "moonbit-community/prettyprinter",
+  "Milky2018/lanec/driver",
+  "Milky2018/lanec/module/frontend" @module_frontend,
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
 }
@@ -16,14 +12,7 @@ supported_targets = "wasm"
 options(
   link: {
     "wasm": {
-      "exports": [
-        "arena_reset",
-        "arena_alloc",
-        "arena_capacity",
-        "explore",
-        "last_result_ptr",
-        "last_result_len",
-      ],
+      "exports": [ "transfer_ptr", "transfer_capacity", "entries", "explore" ],
       "export-memory-name": "memory",
       "heap-start-address": 16777216,
     },

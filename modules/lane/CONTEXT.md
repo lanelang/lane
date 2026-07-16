@@ -15,6 +15,14 @@ library modules and executes a selected public `() -> Unit` or `() -> Unit ! Io`
 entry through LoisVM.
 _Avoid_: language-level main, project execution
 
+**Executable Explore Command**:
+The `lane explore <file>:<entry> -o <report.html>` command behavior that collects the same explicit library inputs as Single-File Run, requests compiler-owned Executable IR Exploration without executing the entry, and writes one HTML Explore Report. The output path is required.
+_Avoid_: artifact inspection, stdout dump, automatic browser launch, alternate compilation pipeline
+
+**Self-Contained Explore HTML**:
+The deterministic offline report written by the Executable Explore Command with all styles, behavior, safely escaped stage documents, diagnostics, and report metadata embedded in one file.
+_Avoid_: CDN dependency, external asset directory, runtime execution trace, volatile timestamp
+
 **Root Source**:
 The source file named directly by a single-file `lane check` or `lane run`
 command.
@@ -53,3 +61,8 @@ _Avoid_: separate language-server executable, VS Code extension
   source set.
 - Runtime behavior visible through `lane run` must follow the language contract
   in `spec`.
+- `lane explore` writes a complete or Partial Explore Report through an atomic
+  output replacement; a partial report does not change a compilation failure
+  into a successful command status.
+- Self-Contained Explore HTML uses one level of stage tabs and contains no
+  environment-dependent metadata beyond identified compilation inputs.

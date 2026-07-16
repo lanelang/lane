@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/driver"
+
+import {
+  "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/module/frontend",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn explore(ExploreRequest) -> ExploreReport
+
+pub fn list_entries(@frontend.SourceInput, Array[@frontend.SourceInput]) -> EntryReport
+
+// Errors
+
+// Types and methods
+pub(all) struct EntryReport {
+  schema_version : Int
+  entries : Array[EntrySummary]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct EntrySummary {
+  module_path_text : String
+  name : String
+  type_text : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreReport {
+  schema_version : Int
+  entry : String
+  stages : Array[ExploreStage]
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
+  failure : String?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreRequest {
+  root_source : @frontend.SourceInput
+  library_sources : Array[@frontend.SourceInput]
+  entry : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreStage {
+  id : String
+  title : String
+  text : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

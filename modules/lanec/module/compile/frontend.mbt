@@ -23,6 +23,7 @@ fn compile_one_module(
   input : @module_frontend.ParsedModuleInput,
   registry : @symbol.SymbolRegistry,
   imported : @module_interface.ImportedEnvironment,
+  observe : (String, ModuleCompileStage) -> Unit,
 ) -> Result[CompileOneModuleSuccess, Array[CompilerDiagnostic]] {
   let display = @typecheck.TypeDisplayContext::from_registry(registry)
   let resolved = @resolve.resolve_source_file_with_imports_result(
@@ -36,6 +37,7 @@ fn compile_one_module(
   if !resolve_diagnostics.is_empty() {
     return Err(resolve_diagnostics)
   }
+  observe(input.header.module_path_text, Resolved(resolved.source))
   let checked = @typecheck.typecheck_checked_source_file_with_imported_environment(
     resolved.source,
     imported,
