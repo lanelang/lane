@@ -117,8 +117,9 @@ metadata_declarations -> Array[MetadataDeclaration]
 
 metadata_declaration -> MetadataDeclaration
   : "type" type_id buslane_type_name "parameters" type_parameter_id_list "constructors" data_con_id_list ";" {
-    TypeInfoDecl($2, { name: $3, parameters: $5, constructors: $7 })
+    TypeInfoDecl($2, { name: $3, flavor: Data, parameters: $5, constructors: $7 })
   }
+  | "external" "type" type_id buslane_type_name "parameters" type_parameter_id_list "constructors" data_con_id_list ";" { TypeInfoDecl($3, { name: $4, flavor: External, parameters: $6, constructors: $8 }) }
   | "type_parameter" type_parameter_id buslane_type_parameter_name ":" kind ";" {
     TypeParameterInfoDecl($2, { name: $3, kind: $5 })
   }
@@ -129,8 +130,9 @@ metadata_declaration -> MetadataDeclaration
     DataConInfoDecl($2, { name: $3, owner: $5, hidden_type_parameters: $7, payload_types: $9 })
   }
   | "effect" effect_id buslane_effect_name "parameters" type_parameter_id_list "operations" operation_id_list ";" {
-    EffectInfoDecl($2, { name: $3, parameters: $5, operations: $7 })
+    EffectInfoDecl($2, { name: $3, flavor: Algebraic, parameters: $5, operations: $7 })
   }
+  | "external" "effect" effect_id buslane_effect_name "parameters" type_parameter_id_list "operations" operation_id_list ";" { EffectInfoDecl($3, { name: $4, flavor: External, parameters: $6, operations: $8 }) }
   | "operation" operation_id buslane_operation_name "owner" effect_id "hidden" type_parameter_id_list "payload" type_list "result" type ";" {
     OperationInfoDecl($2, { name: $3, owner: $5, hidden_type_parameters: $7, payload_types: $9, result_type: $11 })
   }

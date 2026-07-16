@@ -964,6 +964,17 @@ fn CompletionWorld::add_interface_surface_entries(
           Some("enum \{enum_.name}"),
           "30",
         )
+      External(external) =>
+        add_completion_entry(
+          entries,
+          source_id,
+          prefix,
+          replace,
+          external.name,
+          Type,
+          Some("extern type \{external.name} : Type"),
+          "30",
+        )
     }
   }
   for type_alias in interface.type_aliases {

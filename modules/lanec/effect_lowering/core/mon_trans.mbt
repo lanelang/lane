@@ -220,7 +220,7 @@ fn transform_expr(
         final_clause: transform_function(program, install.final_clause),
       })
       let effect = synthesize_expr_or_raise(program.metadata, transformed).effect
-      if !is_mon_effect(effect) {
+      if !is_mon_effect(program.metadata, effect) {
         continuation.apply(transformed)
       } else {
         bind_computation(
@@ -251,7 +251,7 @@ fn finish_call(
     raise ExpectedFunction(callee_facts.type_)
   }
   let call = Expr::Call(callee, arguments)
-  if !is_mon_effect(latent_effect) {
+  if !is_mon_effect(program.metadata, latent_effect) {
     continuation.apply(call)
   } else {
     let computation = if latent_effect == ambient_effect {
@@ -281,7 +281,7 @@ fn finish_match(
   let mut monadic_branch = false
   let alternatives = match_.alternatives.map(alternative => {
     let facts = synthesize_expr_or_raise(program.metadata, alternative.body)
-    if is_mon_effect(facts.effect) {
+    if is_mon_effect(program.metadata, facts.effect) {
       monadic_branch = true
     }
     {

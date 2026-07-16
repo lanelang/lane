@@ -112,8 +112,21 @@ pub(all) enum ValueKind {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum TypeFlavor {
+  Data
+  External
+} derive(Debug, Eq)
+
+///|
+pub(all) enum EffectFlavor {
+  Algebraic
+  External
+} derive(Debug, Eq)
+
+///|
 pub(all) struct TypeInfo {
   name : BuslaneName
+  flavor : TypeFlavor
   parameters : Array[TypeParameterId]
   constructors : Array[DataConId]
 } derive(Debug, Eq)
@@ -142,6 +155,7 @@ pub(all) struct DataConInfo {
 ///|
 pub(all) struct EffectInfo {
   name : BuslaneName
+  flavor : EffectFlavor
   parameters : Array[TypeParameterId]
   operations : Array[OperationId]
 } derive(Debug, Eq)
@@ -318,10 +332,12 @@ pub fn MetadataRegistry::define_type(
   self : MetadataRegistry,
   occurrence : String,
   parameters : Array[TypeParameterId],
+  flavor? : TypeFlavor = Data,
 ) -> TypeId {
   let id = TypeId::{ index: self.types.length() }
   self.types.push({
     name: self.fresh_name(TypeName, occurrence),
+    flavor,
     parameters,
     constructors: [],
   })
@@ -355,10 +371,12 @@ pub fn MetadataRegistry::define_effect(
   self : MetadataRegistry,
   occurrence : String,
   parameters : Array[TypeParameterId],
+  flavor? : EffectFlavor = Algebraic,
 ) -> EffectId {
   let id = EffectId::{ index: self.effects.length() }
   self.effects.push({
     name: self.fresh_name(EffectName, occurrence),
+    flavor,
     parameters,
     operations: [],
   })

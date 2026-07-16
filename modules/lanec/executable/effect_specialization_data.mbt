@@ -183,6 +183,7 @@ fn EffectSpecializer::require_data_instance(
   let target = self.program.metadata.define_type(
     "\{info.name.occurrence}%effect",
     retained_parameters,
+    flavor=info.flavor,
   )
   let instance = EffectDataInstance::{
     source,

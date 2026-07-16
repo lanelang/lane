@@ -132,9 +132,9 @@ fn lower_cps_function(
     Some(Function(_, _, effect)) => effect
     _ => body_facts.effect
   }
-  let residual_effect = residual_effect_part(latent_effect)
+  let residual_effect = residual_effect_part(program.metadata, latent_effect)
   let result_type = schema.rewrite_type(function.result_type)
-  if !is_mon_effect(latent_effect) {
+  if !is_mon_effect(program.metadata, latent_effect) {
     Function({
       parameters: function.parameters,
       result_type,
@@ -146,7 +146,9 @@ fn lower_cps_function(
       Type,
     )
     let answer_type = @buslane.Type::Parameter(answer_parameter)
-    let context_terms = effect_terms(mon_effect_part(latent_effect))
+    let context_terms = effect_terms(
+      mon_effect_part(program.metadata, latent_effect),
+    )
     let context_parameters = []
     let bindings = []
     for term in context_terms {
@@ -213,11 +215,11 @@ fn lower_cps_direct_expr(
       guard callee_facts.type_ is Function(_, source_result, latent_effect) else {
         raise ExpectedFunction(callee_facts.type_)
       }
-      if is_mon_effect(latent_effect) {
+      if is_mon_effect(program.metadata, latent_effect) {
         raise MissingEffectContext(latent_effect)
       }
       if source_result is Function(_, _, result_effect) &&
-        is_mon_effect(result_effect) {
+        is_mon_effect(program.metadata, result_effect) {
         return lower_cps_effectful_result_call(
           schema, program, callee, arguments, source_result,
         )
@@ -525,7 +527,7 @@ fn lower_cps_with_continuation(
         program.metadata,
         initializer,
       )
-      if !is_mon_effect(initializer_facts.effect) {
+      if !is_mon_effect(program.metadata, initializer_facts.effect) {
         Let(
           id,
           lower_cps_direct_expr(schema, program, initializer, Some(answer_type)),
@@ -595,7 +597,7 @@ fn lower_cps_with_continuation(
       guard callee_facts.type_ is Function(_, _, latent_effect) else {
         raise ExpectedFunction(callee_facts.type_)
       }
-      if !is_mon_effect(latent_effect) {
+      if !is_mon_effect(program.metadata, latent_effect) {
         Call(continuation, [
           lower_cps_direct_expr(
             schema,
@@ -613,7 +615,7 @@ fn lower_cps_with_continuation(
     }
     Match(match_) => {
       let facts = synthesize_expr_or_raise(program.metadata, expression)
-      if !is_mon_effect(facts.effect) {
+      if !is_mon_effect(program.metadata, facts.effect) {
         Call(continuation, [
           lower_cps_direct_expr(schema, program, expression, Some(answer_type)),
         ])

@@ -93,6 +93,16 @@ fn InterfaceSymbolFreshener::predeclare_nominal_types(
             declaration.loc,
           ),
         )
+      External(declaration) =>
+        ignore(
+          self.define_type(
+            declaration.symbol,
+            declaration.name,
+            External,
+            0,
+            declaration.loc,
+          ),
+        )
     }
   }
 }
@@ -108,6 +118,7 @@ fn InterfaceSymbolFreshener::predeclare_effects(
         effect.symbol,
         effect.name,
         effect.type_parameters.length(),
+        effect.flavor,
         effect.loc,
       ),
     )
@@ -122,6 +133,12 @@ fn InterfaceSymbolFreshener::freshen_type(
   match type_ {
     Struct(declaration) => Struct(self.freshen_struct_interface(declaration))
     Enum(declaration) => Enum(self.freshen_enum_interface(declaration))
+    External(declaration) =>
+      External({
+        symbol: self.remap_type_symbol(declaration.symbol),
+        name: declaration.name,
+        loc: declaration.loc,
+      })
   }
 }
 
@@ -254,7 +271,14 @@ fn InterfaceSymbolFreshener::freshen_effect(
   let operations = effect.operations.map(fn(operation) {
     self.freshen_operation(symbol, operation)
   })
-  { symbol, name: effect.name, type_parameters, operations, loc: effect.loc }
+  {
+    symbol,
+    name: effect.name,
+    flavor: effect.flavor,
+    type_parameters,
+    operations,
+    loc: effect.loc,
+  }
 }
 
 ///|
@@ -476,12 +500,13 @@ fn InterfaceSymbolFreshener::define_effect(
   source : @symbol.EffectSymbolId,
   name : String,
   arity : Int,
+  flavor : @symbol.EffectFlavor,
   loc : @basic.SourceSpan,
 ) -> @symbol.EffectSymbolId {
   match self.lookup_effect_symbol(source) {
     Some(symbol) => symbol
     None => {
-      let target = self.registry.define_effect(name, arity, loc)
+      let target = self.registry.define_effect(name, arity, loc, flavor~)
       self.effects.push({ source, target })
       target
     }

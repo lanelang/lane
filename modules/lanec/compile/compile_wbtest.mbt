@@ -1471,7 +1471,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 1
+      #|schema: 2
       #|
       #|imported interfaces:
       #|  (none)
@@ -1547,7 +1547,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 8
+      #|schema: 9
       #|
       #|imported interfaces:
       #|  (none)
@@ -1582,6 +1582,98 @@ test "built-in Io roundtrips through typed artifacts" {
       #|    let value#0 = value#3
       #|  }
       #|
+    ),
+  )
+}
+
+///|
+test "external flavors roundtrip through artifacts and linking" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub fn use(fd : Fd) -> Int ! VectorOp[Int] {
+      #|  read(fd)
+      #|}
+    ),
+    [
+      (
+        #|module Lib
+        #|pub extern type Fd : Type
+        #|pub extern type VectorOp[A : Type] : Effect
+        #|pub let read : (Fd) -> Int ! VectorOp[Int] = extern("vector.read")
+      ),
+    ],
+  )
+  debug_inspect(compiled.diagnostics, content="[]")
+  guard compiled.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  let artifact = modules.to_artifact()
+  guard find_artifact_module(artifact.modules, "Lib") is Some(lib) else {
+    abort("expected Lib artifact")
+  }
+  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
+    lib.interface,
+  )
+  let decoded_interface = match
+    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
+    Ok(interface) => interface
+    Err(message) => abort(message)
+  }
+  let object_binary = @artifact_binary.module_object_artifact_to_binary(
+    lib.object,
+  )
+  let decoded_object = match
+    @artifact_binary.parse_module_object_artifact_binary(object_binary) {
+    Ok(object) => object
+    Err(message) => abort(message)
+  }
+  assert_eq(decoded_interface, lib.interface)
+  assert_eq(decoded_object, lib.object)
+  let interface_text = match
+    @artifact_binary.artifact_binary_to_inspect_text(interface_binary) {
+    Ok(text) => text
+    Err(message) => abort(message)
+  }
+  inspect(
+    artifact_inspect_without_fingerprints(interface_text),
+    content=(
+      #|Lane interface artifact
+      #|module: Lib
+      #|schema: 2
+      #|
+      #|imported interfaces:
+      #|  (none)
+      #|
+      #|interface Lib:
+      #|types:
+      #|  pub extern type Fd : Type
+      #|effects:
+      #|  pub extern type VectorOp[A : Type] : Effect
+      #|type aliases:
+      #|  (none)
+      #|values:
+      #|  pub let read : (Fd) -> Int ! VectorOp[Int]
+      #|
+    ),
+  )
+  let linked = @module_compile.link_module_artifacts(artifact)
+  debug_inspect(linked.diagnostics, content="[]")
+  guard linked.program is Some(program) else {
+    abort("expected linked program")
+  }
+  debug_inspect(
+    (
+      program.program.metadata.types.map(info => {
+        (info.name.occurrence, info.flavor)
+      }),
+      program.program.metadata.effects.map(info => {
+        (info.name.occurrence, info.flavor)
+      }),
+    ),
+    content=(
+      #|([("Fd", External)], [("VectorOp", External)])
     ),
   )
 }
@@ -1826,7 +1918,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 1
+      #|schema: 2
       #|
       #|imported interfaces:
       #|  (none)
@@ -1848,7 +1940,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 8
+      #|schema: 9
       #|
       #|imported interfaces:
       #|  (none)
@@ -2006,7 +2098,7 @@ fn interface_alias_body_signature(
 }
 
 ///|
-test "module object binary rejects obsolete schema seven artifact" {
+test "module object binary rejects obsolete schema eight artifact" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -2024,7 +2116,7 @@ test "module object binary rejects obsolete schema seven artifact" {
   let damaged = @artifact_binary.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  damaged[14] = b'\x07'
+  damaged[14] = b'\x08'
   damaged[15] = b'\x00'
   damaged[16] = b'\x00'
   damaged[17] = b'\x00'
@@ -2034,7 +2126,7 @@ test "module object binary rejects obsolete schema seven artifact" {
   guard parsed is Err(message) else {
     abort("expected old object schema failure")
   }
-  inspect(message, content="unsupported object artifact schema version 7")
+  inspect(message, content="unsupported object artifact schema version 8")
 }
 
 ///|

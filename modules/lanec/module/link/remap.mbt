@@ -339,6 +339,7 @@ fn BuslaneLinker::remap_type_id(
   let target = self.metadata.define_type(
     info.name.occurrence,
     info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+    flavor=info.flavor,
   )
   ignore(self.identities.bind_type(object.module_path_text, source, target))
   for data_constructor in info.constructors {
@@ -363,6 +364,7 @@ fn BuslaneLinker::remap_effect_id(
   let target = self.metadata.define_effect(
     info.name.occurrence,
     info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+    flavor=info.flavor,
   )
   ignore(self.identities.bind_effect(object.module_path_text, source, target))
   for operation in info.operations {

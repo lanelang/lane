@@ -71,6 +71,11 @@ pub fn Effect::equals(Self, Self) -> Bool
 pub impl @prettyprinter.Pretty for Effect
 pub impl Eq for Effect
 
+pub(all) enum EffectFlavor {
+  Algebraic
+  External
+} derive(Eq, @debug.Debug)
+
 pub(all) struct EffectId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -78,6 +83,7 @@ pub impl @prettyprinter.Pretty for EffectId
 
 pub(all) struct EffectInfo {
   name : BuslaneName
+  flavor : EffectFlavor
   parameters : Array[TypeParameterId]
   operations : Array[OperationId]
 } derive(Eq, @debug.Debug)
@@ -165,9 +171,9 @@ pub(all) struct MetadataRegistry {
 pub fn MetadataRegistry::MetadataRegistry() -> Self
 pub fn MetadataRegistry::data_constructor_info(Self, DataConId) -> DataConInfo?
 pub fn MetadataRegistry::define_data_constructor(Self, String, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
-pub fn MetadataRegistry::define_effect(Self, String, Array[TypeParameterId]) -> EffectId
+pub fn MetadataRegistry::define_effect(Self, String, Array[TypeParameterId], flavor? : EffectFlavor) -> EffectId
 pub fn MetadataRegistry::define_operation(Self, String, EffectId, Array[TypeParameterId], Array[Type], Type) -> OperationId
-pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId]) -> TypeId
+pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId], flavor? : TypeFlavor) -> TypeId
 pub fn MetadataRegistry::define_type_parameter(Self, String, Kind) -> TypeParameterId
 pub fn MetadataRegistry::define_value(Self, String, ValueKind, Type) -> ValueId
 pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
@@ -259,6 +265,11 @@ pub fn Type::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Type
 pub impl Eq for Type
 
+pub(all) enum TypeFlavor {
+  Data
+  External
+} derive(Eq, @debug.Debug)
+
 pub(all) struct TypeId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -266,6 +277,7 @@ pub impl @prettyprinter.Pretty for TypeId
 
 pub(all) struct TypeInfo {
   name : BuslaneName
+  flavor : TypeFlavor
   parameters : Array[TypeParameterId]
   constructors : Array[DataConId]
 } derive(Eq, @debug.Debug)

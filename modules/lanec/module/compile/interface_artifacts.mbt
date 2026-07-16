@@ -63,7 +63,7 @@ fn validate_interface_artifacts(
 fn ModuleInterfaceArtifact::validate(
   self : ModuleInterfaceArtifact,
 ) -> CompilerDiagnostic? {
-  if self.schema_version != 1 {
+  if self.schema_version != module_interface_artifact_schema_version {
     return Some(
       artifact_diagnostic(
         UnsupportedModuleInterfaceArtifactSchema(self.module_path_text),

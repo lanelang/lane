@@ -39,6 +39,8 @@ pub let linked_program_artifact_schema_version : Int
 
 pub fn module_fingerprint(@module.ModuleInterface, Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint
 
+pub let module_interface_artifact_schema_version : Int
+
 pub let module_object_artifact_schema_version : Int
 
 pub fn module_object_fingerprint(@artifact_core.CompilationFingerprint, @artifact_core.CompilationFingerprint, @buslane.MetadataRegistry, Array[@buslane.TopTerm], @buslane_lowering.BuslaneExternalMap, Array[@buslane_lowering.BuslaneEntry], Array[@buslane_lowering.BuslaneModuleExport], Array[@artifact_core.ModuleImportedReference], Array[@artifact_core.ImportedInterfaceFingerprint]) -> @artifact_core.CompilationFingerprint

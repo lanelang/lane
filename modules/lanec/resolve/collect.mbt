@@ -316,6 +316,13 @@ fn Resolver::publish_imported_public_types(
           interface_type_parameters_to_syntax(declaration.type_parameters),
           import_origin,
         )
+      External(declaration) =>
+        self.publish_type_binding(
+          declaration.name,
+          declaration.symbol,
+          [],
+          import_origin,
+        )
     }
   }
   for type_alias in interface.type_aliases {
@@ -1980,6 +1987,7 @@ fn interface_type_name(type_ : @module_interface.ModuleInterfaceType) -> String 
   match type_ {
     Struct(declaration) => declaration.name
     Enum(declaration) => declaration.name
+    External(declaration) => declaration.name
   }
 }
 
@@ -1990,6 +1998,7 @@ fn interface_type_symbol(
   match type_ {
     Struct(declaration) => declaration.symbol
     Enum(declaration) => declaration.symbol
+    External(declaration) => declaration.symbol
   }
 }
 

@@ -7,6 +7,14 @@ fn BuslaneLowerer::collect_type_headers(
     match declaration {
       Struct(declaration) => self.collect_struct_header(declaration)
       Enum(declaration) => self.collect_enum_header(declaration)
+      ExternalType(declaration) => {
+        let target = self.metadata.define_type(
+          declaration.name,
+          [],
+          flavor=@buslane.TypeFlavor::External,
+        )
+        ignore(self.registry.register_type(declaration.symbol, target))
+      }
       _ => ()
     }
   }
@@ -75,7 +83,15 @@ fn BuslaneLowerer::collect_effect_header(
   let parameters = declaration.type_parameters.map(fn(parameter) {
     self.define_type_parameter(parameter)
   })
-  let target = self.metadata.define_effect(declaration.name, parameters)
+  let flavor = match declaration.flavor {
+    @symbol.EffectFlavor::Algebraic => @buslane.EffectFlavor::Algebraic
+    @symbol.EffectFlavor::External => @buslane.EffectFlavor::External
+  }
+  let target = self.metadata.define_effect(
+    declaration.name,
+    parameters,
+    flavor~,
+  )
   ignore(self.registry.register_effect(declaration.symbol, target))
 }
 

@@ -175,6 +175,11 @@ fn fingerprint_type_context(
           symbol: declaration.symbol,
           name: declaration.name,
         })
+      External(declaration) =>
+        nominal_types.push({
+          symbol: declaration.symbol,
+          name: declaration.name,
+        })
     }
   }
   { nominal_types, type_parameters: [] }
@@ -214,6 +219,7 @@ fn interface_type_fingerprint(
         .join(",")
       "enum \{declaration.name}[\{type_parameters}]{\{variants}}"
     }
+    External(declaration) => "external type \{declaration.name}"
   }
 }
 
@@ -281,7 +287,11 @@ fn interface_effect_fingerprint(
   let operations = effect.operations
     .map(fn(operation) { interface_operation_fingerprint(context, operation) })
     .join(",")
-  "effect \{effect.name}[\{type_parameters}]{\{operations}}"
+  let flavor = match effect.flavor {
+    Algebraic => "effect"
+    External => "external effect"
+  }
+  "\{flavor} \{effect.name}[\{type_parameters}]{\{operations}}"
 }
 
 ///|

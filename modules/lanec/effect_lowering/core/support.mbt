@@ -4,18 +4,39 @@ pub fn effect_has_parameter(effect : @buslane.Effect) -> Bool {
 }
 
 ///|
-pub fn is_mon_effect(effect : @buslane.Effect) -> Bool {
+pub fn is_mon_effect(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+) -> Bool {
   effect_terms(effect).any(term => {
-    term is Parameter(_) || term is Singleton(_, _)
+    match term {
+      Parameter(_) => true
+      Singleton(effect_id, _) =>
+        metadata
+        .effect_info(effect_id)
+        .map_or(true, fn(info) {
+          info.flavor is @buslane.EffectFlavor::Algebraic
+        })
+      _ => false
+    }
   })
 }
 
 ///|
-pub fn mon_effect_part(effect : @buslane.Effect) -> @buslane.Effect {
+pub fn mon_effect_part(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+) -> @buslane.Effect {
   @buslane.Effect::Union(
     effect_terms(effect).filter(fn(term) {
       match term {
         Io => false
+        Singleton(effect_id, _) =>
+          metadata
+          .effect_info(effect_id)
+          .map_or(true, fn(info) {
+            info.flavor is @buslane.EffectFlavor::Algebraic
+          })
         _ => true
       }
     }),
@@ -23,12 +44,23 @@ pub fn mon_effect_part(effect : @buslane.Effect) -> @buslane.Effect {
 }
 
 ///|
-pub fn residual_effect_part(effect : @buslane.Effect) -> @buslane.Effect {
-  if effect_terms(effect).any(term => term is Io) {
-    Io
-  } else {
-    Empty
-  }
+pub fn residual_effect_part(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+) -> @buslane.Effect {
+  @buslane.Effect::Union(
+    effect_terms(effect).filter(fn(term) {
+      match term {
+        Io => true
+        Singleton(effect_id, _) =>
+          match metadata.effect_info(effect_id) {
+            Some(info) => info.flavor is @buslane.EffectFlavor::External
+            None => false
+          }
+        _ => false
+      }
+    }),
+  ).canonicalize()
 }
 
 ///|

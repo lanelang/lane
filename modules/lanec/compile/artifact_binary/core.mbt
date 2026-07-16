@@ -270,7 +270,7 @@ fn decode_module_interface_artifact_payload(
 ) -> @module_compile.ModuleInterfaceArtifact raise {
   let reader = @bytecodec.ByteReader::from_bytes(payload)
   let schema_version = reader.read_u32_le_int()
-  if schema_version != 1 {
+  if schema_version != @module_compile.module_interface_artifact_schema_version {
     raise UnsupportedArtifactSchema(kind="interface", version=schema_version)
   }
   let artifact : @module_compile.ModuleInterfaceArtifact = {

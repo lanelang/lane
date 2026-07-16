@@ -1,5 +1,5 @@
 ///|
-let buslane_codec_version = 1
+let buslane_codec_version = 2
 
 ///|
 pub suberror BuslaneDecodeError {
@@ -81,6 +81,7 @@ fn @bytecodec.ByteWriter::write_type_infos(
   self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
+    self.write_type_flavor(item.flavor)
     self.write_type_parameter_ids(item.parameters)
     self.write_data_con_ids(item.constructors)
   }
@@ -94,6 +95,7 @@ fn @bytecodec.ByteReader::read_type_infos(
   for _ in 0..<read_u32_le(self) {
     items.push({
       name: self.read_buslane_name(),
+      flavor: self.read_type_flavor(),
       parameters: self.read_type_parameter_ids(),
       constructors: self.read_data_con_ids(),
     })
@@ -190,6 +192,7 @@ fn @bytecodec.ByteWriter::write_effect_infos(
   self.write_u32_le_int(items.length())
   for item in items {
     self.write_buslane_name(item.name)
+    self.write_effect_flavor(item.flavor)
     self.write_type_parameter_ids(item.parameters)
     self.write_operation_ids(item.operations)
   }
@@ -203,11 +206,78 @@ fn @bytecodec.ByteReader::read_effect_infos(
   for _ in 0..<read_u32_le(self) {
     items.push({
       name: self.read_buslane_name(),
+      flavor: self.read_effect_flavor(),
       parameters: self.read_type_parameter_ids(),
       operations: self.read_operation_ids(),
     })
   }
   items
+}
+
+///|
+fn @bytecodec.ByteWriter::write_type_flavor(
+  self : @bytecodec.ByteWriter,
+  flavor : TypeFlavor,
+) -> Unit {
+  self.write_u8(
+    match flavor {
+      Data => 0
+      External => 1
+    },
+  )
+}
+
+///|
+fn @bytecodec.ByteReader::read_type_flavor(
+  self : @bytecodec.ByteReader,
+) -> TypeFlavor raise BuslaneDecodeError {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Data
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      External
+    }
+    [u8be(tag), ..] =>
+      invalid_tag(offset~, domain="TypeFlavor", tag=tag.reinterpret_as_int())
+    [] => unexpected_u8(self, offset~)
+  }
+}
+
+///|
+fn @bytecodec.ByteWriter::write_effect_flavor(
+  self : @bytecodec.ByteWriter,
+  flavor : EffectFlavor,
+) -> Unit {
+  self.write_u8(
+    match flavor {
+      Algebraic => 0
+      External => 1
+    },
+  )
+}
+
+///|
+fn @bytecodec.ByteReader::read_effect_flavor(
+  self : @bytecodec.ByteReader,
+) -> EffectFlavor raise BuslaneDecodeError {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Algebraic
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      External
+    }
+    [u8be(tag), ..] =>
+      invalid_tag(offset~, domain="EffectFlavor", tag=tag.reinterpret_as_int())
+    [] => unexpected_u8(self, offset~)
+  }
 }
 
 ///|

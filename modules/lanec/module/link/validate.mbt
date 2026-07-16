@@ -298,6 +298,7 @@ fn interface_type_name(type_ : @module_interface.ModuleInterfaceType) -> String 
   match type_ {
     Struct(declaration) => declaration.name
     Enum(declaration) => declaration.name
+    External(declaration) => declaration.name
   }
 }
 
@@ -308,6 +309,7 @@ fn interface_type_constructors(
   match type_ {
     Struct(declaration) => [declaration.name]
     Enum(declaration) => declaration.variants.map(fn(variant) { variant.name })
+    External(_) => []
   }
 }
 
@@ -321,6 +323,7 @@ fn interface_type_field_selectors(
         field_selector_export_name(declaration.name, field.name)
       })
     Enum(_) => []
+    External(_) => []
   }
 }
 

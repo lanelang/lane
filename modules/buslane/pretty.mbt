@@ -151,7 +151,11 @@ pub impl @prettyprinter.Pretty for ValueKind with fn pretty(kind : ValueKind) {
 
 ///|
 pub impl @prettyprinter.Pretty for TypeInfo with fn pretty(info : TypeInfo) {
-  text("type") +
+  (if info.flavor is External {
+    text("external") + space + text("type")
+  } else {
+    text("type")
+  }) +
   space +
   info.name.pretty() +
   type_parameters_doc(info.parameters) +
@@ -200,7 +204,11 @@ pub impl @prettyprinter.Pretty for DataConInfo with fn pretty(
 
 ///|
 pub impl @prettyprinter.Pretty for EffectInfo with fn pretty(info : EffectInfo) {
-  text("effect") +
+  (if info.flavor is External {
+    text("external") + space + text("effect")
+  } else {
+    text("effect")
+  }) +
   space +
   info.name.pretty() +
   type_parameters_doc(info.parameters) +
@@ -587,7 +595,11 @@ fn type_declaration(
   _id : TypeId,
   info : TypeInfo,
 ) -> Document {
-  text("type") +
+  (if info.flavor is External {
+    text("external") + space + text("type")
+  } else {
+    text("type")
+  }) +
   space +
   info.name.pretty() +
   type_parameters_doc(info.parameters) +
@@ -643,7 +655,11 @@ fn effect_declaration(
   _id : EffectId,
   info : EffectInfo,
 ) -> Document {
-  text("effect") +
+  (if info.flavor is External {
+    text("external") + space + text("effect")
+  } else {
+    text("effect")
+  }) +
   space +
   info.name.pretty() +
   type_parameters_doc(info.parameters) +

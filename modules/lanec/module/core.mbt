@@ -18,6 +18,14 @@ pub(all) struct ModuleInterface {
 pub(all) enum ModuleInterfaceType {
   Struct(ModuleInterfaceStruct)
   Enum(ModuleInterfaceEnum)
+  External(ModuleInterfaceExternalType)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleInterfaceExternalType {
+  symbol : TypeSymbolId
+  name : String
+  loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|
@@ -72,6 +80,7 @@ pub(all) struct ModuleInterfaceVariant {
 pub(all) struct ModuleInterfaceEffect {
   symbol : EffectSymbolId
   name : String
+  flavor : @symbol.EffectFlavor
   type_parameters : Array[@types.TypeParameter]
   operations : Array[ModuleInterfaceOperation]
   loc : SourceSpan

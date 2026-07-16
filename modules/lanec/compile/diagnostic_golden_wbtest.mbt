@@ -108,7 +108,7 @@ test "golden unsupported extern type diagnostic is specific" {
     diagnostic, "E3029", "extern `host` has an unsupported type",
   )
   assert_single_help(
-    diagnostic, "change the declaration to a supported primitive function signature",
+    diagnostic, "change the declaration to a supported direct host function signature",
   )
 }
 

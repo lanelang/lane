@@ -90,3 +90,34 @@ test "residual effect erasure preserves extern call structure" {
   )
   assert_true(@buslane.verify_program(erased).is_ok())
 }
+
+///|
+test "residual effect erasure clears external effect rows at its boundary" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let vector_op = metadata.define_effect(
+    "VectorOp",
+    [],
+    flavor=@buslane.EffectFlavor::External,
+  )
+  let vector_get = metadata.define_value(
+    "vector_get",
+    External,
+    Function([Primitive(Int)], Primitive(Int), Singleton(vector_op, [])),
+  )
+  let erased = erase_residual_effects({
+    metadata,
+    terms: [External(vector_get)],
+  })
+  debug_inspect(
+    (
+      erased.metadata.effect_info(vector_op).map(info => info.flavor),
+      erased.metadata.value_info(vector_get).map(info => info.type_),
+    ),
+    content=(
+      #|(
+      #|  Some(External),
+      #|  Some(Function([Primitive(Int)], Primitive(Int), Empty)),
+      #|)
+    ),
+  )
+}

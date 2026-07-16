@@ -14,6 +14,7 @@ fn rewrite_cps_source_metadata(
     let info = schema.metadata.types[index]
     schema.metadata.types[index] = {
       name: info.name,
+      flavor: info.flavor,
       parameters: info.parameters,
       constructors: info.constructors,
     }

@@ -70,6 +70,48 @@ test "buslane text roundtrips function call program" {
 }
 
 ///|
+test "buslane text roundtrips external metadata flavors" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let type_parameter = metadata.define_type_parameter("A", Type)
+  let fd_type = metadata.define_type(
+    "Fd",
+    [],
+    flavor=@buslane.TypeFlavor::External,
+  )
+  let vector_op = metadata.define_effect(
+    "VectorOp",
+    [type_parameter],
+    flavor=@buslane.EffectFlavor::External,
+  )
+  let program = @buslane.Program::{ metadata, terms: [] }
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
+  inspect(
+    text,
+    content=(
+      #|buslane {
+      #|  metadata {
+      #|    external type type#0 name "Fd" unique 1 parameters [] constructors [];
+      #|    type_parameter tparam#0 name "A" unique 0 : Type;
+      #|    external effect effect#0 name "VectorOp" unique 2 parameters [tparam#0] operations [];
+      #|  }
+      #|}
+    ),
+  )
+  let decoded = match parse_program_text(text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + text)
+  }
+  assert_program_equal(decoded, program)
+  debug_inspect(
+    (
+      decoded.metadata.type_info(fd_type).map(info => info.flavor),
+      decoded.metadata.effect_info(vector_op).map(info => info.flavor),
+    ),
+    content="(Some(External), Some(External))",
+  )
+}
+
+///|
 test "buslane text roundtrips standalone type" {
   let type_ : @buslane.Type = Forall(
     [{ index: 0 }],

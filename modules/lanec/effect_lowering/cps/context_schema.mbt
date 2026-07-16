@@ -222,8 +222,8 @@ fn DictionaryCpsSchema::rewrite_type(
         self.rewrite_type(parameter)
       })
       let rewritten_result = self.rewrite_type(result)
-      let residual_effect = residual_effect_part(effect)
-      if !is_mon_effect(effect) {
+      let residual_effect = residual_effect_part(self.metadata, effect)
+      if !is_mon_effect(self.metadata, effect) {
         Function(rewritten_parameters, rewritten_result, residual_effect)
       } else {
         let answer_parameter = self.metadata.define_type_parameter(
@@ -272,8 +272,8 @@ fn DictionaryCpsSchema::context_argument_types(
   effect : @buslane.Effect,
   answer_type : @buslane.Type,
 ) -> Array[@buslane.Type] raise SynthesisError {
-  let residual_effect = residual_effect_part(effect)
-  effect_terms(mon_effect_part(effect)).map(term => {
+  let residual_effect = residual_effect_part(self.metadata, effect)
+  effect_terms(mon_effect_part(self.metadata, effect)).map(term => {
     self.context_term_type(term, answer_type, residual_effect)
   })
 }

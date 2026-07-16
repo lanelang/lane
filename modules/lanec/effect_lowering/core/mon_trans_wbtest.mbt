@@ -43,17 +43,44 @@ test "mon-trans keeps Io calls direct" {
 test "mon effect classification separates Io from handled effects" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let handled = metadata.define_effect("Handled", [])
+  let external = metadata.define_effect(
+    "External",
+    [],
+    flavor=@buslane.EffectFlavor::External,
+  )
   let effect_parameter = metadata.define_type_parameter("E", Effect)
-  assert_false(is_mon_effect(Empty))
-  assert_false(is_mon_effect(Io))
-  assert_true(is_mon_effect(Singleton(handled, [])))
-  assert_true(is_mon_effect(Parameter(effect_parameter)))
-  assert_true(is_mon_effect(Union([Io, Singleton(handled, [])])))
+  assert_false(is_mon_effect(metadata, Empty))
+  assert_false(is_mon_effect(metadata, Io))
+  assert_false(is_mon_effect(metadata, Singleton(external, [])))
+  assert_true(is_mon_effect(metadata, Singleton(handled, [])))
+  assert_true(is_mon_effect(metadata, Parameter(effect_parameter)))
+  assert_true(
+    is_mon_effect(
+      metadata,
+      Union([Io, Singleton(external, []), Singleton(handled, [])]),
+    ),
+  )
   assert_eq(
-    mon_effect_part(Union([Io, Singleton(handled, [])])),
+    mon_effect_part(
+      metadata,
+      Union([Io, Singleton(external, []), Singleton(handled, [])]),
+    ),
     Singleton(handled, []),
   )
-  assert_eq(residual_effect_part(Union([Io, Singleton(handled, [])])), Io)
+  assert_eq(
+    residual_effect_part(
+      metadata,
+      Union([Io, Singleton(external, []), Singleton(handled, [])]),
+    ),
+    Union([Io, Singleton(external, [])]),
+  )
+  debug_inspect(
+    (
+      metadata.effect_info(handled).map(info => info.flavor),
+      metadata.effect_info(external).map(info => info.flavor),
+    ),
+    content="(Some(Algebraic), Some(External))",
+  )
 }
 
 ///|

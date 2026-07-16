@@ -114,6 +114,15 @@ fn append_interface_declarations(
         }
         types.push(Enum(checked))
       }
+      External(declaration) =>
+        types.push(
+          External({
+            is_public: true,
+            symbol: declaration.symbol,
+            name: declaration.name,
+            loc: declaration.loc,
+          }),
+        )
     }
   }
   for effect in interface.effects {
@@ -188,7 +197,7 @@ fn interface_effect_declaration(
     is_public: true,
     symbol: declaration.symbol,
     name: declaration.name,
-    flavor: @symbol.EffectFlavor::Algebraic,
+    flavor: declaration.flavor,
     type_parameters: declaration.type_parameters,
     operations: declaration.operations.map(fn(operation) {
       {

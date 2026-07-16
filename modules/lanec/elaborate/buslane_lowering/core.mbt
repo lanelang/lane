@@ -272,6 +272,16 @@ fn BuslaneLowerer::module_exports(
           })
         }
       }
+      ExternalType(declaration) if declaration.is_public =>
+        exports.push({
+          kind: Type,
+          name: declaration.name,
+          type_id: Some(self.type_id(declaration.symbol)),
+          data_constructor: None,
+          effect_id: None,
+          operation: None,
+          value: None,
+        })
       Effect(declaration) if declaration.is_public => {
         exports.push({
           kind: Effect,

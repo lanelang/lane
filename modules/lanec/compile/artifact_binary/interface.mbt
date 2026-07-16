@@ -71,6 +71,12 @@ fn @bytecodec.ByteWriter::write_module_interface_type(
       self.write_variants(declaration.variants)
       self.write_source_span(declaration.loc)
     }
+    External(declaration) => {
+      self.write_u8(2)
+      self.write_type_symbol_id(declaration.symbol)
+      self.write_string(declaration.name)
+      self.write_source_span(declaration.loc)
+    }
   }
 }
 
@@ -98,6 +104,14 @@ fn @bytecodec.ByteReader::read_module_interface_type(
         name: self.read_string(),
         type_parameters: self.read_type_parameters(),
         variants: self.read_variants(),
+        loc: self.read_source_span(),
+      })
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      External({
+        symbol: self.read_type_symbol_id(),
+        name: self.read_string(),
         loc: self.read_source_span(),
       })
     }
@@ -222,6 +236,7 @@ fn @bytecodec.ByteWriter::write_module_interface_effects(
   for item in items {
     self.write_effect_symbol_id(item.symbol)
     self.write_string(item.name)
+    self.write_interface_effect_flavor(item.flavor)
     self.write_type_parameters(item.type_parameters)
     self.write_module_interface_operations(item.operations)
     self.write_source_span(item.loc)
@@ -237,12 +252,52 @@ fn @bytecodec.ByteReader::read_module_interface_effects(
     items.push({
       symbol: self.read_effect_symbol_id(),
       name: self.read_string(),
+      flavor: self.read_interface_effect_flavor(),
       type_parameters: self.read_type_parameters(),
       operations: self.read_module_interface_operations(),
       loc: self.read_source_span(),
     })
   }
   items
+}
+
+///|
+fn @bytecodec.ByteWriter::write_interface_effect_flavor(
+  self : @bytecodec.ByteWriter,
+  flavor : @symbol.EffectFlavor,
+) -> Unit {
+  self.write_u8(
+    match flavor {
+      Algebraic => 0
+      External => 1
+    },
+  )
+}
+
+///|
+fn @bytecodec.ByteReader::read_interface_effect_flavor(
+  self : @bytecodec.ByteReader,
+) -> @symbol.EffectFlavor raise {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Algebraic
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      External
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="EffectFlavor",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
+  }
 }
 
 ///|

@@ -11,7 +11,7 @@ fn lower_cps_direct_install(
   install : InstallExpr,
 ) -> Expr raise SynthesisError {
   let facts = synthesize_expr_or_raise(program.metadata, Install(install))
-  if is_mon_effect(facts.effect) {
+  if is_mon_effect(program.metadata, facts.effect) {
     raise MissingEffectContext(facts.effect)
   }
   let result_type = schema.rewrite_type(install.result_type)

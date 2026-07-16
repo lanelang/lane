@@ -242,6 +242,11 @@ fn ArtifactInspectContext::from_interface(
           context.add_type_parameters(variant.type_parameters)
         }
       }
+      External(declaration) =>
+        context.types.push({
+          type_symbol: declaration.symbol,
+          type_name: declaration.name,
+        })
     }
   }
   for effect in interface.effects {
@@ -363,6 +368,7 @@ fn ArtifactInspectContext::interface_type_text(
   match type_ {
     Struct(declaration) => self.struct_text(declaration)
     Enum(declaration) => self.enum_text(declaration)
+    External(declaration) => "pub extern type \{declaration.name} : Type"
   }
 }
 
@@ -415,7 +421,16 @@ fn ArtifactInspectContext::interface_effect_text(
   let operations = effect.operations.map(fn(operation) {
     self.operation_text(operation)
   })
-  "pub effect \{effect.name}\{self.type_parameters_suffix(effect.type_parameters)} { \{operations.join("; ")} }"
+  let header = if effect.flavor is @symbol.EffectFlavor::External {
+    "pub extern type \{effect.name}\{self.type_parameters_suffix(effect.type_parameters)} : Effect"
+  } else {
+    "pub effect \{effect.name}\{self.type_parameters_suffix(effect.type_parameters)}"
+  }
+  if effect.flavor is @symbol.EffectFlavor::External {
+    header
+  } else {
+    "\{header} { \{operations.join("; ")} }"
+  }
 }
 
 ///|

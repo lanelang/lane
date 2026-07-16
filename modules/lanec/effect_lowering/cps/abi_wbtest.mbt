@@ -59,6 +59,57 @@ test "selective CPS keeps Io-only definitions and calls direct" {
 }
 
 ///|
+test "selective CPS keeps external-effect definitions and calls direct" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let vector_op = metadata.define_effect(
+    "VectorOp",
+    [],
+    flavor=@buslane.EffectFlavor::External,
+  )
+  let effect = @buslane.Effect::Singleton(vector_op, [])
+  let vector_get = metadata.define_value(
+    "vector_get",
+    External,
+    Function([Primitive(Int)], Primitive(Int), effect),
+  )
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], Primitive(Int), effect),
+  )
+  let input = Program::{
+    metadata,
+    terms: [
+      External(vector_get),
+      LetRec([
+        {
+          id: main,
+          rhs: Function({
+            parameters: [],
+            result_type: Primitive(Int),
+            body: Call(Ref(vector_get), [Literal(Int(0L))]),
+          }),
+        },
+      ]),
+    ],
+  }
+  let output = rewrite_test_program(input)
+  assert_eq(output, input)
+  debug_inspect(
+    (
+      output.metadata.effect_info(vector_op).map(info => info.flavor),
+      output.metadata.value_info(main).map(info => info.type_),
+    ),
+    content=(
+      #|(
+      #|  Some(External),
+      #|  Some(Function([], Primitive(Int), Singleton({ index: 0 }, []))),
+      #|)
+    ),
+  )
+}
+
+///|
 test "selective CPS preserves Io on mixed callable and continuation types" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let handled = metadata.define_effect("Handled", [])

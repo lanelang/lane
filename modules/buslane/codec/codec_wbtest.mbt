@@ -4,6 +4,11 @@ test "program binary codec roundtrips core structures" {
   let effect_param = metadata.define_type_parameter("E", Effect)
   let type_param = metadata.define_type_parameter("A", Type)
   let box_type = metadata.define_type("Box", [type_param])
+  let fd_type = metadata.define_type(
+    "Fd",
+    [],
+    flavor=@buslane.TypeFlavor::External,
+  )
   let box_con = metadata.define_data_constructor(
     "box",
     box_type,
@@ -11,6 +16,11 @@ test "program binary codec roundtrips core structures" {
     [Parameter(type_param)],
   )
   let async_effect = metadata.define_effect("Async", [effect_param])
+  let vector_op = metadata.define_effect(
+    "VectorOp",
+    [type_param],
+    flavor=@buslane.EffectFlavor::External,
+  )
   let await_op = metadata.define_operation(
     "await",
     async_effect,
@@ -94,6 +104,13 @@ test "program binary codec roundtrips core structures" {
   }
   let decoded = decode_program(encode_program(program))
   assert_true(decoded == program)
+  debug_inspect(
+    (
+      decoded.metadata.type_info(fd_type).map(info => info.flavor),
+      decoded.metadata.effect_info(vector_op).map(info => info.flavor),
+    ),
+    content="(Some(External), Some(External))",
+  )
 }
 
 ///|
@@ -132,7 +149,7 @@ test "program decoder rejects trailing bytes" {
 ///|
 test "program decoder rejects invalid top term tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(1) // codec version
+  writer.write_u32_le_int(2) // codec version
   writer.write_u32_le_int(0) // metadata next_unique
   writer.write_u32_le_int(0) // types
   writer.write_u32_le_int(0) // type parameters

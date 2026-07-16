@@ -33,8 +33,8 @@ fn build_residual_computation_schema(
   effect : @buslane.Effect,
   result_type : @buslane.Type,
 ) -> ResidualComputationSchema raise SynthesisError {
-  let canonical = mon_effect_part(effect)
-  let residual_effect = residual_effect_part(effect)
+  let canonical = mon_effect_part(schema.metadata, effect)
+  let residual_effect = residual_effect_part(schema.metadata, effect)
   let rewritten_result = schema.rewrite_type(result_type)
   if canonical == Empty {
     {

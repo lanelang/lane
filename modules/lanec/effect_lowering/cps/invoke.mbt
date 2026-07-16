@@ -18,7 +18,10 @@ fn lower_cps_invoke(
     invoke.effect_arguments,
   )
   let dictionary_expression = find_cps_context(environment, term)
-  let residual_effect = residual_effect_part(environment.effect)
+  let residual_effect = residual_effect_part(
+    program.metadata,
+    environment.effect,
+  )
   let dictionary_type = schema.context_term_type(
     term, answer_type, residual_effect,
   )

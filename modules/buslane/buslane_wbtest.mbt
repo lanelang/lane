@@ -133,6 +133,7 @@ test "buslane metadata owns effect operation shape" {
     content=(
       #|{
       #|  name: { name_space: EffectName, occurrence: "Effect", unique: { value: 2 } },
+      #|  flavor: Algebraic,
       #|  parameters: [{ index: 0 }],
       #|  operations: [{ index: 0 }, { index: 1 }],
       #|}

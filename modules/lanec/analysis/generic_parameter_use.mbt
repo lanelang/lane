@@ -79,16 +79,17 @@ fn GenericParameterUseCollector::collect_declaration(
         }
       }
     }
-    Effect(declaration) => {
-      self.add_parameters(declaration.type_parameters)
-      for operation in declaration.operations {
-        self.add_parameters(operation.type_parameters)
-        for payload in operation.payload {
-          self.collect_type(payload)
+    Effect(declaration) =>
+      if declaration.flavor is @symbol.EffectFlavor::Algebraic {
+        self.add_parameters(declaration.type_parameters)
+        for operation in declaration.operations {
+          self.add_parameters(operation.type_parameters)
+          for payload in operation.payload {
+            self.collect_type(payload)
+          }
+          self.collect_type(operation.result)
         }
-        self.collect_type(operation.result)
       }
-    }
     ExternalType(declaration) =>
       self.add_parameters(declaration.type_parameters)
     TypeAlias(declaration) => {

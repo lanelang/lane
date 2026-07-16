@@ -79,6 +79,24 @@ fn BuslaneLowerer::seed_imported_type_header(
         value: None,
       })
     }
+    External(declaration) => {
+      let target = self.metadata.define_type(
+        declaration.name,
+        [],
+        flavor=@buslane.TypeFlavor::External,
+      )
+      ignore(self.registry.register_type(declaration.symbol, target))
+      self.imports.push({
+        module_path_text,
+        kind: Type,
+        name: declaration.name,
+        type_id: Some(target),
+        data_constructor: None,
+        effect_id: None,
+        operation: None,
+        value: None,
+      })
+    }
   }
 }
 
@@ -158,6 +176,7 @@ fn BuslaneLowerer::seed_imported_type_constructors(
         })
       }
     }
+    External(_) => ()
   }
 }
 
@@ -222,7 +241,11 @@ fn BuslaneLowerer::seed_imported_effect_header(
   let parameters = effect.type_parameters.map(fn(parameter) {
     self.define_type_parameter(parameter)
   })
-  let target = self.metadata.define_effect(effect.name, parameters)
+  let flavor = match effect.flavor {
+    @symbol.EffectFlavor::Algebraic => @buslane.EffectFlavor::Algebraic
+    @symbol.EffectFlavor::External => @buslane.EffectFlavor::External
+  }
+  let target = self.metadata.define_effect(effect.name, parameters, flavor~)
   ignore(self.registry.register_effect(effect.symbol, target))
   self.imports.push({
     module_path_text,

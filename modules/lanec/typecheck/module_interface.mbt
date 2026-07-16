@@ -44,6 +44,14 @@ fn SemanticChecker::interface_type(
       }
       Some(Enum(interface_enum(declaration)))
     }
+    ExternalType(declaration) if declaration.is_public =>
+      Some(
+        External({
+          symbol: declaration.symbol,
+          name: declaration.name,
+          loc: declaration.loc,
+        }),
+      )
     _ => None
   }
 }
@@ -77,6 +85,7 @@ fn interface_effect(
   {
     symbol: declaration.symbol,
     name: declaration.name,
+    flavor: declaration.flavor,
     type_parameters: declaration.type_parameters,
     operations: declaration.operations.map(interface_operation),
     loc: declaration.loc,

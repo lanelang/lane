@@ -131,6 +131,11 @@ test "context types cover empty singleton and ordered unions" {
 test "type rewriting preserves residual effects and rewrites monadic effects" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let handled = metadata.define_effect("Handled", [])
+  let external = metadata.define_effect(
+    "External",
+    [],
+    flavor=@buslane.EffectFlavor::External,
+  )
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let companion = schema.companion_parameter(effect_parameter)
@@ -141,6 +146,12 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   assert_eq(
     schema.rewrite_type(Function([Primitive(String)], Primitive(Unit), Io)),
     Function([Primitive(String)], Primitive(Unit), Io),
+  )
+  assert_eq(
+    schema.rewrite_type(
+      Function([Primitive(Int)], Primitive(Int), Singleton(external, [])),
+    ),
+    Function([Primitive(Int)], Primitive(Int), Singleton(external, [])),
   )
   let mixed = schema.rewrite_type(
     Function(
