@@ -61,11 +61,7 @@ test "selective CPS keeps Io-only definitions and calls direct" {
 ///|
 test "selective CPS keeps external-effect definitions and calls direct" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let vector_op = metadata.define_effect(
-    "VectorOp",
-    [],
-    flavor=@buslane.EffectFlavor::External,
-  )
+  let vector_op = metadata.define_effect("VectorOp", [], flavor=External)
   let effect = @buslane.Effect::Singleton(vector_op, [])
   let vector_get = metadata.define_value(
     "vector_get",

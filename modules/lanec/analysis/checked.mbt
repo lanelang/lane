@@ -808,7 +808,7 @@ fn checked_effect_detail(
     declaration.type_parameters,
     display,
   )
-  if declaration.flavor is @symbol.EffectFlavor::External {
+  if declaration.flavor is External {
     "extern type \{declaration.name}\{parameters} : Effect"
   } else {
     "effect \{declaration.name}\{parameters}"

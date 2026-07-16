@@ -259,7 +259,7 @@ test "resolve module-qualified effect alias references" {
           {
             symbol: console,
             name: "Console",
-            flavor: @symbol.EffectFlavor::Algebraic,
+            flavor: Algebraic,
             type_parameters: [],
             operations: [],
             loc: @basic.SourceSpan::dummy(),

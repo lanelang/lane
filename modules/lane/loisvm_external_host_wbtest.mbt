@@ -32,9 +32,7 @@ fn external_counter_registry(
         }
         finalized.val += 1
       }),
-      invoke=fn(_context, _arguments) {
-        ExternalCounter::{ value: 0L, closed: false }
-      },
+      invoke=fn(_context, _arguments) { { value: 0L, closed: false } },
     ),
   )
   registry.register(
@@ -52,9 +50,7 @@ fn external_counter_registry(
       result=@loisvm_runtime.HostResult::int(),
       invoke=(_context, arguments : (ExternalCounter, Int64)) => {
         if arguments.0.closed {
-          raise @loisvm_runtime.RuntimeImportFailure::Failure(
-            message="counter is closed",
-          )
+          raise Failure(message="counter is closed")
         }
         arguments.0.value += arguments.1
         arguments.0.value
@@ -82,9 +78,7 @@ fn external_counter_registry(
       result=@loisvm_runtime.HostResult::unit(),
       invoke=(_context, counter : ExternalCounter) => {
         if counter.closed {
-          raise @loisvm_runtime.RuntimeImportFailure::Failure(
-            message="counter is already closed",
-          )
+          raise Failure(message="counter is already closed")
         }
         counter.closed = true
         closed.val += 1

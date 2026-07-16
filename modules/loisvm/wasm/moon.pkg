@@ -15,4 +15,8 @@ import {
   "moonbitlang/core/encoding/utf8",
 }
 
+import {
+  "Milky2018/wasmoon/wat",
+} for "test"
+
 supported_targets = "native"

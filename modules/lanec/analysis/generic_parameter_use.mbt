@@ -80,7 +80,7 @@ fn GenericParameterUseCollector::collect_declaration(
       }
     }
     Effect(declaration) =>
-      if declaration.flavor is @symbol.EffectFlavor::Algebraic {
+      if declaration.flavor is Algebraic {
         self.add_parameters(declaration.type_parameters)
         for operation in declaration.operations {
           self.add_parameters(operation.type_parameters)

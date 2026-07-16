@@ -244,10 +244,7 @@ fn readme_counter_registry(
         }
         finalized.val += 1
       }),
-      invoke=(_context, _arguments) => ReadmeCounter::{
-        value: 0L,
-        closed: false,
-      },
+      invoke=(_context, _arguments) => { value: 0L, closed: false },
     ),
   )
   registry.register(
@@ -261,9 +258,7 @@ fn readme_counter_registry(
       result=@runtime.HostResult::int(),
       invoke=(_context, arguments : (ReadmeCounter, Int64)) => {
         if arguments.0.closed {
-          raise @runtime.RuntimeImportFailure::Failure(
-            message="counter is closed",
-          )
+          raise Failure(message="counter is closed")
         }
         arguments.0.value += arguments.1
         arguments.0.value
@@ -289,9 +284,7 @@ fn readme_counter_registry(
       result=@runtime.HostResult::unit(),
       invoke=(_context, counter : ReadmeCounter) => {
         if counter.closed {
-          raise @runtime.RuntimeImportFailure::Failure(
-            message="counter is already closed",
-          )
+          raise Failure(message="counter is already closed")
         }
         counter.closed = true
         closed.val += 1

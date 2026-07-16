@@ -31,11 +31,7 @@ fn SemanticChecker::check_checked_expr(
     Extern(name, loc~) => self.check_extern_binding(name, expected, loc)
     ErrorRecovery(loc~) =>
       checked_expression(
-        @checked.CheckedExpr::CompilerIntrinsic(
-          name="%contextual_error",
-          type_=expected,
-          loc~,
-        ),
+        CompilerIntrinsic(name="%contextual_error", type_=expected, loc~),
         expected,
       )
     Literal(..) | Field(..) => {

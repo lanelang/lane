@@ -2,8 +2,16 @@
 fn[A, B] unchecked_host_cast(_value : A) -> B = "%identity"
 
 ///|
+#cfg(target="native")
+priv type ErasedHostReference
+
+///|
+#cfg(not(target="native"))
+type ErasedHostReference = Ref[Unit]
+
+///|
 priv struct ErasedHostPayload {
-  value : Ref[Unit]
+  value : ErasedHostReference
 }
 
 ///|

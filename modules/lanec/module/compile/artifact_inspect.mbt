@@ -421,12 +421,12 @@ fn ArtifactInspectContext::interface_effect_text(
   let operations = effect.operations.map(fn(operation) {
     self.operation_text(operation)
   })
-  let header = if effect.flavor is @symbol.EffectFlavor::External {
+  let header = if effect.flavor is External {
     "pub extern type \{effect.name}\{self.type_parameters_suffix(effect.type_parameters)} : Effect"
   } else {
     "pub effect \{effect.name}\{self.type_parameters_suffix(effect.type_parameters)}"
   }
-  if effect.flavor is @symbol.EffectFlavor::External {
+  if effect.flavor is External {
     header
   } else {
     "\{header} { \{operations.join("; ")} }"

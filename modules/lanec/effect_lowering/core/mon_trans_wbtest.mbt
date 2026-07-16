@@ -43,11 +43,7 @@ test "mon-trans keeps Io calls direct" {
 test "mon effect classification separates Io from handled effects" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let handled = metadata.define_effect("Handled", [])
-  let external = metadata.define_effect(
-    "External",
-    [],
-    flavor=@buslane.EffectFlavor::External,
-  )
+  let external = metadata.define_effect("External", [], flavor=External)
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   assert_false(is_mon_effect(metadata, Empty))
   assert_false(is_mon_effect(metadata, Io))

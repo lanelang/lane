@@ -15,10 +15,7 @@ fn SemanticChecker::check_compiler_intrinsic(
       loc,
     })
   }
-  checked_expression(
-    @checked.CheckedExpr::CompilerIntrinsic(name~, type_=actual, loc~),
-    actual,
-  )
+  checked_expression(CompilerIntrinsic(name~, type_=actual, loc~), actual)
 }
 
 ///|
@@ -31,10 +28,7 @@ fn SemanticChecker::synthesize_compiler_intrinsic(
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
-  checked_expression(
-    @checked.CheckedExpr::CompilerIntrinsic(name~, type_~, loc~),
-    type_,
-  )
+  checked_expression(CompilerIntrinsic(name~, type_~, loc~), type_)
 }
 
 ///|
@@ -50,10 +44,7 @@ fn SemanticChecker::check_extern_binding(
       loc,
     })
   }
-  checked_expression(
-    @checked.CheckedExpr::ExternBinding(name~, type_=expected, loc~),
-    expected,
-  )
+  checked_expression(ExternBinding(name~, type_=expected, loc~), expected)
 }
 
 ///|

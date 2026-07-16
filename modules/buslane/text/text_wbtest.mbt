@@ -73,15 +73,11 @@ test "buslane text roundtrips function call program" {
 test "buslane text roundtrips external metadata flavors" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("A", Type)
-  let fd_type = metadata.define_type(
-    "Fd",
-    [],
-    flavor=@buslane.TypeFlavor::External,
-  )
+  let fd_type = metadata.define_type("Fd", [], flavor=External)
   let vector_op = metadata.define_effect(
     "VectorOp",
     [type_parameter],
-    flavor=@buslane.EffectFlavor::External,
+    flavor=External,
   )
   let program = @buslane.Program::{ metadata, terms: [] }
   let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)

@@ -3,6 +3,7 @@ package "Milky2018/lanec/vmcfg"
 
 import {
   "Milky2018/loisvm/bytecode",
+  "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
@@ -54,6 +55,7 @@ pub(all) struct Image {
   object_shapes : Array[@bytecode.ObjectShape]
   constants : Array[Bytes]
 } derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for Image
 
 pub(all) enum Instruction {
   Copy(ValueId, ValueId)

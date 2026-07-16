@@ -4,15 +4,14 @@ fn runtime_import_value_kind(
   type_ : @buslane.Type,
 ) -> @bytecode.RuntimeValueKind? {
   match type_ {
-    Primitive(Unit) => Some(@bytecode.RuntimeValueKind::Unit)
-    Primitive(Bool) => Some(@bytecode.RuntimeValueKind::Bool)
-    Primitive(Int) => Some(@bytecode.RuntimeValueKind::Int)
-    Primitive(Double) => Some(@bytecode.RuntimeValueKind::Double)
-    Primitive(String) => Some(@bytecode.RuntimeValueKind::String)
+    Primitive(Unit) => Some(Unit)
+    Primitive(Bool) => Some(Bool)
+    Primitive(Int) => Some(Int)
+    Primitive(Double) => Some(Double)
+    Primitive(String) => Some(String)
     Constructor(type_id) =>
       match metadata.type_info(type_id) {
-        Some(info) if info.flavor is @buslane.TypeFlavor::External =>
-          Some(@bytecode.RuntimeValueKind::Opaque)
+        Some(info) if info.flavor is External => Some(Opaque)
         _ => None
       }
     _ => None

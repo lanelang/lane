@@ -193,7 +193,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
             stage(
               "vmcfg.initial",
               "VM CFG (Initial Lowering)",
-              to_repr(image).to_string(),
+              @prettyprinter.render(image, width=100),
             ),
           )
       }
@@ -211,7 +211,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     stage(
       "loisvm.bytecode",
       "LoisVM Bytecode (ARC and Slot Finalization)",
-      @bytecode.bytecode_image_to_disassembly(image),
+      @prettyprinter.render(image, width=100),
     ),
   )
   let wasm_module = match @wasm_compiler.compile(image) {
@@ -228,7 +228,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     stage(
       "wasm",
       "Wasm (LoisVM Backend Lowering)",
-      to_repr(wasm_module).to_string(),
+      @wasm_compiler.module_to_wat(wasm_module),
     ),
   )
   {
@@ -254,25 +254,25 @@ fn executable_stage(
       stage(
         "buslane.handlers-elaborated",
         "Buslane (Handler Elaboration)",
-        to_repr(program).to_string(),
+        @prettyprinter.render(program, width=100),
       )
     MonadicTransformed(program) =>
       stage(
         "buslane.monadic",
         "Buslane (Monadic Transformation)",
-        to_repr(program).to_string(),
+        @prettyprinter.render(program, width=100),
       )
     SelectiveCpsRewritten(program) =>
       stage(
         "buslane.selective-cps",
         "Buslane (Selective CPS)",
-        to_repr(program).to_string(),
+        @prettyprinter.render(program, width=100),
       )
     OpenContextsResolved(program) =>
       stage(
         "buslane.open-context-resolved",
         "Buslane (Open Context Resolution)",
-        to_repr(program).to_string(),
+        @prettyprinter.render(program, width=100),
       )
     MonadicContinuationsLifted(program) =>
       buslane_stage("buslane.monadic-lifted", "Buslane (Monadic Lift)", program)

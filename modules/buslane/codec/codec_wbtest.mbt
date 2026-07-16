@@ -4,11 +4,7 @@ test "program binary codec roundtrips core structures" {
   let effect_param = metadata.define_type_parameter("E", Effect)
   let type_param = metadata.define_type_parameter("A", Type)
   let box_type = metadata.define_type("Box", [type_param])
-  let fd_type = metadata.define_type(
-    "Fd",
-    [],
-    flavor=@buslane.TypeFlavor::External,
-  )
+  let fd_type = metadata.define_type("Fd", [], flavor=External)
   let box_con = metadata.define_data_constructor(
     "box",
     box_type,
@@ -19,7 +15,7 @@ test "program binary codec roundtrips core structures" {
   let vector_op = metadata.define_effect(
     "VectorOp",
     [type_param],
-    flavor=@buslane.EffectFlavor::External,
+    flavor=External,
   )
   let await_op = metadata.define_operation(
     "await",

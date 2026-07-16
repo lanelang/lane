@@ -16,6 +16,8 @@ pub fn max_call_depth_global() -> Int
 
 pub fn max_live_heap_bytes_global() -> Int
 
+pub fn module_to_wat(@types.Module) -> String
+
 pub fn physical_runtime_parameters_for_import(@bytecode.RuntimeImport) -> Array[@types.ValueType]
 
 pub fn runtime_import_failed_global() -> Int

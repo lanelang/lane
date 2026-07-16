@@ -537,7 +537,7 @@ test "primitive external functions become runtime imports" {
 ///|
 test "external host types erase to Opaque runtime import kinds" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let fd = metadata.define_type("Fd", [], flavor=@buslane.TypeFlavor::External)
+  let fd = metadata.define_type("Fd", [], flavor=External)
   let fd_type = @buslane.Type::Constructor(fd)
   let unit_type = @buslane.Type::Primitive(Unit)
   let open_type = test_function_type([], fd_type)
@@ -689,14 +689,8 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
 test "runtime imports with equal symbols and distinct kinds remain distinct" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let int_import_type = test_function_type(
-    [@buslane.Type::Primitive(Int)],
-    unit_type,
-  )
-  let bool_import_type = test_function_type(
-    [@buslane.Type::Primitive(Bool)],
-    unit_type,
-  )
+  let int_import_type = test_function_type([Primitive(Int)], unit_type)
+  let bool_import_type = test_function_type([Primitive(Bool)], unit_type)
   let int_import = metadata.define_value(
     "observe_int",
     External,

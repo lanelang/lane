@@ -20,4 +20,5 @@ import {
   "Milky2018/wasm_core@0.1.2",
   "Milky2018/wasmoon@0.7.0",
   "Milky2018/wasmoon_jit@0.2.0",
+  "moonbit-community/prettyprinter@0.4.10",
 }

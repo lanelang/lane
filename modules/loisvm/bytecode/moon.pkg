@@ -1,4 +1,5 @@
 import {
   "Milky2018/bytecodec",
+  "moonbit-community/prettyprinter",
   "moonbitlang/core/encoding/utf8",
 }

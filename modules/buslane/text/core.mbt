@@ -177,7 +177,7 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
   for index in 0..<metadata.types.length() {
     let info = metadata.types[index]
     docs.push(
-      (if info.flavor is @buslane.TypeFlavor::External {
+      (if info.flavor is External {
         text("external") + space + text("type")
       } else {
         text("type")
@@ -255,7 +255,7 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
   for index in 0..<metadata.effects.length() {
     let info = metadata.effects[index]
     docs.push(
-      (if info.flavor is @buslane.EffectFlavor::External {
+      (if info.flavor is External {
         text("external") + space + text("effect")
       } else {
         text("effect")

@@ -2,16 +2,14 @@
 using @prettyprinter {text}
 
 ///|
-pub impl @prettyprinter.Pretty for BytecodeImage with fn pretty(
-  image : BytecodeImage,
-) {
-  text(bytecode_image_to_disassembly(image))
+pub impl @prettyprinter.Pretty for Image with fn pretty(image : Image) {
+  text(image_to_disassembly(image))
 }
 
 ///|
-pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
+fn image_to_disassembly(image : Image) -> String {
   let lines = [
-    "LoisVM bytecode",
+    "VM CFG",
     "entry: \{render_function(image.entry)}",
     "initializer: \{render_optional_function(image.initializer)}",
     "functions: \{image.functions.length()}",
@@ -19,8 +17,8 @@ pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
     "layouts: \{image.layouts.length()}",
     "object shapes: \{image.object_shapes.length()}",
     "constants: \{image.constants.length()}",
+    "",
   ]
-  lines.push("")
   for index, function in image.functions {
     lines.append(render_function_entry(index + 1, function))
     lines.push("")
@@ -73,24 +71,24 @@ fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
         ")",
       ]
     }
-    BytecodeBody(body) => {
+    Body(body) => {
       let lines = [
         "function f\{id}(",
-        "  environment=\{render_optional_slot(body.inputs.environment)},",
-        "  witnesses=[\{render_slots(body.inputs.witnesses)}],",
-        "  parameters=[\{render_slots(body.inputs.user_parameters)}]",
+        "  environment=\{render_optional_value(body.inputs.environment)},",
+        "  witnesses=[\{render_values(body.inputs.witnesses)}],",
+        "  parameters=[\{render_values(body.inputs.user_parameters)}]",
         ") -> \{render_result(body.result)} {",
-        "  slots:",
+        "  values:",
       ]
-      if body.slots.is_empty() {
+      if body.values.is_empty() {
         lines.push("    (none)")
       } else {
-        for index, slot in body.slots {
-          lines.push("    %\{index}: \{render_slot_metadata(slot)}")
+        for index, value in body.values {
+          lines.push("    %v\{index}: \{render_value_metadata(value)}")
         }
       }
       for index, block in body.blocks {
-        lines.push("  b\{index}([\{render_slots(block.parameters)}]):")
+        lines.push("  b\{index}([\{render_values(block.parameters)}]):")
         for instruction in block.instructions {
           lines.push("    \{render_instruction(instruction)}")
         }
@@ -103,65 +101,53 @@ fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
 }
 
 ///|
-fn render_runtime_value_kind(kind : RuntimeValueKind) -> String {
-  match kind {
-    Unit => "unit"
-    Bool => "bool"
-    Int => "int"
-    Double => "double"
-    String => "string"
-    Opaque => "opaque"
-  }
-}
-
-///|
 fn render_instruction(instruction : Instruction) -> String {
   match instruction {
     Copy(destination, source) => unary_instruction("copy", destination, source)
     Move(destination, source) => unary_instruction("move", destination, source)
     RetainCopy(destination, source) =>
       unary_instruction("retain_copy", destination, source)
-    Release(source) => "release \{render_slot(source)}"
+    Release(source) => "release \{render_value(source)}"
     ConstInt(destination, value) =>
-      "const_int \{render_slot(destination)}, \{value}"
+      "const_int \{render_value(destination)}, \{value}"
     ConstDouble(destination, bits) =>
-      "const_double \{render_slot(destination)}, bits=\{bits}"
+      "const_double \{render_value(destination)}, bits=\{bits}"
     ConstBool(destination, value) =>
-      "const_bool \{render_slot(destination)}, \{value}"
+      "const_bool \{render_value(destination)}, \{value}"
     ConstLayout(destination, layout) =>
-      "const_layout \{render_slot(destination)}, \{render_layout(layout)}"
+      "const_layout \{render_value(destination)}, \{render_layout(layout)}"
     ConstFunction(destination, function) =>
-      "const_function \{render_slot(destination)}, \{render_function(function)}"
+      "const_function \{render_value(destination)}, \{render_function(function)}"
     ConstString(destination, constant) =>
-      "const_string \{render_slot(destination)}, \{render_constant(constant)}"
+      "const_string \{render_value(destination)}, \{render_constant(constant)}"
     CallDirect(function, environment, witnesses, arguments, destination) =>
-      "call_direct \{render_optional_destination(destination)}\{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+      "call_direct \{render_optional_destination(destination)}\{render_function(function)} env=\{render_optional_value(environment)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     CallValue(callable, witnesses, arguments, destination) =>
-      "call_value \{render_optional_destination(destination)}\{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+      "call_value \{render_optional_destination(destination)}\{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     MakeData(destination, shape, layout, witnesses, fields) =>
-      "make_data \{render_slot(destination)}, \{render_shape(shape)}, \{render_layout_operand(layout)}, witnesses=[\{render_slots(witnesses)}], fields=[\{render_slots(fields)}]"
+      "make_data \{render_value(destination)}, \{render_shape(shape)}, \{render_layout_operand(layout)}, witnesses=[\{render_values(witnesses)}], fields=[\{render_values(fields)}]"
     LoadTag(destination, source) =>
       unary_instruction("load_tag", destination, source)
     LoadObjectWitness(destination, shape, object, ordinal) =>
-      "load_object_witness \{render_slot(destination)}, \{render_shape(shape)}, \{render_slot(object)}, \{ordinal}"
+      "load_object_witness \{render_value(destination)}, \{render_shape(shape)}, \{render_value(object)}, \{ordinal}"
     BorrowField(shape, source, index, result) =>
-      "borrow_field \{render_projection_result(result)}, \{render_shape(shape)}, \{render_slot(source)}, \{index}"
+      "borrow_field \{render_projection_result(result)}, \{render_shape(shape)}, \{render_value(source)}, \{index}"
     ConsumeFields(shape, source, selections) =>
-      "consume_fields \{render_shape(shape)}, \{render_slot(source)}, [\{render_selections(selections)}]"
+      "consume_fields \{render_shape(shape)}, \{render_value(source)}, [\{render_selections(selections)}]"
     MakeEnv(destination, shape, layout, witnesses, captures) =>
-      "make_env \{render_slot(destination)}, \{render_shape(shape)}, \{render_layout_operand(layout)}, witnesses=[\{render_slots(witnesses)}], captures=[\{render_slots(captures)}]"
+      "make_env \{render_value(destination)}, \{render_shape(shape)}, \{render_layout_operand(layout)}, witnesses=[\{render_values(witnesses)}], captures=[\{render_values(captures)}]"
     BorrowCapture(shape, source, index, result) =>
-      "borrow_capture \{render_projection_result(result)}, \{render_shape(shape)}, \{render_slot(source)}, \{index}"
+      "borrow_capture \{render_projection_result(result)}, \{render_shape(shape)}, \{render_value(source)}, \{index}"
     ConsumeCaptures(shape, source, selections) =>
-      "consume_captures \{render_shape(shape)}, \{render_slot(source)}, [\{render_selections(selections)}]"
+      "consume_captures \{render_shape(shape)}, \{render_value(source)}, [\{render_selections(selections)}]"
     MakeClosure(destination, function, environment) =>
-      "make_closure \{render_slot(destination)}, \{render_function(function)}, \{render_slot(environment)}"
+      "make_closure \{render_value(destination)}, \{render_function(function)}, \{render_value(environment)}"
     StringLength(destination, source) =>
       unary_instruction("string_length", destination, source)
     StringConcat(destination, left, right) =>
       binary_instruction("string_concat", destination, left, right)
     StringSlice(destination, source, start, length) =>
-      "string_slice \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(start)}, \{render_slot(length)}"
+      "string_slice \{render_value(destination)}, \{render_value(source)}, \{render_value(start)}, \{render_value(length)}"
     StringEq(destination, left, right) =>
       binary_instruction("string_eq", destination, left, right)
     IntAdd(destination, left, right) =>
@@ -244,12 +230,12 @@ fn render_instruction(instruction : Instruction) -> String {
       unary_instruction("erase_f64", destination, source)
     UneraseF64(destination, source) =>
       unary_instruction("unerase_f64", destination, source)
-    EraseUnit(destination) => "erase_unit \{render_slot(destination)}"
-    UneraseUnit(source) => "unerase_unit \{render_slot(source)}"
+    EraseUnit(destination) => "erase_unit \{render_value(destination)}"
+    UneraseUnit(source) => "unerase_unit \{render_value(source)}"
     InitGlobal(global, source) =>
-      "init_global \{render_global(global)}, \{render_slot(source)}"
+      "init_global \{render_global(global)}, \{render_value(source)}"
     BorrowGlobal(destination, global) =>
-      "borrow_global \{render_slot(destination)}, \{render_global(global)}"
+      "borrow_global \{render_value(destination)}, \{render_global(global)}"
   }
 }
 
@@ -258,14 +244,14 @@ fn render_terminator(terminator : Terminator) -> String {
   match terminator {
     Jump(edge) => "jump \{render_edge(edge)}"
     BranchBool(condition, if_true, if_false) =>
-      "branch_bool \{render_slot(condition)}, \{render_edge(if_true)}, \{render_edge(if_false)}"
+      "branch_bool \{render_value(condition)}, \{render_edge(if_true)}, \{render_edge(if_false)}"
     SwitchTag(discriminator, cases, default) =>
-      "switch_tag \{render_slot(discriminator)}, cases=[\{cases.map(render_edge).join(", ")}], default=\{render_edge(default)}"
-    Return(value) => "return \{render_optional_slot(value)}"
+      "switch_tag \{render_value(discriminator)}, cases=[\{cases.map(render_edge).join(", ")}], default=\{render_edge(default)}"
+    Return(value) => "return \{render_optional_value(value)}"
     TailCallDirect(function, environment, witnesses, arguments) =>
-      "tail_call_direct \{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+      "tail_call_direct \{render_function(function)} env=\{render_optional_value(environment)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     TailCallValue(callable, witnesses, arguments) =>
-      "tail_call_value \{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+      "tail_call_value \{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     Unreachable => "unreachable"
   }
 }
@@ -273,55 +259,55 @@ fn render_terminator(terminator : Terminator) -> String {
 ///|
 fn unary_instruction(
   name : String,
-  destination : SlotId,
-  source : SlotId,
+  destination : ValueId,
+  source : ValueId,
 ) -> String {
-  "\{name} \{render_slot(destination)}, \{render_slot(source)}"
+  "\{name} \{render_value(destination)}, \{render_value(source)}"
 }
 
 ///|
 fn binary_instruction(
   name : String,
-  destination : SlotId,
-  left : SlotId,
-  right : SlotId,
+  destination : ValueId,
+  left : ValueId,
+  right : ValueId,
 ) -> String {
-  "\{name} \{render_slot(destination)}, \{render_slot(left)}, \{render_slot(right)}"
+  "\{name} \{render_value(destination)}, \{render_value(left)}, \{render_value(right)}"
 }
 
 ///|
-fn render_slot(slot : SlotId) -> String {
-  "%\{slot.value}"
+fn render_value(value : ValueId) -> String {
+  "%v\{value.value}"
 }
 
 ///|
-fn render_slots(slots : Array[SlotId]) -> String {
-  slots.map(render_slot).join(", ")
+fn render_values(values : Array[ValueId]) -> String {
+  values.map(render_value).join(", ")
 }
 
 ///|
-fn render_optional_slot(slot : SlotId?) -> String {
-  match slot {
-    Some(slot) => render_slot(slot)
+fn render_optional_value(value : ValueId?) -> String {
+  match value {
+    Some(value) => render_value(value)
     None => "none"
   }
 }
 
 ///|
-fn render_optional_destination(slot : SlotId?) -> String {
-  match slot {
-    Some(slot) => "\{render_slot(slot)} = "
+fn render_optional_destination(value : ValueId?) -> String {
+  match value {
+    Some(value) => "\{render_value(value)} = "
     None => ""
   }
 }
 
 ///|
-fn render_function(function : FunctionId) -> String {
+fn render_function(function : @bytecode.FunctionId) -> String {
   "f\{function.value}"
 }
 
 ///|
-fn render_optional_function(function : FunctionId?) -> String {
+fn render_optional_function(function : @bytecode.FunctionId?) -> String {
   match function {
     Some(function) => render_function(function)
     None => "none"
@@ -329,36 +315,36 @@ fn render_optional_function(function : FunctionId?) -> String {
 }
 
 ///|
-fn render_global(global : GlobalId) -> String {
+fn render_global(global : @bytecode.GlobalId) -> String {
   "g\{global.value}"
 }
 
 ///|
-fn render_layout(layout : LayoutId) -> String {
+fn render_layout(layout : @bytecode.LayoutId) -> String {
   "l\{layout.value}"
 }
 
 ///|
-fn render_shape(shape : ObjectShapeId) -> String {
+fn render_shape(shape : @bytecode.ObjectShapeId) -> String {
   "shape\{shape.value}"
 }
 
 ///|
-fn render_constant(constant : ConstantId) -> String {
+fn render_constant(constant : @bytecode.ConstantId) -> String {
   "c\{constant.value}"
 }
 
 ///|
 fn render_edge(edge : Edge) -> String {
-  "b\{edge.target.value}([\{render_slots(edge.arguments)}])"
+  "b\{edge.target.value}([\{render_values(edge.arguments)}])"
 }
 
 ///|
 fn render_projection_result(result : ProjectionResult) -> String {
   match result.witness_destination {
     Some(witness) =>
-      "(\{render_slot(result.value_destination)}, \{render_slot(witness)})"
-    None => render_slot(result.value_destination)
+      "(\{render_value(result.value_destination)}, \{render_value(witness)})"
+    None => render_value(result.value_destination)
   }
 }
 
@@ -375,21 +361,30 @@ fn render_selections(selections : Array[ProjectionSelection]) -> String {
 fn render_layout_operand(operand : LayoutOperand) -> String {
   match operand {
     Immediate(layout) => render_layout(layout)
-    Witness(slot) => "witness(\{render_slot(slot)})"
+    Witness(value) => "witness(\{render_value(value)})"
   }
 }
 
 ///|
-fn render_slot_metadata(metadata : SlotMetadata) -> String {
+fn render_value_metadata(metadata : ValueMetadata) -> String {
   let companion = match metadata.erased_companion {
-    Some(slot) => ", companion=\{render_slot(slot)}"
+    Some(value) => ", companion=\{render_value(value)}"
     None => ""
   }
-  "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)}\{companion}"
+  "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)} + \{render_ownership(metadata.ownership)}\{companion}"
 }
 
 ///|
-fn render_global_metadata(metadata : GlobalMetadata) -> String {
+fn render_ownership(ownership : Ownership) -> String {
+  match ownership {
+    Trivial => "trivial"
+    Owned => "owned"
+    Borrowed => "borrowed"
+  }
+}
+
+///|
+fn render_global_metadata(metadata : @bytecode.GlobalMetadata) -> String {
   let companion = match metadata.erased_companion {
     Some(global) => ", companion=\{render_global(global)}"
     None => ""
@@ -398,7 +393,7 @@ fn render_global_metadata(metadata : GlobalMetadata) -> String {
 }
 
 ///|
-fn render_representation(representation : Representation) -> String {
+fn render_representation(representation : @bytecode.Representation) -> String {
   match representation {
     I32 => "i32"
     I64 => "i64"
@@ -407,7 +402,7 @@ fn render_representation(representation : Representation) -> String {
 }
 
 ///|
-fn render_cleanup(cleanup : Cleanup) -> String {
+fn render_cleanup(cleanup : @bytecode.Cleanup) -> String {
   match cleanup {
     Trivial => "trivial"
     OwnedRef => "owned_ref"
@@ -417,7 +412,7 @@ fn render_cleanup(cleanup : Cleanup) -> String {
 }
 
 ///|
-fn render_result(result : ResultRepresentation) -> String {
+fn render_result(result : @bytecode.ResultRepresentation) -> String {
   match result {
     Unit => "unit"
     I32 => "i32"
@@ -427,7 +422,19 @@ fn render_result(result : ResultRepresentation) -> String {
 }
 
 ///|
-fn render_layout_recipe(recipe : LayoutRecipe) -> String {
+fn render_runtime_value_kind(kind : @bytecode.RuntimeValueKind) -> String {
+  match kind {
+    Unit => "unit"
+    Bool => "bool"
+    Int => "int"
+    Double => "double"
+    String => "string"
+    Opaque => "opaque"
+  }
+}
+
+///|
+fn render_layout_recipe(recipe : @bytecode.LayoutRecipe) -> String {
   match recipe {
     Unit => "unit"
     Bool => "bool"
@@ -442,7 +449,7 @@ fn render_layout_recipe(recipe : LayoutRecipe) -> String {
 }
 
 ///|
-fn render_object_shape(shape : ObjectShape) -> String {
+fn render_object_shape(shape : @bytecode.ObjectShape) -> String {
   match shape {
     Data(data) =>
       "data(tag=\{data.constructor_tag}, witnesses=\{data.stored_witness_count}, members=[\{data.members.map(render_member).join(", ")}])"
@@ -452,7 +459,7 @@ fn render_object_shape(shape : ObjectShape) -> String {
 }
 
 ///|
-fn render_member(schema : MemberSchema) -> String {
+fn render_member(schema : @bytecode.MemberSchema) -> String {
   let witness = match schema.witness_ordinal {
     Some(ordinal) => ", witness=\{ordinal}"
     None => ""

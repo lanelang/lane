@@ -11,7 +11,7 @@ fn BuslaneLowerer::collect_type_headers(
         let target = self.metadata.define_type(
           declaration.name,
           [],
-          flavor=@buslane.TypeFlavor::External,
+          flavor=External,
         )
         ignore(self.registry.register_type(declaration.symbol, target))
       }
@@ -84,8 +84,8 @@ fn BuslaneLowerer::collect_effect_header(
     self.define_type_parameter(parameter)
   })
   let flavor = match declaration.flavor {
-    @symbol.EffectFlavor::Algebraic => @buslane.EffectFlavor::Algebraic
-    @symbol.EffectFlavor::External => @buslane.EffectFlavor::External
+    Algebraic => @buslane.EffectFlavor::Algebraic
+    External => External
   }
   let target = self.metadata.define_effect(
     declaration.name,

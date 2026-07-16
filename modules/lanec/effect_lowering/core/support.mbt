@@ -14,9 +14,7 @@ pub fn is_mon_effect(
       Singleton(effect_id, _) =>
         metadata
         .effect_info(effect_id)
-        .map_or(true, fn(info) {
-          info.flavor is @buslane.EffectFlavor::Algebraic
-        })
+        .map_or(true, fn(info) { info.flavor is Algebraic })
       _ => false
     }
   })
@@ -34,9 +32,7 @@ pub fn mon_effect_part(
         Singleton(effect_id, _) =>
           metadata
           .effect_info(effect_id)
-          .map_or(true, fn(info) {
-            info.flavor is @buslane.EffectFlavor::Algebraic
-          })
+          .map_or(true, fn(info) { info.flavor is Algebraic })
         _ => true
       }
     }),
@@ -54,7 +50,7 @@ pub fn residual_effect_part(
         Io => true
         Singleton(effect_id, _) =>
           match metadata.effect_info(effect_id) {
-            Some(info) => info.flavor is @buslane.EffectFlavor::External
+            Some(info) => info.flavor is External
             None => false
           }
         _ => false

@@ -3,6 +3,7 @@ package "Milky2018/lanec/effect_lowering/core"
 
 import {
   "Milky2018/buslane",
+  "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
@@ -161,6 +162,7 @@ pub(all) struct Program {
   metadata : @buslane.MetadataRegistry
   terms : Array[TopTerm]
 } derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for Program
 
 pub(all) struct RecursiveBinding {
   id : @buslane.ValueId

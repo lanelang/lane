@@ -104,7 +104,7 @@ test "minimal bytecode image has stable encoding" {
 ///|
 test "minimal bytecode image has canonical disassembly" {
   inspect(
-    bytecode_image_to_disassembly(minimal_image()),
+    @prettyprinter.render(minimal_image(), width=100),
     content=(
       #|LoisVM bytecode
       #|entry: f1
@@ -146,7 +146,7 @@ test "globals and initializer roundtrip" {
 ///|
 test "global image has canonical disassembly" {
   inspect(
-    bytecode_image_to_disassembly(global_image()),
+    @prettyprinter.render(global_image(), width=100),
     content=(
       #|LoisVM bytecode
       #|entry: f1
@@ -377,7 +377,7 @@ test "runtime import disassembly renders complete direct ABI signature" {
     ],
   }
   inspect(
-    bytecode_image_to_disassembly(image),
+    @prettyprinter.render(image, width=100),
     content=(
       #|LoisVM bytecode
       #|entry: f1
