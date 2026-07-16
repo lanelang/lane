@@ -8,24 +8,28 @@ test "diagnostic converts to lsp diagnostic json" {
       message="value starts here",
     ),
   ])
-  debug_inspect(
-    diagnostic_to_lsp_json(diagnostic, sources),
-    content=(
-      #|Object(
-      #|  {
-      #|    "severity": Number(1),
-      #|    "message": String("bad value\nvalue starts here"),
-      #|    "code": String("E0001"),
-      #|    "range": Object(
-      #|      {
-      #|        "start": Object({ "line": Number(0), "character": Number(4) }),
-      #|        "end": Object({ "line": Number(0), "character": Number(10) }),
-      #|      },
-      #|    ),
-      #|  },
-      #|)
-    ),
-  )
+  let json = diagnostic_to_lsp_json(diagnostic, sources)
+  guard json
+    is {
+      "severity": Number(1, ..),
+      "message": String("bad value\nvalue starts here"),
+      "range": {
+        "start": { "line": Number(0, ..), "character": Number(4, ..), .. },
+        ..
+      },
+      ..
+    } else {
+    fail("expected LSP diagnostic JSON")
+  }
+  json_inspect(json, content={
+    "severity": 1,
+    "message": "bad value\nvalue starts here",
+    "code": "E0001",
+    "range": {
+      "start": { "line": 0, "character": 4 },
+      "end": { "line": 0, "character": 10 },
+    },
+  })
 }
 
 ///|
@@ -93,24 +97,19 @@ test "diagnostic can include lsp diagnostic source" {
   let diagnostic = @core.Diagnostic::error("bad value", labels=[
     @core.Label::primary(sources.span(source, 4, 10)),
   ])
-  debug_inspect(
-    diagnostic_to_lsp_json(diagnostic, sources, source="lane"),
-    content=(
-      #|Object(
-      #|  {
-      #|    "severity": Number(1),
-      #|    "message": String("bad value"),
-      #|    "source": String("lane"),
-      #|    "range": Object(
-      #|      {
-      #|        "start": Object({ "line": Number(0), "character": Number(4) }),
-      #|        "end": Object({ "line": Number(0), "character": Number(10) }),
-      #|      },
-      #|    ),
-      #|  },
-      #|)
-    ),
-  )
+  let json = diagnostic_to_lsp_json(diagnostic, sources, source="lane")
+  guard json is { "source": String("lane"), .. } else {
+    fail("expected LSP diagnostic source")
+  }
+  json_inspect(json, content={
+    "severity": 1,
+    "message": "bad value",
+    "source": "lane",
+    "range": {
+      "start": { "line": 0, "character": 4 },
+      "end": { "line": 0, "character": 10 },
+    },
+  })
 }
 
 ///|
@@ -148,70 +147,58 @@ test "suggestions convert to lsp code actions" {
       },
     ],
   )
-  debug_inspect(
-    suggestions_to_code_actions_json(diagnostic, sources),
-    content=(
-      #|[
-      #|  Object(
-      #|    {
-      #|      "title": String("rename value"),
-      #|      "kind": String("quickfix"),
-      #|      "diagnostics": Array(
-      #|        [
-      #|          Object(
-      #|            {
-      #|              "severity": Number(1),
-      #|              "message": String("bad value"),
-      #|              "range": Object(
-      #|                {
-      #|                  "start": Object({ "line": Number(0), "character": Number(4) }),
-      #|                  "end": Object({ "line": Number(0), "character": Number(10) }),
-      #|                },
-      #|              ),
-      #|              "data": Object(
-      #|                {
-      #|                  "suggestions": Array(
-      #|                    [
-      #|                      Object(
-      #|                        {
-      #|                          "message": String("rename value"),
-      #|                          "applicability": String("machine-applicable"),
-      #|                        },
-      #|                      ),
-      #|                    ],
-      #|                  ),
-      #|                },
-      #|              ),
-      #|            },
-      #|          ),
-      #|        ],
-      #|      ),
-      #|      "edit": Object(
-      #|        {
-      #|          "changes": Object(
-      #|            {
-      #|              "file:///ops.lane": Array(
-      #|                [
-      #|                  Object(
-      #|                    {
-      #|                      "range": Object(
-      #|                        {
-      #|                          "start": Object({ "line": Number(0), "character": Number(4) }),
-      #|                          "end": Object({ "line": Number(0), "character": Number(10) }),
-      #|                        },
-      #|                      ),
-      #|                      "newText": String("result"),
-      #|                    },
-      #|                  ),
-      #|                ],
-      #|              ),
-      #|            },
-      #|          ),
-      #|        },
-      #|      ),
-      #|    },
-      #|  ),
-      #|]
-    ),
-  )
+  let actions = suggestions_to_code_actions_json(diagnostic, sources)
+  guard actions
+    is [
+      {
+        "title": String("rename value"),
+        "edit": {
+          "changes": {
+            "file:///ops.lane": Array([{ "newText": String("result"), .. }]),
+            ..
+          },
+          ..
+        },
+        ..
+      },
+    ] else {
+    fail("expected LSP quick-fix JSON")
+  }
+  json_inspect(actions, content=[
+    {
+      "title": "rename value",
+      "kind": "quickfix",
+      "diagnostics": [
+        {
+          "severity": 1,
+          "message": "bad value",
+          "range": {
+            "start": { "line": 0, "character": 4 },
+            "end": { "line": 0, "character": 10 },
+          },
+          "data": {
+            "suggestions": [
+              {
+                "message": "rename value",
+                "applicability": "machine-applicable",
+              },
+            ],
+          },
+        },
+      ],
+      "edit": {
+        "changes": {
+          "file:///ops.lane": [
+            {
+              "range": {
+                "start": { "line": 0, "character": 4 },
+                "end": { "line": 0, "character": 10 },
+              },
+              "newText": "result",
+            },
+          ],
+        },
+      },
+    },
+  ])
 }

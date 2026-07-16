@@ -20,64 +20,59 @@ test "diagnostic exports structured json" {
       },
     ],
   )
-  debug_inspect(
-    diagnostic_to_json(diagnostic),
-    content=(
-      #|Object(
-      #|  {
-      #|    "severity": String("error"),
-      #|    "message": String("missing imported module `Builtins`"),
-      #|    "code": String("E4002"),
-      #|    "labels": Array(
-      #|      [
-      #|        Object(
-      #|          {
-      #|            "style": String("primary"),
-      #|            "span": Object(
-      #|              {
-      #|                "sourceId": Number(7),
-      #|                "startOffset": Number(2),
-      #|                "endOffset": Number(5),
-      #|              },
-      #|            ),
-      #|            "message": String("missing artifact"),
-      #|          },
-      #|        ),
-      #|      ],
-      #|    ),
-      #|    "notes": Array([String("note")]),
-      #|    "helps": Array([String("help")]),
-      #|    "facts": Array([]),
-      #|    "suggestions": Array(
-      #|      [
-      #|        Object(
-      #|          {
-      #|            "message": String("replace text"),
-      #|            "applicability": String("maybe-incorrect"),
-      #|            "edits": Array(
-      #|              [
-      #|                Object(
-      #|                  {
-      #|                    "span": Object(
-      #|                      {
-      #|                        "sourceId": Number(7),
-      #|                        "startOffset": Number(2),
-      #|                        "endOffset": Number(5),
-      #|                      },
-      #|                    ),
-      #|                    "replacement": String("Builtins"),
-      #|                  },
-      #|                ),
-      #|              ],
-      #|            ),
-      #|          },
-      #|        ),
-      #|      ],
-      #|    ),
-      #|    "relatedLocations": Array([]),
-      #|    "related": Array([]),
-      #|  },
-      #|)
-    ),
-  )
+  let json = diagnostic_to_json(diagnostic)
+  guard json
+    is {
+      "severity": String("error"),
+      "code": String("E4002"),
+      "labels": Array(
+        [
+          {
+            "style": String("primary"),
+            "span": {
+              "sourceId": Number(7, ..),
+              "startOffset": Number(2, ..),
+              "endOffset": Number(5, ..),
+              ..
+            },
+            ..
+          },
+        ]
+      ),
+      "suggestions": Array(
+        [{ "edits": Array([{ "replacement": String("Builtins"), .. }]), .. }]
+      ),
+      ..
+    } else {
+    fail("expected structured diagnostic JSON")
+  }
+  json_inspect(json, content={
+    "severity": "error",
+    "message": "missing imported module `Builtins`",
+    "code": "E4002",
+    "labels": [
+      {
+        "style": "primary",
+        "span": { "sourceId": 7, "startOffset": 2, "endOffset": 5 },
+        "message": "missing artifact",
+      },
+    ],
+    "notes": ["note"],
+    "helps": ["help"],
+    "facts": [],
+    "suggestions": [
+      {
+        "message": "replace text",
+        "applicability": "maybe-incorrect",
+        "edits": [
+          {
+            "span": { "sourceId": 7, "startOffset": 2, "endOffset": 5 },
+            "replacement": "Builtins",
+          },
+        ],
+      },
+    ],
+    "relatedLocations": [],
+    "related": [],
+  })
 }

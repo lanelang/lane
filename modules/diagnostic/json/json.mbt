@@ -24,53 +24,53 @@ pub fn diagnostic_to_json(diagnostic : @core.Diagnostic) -> Json {
 ///|
 pub fn label_to_json(label : @core.Label) -> Json {
   {
-    "style": label_style_text(label.style).to_json(),
+    "style": label_style_text(label.style),
     "span": span_to_json(label.span),
     "message": match label.message {
       Some(message) => message.to_json()
       None => Json::null()
     },
-  }.to_json()
+  }
 }
 
 ///|
 pub fn span_to_json(span : @core.SourceSpan) -> Json {
   {
-    "sourceId": span.source_id.value.to_json(),
-    "startOffset": span.start_offset.to_json(),
-    "endOffset": span.end_offset.to_json(),
-  }.to_json()
+    "sourceId": span.source_id.value,
+    "startOffset": span.start_offset,
+    "endOffset": span.end_offset,
+  }
 }
 
 ///|
 pub fn suggestion_to_json(suggestion : @core.Suggestion) -> Json {
   {
-    "message": suggestion.message.to_json(),
-    "applicability": suggestion.applicability.as_text().to_json(),
-    "edits": suggestion.edits.map(text_edit_to_json).to_json(),
-  }.to_json()
+    "message": suggestion.message,
+    "applicability": suggestion.applicability.as_text(),
+    "edits": suggestion.edits.map(text_edit_to_json),
+  }
 }
 
 ///|
 pub fn fact_to_json(fact : @core.DiagnosticFact) -> Json {
   {
-    "name": fact.name.to_json(),
-    "value": fact.value.to_json(),
+    "name": fact.name,
+    "value": fact.value,
     "span": match fact.span {
       Some(span) => span_to_json(span)
       None => Json::null()
     },
-  }.to_json()
+  }
 }
 
 ///|
 pub fn related_location_to_json(related : @core.RelatedLocation) -> Json {
-  { "span": span_to_json(related.span), "message": related.message.to_json() }.to_json()
+  { "span": span_to_json(related.span), "message": related.message }
 }
 
 ///|
 pub fn text_edit_to_json(edit : @core.TextEdit) -> Json {
-  { "span": span_to_json(edit.span), "replacement": edit.replacement.to_json() }.to_json()
+  { "span": span_to_json(edit.span), "replacement": edit.replacement }
 }
 
 ///|
