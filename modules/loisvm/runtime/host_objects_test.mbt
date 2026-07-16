@@ -12,8 +12,15 @@ priv suberror AdoptionTestError {
 fn adopt_for_test(
   runtime : ExecutionRuntime,
   object : OwnedHostObject,
-) -> HostObjectHandle raise {
-  runtime.adopt_host_object(object, handle => handle)
+) -> HostObjectHandle raise HostObjectFailure {
+  let result : Result[HostObjectHandle, Unit] = runtime.adopt_host_object(
+    object,
+    handle => Ok(handle),
+  )
+  match result {
+    Ok(handle) => handle
+    Err(_) => abort("infallible Host Object adoption failed")
+  }
 }
 
 ///|
@@ -68,15 +75,11 @@ test "Host Object slots reuse indices with new generations" {
 test "failed Host Object adoption rolls back and finalizes pending ownership" {
   let runtime = ExecutionRuntime::new()
   let finalized = Ref(0)
-  let result = try {
-    runtime.adopt_host_object(
-      OwnedHostObject::new({ value: 1 }, finalizer=_ => finalized.val += 1),
-      _handle => raise WrapperInitializationFailed,
-    )
-    Ok(())
-  } catch {
-    WrapperInitializationFailed => Err(WrapperInitializationFailed)
-    _ => fail("unexpected adoption failure")
+  let result : Result[Unit, AdoptionTestError] = runtime.adopt_host_object(
+    OwnedHostObject::new({ value: 1 }, finalizer=_ => finalized.val += 1),
+    _handle => Err(WrapperInitializationFailed),
+  ) catch {
+    _ => fail("unexpected Host Object adoption failure")
   }
   debug_inspect(
     (result, runtime.live_host_objects(), finalized.val),
@@ -195,8 +198,7 @@ test "zero Host Object budget finalizes the rejected result" {
     )
     Ok(())
   } catch {
-    HostObjectFailure::HostObjectLimitExceeded =>
-      Err(HostObjectFailure::HostObjectLimitExceeded)
+    HostObjectLimitExceeded => Err(HostObjectLimitExceeded)
     _ => fail("unexpected Host Object allocation failure")
   }
   debug_inspect(
@@ -222,8 +224,7 @@ test "negative Host Object budget behaves as zero budget" {
     )
     Ok(())
   } catch {
-    HostObjectFailure::HostObjectLimitExceeded =>
-      Err(HostObjectFailure::HostObjectLimitExceeded)
+    HostObjectLimitExceeded => Err(HostObjectLimitExceeded)
     _ => fail("unexpected Host Object allocation failure")
   }
   debug_inspect(

@@ -48,7 +48,7 @@ pub(all) struct ExecutionConfig {
 pub fn ExecutionConfig::defaults() -> Self
 
 type ExecutionRuntime
-pub fn[R] ExecutionRuntime::adopt_host_object(Self, OwnedHostObject, (HostObjectHandle) -> R raise) -> R raise
+pub fn[R, E] ExecutionRuntime::adopt_host_object(Self, OwnedHostObject, (HostObjectHandle) -> Result[R, E]) -> Result[R, E] raise HostObjectFailure
 pub fn ExecutionRuntime::context(Self) -> RuntimeContext
 pub fn ExecutionRuntime::live_host_objects(Self) -> Int
 pub fn ExecutionRuntime::new(config? : ExecutionConfig) -> Self

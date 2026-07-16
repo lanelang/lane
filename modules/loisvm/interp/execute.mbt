@@ -33,11 +33,12 @@ pub fn LoadedImage::new_instance(
   self : LoadedImage,
   config? : @runtime.ExecutionConfig = @runtime.ExecutionConfig::defaults(),
 ) -> ExecutionInstance {
+  let runtime = @runtime.ExecutionRuntime::new(config~)
   {
     loaded: self,
     config,
-    runtime: @runtime.ExecutionRuntime::new(config~),
-    heap: Heap::new(self.image, config.max_live_heap_bytes),
+    runtime,
+    heap: Heap::new(self.image, runtime, config.max_live_heap_bytes),
     frames: [],
     globals: Array::make(self.image.globals.length(), None),
     initialized_globals: [],

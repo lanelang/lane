@@ -42,6 +42,7 @@ pub struct Heap {
   singleton_refs : Array[Int?]
   mut live_bytes : Int
   max_live_bytes : Int?
+  // private fields
 }
 
 pub struct HeapObject {
@@ -66,6 +67,7 @@ pub fn LoadedImage::new_instance(Self, config? : @runtime.ExecutionConfig) -> Ex
 
 pub enum ObjectPayload {
   String(Bytes)
+  HostObject(@runtime.HostObjectHandle)
   Data(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
   Environment(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
 }

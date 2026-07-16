@@ -415,6 +415,8 @@ fn ExecutionInstance::to_host_value(
         }),
       )
     }
+    (Opaque, I32(reference)) =>
+      BorrowedOpaque(self.heap.borrow_host_object(reference))
     (Unit, _) => Unit
     _ =>
       raise InternalFailure(
@@ -447,10 +449,29 @@ fn ExecutionInstance::from_host_value(
       }
       Some(I32(self.heap.allocate_string(bytes)))
     }
+    (Opaque, OwnedOpaque(object)) => {
+      let result : Result[Int, ExecutionFailure] = self.runtime.adopt_host_object(
+        object,
+        handle => {
+          Ok(self.heap.allocate_host_object(handle)) catch {
+            error => Err(error)
+          }
+        },
+      ) catch {
+        HostObjectLimitExceeded => raise ResourceLimit(HostObjects)
+        InvalidOwnedResult(detail~) =>
+          raise ImportFailure(symbol~, message=detail)
+        InvalidHostObjectHandle(detail~) => raise InternalFailure(detail~)
+      }
+      match result {
+        Ok(reference) => Some(I32(reference))
+        Err(error) => raise error
+      }
+    }
     _ =>
       raise ImportFailure(
         symbol~,
-        message="runtime import returned the wrong primitive kind",
+        message="runtime import returned the wrong value kind",
       )
   }
 }
@@ -466,7 +487,8 @@ fn ExecutionInstance::release_import_arguments(
     if kind is Unit {
       continue
     }
-    if kind is String && arguments[argument_index] is I32(reference) {
+    if (kind is String || kind is Opaque) &&
+      arguments[argument_index] is I32(reference) {
       self.heap.release_reference(reference)
     }
     argument_index += 1

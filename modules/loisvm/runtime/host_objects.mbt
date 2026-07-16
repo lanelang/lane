@@ -227,11 +227,11 @@ pub fn ExecutionRuntime::release_host_object(
 }
 
 ///|
-pub fn[R] ExecutionRuntime::adopt_host_object(
+pub fn[R, E] ExecutionRuntime::adopt_host_object(
   self : ExecutionRuntime,
   object : OwnedHostObject,
-  initialize : (HostObjectHandle) -> R raise,
-) -> R raise {
+  initialize : (HostObjectHandle) -> Result[R, E],
+) -> Result[R, E] raise HostObjectFailure {
   let (payload, finalizer) = object.take()
   let handle = self.context.state.host_objects.insert(payload, finalizer) catch {
     HostObjectLimitExceeded => {
@@ -240,12 +240,11 @@ pub fn[R] ExecutionRuntime::adopt_host_object(
     }
     error => raise error
   }
-  try initialize(handle) catch {
-    error => {
+  match initialize(handle) {
+    Ok(result) => Ok(result)
+    Err(error) => {
       self.context.state.host_objects.release(handle)
-      raise error
+      Err(error)
     }
-  } noraise {
-    result => result
   }
 }

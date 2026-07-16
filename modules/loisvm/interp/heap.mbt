@@ -8,6 +8,7 @@ pub enum VMValue {
 ///|
 pub enum ObjectPayload {
   String(Bytes)
+  HostObject(@runtime.HostObjectHandle)
   Data(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
   Environment(
     @bytecode.ObjectShapeId,
@@ -28,6 +29,7 @@ pub struct HeapObject {
 ///|
 pub struct Heap {
   image : @bytecode.BytecodeImage
+  priv runtime : @runtime.ExecutionRuntime
   objects : Array[HeapObject?]
   constant_refs : Array[Int]
   singleton_refs : Array[Int?]
@@ -36,7 +38,11 @@ pub struct Heap {
 }
 
 ///|
-fn Heap::new(image : @bytecode.BytecodeImage, max_live_bytes : Int?) -> Heap {
+fn Heap::new(
+  image : @bytecode.BytecodeImage,
+  runtime : @runtime.ExecutionRuntime,
+  max_live_bytes : Int?,
+) -> Heap {
   let objects : Array[HeapObject?] = [None]
   let constant_refs : Array[Int] = []
   let string_layout = find_string_layout(image.layouts)
@@ -84,6 +90,7 @@ fn Heap::new(image : @bytecode.BytecodeImage, max_live_bytes : Int?) -> Heap {
   }
   {
     image,
+    runtime,
     objects,
     constant_refs,
     singleton_refs,
@@ -95,6 +102,18 @@ fn Heap::new(image : @bytecode.BytecodeImage, max_live_bytes : Int?) -> Heap {
 ///|
 fn Heap::constant_reference(self : Heap, id : @bytecode.ConstantId) -> Int {
   self.constant_refs[id.value]
+}
+
+///|
+fn Heap::allocate_host_object(
+  self : Heap,
+  handle : @runtime.HostObjectHandle,
+) -> Int raise ExecutionFailure {
+  self.allocate(
+    layout=self.reference_layout(),
+    payload=HostObject(handle),
+    size=host_object_allocation_size(),
+  )
 }
 
 ///|
@@ -170,6 +189,22 @@ fn Heap::object(
     Some(object) => object
     None =>
       raise InternalFailure(detail="use of freed object reference \{reference}")
+  }
+}
+
+///|
+fn Heap::borrow_host_object(
+  self : Heap,
+  reference : Int,
+) -> @runtime.BorrowedHostObject raise ExecutionFailure {
+  let handle = match self.object(reference).payload {
+    HostObject(handle) => handle
+    _ => raise InternalFailure(detail="object is not a Host Object")
+  }
+  self.runtime.resolve_host_object(handle) catch {
+    InvalidHostObjectHandle(detail~) => raise InternalFailure(detail~)
+    _ =>
+      raise InternalFailure(detail="unexpected Host Object resolution failure")
   }
 }
 
@@ -276,6 +311,12 @@ fn Heap::destroy_payload(
 ) -> Unit raise ExecutionFailure {
   match payload {
     String(_) => ()
+    HostObject(handle) =>
+      self.runtime.release_host_object(handle) catch {
+        InvalidHostObjectHandle(detail~) => raise InternalFailure(detail~)
+        _ =>
+          raise InternalFailure(detail="unexpected Host Object release failure")
+      }
     Data(shape, witnesses, fields) => {
       let schema = match self.image.object_shapes[shape.value] {
         Data(data) => data
@@ -338,6 +379,18 @@ fn Heap::release_member(
 }
 
 ///|
+fn Heap::reference_layout(
+  self : Heap,
+) -> @bytecode.LayoutId raise ExecutionFailure {
+  for index, recipe in self.image.layouts {
+    if recipe is Reference {
+      return { value: index + 1 }
+    }
+  }
+  raise InternalFailure(detail="bytecode image has no Reference layout")
+}
+
+///|
 fn Heap::string_layout(
   self : Heap,
 ) -> @bytecode.LayoutId raise ExecutionFailure {
@@ -360,6 +413,11 @@ fn callable_function(value : Int64) -> @bytecode.FunctionId {
 ///|
 fn callable_environment(value : Int64) -> Int {
   (value >> 32).to_int()
+}
+
+///|
+fn host_object_allocation_size() -> Int {
+  16
 }
 
 ///|
