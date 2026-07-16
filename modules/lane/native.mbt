@@ -217,6 +217,46 @@ async fn read_library_source_inputs(
 }
 
 ///|
+fn source_command_library_dirs(
+  lane_home : String?,
+  lib_dirs : Array[String],
+  no_basic~ : Bool,
+) -> Result[Array[String], CliError] {
+  if no_basic {
+    return Ok(lib_dirs)
+  }
+  guard lane_home is Some(lane_home) else { return Err(LaneHomeNotConfigured) }
+  let lane_home = lane_home.trim().to_owned()
+  if lane_home.is_empty() {
+    return Err(LaneHomeNotConfigured)
+  }
+  let resolved = ["\{lane_home}/basic"]
+  for path in lib_dirs {
+    resolved.push(path)
+  }
+  Ok(resolved)
+}
+
+///|
+async fn read_source_command_library_inputs(
+  root : String,
+  libs : Array[String],
+  lib_dirs : Array[String],
+  no_basic~ : Bool,
+) -> Result[Array[LaneSourceInput], CliError] {
+  let resolved = match
+    source_command_library_dirs(
+      @sys.get_env_var("LANE_HOME"),
+      lib_dirs,
+      no_basic~,
+    ) {
+    Ok(resolved) => resolved
+    Err(error) => return Err(error)
+  }
+  read_library_source_inputs(root, libs, resolved)
+}
+
+///|
 async fn library_source_identity(path : String) -> Result[String, CliError] {
   let identity = @fs.realpath(path) catch {
     error => return Err(CliError::file_io(Resolve, path, "\{error}"))

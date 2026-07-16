@@ -10,13 +10,13 @@ server startup, and future project workflows.
 _Avoid_: compiler library, language server
 
 **Single-File Run**:
-The command behavior that checks one root Lane module with explicitly supplied
-library modules and executes a selected public `() -> Unit` or `() -> Unit ! Io`
-entry through LoisVM.
+The command behavior that checks one root Lane module with the default Basic
+library and any explicitly supplied library modules, then executes a selected
+public `() -> Unit` or `() -> Unit ! Io` entry through LoisVM.
 _Avoid_: language-level main, project execution
 
 **Executable Explore Command**:
-The `lane explore <file>:<entry> -o <report.html>` command behavior that collects the same explicit library inputs as Single-File Run, requests compiler-owned Executable IR Exploration without executing the entry, and writes one HTML Explore Report. The output path is required.
+The `lane explore <file>:<entry> -o <report.html>` command behavior that collects the same default and explicit library inputs as Single-File Run, requests compiler-owned Executable IR Exploration without executing the entry, and writes one HTML Explore Report. The output path is required.
 _Avoid_: artifact inspection, stdout dump, automatic browser launch, alternate compilation pipeline
 
 **Self-Contained Explore HTML**:
@@ -29,8 +29,9 @@ command.
 _Avoid_: project root, module identity
 
 **Library Input**:
-The explicit `--lib` or `--lib-dir` source input that tells `lane` which
-library modules are available to the root module.
+The default `$LANE_HOME/basic` directory or an explicit `--lib` or `--lib-dir`
+source input that tells `lane` which library modules are available to the root
+module.
 _Avoid_: source import path, compiler-internal path
 
 **Lane LSP Subcommand**:
@@ -41,6 +42,12 @@ _Avoid_: separate language-server executable, VS Code extension
 ## Relationships
 
 - `lane` may use native filesystem and process facilities.
+- `lane check`, `lane run`, and `lane explore` prepend `$LANE_HOME/basic` to
+  their library directories unless `--no-basic` is present.
+- Missing or empty `LANE_HOME` is a command configuration error unless
+  `--no-basic` is present.
+- The default Basic directory is a Lane Command input convention; compiler
+  packages do not recognize the `Basic` module path specially.
 - `lane` should call `lanec` APIs or binaries rather than owning compiler
   semantics.
 - `lane lsp` is a subcommand of the **Lane Command**, not a separate MoonBit

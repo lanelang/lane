@@ -49,13 +49,13 @@ enum FixtureMode {
 } derive(Eq)
 
 async fn main raise {
-  let basic_lib_dir = required_basic_lib_dir()
+  require_basic_library()
   let manifest = read_fixture_manifest("examples/fixtures/lane-run.json")
   let mut failure_count = 0
   for case in manifest.cases {
     let result = @async.with_timeout_opt(
       fixture_timeout_ms,
-      () => run_lane(case, [basic_lib_dir]),
+      () => run_lane(case),
     )
     guard result is Some(result) else {
       failure_count += 1
@@ -126,7 +126,7 @@ fn decode_manifest(json : Json) -> FixtureManifest {
   }
 }
 
-fn required_basic_lib_dir() -> String {
+fn require_basic_library() -> Unit {
   match @sys.get_env_var("LANE_HOME") {
     Some(home) => {
       let home = home.trim().to_owned()
@@ -146,13 +146,13 @@ fn required_basic_lib_dir() -> String {
           "LANE_HOME/basic must be the Basic source directory: " + path,
         )
       }
-      path
+      ()
     }
     None => fail_missing_basic("LANE_HOME is not set.")
   }
 }
 
-fn fail_missing_basic(reason : String) -> String {
+fn fail_missing_basic(reason : String) -> Unit {
   println("FAILED lane example fixture setup")
   println("  reason: " + reason)
   println("  Lane examples need the Basic library at LANE_HOME/basic.")
@@ -165,7 +165,6 @@ fn fail_missing_basic(reason : String) -> String {
   println("  Then run:")
   println("    tools/check-lane-run-examples.sh")
   @sys.exit(1)
-  ""
 }
 
 fn decode_case(json : Json, path : String) -> FixtureCase {
@@ -266,7 +265,7 @@ fn decode_string(json : Json, path : String) -> String {
   }
 }
 
-async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult {
+async fn run_lane(case : FixtureCase) -> LaneRunResult {
   let file = case.file()
   ignore(read_text(file))
   let fmt_args = ["fmt", "--check", file]
@@ -281,10 +280,6 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
   let check_args = [
     "check", "--deny", file,
   ]
-  for lib_dir in lib_dirs {
-    check_args.push("--lib-dir")
-    check_args.push(lib_dir)
-  }
   let (check_code, check_output) = run_lane_process(check_args)
   let check_output = check_output.text().trim_end(chars="\n\r").to_owned()
   if check_code != 0 {
@@ -298,10 +293,6 @@ async fn run_lane(case : FixtureCase, lib_dirs : Array[String]) -> LaneRunResult
       return { code: check_code, output: check_output }
     RunCase(entry~, ..) => {
       let args = ["run", file + ":" + entry]
-      for lib_dir in lib_dirs {
-        args.push("--lib-dir")
-        args.push(lib_dir)
-      }
       let (code, output) = run_lane_process(args)
       return { code, output: output.text().trim_end(chars="\n\r").to_owned() }
     }

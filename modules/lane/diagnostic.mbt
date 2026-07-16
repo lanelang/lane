@@ -53,6 +53,7 @@ enum CliError {
   InvalidCommand(message~ : String)
   UnknownCommand
   MissingArgument(name~ : String)
+  LaneHomeNotConfigured
   InvalidRunTarget(target~ : String)
   InvalidExploreTarget(target~ : String)
   InvalidExecTarget(target~ : String)
@@ -142,6 +143,24 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         suggestions=[
           command_suggestion(
             "Run `lane --help` or `lane <command> --help` to see the required arguments.",
+          ),
+        ],
+      )
+    LaneHomeNotConfigured =>
+      command_report(
+        code="E6015",
+        title="`LANE_HOME` is not configured",
+        details=[
+          "Set `LANE_HOME` to the Lane installation directory so its `basic` subdirectory can be loaded.",
+        ],
+        suggestions=[
+          command_suggestion(
+            "Example:",
+            command="export LANE_HOME=/path/to/lane-home",
+          ),
+          command_suggestion(
+            "To compile without the default Basic library:",
+            command="lane check --no-basic Main.lane",
           ),
         ],
       )

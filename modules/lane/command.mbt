@@ -7,6 +7,7 @@ enum LaneCommand {
     file~ : String,
     libs~ : Array[String],
     lib_dirs~ : Array[String],
+    no_basic~ : Bool,
     deny~ : Bool
   )
   Compile(
@@ -31,13 +32,15 @@ enum LaneCommand {
     entry~ : String,
     libs~ : Array[String],
     lib_dirs~ : Array[String],
+    no_basic~ : Bool,
     output~ : String
   )
   Run(
     file~ : String,
     entry~ : String,
     libs~ : Array[String],
-    lib_dirs~ : Array[String]
+    lib_dirs~ : Array[String],
+    no_basic~ : Bool
   )
 }
 
@@ -53,6 +56,7 @@ fn lane_command_spec() -> Command {
         about="Check a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
         flags=[
+          no_basic_flag(),
           FlagArg(
             "deny",
             long="deny",
@@ -65,12 +69,14 @@ fn lane_command_spec() -> Command {
         "run",
         about="Run a selected top-level entry from a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
+        flags=[no_basic_flag()],
         positionals=[required_positional_arg("target")],
       ),
       Command(
         "explore",
         about="Write an HTML report for every curated compiler stage.",
         options=[lib_option(), lib_dir_option(), output_option()],
+        flags=[no_basic_flag()],
         positionals=[required_positional_arg("target")],
       ),
       Command(
@@ -135,6 +141,7 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
               file~,
               libs=values(child, "lib"),
               lib_dirs=values(child, "lib-dir"),
+              no_basic=flag(child, "no-basic"),
               deny=flag(child, "deny"),
             ),
           )
@@ -151,6 +158,7 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
                   entry=target.entry,
                   libs=values(child, "lib"),
                   lib_dirs=values(child, "lib-dir"),
+                  no_basic=flag(child, "no-basic"),
                 ),
               )
             Err(message) => Err(message)
@@ -168,6 +176,7 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
                   entry=target.entry,
                   libs=values(child, "lib"),
                   lib_dirs=values(child, "lib-dir"),
+                  no_basic=flag(child, "no-basic"),
                   output~,
                 ),
               )
@@ -293,6 +302,15 @@ fn lib_dir_option() -> @argparse.OptionArg {
     long="lib-dir",
     action=Append,
     about="Lane library directory to include.",
+  )
+}
+
+///|
+fn no_basic_flag() -> @argparse.FlagArg {
+  FlagArg(
+    "no-basic",
+    long="no-basic",
+    about="Do not load the default $LANE_HOME/basic library directory.",
   )
 }
 

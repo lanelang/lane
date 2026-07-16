@@ -13,6 +13,7 @@ async fn lane_run(
   entry : String,
   libs : Array[String],
   lib_dirs : Array[String],
+  no_basic? : Bool = false,
 ) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
     error =>
@@ -25,7 +26,8 @@ async fn lane_run(
     path: Some(file),
     text: source,
   }
-  let libraries = match read_library_source_inputs(file, libs, lib_dirs) {
+  let libraries = match
+    read_source_command_library_inputs(file, libs, lib_dirs, no_basic~) {
     Ok(libraries) => libraries
     Err(error) => return LaneCommandOutcome::user_error(error)
   }

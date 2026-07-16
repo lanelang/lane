@@ -1081,6 +1081,50 @@ async test "lib-dir excludes root source and deduplicates libraries" {
 }
 
 ///|
+test "source commands prepend the default Basic library directory" {
+  debug_inspect(
+    source_command_library_dirs(
+      Some("/opt/lane"),
+      ["project/lib"],
+      no_basic=false,
+    ),
+    content=(
+      #|Ok(["/opt/lane/basic", "project/lib"])
+    ),
+  )
+}
+
+///|
+test "no-basic preserves only explicit library directories" {
+  debug_inspect(
+    source_command_library_dirs(None, ["project/lib"], no_basic=true),
+    content=(
+      #|Ok(["project/lib"])
+    ),
+  )
+}
+
+///|
+test "source commands diagnose an unconfigured Lane home" {
+  guard source_command_library_dirs(None, [], no_basic=false) is Err(error) else {
+    abort("expected missing LANE_HOME error")
+  }
+  debug_inspect(error, content="LaneHomeNotConfigured")
+  inspect(
+    error.render_human(),
+    content=(
+      #|error[E6015]: `LANE_HOME` is not configured
+      #|Set `LANE_HOME` to the Lane installation directory so its `basic` subdirectory can be loaded.
+      #|
+      #|Example:
+      #|  export LANE_HOME=/path/to/lane-home
+      #|To compile without the default Basic library:
+      #|  lane check --no-basic Main.lane
+    ),
+  )
+}
+
+///|
 async test "explicit lib cannot be the root source" {
   let workspace = ".tmp-lane-root-lib"
   let root = "\{workspace}/Main.lane"

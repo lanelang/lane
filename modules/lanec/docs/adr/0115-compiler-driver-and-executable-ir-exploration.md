@@ -36,7 +36,7 @@ The final backend snapshot comes from a cross-target `loisvm/wasm/compiler` pack
 
 A failed compilation produces a Partial Explore Report containing every completed stage, the failing diagnostics, and unavailable status for later stages. Producing that report does not change failure into command success.
 
-The native command is `lane explore <file>:<entry> -o <report.html>` with the same `--lib` and `--lib-dir` input semantics as `lane run`. The output path is required. The command never executes the entry, writes the report through atomic replacement, does not emit the report to stdout, and does not automatically open a browser.
+The native command is `lane explore <file>:<entry> -o <report.html>` with the same library-input semantics as `lane run`: `$LANE_HOME/basic` is loaded by default, explicit `--lib` and `--lib-dir` inputs are appended, and `--no-basic` disables the default directory. The output path is required. The command never executes the entry, writes the report through atomic replacement, does not emit the report to stdout, and does not automatically open a browser.
 
 The native report is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped text, inline styles and behavior, report metadata, and diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the same report model as versioned JSON; it does not reuse the native HTML renderer.
 

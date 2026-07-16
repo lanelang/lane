@@ -17,8 +17,8 @@ async fn main {
   match parse_lane_command() {
     Ok(command) => {
       let outcome = match command {
-        Check(file~, libs~, lib_dirs~, deny~) =>
-          lane_check(file, libs, lib_dirs, deny)
+        Check(file~, libs~, lib_dirs~, no_basic~, deny~) =>
+          lane_check(file, libs, lib_dirs, deny, no_basic~)
         Compile(file~, interfaces~, interface_output~, object_output~, verbose~) =>
           lane_compile(
             file, interfaces, interface_output, object_output, verbose,
@@ -29,10 +29,10 @@ async fn main {
           lane_link(objects, entry, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)
         Exec(program~) => lane_exec(program)
-        Explore(file~, entry~, libs~, lib_dirs~, output~) =>
-          lane_explore(file, entry, libs, lib_dirs, output)
-        Run(file~, entry~, libs~, lib_dirs~) =>
-          lane_run(file, entry, libs, lib_dirs)
+        Explore(file~, entry~, libs~, lib_dirs~, no_basic~, output~) =>
+          lane_explore(file, entry, libs, lib_dirs, output, no_basic~)
+        Run(file~, entry~, libs~, lib_dirs~, no_basic~) =>
+          lane_run(file, entry, libs, lib_dirs, no_basic~)
       }
       match outcome {
         Succeeded => ()
