@@ -193,7 +193,7 @@ fn CheckedValueUseCollector::collect_top_level_declaration(
       self.collect_expr(declaration.body, None)
     }
     Let(declaration) => self.collect_expr(declaration.initializer, None)
-    Struct(_) | Enum(_) | Effect(_) => ()
+    Struct(_) | Enum(_) | Effect(_) | ExternalType(_) => ()
   }
 }
 

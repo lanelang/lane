@@ -115,9 +115,10 @@ pub fn SymbolRegistry::define_effect(
   name : String,
   arity : Int,
   loc : SourceSpan,
+  flavor? : EffectFlavor = Algebraic,
 ) -> EffectSymbolId {
   let id = EffectSymbolId::{ index: self.effects.length() }
-  self.effects.push({ id, name, arity, loc })
+  self.effects.push({ id, name, flavor, arity, loc })
   id
 }
 

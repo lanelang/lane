@@ -153,6 +153,7 @@ pub(all) enum DesugaredTopLevelDeclaration {
   Struct(@resolve.ResolvedStructDeclaration)
   Enum(@resolve.ResolvedEnumDeclaration)
   Effect(@resolve.ResolvedEffectDeclaration)
+  ExternalType(@resolve.ResolvedExternalTypeDeclaration)
   Function(DesugaredFunctionDeclaration)
   Let(DesugaredLetDeclaration)
   Offer(DesugaredOfferDeclaration)

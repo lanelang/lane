@@ -41,6 +41,7 @@ pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)
   Enum(EnumDeclaration)
   Effect(EffectDeclaration)
+  ExternalType(ExternalTypeDeclaration)
   TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)
@@ -131,6 +132,21 @@ pub(all) struct EffectOperationDeclaration {
   payload : Array[Type]
   result : Type
   loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExternalTypeDeclaration {
+  is_public : Bool
+  name : String
+  type_parameters : Array[TypeParameter]
+  result_kind : ExternalTypeKind
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ExternalTypeKind {
+  Type(loc~ : SourceSpan)
+  Effect(loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|

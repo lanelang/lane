@@ -94,6 +94,7 @@ pub(all) enum ResolvedTopLevelDeclaration {
   Struct(ResolvedStructDeclaration)
   Enum(ResolvedEnumDeclaration)
   Effect(ResolvedEffectDeclaration)
+  ExternalType(ResolvedExternalTypeDeclaration)
   TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
@@ -160,8 +161,18 @@ pub(all) struct ResolvedEffectDeclaration {
   is_public : Bool
   symbol : EffectSymbolId
   name : String
+  flavor : EffectFlavor
   type_parameters : Array[ResolvedTypeParameter]
   operations : Array[ResolvedEffectOperationDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedExternalTypeDeclaration {
+  is_public : Bool
+  symbol : TypeSymbolId
+  name : String
+  type_parameters : Array[ResolvedTypeParameter]
   loc : SourceSpan
 } derive(Debug, Eq)
 

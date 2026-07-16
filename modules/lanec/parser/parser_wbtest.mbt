@@ -758,6 +758,7 @@ test "parse rejects expression-shaped member owner" {
       #|      { label: "`let`" },
       #|      { label: "`type`" },
       #|      { label: "`offer`" },
+      #|      { label: "`extern`" },
       #|      { label: "`pub`" },
       #|      { label: "`+`" },
       #|      { label: "`-`" },
@@ -1145,4 +1146,30 @@ test "parse accepts empty qualified variant argument syntax" {
       #|let value : Option[Int] = Option::none()
     ),
   )
+}
+
+///|
+test "parse external host type and effect declarations" {
+  let file = expect_parse_ok(
+    (
+      #|extern type Fd : Type
+      #|pub extern type VectorOp[A : Type] : Effect
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|extern type Fd : Type
+      #|
+      #|pub extern type VectorOp[A : Type] : Effect
+    ),
+  )
+}
+
+///|
+test "parse rejects external declaration bodies" {
+  assert_false(parse_errors("extern type Fd : Type = Int").is_empty())
+  assert_false(parse_errors("extern type VectorOp : Effect {}").is_empty())
 }

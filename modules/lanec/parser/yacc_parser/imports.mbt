@@ -9,6 +9,8 @@ using @syntax {
   type EffectOperationDeclaration,
   type EffectOperationName,
   type EffectTerm,
+  type ExternalTypeDeclaration,
+  type ExternalTypeKind,
   type Expr,
   type FieldDeclaration,
   type FunctionDeclaration,
@@ -91,6 +93,26 @@ priv enum HandlerOperationAfterTypeArguments {
 ///|
 fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
   SourceSpan::join(loc.0, loc.1)
+}
+
+///|
+fn make_external_type(
+  is_public : Bool,
+  name : String,
+  type_parameters : Array[TypeParameter],
+  result_kind : ExternalTypeKind,
+  loc : SourceSpan,
+) -> ExternalTypeDeclaration {
+  { is_public, name, type_parameters, result_kind, loc }
+}
+
+///|
+fn external_type_kind(name : String, loc : SourceSpan) -> ExternalTypeKind {
+  if name == "Effect" {
+    Effect(loc~)
+  } else {
+    Type(loc~)
+  }
 }
 
 ///|

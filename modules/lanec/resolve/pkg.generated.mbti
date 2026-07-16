@@ -71,6 +71,7 @@ pub(all) struct ResolvedEffectDeclaration {
   is_public : Bool
   symbol : @symbol.EffectSymbolId
   name : String
+  flavor : @symbol.EffectFlavor
   type_parameters : Array[ResolvedTypeParameter]
   operations : Array[ResolvedEffectOperationDeclaration]
   loc : @basic.SourceSpan
@@ -154,6 +155,15 @@ pub(all) enum ResolvedExpr {
 pub fn ResolvedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
 pub fn ResolvedExpr::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for ResolvedExpr
+
+pub(all) struct ResolvedExternalTypeDeclaration {
+  is_public : Bool
+  symbol : @symbol.TypeSymbolId
+  name : String
+  type_parameters : Array[ResolvedTypeParameter]
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ResolvedExternalTypeDeclaration
 
 pub(all) struct ResolvedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
@@ -370,6 +380,7 @@ pub(all) enum ResolvedTopLevelDeclaration {
   Struct(ResolvedStructDeclaration)
   Enum(ResolvedEnumDeclaration)
   Effect(ResolvedEffectDeclaration)
+  ExternalType(ResolvedExternalTypeDeclaration)
   TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)

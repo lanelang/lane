@@ -114,6 +114,20 @@ pub(all) enum Expr {
 pub fn Expr::loc(Self) -> @basic.SourceSpan
 pub impl @prettyprinter.Pretty for Expr
 
+pub(all) struct ExternalTypeDeclaration {
+  is_public : Bool
+  name : String
+  type_parameters : Array[TypeParameter]
+  result_kind : ExternalTypeKind
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ExternalTypeDeclaration
+
+pub(all) enum ExternalTypeKind {
+  Type(loc~ : @basic.SourceSpan)
+  Effect(loc~ : @basic.SourceSpan)
+} derive(Eq, @debug.Debug)
+
 pub(all) struct FieldDeclaration {
   name : String
   type_ : Type
@@ -310,6 +324,7 @@ pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)
   Enum(EnumDeclaration)
   Effect(EffectDeclaration)
+  ExternalType(ExternalTypeDeclaration)
   TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)

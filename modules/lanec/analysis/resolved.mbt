@@ -78,6 +78,7 @@ fn collect_resolved_top_level_type_references(
           hovers,
         )
       }
+    ExternalType(_) => ()
     Function(declaration) => {
       for parameter in declaration.parameters {
         collect_resolved_type_reference(
@@ -460,6 +461,22 @@ fn collect_resolved_top_level_declaration(
             source_id, payload, references, hovers,
           )
         }
+      }
+    }
+    ExternalType(declaration) => {
+      add_definition(
+        definitions,
+        hovers,
+        source_id,
+        Type(declaration.symbol),
+        name_span(source_text, declaration.name, declaration.loc),
+        declaration.name,
+        "extern type \{declaration.name} : Type",
+      )
+      for parameter in declaration.type_parameters {
+        collect_resolved_type_parameter_definition(
+          source_id, parameter, definitions, hovers,
+        )
       }
     }
     TypeAlias(declaration) =>

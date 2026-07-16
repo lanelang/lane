@@ -89,6 +89,8 @@ fn GenericParameterUseCollector::collect_declaration(
         self.collect_type(operation.result)
       }
     }
+    ExternalType(declaration) =>
+      self.add_parameters(declaration.type_parameters)
     TypeAlias(declaration) => {
       self.add_parameters(declaration.type_parameters)
       match declaration.body {
@@ -213,6 +215,7 @@ fn GenericParameterUseCollector::collect_checked_source(
           }
           self.collect_checked_type(operation.result)
         }
+      ExternalType(_) => ()
       Function(declaration) => {
         for parameter in declaration.parameters {
           self.collect_checked_type(parameter.type_)

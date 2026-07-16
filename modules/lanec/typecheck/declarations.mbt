@@ -71,6 +71,10 @@ fn typecheck_declarations_with_imported_environment(
         }
         effects.push(checked)
       }
+      ExternalType(declaration) => {
+        let checked = checker.check_external_type(declaration)
+        types.push(External(checked))
+      }
       TypeAlias(declaration) => checker.check_type_alias(declaration)
       _ => ()
     }
@@ -184,6 +188,7 @@ fn interface_effect_declaration(
     is_public: true,
     symbol: declaration.symbol,
     name: declaration.name,
+    flavor: @symbol.EffectFlavor::Algebraic,
     type_parameters: declaration.type_parameters,
     operations: declaration.operations.map(fn(operation) {
       {
@@ -271,8 +276,28 @@ fn DeclarationChecker::check_effect(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    flavor: declaration.flavor,
     type_parameters,
     operations,
+    loc: declaration.loc,
+  }
+}
+
+///|
+fn DeclarationChecker::check_external_type(
+  self : DeclarationChecker,
+  declaration : @resolve.ResolvedExternalTypeDeclaration,
+) -> CheckedExternalTypeDeclaration {
+  if !declaration.type_parameters.is_empty() {
+    self.diagnostics.push({
+      kind: ExternalTypeParametersNotSupported(name=declaration.name),
+      loc: declaration.loc,
+    })
+  }
+  {
+    is_public: declaration.is_public,
+    symbol: declaration.symbol,
+    name: declaration.name,
     loc: declaration.loc,
   }
 }
@@ -942,6 +967,8 @@ fn TypeExpressionChecker::type_constructor_kind(
         return nominal_kind(declaration.type_parameters)
       Enum(declaration) if declaration.symbol == symbol =>
         return nominal_kind(declaration.type_parameters)
+      ExternalType(declaration) if declaration.symbol == symbol =>
+        return nominal_kind(declaration.type_parameters)
       _ => ()
     }
   }
@@ -1016,6 +1043,11 @@ fn TypeExpressionChecker::find_type_parameter_kind(
             if find_kind_in_effect(effect, symbol) is Some(kind) {
               return Some(kind)
             }
+        }
+      ExternalType(declaration) =>
+        if find_kind_in_parameters(declaration.type_parameters, symbol)
+          is Some(kind) {
+          return Some(kind)
         }
       Effect(declaration) => {
         if find_kind_in_parameters(declaration.type_parameters, symbol)

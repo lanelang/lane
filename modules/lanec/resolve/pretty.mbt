@@ -21,11 +21,26 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration with fn pretty(
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
     Effect(declaration) => declaration.pretty()
+    ExternalType(declaration) => declaration.pretty()
     TypeAlias(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
     Offer(declaration) => declaration.pretty()
   }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ResolvedExternalTypeDeclaration with fn pretty(
+  declaration : ResolvedExternalTypeDeclaration,
+) {
+  text("extern") +
+  space +
+  text("type") +
+  space +
+  declaration.symbol.pretty() +
+  space +
+  text(declaration.name) +
+  type_parameters_doc(declaration.type_parameters)
 }
 
 ///|
@@ -249,7 +264,11 @@ pub impl @prettyprinter.Pretty for ResolvedTypeAliasBody with fn pretty(
 pub impl @prettyprinter.Pretty for ResolvedEffectDeclaration with fn pretty(
   declaration : ResolvedEffectDeclaration,
 ) {
-  text("effect") +
+  (if declaration.flavor is External {
+    text("extern") + space + text("type")
+  } else {
+    text("effect")
+  }) +
   space +
   declaration.symbol.pretty() +
   space +

@@ -550,6 +550,44 @@ fn Resolver::collect_top_level_headers(
           None,
         )
       }
+      ExternalType(declaration) =>
+        match declaration.result_kind {
+          Type(_) => {
+            self.report_type_effect_conflict_if_effect_exists(
+              declaration.name,
+              "external type",
+              declaration.loc,
+            )
+            self.publish_type_binding(
+              declaration.name,
+              self.registry.define_type(
+                declaration.name,
+                @symbol.NominalTypeKind::External,
+                declaration.type_parameters.length(),
+                declaration.loc,
+              ),
+              declaration.type_parameters,
+              None,
+            )
+          }
+          Effect(_) => {
+            self.report_effect_type_conflict_if_type_exists(
+              declaration.name,
+              declaration.loc,
+            )
+            self.publish_effect_binding(
+              declaration.name,
+              self.registry.define_effect(
+                declaration.name,
+                declaration.type_parameters.length(),
+                declaration.loc,
+                flavor=@symbol.EffectFlavor::External,
+              ),
+              declaration.type_parameters,
+              None,
+            )
+          }
+        }
       TypeAlias(declaration) => {
         self.report_type_effect_conflict_if_effect_exists(
           declaration.name,
@@ -673,7 +711,7 @@ fn Resolver::collect_nominal_members(
           |> ignore
         }
       }
-      TypeAlias(_) | Function(_) | Let(_) | Offer(_) => ()
+      ExternalType(_) | TypeAlias(_) | Function(_) | Let(_) | Offer(_) => ()
     }
   }
 }
@@ -692,12 +730,44 @@ fn @syntax.TopLevelDeclaration::resolve_top_level(
     Struct(declaration) => Struct(declaration.resolve_struct(resolver))
     Enum(declaration) => Enum(declaration.resolve_enum(resolver))
     Effect(declaration) => Effect(declaration.resolve_effect(resolver))
+    ExternalType(declaration) => declaration.resolve_external_type(resolver)
     TypeAlias(declaration) =>
       TypeAlias(declaration.resolve_type_alias(resolver))
     Function(declaration) =>
       Function(declaration.resolve_top_level_function(resolver))
     Let(declaration) => Let(declaration.resolve_top_level_let(resolver))
     Offer(declaration) => Offer(declaration.resolve_top_level_offer(resolver))
+  }
+}
+
+///|
+fn @syntax.ExternalTypeDeclaration::resolve_external_type(
+  self : @syntax.ExternalTypeDeclaration,
+  resolver : Resolver,
+) -> ResolvedTopLevelDeclaration {
+  let type_parameters = resolver.resolve_type_parameters(
+    self.type_parameters,
+    self.loc,
+  )
+  match self.result_kind {
+    Type(_) =>
+      ExternalType({
+        is_public: self.is_public,
+        symbol: resolver.type_symbol(self.name),
+        name: self.name,
+        type_parameters,
+        loc: self.loc,
+      })
+    Effect(_) =>
+      Effect({
+        is_public: self.is_public,
+        symbol: resolver.effect_symbol(self.name),
+        name: self.name,
+        flavor: @symbol.EffectFlavor::External,
+        type_parameters,
+        operations: [],
+        loc: self.loc,
+      })
   }
 }
 
@@ -986,6 +1056,7 @@ fn @syntax.EffectDeclaration::resolve_effect(
     is_public: self.is_public,
     symbol,
     name: self.name,
+    flavor: @symbol.EffectFlavor::Algebraic,
     type_parameters,
     operations,
     loc: self.loc,

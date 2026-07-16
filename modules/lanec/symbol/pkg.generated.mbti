@@ -12,6 +12,12 @@ import {
 // Errors
 
 // Types and methods
+pub(all) enum EffectFlavor {
+  Algebraic
+  External
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for EffectFlavor
+
 pub(all) struct EffectSymbolId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -20,6 +26,7 @@ pub impl @prettyprinter.Pretty for EffectSymbolId
 pub(all) struct EffectSymbolMetadata {
   id : EffectSymbolId
   name : String
+  flavor : EffectFlavor
   arity : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -42,6 +49,7 @@ pub impl @prettyprinter.Pretty for FieldSymbolMetadata
 pub(all) enum NominalTypeKind {
   Struct
   Enum
+  External
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for NominalTypeKind
 
@@ -71,7 +79,7 @@ pub struct SymbolRegistry {
   operations : Array[OperationSymbolMetadata]
 } derive(Eq, @debug.Debug)
 pub fn SymbolRegistry::SymbolRegistry() -> Self
-pub fn SymbolRegistry::define_effect(Self, String, Int, @basic.SourceSpan) -> EffectSymbolId
+pub fn SymbolRegistry::define_effect(Self, String, Int, @basic.SourceSpan, flavor? : EffectFlavor) -> EffectSymbolId
 pub fn SymbolRegistry::define_field(Self, TypeSymbolId, String, Int, @basic.SourceSpan) -> FieldSymbolId
 pub fn SymbolRegistry::define_operation(Self, EffectSymbolId, String, Int, Int, @basic.SourceSpan) -> OperationSymbolId
 pub fn SymbolRegistry::define_type(Self, String, NominalTypeKind, Int, @basic.SourceSpan) -> TypeSymbolId

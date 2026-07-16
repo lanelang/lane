@@ -415,6 +415,19 @@ fn CompletionWorld::add_checked_identifier_entries(
             )
           }
         }
+      ExternalType(declaration) =>
+        if completion_allows_type(space) {
+          add_completion_entry(
+            entries,
+            source_id,
+            prefix,
+            replace,
+            declaration.name,
+            Type,
+            Some("extern type \{declaration.name} : Type"),
+            "30",
+          )
+        }
       Effect(declaration) =>
         if completion_allows_effect(space) {
           add_completion_entry(
@@ -668,6 +681,19 @@ fn add_resolved_identifier_entries(
             declaration.name,
             Type,
             Some("enum \{declaration.name}"),
+            "30",
+          )
+        }
+      ExternalType(declaration) =>
+        if completion_allows_type(space) {
+          add_completion_entry(
+            entries,
+            source_id,
+            prefix,
+            replace,
+            declaration.name,
+            Type,
+            Some("extern type \{declaration.name} : Type"),
             "30",
           )
         }

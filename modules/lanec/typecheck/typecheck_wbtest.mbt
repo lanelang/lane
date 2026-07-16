@@ -546,11 +546,55 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|[
       #|  ("scalar", FunctionRequired),
       #|  ("generic", MonomorphicRequired),
-      #|  ("aggregate_parameter", PrimitiveParameterRequired(index=0)),
-      #|  ("aggregate_result", PrimitiveResultRequired),
-      #|  ("open_effect", EffectMustBeEmptyOrIo),
-      #|  ("algebraic_effect", EffectMustBeEmptyOrIo),
+      #|  ("aggregate_parameter", DirectParameterRequired(index=0)),
+      #|  ("aggregate_result", DirectResultRequired),
+      #|  ("open_effect", ExternalEffectRowRequired),
+      #|  ("algebraic_effect", ExternalEffectRowRequired),
       #|]
+    ),
+  )
+}
+
+///|
+test "typecheck accepts external types and closed external effect rows" {
+  let result = expect_checked_source_result(
+    (
+      #|extern type Fd : Type
+      #|extern type VectorOp[A : Type] : Effect
+      #|type Handle = Fd
+      #|let open_fd : (String) -> Fd ! VectorOp[Int] = extern("fd.open")
+      #|let close_fd : (Handle) -> Unit ! { VectorOp[Int], Io } = extern("fd.close")
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  guard result.source is Some(source) else { abort("expected checked source") }
+  guard source.declarations[0] is ExternalType(fd) else {
+    abort("expected external type")
+  }
+  guard source.declarations[1] is Effect(vector_op) else {
+    abort("expected external effect")
+  }
+  debug_inspect(
+    (
+      fd.name,
+      vector_op.name,
+      vector_op.flavor,
+      vector_op.type_parameters.length(),
+      vector_op.operations.length(),
+    ),
+    content=(
+      #|("Fd", "VectorOp", External, 1, 0)
+    ),
+  )
+}
+
+///|
+test "typecheck rejects parameterized external host types" {
+  let result = expect_typecheck_result("extern type Box[A] : Type")
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+    content=(
+      #|[ExternalTypeParametersNotSupported(name="Box")]
     ),
   )
 }

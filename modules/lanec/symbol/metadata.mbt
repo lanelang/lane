@@ -2,6 +2,13 @@
 pub(all) enum NominalTypeKind {
   Struct
   Enum
+  External
+} derive(Debug, Eq)
+
+///|
+pub(all) enum EffectFlavor {
+  Algebraic
+  External
 } derive(Debug, Eq)
 
 ///|
@@ -71,6 +78,7 @@ pub(all) struct VariantSymbolMetadata {
 pub(all) struct EffectSymbolMetadata {
   id : EffectSymbolId
   name : String
+  flavor : EffectFlavor
   arity : Int
   loc : SourceSpan
 } derive(Debug, Eq)

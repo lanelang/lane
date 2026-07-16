@@ -66,6 +66,17 @@ pub impl @prettyprinter.Pretty for NominalTypeKind with fn pretty(
   match kind {
     Struct => text("struct")
     Enum => text("enum")
+    External => text("external")
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for EffectFlavor with fn pretty(
+  flavor : EffectFlavor,
+) {
+  match flavor {
+    Algebraic => text("algebraic")
+    External => text("external")
   }
 }
 

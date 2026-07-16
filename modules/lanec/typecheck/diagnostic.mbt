@@ -71,11 +71,11 @@ fn extern_type_restriction_message(
     FunctionRequired =>
       "extern declarations must be functions, found `\{display.type_text(type_)}`"
     MonomorphicRequired => "extern declarations cannot have type parameters"
-    PrimitiveParameterRequired(index~) =>
-      "extern parameter \{index + 1} must use a host primitive type"
-    PrimitiveResultRequired => "extern results must use a host primitive type"
-    EffectMustBeEmptyOrIo =>
-      "extern latent effects must be empty or exactly `Io`"
+    DirectParameterRequired(index~) =>
+      "extern parameter \{index + 1} must use a direct host ABI type"
+    DirectResultRequired => "extern results must use a direct host ABI type"
+    ExternalEffectRowRequired =>
+      "extern latent effects must be closed and contain only external effects"
   }
 }
 
@@ -477,6 +477,22 @@ fn typecheck_diagnostic(
         ],
         helps=["rename one of the type parameters"],
       )
+    ExternalTypeParametersNotSupported(name~) =>
+      diagnostic(
+        "external type `\{name}` cannot have type parameters",
+        span~,
+        severity=Error,
+        code=Some("E3107"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "external host values use a single opaque nominal identity",
+            style: Primary,
+          },
+        ],
+        notes=["external effect declarations may still have type parameters"],
+        helps=["remove the type parameter list from this external type"],
+      )
     NotAStruct(type_) =>
       diagnostic(
         "expected a struct type",
@@ -802,10 +818,10 @@ fn typecheck_diagnostic(
           },
         ],
         notes=[
-          "extern ABI v1 accepts monomorphic functions over Unit, Bool, Int, Double, and String with an empty effect or exactly Io",
+          "extern functions accept direct primitive or external types and closed rows containing only external effects",
         ],
         helps=[
-          "change the declaration to a supported primitive function signature",
+          "change the declaration to a supported direct host function signature",
         ],
       )
     FunctionLiteralParameterNeedsAnnotation(name~) => {

@@ -148,6 +148,7 @@ top_level_declaration -> TopLevelDeclaration
   : struct_declaration { Struct($1) }
   | enum_declaration { Enum($1) }
   | effect_declaration { Effect($1) }
+  | external_type_declaration { ExternalType($1) }
   | type_alias_declaration { TypeAlias($1) }
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
@@ -159,10 +160,24 @@ public_top_level_declaration -> TopLevelDeclaration
   : public_struct_declaration { Struct($1) }
   | public_enum_declaration { Enum($1) }
   | public_effect_declaration { Effect($1) }
+  | public_external_type_declaration { ExternalType($1) }
   | public_type_alias_declaration { TypeAlias($1) }
   | public_function_declaration { Function($1) }
   | public_top_level_let_declaration { Let($1) }
   | public_offer_value_declaration { Offer($1) }
+  ;
+
+external_type_declaration -> ExternalTypeDeclaration
+  : "extern" "type" IDENT type_parameters ":" external_type_result_kind { make_external_type(false, $3, $4, $6, span($sloc)) }
+  ;
+
+public_external_type_declaration -> ExternalTypeDeclaration
+  : "extern" "type" IDENT type_parameters ":" external_type_result_kind { make_external_type(true, $3, $4, $6, span($sloc)) }
+  ;
+
+external_type_result_kind -> ExternalTypeKind
+  : IDENT { external_type_kind($1, span($sloc)) }
+  | "effect" { Effect(loc=span($sloc)) }
   ;
 
 type_alias_declaration -> TypeAliasDeclaration

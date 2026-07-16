@@ -12,6 +12,7 @@ priv enum TopLevelUseDeclarationKind {
   TopLevelFunctionDeclaration
   TopLevelStructDeclaration
   TopLevelEnumDeclaration
+  TopLevelExternalTypeDeclaration
   TopLevelEffectDeclaration
   TopLevelTypeAliasDeclaration
   TopLevelEffectAliasDeclaration
@@ -148,6 +149,14 @@ fn TopLevelUseCollector::collect_declaration(
         }
       })
     }
+    ExternalType(declaration) =>
+      self.add_declaration(
+        TopLevelTypeSymbol(declaration.symbol),
+        declaration.name,
+        TopLevelExternalTypeDeclaration,
+        declaration.is_public,
+        declaration.loc,
+      )
     Effect(declaration) => {
       let symbol = TopLevelEffectSymbol(declaration.symbol)
       self.add_declaration(
@@ -276,6 +285,7 @@ fn TopLevelUseCollector::collect_checked_source(
             collector.collect_checked_type(operation.result)
           }
         })
+      ExternalType(_) => ()
       Function(declaration) =>
         self.with_current(TopLevelValueSymbol(declaration.symbol), fn(
           collector,
@@ -1014,6 +1024,7 @@ fn TopLevelUseDeclarationKind::text(
     TopLevelFunctionDeclaration => "function"
     TopLevelStructDeclaration => "struct"
     TopLevelEnumDeclaration => "enum"
+    TopLevelExternalTypeDeclaration => "external type"
     TopLevelEffectDeclaration => "effect"
     TopLevelTypeAliasDeclaration => "type alias"
     TopLevelEffectAliasDeclaration => "effect alias"

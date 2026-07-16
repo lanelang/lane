@@ -25,6 +25,7 @@ fn desugar_top_level_declaration(
     Struct(declaration) => Some(Struct(declaration))
     Enum(declaration) => Some(Enum(declaration))
     Effect(declaration) => Some(Effect(declaration))
+    ExternalType(declaration) => Some(ExternalType(declaration))
     TypeAlias(_) => None
     Function(declaration) =>
       Some(Function(desugar_function_declaration(declaration)))

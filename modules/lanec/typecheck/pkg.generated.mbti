@@ -39,6 +39,7 @@ pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : @symbol.EffectSymbolId
   name : String
+  flavor : @symbol.EffectFlavor
   type_parameters : Array[@types.TypeParameter]
   operations : Array[CheckedEffectOperationDeclaration]
   loc : @basic.SourceSpan
@@ -65,6 +66,14 @@ pub(all) struct CheckedEnumDeclaration {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedEnumDeclaration
+
+pub(all) struct CheckedExternalTypeDeclaration {
+  is_public : Bool
+  symbol : @symbol.TypeSymbolId
+  name : String
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
 
 pub(all) struct CheckedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
@@ -115,7 +124,7 @@ pub impl @prettyprinter.Pretty for CheckedStructDeclaration
 pub(all) enum CheckedTypeDeclaration {
   Struct(CheckedStructDeclaration)
   Enum(CheckedEnumDeclaration)
-  Effect(CheckedEffectDeclaration)
+  External(CheckedExternalTypeDeclaration)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedTypeDeclaration
 
@@ -172,9 +181,9 @@ pub impl @diagnostic.ToCompilerDiagnostic for DisplayedTypeCheckDiagnostic
 pub(all) enum ExternTypeRestriction {
   FunctionRequired
   MonomorphicRequired
-  PrimitiveParameterRequired(index~ : Int)
-  PrimitiveResultRequired
-  EffectMustBeEmptyOrIo
+  DirectParameterRequired(index~ : Int)
+  DirectResultRequired
+  ExternalEffectRowRequired
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ExternTypeRestriction
 
@@ -230,6 +239,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   MissingTypeMember(name~ : String)
   DuplicateTypeMember(name~ : String)
   DuplicateTypeParameter(name~ : String)
+  ExternalTypeParametersNotSupported(name~ : String)
   NotAStruct(@types.Type)
   NonExhaustiveMatch(type_~ : @types.Type, witness~ : String?)
   UnreachableMatchArm

@@ -25,6 +25,19 @@ fn CheckedDeclarationEnvironment::checked_enum(
 }
 
 ///|
+fn CheckedDeclarationEnvironment::checked_external_type(
+  self : CheckedDeclarationEnvironment,
+  symbol : TypeSymbolId,
+) -> CheckedExternalTypeDeclaration? {
+  for declaration in self.types {
+    if declaration is External(declaration) && declaration.symbol == symbol {
+      return Some(declaration)
+    }
+  }
+  None
+}
+
+///|
 fn CheckedDeclarationEnvironment::checked_effect(
   self : CheckedDeclarationEnvironment,
   symbol : EffectSymbolId,

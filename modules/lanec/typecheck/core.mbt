@@ -45,7 +45,7 @@ pub(all) struct ContextualOfferDiagnosticCandidate {
 pub(all) enum CheckedTypeDeclaration {
   Struct(CheckedStructDeclaration)
   Enum(CheckedEnumDeclaration)
-  Effect(CheckedEffectDeclaration)
+  External(CheckedExternalTypeDeclaration)
 } derive(Debug, Eq)
 
 ///|
@@ -62,6 +62,14 @@ pub(all) struct CheckedStructDeclaration {
   type_parameters : Array[@types.TypeParameter]
   type_members : Array[CheckedTypeMemberDeclaration]
   fields : Array[CheckedFieldDeclaration]
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedExternalTypeDeclaration {
+  is_public : Bool
+  symbol : TypeSymbolId
+  name : String
   loc : SourceSpan
 } derive(Debug, Eq)
 
@@ -109,6 +117,7 @@ pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : EffectSymbolId
   name : String
+  flavor : EffectFlavor
   type_parameters : Array[@types.TypeParameter]
   operations : Array[CheckedEffectOperationDeclaration]
   loc : SourceSpan
@@ -178,9 +187,9 @@ pub(all) enum GenericArgumentInferenceFailure {
 pub(all) enum ExternTypeRestriction {
   FunctionRequired
   MonomorphicRequired
-  PrimitiveParameterRequired(index~ : Int)
-  PrimitiveResultRequired
-  EffectMustBeEmptyOrIo
+  DirectParameterRequired(index~ : Int)
+  DirectResultRequired
+  ExternalEffectRowRequired
 } derive(Debug, Eq)
 
 ///|
@@ -228,6 +237,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   MissingTypeMember(name~ : String)
   DuplicateTypeMember(name~ : String)
   DuplicateTypeParameter(name~ : String)
+  ExternalTypeParametersNotSupported(name~ : String)
   NotAStruct(@types.Type)
   NonExhaustiveMatch(type_~ : @types.Type, witness~ : String?)
   UnreachableMatchArm

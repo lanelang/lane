@@ -17,9 +17,25 @@ pub impl @prettyprinter.Pretty for CheckedTopLevelDeclaration with fn pretty(
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
     Effect(declaration) => declaration.pretty()
+    ExternalType(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
   }
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration with fn pretty(
+  declaration : CheckedExternalTypeDeclaration,
+) {
+  text("extern") +
+  space +
+  text("type") +
+  space +
+  type_name_doc(declaration.name, declaration.symbol) +
+  space +
+  text(":") +
+  space +
+  text("Type")
 }
 
 ///|
@@ -88,7 +104,11 @@ pub impl @prettyprinter.Pretty for CheckedVariantDeclaration with fn pretty(
 pub impl @prettyprinter.Pretty for CheckedEffectDeclaration with fn pretty(
   declaration : CheckedEffectDeclaration,
 ) {
-  text("effect") +
+  (if declaration.flavor is External {
+    text("extern") + space + text("type")
+  } else {
+    text("effect")
+  }) +
   space +
   effect_name_doc(declaration.name, declaration.symbol) +
   type_parameters_doc(declaration.type_parameters) +

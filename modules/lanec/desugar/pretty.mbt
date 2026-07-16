@@ -17,6 +17,7 @@ pub impl @prettyprinter.Pretty for DesugaredTopLevelDeclaration with fn pretty(
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
     Effect(declaration) => declaration.pretty()
+    ExternalType(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
     Offer(declaration) => declaration.pretty()

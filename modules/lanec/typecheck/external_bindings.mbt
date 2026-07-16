@@ -44,7 +44,7 @@ fn SemanticChecker::check_extern_binding(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  if extern_type_restriction(expected) is Some(restriction) {
+  if self.extern_type_restriction(expected) is Some(restriction) {
     self.diagnostics.push({
       kind: InvalidExternType(name~, type_=expected, restriction~),
       loc,
@@ -67,21 +67,25 @@ fn SemanticChecker::synthesize_extern_binding(
 }
 
 ///|
-fn extern_type_restriction(type_ : @types.Type) -> ExternTypeRestriction? {
+fn SemanticChecker::extern_type_restriction(
+  self : SemanticChecker,
+  type_ : @types.Type,
+) -> ExternTypeRestriction? {
   match type_ {
     Forall(_) | TypeLambda(_) => Some(MonomorphicRequired)
     Function(parameters, result, effect) => {
       for index, parameter in parameters {
-        if !extern_primitive_type(parameter) {
-          return Some(PrimitiveParameterRequired(index~))
+        if !self.extern_direct_type(parameter) {
+          return Some(DirectParameterRequired(index~))
         }
       }
-      if !extern_primitive_type(result) {
-        return Some(PrimitiveResultRequired)
+      if !self.extern_direct_type(result) {
+        return Some(DirectResultRequired)
       }
-      match effect.canonicalize() {
-        Empty | Io => None
-        _ => Some(EffectMustBeEmptyOrIo)
+      if self.extern_effect_row(effect.canonicalize()) {
+        None
+      } else {
+        Some(ExternalEffectRowRequired)
       }
     }
     _ => Some(FunctionRequired)
@@ -89,10 +93,33 @@ fn extern_type_restriction(type_ : @types.Type) -> ExternTypeRestriction? {
 }
 
 ///|
-fn extern_primitive_type(type_ : @types.Type) -> Bool {
-  type_ is Primitive(Unit) ||
-  type_ is Primitive(Bool) ||
-  type_ is Primitive(Int) ||
-  type_ is Primitive(Double) ||
-  type_ is Primitive(String)
+fn SemanticChecker::extern_direct_type(
+  self : SemanticChecker,
+  type_ : @types.Type,
+) -> Bool {
+  match type_.normalize() {
+    Primitive(Unit)
+    | Primitive(Bool)
+    | Primitive(Int)
+    | Primitive(Double)
+    | Primitive(String) => true
+    Constructor(symbol) =>
+      self.declarations.checked_external_type(symbol) is Some(_)
+    _ => false
+  }
+}
+
+///|
+fn SemanticChecker::extern_effect_row(
+  self : SemanticChecker,
+  effect : @types.Effect,
+) -> Bool {
+  match effect {
+    Empty | Io => true
+    Singleton(symbol, _) =>
+      self.declarations.checked_effect(symbol) is Some(declaration) &&
+      declaration.flavor is External
+    Union(items) => items.all(fn(item) { self.extern_effect_row(item) })
+    Parameter(_) => false
+  }
 }

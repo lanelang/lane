@@ -55,6 +55,7 @@ fn collect_import_used_symbols_from_declaration(
         }
         collect_import_used_symbols_from_type(operation.result, symbols)
       }
+    ExternalType(_) => ()
     Function(declaration) => {
       for parameter in declaration.parameters {
         collect_import_used_symbols_from_type(parameter.type_, symbols)

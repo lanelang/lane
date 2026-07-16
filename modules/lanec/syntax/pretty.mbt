@@ -145,10 +145,45 @@ fn TopLevelDeclaration::to_doc(
     Struct(declaration) => declaration.to_doc(trivia~)
     Enum(declaration) => declaration.to_doc(trivia~)
     Effect(declaration) => declaration.to_doc(trivia~)
+    ExternalType(declaration) => declaration.to_doc(trivia~)
     TypeAlias(declaration) => declaration.to_doc(trivia~)
     Function(declaration) => declaration.to_doc(trivia~)
     Let(declaration) => declaration.to_doc(trivia~)
     Offer(declaration) => declaration.to_doc(trivia~)
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ExternalTypeDeclaration with fn pretty(
+  declaration : ExternalTypeDeclaration,
+) {
+  declaration.to_doc()
+}
+
+///|
+fn ExternalTypeDeclaration::to_doc(
+  self : ExternalTypeDeclaration,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  let doc = public_prefix(self.is_public) +
+    keyword("extern") +
+    space +
+    keyword("type") +
+    space +
+    text(self.name) +
+    bracketed_type_parameters(self.type_parameters) +
+    space +
+    text(":") +
+    space +
+    self.result_kind.to_doc()
+  trivia.decorate_leading(self.loc, doc)
+}
+
+///|
+fn ExternalTypeKind::to_doc(self : ExternalTypeKind) -> Document {
+  match self {
+    Type(_) => text("Type")
+    Effect(_) => text("Effect")
   }
 }
 

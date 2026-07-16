@@ -73,10 +73,30 @@ fn SemanticChecker::check_checked_top_level_declaration(
     Struct(declaration) => self.checked_top_level_struct(declaration)
     Enum(declaration) => self.checked_top_level_enum(declaration)
     Effect(declaration) => self.checked_top_level_effect(declaration)
+    ExternalType(declaration) =>
+      self.checked_top_level_external_type(declaration)
     Function(declaration) => self.checked_top_level_function(declaration)
     Let(declaration) => self.checked_top_level_let(declaration)
     Offer(declaration) => self.checked_top_level_offer(declaration)
   }
+}
+
+///|
+fn SemanticChecker::checked_top_level_external_type(
+  self : SemanticChecker,
+  declaration : @resolve.ResolvedExternalTypeDeclaration,
+) -> @checked.CheckedTopLevelDeclaration? {
+  guard self.declarations.checked_external_type(declaration.symbol)
+    is Some(checked) else {
+    self.diagnostics.push({
+      kind: InternalTypecheckFailure(
+        label="checked external type " + declaration.name,
+      ),
+      loc: declaration.loc,
+    })
+    return None
+  }
+  Some(ExternalType(checked.to_checked_external_type_declaration()))
 }
 
 ///|
@@ -528,6 +548,18 @@ fn CheckedStructDeclaration::to_checked_struct_declaration(
 }
 
 ///|
+fn CheckedExternalTypeDeclaration::to_checked_external_type_declaration(
+  self : CheckedExternalTypeDeclaration,
+) -> @checked.CheckedExternalTypeDeclaration {
+  {
+    symbol: self.symbol,
+    is_public: self.is_public,
+    name: self.name,
+    loc: self.loc,
+  }
+}
+
+///|
 fn CheckedTypeMemberDeclaration::to_checked_type_member_declaration(
   self : CheckedTypeMemberDeclaration,
 ) -> @checked.CheckedTypeMemberDeclaration {
@@ -592,6 +624,7 @@ fn CheckedEffectDeclaration::to_checked_effect_declaration(
     symbol: self.symbol,
     is_public: self.is_public,
     name: self.name,
+    flavor: self.flavor,
     type_parameters: self.type_parameters,
     operations: self.operations.map(
       CheckedEffectOperationDeclaration::to_checked_effect_operation_declaration,

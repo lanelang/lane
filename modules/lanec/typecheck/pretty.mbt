@@ -5,12 +5,10 @@ pub impl @prettyprinter.Pretty for ExternTypeRestriction with fn pretty(
   match restriction {
     FunctionRequired => text("function_required")
     MonomorphicRequired => text("monomorphic_required")
-    PrimitiveParameterRequired(index~) =>
-      text("primitive_parameter_required[") +
-      text(index.to_string()) +
-      text("]")
-    PrimitiveResultRequired => text("primitive_result_required")
-    EffectMustBeEmptyOrIo => text("effect_must_be_empty_or_io")
+    DirectParameterRequired(index~) =>
+      text("direct_parameter_required[") + text(index.to_string()) + text("]")
+    DirectResultRequired => text("direct_result_required")
+    ExternalEffectRowRequired => text("external_effect_row_required")
   }
 }
 
@@ -121,8 +119,23 @@ pub impl @prettyprinter.Pretty for CheckedTypeDeclaration with fn pretty(
   match declaration {
     Struct(declaration) => declaration.pretty()
     Enum(declaration) => declaration.pretty()
-    Effect(declaration) => declaration.pretty()
+    External(declaration) => declaration.pretty()
   }
+}
+
+///|
+pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration with fn pretty(
+  declaration : CheckedExternalTypeDeclaration,
+) {
+  text("extern") +
+  space +
+  text("type") +
+  space +
+  type_name_doc(declaration.name, declaration.symbol) +
+  space +
+  text(":") +
+  space +
+  text("Type")
 }
 
 ///|
@@ -180,7 +193,11 @@ pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration with fn pretty(
 pub impl @prettyprinter.Pretty for CheckedEffectDeclaration with fn pretty(
   declaration : CheckedEffectDeclaration,
 ) {
-  text("effect") +
+  (if declaration.flavor is External {
+    text("extern") + space + text("type")
+  } else {
+    text("effect")
+  }) +
   space +
   declaration.symbol.pretty() +
   space +
@@ -368,6 +385,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text("duplicate_type_member") + space + text(name)
     DuplicateTypeParameter(name~) =>
       text("duplicate_type_parameter") + space + text(name)
+    ExternalTypeParametersNotSupported(name~) =>
+      text("external_type_parameters_not_supported") + space + text(name)
     NotAStruct(type_) => text("not_a_struct") + space + type_.pretty()
     NonExhaustiveMatch(type_~, witness~) => {
       let doc = text("non_exhaustive_match") + space + type_.pretty()

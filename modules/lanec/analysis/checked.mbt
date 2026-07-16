@@ -97,7 +97,7 @@ fn collect_checked_top_level_parameter_signatures(
       )
       collect_checked_expr_parameter_signatures(declaration.body, signatures)
     }
-    Enum(_) | Effect(_) => ()
+    Enum(_) | Effect(_) | ExternalType(_) => ()
     Let(declaration) =>
       collect_checked_expr_parameter_signatures(
         declaration.initializer,
@@ -321,6 +321,16 @@ fn collect_checked_top_level_declaration(
         )
       }
     }
+    ExternalType(declaration) =>
+      add_definition(
+        definitions,
+        hovers,
+        source_id,
+        Type(declaration.symbol),
+        name_span(source_text, declaration.name, declaration.loc),
+        declaration.name,
+        "extern type \{declaration.name} : Type",
+      )
     Effect(declaration) => {
       add_definition(
         definitions,
@@ -798,7 +808,11 @@ fn checked_effect_detail(
     declaration.type_parameters,
     display,
   )
-  "effect \{declaration.name}\{parameters}"
+  if declaration.flavor is @symbol.EffectFlavor::External {
+    "extern type \{declaration.name}\{parameters} : Effect"
+  } else {
+    "effect \{declaration.name}\{parameters}"
+  }
 }
 
 ///|
