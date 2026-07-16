@@ -105,7 +105,7 @@ fn ImportDeclaration::to_doc(
       space +
       module_path.to_doc() +
       text(".") +
-      braced_comma_list_compact(items.map(ImportItem::to_doc))
+      braced_comma_list(items.map(ImportItem::to_doc))
   }
   trivia.decorate(self.loc(), doc)
 }

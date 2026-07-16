@@ -3,7 +3,7 @@
 
 module Examples.Valid15
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 import Basic.Ops.*
 

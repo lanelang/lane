@@ -478,7 +478,7 @@ test "format source keeps selective imports parseable" {
     (
       #|module Test
       #|
-      #|import Lib.{value, Box}
+      #|import Lib.{ value, Box }
       #|
       #|pub let item : Box = Box::{ value }
       #|

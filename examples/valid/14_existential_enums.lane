@@ -1,6 +1,6 @@
 module Examples.Valid14
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 pub enum Packed {
   hide[T](T)

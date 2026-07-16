@@ -2,7 +2,7 @@ module Examples.Valid.SingleVariantPatternLet
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 pub enum Id[A] {
   id(A)

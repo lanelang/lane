@@ -74,11 +74,6 @@ fn braced_comma_list(docs : Array[Document]) -> Document {
 }
 
 ///|
-fn braced_comma_list_compact(docs : Array[Document]) -> Document {
-  delimited_comma_list(char('{'), char('}'), softline, docs)
-}
-
-///|
 fn breakable_head(keyword_doc : Document, body : Document) -> Document {
   source_prefixed(keyword_doc, body, body)
 }

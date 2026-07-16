@@ -2,7 +2,7 @@ module Examples.Valid11
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 pub fn apply(value : Int, f : (Int) -> Int) -> Int {
   f(value)

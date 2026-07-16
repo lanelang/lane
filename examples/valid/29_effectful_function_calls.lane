@@ -2,7 +2,7 @@ module Examples.Valid.EffectfulFunctionCalls
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 effect Console {
   read() -> Int

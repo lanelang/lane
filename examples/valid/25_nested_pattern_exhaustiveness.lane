@@ -2,7 +2,7 @@ module Examples.Valid.NestedPatternExhaustiveness
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 pub enum Option[A] {
   none()

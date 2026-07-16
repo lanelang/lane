@@ -1,6 +1,6 @@
 module Examples.Valid.RecursionSchemes
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 import Basic.Ops.*
 

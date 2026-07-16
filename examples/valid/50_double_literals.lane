@@ -1,6 +1,6 @@
 module Examples.Valid.DoubleLiterals
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 fn classify(value : Double) -> Int {
   match value {

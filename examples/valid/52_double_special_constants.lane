@@ -1,8 +1,8 @@
 module Examples.Valid.DoubleSpecialConstants
 
-import Basic.Double.{infinity, nan, neg_infinity}
+import Basic.Double.{ infinity, nan, neg_infinity }
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 import Basic.Ops.*
 

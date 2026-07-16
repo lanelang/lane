@@ -2,7 +2,7 @@ module Examples.Valid.ModuleQualifiedTypeAccess
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 import Basic.Builtins
 

@@ -3,7 +3,7 @@
 
 module Examples.Valid.HigherKindedAliasResultKind
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 import Basic.Ops.*
 

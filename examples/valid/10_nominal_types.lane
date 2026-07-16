@@ -2,7 +2,7 @@ module Examples.Valid10
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 pub struct UserId {
   value : Int

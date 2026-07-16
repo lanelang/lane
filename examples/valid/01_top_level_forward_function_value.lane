@@ -2,7 +2,7 @@ module Examples.Valid01
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 pub fn read_stored_value() -> Int {
   stored_value

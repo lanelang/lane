@@ -4,7 +4,7 @@ module Examples.Valid17
 
 import Basic.Ops.*
 
-import Basic.Io.{println}
+import Basic.Io.{ println }
 
 pub type Left[A, _B] = A
 
