@@ -290,8 +290,36 @@ The conservative classification used by `mon-trans` that holds when an effect ro
 _Avoid_: nonempty-effect test, `Io` special case, optimizer purity test, resume-count analysis
 
 **Non-Monadic Residual Effect**:
-The portion of an effect row that does not require monadic translation and therefore remains on direct and CPS-transformed function types until residual effect erasure. `Io` is the initial built-in non-monadic effect.
+The portion of an effect row that does not require monadic translation and therefore remains on direct and CPS-transformed function types until residual effect erasure. It consists of built-in and user-declared External Effects.
 _Avoid_: pure effect, discarded CPS effect, handler context
+
+**External Effect**:
+A nominal kind-Effect identity declared with `extern type E : Effect` that marks observable dependency on a synchronous host call without defining operations or exposing a continuation. It is non-handleable, does not require monadic translation, and is erased only after effect-sensitive optimization.
+_Avoid_: algebraic effect, host effect handler, runtime effect operation, `Io` alias
+
+**External Type**:
+An opaque zero-parameter nominal kind-Type identity declared with `extern type T : Type` whose values are created and interpreted only by host bindings while remaining storable, passable, and embeddable in ordinary Lane-managed data as a shared-reference value. Distinct External Types remain distinct in Lane typing but erase to one `Opaque` host ABI kind and receive no implicit equality, hashing, ordering, formatting, or identity operations.
+_Avoid_: primitive alias, user-defined layout, integer handle type, foreign struct declaration
+
+**External Type Flavor**:
+The explicit semantic classification retained through checking, Buslane, and whole-program linking that distinguishes an External Type from an ordinary abstract nominal type and permits it to lower to the `Opaque` host ABI kind.
+_Avoid_: constructor absence inference, runtime payload tag, serialized bytecode identity
+
+**Direct Host Type**:
+A type whose fully expanded transparent-alias target is one supported primitive or one External Type, allowing it to appear as a top-level extern parameter or result.
+_Avoid_: nominal wrapper, nested host type, unexpanded alias name
+
+**Callable Effect Contract**:
+The single latent-effect contract shared by Lane-defined and extern-bound functions for calls, branching, aliases, higher-order typing, and effect propagation. A Lane body is checked against the contract, while an extern binding supplies it as an unsafe assertion because no Lane body is visible.
+_Avoid_: extern effect rules, host-only effect subtyping, symbol-derived effect
+
+**Effect Origin**:
+The identity provenance that determines how an effect is linked and serialized: compiler-provided for built-in names such as `Io`, or declaration-owned for source External and Algebraic Effects. Origin does not determine lowering behavior.
+_Avoid_: effect flavor, runtime provider, module convention
+
+**Effect Flavor**:
+The semantic classification of an effect identity as External or Algebraic, used to decide handleability, monadic translation, extern eligibility, and residual erasure independently of its origin.
+_Avoid_: effect origin, built-in flag, runtime ABI
 
 **Residual Effect Erasure**:
 The final effect-lowering pass that removes non-monadic residual effects after all effect-sensitive optimization while preserving their ordinary extern calls and other observable operations.
