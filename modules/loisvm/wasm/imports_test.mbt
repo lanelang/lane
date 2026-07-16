@@ -42,14 +42,53 @@ fn import_test_image(
 fn loaded_instance(
   image : @bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,
+  mode? : ExecutionMode = Jit,
 ) -> ExecutionInstance raise {
-  let loaded = match load(image, registry) {
+  let loaded = match load(image, registry, mode~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{to_repr(error)}")
   }
   match loaded.new_instance() {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{to_repr(error)}")
+  }
+}
+
+///|
+test "JIT and interpreter modes execute the same scalar import" {
+  for mode in [ExecutionMode::Jit, Interpreter] {
+    let mut observed = 0L
+    let registry = @loisvm_runtime.RuntimeRegistry::new()
+    registry.register(
+      @loisvm_runtime.RuntimeBinding::new(
+        symbol="lane.test.observe_mode",
+        abi_major=1,
+        parameters=[Int],
+        result=Unit,
+        invoke=fn(_context, arguments) {
+          if arguments is [Int(value)] {
+            observed = value
+          }
+          Unit
+        },
+      ),
+    )
+    let body = import_test_body([import_test_slot(I64)], [
+      ConstInt({ value: 0 }, 42L),
+      CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
+    ])
+    let instance = loaded_instance(
+      import_test_image(body, {
+        abi_major: 1,
+        parameters: [Int],
+        result: Unit,
+        symbol: "lane.test.observe_mode",
+      }),
+      registry,
+      mode~,
+    )
+    assert_eq(instance.execute(), Ok(()))
+    assert_eq(observed, 42L)
   }
 }
 

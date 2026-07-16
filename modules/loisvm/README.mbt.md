@@ -154,6 +154,10 @@ test "one LoisVM image runs through both execution tiers" {
 }
 ```
 
+`@wasm.load` prepares Wasmoon JIT code by default. Pass
+`mode=@wasm.ExecutionMode::Interpreter` to execute the generated WebAssembly
+with Wasmoon's instruction interpreter instead.
+
 Run this README from the LoisVM module directory:
 
 ```bash
@@ -375,6 +379,6 @@ Binary decoding validates framing, tags, lengths, and basic image structure. Loi
 
 ## Backend choice
 
-Use `loisvm/interp` when startup latency, portability, or debugging simplicity matters most. Use `loisvm/wasm` when the embedding application runs natively and wants Wasmoon to compile the same bytecode into WebAssembly, including tail-call instructions where supported.
+Use `loisvm/interp` when bytecode-level startup latency, portability, or debugging simplicity matters most. Use `loisvm/wasm` when the embedding application runs natively and wants Wasmoon to compile the same bytecode into WebAssembly. The Wasm package JIT-compiles by default and accepts `ExecutionMode::Interpreter` as an explicit fallback.
 
-The backend decision can remain an embedding policy because bytecode and runtime bindings are shared. A common application pattern is to start execution in the interpreter, cache or prepare a Wasm-loaded image, then select the Wasm tier for later instances without recompiling the source language.
+The backend decision remains an embedding policy because bytecode and runtime bindings are shared. `lane run` and `lane runobj` select JIT execution by default; `--no-jit` selects the Wasmoon interpreter without changing the LoisVM image or runtime registry.

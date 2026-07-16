@@ -4,7 +4,7 @@ Lane uses WebAssembly, rather than MilkIR, as the compiled representation below 
 
 Milky2018/wasmoon is Lane's default WebAssembly execution engine. Wasmoon is project-controlled and may be extended alongside Lane, including its interpreter, JIT, runtime integration, and supported WebAssembly capabilities. Lane's Wasm design therefore need not be limited by the current feature floor or rollout schedule of unrelated WebAssembly engines.
 
-Both `lane run` and `lane exec` use the same LoisVM-bytecode-to-Wasm path by default. `lane run` performs in-memory linking and bytecode lowering before loading the generated image; `lane exec` decodes the linked `.lbp` bytecode image. Neither command uses the Buslane reference interpreter as its normal execution backend.
+Both `lane run` and `lane runobj` use the same LoisVM-bytecode-to-Wasm path and Wasmoon JIT by default. `lane run` performs in-memory linking and bytecode lowering before loading the generated image; `lane runobj` decodes the linked `.lbp` bytecode image. Passing `--no-jit` selects Wasmoon's instruction interpreter. Neither mode uses the Buslane reference interpreter as its normal execution backend. `lane exec` remains a compatibility alias for `lane runobj`.
 
 This decision intentionally delegates Wasm heap representation, garbage collection profile, function-reference strategy, control-flow structuring, runtime-import adapter ABI, String representation, and fatal-failure cleanup to follow-up ADRs. Previous bytecode semantics remain in force unless one of those Wasm mapping decisions requires an explicit revision. In particular, effect erasure, callable-value semantics, compiler-directed ownership, and the common-bytecode boundary are not discarded merely because the lower compiled representation changes.
 
@@ -18,7 +18,7 @@ Import/Export Mutable Globals, Compilation Hints, WASI Preview 1, the Component 
 
 JS Promise Integration, JS String Builtins or String References, and Custom Descriptors or JS Interop are excluded from Lane v1. They conflict respectively with synchronous runtime imports, linear-memory ASCII ARC Strings, and the absence of JS objects from the Lane value ABI.
 
-Extended Name Sections, Custom Annotations, Rounding Variants, Half Precision, Flexible Vectors, Type Imports, and the JIT Interface are aware-only capabilities. They may inform future debugging, numeric, vector, linking, or execution work but are neither emitted nor required by Lane v1. Shared-Everything Threads, JS Primitive Builtins, and Frozen Values are excluded because they conflict with the thread-confined ARC heap, the Wasmoon-centered host boundary, or the absence of GC-managed Lane objects.
+Extended Name Sections, Custom Annotations, Rounding Variants, Half Precision, Flexible Vectors, Type Imports, and the WebAssembly JIT Interface proposal are aware-only capabilities. They may inform future debugging, numeric, vector, linking, or execution work but are neither emitted nor required by Lane v1. Lane's default Wasmoon JIT uses the engine's native embedding API rather than emitting the WebAssembly JIT Interface proposal. Shared-Everything Threads, JS Primitive Builtins, and Frozen Values are excluded because they conflict with the thread-confined ARC heap, the Wasmoon-centered host boundary, or the absence of GC-managed Lane objects.
 
 Bulk Memory operations may initialize passive data or element segments, fill allocator storage, and copy raw bytes such as String contents. They do not provide ARC semantics: reference-bearing data construction or duplication must still establish field ownership through compiler-emitted retain or transfer operations rather than raw `memory.copy`.
 
@@ -37,13 +37,14 @@ Consequences:
 - Mutable Global integration, Compilation Hints, WASI, Component Model, and JS BigInt integration are aware-only.
 - Multiple Tables and Relaxed Dead-code Validation are excluded.
 - JS Promise, JS String, and Custom Descriptor interop are excluded.
-- Extended names, annotations, rounding, half precision, flexible vectors, type imports, and JIT interface are aware-only.
+- Extended names, annotations, rounding, half precision, flexible vectors, type imports, and the WebAssembly JIT Interface proposal are aware-only.
 - Shared-Everything Threads, JS Primitive Builtins, and Frozen Values are excluded.
 - Lane v1 excludes Memory64; heap references and packed-callable components remain 32-bit.
 - Lane v1 excludes Multiple Memories; all Lane pointers address canonical memory zero.
 - Lane v1 excludes Threads and Atomics; canonical memory zero is non-shared and ARC is non-atomic.
 - Lane v1 output does not require Wasm GC or Wasmoon-specific opcodes or types.
-- `lane run` and `lane exec` share the default Wasmoon execution path.
+- `lane run` and `lane runobj` share the default Wasmoon JIT execution path;
+  `--no-jit` selects the Wasmoon interpreter and `lane exec` remains an alias.
 - WebAssembly validation remains required even though LoisVM bytecode verification is not.
 - Wasm object representation, ARC versus GC, control-flow structuring, calls,
   imports, Strings, and failure cleanup are governed by the subsequent focused

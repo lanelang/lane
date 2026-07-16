@@ -200,8 +200,8 @@ test "runtime imports compile from bytecode descriptors" {
     compile(image([BytecodeBody(body()), RuntimeImport(import_)]))
     is Err(
       ValidationFailure(
-        detail="Opaque runtime imports require a Reference layout",
-      ),
+        detail="Opaque runtime imports require a Reference layout"
+      )
     ),
   )
   assert_true(compile(bytecode) is Ok(_))

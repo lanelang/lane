@@ -10,7 +10,7 @@ import {
 // Values
 pub fn compile(@bytecode.BytecodeImage) -> Result[@types.Module, WasmCompileError]
 
-pub fn load(@bytecode.BytecodeImage, @Milky2018/loisvm/runtime.RuntimeRegistry) -> Result[LoadedImage, WasmLoadError]
+pub fn load(@bytecode.BytecodeImage, @Milky2018/loisvm/runtime.RuntimeRegistry, mode? : ExecutionMode) -> Result[LoadedImage, WasmLoadError]
 
 // Errors
 pub(all) suberror WasmCompileError {
@@ -35,9 +35,19 @@ pub struct ExecutionInstance {
 }
 pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @Milky2018/loisvm/runtime.ExecutionError]
 
+pub(all) enum ExecutionMode {
+  Jit
+  Interpreter
+} derive(Eq, @debug.Debug)
+
+type InstanceExecutionBackend
+
+type LoadedExecutionBackend
+
 pub struct LoadedImage {
   wasm_module : @types.Module
   imports : Array[(@bytecode.RuntimeImport, @Milky2018/loisvm/runtime.RuntimeBinding)]
+  // private fields
 }
 pub fn LoadedImage::new_instance(Self, config? : @Milky2018/loisvm/runtime.ExecutionConfig) -> Result[ExecutionInstance, @Milky2018/loisvm/runtime.ExecutionError]
 pub fn LoadedImage::wasm_module(Self) -> @types.Module

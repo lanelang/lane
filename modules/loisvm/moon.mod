@@ -16,6 +16,8 @@ preferred_target = "native"
 
 import {
   "Milky2018/bytecodec@0.1.0",
+  "Milky2018/machv_emit@0.2.2",
   "Milky2018/wasm_core@0.1.2",
   "Milky2018/wasmoon@0.7.0",
+  "Milky2018/wasmoon_jit@0.2.0",
 }

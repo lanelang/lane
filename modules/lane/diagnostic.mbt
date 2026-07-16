@@ -129,7 +129,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         code="E6001",
         title="unknown lane command",
         details=[
-          "The requested subcommand is not supported by this `lane` binary.", "Available commands include check, run, explore, compile, inspect, link, exec, fmt, and lsp.",
+          "The requested subcommand is not supported by this `lane` binary.", "Available commands include check, run, runobj, explore, compile, inspect, link, fmt, and lsp.",
         ],
         suggestions=[
           command_suggestion("Example:", command="lane check Main.lane"),
@@ -194,10 +194,10 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         title="invalid exec target `\{target}`",
         fields=[command_report_field("expected", "FILE.lbp")],
         details=[
-          "`lane exec` executes the entry selected when the linked program artifact was produced.",
+          "`lane runobj` executes the entry selected when the linked program artifact was produced.",
         ],
         suggestions=[
-          command_suggestion("Example:", command="lane exec program.lbp"),
+          command_suggestion("Example:", command="lane runobj program.lbp"),
         ],
       )
     InvalidLinkEntry(entry~) =>

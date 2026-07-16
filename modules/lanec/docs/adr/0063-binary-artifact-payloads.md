@@ -13,7 +13,8 @@ artifact payloads:
 - `lane compile -i` reads binary interface artifacts.
 - `lane link` reads binary object artifacts and writes a binary linked program
   artifact.
-- `lane exec` reads binary linked program artifacts.
+- `lane runobj` reads binary linked program artifacts. `lane exec` remains a
+  compatibility alias.
 - `lane inspect` reads binary artifacts and renders a human-readable projection.
 
 Artifact text parsing is not a compatibility layer for official artifact IO.

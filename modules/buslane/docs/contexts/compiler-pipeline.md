@@ -388,7 +388,7 @@ _Avoid_: type checking, name resolution
   artifact boundary.
 - **Execution Image Lowering** happens after linking and any whole-program
   optimization over canonical core.
-- A **Bytecode Image** may become the primary runtime payload for `exec`, but
+- A **Bytecode Image** may become the primary runtime payload for `runobj`, but
   it is still lowered code rather than the compiler interface contract.
 - A **Per-Module Bytecode Cache** is an invalidatable build cache, not a
   substitute for linkable Buslane/core.

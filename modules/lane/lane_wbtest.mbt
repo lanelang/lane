@@ -36,7 +36,7 @@ test "reject run target without entry suffix" {
 }
 
 ///|
-test "reject exec target with entry suffix" {
+test "reject runobj target with entry suffix" {
   let error = InvalidExecTarget(target="program.lbp:Main.main")
   debug_inspect(
     error,
@@ -48,10 +48,10 @@ test "reject exec target with entry suffix" {
       #|error[E6008]: invalid exec target `program.lbp:Main.main`
       #|  expected: FILE.lbp
       #|
-      #|`lane exec` executes the entry selected when the linked program artifact was produced.
+      #|`lane runobj` executes the entry selected when the linked program artifact was produced.
       #|
       #|Example:
-      #|  lane exec program.lbp
+      #|  lane runobj program.lbp
     ),
   )
 }
@@ -74,7 +74,7 @@ test "basic command parser diagnostics render as command reports" {
       #|---
       #|error[E6001]: unknown lane command
       #|The requested subcommand is not supported by this `lane` binary.
-      #|Available commands include check, run, explore, compile, inspect, link, exec, fmt, and lsp.
+      #|Available commands include check, run, runobj, explore, compile, inspect, link, fmt, and lsp.
       #|
       #|Example:
       #|  lane check Main.lane

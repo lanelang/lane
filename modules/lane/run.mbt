@@ -1,10 +1,13 @@
 ///|
-async fn lane_exec(path : String) -> LaneCommandOutcome {
+async fn lane_runobj(
+  path : String,
+  no_jit? : Bool = false,
+) -> LaneCommandOutcome {
   let image = match read_linked_program_artifact(path) {
     Ok(image) => image
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_loisvm_image_with_output(image, line => println(line))
+  execute_loisvm_image_with_output(image, line => println(line), no_jit~)
 }
 
 ///|
@@ -14,6 +17,7 @@ async fn lane_run(
   libs : Array[String],
   lib_dirs : Array[String],
   no_basic? : Bool = false,
+  no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
   let source = read_source_file(file) catch {
     error =>
@@ -54,7 +58,7 @@ async fn lane_run(
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_entry(program, result.externals, entry)
+  execute_entry(program, result.externals, entry, no_jit~)
 }
 
 ///|
@@ -62,8 +66,15 @@ fn execute_entry(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
+  no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  execute_entry_with_output(program, externals, entry, line => println(line))
+  execute_entry_with_output(
+    program,
+    externals,
+    entry,
+    line => println(line),
+    no_jit~,
+  )
 }
 
 ///|
@@ -72,6 +83,7 @@ fn execute_entry_with_output(
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
   write_line : (String) -> Unit,
+  no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
   match validate_executable_entry(entry, program.metadata) {
     Ok(_) => ()
@@ -91,7 +103,7 @@ fn execute_entry_with_output(
     Ok(image) => image
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_loisvm_image_with_output(image, write_line)
+  execute_loisvm_image_with_output(image, write_line, no_jit~)
 }
 
 ///|
@@ -163,9 +175,11 @@ fn validate_executable_entry(
 fn execute_loisvm_image_with_output(
   image : @loisvm_bytecode.BytecodeImage,
   write_line : (String) -> Unit,
+  no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
+  let mode = if no_jit { @loisvm_wasm.ExecutionMode::Interpreter } else { Jit }
   let loaded = match
-    @loisvm_wasm.load(image, command_loisvm_runtime(write_line)) {
+    @loisvm_wasm.load(image, command_loisvm_runtime(write_line), mode~) {
     Ok(loaded) => loaded
     Err(error) =>
       return LaneCommandOutcome::user_error(

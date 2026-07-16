@@ -28,11 +28,11 @@ async fn main {
         Link(objects~, entry~, output~, verbose~) =>
           lane_link(objects, entry, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)
-        Exec(program~) => lane_exec(program)
+        RunObj(program~, no_jit~) => lane_runobj(program, no_jit~)
         Explore(file~, entry~, libs~, lib_dirs~, no_basic~, output~) =>
           lane_explore(file, entry, libs, lib_dirs, output, no_basic~)
-        Run(file~, entry~, libs~, lib_dirs~, no_basic~) =>
-          lane_run(file, entry, libs, lib_dirs, no_basic~)
+        Run(file~, entry~, libs~, lib_dirs~, no_basic~, no_jit~) =>
+          lane_run(file, entry, libs, lib_dirs, no_basic~, no_jit~)
       }
       match outcome {
         Succeeded => ()

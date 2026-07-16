@@ -26,7 +26,7 @@ enum LaneCommand {
     verbose~ : Bool
   )
   Lsp(stdio~ : Bool)
-  Exec(program~ : String)
+  RunObj(program~ : String, no_jit~ : Bool)
   Explore(
     file~ : String,
     entry~ : String,
@@ -40,7 +40,8 @@ enum LaneCommand {
     entry~ : String,
     libs~ : Array[String],
     lib_dirs~ : Array[String],
-    no_basic~ : Bool
+    no_basic~ : Bool,
+    no_jit~ : Bool
   )
 }
 
@@ -69,7 +70,7 @@ fn lane_command_spec() -> Command {
         "run",
         about="Run a selected top-level entry from a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
-        flags=[no_basic_flag()],
+        flags=[no_basic_flag(), no_jit_flag()],
         positionals=[required_positional_arg("target")],
       ),
       Command(
@@ -100,9 +101,18 @@ fn lane_command_spec() -> Command {
         flags=[verbose_flag()],
         positionals=[PositionArg("objects", num_args=ValueRange(lower=1))],
       ),
-      Command("exec", about="Execute a linked Lane program artifact.", positionals=[
-        required_positional_arg("program"),
-      ]),
+      Command(
+        "runobj",
+        about="Run a linked Lane program artifact.",
+        flags=[no_jit_flag()],
+        positionals=[required_positional_arg("program")],
+      ),
+      Command(
+        "exec",
+        about="Compatibility alias for `lane runobj`.",
+        flags=[no_jit_flag()],
+        positionals=[required_positional_arg("program")],
+      ),
       Command(
         "fmt",
         about="Format Lane source files.",
@@ -159,6 +169,7 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
                   libs=values(child, "lib"),
                   lib_dirs=values(child, "lib-dir"),
                   no_basic=flag(child, "no-basic"),
+                  no_jit=flag(child, "no-jit"),
                 ),
               )
             Err(message) => Err(message)
@@ -226,13 +237,13 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
           }
         (Err(message), _) | (_, Err(message)) => Err(message)
       }
-    Some(("exec", child)) =>
+    Some(("runobj", child)) | Some(("exec", child)) =>
       match required_value(child, "program") {
         Ok(program) =>
           if program.contains(":") {
             Err(InvalidExecTarget(target=program))
           } else {
-            Ok(Exec(program~))
+            Ok(RunObj(program~, no_jit=flag(child, "no-jit")))
           }
         Err(message) => Err(message)
       }
@@ -311,6 +322,15 @@ fn no_basic_flag() -> @argparse.FlagArg {
     "no-basic",
     long="no-basic",
     about="Do not load the default $LANE_HOME/basic library directory.",
+  )
+}
+
+///|
+fn no_jit_flag() -> @argparse.FlagArg {
+  FlagArg(
+    "no-jit",
+    long="no-jit",
+    about="Execute generated WebAssembly with the Wasmoon interpreter.",
   )
 }
 
