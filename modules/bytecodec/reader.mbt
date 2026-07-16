@@ -27,7 +27,8 @@ pub fn ByteReader::view(self : ByteReader) -> BytesView {
 /// Commits a suffix obtained by pattern matching `view()`.
 ///
 /// Passing a view that is not a suffix of the current view is a programmer
-/// error and aborts.
+/// error and aborts. The reader retains its current backing bytes rather than
+/// adopting storage from the supplied view.
 pub fn ByteReader::update_view(self : ByteReader, rest : BytesView) -> Unit {
   let current_start = self.view.start_offset()
   let current_end = current_start + self.view.length()
@@ -36,8 +37,13 @@ pub fn ByteReader::update_view(self : ByteReader, rest : BytesView) -> Unit {
   if rest_start < current_start || rest_end != current_end {
     abort("ByteReader::update_view requires a suffix of the current view")
   }
-  self.offset += self.view.length() - rest.length()
-  self.view = rest
+  let consumed = rest_start - current_start
+  let suffix = self.view[consumed:]
+  if !physical_equal(self.view.data(), rest.data()) && suffix != rest {
+    abort("ByteReader::update_view requires a suffix of the current view")
+  }
+  self.offset += consumed
+  self.view = suffix
 }
 
 ///|
@@ -105,7 +111,6 @@ pub fn ByteReader::read_i32_le(self : ByteReader) -> Int raise ByteDecodeError {
 
 ///|
 /// Reads an unsigned 32-bit little-endian value without host-range loss.
-#alias(read_u32_le_uint, deprecated="use read_u32_le")
 pub fn ByteReader::read_u32_le(self : ByteReader) -> UInt raise ByteDecodeError {
   let offset = self.offset
   match self.view {

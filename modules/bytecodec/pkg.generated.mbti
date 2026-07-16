@@ -33,7 +33,6 @@ pub fn ByteReader::read_raw_bytes(Self, Int) -> Bytes raise ByteDecodeError
 pub fn ByteReader::read_raw_view(Self, Int, expected? : String) -> BytesView raise ByteDecodeError
 pub fn ByteReader::read_section(Self, Int, expected? : String) -> Self raise ByteDecodeError
 pub fn ByteReader::read_string(Self) -> String raise ByteDecodeError
-#alias(read_u32_le_uint, deprecated)
 pub fn ByteReader::read_u32_le(Self) -> UInt raise ByteDecodeError
 pub fn ByteReader::read_u32_le_int(Self) -> Int raise ByteDecodeError
 pub fn ByteReader::read_u64_le(Self) -> UInt64 raise ByteDecodeError
@@ -56,7 +55,6 @@ pub fn ByteWriter::write_i32_le(Self, Int) -> Unit
 pub fn ByteWriter::write_i64_le(Self, Int64) -> Unit
 pub fn ByteWriter::write_raw_bytes(Self, Bytes) -> Unit
 pub fn ByteWriter::write_string(Self, String) -> Unit
-#alias(write_u32_le_uint, deprecated)
 pub fn ByteWriter::write_u32_le(Self, UInt) -> Unit
 pub fn ByteWriter::write_u32_le_int(Self, Int) -> Unit
 pub fn ByteWriter::write_u64_le(Self, UInt64) -> Unit

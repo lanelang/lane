@@ -113,6 +113,23 @@ test "panic writer rejects negative unsigned Int adapter input" {
 }
 
 ///|
+test "panic reader rejects suffix from different bytes" {
+  let reader = ByteReader::from_bytes(b"abc")
+  reader.update_view(b"xyz"[:])
+}
+
+///|
+test "reader never adopts storage from an equivalent foreign suffix" {
+  let source = Bytes::from_array([b'a', b'b', b'c'])
+  let foreign = Bytes::from_array([b'a', b'b', b'c'])
+  assert_false(physical_equal(source, foreign))
+  let reader = ByteReader::from_bytes(source)
+  reader.update_view(foreign[1:])
+  assert_true(physical_equal(reader.view().data(), source))
+  inspect(reader.read_raw_bytes(2), content="b\"bc\"")
+}
+
+///|
 test "bounded readers preserve absolute offsets" {
   let reader = ByteReader::from_bytes(b"\x01\x02\x03\x04")
   inspect(reader.read_u8(), content="1")

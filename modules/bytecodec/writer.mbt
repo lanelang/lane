@@ -57,7 +57,6 @@ pub fn ByteWriter::write_u32_le_int(self : ByteWriter, value : Int) -> Unit {
 
 ///|
 /// Writes an unsigned 32-bit value in little-endian order.
-#alias(write_u32_le_uint, deprecated="use write_u32_le")
 pub fn ByteWriter::write_u32_le(self : ByteWriter, value : UInt) -> Unit {
   self.write_i32_le(value.reinterpret_as_int())
 }
