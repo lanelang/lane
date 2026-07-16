@@ -24,7 +24,7 @@ async fn lane_link(
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  match validate_executable_entry(entry) {
+  match validate_executable_entry(entry, program.program.metadata) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }

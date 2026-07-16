@@ -73,7 +73,7 @@ fn execute_entry_with_output(
   entry : @buslane_lowering.BuslaneEntry,
   write_line : (String) -> Unit,
 ) -> LaneCommandOutcome {
-  match validate_executable_entry(entry) {
+  match validate_executable_entry(entry, program.metadata) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
@@ -118,6 +118,7 @@ fn lower_executable_image(
 ///|
 fn validate_executable_entry(
   entry : @buslane_lowering.BuslaneEntry,
+  metadata : @buslane.MetadataRegistry,
 ) -> Result[Unit, CliError] {
   guard entry.type_ is Function(parameters, result, effect) else {
     return Err(
@@ -146,7 +147,7 @@ fn validate_executable_entry(
       ),
     )
   }
-  if !entry_effect_is_supported(effect) {
+  if !@executable.entry_effect_is_executable(metadata, effect) {
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),
@@ -208,14 +209,6 @@ fn command_loisvm_runtime(
     ),
   )
   registry
-}
-
-///|
-fn entry_effect_is_supported(effect : @buslane.Effect) -> Bool {
-  match effect.canonicalize() {
-    Empty | Io => true
-    _ => false
-  }
 }
 
 ///|

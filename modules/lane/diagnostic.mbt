@@ -309,11 +309,15 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         title="entry `\{name}` is not executable",
         fields=[
           command_report_field("requested type", render_buslane_type(type_)),
-          command_report_field("expected", "() -> Unit or () -> Unit ! Io"),
+          command_report_field(
+            "expected", "() -> Unit with a closed External Effect row",
+          ),
         ],
         details=[reason.to_human_note()],
         suggestions=[
-          command_suggestion("Export a `pub fn main() -> Unit` entry."),
+          command_suggestion(
+            "Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.",
+          ),
           command_suggestion(
             "Use `lane inspect <artifact>` to inspect public entries and artifact metadata.",
           ),

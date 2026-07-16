@@ -37,7 +37,7 @@ fn elaborate_or_raise(
   if !linked.entries.any(entry => entry == selected_entry) {
     raise EntryNotLinked(selected_entry.value)
   }
-  validate_executable_entry(selected_entry)
+  validate_executable_entry(linked.program.metadata, selected_entry)
   let program = linked.program
   let externals = linked.externals
   let entry = selected_entry

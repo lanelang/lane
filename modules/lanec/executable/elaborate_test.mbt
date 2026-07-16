@@ -151,6 +151,45 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
 }
 
 ///|
+test "whole-program elaboration accepts a closed external effect entry" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let host_effect = metadata.define_effect("Host", [], flavor=External)
+  let external_effect = @buslane.Effect::Singleton(host_effect, [])
+  let main_type = @buslane.Type::Function([], unit_type, external_effect)
+  let main = metadata.define_value("main", Function, main_type)
+  let entry = executable_test_entry("main", main, main_type)
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: ["Main"],
+    program: {
+      metadata,
+      terms: [Let(main, pure_function(unit_type, Literal(Unit)))],
+    },
+    externals: { builtins: [], runtime_imports: [] },
+    entries: [entry],
+  }
+  guard elaborate(linked, entry) is Ok(executable) else {
+    abort("expected external-effect entry elaboration to succeed")
+  }
+  debug_inspect(
+    (
+      executable.entry.type_,
+      executable.program.metadata
+      .effect_info(host_effect)
+      .map(info => info.flavor),
+      executable.program.metadata.value_info(main).map(info => info.type_),
+    ),
+    content=(
+      #|(
+      #|  Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
+      #|  Some(External),
+      #|  Some(Function([], Primitive(Unit), Empty)),
+      #|)
+    ),
+  )
+}
+
+///|
 test "whole-program elaboration rejects an algebraic entry effect" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)

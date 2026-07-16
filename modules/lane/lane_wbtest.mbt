@@ -516,11 +516,11 @@ async test "link rejects non-function selected entry" {
     content=(
       #|error[E6009]: entry `Main.main` is not executable
       #|  requested type: Int
-      #|  expected: () -> Unit or () -> Unit ! Io
+      #|  expected: () -> Unit with a closed External Effect row
       #|
       #|The selected public entry is a value, not a function.
       #|
-      #|Export a `pub fn main() -> Unit` entry.
+      #|Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
@@ -561,11 +561,11 @@ async test "link rejects unsupported selected entry effects" {
     content=(
       #|error[E6009]: entry `Main.main` is not executable
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit or () -> Unit ! Io
+      #|  expected: () -> Unit with a closed External Effect row
       #|
       #|The selected function has unsupported effect set `effect#0`.
       #|
-      #|Export a `pub fn main() -> Unit` entry.
+      #|Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
@@ -605,10 +605,11 @@ test "run rejects public value entries" {
     ),
   )
   inspect(result.diagnostics.length(), content="0")
+  guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "answer")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry),
+    validate_executable_entry(entry, program.metadata),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -630,10 +631,11 @@ test "run rejects functions with parameters" {
     ),
   )
   inspect(result.diagnostics.length(), content="0")
+  guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "id")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry),
+    validate_executable_entry(entry, program.metadata),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -684,7 +686,10 @@ test "run accepts built-in Io through an explicit Basic extern" {
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  debug_inspect(validate_executable_entry(entry), content="Ok(())")
+  debug_inspect(
+    validate_executable_entry(entry, program.metadata),
+    content="Ok(())",
+  )
   let output : Array[String] = []
   guard execute_entry_with_output(program, result.externals, entry, line => {
       output.push(line)
@@ -749,10 +754,11 @@ test "run rejects residual algebraic entry effects" {
     ),
   )
   inspect(result.diagnostics.length(), content="0")
+  guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry),
+    validate_executable_entry(entry, program.metadata),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -763,7 +769,7 @@ test "run rejects residual algebraic entry effects" {
       #|)
     ),
   )
-  guard validate_executable_entry(entry) is Err(error) else {
+  guard validate_executable_entry(entry, program.metadata) is Err(error) else {
     abort("expected unsupported effect diagnostic")
   }
   inspect(
@@ -771,11 +777,11 @@ test "run rejects residual algebraic entry effects" {
     content=(
       #|error[E6009]: entry `Test.main` is not executable
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit or () -> Unit ! Io
+      #|  expected: () -> Unit with a closed External Effect row
       #|
       #|The selected function has unsupported effect set `effect#0`.
       #|
-      #|Export a `pub fn main() -> Unit` entry.
+      #|Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
