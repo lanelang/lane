@@ -319,6 +319,18 @@ fn add_completion_entry_with_insert_text(
 }
 
 ///|
+fn effect_completion_detail(
+  name : String,
+  flavor : @symbol.EffectFlavor,
+) -> String {
+  if flavor is External {
+    "extern type \{name} : Effect"
+  } else {
+    "effect \{name}"
+  }
+}
+
+///|
 fn payloadless_variant_insert_text(
   name : String,
   payload_count : Int,
@@ -437,7 +449,7 @@ fn CompletionWorld::add_checked_identifier_entries(
             replace,
             declaration.name,
             Effect,
-            Some("effect \{declaration.name}"),
+            Some(effect_completion_detail(declaration.name, declaration.flavor)),
             "32",
           )
           if declaration.loc.contains_position(line, column) {
@@ -706,7 +718,7 @@ fn add_resolved_identifier_entries(
             replace,
             declaration.name,
             Effect,
-            Some("effect \{declaration.name}"),
+            Some(effect_completion_detail(declaration.name, declaration.flavor)),
             "32",
           )
         }
@@ -1001,7 +1013,7 @@ fn CompletionWorld::add_interface_surface_entries(
       replace,
       effect.name,
       Effect,
-      Some("effect \{effect.name}"),
+      Some(effect_completion_detail(effect.name, effect.flavor)),
       "32",
     )
   }

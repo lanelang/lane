@@ -44,6 +44,141 @@ test "completion returns top-level semantic entries" {
 }
 
 ///|
+test "completion renders external effects across semantic paths" {
+  let imported_root =
+    #|module Main
+    #|
+    #|import Lib
+    #|
+    #|pub fn run() -> Unit ! Lib.Runtime {
+    #|  ()
+    #|}
+  let imported_lib =
+    #|module Lib
+    #|
+    #|pub extern type Runtime : Effect
+  let checked_source =
+    #|module Main
+    #|
+    #|extern type Runtime : Effect
+    #|
+    #|pub fn run() -> Unit ! Runtime {
+    #|  ()
+    #|}
+  let resolved_source =
+    #|module Main
+    #|
+    #|extern type Runtime : Effect
+    #|
+    #|let broken : Missing = 0
+    #|
+    #|pub fn run() -> Unit ! Runtime {
+    #|  ()
+    #|}
+  debug_inspect(
+    [
+      complete_source_inputs(
+        { source_id: "file:///Main.lane", text: imported_root },
+        [{ source_id: "file:///Lib.lane", text: imported_lib }],
+        "file:///Main.lane",
+        5,
+        31,
+        Manual,
+      ).filter(entry => entry.label == "Runtime"),
+      complete_source_inputs(
+        { source_id: "file:///Main.lane", text: checked_source },
+        [],
+        "file:///Main.lane",
+        5,
+        27,
+        Manual,
+      ).filter(entry => entry.label == "Runtime"),
+      complete_source_inputs(
+        { source_id: "file:///Main.lane", text: resolved_source },
+        [],
+        "file:///Main.lane",
+        7,
+        27,
+        Manual,
+      ).filter(entry => entry.label == "Runtime"),
+    ],
+    content=(
+      #|[
+      #|  [
+      #|    {
+      #|      label: "Runtime",
+      #|      kind: Effect,
+      #|      detail: Some("extern type Runtime : Effect"),
+      #|      documentation: None,
+      #|      insert_text: None,
+      #|      replace: Some(
+      #|        {
+      #|          source_id: "file:///Main.lane",
+      #|          span: {
+      #|            start_offset: 52,
+      #|            end_offset: 55,
+      #|            start_line: 5,
+      #|            start_column: 28,
+      #|            end_line: 5,
+      #|            end_column: 31,
+      #|          },
+      #|        },
+      #|      ),
+      #|      sort_text: Some("32:Runtime"),
+      #|    },
+      #|  ],
+      #|  [
+      #|    {
+      #|      label: "Runtime",
+      #|      kind: Effect,
+      #|      detail: Some("extern type Runtime : Effect"),
+      #|      documentation: None,
+      #|      insert_text: None,
+      #|      replace: Some(
+      #|        {
+      #|          source_id: "file:///Main.lane",
+      #|          span: {
+      #|            start_offset: 66,
+      #|            end_offset: 69,
+      #|            start_line: 5,
+      #|            start_column: 24,
+      #|            end_line: 5,
+      #|            end_column: 27,
+      #|          },
+      #|        },
+      #|      ),
+      #|      sort_text: Some("32:Runtime"),
+      #|    },
+      #|  ],
+      #|  [
+      #|    {
+      #|      label: "Runtime",
+      #|      kind: Effect,
+      #|      detail: Some("extern type Runtime : Effect"),
+      #|      documentation: None,
+      #|      insert_text: None,
+      #|      replace: Some(
+      #|        {
+      #|          source_id: "file:///Main.lane",
+      #|          span: {
+      #|            start_offset: 92,
+      #|            end_offset: 95,
+      #|            start_line: 7,
+      #|            start_column: 24,
+      #|            end_line: 7,
+      #|            end_column: 27,
+      #|          },
+      #|        },
+      #|      ),
+      #|      sort_text: Some("32:Runtime"),
+      #|    },
+      #|  ],
+      #|]
+    ),
+  )
+}
+
+///|
 test "completion returns imported module surface entries" {
   let root =
     #|module Main
