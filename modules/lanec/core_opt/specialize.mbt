@@ -36,6 +36,7 @@ fn try_specialize_generic_call(
     parameters.length() == generic_arguments.length() &&
     function.parameters.length() == arguments.length() &&
     summary.occurrence.call_count > 0 &&
+    summary.occurrence.callee_only &&
     function_has_product_nominal(program.metadata, function) &&
     expression_supports_specialization(function.body) &&
     summary.expression_size <= 32 &&

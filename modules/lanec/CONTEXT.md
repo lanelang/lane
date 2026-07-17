@@ -539,10 +539,11 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   Optimization** therefore treats unresolved calls as observable unless a
   semantics-preserving rewrite first exposes the called body.
 - Concrete generic specialization begins with small operation-dictionary
-  products selected by structure, not source symbols. It clones local value
-  binders with substituted types, leaves recursive or first-class generic
-  definitions available, and relies on post-rewrite reachability to remove
-  obsolete static dictionary allocations.
+  products selected by structure, not source symbols. It clones only
+  callee-only definitions whose resolved direct-call graph has no recursive
+  cycle, clones local value binders with substituted types, leaves recursive or
+  first-class generic definitions available, and relies on post-rewrite
+  reachability to remove obsolete static dictionary allocations.
 - **Core Occurrence Analysis** results are optimizer-local derived facts, not
   persisted linked-artifact semantic payload.
 - **Core Occurrence Analysis** tracks value-level Buslane/core bindings and
@@ -552,9 +553,9 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   optimization, including use counts, call-position use, non-call escape,
   effectful-context use, and selected-entry reachability.
 - **Core Call Graph Analysis** is compiler-private analysis in `lanec/core_opt`
-  that discovers top-level and local callable definitions, records direct
-  callable edges and conservative unknown-call markers, and detects direct or
-  mutual recursion.
+  that discovers top-level and local callable definitions, resolves immutable
+  value-alias chains, records direct callable edges and conservative
+  unknown-call markers, and detects direct or mutual recursion.
 - A **Core Function Summary** combines one callable's call-graph edges,
   occurrence facts, expression cost, and recursion classification. Existing
   optimization rewrites consume summaries without exporting them through

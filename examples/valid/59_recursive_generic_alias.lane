@@ -1,0 +1,22 @@
+module Examples.Valid.RecursiveGenericAlias
+
+import Basic.Io.{ println }
+
+import Basic.Ops.*
+
+fn[A] recurse(n : Int, value : A, auto op : Equal[A]) -> Bool {
+  let again = recurse
+  if n == 0 {
+    op.equal(value, value)
+  } else {
+    again(n - 1, value, op)
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if recurse(3, 42) {
+    println("recursive alias=true")
+  } else {
+    println("recursive alias failed")
+  }
+}

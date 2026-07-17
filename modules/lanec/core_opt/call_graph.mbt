@@ -36,7 +36,7 @@ fn analyze_core(
       abort("callable definition lost its function body")
     }
     let callees = []
-    summarize_calls(function.body, callable_definitions, callees)
+    summarize_calls(function.body, definitions, callees)
     let fact = occurrence.facts[definition.value.index]
     {
       value: definition.value,
@@ -206,11 +206,11 @@ fn summarize_calls(
   match expression {
     Ref(_) | Literal(_) | Resume(_) | Function(_) => ()
     Call(callee, arguments) => {
-      match referenced_callee(callee) {
-        Some(value) if definitions.any(definition => {
-            definition.value == value &&
-            callable_function(definition.expression) is Some(_)
-          }) => if !callees.contains(Some(value)) { callees.push(Some(value)) }
+      match resolve_callable_target(callee, definitions) {
+        Some(value) =>
+          if !callees.contains(Some(value)) {
+            callees.push(Some(value))
+          }
         _ => if !callees.contains(None) { callees.push(None) }
       }
       summarize_call_operand(callee, definitions, callees)
@@ -279,6 +279,43 @@ fn referenced_callee(expression : @buslane.Expr) -> @buslane.ValueId? {
     TypeApply(callee, _) => referenced_callee(callee)
     _ => None
   }
+}
+
+///|
+fn resolve_callable_target(
+  expression : @buslane.Expr,
+  definitions : Array[CoreDefinition],
+) -> @buslane.ValueId? {
+  guard referenced_callee(expression) is Some(value) else { return None }
+  resolve_callable_alias(value, definitions, [])
+}
+
+///|
+fn resolve_callable_alias(
+  value : @buslane.ValueId,
+  definitions : Array[CoreDefinition],
+  visited : Array[@buslane.ValueId],
+) -> @buslane.ValueId? {
+  if visited.contains(value) {
+    return None
+  }
+  let mut found : CoreDefinition? = None
+  for definition in definitions {
+    if definition.value == value {
+      found = Some(definition)
+      break
+    }
+  }
+  guard found is Some(definition) else { return None }
+  if callable_function(definition.expression) is Some(_) {
+    return Some(value)
+  }
+  guard referenced_callee(definition.expression) is Some(target) else {
+    return None
+  }
+  let visited = visited.copy()
+  visited.push(value)
+  resolve_callable_alias(target, definitions, visited)
 }
 
 ///|

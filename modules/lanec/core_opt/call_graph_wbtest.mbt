@@ -1,4 +1,83 @@
 ///|
+test "Core analysis resolves recursive calls through immutable aliases" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let function_type = @buslane.Type::Function([], unit_type, Empty)
+  let recurse = metadata.define_value("recurse", Function, function_type)
+  let again = metadata.define_value("again", Local, function_type)
+  let main = metadata.define_value("main", Function, function_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: recurse,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Let(again, Ref(recurse), Call(Ref(again), [])),
+          }),
+        },
+      ]),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Call(Ref(recurse), []),
+        }),
+      ),
+    ],
+  }
+  let analysis = analyze_core(program, main, [])
+  debug_inspect(
+    analysis.functions.map(summary => {
+      (
+        summary.value,
+        summary.callees,
+        summary.expression_size,
+        summary.occurrence,
+        summary.is_recursive,
+      )
+    }),
+    content=(
+      #|[
+      #|  (
+      #|    { index: 0 },
+      #|    [Some({ index: 0 })],
+      #|    4,
+      #|    {
+      #|      value: { index: 0 },
+      #|      use_count: 2,
+      #|      call_count: 1,
+      #|      callee_only: false,
+      #|      escapes: true,
+      #|      used_in_effectful_context: false,
+      #|      reachable_from_entry: true,
+      #|    },
+      #|    true,
+      #|  ),
+      #|  (
+      #|    { index: 2 },
+      #|    [Some({ index: 0 })],
+      #|    2,
+      #|    {
+      #|      value: { index: 2 },
+      #|      use_count: 0,
+      #|      call_count: 0,
+      #|      callee_only: false,
+      #|      escapes: false,
+      #|      used_in_effectful_context: false,
+      #|      reachable_from_entry: true,
+      #|    },
+      #|    false,
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "Core analysis summarizes local, recursive, escaping, and unknown calls" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)

@@ -1343,6 +1343,15 @@
       "mode": "check"
     },
     {
+      "name": "59 recursive generic alias",
+      "file": "examples/valid/59_recursive_generic_alias.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "recursive alias=true"
+      }
+    },
+    {
       "name": "invalid 64 external type parameters",
       "file": "examples/invalid/64_external_type_parameters.lane",
       "mode": "check-error",
