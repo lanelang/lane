@@ -24,6 +24,7 @@ fn host_unit_body(
 
 ///|
 fn host_object_new_binding(
+  store : @runtime.HostObjectStore[InterpreterHostObject],
   next_id : Ref[Int],
   finalized : Ref[Int],
 ) -> @runtime.RuntimeBinding {
@@ -31,7 +32,7 @@ fn host_object_new_binding(
     symbol="lane.test.host_object_new",
     abi_major=1,
     parameters=@runtime.HostParameters::none(),
-    result=@runtime.HostResult::host_object(finalizer=_object => {
+    result=@runtime.HostResult::host_object(store, finalizer=_object => {
       finalized.val += 1
     }),
     invoke=fn(_context, _arguments) {
@@ -52,17 +53,18 @@ fn host_object_runtime_import(
 
 ///|
 test "interpreter stores shared Host Objects in data and environments" {
+  let store : @runtime.HostObjectStore[InterpreterHostObject] = @runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let observed : Array[Int] = []
   let registry = @runtime.RuntimeRegistry::new()
-  registry.register(host_object_new_binding(next_id, finalized))
+  registry.register(host_object_new_binding(store, next_id, finalized))
   registry.register(
     @runtime.RuntimeBinding::typed(
       symbol="lane.test.host_object_observe",
       abi_major=1,
       parameters=@runtime.HostParameters::one(
-        @runtime.HostParameter::host_object(),
+        @runtime.HostParameter::host_object(store),
       ),
       result=@runtime.HostResult::unit(),
       invoke=fn(_context, object : InterpreterHostObject) {
@@ -131,10 +133,11 @@ test "interpreter stores shared Host Objects in data and environments" {
 
 ///|
 test "interpreter finalizes Host Object globals during normal shutdown" {
+  let store : @runtime.HostObjectStore[InterpreterHostObject] = @runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let registry = @runtime.RuntimeRegistry::new()
-  registry.register(host_object_new_binding(next_id, finalized))
+  registry.register(host_object_new_binding(store, next_id, finalized))
   let initializer = host_unit_body(slots=[host_owned_ref_slot()], instructions=[
     CallDirect({ value: 3 }, None, [], [], Some({ value: 0 })),
     InitGlobal({ value: 0 }, { value: 0 }),
@@ -167,10 +170,11 @@ test "interpreter finalizes Host Object globals during normal shutdown" {
 
 ///|
 test "interpreter rolls back rejected Host Object results" {
+  let store : @runtime.HostObjectStore[InterpreterHostObject] = @runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let registry = @runtime.RuntimeRegistry::new()
-  registry.register(host_object_new_binding(next_id, finalized))
+  registry.register(host_object_new_binding(store, next_id, finalized))
   let entry = host_unit_body(slots=[host_owned_ref_slot()], instructions=[
     CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
     Release({ value: 0 }),
@@ -219,16 +223,17 @@ test "interpreter rolls back rejected Host Object results" {
 
 ///|
 test "interpreter reports Host Object use after explicit close" {
+  let store : @runtime.HostObjectStore[InterpreterHostObject] = @runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let registry = @runtime.RuntimeRegistry::new()
-  registry.register(host_object_new_binding(next_id, finalized))
+  registry.register(host_object_new_binding(store, next_id, finalized))
   registry.register(
     @runtime.RuntimeBinding::typed(
       symbol="lane.test.host_object_close",
       abi_major=1,
       parameters=@runtime.HostParameters::one(
-        @runtime.HostParameter::host_object(),
+        @runtime.HostParameter::host_object(store),
       ),
       result=@runtime.HostResult::unit(),
       invoke=fn(_context, object : InterpreterHostObject) {
@@ -241,7 +246,7 @@ test "interpreter reports Host Object use after explicit close" {
       symbol="lane.test.host_object_read",
       abi_major=1,
       parameters=@runtime.HostParameters::one(
-        @runtime.HostParameter::host_object(),
+        @runtime.HostParameter::host_object(store),
       ),
       result=@runtime.HostResult::int(),
       invoke=(_context, object : InterpreterHostObject) => {

@@ -40,7 +40,7 @@ Finalizer timing and ordering are outside Lane's observable semantics and introd
 
 An explicit cleanup import mutates the shared Host Object into a closed state but does not consume its Lane wrapper. All aliases remain valid Lane values that refer to the closed payload. Host bindings detect invalid post-close operations and panic, while the finalizer treats an already closed object as safe to release without repeating cleanup. No compiler use-after-close analysis is provided.
 
-Each execution instance owns one Host Object Table shared across initialization and entry execution. An `Opaque` Lane wrapper stores an execution-local integer handle, and runtime imports resolve that handle through the current Runtime Context. Final wrapper release removes the table entry and invokes its stored finalizer. Handles are neither serializable nor valid across execution instances.
+Each execution instance owns one Host Object Table shared across initialization and entry execution. An `Opaque` Lane wrapper stores an execution-local integer handle, and runtime imports resolve that handle through the current Runtime Context. The table entry contains a private key into an embedding-owned typed `HostObjectStore[T]` plus a release closure. Final wrapper release removes the table entry, removes the typed-store value, and invokes its finalizer. Handles are neither serializable nor valid across execution instances.
 
 Each handle combines a slot index with a generation. Slot reuse increments the generation, and resolution rejects stale, forged, out-of-range, or cross-instance handles with a fatal runtime panic. No External Type fingerprint is encoded.
 
@@ -48,21 +48,21 @@ Each handle combines a slot index with a generation. Slot reuse increments the g
 
 `ExecutionConfig.max_host_objects` limits the number of simultaneously live table entries. Creating an `Opaque` result consumes one slot, final release returns it, and exhaustion is a fatal runtime panic with identical interpreter and Wasm semantics.
 
-The Runtime Symbol Registry is reusable across execution instances and stores only host function implementations and ABI descriptors. Runtime Context, Host Object Table entries, payloads, and finalizers remain execution-local. Registered functions cannot retain a call's context or borrowed payload in registry-global state; embeddings inject any intentionally shared external service separately.
+The Runtime Symbol Registry has a fixed capability set and is reusable across execution instances. Bindings for one host type capture the same typed `HostObjectStore[T]`; that store may contain values owned by several active executions, but every value is reachable from exactly one execution-local Host Object Table entry. Registered functions cannot retain a call's context or borrowed Lane value; embeddings inject any intentionally shared external service separately.
 
 The interpreter and Wasm backends implement this same table-handle model. Neither VM values nor Wasm linear memory directly contain host-language object references.
 
-Handles are private to the runtime ABI implementation. Host bindings receive resolved borrowed payloads for `Opaque` arguments and return owned payload-finalizer pairs for `Opaque` results. They never receive or produce handles and cannot manipulate Host Object Table entries directly.
+Handles are private to the runtime ABI implementation. Host bindings receive typed values resolved through their captured `HostObjectStore[T]` for `Opaque` arguments and return owned typed values plus finalizers for `Opaque` results. They never receive or produce handles and cannot manipulate Host Object Table entries directly.
 
 The runtime-import core uses one erased direct-value representation for all supported ABI kinds. The public host SDK provides typed registration adapters that unpack arguments, expose host-language parameter types, wrap results, and translate host failure into runtime panic. These adapters are an embedding convenience and safety layer rather than a second serialized ABI.
 
-`Opaque` payloads contain no dynamic type tag or host-private brand. A typed adapter performs a binding-specific trusted projection to its expected host-language type. Projection mistakes belong to the trusted embedding boundary; the runtime does not add payload-type validation beyond the coarse `Opaque` ABI kind.
+`Opaque` payloads use no dynamic `Any` value and require no unchecked cast. A typed adapter must name its `HostObjectStore[T]`; lookup through a different store is rejected by private store identity before any value is returned. Runtime-import descriptors still preserve only the coarse `Opaque` ABI kind and contain no source External Type fingerprint.
 
 String parameters are immutable call-scoped borrows and cannot be retained by a host binding. String results provide bytes that the runtime validates and copies into a new owned Lane String, without a host finalizer. A binding must make its own copy to retain input bytes after return.
 
 Returning an argument's underlying Host Object requires the binding to acquire an explicit independent host ownership share. The runtime neither detects payload aliasing nor automatically retains host resources. A borrowed argument cannot itself become an `Opaque` result.
 
-Adopting an `Opaque` result is transactional. The payload remains pending host ownership until both its table entry and Lane wrapper are initialized. Any failure during adoption invokes the supplied finalizer and then raises a fatal runtime panic; a live table entry without an owning wrapper is forbidden.
+Adopting an `Opaque` result is transactional. The typed value remains pending host ownership until it is inserted into its `HostObjectStore[T]`, linked from an execution-local table entry, and wrapped by Lane. Any failure during adoption invokes the supplied finalizer and then raises a fatal runtime panic; a typed-store value without an owning wrapper is forbidden.
 
 Runtime-import descriptors serialize ABI major version, the complete supported parameter and result kind signature, and a nonempty case-sensitive ASCII lookup key. All External Type identities erase to `Opaque`; descriptors contain no source type fingerprint. Source extern types drive compiler lowering, while the Runtime Symbol Registry supplies the trusted host implementation. Loading resolves every import before execution and rejects missing bindings or any mismatch in ABI major, parameter kinds, or result kind, but cannot detect confusion between distinct External Types. The lookup key is opaque: equal strings do not establish source-level identity or require equal External Effect annotations. External Effect rows are compile-time semantic assertions and are not part of the runtime ABI contract.
 

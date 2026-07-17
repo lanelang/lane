@@ -195,9 +195,10 @@ String parameters arrive as `BorrowedString(HostStringView)` and are valid only 
 
 Use `RuntimeBinding::typed`, `HostParameters`, `HostParameter`, and `HostResult`
 to register typed host functions without manually indexing erased argument
-arrays. `HostParameter::host_object()` performs the trusted unbranded projection
-for an `Opaque` parameter. `HostResult::host_object(finalizer~)` creates an
-independently owned result whose finalizer runs when Lane releases its final
+arrays. A `HostObjectStore[T]` owns the typed host values for one fixed runtime
+capability. `HostParameter::host_object(store)` resolves an `Opaque` parameter
+through that store, while `HostResult::host_object(store, finalizer~)` creates
+an independently owned result whose finalizer runs when Lane releases its final
 wrapper.
 
 For a Lane library, an opaque host API can be declared without teaching the
@@ -213,9 +214,9 @@ let counter_close : (Counter) -> Unit ! CounterIo = extern("counter.close")
 ```
 
 The embedding registers the corresponding direct ABI. Primitive descriptors
-decode to ordinary MoonBit values. `HostParameter::host_object()` borrows the
-payload for one synchronous call, while `HostResult::host_object` transfers a
-new independently finalized payload into Lane:
+decode to ordinary MoonBit values. The bindings for one external type share a
+typed `HostObjectStore[T]`. The store borrows parameters for one synchronous
+call and accepts independently finalized results transferred into Lane:
 
 ```moonbit check
 ///|
@@ -230,13 +231,14 @@ fn readme_counter_registry(
   closed : Ref[Int],
   finalized : Ref[Int],
 ) -> @runtime.RuntimeRegistry {
+  let counters : @runtime.HostObjectStore[ReadmeCounter] = @runtime.HostObjectStore::new()
   let registry = @runtime.RuntimeRegistry::new()
   registry.register(
     @runtime.RuntimeBinding::typed(
       symbol="counter.new",
       abi_major=1,
       parameters=@runtime.HostParameters::none(),
-      result=@runtime.HostResult::host_object(finalizer=(
+      result=@runtime.HostResult::host_object(counters, finalizer=(
         counter : ReadmeCounter,
       ) => {
         if !counter.closed {
@@ -252,7 +254,9 @@ fn readme_counter_registry(
       symbol="counter.add",
       abi_major=1,
       parameters=@runtime.HostParameters::pair(
-        @runtime.HostParameters::one(@runtime.HostParameter::host_object()),
+        @runtime.HostParameters::one(
+          @runtime.HostParameter::host_object(counters),
+        ),
         @runtime.HostParameters::one(@runtime.HostParameter::int()),
       ),
       result=@runtime.HostResult::int(),
@@ -279,7 +283,7 @@ fn readme_counter_registry(
       symbol="counter.close",
       abi_major=1,
       parameters=@runtime.HostParameters::one(
-        @runtime.HostParameter::host_object(),
+        @runtime.HostParameter::host_object(counters),
       ),
       result=@runtime.HostResult::unit(),
       invoke=(_context, counter : ReadmeCounter) => {
@@ -324,10 +328,12 @@ released during normal execution; explicit effectful cleanup such as
 non-observable fallback without releasing the resource twice.
 
 Host Object handles never enter the public binding API, bytecode, or Wasm
-linear memory. Payload projection is intentionally unbranded and trusted:
-runtime linking verifies `Opaque` versus primitive kinds but cannot distinguish
-two source External Types. Host Objects are execution-local and thread-affine,
-and `ExecutionConfig.max_host_objects` bounds the number of live entries.
+linear memory. Each host type uses one embedding-owned `HostObjectStore[T]`;
+the execution-local Host Object Table stores only a typed-store key and release
+closure. Runtime linking verifies `Opaque` versus primitive kinds but does not
+serialize source External Type identities. Host Objects are execution-local and
+thread-affine, and `ExecutionConfig.max_host_objects` bounds the number of live
+entries.
 
 Host calls are synchronous. A binding must not retain a borrowed VM value or re-enter the active execution instance. Report host failures by raising `RuntimeImportFailure::Failure`; both backends convert it into `ExecutionError::RuntimeImportFailure`.
 

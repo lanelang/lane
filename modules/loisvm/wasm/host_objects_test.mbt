@@ -33,6 +33,7 @@ fn wasm_host_import(
 
 ///|
 fn wasm_host_new_binding(
+  store : @loisvm_runtime.HostObjectStore[WasmTestHostObject],
   next_id : Ref[Int],
   finalized : Ref[Int],
 ) -> @loisvm_runtime.RuntimeBinding {
@@ -40,7 +41,7 @@ fn wasm_host_new_binding(
     symbol="lane.test.wasm_host_new",
     abi_major=1,
     parameters=@loisvm_runtime.HostParameters::none(),
-    result=@loisvm_runtime.HostResult::host_object(finalizer=_object => {
+    result=@loisvm_runtime.HostResult::host_object(store, finalizer=_object => {
       finalized.val += 1
     }),
     invoke=fn(_context, _arguments) {
@@ -68,17 +69,18 @@ fn load_wasm_host_instance(
 
 ///|
 test "Wasm adapters preserve shared Host Object wrappers" {
+  let store : @loisvm_runtime.HostObjectStore[WasmTestHostObject] = @loisvm_runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let observed : Array[Int] = []
   let registry = @loisvm_runtime.RuntimeRegistry::new()
-  registry.register(wasm_host_new_binding(next_id, finalized))
+  registry.register(wasm_host_new_binding(store, next_id, finalized))
   registry.register(
     @loisvm_runtime.RuntimeBinding::typed(
       symbol="lane.test.wasm_host_observe",
       abi_major=1,
       parameters=@loisvm_runtime.HostParameters::one(
-        @loisvm_runtime.HostParameter::host_object(),
+        @loisvm_runtime.HostParameter::host_object(store),
       ),
       result=@loisvm_runtime.HostResult::unit(),
       invoke=fn(_context, object : WasmTestHostObject) {
@@ -115,10 +117,11 @@ test "Wasm adapters preserve shared Host Object wrappers" {
 
 ///|
 test "Wasm normal shutdown finalizes Host Object globals" {
+  let store : @loisvm_runtime.HostObjectStore[WasmTestHostObject] = @loisvm_runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let registry = @loisvm_runtime.RuntimeRegistry::new()
-  registry.register(wasm_host_new_binding(next_id, finalized))
+  registry.register(wasm_host_new_binding(store, next_id, finalized))
   let initializer = wasm_host_body(slots=[wasm_host_owned_ref_slot()], instructions=[
     CallDirect({ value: 3 }, None, [], [], Some({ value: 0 })),
     InitGlobal({ value: 0 }, { value: 0 }),
@@ -146,10 +149,11 @@ test "Wasm normal shutdown finalizes Host Object globals" {
 
 ///|
 test "Wasm rolls back rejected Host Object results" {
+  let store : @loisvm_runtime.HostObjectStore[WasmTestHostObject] = @loisvm_runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let registry = @loisvm_runtime.RuntimeRegistry::new()
-  registry.register(wasm_host_new_binding(next_id, finalized))
+  registry.register(wasm_host_new_binding(store, next_id, finalized))
   let entry = wasm_host_body(slots=[wasm_host_owned_ref_slot()], instructions=[
     CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
     Release({ value: 0 }),
@@ -190,16 +194,17 @@ test "Wasm rolls back rejected Host Object results" {
 
 ///|
 test "Wasm reports Host Object use after explicit close" {
+  let store : @loisvm_runtime.HostObjectStore[WasmTestHostObject] = @loisvm_runtime.HostObjectStore::new()
   let next_id = Ref(0)
   let finalized = Ref(0)
   let registry = @loisvm_runtime.RuntimeRegistry::new()
-  registry.register(wasm_host_new_binding(next_id, finalized))
+  registry.register(wasm_host_new_binding(store, next_id, finalized))
   registry.register(
     @loisvm_runtime.RuntimeBinding::typed(
       symbol="lane.test.wasm_host_close",
       abi_major=1,
       parameters=@loisvm_runtime.HostParameters::one(
-        @loisvm_runtime.HostParameter::host_object(),
+        @loisvm_runtime.HostParameter::host_object(store),
       ),
       result=@loisvm_runtime.HostResult::unit(),
       invoke=fn(_context, object : WasmTestHostObject) { object.closed = true },
@@ -210,7 +215,7 @@ test "Wasm reports Host Object use after explicit close" {
       symbol="lane.test.wasm_host_read",
       abi_major=1,
       parameters=@loisvm_runtime.HostParameters::one(
-        @loisvm_runtime.HostParameter::host_object(),
+        @loisvm_runtime.HostParameter::host_object(store),
       ),
       result=@loisvm_runtime.HostResult::int(),
       invoke=(_context, object : WasmTestHostObject) => {

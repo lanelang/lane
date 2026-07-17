@@ -18,13 +18,14 @@ fn external_counter_registry(
   closed : Ref[Int],
   finalized : Ref[Int],
 ) -> @loisvm_runtime.RuntimeRegistry {
+  let counters : @loisvm_runtime.HostObjectStore[ExternalCounter] = @loisvm_runtime.HostObjectStore::new()
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::typed(
       symbol="counter.new",
       abi_major=1,
       parameters=@loisvm_runtime.HostParameters::none(),
-      result=@loisvm_runtime.HostResult::host_object(finalizer=(
+      result=@loisvm_runtime.HostResult::host_object(counters, finalizer=(
         counter : ExternalCounter,
       ) => {
         if !counter.closed {
@@ -41,7 +42,7 @@ fn external_counter_registry(
       abi_major=1,
       parameters=@loisvm_runtime.HostParameters::pair(
         @loisvm_runtime.HostParameters::one(
-          @loisvm_runtime.HostParameter::host_object(),
+          @loisvm_runtime.HostParameter::host_object(counters),
         ),
         @loisvm_runtime.HostParameters::one(
           @loisvm_runtime.HostParameter::int(),
@@ -73,7 +74,7 @@ fn external_counter_registry(
       symbol="counter.close",
       abi_major=1,
       parameters=@loisvm_runtime.HostParameters::one(
-        @loisvm_runtime.HostParameter::host_object(),
+        @loisvm_runtime.HostParameter::host_object(counters),
       ),
       result=@loisvm_runtime.HostResult::unit(),
       invoke=(_context, counter : ExternalCounter) => {

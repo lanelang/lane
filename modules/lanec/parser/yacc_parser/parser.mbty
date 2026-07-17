@@ -21,6 +21,8 @@
 %token FN "fn"
 %token LET "let"
 %token TYPE "type"
+%token KIND_TYPE "Type"
+%token KIND_EFFECT "Effect"
 %token OFFER "offer"
 %token AUTO "auto"
 %token IF "if"
@@ -176,8 +178,8 @@ public_external_type_declaration -> ExternalTypeDeclaration
   ;
 
 external_type_result_kind -> ExternalTypeKind
-  : IDENT { external_type_kind($1, span($sloc)) }
-  | "effect" { Effect(loc=span($sloc)) }
+  : "Type" { Type(loc=span($sloc)) }
+  | "Effect" { Effect(loc=span($sloc)) }
   ;
 
 type_alias_declaration -> TypeAliasDeclaration
@@ -234,16 +236,8 @@ type_member_declaration -> TypeMemberDeclaration
   ;
 
 kind -> Kind
-  : IDENT {
-    if $1 == "Effect" {
-      Effect(loc=span($sloc))
-    } else {
-      Type(loc=span($sloc))
-    }
-  }
-  | "effect" {
-    Effect(loc=span($sloc))
-  }
+  : "Type" { Type(loc=span($sloc)) }
+  | "Effect" { Effect(loc=span($sloc)) }
   | "[" kind_list "]" "->" kind {
     Function(parameters=$2, result=$5, loc=span($sloc))
   }

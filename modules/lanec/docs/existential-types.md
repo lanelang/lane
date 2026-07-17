@@ -169,7 +169,7 @@ syntax is intended to extend to higher kinds:
 
 ```lane
 struct HideF {
-  type F : Type -> Type
+  type F : [Type] -> Type
   val : F[Int]
 }
 
@@ -178,8 +178,8 @@ let h : HideF = HideF::{ F = Option, val: Option::some(1) }
 let HideF::{ F, val } = h
 ```
 
-Inside the scope after elimination, `F : Type -> Type` and `val : F[Int]` are
-available.
+Inside the scope after elimination, `F : [Type] -> Type` and `val : F[Int]`
+are available.
 
 ## Typing Rules
 

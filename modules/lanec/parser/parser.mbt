@@ -83,6 +83,8 @@ fn token_label(token : @yacc_parser.Token) -> String {
     FN => "`fn`"
     LET => "`let`"
     TYPE => "`type`"
+    KIND_TYPE => "`Type`"
+    KIND_EFFECT => "`Effect`"
     OFFER => "`offer`"
     AUTO => "`auto`"
     IF => "`if`"
@@ -150,6 +152,8 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_FN => "`fn`"
     TK_LET => "`let`"
     TK_TYPE => "`type`"
+    TK_KIND_TYPE => "`Type`"
+    TK_KIND_EFFECT => "`Effect`"
     TK_OFFER => "`offer`"
     TK_AUTO => "`auto`"
     TK_IF => "`if`"
@@ -217,6 +221,8 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     FN => FN
     LET => LET
     TYPE => TYPE
+    KIND_TYPE => KIND_TYPE
+    KIND_EFFECT => KIND_EFFECT
     OFFER => OFFER
     AUTO => AUTO
     IF => IF

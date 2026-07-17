@@ -31,6 +31,8 @@ A successful checked source result must satisfy these invariants:
 - A type alias may declare its result kind after the parameter list, as in
   `type Task[E : Effect] : Effect = { E }`; the checker verifies the annotation
   against the alias body.
+- Kind annotations use the reserved `Type` and `Effect` keywords, composed into
+  function kinds such as `[Type] -> Type`; arbitrary identifiers are not kinds.
 - Source field punning, operator syntax, pipeline syntax, and unqualified
   variant syntax are desugared before or during checked source construction.
 

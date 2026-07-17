@@ -32,6 +32,8 @@ pub(all) enum Token {
   FN
   LET
   TYPE
+  KIND_TYPE
+  KIND_EFFECT
   OFFER
   AUTO
   IF
@@ -97,6 +99,8 @@ pub(all) enum TokenKind {
   TK_FN
   TK_LET
   TK_TYPE
+  TK_KIND_TYPE
+  TK_KIND_EFFECT
   TK_OFFER
   TK_AUTO
   TK_IF

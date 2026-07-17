@@ -57,6 +57,8 @@ pub(all) enum Token {
   FN
   LET
   TYPE
+  KIND_TYPE
+  KIND_EFFECT
   OFFER
   AUTO
   IF

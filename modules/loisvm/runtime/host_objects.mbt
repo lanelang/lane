@@ -1,38 +1,109 @@
 ///|
-fn[A, B] unchecked_host_cast(_value : A) -> B = "%identity"
-
-///|
-#cfg(target="native")
-priv type ErasedHostReference
-
-///|
-#cfg(not(target="native"))
-type ErasedHostReference = Ref[Unit]
-
-///|
-priv struct ErasedHostPayload {
-  value : ErasedHostReference
+priv struct HostObjectStoreIdentity {
+  nonce : Ref[Unit]
 }
 
 ///|
-fn[T] erase_host_payload(value : T) -> ErasedHostPayload {
-  { value: unchecked_host_cast(Ref(value)) }
+priv struct HostObjectStoreKey {
+  slot : Int
+  generation : Int
 }
 
 ///|
-fn[T] project_host_payload(payload : ErasedHostPayload) -> T {
-  let typed : Ref[T] = unchecked_host_cast(payload.value)
-  typed.val
+priv struct HostObjectStoreEntry[T] {
+  value : T
+  finalizer : (T) -> Unit
+}
+
+///|
+priv struct HostObjectStoreSlot[T] {
+  mut generation : Int
+  mut entry : HostObjectStoreEntry[T]?
+}
+
+///|
+struct HostObjectStore[T] {
+  identity : HostObjectStoreIdentity
+  slots : Array[HostObjectStoreSlot[T]]
+}
+
+///|
+pub fn[T] HostObjectStore::new() -> HostObjectStore[T] {
+  { identity: { nonce: Ref(()) }, slots: [] }
 }
 
 ///|
 struct BorrowedHostObject {
-  payload : ErasedHostPayload
+  store_identity : HostObjectStoreIdentity
+  key : HostObjectStoreKey
 }
 
 ///|
-pub fn[T] BorrowedHostObject::project(self : BorrowedHostObject) -> T {
-  project_host_payload(self.payload)
+fn[T] HostObjectStore::insert(
+  self : HostObjectStore[T],
+  value : T,
+  finalizer : (T) -> Unit,
+) -> BorrowedHostObject {
+  for index, slot in self.slots {
+    if slot.entry is None {
+      slot.entry = Some({ value, finalizer })
+      return {
+        store_identity: self.identity,
+        key: { slot: index, generation: slot.generation },
+      }
+    }
+  }
+  let slot : HostObjectStoreSlot[T] = {
+    generation: 1,
+    entry: Some({ value, finalizer }),
+  }
+  self.slots.push(slot)
+  {
+    store_identity: self.identity,
+    key: { slot: self.slots.length() - 1, generation: slot.generation },
+  }
+}
+
+///|
+fn[T] HostObjectStore::entry(
+  self : HostObjectStore[T],
+  object : BorrowedHostObject,
+) -> HostObjectStoreEntry[T] {
+  if !physical_equal(self.identity.nonce, object.store_identity.nonce) {
+    abort("Host Object belongs to a different typed store")
+  }
+  let key = object.key
+  if key.slot < 0 || key.slot >= self.slots.length() {
+    abort("Host Object store slot is out of range")
+  }
+  let slot = self.slots[key.slot]
+  if slot.generation != key.generation {
+    abort("Host Object store generation is stale")
+  }
+  match slot.entry {
+    Some(entry) => entry
+    None => abort("Host Object store slot is empty")
+  }
+}
+
+///|
+pub fn[T] HostObjectStore::project(
+  self : HostObjectStore[T],
+  object : BorrowedHostObject,
+) -> T {
+  self.entry(object).value
+}
+
+///|
+fn[T] HostObjectStore::release(
+  self : HostObjectStore[T],
+  object : BorrowedHostObject,
+) -> Unit {
+  let entry = self.entry(object)
+  let slot = self.slots[object.key.slot]
+  slot.entry = None
+  slot.generation += 1
+  (entry.finalizer)(entry.value)
 }
 
 ///|
@@ -44,31 +115,43 @@ pub impl Debug for BorrowedHostObject with fn to_repr(
 
 ///|
 struct OwnedHostObject {
-  mut payload : ErasedHostPayload?
-  mut finalizer : ((ErasedHostPayload) -> Unit)?
+  mut materialize : (() -> HostObjectEntry)?
+  mut discard : (() -> Unit)?
 }
 
 ///|
 pub fn[T] OwnedHostObject::new(
-  payload : T,
+  store : HostObjectStore[T],
+  value : T,
   finalizer~ : (T) -> Unit,
 ) -> OwnedHostObject {
+  let pending = Ref(Some(value))
+  let take = () => {
+    guard pending.val is Some(value) else {
+      abort("owned Host Object payload was already consumed")
+    }
+    pending.val = None
+    value
+  }
   {
-    payload: Some(erase_host_payload(payload)),
-    finalizer: Some(erased => finalizer(project_host_payload(erased))),
+    materialize: Some(() => {
+      let object = store.insert(take(), finalizer)
+      { object, release: () => store.release(object) }
+    }),
+    discard: Some(() => finalizer(take())),
   }
 }
 
 ///|
 fn OwnedHostObject::take(
   self : OwnedHostObject,
-) -> (ErasedHostPayload, (ErasedHostPayload) -> Unit) raise HostObjectFailure {
-  guard self.payload is Some(payload) && self.finalizer is Some(finalizer) else {
+) -> (() -> HostObjectEntry, () -> Unit) raise HostObjectFailure {
+  guard self.materialize is Some(materialize) && self.discard is Some(discard) else {
     raise InvalidOwnedResult(detail="owned Host Object was already adopted")
   }
-  self.payload = None
-  self.finalizer = None
-  (payload, finalizer)
+  self.materialize = None
+  self.discard = None
+  (materialize, discard)
 }
 
 ///|
@@ -76,7 +159,13 @@ pub impl Debug for OwnedHostObject with fn to_repr(self : OwnedHostObject) -> Re
   Repr::ctor("OwnedHostObject", [
     (
       Some("state"),
-      Repr::string(if self.payload is Some(_) { "pending" } else { "adopted" }),
+      Repr::string(
+        if self.materialize is Some(_) {
+          "pending"
+        } else {
+          "adopted"
+        },
+      ),
     ),
   ])
 }
@@ -103,8 +192,8 @@ pub impl Debug for HostObjectHandle with fn to_repr(self : HostObjectHandle) -> 
 
 ///|
 priv struct HostObjectEntry {
-  payload : ErasedHostPayload
-  finalizer : (ErasedHostPayload) -> Unit
+  object : BorrowedHostObject
+  release : () -> Unit
 }
 
 ///|
@@ -145,15 +234,11 @@ fn HostObjectTable::has_capacity(self : HostObjectTable) -> Bool {
 ///|
 fn HostObjectTable::insert(
   self : HostObjectTable,
-  payload : ErasedHostPayload,
-  finalizer : (ErasedHostPayload) -> Unit,
-) -> HostObjectHandle raise HostObjectFailure {
-  if !self.has_capacity() {
-    raise HostObjectLimitExceeded
-  }
+  entry : HostObjectEntry,
+) -> HostObjectHandle {
   for index, slot in self.slots {
     if slot.entry is None {
-      slot.entry = Some({ payload, finalizer })
+      slot.entry = Some(entry)
       self.live_objects += 1
       return {
         identity: self.identity,
@@ -162,7 +247,7 @@ fn HostObjectTable::insert(
       }
     }
   }
-  let slot = { generation: 1, entry: Some({ payload, finalizer }) }
+  let slot : HostObjectSlot = { generation: 1, entry: Some(entry) }
   self.slots.push(slot)
   self.live_objects += 1
   {
@@ -203,7 +288,7 @@ fn HostObjectTable::release(
   slot.entry = None
   slot.generation += 1
   self.live_objects -= 1
-  (entry.finalizer)(entry.payload)
+  (entry.release)()
 }
 
 ///|
@@ -223,7 +308,7 @@ pub fn ExecutionRuntime::resolve_host_object(
   self : ExecutionRuntime,
   handle : HostObjectHandle,
 ) -> BorrowedHostObject raise HostObjectFailure {
-  { payload: self.context.state.host_objects.entry(handle).payload }
+  self.context.state.host_objects.entry(handle).object
 }
 
 ///|
@@ -240,14 +325,12 @@ pub fn[R, E] ExecutionRuntime::adopt_host_object(
   object : OwnedHostObject,
   initialize : (HostObjectHandle) -> Result[R, E],
 ) -> Result[R, E] raise HostObjectFailure {
-  let (payload, finalizer) = object.take()
-  let handle = self.context.state.host_objects.insert(payload, finalizer) catch {
-    HostObjectLimitExceeded => {
-      finalizer(payload)
-      raise HostObjectLimitExceeded
-    }
-    error => raise error
+  let (materialize, discard) = object.take()
+  if !self.context.state.host_objects.has_capacity() {
+    discard()
+    raise HostObjectLimitExceeded
   }
+  let handle = self.context.state.host_objects.insert(materialize())
   match initialize(handle) {
     Ok(result) => Ok(result)
     Err(error) => {

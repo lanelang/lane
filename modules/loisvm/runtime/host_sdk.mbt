@@ -70,12 +70,14 @@ pub fn HostParameter::string() -> HostParameter[HostStringView] {
 }
 
 ///|
-pub fn[T] HostParameter::host_object() -> HostParameter[T] {
+pub fn[T] HostParameter::host_object(
+  store : HostObjectStore[T],
+) -> HostParameter[T] {
   {
     kind: Opaque,
     decode: value => {
       match value {
-        BorrowedOpaque(value) => value.project()
+        BorrowedOpaque(value) => store.project(value)
         _ => abort("typed host binding received a non-Opaque value")
       }
     },
@@ -169,10 +171,13 @@ pub fn HostResult::string() -> HostResult[String] {
 }
 
 ///|
-pub fn[T] HostResult::host_object(finalizer~ : (T) -> Unit) -> HostResult[T] {
+pub fn[T] HostResult::host_object(
+  store : HostObjectStore[T],
+  finalizer~ : (T) -> Unit,
+) -> HostResult[T] {
   {
     kind: Opaque,
-    encode: value => OwnedOpaque(OwnedHostObject::new(value, finalizer~)),
+    encode: value => OwnedOpaque(OwnedHostObject::new(store, value, finalizer~)),
   }
 }
 

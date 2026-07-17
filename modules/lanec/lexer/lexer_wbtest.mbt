@@ -53,6 +53,16 @@ test "trait interface and mut are identifiers" {
 }
 
 ///|
+test "Type and Effect are kind keywords" {
+  debug_inspect(
+    token_values("Type Effect type effect"),
+    content=(
+      #|[KIND_TYPE, KIND_EFFECT, TYPE, EFFECT, EOF]
+    ),
+  )
+}
+
+///|
 test "tokenize maximal munch operators and punctuation" {
   let tokens = token_values(
     "a == b != c <= d >= e && f || g |> h :: k::. (::x) .{ _",

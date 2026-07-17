@@ -10,9 +10,12 @@ test "interpreter rejects stale Host Object handles" {
     constants: [],
   }
   let runtime = @runtime.ExecutionRuntime::new()
+  let store : @runtime.HostObjectStore[Unit] = @runtime.HostObjectStore::new()
   let finalized = Ref(0)
   let adopted : Result[@runtime.HostObjectHandle, Unit] = runtime.adopt_host_object(
-    @runtime.OwnedHostObject::new((), finalizer=_object => finalized.val += 1),
+    @runtime.OwnedHostObject::new(store, (), finalizer=_object => {
+      finalized.val += 1
+    }),
     handle => Ok(handle),
   )
   let handle = match adopted {

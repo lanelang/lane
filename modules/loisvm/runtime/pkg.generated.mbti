@@ -37,7 +37,6 @@ pub(all) suberror RuntimeImportResolutionError {
 
 // Types and methods
 type BorrowedHostObject
-pub fn[T] BorrowedHostObject::project(Self) -> T
 pub impl @debug.Debug for BorrowedHostObject
 
 pub(all) struct ExecutionConfig {
@@ -58,10 +57,14 @@ pub fn ExecutionRuntime::resolve_host_object(Self, HostObjectHandle) -> Borrowed
 type HostObjectHandle
 pub impl @debug.Debug for HostObjectHandle
 
+type HostObjectStore[T]
+pub fn[T] HostObjectStore::new() -> Self[T]
+pub fn[T] HostObjectStore::project(Self[T], BorrowedHostObject) -> T
+
 type HostParameter[T]
 pub fn HostParameter::bool() -> Self[Bool]
 pub fn HostParameter::double() -> Self[Double]
-pub fn[T] HostParameter::host_object() -> Self[T]
+pub fn[T] HostParameter::host_object(HostObjectStore[T]) -> Self[T]
 pub fn HostParameter::int() -> Self[Int64]
 pub fn HostParameter::string() -> Self[HostStringView]
 pub fn HostParameter::unit() -> Self[Unit]
@@ -74,7 +77,7 @@ pub fn[A, B] HostParameters::pair(Self[A], Self[B]) -> Self[(A, B)]
 type HostResult[T]
 pub fn HostResult::bool() -> Self[Bool]
 pub fn HostResult::double() -> Self[Double]
-pub fn[T] HostResult::host_object(finalizer~ : (T) -> Unit) -> Self[T]
+pub fn[T] HostResult::host_object(HostObjectStore[T], finalizer~ : (T) -> Unit) -> Self[T]
 pub fn HostResult::int() -> Self[Int64]
 pub fn HostResult::string() -> Self[String]
 pub fn HostResult::unit() -> Self[Unit]
@@ -103,7 +106,7 @@ pub(all) enum HostValue {
 } derive(@debug.Debug)
 
 type OwnedHostObject
-pub fn[T] OwnedHostObject::new(T, finalizer~ : (T) -> Unit) -> Self
+pub fn[T] OwnedHostObject::new(HostObjectStore[T], T, finalizer~ : (T) -> Unit) -> Self
 pub impl @debug.Debug for OwnedHostObject
 
 pub(all) enum ResourceLimitKind {

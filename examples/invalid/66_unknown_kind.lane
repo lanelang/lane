@@ -1,0 +1,5 @@
+// Invalid: kind annotations use the closed Type and Effect vocabulary.
+
+module Examples.Invalid.UnknownKind
+
+type A : Banana = Int

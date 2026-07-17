@@ -1367,6 +1367,18 @@
           "change the declaration to a supported direct host function signature"
         ]
       }
+    },
+    {
+      "name": "invalid 66 unknown kind",
+      "file": "examples/invalid/66_unknown_kind.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1100]",
+          "the parser did not expect identifier `Banana`",
+          "expected one of: `Type`, `Effect`, `(`, `[`"
+        ]
+      }
     }
   ]
 }

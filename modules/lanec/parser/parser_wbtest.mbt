@@ -442,6 +442,40 @@ test "parse type alias with effect set body" {
 }
 
 ///|
+test "parse rejects unknown kind names in every kind position" {
+  let accepted = [
+    "type A : Banana = Int",
+    "type A[T : Banana] = T",
+    (
+      #|struct S {
+      #|  type A : Banana
+      #|}
+    ),
+    "extern type A : Banana",
+    "type A : [Banana] -> Type = Int",
+    "type A : [Type] -> Banana = Int",
+    "type A : effect = Int",
+  ].filter(fn(source) { parse_errors(source).is_empty() })
+  debug_inspect(accepted, content="[]")
+  debug_inspect(
+    parse_error_kinds("type A : Banana = Int"),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "identifier `Banana`" },
+      #|    [
+      #|      { label: "`Type`" },
+      #|      { label: "`Effect`" },
+      #|      { label: "`(`" },
+      #|      { label: "`[`" },
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "parse rejects value block as type alias body" {
   assert_false(parse_errors("type Bad = { let x : Int = 1 x }").is_empty())
 }

@@ -347,9 +347,9 @@ _Avoid_: typed source callable, per-symbol custom ABI, host SDK registration sur
 A host SDK layer that converts between the Erased Host Call Core and an ordinary typed host-language function without changing the serialized Runtime Import ABI.
 _Avoid_: bytecode adapter, source extern wrapper, manually indexed dynamic binding
 
-**Trusted Opaque Projection**:
-A binding-specific conversion from an untagged erased Host Object payload to the host-language type expected by a Typed Host Registration Adapter.
-_Avoid_: payload brand check, External Type fingerprint, VM dynamic cast
+**Typed Host Object Store**:
+An embedding-owned secondary map from private generational keys to values of one fixed host-language type. All bindings for that capability share the same `HostObjectStore[T]`, so parameter projection is an ordinary typed lookup rather than an erased cast.
+_Avoid_: heterogeneous `Any` store, unchecked payload cast, serialized External Type fingerprint
 
 **Borrowed Host String**:
 An immutable String byte view valid only during one synchronous runtime-import call and requiring an explicit host copy for retention.
@@ -364,7 +364,7 @@ The pre-execution runtime-linking check that matches an image Runtime Import's c
 _Avoid_: source effect inference, per-call dynamic type check, arity-only resolution
 
 **Opaque Host ABI Kind**:
-The single non-null runtime-import parameter and result kind to which every source External Type erases. It contains a valid Host Object payload and finalizer, distinguishes host objects from primitive values, and does not preserve or validate nominal External Type identity.
+The single non-null runtime-import parameter and result kind to which every source External Type erases. It refers to a live Host Object Table entry backed by a Typed Host Object Store, distinguishes host objects from primitive values, and does not serialize nominal External Type identity.
 _Avoid_: External Type fingerprint, wrapper type tag, host finalizer registry
 
 **Thread-Affine Host Object**:
@@ -372,7 +372,7 @@ A Host Object whose use and finalization remain on the execution thread that cre
 _Avoid_: thread-safe opaque value, shared host registry object, implicit `Send`
 
 **Host Object Table**:
-The execution-instance-owned table that stores opaque host payloads and their finalizers. Lane wrappers and runtime imports refer to entries through execution-local integer handles, giving the interpreter and Wasm backends one semantic representation.
+The execution-instance-owned table that stores Typed Host Object Store keys and release closures. Lane wrappers and runtime imports refer to entries through execution-local integer handles, while the embedding-owned typed stores retain the actual host values.
 _Avoid_: serialized object registry, process-global handle table, host pointer in linear memory
 
 **Generational Host Handle**:
@@ -408,7 +408,7 @@ One independently releasable host-side lifetime acquired explicitly when a runti
 _Avoid_: Lane ARC retain, borrowed payload return, inferred host sharing
 
 **Host Object Finalizer**:
-The synchronous, no-result, non-retriable callback stored with a Host Object Table entry and invoked exactly once with only its host payload when that owned lifetime ends. It receives no Runtime Context and cannot re-enter Lane; a finalizer panic is a fatal runtime error.
+The synchronous, no-result, non-retriable callback stored with a typed Host Object Store entry and invoked exactly once with only its host payload when that owned lifetime ends. It receives no Runtime Context and cannot re-enter Lane; a finalizer panic is a fatal runtime error.
 _Avoid_: Lane destructor effect, recoverable cleanup, global External Type finalizer
 
 **Explicit Host Cleanup**:

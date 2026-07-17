@@ -107,15 +107,6 @@ fn make_external_type(
 }
 
 ///|
-fn external_type_kind(name : String, loc : SourceSpan) -> ExternalTypeKind {
-  if name == "Effect" {
-    Effect(loc~)
-  } else {
-    Type(loc~)
-  }
-}
-
-///|
 fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
   items.push(item)
   items

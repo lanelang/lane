@@ -6,6 +6,8 @@ let keyword_table : @hashmap.HashMap[String, Token] = [
     ("fn", FN),
     ("let", LET),
     ("type", TYPE),
+    ("Type", KIND_TYPE),
+    ("Effect", KIND_EFFECT),
     ("offer", OFFER),
     ("auto", AUTO),
     ("if", IF),
