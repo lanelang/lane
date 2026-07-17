@@ -67,8 +67,7 @@ priv enum CompletionContext {
 priv struct CompletionModule {
   input : @module_frontend.ParsedModuleInput
   imported : @module_interface.ImportedEnvironment
-  resolved : @resolve.ResolvedSourceFile?
-  checked : @checked.CheckedSourceFile?
+  index : SemanticIndex
 }
 
 ///|
@@ -182,8 +181,11 @@ fn CompletionWorld::from_graph(
     modules.push({
       input,
       imported,
-      resolved: Some(resolved.source),
-      checked: checked_source,
+      index: SemanticIndex::from_sources(
+        resolved.source,
+        checked_source,
+        display,
+      ),
     })
   }
   { display, modules }
@@ -344,7 +346,7 @@ fn payloadless_variant_insert_text(
 
 ///|
 fn CompletionWorld::add_identifier_entries(
-  self : CompletionWorld,
+  _self : CompletionWorld,
   entries : Array[CompletionEntry],
   module_ : CompletionModule,
   source_id : String,
@@ -354,462 +356,61 @@ fn CompletionWorld::add_identifier_entries(
   line : Int,
   column : Int,
 ) -> Unit {
-  match module_.checked {
-    Some(checked) =>
-      self.add_checked_identifier_entries(
-        entries, checked, source_id, prefix, replace, space, line, column,
+  for binding in module_.index.visible_bindings(line, column) {
+    let allowed = match binding.kind {
+      ValueBindingKind | FunctionBindingKind | OfferBindingKind =>
+        completion_allows_value(space)
+      TypeBindingKind | TypeParameterBindingKind =>
+        completion_allows_type(space)
+      EffectBindingKind => completion_allows_effect(space)
+    }
+    if allowed {
+      add_completion_entry(
+        entries,
+        source_id,
+        prefix,
+        replace,
+        binding.name,
+        semantic_binding_completion_kind(binding.kind),
+        Some(binding.detail),
+        semantic_binding_sort_text(binding),
       )
-    None =>
-      if module_.resolved is Some(resolved) {
-        add_resolved_identifier_entries(
-          entries, resolved, source_id, prefix, replace, space, line, column,
-        )
-      }
+    }
   }
   add_module_binding_entries(entries, module_, source_id, prefix, replace)
 }
 
 ///|
-fn CompletionWorld::add_checked_identifier_entries(
-  self : CompletionWorld,
-  entries : Array[CompletionEntry],
-  source : @checked.CheckedSourceFile,
-  source_id : String,
-  prefix : String,
-  replace : @basic.SourceSpan,
-  space : CompletionSpace,
-  line : Int,
-  column : Int,
-) -> Unit {
-  for declaration in source.declarations {
-    match declaration {
-      Struct(declaration) =>
-        if completion_allows_type(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Type,
-            Some("struct \{declaration.name}"),
-            "30",
-          )
-          if declaration.loc.contains_position(line, column) {
-            self.add_type_parameters(
-              entries,
-              source_id,
-              prefix,
-              replace,
-              declaration.type_parameters,
-            )
-          }
-        }
-      Enum(declaration) =>
-        if completion_allows_type(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Type,
-            Some("enum \{declaration.name}"),
-            "30",
-          )
-          if declaration.loc.contains_position(line, column) {
-            self.add_type_parameters(
-              entries,
-              source_id,
-              prefix,
-              replace,
-              declaration.type_parameters,
-            )
-          }
-        }
-      ExternalType(declaration) =>
-        if completion_allows_type(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Type,
-            Some("extern type \{declaration.name} : Type"),
-            "30",
-          )
-        }
-      Effect(declaration) =>
-        if completion_allows_effect(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Effect,
-            Some(effect_completion_detail(declaration.name, declaration.flavor)),
-            "32",
-          )
-          if declaration.loc.contains_position(line, column) {
-            self.add_type_parameters(
-              entries,
-              source_id,
-              prefix,
-              replace,
-              declaration.type_parameters,
-            )
-          }
-        }
-      Function(declaration) => {
-        if completion_allows_value(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Function,
-            Some(
-              "\{declaration.name} : \{self.display.type_text(declaration.type_)}",
-            ),
-            "20",
-          )
-        }
-        if declaration.loc.contains_position(line, column) {
-          self.add_type_parameters(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.type_parameters,
-          )
-          for parameter in declaration.parameters {
-            if completion_allows_value(space) {
-              add_completion_entry(
-                entries,
-                source_id,
-                prefix,
-                replace,
-                parameter.name,
-                Value,
-                Some(
-                  "\{parameter.name} : \{self.display.type_text(parameter.type_)}",
-                ),
-                "00",
-              )
-            }
-          }
-          self.add_checked_expr_locals(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            space,
-            declaration.body,
-            line,
-            column,
-          )
-        }
-      }
-      Let(declaration) =>
-        if completion_allows_value(space) {
-          if declaration.name is Some(name) {
-            add_completion_entry(
-              entries,
-              source_id,
-              prefix,
-              replace,
-              name,
-              Value,
-              Some("\{name} : \{self.display.type_text(declaration.type_)}"),
-              "20",
-            )
-          }
-        }
-    }
+fn semantic_binding_completion_kind(
+  kind : SemanticBindingKind,
+) -> CompletionKind {
+  match kind {
+    ValueBindingKind => Value
+    FunctionBindingKind => Function
+    TypeBindingKind => Type
+    TypeParameterBindingKind => TypeParameter
+    EffectBindingKind => Effect
+    OfferBindingKind => Offer
   }
 }
 
 ///|
-fn CompletionWorld::add_type_parameters(
-  self : CompletionWorld,
-  entries : Array[CompletionEntry],
-  source_id : String,
-  prefix : String,
-  replace : @basic.SourceSpan,
-  parameters : Array[@types.TypeParameter],
-) -> Unit {
-  for parameter in parameters {
-    add_completion_entry(
-      entries,
-      source_id,
-      prefix,
-      replace,
-      parameter.name,
-      TypeParameter,
-      Some("\{parameter.name} : \{self.display.kind_text(parameter.kind)}"),
-      "01",
-    )
-  }
-}
-
-///|
-fn CompletionWorld::add_checked_expr_locals(
-  self : CompletionWorld,
-  entries : Array[CompletionEntry],
-  source_id : String,
-  prefix : String,
-  replace : @basic.SourceSpan,
-  space : CompletionSpace,
-  expr : @checked.CheckedExpr,
-  line : Int,
-  column : Int,
-) -> Unit {
-  guard expr.loc().contains_position(line, column) else { return }
-  match expr {
-    Block(items~, result~, ..) => {
-      for item in items {
-        if item.loc_before(line, column) {
-          match item {
-            Let(declaration) =>
-              if declaration.name is Some(name) {
-                if completion_allows_value(space) {
-                  add_completion_entry(
-                    entries,
-                    source_id,
-                    prefix,
-                    replace,
-                    name,
-                    Value,
-                    Some(
-                      "\{name} : \{self.display.type_text(declaration.type_)}",
-                    ),
-                    "02",
-                  )
-                }
-              }
-            Function(declaration) =>
-              if completion_allows_value(space) {
-                add_completion_entry(
-                  entries,
-                  source_id,
-                  prefix,
-                  replace,
-                  declaration.name,
-                  Function,
-                  Some(
-                    "\{declaration.name} : \{self.display.type_text(declaration.type_)}",
-                  ),
-                  "02",
-                )
-              }
-            PatternLet(_) => ()
-          }
-        }
+fn semantic_binding_sort_text(binding : SemanticBindingFact) -> String {
+  match binding.kind {
+    ValueBindingKind | FunctionBindingKind =>
+      match binding.visibility {
+        GlobalBinding => "20"
+        ScopedBinding(_) => "00"
+        OrderedBinding(_) => "02"
       }
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, result, line, column,
-      )
-    }
-    FunctionLiteral(parameters~, body~, ..) => {
-      for parameter in parameters {
-        if completion_allows_value(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            parameter.name,
-            Value,
-            Some(
-              "\{parameter.name} : \{self.display.type_text(parameter.type_)}",
-            ),
-            "00",
-          )
-        }
+    TypeBindingKind => "30"
+    TypeParameterBindingKind => "01"
+    EffectBindingKind => "32"
+    OfferBindingKind =>
+      match binding.visibility {
+        GlobalBinding => "22"
+        ScopedBinding(_) | OrderedBinding(_) => "02"
       }
-      self.add_checked_expr_locals(
-        entries, source_id, prefix, replace, space, body, line, column,
-      )
-    }
-    _ =>
-      expr.for_each_child_expr(fn(child) {
-        self.add_checked_expr_locals(
-          entries, source_id, prefix, replace, space, child, line, column,
-        )
-      })
-  }
-}
-
-///|
-fn @checked.CheckedLocalItem::loc_before(
-  self : @checked.CheckedLocalItem,
-  line : Int,
-  column : Int,
-) -> Bool {
-  let loc = match self {
-    Let(declaration) => declaration.loc
-    PatternLet(declaration) => declaration.loc
-    Function(declaration) => declaration.loc
-  }
-  loc.start_line < line || (loc.start_line == line && loc.start_column < column)
-}
-
-///|
-fn add_resolved_identifier_entries(
-  entries : Array[CompletionEntry],
-  source : @resolve.ResolvedSourceFile,
-  source_id : String,
-  prefix : String,
-  replace : @basic.SourceSpan,
-  space : CompletionSpace,
-  line : Int,
-  column : Int,
-) -> Unit {
-  for declaration in source.declarations {
-    match declaration {
-      Struct(declaration) =>
-        if completion_allows_type(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Type,
-            Some("struct \{declaration.name}"),
-            "30",
-          )
-        }
-      Enum(declaration) =>
-        if completion_allows_type(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Type,
-            Some("enum \{declaration.name}"),
-            "30",
-          )
-        }
-      ExternalType(declaration) =>
-        if completion_allows_type(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Type,
-            Some("extern type \{declaration.name} : Type"),
-            "30",
-          )
-        }
-      Effect(declaration) =>
-        if completion_allows_effect(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Effect,
-            Some(effect_completion_detail(declaration.name, declaration.flavor)),
-            "32",
-          )
-        }
-      TypeAlias(declaration) =>
-        match declaration.body {
-          TypeBody(_) =>
-            if completion_allows_type(space) {
-              add_completion_entry(
-                entries,
-                source_id,
-                prefix,
-                replace,
-                declaration.name,
-                Type,
-                Some("type \{declaration.name}"),
-                "30",
-              )
-            }
-          EffectBody(_) =>
-            if completion_allows_effect(space) {
-              add_completion_entry(
-                entries,
-                source_id,
-                prefix,
-                replace,
-                declaration.name,
-                Effect,
-                Some("effect alias \{declaration.name}"),
-                "32",
-              )
-            }
-        }
-      Function(declaration) => {
-        if completion_allows_value(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Function,
-            Some("fn \{declaration.name}"),
-            "20",
-          )
-        }
-        if declaration.loc.contains_position(line, column) {
-          for parameter in declaration.parameters {
-            if completion_allows_value(space) {
-              add_completion_entry(
-                entries,
-                source_id,
-                prefix,
-                replace,
-                parameter.name,
-                Value,
-                Some("parameter \{parameter.name}"),
-                "00",
-              )
-            }
-          }
-        }
-      }
-      Let(declaration) =>
-        if completion_allows_value(space) {
-          if declaration.name is Some(name) {
-            add_completion_entry(
-              entries,
-              source_id,
-              prefix,
-              replace,
-              name,
-              Value,
-              Some("let \{name}"),
-              "20",
-            )
-          }
-        }
-      Offer(declaration) =>
-        if completion_allows_value(space) {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            declaration.name,
-            Offer,
-            Some("offer \{declaration.name}"),
-            "22",
-          )
-        }
-    }
   }
 }
 
@@ -1142,7 +743,7 @@ fn CompletionWorld::add_interface_owner_entries(
 
 ///|
 fn CompletionWorld::add_local_owner_entries(
-  self : CompletionWorld,
+  _self : CompletionWorld,
   entries : Array[CompletionEntry],
   module_ : CompletionModule,
   source_id : String,
@@ -1150,96 +751,45 @@ fn CompletionWorld::add_local_owner_entries(
   replace : @basic.SourceSpan,
   owner : String,
 ) -> Unit {
-  match module_.checked {
-    Some(checked) =>
-      for declaration in checked.declarations {
-        match declaration {
-          Enum(enum_) if enum_.name == owner =>
-            for variant in enum_.variants {
-              add_completion_entry_with_insert_text(
-                entries,
-                source_id,
-                prefix,
-                replace,
-                variant.name,
-                Variant,
-                Some("variant \{owner}::\{variant.name}"),
-                insert_text=payloadless_variant_insert_text(
-                  variant.name,
-                  variant.payload.length(),
-                ),
-                "20",
-              )
-            }
-          Struct(struct_) if struct_.name == owner =>
-            for type_member in struct_.type_members {
-              add_completion_entry(
-                entries,
-                source_id,
-                prefix,
-                replace,
-                type_member.name,
-                TypeParameter,
-                Some(
-                  "\{type_member.name} : \{self.display.kind_text(type_member.kind)}",
-                ),
-                "21",
-              )
-            }
-          Effect(effect) if effect.name == owner =>
-            for operation in effect.operations {
-              add_completion_entry(
-                entries,
-                source_id,
-                prefix,
-                replace,
-                operation.name,
-                Operation,
-                Some(self.checked_operation_detail(effect.name, operation)),
-                "20",
-              )
-            }
-          _ => ()
-        }
-      }
-    None =>
-      if module_.resolved is Some(resolved) {
-        for declaration in resolved.declarations {
-          match declaration {
-            Enum(enum_) if enum_.name == owner =>
-              for variant in enum_.variants {
-                add_completion_entry_with_insert_text(
-                  entries,
-                  source_id,
-                  prefix,
-                  replace,
-                  variant.name,
-                  Variant,
-                  Some("variant \{owner}::\{variant.name}"),
-                  insert_text=payloadless_variant_insert_text(
-                    variant.name,
-                    variant.payload.length(),
-                  ),
-                  "20",
-                )
-              }
-            Effect(effect) if effect.name == owner =>
-              for operation in effect.operations {
-                add_completion_entry(
-                  entries,
-                  source_id,
-                  prefix,
-                  replace,
-                  operation.name,
-                  Operation,
-                  Some("operation \{owner}::\{operation.name}"),
-                  "20",
-                )
-              }
-            _ => ()
-          }
-        }
-      }
+  for fact in module_.index.owner_members(owner) {
+    add_completion_entry_with_insert_text(
+      entries,
+      source_id,
+      prefix,
+      replace,
+      fact.name,
+      semantic_member_completion_kind(fact.kind),
+      Some(fact.detail),
+      insert_text=semantic_member_insert_text(fact),
+      semantic_member_sort_text(fact.kind),
+    )
+  }
+}
+
+///|
+fn semantic_member_completion_kind(kind : SemanticMemberKind) -> CompletionKind {
+  match kind {
+    FieldMemberKind => Field
+    TypeMemberKind => TypeParameter
+    VariantMemberKind => Variant
+    OperationMemberKind => Operation
+  }
+}
+
+///|
+fn semantic_member_sort_text(kind : SemanticMemberKind) -> String {
+  match kind {
+    TypeMemberKind => "21"
+    FieldMemberKind | VariantMemberKind | OperationMemberKind => "20"
+  }
+}
+
+///|
+fn semantic_member_insert_text(fact : SemanticMemberFact) -> String? {
+  if fact.kind is VariantMemberKind && fact.payload_count == Some(0) {
+    Some("\{fact.name}()")
+  } else {
+    None
   }
 }
 
@@ -1248,18 +798,6 @@ fn CompletionWorld::operation_detail(
   self : CompletionWorld,
   effect_name : String,
   operation : @module_interface.ModuleInterfaceOperation,
-) -> String {
-  let payload = operation.payload
-    .map(fn(type_) { self.display.type_text(type_) })
-    .join(", ")
-  "\{effect_name}::\{operation.name}(\{payload}) -> \{self.display.type_text(operation.result)}"
-}
-
-///|
-fn CompletionWorld::checked_operation_detail(
-  self : CompletionWorld,
-  effect_name : String,
-  operation : @checked.CheckedEffectOperationDeclaration,
 ) -> String {
   let payload = operation.payload
     .map(fn(type_) { self.display.type_text(type_) })
@@ -1279,12 +817,22 @@ fn CompletionWorld::add_receiver_entries(
   line : Int,
   column : Int,
 ) -> Unit {
-  guard module_.checked is Some(checked) else { return }
-  guard self.receiver_type(checked, receiver, line, column) is Some(type_) else {
+  guard module_.index.receiver_type(receiver, line, column) is Some(type_) else {
     return
   }
   guard nominal_constructor(type_) is Some(symbol) else { return }
-  self.add_fields_for_type(entries, checked, source_id, prefix, replace, symbol)
+  for field in module_.index.fields_for_type(symbol) {
+    add_completion_entry(
+      entries,
+      source_id,
+      prefix,
+      replace,
+      field.name,
+      semantic_member_completion_kind(field.kind),
+      Some(field.detail),
+      semantic_member_sort_text(field.kind),
+    )
+  }
   self.add_imported_fields_for_type(
     entries, module_, source_id, prefix, replace, symbol,
   )
@@ -1296,128 +844,6 @@ fn nominal_constructor(type_ : @types.Type) -> @symbol.TypeSymbolId? {
     Constructor(symbol) => Some(symbol)
     Apply(Constructor(symbol), _) => Some(symbol)
     _ => None
-  }
-}
-
-///|
-fn CompletionWorld::receiver_type(
-  self : CompletionWorld,
-  source : @checked.CheckedSourceFile,
-  receiver : String,
-  line : Int,
-  column : Int,
-) -> @types.Type? {
-  for declaration in source.declarations {
-    match declaration {
-      Function(function) if function.loc.contains_position(line, column) => {
-        for parameter in function.parameters {
-          if parameter.name == receiver {
-            return Some(parameter.type_)
-          }
-        }
-        if self.receiver_type_in_expr(function.body, receiver, line, column)
-          is Some(type_) {
-          return Some(type_)
-        }
-      }
-      Let(let_) => if let_.name == Some(receiver) { return Some(let_.type_) }
-      _ => ()
-    }
-  }
-  None
-}
-
-///|
-fn CompletionWorld::receiver_type_in_expr(
-  self : CompletionWorld,
-  expr : @checked.CheckedExpr,
-  receiver : String,
-  line : Int,
-  column : Int,
-) -> @types.Type? {
-  guard expr.loc().contains_position(line, column) else { return None }
-  match expr {
-    Block(items~, result~, ..) => {
-      for item in items {
-        if item.loc_before(line, column) {
-          match item {
-            Let(declaration) =>
-              if declaration.name == Some(receiver) {
-                return Some(declaration.type_)
-              }
-            Function(declaration) =>
-              if declaration.name == receiver {
-                return Some(declaration.type_)
-              }
-            PatternLet(_) => ()
-          }
-        }
-      }
-      self.receiver_type_in_expr(result, receiver, line, column)
-    }
-    If(condition~, then_branch~, else_branch~, ..) => {
-      if self.receiver_type_in_expr(condition, receiver, line, column)
-        is Some(type_) {
-        return Some(type_)
-      }
-      if self.receiver_type_in_expr(then_branch, receiver, line, column)
-        is Some(type_) {
-        return Some(type_)
-      }
-      self.receiver_type_in_expr(else_branch, receiver, line, column)
-    }
-    Match(scrutinee~, arms~, ..) => {
-      if self.receiver_type_in_expr(scrutinee, receiver, line, column)
-        is Some(type_) {
-        return Some(type_)
-      }
-      for arm in arms {
-        if self.receiver_type_in_expr(arm.body, receiver, line, column)
-          is Some(type_) {
-          return Some(type_)
-        }
-      }
-      None
-    }
-    FunctionLiteral(parameters~, body~, ..) => {
-      for parameter in parameters {
-        if parameter.name == receiver {
-          return Some(parameter.type_)
-        }
-      }
-      self.receiver_type_in_expr(body, receiver, line, column)
-    }
-    _ => None
-  }
-}
-
-///|
-fn CompletionWorld::add_fields_for_type(
-  self : CompletionWorld,
-  entries : Array[CompletionEntry],
-  source : @checked.CheckedSourceFile,
-  source_id : String,
-  prefix : String,
-  replace : @basic.SourceSpan,
-  symbol : @symbol.TypeSymbolId,
-) -> Unit {
-  for declaration in source.declarations {
-    match declaration {
-      Struct(struct_) if struct_.symbol == symbol =>
-        for field in struct_.fields {
-          add_completion_entry(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            field.name,
-            Field,
-            Some("\{field.name} : \{self.display.type_text(field.type_)}"),
-            "20",
-          )
-        }
-      _ => ()
-    }
   }
 }
 

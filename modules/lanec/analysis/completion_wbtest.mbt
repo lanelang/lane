@@ -826,3 +826,35 @@ test "completion returns empty for unsupported triggers and unavailable receiver
     content="[]",
   )
 }
+
+///|
+test "completion reads match binders from the semantic index" {
+  let source =
+    #|module Main
+    #|
+    #|pub enum Option {
+    #|  none()
+    #|  some(Int)
+    #|}
+    #|
+    #|pub fn use(value : Option) -> Int {
+    #|  match value {
+    #|    Option::none() => 0
+    #|    Option::some(item) => it
+    #|  }
+    #|}
+  let entries = complete_source_inputs(
+    { source_id: "file:///Main.lane", text: source },
+    [],
+    "file:///Main.lane",
+    11,
+    29,
+    Manual,
+  )
+  debug_inspect(
+    entries
+    .filter(fn(entry) { entry.label == "item" })
+    .map(fn(entry) { (entry.label, entry.kind, entry.detail) }),
+    content="[(\"item\", Value, Some(\"pattern item\"))]",
+  )
+}

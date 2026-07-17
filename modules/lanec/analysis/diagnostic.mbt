@@ -70,14 +70,41 @@ fn unused_local_value_binding_diagnostic(
 }
 
 ///|
-pub fn unused_private_top_level_declaration_diagnostics(
+pub fn checked_semantic_warning_diagnostics(
   source : @resolve.ResolvedSourceFile,
   checked : @checked.CheckedSourceFile,
   source_text : String,
 ) -> Array[CompilerDiagnostic] {
-  source
-  .top_level_use_analysis(checked)
-  .unused_private_declarations()
+  let display = @typecheck.TypeDisplayContext::from_registry(source.symbols)
+  let index = SemanticIndex::from_sources(source, Some(checked), display)
+  semantic_warning_diagnostics_from_index(index, source, source_text)
+}
+
+///|
+fn semantic_warning_diagnostics_from_index(
+  index : SemanticIndex,
+  source : @resolve.ResolvedSourceFile,
+  source_text : String,
+) -> Array[CompilerDiagnostic] {
+  let diagnostics = unused_private_top_level_declaration_diagnostics_from_index(
+    index, source_text,
+  )
+  diagnostics.append(
+    unused_generic_parameter_diagnostics_from_index(index, source_text),
+  )
+  diagnostics.append(
+    unused_import_exposure_diagnostics_from_index(index, source),
+  )
+  diagnostics
+}
+
+///|
+fn unused_private_top_level_declaration_diagnostics_from_index(
+  index : SemanticIndex,
+  source_text : String,
+) -> Array[CompilerDiagnostic] {
+  index
+  .unused_private_top_level_declarations()
   .map(fn(declaration) {
     unused_private_top_level_declaration_diagnostic(declaration, source_text)
   })
@@ -85,7 +112,7 @@ pub fn unused_private_top_level_declaration_diagnostics(
 
 ///|
 fn unused_private_top_level_declaration_diagnostic(
-  declaration : TopLevelUseDeclaration,
+  declaration : TopLevelDeclarationFact,
   source_text : String,
 ) -> CompilerDiagnostic {
   let declaration_loc = name_span(
@@ -114,20 +141,18 @@ fn unused_private_top_level_declaration_diagnostic(
 }
 
 ///|
-pub fn unused_generic_parameter_diagnostics(
-  source : @resolve.ResolvedSourceFile,
-  checked : @checked.CheckedSourceFile,
+fn unused_generic_parameter_diagnostics_from_index(
+  index : SemanticIndex,
   source_text : String,
 ) -> Array[CompilerDiagnostic] {
-  source
-  .generic_parameter_use_analysis(checked)
-  .unused_binders()
+  index
+  .unused_generic_parameters()
   .map(fn(binder) { unused_generic_parameter_diagnostic(binder, source_text) })
 }
 
 ///|
 fn unused_generic_parameter_diagnostic(
-  binder : GenericParameterUseBinder,
+  binder : GenericParameterFact,
   source_text : String,
 ) -> CompilerDiagnostic {
   let binder_loc = name_span(source_text, binder.name, binder.loc)
@@ -150,11 +175,11 @@ fn unused_generic_parameter_diagnostic(
 }
 
 ///|
-pub fn unused_import_exposure_diagnostics(
+fn unused_import_exposure_diagnostics_from_index(
+  index : SemanticIndex,
   source : @resolve.ResolvedSourceFile,
-  checked : @checked.CheckedSourceFile,
 ) -> Array[CompilerDiagnostic] {
-  source.unused_import_exposures(checked).map(unused_import_exposure_diagnostic)
+  index.unused_import_exposures(source).map(unused_import_exposure_diagnostic)
 }
 
 ///|

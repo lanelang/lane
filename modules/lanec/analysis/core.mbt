@@ -185,9 +185,13 @@ fn analyze_module_graph(graph : @module_frontend.ModuleGraph) -> AnalysisResult 
             )
           }),
         )
-        let annotated_values = annotated_value_symbols(resolved.source)
         match (checked.source, checked.module_interface) {
           (Some(source), Some(interface)) if checked.diagnostics.is_empty() => {
+            let semantic_index = SemanticIndex::from_sources(
+              resolved.source,
+              Some(source),
+              display,
+            )
             diagnostics.append(
               checked_unused_local_value_binding_diagnostics(source, input.text).map(fn(
                   diagnostic,
@@ -197,27 +201,11 @@ fn analyze_module_graph(graph : @module_frontend.ModuleGraph) -> AnalysisResult 
               ),
             )
             diagnostics.append(
-              unused_private_top_level_declaration_diagnostics(
+              semantic_warning_diagnostics_from_index(
+                semantic_index,
                 resolved.source,
-                source,
                 input.text,
               ).map(fn(diagnostic) {
-                diagnostic.with_source_id(input.source_id)
-              }),
-            )
-            diagnostics.append(
-              unused_generic_parameter_diagnostics(
-                resolved.source,
-                source,
-                input.text,
-              ).map(fn(diagnostic) {
-                diagnostic.with_source_id(input.source_id)
-              }),
-            )
-            diagnostics.append(
-              unused_import_exposure_diagnostics(resolved.source, source).map(fn(
-                diagnostic,
-              ) {
                 diagnostic.with_source_id(input.source_id)
               }),
             )
@@ -235,7 +223,7 @@ fn analyze_module_graph(graph : @module_frontend.ModuleGraph) -> AnalysisResult 
               references,
               hovers,
               inlay_hints,
-              annotated_values,
+              semantic_index.annotated_values,
             )
             collect_resolved_type_references(
               input.source_id,

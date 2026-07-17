@@ -18,17 +18,13 @@ pub fn analyze_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]
 
 pub fn analyze_sources(String, Array[String]) -> AnalysisResult
 
+pub fn checked_semantic_warning_diagnostics(@resolve.ResolvedSourceFile, @checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
+
 pub fn checked_unused_local_value_binding_diagnostics(@checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
 
 pub fn complete_import_reachable_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
 
 pub fn complete_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
-
-pub fn unused_generic_parameter_diagnostics(@resolve.ResolvedSourceFile, @checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
-
-pub fn unused_import_exposure_diagnostics(@resolve.ResolvedSourceFile, @checked.CheckedSourceFile) -> Array[@diagnostic.CompilerDiagnostic]
-
-pub fn unused_private_top_level_declaration_diagnostics(@resolve.ResolvedSourceFile, @checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
 
 // Errors
 

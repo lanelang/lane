@@ -55,21 +55,11 @@ fn compile_one_module(
         input.text,
       )
       warning_diagnostics.append(
-        @analysis.unused_private_top_level_declaration_diagnostics(
+        @analysis.checked_semantic_warning_diagnostics(
           resolved.source,
           checked,
           input.text,
         ),
-      )
-      warning_diagnostics.append(
-        @analysis.unused_generic_parameter_diagnostics(
-          resolved.source,
-          checked,
-          input.text,
-        ),
-      )
-      warning_diagnostics.append(
-        @analysis.unused_import_exposure_diagnostics(resolved.source, checked),
       )
       let warning_diagnostics = warning_diagnostics.map(fn(diagnostic) {
         diagnostic.with_source_id(input.source_id)
