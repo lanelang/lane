@@ -7,10 +7,10 @@ priv struct AnfLowerer {
 /// Lowers Buslane expression-tree core into ANF.
 pub fn lower_buslane_program_to_anf(program : @buslane.Program) -> AnfProgram {
   let lowerer = AnfLowerer::{ next_temp: 0 }
-  {
+  simplify_anf_program({
     metadata: program.metadata,
     terms: program.terms.map(fn(term) { lowerer.lower_top_term(term) }),
-  }
+  })
 }
 
 ///|

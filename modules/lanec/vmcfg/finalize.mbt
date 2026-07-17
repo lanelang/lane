@@ -11,6 +11,8 @@ pub fn finalize(
 fn finalize_or_raise(
   image : Image,
 ) -> @bytecode.BytecodeImage raise FinalizeError {
+  let image = devirtualize_image(image)
+  let image = select_consuming_projections(image)
   let functions : Array[@bytecode.FunctionEntry] = []
   for entry in image.functions {
     match entry {
@@ -33,6 +35,7 @@ fn finalize_or_raise(
 fn finalize_body(
   body : FunctionBody,
 ) -> @bytecode.FunctionBody raise FinalizeError {
+  let body = simplify_body(body)
   let body = thread_owned_block_values(body)
   for index, metadata in body.values {
     validate_metadata({ value: index }, metadata)

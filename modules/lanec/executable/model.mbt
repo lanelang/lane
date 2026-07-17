@@ -26,5 +26,6 @@ pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedEffectSpecialization(detail~ : String)
+  CoreOptimizationError(@core_opt.CoreOptimizeError)
   EffectLoweringError(@effect_lowering.SynthesisError)
 } derive(Debug, Eq)

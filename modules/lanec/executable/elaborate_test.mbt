@@ -45,13 +45,23 @@ test "whole-program elaboration preserves the selected entry" {
 }
 
 ///|
-test "whole-program elaboration records ordered initializer roots" {
+test "whole-program elaboration records ordered reachable initializer roots" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let int_type = @buslane.Type::Primitive(Int)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let function_type = @buslane.Type::Function([], unit_type, Empty)
+  let producer_type = @buslane.Type::Function([int_type], int_type, Empty)
+  let observe_type = @buslane.Type::Function([int_type], unit_type, Io)
+  let function_type = @buslane.Type::Function([], unit_type, Io)
   let first = metadata.define_value("first", Local, int_type)
   let second = metadata.define_value("second", Local, int_type)
+  let unused = metadata.define_value("unused", Local, int_type)
+  let producer_parameter = metadata.define_value(
+    "producer_parameter",
+    Parameter,
+    int_type,
+  )
+  let produce = metadata.define_value("produce", Function, producer_type)
+  let observe = metadata.define_value("observe", External, observe_type)
   let main = metadata.define_value("main", Function, function_type)
   let entry = executable_test_entry("main", main, function_type)
   let linked : @module_link.LinkedProgram = {
@@ -60,25 +70,43 @@ test "whole-program elaboration records ordered initializer roots" {
       metadata,
       terms: [
         Let(first, Literal(Int(1))),
-        Let(second, Ref(first)),
-        Let(main, pure_function(unit_type, Literal(Unit))),
+        Let(second, Call(Ref(produce), [Ref(first)])),
+        Let(unused, Literal(Int(2))),
+        Let(
+          produce,
+          Function({
+            parameters: [producer_parameter],
+            result_type: int_type,
+            body: Ref(producer_parameter),
+          }),
+        ),
+        External(observe),
+        Let(main, pure_function(unit_type, Call(Ref(observe), [Ref(second)]))),
       ],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: {
+      builtins: [],
+      runtime_imports: [
+        { value: observe, symbol: "observe", type_: observe_type },
+      ],
+    },
     entries: [entry],
   }
   guard elaborate(linked, entry) is Ok(executable) else {
     abort("expected executable elaboration to succeed")
   }
-  assert_eq(executable.initializers, [
-    Value(first, Literal(Int(1))),
-    Value(second, Ref(first)),
-  ])
-  assert_eq(executable.execution_roots, [
-    Initializer(0),
-    Initializer(1),
-    Entry(main),
-  ])
+  debug_inspect(
+    (executable.initializers, executable.execution_roots),
+    content=(
+      #|(
+      #|  [
+      #|    Value({ index: 0 }, Literal(Int(1))),
+      #|    Value({ index: 1 }, Call(Ref({ index: 4 }), [Ref({ index: 0 })])),
+      #|  ],
+      #|  [Initializer(0), Initializer(1), Entry({ index: 6 })],
+      #|)
+    ),
+  )
 }
 
 ///|

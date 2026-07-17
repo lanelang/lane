@@ -271,7 +271,9 @@ async test "run executes schema 2 top-level initialization" {
       #|module Main
       #|pub let message : String = "hello"
       #|pub fn main() -> Unit {
-      #|  ()
+      #|  match message {
+      #|    _ => ()
+      #|  }
       #|}
     ),
   )
@@ -366,8 +368,10 @@ async test "native module artifacts are binary and readable" {
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
   inspect(linked_program.entry.value, content="1")
-  assert_eq(linked_program.initializer, Some({ value: 2 }))
-  assert_eq(linked_program.globals.length(), 1)
+  debug_inspect(
+    (linked_program.initializer, linked_program.globals),
+    content="(None, [])",
+  )
 }
 
 ///|
@@ -434,7 +438,7 @@ async test "exec executes explicit Basic Io linked input" {
     }
   }
   assert_true(image.initializer is Some(_))
-  assert_eq(image.globals.length(), 2)
+  assert_eq(image.globals.length(), 1)
   let output : Array[String] = []
   guard execute_loisvm_image_with_output(image, line => output.push(line))
     is Succeeded else {

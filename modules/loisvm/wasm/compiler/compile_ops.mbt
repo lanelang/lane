@@ -99,7 +99,7 @@ fn compile_instruction(
       ]
     ConstFunction(destination, target) => {
       let result : Array[@wasm_types.Instruction] = [
-        I64Const(target.value.to_int64()),
+        I64Const(static_image.callable_table_index(target).to_int64()),
         LocalSet(slot_local(parameter_count, destination)),
       ]
       result.append(mark_slot_live(live_base, slots, destination))
@@ -180,7 +180,7 @@ fn compile_instruction(
         I64ExtendI32U,
         I64Const(32L),
         I64Shl,
-        I64Const(target.value.to_int64()),
+        I64Const(static_image.callable_table_index(target).to_int64()),
         I64Or,
         LocalSet(slot_local(parameter_count, destination)),
       ]

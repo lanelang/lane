@@ -68,7 +68,6 @@ test "executable lowering emits reachable instance globals in source order" {
   assert_eq(image.initializer, Some({ value: 2 }))
   assert_eq(image.globals, [
     { representation: I32, cleanup: OwnedRef, erased_companion: None },
-    { representation: I32, cleanup: OwnedRef, erased_companion: None },
   ])
   guard image.functions
     is [
@@ -82,12 +81,9 @@ test "executable lowering emits reachable instance globals in source order" {
   assert_eq(initializer.blocks[0].instructions, [
     ConstString({ value: 0 }, { value: 0 }),
     InitGlobal({ value: 0 }, { value: 0 }),
-    BorrowGlobal({ value: 1 }, { value: 0 }),
-    RetainCopy({ value: 2 }, { value: 1 }),
-    InitGlobal({ value: 1 }, { value: 2 }),
   ])
   assert_eq(main_body.blocks[0].instructions, [
-    BorrowGlobal({ value: 0 }, { value: 1 }),
+    BorrowGlobal({ value: 0 }, { value: 0 }),
     RetainCopy({ value: 1 }, { value: 0 }),
   ])
   assert_eq(
@@ -108,6 +104,15 @@ test "executable initializer materializes function-valued data fields" {
   let holder_type = @buslane.Type::Constructor(holder)
   let helper = metadata.define_value("helper", Function, callable_type)
   let stored = metadata.define_value("stored", Local, holder_type)
+  let consume_parameter = metadata.define_value(
+    "consume_parameter",
+    Parameter,
+    holder_type,
+  )
+  let matched = metadata.define_value("matched", MatchBinder, holder_type)
+  let field = metadata.define_value("field", MatchBinder, callable_type)
+  let consume_type = global_test_function_type([holder_type], unit_type)
+  let consume = metadata.define_value("consume", Function, consume_type)
   let main = metadata.define_value("main", Function, callable_type)
   let program : @buslane.Program = {
     metadata,
@@ -126,8 +131,32 @@ test "executable initializer materializes function-valued data fields" {
         }),
       ),
       Let(
+        consume,
+        Function({
+          parameters: [consume_parameter],
+          result_type: unit_type,
+          body: Match({
+            scrutinee: Ref(consume_parameter),
+            binder: matched,
+            result_type: unit_type,
+            alternatives: [
+              {
+                alt_constructor: DataCon(make_holder),
+                type_binders: [],
+                value_binders: [field],
+                body: Call(Ref(field), []),
+              },
+            ],
+          }),
+        }),
+      ),
+      Let(
         main,
-        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Call(Ref(consume), [Ref(stored)]),
+        }),
       ),
     ],
   }

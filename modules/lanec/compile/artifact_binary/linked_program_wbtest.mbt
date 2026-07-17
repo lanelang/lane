@@ -124,6 +124,10 @@ test "linked program roundtrips and inspects instance globals" {
   let string_type = @buslane.Type::Primitive(String)
   let unit_type = @buslane.Type::Primitive(Unit)
   let message = metadata.define_value("message", Local, string_type)
+  let produce_type = @buslane.Type::Function([], string_type, Empty)
+  let produce = metadata.define_value("produce", External, produce_type)
+  let consume_type = @buslane.Type::Function([string_type], unit_type, Empty)
+  let consume = metadata.define_value("consume", External, consume_type)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("main", Function, main_type)
   let entry : @buslane_lowering.BuslaneEntry = {
@@ -137,18 +141,26 @@ test "linked program roundtrips and inspects instance globals" {
     program: {
       metadata,
       terms: [
-        Let(message, Literal(String("hello"))),
+        External(produce),
+        External(consume),
+        Let(message, Call(Ref(produce), [])),
         Let(
           main,
           Function({
             parameters: [],
             result_type: unit_type,
-            body: Literal(Unit),
+            body: Call(Ref(consume), [Ref(message)]),
           }),
         ),
       ],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: {
+      builtins: [],
+      runtime_imports: [
+        { value: produce, symbol: "lane.test.produce", type_: produce_type },
+        { value: consume, symbol: "lane.test.consume", type_: consume_type },
+      ],
+    },
     entries: [entry],
   }
   let executable = match @executable.elaborate(linked, entry) {
@@ -179,11 +191,11 @@ test "linked program roundtrips and inspects instance globals" {
       #|LoisVM bytecode
       #|entry: f1
       #|initializer: f2
-      #|functions: 2
+      #|functions: 4
       #|globals: 1
-      #|layouts: 1
+      #|layouts: 0
       #|object shapes: 0
-      #|constants: 1
+      #|constants: 0
       #|
       #|function f1(
       #|  environment=none,
@@ -191,9 +203,12 @@ test "linked program roundtrips and inspects instance globals" {
       #|  parameters=[]
       #|) -> unit {
       #|  slots:
-      #|    (none)
+      #|    %0: i32 + trivial
+      #|    %1: i32 + owned_ref
       #|  b0([]):
-      #|    return none
+      #|    borrow_global %0, g0
+      #|    retain_copy %1, %0
+      #|    tail_call_direct f3 env=none witnesses=[] arguments=[%1]
       #|}
       #|
       #|function f2(
@@ -204,19 +219,27 @@ test "linked program roundtrips and inspects instance globals" {
       #|  slots:
       #|    %0: i32 + owned_ref
       #|  b0([]):
-      #|    const_string %0, c0
+      #|    call_direct %0 = f4 env=none witnesses=[] arguments=[]
       #|    init_global g0, %0
       #|    return none
       #|}
       #|
+      #|function f3 = runtime_import(
+      #|  symbol="lane.test.consume",
+      #|  abi_major=1,
+      #|  parameters=[string],
+      #|  result=unit
+      #|)
+      #|
+      #|function f4 = runtime_import(
+      #|  symbol="lane.test.produce",
+      #|  abi_major=1,
+      #|  parameters=[],
+      #|  result=string
+      #|)
+      #|
       #|instance global table:
       #|  g0 = i32 + owned_ref
-      #|
-      #|layout table:
-      #|  l1 = string
-      #|
-      #|constant table:
-      #|  c0 = "hello"
       #|
     ),
   )

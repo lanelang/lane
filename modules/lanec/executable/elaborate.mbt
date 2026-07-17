@@ -14,6 +14,7 @@ pub(all) enum ExecutableElaborationStage {
   SelectiveCpsRewritten(@effect_lowering.Program)
   OpenContextsResolved(@effect_lowering.Program)
   MonadicContinuationsLifted(@buslane.Program)
+  CoreOptimized(@buslane.Program)
   EffectsErased(@buslane.Program)
 }
 
@@ -43,7 +44,7 @@ fn elaborate_or_raise(
   let entry = selected_entry
   let program = specialize_reachable_effects(program, entry.value)
   observe(EffectSpecialized(program))
-  let lowered = lower_effects(program, observe)
+  let lowered = lower_effects(program, entry.value, observe)
   let program = lowered.program
   let initializers = collect_top_level_initializers(program)
   let execution_roots = initializers.mapi((index, _) => Initializer(index))
@@ -68,6 +69,7 @@ priv struct LoweredEffects {
 ///|
 fn lower_effects(
   program : @buslane.Program,
+  entry : @buslane.ValueId,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> LoweredEffects raise ExecutableElaborationError {
   let elaborated = @effect_lowering.elaborate_handlers(program)
@@ -88,7 +90,13 @@ fn lower_effects(
     @effect_lowering.lift_monadic_continuations(resolved),
   )
   observe(MonadicContinuationsLifted(lifted))
-  let erased = @effect_lowering.erase_residual_effects(lifted)
+  let optimized = match
+    @core_opt.optimize({ program: lifted, entry, roots: [] }) {
+    Ok(program) => program
+    Err(error) => raise CoreOptimizationError(error)
+  }
+  observe(CoreOptimized(optimized))
+  let erased = @effect_lowering.erase_residual_effects(optimized)
   observe(EffectsErased(erased))
   { program: erased, effect_companions: transformed.effect_companions }
 }

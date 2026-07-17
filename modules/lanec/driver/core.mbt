@@ -178,7 +178,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     stage(
       "executable",
       "Executable Program (Whole-Program Elaboration)",
-      to_repr(executable).to_string(),
+      @prettyprinter.render(executable, width=100),
     ),
   )
   let image = match
@@ -276,6 +276,10 @@ fn executable_stage(
       )
     MonadicContinuationsLifted(program) =>
       buslane_stage("buslane.monadic-lifted", "Buslane (Monadic Lift)", program)
+    CoreOptimized(program) =>
+      buslane_stage(
+        "buslane.core-optimized", "Buslane (Effect-Aware Core Optimization)", program,
+      )
     EffectsErased(program) =>
       buslane_stage(
         "buslane.effects-erased", "Buslane (Effect Erasure)", program,

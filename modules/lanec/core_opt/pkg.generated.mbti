@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/core_opt"
+
+import {
+  "Milky2018/buslane",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.Program, CoreOptimizeError]
+
+// Errors
+pub(all) suberror CoreOptimizeError {
+  UnknownRoot(@buslane.ValueId)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) struct CoreOptimizeRequest {
+  program : @buslane.Program
+  entry : @buslane.ValueId
+  roots : Array[@buslane.ValueId]
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

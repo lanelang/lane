@@ -7,6 +7,14 @@ fn test_function_type(
 }
 
 ///|
+fn test_io_function_type(
+  parameters : Array[@buslane.Type],
+  result : @buslane.Type,
+) -> @buslane.Type {
+  Function(parameters, result, Io)
+}
+
+///|
 fn contains_instruction(
   body : @bytecode.FunctionBody,
   predicate : (@bytecode.Instruction) -> Bool,
@@ -32,6 +40,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   let helper_type = test_function_type([int_type], int_type)
   let helper = metadata.define_value("add_one", Function, helper_type)
   let result = metadata.define_value("result", Local, int_type)
+  let matched = metadata.define_value("matched", MatchBinder, int_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -54,7 +63,19 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
           body: Let(
             result,
             Call(Ref(helper), [Literal(Int(41L))]),
-            Literal(Unit),
+            Match({
+              scrutinee: Ref(result),
+              binder: matched,
+              result_type: unit_type,
+              alternatives: [
+                {
+                  alt_constructor: Default,
+                  type_binders: [],
+                  value_binders: [],
+                  body: Literal(Unit),
+                },
+              ],
+            }),
           ),
         }),
       ),
@@ -99,10 +120,10 @@ test "runtime import origin wins over intrinsic-looking symbol" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let int_type = @buslane.Type::Primitive(Int)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let import_type = test_function_type([int_type, int_type], int_type)
+  let import_type = test_io_function_type([int_type, int_type], int_type)
   let import_ = metadata.define_value("host_add", External, import_type)
   let result = metadata.define_value("result", Local, int_type)
-  let main_type = test_function_type([], unit_type)
+  let main_type = test_io_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
     metadata,
@@ -616,13 +637,13 @@ test "external host types erase to Opaque runtime import kinds" {
 test "runtime imports are deduplicated and sorted after bytecode bodies" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let import_type = test_function_type([], unit_type)
+  let import_type = test_io_function_type([], unit_type)
   let z_first = metadata.define_value("z_first", External, import_type)
   let a = metadata.define_value("a", External, import_type)
   let z_second = metadata.define_value("z_second", External, import_type)
   let first = metadata.define_value("first", Local, unit_type)
   let second = metadata.define_value("second", Local, unit_type)
-  let main_type = test_function_type([], unit_type)
+  let main_type = test_io_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
     metadata,
@@ -689,8 +710,8 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
 test "runtime imports with equal symbols and distinct kinds remain distinct" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let int_import_type = test_function_type([Primitive(Int)], unit_type)
-  let bool_import_type = test_function_type([Primitive(Bool)], unit_type)
+  let int_import_type = test_io_function_type([Primitive(Int)], unit_type)
+  let bool_import_type = test_io_function_type([Primitive(Bool)], unit_type)
   let int_import = metadata.define_value(
     "observe_int",
     External,
@@ -702,7 +723,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
     bool_import_type,
   )
   let first = metadata.define_value("first", Local, unit_type)
-  let main_type = test_function_type([], unit_type)
+  let main_type = test_io_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let image = match
     lower_linked_program_to_bytecode(
@@ -849,6 +870,8 @@ test "Bool matches lower to explicit CFG branches" {
   let int_type = @buslane.Type::Primitive(Int)
   let unit_type = @buslane.Type::Primitive(Unit)
   let bool_type = @buslane.Type::Primitive(Bool)
+  let read_type = test_function_type([], bool_type)
+  let read = metadata.define_value("read", External, read_type)
   let observe_type = test_function_type([int_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let binder = metadata.define_value("condition", MatchBinder, bool_type)
@@ -857,6 +880,7 @@ test "Bool matches lower to explicit CFG branches" {
   let program : @buslane.Program = {
     metadata,
     terms: [
+      External(read),
       External(observe),
       Let(
         main,
@@ -864,7 +888,7 @@ test "Bool matches lower to explicit CFG branches" {
           parameters: [],
           result_type: unit_type,
           body: Match({
-            scrutinee: Literal(Bool(true)),
+            scrutinee: Call(Ref(read), []),
             binder,
             result_type: unit_type,
             alternatives: [
@@ -892,6 +916,7 @@ test "Bool matches lower to explicit CFG branches" {
       {
         builtins: [],
         runtime_imports: [
+          { value: read, symbol: "lane.test.read_branch", type_: read_type },
           {
             value: observe,
             symbol: "lane.test.observe_branch",
@@ -907,10 +932,19 @@ test "Bool matches lower to explicit CFG branches" {
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_eq(main_body.blocks.length(), 4)
+  assert_eq(main_body.blocks.length(), 3)
   assert_true(main_body.blocks[0].terminator is BranchBool(_, _, _))
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.read_branch",
+      abi_major=1,
+      parameters=[],
+      result=Bool,
+      invoke=fn(_context, _arguments) { Bool(true) },
+    ),
+  )
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_branch",
@@ -1182,7 +1216,7 @@ test "nested functions lift with explicit reference-counted environments" {
           result_type: unit_type,
           body: Let(
             captured,
-            Literal(Int(40L)),
+            Call(Ref(add), [Literal(Int(40L)), Literal(Int(0L))]),
             Let(
               closure,
               Function({
@@ -1298,7 +1332,7 @@ test "local recursive functions share a cycle-free captured environment" {
           result_type: unit_type,
           body: Let(
             captured,
-            Literal(Int(42L)),
+            Call(Ref(sub), [Literal(Int(43L)), Literal(Int(1L))]),
             LetRec(
               [
                 {
@@ -1413,6 +1447,14 @@ test "generic identity calls cross explicit representation erasure bridges" {
   let unit_type = @buslane.Type::Primitive(Unit)
   let observe_type = test_function_type([int_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
+  let apply_function = metadata.define_value(
+    "function",
+    Parameter,
+    identity_type,
+  )
+  let apply_value = metadata.define_value("argument", Parameter, int_type)
+  let apply_type = test_function_type([identity_type, int_type], int_type)
+  let apply = metadata.define_value("apply", Function, apply_type)
   let result = metadata.define_value("result", Local, int_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -1432,15 +1474,23 @@ test "generic identity calls cross explicit representation erasure bridges" {
         ),
       ),
       Let(
+        apply,
+        Function({
+          parameters: [apply_function, apply_value],
+          result_type: int_type,
+          body: Call(TypeApply(Ref(apply_function), [TypeArgument(int_type)]), [
+            Ref(apply_value),
+          ]),
+        }),
+      ),
+      Let(
         main,
         Function({
           parameters: [],
           result_type: unit_type,
           body: Let(
             result,
-            Call(TypeApply(Ref(identity), [TypeArgument(int_type)]), [
-              Literal(Int(42L)),
-            ]),
+            Call(Ref(apply), [Ref(identity), Literal(Int(42L))]),
             Call(Ref(observe), [Ref(result)]),
           ),
         }),
@@ -1470,19 +1520,21 @@ test "generic identity calls cross explicit representation erasure bridges" {
   }
   assert_eq(identity_body.inputs.witnesses.length(), 1)
   assert_eq(identity_body.result, I64)
-  guard image.functions[1] is BytecodeBody(main_body) else {
-    fail("expected main bytecode body")
+  guard image.functions[1] is BytecodeBody(apply_body) else {
+    fail("expected apply bytecode body")
   }
   assert_true(
-    contains_instruction(main_body, instruction => {
+    contains_instruction(apply_body, instruction => {
       instruction is ConstLayout(_, _)
     }),
   )
   assert_true(
-    contains_instruction(main_body, instruction => instruction is EraseI64(_, _)),
+    contains_instruction(apply_body, instruction => {
+      instruction is EraseI64(_, _)
+    }),
   )
   assert_true(
-    contains_instruction(main_body, instruction => {
+    contains_instruction(apply_body, instruction => {
       instruction is UneraseI64(_, _)
     }),
   )
@@ -2513,6 +2565,8 @@ test "primitive literal matches lower to comparison decision chains" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let int_type = @buslane.Type::Primitive(Int)
   let unit_type = @buslane.Type::Primitive(Unit)
+  let read_type = test_function_type([], int_type)
+  let read = metadata.define_value("read", External, read_type)
   let observe_type = test_function_type([int_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let binder = metadata.define_value("matched", MatchBinder, int_type)
@@ -2521,6 +2575,7 @@ test "primitive literal matches lower to comparison decision chains" {
   let program : @buslane.Program = {
     metadata,
     terms: [
+      External(read),
       External(observe),
       Let(
         main,
@@ -2528,7 +2583,7 @@ test "primitive literal matches lower to comparison decision chains" {
           parameters: [],
           result_type: unit_type,
           body: Match({
-            scrutinee: Literal(Int(2L)),
+            scrutinee: Call(Ref(read), []),
             binder,
             result_type: unit_type,
             alternatives: [
@@ -2563,6 +2618,11 @@ test "primitive literal matches lower to comparison decision chains" {
         builtins: [],
         runtime_imports: [
           {
+            value: read,
+            symbol: "lane.test.read_literal_match",
+            type_: read_type,
+          },
+          {
             value: observe,
             symbol: "lane.test.observe_literal_match",
             type_: observe_type,
@@ -2582,6 +2642,15 @@ test "primitive literal matches lower to comparison decision chains" {
   )
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.read_literal_match",
+      abi_major=1,
+      parameters=[],
+      result=Int,
+      invoke=fn(_context, _arguments) { Int(2L) },
+    ),
+  )
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_literal_match",

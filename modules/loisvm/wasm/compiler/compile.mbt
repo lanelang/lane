@@ -45,16 +45,21 @@ fn compile_or_raise(
   }
   let host_service_count = if host_objects_enabled { 1 } else { 0 }
   let import_count = host_service_count + imports.length()
+  let callable_table = plan_callable_table(image)
   let runtime_functions = runtime_function_indices(
     import_count + image.functions.length(),
   )
   let helper_functions = helper_function_indices(
-    image.functions.length(),
+    callable_table.functions.length(),
     image.object_shapes.length(),
     runtime_functions.allocate,
   )
   let static_image = build_static_image(
-    image, helper_functions, import_count, host_objects_enabled,
+    image,
+    helper_functions,
+    import_count,
+    host_objects_enabled,
+    callable_table.table_indices,
   )
   if host_objects_enabled {
     append_host_object_release_import(wasm_module)
@@ -121,7 +126,9 @@ fn compile_or_raise(
     offset: [I32Const(0)],
     init: static_image.bytes,
   })
-  let table_size = image.functions.length() + helper_functions.count + 1
+  let table_size = callable_table.functions.length() +
+    helper_functions.count +
+    1
   wasm_module.tables.push({
     type_: {
       elem_type: FuncRef,
@@ -131,8 +138,8 @@ fn compile_or_raise(
     init: Some([RefNull(FuncRef)]),
   })
   let element_initializers : Array[Array[@wasm_types.Instruction]] = []
-  for index in 0..<image.functions.length() {
-    element_initializers.push([RefFunc(import_count + index)])
+  for function in callable_table.functions {
+    element_initializers.push([RefFunc(import_count + function.value - 1)])
   }
   for wasm_index in helper_functions.wasm_indices() {
     element_initializers.push([RefFunc(wasm_index)])
@@ -243,6 +250,9 @@ fn compile_body(
     runtime_functions,
   }
   let instructions : Array[@wasm_types.Instruction] = []
+  let needs_frame_cleanup = body.slots.any(fn(slot) {
+    !(slot.cleanup is Trivial)
+  })
   let mut parameter_index = 1
   if body.inputs.environment is Some(slot) {
     instructions.push(LocalGet(0))
@@ -275,15 +285,17 @@ fn compile_body(
   instructions.push(
     Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded_body), Unreachable]),
   )
-  instructions.append(
-    compile_frame_cleanup(
-      parameter_count,
-      live_base,
-      body.slots,
-      wasm_module,
-      runtime_functions,
-    ),
-  )
+  if needs_frame_cleanup {
+    instructions.append(
+      compile_frame_cleanup(
+        parameter_count,
+        live_base,
+        body.slots,
+        wasm_module,
+        runtime_functions,
+      ),
+    )
+  }
   instructions.append([
     GlobalGet(call_depth_global_index),
     I32Const(1),
@@ -302,8 +314,10 @@ fn compile_body(
   if use_dispatcher {
     locals.push(I32)
   }
-  for _ in body.slots {
-    locals.push(I32)
+  if needs_frame_cleanup {
+    for _ in body.slots {
+      locals.push(I32)
+    }
   }
   { locals, body: instructions }
 }

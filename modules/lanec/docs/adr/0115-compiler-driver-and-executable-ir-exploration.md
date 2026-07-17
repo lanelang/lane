@@ -21,12 +21,13 @@ Explore Report Protocol version 1 contains compiler identity, root identity, the
 9. `buslane.selective-cps`: Buslane (Selective CPS);
 10. `buslane.open-context-resolved`: Buslane (Open Context Resolution);
 11. `buslane.monadic-lifted`: Buslane (Monadic Lift);
-12. `buslane.effects-erased`: Buslane (Effect Erasure);
-13. `executable`: Executable Program (Whole-Program Elaboration);
-14. `anf`: ANF;
-15. `vmcfg.initial`: VM CFG (Initial Lowering);
-16. `loisvm.bytecode`: LoisVM Bytecode (ARC and Slot Finalization);
-17. `wasm`: Wasm (LoisVM Backend Lowering).
+12. `buslane.core-optimized`: Buslane (Effect-Aware Core Optimization);
+13. `buslane.effects-erased`: Buslane (Effect Erasure);
+14. `executable`: Executable Program (Whole-Program Elaboration);
+15. `anf`: ANF;
+16. `vmcfg.initial`: VM CFG (Initial Lowering);
+17. `loisvm.bytecode`: LoisVM Bytecode (ARC and Slot Finalization);
+18. `wasm`: Wasm (LoisVM Backend Lowering).
 
 Stage identifiers and order are protocol data distinct from display labels. Clients render unknown future stages as ordinary text tabs. The protocol does not promise a stable grammar for pretty-printed IR text.
 
@@ -45,7 +46,7 @@ The native report is deterministic, self-contained offline HTML with one level o
 - Direct execution and both exploration hosts share the same stage-owning compilation entrypoints; the exploration hosts additionally share `lanec/driver` report assembly.
 - Exploration cannot silently drift from production pass order or failure semantics.
 - The public report protocol is stable independently of IR pretty-print syntax.
-- The first report contains seventeen curated semantic stages rather than every private pass.
+- The report contains eighteen curated semantic stages rather than every private pass.
 - Pre-link presentation stays focused on the entry module while post-link presentation remains complete.
 - Exploration does not require pass splitting solely for presentation.
 - Pure Wasm generation becomes cross-target and independent of Wasmoon execution.

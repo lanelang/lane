@@ -13,6 +13,7 @@ priv struct StaticImage {
   object_shapes : Array[@bytecode.ObjectShape]
   globals : Array[@bytecode.GlobalMetadata]
   wasm_function_offset : Int
+  callable_table_indices : Array[Int]
 }
 
 ///|
@@ -111,6 +112,7 @@ fn build_static_image(
   helper_functions : HelperFunctions,
   wasm_function_offset : Int,
   host_objects_enabled : Bool,
+  callable_table_indices : Array[Int],
 ) -> StaticImage raise WasmCompileError {
   let writer = @bytecodec.ByteWriter::new()
   let shape_layouts = image.object_shapes.map(object_shape_layout)
@@ -227,5 +229,14 @@ fn build_static_image(
     object_shapes: image.object_shapes,
     globals: image.globals,
     wasm_function_offset,
+    callable_table_indices,
   }
+}
+
+///|
+fn StaticImage::callable_table_index(
+  self : StaticImage,
+  function : @bytecode.FunctionId,
+) -> Int {
+  self.callable_table_indices[function.value - 1]
 }

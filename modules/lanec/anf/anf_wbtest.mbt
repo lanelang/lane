@@ -110,8 +110,7 @@ test "lower buslane handler and perform to ANF" {
       #|      effect#0 {
       #|        operation#0() resume value#2 => {
       #|          let temp#1 = value#2(1)
-      #|          let value#3 = temp#1
-      #|          let temp#2 = value#2(value#3)
+      #|          let temp#2 = value#2(temp#1)
       #|          temp#2
       #|        }
       #|      }

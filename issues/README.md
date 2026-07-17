@@ -232,6 +232,18 @@ graph TD
   ISS_214["ISS-214: Accept external effects on executable entries"]
   ISS_215["ISS-215: Emit the Reference layout for opaque imports"]
   ISS_216["ISS-216: Design advanced external host ABI capabilities"]
+  ISS_217["ISS-217: Implement the staged whole-program optimization pipeline"]
+  ISS_218["ISS-218: Root executable initialization from the selected entry"]
+  ISS_219["ISS-219: Establish effect-aware Buslane core optimization"]
+  ISS_220["ISS-220: Eliminate core aliases and administrative redexes"]
+  ISS_221["ISS-221: Specialize and eliminate static operation dictionaries"]
+  ISS_222["ISS-222: Simplify administrative ANF bindings"]
+  ISS_223["ISS-223: Simplify VM CFG and coalesce slots"]
+  ISS_224["ISS-224: Devirtualize calls and eliminate nonescaping closures"]
+  ISS_225["ISS-225: Select consuming aggregate projections"]
+  ISS_226["ISS-226: Remove redundant inserted ARC operations"]
+  ISS_227["ISS-227: Compact Wasm indirect-call and cleanup machinery"]
+  ISS_228["ISS-228: Validate whole-program optimization effectiveness"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -444,6 +456,17 @@ graph TD
   ISS_209 --> ISS_215
   ISS_212 --> ISS_215
   ISS_214 --> ISS_215
+  ISS_218 --> ISS_219
+  ISS_219 --> ISS_220
+  ISS_220 --> ISS_221
+  ISS_221 --> ISS_222
+  ISS_222 --> ISS_223
+  ISS_223 --> ISS_224
+  ISS_224 --> ISS_225
+  ISS_225 --> ISS_226
+  ISS_224 --> ISS_227
+  ISS_226 --> ISS_227
+  ISS_227 --> ISS_228
 ```
 
 ## Warnings

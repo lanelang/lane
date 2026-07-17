@@ -148,8 +148,7 @@ fn specialize_reachable_effects(
   program : @buslane.Program,
   entry : @buslane.ValueId,
 ) -> @buslane.Program raise ExecutableElaborationError {
-  let roots = effect_specialization_initializer_roots(program)
-  let occurrence = @occurrence.analyze({ program, entry, roots })
+  let occurrence = @occurrence.analyze({ program, entry, roots: [] })
   let reachable = occurrence.facts.map(fact => fact.reachable_from_entry)
   let specializer = EffectSpecializer::{
     program,
@@ -1012,27 +1011,4 @@ fn abstract_specialized_type(
         abstract_specialized_type(body, parameters, arguments, metadata),
       )
   }
-}
-
-///|
-fn effect_specialization_initializer_roots(
-  program : @buslane.Program,
-) -> Array[@buslane.ValueId] {
-  let roots = []
-  for term in program.terms {
-    match term {
-      Let(id, expression) =>
-        if !is_static_top_level_expression(expression) {
-          roots.push(id)
-        }
-      LetRec(bindings) =>
-        if !bindings.all(binding => is_static_top_level_expression(binding.rhs)) {
-          for binding in bindings {
-            roots.push(binding.id)
-          }
-        }
-      External(_) => ()
-    }
-  }
-  roots
 }

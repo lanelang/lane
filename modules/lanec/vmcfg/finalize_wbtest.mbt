@@ -346,15 +346,16 @@ test "finalize retains an owned call argument that is used afterward" {
 test "finalize inserts path-specific releases for owned values at a branch" {
   let body : FunctionBody = {
     values: [owned_ref_value(), trivial_value(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 1 }],
+    },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [
-          ConstString({ value: 0 }, { value: 0 }),
-          ConstBool({ value: 1 }, true),
-        ],
+        instructions: [ConstString({ value: 0 }, { value: 0 })],
         terminator: BranchBool(
           { value: 1 },
           { target: { value: 1 }, arguments: [] },

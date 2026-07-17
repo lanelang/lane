@@ -3,10 +3,12 @@ package "Milky2018/lanec/executable"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/core_opt",
   "Milky2018/lanec/effect_lowering/core",
   "Milky2018/lanec/effect_lowering/cps",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/link",
+  "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
@@ -22,6 +24,7 @@ pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedEffectSpecialization(detail~ : String)
+  CoreOptimizationError(@core_opt.CoreOptimizeError)
   EffectLoweringError(@core.SynthesisError)
 } derive(Eq, @debug.Debug)
 
@@ -33,6 +36,7 @@ pub(all) enum ExecutableElaborationStage {
   SelectiveCpsRewritten(@core.Program)
   OpenContextsResolved(@core.Program)
   MonadicContinuationsLifted(@buslane.Program)
+  CoreOptimized(@buslane.Program)
   EffectsErased(@buslane.Program)
 }
 
@@ -45,6 +49,7 @@ pub(all) struct ExecutableProgram {
   execution_roots : Array[ExecutionRoot]
   effect_companions : Array[@cps.EffectCompanionBinding]
 } derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ExecutableProgram
 
 pub(all) enum ExecutionRoot {
   Initializer(Int)

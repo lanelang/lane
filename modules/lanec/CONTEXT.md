@@ -249,6 +249,14 @@ _Avoid_: source operator call, builtin dispatch call, machine-layout instruction
 The `lanec`-owned virtual-value control-flow representation produced after effect erasure and closure lowering and before physical slot allocation or LoisVM bytecode construction.
 _Avoid_: persisted bytecode, `loisvm/bytecode` data model, WebAssembly module
 
+**VM CFG Simplification**:
+The pre-ARC compiler pass that folds known branches, threads empty jumps, removes unreachable blocks and unused block parameters, merges compatible linear blocks, propagates block-local trivial copies and constants, deletes dead non-trapping scalar instructions, and coalesces compatible non-overlapping trivial values. It does not merge owned or borrowed value identities.
+_Avoid_: Buslane optimization, ARC peephole optimization, Wasm local allocation
+
+**Closure Devirtualization**:
+The pre-ARC VM CFG rewrite that replaces uniquely and immediately invoked known callable values with direct calls. An environment allocation may be scalar-replaced only when its lifted target has no other function reference and is a leaf body with no calls, nested environment or closure construction, or tail call; otherwise the environment ABI remains unchanged.
+_Avoid_: first-class callable erasure, single-shot continuation assumption, arbitrary function ABI rewriting
+
 **Runtime Ownership Analysis**:
 The analysis over the compiler-private VM CFG that classifies reference-bearing uses as borrowed, retained copies, releases, or ownership transfers.
 _Avoid_: final-bytecode analysis, source ownership checker, bytecode verifier
@@ -257,6 +265,10 @@ _Avoid_: final-bytecode analysis, source ownership checker, bytecode verifier
 The compiler transformation that applies runtime ownership analysis by adding retain and release operations and recording ownership transfers in the VM CFG before slot allocation.
 _Avoid_: LoisVM interpreter behavior, Wasm-tier RC optimization, implicit slot semantics
 
+**ARC Flow Cleanup**:
+The compiler-finalization policy that removes redundant ARC at the highest ownership-aware representation capable of proving the transfer. It prefers consuming projection selection and direct ownership flow before insertion; a post-insertion retain/release peephole is used only when no call, alias, branch, or destructor-visible action separates the pair.
+_Avoid_: refcount algebra without ownership provenance, runtime ARC optimization, destructor reordering
+
 **Block-Local Borrow**:
 A compiler-private VM CFG value use that does not own its referenced object, remains dominated by a live owner, and cannot cross the current basic-block boundary.
 _Avoid_: owned block parameter, bytecode ownership annotation, source borrow
@@ -264,6 +276,10 @@ _Avoid_: owned block parameter, bytecode ownership annotation, source borrow
 **Borrow Promotion**:
 The ARC insertion step that establishes owned lifetime for a borrowed reference, normally by retaining it before a consuming or cross-boundary use.
 _Avoid_: ownership transfer from an owned last use, implicit retain, source clone
+
+**Consuming Projection Selection**:
+The pre-ARC VM CFG rewrite that groups consecutive field or capture borrows into one consuming projection when an owned source has no other remaining use and at least one selected borrowed result requires ownership. Selected nontrivial results become owned transfers; sources that remain live and results used only as block-local borrows retain ordinary borrow projections.
+_Avoid_: unconditional destructive projection, source uniqueness assumption, post-bytecode peephole
 
 **Cycle-Free Recursive Closure Lowering**:
 The closure-conversion rule that represents recursive group member references through known function identifiers plus the shared environment rather than storing strong group-closure references inside that environment.
@@ -358,7 +374,7 @@ The pre-bytecode lowering pass that turns nested functions and continuation clos
 _Avoid_: runtime code generation, nested bytecode function, source lambda lifting
 
 **Bytecode Lowering Pipeline**:
-The ordered compiler path from linked Buslane/core through the effect-erasure pipeline, ordinary ANF, closure lifting, compiler-private VM CFG lowering, runtime ownership analysis, ARC insertion, slot allocation, and bytecode emission.
+The ordered compiler path from linked Buslane/core through the effect-erasure pipeline, ordinary ANF, closure lifting, compiler-private VM CFG lowering and simplification, runtime ownership analysis, ARC insertion, slot allocation, and bytecode emission.
 _Avoid_: source elaboration pipeline, runtime execution loop, artifact parser
 
 **LoisVM Bytecode Target**:
@@ -368,6 +384,10 @@ _Avoid_: lanec-owned bytecode model, lane command runtime, Buslane artifact payl
 **Wasm Backend Path**:
 The compiled execution path that consumes decoded LoisVM bytecode, lowers it into a WebAssembly module, and executes it with a WebAssembly engine, using Milky2018/wasmoon by default.
 _Avoid_: direct Buslane-to-Wasm lowering, direct ANF-to-Wasm lowering, MilkIR backend
+
+**Callable Table Compaction**:
+The Wasm-local lowering step that assigns deterministic dense table indices only to Lane functions whose callable value is materialized by bytecode, followed by required runtime helper entries. Direct-only Lane functions remain ordinary Wasm functions but are absent from the indirect-call table; packed callable values use the dense remapping rather than raw bytecode function identifiers.
+_Avoid_: whole-program reachability, function deletion, source-level devirtualization, raw FunctionId table index
 
 **Extensible Wasmoon Backend**:
 The Lane-controlled default WebAssembly execution backend whose interpreter, JIT, runtime integration, and supported WebAssembly capabilities may be extended as Lane's Wasm lowering evolves.
@@ -380,9 +400,9 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   Buslane (Linking); Buslane (Reachable Effect Specialization); Buslane
   (Handler Elaboration); Buslane (Monadic Transformation); Buslane (Selective
   CPS); Buslane (Open Context Resolution); Buslane (Monadic Lift); Buslane
-  (Effect Erasure); Executable Program (Whole-Program Elaboration); ANF; VM
-  CFG (Initial Lowering); LoisVM Bytecode (ARC and Slot Finalization); and Wasm
-  (LoisVM Backend Lowering).
+  (Effect-Aware Core Optimization); Buslane (Effect Erasure); Executable
+  Program (Whole-Program Elaboration); ANF; VM CFG (Initial Lowering); LoisVM
+  Bytecode (ARC and Slot Finalization); and Wasm (LoisVM Backend Lowering).
 - Whole-Program Elaboration is the enclosing process that produces an
   Executable Program; it is not itself one Buslane transformation stage.
 - Exploration observes existing transformation outputs and does not split a
@@ -493,6 +513,24 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
 - **Core Occurrence Analysis** runs after link-time entry validation and before
   final executable artifact emission, while optimization still has access to
   type, effect, entry, and root metadata.
+- **Effect-Aware Core Optimization** is the `lanec/core_opt` phase after
+  monadic continuation lifting and before residual effect erasure. It owns
+  optimizer pass order and fixpoint mechanics, receives the selected entry and
+  additional roots explicitly, and preserves the compiler-private lowered-core
+  contract until residual effect erasure restores ordinary verifiable Buslane.
+- **Effect-Aware Core Optimization** must consult the remaining effect rows and
+  observable extern calls before removing or reordering computations; later
+  administrative cleanup may simplify only forms whose effect semantics have
+  already been discharged.
+- After selective CPS, a continuation call may encode handled effect behavior
+  even when its remaining latent effect is empty. **Effect-Aware Core
+  Optimization** therefore treats unresolved calls as observable unless a
+  semantics-preserving rewrite first exposes the called body.
+- Concrete generic specialization begins with small operation-dictionary
+  products selected by structure, not source symbols. It clones local value
+  binders with substituted types, leaves recursive or first-class generic
+  definitions available, and relies on post-rewrite reachability to remove
+  obsolete static dictionary allocations.
 - **Core Occurrence Analysis** results are optimizer-local derived facts, not
   persisted linked-artifact semantic payload.
 - **Core Occurrence Analysis** tracks value-level Buslane/core bindings and

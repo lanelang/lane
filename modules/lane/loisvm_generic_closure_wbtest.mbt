@@ -119,6 +119,18 @@ test "nominal values cross erased generic boundaries in both backends" {
   let measure = metadata.define_value("measure", External, measure_type)
   let observe_type = @buslane.Type::Function([int_type], unit_type, Empty)
   let observe = metadata.define_value("observe", External, observe_type)
+  let apply_function = metadata.define_value(
+    "function",
+    Parameter,
+    identity_type,
+  )
+  let apply_value = metadata.define_value("argument", Parameter, option_string)
+  let apply_type = @buslane.Type::Function(
+    [identity_type, option_string],
+    option_string,
+    Empty,
+  )
+  let apply = metadata.define_value("apply", Function, apply_type)
   let constructed = metadata.define_value("constructed", Local, option_string)
   let roundtrip = metadata.define_value("roundtrip", Local, option_string)
   let match_binder = metadata.define_value("option", MatchBinder, option_string)
@@ -143,6 +155,17 @@ test "nominal values cross erased generic boundaries in both backends" {
         ),
       ),
       Let(
+        apply,
+        Function({
+          parameters: [apply_function, apply_value],
+          result_type: option_string,
+          body: Call(
+            TypeApply(Ref(apply_function), [TypeArgument(option_string)]),
+            [Ref(apply_value)],
+          ),
+        }),
+      ),
+      Let(
         main,
         Function({
           parameters: [],
@@ -157,9 +180,7 @@ test "nominal values cross erased generic boundaries in both backends" {
             }),
             Let(
               roundtrip,
-              Call(TypeApply(Ref(identity), [TypeArgument(option_string)]), [
-                Ref(constructed),
-              ]),
+              Call(Ref(apply), [Ref(identity), Ref(constructed)]),
               Match({
                 scrutinee: Ref(roundtrip),
                 binder: match_binder,
