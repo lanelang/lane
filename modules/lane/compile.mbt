@@ -53,7 +53,7 @@ async fn lane_compile(
       )
   }
   if verbose {
-    println("compiled module \{module_.module_path_text}")
+    println("compiled module \{module_.object.module_path_text}")
     println("wrote interface \{interface_path}")
     println("wrote object \{object_path}")
   }

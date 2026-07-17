@@ -17,8 +17,30 @@ priv struct EffectSymbolMapEntry {
 }
 
 ///|
-priv struct InterfaceSymbolFreshener {
+priv struct StableTypeSymbolEntry {
+  module_path : String
+  name : String
+  target : @symbol.TypeSymbolId
+}
+
+///|
+priv struct StableEffectSymbolEntry {
+  module_path : String
+  name : String
+  target : @symbol.EffectSymbolId
+}
+
+///|
+priv struct InterfaceFresheningEnvironment {
   registry : @symbol.SymbolRegistry
+  types : Array[StableTypeSymbolEntry]
+  effects : Array[StableEffectSymbolEntry]
+}
+
+///|
+priv struct InterfaceSymbolFreshener {
+  environment : InterfaceFresheningEnvironment
+  interface : @module_interface.ModuleInterface
   types : Array[TypeSymbolMapEntry]
   type_parameters : Array[TypeParameterMapEntry]
   effects : Array[EffectSymbolMapEntry]
@@ -29,24 +51,45 @@ fn freshen_module_interface_artifacts(
   registry : @symbol.SymbolRegistry,
   artifacts : Array[ModuleInterfaceArtifact],
 ) -> @module_interface.ImportedEnvironment {
-  {
-    modules: artifacts.map(fn(artifact) {
-      freshen_module_interface(registry, artifact.interface)
-    }),
+  let environment = InterfaceFresheningEnvironment::{
+    registry,
+    types: [],
+    effects: [],
   }
+  let modules = []
+  for artifact in artifacts {
+    modules.push(freshen_module_interface(environment, artifact.interface))
+  }
+  { modules, }
 }
 
 ///|
 fn freshen_module_interface(
-  registry : @symbol.SymbolRegistry,
+  environment : InterfaceFresheningEnvironment,
   interface : @module_interface.ModuleInterface,
 ) -> @module_interface.ModuleInterface {
-  let freshener = InterfaceSymbolFreshener::InterfaceSymbolFreshener(registry)
+  let freshener = InterfaceSymbolFreshener::InterfaceSymbolFreshener(
+    environment, interface,
+  )
   freshener.predeclare_nominal_types(interface)
   freshener.predeclare_effects(interface)
   {
     module_path: interface.module_path,
     source_id: interface.source_id,
+    type_references: interface.type_references.map(fn(reference) {
+      {
+        symbol: freshener.remap_type_symbol(reference.symbol),
+        module_path: reference.module_path,
+        name: reference.name,
+      }
+    }),
+    effect_references: interface.effect_references.map(fn(reference) {
+      {
+        symbol: freshener.remap_effect_symbol(reference.symbol),
+        module_path: reference.module_path,
+        name: reference.name,
+      }
+    }),
     types: interface.types.map(fn(type_) { freshener.freshen_type(type_) }),
     effects: interface.effects.map(fn(effect) {
       freshener.freshen_effect(effect)
@@ -61,9 +104,10 @@ fn freshen_module_interface(
 
 ///|
 fn InterfaceSymbolFreshener::InterfaceSymbolFreshener(
-  registry : @symbol.SymbolRegistry,
+  environment : InterfaceFresheningEnvironment,
+  interface : @module_interface.ModuleInterface,
 ) -> InterfaceSymbolFreshener {
-  { registry, types: [], type_parameters: [], effects: [] }
+  { environment, interface, types: [], type_parameters: [], effects: [] }
 }
 
 ///|
@@ -195,7 +239,7 @@ fn InterfaceSymbolFreshener::freshen_type_member(
   type_member : @module_interface.ModuleInterfaceTypeMember,
 ) -> @module_interface.ModuleInterfaceTypeMember {
   let type_parameter = self.freshen_type_parameter(type_member.type_parameter)
-  let symbol = self.registry.define_type_member(
+  let symbol = self.environment.registry.define_type_member(
     owner,
     type_member.name,
     type_member.index,
@@ -218,7 +262,7 @@ fn InterfaceSymbolFreshener::freshen_field(
   owner : @symbol.TypeSymbolId,
   field : @module_interface.ModuleInterfaceField,
 ) -> @module_interface.ModuleInterfaceField {
-  let symbol = self.registry.define_field(
+  let symbol = self.environment.registry.define_field(
     owner,
     field.name,
     field.index,
@@ -242,7 +286,7 @@ fn InterfaceSymbolFreshener::freshen_variant(
   let type_parameters = variant.type_parameters.map(fn(parameter) {
     self.freshen_type_parameter(parameter)
   })
-  let symbol = self.registry.define_variant(
+  let symbol = self.environment.registry.define_variant(
     owner,
     variant.name,
     variant.index,
@@ -290,7 +334,7 @@ fn InterfaceSymbolFreshener::freshen_operation(
   let type_parameters = operation.type_parameters.map(fn(parameter) {
     self.freshen_type_parameter(parameter)
   })
-  let symbol = self.registry.define_operation(
+  let symbol = self.environment.registry.define_operation(
     owner,
     operation.name,
     operation.index,
@@ -340,7 +384,7 @@ fn InterfaceSymbolFreshener::freshen_value(
   self : InterfaceSymbolFreshener,
   value : @module_interface.ModuleInterfaceValue,
 ) -> @module_interface.ModuleInterfaceValue {
-  let symbol = self.registry.define_value(
+  let symbol = self.environment.registry.define_value(
     value.name,
     value_symbol_kind_from_interface(value.kind),
     value.loc,
@@ -362,7 +406,7 @@ fn InterfaceSymbolFreshener::freshen_value_parameter(
   self : InterfaceSymbolFreshener,
   parameter : @module_interface.ModuleInterfaceValueParameter,
 ) -> @module_interface.ModuleInterfaceValueParameter {
-  let symbol = self.registry.define_value(
+  let symbol = self.environment.registry.define_value(
     parameter.name,
     Parameter,
     parameter.loc,
@@ -395,7 +439,7 @@ fn InterfaceSymbolFreshener::freshen_type_parameter(
   match self.lookup_type_parameter(parameter.id) {
     Some(id) => { id, name: parameter.name, kind: parameter.kind }
     None => {
-      let id = self.registry.define_type_parameter(
+      let id = self.environment.registry.define_type_parameter(
         parameter.name,
         @basic.SourceSpan::dummy(),
       )
@@ -487,7 +531,13 @@ fn InterfaceSymbolFreshener::define_type(
   match self.lookup_type_symbol(source) {
     Some(symbol) => symbol
     None => {
-      let target = self.registry.define_type(name, kind, arity, loc)
+      let target = self.environment.define_type(
+        self.interface.module_path,
+        name,
+        kind,
+        arity,
+        loc,
+      )
       self.types.push({ source, target })
       target
     }
@@ -506,7 +556,13 @@ fn InterfaceSymbolFreshener::define_effect(
   match self.lookup_effect_symbol(source) {
     Some(symbol) => symbol
     None => {
-      let target = self.registry.define_effect(name, arity, loc, flavor~)
+      let target = self.environment.define_effect(
+        self.interface.module_path,
+        name,
+        arity,
+        flavor,
+        loc,
+      )
       self.effects.push({ source, target })
       target
     }
@@ -520,7 +576,21 @@ fn InterfaceSymbolFreshener::remap_type_symbol(
 ) -> @symbol.TypeSymbolId {
   match self.lookup_type_symbol(source) {
     Some(target) => target
-    None => source
+    None => {
+      for reference in self.interface.type_references {
+        if reference.symbol == source {
+          match
+            self.environment.find_type(reference.module_path, reference.name) {
+            Some(target) => return target
+            None =>
+              abort(
+                "missing interface type dependency \{reference.module_path}.\{reference.name}",
+              )
+          }
+        }
+      }
+      abort("missing canonical interface type reference")
+    }
   }
 }
 
@@ -542,8 +612,88 @@ fn InterfaceSymbolFreshener::remap_effect_symbol(
 ) -> @symbol.EffectSymbolId {
   match self.lookup_effect_symbol(source) {
     Some(target) => target
-    None => source
+    None => {
+      for reference in self.interface.effect_references {
+        if reference.symbol == source {
+          match
+            self.environment.find_effect(reference.module_path, reference.name) {
+            Some(target) => return target
+            None =>
+              abort(
+                "missing interface effect dependency \{reference.module_path}.\{reference.name}",
+              )
+          }
+        }
+      }
+      abort("missing canonical interface effect reference")
+    }
   }
+}
+
+///|
+fn InterfaceFresheningEnvironment::define_type(
+  self : InterfaceFresheningEnvironment,
+  module_path : String,
+  name : String,
+  kind : @symbol.NominalTypeKind,
+  arity : Int,
+  loc : @basic.SourceSpan,
+) -> @symbol.TypeSymbolId {
+  match self.find_type(module_path, name) {
+    Some(target) => target
+    None => {
+      let target = self.registry.define_type(name, kind, arity, loc)
+      self.types.push({ module_path, name, target })
+      target
+    }
+  }
+}
+
+///|
+fn InterfaceFresheningEnvironment::find_type(
+  self : InterfaceFresheningEnvironment,
+  module_path : String,
+  name : String,
+) -> @symbol.TypeSymbolId? {
+  for entry in self.types {
+    if entry.module_path == module_path && entry.name == name {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn InterfaceFresheningEnvironment::define_effect(
+  self : InterfaceFresheningEnvironment,
+  module_path : String,
+  name : String,
+  arity : Int,
+  flavor : @symbol.EffectFlavor,
+  loc : @basic.SourceSpan,
+) -> @symbol.EffectSymbolId {
+  match self.find_effect(module_path, name) {
+    Some(target) => target
+    None => {
+      let target = self.registry.define_effect(name, arity, loc, flavor~)
+      self.effects.push({ module_path, name, target })
+      target
+    }
+  }
+}
+
+///|
+fn InterfaceFresheningEnvironment::find_effect(
+  self : InterfaceFresheningEnvironment,
+  module_path : String,
+  name : String,
+) -> @symbol.EffectSymbolId? {
+  for entry in self.effects {
+    if entry.module_path == module_path && entry.name == name {
+      return Some(entry.target)
+    }
+  }
+  None
 }
 
 ///|

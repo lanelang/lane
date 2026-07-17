@@ -7,11 +7,27 @@ pub(all) struct ImportedEnvironment {
 pub(all) struct ModuleInterface {
   module_path : String
   source_id : String?
+  type_references : Array[ModuleInterfaceTypeReference]
+  effect_references : Array[ModuleInterfaceEffectReference]
   types : Array[ModuleInterfaceType]
   effects : Array[ModuleInterfaceEffect]
   type_aliases : Array[ModuleInterfaceTypeAlias]
   values : Array[ModuleInterfaceValue]
   optimization_hints : Array[OptimizationHint]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleInterfaceTypeReference {
+  symbol : TypeSymbolId
+  module_path : String
+  name : String
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleInterfaceEffectReference {
+  symbol : EffectSymbolId
+  module_path : String
+  name : String
 } derive(Debug, Eq)
 
 ///|

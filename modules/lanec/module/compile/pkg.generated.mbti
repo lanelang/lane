@@ -50,12 +50,9 @@ pub fn no_root_source_module_diagnostic() -> @diagnostic.CompilerDiagnostic
 // Errors
 
 // Types and methods
-pub(all) struct CompiledModule {
-  module_path_text : String
+pub struct CompiledModule {
   interface : @module.ModuleInterface
   object : ModuleObject
-  fingerprint : @artifact_core.CompilationFingerprint
-  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 pub fn CompiledModule::to_artifact(Self) -> CompiledModuleArtifact
 pub fn CompiledModule::to_interface_artifact(Self) -> ModuleInterfaceArtifact
@@ -63,11 +60,8 @@ pub fn CompiledModule::to_object_artifact(Self) -> ModuleObjectArtifact
 
 pub(all) struct CompiledModuleArtifact {
   schema_version : Int
-  module_path_text : String
   interface : ModuleInterfaceArtifact
   object : ModuleObjectArtifact
-  module_fingerprint : @artifact_core.CompilationFingerprint
-  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CompiledModuleSet {
@@ -139,4 +133,3 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact
 // Type aliases
 
 // Traits
-

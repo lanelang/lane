@@ -16,7 +16,5 @@ import {
   "Milky2018/lanec/types",
   "Milky2018/loisvm/bytecode" @loisvm_bytecode,
   "moonbit-community/prettyprinter",
-  "moonbitlang/core/encoding/utf8",
-  "moonbitlang/core/string",
   "moonbitlang/x/crypto",
 }

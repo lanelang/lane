@@ -17,14 +17,9 @@ pub(all) struct ModuleObject {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct CompiledModule {
-  module_path_text : String
+pub struct CompiledModule {
   interface : @module_interface.ModuleInterface
   object : ModuleObject
-  fingerprint : @artifact_core.CompilationFingerprint
-  imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
-  ]
 } derive(Debug, Eq)
 
 ///|
@@ -42,7 +37,7 @@ fn CompiledModule::to_link_object(
     entries: object.entries,
     exports: object.exports,
     imports: object.imports,
-    fingerprint: self.fingerprint,
+    fingerprint: object.fingerprint,
     object_fingerprint_valid: object.object_fingerprint ==
     module_object_fingerprint(
       object.fingerprint,
@@ -158,9 +153,9 @@ pub fn compile_module_from_interface_artifacts(
         ordered_interfaces.interfaces,
       )
       Ok({
-        root_module_path_text: compiled.module_path_text,
+        root_module_path_text: compiled.object.module_path_text,
         modules: [compiled],
-        reachable_module_path_texts: [compiled.module_path_text],
+        reachable_module_path_texts: [compiled.object.module_path_text],
         diagnostics: success.diagnostics,
       })
     }

@@ -82,11 +82,21 @@ fn ModuleInterfaceArtifact::validate(
       ),
     )
   }
-  let fingerprint = module_fingerprint(
-    self.interface,
-    self.imported_interface_fingerprints,
-  )
-  if self.interface_fingerprint != interface_fingerprint(self.interface) {
+  let actual_interface_fingerprint = match
+    interface_fingerprint_result(self.interface) {
+    Ok(fingerprint) => fingerprint
+    Err(reason) =>
+      return Some(
+        artifact_diagnostic(
+          InvalidModuleInterfaceArtifact(
+            module_path_text=self.module_path_text,
+            reason~,
+          ),
+          None,
+        ),
+      )
+  }
+  if self.interface_fingerprint != actual_interface_fingerprint {
     return Some(
       artifact_diagnostic(
         InvalidModuleInterfaceArtifact(
@@ -97,6 +107,10 @@ fn ModuleInterfaceArtifact::validate(
       ),
     )
   }
+  let fingerprint = module_fingerprint_from_interface_fingerprint(
+    actual_interface_fingerprint,
+    self.imported_interface_fingerprints,
+  )
   if self.module_fingerprint != fingerprint {
     return Some(
       artifact_diagnostic(
@@ -247,11 +261,5 @@ fn CompiledModule::with_imported_interface_fingerprints(
     ),
     imported_interface_fingerprints: imported,
   }
-  {
-    module_path_text: self.module_path_text,
-    interface: self.interface,
-    object,
-    fingerprint,
-    imported_interface_fingerprints: imported,
-  }
+  { interface: self.interface, object }
 }

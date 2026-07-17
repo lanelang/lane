@@ -5,10 +5,13 @@ import {
   "Milky2018/buslane",
   "Milky2018/bytecodec",
   "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/module",
   "moonbitlang/core/debug",
 }
 
 // Values
+pub fn canonical_module_interface_bytes(@module.ModuleInterface) -> Result[Bytes, String]
+
 pub fn write_buslane_data_con_id(@bytecodec.ByteWriter, @buslane.DataConId) -> Unit
 
 pub fn write_buslane_effect_id(@bytecodec.ByteWriter, @buslane.EffectId) -> Unit
@@ -76,4 +79,3 @@ pub(all) struct ModuleImportedReference {
 // Type aliases
 
 // Traits
-

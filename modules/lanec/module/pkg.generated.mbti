@@ -24,6 +24,8 @@ pub fn ImportedEnvironment::find(Self, String) -> ModuleInterface?
 pub(all) struct ModuleInterface {
   module_path : String
   source_id : String?
+  type_references : Array[ModuleInterfaceTypeReference]
+  effect_references : Array[ModuleInterfaceEffectReference]
   types : Array[ModuleInterfaceType]
   effects : Array[ModuleInterfaceEffect]
   type_aliases : Array[ModuleInterfaceTypeAlias]
@@ -38,6 +40,12 @@ pub(all) struct ModuleInterfaceEffect {
   type_parameters : Array[@types.TypeParameter]
   operations : Array[ModuleInterfaceOperation]
   loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceEffectReference {
+  symbol : @symbol.EffectSymbolId
+  module_path : String
+  name : String
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceEnum {
@@ -109,6 +117,12 @@ pub(all) struct ModuleInterfaceTypeMember {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ModuleInterfaceTypeReference {
+  symbol : @symbol.TypeSymbolId
+  module_path : String
+  name : String
+} derive(Eq, @debug.Debug)
+
 pub(all) struct ModuleInterfaceValue {
   symbol : @symbol.ValueSymbolId
   kind : ModuleInterfaceValueKind
@@ -149,4 +163,3 @@ pub(all) struct OptimizationHint {
 // Type aliases
 
 // Traits
-

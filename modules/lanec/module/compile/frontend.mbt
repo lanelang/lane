@@ -93,16 +93,7 @@ fn compile_one_module(
         object_fingerprint,
         imported_interface_fingerprints: imported_fingerprints,
       }
-      Ok({
-        module_: {
-          module_path_text: input.header.module_path_text,
-          interface,
-          object,
-          fingerprint,
-          imported_interface_fingerprints: imported_fingerprints,
-        },
-        diagnostics: warning_diagnostics,
-      })
+      Ok({ module_: { interface, object }, diagnostics: warning_diagnostics })
     }
     _ =>
       Err([

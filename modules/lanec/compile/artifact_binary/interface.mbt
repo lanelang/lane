@@ -4,6 +4,8 @@ fn @bytecodec.ByteWriter::write_module_interface(
   interface : @module_interface.ModuleInterface,
 ) -> Unit {
   self.write_string(interface.module_path)
+  self.write_module_interface_type_references(interface.type_references)
+  self.write_module_interface_effect_references(interface.effect_references)
   self.write_module_interface_types(interface.types)
   self.write_module_interface_effects(interface.effects)
   self.write_module_interface_type_aliases(interface.type_aliases)
@@ -18,12 +20,70 @@ fn @bytecodec.ByteReader::read_module_interface(
   {
     module_path: self.read_string(),
     source_id: None,
+    type_references: self.read_module_interface_type_references(),
+    effect_references: self.read_module_interface_effect_references(),
     types: self.read_module_interface_types(),
     effects: self.read_module_interface_effects(),
     type_aliases: self.read_module_interface_type_aliases(),
     values: self.read_module_interface_values(),
     optimization_hints: self.read_optimization_hints(),
   }
+}
+
+///|
+fn @bytecodec.ByteWriter::write_module_interface_type_references(
+  self : @bytecodec.ByteWriter,
+  references : Array[@module_interface.ModuleInterfaceTypeReference],
+) -> Unit {
+  self.write_u32_le_int(references.length())
+  for reference in references {
+    self.write_type_symbol_id(reference.symbol)
+    self.write_string(reference.module_path)
+    self.write_string(reference.name)
+  }
+}
+
+///|
+fn @bytecodec.ByteReader::read_module_interface_type_references(
+  self : @bytecodec.ByteReader,
+) -> Array[@module_interface.ModuleInterfaceTypeReference] raise {
+  let references : Array[@module_interface.ModuleInterfaceTypeReference] = []
+  for _ in 0..<self.read_u32_le_int() {
+    references.push({
+      symbol: self.read_type_symbol_id(),
+      module_path: self.read_string(),
+      name: self.read_string(),
+    })
+  }
+  references
+}
+
+///|
+fn @bytecodec.ByteWriter::write_module_interface_effect_references(
+  self : @bytecodec.ByteWriter,
+  references : Array[@module_interface.ModuleInterfaceEffectReference],
+) -> Unit {
+  self.write_u32_le_int(references.length())
+  for reference in references {
+    self.write_effect_symbol_id(reference.symbol)
+    self.write_string(reference.module_path)
+    self.write_string(reference.name)
+  }
+}
+
+///|
+fn @bytecodec.ByteReader::read_module_interface_effect_references(
+  self : @bytecodec.ByteReader,
+) -> Array[@module_interface.ModuleInterfaceEffectReference] raise {
+  let references : Array[@module_interface.ModuleInterfaceEffectReference] = []
+  for _ in 0..<self.read_u32_le_int() {
+    references.push({
+      symbol: self.read_effect_symbol_id(),
+      module_path: self.read_string(),
+      name: self.read_string(),
+    })
+  }
+  references
 }
 
 ///|

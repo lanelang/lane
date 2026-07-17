@@ -5,7 +5,7 @@ fn lower_compiled_module_objects(
   let lowered_modules : Array[CompiledModule] = []
   for module_ in modules {
     let imported = imported_interfaces_from_modules(
-      module_.imported_interface_fingerprints,
+      module_.object.imported_interface_fingerprints,
       lowered_modules,
     )
     let lowered = @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
@@ -42,7 +42,7 @@ fn attach_lowered_object(
   let imports = module_imported_references_from_lowered(
     lowered.imports,
     imported_modules,
-    module_.module_path_text,
+    module_.object.module_path_text,
   )
   let object : ModuleObject = {
     module_path_text: module_.object.module_path_text,
@@ -68,13 +68,7 @@ fn attach_lowered_object(
     ),
     imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
   }
-  {
-    module_path_text: module_.module_path_text,
-    interface: module_.interface,
-    object,
-    fingerprint: module_.fingerprint,
-    imported_interface_fingerprints: module_.imported_interface_fingerprints,
-  }
+  { interface: module_.interface, object }
 }
 
 ///|
@@ -86,7 +80,7 @@ fn attach_lowered_object_from_interfaces(
   let imports = module_imported_references_from_interface_artifacts(
     lowered.imports,
     interfaces,
-    module_.module_path_text,
+    module_.object.module_path_text,
   )
   let object : ModuleObject = {
     module_path_text: module_.object.module_path_text,
@@ -112,13 +106,7 @@ fn attach_lowered_object_from_interfaces(
     ),
     imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
   }
-  {
-    module_path_text: module_.module_path_text,
-    interface: module_.interface,
-    object,
-    fingerprint: module_.fingerprint,
-    imported_interface_fingerprints: module_.imported_interface_fingerprints,
-  }
+  { interface: module_.interface, object }
 }
 
 ///|
@@ -130,7 +118,7 @@ fn module_imported_references_from_lowered(
   imports.map(fn(item) {
     let fingerprint = match
       find_compiled_module(imported_modules, item.module_path_text) {
-      Some(module_) => module_.fingerprint
+      Some(module_) => module_.object.fingerprint
       None =>
         abort(
           "missing imported module fingerprint \{module_path_text} -> \{item.module_path_text}",
@@ -185,7 +173,7 @@ pub fn find_compiled_module(
   path : String,
 ) -> CompiledModule? {
   for module_ in modules {
-    if module_.module_path_text == path {
+    if module_.object.module_path_text == path {
       return Some(module_)
     }
   }

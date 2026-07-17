@@ -260,6 +260,8 @@ test "resolve module-qualified effect alias references" {
       {
         module_path: "Lib",
         source_id: None,
+        type_references: [],
+        effect_references: [],
         types: [],
         effects: [
           {

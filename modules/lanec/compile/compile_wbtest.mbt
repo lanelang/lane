@@ -1089,7 +1089,9 @@ test "compile modules returns separate module objects and interfaces" {
   }
   inspect(modules.root_module_path_text, content="Main")
   inspect(
-    modules.modules.map(fn(module_) { module_.module_path_text }).join(","),
+    modules.modules
+    .map(fn(module_) { module_.object.module_path_text })
+    .join(","),
     content="Lib,Main",
   )
   guard @module_compile.find_compiled_module(modules.modules, "Lib")
@@ -1290,11 +1292,8 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
     }
     decoded_modules.push({
       schema_version: module_.schema_version,
-      module_path_text: module_.module_path_text,
       interface,
       object,
-      module_fingerprint: module_.module_fingerprint,
-      imported_interface_fingerprints: module_.imported_interface_fingerprints,
     })
   }
   let linked = @module_compile.link_module_artifacts({
@@ -1478,7 +1477,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 2
+      #|schema: 3
       #|
       #|imported interfaces:
       #|  (none)
@@ -1554,7 +1553,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 9
+      #|schema: 10
       #|
       #|imported interfaces:
       #|  (none)
@@ -1648,7 +1647,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 2
+      #|schema: 3
       #|
       #|imported interfaces:
       #|  (none)
@@ -1729,6 +1728,149 @@ test "effect alias interface fingerprint tracks body changes" {
     first_module.to_artifact().interface.interface_fingerprint ==
     second_module.to_artifact().interface.interface_fingerprint,
     content="false",
+  )
+}
+
+///|
+test "interface fingerprint ignores imported symbol allocation history" {
+  let plain_a = compile_modules(
+    (
+      #|module A
+      #|pub struct Box {
+      #|  value : Int
+      #|}
+      #|pub effect Signal {
+      #|  emit() -> Unit
+      #|}
+    ),
+    [],
+  )
+  guard plain_a.modules is Some(plain_a_modules) else {
+    abort("expected plain A modules")
+  }
+  guard plain_a_modules.modules.get(0) is Some(plain_a_module) else {
+    abort("expected plain A module")
+  }
+  let noise = compile_modules(
+    (
+      #|module Noise
+      #|pub struct Marker {
+      #|  value : Int
+      #|}
+      #|pub effect MarkerEffect {
+      #|  mark() -> Unit
+      #|}
+    ),
+    [],
+  )
+  guard noise.modules is Some(noise_modules) else {
+    abort("expected Noise modules")
+  }
+  guard noise_modules.modules.get(0) is Some(noise_module) else {
+    abort("expected Noise module")
+  }
+  let noise_interface = noise_module.to_interface_artifact()
+  let shifted_a = compile_module_with_interface_artifacts(
+    (
+      #|module A
+      #|import Noise.*
+      #|pub struct Box {
+      #|  value : Int
+      #|}
+      #|pub effect Signal {
+      #|  emit() -> Unit
+      #|}
+    ),
+    [noise_interface],
+  )
+  guard shifted_a.modules is Some(shifted_a_modules) else {
+    abort("expected shifted A modules")
+  }
+  guard shifted_a_modules.modules.get(0) is Some(shifted_a_module) else {
+    abort("expected shifted A module")
+  }
+  let plain_b = compile_module_with_interface_artifacts(
+    (
+      #|module B
+      #|import A.*
+      #|pub type Signals = { Signal }
+      #|pub let forwarded : Box = Box::{ value: 42 }
+    ),
+    [plain_a_module.to_interface_artifact()],
+  )
+  guard plain_b.modules is Some(plain_b_modules) else {
+    abort("expected plain B modules")
+  }
+  guard plain_b_modules.modules.get(0) is Some(plain_b_module) else {
+    abort("expected plain B module")
+  }
+  let shifted_b = compile_module_with_interface_artifacts(
+    (
+      #|module B
+      #|import A.*
+      #|pub type Signals = { Signal }
+      #|pub let forwarded : Box = Box::{ value: 42 }
+    ),
+    [noise_interface, shifted_a_module.to_interface_artifact()],
+  )
+  guard shifted_b.modules is Some(shifted_b_modules) else {
+    abort("expected shifted B modules")
+  }
+  guard shifted_b_modules.modules.get(0) is Some(shifted_b_module) else {
+    abort("expected shifted B module")
+  }
+  inspect(
+    plain_b_module.object.interface_fingerprint ==
+    shifted_b_module.object.interface_fingerprint,
+    content="true",
+  )
+  let transitive = compile_module_with_interface_artifacts(
+    (
+      #|module C
+      #|import B.*
+      #|pub let answer : Int = forwarded.value
+    ),
+    [
+      noise_interface,
+      shifted_a_module.to_interface_artifact(),
+      shifted_b_module.to_interface_artifact(),
+    ],
+  )
+  debug_inspect(transitive.diagnostics, content="[]")
+}
+
+///|
+test "interface artifact rejects unresolved canonical references" {
+  let compiled = compile_modules(
+    (
+      #|module Lib
+      #|pub struct Box {
+      #|  value : Int
+      #|}
+      #|pub let box : Box = Box::{ value: 42 }
+    ),
+    [],
+  )
+  guard compiled.modules is Some(modules) else { abort("expected Lib modules") }
+  guard modules.modules.get(0) is Some(module_) else {
+    abort("expected Lib module")
+  }
+  let artifact = module_.to_interface_artifact()
+  let damaged : @module_compile.ModuleInterfaceArtifact = {
+    ..artifact,
+    interface: { ..artifact.interface, type_references: [] },
+  }
+  let result = compile_module_with_interface_artifacts(
+    (
+      #|module Main
+      #|import Lib.*
+      #|pub let answer : Int = box.value
+    ),
+    [damaged],
+  )
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content="[\"invalid module interface artifact\"]",
   )
 }
 
@@ -1925,7 +2067,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 2
+      #|schema: 3
       #|
       #|imported interfaces:
       #|  (none)
@@ -1947,7 +2089,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 9
+      #|schema: 10
       #|
       #|imported interfaces:
       #|  (none)
@@ -2105,7 +2247,7 @@ fn interface_alias_body_signature(
 }
 
 ///|
-test "module object binary rejects obsolete schema eight artifact" {
+test "module object binary rejects obsolete schema nine artifact" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -2123,7 +2265,7 @@ test "module object binary rejects obsolete schema eight artifact" {
   let damaged = @artifact_binary.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  damaged[14] = b'\x08'
+  damaged[14] = b'\x09'
   damaged[15] = b'\x00'
   damaged[16] = b'\x00'
   damaged[17] = b'\x00'
@@ -2133,7 +2275,7 @@ test "module object binary rejects obsolete schema eight artifact" {
   guard parsed is Err(message) else {
     abort("expected old object schema failure")
   }
-  inspect(message, content="unsupported object artifact schema version 8")
+  inspect(message, content="unsupported object artifact schema version 9")
 }
 
 ///|
@@ -2300,7 +2442,7 @@ test "compile module freshens independently compiled interface symbols" {
   }
   let main_artifact = main_module.to_artifact()
   let linked = @module_compile.link_module_artifacts({
-    schema_version: 1,
+    schema_version: 2,
     root_module_path_text: "Main",
     modules: [left_artifact, right_artifact, main_artifact],
     reachable_module_path_texts: ["Left", "Right", "Main"],
@@ -2385,7 +2527,7 @@ test "compile module follows transitive interface dependencies without extra pol
   }
   let c_artifact = c_module.to_artifact()
   let linked = @module_compile.link_module_artifacts({
-    schema_version: 1,
+    schema_version: 2,
     root_module_path_text: "C",
     modules: [c_artifact, b_artifact, a_artifact],
     reachable_module_path_texts: ["C", "B", "A"],
@@ -2469,6 +2611,8 @@ test "compile module rejects interface artifact name mismatch" {
   let damaged_interface : @module_interface.ModuleInterface = {
     module_path: "Other",
     source_id: None,
+    type_references: interface.type_references,
+    effect_references: interface.effect_references,
     types: interface.types,
     effects: interface.effects,
     type_aliases: interface.type_aliases,
@@ -2610,7 +2754,8 @@ test "module object fingerprint changes on implementation-only changes" {
     [
       first_artifact.interface.interface_fingerprint ==
       second_artifact.interface.interface_fingerprint,
-      first_artifact.module_fingerprint == second_artifact.module_fingerprint,
+      first_artifact.interface.module_fingerprint ==
+      second_artifact.interface.module_fingerprint,
       first_artifact.object.object_fingerprint ==
       second_artifact.object.object_fingerprint,
     ],
@@ -2676,7 +2821,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
   }
   let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
-    if module_.module_path_text == "Lib" {
+    if module_.interface.module_path_text == "Lib" {
       let object : @module_compile.ModuleObjectArtifact = {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
@@ -2693,11 +2838,8 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
       }
       @module_compile.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
-        module_path_text: module_.module_path_text,
         interface: module_.interface,
         object,
-        module_fingerprint: module_.module_fingerprint,
-        imported_interface_fingerprints: module_.imported_interface_fingerprints,
       }
     } else {
       module_
@@ -2736,7 +2878,7 @@ test "link module artifacts rejects interface object name mismatch" {
   }
   let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
-    if module_.module_path_text == "Lib" {
+    if module_.interface.module_path_text == "Lib" {
       let interface : @module_compile.ModuleInterfaceArtifact = {
         schema_version: module_.interface.schema_version,
         module_path_text: "Other",
@@ -2747,11 +2889,8 @@ test "link module artifacts rejects interface object name mismatch" {
       }
       @module_compile.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
-        module_path_text: module_.module_path_text,
         interface,
         object: module_.object,
-        module_fingerprint: module_.module_fingerprint,
-        imported_interface_fingerprints: module_.imported_interface_fingerprints,
       }
     } else {
       module_
@@ -2771,7 +2910,7 @@ test "link module artifacts rejects interface object name mismatch" {
 }
 
 ///|
-test "link modules rejects stale module object fingerprint" {
+test "link module artifacts rejects stale imported reference fingerprint" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -2788,63 +2927,9 @@ test "link modules rejects stale module object fingerprint" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let stale_modules = modules.modules.map(fn(module_) {
-    if module_.module_path_text == "Lib" {
-      let object : @module_compile.ModuleObject = {
-        module_path_text: module_.object.module_path_text,
-        checked: module_.object.checked,
-        interface_fingerprint: module_.object.interface_fingerprint,
-        metadata: module_.object.metadata,
-        terms: module_.object.terms,
-        externals: module_.object.externals,
-        entries: module_.object.entries,
-        exports: module_.object.exports,
-        imports: module_.object.imports,
-        fingerprint: module_.object.fingerprint,
-        object_fingerprint: { value: "stale" },
-        imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
-      }
-      @module_compile.CompiledModule::{
-        module_path_text: module_.module_path_text,
-        interface: module_.interface,
-        object,
-        fingerprint: module_.fingerprint,
-        imported_interface_fingerprints: module_.imported_interface_fingerprints,
-      }
-    } else {
-      module_
-    }
-  })
-  let linked = link_modules({
-    root_module_path_text: modules.root_module_path_text,
-    modules: stale_modules,
-    reachable_module_path_texts: modules.reachable_module_path_texts,
-    diagnostics: [],
-  })
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(linked.diagnostics[0].message, content="stale module object")
-}
-
-///|
-test "link modules rejects stale imported reference fingerprint" {
-  let compiled = compile_modules(
-    (
-      #|module Main
-      #|import Lib.*
-      #|pub let answer : Int = value
-    ),
-    [
-      (
-        #|module Lib
-        #|pub let value : Int = 42
-      ),
-    ],
-  )
-  guard compiled.modules is Some(modules) else {
-    abort("expected compiled modules")
-  }
-  let damaged_modules = modules.modules.map(fn(module_) {
-    if module_.module_path_text == "Main" {
+  let artifact = modules.to_artifact()
+  let damaged_modules = artifact.modules.map(fn(module_) {
+    if module_.object.module_path_text == "Main" {
       let imports : Array[@artifact_core.ModuleImportedReference] = module_.object.imports.map(fn(
           imported,
         ) {
@@ -2861,9 +2946,9 @@ test "link modules rejects stale imported reference fingerprint" {
           }
         },
       )
-      let object : @module_compile.ModuleObject = {
+      let object : @module_compile.ModuleObjectArtifact = {
+        schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
-        checked: module_.object.checked,
         interface_fingerprint: module_.object.interface_fingerprint,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
@@ -2871,9 +2956,9 @@ test "link modules rejects stale imported reference fingerprint" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports,
-        fingerprint: module_.object.fingerprint,
+        module_fingerprint: module_.object.module_fingerprint,
         object_fingerprint: @module_compile.module_object_fingerprint(
-          module_.object.fingerprint,
+          module_.object.module_fingerprint,
           module_.object.interface_fingerprint,
           module_.object.metadata,
           module_.object.terms,
@@ -2885,29 +2970,27 @@ test "link modules rejects stale imported reference fingerprint" {
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      @module_compile.CompiledModule::{
-        module_path_text: module_.module_path_text,
+      @module_compile.CompiledModuleArtifact::{
+        schema_version: module_.schema_version,
         interface: module_.interface,
         object,
-        fingerprint: module_.fingerprint,
-        imported_interface_fingerprints: module_.imported_interface_fingerprints,
       }
     } else {
       module_
     }
   })
-  let linked = link_modules({
-    root_module_path_text: modules.root_module_path_text,
+  let linked = @module_compile.link_module_artifacts({
+    schema_version: artifact.schema_version,
+    root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
-    reachable_module_path_texts: modules.reachable_module_path_texts,
-    diagnostics: [],
+    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(linked.diagnostics[0].message, content="stale imported reference")
 }
 
 ///|
-test "link modules rejects missing exported object value" {
+test "link module artifacts rejects missing exported object value" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -2924,12 +3007,13 @@ test "link modules rejects missing exported object value" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let damaged_modules = modules.modules.map(fn(module_) {
-    if module_.module_path_text == "Lib" {
+  let artifact = modules.to_artifact()
+  let damaged_modules = artifact.modules.map(fn(module_) {
+    if module_.object.module_path_text == "Lib" {
       let exports = []
-      let object : @module_compile.ModuleObject = {
+      let object : @module_compile.ModuleObjectArtifact = {
+        schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
-        checked: module_.object.checked,
         interface_fingerprint: module_.object.interface_fingerprint,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
@@ -2937,9 +3021,9 @@ test "link modules rejects missing exported object value" {
         entries: module_.object.entries,
         exports,
         imports: module_.object.imports,
-        fingerprint: module_.object.fingerprint,
+        module_fingerprint: module_.object.module_fingerprint,
         object_fingerprint: @module_compile.module_object_fingerprint(
-          module_.object.fingerprint,
+          module_.object.module_fingerprint,
           module_.object.interface_fingerprint,
           module_.object.metadata,
           module_.object.terms,
@@ -2951,22 +3035,20 @@ test "link modules rejects missing exported object value" {
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      @module_compile.CompiledModule::{
-        module_path_text: module_.module_path_text,
+      @module_compile.CompiledModuleArtifact::{
+        schema_version: module_.schema_version,
         interface: module_.interface,
         object,
-        fingerprint: module_.fingerprint,
-        imported_interface_fingerprints: module_.imported_interface_fingerprints,
       }
     } else {
       module_
     }
   })
-  let linked = link_modules({
-    root_module_path_text: modules.root_module_path_text,
+  let linked = @module_compile.link_module_artifacts({
+    schema_version: artifact.schema_version,
+    root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
-    reachable_module_path_texts: modules.reachable_module_path_texts,
-    diagnostics: [],
+    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(
@@ -3003,23 +3085,23 @@ test "link modules rejects compiled artifact import cycle" {
   guard modules_b.modules.get(0) is Some(module_b) else {
     abort("expected B module")
   }
-  let module_a = module_with_imported_interfaces(module_a, [
+  let module_a = artifact_with_imported_interfaces(module_a, [
     {
       module_path_text: "B",
       fingerprint: @module_compile.interface_fingerprint(module_b.interface),
     },
   ])
-  let module_b = module_with_imported_interfaces(module_b, [
+  let module_b = artifact_with_imported_interfaces(module_b, [
     {
       module_path_text: "A",
-      fingerprint: @module_compile.interface_fingerprint(module_a.interface),
+      fingerprint: module_a.interface.interface_fingerprint,
     },
   ])
-  let linked = link_modules({
+  let linked = @module_compile.link_module_artifacts({
+    schema_version: 2,
     root_module_path_text: "A",
     modules: [module_a, module_b],
     reachable_module_path_texts: ["A", "B"],
-    diagnostics: [],
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(linked.diagnostics[0].message, content="import cycle involving `A`")
@@ -3038,14 +3120,14 @@ test "link modules rejects missing compiled artifact import" {
   guard modules.modules.get(0) is Some(module_) else {
     abort("expected Main module")
   }
-  let module_ = module_with_imported_interfaces(module_, [
+  let module_ = artifact_with_imported_interfaces(module_, [
     { module_path_text: "Missing", fingerprint: { value: "missing" } },
   ])
-  let linked = link_modules({
+  let linked = @module_compile.link_module_artifacts({
+    schema_version: 2,
     root_module_path_text: "Main",
     modules: [module_],
     reachable_module_path_texts: ["Main"],
-    diagnostics: [],
   })
   inspect(linked.diagnostics.length(), content="1")
   inspect(
@@ -4464,7 +4546,7 @@ fn find_artifact_module(
   module_path_text : String,
 ) -> @module_compile.CompiledModuleArtifact? {
   for module_ in modules {
-    if module_.module_path_text == module_path_text {
+    if module_.interface.module_path_text == module_path_text {
       return Some(module_)
     }
   }
@@ -4548,39 +4630,35 @@ fn entry_display_name(entry : @buslane_lowering.BuslaneEntry) -> String {
 }
 
 ///|
-fn module_with_imported_interfaces(
+fn artifact_with_imported_interfaces(
   module_ : @module_compile.CompiledModule,
   imported : Array[@artifact_core.ImportedInterfaceFingerprint],
-) -> @module_compile.CompiledModule {
-  let object : @module_compile.ModuleObject = {
-    module_path_text: module_.object.module_path_text,
-    checked: module_.object.checked,
-    interface_fingerprint: module_.object.interface_fingerprint,
-    metadata: module_.object.metadata,
-    terms: module_.object.terms,
-    externals: module_.object.externals,
-    entries: module_.object.entries,
-    exports: module_.object.exports,
-    imports: module_.object.imports,
-    fingerprint: module_.object.fingerprint,
+) -> @module_compile.CompiledModuleArtifact {
+  let artifact = module_.to_artifact()
+  let module_fingerprint = @module_compile.module_fingerprint(
+    module_.interface,
+    imported,
+  )
+  let interface : @module_compile.ModuleInterfaceArtifact = {
+    ..artifact.interface,
+    module_fingerprint,
+    imported_interface_fingerprints: imported,
+  }
+  let object : @module_compile.ModuleObjectArtifact = {
+    ..artifact.object,
+    module_fingerprint,
     object_fingerprint: @module_compile.module_object_fingerprint(
-      module_.object.fingerprint,
-      module_.object.interface_fingerprint,
-      module_.object.metadata,
-      module_.object.terms,
-      module_.object.externals,
-      module_.object.entries,
-      module_.object.exports,
-      module_.object.imports,
+      module_fingerprint,
+      artifact.object.interface_fingerprint,
+      artifact.object.metadata,
+      artifact.object.terms,
+      artifact.object.externals,
+      artifact.object.entries,
+      artifact.object.exports,
+      artifact.object.imports,
       imported,
     ),
     imported_interface_fingerprints: imported,
   }
-  {
-    module_path_text: module_.module_path_text,
-    interface: module_.interface,
-    object,
-    fingerprint: module_.fingerprint,
-    imported_interface_fingerprints: imported,
-  }
+  { schema_version: artifact.schema_version, interface, object }
 }

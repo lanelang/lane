@@ -7,21 +7,131 @@ fn SemanticChecker::module_interface(
   // declarations only after validating that public signatures do not expose
   // private local nominal types or effects.
   self.check_public_interface_resolved_declarations()
+  let module_path = @module_interface.module_path_text(
+    checked_source.module_path,
+  )
+  let types = checked_source.declarations.filter_map(fn(declaration) {
+    self.interface_type(declaration)
+  })
+  let effects = checked_source.declarations.filter_map(fn(declaration) {
+    self.interface_effect(declaration)
+  })
   {
-    module_path: @module_interface.module_path_text(checked_source.module_path),
+    module_path,
     source_id: None,
-    types: checked_source.declarations.filter_map(fn(declaration) {
-      self.interface_type(declaration)
-    }),
-    effects: checked_source.declarations.filter_map(fn(declaration) {
-      self.interface_effect(declaration)
-    }),
+    type_references: self.interface_type_references(module_path, types),
+    effect_references: self.interface_effect_references(module_path, effects),
+    types,
+    effects,
     type_aliases: self.interface_type_aliases(),
     values: checked_source.declarations.filter_map(fn(declaration) {
       self.interface_value(declaration)
     }),
     optimization_hints: [],
   }
+}
+
+///|
+fn SemanticChecker::interface_type_references(
+  self : SemanticChecker,
+  module_path : String,
+  types : Array[@module_interface.ModuleInterfaceType],
+) -> Array[@module_interface.ModuleInterfaceTypeReference] {
+  let references = []
+  for type_ in types {
+    match type_ {
+      Struct(declaration) =>
+        append_interface_type_reference(
+          references,
+          declaration.symbol,
+          module_path,
+          declaration.name,
+        )
+      Enum(declaration) =>
+        append_interface_type_reference(
+          references,
+          declaration.symbol,
+          module_path,
+          declaration.name,
+        )
+      External(declaration) =>
+        append_interface_type_reference(
+          references,
+          declaration.symbol,
+          module_path,
+          declaration.name,
+        )
+    }
+  }
+  for imported in self.imported_environment.modules {
+    for reference in imported.type_references {
+      append_interface_type_reference(
+        references,
+        reference.symbol,
+        reference.module_path,
+        reference.name,
+      )
+    }
+  }
+  references
+}
+
+///|
+fn append_interface_type_reference(
+  references : Array[@module_interface.ModuleInterfaceTypeReference],
+  symbol : TypeSymbolId,
+  module_path : String,
+  name : String,
+) -> Unit {
+  for reference in references {
+    if reference.symbol == symbol {
+      return
+    }
+  }
+  references.push({ symbol, module_path, name })
+}
+
+///|
+fn SemanticChecker::interface_effect_references(
+  self : SemanticChecker,
+  module_path : String,
+  effects : Array[@module_interface.ModuleInterfaceEffect],
+) -> Array[@module_interface.ModuleInterfaceEffectReference] {
+  let references = []
+  for effect in effects {
+    append_interface_effect_reference(
+      references,
+      effect.symbol,
+      module_path,
+      effect.name,
+    )
+  }
+  for imported in self.imported_environment.modules {
+    for reference in imported.effect_references {
+      append_interface_effect_reference(
+        references,
+        reference.symbol,
+        reference.module_path,
+        reference.name,
+      )
+    }
+  }
+  references
+}
+
+///|
+fn append_interface_effect_reference(
+  references : Array[@module_interface.ModuleInterfaceEffectReference],
+  symbol : EffectSymbolId,
+  module_path : String,
+  name : String,
+) -> Unit {
+  for reference in references {
+    if reference.symbol == symbol {
+      return
+    }
+  }
+  references.push({ symbol, module_path, name })
 }
 
 ///|
