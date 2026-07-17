@@ -16,7 +16,7 @@ fn simplify_body(body : FunctionBody) -> FunctionBody {
 fn simplify_body_once(body : FunctionBody) -> FunctionBody {
   let blocks = propagate_local_scalar_values(body.values, body.blocks)
   let blocks = blocks.map(fold_constant_terminator)
-  let blocks = remove_dead_scalar_instructions(body.values, blocks)
+  let blocks = remove_dead_scalar_instructions({ ..body, blocks, })
   let blocks = remove_unused_block_parameters(body.values.length(), blocks)
   let blocks = thread_empty_jump_blocks(blocks)
   let blocks = merge_linear_blocks(blocks)
@@ -213,36 +213,30 @@ fn find_int_constant(
 }
 
 ///|
-fn remove_dead_scalar_instructions(
-  values : Array[ValueMetadata],
-  blocks : Array[Block],
-) -> Array[Block] {
-  let used = Array::make(values.length(), false)
-  for block in blocks {
-    for instruction in block.instructions {
-      for value in instruction_uses(instruction) {
-        used[value.value] = true
-      }
-    }
-    for value in terminator_uses(block.terminator) {
-      used[value.value] = true
-    }
-  }
-  blocks.map(fn(block) {
-    {
-      ..block,
-      instructions: block.instructions.filter(fn(instruction) {
-        guard instruction_is_dead_scalar_candidate(instruction) else {
-          return true
-        }
+fn remove_dead_scalar_instructions(body : FunctionBody) -> Array[Block] {
+  let control_flow = analyze_control_flow(body.blocks)
+  let use_def = analyze_use_def(body)
+  let liveness = analyze_liveness(body, control_flow, use_def)
+  body.blocks.mapi(fn(block_index, block) {
+    let instructions = []
+    for instruction_index, instruction in block.instructions {
+      let keep = if !instruction_is_dead_scalar_candidate(instruction) {
+        true
+      } else {
         let destinations = instruction_destinations(instruction)
         destinations.is_empty() ||
-        destinations.any(fn(destination) {
-          used[destination.value] ||
-          values[destination.value].ownership != Trivial
+        destinations.any(destination => {
+          liveness.is_live_after_instruction(
+            body, block_index, instruction_index, destination,
+          ) ||
+          body.values[destination.value].ownership != Trivial
         })
-      }),
+      }
+      if keep {
+        instructions.push(instruction)
+      }
     }
+    { ..block, instructions, }
   })
 }
 
@@ -400,7 +394,7 @@ fn substitute_block_parameter(
 
 ///|
 fn merge_linear_blocks(blocks : Array[Block]) -> Array[Block] {
-  let predecessors = block_predecessor_counts(blocks)
+  let control_flow = analyze_control_flow(blocks)
   blocks.mapi(fn(index, block) {
     guard block.terminator is Jump(edge) &&
       edge.target.value != index &&
@@ -408,7 +402,10 @@ fn merge_linear_blocks(blocks : Array[Block]) -> Array[Block] {
       return block
     }
     let target = blocks[edge.target.value]
-    if predecessors[edge.target.value] == 1 && target.parameters.is_empty() {
+    if control_flow.predecessors[edge.target.value].length() == 1 &&
+      control_flow.dominates(index, edge.target.value) &&
+      control_flow.immediate_dominators[edge.target.value] == Some(index) &&
+      target.parameters.is_empty() {
       {
         parameters: block.parameters,
         instructions: block.instructions + target.instructions,
@@ -421,35 +418,12 @@ fn merge_linear_blocks(blocks : Array[Block]) -> Array[Block] {
 }
 
 ///|
-fn block_predecessor_counts(blocks : Array[Block]) -> Array[Int] {
-  let counts = Array::make(blocks.length(), 0)
-  for block in blocks {
-    for successor in block_successors(block) {
-      counts[successor] += 1
-    }
-  }
-  counts
-}
-
-///|
 fn remove_unreachable_blocks(blocks : Array[Block]) -> Array[Block] {
-  let reachable = Array::make(blocks.length(), false)
-  let pending = [0]
-  while pending.pop() is Some(index) {
-    if reachable[index] {
-      continue
-    }
-    reachable[index] = true
-    for successor in block_successors(blocks[index]) {
-      if !reachable[successor] {
-        pending.push(successor)
-      }
-    }
-  }
+  let control_flow = analyze_control_flow(blocks)
   let remap = Array::make(blocks.length(), -1)
   let compacted = []
   for index, block in blocks {
-    if reachable[index] {
+    if control_flow.reachable[index] {
       remap[index] = compacted.length()
       compacted.push(block)
     }

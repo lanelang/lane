@@ -253,6 +253,18 @@ _Avoid_: persisted bytecode, `loisvm/bytecode` data model, WebAssembly module
 The pre-ARC compiler pass that folds known branches, threads empty jumps, removes unreachable blocks and unused block parameters, merges compatible linear blocks, propagates block-local trivial copies and constants, deletes dead non-trapping scalar instructions, and coalesces compatible non-overlapping trivial values. It does not merge owned or borrowed value identities.
 _Avoid_: Buslane optimization, ARC peephole optimization, Wasm local allocation
 
+**VM CFG Dominator Analysis**:
+The compiler-private control-flow analysis that records predecessor edges, entry reachability, block dominator sets, and immediate dominators for one VM CFG function. Block zero is the sole entry, and unreachable blocks have no dominator or immediate-dominator claim.
+_Avoid_: source lexical scope, Wasm structured nesting, ownership liveness
+
+**VM CFG Use-Definition Analysis**:
+The compiler-private index from every VM CFG value to its function-input, block-parameter, or instruction-result definition and to each deterministic instruction or terminator use. Edge arguments are uses in the predecessor terminator; target block parameters are definitions in the target block.
+_Avoid_: mutable slot history, bytecode verification, source variable references
+
+**VM CFG Liveness Analysis**:
+The backward value-flow analysis derived from VM CFG use-definition and successor facts. It records block live-in and live-out sets and answers instruction live-after queries; ownership analysis may filter these ordinary value facts but does not redefine them.
+_Avoid_: reference count, owned-value threading policy, source borrow checking
+
 **Closure Devirtualization**:
 The pre-ARC VM CFG rewrite that replaces uniquely and immediately invoked known callable values with direct calls. An environment allocation may be scalar-replaced only when its lifted target has no other function reference and is a leaf body with no calls, nested environment or closure construction, or tail call; otherwise the environment ABI remains unchanged.
 _Avoid_: first-class callable erasure, single-shot continuation assumption, arbitrary function ABI rewriting
@@ -539,6 +551,14 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
 - **Core Occurrence Analysis** records structured occurrence facts for
   optimization, including use counts, call-position use, non-call escape,
   effectful-context use, and selected-entry reachability.
+- **Core Call Graph Analysis** is compiler-private analysis in `lanec/core_opt`
+  that discovers top-level and local callable definitions, records direct
+  callable edges and conservative unknown-call markers, and detects direct or
+  mutual recursion.
+- A **Core Function Summary** combines one callable's call-graph edges,
+  occurrence facts, expression cost, and recursion classification. Existing
+  optimization rewrites consume summaries without exporting them through
+  Buslane artifacts or the public `core_opt` interface.
 - **Core Occurrence Analysis** runs on linked Buslane/core rather than ANF; ANF
   may have separate lower-level liveness or occurrence analyses later.
 - **Core Occurrence Analysis** belongs to `lanec` in its own package; it should

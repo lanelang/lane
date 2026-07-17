@@ -281,22 +281,6 @@ fn devirtualize_body_with_plans(
 }
 
 ///|
-fn body_value_use_counts(body : FunctionBody) -> Array[Int] {
-  let counts = Array::make(body.values.length(), 0)
-  for block in body.blocks {
-    for instruction in block.instructions {
-      for value in instruction_uses(instruction) {
-        counts[value.value] += 1
-      }
-    }
-    for value in terminator_uses(block.terminator) {
-      counts[value.value] += 1
-    }
-  }
-  counts
-}
-
-///|
 fn devirtualize_block(
   block : Block,
   uses : Array[Int],

@@ -21,6 +21,7 @@ priv struct SpecializationContext {
 ///|
 fn try_specialize_generic_call(
   program : @buslane.Program,
+  analysis : CoreAnalysis,
   callee : @buslane.Expr,
   arguments : Array[@buslane.Expr],
 ) -> @buslane.Expr? {
@@ -29,14 +30,16 @@ fn try_specialize_generic_call(
     arguments.all(is_substitutable_atom) else {
     return None
   }
-  guard find_top_definition(program, value)
+  guard analysis.find_function(value) is Some(summary) &&
+    analysis.find_top_definition(value)
     is Some(TypeLambda(parameters, Function(function))) &&
     parameters.length() == generic_arguments.length() &&
     function.parameters.length() == arguments.length() &&
+    summary.occurrence.call_count > 0 &&
     function_has_product_nominal(program.metadata, function) &&
     expression_supports_specialization(function.body) &&
-    expression_size(function.body) <= 32 &&
-    count_value_uses(function.body, value) == 0 else {
+    summary.expression_size <= 32 &&
+    !summary.is_recursive else {
     return None
   }
   let substitution = @buslane.TypeSubstitution::TypeSubstitution()
@@ -161,26 +164,6 @@ fn effect_has_product_nominal(
 }
 
 ///|
-fn find_top_definition(
-  program : @buslane.Program,
-  value : @buslane.ValueId,
-) -> @buslane.Expr? {
-  for term in program.terms {
-    match term {
-      Let(id, rhs) if id == value => return Some(rhs)
-      LetRec(bindings) =>
-        for binding in bindings {
-          if binding.id == value {
-            return Some(binding.rhs)
-          }
-        }
-      _ => ()
-    }
-  }
-  None
-}
-
-///|
 fn generic_argument_is_concrete(argument : @buslane.GenericArgument) -> Bool {
   match argument {
     TypeArgument(type_) => type_is_concrete(type_)
@@ -238,58 +221,6 @@ fn expression_supports_specialization(expression : @buslane.Expr) -> Bool {
       }) &&
       expression_supports_specialization(match_.scrutinee)
     Perform(_) | Handle(_) => false
-  }
-}
-
-///|
-fn expression_size(expression : @buslane.Expr) -> Int {
-  match expression {
-    Ref(_) | Literal(_) | Resume(_) => 1
-    Function(function) => 1 + expression_size(function.body)
-    Call(callee, arguments) =>
-      1 +
-      expression_size(callee) +
-      arguments.fold(init=0, fn(size, argument) {
-        size + expression_size(argument)
-      })
-    TypeLambda(_, body) | TypeApply(body, _) => 1 + expression_size(body)
-    Construct(construct) =>
-      1 +
-      construct.payloads.fold(init=0, fn(size, payload) {
-        size + expression_size(payload)
-      })
-    Let(_, initializer, body) =>
-      1 + expression_size(initializer) + expression_size(body)
-    LetRec(bindings, body) => {
-      let mut size = 1 + expression_size(body)
-      for binding in bindings {
-        size = size + expression_size(binding.rhs)
-      }
-      size
-    }
-    Match(match_) => {
-      let mut size = 1 + expression_size(match_.scrutinee)
-      for alternative in match_.alternatives {
-        size = size + expression_size(alternative.body)
-      }
-      size
-    }
-    Perform(perform) =>
-      1 +
-      perform.payloads.fold(init=0, fn(size, payload) {
-        size + expression_size(payload)
-      })
-    Handle(handle) => {
-      let mut size = 1 +
-        expression_size(handle.body) +
-        expression_size(handle.final_body)
-      for table in handle.handlers {
-        for operation in table.operations {
-          size = size + expression_size(operation.body)
-        }
-      }
-      size
-    }
   }
 }
 

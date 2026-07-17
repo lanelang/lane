@@ -22,8 +22,10 @@ pub fn optimize(
       return Err(UnknownRoot(root))
     }
   }
-  let preserved_roots = request.roots.copy()
-  preserved_roots.push(request.entry)
-  let simplified = simplify_program(request.program, preserved_roots)
+  let simplified = simplify_program(
+    request.program,
+    request.entry,
+    request.roots,
+  )
   Ok(prune_unreachable(simplified, request.entry, request.roots))
 }

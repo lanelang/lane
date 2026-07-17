@@ -244,6 +244,8 @@ graph TD
   ISS_226["ISS-226: Remove redundant inserted ARC operations"]
   ISS_227["ISS-227: Compact Wasm indirect-call and cleanup machinery"]
   ISS_228["ISS-228: Validate whole-program optimization effectiveness"]
+  ISS_229["ISS-229: Add Core call graph and function summaries"]
+  ISS_230["ISS-230: Add VM CFG dominator and value-flow analyses"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
