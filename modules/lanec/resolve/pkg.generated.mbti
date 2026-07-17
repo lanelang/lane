@@ -13,8 +13,6 @@ import {
 }
 
 // Values
-pub fn resolve_source_file(@syntax.SourceFile) -> ResolvedSourceFile
-
 pub fn resolve_source_file_result(@syntax.SourceFile) -> ResolveResult
 
 pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module.ImportedEnvironment) -> ResolveResult

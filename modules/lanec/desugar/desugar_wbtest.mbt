@@ -11,8 +11,11 @@ fn expect_parse_ok(source : String) -> @syntax.SourceFile {
 ///|
 fn desugar_source(source : String) -> DesugaredSourceFile {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
-  desugar_source_file(resolved)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  desugar_source_file(resolution.source)
 }
 
 ///|

@@ -1,5 +1,0 @@
-import {
-  "Milky2018/buslane",
-  "Milky2018/buslane/interpreter" @buslane_interpreter,
-  "Milky2018/lanec/elaborate/buslane_lowering",
-}

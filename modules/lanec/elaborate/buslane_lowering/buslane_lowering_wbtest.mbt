@@ -7,7 +7,11 @@ priv struct BuslaneLoweringTestResult {
 ///|
 fn elaborate_buslane_source(source : String) -> BuslaneLoweringTestResult {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  let resolved = resolution.source
   let result = @typecheck.typecheck_checked_source_file(resolved)
   let program = match result.source {
     Some(source) => Some(lower_checked_source_file_to_buslane(source))
@@ -62,7 +66,11 @@ fn checked_source_for_elaborate_test(
   source : String,
 ) -> @checked.CheckedSourceFile {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  let resolved = resolution.source
   let result = @typecheck.typecheck_checked_source_file(resolved)
   guard result.source is Some(source) else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
@@ -76,7 +84,11 @@ fn checked_module_for_elaborate_test(
   imported : @module_interface.ImportedEnvironment,
 ) -> @typecheck.CheckedSourceTypeCheckResult {
   let file = expect_parse_module_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  let resolved = resolution.source
   @typecheck.typecheck_checked_source_file_with_imported_environment(
     resolved, imported,
   )

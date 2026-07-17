@@ -29,8 +29,10 @@ test "collect top level declaration symbols" {
       #|let origin : Point = Point::{ x: 1, y: 2 }
     ),
   )
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -94,8 +96,10 @@ test "resolve effect declarations and operation symbols" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -146,7 +150,9 @@ test "resolve local effect alias references" {
       #|}
     ),
   )
-  let resolved = resolve_source_file(file)
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
+  let resolved = result.source
   guard resolved.declarations[2] is TypeAlias(ui_alias) else {
     abort("expected UI alias")
   }
@@ -460,8 +466,10 @@ test "resolve handler operation arms and binders" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -525,8 +533,10 @@ test "resolve unqualified variant calls after nominal member collection" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -611,8 +621,10 @@ test "resolve existential surface metadata" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -727,8 +739,9 @@ test "resolve ambiguous unqualified variant calls" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -762,7 +775,6 @@ test "resolve ambiguous unqualified variant calls" {
       #|}
     ),
   )
-  let result = resolve_source_file_result(file)
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content="ambiguous_variant same [Left::same, Right::same]",
@@ -778,8 +790,9 @@ test "keep unknown calls as unresolved value calls" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -801,7 +814,6 @@ test "keep unknown calls as unresolved value calls" {
       #|}
     ),
   )
-  let result = resolve_source_file_result(file)
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content="unresolved_value missing",
@@ -821,8 +833,10 @@ test "resolve qualified field access when base type is known" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {
@@ -937,8 +951,10 @@ test "resolve operator aliases through operation names" {
       #|}
     ),
   )
+  let result = resolve_source_file_result(file)
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
-    @prettyprinter.render(resolve_source_file(file), width=100),
+    @prettyprinter.render(result.source, width=100),
     content=(
       #|resolved {
       #|  symbols {

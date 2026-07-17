@@ -25,7 +25,7 @@ priv struct ModuleBinding {
 priv struct TypeBinding {
   name : String
   symbol : TypeSymbolId
-  type_parameters : Array[@syntax.TypeParameter]
+  parameter_kinds : Array[@types.Kind]
   import_origin : Int?
 }
 
@@ -33,14 +33,14 @@ priv struct TypeBinding {
 priv struct EffectBinding {
   name : String
   symbol : EffectSymbolId
-  type_parameters : Array[@syntax.TypeParameter]
+  parameter_kinds : Array[@types.Kind]
   import_origin : Int?
 }
 
 ///|
 priv struct TypeAliasBinding {
   name : String
-  type_parameters : Array[@syntax.TypeParameter]
+  parameter_kinds : Array[@types.Kind]
   import_origin : Int?
 }
 
@@ -55,15 +55,6 @@ priv struct SelectiveImportOrigin {
 priv struct QualifiedNameText {
   module_path : String
   name : String
-}
-
-///|
-/// Resolves a syntax source file and returns only the resolved source.
-///
-/// Example: a parsed file containing `struct Point { x : Int }` becomes a
-/// resolved file whose `Point` type and `x` field have stable compiler symbols.
-pub fn resolve_source_file(source : @syntax.SourceFile) -> ResolvedSourceFile {
-  resolve_source_file_result(source).source
 }
 
 ///|
@@ -306,14 +297,14 @@ fn Resolver::publish_imported_public_types(
         self.publish_type_binding(
           declaration.name,
           declaration.symbol,
-          interface_type_parameters_to_syntax(declaration.type_parameters),
+          interface_type_parameter_kinds(declaration.type_parameters),
           import_origin,
         )
       Enum(declaration) =>
         self.publish_type_binding(
           declaration.name,
           declaration.symbol,
-          interface_type_parameters_to_syntax(declaration.type_parameters),
+          interface_type_parameter_kinds(declaration.type_parameters),
           import_origin,
         )
       External(declaration) =>
@@ -328,7 +319,7 @@ fn Resolver::publish_imported_public_types(
   for type_alias in interface.type_aliases {
     self.type_aliases.push({
       name: type_alias.name,
-      type_parameters: interface_type_parameters_to_syntax(
+      parameter_kinds: interface_type_parameter_kinds(
         type_alias.type_parameters,
       ),
       import_origin,
@@ -346,7 +337,7 @@ fn Resolver::publish_imported_public_effects(
     self.publish_effect_binding(
       effect.name,
       effect.symbol,
-      interface_type_parameters_to_syntax(effect.type_parameters),
+      interface_type_parameter_kinds(effect.type_parameters),
       import_origin,
     )
   }
@@ -365,14 +356,14 @@ fn Resolver::publish_imported_selected_types(
           self.publish_type_binding(
             declaration.name,
             declaration.symbol,
-            interface_type_parameters_to_syntax(declaration.type_parameters),
+            interface_type_parameter_kinds(declaration.type_parameters),
             Some(item.origin),
           )
         Enum(declaration) if declaration.name == item.name =>
           self.publish_type_binding(
             declaration.name,
             declaration.symbol,
-            interface_type_parameters_to_syntax(declaration.type_parameters),
+            interface_type_parameter_kinds(declaration.type_parameters),
             Some(item.origin),
           )
         _ => ()
@@ -382,7 +373,7 @@ fn Resolver::publish_imported_selected_types(
       if type_alias.name == item.name {
         self.type_aliases.push({
           name: type_alias.name,
-          type_parameters: interface_type_parameters_to_syntax(
+          parameter_kinds: interface_type_parameter_kinds(
             type_alias.type_parameters,
           ),
           import_origin: Some(item.origin),
@@ -393,28 +384,33 @@ fn Resolver::publish_imported_selected_types(
 }
 
 ///|
-fn interface_type_parameters_to_syntax(
+fn interface_type_parameter_kinds(
   parameters : Array[@types.TypeParameter],
-) -> Array[@syntax.TypeParameter] {
+) -> Array[@types.Kind] {
+  parameters.map(fn(parameter) { parameter.kind })
+}
+
+///|
+fn syntax_type_parameter_kinds(
+  parameters : Array[@syntax.TypeParameter],
+) -> Array[@types.Kind] {
   parameters.map(fn(parameter) {
-    {
-      name: parameter.name,
-      kind: Some(interface_kind_to_syntax(parameter.kind)),
-      loc: @basic.SourceSpan::dummy(),
+    match parameter.kind {
+      Some(kind) => kind.to_binding_kind()
+      None => Type
     }
   })
 }
 
 ///|
-fn interface_kind_to_syntax(kind : @types.Kind) -> @syntax.Kind {
-  match kind {
-    Type => Type(loc=@basic.SourceSpan::dummy())
-    Effect => Effect(loc=@basic.SourceSpan::dummy())
-    Function(parameters, result) =>
+fn @syntax.Kind::to_binding_kind(self : @syntax.Kind) -> @types.Kind {
+  match self {
+    Type(..) => Type
+    Effect(..) => Effect
+    Function(parameters~, result~, ..) =>
       Function(
-        parameters=parameters.map(interface_kind_to_syntax),
-        result=interface_kind_to_syntax(result),
-        loc=@basic.SourceSpan::dummy(),
+        parameters.map(@syntax.Kind::to_binding_kind),
+        result.to_binding_kind(),
       )
   }
 }
@@ -431,7 +427,7 @@ fn Resolver::publish_imported_selected_effects(
         self.publish_effect_binding(
           effect.name,
           effect.symbol,
-          interface_type_parameters_to_syntax(effect.type_parameters),
+          interface_type_parameter_kinds(effect.type_parameters),
           Some(item.origin),
         )
       }
@@ -519,7 +515,7 @@ fn Resolver::collect_top_level_headers(
             declaration.type_parameters.length(),
             declaration.loc,
           ),
-          declaration.type_parameters,
+          syntax_type_parameter_kinds(declaration.type_parameters),
           None,
         )
       }
@@ -537,7 +533,7 @@ fn Resolver::collect_top_level_headers(
             declaration.type_parameters.length(),
             declaration.loc,
           ),
-          declaration.type_parameters,
+          syntax_type_parameter_kinds(declaration.type_parameters),
           None,
         )
       }
@@ -553,7 +549,7 @@ fn Resolver::collect_top_level_headers(
             declaration.type_parameters.length(),
             declaration.loc,
           ),
-          declaration.type_parameters,
+          syntax_type_parameter_kinds(declaration.type_parameters),
           None,
         )
       }
@@ -573,7 +569,7 @@ fn Resolver::collect_top_level_headers(
                 declaration.type_parameters.length(),
                 declaration.loc,
               ),
-              declaration.type_parameters,
+              syntax_type_parameter_kinds(declaration.type_parameters),
               None,
             )
           }
@@ -590,7 +586,7 @@ fn Resolver::collect_top_level_headers(
                 declaration.loc,
                 flavor=External,
               ),
-              declaration.type_parameters,
+              syntax_type_parameter_kinds(declaration.type_parameters),
               None,
             )
           }
@@ -603,7 +599,9 @@ fn Resolver::collect_top_level_headers(
         )
         self.type_aliases.push({
           name: declaration.name,
-          type_parameters: declaration.type_parameters,
+          parameter_kinds: syntax_type_parameter_kinds(
+            declaration.type_parameters,
+          ),
           import_origin: None,
         })
       }
@@ -1471,7 +1469,7 @@ fn @syntax.Type::resolve_type_application_arguments(
         Some(binding) =>
           resolve_generic_arguments(
             arguments,
-            binding.type_parameters,
+            binding.parameter_kinds,
             resolver,
             scope,
           )
@@ -1480,7 +1478,7 @@ fn @syntax.Type::resolve_type_application_arguments(
             Some(binding) =>
               resolve_generic_arguments(
                 arguments,
-                binding.type_parameters,
+                binding.parameter_kinds,
                 resolver,
                 scope,
               )
@@ -1518,12 +1516,12 @@ fn resolve_default_generic_arguments(
 ///|
 fn resolve_generic_arguments(
   arguments : Array[@syntax.Type],
-  parameters : Array[@syntax.TypeParameter],
+  parameter_kinds : Array[@types.Kind],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedGenericArgument] {
   arguments.mapi(fn(index, argument) {
-    if index < parameters.length() && parameters[index].kind is Some(Effect(_)) {
+    if index < parameter_kinds.length() && parameter_kinds[index] == Effect {
       EffectArgument(
         argument.resolve_effect_type(resolver, scope, argument.loc()),
       )
@@ -1548,7 +1546,7 @@ fn resolve_type_name_arguments(
       )
       resolve_generic_arguments(
         arguments,
-        binding.type_parameters,
+        binding.parameter_kinds,
         resolver,
         scope,
       )
@@ -1562,7 +1560,7 @@ fn resolve_type_name_arguments(
           )
           resolve_generic_arguments(
             arguments,
-            binding.type_parameters,
+            binding.parameter_kinds,
             resolver,
             scope,
           )
@@ -1621,7 +1619,7 @@ fn resolve_owner_generic_arguments(
 fn qualified_type_name_parameters(
   resolver : Resolver,
   type_name : String,
-) -> Array[@syntax.TypeParameter]? {
+) -> Array[@types.Kind]? {
   guard split_qualified_name(type_name) is Some(qualified) else { return None }
   match resolver.module_binding(qualified.module_path) {
     Some(module_) =>
@@ -1647,25 +1645,19 @@ fn split_qualified_name(type_name : String) -> QualifiedNameText? {
 fn interface_type_application_parameters(
   interface : @module_interface.ModuleInterface,
   name : String,
-) -> Array[@syntax.TypeParameter]? {
+) -> Array[@types.Kind]? {
   for type_ in interface.types {
     match type_ {
       Struct(declaration) if declaration.name == name =>
-        return Some(
-          interface_type_parameters_to_syntax(declaration.type_parameters),
-        )
+        return Some(interface_type_parameter_kinds(declaration.type_parameters))
       Enum(declaration) if declaration.name == name =>
-        return Some(
-          interface_type_parameters_to_syntax(declaration.type_parameters),
-        )
+        return Some(interface_type_parameter_kinds(declaration.type_parameters))
       _ => ()
     }
   }
   for type_alias in interface.type_aliases {
     if type_alias.name == name {
-      return Some(
-        interface_type_parameters_to_syntax(type_alias.type_parameters),
-      )
+      return Some(interface_type_parameter_kinds(type_alias.type_parameters))
     }
   }
   None
@@ -1714,7 +1706,7 @@ fn @syntax.Type::resolve_effect_type(
               resolver.record_import_use(binding.import_origin, loc)
               let resolved_arguments = resolve_generic_arguments(
                 arguments,
-                binding.type_parameters,
+                binding.parameter_kinds,
                 resolver,
                 scope,
               )
@@ -1731,7 +1723,7 @@ fn @syntax.Type::resolve_effect_type(
                   resolver.record_import_use(binding.import_origin, loc)
                   let resolved_arguments = resolve_effect_alias_arguments(
                     arguments,
-                    binding.type_parameters,
+                    binding.parameter_kinds,
                     resolver,
                     scope,
                   )
@@ -1826,7 +1818,7 @@ fn Resolver::resolve_module_qualified_effect_type(
         if effect.name == name {
           let arguments = resolve_generic_arguments(
             arguments,
-            interface_type_parameters_to_syntax(effect.type_parameters),
+            interface_type_parameter_kinds(effect.type_parameters),
             self,
             scope,
           )
@@ -1840,9 +1832,9 @@ fn Resolver::resolve_module_qualified_effect_type(
       }
       for type_alias in module_.interface.type_aliases {
         if type_alias.name == name {
-          let arguments = resolve_imported_effect_alias_arguments(
+          let arguments = resolve_effect_alias_arguments(
             arguments,
-            type_alias.type_parameters,
+            interface_type_parameter_kinds(type_alias.type_parameters),
             self,
             scope,
           )
@@ -1875,36 +1867,14 @@ fn @syntax.Type::resolve_generic_argument(
 }
 
 ///|
-fn resolve_imported_effect_alias_arguments(
-  arguments : Array[@syntax.Type],
-  parameters : Array[@types.TypeParameter],
-  resolver : Resolver,
-  scope : ResolveScope,
-) -> Array[ResolvedEffectAliasArgument] {
-  arguments.mapi(fn(index, argument) {
-    if index < parameters.length() && parameters[index].kind == Effect {
-      if argument.should_resolve_as_effect_alias_argument(resolver, scope) {
-        EffectArgument(
-          argument.resolve_effect_type(resolver, scope, argument.loc()),
-        )
-      } else {
-        TypeArgument(argument.resolve_type(resolver, scope))
-      }
-    } else {
-      TypeArgument(argument.resolve_type(resolver, scope))
-    }
-  })
-}
-
-///|
 fn resolve_effect_alias_arguments(
   arguments : Array[@syntax.Type],
-  parameters : Array[@syntax.TypeParameter],
+  parameter_kinds : Array[@types.Kind],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedEffectAliasArgument] {
   arguments.mapi(fn(index, argument) {
-    if index < parameters.length() && parameters[index].kind is Some(Effect(_)) {
+    if index < parameter_kinds.length() && parameter_kinds[index] == Effect {
       if argument.should_resolve_as_effect_alias_argument(resolver, scope) {
         EffectArgument(
           argument.resolve_effect_type(resolver, scope, argument.loc()),
@@ -3237,10 +3207,10 @@ fn Resolver::publish_type_binding(
   self : Resolver,
   name : String,
   symbol : TypeSymbolId,
-  type_parameters : Array[@syntax.TypeParameter],
+  parameter_kinds : Array[@types.Kind],
   import_origin : Int?,
 ) -> Unit {
-  self.types.push({ name, symbol, type_parameters, import_origin })
+  self.types.push({ name, symbol, parameter_kinds, import_origin })
   self.record_import_symbol(import_origin, TypeSymbol(symbol))
 }
 
@@ -3286,10 +3256,10 @@ fn Resolver::publish_effect_binding(
   self : Resolver,
   name : String,
   symbol : EffectSymbolId,
-  type_parameters : Array[@syntax.TypeParameter],
+  parameter_kinds : Array[@types.Kind],
   import_origin : Int?,
 ) -> Unit {
-  self.effects.push({ name, symbol, type_parameters, import_origin })
+  self.effects.push({ name, symbol, parameter_kinds, import_origin })
   self.record_import_symbol(import_origin, EffectSymbol(symbol))
 }
 

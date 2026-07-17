@@ -35,15 +35,21 @@ fn expect_declaration_typecheck_result(
   source : String,
 ) -> DeclarationTypeCheckResult {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
-  typecheck_declarations(resolved)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  typecheck_declarations(resolution.source)
 }
 
 ///|
 fn expect_typecheck_result(source : String) -> TypeCheckResult {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
-  typecheck_source_file(resolved)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  typecheck_source_file(resolution.source)
 }
 
 ///|
@@ -51,8 +57,11 @@ fn expect_checked_source_result(
   source : String,
 ) -> CheckedSourceTypeCheckResult {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
-  typecheck_checked_source_file(resolved)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  typecheck_checked_source_file(resolution.source)
 }
 
 ///|
@@ -78,7 +87,11 @@ fn expect_checked_let_initializer(
   expected : @types.Type,
 ) -> @checked.CheckedExpr {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  let resolved = resolution.source
   let declaration_result = typecheck_declarations(resolved)
   let source = @desugar.desugar_source_file(resolved)
   let checker = SemanticChecker::{
@@ -241,7 +254,11 @@ fn expect_first_checked_match_pattern(
   name : String,
 ) -> @checked.CheckedPattern {
   let file = expect_parse_ok(source)
-  let resolved = @resolve.resolve_source_file(file)
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  let resolved = resolution.source
   let declaration_result = typecheck_declarations(resolved)
   let source = @desugar.desugar_source_file(resolved)
   let checker = SemanticChecker::{
@@ -1086,12 +1103,22 @@ test "typecheck top level functions recurse and values stay ordered" {
 
 ///|
 test "typecheck reports forward top level value use" {
-  let result = expect_typecheck_result(
+  let file = expect_parse_ok(
     (
       #|let first : Int = second
       #|let second : Int = 1
     ),
   )
+  let resolution = @resolve.resolve_source_file_result(file)
+  debug_inspect(
+    resolution.diagnostics.map(fn(diagnostic) {
+      @prettyprinter.render(diagnostic, width=100)
+    }),
+    content=(
+      #|["unresolved_value second"]
+    ),
+  )
+  let result = typecheck_source_file(resolution.source)
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
@@ -1214,7 +1241,7 @@ test "typecheck local function can call itself after declaration" {
 
 ///|
 test "typecheck reports local function forward reference" {
-  let result = expect_typecheck_result(
+  let file = expect_parse_ok(
     (
       #|fn use() -> Int {
       #|  {
@@ -1227,6 +1254,16 @@ test "typecheck reports local function forward reference" {
       #|}
     ),
   )
+  let resolution = @resolve.resolve_source_file_result(file)
+  debug_inspect(
+    resolution.diagnostics.map(fn(diagnostic) {
+      @prettyprinter.render(diagnostic, width=100)
+    }),
+    content=(
+      #|["unresolved_value local"]
+    ),
+  )
+  let result = typecheck_source_file(resolution.source)
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
@@ -3100,7 +3137,7 @@ test "typecheck reports enum variant arity mismatch" {
 
 ///|
 test "typecheck reports ambiguous unqualified enum variant" {
-  let result = expect_typecheck_result(
+  let file = expect_parse_ok(
     (
       #|enum Left {
       #|  same(Int)
@@ -3113,6 +3150,16 @@ test "typecheck reports ambiguous unqualified enum variant" {
       #|}
     ),
   )
+  let resolution = @resolve.resolve_source_file_result(file)
+  debug_inspect(
+    resolution.diagnostics.map(fn(diagnostic) {
+      @prettyprinter.render(diagnostic, width=100)
+    }),
+    content=(
+      #|["ambiguous_variant same [Left::same, Right::same]"]
+    ),
+  )
+  let result = typecheck_source_file(resolution.source)
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
@@ -3511,13 +3558,23 @@ test "typecheck reports nominal type arity mismatch" {
 
 ///|
 test "typecheck keeps unresolved type as error type" {
-  let result = expect_declaration_typecheck_result(
+  let file = expect_parse_ok(
     (
       #|struct Bad {
       #|  missing : Missing
       #|}
     ),
   )
+  let resolution = @resolve.resolve_source_file_result(file)
+  debug_inspect(
+    resolution.diagnostics.map(fn(diagnostic) {
+      @prettyprinter.render(diagnostic, width=100)
+    }),
+    content=(
+      #|["unresolved_type Missing"]
+    ),
+  )
+  let result = typecheck_declarations(resolution.source)
   inspect(
     @prettyprinter.render(result, width=100),
     content=(
