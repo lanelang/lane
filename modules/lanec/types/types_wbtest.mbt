@@ -108,7 +108,7 @@ test "Io is a canonical built-in effect atom" {
 ///|
 test "try normalize reports type fuel exhaustion without aborting" {
   let mut type_ = Primitive(Unit)
-  for _ in 0..<1030 {
+  for _ in 0..<(NORMALIZATION_DEPTH_LIMIT + 6) {
     type_ = Function([type_], type_, Empty)
   }
   try type_.try_normalize() catch {
@@ -124,7 +124,7 @@ test "try normalize reports effect fuel exhaustion without aborting" {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())
   let mut effect = Singleton(console, [])
-  for _ in 0..<1030 {
+  for _ in 0..<(NORMALIZATION_DEPTH_LIMIT + 6) {
     effect = Union([effect])
   }
   try effect.try_normalize() catch {
@@ -133,4 +133,53 @@ test "try normalize reports effect fuel exhaustion without aborting" {
     _ => fail("expected effect normalization fuel exhaustion")
   }
   inspect(@prettyprinter.render(effect.normalize()), content="{}")
+}
+
+///|
+test "normalization depth limit has an exact boundary" {
+  let mut shallow_type = Primitive(Unit)
+  let mut deep_type = Primitive(Unit)
+  let mut shallow_effect = Effect::Empty
+  let mut deep_effect = Effect::Empty
+  for _ in 0..<(NORMALIZATION_DEPTH_LIMIT - 1) {
+    shallow_type = Forall([], shallow_type)
+    shallow_effect = Union([shallow_effect])
+  }
+  for _ in 0..<NORMALIZATION_DEPTH_LIMIT {
+    deep_type = Forall([], deep_type)
+    deep_effect = Union([deep_effect])
+  }
+  let shallow_type_error = try shallow_type.try_normalize() catch {
+    error => Some(error)
+  } noraise {
+    _ => None
+  }
+  let deep_type_error = try deep_type.try_normalize() catch {
+    error => Some(error)
+  } noraise {
+    _ => None
+  }
+  let shallow_effect_error = try shallow_effect.try_normalize() catch {
+    error => Some(error)
+  } noraise {
+    _ => None
+  }
+  let deep_effect_error = try deep_effect.try_normalize() catch {
+    error => Some(error)
+  } noraise {
+    _ => None
+  }
+  debug_inspect(
+    (
+      shallow_type_error, deep_type_error, shallow_effect_error, deep_effect_error,
+    ),
+    content=(
+      #|(
+      #|  None,
+      #|  Some(TypeNormalizationFuelExhausted),
+      #|  None,
+      #|  Some(EffectNormalizationFuelExhausted),
+      #|)
+    ),
+  )
 }

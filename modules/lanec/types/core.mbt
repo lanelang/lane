@@ -55,6 +55,9 @@ pub(all) suberror TypeComputationError {
 } derive(Debug, Eq)
 
 ///|
+const NORMALIZATION_DEPTH_LIMIT : Int = 256
+
+///|
 pub fn TypeParameter::generic_argument(self : TypeParameter) -> GenericArgument {
   match self.kind {
     Effect => EffectArgument(Parameter(self.id))
@@ -287,7 +290,7 @@ pub fn GenericArgument::normalize(self : GenericArgument) -> GenericArgument {
 pub fn GenericArgument::try_normalize(
   self : GenericArgument,
 ) -> GenericArgument raise TypeComputationError {
-  self.normalize_with_fuel(1024)
+  self.normalize_with_fuel(NORMALIZATION_DEPTH_LIMIT)
 }
 
 ///|
@@ -574,7 +577,7 @@ pub fn Type::normalize(self : Type) -> Type {
 
 ///|
 pub fn Type::try_normalize(self : Type) -> Type raise TypeComputationError {
-  self.normalize_with_fuel(1024)
+  self.normalize_with_fuel(NORMALIZATION_DEPTH_LIMIT)
 }
 
 ///|
@@ -633,7 +636,7 @@ pub fn Effect::normalize(self : Effect) -> Effect {
 pub fn Effect::try_normalize(
   self : Effect,
 ) -> Effect raise TypeComputationError {
-  self.normalize_with_fuel(1024).canonicalize()
+  self.normalize_with_fuel(NORMALIZATION_DEPTH_LIMIT).canonicalize()
 }
 
 ///|

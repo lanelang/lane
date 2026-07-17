@@ -173,10 +173,10 @@ fn CompletionWorld::from_graph(
         interface = checked.module_interface
       }
     }
-    if interface is Some(interface_) && checked_source is Some(_) {
+    if interface is Some(module_interface) && checked_source is Some(_) {
       compiled.push({
         module_path_text: input.header.module_path_text,
-        interface: { ..interface_, source_id: Some(input.source_id) },
+        interface: { ..module_interface, source_id: Some(input.source_id) },
       })
     }
     modules.push({
