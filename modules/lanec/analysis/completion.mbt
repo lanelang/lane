@@ -761,7 +761,7 @@ fn CompletionWorld::add_local_owner_entries(
       replace,
       fact.name,
       semantic_member_completion_kind(fact.kind),
-      Some(fact.detail),
+      Some(fact.completion_detail),
       insert_text=semantic_member_insert_text(fact),
       semantic_member_sort_text(fact.kind),
     )
@@ -801,10 +801,14 @@ fn CompletionWorld::operation_detail(
   effect_name : String,
   operation : @module_interface.ModuleInterfaceOperation,
 ) -> String {
-  let payload = operation.payload
-    .map(fn(type_) { self.display.type_text(type_) })
-    .join(", ")
-  "\{effect_name}::\{operation.name}(\{payload}) -> \{self.display.type_text(operation.result)}"
+  operation_signature_detail(
+    effect_name,
+    operation.name,
+    operation.type_parameters,
+    operation.payload,
+    operation.result,
+    self.display,
+  )
 }
 
 ///|
@@ -831,7 +835,7 @@ fn CompletionWorld::add_receiver_entries(
       replace,
       field.name,
       semantic_member_completion_kind(field.kind),
-      Some(field.detail),
+      Some(field.completion_detail),
       semantic_member_sort_text(field.kind),
     )
   }

@@ -3960,6 +3960,36 @@ test "analysis traverses explicit generic application" {
 }
 
 ///|
+test "analysis keeps generic operation hover declaration detail" {
+  let result = @analysis.analyze_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub effect Prompt {
+        #|  choose[A](A, A) -> A
+        #|}
+        #|
+        #|pub fn use() -> Int ! Prompt {
+        #|  Prompt::choose![Int](1, 2)
+        #|}
+      ),
+    },
+    [],
+  )
+  inspect(result.diagnostics.length(), content="0")
+  match result.hover_at("file:///Main.lane", 8, 11) {
+    Some(hover) =>
+      inspect(
+        hover.contents,
+        content="operation Prompt::choose[A : Type](A, A) -> A",
+      )
+    None => abort("expected operation hover")
+  }
+}
+
+///|
 test "analysis resolves cross-module definition by source identity" {
   let result = @analysis.analyze_source_inputs(
     {

@@ -582,6 +582,66 @@ test "completion returns imported owner operations after double colon" {
 }
 
 ///|
+test "local operation completion uses signature detail" {
+  let source =
+    #|module Main
+    #|
+    #|pub effect Prompt {
+    #|  choose[A](A, A) -> A
+    #|}
+    #|
+    #|pub fn use() -> Int ! Prompt {
+    #|  Prompt::choose![Int](1, 2)
+    #|}
+  let entries = complete_source_inputs(
+    { source_id: "file:///Main.lane", text: source },
+    [],
+    "file:///Main.lane",
+    8,
+    11,
+    TriggerCharacter(":"),
+  )
+  debug_inspect(
+    entries
+    .filter(fn(entry) { entry.kind == Operation })
+    .map(fn(entry) { (entry.label, entry.detail) }),
+    content="[(\"choose\", Some(\"Prompt::choose[A : Type](A, A) -> A\"))]",
+  )
+}
+
+///|
+test "imported operation completion includes type parameters" {
+  let root =
+    #|module Main
+    #|
+    #|import Lib
+    #|
+    #|pub fn use() -> Int ! Lib.Prompt {
+    #|  Lib.Prompt::choose![Int](1, 2)
+    #|}
+  let lib =
+    #|module Lib
+    #|
+    #|pub effect Prompt {
+    #|  choose[A](A, A) -> A
+    #|}
+  let entries = complete_source_inputs(
+    { source_id: "file:///Main.lane", text: root },
+    [{ source_id: "file:///Lib.lane", text: lib }],
+    "file:///Main.lane",
+    6,
+    15,
+    TriggerCharacter(":"),
+  )
+  debug_inspect(
+    entries
+    .filter(fn(entry) { entry.kind == Operation })
+    .map(fn(entry) { (entry.label, entry.detail) }),
+    content="[(\"choose\", Some(\"Prompt::choose[A : Type](A, A) -> A\"))]",
+  )
+}
+
+///|
 test "completion returns known module paths in import declarations" {
   let root =
     #|module Main

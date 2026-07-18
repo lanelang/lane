@@ -112,7 +112,7 @@ fn SemanticIndex::add_operation_reference(
       self.add_reference(
         Operation(operation),
         name_span(self.source_text, fact.name, fallback),
-        Some(fact.detail),
+        Some(fact.navigation_detail),
       )
       return
     }
@@ -205,15 +205,29 @@ fn checked_operation_detail(
   operation : @checked.CheckedEffectOperationDeclaration,
   display : @typecheck.TypeDisplayContext,
 ) -> String {
-  let parameters = checked_type_parameters_text(
+  let signature = operation_signature_detail(
+    owner,
+    operation.name,
     operation.type_parameters,
+    operation.payload,
+    operation.result,
     display,
   )
-  let payload = operation.payload
-    .map(fn(type_) { display.type_text(type_) })
-    .join(", ")
-  let result = display.type_text(operation.result)
-  "operation \{owner}::\{operation.name}\{parameters}(\{payload}) -> \{result}"
+  "operation \{signature}"
+}
+
+///|
+fn operation_signature_detail(
+  owner : String,
+  name : String,
+  type_parameters : Array[@types.TypeParameter],
+  payload : Array[@types.Type],
+  result : @types.Type,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  let parameters = checked_type_parameters_text(type_parameters, display)
+  let payload = payload.map(fn(type_) { display.type_text(type_) }).join(", ")
+  "\{owner}::\{name}\{parameters}(\{payload}) -> \{display.type_text(result)}"
 }
 
 ///|
