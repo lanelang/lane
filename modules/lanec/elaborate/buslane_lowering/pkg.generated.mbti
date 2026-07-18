@@ -5,13 +5,14 @@ import {
   "Milky2018/buslane",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/module",
+  "Milky2018/lanec/symbol",
   "moonbitlang/core/debug",
 }
 
 // Values
 pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program
 
-pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, @module.ImportedEnvironment) -> BuslaneModuleObject
+pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, BuslaneLoweringImports) -> Result[BuslaneModuleObject, BuslaneLoweringError]
 
 pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult
 
@@ -20,6 +21,12 @@ pub fn lower_checked_source_files_to_buslane_objects(Array[@checked.CheckedSourc
 pub fn lower_checked_source_files_to_buslane_result(@checked.CheckedSourceFile, Array[@checked.CheckedSourceFile]) -> BuslaneLowerResult
 
 // Errors
+pub(all) suberror BuslaneLoweringError {
+  MissingTypeReference(@symbol.TypeSymbolId)
+  MissingEffectReference(@symbol.EffectSymbolId)
+  MissingTypeDependency(String, String)
+  MissingEffectDependency(String, String)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub(all) struct BuslaneBuiltinExternal {
@@ -44,6 +51,11 @@ pub(all) struct BuslaneLowerResult {
   program : @buslane.Program
   externals : BuslaneExternalMap
   entries : Array[BuslaneEntry]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct BuslaneLoweringImports {
+  direct : @module.ImportedEnvironment
+  available : @module.ImportedEnvironment
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleExport {

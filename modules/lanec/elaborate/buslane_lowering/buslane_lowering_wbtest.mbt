@@ -632,8 +632,10 @@ test "buslane lowering registry covers imported references" {
   }
   guard main.source is Some(main_source) else { abort("expected checked main") }
   let object = lower_checked_source_file_to_buslane_object_with_imports(
-    main_source, imported,
+    main_source,
+    { direct: imported, available: imported },
   )
+  guard object is Ok(object) else { abort("expected imported lowering") }
   guard object.imports.any(fn(item) {
     item.kind is Type && item.type_id is Some(_)
   }) else {

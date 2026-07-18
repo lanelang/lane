@@ -1,33 +1,40 @@
 ///|
 fn BuslaneLowerer::seed_imported_interfaces(
   self : BuslaneLowerer,
-  imported : @module_interface.ImportedEnvironment,
-) -> Unit {
-  for interface in imported.modules {
+  imported : BuslaneLoweringImports,
+) -> Result[Unit, BuslaneLoweringError] {
+  for interface in imported.direct.modules {
     for type_ in interface.types {
       self.seed_imported_type_header(interface.module_path, type_)
     }
   }
-  for interface in imported.modules {
-    for type_ in interface.types {
-      self.seed_imported_type_constructors(interface.module_path, type_)
-    }
-  }
-  for interface in imported.modules {
+  for interface in imported.direct.modules {
     for effect in interface.effects {
       self.seed_imported_effect_header(interface.module_path, effect)
     }
   }
-  for interface in imported.modules {
+  for interface in imported.direct.modules {
+    match self.seed_imported_dependency_headers(interface, imported.available) {
+      Ok(_) => ()
+      Err(error) => return Err(error)
+    }
+  }
+  for interface in imported.direct.modules {
+    for type_ in interface.types {
+      self.seed_imported_type_constructors(interface.module_path, type_)
+    }
+  }
+  for interface in imported.direct.modules {
     for effect in interface.effects {
       self.seed_imported_effect_operations(interface.module_path, effect)
     }
   }
-  for interface in imported.modules {
+  for interface in imported.direct.modules {
     for value in interface.values {
       self.seed_imported_value(interface.module_path, value)
     }
   }
+  Ok(())
 }
 
 ///|
@@ -36,6 +43,9 @@ fn BuslaneLowerer::seed_imported_type_header(
   module_path_text : String,
   type_ : @module_interface.ModuleInterfaceType,
 ) -> Unit {
+  if self.registry.find_type(interface_type_symbol(type_)) is Some(_) {
+    return
+  }
   match type_ {
     Struct(declaration) => {
       let parameters = declaration.type_parameters.map(fn(parameter) {
@@ -97,6 +107,26 @@ fn BuslaneLowerer::seed_imported_type_header(
         value: None,
       })
     }
+  }
+}
+
+///|
+fn interface_type_symbol(
+  type_ : @module_interface.ModuleInterfaceType,
+) -> @symbol.TypeSymbolId {
+  match type_ {
+    Struct(declaration) => declaration.symbol
+    Enum(declaration) => declaration.symbol
+    External(declaration) => declaration.symbol
+  }
+}
+
+///|
+fn interface_type_name(type_ : @module_interface.ModuleInterfaceType) -> String {
+  match type_ {
+    Struct(declaration) => declaration.name
+    Enum(declaration) => declaration.name
+    External(declaration) => declaration.name
   }
 }
 
@@ -187,6 +217,9 @@ fn BuslaneLowerer::seed_imported_field_selector(
   declaration : @module_interface.ModuleInterfaceStruct,
   field : @module_interface.ModuleInterfaceField,
 ) -> Unit {
+  if self.registry.find_field_selector(field.symbol) is Some(_) {
+    return
+  }
   let selector_type = self.imported_selector_type(declaration, field)
   let selector = self.metadata.define_value(field.name, Function, selector_type)
   ignore(self.registry.register_field_selector(field.symbol, selector))
@@ -238,6 +271,9 @@ fn BuslaneLowerer::seed_imported_effect_header(
   module_path_text : String,
   effect : @module_interface.ModuleInterfaceEffect,
 ) -> Unit {
+  if self.registry.find_effect(effect.symbol) is Some(_) {
+    return
+  }
   let parameters = effect.type_parameters.map(fn(parameter) {
     self.define_type_parameter(parameter)
   })

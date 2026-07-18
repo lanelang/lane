@@ -81,3 +81,17 @@ pub(all) struct BuslaneModuleObject {
 pub(all) struct BuslaneModuleObjectSet {
   objects : Array[BuslaneModuleObject]
 } derive(Debug, Eq)
+
+///|
+pub(all) struct BuslaneLoweringImports {
+  direct : @module_interface.ImportedEnvironment
+  available : @module_interface.ImportedEnvironment
+} derive(Debug, Eq)
+
+///|
+pub(all) suberror BuslaneLoweringError {
+  MissingTypeReference(@symbol.TypeSymbolId)
+  MissingEffectReference(@symbol.EffectSymbolId)
+  MissingTypeDependency(String, String)
+  MissingEffectDependency(String, String)
+} derive(Debug, Eq)

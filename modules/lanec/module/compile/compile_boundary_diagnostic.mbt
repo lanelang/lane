@@ -31,6 +31,29 @@ pub fn no_root_source_module_diagnostic() -> CompilerDiagnostic {
 }
 
 ///|
+fn buslane_lowering_diagnostic(
+  importer : String,
+  error : @buslane_lowering.BuslaneLoweringError,
+) -> CompilerDiagnostic {
+  let dependency = match error {
+    MissingTypeReference(symbol) => "unresolved type symbol \{to_repr(symbol)}"
+    MissingEffectReference(symbol) =>
+      "unresolved effect symbol \{to_repr(symbol)}"
+    MissingTypeDependency(module_path, name) => "type `\{module_path}.\{name}`"
+    MissingEffectDependency(module_path, name) =>
+      "effect `\{module_path}.\{name}`"
+  }
+  compile_report(
+    "missing Buslane interface dependency",
+    None,
+    code="E4501",
+    label="`\{importer}` cannot lower \{dependency}",
+    note="a public imported signature references an unavailable interface dependency",
+    help="provide the complete transitive interface closure and report this if all source dependencies are present",
+  )
+}
+
+///|
 impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn to_compiler_diagnostic(
   diagnostic_ : CompileBoundaryDiagnostic,
   _context : @compiler_diag.DiagnosticContext,

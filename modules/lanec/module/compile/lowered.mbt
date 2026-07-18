@@ -1,22 +1,35 @@
 ///|
 fn lower_compiled_module_objects(
   modules : Array[CompiledModule],
-) -> Array[CompiledModule] {
+) -> Result[Array[CompiledModule], CompilerDiagnostic] {
   let lowered_modules : Array[CompiledModule] = []
   for module_ in modules {
-    let imported = imported_interfaces_from_modules(
+    let direct = imported_interfaces_from_modules(
       module_.object.imported_interface_fingerprints,
       lowered_modules,
     )
-    let lowered = @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
-      module_.object.checked,
-      imported,
+    let available = imported_interface_closure(
+      module_.object.imported_interface_fingerprints.map(fn(imported) {
+        imported.module_path_text
+      }),
+      lowered_modules,
     )
+    let lowered = match
+      @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
+        module_.object.checked,
+        { direct, available },
+      ) {
+      Ok(lowered) => lowered
+      Err(error) =>
+        return Err(
+          buslane_lowering_diagnostic(module_.object.module_path_text, error),
+        )
+    }
     lowered_modules.push(
       attach_lowered_object(module_, lowered, lowered_modules),
     )
   }
-  lowered_modules
+  Ok(lowered_modules)
 }
 
 ///|

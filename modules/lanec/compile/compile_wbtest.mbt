@@ -56,7 +56,6 @@ test "compile verifies handler around effectful function call" {
       #|}
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else {
     abort("expected Buslane program")
   }
@@ -1054,6 +1053,7 @@ test "compile sources links only root reachable library modules" {
       (
         #|module Extra
         #|pub let extra : (Int, Int) -> Int = builtin("%i64_add")
+        #|pub let broken : Missing = 0
       ),
     ],
   )
@@ -1062,6 +1062,202 @@ test "compile sources links only root reachable library modules" {
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
+  )
+}
+
+///|
+test "compile sources lower transitive public type dependencies" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import Facade.{ make_token, read_token }
+      #|pub fn answer() -> Int {
+      #|  read_token(make_token())
+      #|}
+    ),
+    [
+      (
+        #|module Types
+        #|pub struct Token {
+        #|  value : Int
+        #|}
+      ),
+      (
+        #|module Facade
+        #|import Types.{ Token }
+        #|pub fn make_token() -> Token {
+        #|  Token::{ value: 42 }
+        #|}
+        #|pub fn read_token(token : Token) -> Int {
+        #|  token.value
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.program is Some(program) else {
+    abort("expected linked Buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content="verify_result {}",
+  )
+}
+
+///|
+test "transitive public types do not become source-visible" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Facade.{ make_token }
+      #|pub let token : Token = make_token()
+    ),
+    [
+      (
+        #|module Types
+        #|pub struct Token {
+        #|  value : Int
+        #|}
+      ),
+      (
+        #|module Facade
+        #|import Types.{ Token }
+        #|pub fn make_token() -> Token {
+        #|  Token::{ value: 42 }
+        #|}
+      ),
+    ],
+  )
+  inspect(result.diagnostics.length(), content="1")
+  inspect(result.diagnostics[0].message, content="cannot find type `Token`")
+}
+
+///|
+test "compile sources lower transitive public effect dependencies" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import Facade.{ action }
+      #|pub fn main() -> Unit {
+      #|  ()
+      #|}
+    ),
+    [
+      (
+        #|module Effects
+        #|pub effect Network {
+        #|  receive() -> Int
+        #|}
+      ),
+      (
+        #|module Facade
+        #|import Effects.{ Network }
+        #|pub fn action() -> Int ! Network {
+        #|  Network::receive!()
+        #|}
+      ),
+    ],
+  )
+  guard result.program is Some(program) else {
+    abort("expected linked Buslane program")
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content="verify_result {}",
+  )
+}
+
+///|
+test "transitive public dependencies add only required nominal imports" {
+  let result = compile_modules(
+    (
+      #|module Main
+      #|import Facade.{ make_token, read_token }
+      #|pub fn answer() -> Int {
+      #|  read_token(make_token())
+      #|}
+    ),
+    [
+      (
+        #|module Types
+        #|pub struct Token {
+        #|  value : Int
+        #|}
+        #|pub let unrelated : Int = 0
+      ),
+      (
+        #|module Facade
+        #|import Types.{ Token }
+        #|pub fn make_token() -> Token {
+        #|  Token::{ value: 42 }
+        #|}
+        #|pub fn read_token(token : Token) -> Int {
+        #|  token.value
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  guard @module_compile.find_compiled_module(modules.modules, "Main")
+    is Some(main) else {
+    abort("expected Main module")
+  }
+  debug_inspect(
+    main.object.imports.map(fn(import_) {
+      (import_.module_path_text, import_.kind, import_.name)
+    }),
+    content=(
+      #|[
+      #|  ("Types", Type, "Token"),
+      #|  ("Types", FieldSelector, "Token.value"),
+      #|  ("Facade", Value, "make_token"),
+      #|  ("Facade", Value, "read_token"),
+      #|]
+    ),
+  )
+}
+
+///|
+test "source graph semantic catalogs do not pollute sibling interfaces" {
+  let result = compile_modules(
+    (
+      #|module Main
+      #|import Left
+      #|import Right
+      #|pub let answer : Int = 42
+    ),
+    [
+      (
+        #|module Left
+        #|pub struct Noise {
+        #|  value : Int
+        #|}
+      ),
+      (
+        #|module Right
+        #|pub struct Box {
+        #|  value : Int
+        #|}
+      ),
+    ],
+  )
+  guard result.modules is Some(modules) else {
+    abort("expected compiled modules")
+  }
+  guard @module_compile.find_compiled_module(modules.modules, "Right")
+    is Some(right) else {
+    abort("expected Right module")
+  }
+  debug_inspect(
+    right.interface.type_references.map(fn(reference) {
+      (reference.module_path, reference.name)
+    }),
+    content=(
+      #|[("Right", "Box")]
+    ),
   )
 }
 
@@ -3615,7 +3811,7 @@ test "import reachable analysis reports reachable parse diagnostics" {
 }
 
 ///|
-test "check sources checks unimported library modules" {
+test "check sources ignores unimported library errors" {
   let result = check_sources(
     (
       #|module Main
@@ -3628,12 +3824,14 @@ test "check sources checks unimported library modules" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="cannot find value `missing`")
+  debug_inspect(
+    (result.source is Some(_), result.diagnostics),
+    content="(true, [])",
+  )
 }
 
 ///|
-test "check sources rejects unimported library import cycle" {
+test "check sources ignores unimported library import cycles" {
   let result = check_sources(
     (
       #|module Main
@@ -3652,10 +3850,9 @@ test "check sources rejects unimported library import cycle" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="import cycle involving `ExtraA`",
+  debug_inspect(
+    (result.source is Some(_), result.diagnostics),
+    content="(true, [])",
   )
 }
 

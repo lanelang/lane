@@ -109,10 +109,13 @@ pub fn lower_checked_source_files_to_buslane_objects(
 ///|
 pub fn lower_checked_source_file_to_buslane_object_with_imports(
   source : @checked.CheckedSourceFile,
-  imported : @module_interface.ImportedEnvironment,
-) -> BuslaneModuleObject {
+  imported : BuslaneLoweringImports,
+) -> Result[BuslaneModuleObject, BuslaneLoweringError] {
   let lowerer = BuslaneLowerer::BuslaneLowerer()
-  lowerer.seed_imported_interfaces(imported)
+  match lowerer.seed_imported_interfaces(imported) {
+    Err(error) => return Err(error)
+    Ok(_) => ()
+  }
   lowerer.collect_type_headers(source)
   lowerer.collect_effect_headers(source)
   lowerer.collect_data_constructors(source)
@@ -128,7 +131,7 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
     external_start,
   )
   external_terms.append(terms)
-  {
+  Ok({
     module_path_text: checked_module_path_text(source),
     metadata: lowerer.metadata,
     terms: external_terms,
@@ -142,7 +145,7 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
     entries: lowerer.entries,
     exports: lowerer.module_exports(source),
     imports: lowerer.imports,
-  }
+  })
 }
 
 ///|

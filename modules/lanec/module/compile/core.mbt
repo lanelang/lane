@@ -83,8 +83,12 @@ pub fn compile_module_graph_observed(
   let modules : Array[CompiledModule] = []
   let diagnostics : Array[CompilerDiagnostic] = []
   for input in graph.modules {
-    let imported = imported_interfaces(input.header, modules)
-    match compile_one_module(input, registry, imported, observe) {
+    let direct = imported_interfaces(input.header, modules)
+    let available = imported_interface_closure(
+      input.header.imports.map(fn(import_) { import_.module_path_text }),
+      modules,
+    )
+    match compile_one_module(input, registry, direct, available, observe) {
       Ok(compiled) => {
         modules.push(compiled.module_)
         diagnostics.append(compiled.diagnostics)
@@ -95,9 +99,13 @@ pub fn compile_module_graph_observed(
   if find_compiled_module(modules, graph.root_module_path_text) is None {
     return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
   }
+  let modules = match lower_compiled_module_objects(modules) {
+    Ok(modules) => modules
+    Err(diagnostic) => return Err([diagnostic])
+  }
   Ok({
     root_module_path_text: graph.root_module_path_text,
-    modules: lower_compiled_module_objects(modules),
+    modules,
     reachable_module_path_texts: graph.reachable_module_path_texts,
     diagnostics,
   })
@@ -132,7 +140,8 @@ pub fn compile_module_from_interface_artifacts(
     registry,
     ordered_interfaces.interfaces,
   )
-  match compile_one_module(input, registry, imported, (_, _) => ()) {
+  let direct = direct_imported_interfaces(input.header, imported)
+  match compile_one_module(input, registry, direct, imported, (_, _) => ()) {
     Err(diagnostics) => Err(diagnostics)
     Ok(success) => {
       let module_ = success.module_
@@ -143,10 +152,17 @@ pub fn compile_module_from_interface_artifacts(
       let module_ = module_.with_imported_interface_fingerprints(
         imported_fingerprints,
       )
-      let lowered = @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
-        module_.object.checked,
-        imported,
-      )
+      let lowered = match
+        @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
+          module_.object.checked,
+          { direct, available: imported },
+        ) {
+        Ok(lowered) => lowered
+        Err(error) =>
+          return Err([
+            buslane_lowering_diagnostic(module_.object.module_path_text, error),
+          ])
+      }
       let compiled = attach_lowered_object_from_interfaces(
         module_,
         lowered,

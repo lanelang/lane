@@ -241,7 +241,7 @@ fn compile_module_set_from_source_inputs(
   library_sources : Array[@module_frontend.SourceInput],
 ) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
   match
-    @module_frontend.parse_module_input_set_from_inputs(
+    @module_frontend.parse_import_reachable_module_input_set_from_inputs(
       root_source, library_sources,
     ) {
     Err(diagnostics) => Err(diagnostics)
