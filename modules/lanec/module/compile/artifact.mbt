@@ -166,9 +166,8 @@ fn ModuleObjectArtifact::validate_all(
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for object in objects {
-    match object.validate() {
-      Some(diagnostic) => diagnostics.push(diagnostic)
-      None => ()
+    if object.validate() is Some(diagnostic) {
+      diagnostics.push(diagnostic)
     }
   }
   for index in 0..<objects.length() {
@@ -246,9 +245,8 @@ fn CompiledModuleSetArtifact::validate_schema(
         ),
       )
     }
-    match module_.interface.validate() {
-      Some(diagnostic) => return Some(diagnostic)
-      None => ()
+    if module_.interface.validate() is Some(diagnostic) {
+      return Some(diagnostic)
     }
     if module_.object.module_path_text != module_path_text {
       return Some(
@@ -293,9 +291,8 @@ fn CompiledModuleSetArtifact::validate_schema(
         ),
       )
     }
-    match module_.object.validate() {
-      Some(diagnostic) => return Some(diagnostic)
-      None => ()
+    if module_.object.validate() is Some(diagnostic) {
+      return Some(diagnostic)
     }
   }
   None

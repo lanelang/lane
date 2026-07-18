@@ -309,10 +309,10 @@ fn has_leading_comment(
   span : @basic.SourceSpan,
 ) -> Bool {
   for comment in comments {
-    match comment.placement {
-      Leading(anchor) if !comment.consumed && same_leading_anchor(anchor, span) =>
-        return true
-      _ => ()
+    if comment.placement is Leading(anchor) &&
+      !comment.consumed &&
+      same_leading_anchor(anchor, span) {
+      return true
     }
   }
   false
@@ -324,9 +324,10 @@ fn has_trailing_comment(
   span : @basic.SourceSpan,
 ) -> Bool {
   for comment in comments {
-    match comment.placement {
-      Trailing(anchor) if !comment.consumed && anchor == span => return true
-      _ => ()
+    if comment.placement is Trailing(anchor) &&
+      !comment.consumed &&
+      anchor == span {
+      return true
     }
   }
   false
@@ -501,12 +502,11 @@ fn leading_comment_doc(
 ) -> Document {
   let docs = []
   for comment in comments {
-    match comment.placement {
-      Leading(anchor) if !comment.consumed && same_leading_anchor(anchor, span) => {
-        comment.consumed = true
-        push_leading_comment_docs(docs, comment)
-      }
-      _ => ()
+    if comment.placement is Leading(anchor) &&
+      !comment.consumed &&
+      same_leading_anchor(anchor, span) {
+      comment.consumed = true
+      push_leading_comment_docs(docs, comment)
     }
   }
   if docs.is_empty() {
@@ -523,13 +523,11 @@ fn trailing_comment_doc(
 ) -> Document {
   let docs = []
   for comment in comments {
-    match comment.placement {
-      Trailing(anchor) if !comment.consumed &&
-        same_trailing_anchor(anchor, span) => {
-        comment.consumed = true
-        docs.push(comment_lines_doc(comment.text))
-      }
-      _ => ()
+    if comment.placement is Trailing(anchor) &&
+      !comment.consumed &&
+      same_trailing_anchor(anchor, span) {
+      comment.consumed = true
+      docs.push(comment_lines_doc(comment.text))
     }
   }
   if docs.is_empty() {
@@ -544,15 +542,12 @@ fn eof_comment_doc(comments : Array[AnchoredComment]) -> Document {
   let docs = []
   let mut blank_before_first = false
   for comment in comments {
-    match comment.placement {
-      EndOfFile if !comment.consumed => {
-        comment.consumed = true
-        if docs.is_empty() && comment.blank_before {
-          blank_before_first = true
-        }
-        push_leading_comment_docs(docs, comment)
+    if comment.placement is EndOfFile && !comment.consumed {
+      comment.consumed = true
+      if docs.is_empty() && comment.blank_before {
+        blank_before_first = true
       }
-      _ => ()
+      push_leading_comment_docs(docs, comment)
     }
   }
   if docs.is_empty() {
