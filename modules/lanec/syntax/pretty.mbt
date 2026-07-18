@@ -1582,6 +1582,9 @@ fn StructLiteralField::to_doc(
   let (span, doc) = match self {
     Value(name~, value~, loc~) =>
       match value {
+        Some(Var(value_name, loc=value_loc)) if value_name == name &&
+          !(trivia.has_leading)(value_loc) &&
+          !(trivia.has_trailing)(value_loc) => (loc, text(name))
         Some(value) =>
           (loc, text(name) + text(":") + space + value.to_doc(trivia~))
         None => (loc, text(name))

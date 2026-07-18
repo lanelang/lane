@@ -204,6 +204,7 @@ pub(all) struct SourceFormatTrivia {
   leading : (SourceSpan) -> Document
   trailing : (SourceSpan) -> Document
   has_leading : (SourceSpan) -> Bool
+  has_trailing : (SourceSpan) -> Bool
   boundary : (Int, Int) -> Document
   has_boundary : (Int, Int) -> Bool
   delimited : (Char, Int, Int) -> Document
@@ -217,6 +218,7 @@ pub fn SourceFormatTrivia::empty() -> SourceFormatTrivia {
     leading: fn(_span) { empty },
     trailing: fn(_span) { empty },
     has_leading: fn(_span) { false },
+    has_trailing: fn(_span) { false },
     boundary: fn(_start, _end) { empty },
     has_boundary: fn(_start, _end) { false },
     delimited: fn(_open, _start, _end) { empty },

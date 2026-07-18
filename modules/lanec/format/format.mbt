@@ -149,6 +149,7 @@ fn TriviaView::source_format_trivia(
     leading: fn(span) { leading_comment_doc(comments, span) },
     trailing: fn(span) { trailing_comment_doc(comments, span) },
     has_leading: fn(span) { has_leading_comment(comments, span) },
+    has_trailing: fn(span) { has_trailing_comment(comments, span) },
     boundary: fn(start, end) { dangling_comment_doc(comments, start, end) },
     has_boundary: fn(start, end) { has_dangling_comment(comments, start, end) },
     delimited: fn(open, start, end) {
@@ -311,6 +312,20 @@ fn has_leading_comment(
     match comment.placement {
       Leading(anchor) if !comment.consumed && same_leading_anchor(anchor, span) =>
         return true
+      _ => ()
+    }
+  }
+  false
+}
+
+///|
+fn has_trailing_comment(
+  comments : Array[AnchoredComment],
+  span : @basic.SourceSpan,
+) -> Bool {
+  for comment in comments {
+    match comment.placement {
+      Trailing(anchor) if !comment.consumed && anchor == span => return true
       _ => ()
     }
   }

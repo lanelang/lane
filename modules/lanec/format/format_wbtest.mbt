@@ -198,6 +198,47 @@ test "format source keeps consecutive imports together" {
 }
 
 ///|
+test "format source uses shorthand for redundant struct field values" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|pub let dictionary : Mappable = Mappable::{ map: map, apply: apply_map }
+    ),
+    (
+      #|module Test
+      #|
+      #|pub let dictionary : Mappable = Mappable::{ map, apply: apply_map }
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves explicit struct field values with comments" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|pub let dictionary : Mappable = Mappable::{
+      #|  map:
+      #|    // keep explicit spelling
+      #|    map
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub let dictionary : Mappable = Mappable::{
+      #|  map: // keep explicit spelling
+      #|  map
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source canonicalizes pure blank line gaps structurally" {
   assert_format(
     (
