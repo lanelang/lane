@@ -171,7 +171,7 @@ After selecting an entry, call `driver.explore` with an `ExploreRequest`. The re
 | `Milky2018/lanec/format` | Trivia-preserving Lane source formatting |
 | `Milky2018/lanec/diagnostic` | Compiler diagnostics and adaptation to the generic diagnostic module |
 
-Lower-level packages such as `lexer`, `parser`, `resolve`, `typecheck`, `checked`, `effect_lowering`, `anf`, and `vmcfg` expose individual compiler representations and transformations. Prefer the high-level packages unless a tool specifically needs an intermediate representation.
+Lower-level packages such as `lexer`, `parser`, `resolve`, `typecheck`, `checked`, `effect_lowering/core`, `effect_lowering/cps`, `anf`, and `vmcfg` expose individual compiler representations and transformations. Prefer the high-level packages unless a tool specifically needs an intermediate representation.
 
 ## Artifacts
 
