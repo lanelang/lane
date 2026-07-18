@@ -27,5 +27,5 @@ pub(all) suberror ExecutableElaborationError {
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedEffectSpecialization(detail~ : String)
   CoreOptimizationError(@core_opt.CoreOptimizeError)
-  EffectLoweringError(@effect_lowering.SynthesisError)
+  EffectLoweringError(@effect_lowering_core.SynthesisError)
 } derive(Debug, Eq)

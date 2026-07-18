@@ -18,7 +18,7 @@ pub(all) suberror LoisvmLoweringError {
   UnsupportedIntrinsic(name~ : String)
   NonAsciiString(value~ : String)
   UnterminatedBlock(block~ : Int)
-  EffectLoweringError(@effect_lowering.SynthesisError)
+  EffectLoweringError(@effect_lowering_core.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)
 } derive(Debug, Eq)
 

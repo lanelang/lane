@@ -9,10 +9,10 @@ pub fn elaborate(
 ///|
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
-  HandlersElaborated(@effect_lowering.Program)
-  MonadicTransformed(@effect_lowering.Program)
-  SelectiveCpsRewritten(@effect_lowering.Program)
-  OpenContextsResolved(@effect_lowering.Program)
+  HandlersElaborated(@effect_lowering_core.Program)
+  MonadicTransformed(@effect_lowering_core.Program)
+  SelectiveCpsRewritten(@effect_lowering_core.Program)
+  OpenContextsResolved(@effect_lowering_core.Program)
   MonadicContinuationsLifted(@buslane.Program)
   CoreOptimized(@buslane.Program)
   EffectsErased(@buslane.Program)
@@ -72,10 +72,10 @@ fn lower_effects(
   entry : @buslane.ValueId,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> LoweredEffects raise ExecutableElaborationError {
-  let elaborated = @effect_lowering.elaborate_handlers(program)
+  let elaborated = @effect_lowering_core.elaborate_handlers(program)
   observe(HandlersElaborated(elaborated))
   let bound = unwrap_effect_lowering(
-    @effect_lowering.introduce_monadic_binds(elaborated),
+    @effect_lowering_core.introduce_monadic_binds(elaborated),
   )
   observe(MonadicTransformed(bound))
   let transformed = unwrap_effect_lowering(
@@ -83,11 +83,11 @@ fn lower_effects(
   )
   observe(SelectiveCpsRewritten(transformed.program))
   let resolved = unwrap_effect_lowering(
-    @effect_lowering.resolve_open_contexts(transformed.program),
+    @effect_lowering_core.resolve_open_contexts(transformed.program),
   )
   observe(OpenContextsResolved(resolved))
   let lifted = unwrap_effect_lowering(
-    @effect_lowering.lift_monadic_continuations(resolved),
+    @effect_lowering_core.lift_monadic_continuations(resolved),
   )
   observe(MonadicContinuationsLifted(lifted))
   let optimized = match
@@ -96,14 +96,14 @@ fn lower_effects(
     Err(error) => raise CoreOptimizationError(error)
   }
   observe(CoreOptimized(optimized))
-  let erased = @effect_lowering.erase_residual_effects(optimized)
+  let erased = @effect_lowering_core.erase_residual_effects(optimized)
   observe(EffectsErased(erased))
   { program: erased, effect_companions: transformed.effect_companions }
 }
 
 ///|
 fn[T] unwrap_effect_lowering(
-  result : Result[T, @effect_lowering.SynthesisError],
+  result : Result[T, @effect_lowering_core.SynthesisError],
 ) -> T raise ExecutableElaborationError {
   match result {
     Ok(value) => value

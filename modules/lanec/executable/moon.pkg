@@ -1,7 +1,7 @@
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/core_opt",
-  "Milky2018/lanec/effect_lowering",
+  "Milky2018/lanec/effect_lowering/core" @effect_lowering_core,
   "Milky2018/lanec/effect_lowering/cps" @effect_lowering_cps,
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/link" @module_link,

@@ -362,8 +362,8 @@ The selective transformation of a function whose latent effect satisfies the **M
 _Avoid_: whole-program CPS, VM stack capture, yielding side channel
 
 **Effect Lowering Core Package**:
-The `lanec/effect_lowering/core` package that owns the shared effect-lowering IR, synthesis and error semantics, and the complete non-CPS effect-erasure pipeline; the parent `lanec/effect_lowering` package is a compatibility facade, while sibling lowering packages depend on `core` directly.
-_Avoid_: duplicated semantic helpers, implementation state in the compatibility facade, sibling-to-parent dependency cycles
+The `lanec/effect_lowering/core` package that owns the shared effect-lowering IR, synthesis and error semantics, and the complete non-CPS effect-erasure pipeline; all compiler consumers depend on this package directly.
+_Avoid_: duplicated semantic helpers, compatibility facades, sibling-to-parent dependency cycles
 
 **Selective CPS Package**:
 The `lanec/effect_lowering/cps` package that owns dictionary schema generation, selective CPS ABI rewriting, context selection, relay dictionaries, and CPS-specific integration tests behind the `rewrite_selective_cps_abis` entrypoint.
