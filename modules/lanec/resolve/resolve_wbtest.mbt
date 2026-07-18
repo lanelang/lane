@@ -588,8 +588,10 @@ test "report payloadless unqualified variant without parentheses" {
   )
   let result = resolve_source_file_result(file)
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
-    content="payloadless_variant_without_parens none",
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[payloadless_variant_without_parens none]
+    ),
   )
 }
 
@@ -717,12 +719,10 @@ test "report unresolved type and qualified variant diagnostics" {
   )
   let result = resolve_source_file_result(file)
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
-    content="unresolved_type Missing",
-  )
-  inspect(
-    @prettyprinter.render(result.diagnostics[1]),
-    content="unresolved_variant Option::some",
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[unresolved_type Missing, unresolved_variant Option::some]
+    ),
   )
 }
 
@@ -778,8 +778,10 @@ test "resolve ambiguous unqualified variant calls" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
-    content="ambiguous_variant same [Left::same, Right::same]",
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[ambiguous_variant same [Left::same, Right::same]]
+    ),
   )
 }
 
@@ -817,8 +819,10 @@ test "keep unknown calls as unresolved value calls" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
-    content="unresolved_value missing",
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[unresolved_value missing]
+    ),
   )
 }
 
@@ -885,8 +889,10 @@ test "report unresolved qualified field when base type is known" {
   )
   let result = resolve_source_file_result(file)
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
-    content="unresolved_field Point.z",
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[unresolved_field Point.z]
+    ),
   )
 }
 
@@ -998,7 +1004,9 @@ test "report unresolved operator operation name" {
   )
   let result = resolve_source_file_result(file)
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
-    content="unresolved_value op_add",
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[unresolved_value op_add]
+    ),
   )
 }

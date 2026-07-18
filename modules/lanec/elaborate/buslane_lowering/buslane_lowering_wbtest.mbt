@@ -610,7 +610,7 @@ test "buslane lowering registry covers imported references" {
     ),
     { modules: [] },
   )
-  if lib.diagnostics.length() != 0 {
+  if !lib.diagnostics.is_empty() {
     abort(@prettyprinter.render(lib.diagnostics, width=100))
   }
   guard lib.source is Some(_) else { abort("expected checked lib") }
@@ -627,7 +627,7 @@ test "buslane lowering registry covers imported references" {
     ),
     imported,
   )
-  if main.diagnostics.length() != 0 {
+  if !main.diagnostics.is_empty() {
     abort(@prettyprinter.render(main.diagnostics, width=100))
   }
   guard main.source is Some(main_source) else { abort("expected checked main") }

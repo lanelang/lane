@@ -828,41 +828,45 @@ test "lsp diagnostics convert text offsets before transport" {
     ),
   }
   let result = @compile.check_source_inputs(input, [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one missing import diagnostic")
-  }
   let sources = compiler_diagnostic_sources_from_inputs([input])
-  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
-    "severity": 1,
-    "message": "missing imported module `Builtins`\nno explicit input provides this module",
-    "source": "lane",
-    "code": "E4002",
-    "range": {
-      "start": { "line": 2, "character": 7 },
-      "end": { "line": 2, "character": 15 },
-    },
-    "data": {
-      "notes": [
-        "Lane only compiles explicitly provided source files and interface artifacts",
-      ],
-      "helps": [
-        "pass an input whose declared module is `Builtins`, or change the import to one of the listed modules",
-      ],
-      "facts": [
-        {
-          "name": "considered source module",
-          "value": "`Main`",
-          "hasSpan": false,
+  json_inspect(
+    result.diagnostics.map(fn(diagnostic) {
+      compile_diagnostic_json(diagnostic, sources)
+    }),
+    content=[
+      {
+        "severity": 1,
+        "message": "missing imported module `Builtins`\nno explicit input provides this module",
+        "source": "lane",
+        "code": "E4002",
+        "range": {
+          "start": { "line": 2, "character": 7 },
+          "end": { "line": 2, "character": 15 },
         },
-      ],
-      "suggestions": [
-        {
-          "message": "check the imported module name against the listed explicit inputs",
-          "applicability": "maybe-incorrect",
+        "data": {
+          "notes": [
+            "Lane only compiles explicitly provided source files and interface artifacts",
+          ],
+          "helps": [
+            "pass an input whose declared module is `Builtins`, or change the import to one of the listed modules",
+          ],
+          "facts": [
+            {
+              "name": "considered source module",
+              "value": "`Main`",
+              "hasSpan": false,
+            },
+          ],
+          "suggestions": [
+            {
+              "message": "check the imported module name against the listed explicit inputs",
+              "applicability": "maybe-incorrect",
+            },
+          ],
         },
-      ],
-    },
-  })
+      },
+    ],
+  )
 }
 
 ///|
@@ -882,34 +886,35 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
     ),
   }
   let result = @compile.check_source_inputs(input, [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected generic operator conflict without cascaded diagnostics")
-  }
   let diagnostics = result.diagnostics.filter(fn(diagnostic) {
     diagnostic.code == Some("E3006")
   })
-  guard diagnostics.length() == 1 else {
-    abort("expected one type mismatch diagnostic")
-  }
   let sources = compiler_diagnostic_sources_from_inputs([input])
-  json_inspect(compile_diagnostic_json(diagnostics[0], sources), content={
-    "severity": 1,
-    "message": "type mismatch\nexpected `Int`, found `Bool`",
-    "source": "lane",
-    "code": "E3006",
-    "range": {
-      "start": { "line": 8, "character": 22 },
-      "end": { "line": 8, "character": 26 },
-    },
-    "data": {
-      "notes": [
-        "Lane does not insert implicit conversions between different types",
-      ],
-      "helps": [
-        "make this argument agree with the type inferred earlier, or pass explicit generic arguments",
-      ],
-    },
-  })
+  json_inspect(
+    diagnostics.map(fn(diagnostic) {
+      compile_diagnostic_json(diagnostic, sources)
+    }),
+    content=[
+      {
+        "severity": 1,
+        "message": "type mismatch\nexpected `Int`, found `Bool`",
+        "source": "lane",
+        "code": "E3006",
+        "range": {
+          "start": { "line": 8, "character": 22 },
+          "end": { "line": 8, "character": 26 },
+        },
+        "data": {
+          "notes": [
+            "Lane does not insert implicit conversions between different types",
+          ],
+          "helps": [
+            "make this argument agree with the type inferred earlier, or pass explicit generic arguments",
+          ],
+        },
+      },
+    ],
+  )
 }
 
 ///|
@@ -925,21 +930,25 @@ test "lsp diagnostics transport unused local warnings" {
     ),
   }
   let result = @compile.check_source_inputs(input, [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one unused local warning")
-  }
   let sources = compiler_diagnostic_sources_from_inputs([input])
-  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
-    "severity": 2,
-    "message": "unused local value binding\n`unused` is never used",
-    "source": "lane",
-    "code": "W2001",
-    "range": {
-      "start": { "line": 2, "character": 6 },
-      "end": { "line": 2, "character": 12 },
-    },
-    "data": { "helps": ["prefix the name with `_` if this is intentional"] },
-  })
+  json_inspect(
+    result.diagnostics.map(fn(diagnostic) {
+      compile_diagnostic_json(diagnostic, sources)
+    }),
+    content=[
+      {
+        "severity": 2,
+        "message": "unused local value binding\n`unused` is never used",
+        "source": "lane",
+        "code": "W2001",
+        "range": {
+          "start": { "line": 2, "character": 6 },
+          "end": { "line": 2, "character": 12 },
+        },
+        "data": { "helps": ["prefix the name with `_` if this is intentional"] },
+      },
+    ],
+  )
 }
 
 ///|
@@ -953,36 +962,42 @@ test "lsp duplicate top-level value diagnostic points at names" {
     ),
   }
   let result = @compile.check_source_inputs(input, [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one duplicate top-level value diagnostic")
-  }
   let sources = compiler_diagnostic_sources_from_inputs([input])
-  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
-    "severity": 1,
-    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`",
-    "source": "lane",
-    "code": "E2005",
-    "range": {
-      "start": { "line": 2, "character": 4 },
-      "end": { "line": 2, "character": 10 },
-    },
-    "data": {
-      "notes": ["a Lane module has one top-level value namespace"],
-      "helps": ["rename one of the declarations or remove the duplicate import"],
-    },
-    "relatedInformation": [
+  json_inspect(
+    result.diagnostics.map(fn(diagnostic) {
+      compile_diagnostic_json(diagnostic, sources)
+    }),
+    content=[
       {
-        "location": {
-          "uri": "file:///duplicate.lane",
-          "range": {
-            "start": { "line": 1, "character": 4 },
-            "end": { "line": 1, "character": 10 },
-          },
+        "severity": 1,
+        "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`",
+        "source": "lane",
+        "code": "E2005",
+        "range": {
+          "start": { "line": 2, "character": 4 },
+          "end": { "line": 2, "character": 10 },
         },
-        "message": "previous definition of `answer` is here",
+        "data": {
+          "notes": ["a Lane module has one top-level value namespace"],
+          "helps": [
+            "rename one of the declarations or remove the duplicate import",
+          ],
+        },
+        "relatedInformation": [
+          {
+            "location": {
+              "uri": "file:///duplicate.lane",
+              "range": {
+                "start": { "line": 1, "character": 4 },
+                "end": { "line": 1, "character": 10 },
+              },
+            },
+            "message": "previous definition of `answer` is here",
+          },
+        ],
       },
     ],
-  })
+  )
 }
 
 ///|
@@ -1003,36 +1018,42 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
     ),
   }
   let result = @compile.check_source_inputs(main, [lib])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one duplicate top-level value diagnostic")
-  }
   let sources = compiler_diagnostic_sources_from_inputs([main, lib])
-  json_inspect(compile_diagnostic_json(result.diagnostics[0], sources), content={
-    "severity": 1,
-    "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`",
-    "source": "lane",
-    "code": "E2005",
-    "range": {
-      "start": { "line": 2, "character": 8 },
-      "end": { "line": 2, "character": 14 },
-    },
-    "data": {
-      "notes": ["a Lane module has one top-level value namespace"],
-      "helps": ["rename one of the declarations or remove the duplicate import"],
-    },
-    "relatedInformation": [
+  json_inspect(
+    result.diagnostics.map(fn(diagnostic) {
+      compile_diagnostic_json(diagnostic, sources)
+    }),
+    content=[
       {
-        "location": {
-          "uri": "file:///Lib.lane",
-          "range": {
-            "start": { "line": 1, "character": 8 },
-            "end": { "line": 1, "character": 14 },
-          },
+        "severity": 1,
+        "message": "conflicting top-level value `answer`\n`answer` conflicts with an existing value named `answer`",
+        "source": "lane",
+        "code": "E2005",
+        "range": {
+          "start": { "line": 2, "character": 8 },
+          "end": { "line": 2, "character": 14 },
         },
-        "message": "previous definition of `answer` is here",
+        "data": {
+          "notes": ["a Lane module has one top-level value namespace"],
+          "helps": [
+            "rename one of the declarations or remove the duplicate import",
+          ],
+        },
+        "relatedInformation": [
+          {
+            "location": {
+              "uri": "file:///Lib.lane",
+              "range": {
+                "start": { "line": 1, "character": 8 },
+                "end": { "line": 1, "character": 14 },
+              },
+            },
+            "message": "previous definition of `answer` is here",
+          },
+        ],
       },
     ],
-  })
+  )
 }
 
 ///|

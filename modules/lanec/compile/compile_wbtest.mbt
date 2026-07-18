@@ -19,7 +19,7 @@ test "compile source records intrinsic and runtime import origins" {
       #|let _private_value : Int = 1
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     (
       result.externals.builtins.map(fn(external) { external.name }),
@@ -964,10 +964,11 @@ test "check reports payloadless variant without parentheses" {
       #|let value : Option[Int] = none
     ),
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="payloadless variant `none` must use empty parentheses",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["payloadless variant `none` must use empty parentheses"]
+    ),
   )
 }
 
@@ -986,7 +987,7 @@ test "compile sources accepts explicit library modules" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
@@ -1008,7 +1009,7 @@ test "compile sources exposes only root public entries" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
@@ -1030,7 +1031,7 @@ test "compile sources accepts selective import with module dot syntax" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
@@ -1057,7 +1058,7 @@ test "compile sources links only root reachable library modules" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(result.externals.builtins.length(), content="0")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
@@ -1128,8 +1129,12 @@ test "transitive public types do not become source-visible" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="cannot find type `Token`")
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["cannot find type `Token`"]
+    ),
+  )
 }
 
 ///|
@@ -1279,7 +1284,7 @@ test "compile modules returns separate module objects and interfaces" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -1331,12 +1336,12 @@ test "link modules produces Buslane program from reachable module objects" {
       ),
     ],
   )
-  inspect(compiled.diagnostics.length(), content="0")
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
   let linked = link_modules(modules)
-  inspect(linked.diagnostics.length(), content="0")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -1391,12 +1396,12 @@ test "link modules remaps effect operations through one identity" {
       ),
     ],
   )
-  assert_eq(compiled.diagnostics.length(), 0)
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
   let linked = link_modules(modules)
-  assert_eq(linked.diagnostics.length(), 0)
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -1426,12 +1431,12 @@ test "link modules remaps data constructors through one identity" {
       ),
     ],
   )
-  assert_eq(compiled.diagnostics.length(), 0)
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
   let linked = link_modules(modules)
-  assert_eq(linked.diagnostics.length(), 0)
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -1463,7 +1468,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
       ),
     ],
   )
-  inspect(compiled.diagnostics.length(), content="0")
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -2115,7 +2120,7 @@ test "module artifact binary rejects wrong kind" {
     abort("expected invalid artifact magic")
   }
   let linked = link_modules(modules)
-  inspect(linked.diagnostics.length(), content="0")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -2336,20 +2341,21 @@ test "duplicate imported top-level value from interface artifact reports artifac
     ),
     [lib_module.to_artifact().interface],
   )
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one duplicate top-level value diagnostic")
-  }
-  let diagnostic = result.diagnostics[0]
-  inspect(
-    [
-      diagnostic.message,
-      "labels=\{diagnostic.labels.length()}",
-      diagnostic.notes.join("|"),
-    ].join("\n"),
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) {
+      (diagnostic.message, diagnostic.labels.length(), diagnostic.notes)
+    }),
     content=(
-      #|conflicting top-level value `answer`
-      #|labels=1
-      #|a Lane module has one top-level value namespace|previous definition comes from module `Lib`
+      #|[
+      #|  (
+      #|    "conflicting top-level value `answer`",
+      #|    1,
+      #|    [
+      #|      "a Lane module has one top-level value namespace",
+      #|      "previous definition comes from module `Lib`",
+      #|    ],
+      #|  ),
+      #|]
     ),
   )
 }
@@ -2489,7 +2495,7 @@ test "link module artifacts orders reachable modules by imports" {
       ),
     ],
   )
-  inspect(compiled.diagnostics.length(), content="0")
+  debug_inspect(compiled.diagnostics, content="[]")
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -2506,7 +2512,7 @@ test "link module artifacts orders reachable modules by imports" {
     modules: [main, lib],
     reachable_module_path_texts: ["Main", "Lib"],
   })
-  inspect(linked.diagnostics.length(), content="0")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -2537,7 +2543,7 @@ test "compile module with interface artifact then link object artifacts" {
     ),
     [],
   )
-  inspect(lib_compiled.diagnostics.length(), content="0")
+  debug_inspect(lib_compiled.diagnostics, content="[]")
   guard lib_compiled.modules is Some(lib_modules) else {
     abort("expected lib modules")
   }
@@ -2553,7 +2559,7 @@ test "compile module with interface artifact then link object artifacts" {
     ),
     [lib_artifact.interface],
   )
-  inspect(main_compiled.diagnostics.length(), content="0")
+  debug_inspect(main_compiled.diagnostics, content="[]")
   guard main_compiled.modules is Some(main_modules) else {
     abort("expected main modules")
   }
@@ -2565,7 +2571,7 @@ test "compile module with interface artifact then link object artifacts" {
     lib_artifact.object,
     main_artifact.object,
   ])
-  inspect(linked.diagnostics.length(), content="0")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -2591,7 +2597,7 @@ test "compile module freshens independently compiled interface symbols" {
     ),
     [],
   )
-  inspect(left_compiled.diagnostics.length(), content="0")
+  debug_inspect(left_compiled.diagnostics, content="[]")
   guard left_compiled.modules is Some(left_modules) else {
     abort("expected Left modules")
   }
@@ -2609,7 +2615,7 @@ test "compile module freshens independently compiled interface symbols" {
     ),
     [],
   )
-  inspect(right_compiled.diagnostics.length(), content="0")
+  debug_inspect(right_compiled.diagnostics, content="[]")
   guard right_compiled.modules is Some(right_modules) else {
     abort("expected Right modules")
   }
@@ -2629,7 +2635,7 @@ test "compile module freshens independently compiled interface symbols" {
     ),
     [left_artifact.interface, right_artifact.interface],
   )
-  inspect(main_compiled.diagnostics.length(), content="0")
+  debug_inspect(main_compiled.diagnostics, content="[]")
   guard main_compiled.modules is Some(main_modules) else {
     abort("expected Main modules")
   }
@@ -2643,7 +2649,7 @@ test "compile module freshens independently compiled interface symbols" {
     modules: [left_artifact, right_artifact, main_artifact],
     reachable_module_path_texts: ["Left", "Right", "Main"],
   })
-  inspect(linked.diagnostics.length(), content="0")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -2664,7 +2670,7 @@ test "compile module follows transitive interface dependencies without extra pol
     ),
     [],
   )
-  inspect(extra_compiled.diagnostics.length(), content="0")
+  debug_inspect(extra_compiled.diagnostics, content="[]")
   guard extra_compiled.modules is Some(extra_modules) else {
     abort("expected Extra modules")
   }
@@ -2682,7 +2688,7 @@ test "compile module follows transitive interface dependencies without extra pol
     ),
     [],
   )
-  inspect(a_compiled.diagnostics.length(), content="0")
+  debug_inspect(a_compiled.diagnostics, content="[]")
   guard a_compiled.modules is Some(a_modules) else {
     abort("expected A modules")
   }
@@ -2698,7 +2704,7 @@ test "compile module follows transitive interface dependencies without extra pol
     ),
     [extra_artifact.interface, a_artifact.interface],
   )
-  inspect(b_compiled.diagnostics.length(), content="0")
+  debug_inspect(b_compiled.diagnostics, content="[]")
   guard b_compiled.modules is Some(b_modules) else {
     abort("expected B modules")
   }
@@ -2714,7 +2720,7 @@ test "compile module follows transitive interface dependencies without extra pol
     ),
     [b_artifact.interface, a_artifact.interface],
   )
-  inspect(c_compiled.diagnostics.length(), content="0")
+  debug_inspect(c_compiled.diagnostics, content="[]")
   guard c_compiled.modules is Some(c_modules) else {
     abort("expected C modules")
   }
@@ -2728,7 +2734,7 @@ test "compile module follows transitive interface dependencies without extra pol
     modules: [c_artifact, b_artifact, a_artifact],
     reachable_module_path_texts: ["C", "B", "A"],
   })
-  inspect(linked.diagnostics.length(), content="0")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
@@ -2780,10 +2786,11 @@ test "compile module reports missing transitive interface dependency" {
     ),
     [b_artifact.interface],
   )
-  inspect(c_compiled.diagnostics.length(), content="1")
-  inspect(
-    c_compiled.diagnostics[0].message,
-    content="missing imported module `A`",
+  debug_inspect(
+    c_compiled.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["missing imported module `A`"]
+    ),
   )
 }
 
@@ -2831,10 +2838,11 @@ test "compile module rejects interface artifact name mismatch" {
     ),
     [damaged],
   )
-  inspect(compiled.diagnostics.length(), content="1")
-  inspect(
-    compiled.diagnostics[0].message,
-    content="invalid module interface artifact",
+  debug_inspect(
+    compiled.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["invalid module interface artifact"]
+    ),
   )
 }
 
@@ -2870,10 +2878,11 @@ test "compile module rejects stale interface artifact fingerprint" {
     ),
     [damaged],
   )
-  inspect(compiled.diagnostics.length(), content="1")
-  inspect(
-    compiled.diagnostics[0].message,
-    content="invalid module interface artifact",
+  debug_inspect(
+    compiled.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["invalid module interface artifact"]
+    ),
   )
 }
 
@@ -2909,10 +2918,11 @@ test "compile module rejects stale interface artifact module fingerprint" {
     ),
     [damaged],
   )
-  inspect(compiled.diagnostics.length(), content="1")
-  inspect(
-    compiled.diagnostics[0].message,
-    content="invalid module interface artifact",
+  debug_inspect(
+    compiled.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["invalid module interface artifact"]
+    ),
   )
 }
 
@@ -2990,10 +3000,11 @@ test "link object artifacts rejects stale object fingerprint" {
     imported_interface_fingerprints: object.imported_interface_fingerprints,
   }
   let linked = @module_compile.link_module_object_artifacts([damaged])
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(
-    linked.diagnostics[0].message,
-    content="invalid module object artifact",
+  debug_inspect(
+    linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["invalid module object artifact"]
+    ),
   )
 }
 
@@ -3047,10 +3058,11 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
     modules: damaged,
     reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(
-    linked.diagnostics[0].message,
-    content="invalid compiled module artifact",
+  debug_inspect(
+    linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["invalid compiled module artifact"]
+    ),
   )
 }
 
@@ -3098,10 +3110,11 @@ test "link module artifacts rejects interface object name mismatch" {
     modules: damaged,
     reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(
-    linked.diagnostics[0].message,
-    content="invalid module interface artifact",
+  debug_inspect(
+    linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["invalid module interface artifact"]
+    ),
   )
 }
 
@@ -3181,8 +3194,12 @@ test "link module artifacts rejects stale imported reference fingerprint" {
     modules: damaged_modules,
     reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(linked.diagnostics[0].message, content="stale imported reference")
+  debug_inspect(
+    linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["stale imported reference"]
+    ),
+  )
 }
 
 ///|
@@ -3246,10 +3263,11 @@ test "link module artifacts rejects missing exported object value" {
     modules: damaged_modules,
     reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(
-    linked.diagnostics[0].message,
-    content="object artifact does not satisfy its interface",
+  debug_inspect(
+    linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["object artifact does not satisfy its interface"]
+    ),
   )
 }
 
@@ -3299,8 +3317,12 @@ test "link modules rejects compiled artifact import cycle" {
     modules: [module_a, module_b],
     reachable_module_path_texts: ["A", "B"],
   })
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(linked.diagnostics[0].message, content="import cycle involving `A`")
+  debug_inspect(
+    linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["import cycle involving `A`"]
+    ),
+  )
 }
 
 ///|
@@ -3325,10 +3347,11 @@ test "link modules rejects missing compiled artifact import" {
     modules: [module_],
     reachable_module_path_texts: ["Main"],
   })
-  inspect(linked.diagnostics.length(), content="1")
-  inspect(
-    linked.diagnostics[0].message,
-    content="missing object artifact for `Missing`",
+  debug_inspect(
+    linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["missing object artifact for `Missing`"]
+    ),
   )
 }
 
@@ -3347,8 +3370,12 @@ test "check sources does not expose private imported values" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="cannot find value `value`")
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["cannot find value `value`"]
+    ),
+  )
 }
 
 ///|
@@ -3368,8 +3395,12 @@ test "check sources does not expose private imported types" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="cannot find type `Hidden`")
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["cannot find type `Hidden`"]
+    ),
+  )
 }
 
 ///|
@@ -3392,21 +3423,31 @@ test "check sources rejects private nominal type escape through public function"
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="private type `Hidden` in public interface",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) {
+      (diagnostic.message, diagnostic.span)
+    }),
+    content=(
+      #|[
+      #|  (
+      #|    "private type `Hidden` in public interface",
+      #|    Some(
+      #|      Source(
+      #|        source_id="<library:0>",
+      #|        span={
+      #|          start_offset: 60,
+      #|          end_offset: 66,
+      #|          start_line: 5,
+      #|          start_column: 18,
+      #|          end_line: 5,
+      #|          end_column: 24,
+      #|        },
+      #|      ),
+      #|    ),
+      #|  ),
+      #|]
+    ),
   )
-  match result.diagnostics[0].span {
-    Some(Source(span~, ..)) => {
-      inspect(span.start_line, content="5")
-      inspect(span.start_column, content="18")
-      inspect(span.end_line, content="5")
-      inspect(span.end_column, content="24")
-    }
-    Some(Local(_)) => abort("expected diagnostic span with source id")
-    None => abort("expected diagnostic span")
-  }
 }
 
 ///|
@@ -3420,10 +3461,11 @@ test "check source rejects private nominal type escape through public let" {
       #|pub let answer : Hidden = Hidden::{ value: 42 }
     ),
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="private type `Hidden` in public interface",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["private type `Hidden` in public interface"]
+    ),
   )
 }
 
@@ -3440,10 +3482,11 @@ test "check source rejects private nominal type escape through public struct fie
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="private type `Hidden` in public interface",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["private type `Hidden` in public interface"]
+    ),
   )
 }
 
@@ -3460,10 +3503,11 @@ test "check source rejects private nominal type escape through public enum paylo
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="private type `Hidden` in public interface",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["private type `Hidden` in public interface"]
+    ),
   )
 }
 
@@ -3478,10 +3522,11 @@ test "check source rejects private nominal type escape through public type alias
       #|pub type Exposed = Hidden
     ),
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="private type `Hidden` in public interface",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["private type `Hidden` in public interface"]
+    ),
   )
 }
 
@@ -3505,7 +3550,7 @@ test "check sources exposes public imported nominal shape through public value" 
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -3518,10 +3563,11 @@ test "check sources rejects missing import" {
     ),
     [],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="missing imported module `Missing`",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["missing imported module `Missing`"]
+    ),
   )
 }
 
@@ -3542,7 +3588,7 @@ test "check sources resolves module qualified value access" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
@@ -3570,10 +3616,11 @@ test "check sources does not import child module through parent module" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="cannot find value `Core.Int.id`",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["cannot find value `Core.Int.id`"]
+    ),
   )
 }
 
@@ -3594,7 +3641,7 @@ test "check sources resolves module qualified nominal type access" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
@@ -3616,7 +3663,7 @@ test "check sources resolves module qualified type alias access" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
@@ -3644,7 +3691,7 @@ test "check sources resolves module qualified variant expressions and patterns" 
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
     content="answer",
@@ -3674,10 +3721,11 @@ test "check sources does not import child module qualified type through parent m
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="cannot find type `Core.Int.Box`",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["cannot find type `Core.Int.Box`"]
+    ),
   )
 }
 
@@ -3703,10 +3751,11 @@ test "check sources rejects ambiguous module qualified field chain" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="ambiguous module-qualified value `core.int.add`",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["ambiguous module-qualified value `core.int.add`"]
+    ),
   )
 }
 
@@ -3724,10 +3773,11 @@ test "check sources rejects duplicate module input" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="duplicate module input `Main`",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["duplicate module input `Main`"]
+    ),
   )
 }
 
@@ -3800,14 +3850,14 @@ test "import reachable analysis reports reachable parse diagnostics" {
       },
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
   debug_inspect(
-    result.diagnostics[0].source_id,
+    result.diagnostics.map(fn(diagnostic) {
+      (diagnostic.source_id, diagnostic.message)
+    }),
     content=(
-      #|Some("file:///Lib.lane")
+      #|[(Some("file:///Lib.lane"), "unexpected token")]
     ),
   )
-  inspect(result.diagnostics[0].message, content="unexpected token")
 }
 
 ///|
@@ -3872,10 +3922,11 @@ test "check sources rejects import cycle" {
       ),
     ],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(
-    result.diagnostics[0].message,
-    content="import cycle involving `Main`",
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["import cycle involving `Main`"]
+    ),
   )
 }
 
@@ -3894,7 +3945,7 @@ test "analysis resolves same-file definition and hover" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   match result.definition_at("file:///Main.lane", 5, 24) {
     Some(location) => {
       inspect(location.source_id, content="file:///Main.lane")
@@ -3937,7 +3988,7 @@ test "analysis traverses explicit generic application" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   match result.definition_at("file:///Main.lane", 11, 24) {
     Some(location) => inspect(location.span.start_line, content="7")
     None => abort("expected generic callee definition")
@@ -3978,7 +4029,7 @@ test "analysis keeps generic operation hover declaration detail" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   match result.hover_at("file:///Main.lane", 8, 11) {
     Some(hover) =>
       inspect(
@@ -4013,7 +4064,7 @@ test "analysis resolves cross-module definition by source identity" {
       },
     ],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   match result.definition_at("file:///Main.lane", 5, 24) {
     Some(location) => {
       inspect(location.source_id, content="file:///Lib.lane")
@@ -4049,7 +4100,7 @@ test "analysis resolves types fields and variants" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   match result.definition_at("file:///Main.lane", 12, 18) {
     Some(location) => inspect(location.span.start_line, content="3")
     None => abort("expected type definition")
@@ -4118,7 +4169,7 @@ test "analysis hovers handler binders with checked types" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   match result.hover_at("file:///Main.lane", 11, 20) {
     Some(hover) =>
       inspect(hover.contents, content="resume : (Int) -> Int ! State")
@@ -4156,7 +4207,7 @@ test "analysis narrows struct pattern type references" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   match result.definition_at("file:///Main.lane", 9, 6) {
     Some(location) => inspect(location.span.start_line, content="3")
     None => abort("expected pattern type definition")
@@ -4184,8 +4235,12 @@ test "analysis keeps partial definitions when unrelated diagnostics exist" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="1")
-  inspect(result.diagnostics[0].message, content="cannot find value `missing`")
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["cannot find value `missing`"]
+    ),
+  )
   match result.definition_at("file:///Main.lane", 5, 24) {
     Some(location) => {
       inspect(location.source_id, content="file:///Main.lane")
@@ -4213,7 +4268,7 @@ test "analysis produces type inlay hints for inferred binders" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     result.inlay_hints,
     content=(
@@ -4274,10 +4329,51 @@ test "analysis renders user-facing type names in type inlay hints" {
     },
     [],
   )
-  inspect(
-    result.diagnostics.length(),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|1
+      #|[
+      #|  {
+      #|    source_id: Some("file:///Main.lane"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="file:///Main.lane",
+      #|        span={
+      #|          start_offset: 97,
+      #|          end_offset: 102,
+      #|          start_line: 9,
+      #|          start_column: 7,
+      #|          end_line: 9,
+      #|          end_column: 12,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="file:///Main.lane",
+      #|          span={
+      #|            start_offset: 97,
+      #|            end_offset: 102,
+      #|            start_line: 9,
+      #|            start_column: 7,
+      #|            end_line: 9,
+      #|            end_column: 12,
+      #|          },
+      #|        ),
+      #|        message: "`boxed` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
   debug_inspect(
@@ -4332,10 +4428,91 @@ test "analysis produces parameter name inlay hints for calls" {
     },
     [],
   )
-  inspect(
-    result.diagnostics.length(),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|2
+      #|[
+      #|  {
+      #|    source_id: Some("file:///Main.lane"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="file:///Main.lane",
+      #|        span={
+      #|          start_offset: 87,
+      #|          end_offset: 92,
+      #|          start_line: 8,
+      #|          start_column: 27,
+      #|          end_line: 8,
+      #|          end_column: 32,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="file:///Main.lane",
+      #|          span={
+      #|            start_offset: 87,
+      #|            end_offset: 92,
+      #|            start_line: 8,
+      #|            start_column: 27,
+      #|            end_line: 8,
+      #|            end_column: 32,
+      #|          },
+      #|        ),
+      #|        message: "`right` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("file:///Main.lane"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="file:///Main.lane",
+      #|        span={
+      #|          start_offset: 228,
+      #|          end_offset: 232,
+      #|          start_line: 15,
+      #|          start_column: 17,
+      #|          end_line: 15,
+      #|          end_column: 21,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="file:///Main.lane",
+      #|          span={
+      #|            start_offset: 228,
+      #|            end_offset: 232,
+      #|            start_line: 15,
+      #|            start_column: 17,
+      #|            end_line: 15,
+      #|            end_column: 21,
+      #|          },
+      #|        ),
+      #|        message: "`flag` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
   debug_inspect(
@@ -4442,7 +4619,7 @@ test "analysis does not synthesize constructor parameter hints from payload type
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(result.inlay_hints.length(), content="0")
 }
 
@@ -4471,10 +4648,51 @@ test "analysis keeps nested call parameter hints at distinct positions" {
     },
     [],
   )
-  inspect(
-    result.diagnostics.length(),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|1
+      #|[
+      #|  {
+      #|    source_id: Some("file:///Main.lane"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="file:///Main.lane",
+      #|        span={
+      #|          start_offset: 39,
+      #|          end_offset: 44,
+      #|          start_line: 3,
+      #|          start_column: 27,
+      #|          end_line: 3,
+      #|          end_column: 32,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="file:///Main.lane",
+      #|          span={
+      #|            start_offset: 39,
+      #|            end_offset: 44,
+      #|            start_line: 3,
+      #|            start_column: 27,
+      #|            end_line: 3,
+      #|            end_column: 32,
+      #|          },
+      #|        ),
+      #|        message: "`right` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
   assert_no_duplicate_parameter_hint_positions(result.inlay_hints)
@@ -4503,7 +4721,7 @@ test "analysis anchors field argument parameter hint at argument start" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     result.inlay_hints,
     content=(
@@ -4548,10 +4766,51 @@ test "analysis skips parameter name inlay hints for source operators" {
     },
     [],
   )
-  inspect(
-    result.diagnostics.length(),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|1
+      #|[
+      #|  {
+      #|    source_id: Some("file:///Main.lane"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="file:///Main.lane",
+      #|        span={
+      #|          start_offset: 39,
+      #|          end_offset: 44,
+      #|          start_line: 3,
+      #|          start_column: 27,
+      #|          end_line: 3,
+      #|          end_column: 32,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="file:///Main.lane",
+      #|          span={
+      #|            start_offset: 39,
+      #|            end_offset: 44,
+      #|            start_line: 3,
+      #|            start_column: 27,
+      #|            end_line: 3,
+      #|            end_column: 32,
+      #|          },
+      #|        ),
+      #|        message: "`right` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
   debug_inspect(
@@ -4604,7 +4863,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     result.inlay_hints,
     content=(
@@ -4679,7 +4938,7 @@ test "analysis combines implicit argument inlay hints at the call end" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   inspect(
     implicit_inlay_hint_labels(result.inlay_hints).join("\n"),
     content=", op=int_add_ops, eq=int_eq_ops",
@@ -4712,7 +4971,7 @@ test "analysis does not mark explicit named auto arguments as implicit" {
     },
     [],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     result.inlay_hints,
     content=(

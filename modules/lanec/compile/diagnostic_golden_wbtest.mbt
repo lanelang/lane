@@ -1,19 +1,19 @@
 ///|
 fn single_check_diagnostic(source : String) -> CompilerDiagnostic {
   let result = check_source(source)
-  guard result.diagnostics.length() == 1 else {
+  guard result.diagnostics is [diagnostic] else {
     abort("\{to_repr(result.diagnostics)}")
   }
-  result.diagnostics[0]
+  diagnostic
 }
 
 ///|
 fn first_check_diagnostic(source : String) -> CompilerDiagnostic {
   let result = check_source(source)
-  guard !result.diagnostics.is_empty() else {
+  guard result.diagnostics is [diagnostic, ..] else {
     abort("expected at least one diagnostic")
   }
-  result.diagnostics[0]
+  diagnostic
 }
 
 ///|

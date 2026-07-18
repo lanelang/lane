@@ -206,7 +206,9 @@ test "format diagnostics render through source-aware reports" {
   inspect(
     [
       NotFormatted(path="Main.lane").render_human(),
-      render_compile_diagnostic(diagnostics[0], sources),
+      diagnostics
+      .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
+      .join("\n---\n"),
     ].join("\n---\n"),
     content=(
       #|error: Main.lane: not formatted
@@ -311,7 +313,7 @@ async test "native module artifacts are binary and readable" {
   write_module_interface_artifact(interface_path, module_)
   write_module_object_artifact(object_path, module_)
   let linked = @compile.link_modules(modules)
-  inspect(linked.diagnostics.length(), content="0")
+  debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     cleanup_library_fixture(workspace)
     abort("expected linked program")
@@ -608,7 +610,7 @@ test "run rejects public value entries" {
       #|let _hidden : Int = 1
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "answer")
   guard entry is Ok(entry) else { abort("expected entry") }
@@ -634,7 +636,7 @@ test "run rejects functions with parameters" {
       #|pub fn id(x : Int) -> Int { x }
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "id")
   guard entry is Ok(entry) else { abort("expected entry") }
@@ -662,7 +664,7 @@ test "run executes pure unit function entries without rendering Unit" {
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
@@ -686,7 +688,7 @@ test "run accepts built-in Io through an explicit Basic extern" {
     ),
     [basic_io],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
@@ -730,7 +732,7 @@ test "run lowers lexical handlers before runtime effects" {
     ),
     [basic_io],
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
@@ -757,7 +759,7 @@ test "run rejects residual algebraic entry effects" {
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.program is Some(program) else { abort("expected program") }
   let entry = find_entry(result.entries, "main")
   guard entry is Ok(entry) else { abort("expected entry") }
@@ -912,12 +914,11 @@ test "compile diagnostics render source snippets" {
     text: source,
   }
   let result = @compile.check_source_inputs(root.to_compile_input(), [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one missing import diagnostic")
-  }
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    render_compile_diagnostic(result.diagnostics[0], sources),
+    result.diagnostics
+    .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
+    .join("\n---\n"),
     content=(
       #|error[E4002]: missing imported module `Builtins`
       #|  --> ops.lane:2:8
@@ -947,12 +948,11 @@ test "compile warnings render source snippets" {
     text: source,
   }
   let result = @compile.check_source_inputs(root.to_compile_input(), [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one unused local warning")
-  }
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    render_compile_diagnostic(result.diagnostics[0], sources),
+    result.diagnostics
+    .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
+    .join("\n---\n"),
     content=(
       #|warning[W2001]: unused local value binding
       #|  --> unused.lane:3:7
@@ -980,12 +980,11 @@ test "compile diagnostics convert text offsets before rendering" {
     text: source,
   }
   let result = @compile.check_source_inputs(root.to_compile_input(), [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one missing import diagnostic")
-  }
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    render_compile_diagnostic(result.diagnostics[0], sources),
+    result.diagnostics
+    .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
+    .join("\n---\n"),
     content=(
       #|error[E4002]: missing imported module `Builtins`
       #|  --> unicode.lane:3:8
@@ -1016,12 +1015,11 @@ test "semantic diagnostics render source snippets" {
     text: source,
   }
   let result = @compile.check_source_inputs(root.to_compile_input(), [])
-  guard result.diagnostics.length() == 1 else {
-    abort("expected one missing field diagnostic")
-  }
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    render_compile_diagnostic(result.diagnostics[0], sources),
+    result.diagnostics
+    .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
+    .join("\n---\n"),
     content=(
       #|error[E3101]: missing field `y`
       #|  --> point.lane:6:25

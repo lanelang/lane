@@ -654,7 +654,7 @@ test "typecheck builtin primitive operation fragment" {
       #|let sum : Int = op_add(1, 2)
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
   guard result.source is Some(_) else {
     abort("expected checked builtin fragment")
   }
@@ -684,9 +684,9 @@ test "typecheck reports out of range int literal" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|invalid_int_literal 9223372036854775808 @ 2:17-2:36
+      #|[invalid_int_literal 9223372036854775808 @ 2:17-2:36]
     ),
   )
 }
@@ -966,9 +966,9 @@ test "typecheck reports non-trailing auto parameter" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|auto_parameters_must_be_trailing @ 8:20-8:29
+      #|[auto_parameters_must_be_trailing @ 8:20-8:29]
     ),
   )
 }
@@ -988,8 +988,10 @@ test "typecheck reports positional auto argument" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
-    content="auto_argument_must_be_named @ 9:33-9:39",
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[auto_argument_must_be_named @ 9:33-9:39]
+    ),
   )
 }
 
@@ -1008,9 +1010,9 @@ test "typecheck reports duplicate named contextual argument" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|duplicate_named_argument op @ 9:44-9:53
+      #|[duplicate_named_argument op @ 9:44-9:53]
     ),
   )
 }
@@ -1026,9 +1028,9 @@ test "typecheck reports invalid named argument for ordinary call" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|invalid_named_argument value @ 5:23-5:30
+      #|[invalid_named_argument value @ 5:23-5:30]
     ),
   )
 }
@@ -1126,9 +1128,9 @@ test "typecheck reports forward top level value use" {
   )
   let result = typecheck_source_file(resolution.source)
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|unresolved_value second @ 2:19-2:25
+      #|[unresolved_value second @ 2:19-2:25]
     ),
   )
 }
@@ -1271,9 +1273,9 @@ test "typecheck reports local function forward reference" {
   )
   let result = typecheck_source_file(resolution.source)
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|unresolved_value local @ 4:18-4:23
+      #|[unresolved_value local @ 4:18-4:23, internal_typecheck_failure checked call callee @ 4:18-4:23]
     ),
   )
 }
@@ -1356,9 +1358,9 @@ test "typecheck direct binary operator result mismatch" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|type_mismatch expected=Int actual=Bool @ 6:3-6:8
+      #|[type_mismatch expected=Int actual=Bool @ 6:3-6:8]
     ),
   )
 }
@@ -1593,9 +1595,9 @@ test "typecheck reports generic function literal arity mismatch" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|application_arity_mismatch generic function arity @ 2:24-4:2
+      #|[application_arity_mismatch generic function arity @ 2:24-4:2]
     ),
   )
 }
@@ -1610,9 +1612,9 @@ test "typecheck reports generic literal against non-generic function type" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|application_arity_mismatch generic function arity @ 2:25-4:2
+      #|[application_arity_mismatch generic function arity @ 2:25-4:2]
     ),
   )
 }
@@ -1993,9 +1995,9 @@ test "typecheck reports unresolved generic arguments" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|generic_argument_inference_failed make missing A @ 10:17-10:23
+      #|[generic_argument_inference_failed make missing A @ 10:17-10:23]
     ),
   )
 }
@@ -2016,9 +2018,9 @@ test "typecheck reports conflicting generic argument inference" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|generic_argument_inference_failed choose conflict A previous=Int actual=Bool @ 7:23-7:27
+      #|[generic_argument_inference_failed choose conflict A previous=Int actual=Bool @ 7:23-7:27]
     ),
   )
 }
@@ -2139,8 +2141,13 @@ test "typecheck reports missing struct literal generic arguments" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="generic_argument_inference_failed struct literal generic arguments missing S,A",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[generic_argument_inference_failed struct literal generic arguments missing S,A]
+    ),
   )
 }
 
@@ -2187,9 +2194,9 @@ test "typecheck reports missing existential struct type witness" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|missing_type_member T @ 6:21-6:37
+      #|[missing_type_member T @ 6:21-6:37]
     ),
   )
 }
@@ -2204,9 +2211,9 @@ test "typecheck reports field access on non-struct value" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|not_a_struct Int @ 3:3-3:10
+      #|[not_a_struct Int @ 3:3-3:10]
     ),
   )
 }
@@ -2345,9 +2352,9 @@ test "typecheck existential enum pattern checks payload under opened witness" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0], width=100),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|hidden_type_escape tparam#1 @ 7:31-7:36
+      #|[hidden_type_escape tparam#1 @ 7:31-7:36]
     ),
   )
 }
@@ -2453,9 +2460,9 @@ test "typecheck existential struct pattern checks field under opened witness" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0], width=100),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|hidden_type_escape tparam#1 @ 8:25-8:28
+      #|[hidden_type_escape tparam#1 @ 8:25-8:28]
     ),
   )
 }
@@ -2480,9 +2487,9 @@ test "typecheck rejects escaped existential struct binder from block result" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0], width=100),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|hidden_type_escape tparam#1 @ 10:7-10:10
+      #|[hidden_type_escape tparam#1 @ 10:7-10:10]
     ),
   )
 }
@@ -2524,9 +2531,9 @@ test "typecheck rejects escaped existential enum binder from match result" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0], width=100),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|hidden_type_escape tparam#1 @ 8:33-8:38
+      #|[hidden_type_escape tparam#1 @ 8:33-8:38]
     ),
   )
 }
@@ -2567,9 +2574,9 @@ test "typecheck rejects escaped existential enum binder from pattern let" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0], width=100),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|hidden_type_escape tparam#1 @ 9:7-9:12
+      #|[hidden_type_escape tparam#1 @ 9:7-9:12]
     ),
   )
 }
@@ -2653,8 +2660,23 @@ test "typecheck reports kind mismatch for higher-kinded struct literal type argu
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="kind_mismatch expected=[Type] -> Type actual=Type",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[
+      #|  kind_mismatch expected=[Type] -> Type actual=Type,
+      #|  type_mismatch expected=forall [
+      #|    tparam#4 A : Type,
+      #|    tparam#5 B : Type
+      #|  ]. (Int[tparam#4], (tparam#4) -> tparam#5) -> Int[tparam#5] actual=forall [
+      #|    tparam#1 T : Type,
+      #|    tparam#2 R : Type
+      #|  ]. (type#0[tparam#1], (tparam#1) -> tparam#2) -> type#0[tparam#2],
+      #|  type_mismatch expected=type#1[type#0] actual=type#1[Int]
+      #|]
+    ),
   )
 }
 
@@ -2690,8 +2712,17 @@ test "typecheck reports kind mismatch for higher-kinded qualified variant type a
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="kind_mismatch expected=[Type] -> Type actual=Type",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[
+      #|  kind_mismatch expected=[Type] -> Type actual=Type,
+      #|  type_mismatch expected=Int[Int] actual=type#0[Int],
+      #|  type_mismatch expected=type#1[type#0] actual=type#1[Int]
+      #|]
+    ),
   )
 }
 
@@ -2781,8 +2812,13 @@ test "typecheck defaults unannotated alias header parameter kind to Type" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="kind_mismatch expected=[] -> Type actual=Type",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[kind_mismatch expected=[] -> Type actual=Type]
+    ),
   )
 }
 
@@ -2795,8 +2831,13 @@ test "typecheck reports duplicate type alias header parameter" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="duplicate_type_parameter A",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[duplicate_type_parameter A]
+    ),
   )
 }
 
@@ -2810,8 +2851,13 @@ test "typecheck reports type alias cycle" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="type_alias_cycle A",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[type_alias_cycle A, type_alias_cycle B]
+    ),
   )
 }
 
@@ -3094,9 +3140,9 @@ test "typecheck reports unresolved variant generic arguments" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|generic_argument_inference_failed generic arguments missing A @ 8:17-8:31
+      #|[generic_argument_inference_failed generic arguments missing A @ 8:17-8:31]
     ),
   )
 }
@@ -3115,9 +3161,9 @@ test "typecheck reports enum variant payload mismatch" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|type_mismatch expected=Int actual=Bool @ 7:21-7:25
+      #|[type_mismatch expected=Int actual=Bool @ 7:21-7:25]
     ),
   )
 }
@@ -3136,9 +3182,12 @@ test "typecheck reports enum variant arity mismatch" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|application_arity_mismatch variant arity @ 7:3-7:9
+      #|[
+      #|  application_arity_mismatch variant arity @ 7:3-7:9,
+      #|  type_mismatch expected=type#0[Int] actual=type#0 @ 7:3-7:9
+      #|]
     ),
   )
 }
@@ -3169,9 +3218,9 @@ test "typecheck reports ambiguous unqualified enum variant" {
   )
   let result = typecheck_source_file(resolution.source)
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|variant_reference_failure ambiguous variant reference same @ 9:3-9:10
+      #|[variant_reference_failure ambiguous variant reference same @ 9:3-9:10]
     ),
   )
 }
@@ -3241,7 +3290,7 @@ test "typecheck unqualified enum variant patterns from expected type" {
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -3260,7 +3309,7 @@ test "typecheck unqualified enum variant patterns in adjacent match arms" {
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -3275,9 +3324,13 @@ test "typecheck rejects unqualified enum variant without enum expected type" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|unqualified_variant_pattern_needs_expected_enum some @ 4:5-4:12
+      #|[
+      #|  unqualified_variant_pattern_needs_expected_enum some @ 4:5-4:12,
+      #|  unresolved_value x @ 4:16-4:17,
+      #|  internal_typecheck_failure checked match arm @ 4:16-4:17
+      #|]
     ),
   )
 }
@@ -3294,9 +3347,9 @@ test "typecheck reports non-exhaustive bool match" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|non_exhaustive_match Bool missing=`false` @ 3:3-5:4
+      #|[non_exhaustive_match Bool missing=`false` @ 3:3-5:4]
     ),
   )
 }
@@ -3318,7 +3371,7 @@ test "typecheck accepts exhaustive nested enum patterns" {
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -3338,9 +3391,9 @@ test "typecheck reports non-exhaustive nested enum patterns" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|non_exhaustive_match type#0[type#0[Int]] missing=`some(some(_))` @ 7:3-10:4
+      #|[non_exhaustive_match type#0[type#0[Int]] missing=`some(some(_))` @ 7:3-10:4]
     ),
   )
 }
@@ -3364,9 +3417,9 @@ test "typecheck reports unreachable nested enum pattern" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|unreachable_match_arm @ 9:5-9:38
+      #|[unreachable_match_arm @ 9:5-9:38]
     ),
   )
 }
@@ -3390,7 +3443,7 @@ test "typecheck accepts exhaustive nested struct field patterns" {
       #|}
     ),
   )
-  inspect(result.diagnostics.length(), content="0")
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -3406,9 +3459,9 @@ test "typecheck reports unreachable match arm" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|unreachable_match_arm @ 5:5-5:14
+      #|[unreachable_match_arm @ 5:5-5:14]
     ),
   )
 }
@@ -3427,9 +3480,9 @@ test "typecheck compares int patterns by checked value" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|unreachable_match_arm @ 5:5-5:12
+      #|[unreachable_match_arm @ 5:5-5:12]
     ),
   )
 }
@@ -3449,9 +3502,9 @@ test "typecheck reports duplicate pattern binder" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|duplicate_pattern_binder x @ 7:19-7:20
+      #|[duplicate_pattern_binder x @ 7:19-7:20]
     ),
   )
 }
@@ -3472,9 +3525,9 @@ test "typecheck reports missing struct pattern field" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|missing_field y @ 8:5-8:17
+      #|[missing_field y @ 8:5-8:17, non_exhaustive_match type#0 missing=`Point::{ x: _, y: _ }` @ 7:3-9:4]
     ),
   )
 }
@@ -3516,9 +3569,9 @@ test "typecheck reports type mismatch" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|type_mismatch expected=Int actual=Bool @ 3:3-3:7
+      #|[type_mismatch expected=Int actual=Bool @ 3:3-3:7]
     ),
   )
 }
@@ -3537,9 +3590,9 @@ test "typecheck struct literal punning and required fields" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|missing_field y @ 7:3-7:15
+      #|[missing_field y @ 7:3-7:15]
     ),
   )
 }
@@ -3557,9 +3610,9 @@ test "typecheck reports nominal type arity mismatch" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0]),
+    @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|type_arity_mismatch Box expected=1 actual=2 @ 6:12-6:26
+      #|[type_arity_mismatch Box expected=1 actual=2 @ 6:12-6:26]
     ),
   )
 }
@@ -3929,9 +3982,12 @@ test "typecheck rejects operation call in pure function" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
     content=(
-      #|effect_mismatch expected={} actual=effect#0
+      #|[effect_mismatch expected={} actual=effect#0]
     ),
   )
 }
@@ -4047,9 +4103,12 @@ test "typecheck checks operation payload type" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
     content=(
-      #|type_mismatch expected=String actual=Int
+      #|[type_mismatch expected=String actual=Int]
     ),
   )
 }
@@ -4067,9 +4126,12 @@ test "typecheck checks operation payload arity" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
     content=(
-      #|application_arity_mismatch effect operation arity
+      #|[application_arity_mismatch effect operation arity, effect_mismatch expected=effect#0 actual={}]
     ),
   )
 }
@@ -4602,8 +4664,13 @@ test "typecheck reports effect alias cycle" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="type_alias_cycle A",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[type_alias_cycle A, type_alias_cycle B]
+    ),
   )
 }
 
@@ -4618,8 +4685,13 @@ test "typecheck rejects type-kind alias in effect position" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="kind_mismatch expected=Effect actual=Type",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[kind_mismatch expected=Effect actual=Type]
+    ),
   )
 }
 
@@ -4664,8 +4736,13 @@ test "typecheck rejects type argument for effect alias parameter" {
     ),
   )
   inspect(
-    @prettyprinter.render(result.diagnostics[0].kind, width=100),
-    content="kind_mismatch expected=Effect actual=Type",
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[kind_mismatch expected=Effect actual=Type]
+    ),
   )
 }
 
