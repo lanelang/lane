@@ -5,7 +5,7 @@ fn SemanticChecker::check_compiler_intrinsic(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  guard @intrinsic_contract.type_of(name) is Some(actual) else {
+  guard compiler_intrinsic_type(name) is Some(actual) else {
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
@@ -24,11 +24,48 @@ fn SemanticChecker::synthesize_compiler_intrinsic(
   name : String,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  guard @intrinsic_contract.type_of(name) is Some(type_) else {
+  guard compiler_intrinsic_type(name) is Some(type_) else {
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
   checked_expression(CompilerIntrinsic(name~, type_~, loc~), type_)
+}
+
+///|
+fn compiler_intrinsic_type(name : String) -> @types.Type? {
+  match name {
+    "%i64_add" | "%i64_sub" | "%i64_mul" | "%i64_div" | "%i64_rem" =>
+      Some(compiler_intrinsic_binary(Int, Int))
+    "%i64_neg" => Some(compiler_intrinsic_unary(Int, Int))
+    "%i64_equal" | "%i64_less" => Some(compiler_intrinsic_binary(Int, Bool))
+    "%f64_add" | "%f64_sub" | "%f64_mul" | "%f64_div" =>
+      Some(compiler_intrinsic_binary(Double, Double))
+    "%f64_neg" => Some(compiler_intrinsic_unary(Double, Double))
+    "%f64_equal" | "%f64_less" => Some(compiler_intrinsic_binary(Double, Bool))
+    "%f64_inf" | "%f64_ninf" | "%f64_nan" => Some(Primitive(Double))
+    "%string_equal" => Some(compiler_intrinsic_binary(String, Bool))
+    _ => None
+  }
+}
+
+///|
+fn compiler_intrinsic_unary(
+  parameter : @types.PrimitiveType,
+  result : @types.PrimitiveType,
+) -> @types.Type {
+  Function([Primitive(parameter)], Primitive(result), Empty)
+}
+
+///|
+fn compiler_intrinsic_binary(
+  parameter : @types.PrimitiveType,
+  result : @types.PrimitiveType,
+) -> @types.Type {
+  Function(
+    [Primitive(parameter), Primitive(parameter)],
+    Primitive(result),
+    Empty,
+  )
 }
 
 ///|
