@@ -1024,10 +1024,10 @@ test "semantic diagnostics render source snippets" {
     render_compile_diagnostic(result.diagnostics[0], sources),
     content=(
       #|error[E3101]: missing field `y`
-      #|  --> point.lane:6:34
+      #|  --> point.lane:6:25
       #|   |
       #| 6 | pub let point : Point = Point::{ x: 1 }
-      #|   |                                  ^^^^^^ this struct construction or pattern omits required field `y`
+      #|   |                         ^^^^^^^^^^^^^^^ this struct construction or pattern omits required field `y`
       #|   |
       #|  = note: Lane struct literals and struct patterns must account for required fields
       #|  = help: add a `y: ...` field entry

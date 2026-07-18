@@ -99,10 +99,10 @@ test "parse positional call argument keeps argument source span" {
       #|(
       #|  "field",
       #|  {
-      #|    start_offset: 126,
+      #|    start_offset: 120,
       #|    end_offset: 131,
       #|    start_line: 9,
-      #|    start_column: 14,
+      #|    start_column: 8,
       #|    end_line: 9,
       #|    end_column: 19,
       #|  },
@@ -113,6 +113,48 @@ test "parse positional call argument keeps argument source span" {
       #|    start_column: 8,
       #|    end_line: 9,
       #|    end_column: 19,
+      #|  },
+      #|)
+    ),
+  )
+}
+
+///|
+test "parse declarations and blocks keep complete source spans" {
+  let file = expect_parse_ok("pub fn answer() -> Int { 42 }")
+  guard file.declarations[0] is Function(function) else {
+    abort("expected function declaration")
+  }
+  guard function.body is Block(result~, loc=body_loc, ..) else {
+    abort("expected function block")
+  }
+  debug_inspect(
+    (function.loc, body_loc, result.loc()),
+    content=(
+      #|(
+      #|  {
+      #|    start_offset: 16,
+      #|    end_offset: 41,
+      #|    start_line: 2,
+      #|    start_column: 5,
+      #|    end_line: 2,
+      #|    end_column: 30,
+      #|  },
+      #|  {
+      #|    start_offset: 35,
+      #|    end_offset: 41,
+      #|    start_line: 2,
+      #|    start_column: 24,
+      #|    end_line: 2,
+      #|    end_column: 30,
+      #|  },
+      #|  {
+      #|    start_offset: 37,
+      #|    end_offset: 39,
+      #|    start_line: 2,
+      #|    start_column: 26,
+      #|    end_line: 2,
+      #|    end_column: 28,
       #|  },
       #|)
     ),

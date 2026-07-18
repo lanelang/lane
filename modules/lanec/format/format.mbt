@@ -37,7 +37,7 @@ pub fn format_source_with_options(
     return Err(diagnostics)
   }
   match parsed {
-    Parsed(parsed) => Ok(format_parsed_source_with_options(parsed, options))
+    Parsed(parsed) => format_parsed_source_with_options(parsed, options)
     Failed(_) =>
       Err([
         diagnostic(
@@ -58,28 +58,22 @@ pub fn format_source_with_options(
 fn format_parsed_source_with_options(
   parsed : @parser.ParsedSource,
   options : FormatOptions,
-) -> String {
-  @prettyprinter.render(
-    @syntax.format_source_file_with_trivia(
-      parsed.syntax,
-      source_format_trivia(parsed.concrete),
-    ),
-    width=options.width,
-  ) +
-  "\n"
-}
-
-///|
-pub fn format_source_file(source : @syntax.SourceFile) -> String {
-  format_source_file_with_options(source, default_options())
-}
-
-///|
-pub fn format_source_file_with_options(
-  source : @syntax.SourceFile,
-  options : FormatOptions,
-) -> String {
-  @prettyprinter.render(source, width=options.width) + "\n"
+) -> Result[String, Array[CompilerDiagnostic]] {
+  let trivia = TriviaView::make(parsed.concrete)
+  let formatted = @prettyprinter.render(
+      @syntax.format_source_file_with_trivia(
+        parsed.syntax,
+        trivia.source_format_trivia(),
+      ),
+      width=options.width,
+    ) +
+    "\n"
+  let diagnostics = trivia.unconsumed_comment_diagnostics()
+  if diagnostics.is_empty() {
+    Ok(formatted)
+  } else {
+    Err(diagnostics)
+  }
 }
 
 ///|
@@ -99,14 +93,17 @@ priv enum CommentPlacement {
 ///|
 priv struct AnchoredComment {
   text : String
+  span : @basic.SourceSpan
   placement : CommentPlacement
   blank_before : Bool
   blank_after : Bool
+  mut consumed : Bool
 }
 
 ///|
 priv struct TriviaView {
-  comments : Array[FormatComment]
+  comments : Array[AnchoredComment]
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)]
 }
 
 ///|
@@ -124,18 +121,6 @@ fn TriviaView::make(concrete : @lexer.ConcreteSyntax) -> TriviaView {
       })
     }
   }
-  { comments, }
-}
-
-///|
-fn source_format_trivia(
-  concrete : @lexer.ConcreteSyntax,
-) -> @syntax.SourceFormatTrivia {
-  let view = TriviaView::make(concrete)
-  let comments = view.comments
-  if comments.is_empty() {
-    return @syntax.SourceFormatTrivia::empty()
-  }
   let source_tokens = non_eof_tokens(concrete.tokens)
   let anchored = []
   for index, comment in comments {
@@ -148,11 +133,188 @@ fn source_format_trivia(
       ),
     )
   }
-  {
-    leading: fn(span) { leading_comment_doc(anchored, span) },
-    trailing: fn(span) { trailing_comment_doc(anchored, span) },
-    eof: fn() { eof_comment_doc(anchored) },
+  { comments: anchored, tokens: source_tokens }
+}
+
+///|
+fn TriviaView::source_format_trivia(
+  self : TriviaView,
+) -> @syntax.SourceFormatTrivia {
+  let comments = self.comments
+  let tokens = self.tokens
+  if comments.is_empty() {
+    return @syntax.SourceFormatTrivia::empty()
   }
+  {
+    leading: fn(span) { leading_comment_doc(comments, span) },
+    trailing: fn(span) { trailing_comment_doc(comments, span) },
+    has_leading: fn(span) { has_leading_comment(comments, span) },
+    boundary: fn(start, end) { dangling_comment_doc(comments, start, end) },
+    has_boundary: fn(start, end) { has_dangling_comment(comments, start, end) },
+    delimited: fn(open, start, end) {
+      delimited_comment_doc(comments, tokens, open, start, end)
+    },
+    has_delimited: fn(open, start, end) {
+      has_delimited_comment(comments, tokens, open, start, end)
+    },
+    eof: fn() { eof_comment_doc(comments) },
+  }
+}
+
+///|
+fn has_delimited_comment(
+  comments : Array[AnchoredComment],
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  open : Char,
+  start_offset : Int,
+  end_offset : Int,
+) -> Bool {
+  match delimiter_interior(tokens, open, start_offset, end_offset) {
+    Some((start, end)) => has_dangling_comment(comments, start, end)
+    None => false
+  }
+}
+
+///|
+fn delimited_comment_doc(
+  comments : Array[AnchoredComment],
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  open : Char,
+  start_offset : Int,
+  end_offset : Int,
+) -> Document {
+  match delimiter_interior(tokens, open, start_offset, end_offset) {
+    Some((start, end)) => dangling_comment_doc(comments, start, end)
+    None => empty
+  }
+}
+
+///|
+fn delimiter_interior(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  open : Char,
+  start_offset : Int,
+  end_offset : Int,
+) -> (Int, Int)? {
+  let mut depth = 0
+  let mut interior_start = -1
+  for item in tokens {
+    let (token, span) = item
+    if span.start_offset < start_offset {
+      continue
+    }
+    if span.end_offset > end_offset {
+      break
+    }
+    if is_open_delimiter(token, open) {
+      if depth == 0 {
+        interior_start = span.end_offset
+      }
+      depth += 1
+    } else if depth > 0 && is_close_delimiter(token, open) {
+      depth -= 1
+      if depth == 0 {
+        return Some((interior_start, span.start_offset))
+      }
+    }
+  }
+  None
+}
+
+///|
+fn is_open_delimiter(token : @lexer.Token, open : Char) -> Bool {
+  match open {
+    '[' => token is LBRACKET
+    '(' => token is LPAREN
+    '{' => token is LBRACE || token is DOTLBRACE
+    _ => false
+  }
+}
+
+///|
+fn is_close_delimiter(token : @lexer.Token, open : Char) -> Bool {
+  match open {
+    '[' => token is RBRACKET
+    '(' => token is RPAREN
+    '{' => token is RBRACE
+    _ => false
+  }
+}
+
+///|
+fn has_dangling_comment(
+  comments : Array[AnchoredComment],
+  start_offset : Int,
+  end_offset : Int,
+) -> Bool {
+  comments.any(fn(comment) {
+    !comment.consumed &&
+    comment.span.start_offset >= start_offset &&
+    comment.span.end_offset <= end_offset
+  })
+}
+
+///|
+fn dangling_comment_doc(
+  comments : Array[AnchoredComment],
+  start_offset : Int,
+  end_offset : Int,
+) -> Document {
+  let docs = []
+  for comment in comments {
+    if !comment.consumed &&
+      comment.span.start_offset >= start_offset &&
+      comment.span.end_offset <= end_offset {
+      comment.consumed = true
+      push_leading_comment_docs(docs, comment)
+    }
+  }
+  separate(hardline, docs)
+}
+
+///|
+fn TriviaView::unconsumed_comment_diagnostics(
+  self : TriviaView,
+) -> Array[CompilerDiagnostic] {
+  self.comments.filter_map(fn(comment) {
+    if comment.consumed {
+      None
+    } else {
+      Some(
+        diagnostic(
+          "formatter could not preserve a source comment",
+          span=Some(comment.span),
+          code=Some("E1103"),
+          labels=[
+            {
+              span: compiler_local_span(comment.span),
+              message: "this comment has no unique formatting attachment",
+              style: Primary,
+            },
+          ],
+          notes=[
+            "formatting stopped instead of silently dropping or moving the comment",
+          ],
+          helps=["report this source position as a formatter bug"],
+        ),
+      )
+    }
+  })
+}
+
+///|
+fn has_leading_comment(
+  comments : Array[AnchoredComment],
+  span : @basic.SourceSpan,
+) -> Bool {
+  for comment in comments {
+    match comment.placement {
+      Leading(anchor) if !comment.consumed && same_leading_anchor(anchor, span) =>
+        return true
+      _ => ()
+    }
+  }
+  false
 }
 
 ///|
@@ -180,21 +342,80 @@ fn anchor_comment(
   if comment.gap < tokens.length() {
     next = Some(comment.gap)
   }
-  let placement = match previous {
-    Some(index) if is_same_line(tokens[index], comment) => {
-      let (_, span) = tokens[index]
-      Trailing(span)
-    }
+  let placement = match next {
+    Some(index) if tokens[index].0 is COMMA && index + 1 < tokens.length() =>
+      Leading(leading_anchor_span(tokens, index + 1))
     _ =>
-      match next {
-        Some(index) => {
+      match previous {
+        Some(index) if is_same_line(tokens[index], comment) &&
+          can_anchor_trailing(tokens[index].0) => {
           let (_, span) = tokens[index]
-          Leading(span)
+          Trailing(span)
         }
-        None => EndOfFile
+        _ =>
+          match next {
+            Some(index) => Leading(leading_anchor_span(tokens, index))
+            None => EndOfFile
+          }
       }
   }
-  { text: comment.text, placement, blank_before, blank_after }
+  {
+    text: comment.text,
+    span: comment.span,
+    placement,
+    blank_before,
+    blank_after,
+    consumed: false,
+  }
+}
+
+///|
+fn can_anchor_trailing(token : @lexer.Token) -> Bool {
+  match token {
+    COMMA
+    | PLUS
+    | BANG
+    | MINUS
+    | STAR
+    | SLASH
+    | PERCENT
+    | EQEQ
+    | BANGEQ
+    | LT
+    | LTEQ
+    | GT
+    | GTEQ
+    | AMPAMP
+    | BARBAR
+    | PIPE
+    | EQUAL
+    | THIN_ARROW
+    | FAT_ARROW
+    | LPAREN
+    | LBRACE
+    | LBRACKET
+    | DOT
+    | DOTLBRACE
+    | COLON
+    | COLONCOLON
+    | TIGHT_COLONCOLON
+    | PUB => false
+    _ => true
+  }
+}
+
+///|
+fn leading_anchor_span(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  index : Int,
+) -> @basic.SourceSpan {
+  let (token, span) = tokens[index]
+  if token is PUB && index + 1 < tokens.length() {
+    let (_, next_span) = tokens[index + 1]
+    next_span
+  } else {
+    span
+  }
 }
 
 ///|
@@ -266,8 +487,10 @@ fn leading_comment_doc(
   let docs = []
   for comment in comments {
     match comment.placement {
-      Leading(anchor) if same_leading_anchor(anchor, span) =>
+      Leading(anchor) if !comment.consumed && same_leading_anchor(anchor, span) => {
+        comment.consumed = true
         push_leading_comment_docs(docs, comment)
+      }
       _ => ()
     }
   }
@@ -286,8 +509,11 @@ fn trailing_comment_doc(
   let docs = []
   for comment in comments {
     match comment.placement {
-      Trailing(anchor) if same_trailing_anchor(anchor, span) =>
+      Trailing(anchor) if !comment.consumed &&
+        same_trailing_anchor(anchor, span) => {
+        comment.consumed = true
         docs.push(comment_lines_doc(comment.text))
+      }
       _ => ()
     }
   }
@@ -304,7 +530,8 @@ fn eof_comment_doc(comments : Array[AnchoredComment]) -> Document {
   let mut blank_before_first = false
   for comment in comments {
     match comment.placement {
-      EndOfFile => {
+      EndOfFile if !comment.consumed => {
+        comment.consumed = true
         if docs.is_empty() && comment.blank_before {
           blank_before_first = true
         }
@@ -352,8 +579,7 @@ fn same_leading_anchor(
   anchor : @basic.SourceSpan,
   span : @basic.SourceSpan,
 ) -> Bool {
-  anchor.start_line == span.start_line &&
-  anchor.start_offset <= span.start_offset
+  anchor.start_offset == span.start_offset
 }
 
 ///|

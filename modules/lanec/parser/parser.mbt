@@ -14,7 +14,7 @@ pub fn parse_string(source : String) -> ParseResult {
 pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
   let yacc_tokens = concrete.tokens.map(fn(item) {
     let (token, loc) = item
-    (token.to_yacc_token(), loc, loc)
+    (token.to_yacc_token(), token_start_position(loc), token_end_position(loc))
   })
   let source = @yacc_parser.source_file(yacc_tokens) catch {
     UnexpectedEndOfInput(loc, expected) =>
@@ -31,6 +31,30 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
     }
   }
   Parsed({ syntax: source, concrete })
+}
+
+///|
+fn token_start_position(span : @basic.SourceSpan) -> @basic.SourceSpan {
+  {
+    start_offset: span.start_offset,
+    end_offset: span.start_offset,
+    start_line: span.start_line,
+    start_column: span.start_column,
+    end_line: span.start_line,
+    end_column: span.start_column,
+  }
+}
+
+///|
+fn token_end_position(span : @basic.SourceSpan) -> @basic.SourceSpan {
+  {
+    start_offset: span.end_offset,
+    end_offset: span.end_offset,
+    start_line: span.end_line,
+    start_column: span.end_column,
+    end_line: span.end_line,
+    end_column: span.end_column,
+  }
 }
 
 ///|

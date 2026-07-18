@@ -618,12 +618,12 @@ test "check reports unused generic parameters as warnings" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 71,
-      #|          end_offset: 72,
+      #|          start_offset: 67,
+      #|          end_offset: 68,
       #|          start_line: 5,
-      #|          start_column: 23,
+      #|          start_column: 19,
       #|          end_line: 5,
-      #|          end_column: 24,
+      #|          end_column: 20,
       #|        },
       #|      ),
       #|    ),
@@ -634,12 +634,12 @@ test "check reports unused generic parameters as warnings" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 71,
-      #|            end_offset: 72,
+      #|            start_offset: 67,
+      #|            end_offset: 68,
       #|            start_line: 5,
-      #|            start_column: 23,
+      #|            start_column: 19,
       #|            end_line: 5,
-      #|            end_column: 24,
+      #|            end_column: 20,
       #|          },
       #|        ),
       #|        message: "`E` is never used",
@@ -4598,10 +4598,10 @@ test "analysis produces implicit argument inlay hints for auto offers" {
       #|    location: {
       #|      source_id: "file:///Main.lane",
       #|      span: {
-      #|        start_offset: 290,
+      #|        start_offset: 283,
       #|        end_offset: 291,
       #|        start_line: 14,
-      #|        start_column: 22,
+      #|        start_column: 15,
       #|        end_line: 14,
       #|        end_column: 23,
       #|      },

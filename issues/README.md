@@ -246,6 +246,12 @@ graph TD
   ISS_228["ISS-228: Validate whole-program optimization effectiveness"]
   ISS_229["ISS-229: Add Core call graph and function summaries"]
   ISS_230["ISS-230: Add VM CFG dominator and value-flow analyses"]
+  ISS_231["ISS-231: Complete formatter trivia ownership"]
+  ISS_232["ISS-232: Enforce unique formatter trivia ownership"]
+  ISS_233["ISS-233: Preserve comments in lists and delimiters"]
+  ISS_234["ISS-234: Preserve comments inside expressions and declarations"]
+  ISS_235["ISS-235: Strengthen formatter contracts and public API"]
+  ISS_236["ISS-236: Correct parser token boundary positions"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -469,6 +475,11 @@ graph TD
   ISS_224 --> ISS_227
   ISS_226 --> ISS_227
   ISS_227 --> ISS_228
+  ISS_236 --> ISS_232
+  ISS_232 --> ISS_233
+  ISS_232 --> ISS_234
+  ISS_233 --> ISS_235
+  ISS_234 --> ISS_235
 ```
 
 ## Warnings

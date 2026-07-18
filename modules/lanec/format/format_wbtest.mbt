@@ -5,9 +5,12 @@ fn assert_format(
   width? : Int = 100,
 ) -> Unit raise {
   let options = FormatOptions::{ width, }
-  guard format_source_with_options(source, options) is Ok(formatted) else {
+  let result = format_source_with_options(source, options)
+  guard result is Ok(formatted) else {
+    debug_inspect(result)
     abort("expected formatted source")
   }
+  assert_eq(canonical_syntax(formatted), canonical_syntax(source))
   assert_eq(formatted, expected)
   if line_comments(formatted) != line_comments(source) {
     abort("formatted source lost or reordered line comments")
@@ -16,6 +19,82 @@ fn assert_format(
     abort("expected formatted source to parse after formatting")
   }
   assert_eq(reformatted, formatted)
+}
+
+///|
+fn canonical_syntax(source : String) -> String {
+  guard @parser.parse_string(source) is Parsed(parsed) else {
+    abort("expected syntax for formatter equivalence check")
+  }
+  @prettyprinter.render(parsed.syntax, width=100)
+}
+
+///|
+test "formatter consumes the complete trivia attachment view" {
+  let source =
+    #|// leading module
+    #|module Test
+    #|pub fn add(left : Int, right : Int) -> Int { left + right }
+    #|pub let answer : Int = add(
+    #|  20, // before second
+    #|  22 // trailing second
+    #|)
+    #|// eof comment
+  guard @parser.parse_string(source) is Parsed(parsed) else {
+    abort("expected parsed source")
+  }
+  let trivia = TriviaView::make(parsed.concrete)
+  ignore(
+    @prettyprinter.render(
+      @syntax.format_source_file_with_trivia(
+        parsed.syntax,
+        trivia.source_format_trivia(),
+      ),
+      width=100,
+    ),
+  )
+  debug_inspect(
+    trivia.comments.map(fn(comment) {
+      let placement = match comment.placement {
+        Leading(span) => ("leading", span.start_offset, span.end_offset)
+        Trailing(span) => ("trailing", span.start_offset, span.end_offset)
+        EndOfFile => ("eof", -1, -1)
+      }
+      (
+        comment.text,
+        comment.span.start_offset,
+        comment.span.end_offset,
+        placement,
+        comment.blank_before,
+        comment.blank_after,
+        comment.consumed,
+      )
+    }),
+    content=(
+      #|[
+      #|  ("// leading module", 0, 17, ("leading", 18, 24), false, false, true),
+      #|  (
+      #|    "// before second",
+      #|    124,
+      #|    140,
+      #|    ("leading", 143, 145),
+      #|    false,
+      #|    false,
+      #|    true,
+      #|  ),
+      #|  (
+      #|    "// trailing second",
+      #|    146,
+      #|    164,
+      #|    ("trailing", 143, 145),
+      #|    false,
+      #|    false,
+      #|    true,
+      #|  ),
+      #|  ("// eof comment", 167, 181, ("eof", -1, -1), false, false, true),
+      #|]
+    ),
+  )
 }
 
 ///|
@@ -36,6 +115,46 @@ fn line_comments(source : String) -> Array[String] {
 }
 
 ///|
+test "formatter reports unconsumed concrete comments" {
+  let source =
+    #|module Test
+    #|// unconsumed
+    #|pub let answer : Int = 42
+  guard @parser.parse_string(source) is Parsed(parsed) else {
+    abort("expected parsed source")
+  }
+  let trivia = TriviaView::make(parsed.concrete)
+  ignore(trivia.source_format_trivia())
+  debug_inspect(
+    trivia
+    .unconsumed_comment_diagnostics()
+    .map(fn(diagnostic) {
+      (diagnostic.message, diagnostic.code, diagnostic.span)
+    }),
+    content=(
+      #|[
+      #|  (
+      #|    "formatter could not preserve a source comment",
+      #|    Some("E1103"),
+      #|    Some(
+      #|      Local(
+      #|        {
+      #|          start_offset: 12,
+      #|          end_offset: 25,
+      #|          start_line: 2,
+      #|          start_column: 1,
+      #|          end_line: 2,
+      #|          end_column: 14,
+      #|        },
+      #|      ),
+      #|    ),
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "format source normalizes whitespace and final newline" {
   let source =
     #|module   Test
@@ -46,6 +165,35 @@ test "format source normalizes whitespace and final newline" {
       #|module Test
       #|
       #|pub let answer : Int = 42
+      #|
+    ),
+  )
+}
+
+///|
+test "format source canonicalizes pure blank line gaps structurally" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|
+      #|pub fn answer() -> Int {
+      #|  let left : Int = 20
+      #|
+      #|
+      #|  let right : Int = 22
+      #|
+      #|  left + right
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn answer() -> Int {
+      #|  let left : Int = 20
+      #|  let right : Int = 22
+      #|  left + right
+      #|}
       #|
     ),
   )
@@ -147,6 +295,62 @@ test "format source preserves comments around declarations and blocks" {
       #|  // inside block
       #|  ()
       #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves trailing module comments" {
+  assert_format(
+    (
+      #|module Test // module tail
+      #|pub let answer : Int = 42
+    ),
+    (
+      #|module Test // module tail
+      #|
+      #|pub let answer : Int = 42
+      #|
+    ),
+  )
+}
+
+///|
+test "format source assigns a leading comment to one syntax node" {
+  assert_format(
+    (
+      #|module Test
+      #|// function docs
+      #|pub fn answer() -> Int { 42 }
+    ),
+    (
+      #|module Test
+      #|
+      #|// function docs
+      #|pub fn answer() -> Int {
+      #|  42
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source keeps initializer comments with the initializer" {
+  assert_format(
+    (
+      #|module Test
+      #|pub let answer : Int =
+      #|  // initializer
+      #|  42
+    ),
+    (
+      #|module Test
+      #|
+      #|pub let answer : Int =
+      #|  // initializer
+      #|  42
       #|
     ),
   )
@@ -481,6 +685,691 @@ test "format source keeps selective imports parseable" {
       #|import Lib.{ value, Box }
       #|
       #|pub let item : Box = Box::{ value }
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves selective import comments" {
+  assert_format(
+    (
+      #|module Test
+      #|import Basic.Io.{
+      #|  // selected value
+      #|  println
+      #|  // before close
+      #|}
+      #|pub let answer : Int = 42
+    ),
+    (
+      #|module Test
+      #|
+      #|import Basic.Io.{
+      #|  // selected value
+      #|  println
+      #|  // before close
+      #|}
+      #|
+      #|pub let answer : Int = 42
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves parameter comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn add(
+      #|  // left operand
+      #|  left : Int,
+      #|  // right operand
+      #|  right : Int
+      #|) -> Int {
+      #|  left + right
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn add(
+      #|  // left operand
+      #|  left : Int,
+      #|  // right operand
+      #|  right : Int
+      #|) -> Int {
+      #|  left + right
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves call separator and closing comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn add(left : Int, right : Int) -> Int { left + right }
+      #|pub let answer : Int = add(
+      #|  20, // second follows
+      #|  22
+      #|  // before close
+      #|)
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn add(left : Int, right : Int) -> Int {
+      #|  left + right
+      #|}
+      #|
+      #|pub let answer : Int = add(
+      #|  20,
+      #|  // second follows
+      #|  22
+      #|  // before close
+      #|)
+      #|
+    ),
+  )
+}
+
+///|
+test "format source moves pre-comma comments after the separator" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn add(left : Int, right : Int) -> Int { left + right }
+      #|pub let answer : Int = add(
+      #|  20 // after first item
+      #|  , 22
+      #|)
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn add(left : Int, right : Int) -> Int {
+      #|  left + right
+      #|}
+      #|
+      #|pub let answer : Int = add(
+      #|  20,
+      #|  // after first item
+      #|  22
+      #|)
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves generic parameter and argument comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn[
+      #|  // type parameter
+      #|  A
+      #|  // before parameter close
+      #|] identity(value : A) -> A { value }
+      #|pub let answer : Int = identity[
+      #|  // type argument
+      #|  Int
+      #|  // before argument close
+      #|](42)
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn[
+      #|  // type parameter
+      #|  A
+      #|  // before parameter close
+      #|] identity(value : A) -> A {
+      #|  value
+      #|}
+      #|
+      #|pub let answer : Int = identity[
+      #|  // type argument
+      #|  Int
+      #|  // before argument close
+      #|](42)
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves enum payload comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub enum Pair[A, B] {
+      #|  pair(
+      #|    // left payload
+      #|    A,
+      #|    // right payload
+      #|    B
+      #|    // before payload close
+      #|  )
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub enum Pair[A, B] {
+      #|  pair(
+      #|    // left payload
+      #|    A,
+      #|    // right payload
+      #|    B
+      #|    // before payload close
+      #|  )
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves list and struct literal comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub struct Pair { left : Int right : Int }
+      #|pub let numbers : List[Int] = [
+      #|  // first item
+      #|  20,
+      #|  // second item
+      #|  22
+      #|  // before list close
+      #|]
+      #|pub let pair : Pair = Pair::{
+      #|  // left field
+      #|  left: 20,
+      #|  right: 22
+      #|  // before struct close
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub struct Pair {
+      #|  left : Int
+      #|  right : Int
+      #|}
+      #|
+      #|pub let numbers : List[Int] = [
+      #|  // first item
+      #|  20,
+      #|  // second item
+      #|  22
+      #|  // before list close
+      #|]
+      #|
+      #|pub let pair : Pair = Pair::{
+      #|  // left field
+      #|  left: 20,
+      #|  right: 22
+      #|  // before struct close
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves function literal parameter comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub let add : (Int, Int) -> Int = fn(
+      #|  // left parameter
+      #|  left : Int,
+      #|  // right parameter
+      #|  right : Int
+      #|  // before parameter close
+      #|) -> Int { left + right }
+    ),
+    (
+      #|module Test
+      #|
+      #|pub let add : (Int, Int) -> Int = fn(
+      #|  // left parameter
+      #|  left : Int,
+      #|  // right parameter
+      #|  right : Int
+      #|  // before parameter close
+      #|) -> Int {
+      #|  left + right
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves effect operation payload comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub effect Console {
+      #|  write(
+      #|    // payload
+      #|    String
+      #|    // before payload close
+      #|  ) -> Unit
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub effect Console {
+      #|  write(
+      #|    // payload
+      #|    String
+      #|    // before payload close
+      #|  ) -> Unit
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves pattern payload comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub enum Option { none() some(Int) }
+      #|pub fn unwrap(value : Option) -> Int {
+      #|  match value {
+      #|    none() => 0
+      #|    some(
+      #|      // payload binder
+      #|      item
+      #|      // before pattern close
+      #|    ) => item
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub enum Option {
+      #|  none()
+      #|  some(Int)
+      #|}
+      #|
+      #|pub fn unwrap(value : Option) -> Int {
+      #|  match value {
+      #|    none() => 0
+      #|    some(
+      #|      // payload binder
+      #|      item
+      #|      // before pattern close
+      #|    ) => item
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves declaration type parameter delimiters" {
+  assert_format(
+    (
+      #|module Test
+      #|extern type Handle[
+      #|  // external parameter
+      #|  A
+      #|  // before external close
+      #|] : Type
+      #|pub struct Box[
+      #|  // struct parameter
+      #|  A
+      #|  // before struct close
+      #|] {
+      #|  // before body close
+      #|}
+      #|pub type Identity[
+      #|  // alias parameter
+      #|  A
+      #|  // before alias close
+      #|] = A
+    ),
+    (
+      #|module Test
+      #|
+      #|extern type Handle[
+      #|  // external parameter
+      #|  A
+      #|  // before external close
+      #|] : Type
+      #|
+      #|pub struct Box[
+      #|  // struct parameter
+      #|  A
+      #|  // before struct close
+      #|] {
+      #|  // before body close
+      #|}
+      #|
+      #|pub type Identity[
+      #|  // alias parameter
+      #|  A
+      #|  // before alias close
+      #|] = A
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves effect and variant call delimiters" {
+  assert_format(
+    (
+      #|module Test
+      #|effect Prompt { choose[A](A, A) -> A }
+      #|enum Option[A] { some(A) }
+      #|pub let chosen : Int = Prompt::choose![
+      #|  // type witness
+      #|  Int
+      #|  // before witness close
+      #|](
+      #|  // left choice
+      #|  20,
+      #|  22
+      #|  // before argument close
+      #|)
+      #|pub let option : Option[Int] = Option::some[
+      #|  // variant type argument
+      #|  Int
+      #|  // before variant type close
+      #|](
+      #|  // variant payload
+      #|  42
+      #|  // before variant close
+      #|)
+    ),
+    (
+      #|module Test
+      #|
+      #|effect Prompt {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|
+      #|enum Option[A] {
+      #|  some(A)
+      #|}
+      #|
+      #|pub let chosen : Int = Prompt::choose![
+      #|  // type witness
+      #|  Int
+      #|  // before witness close
+      #|](
+      #|  // left choice
+      #|  20,
+      #|  22
+      #|  // before argument close
+      #|)
+      #|
+      #|pub let option : Option[Int] = Option::some[
+      #|  // variant type argument
+      #|  Int
+      #|  // before variant type close
+      #|](
+      #|  // variant payload
+      #|  42
+      #|  // before variant close
+      #|)
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves function type and effect row delimiters" {
+  assert_format(
+    (
+      #|module Test
+      #|effect Prompt { read() -> Int }
+      #|pub let callback : [
+      #|  // callable parameter
+      #|  A
+      #|  // before callable parameter close
+      #|](
+      #|  // callable input
+      #|  A
+      #|  // before callable input close
+      #|) -> A ! {
+      #|  // callable effect
+      #|  Prompt
+      #|  // before effect close
+      #|} = fn[A](value : A) -> A { value }
+    ),
+    (
+      #|module Test
+      #|
+      #|effect Prompt {
+      #|  read() -> Int
+      #|}
+      #|
+      #|pub let callback : [
+      #|  // callable parameter
+      #|  A
+      #|  // before callable parameter close
+      #|](
+      #|  // callable input
+      #|  A
+      #|  // before callable input close
+      #|) -> A ! {
+      #|  // callable effect
+      #|  Prompt
+      #|  // before effect close
+      #|} =
+      #|  fn[A](value : A) -> A {
+      #|    value
+      #|  }
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves operator field and control flow boundaries" {
+  assert_format(
+    (
+      #|module Test
+      #|struct Pair { left : Int right : Int }
+      #|pub fn choose(flag : Bool, pair : Pair) -> Int {
+      #|  if flag {
+      #|    pair. // field boundary
+      #|    left + // right operand
+      #|    1
+      #|  }
+      #|  // before else
+      #|  else {
+      #|    pair.right
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|struct Pair {
+      #|  left : Int
+      #|  right : Int
+      #|}
+      #|
+      #|pub fn choose(flag : Bool, pair : Pair) -> Int {
+      #|  if flag {
+      #|    pair. // field boundary
+      #|      left + // right operand
+      #|      1
+      #|  }
+      #|  // before else
+      #|  else {
+      #|    pair.right
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves handler keyword boundaries" {
+  assert_format(
+    (
+      #|module Test
+      #|effect Prompt { choose(Int, Int) -> Int }
+      #|pub let chosen : Int = {
+      #|  handle Prompt::choose!(20, 22)
+      #|  // before with
+      #|  with {
+      #|    Prompt::choose(left, _right, resume) => resume(left)
+      #|  }
+      #|  // before final
+      #|  final value { value }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|effect Prompt {
+      #|  choose(Int, Int) -> Int
+      #|}
+      #|
+      #|pub let chosen : Int = {
+      #|  handle Prompt::choose!(20, 22)
+      #|  // before with
+      #|  with {
+      #|    Prompt::choose(left, _right, resume) => resume(left)
+      #|  }
+      #|  // before final
+      #|  final value {
+      #|    value
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves declaration separator and trailing comments" {
+  assert_format(
+    (
+      #|module Test
+      #|extern type Handle[A]
+      #|// before colon
+      #|: Type // external tail
+      #|struct Box[A]
+      #|// before body
+      #|{ value : A } // struct tail
+      #|enum Option[A] { some(A) } // enum tail
+      #|effect Prompt {
+      #|  read()
+      #|  // before operation arrow
+      #|  -> Int
+      #|} // effect tail
+      #|pub type Identity[A]
+      #|// before alias equals
+      #|= A // alias tail
+      #|pub fn identity(value : Int)
+      #|// before function arrow
+      #|-> Int { value } // function tail
+      #|pub let answer : Int
+      #|// before let equals
+      #|= 42 // let tail
+    ),
+    (
+      #|module Test
+      #|
+      #|extern type Handle[A]
+      #|// before colon
+      #|: Type // external tail
+      #|
+      #|struct Box[A]
+      #|// before body
+      #|{
+      #|  value : A
+      #|} // struct tail
+      #|
+      #|enum Option[A] {
+      #|  some(A)
+      #|} // enum tail
+      #|
+      #|effect Prompt {
+      #|  read()
+      #|  // before operation arrow
+      #|  -> Int
+      #|} // effect tail
+      #|
+      #|pub type Identity[A]
+      #|// before alias equals
+      #|= A // alias tail
+      #|
+      #|pub fn identity(value : Int)
+      #|// before function arrow
+      #|-> Int {
+      #|  value
+      #|} // function tail
+      #|
+      #|pub let answer : Int
+      #|// before let equals
+      #|= 42 // let tail
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves unary pipeline and match boundaries" {
+  assert_format(
+    (
+      #|module Test
+      #|enum Option { some(Int) }
+      #|fn identity(value : Int) -> Int { value }
+      #|pub fn inspect(value : Int, option : Option) -> Bool {
+      #|  let piped : Int = value |> // pipeline operand
+      #|    identity
+      #|  let negated : Bool = ! // unary operand
+      #|    false
+      #|  match option
+      #|  // before match body
+      #|  {
+      #|    some(item) => negated && piped == item
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|enum Option {
+      #|  some(Int)
+      #|}
+      #|
+      #|fn identity(value : Int) -> Int {
+      #|  value
+      #|}
+      #|
+      #|pub fn inspect(value : Int, option : Option) -> Bool {
+      #|  let piped : Int = value |> // pipeline operand
+      #|    identity
+      #|  let negated : Bool = ! // unary operand
+      #|    false
+      #|  match option
+      #|  // before match body
+      #|  {
+      #|    some(item) => negated && piped == item
+      #|  }
+      #|}
       #|
     ),
   )

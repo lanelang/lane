@@ -3,7 +3,6 @@ package "Milky2018/lanec/format"
 
 import {
   "Milky2018/lanec/diagnostic",
-  "Milky2018/lanec/syntax",
   "moonbitlang/core/debug",
 }
 
@@ -11,10 +10,6 @@ import {
 pub fn default_options() -> FormatOptions
 
 pub fn format_source(String) -> Result[String, Array[@diagnostic.CompilerDiagnostic]]
-
-pub fn format_source_file(@syntax.SourceFile) -> String
-
-pub fn format_source_file_with_options(@syntax.SourceFile, FormatOptions) -> String
 
 pub fn format_source_with_options(String, FormatOptions) -> Result[String, Array[@diagnostic.CompilerDiagnostic]]
 

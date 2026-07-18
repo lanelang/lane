@@ -469,7 +469,7 @@ test "typecheck rejects public effect alias exposing private effect" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[private effect `Console` in public interface @ 5:15-5:26]
+      #|[private effect `Console` in public interface @ 5:5-5:26]
     ),
   )
 }
@@ -828,7 +828,7 @@ test "typecheck compare offer does not derive equal offer" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[missing_contextual_offer type#0[Int] @ 12:26-12:27]
+      #|[missing_contextual_offer type#0[Int] @ 12:21-12:27]
     ),
   )
 }
@@ -900,7 +900,7 @@ test "typecheck reports missing contextual offer" {
       #|    let answer#1 : Int
       #|  }
       #|  diagnostics {
-      #|    missing_contextual_offer type#0[Int] @ 8:24-8:25
+      #|    missing_contextual_offer type#0[Int] @ 8:20-8:25
       #|  }
       #|}
     ),
@@ -945,7 +945,7 @@ test "typecheck reports ambiguous contextual offer" {
       #|    let answer#3 : Int
       #|  }
       #|  diagnostics {
-      #|    ambiguous_contextual_offer type#0[Int] candidates=[add_a, add_b] @ 10:24-10:25
+      #|    ambiguous_contextual_offer type#0[Int] candidates=[add_a, add_b] @ 10:20-10:25
       #|  }
       #|}
     ),
@@ -967,7 +967,9 @@ test "typecheck reports non-trailing auto parameter" {
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content="auto_parameters_must_be_trailing @ 8:24-8:29",
+    content=(
+      #|auto_parameters_must_be_trailing @ 8:20-8:29
+    ),
   )
 }
 
@@ -1007,7 +1009,9 @@ test "typecheck reports duplicate named contextual argument" {
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content="duplicate_named_argument op @ 9:47-9:53",
+    content=(
+      #|duplicate_named_argument op @ 9:44-9:53
+    ),
   )
 }
 
@@ -1023,7 +1027,9 @@ test "typecheck reports invalid named argument for ordinary call" {
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content="invalid_named_argument value @ 5:29-5:30",
+    content=(
+      #|invalid_named_argument value @ 5:23-5:30
+    ),
   )
 }
 
@@ -1352,7 +1358,7 @@ test "typecheck direct binary operator result mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|type_mismatch expected=Int actual=Bool @ 6:7-6:8
+      #|type_mismatch expected=Int actual=Bool @ 6:3-6:8
     ),
   )
 }
@@ -1589,7 +1595,7 @@ test "typecheck reports generic function literal arity mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|application_arity_mismatch generic function arity @ 2:26-4:2
+      #|application_arity_mismatch generic function arity @ 2:24-4:2
     ),
   )
 }
@@ -1606,7 +1612,7 @@ test "typecheck reports generic literal against non-generic function type" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|application_arity_mismatch generic function arity @ 2:27-4:2
+      #|application_arity_mismatch generic function arity @ 2:25-4:2
     ),
   )
 }
@@ -1921,7 +1927,7 @@ test "typecheck reports explicit generic function arity mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_arity_mismatch explicit_generic_application id expected=1 actual=2 @ 5:21-5:32]
+      #|[type_arity_mismatch explicit_generic_application id expected=1 actual=2 @ 5:19-5:32]
     ),
   )
 }
@@ -1963,7 +1969,7 @@ test "typecheck reports generic arguments on non-generic function" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[generic_arguments_on_non_generic explicit_generic_application plain (Int) -> Int @ 5:24-5:29]
+      #|[generic_arguments_on_non_generic explicit_generic_application plain (Int) -> Int @ 5:19-5:29]
     ),
   )
 }
@@ -1989,7 +1995,7 @@ test "typecheck reports unresolved generic arguments" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|generic_argument_inference_failed make missing A @ 10:22-10:23
+      #|generic_argument_inference_failed make missing A @ 10:17-10:23
     ),
   )
 }
@@ -2183,7 +2189,7 @@ test "typecheck reports missing existential struct type witness" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|missing_type_member T @ 6:29-6:37
+      #|missing_type_member T @ 6:21-6:37
     ),
   )
 }
@@ -2200,7 +2206,7 @@ test "typecheck reports field access on non-struct value" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|not_a_struct Int @ 3:5-3:10
+      #|not_a_struct Int @ 3:3-3:10
     ),
   )
 }
@@ -3089,7 +3095,9 @@ test "typecheck reports unresolved variant generic arguments" {
   )
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
-    content="generic_argument_inference_failed generic arguments missing A @ 8:29-8:31",
+    content=(
+      #|generic_argument_inference_failed generic arguments missing A @ 8:17-8:31
+    ),
   )
 }
 
@@ -3130,7 +3138,7 @@ test "typecheck reports enum variant arity mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|application_arity_mismatch variant arity @ 7:8-7:9
+      #|application_arity_mismatch variant arity @ 7:3-7:9
     ),
   )
 }
@@ -3163,7 +3171,7 @@ test "typecheck reports ambiguous unqualified enum variant" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|variant_reference_failure ambiguous variant reference same @ 9:9-9:10
+      #|variant_reference_failure ambiguous variant reference same @ 9:3-9:10
     ),
   )
 }
@@ -3288,7 +3296,7 @@ test "typecheck reports non-exhaustive bool match" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|non_exhaustive_match Bool missing=`false` @ 3:15-5:4
+      #|non_exhaustive_match Bool missing=`false` @ 3:3-5:4
     ),
   )
 }
@@ -3332,7 +3340,7 @@ test "typecheck reports non-exhaustive nested enum patterns" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|non_exhaustive_match type#0[type#0[Int]] missing=`some(some(_))` @ 7:15-10:4
+      #|non_exhaustive_match type#0[type#0[Int]] missing=`some(some(_))` @ 7:3-10:4
     ),
   )
 }
@@ -3400,7 +3408,7 @@ test "typecheck reports unreachable match arm" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|unreachable_match_arm @ 5:13-5:14
+      #|unreachable_match_arm @ 5:5-5:14
     ),
   )
 }
@@ -3421,7 +3429,7 @@ test "typecheck compares int patterns by checked value" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|unreachable_match_arm @ 5:11-5:12
+      #|unreachable_match_arm @ 5:5-5:12
     ),
   )
 }
@@ -3466,7 +3474,7 @@ test "typecheck reports missing struct pattern field" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|missing_field y @ 8:16-8:17
+      #|missing_field y @ 8:5-8:17
     ),
   )
 }
@@ -3531,7 +3539,7 @@ test "typecheck struct literal punning and required fields" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|missing_field y @ 7:14-7:15
+      #|missing_field y @ 7:3-7:15
     ),
   )
 }
@@ -3551,7 +3559,7 @@ test "typecheck reports nominal type arity mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics[0]),
     content=(
-      #|type_arity_mismatch Box expected=1 actual=2 @ 6:16-6:26
+      #|type_arity_mismatch Box expected=1 actual=2 @ 6:12-6:26
     ),
   )
 }
@@ -3901,8 +3909,8 @@ test "typecheck reports effect operation generic witness arity mismatch once" {
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
       #|[
-      #|  application_arity_mismatch effect operation generic arguments @ 6:18-6:35,
-      #|  effect_mismatch expected=effect#0 actual={} @ 6:3-7:2
+      #|  application_arity_mismatch effect operation generic arguments @ 6:3-6:35,
+      #|  effect_mismatch expected=effect#0 actual={} @ 5:26-7:2
       #|]
     ),
   )
@@ -3943,7 +3951,7 @@ test "typecheck rejects pure body with non-empty effect annotation" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[effect_mismatch expected=effect#0 actual={} @ 6:3-7:2]
+      #|[effect_mismatch expected=effect#0 actual={} @ 5:28-7:2]
     ),
   )
 }
@@ -3984,7 +3992,7 @@ test "typecheck rejects effectful function call in pure function" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[effect_mismatch expected={} actual=effect#0 @ 9:3-10:2]
+      #|[effect_mismatch expected={} actual=effect#0 @ 8:20-10:2]
     ),
   )
 }
@@ -4263,7 +4271,7 @@ test "typecheck rejects handler for absent closed effect" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[effect_mismatch expected=effect#0 actual={} @ 6:12-10:4]
+      #|[effect_mismatch expected=effect#0 actual={} @ 6:3-10:4]
     ),
   )
 }
@@ -4290,7 +4298,7 @@ test "typecheck preserves unhandled residual effect" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[effect_mismatch expected={} actual=effect#1 @ 9:3-14:2]
+      #|[effect_mismatch expected={} actual=effect#1 @ 8:21-14:2]
     ),
   )
 }
@@ -4317,7 +4325,7 @@ test "typecheck preserves handler arm direct effects" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[effect_mismatch expected={} actual=effect#1 @ 9:3-14:2]
+      #|[effect_mismatch expected={} actual=effect#1 @ 8:21-14:2]
     ),
   )
 }
@@ -4371,7 +4379,7 @@ test "typecheck rejects duplicate handled effects" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[duplicate_handled_effect effect#0 @ 9:5-10:4]
+      #|[duplicate_handled_effect effect#0 @ 8:5-10:4]
     ),
   )
 }
@@ -4401,7 +4409,7 @@ test "typecheck rejects missing handler operation coverage" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[missing_handler_operation operation#1 @ 12:5-14:4]
+      #|[missing_handler_operation operation#1 @ 11:27-14:4]
     ),
   )
 }

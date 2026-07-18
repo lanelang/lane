@@ -4,7 +4,6 @@ using @basic {type SourceSpan}
 ///|
 using @prettyprinter {
   type Document,
-  brackets,
   char,
   dynamic,
   empty,

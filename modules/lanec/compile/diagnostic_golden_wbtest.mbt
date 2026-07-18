@@ -481,10 +481,10 @@ test "golden struct diagnostic renders span summary and suggestion" {
       #|    Source(
       #|      source_id="<root>",
       #|      span={
-      #|        start_offset: 82,
+      #|        start_offset: 73,
       #|        end_offset: 88,
       #|        start_line: 6,
-      #|        start_column: 30,
+      #|        start_column: 21,
       #|        end_line: 6,
       #|        end_column: 36,
       #|      },
@@ -497,10 +497,10 @@ test "golden struct diagnostic renders span summary and suggestion" {
       #|      span: Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 82,
+      #|          start_offset: 73,
       #|          end_offset: 88,
       #|          start_line: 6,
-      #|          start_column: 30,
+      #|          start_column: 21,
       #|          end_line: 6,
       #|          end_column: 36,
       #|        },
@@ -551,10 +551,10 @@ test "golden pattern diagnostic renders span summary and guidance" {
       #|    Source(
       #|      source_id="<root>",
       #|      span={
-      #|        start_offset: 103,
+      #|        start_offset: 90,
       #|        end_offset: 141,
       #|        start_line: 7,
-      #|        start_column: 16,
+      #|        start_column: 3,
       #|        end_line: 9,
       #|        end_column: 4,
       #|      },
@@ -567,10 +567,10 @@ test "golden pattern diagnostic renders span summary and guidance" {
       #|      span: Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 103,
+      #|          start_offset: 90,
       #|          end_offset: 141,
       #|          start_line: 7,
-      #|          start_column: 16,
+      #|          start_column: 3,
       #|          end_line: 9,
       #|          end_column: 4,
       #|        },
