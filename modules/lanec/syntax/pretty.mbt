@@ -109,8 +109,13 @@ fn SourceFile::to_doc(
       keyword("module") + space + self.module_path.to_doc(),
     ),
   ]
-  for import_ in self.imports {
-    docs.push(import_.to_doc(trivia~))
+  if !self.imports.is_empty() {
+    docs.push(
+      separate(
+        hardline,
+        self.imports.map(fn(import_) { import_.to_doc(trivia~) }),
+      ),
+    )
   }
   if !self.declarations.is_empty() {
     docs.push(

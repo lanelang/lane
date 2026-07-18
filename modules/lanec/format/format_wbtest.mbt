@@ -171,6 +171,33 @@ test "format source normalizes whitespace and final newline" {
 }
 
 ///|
+test "format source keeps consecutive imports together" {
+  assert_format(
+    (
+      #|module Test
+      #|
+      #|import Basic.Io.{ println }
+      #|
+      #|import Basic.Ops.*
+      #|
+      #|import Basic.Data.List.{ List }
+      #|
+      #|pub let answer : Int = 42
+    ),
+    (
+      #|module Test
+      #|
+      #|import Basic.Io.{ println }
+      #|import Basic.Ops.*
+      #|import Basic.Data.List.{ List }
+      #|
+      #|pub let answer : Int = 42
+      #|
+    ),
+  )
+}
+
+///|
 test "format source canonicalizes pure blank line gaps structurally" {
   assert_format(
     (
