@@ -191,6 +191,8 @@ fn analyze_module_graph(graph : @module_frontend.ModuleGraph) -> AnalysisResult 
               resolved.source,
               Some(source),
               display,
+              input.source_id,
+              input.text,
             )
             diagnostics.append(
               checked_unused_local_value_binding_diagnostics(source, input.text).map(fn(
@@ -214,49 +216,54 @@ fn analyze_module_graph(graph : @module_frontend.ModuleGraph) -> AnalysisResult 
               module_path_text: input.header.module_path_text,
               interface,
             })
-            collect_checked_source_analysis(
-              input.source_id,
-              input.text,
-              source,
-              display,
-              definitions,
-              references,
-              hovers,
-              inlay_hints,
-              semantic_index.annotated_values,
-            )
-            collect_resolved_type_references(
-              input.source_id,
-              input.text,
-              resolved.source,
-              references,
-              hovers,
+            semantic_index.append_analysis(
+              definitions, references, hovers, inlay_hints,
             )
           }
-          _ =>
-            collect_resolved_source_analysis(
+          _ => {
+            let semantic_index = SemanticIndex::from_sources(
+              resolved.source,
+              None,
+              display,
               input.source_id,
               input.text,
-              resolved.source,
-              definitions,
-              references,
-              hovers,
             )
+            semantic_index.append_analysis(
+              definitions, references, hovers, inlay_hints,
+            )
+          }
         }
       }
-      None =>
-        collect_resolved_source_analysis(
+      None => {
+        let semantic_index = SemanticIndex::from_sources(
+          resolved.source,
+          None,
+          display,
           input.source_id,
           input.text,
-          resolved.source,
-          definitions,
-          references,
-          hovers,
         )
+        semantic_index.append_analysis(
+          definitions, references, hovers, inlay_hints,
+        )
+      }
     }
   }
   let semantic_tokens = build_semantic_tokens(definitions, references, registry)
   { diagnostics, definitions, references, hovers, semantic_tokens, inlay_hints }
+}
+
+///|
+fn SemanticIndex::append_analysis(
+  self : SemanticIndex,
+  definitions : Array[DefinitionEntry],
+  references : Array[ReferenceEntry],
+  hovers : Array[HoverEntry],
+  inlay_hints : Array[InlayHintEntry],
+) -> Unit {
+  definitions.append(self.definitions)
+  references.append(self.references)
+  hovers.append(self.hovers)
+  inlay_hints.append(self.inlay_hints)
 }
 
 ///|

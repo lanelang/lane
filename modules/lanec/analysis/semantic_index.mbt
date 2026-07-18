@@ -111,8 +111,23 @@ priv struct TopLevelReferenceFact {
 }
 
 ///|
+priv struct ParameterHintSignature {
+  symbol : AnalysisSymbol
+  parameters : Array[ParameterHintParameter]
+}
+
+///|
+priv struct ParameterHintParameter {
+  name : String
+  is_auto : Bool
+}
+
+///|
 priv struct SemanticIndex {
   registry : @symbol.SymbolRegistry
+  source_id : String
+  source_text : String
+  has_checked_source : Bool
   bindings : Array[SemanticBindingFact]
   members : Array[SemanticMemberFact]
   annotated_values : Array[@symbol.ValueSymbolId]
@@ -121,6 +136,11 @@ priv struct SemanticIndex {
   used_import_symbols : Array[@resolve.ResolvedImportSymbol]
   top_level_declarations : Array[TopLevelDeclarationFact]
   top_level_references : Array[TopLevelReferenceFact]
+  definitions : Array[DefinitionEntry]
+  references : Array[ReferenceEntry]
+  hovers : Array[HoverEntry]
+  inlay_hints : Array[InlayHintEntry]
+  parameter_signatures : Array[ParameterHintSignature]
   mut current_top_level : TopLevelSymbol?
 }
 
@@ -129,9 +149,14 @@ fn SemanticIndex::from_sources(
   resolved : @resolve.ResolvedSourceFile,
   checked : @checked.CheckedSourceFile?,
   display : @typecheck.TypeDisplayContext,
+  source_id : String,
+  source_text : String,
 ) -> SemanticIndex {
   let index = SemanticIndex::{
     registry: resolved.symbols,
+    source_id,
+    source_text,
+    has_checked_source: checked is Some(_),
     bindings: [],
     members: [],
     annotated_values: [],
@@ -140,6 +165,11 @@ fn SemanticIndex::from_sources(
     used_import_symbols: [],
     top_level_declarations: [],
     top_level_references: [],
+    definitions: [],
+    references: [],
+    hovers: [],
+    inlay_hints: [],
+    parameter_signatures: [],
     current_top_level: None,
   }
   for declaration in resolved.declarations {
@@ -149,6 +179,9 @@ fn SemanticIndex::from_sources(
     index.collect_resolved_declaration(declaration)
   }
   if checked is Some(source) {
+    for declaration in source.declarations {
+      index.enrich_checked_declaration_header(declaration, display)
+    }
     for declaration in source.declarations {
       index.enrich_checked_declaration(declaration, display)
     }
@@ -216,6 +249,7 @@ fn SemanticIndex::add_member(
   kind : SemanticMemberKind,
   detail : String,
   payload_count : Int?,
+  loc : @basic.SourceSpan,
 ) -> Unit {
   self.members.push({
     identity,
@@ -226,6 +260,18 @@ fn SemanticIndex::add_member(
     detail,
     payload_count,
   })
+  let symbol = match identity {
+    FieldMember(symbol) => AnalysisSymbol::Field(symbol)
+    TypeMember(symbol) => TypeMember(symbol)
+    VariantMember(symbol) => Variant(symbol)
+    OperationMember(symbol) => Operation(symbol)
+  }
+  self.add_definition(
+    symbol,
+    name_span(self.source_text, name, loc),
+    name,
+    detail,
+  )
 }
 
 ///|
@@ -239,6 +285,13 @@ fn SemanticIndex::enrich_member(
       fact.detail = detail
     }
   }
+  let symbol = match identity {
+    FieldMember(symbol) => AnalysisSymbol::Field(symbol)
+    TypeMember(symbol) => TypeMember(symbol)
+    VariantMember(symbol) => Variant(symbol)
+    OperationMember(symbol) => Operation(symbol)
+  }
+  self.enrich_definition(symbol, detail)
 }
 
 ///|
@@ -307,7 +360,7 @@ fn SemanticIndex::add_top_level_declaration(
         is_public: declaration.is_public,
         loc: declaration.loc,
       })
-    Function(declaration) =>
+    Function(declaration) => {
       self.top_level_declarations.push({
         symbol: TopLevelValue(declaration.symbol),
         name: declaration.name,
@@ -315,6 +368,8 @@ fn SemanticIndex::add_top_level_declaration(
         is_public: declaration.is_public,
         loc: declaration.loc,
       })
+      self.add_parameter_signature(declaration.symbol, declaration.parameters)
+    }
     Let(declaration) =>
       if declaration.name is Some(name) {
         self.top_level_declarations.push({
@@ -506,8 +561,21 @@ fn SemanticIndex::add_binding(
   kind : SemanticBindingKind,
   detail : String,
   visibility : SemanticBindingVisibility,
+  loc? : @basic.SourceSpan,
 ) -> Unit {
   self.bindings.push({ identity, name, kind, detail, type_: None, visibility })
+  if loc is Some(loc) {
+    let symbol = match identity {
+      ValueBinding(symbol) => Some(AnalysisSymbol::Value(symbol))
+      TypeBinding(symbol) => Some(Type(symbol))
+      EffectBinding(symbol) => Some(Effect(symbol))
+      TypeParameterBinding(symbol) => Some(TypeParameter(symbol))
+      AliasBinding(_) => None
+    }
+    if symbol is Some(symbol) {
+      self.add_definition(symbol, loc, name, detail)
+    }
+  }
 }
 
 ///|
@@ -522,6 +590,16 @@ fn SemanticIndex::enrich_binding(
       binding.detail = detail
       binding.type_ = type_
     }
+  }
+  let symbol = match identity {
+    ValueBinding(symbol) => Some(AnalysisSymbol::Value(symbol))
+    TypeBinding(symbol) => Some(Type(symbol))
+    EffectBinding(symbol) => Some(Effect(symbol))
+    TypeParameterBinding(symbol) => Some(TypeParameter(symbol))
+    AliasBinding(_) => None
+  }
+  if symbol is Some(symbol) {
+    self.enrich_definition(symbol, detail)
   }
 }
 
@@ -552,6 +630,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         TypeBindingKind,
         "struct \{declaration.name}",
         GlobalBinding,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -568,6 +647,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
               TypeMemberKind,
               "type \{type_member.name}",
               None,
+              type_member.loc,
             )
           Field(field) => {
             self.add_member(
@@ -578,6 +658,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
               FieldMemberKind,
               "field \{field.name}",
               None,
+              field.loc,
             )
             self.collect_resolved_type(field.type_)
           }
@@ -591,6 +672,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         TypeBindingKind,
         "enum \{declaration.name}",
         GlobalBinding,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -605,6 +687,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
           VariantMemberKind,
           "variant \{declaration.name}::\{variant.name}",
           Some(variant.payload.length()),
+          variant.loc,
         )
         self.add_resolved_type_parameters(
           variant.type_parameters,
@@ -622,6 +705,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         TypeBindingKind,
         "extern type \{declaration.name} : Type",
         GlobalBinding,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -635,6 +719,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         EffectBindingKind,
         effect_completion_detail(declaration.name, declaration.flavor),
         GlobalBinding,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
       if declaration.flavor is Algebraic {
         self.add_resolved_type_parameters(
@@ -650,6 +735,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
             OperationMemberKind,
             "operation \{declaration.name}::\{operation.name}",
             None,
+            operation.loc,
           )
           self.add_resolved_type_parameters(
             operation.type_parameters,
@@ -695,6 +781,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         FunctionBindingKind,
         "fn \{declaration.name}",
         GlobalBinding,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -708,6 +795,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
           ValueBindingKind,
           "parameter \{parameter.name}",
           ScopedBinding(declaration.body.loc()),
+          loc=name_span(self.source_text, parameter.name, parameter.loc),
         )
         self.collect_resolved_type(parameter.type_)
       }
@@ -729,6 +817,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
           ValueBindingKind,
           "let \{name}",
           GlobalBinding,
+          loc=name_span(self.source_text, name, declaration.loc),
         )
       }
       self.collect_resolved_expr(declaration.initializer)
@@ -742,6 +831,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         OfferBindingKind,
         "offer \{declaration.name}",
         GlobalBinding,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
       self.collect_resolved_expr(declaration.initializer)
     }
@@ -789,6 +879,7 @@ fn SemanticIndex::add_completion_type_parameters(
       TypeParameterBindingKind,
       "type parameter \{parameter.name}",
       visibility,
+      loc=parameter.loc,
     )
   }
 }
@@ -818,6 +909,7 @@ fn SemanticIndex::collect_resolved_local_item(
           ValueBindingKind,
           "let \{name}",
           visibility,
+          loc=name_span(self.source_text, name, declaration.loc),
         )
       }
       self.collect_resolved_expr(declaration.initializer)
@@ -836,7 +928,9 @@ fn SemanticIndex::collect_resolved_local_item(
         FunctionBindingKind,
         "fn \{declaration.name}",
         visibility,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
+      self.add_parameter_signature(declaration.symbol, declaration.parameters)
       self.add_resolved_type_parameters(
         declaration.type_parameters,
         ScopedBinding(declaration.body.loc()),
@@ -849,6 +943,7 @@ fn SemanticIndex::collect_resolved_local_item(
           ValueBindingKind,
           "parameter \{parameter.name}",
           ScopedBinding(declaration.body.loc()),
+          loc=name_span(self.source_text, parameter.name, parameter.loc),
         )
         self.collect_resolved_type(parameter.type_)
       }
@@ -865,6 +960,7 @@ fn SemanticIndex::collect_resolved_local_item(
         OfferBindingKind,
         "offer \{declaration.name}",
         visibility,
+        loc=name_span(self.source_text, declaration.name, declaration.loc),
       )
       self.collect_resolved_expr(declaration.initializer)
     }
@@ -911,6 +1007,7 @@ fn SemanticIndex::collect_resolved_expr(
           ValueBindingKind,
           "parameter \{parameter.name}",
           scope,
+          loc=name_span(self.source_text, parameter.name, parameter.loc),
         )
         if parameter.type_annotation is Some(type_) {
           self.collect_resolved_type(type_)
@@ -953,6 +1050,7 @@ fn SemanticIndex::collect_resolved_expr(
             ValueBindingKind,
             "resume \{arm.resume_binder}",
             visibility,
+            loc=name_span(self.source_text, arm.resume_binder, arm.resume_loc),
           )
           self.collect_resolved_expr(arm.body)
         }
@@ -963,6 +1061,11 @@ fn SemanticIndex::collect_resolved_expr(
         ValueBindingKind,
         "final \{final_branch.binder}",
         ScopedBinding(final_branch.body.loc()),
+        loc=name_span(
+          self.source_text,
+          final_branch.binder,
+          final_branch.binder_loc,
+        ),
       )
       self.collect_resolved_expr(final_branch.body)
     }
@@ -1017,9 +1120,23 @@ fn SemanticIndex::collect_resolved_expr_symbols(
   expr : @resolve.ResolvedExpr,
 ) -> Unit {
   match expr {
-    Var(reference~, ..) => self.collect_resolved_value_reference(reference)
-    QualifiedVariant(reference~, ..) | UnqualifiedVariant(reference~, ..) =>
+    Var(name~, reference~, loc~) => {
+      self.collect_resolved_value_reference(reference)
+      if !self.has_checked_source && reference is Symbol(symbol) {
+        self.add_reference(Value(symbol), loc, Some(name))
+      }
+    }
+    QualifiedVariant(reference~, loc~, ..)
+    | UnqualifiedVariant(reference~, loc~, ..) => {
       self.collect_resolved_variant_reference(reference)
+      if !self.has_checked_source && reference is Symbol(symbol) {
+        self.add_reference(
+          Variant(symbol),
+          self.definition_span(Variant(symbol), loc),
+          self.definition_detail(Variant(symbol)),
+        )
+      }
+    }
     ListLiteral(empty_reference~, cons_reference~, ..) => {
       self.collect_resolved_variant_reference(empty_reference)
       if cons_reference is Some(reference) {
@@ -1028,21 +1145,63 @@ fn SemanticIndex::collect_resolved_expr_symbols(
     }
     StructLiteral(fields~, ..) =>
       for field in fields {
-        if field is Value(punned_reference=Some(reference), ..) {
+        if field is Value(name~, value~, punned_reference=Some(reference), loc~) {
           self.collect_resolved_value_reference(reference)
+          if !self.has_checked_source && reference is Symbol(symbol) {
+            let span = match value {
+              Some(value) => value.loc()
+              None => loc
+            }
+            self.add_reference(Value(symbol), span, Some(name))
+          }
         }
       }
-    EffectOperationCall(name~, ..) => self.collect_resolved_operation_name(name)
+    EffectOperationCall(name~, ..) => {
+      self.collect_resolved_operation_name(name)
+      if !self.has_checked_source {
+        self.add_resolved_operation_reference(name)
+      }
+    }
     Handler(handlers~, ..) =>
       for handler in handlers {
         for arm in handler.arms {
           self.collect_resolved_operation_name(arm.name)
+          if !self.has_checked_source {
+            self.add_resolved_operation_reference(arm.name)
+          }
         }
       }
-    Field(reference~, ..) => self.collect_resolved_field_reference(reference)
-    Unary(reference~, ..) | Binary(reference~, ..) =>
+    Field(reference~, name~, loc~, ..) => {
+      self.collect_resolved_field_reference(reference)
+      if !self.has_checked_source && reference is Symbol(symbol) {
+        self.add_reference(Field(symbol), loc, Some(name))
+      }
+    }
+    Unary(reference~, loc~, ..) | Binary(reference~, loc~, ..) => {
       self.collect_resolved_value_reference(reference)
+      if !self.has_checked_source && reference is Symbol(symbol) {
+        self.add_reference(Value(symbol), loc, None)
+      }
+    }
     _ => ()
+  }
+}
+
+///|
+fn SemanticIndex::add_resolved_operation_reference(
+  self : SemanticIndex,
+  name : @resolve.ResolvedEffectOperationName,
+) -> Unit {
+  let (operation, reference, loc) = match name {
+    Qualified(operation~, reference~, loc~, ..) => (operation, reference, loc)
+    Unqualified(operation~, reference~, loc~) => (operation, reference, loc)
+  }
+  if reference is Symbol(symbol) {
+    self.add_reference(
+      Operation(symbol),
+      name_span(self.source_text, operation, loc),
+      Some("operation \{operation}"),
+    )
   }
 }
 
@@ -1130,9 +1289,16 @@ fn SemanticIndex::collect_resolved_pattern(
   visibility : SemanticBindingVisibility,
 ) -> Unit {
   match pattern {
-    QualifiedVariant(type_binders~, reference~, arguments~, ..) => {
+    QualifiedVariant(type_binders~, reference~, arguments~, loc~, ..) => {
       self.add_resolved_type_parameters(type_binders, visibility)
       self.collect_resolved_variant_reference(reference)
+      if !self.has_checked_source && reference is Symbol(symbol) {
+        self.add_reference(
+          Variant(symbol),
+          self.definition_span(Variant(symbol), loc),
+          self.definition_detail(Variant(symbol)),
+        )
+      }
       for argument in arguments {
         self.collect_resolved_pattern(argument, visibility)
       }
@@ -1152,13 +1318,14 @@ fn SemanticIndex::collect_resolved_pattern(
             self.add_resolved_type_parameters([type_parameter], visibility)
         }
       }
-    Binding(name~, symbol~, ..) =>
+    Binding(name~, symbol~, loc~) =>
       self.add_binding(
         ValueBinding(symbol),
         name,
         ValueBindingKind,
         "pattern \{name}",
         visibility,
+        loc~,
       )
     Wildcard(_)
     | IntLiteral(_)
@@ -1175,9 +1342,17 @@ fn SemanticIndex::collect_resolved_type(
 ) -> Unit {
   match type_ {
     Primitive(_) => ()
-    Constructor(symbol~, ..) =>
+    Constructor(symbol~, name~, loc~) => {
+      self.add_reference(Type(symbol), loc, Some("type \{name}"))
       self.add_top_level_reference(TopLevelType(symbol))
-    Alias(name~, ..) => self.add_top_level_reference(TopLevelAlias(name))
+    }
+    Alias(name~, loc~) => {
+      self.add_top_level_reference(TopLevelAlias(name))
+      self.hovers.push({
+        location: { source_id: self.source_id, span: loc },
+        contents: "type alias \{name}",
+      })
+    }
     Apply(callee~, arguments~, ..) => {
       self.collect_resolved_type(callee)
       for argument in arguments {
@@ -1188,7 +1363,10 @@ fn SemanticIndex::collect_resolved_type(
       self.add_generic_parameters(parameters)
       self.collect_resolved_type(body)
     }
-    Parameter(symbol~, ..) => self.generic_parameter_references.push(symbol)
+    Parameter(symbol~, name~, loc~) => {
+      self.generic_parameter_references.push(symbol)
+      self.add_reference(TypeParameter(symbol), loc, Some("type \{name}"))
+    }
     Function(type_parameters~, parameters~, result~, effect~, ..) => {
       self.add_generic_parameters(type_parameters)
       for parameter in parameters {
@@ -1215,15 +1393,23 @@ fn SemanticIndex::collect_resolved_effect(
       for argument in arguments {
         self.collect_resolved_generic_argument(argument)
       }
-    Singleton(symbol~, arguments~, ..) => {
+    Singleton(symbol~, name~, arguments~, loc~) => {
+      self.add_reference(Effect(symbol), loc, Some("effect \{name}"))
       self.add_top_level_reference(TopLevelEffect(symbol))
       for argument in arguments {
         self.collect_resolved_generic_argument(argument)
       }
     }
-    Parameter(symbol~, ..) => self.generic_parameter_references.push(symbol)
-    Alias(name~, arguments~, ..) => {
+    Parameter(symbol~, name~, loc~) => {
+      self.generic_parameter_references.push(symbol)
+      self.add_reference(TypeParameter(symbol), loc, Some("effect \{name}"))
+    }
+    Alias(name~, arguments~, loc~) => {
       self.add_top_level_reference(TopLevelAlias(name))
+      self.hovers.push({
+        location: { source_id: self.source_id, span: loc },
+        contents: "effect alias \{name}",
+      })
       for argument in arguments {
         match argument {
           TypeArgument(type_) => self.collect_resolved_type(type_)
@@ -1269,13 +1455,18 @@ fn SemanticIndex::enrich_checked_declaration(
 }
 
 ///|
-fn SemanticIndex::enrich_checked_declaration_body(
+fn SemanticIndex::enrich_checked_declaration_header(
   self : SemanticIndex,
   declaration : @checked.CheckedTopLevelDeclaration,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
   match declaration {
     Struct(declaration) => {
+      self.enrich_binding(
+        TypeBinding(declaration.symbol),
+        "type \{declaration.name} : Type",
+        None,
+      )
       self.enrich_checked_type_parameters(declaration.type_parameters, display)
       for type_member in declaration.type_members {
         self.enrich_member(
@@ -1288,21 +1479,44 @@ fn SemanticIndex::enrich_checked_declaration_body(
           FieldMember(field.symbol),
           "\{field.name} : \{display.type_text(field.type_)}",
         )
-        self.collect_checked_type(field.type_)
       }
     }
     Enum(declaration) => {
+      self.enrich_binding(
+        TypeBinding(declaration.symbol),
+        "type \{declaration.name} : Type",
+        None,
+      )
       self.enrich_checked_type_parameters(declaration.type_parameters, display)
       for variant in declaration.variants {
-        for payload in variant.payload {
-          self.collect_checked_type(payload)
-        }
+        let payload = variant.payload
+          .map(fn(type_) { display.type_text(type_) })
+          .join(", ")
+        self.enrich_member(
+          VariantMember(variant.symbol),
+          if payload == "" {
+            variant.name
+          } else {
+            "\{variant.name}(\{payload})"
+          },
+        )
       }
     }
-    ExternalType(_) => ()
+    ExternalType(declaration) =>
+      self.enrich_binding(
+        TypeBinding(declaration.symbol),
+        "extern type \{declaration.name} : Type",
+        None,
+      )
     Effect(declaration) => {
+      self.enrich_binding(
+        EffectBinding(declaration.symbol),
+        checked_effect_detail(declaration, display),
+        None,
+      )
       self.enrich_checked_type_parameters(declaration.type_parameters, display)
       for operation in declaration.operations {
+        self.enrich_checked_type_parameters(operation.type_parameters, display)
         let payload = operation.payload
           .map(fn(type_) { display.type_text(type_) })
           .join(", ")
@@ -1310,10 +1524,6 @@ fn SemanticIndex::enrich_checked_declaration_body(
           OperationMember(operation.symbol),
           "\{declaration.name}::\{operation.name}(\{payload}) -> \{display.type_text(operation.result)}",
         )
-        for payload in operation.payload {
-          self.collect_checked_type(payload)
-        }
-        self.collect_checked_type(operation.result)
       }
     }
     Function(declaration) => {
@@ -1325,6 +1535,46 @@ fn SemanticIndex::enrich_checked_declaration_body(
       self.enrich_checked_type_parameters(declaration.type_parameters, display)
       for parameter in declaration.parameters {
         self.enrich_checked_parameter(parameter, display)
+      }
+    }
+    Let(declaration) =>
+      if declaration.name is Some(name) {
+        self.enrich_binding(
+          ValueBinding(declaration.symbol),
+          "\{name} : \{display.type_text(declaration.type_)}",
+          Some(declaration.type_),
+        )
+      }
+  }
+}
+
+///|
+fn SemanticIndex::enrich_checked_declaration_body(
+  self : SemanticIndex,
+  declaration : @checked.CheckedTopLevelDeclaration,
+  display : @typecheck.TypeDisplayContext,
+) -> Unit {
+  match declaration {
+    Struct(declaration) =>
+      for field in declaration.fields {
+        self.collect_checked_type(field.type_)
+      }
+    Enum(declaration) =>
+      for variant in declaration.variants {
+        for payload in variant.payload {
+          self.collect_checked_type(payload)
+        }
+      }
+    ExternalType(_) => ()
+    Effect(declaration) =>
+      for operation in declaration.operations {
+        for payload in operation.payload {
+          self.collect_checked_type(payload)
+        }
+        self.collect_checked_type(operation.result)
+      }
+    Function(declaration) => {
+      for parameter in declaration.parameters {
         self.collect_checked_type(parameter.type_)
       }
       self.collect_checked_type(declaration.return_type)
@@ -1333,11 +1583,13 @@ fn SemanticIndex::enrich_checked_declaration_body(
     }
     Let(declaration) => {
       if declaration.name is Some(name) {
-        self.enrich_binding(
-          ValueBinding(declaration.symbol),
-          "\{name} : \{display.type_text(declaration.type_)}",
-          Some(declaration.type_),
-        )
+        if !self.annotated_values.contains(declaration.symbol) {
+          self.add_type_inlay_hint(
+            name_span(self.source_text, name, declaration.loc),
+            display,
+            declaration.type_,
+          )
+        }
       }
       self.collect_checked_type(declaration.type_)
       self.enrich_checked_expr(declaration.initializer, display)
@@ -1387,6 +1639,13 @@ fn SemanticIndex::enrich_checked_local_item(
           "\{name} : \{display.type_text(declaration.type_)}",
           Some(declaration.type_),
         )
+        if !self.annotated_values.contains(declaration.symbol) {
+          self.add_type_inlay_hint(
+            name_span(self.source_text, name, declaration.loc),
+            display,
+            declaration.type_,
+          )
+        }
       }
       self.collect_checked_type(declaration.type_)
       self.enrich_checked_expr(declaration.initializer, display)
@@ -1421,10 +1680,23 @@ fn SemanticIndex::enrich_checked_expr(
 ) -> Unit {
   self.collect_checked_expr_types(expr)
   match expr {
+    Value(name~, symbol~, type_~, loc~) =>
+      self.add_reference(
+        Value(symbol),
+        loc,
+        Some(value_detail(name, type_, display)),
+      )
     FunctionLiteral(type_parameters~, parameters~, body~, ..) => {
       self.enrich_checked_type_parameters(type_parameters, display)
       for parameter in parameters {
         self.enrich_checked_parameter(parameter, display)
+        if !self.annotated_values.contains(parameter.symbol) {
+          self.add_type_inlay_hint(
+            name_span(self.source_text, parameter.name, parameter.loc),
+            display,
+            parameter.type_,
+          )
+        }
       }
       self.enrich_checked_expr(body, display)
     }
@@ -1441,12 +1713,26 @@ fn SemanticIndex::enrich_checked_expr(
         self.enrich_checked_expr(arm.body, display)
       }
     }
+    Call(callee~, arguments~, loc~, ..) => {
+      self.add_call_inlay_hints(callee, arguments, loc)
+      self.enrich_checked_expr(callee, display)
+      for argument in arguments {
+        self.enrich_checked_expr(argument.value, display)
+      }
+    }
+    OperationCall(operation~, arguments~, loc~, ..) => {
+      self.add_operation_reference(operation, loc)
+      for argument in arguments {
+        self.enrich_checked_expr(argument, display)
+      }
+    }
     Handler(body~, handlers~, final_branch~, ..) => {
       if body is Some(body) {
         self.enrich_checked_expr(body, display)
       }
       for handler in handlers {
         for arm in handler.operations {
+          self.add_operation_reference(arm.operation, arm.loc)
           self.enrich_binding(
             ValueBinding(arm.resume_symbol),
             "\{arm.resume_binder} : \{display.type_text(arm.resume_type)}",
@@ -1469,6 +1755,46 @@ fn SemanticIndex::enrich_checked_expr(
         self.enrich_checked_expr(body, display)
       }
     }
+    Field(base~, field~, name~, type_~, loc~) => {
+      self.enrich_checked_expr(base, display)
+      self.add_reference(
+        Field(field),
+        loc,
+        Some(field_detail(name, type_, display)),
+      )
+    }
+    StructLiteral(symbol~, type_witnesses~, fields~, loc~, ..) => {
+      self.add_reference(
+        Type(symbol),
+        self.definition_span(Type(symbol), loc),
+        Some(type_reference_detail(Constructor(symbol), display)),
+      )
+      for witness in type_witnesses {
+        self.add_reference(
+          TypeMember(witness.symbol),
+          witness.loc,
+          Some(type_member_witness_detail(witness.name, witness.type_, display)),
+        )
+      }
+      for field in fields {
+        self.add_reference(
+          Field(field.symbol),
+          field.loc,
+          Some(field_detail(field.name, field.value.type_(), display)),
+        )
+        self.enrich_checked_expr(field.value, display)
+      }
+    }
+    Variant(symbol~, arguments~, loc~, ..) => {
+      self.add_reference(
+        Variant(symbol),
+        self.definition_span(Variant(symbol), loc),
+        self.definition_detail(Variant(symbol)),
+      )
+      for argument in arguments {
+        self.enrich_checked_expr(argument, display)
+      }
+    }
     _ =>
       expr.for_each_child_expr(fn(child) {
         self.enrich_checked_expr(child, display)
@@ -1484,20 +1810,47 @@ fn SemanticIndex::enrich_checked_pattern(
 ) -> Unit {
   self.collect_checked_pattern_types(pattern)
   match pattern {
-    Binding(symbol~, name~, type_~, ..) =>
+    Binding(symbol~, name~, type_~, ..) => {
       self.enrich_binding(
         ValueBinding(symbol),
         "\{name} : \{display.type_text(type_)}",
         Some(type_),
       )
-    Variant(arguments~, ..) =>
+      if !self.annotated_values.contains(symbol) {
+        let span = self.definition_span(Value(symbol), pattern.loc())
+        self.add_type_inlay_hint(span, display, type_)
+      }
+    }
+    Variant(symbol~, arguments~, loc~, ..) => {
+      self.add_reference(
+        Variant(symbol),
+        self.definition_span(Variant(symbol), loc),
+        self.definition_detail(Variant(symbol)),
+      )
       for argument in arguments {
         self.enrich_checked_pattern(argument, display)
       }
-    Struct(fields~, ..) =>
+    }
+    Struct(symbol~, type_binders~, fields~, loc~, ..) => {
+      self.add_reference(
+        Type(symbol),
+        self.definition_span(Type(symbol), loc),
+        Some(type_reference_detail(Constructor(symbol), display)),
+      )
+      for binder in type_binders {
+        if binder.type_parameter is Some(parameter) {
+          self.enrich_binding(
+            TypeParameterBinding(parameter.id),
+            type_parameter_detail(parameter, display),
+            None,
+          )
+        }
+      }
       for field in fields {
+        self.add_reference(Field(field.symbol), field.loc, Some(field.name))
         self.enrich_checked_pattern(field.pattern, display)
       }
+    }
     Wildcard(_) | Literal(_) => ()
   }
 }

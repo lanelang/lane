@@ -185,6 +185,8 @@ fn CompletionWorld::from_graph(
         resolved.source,
         checked_source,
         display,
+        input.source_id,
+        input.text,
       ),
     })
   }

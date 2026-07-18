@@ -76,7 +76,13 @@ pub fn checked_semantic_warning_diagnostics(
   source_text : String,
 ) -> Array[CompilerDiagnostic] {
   let display = @typecheck.TypeDisplayContext::from_registry(source.symbols)
-  let index = SemanticIndex::from_sources(source, Some(checked), display)
+  let index = SemanticIndex::from_sources(
+    source,
+    Some(checked),
+    display,
+    "<diagnostic>",
+    source_text,
+  )
   semantic_warning_diagnostics_from_index(index, source, source_text)
 }
 
