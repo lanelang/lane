@@ -408,13 +408,11 @@ fn TypeMemberDeclaration::to_doc(
   self : TypeMemberDeclaration,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
-  let doc = keyword("type") +
-    space +
-    text(self.name) +
-    space +
-    text(":") +
-    space +
-    self.kind.to_doc(trivia~)
+  let kind = match self.kind {
+    Some(kind) => space + text(":") + space + kind.to_doc(trivia~)
+    None => empty
+  }
+  let doc = keyword("type") + space + text(self.name) + kind
   trivia.decorate(self.loc, doc)
 }
 

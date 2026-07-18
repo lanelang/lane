@@ -230,8 +230,11 @@ struct_member -> StructMember
   ;
 
 type_member_declaration -> TypeMemberDeclaration
-  : "type" IDENT ":" kind {
-    { name: $2, kind: $4, loc: span($sloc) }
+  : "type" IDENT {
+    { name: $2, kind: None, loc: span($sloc) }
+  }
+  | "type" IDENT ":" kind {
+    { name: $2, kind: Some($4), loc: span($sloc) }
   }
   ;
 

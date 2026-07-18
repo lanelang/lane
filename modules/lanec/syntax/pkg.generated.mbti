@@ -367,7 +367,7 @@ pub impl @prettyprinter.Pretty for TypeAliasDeclaration
 
 pub(all) struct TypeMemberDeclaration {
   name : String
-  kind : Kind
+  kind : Kind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeMemberDeclaration

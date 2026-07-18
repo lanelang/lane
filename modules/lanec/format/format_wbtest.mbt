@@ -30,6 +30,27 @@ fn canonical_syntax(source : String) -> String {
 }
 
 ///|
+test "format source preserves omitted struct type member kinds" {
+  assert_format(
+    "module Test\nstruct Packed { type T value : T }\nstruct Explicit { type T : Type value : T }",
+    (
+      #|module Test
+      #|
+      #|struct Packed {
+      #|  type T
+      #|  value : T
+      #|}
+      #|
+      #|struct Explicit {
+      #|  type T : Type
+      #|  value : T
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "formatter consumes the complete trivia attachment view" {
   let source =
     #|// leading module

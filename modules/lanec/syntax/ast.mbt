@@ -73,7 +73,7 @@ pub(all) enum StructMember {
 ///|
 pub(all) struct TypeMemberDeclaration {
   name : String
-  kind : Kind
+  kind : Kind?
   loc : SourceSpan
 } derive(Debug, Eq)
 

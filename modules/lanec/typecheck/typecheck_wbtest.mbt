@@ -2156,7 +2156,7 @@ test "typecheck existential struct construction with type witness" {
   let result = expect_checked_source_result(
     (
       #|struct Hide {
-      #|  type T : Type
+      #|  type T
       #|  val : T
       #|}
       #|let hidden : Hide = Hide::{ T = Int, val: 1 }

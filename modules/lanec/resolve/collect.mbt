@@ -833,6 +833,10 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
   owner : TypeSymbolId,
   index : Int,
 ) -> ResolvedTypeMemberDeclaration {
+  let kind : ResolvedKind = match self.kind {
+    Some(kind) => kind.resolve_kind()
+    None => Type(loc=self.loc)
+  }
   let type_parameter_symbol = resolver.registry.define_type_parameter(
     self.name,
     self.loc,
@@ -840,7 +844,7 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
   let type_parameter : ResolvedTypeParameter = {
     symbol: type_parameter_symbol,
     name: self.name,
-    kind: Some(self.kind.resolve_kind()),
+    kind: Some(kind),
     loc: self.loc,
   }
   let symbol = resolver.registry.define_type_member(
@@ -851,14 +855,7 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
     self.loc,
   )
   scope.type_parameters.push(type_parameter)
-  {
-    symbol,
-    type_parameter,
-    name: self.name,
-    kind: self.kind.resolve_kind(),
-    index,
-    loc: self.loc,
-  }
+  { symbol, type_parameter, name: self.name, kind, index, loc: self.loc }
 }
 
 ///|

@@ -1037,7 +1037,7 @@ test "parse existential surface syntax" {
   let file = expect_parse_ok(
     (
       #|struct Hide {
-      #|  type T : Type
+      #|  type T
       #|  val : T
       #|}
       #|enum Any {
@@ -1061,7 +1061,7 @@ test "parse existential surface syntax" {
       #|module Test
       #|
       #|struct Hide {
-      #|  type T : Type
+      #|  type T
       #|  val : T
       #|}
       #|
