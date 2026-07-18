@@ -200,6 +200,23 @@ fn checked_effect_detail(
 }
 
 ///|
+fn checked_operation_detail(
+  owner : String,
+  operation : @checked.CheckedEffectOperationDeclaration,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  let parameters = checked_type_parameters_text(
+    operation.type_parameters,
+    display,
+  )
+  let payload = operation.payload
+    .map(fn(type_) { display.type_text(type_) })
+    .join(", ")
+  let result = display.type_text(operation.result)
+  "operation \{owner}::\{operation.name}\{parameters}(\{payload}) -> \{result}"
+}
+
+///|
 fn checked_type_parameters_text(
   parameters : Array[@types.TypeParameter],
   display : @typecheck.TypeDisplayContext,

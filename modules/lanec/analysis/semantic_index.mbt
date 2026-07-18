@@ -1517,12 +1517,9 @@ fn SemanticIndex::enrich_checked_declaration_header(
       self.enrich_checked_type_parameters(declaration.type_parameters, display)
       for operation in declaration.operations {
         self.enrich_checked_type_parameters(operation.type_parameters, display)
-        let payload = operation.payload
-          .map(fn(type_) { display.type_text(type_) })
-          .join(", ")
         self.enrich_member(
           OperationMember(operation.symbol),
-          "\{declaration.name}::\{operation.name}(\{payload}) -> \{display.type_text(operation.result)}",
+          checked_operation_detail(declaration.name, operation, display),
         )
       }
     }
