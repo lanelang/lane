@@ -14,7 +14,7 @@ fn simplify_program(
   preserved_roots.push(entry)
   let mut current = program
   for _ in 0..<4 {
-    let analysis = analyze_core(current, entry, roots)
+    let analysis = analyze_core(current)
     let next = simplify_program_once(current, analysis, preserved_roots)
     if next.terms == current.terms {
       return next
@@ -218,10 +218,6 @@ fn simplify_call(
   callee : @buslane.Expr,
   arguments : Array[@buslane.Expr],
 ) -> @buslane.Expr {
-  if try_specialize_generic_call(program, analysis, callee, arguments)
-    is Some(specialized) {
-    return simplify_expr(program, analysis, substitutions, specialized)
-  }
   guard callee is Function(function) &&
     function.parameters.length() == arguments.length() &&
     arguments.all(is_substitutable_atom) else {
