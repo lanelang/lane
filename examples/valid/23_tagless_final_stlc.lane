@@ -1,7 +1,6 @@
 module Examples.Valid23
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 pub struct Stlc[R : [Type] -> Type] {
@@ -23,11 +22,11 @@ pub struct Size[_A] {
 }
 
 pub fn eval_int_lit(value : Int) -> Eval[Int] {
-  Eval::{ value: value }
+  Eval::{ value }
 }
 
 pub fn eval_bool_lit(value : Bool) -> Eval[Bool] {
-  Eval::{ value: value }
+  Eval::{ value }
 }
 
 pub fn eval_add(left : Eval[Int], right : Eval[Int]) -> Eval[Int] {

@@ -1,7 +1,6 @@
 module Examples.Valid.ExplicitGenericFunctionApplication
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 effect Log {

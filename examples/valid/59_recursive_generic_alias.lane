@@ -1,7 +1,6 @@
 module Examples.Valid.RecursiveGenericAlias
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 fn[A] recurse(n : Int, value : A, auto op : Equal[A]) -> Bool {

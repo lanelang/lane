@@ -1,7 +1,6 @@
 module Examples.Valid.Optics
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 struct Lens[S, A] {

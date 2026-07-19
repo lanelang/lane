@@ -4,7 +4,6 @@
 module Examples.Valid16
 
 import Basic.Ops.*
-
 import Basic.Io.{ println }
 
 pub type Id[A] = A

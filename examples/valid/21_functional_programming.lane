@@ -1,7 +1,6 @@
 module Examples.Valid21
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 pub enum Option[A] {

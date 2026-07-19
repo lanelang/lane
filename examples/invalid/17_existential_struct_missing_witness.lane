@@ -2,7 +2,7 @@
 module Examples.Invalid17
 
 pub struct Hide {
-  type T : Type
+  type T
   val : T
 }
 

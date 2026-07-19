@@ -1,7 +1,6 @@
 module Examples.Valid.SimpleCoroutine
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 effect Coroutine {

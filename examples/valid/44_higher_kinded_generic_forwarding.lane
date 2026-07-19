@@ -1,7 +1,6 @@
 module Examples.Valid44
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 struct Box[A] {

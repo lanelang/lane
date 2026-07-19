@@ -1,9 +1,7 @@
 module Examples.Valid.ListLiteral
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
-
 import Basic.Data.List.*
 
 fn sum(list : List[Int]) -> Int {

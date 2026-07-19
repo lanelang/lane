@@ -1,7 +1,6 @@
 module Examples.Valid11
 
 import Basic.Ops.*
-
 import Basic.Io.{ println }
 
 pub fn apply(value : Int, f : (Int) -> Int) -> Int {

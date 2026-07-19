@@ -1,11 +1,8 @@
 module Examples.Warnings.UnusedImportsAndOpens
 
 import Basic.Builtins
-
 import Basic.Ops.*
-
 import Basic.Io.{ println }
-
 import Basic.Double.{ nan }
 
 pub fn answer() -> Unit ! Io {

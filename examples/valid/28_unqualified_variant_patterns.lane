@@ -1,7 +1,6 @@
 module Examples.Valid.UnqualifiedVariantPatterns
 
 import Basic.Ops.*
-
 import Basic.Io.{ println }
 
 enum Left {

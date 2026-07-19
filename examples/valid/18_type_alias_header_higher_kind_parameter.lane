@@ -4,7 +4,6 @@
 module Examples.Valid18
 
 import Basic.Ops.*
-
 import Basic.Io.{ println }
 
 pub struct Box[A] {

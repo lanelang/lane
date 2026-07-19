@@ -1,7 +1,6 @@
 module Examples.Valid.AsyncEffect
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 effect Async[E : Effect] {

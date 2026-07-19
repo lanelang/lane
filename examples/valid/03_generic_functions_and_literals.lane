@@ -1,7 +1,6 @@
 module Examples.Valid03
 
 import Basic.Ops.*
-
 import Basic.Io.{ println }
 
 fn[A] choose(cond : Bool, left : A, right : A) -> A {

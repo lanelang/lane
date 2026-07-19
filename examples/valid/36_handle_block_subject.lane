@@ -1,7 +1,6 @@
 module Examples.Valid.HandleBlockSubject
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 effect Console {

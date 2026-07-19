@@ -1,7 +1,6 @@
 module Examples.Valid.CoroutineScheduler
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 effect Coroutine[E : Effect] {

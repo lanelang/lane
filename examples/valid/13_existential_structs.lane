@@ -3,14 +3,14 @@ module Examples.Valid13
 import Basic.Io.{ println }
 
 pub struct Hide {
-  type T : Type
+  type T
   val : T
 }
 
 pub fn repack(h : Hide) -> Hide {
   {
     let Hide::{ T, val } = h
-    Hide::{ T = T, val: val }
+    Hide::{ T = T, val }
   }
 }
 

@@ -1,7 +1,6 @@
 module Examples.Valid.PolymorphicEffectOperation
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 effect Prompt {

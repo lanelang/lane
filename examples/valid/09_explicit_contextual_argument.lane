@@ -1,7 +1,6 @@
 module Examples.Valid09
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 pub fn weird_add(a : Int, _b : Int) -> Int {

@@ -4,7 +4,6 @@
 module Examples.Valid.ParameterizedHigherKindedAliasResultKind
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 pub struct Box[A] {

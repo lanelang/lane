@@ -1,9 +1,7 @@
 module Examples.Valid.DoubleSpecialConstants
 
 import Basic.Double.{ infinity, nan, neg_infinity }
-
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 pub fn answer() -> Unit ! Io {

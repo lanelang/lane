@@ -1,9 +1,7 @@
 module Examples.Valid.ModuleQualifiedTypeAccess
 
 import Basic.Ops.*
-
 import Basic.Io.{ println }
-
 import Basic.Builtins
 
 let add_ops : Basic.Ops.Add[Int] = Basic.Ops.Add::{ add: Basic.Builtins.int_add }

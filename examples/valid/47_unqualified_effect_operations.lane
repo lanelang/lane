@@ -1,7 +1,6 @@
 module Examples.Valid.UnqualifiedEffectOperations
 
 import Basic.Io.{ println }
-
 import Basic.Ops.*
 
 effect Ask {
