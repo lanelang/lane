@@ -192,6 +192,7 @@ pub(all) enum GenericArgumentInferenceFailure {
   ConflictingGenericArgument(parameter~ : @types.TypeParameter, previous~ : @types.GenericArgument, actual~ : @types.GenericArgument)
   RecursiveGenericArgument(parameter~ : @types.TypeParameter, actual~ : @types.GenericArgument)
   GenericArgumentConstraintMismatch(expected~ : @types.GenericArgument, actual~ : @types.GenericArgument)
+  AmbiguousEffectRowInference(expected~ : @types.Effect, actual~ : @types.Effect)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for GenericArgumentInferenceFailure
 

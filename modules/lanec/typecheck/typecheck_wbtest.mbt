@@ -1904,6 +1904,72 @@ test "typecheck infers empty effect parameter from unannotated callback" {
 }
 
 ///|
+test "typecheck infers non-empty effect from ground anonymous callback" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Int
+      #|}
+      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|  callback()
+      #|}
+      #|fn use() -> Int ! Read {
+      #|  consume(fn() { Read::read!() })
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck infers effect from explicitly annotated anonymous callback" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Int
+      #|}
+      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|  callback()
+      #|}
+      #|fn use() -> Int ! Read {
+      #|  consume(fn() -> Int ! Read { Read::read!() })
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck rejects effect evidence from invalid callback body" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Int
+      #|}
+      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|  callback()
+      #|}
+      #|fn use() -> Int {
+      #|  let _result = consume(fn() {
+      #|    let _value : Int = Read::read!()
+      #|    true
+      #|  })
+      #|  0
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[generic_argument_inference_failed consume missing E]
+    ),
+  )
+}
+
+///|
 test "typecheck infers non-empty residual effect row in generic function argument" {
   let result = expect_typecheck_result(
     (
@@ -2038,7 +2104,7 @@ test "typecheck does not backtrack ambiguous effect row inference" {
     ),
     content=(
       #|[
-      #|  generic_argument_inference_failed consume constraint_mismatch expected={
+      #|  generic_argument_inference_failed consume ambiguous_effect_row expected={
       #|    effect#0[tparam#1],
       #|    effect#0[tparam#2]
       #|  } actual={
@@ -2048,6 +2114,36 @@ test "typecheck does not backtrack ambiguous effect row inference" {
       #|]
     ),
   )
+}
+
+///|
+test "typecheck keeps unmatched effect rows as constraint mismatches" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Ask {
+      #|  ask() -> Unit
+      #|}
+      #|effect Log {
+      #|  log() -> Unit
+      #|}
+      #|fn[E : Effect] consume(callback : () -> Unit ! { Ask, E }) -> Unit {
+      #|  ()
+      #|}
+      #|fn callback() -> Unit ! Log {
+      #|  Log::log!()
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(callback)
+      #|}
+    ),
+  )
+  guard result.diagnostics is [diagnostic] else {
+    abort("expected one diagnostic")
+  }
+  guard diagnostic.kind is GenericArgumentInferenceFailed(failure~, ..) else {
+    abort("expected generic argument inference failure")
+  }
+  assert_true(failure is GenericArgumentConstraintMismatch(..))
 }
 
 ///|

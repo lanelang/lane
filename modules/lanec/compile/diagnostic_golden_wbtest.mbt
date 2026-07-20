@@ -225,6 +225,34 @@ test "golden conflicting generic argument inference renders type mismatch" {
 }
 
 ///|
+test "golden ambiguous effect row inference requests explicit arguments" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|effect Mark[A] {
+      #|  mark() -> Unit
+      #|}
+      #|fn[A, B] consume(callback : () -> Unit ! { Mark[A], Mark[B] }) -> Unit {
+      #|  ()
+      #|}
+      #|fn callback() -> Unit ! { Mark[Int], Mark[Bool] } {
+      #|  let _first : Unit = Mark[Int]::mark!()
+      #|  Mark[Bool]::mark!()
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(callback)
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "cannot infer effect arguments uniquely for `consume`",
+  )
+  assert_single_help(
+    diagnostic, "pass explicit generic arguments for `consume` to choose the intended effect instantiation",
+  )
+}
+
+///|
 test "golden missing contextual offer diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (

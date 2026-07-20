@@ -1152,6 +1152,8 @@ fn generic_argument_inference_notes(
       actual=EffectArgument(_),
       ..
     ) => ["Lane functions without an effect annotation are pure"]
+    AmbiguousEffectRowInference(..) =>
+      ["Lane does not backtrack between multiple effect-row matches"]
     _ =>
       [
         "Lane infers generic arguments only from the adjacent call arguments and expected result type",
@@ -1213,6 +1215,8 @@ fn generic_argument_inference_title(
     RecursiveGenericArgument(..) => "recursive generic argument for \{subject}"
     GenericArgumentConstraintMismatch(..) =>
       "generic argument constraint mismatch for \{subject}"
+    AmbiguousEffectRowInference(..) =>
+      "cannot infer effect arguments uniquely for \{subject}"
   }
 }
 
@@ -1272,6 +1276,8 @@ fn generic_argument_inference_primary_label(
       "generic parameter `\{parameter.name}` would recursively contain `\{display.generic_argument_text(actual)}`"
     GenericArgumentConstraintMismatch(expected~, actual~) =>
       "generic inference expected `\{display.generic_argument_text(expected)}`, found `\{display.generic_argument_text(actual)}`"
+    AmbiguousEffectRowInference(expected~, actual~) =>
+      "effect row `\{display.effect_text(expected)}` has multiple matches in `\{display.effect_text(actual)}`"
   }
 }
 
@@ -1302,6 +1308,8 @@ fn generic_argument_inference_help(
       "remove the recursive effect constraint involving `\{parameter.name}`"
     GenericArgumentConstraintMismatch(..) =>
       "adjust the argument or expected result type so the generic constraints match"
+    AmbiguousEffectRowInference(..) =>
+      "pass explicit generic arguments for \{subject} to choose the intended effect instantiation"
   }
 }
 

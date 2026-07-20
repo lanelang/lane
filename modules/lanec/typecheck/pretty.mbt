@@ -503,6 +503,14 @@ pub impl @prettyprinter.Pretty for GenericArgumentInferenceFailure with fn prett
       space +
       text("actual=") +
       actual.pretty()
+    AmbiguousEffectRowInference(expected~, actual~) =>
+      text("ambiguous_effect_row") +
+      space +
+      text("expected=") +
+      expected.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty()
   }
 }
 

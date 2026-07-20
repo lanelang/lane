@@ -181,6 +181,10 @@ pub(all) enum GenericArgumentInferenceFailure {
     expected~ : @types.GenericArgument,
     actual~ : @types.GenericArgument
   )
+  AmbiguousEffectRowInference(
+    expected~ : @types.Effect,
+    actual~ : @types.Effect
+  )
 } derive(Debug, Eq)
 
 ///|

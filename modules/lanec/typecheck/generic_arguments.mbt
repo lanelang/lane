@@ -382,13 +382,15 @@ fn GenericArgumentInference::collect_effect(
       self.collect_effect_row_match(
         term_pairs, residual_parameter, residual_effect,
       )
-    EffectRowsMismatched | EffectRowsAmbiguous =>
+    EffectRowsMismatched =>
       self.fail(
         GenericArgumentConstraintMismatch(
           expected=EffectArgument(template),
           actual=EffectArgument(actual),
         ),
       )
+    EffectRowsAmbiguous =>
+      self.fail(AmbiguousEffectRowInference(expected=template, actual~))
   }
 }
 
@@ -503,13 +505,15 @@ fn GenericArgumentInference::collect_effect_term_from_row(
     self.unique_effect_term_candidate(instantiated, actual_terms, used_actuals) {
     UniqueEffectTermCandidate(index) =>
       self.collect_effect_term(instantiated, actual_terms[index])
-    NoEffectTermCandidate | AmbiguousEffectTermCandidate =>
+    NoEffectTermCandidate =>
       self.fail(
         GenericArgumentConstraintMismatch(
           expected=EffectArgument(template),
           actual=EffectArgument(actual),
         ),
       )
+    AmbiguousEffectTermCandidate =>
+      self.fail(AmbiguousEffectRowInference(expected=template, actual~))
   }
 }
 
