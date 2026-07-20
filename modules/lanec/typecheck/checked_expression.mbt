@@ -1045,47 +1045,16 @@ fn SemanticChecker::check_checked_function_literal(
         self.report_application_arity("generic function arity", loc)
         return checked_expression_none_reported(expected)
       }
-      if expected_parameters.length() != parameters.length() {
-        self.report_application_arity("function arity", loc)
-        return checked_expression_none_reported(expected)
-      }
-      let checked_parameters = self.checked_function_literal_parameters_from_expected(
-        parameters, expected_parameters,
-      )
-      let body_scope = self.function_body_scope(scope, [], checked_parameters)
-      if return_type is Some(type_annotation) {
-        self.expect_type(expected_result, self.check_type(type_annotation), loc)
-      }
-      if effect is Some(effect) {
-        self.expect_effect(expected_effect, self.check_effect(effect), loc)
-      }
-      let checked_body = self.check_checked_expr(
-        body_scope.with_expected_effect(expected_effect),
+      self.check_monomorphic_function_literal(
+        scope,
+        parameters,
+        return_type,
+        effect,
         body,
+        expected_parameters,
         expected_result,
-      )
-      self.expect_effect(expected_effect, checked_body.effect, body.loc())
-      guard self.require_checked_expression(
-          checked_body,
-          body.loc(),
-          "function body",
-        )
-        is Some(body) else {
-        return checked_expression_none_reported(expected)
-      }
-      let type_ = @types.Type::Function(
-        expected_parameters, expected_result, expected_effect,
-      )
-      checked_expression(
-        FunctionLiteral(
-          type_parameters=[],
-          parameters=checked_parameters,
-          return_type=expected_result,
-          body~,
-          type_~,
-          loc~,
-        ),
-        type_,
+        Some(expected_effect),
+        loc,
       )
     }
     Error => checked_expression_none_reported(Error)

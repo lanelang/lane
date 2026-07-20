@@ -787,52 +787,28 @@ fn SemanticChecker::infer_function_literal_effect_for_generic_arguments(
       return_type~,
       effect~,
       body~,
-      ..
+      loc~
     ) &&
-    type_parameters.is_empty() &&
-    parameters.length() == expected_parameters.length() else {
+    type_parameters.is_empty() else {
     return None
   }
   let checker = self.copy_for_silent_analysis()
-  let checked_parameters = checker.checked_function_literal_parameters_from_expected(
-    parameters, expected_parameters,
-  )
-  let body_scope = checker.function_body_scope(
-    scope.without_expected_effect(),
-    [],
-    checked_parameters,
-  )
-  if return_type is Some(type_annotation) {
-    checker.expect_type(
-      expected_result,
-      checker.check_type(type_annotation),
-      argument.loc(),
-    )
-  }
-  let declared_effect = match effect {
-    Some(effect) => Some(checker.check_effect(effect))
-    None => None
-  }
-  let checked_body = checker.check_checked_expr(
-    match declared_effect {
-      Some(effect) => body_scope.with_expected_effect(effect)
-      None => body_scope
-    },
+  let checked = checker.check_monomorphic_function_literal(
+    scope,
+    parameters,
+    return_type,
+    effect,
     body,
+    expected_parameters,
     expected_result,
+    None,
+    loc,
   )
-  let inferred_effect = match declared_effect {
-    Some(effect) => {
-      checker.expect_effect(effect, checked_body.effect, body.loc())
-      effect
-    }
-    None => checked_body.effect
+  guard checker.diagnostics.is_empty() &&
+    checked.type_ is Function(_, _, inferred_effect) else {
+    return None
   }
-  if checker.diagnostics.is_empty() {
-    Some(inferred_effect)
-  } else {
-    None
-  }
+  Some(inferred_effect)
 }
 
 ///|

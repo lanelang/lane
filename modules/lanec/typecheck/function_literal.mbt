@@ -60,3 +60,85 @@ fn SemanticChecker::checked_function_literal_parameters_from_expected(
   }
   checked_parameters
 }
+
+///|
+fn SemanticChecker::check_monomorphic_function_literal(
+  self : SemanticChecker,
+  scope : TypeScope,
+  parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
+  return_type : @resolve.ResolvedType?,
+  effect : @resolve.ResolvedEffectTerm?,
+  body : @desugar.DesugaredExpr,
+  expected_parameters : Array[@types.Type],
+  expected_result : @types.Type,
+  expected_effect : @types.Effect?,
+  loc : SourceSpan,
+) -> CheckedExpressionSynthesis {
+  let fallback_type = match expected_effect {
+    Some(effect) =>
+      @types.Type::Function(expected_parameters, expected_result, effect)
+    None => Error
+  }
+  if expected_parameters.length() != parameters.length() {
+    self.report_application_arity("function arity", loc)
+    return checked_expression_none_reported(fallback_type)
+  }
+  let checked_parameters = self.checked_function_literal_parameters_from_expected(
+    parameters, expected_parameters,
+  )
+  if return_type is Some(type_annotation) {
+    self.expect_type(expected_result, self.check_type(type_annotation), loc)
+  }
+  let checked_effect = match (expected_effect, effect) {
+    (Some(expected), Some(effect_annotation)) => {
+      self.expect_effect(expected, self.check_effect(effect_annotation), loc)
+      Some(expected)
+    }
+    (Some(expected), None) => Some(expected)
+    (None, Some(effect_annotation)) =>
+      Some(self.check_effect(effect_annotation))
+    (None, None) => None
+  }
+  let body_scope = self.function_body_scope(
+    scope.without_expected_effect(),
+    [],
+    checked_parameters,
+  )
+  let checked_body = self.check_checked_expr(
+    match checked_effect {
+      Some(effect) => body_scope.with_expected_effect(effect)
+      None => body_scope
+    },
+    body,
+    expected_result,
+  )
+  let inferred_effect = match checked_effect {
+    Some(effect) => {
+      self.expect_effect(effect, checked_body.effect, body.loc())
+      effect
+    }
+    None => checked_body.effect
+  }
+  let function_type = @types.Type::Function(
+    expected_parameters, expected_result, inferred_effect,
+  )
+  guard self.require_checked_expression(
+      checked_body,
+      body.loc(),
+      "function body",
+    )
+    is Some(body) else {
+    return checked_expression_none_reported(function_type)
+  }
+  checked_expression(
+    FunctionLiteral(
+      type_parameters=[],
+      parameters=checked_parameters,
+      return_type=expected_result,
+      body~,
+      type_=function_type,
+      loc~,
+    ),
+    function_type,
+  )
+}
