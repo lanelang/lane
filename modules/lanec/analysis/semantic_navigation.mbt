@@ -268,7 +268,7 @@ fn add_argument_inlay_hints(
   arguments : Array[@checked.CheckedCallArgument],
   parameters : Array[ParameterHintParameter],
   call_loc : @basic.SourceSpan,
-  skip_parameter_hints : Bool,
+  source_operator_call : Bool,
 ) -> Unit {
   let count = if arguments.length() < parameters.length() {
     arguments.length()
@@ -283,7 +283,7 @@ fn add_argument_inlay_hints(
       if implicit_argument_name(argument.value) is Some(name) {
         implicit_arguments.push("\{parameter.name}=\{name}")
       }
-    } else if !skip_parameter_hints && !parameter.is_auto {
+    } else if !source_operator_call && !parameter.is_auto {
       add_parameter_inlay_hint(
         inlay_hints,
         source_id,
@@ -294,8 +294,32 @@ fn add_argument_inlay_hints(
   }
   if !implicit_arguments.is_empty() {
     add_implicit_argument_inlay_hint(
-      inlay_hints, source_id, call_loc, implicit_arguments,
+      inlay_hints,
+      source_id,
+      implicit_argument_insertion_span(call_loc, source_operator_call),
+      implicit_arguments,
     )
+  }
+}
+
+///|
+fn implicit_argument_insertion_span(
+  call_loc : @basic.SourceSpan,
+  source_operator_call : Bool,
+) -> @basic.SourceSpan {
+  if source_operator_call {
+    call_loc
+  } else {
+    let offset = call_loc.end_offset - 1
+    let column = call_loc.end_column - 1
+    {
+      start_offset: offset,
+      end_offset: offset,
+      start_line: call_loc.end_line,
+      start_column: column,
+      end_line: call_loc.end_line,
+      end_column: column,
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 module Examples.Valid02
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub struct Point {
   x : Int

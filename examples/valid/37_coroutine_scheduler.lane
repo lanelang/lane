@@ -1,7 +1,7 @@
 module Examples.Valid.CoroutineScheduler
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 effect Coroutine[E : Effect] {
   yield() -> Unit

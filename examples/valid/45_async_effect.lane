@@ -1,7 +1,7 @@
 module Examples.Valid.AsyncEffect
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 effect Async[E : Effect] {
   suspend[A](((A) -> Unit ! E) -> Unit ! E) -> A

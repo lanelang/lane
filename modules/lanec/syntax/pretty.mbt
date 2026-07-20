@@ -1389,36 +1389,42 @@ fn Expr::pipeline_chain_doc(
       },
     )
   }
-  let mut inline_first_line = root_doc
-  for segment in segments {
-    inline_first_line = inline_first_line +
-      space +
+  guard !displayed_segment_docs.is_empty() else { return root_doc }
+  dynamic(fn(context) {
+    let separator = if root_doc.requirement() > context.current_remain() {
+      space
+    } else {
+      hardline
+    }
+    root_doc +
+    nest(
+      separator +
       text("|>") +
       space +
-      segment.first_line_doc()
-  }
-  dynamic(fn(context) {
-    if inline_first_line.requirement() <= context.current_remain() {
-      let mut inline_doc = root_doc
-      for segment_doc in displayed_segment_docs {
-        inline_doc = inline_doc + space + text("|>") + space + segment_doc
-      }
-      inline_doc
-    } else {
-      group(
-        root_doc +
-        nest(
-          line +
-          separate(
-            line,
-            displayed_segment_docs.map(fn(segment_doc) {
-              text("|>") + space + segment_doc
-            }),
-          ),
-        ),
-      )
-    }
+      pipeline_segment_docs(displayed_segment_docs, 0),
+    )
   })
+}
+
+///|
+fn pipeline_segment_docs(segments : Array[Document], index : Int) -> Document {
+  let current = segments[index]
+  if index + 1 == segments.length() {
+    current
+  } else {
+    dynamic(fn(context) {
+      let separator = if current.requirement() > context.current_remain() {
+        space
+      } else {
+        hardline
+      }
+      current +
+      separator +
+      text("|>") +
+      space +
+      pipeline_segment_docs(segments, index + 1)
+    })
+  }
 }
 
 ///|
@@ -1439,12 +1445,11 @@ fn Expr::field_chain_doc(
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
   if self is Field(base~, name~, loc~) {
-    let base_doc = base.to_doc_with_precedence(9, trivia~)
-    let (boundary, force_break) = trivia.take_boundary(
-      base.loc().end_offset,
-      loc.end_offset,
-    )
-    if force_break {
+    let boundary_start = base.loc().end_offset
+    let boundary_end = loc.end_offset
+    if (trivia.has_boundary)(boundary_start, boundary_end) {
+      let boundary = (trivia.boundary)(boundary_start, boundary_end)
+      let base_doc = base.to_doc_with_precedence(9, trivia~)
       return base_doc +
         text(".") +
         space +

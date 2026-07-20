@@ -59,9 +59,13 @@ _Avoid_: copied comment text, formatter string, AST span
 A trivia fact that records its source span, kind, and position in the concrete token gap between two tokens, including EOF.
 _Avoid_: token-owned trivia arrays, AST-owned comments, inferred source gaps
 
-**Trivia View**:
-A formatter-local query view over **Gap-Indexed Trivia** that classifies comments as leading, trailing, syntax-boundary, matched-delimiter, or EOF material and consumes each attachment once.
-_Avoid_: second trivia store, lexer policy, AST attachment
+**Trivia Plan**:
+An immutable formatter-local classification of **Gap-Indexed Trivia** into leading, trailing, syntax-boundary, matched-delimiter, or EOF attachments.
+_Avoid_: mutable render state, lexer policy, AST-owned comments
+
+**Trivia Session**:
+A one-format claim ledger over a **Trivia Plan** that verifies every planned comment is emitted exactly once without mutating the plan itself.
+_Avoid_: attachment classification, width decisions, reusable formatter state
 
 **EOF Token**:
 The non-printing end-of-file token kept in the concrete token stream as the anchor for final trivia.
@@ -106,6 +110,10 @@ _Avoid_: node-owned comments, post-render comments, semantic attachment
 **Trailing Comment**:
 A line comment that appears on the same source line as the preceding token and remains bound to that preceding token or syntax unit during formatting.
 _Avoid_: leading comment, detached comment, documentation comment
+
+**Line Comment Layout**:
+A pretty-printer document primitive that appends a `//` comment to the current line and forces the next text document to start on a new line at its own nesting indentation.
+_Avoid_: ordinary comment text, pipeline-specific newline checks, post-render rewriting
 
 **Meaningful Blank Line**:
 A blank line separating a comment group from adjacent syntax; pure blank-line-only gaps do not attach to AST nodes and are regenerated from syntax structure.
@@ -467,8 +475,9 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
 - **Concrete Syntax** owns the original source text used for formatting;
   **Gap-Indexed Trivia** values reference that text by source span and
   classified trivia kind instead of copying comment text.
-- **Trivia View** is derived from **Gap-Indexed Trivia** at formatting time;
-  concrete tokens do not store leading or trailing trivia arrays directly.
+- **Trivia Plan** is derived from **Gap-Indexed Trivia** at formatting time;
+  concrete tokens do not store leading or trailing trivia arrays directly. A
+  **Trivia Session** records one render's claims separately from that plan.
 - The concrete token stream includes an **EOF Token**; formatting consumes its
   attached trivia but renders no token text for EOF.
 - **Trivia Attachment** is a formatting concern; source elaboration, type
@@ -480,6 +489,9 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
 - A **Trailing Comment** remains trailing on the syntax unit it originally
   followed unless a following comma would be hidden by that line comment; in
   that case the comma renders first and the comment leads the next list item.
+- A **Trailing Comment** renders through **Line Comment Layout**. Expression
+  printers such as pipeline, binary, field, and call formatting must not add
+  comment-specific continuation branches.
 - The formatter preserves comments and comment-associated grouping gaps from
   the **Trivia Stream**. Pure blank-line-only gaps, ordinary spacing,
   indentation, and line breaks are generated from syntax structure by

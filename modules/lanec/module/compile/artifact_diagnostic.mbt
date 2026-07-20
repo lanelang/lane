@@ -29,7 +29,10 @@ fn artifact_diagnostic(
   span : @basic.SourceSpan?,
 ) -> CompilerDiagnostic {
   let diagnostic : ArtifactDiagnostic = { kind, span }
-  diagnostic.to_compiler_diagnostic(DiagnosticContext())
+  @compiler_diag.ToCompilerDiagnostic::to_compiler_diagnostic(
+    diagnostic,
+    DiagnosticContext(),
+  )
 }
 
 ///|

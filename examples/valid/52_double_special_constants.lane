@@ -2,7 +2,7 @@ module Examples.Valid.DoubleSpecialConstants
 
 import Basic.Double.{ infinity, nan, neg_infinity }
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub fn answer() -> Unit ! Io {
   if infinity > 1.0 {

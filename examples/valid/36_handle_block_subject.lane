@@ -1,7 +1,7 @@
 module Examples.Valid.HandleBlockSubject
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 effect Console {
   read() -> Int

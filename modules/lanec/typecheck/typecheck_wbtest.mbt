@@ -1880,6 +1880,30 @@ test "typecheck infers empty residual effect row in generic function argument" {
 }
 
 ///|
+test "typecheck infers empty effect parameter from unannotated callback" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Pair {
+      #|  first : Int
+      #|  second : Int
+      #|}
+      #|fn[T, R, E : Effect] transform(value : T, callback : (T) -> R ! E) -> R ! E {
+      #|  callback(value)
+      #|}
+      #|fn use(pair : Pair) -> Int {
+      #|  transform(pair, fn(item) { item.second })
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[]
+    ),
+  )
+}
+
+///|
 test "typecheck infers non-empty residual effect row in generic function argument" {
   let result = expect_typecheck_result(
     (

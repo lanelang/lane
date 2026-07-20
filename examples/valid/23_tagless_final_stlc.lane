@@ -1,7 +1,7 @@
 module Examples.Valid23
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub struct Stlc[R : [Type] -> Type] {
   int_lit : (Int) -> R[Int]

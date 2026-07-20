@@ -1,7 +1,7 @@
 module Examples.Valid04
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub fn factorial(n : Int) -> Int {
   fn loop(x : Int, acc : Int) -> Int {

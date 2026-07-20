@@ -1,7 +1,7 @@
 module Examples.Valid05
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub fn custom_add(a : Int, _b : Int) -> Int {
   a

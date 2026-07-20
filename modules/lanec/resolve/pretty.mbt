@@ -809,14 +809,14 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
     Field(base~, name~, reference~, ..) =>
       base.pretty() + text(".") + reference.pretty() + space + text(name)
     Unary(operator~, reference~, operand~, ..) =>
-      operator.pretty() +
+      @prettyprinter.pretty(operator) +
       operator_reference_doc(reference) +
       space +
       operand.pretty()
     Binary(operator~, reference~, left~, right~, ..) =>
       left.pretty() +
       space +
-      operator.pretty() +
+      @prettyprinter.pretty(operator) +
       operator_reference_doc(reference) +
       space +
       right.pretty()

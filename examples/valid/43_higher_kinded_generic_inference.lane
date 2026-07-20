@@ -1,7 +1,7 @@
 module Examples.Valid43
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 enum Option[A] {
   none()

@@ -1,10 +1,10 @@
 module Examples.Valid.ModuleQualifiedTypeAccess
 
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 import Basic.Io.{ println }
 import Basic.Builtins
 
-let add_ops : Basic.Ops.Add[Int] = Basic.Ops.Add::{ add: Basic.Builtins.int_add }
+let add_ops : Basic.Trait.Ops.Add[Int] = Basic.Trait.Ops.Add::{ add: Basic.Builtins.int_add }
 
 pub let sum_value : Int = add_ops.add(20, 22)
 

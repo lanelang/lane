@@ -7,7 +7,14 @@ using @compiler_diag {
 }
 
 ///|
-using @prettyprinter {type Document, empty, hardline, separate, space, text}
+using @prettyprinter {
+  type Document,
+  empty,
+  hardline,
+  line_comment,
+  separate,
+  text,
+}
 
 ///|
 pub(all) struct FormatOptions {
@@ -59,7 +66,7 @@ fn format_parsed_source_with_options(
   parsed : @parser.ParsedSource,
   options : FormatOptions,
 ) -> Result[String, Array[CompilerDiagnostic]] {
-  let trivia = TriviaView::make(parsed.concrete)
+  let trivia = TriviaPlan::make(parsed.concrete).start_session()
   let formatted = @prettyprinter.render(
       @syntax.format_source_file_with_trivia(
         parsed.syntax,
@@ -97,31 +104,46 @@ priv struct AnchoredComment {
   placement : CommentPlacement
   blank_before : Bool
   blank_after : Bool
-  mut consumed : Bool
 }
 
 ///|
-priv struct TriviaView {
+priv struct TriviaPlan {
   comments : Array[AnchoredComment]
   tokens : Array[(@lexer.Token, @basic.SourceSpan)]
 }
 
 ///|
-fn TriviaView::make(concrete : @lexer.ConcreteSyntax) -> TriviaView {
-  let comments = []
+priv struct TriviaSession {
+  plan : TriviaPlan
+  claimed : Array[Bool]
+}
+
+///|
+fn TriviaPlan::make(concrete : @lexer.ConcreteSyntax) -> TriviaPlan {
+  let source_tokens = non_eof_tokens(concrete.tokens)
+  let comments : Array[FormatComment] = []
   for item in concrete.trivia {
     if item.kind is LineComment {
-      comments.push({
+      let comment = FormatComment::{
         text: concrete.source_text.unsafe_substring(
           start=item.span.start_offset,
           end=item.span.end_offset,
         ),
         span: item.span,
         gap: item.gap,
-      })
+      }
+      if comments.last() is Some(previous) &&
+        line_comments_are_adjacent(previous, comment, source_tokens) {
+        comments[comments.length() - 1] = {
+          text: "\{previous.text}\n\{comment.text}",
+          span: @basic.SourceSpan::join(previous.span, comment.span),
+          gap: previous.gap,
+        }
+      } else {
+        comments.push(comment)
+      }
     }
   }
-  let source_tokens = non_eof_tokens(concrete.tokens)
   let anchored = []
   for index, comment in comments {
     anchored.push(
@@ -137,41 +159,74 @@ fn TriviaView::make(concrete : @lexer.ConcreteSyntax) -> TriviaView {
 }
 
 ///|
-fn TriviaView::source_format_trivia(
-  self : TriviaView,
+fn TriviaPlan::start_session(self : TriviaPlan) -> TriviaSession {
+  { plan: self, claimed: Array::make(self.comments.length(), false) }
+}
+
+///|
+fn line_comments_are_adjacent(
+  previous : FormatComment,
+  current : FormatComment,
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+) -> Bool {
+  previous.gap == current.gap &&
+  previous.span.end_line + 1 == current.span.start_line &&
+  previous.span.start_column == current.span.start_column &&
+  line_comment_is_standalone(previous, tokens) &&
+  line_comment_is_standalone(current, tokens)
+}
+
+///|
+fn line_comment_is_standalone(
+  comment : FormatComment,
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+) -> Bool {
+  comment.gap == 0 ||
+  tokens[comment.gap - 1].1.end_line != comment.span.start_line
+}
+
+///|
+fn TriviaSession::source_format_trivia(
+  self : TriviaSession,
 ) -> @syntax.SourceFormatTrivia {
-  let comments = self.comments
-  let tokens = self.tokens
+  let comments = self.plan.comments
+  let tokens = self.plan.tokens
+  let claimed = self.claimed
   if comments.is_empty() {
     return @syntax.SourceFormatTrivia::empty()
   }
   {
-    leading: fn(span) { leading_comment_doc(comments, span) },
-    trailing: fn(span) { trailing_comment_doc(comments, span) },
+    leading: fn(span) { leading_comment_doc(comments, claimed, span) },
+    trailing: fn(span) { trailing_comment_doc(comments, claimed, span) },
     has_leading: fn(span) { has_leading_comment(comments, span) },
     has_trailing: fn(span) { has_trailing_comment(comments, span) },
-    boundary: fn(start, end) { dangling_comment_doc(comments, start, end) },
-    has_boundary: fn(start, end) { has_dangling_comment(comments, start, end) },
+    boundary: fn(start, end) {
+      dangling_comment_doc(comments, claimed, start, end)
+    },
+    has_boundary: fn(start, end) {
+      has_dangling_comment(comments, claimed, start, end)
+    },
     delimited: fn(open, start, end) {
-      delimited_comment_doc(comments, tokens, open, start, end)
+      delimited_comment_doc(comments, claimed, tokens, open, start, end)
     },
     has_delimited: fn(open, start, end) {
-      has_delimited_comment(comments, tokens, open, start, end)
+      has_delimited_comment(comments, claimed, tokens, open, start, end)
     },
-    eof: fn() { eof_comment_doc(comments) },
+    eof: fn() { eof_comment_doc(comments, claimed) },
   }
 }
 
 ///|
 fn has_delimited_comment(
   comments : Array[AnchoredComment],
+  claimed : Array[Bool],
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
   open : Char,
   start_offset : Int,
   end_offset : Int,
 ) -> Bool {
   match delimiter_interior(tokens, open, start_offset, end_offset) {
-    Some((start, end)) => has_dangling_comment(comments, start, end)
+    Some((start, end)) => has_dangling_comment(comments, claimed, start, end)
     None => false
   }
 }
@@ -179,13 +234,14 @@ fn has_delimited_comment(
 ///|
 fn delimited_comment_doc(
   comments : Array[AnchoredComment],
+  claimed : Array[Bool],
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
   open : Char,
   start_offset : Int,
   end_offset : Int,
 ) -> Document {
   match delimiter_interior(tokens, open, start_offset, end_offset) {
-    Some((start, end)) => dangling_comment_doc(comments, start, end)
+    Some((start, end)) => dangling_comment_doc(comments, claimed, start, end)
     None => empty
   }
 }
@@ -245,28 +301,35 @@ fn is_close_delimiter(token : @lexer.Token, open : Char) -> Bool {
 ///|
 fn has_dangling_comment(
   comments : Array[AnchoredComment],
+  claimed : Array[Bool],
   start_offset : Int,
   end_offset : Int,
 ) -> Bool {
-  comments.any(fn(comment) {
-    !comment.consumed &&
-    comment.span.start_offset >= start_offset &&
-    comment.span.end_offset <= end_offset
-  })
+  for index, comment in comments {
+    if !claimed[index] &&
+      comment.placement is Leading(_) &&
+      comment.span.start_offset >= start_offset &&
+      comment.span.end_offset <= end_offset {
+      return true
+    }
+  }
+  false
 }
 
 ///|
 fn dangling_comment_doc(
   comments : Array[AnchoredComment],
+  claimed : Array[Bool],
   start_offset : Int,
   end_offset : Int,
 ) -> Document {
   let docs = []
-  for comment in comments {
-    if !comment.consumed &&
+  for index, comment in comments {
+    if !claimed[index] &&
+      comment.placement is Leading(_) &&
       comment.span.start_offset >= start_offset &&
       comment.span.end_offset <= end_offset {
-      comment.consumed = true
+      claimed[index] = true
       push_leading_comment_docs(docs, comment)
     }
   }
@@ -274,14 +337,13 @@ fn dangling_comment_doc(
 }
 
 ///|
-fn TriviaView::unconsumed_comment_diagnostics(
-  self : TriviaView,
+fn TriviaSession::unconsumed_comment_diagnostics(
+  self : TriviaSession,
 ) -> Array[CompilerDiagnostic] {
-  self.comments.filter_map(fn(comment) {
-    if comment.consumed {
-      None
-    } else {
-      Some(
+  let diagnostics = []
+  for index, comment in self.plan.comments {
+    if !self.claimed[index] {
+      diagnostics.push(
         diagnostic(
           "formatter could not preserve a source comment",
           span=Some(comment.span),
@@ -300,7 +362,8 @@ fn TriviaView::unconsumed_comment_diagnostics(
         ),
       )
     }
-  })
+  }
+  diagnostics
 }
 
 ///|
@@ -309,9 +372,7 @@ fn has_leading_comment(
   span : @basic.SourceSpan,
 ) -> Bool {
   for comment in comments {
-    if comment.placement is Leading(anchor) &&
-      !comment.consumed &&
-      same_leading_anchor(anchor, span) {
+    if comment.placement is Leading(anchor) && same_leading_anchor(anchor, span) {
       return true
     }
   }
@@ -325,8 +386,7 @@ fn has_trailing_comment(
 ) -> Bool {
   for comment in comments {
     if comment.placement is Trailing(anchor) &&
-      !comment.consumed &&
-      anchor == span {
+      same_trailing_anchor(anchor, span) {
       return true
     }
   }
@@ -381,7 +441,6 @@ fn anchor_comment(
     placement,
     blank_before,
     blank_after,
-    consumed: false,
   }
 }
 
@@ -498,14 +557,15 @@ fn is_same_line(
 ///|
 fn leading_comment_doc(
   comments : Array[AnchoredComment],
+  claimed : Array[Bool],
   span : @basic.SourceSpan,
 ) -> Document {
   let docs = []
-  for comment in comments {
+  for index, comment in comments {
     if comment.placement is Leading(anchor) &&
-      !comment.consumed &&
+      !claimed[index] &&
       same_leading_anchor(anchor, span) {
-      comment.consumed = true
+      claimed[index] = true
       push_leading_comment_docs(docs, comment)
     }
   }
@@ -519,31 +579,31 @@ fn leading_comment_doc(
 ///|
 fn trailing_comment_doc(
   comments : Array[AnchoredComment],
+  claimed : Array[Bool],
   span : @basic.SourceSpan,
 ) -> Document {
   let docs = []
-  for comment in comments {
+  for index, comment in comments {
     if comment.placement is Trailing(anchor) &&
-      !comment.consumed &&
+      !claimed[index] &&
       same_trailing_anchor(anchor, span) {
-      comment.consumed = true
-      docs.push(comment_lines_doc(comment.text))
+      claimed[index] = true
+      docs.push(line_comment(comment.text.trim().to_owned()))
     }
   }
-  if docs.is_empty() {
-    empty
-  } else {
-    space + separate(space, docs)
-  }
+  separate(empty, docs)
 }
 
 ///|
-fn eof_comment_doc(comments : Array[AnchoredComment]) -> Document {
+fn eof_comment_doc(
+  comments : Array[AnchoredComment],
+  claimed : Array[Bool],
+) -> Document {
   let docs = []
   let mut blank_before_first = false
-  for comment in comments {
-    if comment.placement is EndOfFile && !comment.consumed {
-      comment.consumed = true
+  for index, comment in comments {
+    if comment.placement is EndOfFile && !claimed[index] {
+      claimed[index] = true
       if docs.is_empty() && comment.blank_before {
         blank_before_first = true
       }

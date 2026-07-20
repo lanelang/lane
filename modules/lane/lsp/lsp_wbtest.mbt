@@ -444,7 +444,7 @@ async test "inlay hint anchors field arguments before the full argument" {
 }
 
 ///|
-async test "inlay hint returns implicit auto offer hints at call end" {
+async test "inlay hint anchors implicit auto offers by call syntax" {
   let state = ServerState::ServerState()
   ignore(
     state.handle_message(
@@ -468,7 +468,8 @@ async test "inlay hint returns implicit auto offer hints at call end" {
             #|
             #|pub fn answer(seed : Int) -> Int {
             #|  let local = seed + 1
-            #|  local
+            #|  let explicit = op_add(seed, 1)
+            #|  explicit
             #|}
           ),
         ),
@@ -479,7 +480,7 @@ async test "inlay hint returns implicit auto offer hints at call end" {
     request(
       2,
       "textDocument/inlayHint",
-      range_params("file:///Main.lane", 0, 0, 16, 0),
+      range_params("file:///Main.lane", 0, 0, 17, 0),
     ),
   )
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
@@ -494,6 +495,26 @@ async test "inlay hint returns implicit auto offer hints at call end" {
         },
         {
           "position": { "line": 13, "character": 22 },
+          "label": ", op=int_add_ops",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 14, "character": 14 },
+          "label": ": Int",
+          "kind": 1,
+        },
+        {
+          "position": { "line": 14, "character": 24 },
+          "label": "a=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 14, "character": 30 },
+          "label": "b=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 14, "character": 31 },
           "label": ", op=int_add_ops",
           "kind": 2,
         },

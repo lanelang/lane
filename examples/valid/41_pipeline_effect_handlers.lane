@@ -1,7 +1,7 @@
 module Examples.Valid.PipelineEffectHandlers
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 effect Ask {
   read() -> Int
@@ -37,7 +37,10 @@ fn[A, E : Effect] handle_log(task : () -> A ! { Log, E }) -> () -> A ! E {
   }
 }
 
-pub let handled_value : Int = (program |> handle_ask |> handle_log)()
+pub let handled_value : Int =
+  (program
+    |> handle_ask
+    |> handle_log)()
 
 pub fn answer() -> Unit ! Io {
   if handled_value == 42 {

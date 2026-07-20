@@ -1,7 +1,7 @@
 // invalid: contextual resolution rejects multiple visible offers for the same target type
 module Examples.Invalid19
 
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub fn custom_add(a : Int, b : Int) -> Int {
   a

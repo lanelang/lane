@@ -564,7 +564,7 @@
           "unused import",
           "imported module `Basic.Builtins` is never used",
           "unused open import",
-          "open import `Basic.Ops.*` contributes no used names",
+          "open import `Basic.Trait.Ops.*` contributes no used names",
           "unused import item",
           "imported item `nan` from `Basic.Double` is never used"
         ]

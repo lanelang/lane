@@ -1,6 +1,6 @@
 module Examples.Valid.ElseIfChain
 
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 import Basic.Io.{ println }
 
 pub fn choose(first : Bool, second : Bool) -> Int {

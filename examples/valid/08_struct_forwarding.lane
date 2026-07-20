@@ -1,7 +1,7 @@
 module Examples.Valid08
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub struct Meter {
   value : Int

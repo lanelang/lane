@@ -3,12 +3,13 @@ package "Milky2018/lanec/syntax"
 
 import {
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/source_prettyprinter",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn format_source_file_with_trivia(SourceFile, SourceFormatTrivia) -> @prettyprinter.Document
+pub fn format_source_file_with_trivia(SourceFile, SourceFormatTrivia) -> @source_prettyprinter.Document
 
 // Errors
 
@@ -30,6 +31,7 @@ pub(all) enum BinaryOperator {
 } derive(Eq, @debug.Debug)
 pub fn BinaryOperator::minimum_precedence() -> Int
 pub fn BinaryOperator::precedence(Self) -> Int
+pub impl @source_prettyprinter.Pretty for BinaryOperator
 pub impl @prettyprinter.Pretty for BinaryOperator
 
 pub(all) enum CallArgument {
@@ -37,6 +39,7 @@ pub(all) enum CallArgument {
   Named(name~ : String, value~ : Expr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn CallArgument::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for CallArgument
 pub impl @prettyprinter.Pretty for CallArgument
 
 pub(all) struct EffectDeclaration {
@@ -46,6 +49,7 @@ pub(all) struct EffectDeclaration {
   operations : Array[EffectOperationDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for EffectDeclaration
 pub impl @prettyprinter.Pretty for EffectDeclaration
 
 pub(all) struct EffectOperationDeclaration {
@@ -55,6 +59,7 @@ pub(all) struct EffectOperationDeclaration {
   result : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for EffectOperationDeclaration
 pub impl @prettyprinter.Pretty for EffectOperationDeclaration
 
 pub(all) enum EffectOperationName {
@@ -76,6 +81,7 @@ pub(all) struct EnumDeclaration {
   variants : Array[EnumVariant]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for EnumDeclaration
 pub impl @prettyprinter.Pretty for EnumDeclaration
 
 pub(all) struct EnumVariant {
@@ -84,6 +90,7 @@ pub(all) struct EnumVariant {
   payload : Array[Type]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for EnumVariant
 pub impl @prettyprinter.Pretty for EnumVariant
 
 pub(all) enum Expr {
@@ -112,6 +119,7 @@ pub(all) enum Expr {
   Pipeline(left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Expr::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for Expr
 pub impl @prettyprinter.Pretty for Expr
 
 pub(all) struct ExternalTypeDeclaration {
@@ -121,6 +129,7 @@ pub(all) struct ExternalTypeDeclaration {
   result_kind : ExternalTypeKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for ExternalTypeDeclaration
 pub impl @prettyprinter.Pretty for ExternalTypeDeclaration
 
 pub(all) enum ExternalTypeKind {
@@ -133,6 +142,7 @@ pub(all) struct FieldDeclaration {
   type_ : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for FieldDeclaration
 pub impl @prettyprinter.Pretty for FieldDeclaration
 
 pub(all) struct FunctionDeclaration {
@@ -146,6 +156,7 @@ pub(all) struct FunctionDeclaration {
   body : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for FunctionDeclaration
 pub impl @prettyprinter.Pretty for FunctionDeclaration
 
 pub(all) struct FunctionLiteralParameter {
@@ -154,6 +165,7 @@ pub(all) struct FunctionLiteralParameter {
   type_annotation : Type?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for FunctionLiteralParameter
 pub impl @prettyprinter.Pretty for FunctionLiteralParameter
 
 pub(all) struct HandlerFinalBranch {
@@ -184,12 +196,14 @@ pub(all) enum ImportDeclaration {
   Selective(module_path~ : ModulePath, items~ : Array[ImportItem], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn ImportDeclaration::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for ImportDeclaration
 pub impl @prettyprinter.Pretty for ImportDeclaration
 
 pub(all) struct ImportItem {
   name : String
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for ImportItem
 pub impl @prettyprinter.Pretty for ImportItem
 
 pub(all) enum Kind {
@@ -198,6 +212,7 @@ pub(all) enum Kind {
   Function(parameters~ : Array[Kind], result~ : Kind, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Kind::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for Kind
 pub impl @prettyprinter.Pretty for Kind
 
 pub(all) struct LetDeclaration {
@@ -208,6 +223,7 @@ pub(all) struct LetDeclaration {
   initializer : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for LetDeclaration
 pub impl @prettyprinter.Pretty for LetDeclaration
 
 pub(all) enum LocalItem {
@@ -216,6 +232,7 @@ pub(all) enum LocalItem {
   Function(FunctionDeclaration)
   Offer(OfferDeclaration)
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for LocalItem
 pub impl @prettyprinter.Pretty for LocalItem
 
 pub(all) struct MatchArm {
@@ -223,12 +240,14 @@ pub(all) struct MatchArm {
   body : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for MatchArm
 pub impl @prettyprinter.Pretty for MatchArm
 
 pub(all) struct ModulePath {
   components : Array[String]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for ModulePath
 pub impl @prettyprinter.Pretty for ModulePath
 
 pub(all) struct OfferDeclaration {
@@ -239,6 +258,7 @@ pub(all) struct OfferDeclaration {
   initializer : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for OfferDeclaration
 pub impl @prettyprinter.Pretty for OfferDeclaration
 
 pub(all) struct Parameter {
@@ -248,6 +268,7 @@ pub(all) struct Parameter {
   type_ : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for Parameter
 pub impl @prettyprinter.Pretty for Parameter
 
 pub(all) struct ParameterModifiers {
@@ -267,6 +288,7 @@ pub(all) enum Pattern {
   Struct(type_name~ : String, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Pattern::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for Pattern
 pub impl @prettyprinter.Pretty for Pattern
 
 pub(all) struct PatternLetDeclaration {
@@ -275,6 +297,7 @@ pub(all) struct PatternLetDeclaration {
   initializer : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for PatternLetDeclaration
 pub impl @prettyprinter.Pretty for PatternLetDeclaration
 
 pub(all) struct SourceFile {
@@ -283,18 +306,19 @@ pub(all) struct SourceFile {
   declarations : Array[TopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for SourceFile
 pub impl @prettyprinter.Pretty for SourceFile
 
 pub(all) struct SourceFormatTrivia {
-  leading : (@basic.SourceSpan) -> @prettyprinter.Document
-  trailing : (@basic.SourceSpan) -> @prettyprinter.Document
+  leading : (@basic.SourceSpan) -> @source_prettyprinter.Document
+  trailing : (@basic.SourceSpan) -> @source_prettyprinter.Document
   has_leading : (@basic.SourceSpan) -> Bool
   has_trailing : (@basic.SourceSpan) -> Bool
-  boundary : (Int, Int) -> @prettyprinter.Document
+  boundary : (Int, Int) -> @source_prettyprinter.Document
   has_boundary : (Int, Int) -> Bool
-  delimited : (Char, Int, Int) -> @prettyprinter.Document
+  delimited : (Char, Int, Int) -> @source_prettyprinter.Document
   has_delimited : (Char, Int, Int) -> Bool
-  eof : () -> @prettyprinter.Document
+  eof : () -> @source_prettyprinter.Document
 }
 pub fn SourceFormatTrivia::empty() -> Self
 
@@ -305,18 +329,21 @@ pub(all) struct StructDeclaration {
   members : Array[StructMember]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for StructDeclaration
 pub impl @prettyprinter.Pretty for StructDeclaration
 
 pub(all) enum StructLiteralField {
   Value(name~ : String, value~ : Expr?, loc~ : @basic.SourceSpan)
   TypeWitness(name~ : String, witness~ : Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for StructLiteralField
 pub impl @prettyprinter.Pretty for StructLiteralField
 
 pub(all) enum StructMember {
   TypeMember(TypeMemberDeclaration)
   Field(FieldDeclaration)
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for StructMember
 pub impl @prettyprinter.Pretty for StructMember
 
 pub(all) enum StructPatternField {
@@ -324,6 +351,7 @@ pub(all) enum StructPatternField {
   TypeBinder(name~ : String, loc~ : @basic.SourceSpan)
   TypeWildcard(loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for StructPatternField
 pub impl @prettyprinter.Pretty for StructPatternField
 
 pub(all) enum TopLevelDeclaration {
@@ -336,6 +364,7 @@ pub(all) enum TopLevelDeclaration {
   Let(LetDeclaration)
   Offer(OfferDeclaration)
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for TopLevelDeclaration
 pub impl @prettyprinter.Pretty for TopLevelDeclaration
 
 pub(all) enum Type {
@@ -346,6 +375,7 @@ pub(all) enum Type {
   Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, effect~ : EffectTerm, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Type::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for Type
 pub impl @prettyprinter.Pretty for Type
 
 pub(all) enum TypeAliasBody {
@@ -353,6 +383,7 @@ pub(all) enum TypeAliasBody {
   EffectBody(EffectTerm)
 } derive(Eq, @debug.Debug)
 pub fn TypeAliasBody::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for TypeAliasBody
 pub impl @prettyprinter.Pretty for TypeAliasBody
 
 pub(all) struct TypeAliasDeclaration {
@@ -363,6 +394,7 @@ pub(all) struct TypeAliasDeclaration {
   body : TypeAliasBody
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for TypeAliasDeclaration
 pub impl @prettyprinter.Pretty for TypeAliasDeclaration
 
 pub(all) struct TypeMemberDeclaration {
@@ -370,6 +402,7 @@ pub(all) struct TypeMemberDeclaration {
   kind : Kind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for TypeMemberDeclaration
 pub impl @prettyprinter.Pretty for TypeMemberDeclaration
 
 pub(all) struct TypeParameter {
@@ -377,12 +410,14 @@ pub(all) struct TypeParameter {
   kind : Kind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for TypeParameter
 pub impl @prettyprinter.Pretty for TypeParameter
 
 pub(all) enum UnaryOperator {
   Neg
   Not
 } derive(Eq, @debug.Debug)
+pub impl @source_prettyprinter.Pretty for UnaryOperator
 pub impl @prettyprinter.Pretty for UnaryOperator
 
 // Type aliases

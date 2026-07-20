@@ -155,7 +155,11 @@ pub impl @prettyprinter.Pretty for TypeSubstitution with fn pretty(
     char('}'),
     nest(
       softline +
-      comma_list(substitution.entries.map(TypeSubstitutionEntry::pretty)),
+      comma_list(
+        substitution.entries.map(fn(entry) {
+          @prettyprinter.Pretty::pretty(entry)
+        }),
+      ),
     ) +
     softline,
   )

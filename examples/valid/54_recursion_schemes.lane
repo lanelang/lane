@@ -1,7 +1,7 @@
 module Examples.Valid.RecursionSchemes
 
 import Basic.Io.{ println }
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 enum Fix[F : [Type] -> Type] {
   roll(F[Fix[F]])

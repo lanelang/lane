@@ -1,4 +1,5 @@
 import {
   "Milky2018/lanec/basic",
-  "moonbit-community/prettyprinter",
+  "Milky2018/lanec/source_prettyprinter" @prettyprinter,
+  "moonbit-community/prettyprinter" @generic_prettyprinter,
 }

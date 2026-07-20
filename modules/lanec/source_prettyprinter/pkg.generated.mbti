@@ -1,0 +1,94 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/source_prettyprinter"
+
+import {
+  "moonbit-community/prettyprinter",
+}
+
+// Values
+pub fn braces(Document) -> Document
+
+pub fn brackets(Document) -> Document
+
+pub fn char(Char) -> Document
+
+pub fn concat(Document, Document) -> Document
+
+pub fn dynamic((Context) -> Document) -> Document
+
+pub let empty : Document
+
+pub fn flow(Array[Document]) -> Document
+
+pub fn group(Document) -> Document
+
+pub let hardline : Document
+
+pub let line : Document
+
+pub fn line_comment(String) -> Document
+
+pub fn list(Array[Document]) -> Document
+
+pub let mandatory_line : Document
+
+pub let mandatory_space : Document
+
+pub fn nest(indent? : Int, Document) -> Document
+
+pub fn parens(Document) -> Document
+
+pub fn[A : Pretty] pretty(A) -> Document
+
+pub fn[A : Pretty] render(A, width? : Int) -> String
+
+pub fn separate(Document, Array[Document]) -> Document
+
+pub fn[A] separate_map(Document, Array[A], (A) -> Document) -> Document
+
+pub let softline : Document
+
+pub let space : Document
+
+pub fn string(String) -> Document
+
+pub fn surround(Document, Document, Document) -> Document
+
+pub fn switch(Document, Document) -> Document
+
+pub fn text(String) -> Document
+
+// Errors
+
+// Types and methods
+pub struct Context {
+  indent : Int
+  next_indent : Int
+  width : Int
+}
+pub fn Context::current_remain(Self) -> Requirement
+pub fn Context::next_remain(Self) -> Requirement
+pub impl Show for Context
+
+type Document
+pub fn Document::requirement(Self) -> Requirement
+pub fn Document::to_generic(Self) -> @prettyprinter.Document
+pub impl Pretty for Document
+pub impl Add for Document
+pub impl Show for Document
+
+pub(all) enum Requirement {
+  Space(Int)
+  Infinite
+}
+pub impl Add for Requirement
+pub impl Compare for Requirement
+pub impl Eq for Requirement
+pub impl Show for Requirement
+
+// Type aliases
+
+// Traits
+pub(open) trait Pretty {
+  fn pretty(Self) -> Document
+}

@@ -116,6 +116,16 @@ fn TypeScope::with_expected_effect(
 }
 
 ///|
+fn TypeScope::without_expected_effect(self : TypeScope) -> TypeScope {
+  {
+    values: self.values.copy(),
+    offers: self.offers.copy(),
+    type_parameters: self.type_parameters.copy(),
+    expected_effect: None,
+  }
+}
+
+///|
 fn TypeScope::bind_type_parameter_kind(
   self : TypeScope,
   symbol : TypeParameterId,

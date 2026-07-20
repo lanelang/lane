@@ -64,7 +64,7 @@ test "formatter consumes the complete trivia attachment view" {
   guard @parser.parse_string(source) is Parsed(parsed) else {
     abort("expected parsed source")
   }
-  let trivia = TriviaView::make(parsed.concrete)
+  let trivia = TriviaPlan::make(parsed.concrete).start_session()
   ignore(
     @prettyprinter.render(
       @syntax.format_source_file_with_trivia(
@@ -75,7 +75,7 @@ test "formatter consumes the complete trivia attachment view" {
     ),
   )
   debug_inspect(
-    trivia.comments.map(fn(comment) {
+    trivia.plan.comments.mapi(fn(index, comment) {
       let placement = match comment.placement {
         Leading(span) => ("leading", span.start_offset, span.end_offset)
         Trailing(span) => ("trailing", span.start_offset, span.end_offset)
@@ -88,7 +88,7 @@ test "formatter consumes the complete trivia attachment view" {
         placement,
         comment.blank_before,
         comment.blank_after,
-        comment.consumed,
+        trivia.claimed[index],
       )
     }),
     content=(
@@ -144,7 +144,7 @@ test "formatter reports unconsumed concrete comments" {
   guard @parser.parse_string(source) is Parsed(parsed) else {
     abort("expected parsed source")
   }
-  let trivia = TriviaView::make(parsed.concrete)
+  let trivia = TriviaPlan::make(parsed.concrete).start_session()
   ignore(trivia.source_format_trivia())
   debug_inspect(
     trivia
@@ -356,6 +356,30 @@ test "format source preserves leading line comment block" {
       #|module Test
       #|
       #|pub let answer : Int = 42
+      #|
+    ),
+  )
+}
+
+///|
+test "format source keeps consecutive line comments compact inside blocks" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn main() -> Unit {
+      #|// first note
+      #|// second note
+      #|()
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn main() -> Unit {
+      #|  // first note
+      #|  // second note
+      #|  ()
+      #|}
       #|
     ),
   )
@@ -1449,8 +1473,10 @@ test "format source preserves unary pipeline and match boundaries" {
       #|}
       #|
       #|pub fn inspect(value : Int, option : Option) -> Bool {
-      #|  let piped : Int = value |> // pipeline operand
-      #|    identity
+      #|  let piped : Int =
+      #|    value
+      #|      |> // pipeline operand
+      #|        identity
       #|  let negated : Bool = ! // unary operand
       #|    false
       #|  match option
@@ -1458,6 +1484,104 @@ test "format source preserves unary pipeline and match boundaries" {
       #|  {
       #|    some(item) => negated && piped == item
       #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source keeps pipelines after trailing comments parseable" {
+  assert_format(
+    (
+      #|module Test
+      #|fn use(value : Int) -> Int {
+      #|  first(
+      #|    value,
+      #|    fn(item) {
+      #|      item
+      #|    }
+      #|  ) // trailing comment
+      #|    |> second
+      #|}
+      #|fn chained(value : Int) -> Int {
+      #|  value
+      #|    |> first(
+      #|      value,
+      #|      fn(item) {
+      #|        item
+      #|      }
+      #|    ) // trailing segment
+      #|    |> second
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|fn use(value : Int) -> Int {
+      #|  first(
+      #|    value,
+      #|    fn(item) {
+      #|      item
+      #|    }
+      #|  ) // trailing comment
+      #|    |> second
+      #|}
+      #|
+      #|fn chained(value : Int) -> Int {
+      #|  value
+      #|    |> first(
+      #|      value,
+      #|      fn(item) {
+      #|        item
+      #|      }
+      #|    ) // trailing segment
+      #|    |> second
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source treats trailing comments as general line boundaries" {
+  assert_format(
+    (
+      #|module Test
+      #|struct Pair { fst : Int }
+      #|fn binary(left : Int, right : Int) -> Int {
+      #|  left // binary left
+      #|    + right
+      #|}
+      #|fn field(value : Pair) -> Int {
+      #|  value // field base
+      #|    .fst
+      #|}
+      #|fn call(callee : (Int) -> Int) -> Int {
+      #|  callee // call callee
+      #|    (42)
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|struct Pair {
+      #|  fst : Int
+      #|}
+      #|
+      #|fn binary(left : Int, right : Int) -> Int {
+      #|  left // binary left
+      #|    + right
+      #|}
+      #|
+      #|fn field(value : Pair) -> Int {
+      #|  value // field base
+      #|    .fst
+      #|}
+      #|
+      #|fn call(callee : (Int) -> Int) -> Int {
+      #|  callee // call callee
+      #|  (42)
       #|}
       #|
     ),
@@ -1597,6 +1721,7 @@ test "format source breaks declarations and expression chains at small width" {
     #|  let result : Int = very_long_function_name(input.first.second.third, fallback)
     #|  let chain : Int = input.first.second.third.fourth
     #|  let piped : Int = input |> first_step |> second_step
+    #|  let mapped : Int = very_long_function_name(input.first.second.third, fallback) |> first_step
     #|  if first_condition && second_condition && third_condition { result } else { chain }
     #|}
   assert_format(
@@ -1623,6 +1748,11 @@ test "format source breaks declarations and expression chains at small width" {
       #|    input
       #|      |> first_step
       #|      |> second_step
+      #|  let mapped : Int =
+      #|    very_long_function_name(
+      #|      input.first.second.third,
+      #|      fallback
+      #|    ) |> first_step
       #|  if
       #|    first_condition
       #|      && second_condition

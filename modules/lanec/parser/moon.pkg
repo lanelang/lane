@@ -7,5 +7,5 @@ import {
 }
 
 import {
-  "moonbit-community/prettyprinter",
+  "Milky2018/lanec/source_prettyprinter" @prettyprinter,
 } for "wbtest"

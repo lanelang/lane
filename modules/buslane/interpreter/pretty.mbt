@@ -72,7 +72,8 @@ impl @prettyprinter.Pretty for BuslaneRuntimeEnvironment with fn pretty(
   let docs = environment.values.to_array().map(runtime_binding_doc)
   let docs = match environment.parent {
     None => docs
-    Some(parent) => docs + [section("parent", [parent.pretty()])]
+    Some(parent) =>
+      docs + [section("parent", [@prettyprinter.Pretty::pretty(parent)])]
   }
   text("buslane_environment") + space + braced_block(docs)
 }
@@ -83,7 +84,9 @@ pub impl @prettyprinter.Pretty for BuslaneRuntimeProgram with fn pretty(
 ) {
   text("buslane_runtime_program") +
   space +
-  braced_block([section("globals", [program.globals.pretty()])])
+  braced_block([
+    section("globals", [@prettyprinter.Pretty::pretty(program.globals)]),
+  ])
 }
 
 ///|

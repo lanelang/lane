@@ -1,5 +1,5 @@
 module Examples.Invalid.DoubleRemainderUnavailable
 
-import Basic.Ops.*
+import Basic.Trait.Ops.*
 
 pub let bad : Double = 1.0 % 2.0

@@ -652,7 +652,7 @@ fn GenericArgumentInference::collect_generic_array(
 fn GenericArgumentInference::finish(
   self : GenericArgumentInference,
 ) -> InferredApplicationGenericArguments? {
-  let substitution = @types.TypeSubstitution::TypeSubstitution()
+  let substitution = self.partial_substitution()
   let generic_arguments = []
   let missing = []
   for parameter in self.parameters {
@@ -660,7 +660,6 @@ fn GenericArgumentInference::finish(
       missing.push(parameter)
       continue
     }
-    substitution.insert_argument(parameter.id, argument)
     generic_arguments.push(argument)
   }
   if !missing.is_empty() {
@@ -668,6 +667,17 @@ fn GenericArgumentInference::finish(
     return None
   }
   Some({ generic_arguments, substitution })
+}
+
+///|
+fn GenericArgumentInference::partial_substitution(
+  self : GenericArgumentInference,
+) -> @types.TypeSubstitution {
+  let substitution = @types.TypeSubstitution::TypeSubstitution()
+  for binding in self.bindings {
+    substitution.insert_argument(binding.parameter, binding.argument)
+  }
+  substitution
 }
 
 ///|
@@ -763,6 +773,69 @@ fn SemanticChecker::synthesize_argument_for_generic_arguments(
 }
 
 ///|
+fn SemanticChecker::infer_function_literal_effect_for_generic_arguments(
+  self : SemanticChecker,
+  scope : TypeScope,
+  argument : @desugar.DesugaredExpr,
+  expected_parameters : Array[@types.Type],
+  expected_result : @types.Type,
+) -> @types.Effect? {
+  guard argument
+    is FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      effect~,
+      body~,
+      ..
+    ) &&
+    type_parameters.is_empty() &&
+    parameters.length() == expected_parameters.length() else {
+    return None
+  }
+  let checker = self.copy_for_silent_analysis()
+  let checked_parameters = checker.checked_function_literal_parameters_from_expected(
+    parameters, expected_parameters,
+  )
+  let body_scope = checker.function_body_scope(
+    scope.without_expected_effect(),
+    [],
+    checked_parameters,
+  )
+  if return_type is Some(type_annotation) {
+    checker.expect_type(
+      expected_result,
+      checker.check_type(type_annotation),
+      argument.loc(),
+    )
+  }
+  let declared_effect = match effect {
+    Some(effect) => Some(checker.check_effect(effect))
+    None => None
+  }
+  let checked_body = checker.check_checked_expr(
+    match declared_effect {
+      Some(effect) => body_scope.with_expected_effect(effect)
+      None => body_scope
+    },
+    body,
+    expected_result,
+  )
+  let inferred_effect = match declared_effect {
+    Some(effect) => {
+      checker.expect_effect(effect, checked_body.effect, body.loc())
+      effect
+    }
+    None => checked_body.effect
+  }
+  if checker.diagnostics.is_empty() {
+    Some(inferred_effect)
+  } else {
+    None
+  }
+}
+
+///|
 fn SemanticChecker::try_synthesize_checked_expr_type_silently(
   self : SemanticChecker,
   scope : TypeScope,
@@ -855,16 +928,13 @@ fn SemanticChecker::infer_application_generic_arguments(
     evidence.argument_expressions.length()
   }
   for index in 0..<count {
-    if self.synthesize_argument_for_generic_arguments(
-        scope,
-        evidence.argument_expressions[index],
-      )
+    let template = evidence.parameter_templates[index]
+    let argument = evidence.argument_expressions[index]
+    if self.synthesize_argument_for_generic_arguments(scope, argument)
       is Some(actual) {
-      if !inference.collect(evidence.parameter_templates[index], actual) {
+      if !inference.collect(template, actual) {
         inference_failed = true
-        inference.set_failure_loc_if_missing(
-          evidence.argument_expressions[index].loc(),
-        )
+        inference.set_failure_loc_if_missing(argument.loc())
       }
     }
   }
@@ -881,6 +951,21 @@ fn SemanticChecker::infer_application_generic_arguments(
     if !inference.collect_effect_term_from_row(template, expected) {
       inference_failed = true
       inference.set_failure_loc_if_missing(evidence.loc)
+    }
+  }
+  for index in 0..<count {
+    let template = evidence.parameter_templates[index]
+    guard template is Function(_, _, template_effect) else { continue }
+    let instantiated = template.substitute(inference.partial_substitution())
+    guard instantiated is Function(parameters, result, _) else { continue }
+    let argument = evidence.argument_expressions[index]
+    if self.infer_function_literal_effect_for_generic_arguments(
+        scope, argument, parameters, result,
+      )
+      is Some(actual_effect) &&
+      !inference.collect_effect(template_effect, actual_effect) {
+      inference_failed = true
+      inference.set_failure_loc_if_missing(argument.loc())
     }
   }
   guard !inference_failed else {
