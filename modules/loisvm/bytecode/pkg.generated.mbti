@@ -9,6 +9,8 @@ import {
 // Values
 pub fn bytecode_image_to_binary(BytecodeImage) -> Bytes
 
+pub fn bytecode_image_to_code(BytecodeImage) -> String
+
 pub fn bytecode_image_to_disassembly(BytecodeImage) -> String
 
 pub fn parse_bytecode_image_binary(Bytes) -> Result[BytecodeImage, BytecodeDecodeError]

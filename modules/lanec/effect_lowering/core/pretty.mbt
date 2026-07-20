@@ -15,12 +15,12 @@ pub impl @prettyprinter.Pretty for Program with fn pretty(program : Program) {
   text("buslane") +
   space +
   @pretty.braced_block(
-    [program.metadata.pretty(), ..program.terms.map(top_term_doc)],
+    [program.metadata.pretty(), ..program.terms.map(TopTerm::pretty)],
   )
 }
 
 ///|
-fn top_term_doc(term : TopTerm) -> Document {
+pub impl @prettyprinter.Pretty for TopTerm with fn pretty(term : TopTerm) {
   match term {
     Let(id, expression) =>
       text("let") +

@@ -29,7 +29,7 @@ async fn lane_explore(
     library_sources: LaneSourceInput::array_to_compile_inputs(libraries),
     entry,
   })
-  let html = render_explore_html(report, diagnostic_sources)
+  let html = render_explore_html(report)
   match write_explore_report_atomic(output, html) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
@@ -76,10 +76,7 @@ async fn write_explore_report_atomic(
 }
 
 ///|
-fn render_explore_html(
-  report : @driver.ExploreReport,
-  sources : @compiler_diag.CompilerDiagnosticSources,
-) -> String {
+fn render_explore_html(report : @driver.ExploreReport) -> String {
   let html = StringBuilder::new()
   html <+
     #|<!doctype html>
@@ -89,42 +86,27 @@ fn render_explore_html(
     #|<meta name="viewport" content="width=device-width, initial-scale=1">
     #|<title>Lane IR Explorer</title>
     #|<style>
-    #|:root{color-scheme:dark;--bg:#0b1020;--panel:#111831;--line:#263152;--text:#e7ecff;--muted:#9da9ce;--accent:#8aa4ff}
+    #|:root{color-scheme:dark;--bg:#0b1020;--panel:#111831;--line:#263152;--text:#e7ecff;--accent:#8aa4ff}
     #|*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,sans-serif}
-    #|header{padding:24px 28px;border-bottom:1px solid var(--line)}h1{margin:0 0 6px;font-size:22px}.meta{color:var(--muted)}
-    #|main{display:grid;grid-template-columns:minmax(220px,300px) 1fr;min-height:calc(100vh - 96px)}nav{padding:16px;border-right:1px solid var(--line);overflow:auto}
+    #|main{display:grid;grid-template-columns:minmax(220px,300px) 1fr;min-height:100vh}nav{padding:16px;border-right:1px solid var(--line);overflow:auto}
     #|button{display:block;width:100%;margin:0 0 8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);text-align:left;cursor:pointer}
     #|button[aria-selected="true"]{border-color:var(--accent);color:#fff}.content{min-width:0;padding:20px 24px}.stage{display:none}.stage.active{display:block}
-    #|h2{margin:0 0 14px;font-size:18px}pre{margin:0;padding:18px;border:1px solid var(--line);border-radius:10px;background:#080d1a;color:#dce5ff;overflow:auto;white-space:pre;tab-size:2}
-    #|.diagnostics{margin:0 0 18px;padding:14px;border:1px solid #76523a;border-radius:10px;background:#21160f}.diagnostics h2{font-size:15px}.diagnostics pre{margin-top:10px;border-color:#76523a}
+    #|pre{margin:0;padding:18px;border:1px solid var(--line);border-radius:10px;background:#080d1a;color:#dce5ff;overflow:auto;white-space:pre;tab-size:2}
     #|@media(max-width:760px){main{grid-template-columns:1fr}nav{border-right:0;border-bottom:1px solid var(--line)}}
     #|</style>
     #|</head>
     #|<body>
-    #|<header><h1>Lane IR Explorer</h1><div class="meta">Entry:
-  html <+ " \{escape_html(report.entry)}"
-  html <+ " · Schema v\{report.schema_version}</div></header><main><nav>"
+    #|<main><nav>
   for index, stage in report.stages {
     let selected = if index == 0 { "true" } else { "false" }
     html <+
       "<button type=\"button\" role=\"tab\" aria-selected=\"\{selected}\" data-stage=\"\{escape_html(stage.id)}\">\{escape_html(stage.title)}</button>"
   }
   html <+ "</nav><div class=\"content\">"
-  if !report.diagnostics.is_empty() || report.failure is Some(_) {
-    html <+ "<section class=\"diagnostics\"><h2>Diagnostics</h2>"
-    for diagnostic in report.diagnostics {
-      html <+
-        "<pre>\{escape_html(render_compile_diagnostic(diagnostic, sources))}</pre>"
-    }
-    if report.failure is Some(message) {
-      html <+ "<pre>\{escape_html(message)}</pre>"
-    }
-    html <+ "</section>"
-  }
   for index, stage in report.stages {
     let class_name = if index == 0 { "stage active" } else { "stage" }
     html <+
-      "<section class=\"\{class_name}\" data-stage=\"\{escape_html(stage.id)}\"><h2>\{escape_html(stage.title)}</h2><pre>\{escape_html(stage.text)}</pre></section>"
+      "<section class=\"\{class_name}\" data-stage=\"\{escape_html(stage.id)}\"><pre>\{escape_html(stage.text)}</pre></section>"
   }
   html <+
     #|</div></main>

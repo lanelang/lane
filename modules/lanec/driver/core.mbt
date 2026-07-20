@@ -99,11 +99,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         match observed {
           Resolved(source) =>
             stages.push(
-              stage(
-                "resolved",
-                "Resolved AST",
-                @prettyprinter.render(source, width=100),
-              ),
+              stage("resolved", "Resolved AST", render_resolved_code(source)),
             )
         }
       }
@@ -128,20 +124,17 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     stage(
       "checked",
       "Checked Source AST",
-      @prettyprinter.render(root_module.object.checked, width=100),
+      render_checked_code(root_module.object.checked),
     ),
   )
   stages.push(
     stage(
       "buslane.module",
       "Buslane (Module Lowering)",
-      @prettyprinter.render(
-        @buslane.Program::{
-          metadata: root_module.object.metadata,
-          terms: root_module.object.terms,
-        },
-        width=100,
-      ),
+      render_buslane_code({
+        metadata: root_module.object.metadata,
+        terms: root_module.object.terms,
+      }),
     ),
   )
   let linked = @module_compile.link_compiled_module_set(modules)
@@ -178,22 +171,20 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     stage(
       "executable",
       "Executable Program (Whole-Program Elaboration)",
-      @prettyprinter.render(executable, width=100),
+      render_buslane_code(executable.program),
     ),
   )
   let image = match
     @loisvm_lowering.lower_executable_program_to_bytecode_observed(executable, observed => {
       match observed {
         Anf(program) =>
-          stages.push(
-            stage("anf", "ANF", @prettyprinter.render(program, width=100)),
-          )
+          stages.push(stage("anf", "ANF", render_anf_code(program)))
         InitialVmcfg(image) =>
           stages.push(
             stage(
               "vmcfg.initial",
               "VM CFG (Initial Lowering)",
-              @prettyprinter.render(image, width=100),
+              @vmcfg.image_to_code(image),
             ),
           )
       }
@@ -211,7 +202,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     stage(
       "loisvm.bytecode",
       "LoisVM Bytecode (ARC and Slot Finalization)",
-      @prettyprinter.render(image, width=100),
+      @bytecode.bytecode_image_to_code(image),
     ),
   )
   let wasm_module = match @wasm_compiler.compile(image) {
@@ -254,25 +245,25 @@ fn executable_stage(
       stage(
         "buslane.handlers-elaborated",
         "Buslane (Handler Elaboration)",
-        @prettyprinter.render(program, width=100),
+        render_effect_lowering_code(program),
       )
     MonadicTransformed(program) =>
       stage(
         "buslane.monadic",
         "Buslane (Monadic Transformation)",
-        @prettyprinter.render(program, width=100),
+        render_effect_lowering_code(program),
       )
     SelectiveCpsRewritten(program) =>
       stage(
         "buslane.selective-cps",
         "Buslane (Selective CPS)",
-        @prettyprinter.render(program, width=100),
+        render_effect_lowering_code(program),
       )
     OpenContextsResolved(program) =>
       stage(
         "buslane.open-context-resolved",
         "Buslane (Open Context Resolution)",
-        @prettyprinter.render(program, width=100),
+        render_effect_lowering_code(program),
       )
     MonadicContinuationsLifted(program) =>
       buslane_stage("buslane.monadic-lifted", "Buslane (Monadic Lift)", program)
@@ -293,7 +284,7 @@ fn buslane_stage(
   title : String,
   program : @buslane.Program,
 ) -> ExploreStage {
-  stage(id, title, @prettyprinter.render(program, width=100))
+  stage(id, title, render_buslane_code(program))
 }
 
 ///|

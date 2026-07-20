@@ -21,6 +21,18 @@ pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
     "constants: \{image.constants.length()}",
   ]
   lines.push("")
+  lines.append(bytecode_image_code_lines(image))
+  lines.join("\n")
+}
+
+///|
+pub fn bytecode_image_to_code(image : BytecodeImage) -> String {
+  bytecode_image_code_lines(image).join("\n")
+}
+
+///|
+fn bytecode_image_code_lines(image : BytecodeImage) -> Array[String] {
+  let lines : Array[String] = []
   for index, function in image.functions {
     lines.append(render_function_entry(index + 1, function))
     lines.push("")
@@ -54,7 +66,7 @@ pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
     }
     lines.push("")
   }
-  lines.join("\n")
+  lines
 }
 
 ///|

@@ -131,6 +131,26 @@ test "minimal bytecode image has canonical disassembly" {
 }
 
 ///|
+test "minimal bytecode code view omits image summary" {
+  inspect(
+    bytecode_image_to_code(minimal_image()),
+    content=(
+      #|function f1(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> unit {
+      #|  slots:
+      #|    (none)
+      #|  b0([]):
+      #|    return none
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "globals and initializer roundtrip" {
   let image = global_image()
   let binary = bytecode_image_to_binary(image)

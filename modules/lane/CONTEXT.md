@@ -20,7 +20,7 @@ The `lane explore <file>:<entry> -o <report.html>` command behavior that collect
 _Avoid_: artifact inspection, stdout dump, automatic browser launch, alternate compilation pipeline
 
 **Self-Contained Explore HTML**:
-The deterministic offline report written by the Executable Explore Command with all styles, behavior, safely escaped stage documents, diagnostics, and report metadata embedded in one file.
+The deterministic offline code viewer written by the Executable Explore Command with inline styles and behavior, one level of stage tabs, and safely escaped IR source code. Each stage projects declarations, terms, functions, tables, or backend source directly instead of rendering enclosing compiler objects, registries, entry identities, schema versions, diagnostics, or image summaries.
 _Avoid_: CDN dependency, external asset directory, runtime execution trace, volatile timestamp
 
 **Root Source**:
@@ -71,5 +71,6 @@ _Avoid_: separate language-server executable, VS Code extension
 - `lane explore` writes a complete or Partial Explore Report through an atomic
   output replacement; a partial report does not change a compilation failure
   into a successful command status.
-- Self-Contained Explore HTML uses one level of stage tabs and contains no
-  environment-dependent metadata beyond identified compilation inputs.
+- Self-Contained Explore HTML uses one level of stage tabs and renders only IR
+  source code; enclosing object labels, registries, entry/schema metadata,
+  failures, diagnostics, and image summaries remain outside the code viewer.

@@ -10,6 +10,8 @@ import {
 // Values
 pub fn finalize(Image) -> Result[@bytecode.BytecodeImage, FinalizeError]
 
+pub fn image_to_code(Image) -> String
+
 // Errors
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)

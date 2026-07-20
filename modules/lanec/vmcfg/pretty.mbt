@@ -19,6 +19,18 @@ fn image_to_disassembly(image : Image) -> String {
     "constants: \{image.constants.length()}",
     "",
   ]
+  lines.append(image_code_lines(image))
+  lines.join("\n")
+}
+
+///|
+pub fn image_to_code(image : Image) -> String {
+  image_code_lines(image).join("\n")
+}
+
+///|
+fn image_code_lines(image : Image) -> Array[String] {
+  let lines : Array[String] = []
   for index, function in image.functions {
     lines.append(render_function_entry(index + 1, function))
     lines.push("")
@@ -52,7 +64,7 @@ fn image_to_disassembly(image : Image) -> String {
     }
     lines.push("")
   }
-  lines.join("\n")
+  lines
 }
 
 ///|

@@ -112,3 +112,39 @@ test "VM CFG pretty printer exposes control flow and ownership" {
     ),
   )
 }
+
+///|
+test "VM CFG code view omits image summary" {
+  let image : Image = {
+    entry: { value: 1 },
+    initializer: None,
+    functions: [
+      Body({
+        values: [],
+        inputs: { environment: None, witnesses: [], user_parameters: [] },
+        result: Unit,
+        blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+      }),
+    ],
+    globals: [],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+  inspect(
+    image_to_code(image),
+    content=(
+      #|function f1(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> unit {
+      #|  values:
+      #|    (none)
+      #|  b0([]):
+      #|    return none
+      #|}
+      #|
+    ),
+  )
+}
