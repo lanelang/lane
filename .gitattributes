@@ -1,0 +1,2 @@
+modules/buslane/text/generated_parser.mbt -whitespace
+modules/lanec/parser/yacc_parser/generated_parser.mbt -whitespace

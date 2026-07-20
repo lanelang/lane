@@ -8,7 +8,7 @@ import {
 
 rule(
   name: "moonyacc",
-  command: "moon runwasm moonbitlang/yacc@0.7.14 --no-comments $input -o $output",
+  command: "moon runwasm moonbitlang/yacc@0.7.17 --no-comments $input -o $output",
 )
 
 dev_build(

@@ -259,7 +259,7 @@ pub(all) enum TokenKind {
   TK_FAT_ARROW
 } derive(Eq, Hash, Compare)
 
-pub impl Show for TokenKind with output(self, logger) {
+pub impl Show for TokenKind with fn output(self, logger) {
   logger.write_string(
     match self {
       TK_INT => "INT"
@@ -349,7 +349,7 @@ pub impl Show for TokenKind with output(self, logger) {
   )
 }
 
-pub impl Debug for TokenKind with to_repr(self) {
+pub impl Debug for TokenKind with fn to_repr(self) {
     match self {
       TK_INT => to_repr("INT")
       TK_DOUBLE => to_repr("DOUBLE")

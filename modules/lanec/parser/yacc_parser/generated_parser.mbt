@@ -199,7 +199,7 @@ pub(all) enum TokenKind {
   TK_UNDERSCORE
 } derive(Eq, Hash, Compare)
 
-pub impl Show for TokenKind with output(self, logger) {
+pub impl Show for TokenKind with fn output(self, logger) {
   logger.write_string(
     match self {
       TK_INT => "INT"
@@ -269,7 +269,7 @@ pub impl Show for TokenKind with output(self, logger) {
   )
 }
 
-pub impl Debug for TokenKind with to_repr(self) {
+pub impl Debug for TokenKind with fn to_repr(self) {
     match self {
       TK_INT => to_repr("INT")
       TK_DOUBLE => to_repr("DOUBLE")
@@ -1255,7 +1255,7 @@ fn yy_action_39(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   guard _args[3].0 is YYObj_Kind(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_TypeMemberDeclaration({();
+  YYObj_TypeMemberDeclaration({(); 
     { name: _dollar2, kind: Some(_dollar4), loc: span((_symbol_start_pos, _end_pos)) }
   })
 }
@@ -1268,8 +1268,7 @@ fn yy_action_40(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   guard _args[1].0 is YYObj_String(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_TypeMemberDeclaration({
-    ()
+  YYObj_TypeMemberDeclaration({(); 
     { name: _dollar2, kind: None, loc: span((_symbol_start_pos, _end_pos)) }
   })
 }
@@ -1580,7 +1579,7 @@ fn yy_action_68(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Expr({();
+  YYObj_Expr({(); 
     Block(items=_dollar2, result=_dollar3, loc=span((_symbol_start_pos, _end_pos)))
   })
 }
@@ -1624,8 +1623,7 @@ fn yy_action_73(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   guard _args[3].0 is YYObj_HandlerFinalBranch(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Expr({
-    ()
+  YYObj_Expr({(); 
     Handler(body=_dollar2, handlers=_dollar3, final_branch=_dollar4, loc=span((_symbol_start_pos, _end_pos)))
   })
 }
@@ -2590,8 +2588,7 @@ fn yy_action_169(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Expr({
-    ()
+  YYObj_Expr({(); 
     Binary(operator=Rem, left=_dollar1, right=_dollar3, loc=span((_symbol_start_pos, _end_pos)))
   })
 }
