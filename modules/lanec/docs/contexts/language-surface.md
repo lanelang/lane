@@ -74,8 +74,12 @@ A named local function that may call itself, is visible only to later items in t
 _Avoid_: local recursive group, local forward declaration
 
 **Sequential Unit Expression**:
-A block-local expression followed by `;`, required to have type `Unit`, and evaluated before the following local item or final expression.
+A block-local expression followed by an explicit or **Layout Semicolon**, required to have type `Unit`, and evaluated before the following local item or final expression.
 _Avoid_: statement, unchecked result discard, general sequence operator
+
+**Layout Semicolon**:
+A zero-width `;` inserted between newline-delimited items before parsing when the previous token can end an item, the next token can start one, and the newline is outside parentheses and brackets. Newlines before operators, closing delimiters, continuation punctuation, `else`, `with`, or `final` do not insert a separator.
+_Avoid_: parser recovery, newline AST node, unconditional line terminator
 
 **Uncurried Function**:
 A function that accepts its parameters as one call shape and is not automatically transformed into nested one-argument functions.

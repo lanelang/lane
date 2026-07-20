@@ -3,6 +3,6 @@ module Examples.SequentialUnitExpressions
 import Basic.Io.{ println }
 
 pub fn main() -> Unit ! Io {
-  println("hello");
+  println("hello")
   println("world")
 }

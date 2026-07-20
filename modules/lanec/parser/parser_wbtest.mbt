@@ -69,6 +69,66 @@ test "parse grammar failure keeps concrete syntax" {
 }
 
 ///|
+test "layout inserts semicolons between newline-delimited items" {
+  let source =
+    #|module Test
+    #|struct Pair {
+    #|  fst : Int
+    #|  snd : Int
+    #|}
+    #|enum Choice {
+    #|  left()
+    #|  right()
+    #|}
+    #|effect Console {
+    #|  read() -> Int
+    #|  write(String) -> Unit
+    #|}
+    #|fn main() -> Unit {
+    #|  print("hello")
+    #|  print("world")
+    #|}
+  let lexed = @lexer.tokens_from_string(source)
+  assert_true(lexed.errors.is_empty())
+  let synthetic_semicolon_lines = []
+  for item in layout_yacc_tokens(lexed.concrete) {
+    let (token, start, end) = item
+    if token is SEMICOLON && start.start_offset == end.start_offset {
+      synthetic_semicolon_lines.push(start.start_line)
+    }
+  }
+  debug_inspect(
+    synthetic_semicolon_lines,
+    content="[1, 3, 5, 7, 9, 11, 13, 15]",
+  )
+  debug_inspect(parse_string(source).parse_errors(), content="[]")
+}
+
+///|
+test "layout preserves delimited and operator continuations" {
+  let source =
+    #|module Test
+    #|fn add(
+    #|  left : Int,
+    #|  right : Int
+    #|) -> Int {
+    #|  left
+    #|    + right
+    #|}
+  let lexed = @lexer.tokens_from_string(source)
+  assert_true(lexed.errors.is_empty())
+  let synthetic_semicolon_lines = []
+  for item in layout_yacc_tokens(lexed.concrete) {
+    let (token, start, end) = item
+    if token is SEMICOLON && start.start_offset == end.start_offset {
+      synthetic_semicolon_lines.push(start.start_line)
+    }
+  }
+  debug_inspect(synthetic_semicolon_lines, content="[1]")
+  debug_inspect(parse_string(source).parse_errors(), content="[]")
+}
+
+///|
 test "parse positional call argument keeps argument source span" {
   let file = expect_parse_ok(
     (
@@ -195,6 +255,93 @@ test "parse sequential unit expressions as block local items" {
       #|  print("world")
       #|}
     ),
+  )
+}
+
+///|
+test "parse newline-separated unit expressions as block local items" {
+  let file = expect_parse_ok(
+    (
+      #|fn print(value : String) -> Unit {
+      #|  ()
+      #|}
+      #|fn main() -> Unit {
+      #|  print("hello")
+      #|  print("world")
+      #|}
+    ),
+  )
+  guard file.declarations[1] is Function(function) else {
+    abort("expected main function")
+  }
+  assert_true(
+    function.body
+    is Block(items=[Expression(expression=Call(..), ..)], result=Call(..), ..),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|fn print(value : String) -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|fn main() -> Unit {
+      #|  print("hello")
+      #|  print("world")
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse newline after if expression as a sequence separator" {
+  let file = expect_parse_ok(
+    (
+      #|fn main(condition : Bool) -> Unit {
+      #|  if condition {
+      #|    ()
+      #|  } else {
+      #|    ()
+      #|  }
+      #|  if condition {
+      #|    ()
+      #|  } else {
+      #|    ()
+      #|  }
+      #|}
+    ),
+  )
+  guard file.declarations[0] is Function(function) else {
+    abort("expected main function")
+  }
+  assert_true(
+    function.body
+    is Block(items=[Expression(expression=If(..), ..)], result=If(..), ..),
+  )
+}
+
+///|
+test "parse newline-separated struct literal fields" {
+  let file = expect_parse_ok(
+    (
+      #|struct Pair {
+      #|  fst : Int
+      #|  snd : Int
+      #|}
+      #|fn make() -> Pair {
+      #|  Pair::{ fst: 1
+      #|    snd: 2 }
+      #|}
+    ),
+  )
+  guard file.declarations[1] is Function(function) else {
+    abort("expected make function")
+  }
+  assert_true(
+    function.body
+    is Block(result=StructLiteral(fields=[Value(..), Value(..)], ..), ..),
   )
 }
 
@@ -923,6 +1070,7 @@ test "parse rejects expression-shaped member owner" {
       #|      { label: "`|>`" },
       #|      { label: "`(`" },
       #|      { label: "`[`" },
+      #|      { label: "`;`" },
       #|      { label: "`.`" },
       #|    ],
       #|  ),

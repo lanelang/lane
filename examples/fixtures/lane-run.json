@@ -619,14 +619,14 @@
       }
     },
     {
-      "name": "invalid 05 multiple expression statements",
+      "name": "invalid 05 non-unit newline sequence",
       "file": "examples/invalid/05_multiple_expression_statements.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
-          "block result expression must be last",
-          "this appears after the block's final expression"
+          "error[E3006]",
+          "expected `Unit`, found `Int`",
+          "change the expression type or adjust the annotation/expected type"
         ]
       }
     },
@@ -707,9 +707,9 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
-          "block result expression must be last",
-          "this appears after the block's final expression"
+          "error[E2001]",
+          "cannot find value `helper`",
+          "no value named `helper` is visible here"
         ]
       }
     },

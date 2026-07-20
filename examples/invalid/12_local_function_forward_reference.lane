@@ -2,8 +2,9 @@
 module Examples.Invalid12
 
 pub fn bad(value : Int) -> Int {
-  helper(value)
+  let result : Int = helper(value)
   fn helper(x : Int) -> Int {
     x
   }
+  result
 }

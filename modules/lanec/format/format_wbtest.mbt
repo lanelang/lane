@@ -411,6 +411,33 @@ test "format sequential expressions and preserve semicolon comments" {
 }
 
 ///|
+test "format newline-separated expressions without adding semicolons" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn print(value:String)->Unit { () }
+      #|pub fn main()->Unit {
+      #|print("hello")
+      #|print("world")
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn print(value : String) -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|pub fn main() -> Unit {
+      #|  print("hello")
+      #|  print("world")
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves comments around declarations and blocks" {
   assert_format(
     (

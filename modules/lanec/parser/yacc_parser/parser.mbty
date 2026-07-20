@@ -88,9 +88,19 @@
 %%
 
 source_file -> SourceFile
-  : module_declaration import_declarations top_level_declarations EOF {
-    { module_path: $1, imports: $2, declarations: $3, loc: span($sloc) }
+  : module_declaration layout_semicolons import_declarations top_level_declarations EOF {
+    { module_path: $1, imports: $3, declarations: $4, loc: span($sloc) }
   }
+  ;
+
+layout_semicolons -> Unit
+  : { () }
+  | layout_semicolons ";" { () }
+  ;
+
+layout_list_separator -> Unit
+  : "," { () }
+  | ";" { () }
   ;
 
 module_declaration -> ModulePath
@@ -108,7 +118,7 @@ non_empty_module_path -> Array[String]
 
 import_declarations -> Array[ImportDeclaration]
   : { [] }
-  | import_declarations import_declaration { comma_push($1, $2) }
+  | import_declarations import_declaration layout_semicolons { comma_push($1, $2) }
   ;
 
 import_declaration -> ImportDeclaration
@@ -130,8 +140,8 @@ import_item_list -> Array[ImportItem]
 
 non_empty_import_item_list -> Array[ImportItem]
   : import_item { [ $1 ] }
-  | non_empty_import_item_list "," import_item { comma_push($1, $3) }
-  | non_empty_import_item_list "," { $1 }
+  | non_empty_import_item_list layout_list_separator import_item { comma_push($1, $3) }
+  | non_empty_import_item_list layout_list_separator { $1 }
   ;
 
 import_item -> ImportItem
@@ -144,7 +154,7 @@ identifier -> Identifier
 
 top_level_declarations -> Array[TopLevelDeclaration]
   : { [] }
-  | top_level_declarations top_level_declaration { comma_push($1, $2) }
+  | top_level_declarations top_level_declaration layout_semicolons { comma_push($1, $2) }
   ;
 
 top_level_declaration -> TopLevelDeclaration
@@ -209,20 +219,20 @@ type_alias_body -> TypeAliasBody
   ;
 
 struct_declaration -> StructDeclaration
-  : "struct" IDENT type_parameters "{" struct_members "}" {
-    { is_public: false, name: $2, type_parameters: $3, members: $5, loc: span($sloc) }
+  : "struct" IDENT type_parameters "{" layout_semicolons struct_members "}" {
+    { is_public: false, name: $2, type_parameters: $3, members: $6, loc: span($sloc) }
   }
   ;
 
 public_struct_declaration -> StructDeclaration
-  : "struct" IDENT type_parameters "{" struct_members "}" {
-    { is_public: true, name: $2, type_parameters: $3, members: $5, loc: span($sloc) }
+  : "struct" IDENT type_parameters "{" layout_semicolons struct_members "}" {
+    { is_public: true, name: $2, type_parameters: $3, members: $6, loc: span($sloc) }
   }
   ;
 
 struct_members -> Array[StructMember]
   : { [] }
-  | struct_members struct_member { comma_push($1, $2) }
+  | struct_members struct_member layout_semicolons { comma_push($1, $2) }
   ;
 
 struct_member -> StructMember
@@ -266,20 +276,20 @@ field_declaration -> FieldDeclaration
   ;
 
 enum_declaration -> EnumDeclaration
-  : "enum" IDENT type_parameters "{" enum_variants "}" {
-    { is_public: false, name: $2, type_parameters: $3, variants: $5, loc: span($sloc) }
+  : "enum" IDENT type_parameters "{" layout_semicolons enum_variants "}" {
+    { is_public: false, name: $2, type_parameters: $3, variants: $6, loc: span($sloc) }
   }
   ;
 
 public_enum_declaration -> EnumDeclaration
-  : "enum" IDENT type_parameters "{" enum_variants "}" {
-    { is_public: true, name: $2, type_parameters: $3, variants: $5, loc: span($sloc) }
+  : "enum" IDENT type_parameters "{" layout_semicolons enum_variants "}" {
+    { is_public: true, name: $2, type_parameters: $3, variants: $6, loc: span($sloc) }
   }
   ;
 
 enum_variants -> Array[EnumVariant]
   : { [] }
-  | enum_variants enum_variant { comma_push($1, $2) }
+  | enum_variants enum_variant layout_semicolons { comma_push($1, $2) }
   ;
 
 enum_variant -> EnumVariant
@@ -292,20 +302,20 @@ enum_variant -> EnumVariant
   ;
 
 effect_declaration -> EffectDeclaration
-  : "effect" IDENT type_parameters "{" effect_operations "}" {
-    { is_public: false, name: $2, type_parameters: $3, operations: $5, loc: span($sloc) }
+  : "effect" IDENT type_parameters "{" layout_semicolons effect_operations "}" {
+    { is_public: false, name: $2, type_parameters: $3, operations: $6, loc: span($sloc) }
   }
   ;
 
 public_effect_declaration -> EffectDeclaration
-  : "effect" IDENT type_parameters "{" effect_operations "}" {
-    { is_public: true, name: $2, type_parameters: $3, operations: $5, loc: span($sloc) }
+  : "effect" IDENT type_parameters "{" layout_semicolons effect_operations "}" {
+    { is_public: true, name: $2, type_parameters: $3, operations: $6, loc: span($sloc) }
   }
   ;
 
 effect_operations -> Array[EffectOperationDeclaration]
   : { [] }
-  | effect_operations effect_operation { comma_push($1, $2) }
+  | effect_operations effect_operation layout_semicolons { comma_push($1, $2) }
   ;
 
 effect_operation -> EffectOperationDeclaration
@@ -512,7 +522,8 @@ type_list -> Array[Type]
 
 non_empty_type_list -> Array[Type]
   : type { [ $1 ] }
-  | non_empty_type_list "," type { comma_push($1, $3) }
+  | non_empty_type_list layout_list_separator type { comma_push($1, $3) }
+  | non_empty_type_list layout_list_separator { $1 }
   ;
 
 expression -> Expr
@@ -682,8 +693,8 @@ struct_literal_fields -> Array[StructLiteralField]
 
 non_empty_struct_literal_fields -> Array[StructLiteralField]
   : struct_literal_field { [ $1 ] }
-  | non_empty_struct_literal_fields "," struct_literal_field { comma_push($1, $3) }
-  | non_empty_struct_literal_fields "," { $1 }
+  | non_empty_struct_literal_fields layout_list_separator struct_literal_field { comma_push($1, $3) }
+  | non_empty_struct_literal_fields layout_list_separator { $1 }
   ;
 
 struct_literal_field -> StructLiteralField
@@ -724,14 +735,14 @@ non_empty_positional_argument_list -> Array[Expr]
   ;
 
 block_expression -> Expr
-  : "{" local_items expression "}" {
-    Block(items=$2, result=$3, loc=span($sloc))
+  : "{" layout_semicolons local_items expression "}" {
+    Block(items=$3, result=$4, loc=span($sloc))
   }
   ;
 
 local_items -> Array[LocalItem]
   : { [] }
-  | local_items local_item { comma_push($1, $2) }
+  | local_items local_item layout_semicolons { comma_push($1, $2) }
   ;
 
 local_item -> LocalItem
@@ -753,14 +764,14 @@ else_branch_expression -> Expr
   ;
 
 match_expression -> Expr
-  : "match" expression "{" match_arms "}" {
-    Match(scrutinee=$2, arms=$4, loc=span($sloc))
+  : "match" expression "{" layout_semicolons match_arms "}" {
+    Match(scrutinee=$2, arms=$5, loc=span($sloc))
   }
   ;
 
 match_arms -> Array[MatchArm]
   : { [] }
-  | match_arms match_arm { comma_push($1, $2) }
+  | match_arms match_arm layout_semicolons { comma_push($1, $2) }
   ;
 
 match_arm -> MatchArm
@@ -781,14 +792,14 @@ handler_with_blocks -> Array[HandlerWithBlock]
   ;
 
 handler_with_block -> HandlerWithBlock
-  : "with" "{" handler_operation_arms "}" {
-    { arms: $3, loc: span($sloc) }
+  : "with" "{" layout_semicolons handler_operation_arms "}" {
+    { arms: $4, loc: span($sloc) }
   }
   ;
 
 handler_operation_arms -> Array[HandlerOperationArm]
-  : handler_operation_arm { [ $1 ] }
-  | handler_operation_arms handler_operation_arm { comma_push($1, $2) }
+  : handler_operation_arm layout_semicolons { [ $1 ] }
+  | handler_operation_arms handler_operation_arm layout_semicolons { comma_push($1, $2) }
   ;
 
 handler_operation_arm -> HandlerOperationArm
@@ -942,8 +953,8 @@ struct_pattern_fields -> Array[StructPatternField]
 
 non_empty_struct_pattern_fields -> Array[StructPatternField]
   : struct_pattern_field { [ $1 ] }
-  | non_empty_struct_pattern_fields "," struct_pattern_field { comma_push($1, $3) }
-  | non_empty_struct_pattern_fields "," { $1 }
+  | non_empty_struct_pattern_fields layout_list_separator struct_pattern_field { comma_push($1, $3) }
+  | non_empty_struct_pattern_fields layout_list_separator { $1 }
   ;
 
 struct_pattern_field -> StructPatternField

@@ -1615,8 +1615,14 @@ fn LocalItem::to_doc(
     PatternLet(declaration) => declaration.to_doc(trivia~)
     Function(declaration) => declaration.to_doc(trivia~)
     Offer(declaration) => declaration.to_doc(trivia~)
-    Expression(expression~, loc~) =>
-      trivia.decorate(loc, expression.to_doc(trivia~) + text(";"))
+    Expression(expression~, loc~) => {
+      let separator = if loc.end_offset > expression.loc().end_offset {
+        text(";")
+      } else {
+        empty
+      }
+      trivia.decorate(loc, expression.to_doc(trivia~) + separator)
+    }
   }
 }
 

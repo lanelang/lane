@@ -1,7 +1,7 @@
-// invalid: a block has local items followed by exactly one final expression
+// invalid: every non-final expression in a block must have type Unit
 module Examples.Invalid05
 
-pub fn bad(x : Int) -> Int {
-  x + 1
-  x + 2
+pub fn bad() -> Int {
+  1
+  2
 }
