@@ -51,6 +51,7 @@ pub(all) enum Token {
   LBRACKET
   RBRACKET
   COMMA
+  SEMICOLON
   DOTSTAR
   DOTLBRACE
   DOT

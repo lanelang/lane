@@ -168,6 +168,7 @@ pub(all) enum CheckedLocalItem {
   Let(CheckedLetDeclaration)
   PatternLet(CheckedPatternLetDeclaration)
   Function(CheckedFunctionDeclaration)
+  Expression(CheckedExpr)
 } derive(Eq, @debug.Debug)
 pub fn CheckedLocalItem::for_each_child_expr(Self, (CheckedExpr) -> Unit) -> Unit
 pub impl @prettyprinter.Pretty for CheckedLocalItem

@@ -165,6 +165,7 @@ fn CheckedLocalItem::substitute(
         initializer: declaration.initializer.substitute(substitution),
         loc: declaration.loc,
       })
+    Expression(expression) => Expression(expression.substitute(substitution))
     Function(declaration) =>
       Function({
         is_public: declaration.is_public,

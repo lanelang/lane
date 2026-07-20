@@ -1388,6 +1388,39 @@
           "expected one of: `Type`, `Effect`, `(`, `[`"
         ]
       }
+    },
+    {
+      "name": "60 sequential unit expressions",
+      "file": "examples/valid/60_sequential_unit_expressions.lane",
+      "mode": "run",
+      "entry": "main",
+      "expect": {
+        "equals": "hello\nworld"
+      }
+    },
+    {
+      "name": "invalid 67 non-unit sequential expression",
+      "file": "examples/invalid/67_non_unit_sequential_expression.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3006]",
+          "expected `Unit`, found `Int`",
+          "change the expression type or adjust the annotation/expected type"
+        ]
+      }
+    },
+    {
+      "name": "invalid 68 trailing sequential semicolon",
+      "file": "examples/invalid/68_trailing_sequential_semicolon.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1100]",
+          "block needs a result expression",
+          "write a final expression before `}`"
+        ]
+      }
     }
   ]
 }

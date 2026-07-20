@@ -162,6 +162,76 @@ test "parse declarations and blocks keep complete source spans" {
 }
 
 ///|
+test "parse sequential unit expressions as block local items" {
+  let file = expect_parse_ok(
+    (
+      #|fn print(value : String) -> Unit {
+      #|  ()
+      #|}
+      #|fn main() -> Unit {
+      #|  print("hello");
+      #|  print("world")
+      #|}
+    ),
+  )
+  guard file.declarations[1] is Function(function) else {
+    abort("expected main function")
+  }
+  guard function.body
+    is Block(items=[Expression(expression=Call(..), ..)], result=Call(..), ..) else {
+    abort("expected one sequential expression and one block result")
+  }
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|fn print(value : String) -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|fn main() -> Unit {
+      #|  print("hello");
+      #|  print("world")
+      #|}
+    ),
+  )
+}
+
+///|
+test "parse unit literal as a sequential expression" {
+  let result = parse_string(
+    (
+      #|module Test
+      #|fn main() -> Unit {
+      #|  ();
+      #|  ()
+      #|}
+    ),
+  )
+  debug_inspect(result.parse_errors(), content="[]")
+}
+
+///|
+test "parse declarations between sequential expressions" {
+  let result = parse_string(
+    (
+      #|module Test
+      #|fn mark() -> Unit {
+      #|  ()
+      #|}
+      #|fn build() -> Int {
+      #|  mark();
+      #|  let answer : Int = 42
+      #|  mark();
+      #|  answer
+      #|}
+    ),
+  )
+  debug_inspect(result.parse_errors(), content="[]")
+}
+
+///|
 test "parse nominal declarations and match" {
   let file = expect_parse_ok(
     (

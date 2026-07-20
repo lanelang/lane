@@ -269,6 +269,7 @@ fn SemanticIndex::enrich_checked_local_item(
       self.enrich_checked_pattern(declaration.pattern, display)
       self.enrich_checked_expr(declaration.initializer, display)
     }
+    Expression(expression) => self.enrich_checked_expr(expression, display)
     Function(declaration) => {
       self.enrich_binding(
         ValueBinding(declaration.symbol),

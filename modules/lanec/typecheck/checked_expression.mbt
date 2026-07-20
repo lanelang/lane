@@ -308,6 +308,23 @@ fn SemanticChecker::check_checked_block(
           }
           None => complete = false
         }
+      Expression(expression~, ..) => {
+        let checked = self.check_checked_expr(
+          next_scope,
+          expression,
+          Primitive(Unit),
+        )
+        effects.push(checked.effect)
+        match
+          self.require_checked_expression(
+            checked,
+            expression.loc(),
+            "sequential expression",
+          ) {
+          Some(expression) => checked_items.push(Expression(expression))
+          None => complete = false
+        }
+      }
     }
   }
   let checked_result = self.check_checked_expr(next_scope, result, expected)
@@ -378,6 +395,23 @@ fn SemanticChecker::synthesize_checked_block(
           }
           None => complete = false
         }
+      Expression(expression~, ..) => {
+        let checked = self.check_checked_expr(
+          next_scope,
+          expression,
+          Primitive(Unit),
+        )
+        effects.push(checked.effect)
+        match
+          self.require_checked_expression(
+            checked,
+            expression.loc(),
+            "sequential expression",
+          ) {
+          Some(expression) => checked_items.push(Expression(expression))
+          None => complete = false
+        }
+      }
     }
   }
   let checked_result = self.synthesize_checked_expr(next_scope, result)

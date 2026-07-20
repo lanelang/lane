@@ -386,6 +386,31 @@ test "format source keeps consecutive line comments compact inside blocks" {
 }
 
 ///|
+test "format sequential expressions and preserve semicolon comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn print(value:String)->Unit { () }
+      #|pub fn main()->Unit { print("hello"); // first
+      #|print("world") }
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn print(value : String) -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|pub fn main() -> Unit {
+      #|  print("hello"); // first
+      #|  print("world")
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves comments around declarations and blocks" {
   assert_format(
     (

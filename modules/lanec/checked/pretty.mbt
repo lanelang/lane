@@ -191,6 +191,7 @@ pub impl @prettyprinter.Pretty for CheckedLocalItem with fn pretty(
     Let(declaration) => declaration.pretty()
     PatternLet(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
+    Expression(expression) => expression_doc(expression) + text(";")
   }
 }
 

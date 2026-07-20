@@ -191,6 +191,10 @@ fn find_first_handler_resume_callee_type(
               is Some(type_) {
               return Some(type_)
             }
+          Expression(expression) =>
+            if find_first_handler_resume_callee_type(expression) is Some(type_) {
+              return Some(type_)
+            }
           Function(declaration) =>
             if find_first_handler_resume_callee_type(declaration.body)
               is Some(type_) {
@@ -5684,6 +5688,81 @@ test "typecheck reports normalization fuel exhaustion as internal diagnostic" {
       #|      start_column: 1,
       #|      end_line: 1,
       #|      end_column: 1,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "typecheck accepts sequential unit expressions" {
+  let result = expect_checked_source_result(
+    (
+      #|fn print(value : String) -> Unit {
+      #|  ()
+      #|}
+      #|fn main() -> Unit {
+      #|  print("hello");
+      #|  print("world")
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(source) else { abort("expected checked source") }
+  guard source.declarations[1] is Function(declaration) &&
+    declaration.body is Block(items=[Expression(Call(..))], result=Call(..), ..) else {
+    abort("expected checked sequential expression")
+  }
+}
+
+///|
+test "typecheck allows declarations between sequential unit expressions" {
+  let result = expect_checked_source_result(
+    (
+      #|fn mark() -> Unit {
+      #|  ()
+      #|}
+      #|fn build() -> Int {
+      #|  mark();
+      #|  let answer : Int = 42
+      #|  mark();
+      #|  answer
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(source) else { abort("expected checked source") }
+  guard source.declarations[1] is Function(declaration) &&
+    declaration.body
+    is Block(items=[Expression(_), Let(_), Expression(_)], result=Value(..), ..) else {
+    abort("expected interleaved sequential expressions")
+  }
+}
+
+///|
+test "typecheck rejects non-unit sequential expressions" {
+  let result = expect_checked_source_result(
+    (
+      #|fn bad() -> Int {
+      #|  1;
+      #|  2
+      #|}
+    ),
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(Int)),
+      #|    loc: {
+      #|      start_offset: 32,
+      #|      end_offset: 33,
+      #|      start_line: 3,
+      #|      start_column: 3,
+      #|      end_line: 3,
+      #|      end_column: 4,
       #|    },
       #|  },
       #|]

@@ -73,6 +73,10 @@ _Avoid_: let-in expression, simultaneous local binding
 A named local function that may call itself, is visible only to later items in the same block, and is not part of a forward-referenced group.
 _Avoid_: local recursive group, local forward declaration
 
+**Sequential Unit Expression**:
+A block-local expression followed by `;`, required to have type `Unit`, and evaluated before the following local item or final expression.
+_Avoid_: statement, unchecked result discard, general sequence operator
+
 **Uncurried Function**:
 A function that accepts its parameters as one call shape and is not automatically transformed into nested one-argument functions.
 _Avoid_: curried function, automatic partial application
@@ -140,7 +144,7 @@ _Avoid_: enum variant, nominal constructor
 - Top-level immutable values follow **Ordered Top-Level Value Scope**.
 - A top-level **Immutable Value Definition** must include an explicit type annotation.
 - A function uses an **Explicit Named Function Signature**, **Arrow Return Type**, and **Block Function Body**.
-- A **Block Expression** may contain **Sequential Local Bindings** and **Sequential Local Functions** followed by exactly one final expression.
+- A **Block Expression** may contain **Sequential Local Bindings**, **Sequential Local Functions**, and **Sequential Unit Expressions** followed by exactly one final expression.
 - Local value names may shadow earlier value names; ordinary value bindings in the same scope must have distinct names.
 - Lane functions are **Uncurried Functions** and may still be **First-Class Function Values**.
 - Enum variants in expressions may be **Qualified Variants** or unambiguous **Unqualified Variants**.

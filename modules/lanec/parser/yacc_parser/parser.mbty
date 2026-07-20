@@ -60,6 +60,7 @@
 %token EMPTY_GENERIC_ARGUMENT_LIST_ERROR
 %token EMPTY_TYPE_PARAMETER_LIST_ERROR
 %token COMMA ","
+%token SEMICOLON ";"
 %token DOTSTAR ".*"
 %token DOTLBRACE ".{"
 %token DOT "."
@@ -737,6 +738,7 @@ local_item -> LocalItem
   : local_let_item { $1 }
   | function_declaration { Function($1) }
   | offer_value_declaration { Offer($1) }
+  | expression ";" { Expression(expression=$1, loc=span($sloc)) }
   ;
 
 if_expression -> Expr

@@ -107,6 +107,7 @@ pub(all) enum DesugaredLocalItem {
   PatternLet(DesugaredPatternLetDeclaration)
   Function(DesugaredFunctionDeclaration)
   Offer(DesugaredOfferDeclaration)
+  Expression(expression~ : DesugaredExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DesugaredLocalItem
 

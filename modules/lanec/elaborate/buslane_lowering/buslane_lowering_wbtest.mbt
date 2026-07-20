@@ -291,6 +291,11 @@ fn first_checked_handler_expr_for_elaborate_test(
               is Some(handler) {
               return Some(handler)
             }
+          Expression(expression) =>
+            if first_checked_handler_expr_for_elaborate_test(expression)
+              is Some(handler) {
+              return Some(handler)
+            }
           Function(declaration) =>
             if first_checked_handler_expr_for_elaborate_test(declaration.body)
               is Some(handler) {
@@ -1035,6 +1040,52 @@ test "elaborate local recursive function into verifiable buslane" {
   guard result.program is Some(program) else {
     abort("expected buslane program")
   }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
+test "elaborate sequential unit expressions in source order" {
+  let result = elaborate_buslane_source(
+    (
+      #|fn mark(value : Int) -> Unit {
+      #|  ()
+      #|}
+      #|fn run() -> Unit {
+      #|  mark(1);
+      #|  mark(2)
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected buslane program")
+  }
+  inspect(
+    @prettyprinter.render(program, width=100),
+    content=(
+      #|buslane {
+      #|  metadata {
+      #|    function mark#0 : (Int) -> Unit
+      #|    function run#1 : () -> Unit
+      #|    parameter value#2 : Int
+      #|    local sequence#3 : Unit
+      #|  }
+      #|  letrec {
+      #|    value#0 = fn(value#2) -> Unit {
+      #|      ()
+      #|    }
+      #|    value#1 = fn() -> Unit {
+      #|      let value#3 = value#0(1) in
+      #|      value#0(2)
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program), width=100),
     content=(

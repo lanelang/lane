@@ -146,6 +146,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
     EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
     COMMA => "`,`"
+    SEMICOLON => "`;`"
     DOTSTAR => "`.*`"
     DOTLBRACE => "`.{`"
     DOT => "`.`"
@@ -215,6 +216,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
     TK_EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
     TK_COMMA => "`,`"
+    TK_SEMICOLON => "`;`"
     TK_DOTSTAR => "`.*`"
     TK_DOTLBRACE => "`.{`"
     TK_DOT => "`.`"
@@ -282,6 +284,7 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     LBRACKET => LBRACKET
     RBRACKET => RBRACKET
     COMMA => COMMA
+    SEMICOLON => SEMICOLON
     DOTSTAR => DOTSTAR
     DOTLBRACE => DOTLBRACE
     DOT => DOT

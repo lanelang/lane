@@ -1,0 +1,7 @@
+// invalid: a sequential expression before `;` must have type Unit
+module Examples.Invalid67
+
+pub fn bad() -> Int {
+  1;
+  2
+}

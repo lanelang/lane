@@ -2856,6 +2856,8 @@ fn @syntax.LocalItem::resolve_local_item(
     }
     Offer(declaration) =>
       Offer(declaration.resolve_local_offer(resolver, scope))
+    Expression(expression~, loc~) =>
+      Expression(expression=expression.resolve_expr(resolver, scope), loc~)
   }
 }
 

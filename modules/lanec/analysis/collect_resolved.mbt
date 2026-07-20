@@ -522,6 +522,7 @@ fn SemanticIndex::collect_resolved_local_item(
       )
       self.collect_resolved_expr(declaration.initializer)
     }
+    Expression(expression~, ..) => self.collect_resolved_expr(expression)
   }
 }
 
@@ -534,6 +535,7 @@ fn resolved_local_item_loc(
     PatternLet(declaration) => declaration.loc
     Function(declaration) => declaration.loc
     Offer(declaration) => declaration.loc
+    Expression(loc~, ..) => loc
   }
 }
 

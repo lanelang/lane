@@ -149,6 +149,18 @@ fn BuslaneLowerer::lower_items(
           result_type,
         )
       }
+      Expression(expression) => {
+        let unused = self.define_fresh_value(
+          "sequence",
+          Local,
+          self.lower_type(expression.type_()),
+        )
+        Let(
+          unused,
+          self.lower_expr(expression),
+          self.lower_items(items, index + 1, result),
+        )
+      }
     }
   }
 }

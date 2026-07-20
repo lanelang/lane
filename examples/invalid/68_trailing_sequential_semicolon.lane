@@ -1,0 +1,6 @@
+// invalid: a block must retain one final expression after sequential items
+module Examples.Invalid68
+
+pub fn bad() -> Unit {
+  ();
+}

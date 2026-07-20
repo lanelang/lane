@@ -216,6 +216,7 @@ fn CheckedValueUseCollector::collect_local_item(
       self.collect_expr(declaration.initializer, current_origin)
       self.collect_pattern(declaration.pattern)
     }
+    Expression(expression) => self.collect_expr(expression, current_origin)
     Function(declaration) => {
       self.add_binder(
         declaration.symbol,

@@ -65,7 +65,7 @@ test "Type and Effect are kind keywords" {
 ///|
 test "tokenize maximal munch operators and punctuation" {
   let tokens = token_values(
-    "a == b != c <= d >= e && f || g |> h :: k::. (::x) .{ _",
+    "a == b != c <= d >= e && f || g |> h :: k::. (::x) .{ _ ;",
   )
   debug_inspect(
     tokens,
@@ -97,6 +97,7 @@ test "tokenize maximal munch operators and punctuation" {
       #|  RPAREN,
       #|  DOTLBRACE,
       #|  UNDERSCORE,
+      #|  SEMICOLON,
       #|  EOF,
       #|]
     ),

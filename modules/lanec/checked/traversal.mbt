@@ -70,5 +70,6 @@ pub fn CheckedLocalItem::for_each_child_expr(
     Let(declaration) => visit(declaration.initializer)
     PatternLet(declaration) => visit(declaration.initializer)
     Function(declaration) => visit(declaration.body)
+    Expression(expression) => visit(expression)
   }
 }

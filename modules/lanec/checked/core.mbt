@@ -133,6 +133,7 @@ pub(all) enum CheckedLocalItem {
   Let(CheckedLetDeclaration)
   PatternLet(CheckedPatternLetDeclaration)
   Function(CheckedFunctionDeclaration)
+  Expression(CheckedExpr)
 } derive(Debug, Eq)
 
 ///|
