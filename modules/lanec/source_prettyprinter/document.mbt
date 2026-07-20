@@ -11,7 +11,7 @@ enum Document {
   Group(Requirement, Document)
   Switch(Requirement, Document, Document)
   Nest(Requirement, Int, Document)
-  Dynamic(Requirement, (Context) -> Document)
+  Dynamic((Context) -> Document)
 }
 
 ///|
@@ -33,20 +33,86 @@ pub impl Show for Context with fn output(self, buf) {
 }
 
 ///|
-pub fn Context::current_remain(self : Self) -> Requirement {
-  Space(@cmp.maximum(0, self.width - self.indent))
-}
-
-///|
-pub fn Context::next_remain(self : Self) -> Requirement {
-  Space(@cmp.maximum(0, self.width - self.next_indent))
-}
-
-///|
 priv struct State {
   indent : Int
   fit : Bool
   doc : Document
+}
+
+///|
+priv struct FitState {
+  next_indent : Int
+  doc : Document
+}
+
+///|
+pub fn Document::fits_current_line(self : Self, context : Context) -> Bool {
+  match self.requirement() {
+    Space(required) => return context.indent + required <= context.width
+    Infinite => return false
+    Contextual => ()
+  }
+  if context.indent > context.width {
+    return false
+  }
+  let stack = [{ next_indent: context.next_indent, doc: self }]
+  let mut column = context.indent
+  let mut line_comment_pending = false
+  let mut has_leading_space = false
+  let mut dangling_space = false
+  while stack.pop() is Some({ next_indent, doc }) {
+    match doc {
+      Empty => ()
+      Line => return false
+      MandatoryLine => if !line_comment_pending { return false }
+      Space =>
+        if !line_comment_pending {
+          column += 1
+          has_leading_space = true
+        }
+      MandatorySpace => if !line_comment_pending { dangling_space = true }
+      Text(value) => {
+        if line_comment_pending {
+          return false
+        }
+        if dangling_space && !has_leading_space {
+          column += 1
+        }
+        has_leading_space = false
+        dangling_space = false
+        column += value.length()
+      }
+      LineComment(value) => {
+        if line_comment_pending {
+          return false
+        }
+        if !has_leading_space {
+          column += 1
+        }
+        has_leading_space = false
+        dangling_space = false
+        column += value.length()
+        line_comment_pending = true
+      }
+      Concat(_, left, right) => {
+        stack.push({ next_indent, doc: right })
+        stack.push({ next_indent, doc: left })
+      }
+      Nest(_, amount, document) =>
+        stack.push({ next_indent: next_indent + amount, doc: document })
+      Switch(_, flat, _) => stack.push({ next_indent, doc: flat })
+      Group(_, document) => stack.push({ next_indent, doc: document })
+      Dynamic(build) =>
+        stack.push({
+          next_indent,
+          doc: build({ indent: column, width: context.width, next_indent }),
+        })
+    }
+    if column > context.width {
+      return false
+    }
+  }
+  true
 }
 
 ///|
@@ -133,8 +199,9 @@ fn render_document(width : Int, doc : Document) -> String {
             { indent, fit, doc: b }
           },
         )
-      Group(req, d) => {
-        let fit = fit || Requirement::Space(column) + req <= Space(width)
+      Group(_, d) => {
+        let fit = fit ||
+          d.fits_current_line({ indent: column, width, next_indent: indent })
         stack.push({ indent, fit, doc: d })
       }
       MandatoryLine =>
@@ -142,7 +209,7 @@ fn render_document(width : Int, doc : Document) -> String {
           dangling_newline = Some(indent)
         }
       MandatorySpace => if !line_comment_pending { dangling_space = true }
-      Dynamic(_, f) => {
+      Dynamic(f) => {
         let doc = f({ indent: column, width, next_indent: indent })
         stack.push({ indent, fit, doc })
       }
@@ -177,7 +244,7 @@ pub fn Document::to_generic(self : Document) -> @generic_prettyprinter.Document 
       @generic_prettyprinter.switch(flat.to_generic(), broken.to_generic())
     Nest(_, indent, document) =>
       @generic_prettyprinter.nest(document.to_generic(), indent~)
-    Dynamic(_, build) =>
+    Dynamic(build) =>
       @generic_prettyprinter.dynamic(fn(context) {
         build({
           indent: context.indent,

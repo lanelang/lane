@@ -253,7 +253,8 @@ pub fn flow(doc : Array[Document]) -> Document {
 }
 
 ///|
+/// Builds a document from its render position. The builder must be pure because
+/// layout probing and rendering may evaluate it independently.
 pub fn dynamic(f : (Context) -> Document) -> Document {
-  let req = f({ indent: 0, width: 80, next_indent: 0 }).requirement() //FIXME
-  Dynamic(req, f)
+  Dynamic(f)
 }

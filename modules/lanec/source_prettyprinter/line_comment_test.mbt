@@ -39,3 +39,37 @@ test "generic document adapter preserves width-sensitive layout" {
   )
   assert_eq(generic_render, source_render)
 }
+
+///|
+test "dynamic layout requirements use the render context" {
+  let document = group(
+    text("head") +
+    dynamic(fn(context) {
+      if context.indent == 4 && context.width == 10 {
+        hardline + line + text("tail")
+      } else {
+        text("tail")
+      }
+    }),
+  )
+  inspect(
+    render(document, width=10),
+    content=(
+      #|head
+      #|
+      #|tail
+    ),
+  )
+}
+
+///|
+test "dynamic documents do not guess a context during construction" {
+  let mut calls = 0
+  let document = dynamic(fn(_) {
+    calls += 1
+    text("value")
+  })
+  assert_eq(calls, 0)
+  inspect(render(document), content="value")
+  assert_eq(calls, 1)
+}

@@ -1391,10 +1391,10 @@ fn Expr::pipeline_chain_doc(
   }
   guard !displayed_segment_docs.is_empty() else { return root_doc }
   dynamic(fn(context) {
-    let separator = if root_doc.requirement() > context.current_remain() {
-      space
-    } else {
+    let separator = if root_doc.fits_current_line(context) {
       hardline
+    } else {
+      space
     }
     root_doc +
     nest(
@@ -1413,10 +1413,10 @@ fn pipeline_segment_docs(segments : Array[Document], index : Int) -> Document {
     current
   } else {
     dynamic(fn(context) {
-      let separator = if current.requirement() > context.current_remain() {
-        space
-      } else {
+      let separator = if current.fits_current_line(context) {
         hardline
+      } else {
+        space
       }
       current +
       separator +

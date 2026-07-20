@@ -66,25 +66,14 @@ pub struct Context {
   next_indent : Int
   width : Int
 }
-pub fn Context::current_remain(Self) -> Requirement
-pub fn Context::next_remain(Self) -> Requirement
 pub impl Show for Context
 
 type Document
-pub fn Document::requirement(Self) -> Requirement
+pub fn Document::fits_current_line(Self, Context) -> Bool
 pub fn Document::to_generic(Self) -> @prettyprinter.Document
 pub impl Pretty for Document
 pub impl Add for Document
 pub impl Show for Document
-
-pub(all) enum Requirement {
-  Space(Int)
-  Infinite
-}
-pub impl Add for Requirement
-pub impl Compare for Requirement
-pub impl Eq for Requirement
-pub impl Show for Requirement
 
 // Type aliases
 

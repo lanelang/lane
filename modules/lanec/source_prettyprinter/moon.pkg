@@ -1,4 +1,3 @@
 import {
-  "moonbitlang/core/cmp",
   "moonbit-community/prettyprinter" @generic_prettyprinter,
 }

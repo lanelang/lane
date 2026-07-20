@@ -137,7 +137,7 @@ fn source_prefixed(
 ) -> Document {
   dynamic(fn(context) {
     let inline_first_line = prefix + space + body_first_line
-    if inline_first_line.requirement() <= context.current_remain() {
+    if inline_first_line.fits_current_line(context) {
       prefix + space + body
     } else {
       prefix + nest(line + body)
@@ -191,7 +191,7 @@ fn source_assignment(
   }
   dynamic(fn(context) {
     let inline_first_line = assignment + space + value_first_line
-    if inline_first_line.requirement() <= context.current_remain() {
+    if inline_first_line.fits_current_line(context) {
       assignment + space + value
     } else {
       assignment + nest(line + value)
