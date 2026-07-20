@@ -1964,6 +1964,116 @@ test "typecheck rejects callback effect measurement before its shape is ground" 
 }
 
 ///|
+test "typecheck does not infer callback result from its return annotation" {
+  let result = expect_typecheck_result(
+    (
+      #|fn[R, E : Effect] consume(callback : () -> R ! E) -> Unit {
+      #|  ()
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(fn() -> Int { 1 })
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[generic_argument_inference_failed consume missing R,E]
+    ),
+  )
+}
+
+///|
+test "typecheck does not decompose forall arguments during generic inference" {
+  let result = expect_typecheck_result(
+    (
+      #|fn[R] consume(callback : [A](A) -> R) -> Unit {
+      #|  ()
+      #|}
+      #|fn[A] identity(value : A) -> A {
+      #|  value
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(identity)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[generic_argument_inference_failed consume missing R]
+    ),
+  )
+}
+
+///|
+test "typecheck does not backtrack ambiguous effect row inference" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Mark[A] {
+      #|  mark() -> Unit
+      #|}
+      #|fn[A, B] consume(callback : () -> Unit ! { Mark[A], Mark[B] }) -> Unit {
+      #|  ()
+      #|}
+      #|fn callback() -> Unit ! { Mark[Int], Mark[Bool] } {
+      #|  let _first : Unit = Mark[Int]::mark!()
+      #|  Mark[Bool]::mark!()
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(callback)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[
+      #|  generic_argument_inference_failed consume constraint_mismatch expected={
+      #|    effect#0[tparam#1],
+      #|    effect#0[tparam#2]
+      #|  } actual={
+      #|    effect#0[Int],
+      #|    effect#0[Bool]
+      #|  }
+      #|]
+    ),
+  )
+}
+
+///|
+test "typecheck does not infer polymorphic recursion" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Box[A] {
+      #|  box(A)
+      #|}
+      #|fn[A] recurse(value : A) -> Unit {
+      #|  recurse(Box::box(value))
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[generic_argument_inference_failed recurse recursive A type#0[tparam#1]]
+    ),
+  )
+}
+
+///|
 test "typecheck reports explicit generic function arity mismatch" {
   let result = expect_typecheck_result(
     (

@@ -782,12 +782,18 @@ fn effect_from_terms(terms : Array[@types.Effect]) -> @types.Effect {
 }
 
 ///|
+/// Function literals do not contribute parameter or result type evidence.
+/// Their latent effect is measured separately only after the expected callback
+/// shape is ground for this generic application.
 fn SemanticChecker::synthesize_argument_for_generic_arguments(
   self : SemanticChecker,
   scope : TypeScope,
   argument : @desugar.DesugaredExpr,
 ) -> @types.Type? {
-  self.try_synthesize_checked_expr_type_silently(scope, argument)
+  match argument {
+    FunctionLiteral(..) => None
+    _ => self.try_synthesize_checked_expr_type_silently(scope, argument)
+  }
 }
 
 ///|
