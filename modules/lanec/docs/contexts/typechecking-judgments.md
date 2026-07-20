@@ -65,6 +65,36 @@ all generic parameters are bound consistently
 Gamma |- f(arg_1, ..., arg_n) => R[Sub]
 ```
 
+Function literals are excluded from the `arg_i => Actual_i` premises above.
+They do not contribute parameter or result type evidence to generic argument
+inference. After all ordinary argument and expected-result constraints have
+been collected, a monomorphic function literal may contribute only its latent
+effect when its expected parameter and result types are already ground for this
+call:
+
+```text
+Sub_0 = collect(non-literal arguments, Expected)
+P'_1, ..., P'_n = (P_1, ..., P_n)[Sub_0]
+R' = R[Sub_0]
+ground_call(P'_1, ..., P'_n, R')
+Gamma |- lambda <=shape (P'_1, ..., P'_n) -> R' ~~> BodyEff
+collect(F[Sub_0], BodyEff) = Sub_E
+------------------------------------------------------------
+lambda contributes only Sub_E to this generic application
+```
+
+`ground_call` requires the callback parameter and result types to contain
+neither errors nor parameters quantified by the current generic application;
+rigid parameters from an enclosing scope remain admissible. The `<=shape`
+judgment checks the literal against those already-ground parameter and result
+types and measures its latent effect without supplying an expected effect.
+
+If the callback shape is not ground, or if the literal has its own type
+parameters, the literal contributes no inference evidence. In particular, this
+rule does not infer callback parameter or result types from annotations or the
+body, decompose `Forall` arguments, backtrack effect rows, or enable polymorphic
+recursion.
+
 If a generic parameter cannot be inferred from those local facts, the checker
 reports a missing generic argument rather than keeping an unsolved variable.
 
@@ -237,6 +267,12 @@ singleton terms plus at most one tracked effect-row parameter:
 Template = { C_1, ..., C_n, E? }
 Actual = { A_1, ..., A_m }
 ```
+
+The checker first collects ordinary type constraints from all adjacent call
+arguments and the adjacent expected result, then applies that partial
+substitution to the template effect. It matches each resulting effect row once;
+row constraints are never retained beyond the current call or retried through
+backtracking.
 
 Each concrete template term must match one unique actual term. The residual
 actual terms bind the row parameter when present:

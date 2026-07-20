@@ -306,6 +306,7 @@ fn GenericArgumentInference::collect(
   self : GenericArgumentInference,
   template : @types.Type,
   actual : @types.Type,
+  include_effects? : Bool = true,
 ) -> Bool {
   // Type-argument collection implements the local rule:
   //
@@ -327,18 +328,22 @@ fn GenericArgumentInference::collect(
       Apply(template_callee, template_arguments),
       Apply(actual_callee, actual_arguments),
     ) => {
-      if !self.collect(template_callee, actual_callee) {
+      if !self.collect(template_callee, actual_callee, include_effects~) {
         return false
       }
-      self.collect_generic_array(template_arguments, actual_arguments)
+      self.collect_generic_array(
+        template_arguments,
+        actual_arguments,
+        include_effects~,
+      )
     }
     (
       Function(left_parameters, left_result, left_effect),
       Function(right_parameters, right_result, right_effect),
     ) =>
-      self.collect_array(left_parameters, right_parameters) &&
-      self.collect(left_result, right_result) &&
-      self.collect_effect(left_effect, right_effect)
+      self.collect_array(left_parameters, right_parameters, include_effects~) &&
+      self.collect(left_result, right_result, include_effects~) &&
+      (!include_effects || self.collect_effect(left_effect, right_effect))
     _ =>
       match (template.decompose_nominal(), actual.decompose_nominal()) {
         (
@@ -346,7 +351,11 @@ fn GenericArgumentInference::collect(
           Some((right_symbol, right_arguments)),
         ) =>
           if left_symbol == right_symbol {
-            self.collect_generic_array(left_arguments, right_arguments)
+            self.collect_generic_array(
+              left_arguments,
+              right_arguments,
+              include_effects~,
+            )
           } else {
             true
           }
@@ -367,7 +376,8 @@ fn GenericArgumentInference::collect_effect(
   //
   // Every concrete template singleton must match one unique actual singleton.
   // The optional tracked row parameter receives only the unmatched residual.
-  match self.match_effect_rows(template, actual) {
+  let instantiated = template.substitute(self.partial_substitution())
+  match self.match_effect_rows(instantiated, actual) {
     EffectRowsMatched(term_pairs~, residual_parameter~, residual_effect~) =>
       self.collect_effect_row_match(
         term_pairs, residual_parameter, residual_effect,
@@ -483,15 +493,16 @@ fn GenericArgumentInference::collect_effect_term_from_row(
   template : @types.Effect,
   actual : @types.Effect,
 ) -> Bool {
+  let instantiated = template.substitute(self.partial_substitution())
   let actual_terms = effect_terms(actual)
   let used_actuals = []
   for _ in actual_terms {
     used_actuals.push(false)
   }
   match
-    self.unique_effect_term_candidate(template, actual_terms, used_actuals) {
+    self.unique_effect_term_candidate(instantiated, actual_terms, used_actuals) {
     UniqueEffectTermCandidate(index) =>
-      self.collect_effect_term(template, actual_terms[index])
+      self.collect_effect_term(instantiated, actual_terms[index])
     NoEffectTermCandidate | AmbiguousEffectTermCandidate =>
       self.fail(
         GenericArgumentConstraintMismatch(
@@ -536,8 +547,50 @@ fn GenericArgumentInference::effect_term_candidate(
       self.tracked_effect_row_parameter(template) is Some(_) ||
       template.equals(actual)
     (Singleton(left_symbol, _), Singleton(right_symbol, _)) =>
-      left_symbol == right_symbol
+      left_symbol == right_symbol &&
+      (
+        template.equals(actual) ||
+        self.effect_has_unbound_inference_parameter(template)
+      )
     _ => template.equals(actual)
+  }
+}
+
+///|
+fn GenericArgumentInference::effect_has_unbound_inference_parameter(
+  self : GenericArgumentInference,
+  effect : @types.Effect,
+) -> Bool {
+  let unbound = self.parameters.filter_map(fn(parameter) {
+    if self.lookup(parameter.id) is None {
+      Some(parameter.id)
+    } else {
+      None
+    }
+  })
+  effect_mentions_any_parameter(effect, unbound)
+}
+
+///|
+fn effect_mentions_any_parameter(
+  effect : @types.Effect,
+  parameters : Array[TypeParameterId],
+) -> Bool {
+  match effect {
+    Empty | Io => false
+    Parameter(parameter) => parameters.contains(parameter)
+    Singleton(_, arguments) =>
+      arguments.any(fn(argument) {
+        match argument {
+          TypeArgument(type_) => type_.mentions_any_type_parameter(parameters)
+          EffectArgument(effect) =>
+            effect_mentions_any_parameter(effect, parameters)
+        }
+      })
+    Union(effects) =>
+      effects.any(fn(effect) {
+        effect_mentions_any_parameter(effect, parameters)
+      })
   }
 }
 
@@ -629,12 +682,13 @@ fn GenericArgumentInference::collect_array(
   self : GenericArgumentInference,
   templates : Array[@types.Type],
   actuals : Array[@types.Type],
+  include_effects? : Bool = true,
 ) -> Bool {
   if templates.length() != actuals.length() {
     return true
   }
   for index in 0..<templates.length() {
-    if !self.collect(templates[index], actuals[index]) {
+    if !self.collect(templates[index], actuals[index], include_effects~) {
       return false
     }
   }
@@ -646,6 +700,7 @@ fn GenericArgumentInference::collect_generic_array(
   self : GenericArgumentInference,
   templates : Array[@types.GenericArgument],
   actuals : Array[@types.GenericArgument],
+  include_effects? : Bool = true,
 ) -> Bool {
   if templates.length() != actuals.length() {
     return true
@@ -653,11 +708,11 @@ fn GenericArgumentInference::collect_generic_array(
   for index in 0..<templates.length() {
     match (templates[index], actuals[index]) {
       (TypeArgument(template), TypeArgument(actual)) =>
-        if !self.collect(template, actual) {
+        if !self.collect(template, actual, include_effects~) {
           return false
         }
       (EffectArgument(template), EffectArgument(actual)) =>
-        if !self.collect_effect(template, actual) {
+        if include_effects && !self.collect_effect(template, actual) {
           return false
         }
       _ => ()
@@ -912,15 +967,57 @@ fn SemanticChecker::infer_application_generic_arguments(
   //   ------------------------------------------------
   //   inferred generic arguments and substitution
   //
-  // The order knob exists because operation calls may need result information
-  // before payload checking, while ordinary function calls prefer argument
-  // evidence first. Either way, every constraint is accepted or rejected now.
+  // Ordinary type constraints are collected across this one call before exact
+  // effect-row matching. The order knob still controls whether result or
+  // argument evidence wins when those local type constraints conflict.
   let inference = GenericArgumentInference::GenericArgumentInference(
     self.declarations,
     scope,
     type_parameters,
   )
   let mut inference_failed = false
+  let count = if evidence.parameter_templates.length() <
+    evidence.argument_expressions.length() {
+    evidence.parameter_templates.length()
+  } else {
+    evidence.argument_expressions.length()
+  }
+  let argument_types : Array[@types.Type?] = []
+  for index in 0..<count {
+    let argument = evidence.argument_expressions[index]
+    argument_types.push(
+      self.synthesize_argument_for_generic_arguments(scope, argument),
+    )
+  }
+  if evidence.collect_result_first &&
+    evidence.result_template is Some(template) &&
+    evidence.expected_result is Some(expected) {
+    if !inference.collect(template, expected, include_effects=false) {
+      inference_failed = true
+      inference.set_failure_loc_if_missing(evidence.loc)
+    }
+  }
+  for index in 0..<count {
+    if argument_types[index] is Some(actual) &&
+      !inference.collect(
+        evidence.parameter_templates[index],
+        actual,
+        include_effects=false,
+      ) {
+      inference_failed = true
+      inference.set_failure_loc_if_missing(
+        evidence.argument_expressions[index].loc(),
+      )
+    }
+  }
+  if !evidence.collect_result_first &&
+    evidence.result_template is Some(template) &&
+    evidence.expected_result is Some(expected) {
+    if !inference.collect(template, expected, include_effects=false) {
+      inference_failed = true
+      inference.set_failure_loc_if_missing(evidence.loc)
+    }
+  }
   if evidence.collect_result_first &&
     evidence.result_template is Some(template) &&
     evidence.expected_result is Some(expected) {
@@ -929,20 +1026,13 @@ fn SemanticChecker::infer_application_generic_arguments(
       inference.set_failure_loc_if_missing(evidence.loc)
     }
   }
-  let count = if evidence.parameter_templates.length() <
-    evidence.argument_expressions.length() {
-    evidence.parameter_templates.length()
-  } else {
-    evidence.argument_expressions.length()
-  }
   for index in 0..<count {
-    let template = evidence.parameter_templates[index]
-    let argument = evidence.argument_expressions[index]
-    if self.synthesize_argument_for_generic_arguments(scope, argument)
-      is Some(actual) {
-      if !inference.collect(template, actual) {
+    if argument_types[index] is Some(actual) {
+      if !inference.collect(evidence.parameter_templates[index], actual) {
         inference_failed = true
-        inference.set_failure_loc_if_missing(argument.loc())
+        inference.set_failure_loc_if_missing(
+          evidence.argument_expressions[index].loc(),
+        )
       }
     }
   }

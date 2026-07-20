@@ -2051,6 +2051,28 @@ test "typecheck does not backtrack ambiguous effect row inference" {
 }
 
 ///|
+test "typecheck matches effect rows after grounding owner arguments" {
+  let result = expect_typecheck_result(
+    (
+      #|effect State[A] {
+      #|  get() -> A
+      #|}
+      #|fn[A, E : Effect] consume(callback : () -> Bool ! { State[A], E }, value : A) -> Unit {
+      #|  ()
+      #|}
+      #|fn callback() -> Bool ! { State[Int], State[Bool] } {
+      #|  let _first : Int = State[Int]::get!()
+      #|  State[Bool]::get!()
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(callback, 1)
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
 test "typecheck does not infer polymorphic recursion" {
   let result = expect_typecheck_result(
     (
