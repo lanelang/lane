@@ -1941,6 +1941,29 @@ test "typecheck infers non-empty residual effect row in generic function argumen
 }
 
 ///|
+test "typecheck rejects callback effect measurement before its shape is ground" {
+  let result = expect_typecheck_result(
+    (
+      #|fn[A, E : Effect] consume(callback : (A) -> A ! E) -> Unit {
+      #|  ()
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(fn(value) { value })
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[generic_argument_inference_failed consume missing A,E]
+    ),
+  )
+}
+
+///|
 test "typecheck reports explicit generic function arity mismatch" {
   let result = expect_typecheck_result(
     (

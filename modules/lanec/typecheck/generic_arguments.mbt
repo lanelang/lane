@@ -142,6 +142,24 @@ fn GenericArgumentInference::lookup(
 }
 
 ///|
+/// A callback shape is ground for this inference when it contains neither
+/// errors nor parameters quantified by this call. Rigid outer parameters are
+/// already known to the caller and therefore remain admissible.
+fn GenericArgumentInference::function_literal_shape_is_ground(
+  self : GenericArgumentInference,
+  parameters : Array[@types.Type],
+  result : @types.Type,
+) -> Bool {
+  let inference_parameters = self.parameters.map(fn(parameter) { parameter.id })
+  !parameters.any(fn(parameter) {
+    parameter.contains_error() ||
+    parameter.mentions_any_type_parameter(inference_parameters)
+  }) &&
+  !result.contains_error() &&
+  !result.mentions_any_type_parameter(inference_parameters)
+}
+
+///|
 fn GenericArgumentInference::remember(
   self : GenericArgumentInference,
   parameter : TypeParameterId,
@@ -773,13 +791,21 @@ fn SemanticChecker::synthesize_argument_for_generic_arguments(
 }
 
 ///|
-fn SemanticChecker::infer_function_literal_effect_for_generic_arguments(
+/// Measures only the latent effect of a monomorphic function literal whose
+/// parameter and result types are ground for the current generic application.
+fn SemanticChecker::measure_ground_function_literal_effect_for_generic_arguments(
   self : SemanticChecker,
+  inference : GenericArgumentInference,
   scope : TypeScope,
   argument : @desugar.DesugaredExpr,
   expected_parameters : Array[@types.Type],
   expected_result : @types.Type,
 ) -> @types.Effect? {
+  guard inference.function_literal_shape_is_ground(
+    expected_parameters, expected_result,
+  ) else {
+    return None
+  }
   guard argument
     is FunctionLiteral(
       type_parameters~,
@@ -935,8 +961,8 @@ fn SemanticChecker::infer_application_generic_arguments(
     let instantiated = template.substitute(inference.partial_substitution())
     guard instantiated is Function(parameters, result, _) else { continue }
     let argument = evidence.argument_expressions[index]
-    if self.infer_function_literal_effect_for_generic_arguments(
-        scope, argument, parameters, result,
+    if self.measure_ground_function_literal_effect_for_generic_arguments(
+        inference, scope, argument, parameters, result,
       )
       is Some(actual_effect) &&
       !inference.collect_effect(template_effect, actual_effect) {
