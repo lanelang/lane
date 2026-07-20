@@ -101,7 +101,7 @@ test "whole-program elaboration records ordered reachable initializer roots" {
       #|(
       #|  [
       #|    Value({ index: 0 }, Literal(Int(1))),
-      #|    Value({ index: 1 }, Call(Ref({ index: 4 }), [Ref({ index: 0 })])),
+      #|    Value({ index: 1 }, Ref({ index: 0 })),
       #|  ],
       #|  [Initializer(0), Initializer(1), Entry({ index: 6 })],
       #|)

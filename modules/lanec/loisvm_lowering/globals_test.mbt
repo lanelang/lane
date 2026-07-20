@@ -68,6 +68,7 @@ test "executable lowering emits reachable instance globals in source order" {
   assert_eq(image.initializer, Some({ value: 2 }))
   assert_eq(image.globals, [
     { representation: I32, cleanup: OwnedRef, erased_companion: None },
+    { representation: I32, cleanup: OwnedRef, erased_companion: None },
   ])
   guard image.functions
     is [
@@ -81,9 +82,12 @@ test "executable lowering emits reachable instance globals in source order" {
   assert_eq(initializer.blocks[0].instructions, [
     ConstString({ value: 0 }, { value: 0 }),
     InitGlobal({ value: 0 }, { value: 0 }),
+    BorrowGlobal({ value: 1 }, { value: 0 }),
+    RetainCopy({ value: 2 }, { value: 1 }),
+    InitGlobal({ value: 1 }, { value: 2 }),
   ])
   assert_eq(main_body.blocks[0].instructions, [
-    BorrowGlobal({ value: 0 }, { value: 0 }),
+    BorrowGlobal({ value: 0 }, { value: 1 }),
     RetainCopy({ value: 1 }, { value: 0 }),
   ])
   assert_eq(

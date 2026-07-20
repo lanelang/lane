@@ -90,8 +90,9 @@ fn lower_effects(
     @effect_lowering_core.lift_monadic_continuations(resolved),
   )
   observe(MonadicContinuationsLifted(lifted))
+  let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
   let optimized = match
-    @core_opt.optimize({ program: lifted, entry, roots: [] }) {
+    @core_opt.optimize({ program: lifted, entry, roots: initializer_roots }) {
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
@@ -112,6 +113,47 @@ fn[T] unwrap_effect_lowering(
 }
 
 ///|
+fn collect_reachable_initializer_roots(
+  program : @buslane.Program,
+  entry : @buslane.ValueId,
+) -> Array[@buslane.ValueId] {
+  let occurrence = @occurrence.analyze({ program, entry, roots: [] })
+  let roots = []
+  for term in program.terms {
+    match term {
+      Let(value, expression) =>
+        if !is_static_top_level_expression(program, expression) &&
+          occurrence_value_is_reachable(occurrence, value) {
+          roots.push(value)
+        }
+      LetRec(bindings) =>
+        if !bindings.all(binding => {
+            is_static_top_level_expression(program, binding.rhs)
+          }) {
+          for binding in bindings {
+            if occurrence_value_is_reachable(occurrence, binding.id) {
+              roots.push(binding.id)
+            }
+          }
+        }
+      External(_) => ()
+    }
+  }
+  roots
+}
+
+///|
+fn occurrence_value_is_reachable(
+  occurrence : @occurrence.OccurrenceSummary,
+  value : @buslane.ValueId,
+) -> Bool {
+  match occurrence.facts.get(value.index) {
+    Some(fact) => fact.reachable_from_entry
+    None => false
+  }
+}
+
+///|
 fn collect_top_level_initializers(
   program : @buslane.Program,
 ) -> Array[TopLevelInitializer] {
@@ -119,11 +161,13 @@ fn collect_top_level_initializers(
   for term in program.terms {
     match term {
       Let(value, expression) =>
-        if !is_static_top_level_expression(expression) {
+        if !is_static_top_level_expression(program, expression) {
           initializers.push(Value(value, expression))
         }
       LetRec(bindings) =>
-        if !bindings.all(binding => is_static_top_level_expression(binding.rhs)) {
+        if !bindings.all(binding => {
+            is_static_top_level_expression(program, binding.rhs)
+          }) {
           initializers.push(Recursive(bindings))
         }
       External(_) => ()
@@ -133,10 +177,28 @@ fn collect_top_level_initializers(
 }
 
 ///|
-fn is_static_top_level_expression(expression : @buslane.Expr) -> Bool {
+fn is_static_top_level_expression(
+  program : @buslane.Program,
+  expression : @buslane.Expr,
+) -> Bool {
   match expression {
     Function(_) => true
-    TypeLambda(_, body) => is_static_top_level_expression(body)
+    Ref(value) =>
+      match program.metadata.value_info(value) {
+        Some(info) => top_level_type_is_callable(info.type_)
+        None => false
+      }
+    TypeLambda(_, body) | TypeApply(body, _) =>
+      is_static_top_level_expression(program, body)
+    _ => false
+  }
+}
+
+///|
+fn top_level_type_is_callable(type_ : @buslane.Type) -> Bool {
+  match type_ {
+    Function(_, _, _) => true
+    Forall(_, body) | TypeLambda(_, body) => top_level_type_is_callable(body)
     _ => false
   }
 }

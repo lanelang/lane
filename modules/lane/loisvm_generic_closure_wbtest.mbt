@@ -1,4 +1,24 @@
 ///|
+fn lower_unoptimized_test_program(
+  program : @buslane.Program,
+  externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
+) -> Result[
+  @loisvm_bytecode.BytecodeImage,
+  @loisvm_lowering.LoisvmLoweringError,
+] {
+  @loisvm_lowering.lower_executable_program_to_bytecode({
+    module_path_texts: [],
+    program,
+    externals,
+    entry,
+    initializers: [],
+    execution_roots: [Entry(entry.value)],
+    effect_companions: [],
+  })
+}
+
+///|
 test "generic nested closures preserve erased captures in both backends" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
@@ -205,7 +225,7 @@ test "nominal values cross erased generic boundaries in both backends" {
     ],
   }
   let image = match
-    @loisvm_lowering.lower_linked_program_to_bytecode(
+    lower_unoptimized_test_program(
       program,
       {
         builtins: [],

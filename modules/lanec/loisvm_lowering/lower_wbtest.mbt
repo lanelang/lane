@@ -30,6 +30,23 @@ fn contains_instruction(
 }
 
 ///|
+fn lower_test_executable_to_bytecode(
+  program : @buslane.Program,
+  externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
+) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
+  lower_executable_program_to_bytecode({
+    module_path_texts: [],
+    program,
+    externals,
+    entry,
+    initializers: [],
+    execution_roots: [Entry(entry.value)],
+    effect_companions: [],
+  })
+}
+
+///|
 test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let int_type = @buslane.Type::Primitive(Int)
@@ -82,7 +99,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [{ value: add, name: "%i64_add", type_: add_type }],
@@ -272,7 +289,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [{ value: add, name: "%i64_add", type_: add_type }],
@@ -1135,7 +1152,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [{ value: add, name: "%i64_add", type_: add_type }],
@@ -1498,7 +1515,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [],
@@ -2155,7 +2172,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [],
@@ -2296,7 +2313,7 @@ test "payload-free existential data still opens its hidden witness" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [],

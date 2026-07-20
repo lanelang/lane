@@ -27,5 +27,12 @@ pub fn optimize(
     request.entry,
     request.roots,
   )
+  let reachable = prune_unreachable(simplified, request.entry, request.roots)
+  let evaluated = partially_evaluate_program(
+    reachable,
+    request.entry,
+    request.roots,
+  )
+  let simplified = simplify_program(evaluated, request.entry, request.roots)
   Ok(prune_unreachable(simplified, request.entry, request.roots))
 }
