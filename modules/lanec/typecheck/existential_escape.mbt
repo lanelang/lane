@@ -16,6 +16,26 @@ fn SemanticChecker::check_hidden_type_escape(
 }
 
 ///|
+fn SemanticChecker::remove_hidden_escape_type_mismatches(
+  self : SemanticChecker,
+  start : Int,
+  opened : Array[TypeParameterId],
+) -> Unit {
+  let added = []
+  while self.diagnostics.length() > start {
+    added.push(self.diagnostics.pop().unwrap())
+  }
+  for offset in 0..<added.length() {
+    let diagnostic = added[added.length() - offset - 1]
+    if diagnostic.kind is TypeMismatch(actual~, ..) &&
+      actual.mentions_any_type_parameter(opened) {
+      continue
+    }
+    self.diagnostics.push(diagnostic)
+  }
+}
+
+///|
 fn @checked.CheckedPattern::opened_type_parameters(
   self : @checked.CheckedPattern,
 ) -> Array[TypeParameterId] {

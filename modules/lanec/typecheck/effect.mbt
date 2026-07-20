@@ -83,8 +83,8 @@ fn TypeExpressionChecker::check_effect(
       }
       Parameter(symbol)
     }
-    Alias(name~, arguments~, loc~) =>
-      self.expand_effect_alias(name, arguments, loc)
+    Alias(owner_module_path~, name~, arguments~, loc~) =>
+      self.expand_effect_alias(owner_module_path, name, arguments, loc)
     Union(items~, ..) =>
       effect_union(items.map(fn(item) { self.check_effect(item) }))
     Unresolved(name~, arguments~, loc~) => {
@@ -142,6 +142,7 @@ fn EffectSubstitution::lookup(
 ///|
 fn TypeExpressionChecker::expand_effect_alias(
   self : TypeExpressionChecker,
+  owner_module_path : String?,
   name : String,
   arguments : Array[@resolve.ResolvedEffectAliasArgument],
   loc : SourceSpan,
@@ -156,11 +157,16 @@ fn TypeExpressionChecker::expand_effect_alias(
   //
   // Effect aliases are not nominal effects. After checking arguments, both type
   // and effect parameters are substituted into the body and normalized.
-  if self.expanding.contains(name) {
+  let identity = alias_identity(owner_module_path, name)
+  if self.expanding.contains(identity) {
     self.diagnostics.push({ kind: TypeAliasCycle(name~), loc })
     return Empty
   }
-  match self.find_alias(name) {
+  let local_alias = match owner_module_path {
+    None => self.find_alias(name)
+    Some(_) => None
+  }
+  match local_alias {
     Some(type_alias) => {
       let next = {
         source: self.source,
@@ -168,7 +174,7 @@ fn TypeExpressionChecker::expand_effect_alias(
         diagnostics: self.diagnostics,
         expanding: self.expanding.copy(),
       }
-      next.expanding.push(name)
+      next.expanding.push(identity)
       let checked_parameters = check_type_parameters(
         self.diagnostics,
         type_alias.type_parameters,
@@ -200,7 +206,7 @@ fn TypeExpressionChecker::expand_effect_alias(
       }
     }
     None =>
-      match self.find_interface_alias(name) {
+      match self.find_interface_alias(owner_module_path, name) {
         Some(type_alias) =>
           match type_alias.body {
             EffectBody(effect) => {

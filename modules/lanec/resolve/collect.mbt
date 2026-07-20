@@ -40,6 +40,8 @@ priv struct EffectBinding {
 ///|
 priv struct TypeAliasBinding {
   name : String
+  owner_module_path : String?
+  is_effect : Bool
   parameter_kinds : Array[@types.Kind]
   import_origin : Int?
 }
@@ -319,6 +321,8 @@ fn Resolver::publish_imported_public_types(
   for type_alias in interface.type_aliases {
     self.type_aliases.push({
       name: type_alias.name,
+      owner_module_path: Some(interface.module_path),
+      is_effect: type_alias.kind == Effect,
       parameter_kinds: interface_type_parameter_kinds(
         type_alias.type_parameters,
       ),
@@ -373,6 +377,8 @@ fn Resolver::publish_imported_selected_types(
       if type_alias.name == item.name {
         self.type_aliases.push({
           name: type_alias.name,
+          owner_module_path: Some(interface.module_path),
+          is_effect: type_alias.kind == Effect,
           parameter_kinds: interface_type_parameter_kinds(
             type_alias.type_parameters,
           ),
@@ -599,6 +605,8 @@ fn Resolver::collect_top_level_headers(
         )
         self.type_aliases.push({
           name: declaration.name,
+          owner_module_path: None,
+          is_effect: declaration.body is EffectBody(_),
           parameter_kinds: syntax_type_parameter_kinds(
             declaration.type_parameters,
           ),
@@ -1395,7 +1403,11 @@ fn @syntax.Type::resolve_type(
                   match resolver.type_alias_binding(name) {
                     Some(binding) => {
                       resolver.record_import_use(binding.import_origin, loc)
-                      Alias(name~, loc~)
+                      Alias(
+                        owner_module_path=binding.owner_module_path,
+                        name~,
+                        loc~,
+                      )
                     }
                     None =>
                       match resolver.qualified_type_symbol_opt(name) {
@@ -1724,7 +1736,12 @@ fn @syntax.Type::resolve_effect_type(
                     resolver,
                     scope,
                   )
-                  Alias(name~, arguments=resolved_arguments, loc~)
+                  Alias(
+                    owner_module_path=binding.owner_module_path,
+                    name~,
+                    arguments=resolved_arguments,
+                    loc~,
+                  )
                 }
                 None => {
                   let resolved_arguments = arguments.map(fn(argument) {
@@ -1785,7 +1802,11 @@ fn Resolver::resolve_module_qualified_type(
       }
       for type_alias in module_.interface.type_aliases {
         if type_alias.name == name {
-          return Alias(name=full_name, loc~)
+          return Alias(
+            owner_module_path=Some(module_.interface.module_path),
+            name=full_name,
+            loc~,
+          )
         }
       }
       self.report(UnresolvedType(full_name), loc)
@@ -1835,7 +1856,12 @@ fn Resolver::resolve_module_qualified_effect_type(
             self,
             scope,
           )
-          return Alias(name=full_name, arguments~, loc~)
+          return Alias(
+            owner_module_path=Some(module_.interface.module_path),
+            name=full_name,
+            arguments~,
+            loc~,
+          )
         }
       }
       let arguments = resolve_default_generic_arguments(arguments, self, scope)
@@ -1903,10 +1929,11 @@ fn @syntax.Type::should_resolve_as_effect_alias_argument(
         None =>
           if resolver.effect_symbol_opt(name) is Some(_) {
             true
-          } else if resolver.type_alias_binding(name) is Some(_) {
-            true
           } else {
-            false
+            match resolver.type_alias_binding(name) {
+              Some(binding) => binding.is_effect
+              None => false
+            }
           }
       }
     QualifiedName(module_path~, name~, ..) =>
@@ -1932,7 +1959,7 @@ fn Resolver::module_qualified_name_can_be_effect_alias_argument(
       }
       for type_alias in module_.interface.type_aliases {
         if type_alias.name == name {
-          return true
+          return type_alias.kind == Effect
         }
       }
       false

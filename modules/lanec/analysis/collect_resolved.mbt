@@ -904,7 +904,7 @@ fn SemanticIndex::collect_resolved_type(
       self.add_reference(Type(symbol), loc, Some("type \{name}"))
       self.add_top_level_reference(TopLevelType(symbol))
     }
-    Alias(name~, loc~) => {
+    Alias(name~, loc~, ..) => {
       self.add_top_level_reference(TopLevelAlias(name))
       self.hovers.push({
         location: { source_id: self.source_id, span: loc },
@@ -962,7 +962,7 @@ fn SemanticIndex::collect_resolved_effect(
       self.generic_parameter_references.push(symbol)
       self.add_reference(TypeParameter(symbol), loc, Some("effect \{name}"))
     }
-    Alias(name~, arguments~, loc~) => {
+    Alias(name~, arguments~, loc~, ..) => {
       self.add_top_level_reference(TopLevelAlias(name))
       self.hovers.push({
         location: { source_id: self.source_id, span: loc },

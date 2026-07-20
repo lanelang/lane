@@ -3671,6 +3671,156 @@ test "check sources resolves module qualified type alias access" {
 }
 
 ///|
+test "check sources preserves imported type alias owner identity" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import AliasB.{ X }
+      #|pub let value : X = true
+    ),
+    [
+      (
+        #|module AliasA
+        #|pub type X = Int
+        #|pub let marker : Int = 0
+      ),
+      (
+        #|module AliasB
+        #|import AliasA.{ marker }
+        #|pub type X = Bool
+        #|pub let copied : Int = marker
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  inspect(
+    result.entries.map(fn(entry) { entry.name }).join(","),
+    content="value",
+  )
+}
+
+///|
+test "check sources rejects values against the selected imported alias" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import AliasB.{ X }
+      #|pub let value : X = 1
+    ),
+    [
+      (
+        #|module AliasA
+        #|pub type X = Int
+        #|pub let marker : Int = 0
+      ),
+      (
+        #|module AliasB
+        #|import AliasA.{ marker }
+        #|pub type X = Bool
+        #|pub let copied : Int = marker
+      ),
+    ],
+  )
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["type mismatch"]
+    ),
+  )
+}
+
+///|
+test "check sources resolves imported aliases in explicit generic arguments" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import AliasLib.{ Number }
+      #|fn[A] identity(value : A) -> A {
+      #|  value
+      #|}
+      #|pub fn use() -> Number {
+      #|  identity[Number](1)
+      #|}
+    ),
+    [
+      (
+        #|module AliasLib
+        #|pub type Number = Int
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  inspect(result.entries.map(fn(entry) { entry.name }).join(","), content="use")
+}
+
+///|
+test "check sources preserves imported effect alias owner identity" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import AliasB.{ Actions, run }
+      #|pub fn use() -> Unit ! Actions {
+      #|  run()
+      #|}
+    ),
+    [
+      (
+        #|module AliasA
+        #|pub effect First {
+        #|  fire() -> Unit
+        #|}
+        #|pub type Actions : Effect = { First }
+        #|pub let marker : Int = 0
+      ),
+      (
+        #|module AliasB
+        #|import AliasA.{ marker }
+        #|pub effect Second {
+        #|  fire() -> Unit
+        #|}
+        #|pub type Actions : Effect = { Second }
+        #|pub fn run() -> Unit ! Actions {
+        #|  let _marker : Int = marker
+        #|  Second::fire!()
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  inspect(result.entries.map(fn(entry) { entry.name }).join(","), content="use")
+}
+
+///|
+test "check sources resolves imported effect aliases in explicit arguments" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import AliasLib.{ ReadOnly, callback }
+      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|  callback()
+      #|}
+      #|pub fn use() -> Int ! ReadOnly {
+      #|  consume[ReadOnly](callback)
+      #|}
+    ),
+    [
+      (
+        #|module AliasLib
+        #|pub effect Read {
+        #|  read() -> Int
+        #|}
+        #|pub type ReadOnly : Effect = { Read }
+        #|pub fn callback() -> Int ! ReadOnly {
+        #|  Read::read!()
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  inspect(result.entries.map(fn(entry) { entry.name }).join(","), content="use")
+}
+
+///|
 test "check sources resolves module qualified variant expressions and patterns" {
   let result = compile_sources(
     (

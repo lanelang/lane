@@ -214,6 +214,7 @@ fn SemanticChecker::operation_generic_witnesses(
   } else {
     check_resolved_generic_arguments(
       self.resolved_source,
+      self.imported_environment,
       self.diagnostics,
       scope,
       declaration.type_parameters,
@@ -404,6 +405,7 @@ fn SemanticChecker::explicit_operation_witness_substitution(
   }
   let checked = check_resolved_generic_arguments(
     self.resolved_source,
+    self.imported_environment,
     self.diagnostics,
     scope,
     declaration.type_parameters,

@@ -470,6 +470,7 @@ fn check_resolved_type_with_imported_environment(
 ///|
 fn check_resolved_nominal_generic_arguments(
   source : @resolve.ResolvedSourceFile,
+  imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
   parameters : Array[@types.TypeParameter],
   arguments : Array[@resolve.ResolvedGenericArgument],
@@ -479,16 +480,30 @@ fn check_resolved_nominal_generic_arguments(
     let argument = if index < parameters.length() {
       check_resolved_generic_argument(
         source,
+        imported_environment,
         diagnostics,
-        { values: [], offers: [], type_parameters: [], expected_effect: None },
+        {
+          values: [],
+          offers: [],
+          type_parameters: [],
+          provisional_effect_parameters: [],
+          expected_effect: None,
+        },
         parameters[index].kind,
         arguments[index],
       )
     } else {
       check_resolved_generic_argument(
         source,
+        imported_environment,
         diagnostics,
-        { values: [], offers: [], type_parameters: [], expected_effect: None },
+        {
+          values: [],
+          offers: [],
+          type_parameters: [],
+          provisional_effect_parameters: [],
+          expected_effect: None,
+        },
         Type,
         arguments[index],
       )
@@ -501,6 +516,7 @@ fn check_resolved_nominal_generic_arguments(
 ///|
 fn check_resolved_generic_arguments(
   source : @resolve.ResolvedSourceFile,
+  imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
   scope : TypeScope,
   parameters : Array[@types.TypeParameter],
@@ -512,6 +528,7 @@ fn check_resolved_generic_arguments(
       checked.push(
         check_resolved_generic_argument(
           source,
+          imported_environment,
           diagnostics,
           scope,
           parameters[index].kind,
@@ -522,6 +539,7 @@ fn check_resolved_generic_arguments(
       checked.push(
         check_resolved_generic_argument(
           source,
+          imported_environment,
           diagnostics,
           scope,
           Type,
@@ -536,6 +554,7 @@ fn check_resolved_generic_arguments(
 ///|
 fn check_resolved_generic_argument(
   source : @resolve.ResolvedSourceFile,
+  imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
   scope : TypeScope,
   expected : @types.Kind,
@@ -543,7 +562,7 @@ fn check_resolved_generic_argument(
 ) -> @types.GenericArgument {
   let checker = TypeExpressionChecker::{
     source,
-    imported_environment: empty_imported_environment(),
+    imported_environment,
     diagnostics,
     expanding: [],
   }
@@ -624,12 +643,6 @@ priv struct TypeExpressionChecker {
 }
 
 ///|
-priv struct QualifiedAliasName {
-  module_path : String
-  name : String
-}
-
-///|
 fn TypeExpressionChecker::check_value_type(
   self : TypeExpressionChecker,
   type_ : @resolve.ResolvedType,
@@ -673,7 +686,8 @@ fn TypeExpressionChecker::synthesize_type(
         { type_: Constructor(symbol), kind }
       }
     }
-    Alias(name~, loc~) => self.expand_alias(name, loc)
+    Alias(owner_module_path~, name~, loc~) =>
+      self.expand_alias(owner_module_path, name, loc)
     Apply(callee~, arguments~, loc~) => {
       let callee_result = self.synthesize_type(callee)
       let checked_arguments = []
@@ -856,14 +870,20 @@ fn TypeExpressionChecker::expect_kind(
 ///|
 fn TypeExpressionChecker::expand_alias(
   self : TypeExpressionChecker,
+  owner_module_path : String?,
   name : String,
   loc : SourceSpan,
 ) -> TypeExpressionResult {
-  if self.expanding.contains(name) {
+  let identity = alias_identity(owner_module_path, name)
+  if self.expanding.contains(identity) {
     self.diagnostics.push({ kind: TypeAliasCycle(name~), loc })
     return { type_: Error, kind: Type }
   }
-  match self.find_alias(name) {
+  let local_alias = match owner_module_path {
+    None => self.find_alias(name)
+    Some(_) => None
+  }
+  match local_alias {
     Some(type_alias) => {
       let next = {
         source: self.source,
@@ -871,7 +891,7 @@ fn TypeExpressionChecker::expand_alias(
         diagnostics: self.diagnostics,
         expanding: self.expanding.copy(),
       }
-      next.expanding.push(name)
+      next.expanding.push(identity)
       match type_alias.body {
         TypeBody(body) => next.synthesize_type(body)
         EffectBody(_) => {
@@ -884,7 +904,7 @@ fn TypeExpressionChecker::expand_alias(
       }
     }
     None =>
-      match self.find_interface_alias(name) {
+      match self.find_interface_alias(owner_module_path, name) {
         Some(type_alias) =>
           match type_alias.body {
             TypeBody(body) => { type_: body, kind: type_alias.kind }
@@ -922,47 +942,37 @@ fn TypeExpressionChecker::find_alias(
 ///|
 fn TypeExpressionChecker::find_interface_alias(
   self : TypeExpressionChecker,
+  owner_module_path : String?,
   name : String,
 ) -> @module_interface.ModuleInterfaceTypeAlias? {
-  match qualified_alias_name(name) {
-    Some(qualified) =>
-      match self.imported_environment.find(qualified.module_path) {
-        Some(module_) => {
-          for type_alias in module_.type_aliases {
-            if type_alias.name == qualified.name {
-              return Some(type_alias)
-            }
-          }
-          return None
-        }
-        None => return None
-      }
-    None => ()
+  guard owner_module_path is Some(module_path) else { return None }
+  guard self.imported_environment.find(module_path) is Some(module_) else {
+    return None
   }
-  for module_ in self.imported_environment.modules {
-    for type_alias in module_.type_aliases {
-      if type_alias.name == name {
-        return Some(type_alias)
-      }
+  let local_name = alias_local_name(name)
+  for type_alias in module_.type_aliases {
+    if type_alias.name == local_name {
+      return Some(type_alias)
     }
   }
   None
 }
 
 ///|
-fn qualified_alias_name(name : String) -> QualifiedAliasName? {
+fn alias_local_name(name : String) -> String {
   let parts = name.split(".").map(StringView::to_owned).collect()
-  if parts.length() < 2 {
-    return None
+  match parts.last() {
+    Some(name) => name
+    None => name
   }
-  let module_segments = []
-  for index in 0..<(parts.length() - 1) {
-    module_segments.push(parts[index])
+}
+
+///|
+fn alias_identity(owner_module_path : String?, name : String) -> String {
+  match owner_module_path {
+    Some(module_path) => module_path + "." + alias_local_name(name)
+    None => name
   }
-  Some({
-    module_path: module_segments.join("."),
-    name: parts[parts.length() - 1],
-  })
 }
 
 ///|

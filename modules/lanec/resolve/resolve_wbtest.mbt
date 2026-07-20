@@ -203,6 +203,7 @@ test "resolve local effect alias references" {
     content=(
       #|[
       #|  Alias(
+      #|    owner_module_path=None,
       #|    name="UI",
       #|    arguments=[],
       #|    loc={
@@ -236,6 +237,7 @@ test "resolve local effect alias references" {
     program.effect,
     content=(
       #|Alias(
+      #|  owner_module_path=None,
       #|  name="UI",
       #|  arguments=[],
       #|  loc={
@@ -324,6 +326,7 @@ test "resolve module-qualified effect alias references" {
       #|    },
       #|  ),
       #|  Alias(
+      #|    owner_module_path=Some("Lib"),
       #|    name="Lib.UI",
       #|    arguments=[],
       #|    loc={
@@ -345,6 +348,7 @@ test "resolve module-qualified effect alias references" {
     program.effect,
     content=(
       #|Alias(
+      #|  owner_module_path=Some("Lib"),
       #|  name="Lib.UI",
       #|  arguments=[],
       #|  loc={

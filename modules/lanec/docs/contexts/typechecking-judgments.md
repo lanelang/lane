@@ -374,9 +374,11 @@ Gamma, opened_type_binders, payload_binders, resume |- arm_body <= ResultT
 ```
 
 Because arm bodies may themselves produce effects, the checker first runs a
-silent pass with `ResidualSeed`, then computes the final residual effect and
-checks arms again with the final resume type. This is still a bounded local
-process, not general constraint solving.
+silent measurement pass with a provisional residual parameter. That parameter
+does not count as concrete generic evidence and is removed from measured arm
+effects. The checker then unions those effects with `ResidualSeed` and checks
+the arms again with the final resume type. This is still a bounded local process,
+not general constraint solving.
 
 ## Patterns
 

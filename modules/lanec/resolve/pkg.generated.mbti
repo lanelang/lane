@@ -98,7 +98,7 @@ pub(all) enum ResolvedEffectTerm {
   Io(arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Singleton(symbol~ : @symbol.EffectSymbolId, name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
-  Alias(name~ : String, arguments~ : Array[ResolvedEffectAliasArgument], loc~ : @basic.SourceSpan)
+  Alias(owner_module_path~ : String?, name~ : String, arguments~ : Array[ResolvedEffectAliasArgument], loc~ : @basic.SourceSpan)
   Union(items~ : Array[ResolvedEffectTerm], loc~ : @basic.SourceSpan)
   Unresolved(name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
@@ -389,7 +389,7 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : @basic.SourceSpan)
   Constructor(symbol~ : @symbol.TypeSymbolId, name~ : String, loc~ : @basic.SourceSpan)
-  Alias(name~ : String, loc~ : @basic.SourceSpan)
+  Alias(owner_module_path~ : String?, name~ : String, loc~ : @basic.SourceSpan)
   Apply(callee~ : ResolvedType, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[ResolvedTypeParameter], body~ : ResolvedType, loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)

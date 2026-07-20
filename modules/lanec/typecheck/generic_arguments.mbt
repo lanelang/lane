@@ -2,6 +2,13 @@
 priv struct GenericArgumentBinding {
   parameter : TypeParameterId
   argument : @types.GenericArgument
+  is_provisional : Bool
+}
+
+///|
+priv struct GenericArgumentEvidence {
+  argument : @types.GenericArgument
+  is_provisional : Bool
 }
 
 ///|
@@ -142,6 +149,19 @@ fn GenericArgumentInference::lookup(
 }
 
 ///|
+fn GenericArgumentInference::has_concrete_binding(
+  self : GenericArgumentInference,
+  parameter : TypeParameterId,
+) -> Bool {
+  for binding in self.bindings {
+    if binding.parameter == parameter {
+      return !binding.is_provisional
+    }
+  }
+  false
+}
+
+///|
 /// A callback shape is ground for this inference when it contains neither
 /// errors nor parameters quantified by this call. Rigid outer parameters are
 /// already known to the caller and therefore remain admissible.
@@ -172,46 +192,112 @@ fn GenericArgumentInference::remember(
   //
   // A repeated binding must be equal immediately. There is no later constraint
   // solver that can reconcile two incompatible candidates.
-  if argument is TypeArgument(Error) {
+  let evidence = self.classify_generic_argument_evidence(argument)
+  let candidate = evidence.argument
+  if candidate is TypeArgument(Error) {
     return true
   }
   guard self.tracked_parameter(parameter) is Some(tracked) else { return true }
-  if !self.generic_argument_has_kind(argument, tracked.kind) {
+  if !self.generic_argument_has_kind(candidate, tracked.kind) {
     return self.fail(
       GenericArgumentConstraintMismatch(
         expected=tracked.generic_argument(),
-        actual=argument,
+        actual=candidate,
       ),
     )
   }
-  if argument is TypeArgument(type_) &&
+  if candidate is TypeArgument(type_) &&
     !type_is_parameter(type_, parameter) &&
     type_.mentions_any_type_parameter([parameter]) {
     return self.fail(
-      RecursiveGenericArgument(parameter=tracked, actual=argument),
+      RecursiveGenericArgument(parameter=tracked, actual=candidate),
     )
   }
-  if argument is EffectArgument(effect) &&
+  if candidate is EffectArgument(effect) &&
     !effect_is_parameter(effect, parameter) &&
     effect_mentions_free_parameter(effect, parameter) {
     return self.fail(
-      RecursiveGenericArgument(parameter=tracked, actual=argument),
+      RecursiveGenericArgument(parameter=tracked, actual=candidate),
     )
   }
-  match self.lookup(parameter) {
-    Some(previous) =>
-      if !generic_argument_equals(previous, argument) {
+  for index in 0..<self.bindings.length() {
+    let previous = self.bindings[index]
+    if previous.parameter == parameter {
+      if previous.is_provisional && !evidence.is_provisional {
+        self.bindings[index] = {
+          parameter,
+          argument: candidate,
+          is_provisional: false,
+        }
+        return true
+      }
+      if !previous.is_provisional && evidence.is_provisional {
+        return true
+      }
+      if previous.is_provisional && evidence.is_provisional {
+        self.bindings[index] = {
+          parameter,
+          argument: merge_provisional_arguments(previous.argument, candidate),
+          is_provisional: true,
+        }
+        return true
+      }
+      if !generic_argument_equals(previous.argument, candidate) {
         return self.fail(
           ConflictingGenericArgument(
             parameter=tracked,
-            previous~,
-            actual=argument,
+            previous=previous.argument,
+            actual=candidate,
           ),
         )
       }
-    None => self.bindings.push({ parameter, argument })
+      return true
+    }
   }
+  self.bindings.push({
+    parameter,
+    argument: candidate,
+    is_provisional: evidence.is_provisional,
+  })
   true
+}
+
+///|
+fn GenericArgumentInference::classify_generic_argument_evidence(
+  self : GenericArgumentInference,
+  argument : @types.GenericArgument,
+) -> GenericArgumentEvidence {
+  let provisional = self.scope.provisional_effect_parameters
+  {
+    argument,
+    is_provisional: provisional.any(fn(parameter) {
+      generic_argument_mentions_effect_parameter(argument, parameter)
+    }),
+  }
+}
+
+///|
+fn merge_provisional_arguments(
+  left : @types.GenericArgument,
+  right : @types.GenericArgument,
+) -> @types.GenericArgument {
+  match (left, right) {
+    (EffectArgument(left), EffectArgument(right)) =>
+      EffectArgument(@types.Effect::Union([left, right]).normalize())
+    _ => left
+  }
+}
+
+///|
+fn generic_argument_mentions_effect_parameter(
+  argument : @types.GenericArgument,
+  parameter : TypeParameterId,
+) -> Bool {
+  match argument {
+    TypeArgument(type_) => type_.mentions_any_type_parameter([parameter])
+    EffectArgument(effect) =>
+      effect.mentions_any_type_parameter_with_bound([parameter], [])
+  }
 }
 
 ///|
@@ -416,7 +502,11 @@ fn GenericArgumentInference::match_effect_rows(
     match
       self.unique_effect_term_candidate(concrete, actual_terms, used_actuals) {
       UniqueEffectTermCandidate(index) => {
-        term_pairs.push({ template: concrete, actual: actual_terms[index] })
+        let pair : EffectTermPair = {
+          template: concrete,
+          actual: actual_terms[index],
+        }
+        term_pairs.push(pair)
         used_actuals[index] = true
       }
       NoEffectTermCandidate => return EffectRowsMismatched
@@ -550,13 +640,119 @@ fn GenericArgumentInference::effect_term_candidate(
     (Parameter(_), _) =>
       self.tracked_effect_row_parameter(template) is Some(_) ||
       template.equals(actual)
-    (Singleton(left_symbol, _), Singleton(right_symbol, _)) =>
+    (
+      Singleton(left_symbol, left_arguments),
+      Singleton(right_symbol, right_arguments),
+    ) =>
       left_symbol == right_symbol &&
-      (
-        template.equals(actual) ||
-        self.effect_has_unbound_inference_parameter(template)
-      )
+      self.generic_arguments_are_candidates(left_arguments, right_arguments)
     _ => template.equals(actual)
+  }
+}
+
+///|
+fn GenericArgumentInference::generic_arguments_are_candidates(
+  self : GenericArgumentInference,
+  templates : Array[@types.GenericArgument],
+  actuals : Array[@types.GenericArgument],
+) -> Bool {
+  if templates.length() != actuals.length() {
+    return false
+  }
+  for index in 0..<templates.length() {
+    match (templates[index], actuals[index]) {
+      (TypeArgument(template), TypeArgument(actual)) =>
+        if !self.type_is_candidate(template, actual) {
+          return false
+        }
+      (EffectArgument(template), EffectArgument(actual)) =>
+        if !self.effect_is_candidate(template, actual) {
+          return false
+        }
+      _ => return false
+    }
+  }
+  true
+}
+
+///|
+fn GenericArgumentInference::type_is_candidate(
+  self : GenericArgumentInference,
+  template : @types.Type,
+  actual : @types.Type,
+) -> Bool {
+  if template.equals(actual) {
+    return true
+  }
+  match (template, actual) {
+    (Error, _) | (_, Error) => true
+    (Parameter(parameter), _) =>
+      self.tracked_parameter(parameter) is Some(_) &&
+      !self.has_concrete_binding(parameter)
+    (Primitive(left), Primitive(right)) => left == right
+    (Constructor(left), Constructor(right)) => left == right
+    (Apply(left_callee, left_arguments), Apply(right_callee, right_arguments)) =>
+      self.type_is_candidate(left_callee, right_callee) &&
+      self.generic_arguments_are_candidates(left_arguments, right_arguments)
+    (
+      Function(left_parameters, left_result, left_effect),
+      Function(right_parameters, right_result, right_effect),
+    ) =>
+      self.types_are_candidates(left_parameters, right_parameters) &&
+      self.type_is_candidate(left_result, right_result) &&
+      self.effect_is_candidate(left_effect, right_effect)
+    _ => self.type_has_unbound_inference_parameter(template)
+  }
+}
+
+///|
+fn GenericArgumentInference::type_has_unbound_inference_parameter(
+  self : GenericArgumentInference,
+  type_ : @types.Type,
+) -> Bool {
+  self.parameters.any(fn(parameter) {
+    !self.has_concrete_binding(parameter.id) &&
+    type_.mentions_any_type_parameter([parameter.id])
+  })
+}
+
+///|
+fn GenericArgumentInference::types_are_candidates(
+  self : GenericArgumentInference,
+  templates : Array[@types.Type],
+  actuals : Array[@types.Type],
+) -> Bool {
+  if templates.length() != actuals.length() {
+    return false
+  }
+  for index in 0..<templates.length() {
+    if !self.type_is_candidate(templates[index], actuals[index]) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn GenericArgumentInference::effect_is_candidate(
+  self : GenericArgumentInference,
+  template : @types.Effect,
+  actual : @types.Effect,
+) -> Bool {
+  if template.equals(actual) {
+    return true
+  }
+  match (template, actual) {
+    (Parameter(parameter), _) =>
+      self.tracked_parameter(parameter) is Some(_) &&
+      !self.has_concrete_binding(parameter)
+    (
+      Singleton(left_symbol, left_arguments),
+      Singleton(right_symbol, right_arguments),
+    ) =>
+      left_symbol == right_symbol &&
+      self.generic_arguments_are_candidates(left_arguments, right_arguments)
+    _ => self.effect_has_unbound_inference_parameter(template)
   }
 }
 
@@ -565,37 +761,10 @@ fn GenericArgumentInference::effect_has_unbound_inference_parameter(
   self : GenericArgumentInference,
   effect : @types.Effect,
 ) -> Bool {
-  let unbound = self.parameters.filter_map(fn(parameter) {
-    if self.lookup(parameter.id) is None {
-      Some(parameter.id)
-    } else {
-      None
-    }
+  self.parameters.any(fn(parameter) {
+    !self.has_concrete_binding(parameter.id) &&
+    effect.mentions_any_type_parameter_with_bound([parameter.id], [])
   })
-  effect_mentions_any_parameter(effect, unbound)
-}
-
-///|
-fn effect_mentions_any_parameter(
-  effect : @types.Effect,
-  parameters : Array[TypeParameterId],
-) -> Bool {
-  match effect {
-    Empty | Io => false
-    Parameter(parameter) => parameters.contains(parameter)
-    Singleton(_, arguments) =>
-      arguments.any(fn(argument) {
-        match argument {
-          TypeArgument(type_) => type_.mentions_any_type_parameter(parameters)
-          EffectArgument(effect) =>
-            effect_mentions_any_parameter(effect, parameters)
-        }
-      })
-    Union(effects) =>
-      effects.any(fn(effect) {
-        effect_mentions_any_parameter(effect, parameters)
-      })
-  }
 }
 
 ///|
@@ -729,7 +898,7 @@ fn GenericArgumentInference::collect_generic_array(
 fn GenericArgumentInference::finish(
   self : GenericArgumentInference,
 ) -> InferredApplicationGenericArguments? {
-  let substitution = self.partial_substitution()
+  let substitution = self.partial_substitution(include_provisional=true)
   let generic_arguments = []
   let missing = []
   for parameter in self.parameters {
@@ -749,10 +918,13 @@ fn GenericArgumentInference::finish(
 ///|
 fn GenericArgumentInference::partial_substitution(
   self : GenericArgumentInference,
+  include_provisional? : Bool = false,
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for binding in self.bindings {
-    substitution.insert_argument(binding.parameter, binding.argument)
+    if include_provisional || !binding.is_provisional {
+      substitution.insert_argument(binding.parameter, binding.argument)
+    }
   }
   substitution
 }
@@ -1296,6 +1468,7 @@ fn SemanticChecker::check_explicit_generic_application(
       let diagnostic_count = self.diagnostics.length()
       let checked_arguments = check_resolved_generic_arguments(
         self.resolved_source,
+        self.imported_environment,
         self.diagnostics,
         scope,
         type_parameters,

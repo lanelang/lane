@@ -1,4 +1,10 @@
 ///|
+priv struct QualifiedTypeName {
+  module_path : String
+  name : String
+}
+
+///|
 fn SemanticChecker::type_symbol_for_name(
   self : SemanticChecker,
   name : String,
@@ -35,7 +41,7 @@ fn @module_interface.ModuleInterface::type_symbol_named(
 }
 
 ///|
-fn qualified_type_name(name : String) -> QualifiedAliasName? {
+fn qualified_type_name(name : String) -> QualifiedTypeName? {
   let parts = name.split(".").map(StringView::to_owned).collect()
   if parts.length() < 2 {
     return None

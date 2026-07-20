@@ -269,7 +269,7 @@ pub(all) struct ResolvedValueParameter {
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : SourceSpan)
   Constructor(symbol~ : TypeSymbolId, name~ : String, loc~ : SourceSpan)
-  Alias(name~ : String, loc~ : SourceSpan)
+  Alias(owner_module_path~ : String?, name~ : String, loc~ : SourceSpan)
   Apply(
     callee~ : ResolvedType,
     arguments~ : Array[ResolvedGenericArgument],
@@ -307,6 +307,7 @@ pub(all) enum ResolvedEffectTerm {
   )
   Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)
   Alias(
+    owner_module_path~ : String?,
     name~ : String,
     arguments~ : Array[ResolvedEffectAliasArgument],
     loc~ : SourceSpan

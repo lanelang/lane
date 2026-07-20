@@ -2169,6 +2169,36 @@ test "typecheck matches effect rows after grounding owner arguments" {
 }
 
 ///|
+test "typecheck rejects impossible partially ground effect owner candidates" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Pair[A, B] {
+      #|  first : A
+      #|  second : B
+      #|}
+      #|effect State[A] {
+      #|  get() -> A
+      #|}
+      #|fn[T, E : Effect] consume(
+      #|  callback : () -> Bool ! { State[Pair[T, Int]], E }
+      #|) -> Unit {
+      #|  ()
+      #|}
+      #|fn callback() -> Bool
+      #|  ! { State[Pair[String, Int]], State[Pair[Bool, Bool]] } {
+      #|  let _left : Pair[String, Int] = State[Pair[String, Int]]::get!()
+      #|  let _right : Pair[Bool, Bool] = State[Pair[Bool, Bool]]::get!()
+      #|  true
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(callback)
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
 test "typecheck does not infer polymorphic recursion" {
   let result = expect_typecheck_result(
     (
@@ -2828,6 +2858,24 @@ test "typecheck allows repacking existential enum before leaving match arm" {
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck propagates expected function type into existential match arm" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Hide {
+      #|  type T
+      #|  val : T
+      #|}
+      #|fn use(h : Hide) -> (Int) -> Int {
+      #|  match h {
+      #|    Hide::{ T, val } => fn(x) { x }
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -4665,6 +4713,64 @@ test "typecheck preserves handler arm direct effects" {
       #|[effect_mismatch expected={} actual=effect#1 @ 8:21-14:2]
     ),
   )
+}
+
+///|
+test "typecheck rechecks handler arms with final residual effect" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  ask() -> Int
+      #|}
+      #|effect Log {
+      #|  write() -> Unit
+      #|}
+      #|fn[E : Effect] compose(
+      #|  first : (Int) -> Int ! E,
+      #|  second : (Int) -> Int ! E
+      #|) -> Int ! E {
+      #|  first(second(0))
+      #|}
+      #|fn logged(value : Int) -> Int ! Log {
+      #|  let _written : Unit = Log::write!()
+      #|  value
+      #|}
+      #|fn run() -> Int ! Log {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(resume) => compose(resume, logged)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck measures effects around provisional handler generic evidence" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  ask() -> Int
+      #|}
+      #|effect Log {
+      #|  write() -> Unit
+      #|}
+      #|fn[E : Effect] invoke(callback : (Int) -> Int ! E) -> Int ! { Log, E } {
+      #|  let _written : Unit = Log::write!()
+      #|  callback(0)
+      #|}
+      #|fn run() -> Int ! Log {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(resume) => invoke(resume)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|

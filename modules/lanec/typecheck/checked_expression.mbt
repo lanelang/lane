@@ -544,18 +544,16 @@ fn SemanticChecker::check_checked_match(
     }
     matrix.add(pattern)
     let opened_type_parameters = pattern.opened_type_parameters()
-    let checked_body = if opened_type_parameters.is_empty() {
-      self.check_checked_expr(arm_scope, arm.body, expected)
-    } else {
-      let synthesized = self.synthesize_checked_expr(arm_scope, arm.body)
-      if !self.check_hidden_type_escape(
-          opened_type_parameters,
-          synthesized.type_,
-          arm.body.loc(),
-        ) {
-        self.expect_type(expected, synthesized.type_, arm.body.loc())
-      }
-      synthesized
+    let diagnostic_start = self.diagnostics.length()
+    let checked_body = self.check_checked_expr(arm_scope, arm.body, expected)
+    if self.check_hidden_type_escape(
+        opened_type_parameters,
+        checked_body.type_,
+        arm.body.loc(),
+      ) {
+      self.remove_hidden_escape_type_mismatches(
+        diagnostic_start, opened_type_parameters,
+      )
     }
     match
       self.require_checked_expression(checked_body, arm.body.loc(), "match arm") {

@@ -25,6 +25,7 @@ priv struct TypeScope {
   values : Array[ValueTypeBinding]
   offers : Array[ContextualOffer]
   type_parameters : Array[TypeParameterKindBinding]
+  provisional_effect_parameters : Array[TypeParameterId]
   expected_effect : @types.Effect?
 }
 
@@ -34,6 +35,7 @@ fn SemanticChecker::root_scope(self : SemanticChecker) -> TypeScope {
     values: self.value_types.copy(),
     offers: self.offers.copy(),
     type_parameters: [],
+    provisional_effect_parameters: [],
     expected_effect: None,
   }
 }
@@ -44,6 +46,7 @@ fn SemanticChecker::ordered_root_scope(self : SemanticChecker) -> TypeScope {
     values: self.ordered_value_types.copy(),
     offers: self.ordered_offers.copy(),
     type_parameters: [],
+    provisional_effect_parameters: [],
     expected_effect: None,
   }
 }
@@ -98,6 +101,7 @@ fn TypeScope::copy(self : TypeScope) -> TypeScope {
     values: self.values.copy(),
     offers: self.offers.copy(),
     type_parameters: self.type_parameters.copy(),
+    provisional_effect_parameters: self.provisional_effect_parameters.copy(),
     expected_effect: self.expected_effect,
   }
 }
@@ -111,6 +115,7 @@ fn TypeScope::with_expected_effect(
     values: self.values.copy(),
     offers: self.offers.copy(),
     type_parameters: self.type_parameters.copy(),
+    provisional_effect_parameters: self.provisional_effect_parameters.copy(),
     expected_effect: Some(effect),
   }
 }
@@ -121,6 +126,7 @@ fn TypeScope::without_expected_effect(self : TypeScope) -> TypeScope {
     values: self.values.copy(),
     offers: self.offers.copy(),
     type_parameters: self.type_parameters.copy(),
+    provisional_effect_parameters: self.provisional_effect_parameters.copy(),
     expected_effect: None,
   }
 }
@@ -132,6 +138,15 @@ fn TypeScope::bind_type_parameter_kind(
   kind : @types.Kind,
 ) -> Unit {
   self.type_parameters.push({ symbol, kind })
+}
+
+///|
+fn TypeScope::bind_provisional_effect_parameter(
+  self : TypeScope,
+  symbol : TypeParameterId,
+) -> Unit {
+  self.bind_type_parameter_kind(symbol, Effect)
+  self.provisional_effect_parameters.push(symbol)
 }
 
 ///|

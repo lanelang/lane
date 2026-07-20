@@ -170,6 +170,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     )
     check_resolved_nominal_generic_arguments(
       self.resolved_source,
+      self.imported_environment,
       self.diagnostics,
       declaration.type_parameters,
       explicit_generic_arguments,
@@ -270,6 +271,7 @@ fn SemanticChecker::variant_hidden_generic_arguments(
     return Some(
       check_resolved_generic_arguments(
         self.resolved_source,
+        self.imported_environment,
         self.diagnostics,
         scope,
         variant.type_parameters,
@@ -401,6 +403,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     }
     let arguments = check_resolved_nominal_generic_arguments(
       self.resolved_source,
+      self.imported_environment,
       self.diagnostics,
       parameters,
       generic_arguments,
@@ -510,6 +513,7 @@ fn SemanticChecker::struct_literal_generic_arguments(
   if !generic_arguments.is_empty() {
     return check_resolved_nominal_generic_arguments(
       self.resolved_source,
+      self.imported_environment,
       self.diagnostics,
       parameters,
       generic_arguments,
