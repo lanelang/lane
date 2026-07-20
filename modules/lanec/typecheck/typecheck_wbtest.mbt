@@ -551,22 +551,103 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|let algebraic_effect : () -> Unit ! Log = extern("algebraic_effect")
     ),
   )
-  let restrictions = result.diagnostics.map(fn(diagnostic) {
-    guard diagnostic.kind is InvalidExternType(name~, restriction~, ..) else {
-      abort("expected invalid extern type diagnostic")
-    }
-    (name, restriction)
-  })
   debug_inspect(
-    restrictions,
+    result.diagnostics,
     content=(
       #|[
-      #|  ("scalar", FunctionRequired),
-      #|  ("generic", MonomorphicRequired),
-      #|  ("aggregate_parameter", DirectParameterRequired(index=0)),
-      #|  ("aggregate_result", DirectResultRequired),
-      #|  ("open_effect", ExternalEffectRowRequired),
-      #|  ("algebraic_effect", ExternalEffectRowRequired),
+      #|  {
+      #|    kind: InvalidExternType(
+      #|      name="scalar",
+      #|      type_=Primitive(Int),
+      #|      restriction=FunctionRequired,
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 99,
+      #|      end_offset: 115,
+      #|      start_line: 8,
+      #|      start_column: 20,
+      #|      end_line: 8,
+      #|      end_column: 36,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: InvalidExternType(
+      #|      name="generic",
+      #|      type_=Forall(
+      #|        [{ id: { index: 0 }, name: "A", kind: Type }],
+      #|        Function([Parameter({ index: 0 })], Parameter({ index: 0 }), Empty),
+      #|      ),
+      #|      restriction=MonomorphicRequired,
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 144,
+      #|      end_offset: 161,
+      #|      start_line: 9,
+      #|      start_column: 29,
+      #|      end_line: 9,
+      #|      end_column: 46,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: InvalidExternType(
+      #|      name="aggregate_parameter",
+      #|      type_=Function([Constructor({ index: 0 })], Primitive(Int), Empty),
+      #|      restriction=DirectParameterRequired(index=0),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 203,
+      #|      end_offset: 232,
+      #|      start_line: 10,
+      #|      start_column: 42,
+      #|      end_line: 10,
+      #|      end_column: 71,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: InvalidExternType(
+      #|      name="aggregate_result",
+      #|      type_=Function([], Constructor({ index: 0 }), Empty),
+      #|      restriction=DirectResultRequired,
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 268,
+      #|      end_offset: 294,
+      #|      start_line: 11,
+      #|      start_column: 36,
+      #|      end_line: 11,
+      #|      end_column: 62,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: InvalidExternType(
+      #|      name="open_effect",
+      #|      type_=Function([Primitive(Int)], Primitive(Int), Parameter({ index: 1 })),
+      #|      restriction=ExternalEffectRowRequired,
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 348,
+      #|      end_offset: 369,
+      #|      start_line: 13,
+      #|      start_column: 3,
+      #|      end_line: 13,
+      #|      end_column: 24,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: InvalidExternType(
+      #|      name="algebraic_effect",
+      #|      type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
+      #|      restriction=ExternalEffectRowRequired,
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 414,
+      #|      end_offset: 440,
+      #|      start_line: 15,
+      #|      start_column: 43,
+      #|      end_line: 15,
+      #|      end_column: 69,
+      #|    },
+      #|  },
       #|]
     ),
   )
@@ -609,9 +690,21 @@ test "typecheck accepts external types and closed external effect rows" {
 test "typecheck rejects parameterized external host types" {
   let result = expect_typecheck_result("extern type Box[A] : Type")
   debug_inspect(
-    result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+    result.diagnostics,
     content=(
-      #|[ExternalTypeParametersNotSupported(name="Box")]
+      #|[
+      #|  {
+      #|    kind: ExternalTypeParametersNotSupported(name="Box"),
+      #|    loc: {
+      #|      start_offset: 12,
+      #|      end_offset: 37,
+      #|      start_line: 2,
+      #|      start_column: 1,
+      #|      end_line: 2,
+      #|      end_column: 26,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -1119,11 +1212,21 @@ test "typecheck reports forward top level value use" {
   )
   let resolution = @resolve.resolve_source_file_result(file)
   debug_inspect(
-    resolution.diagnostics.map(fn(diagnostic) {
-      @prettyprinter.render(diagnostic, width=100)
-    }),
+    resolution.diagnostics,
     content=(
-      #|["unresolved_value second"]
+      #|[
+      #|  {
+      #|    kind: UnresolvedValue("second"),
+      #|    loc: {
+      #|      start_offset: 30,
+      #|      end_offset: 36,
+      #|      start_line: 2,
+      #|      start_column: 19,
+      #|      end_line: 2,
+      #|      end_column: 25,
+      #|    },
+      #|  },
+      #|]
     ),
   )
   let result = typecheck_source_file(resolution.source)
@@ -1264,11 +1367,21 @@ test "typecheck reports local function forward reference" {
   )
   let resolution = @resolve.resolve_source_file_result(file)
   debug_inspect(
-    resolution.diagnostics.map(fn(diagnostic) {
-      @prettyprinter.render(diagnostic, width=100)
-    }),
+    resolution.diagnostics,
     content=(
-      #|["unresolved_value local"]
+      #|[
+      #|  {
+      #|    kind: UnresolvedValue("local"),
+      #|    loc: {
+      #|      start_offset: 51,
+      #|      end_offset: 59,
+      #|      start_line: 4,
+      #|      start_column: 18,
+      #|      end_line: 4,
+      #|      end_column: 26,
+      #|    },
+      #|  },
+      #|]
     ),
   )
   let result = typecheck_source_file(resolution.source)
@@ -1958,13 +2071,25 @@ test "typecheck rejects effect evidence from invalid callback body" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[generic_argument_inference_failed consume missing E]
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="consume",
+      #|      failure=MissingGenericArguments(parameters=[{ id: { index: 0 }, name: "E", kind: Effect }]),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 155,
+      #|      end_offset: 220,
+      #|      start_line: 9,
+      #|      start_column: 17,
+      #|      end_line: 12,
+      #|      end_column: 5,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -2018,13 +2143,30 @@ test "typecheck rejects callback effect measurement before its shape is ground" 
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[generic_argument_inference_failed consume missing A,E]
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="consume",
+      #|      failure=MissingGenericArguments(
+      #|        parameters=[
+      #|          { id: { index: 0 }, name: "A", kind: Type },
+      #|          { id: { index: 1 }, name: "E", kind: Effect },
+      #|        ],
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 101,
+      #|      end_offset: 129,
+      #|      start_line: 6,
+      #|      start_column: 3,
+      #|      end_line: 6,
+      #|      end_column: 31,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -2041,13 +2183,30 @@ test "typecheck does not infer callback result from its return annotation" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[generic_argument_inference_failed consume missing R,E]
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="consume",
+      #|      failure=MissingGenericArguments(
+      #|        parameters=[
+      #|          { id: { index: 0 }, name: "R", kind: Type },
+      #|          { id: { index: 1 }, name: "E", kind: Effect },
+      #|        ],
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 100,
+      #|      end_offset: 126,
+      #|      start_line: 6,
+      #|      start_column: 3,
+      #|      end_line: 6,
+      #|      end_column: 29,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -2067,13 +2226,25 @@ test "typecheck does not decompose forall arguments during generic inference" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[generic_argument_inference_failed consume missing R]
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="consume",
+      #|      failure=MissingGenericArguments(parameters=[{ id: { index: 0 }, name: "R", kind: Type }]),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 131,
+      #|      end_offset: 148,
+      #|      start_line: 9,
+      #|      start_column: 3,
+      #|      end_line: 9,
+      #|      end_column: 20,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -2097,20 +2268,37 @@ test "typecheck does not backtrack ambiguous effect row inference" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
       #|[
-      #|  generic_argument_inference_failed consume ambiguous_effect_row expected={
-      #|    effect#0[tparam#1],
-      #|    effect#0[tparam#2]
-      #|  } actual={
-      #|    effect#0[Int],
-      #|    effect#0[Bool]
-      #|  }
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="consume",
+      #|      failure=AmbiguousEffectRowInference(
+      #|        expected=Union(
+      #|          [
+      #|            Singleton({ index: 0 }, [TypeArgument(Parameter({ index: 1 }))]),
+      #|            Singleton({ index: 0 }, [TypeArgument(Parameter({ index: 2 }))]),
+      #|          ],
+      #|        ),
+      #|        actual=Union(
+      #|          [
+      #|            Singleton({ index: 0 }, [TypeArgument(Primitive(Int))]),
+      #|            Singleton({ index: 0 }, [TypeArgument(Primitive(Bool))]),
+      #|          ],
+      #|        ),
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 274,
+      #|      end_offset: 282,
+      #|      start_line: 13,
+      #|      start_column: 11,
+      #|      end_line: 13,
+      #|      end_column: 19,
+      #|    },
+      #|  },
       #|]
     ),
   )
@@ -2137,13 +2325,30 @@ test "typecheck keeps unmatched effect rows as constraint mismatches" {
       #|}
     ),
   )
-  guard result.diagnostics is [diagnostic] else {
-    abort("expected one diagnostic")
-  }
-  guard diagnostic.kind is GenericArgumentInferenceFailed(failure~, ..) else {
-    abort("expected generic argument inference failure")
-  }
-  assert_true(failure is GenericArgumentConstraintMismatch(..))
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="consume",
+      #|      failure=GenericArgumentConstraintMismatch(
+      #|        expected=EffectArgument(Union([Singleton({ index: 0 }, []), Parameter({ index: 0 })])),
+      #|        actual=EffectArgument(Singleton({ index: 1 }, [])),
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 225,
+      #|      end_offset: 233,
+      #|      start_line: 15,
+      #|      start_column: 11,
+      #|      end_line: 15,
+      #|      end_column: 19,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|
@@ -2210,13 +2415,33 @@ test "typecheck does not infer polymorphic recursion" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[generic_argument_inference_failed recurse recursive A type#0[tparam#1]]
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="recurse",
+      #|      failure=RecursiveGenericArgument(
+      #|        parameter={ id: { index: 1 }, name: "A", kind: Type },
+      #|        actual=TypeArgument(
+      #|          Apply(
+      #|            Constructor({ index: 0 }),
+      #|            [TypeArgument(Parameter({ index: 1 }))],
+      #|          ),
+      #|        ),
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 82,
+      #|      end_offset: 97,
+      #|      start_line: 6,
+      #|      start_column: 11,
+      #|      end_line: 6,
+      #|      end_column: 26,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -2445,13 +2670,30 @@ test "typecheck reports missing struct literal generic arguments" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[generic_argument_inference_failed struct literal generic arguments missing S,A]
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="struct literal generic arguments",
+      #|      failure=MissingGenericArguments(
+      #|        parameters=[
+      #|          { id: { index: 0 }, name: "S", kind: Type },
+      #|          { id: { index: 1 }, name: "A", kind: Type },
+      #|        ],
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 166,
+      #|      end_offset: 292,
+      #|      start_line: 13,
+      #|      start_column: 15,
+      #|      end_line: 20,
+      #|      end_column: 4,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -2982,22 +3224,84 @@ test "typecheck reports kind mismatch for higher-kinded struct literal type argu
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
       #|[
-      #|  kind_mismatch expected=[Type] -> Type actual=Type,
-      #|  type_mismatch expected=forall [
-      #|    tparam#4 A : Type,
-      #|    tparam#5 B : Type
-      #|  ]. (Int[tparam#4], (tparam#4) -> tparam#5) -> Int[tparam#5] actual=forall [
-      #|    tparam#1 T : Type,
-      #|    tparam#2 R : Type
-      #|  ]. (type#0[tparam#1], (tparam#1) -> tparam#2) -> type#0[tparam#2],
-      #|  type_mismatch expected=type#1[type#0] actual=type#1[Int]
+      #|  {
+      #|    kind: KindMismatch(expected=Function([Type], Type), actual=Type),
+      #|    loc: {
+      #|      start_offset: 332,
+      #|      end_offset: 335,
+      #|      start_line: 15,
+      #|      start_column: 39,
+      #|      end_line: 15,
+      #|      end_column: 42,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: TypeMismatch(
+      #|      expected=Forall(
+      #|        [
+      #|          { id: { index: 4 }, name: "A", kind: Type },
+      #|          { id: { index: 5 }, name: "B", kind: Type },
+      #|        ],
+      #|        Function(
+      #|          [
+      #|            Apply(Primitive(Int), [TypeArgument(Parameter({ index: 4 }))]),
+      #|            Function([Parameter({ index: 4 })], Parameter({ index: 5 }), Empty),
+      #|          ],
+      #|          Apply(Primitive(Int), [TypeArgument(Parameter({ index: 5 }))]),
+      #|          Empty,
+      #|        ),
+      #|      ),
+      #|      actual=Forall(
+      #|        [
+      #|          { id: { index: 1 }, name: "T", kind: Type },
+      #|          { id: { index: 2 }, name: "R", kind: Type },
+      #|        ],
+      #|        Function(
+      #|          [
+      #|            Apply(
+      #|              Constructor({ index: 0 }),
+      #|              [TypeArgument(Parameter({ index: 1 }))],
+      #|            ),
+      #|            Function([Parameter({ index: 1 })], Parameter({ index: 2 }), Empty),
+      #|          ],
+      #|          Apply(
+      #|            Constructor({ index: 0 }),
+      #|            [TypeArgument(Parameter({ index: 2 }))],
+      #|          ),
+      #|          Empty,
+      #|        ),
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 347,
+      #|      end_offset: 357,
+      #|      start_line: 16,
+      #|      start_column: 8,
+      #|      end_line: 16,
+      #|      end_column: 18,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: TypeMismatch(
+      #|      expected=Apply(
+      #|        Constructor({ index: 1 }),
+      #|        [TypeArgument(Constructor({ index: 0 }))],
+      #|      ),
+      #|      actual=Apply(Constructor({ index: 1 }), [TypeArgument(Primitive(Int))]),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 323,
+      #|      end_offset: 359,
+      #|      start_line: 15,
+      #|      start_column: 30,
+      #|      end_line: 17,
+      #|      end_column: 2,
+      #|    },
+      #|  },
       #|]
     ),
   )
@@ -3034,16 +3338,52 @@ test "typecheck reports kind mismatch for higher-kinded qualified variant type a
       #|let boxed : Box[Option] = Box[Int]::wrap(Option::some(1))
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
       #|[
-      #|  kind_mismatch expected=[Type] -> Type actual=Type,
-      #|  type_mismatch expected=Int[Int] actual=type#0[Int],
-      #|  type_mismatch expected=type#1[type#0] actual=type#1[Int]
+      #|  {
+      #|    kind: KindMismatch(expected=Function([Type], Type), actual=Type),
+      #|    loc: {
+      #|      start_offset: 128,
+      #|      end_offset: 131,
+      #|      start_line: 9,
+      #|      start_column: 31,
+      #|      end_line: 9,
+      #|      end_column: 34,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: TypeMismatch(
+      #|      expected=Apply(Primitive(Int), [TypeArgument(Primitive(Int))]),
+      #|      actual=Apply(Constructor({ index: 0 }), [TypeArgument(Primitive(Int))]),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 139,
+      #|      end_offset: 154,
+      #|      start_line: 9,
+      #|      start_column: 42,
+      #|      end_line: 9,
+      #|      end_column: 57,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: TypeMismatch(
+      #|      expected=Apply(
+      #|        Constructor({ index: 1 }),
+      #|        [TypeArgument(Constructor({ index: 0 }))],
+      #|      ),
+      #|      actual=Apply(Constructor({ index: 1 }), [TypeArgument(Primitive(Int))]),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 124,
+      #|      end_offset: 155,
+      #|      start_line: 9,
+      #|      start_column: 27,
+      #|      end_line: 9,
+      #|      end_column: 58,
+      #|    },
+      #|  },
       #|]
     ),
   )
@@ -3115,13 +3455,28 @@ test "typecheck does not synthesize higher-order lambda during generic inference
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[generic_argument_inference_failed consume constraint_mismatch expected=tparam#2 actual=type#0]
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="consume",
+      #|      failure=GenericArgumentConstraintMismatch(
+      #|        expected=TypeArgument(Parameter({ index: 2 })),
+      #|        actual=TypeArgument(Constructor({ index: 0 })),
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 158,
+      #|      end_offset: 163,
+      #|      start_line: 9,
+      #|      start_column: 11,
+      #|      end_line: 9,
+      #|      end_column: 16,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -3134,13 +3489,22 @@ test "typecheck defaults unannotated alias header parameter kind to Type" {
       #|let answer : ApplyInt[Int] = 42
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[kind_mismatch expected=[] -> Type actual=Type]
+      #|[
+      #|  {
+      #|    kind: KindMismatch(expected=Function([], Type), actual=Type),
+      #|    loc: {
+      #|      start_offset: 31,
+      #|      end_offset: 37,
+      #|      start_line: 2,
+      #|      start_column: 20,
+      #|      end_line: 2,
+      #|      end_column: 26,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -3153,13 +3517,22 @@ test "typecheck reports duplicate type alias header parameter" {
       #|let answer : Int = 42
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[duplicate_type_parameter A]
+      #|[
+      #|  {
+      #|    kind: DuplicateTypeParameter(name="A"),
+      #|    loc: {
+      #|      start_offset: 24,
+      #|      end_offset: 25,
+      #|      start_line: 2,
+      #|      start_column: 13,
+      #|      end_line: 2,
+      #|      end_column: 14,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -3173,13 +3546,33 @@ test "typecheck reports type alias cycle" {
       #|let answer : A = 42
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[type_alias_cycle A, type_alias_cycle B]
+      #|[
+      #|  {
+      #|    kind: TypeAliasCycle(name="A"),
+      #|    loc: {
+      #|      start_offset: 32,
+      #|      end_offset: 33,
+      #|      start_line: 3,
+      #|      start_column: 10,
+      #|      end_line: 3,
+      #|      end_column: 11,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: TypeAliasCycle(name="B"),
+      #|    loc: {
+      #|      start_offset: 21,
+      #|      end_offset: 22,
+      #|      start_line: 2,
+      #|      start_column: 10,
+      #|      end_line: 2,
+      #|      end_column: 11,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -3532,11 +3925,27 @@ test "typecheck reports ambiguous unqualified enum variant" {
   )
   let resolution = @resolve.resolve_source_file_result(file)
   debug_inspect(
-    resolution.diagnostics.map(fn(diagnostic) {
-      @prettyprinter.render(diagnostic, width=100)
-    }),
+    resolution.diagnostics,
     content=(
-      #|["ambiguous_variant same [Left::same, Right::same]"]
+      #|[
+      #|  {
+      #|    kind: AmbiguousUnqualifiedVariant(
+      #|      name="same",
+      #|      candidates=[
+      #|        { owner: "Left", variant: "same" },
+      #|        { owner: "Right", variant: "same" },
+      #|      ],
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 86,
+      #|      end_offset: 93,
+      #|      start_line: 9,
+      #|      start_column: 3,
+      #|      end_line: 9,
+      #|      end_column: 10,
+      #|    },
+      #|  },
+      #|]
     ),
   )
   let result = typecheck_source_file(resolution.source)
@@ -3951,11 +4360,21 @@ test "typecheck keeps unresolved type as error type" {
   )
   let resolution = @resolve.resolve_source_file_result(file)
   debug_inspect(
-    resolution.diagnostics.map(fn(diagnostic) {
-      @prettyprinter.render(diagnostic, width=100)
-    }),
+    resolution.diagnostics,
     content=(
-      #|["unresolved_type Missing"]
+      #|[
+      #|  {
+      #|    kind: UnresolvedType("Missing"),
+      #|    loc: {
+      #|      start_offset: 37,
+      #|      end_offset: 44,
+      #|      start_line: 3,
+      #|      start_column: 13,
+      #|      end_line: 3,
+      #|      end_column: 20,
+      #|    },
+      #|  },
+      #|]
     ),
   )
   let result = typecheck_declarations(resolution.source)
@@ -4304,13 +4723,22 @@ test "typecheck rejects operation call in pure function" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[effect_mismatch expected={} actual=effect#0]
+      #|[
+      #|  {
+      #|    kind: EffectMismatch(expected=Empty, actual=Singleton({ index: 0 }, [])),
+      #|    loc: {
+      #|      start_offset: 72,
+      #|      end_offset: 99,
+      #|      start_line: 5,
+      #|      start_column: 18,
+      #|      end_line: 7,
+      #|      end_column: 2,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -4425,13 +4853,22 @@ test "typecheck checks operation payload type" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[type_mismatch expected=String actual=Int]
+      #|[
+      #|  {
+      #|    kind: TypeMismatch(expected=Primitive(String), actual=Primitive(Int)),
+      #|    loc: {
+      #|      start_offset: 102,
+      #|      end_offset: 103,
+      #|      start_line: 6,
+      #|      start_column: 19,
+      #|      end_line: 6,
+      #|      end_column: 20,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -4448,13 +4885,33 @@ test "typecheck checks operation payload arity" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[application_arity_mismatch effect operation arity, effect_mismatch expected=effect#0 actual={}]
+      #|[
+      #|  {
+      #|    kind: ApplicationArityMismatch(label="effect operation arity"),
+      #|    loc: {
+      #|      start_offset: 86,
+      #|      end_offset: 103,
+      #|      start_line: 6,
+      #|      start_column: 3,
+      #|      end_line: 6,
+      #|      end_column: 20,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: EffectMismatch(expected=Singleton({ index: 0 }, []), actual=Empty),
+      #|    loc: {
+      #|      start_offset: 82,
+      #|      end_offset: 105,
+      #|      start_line: 5,
+      #|      start_column: 28,
+      #|      end_line: 7,
+      #|      end_column: 2,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -5044,13 +5501,33 @@ test "typecheck reports effect alias cycle" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[type_alias_cycle A, type_alias_cycle B]
+      #|[
+      #|  {
+      #|    kind: TypeAliasCycle(name="A"),
+      #|    loc: {
+      #|      start_offset: 38,
+      #|      end_offset: 39,
+      #|      start_line: 3,
+      #|      start_column: 12,
+      #|      end_line: 3,
+      #|      end_column: 13,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: TypeAliasCycle(name="B"),
+      #|    loc: {
+      #|      start_offset: 23,
+      #|      end_offset: 24,
+      #|      start_line: 2,
+      #|      start_column: 12,
+      #|      end_line: 2,
+      #|      end_column: 13,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -5065,13 +5542,22 @@ test "typecheck rejects type-kind alias in effect position" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[kind_mismatch expected=Effect actual=Type]
+      #|[
+      #|  {
+      #|    kind: KindMismatch(expected=Effect, actual=Type),
+      #|    loc: {
+      #|      start_offset: 53,
+      #|      end_offset: 59,
+      #|      start_line: 3,
+      #|      start_column: 24,
+      #|      end_line: 3,
+      #|      end_column: 30,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -5091,13 +5577,53 @@ test "typecheck validates explicit type alias result kinds" {
     ),
   )
   debug_inspect(
-    result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+    result.diagnostics,
     content=(
       #|[
-      #|  KindMismatch(expected=Type, actual=Effect),
-      #|  KindMismatch(expected=Effect, actual=Type),
-      #|  KindMismatch(expected=Function([Type], Type), actual=Type),
-      #|  KindMismatch(expected=Type, actual=Function([Type], Type)),
+      #|  {
+      #|    kind: KindMismatch(expected=Type, actual=Effect),
+      #|    loc: {
+      #|      start_offset: 110,
+      #|      end_offset: 114,
+      #|      start_line: 6,
+      #|      start_column: 18,
+      #|      end_line: 6,
+      #|      end_column: 22,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Effect, actual=Type),
+      #|    loc: {
+      #|      start_offset: 148,
+      #|      end_offset: 154,
+      #|      start_line: 7,
+      #|      start_column: 20,
+      #|      end_line: 7,
+      #|      end_column: 26,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Function([Type], Type), actual=Type),
+      #|    loc: {
+      #|      start_offset: 185,
+      #|      end_offset: 199,
+      #|      start_line: 8,
+      #|      start_column: 25,
+      #|      end_line: 8,
+      #|      end_column: 39,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Type, actual=Function([Type], Type)),
+      #|    loc: {
+      #|      start_offset: 228,
+      #|      end_offset: 232,
+      #|      start_line: 9,
+      #|      start_column: 23,
+      #|      end_line: 9,
+      #|      end_column: 27,
+      #|    },
+      #|  },
       #|]
     ),
   )
@@ -5116,13 +5642,22 @@ test "typecheck rejects type argument for effect alias parameter" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(
-      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
-      width=100,
-    ),
+  debug_inspect(
+    result.diagnostics,
     content=(
-      #|[kind_mismatch expected=Effect actual=Type]
+      #|[
+      #|  {
+      #|    kind: KindMismatch(expected=Effect, actual=Type),
+      #|    loc: {
+      #|      start_offset: 120,
+      #|      end_offset: 123,
+      #|      start_line: 6,
+      #|      start_column: 29,
+      #|      end_line: 6,
+      #|      end_column: 32,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
@@ -5137,9 +5672,21 @@ test "typecheck reports normalization fuel exhaustion as internal diagnostic" {
     TypeNormalizationFuelExhausted,
   )
   debug_inspect(
-    diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+    diagnostics,
     content=(
-      #|[InternalTypecheckFailure(label="type-level computation did not terminate while normalizing type alias body")]
+      #|[
+      #|  {
+      #|    kind: InternalTypecheckFailure(label="type-level computation did not terminate while normalizing type alias body"),
+      #|    loc: {
+      #|      start_offset: 0,
+      #|      end_offset: 0,
+      #|      start_line: 1,
+      #|      start_column: 1,
+      #|      end_line: 1,
+      #|      end_column: 1,
+      #|    },
+      #|  },
+      #|]
     ),
   )
 }
