@@ -109,20 +109,22 @@ fn SemanticChecker::seed_imported_top_level_value_type(
         }),
       )
     Offer => {
-      self.offer_symbol_with_source_id(
-        self.offers,
-        value.symbol,
-        value.type_,
-        source_id,
-        value.loc,
-      )
-      self.offer_symbol_with_source_id(
-        self.ordered_offers,
-        value.symbol,
-        value.type_,
-        source_id,
-        value.loc,
-      )
+      if self.imported_offer_is_visible(value.symbol) {
+        self.offer_symbol_with_source_id(
+          self.offers,
+          value.symbol,
+          value.type_,
+          source_id,
+          value.loc,
+        )
+        self.offer_symbol_with_source_id(
+          self.ordered_offers,
+          value.symbol,
+          value.type_,
+          source_id,
+          value.loc,
+        )
+      }
       self.values.push(
         Let({
           is_public: true,
@@ -134,6 +136,16 @@ fn SemanticChecker::seed_imported_top_level_value_type(
       )
     }
   }
+}
+
+///|
+fn SemanticChecker::imported_offer_is_visible(
+  self : SemanticChecker,
+  symbol : ValueSymbolId,
+) -> Bool {
+  self.resolved_source.import_symbols.any(fn(imported) {
+    imported.symbol == ValueSymbol(symbol)
+  })
 }
 
 ///|

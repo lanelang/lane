@@ -38,3 +38,4 @@ pub(all) suberror WasmCompileError {
 // Type aliases
 
 // Traits
+

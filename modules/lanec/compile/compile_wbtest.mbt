@@ -1039,6 +1039,180 @@ test "compile sources accepts selective import with module dot syntax" {
 }
 
 ///|
+fn contextual_import_test_library() -> String {
+  (
+    #|module Ops
+    #|pub struct Add[A] {
+    #|  add : (A, A) -> A
+    #|}
+    #|pub fn[A] op_add(left : A, right : A, auto op : Add[A]) -> A {
+    #|  op.add(left, right)
+    #|}
+    #|pub offer int_add_ops : Add[Int] = Add::{ add: fn(left : Int, right : Int) -> Int { builtin("%i64_add")(left, right) } }
+  )
+}
+
+///|
+test "selective import does not expose an unselected contextual offer" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Ops.{ op_add }
+      #|pub let answer : Int = 1 + 1
+    ),
+    [contextual_import_test_library()],
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "missing contextual offer",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 57,
+      #|          end_offset: 62,
+      #|          start_line: 3,
+      #|          start_column: 24,
+      #|          end_line: 3,
+      #|          end_column: 29,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3013"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 57,
+      #|            end_offset: 62,
+      #|            start_line: 3,
+      #|            start_column: 24,
+      #|            end_line: 3,
+      #|            end_column: 29,
+      #|          },
+      #|        ),
+      #|        message: "no visible offer matches required type `Add[Int]`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["contextual arguments are inserted only from visible `offer` bindings with matching type"],
+      #|    helps: ["pass the argument explicitly or add a visible `offer` with type `Add[Int]`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "qualified import does not expose a contextual offer" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Ops
+      #|pub let answer : Int = Ops.op_add(1, 1)
+    ),
+    [contextual_import_test_library()],
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "missing contextual offer",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 46,
+      #|          end_offset: 62,
+      #|          start_line: 3,
+      #|          start_column: 24,
+      #|          end_line: 3,
+      #|          end_column: 40,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3013"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 46,
+      #|            end_offset: 62,
+      #|            start_line: 3,
+      #|            start_column: 24,
+      #|            end_line: 3,
+      #|            end_column: 40,
+      #|          },
+      #|        ),
+      #|        message: "no visible offer matches required type `Add[Int]`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["contextual arguments are inserted only from visible `offer` bindings with matching type"],
+      #|    helps: ["pass the argument explicitly or add a visible `offer` with type `Add[Int]`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "qualified offer can be passed as an explicit contextual argument" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Ops
+      #|pub let answer : Int = Ops.op_add(1, 1, op=Ops.int_add_ops)
+    ),
+    [contextual_import_test_library()],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(_) else { abort("expected checked source") }
+}
+
+///|
+test "selective import exposes an explicitly selected contextual offer" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Ops.{ op_add, int_add_ops }
+      #|pub let answer : Int = 1 + 1
+    ),
+    [contextual_import_test_library()],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(_) else { abort("expected checked source") }
+}
+
+///|
+test "open import exposes contextual offers" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Ops.*
+      #|pub let answer : Int = 1 + 1
+    ),
+    [contextual_import_test_library()],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(_) else { abort("expected checked source") }
+}
+
+///|
 test "compile sources links only root reachable library modules" {
   let result = compile_sources(
     (

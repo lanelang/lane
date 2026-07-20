@@ -102,6 +102,8 @@ _Avoid_: placeholder builtin, implementation-only primitive
 - A local **Offered Value Definition** is visible from its declaration point to the end of the current block.
 - A top-level **Offered Value Definition** contributes to the top-level contextual offer environment.
 - **Contextual Offers** use lexical scope and affect only **Contextual Resolution**.
+- An imported **Contextual Offer** is visible only when an open import or selective import exposes its value name unqualified.
+- A qualified module import does not implicitly expose its offers; a qualified offer value may still be passed as an **Explicit Contextual Argument**.
 - A **Contextual Parameter** is not an **Offered Parameter** unless it is explicitly marked as offered.
 - **Operator Aliases** are fixed mappings to **Operation Names**.
 - `&&` and `||` are **Short-Circuit Boolean Operations** and elaborate to **Thunked Operator Calls**.

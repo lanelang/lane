@@ -133,3 +133,4 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact
 // Type aliases
 
 // Traits
+

@@ -48,3 +48,4 @@ pub(all) enum LoisvmLoweringStage {
 // Type aliases
 
 // Traits
+

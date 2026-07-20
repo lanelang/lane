@@ -81,3 +81,4 @@ pub impl Show for Document
 pub(open) trait Pretty {
   fn pretty(Self) -> Document
 }
+
