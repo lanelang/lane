@@ -73,7 +73,7 @@ fn synthetic_layout_semicolon_lines(source : String) -> Array[Int] raise {
   let lexed = @lexer.tokens_from_string(source)
   assert_true(lexed.errors.is_empty())
   let lines = []
-  for item in layout_yacc_tokens(lexed.concrete) {
+  for item in prepare_layout_tokens(lexed.concrete).tokens {
     let (token, start, _) = item
     if token is LAYOUT_SEMICOLON {
       lines.push(start.start_line)
@@ -303,10 +303,10 @@ test "parse declarations and blocks keep complete source spans" {
     content=(
       #|(
       #|  {
-      #|    start_offset: 16,
+      #|    start_offset: 12,
       #|    end_offset: 41,
       #|    start_line: 2,
-      #|    start_column: 5,
+      #|    start_column: 1,
       #|    end_line: 2,
       #|    end_column: 30,
       #|  },

@@ -55,6 +55,7 @@ pub fn ParseResult::syntax(Self) -> @syntax.SourceFile?
 pub(all) struct ParsedSource {
   syntax : @syntax.SourceFile
   concrete : @lexer.ConcreteSyntax
+  layout_separator_gaps : Array[Bool]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct TokenSummary {

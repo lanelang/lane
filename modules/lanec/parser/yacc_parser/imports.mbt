@@ -107,6 +107,23 @@ fn make_external_type(
 }
 
 ///|
+fn with_public_loc(
+  declaration : TopLevelDeclaration,
+  loc : SourceSpan,
+) -> TopLevelDeclaration {
+  match declaration {
+    Struct(value) => Struct({ ..value, loc, })
+    Enum(value) => Enum({ ..value, loc, })
+    Effect(value) => Effect({ ..value, loc, })
+    ExternalType(value) => ExternalType({ ..value, loc, })
+    TypeAlias(value) => TypeAlias({ ..value, loc, })
+    Function(value) => Function({ ..value, loc, })
+    Let(value) => Let({ ..value, loc, })
+    Offer(value) => Offer({ ..value, loc, })
+  }
+}
+
+///|
 fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
   items.push(item)
   items

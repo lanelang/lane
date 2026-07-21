@@ -117,6 +117,7 @@ pub(all) enum Expr {
   Unary(operator~ : UnaryOperator, operand~ : Expr, loc~ : @basic.SourceSpan)
   Binary(operator~ : BinaryOperator, left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
   Pipeline(left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
+  Grouped(expression~ : Expr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Expr::loc(Self) -> @basic.SourceSpan
 pub impl @source_prettyprinter.Pretty for Expr
@@ -210,6 +211,7 @@ pub(all) enum Kind {
   Type(loc~ : @basic.SourceSpan)
   Effect(loc~ : @basic.SourceSpan)
   Function(parameters~ : Array[Kind], result~ : Kind, loc~ : @basic.SourceSpan)
+  Grouped(kind~ : Kind, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Kind::loc(Self) -> @basic.SourceSpan
 pub impl @source_prettyprinter.Pretty for Kind
@@ -317,8 +319,12 @@ pub(all) struct SourceFormatTrivia {
   has_trailing : (@basic.SourceSpan) -> Bool
   boundary : (Int, Int) -> @source_prettyprinter.Document
   has_boundary : (Int, Int) -> Bool
-  delimited : (Char, Int, Int) -> @source_prettyprinter.Document
-  has_delimited : (Char, Int, Int) -> Bool
+  delimited : (Char, Int, Int, Array[@basic.SourceSpan]) -> @source_prettyprinter.Document
+  has_delimited : (Char, Int, Int, Array[@basic.SourceSpan]) -> Bool
+  comma_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
+  item_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
+  top_level_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
+  struct_field_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
   eof : () -> @source_prettyprinter.Document
 }
 pub fn SourceFormatTrivia::empty() -> Self
@@ -374,6 +380,7 @@ pub(all) enum Type {
   Apply(callee~ : Type, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[TypeParameter], body~ : Type, loc~ : @basic.SourceSpan)
   Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, effect~ : EffectTerm, loc~ : @basic.SourceSpan)
+  Grouped(type_~ : Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Type::loc(Self) -> @basic.SourceSpan
 pub impl @source_prettyprinter.Pretty for Type

@@ -6,15 +6,21 @@ priv enum LayoutDelimiter {
 }
 
 ///|
-fn layout_yacc_tokens(
-  concrete : @lexer.ConcreteSyntax,
-) -> Array[(@yacc_parser.Token, SourceSpan, SourceSpan)] {
+priv struct LayoutTokenStream {
+  tokens : Array[(@yacc_parser.Token, SourceSpan, SourceSpan)]
+  separator_gaps : Array[Bool]
+}
+
+///|
+fn prepare_layout_tokens(concrete : @lexer.ConcreteSyntax) -> LayoutTokenStream {
   let tokens = []
   let delimiters : Array[LayoutDelimiter] = []
   let newline_gaps = collect_newline_gaps(concrete)
+  let separator_gaps = Array::make(concrete.tokens.length(), false)
   for index, item in concrete.tokens {
     let (token, loc) = item
     if should_insert_layout_semicolon(concrete, index, delimiters, newline_gaps) {
+      separator_gaps[index] = true
       let separator = token_end_position(concrete.tokens[index - 1].1)
       tokens.push((@yacc_parser.LAYOUT_SEMICOLON, separator, separator))
     }
@@ -35,7 +41,7 @@ fn layout_yacc_tokens(
       _ => ()
     }
   }
-  tokens
+  { tokens, separator_gaps }
 }
 
 ///|

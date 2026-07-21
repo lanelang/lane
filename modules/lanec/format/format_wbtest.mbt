@@ -64,7 +64,10 @@ test "formatter consumes the complete trivia attachment view" {
   guard @parser.parse_string(source) is Parsed(parsed) else {
     abort("expected parsed source")
   }
-  let trivia = TriviaPlan::make(parsed.concrete).start_session()
+  let trivia = ConcreteLayout::make(
+    parsed.concrete,
+    parsed.layout_separator_gaps,
+  ).start_session()
   ignore(
     @prettyprinter.render(
       @syntax.format_source_file_with_trivia(
@@ -75,10 +78,11 @@ test "formatter consumes the complete trivia attachment view" {
     ),
   )
   debug_inspect(
-    trivia.plan.comments.mapi(fn(index, comment) {
+    trivia.layout.comments.mapi(fn(index, comment) {
       let placement = match comment.placement {
         Leading(span) => ("leading", span.start_offset, span.end_offset)
         Trailing(span) => ("trailing", span.start_offset, span.end_offset)
+        Boundary => ("boundary", -1, -1)
         EndOfFile => ("eof", -1, -1)
       }
       (
@@ -98,7 +102,7 @@ test "formatter consumes the complete trivia attachment view" {
       #|    "// before second",
       #|    124,
       #|    140,
-      #|    ("leading", 143, 145),
+      #|    ("boundary", -1, -1),
       #|    false,
       #|    false,
       #|    true,
@@ -144,7 +148,10 @@ test "formatter reports unconsumed concrete comments" {
   guard @parser.parse_string(source) is Parsed(parsed) else {
     abort("expected parsed source")
   }
-  let trivia = TriviaPlan::make(parsed.concrete).start_session()
+  let trivia = ConcreteLayout::make(
+    parsed.concrete,
+    parsed.layout_separator_gaps,
+  ).start_session()
   ignore(trivia.source_format_trivia())
   debug_inspect(
     trivia
@@ -1676,6 +1683,67 @@ test "format source treats trailing comments as general line boundaries" {
       #|  callee // call callee
       #|  (42)
       #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves explicit expression type and kind grouping" {
+  assert_format(
+    (
+      #|module Test
+      #|pub type Nested = ((Int))
+      #|pub type Higher[F : ([Type] -> Type)] = F[Int]
+      #|pub fn grouped(value : Int) -> Int { ((value + 1)) }
+    ),
+    (
+      #|module Test
+      #|
+      #|pub type Nested = ((Int))
+      #|
+      #|pub type Higher[F : ([Type] -> Type)] = F[Int]
+      #|
+      #|pub fn grouped(value : Int) -> Int {
+      #|  ((value + 1))
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format grouping and function suffixes share width decisions" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn eval_if_int(
+      #|  condition : Eval[Bool],
+      #|  then_branch : Eval[Int],
+      #|  else_branch : Eval[Int]
+      #|) -> Eval[Int] {
+      #|  then_branch
+      #|}
+      #|pub let handled : Int =
+      #|  (program
+      #|    |> handle_ask
+      #|    |> handle_log)()
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn eval_if_int(
+      #|  condition : Eval[Bool],
+      #|  then_branch : Eval[Int],
+      #|  else_branch : Eval[Int]
+      #|) -> Eval[Int] {
+      #|  then_branch
+      #|}
+      #|
+      #|pub let handled : Int =
+      #|  (program
+      #|    |> handle_ask
+      #|    |> handle_log)()
       #|
     ),
   )

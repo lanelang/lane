@@ -82,13 +82,14 @@ pub(all) enum Kind {
   Type(loc~ : SourceSpan)
   Effect(loc~ : SourceSpan)
   Function(parameters~ : Array[Kind], result~ : Kind, loc~ : SourceSpan)
+  Grouped(kind~ : Kind, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|
 /// Returns the source span covered by this kind syntax node.
 pub fn Kind::loc(self : Kind) -> SourceSpan {
   match self {
-    Type(loc~) | Effect(loc~) | Function(loc~, ..) => loc
+    Type(loc~) | Effect(loc~) | Function(loc~, ..) | Grouped(loc~, ..) => loc
   }
 }
 
@@ -238,6 +239,7 @@ pub(all) enum Type {
     effect~ : EffectTerm,
     loc~ : SourceSpan
   )
+  Grouped(type_~ : Type, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|
@@ -262,7 +264,8 @@ pub fn Type::loc(self : Type) -> SourceSpan {
     | QualifiedName(loc~, ..)
     | Apply(loc~, ..)
     | TypeLambda(loc~, ..)
-    | Function(loc~, ..) => loc
+    | Function(loc~, ..)
+    | Grouped(loc~, ..) => loc
   }
 }
 
@@ -328,6 +331,7 @@ pub(all) enum Expr {
     loc~ : SourceSpan
   )
   Pipeline(left~ : Expr, right~ : Expr, loc~ : SourceSpan)
+  Grouped(expression~ : Expr, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|
@@ -356,7 +360,8 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | Field(loc~, ..)
     | Unary(loc~, ..)
     | Binary(loc~, ..)
-    | Pipeline(loc~, ..) => loc
+    | Pipeline(loc~, ..)
+    | Grouped(loc~, ..) => loc
   }
 }
 

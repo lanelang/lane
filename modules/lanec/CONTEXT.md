@@ -59,13 +59,17 @@ _Avoid_: copied comment text, formatter string, AST span
 A trivia fact that records its source span, kind, and position in the concrete token gap between two tokens, including EOF.
 _Avoid_: token-owned trivia arrays, AST-owned comments, inferred source gaps
 
-**Trivia Plan**:
-An immutable formatter-local classification of **Gap-Indexed Trivia** into leading, trailing, syntax-boundary, matched-delimiter, or EOF attachments.
-_Avoid_: mutable render state, lexer policy, AST-owned comments
+**Concrete Layout**:
+An immutable formatter-local index over concrete tokens, parser layout separators, and **Gap-Indexed Trivia**. It records leading, trailing, grammar-separator, delimiter, and EOF ownership without a punctuation denylist.
+_Avoid_: mutable render state, repeated whole-stream scans, AST-owned comments
 
-**Trivia Session**:
-A one-format claim ledger over a **Trivia Plan** that verifies every planned comment is emitted exactly once without mutating the plan itself.
+**Concrete Layout Session**:
+A one-format claim ledger over a **Concrete Layout** that verifies every indexed comment is emitted exactly once without mutating the layout itself.
 _Avoid_: attachment classification, width decisions, reusable formatter state
+
+**Source Grouping Node**:
+A syntax-only `Grouped` kind, type, or expression node that preserves authored parentheses for formatting and is erased when resolution constructs semantic syntax.
+_Avoid_: semantic parenthesis type, formatter reconstruction, precedence guess
 
 **EOF Token**:
 The non-printing end-of-file token kept in the concrete token stream as the anchor for final trivia.
@@ -475,23 +479,28 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
 - **Concrete Syntax** owns the original source text used for formatting;
   **Gap-Indexed Trivia** values reference that text by source span and
   classified trivia kind instead of copying comment text.
-- **Trivia Plan** is derived from **Gap-Indexed Trivia** at formatting time;
-  concrete tokens do not store leading or trailing trivia arrays directly. A
-  **Trivia Session** records one render's claims separately from that plan.
+- **Concrete Layout** is derived from concrete tokens, parser-produced layout
+  separator gaps, and **Gap-Indexed Trivia** at formatting time. Its ordered
+  comment and anchor indexes avoid repeated whole-stream scans. A **Concrete
+  Layout Session** records one render's claims separately from that index.
 - The concrete token stream includes an **EOF Token**; formatting consumes its
   attached trivia but renders no token text for EOF.
 - **Trivia Attachment** is a formatting concern; source elaboration, type
   checking, and semantic lowering should continue to consume comment-free AST
   data.
-- **Trivia Attachment** is based first on **Token Boundary Trivia**; node-level
-  formatting helpers may consume attached trivia, but AST nodes do not own
-  comments directly.
+- **Trivia Attachment** is based first on **Token Boundary Trivia**. Grammar
+  separators own comments around comma, item, top-level, and struct-field
+  boundaries; syntax nodes own leading, trailing, operator, delimiter, and EOF
+  boundaries. AST nodes do not store comments directly.
 - A **Trailing Comment** remains trailing on the syntax unit it originally
-  followed unless a following comma would be hidden by that line comment; in
-  that case the comma renders first and the comment leads the next list item.
+  followed unless a grammar separator owns its concrete gap; the separator then
+  renders before the comment so line-comment layout cannot hide punctuation.
 - A **Trailing Comment** renders through **Line Comment Layout**. Expression
-  printers such as pipeline, binary, field, and call formatting must not add
-  comment-specific continuation branches.
+  printers query structural operand and member boundaries; they must not infer
+  ownership from token-category lists or rendered strings.
+- Explicit parentheses are represented by **Source Grouping Nodes** in the
+  source AST. Resolution erases them, so semantic consumers remain independent
+  of authored grouping while formatting never has to reconstruct it.
 - The formatter preserves comments and comment-associated grouping gaps from
   the **Trivia Stream**. Pure blank-line-only gaps, ordinary spacing,
   indentation, and line breaks are generated from syntax structure by

@@ -26,6 +26,7 @@ pub(all) struct ParseError {
 pub(all) struct ParsedSource {
   syntax : @syntax.SourceFile
   concrete : @lexer.ConcreteSyntax
+  layout_separator_gaps : Array[Bool]
 } derive(Debug, Eq)
 
 ///|

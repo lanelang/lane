@@ -172,7 +172,7 @@ top_level_declaration -> TopLevelDeclaration
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
   | offer_value_declaration { Offer($1) }
-  | "pub" public_top_level_declaration { $2 }
+  | "pub" public_top_level_declaration { with_public_loc($2, span($sloc)) }
   ;
 
 public_top_level_declaration -> TopLevelDeclaration
@@ -267,7 +267,7 @@ kind -> Kind
   | "[" kind_list "]" "->" kind {
     Function(parameters=$2, result=$5, loc=span($sloc))
   }
-  | "(" kind ")" { $2 }
+  | "(" kind ")" { Grouped(kind=$2, loc=span($sloc)) }
   ;
 
 kind_list -> Array[Kind]
@@ -495,7 +495,7 @@ type_primary -> Type
   | IDENT {
     Name(name=$1, loc=span($sloc))
   }
-  | "(" type ")" %prec PAREN_TYPE { $2 }
+  | "(" type ")" %prec PAREN_TYPE { Grouped(type_=$2, loc=span($sloc)) }
   ;
 
 qualified_type_name -> Type
@@ -671,7 +671,7 @@ non_owner_primary_expression -> Expr
   | "true" { BoolLiteral(true, loc=span($sloc)) }
   | "false" { BoolLiteral(false, loc=span($sloc)) }
   | "(" ")" { UnitLiteral(loc=span($sloc)) }
-  | "(" expression ")" { $2 }
+  | "(" expression ")" { Grouped(expression=$2, loc=span($sloc)) }
   | block_expression { $1 }
   | if_expression { $1 }
   | match_expression { $1 }

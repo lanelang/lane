@@ -12,7 +12,8 @@ pub fn parse_string(source : String) -> ParseResult {
 ///|
 /// Parses a concrete token stream into a source file.
 pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
-  let source = @yacc_parser.source_file(layout_yacc_tokens(concrete)) catch {
+  let layout = prepare_layout_tokens(concrete)
+  let source = @yacc_parser.source_file(layout.tokens) catch {
     UnexpectedEndOfInput(loc, expected) =>
       return Failed(
         Grammar(concrete, [
@@ -26,7 +27,11 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
       )
     }
   }
-  Parsed({ syntax: source, concrete })
+  Parsed({
+    syntax: source,
+    concrete,
+    layout_separator_gaps: layout.separator_gaps,
+  })
 }
 
 ///|

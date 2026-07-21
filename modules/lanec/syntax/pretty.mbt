@@ -57,11 +57,22 @@ fn bracketed_type_parameters(
   } else {
     let docs = parameters.map(fn(parameter) { parameter.to_doc(trivia~) })
     let (dangling, force_break) = if start_offset >= 0 && end_offset >= 0 {
-      trivia.take_delimited('[', start_offset, end_offset)
+      trivia.take_delimited(
+        '[',
+        start_offset,
+        end_offset,
+        child_spans=parameters.map(fn(parameter) { parameter.loc }),
+      )
     } else {
       (empty, false)
     }
-    bracketed_comma_list(docs, dangling~, force_break~)
+    bracketed_comma_list(
+      docs,
+      item_spans=parameters.map(fn(parameter) { parameter.loc }),
+      trivia~,
+      dangling~,
+      force_break~,
+    )
   }
 }
 
@@ -77,11 +88,22 @@ fn bracketed_type_arguments(
   } else {
     let docs = arguments.map(fn(argument) { argument.to_doc(trivia~) })
     let (dangling, force_break) = if start_offset >= 0 && end_offset >= 0 {
-      trivia.take_delimited('[', start_offset, end_offset)
+      trivia.take_delimited(
+        '[',
+        start_offset,
+        end_offset,
+        child_spans=arguments.map(Type::loc),
+      )
     } else {
       (empty, false)
     }
-    bracketed_comma_list(docs, dangling~, force_break~)
+    bracketed_comma_list(
+      docs,
+      item_spans=arguments.map(Type::loc),
+      trivia~,
+      dangling~,
+      force_break~,
+    )
   }
 }
 
@@ -103,32 +125,61 @@ fn SourceFile::to_doc(
   self : SourceFile,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
-  let docs = [
-    trivia.decorate_trailing(
-      self.module_path.loc,
-      keyword("module") + space + self.module_path.to_doc(),
-    ),
-  ]
+  let mut doc = trivia.decorate_trailing(
+    self.module_path.loc,
+    keyword("module") + space + self.module_path.to_doc(),
+  )
+  let mut previous = self.module_path.loc
   if !self.imports.is_empty() {
-    docs.push(
-      separate(
-        hardline,
+    doc = doc +
+      (trivia.top_level_separator)(previous, self.imports[0].loc()) +
+      separate_source_items(
         self.imports.map(fn(import_) { import_.to_doc(trivia~) }),
-      ),
-    )
+        self.imports.map(ImportDeclaration::loc),
+        trivia,
+      )
+    previous = self.imports[self.imports.length() - 1].loc()
   }
   if !self.declarations.is_empty() {
-    docs.push(
-      separate(
-        hardline + hardline,
+    doc = doc +
+      (trivia.top_level_separator)(previous, self.declarations[0].loc()) +
+      separate_top_level_items(
         self.declarations.map(fn(declaration) { declaration.to_doc(trivia~) }),
-      ),
-    )
+        self.declarations.map(TopLevelDeclaration::loc),
+        trivia,
+      )
   }
-  trivia.decorate_leading(
-    self.loc,
-    separate(hardline + hardline, docs) + (trivia.eof)(),
-  )
+  trivia.decorate_leading(self.loc, doc + (trivia.eof)())
+}
+
+///|
+fn separate_top_level_items(
+  docs : Array[Document],
+  spans : Array[SourceSpan],
+  trivia : SourceFormatTrivia,
+) -> Document {
+  guard !docs.is_empty() else { return empty }
+  let mut result = docs[0]
+  for index in 1..<docs.length() {
+    result = result +
+      (trivia.top_level_separator)(spans[index - 1], spans[index]) +
+      docs[index]
+  }
+  result
+}
+
+///|
+fn TopLevelDeclaration::loc(self : TopLevelDeclaration) -> SourceSpan {
+  match self {
+    Struct(value) => value.loc
+    Enum(value) => value.loc
+    Effect(value) => value.loc
+    ExternalType(value) => value.loc
+    TypeAlias(value) => value.loc
+    Function(value) => value.loc
+    Let(value) => value.loc
+    Offer(value) => value.loc
+  }
 }
 
 ///|
@@ -163,13 +214,22 @@ fn ImportDeclaration::to_doc(
       let start_offset = module_path.loc.end_offset
       let end_offset = self.loc().end_offset
       let (dangling, force_break) = trivia.take_delimited(
-        '{', start_offset, end_offset,
+        '{',
+        start_offset,
+        end_offset,
+        child_spans=items.map(fn(item) { item.loc }),
       )
       keyword("import") +
       space +
       module_path.to_doc() +
       text(".") +
-      braced_comma_list(item_docs, dangling~, force_break~)
+      braced_comma_list(
+        item_docs,
+        item_spans=items.map(fn(item) { item.loc }),
+        trivia~,
+        dangling~,
+        force_break~,
+      )
     }
   }
   trivia.decorate(self.loc(), doc)
@@ -209,6 +269,17 @@ fn StructMember::loc(self : StructMember) -> SourceSpan {
   match self {
     TypeMember(declaration) => declaration.loc
     Field(field) => field.loc
+  }
+}
+
+///|
+fn LocalItem::loc(self : LocalItem) -> SourceSpan {
+  match self {
+    Let(declaration) => declaration.loc
+    PatternLet(declaration) => declaration.loc
+    Function(declaration) => declaration.loc
+    Offer(declaration) => declaration.loc
+    Expression(loc~, ..) => loc
   }
 }
 
@@ -348,6 +419,7 @@ fn StructDeclaration::to_doc(
     '{',
     self.loc.start_offset,
     self.loc.end_offset,
+    child_spans=self.members.map(StructMember::loc),
   )
   let header = public_prefix(self.is_public) +
     keyword("struct") +
@@ -368,6 +440,8 @@ fn StructDeclaration::to_doc(
     header,
     brace_block(
       member_docs,
+      item_spans=self.members.map(StructMember::loc),
+      trivia~,
       dangling=body_dangling,
       force_break=force_body_break,
     ),
@@ -444,8 +518,37 @@ fn Kind::to_doc(
       space +
       result.to_doc(trivia~)
     }
+    Grouped(kind~, loc~) => {
+      let (dangling, force_break) = trivia.take_delimited(
+        '(',
+        loc.start_offset,
+        loc.end_offset,
+      )
+      if force_break {
+        parenthesized_comma_list(
+          [kind.to_doc(trivia~)],
+          dangling~,
+          force_break~,
+        )
+      } else {
+        char('(') + kind.to_doc(trivia~) + char(')')
+      }
+    }
   }
   trivia.decorate(self.loc(), doc)
+}
+
+///|
+fn Type::function_parameter_doc(
+  self : Type,
+  single_parameter : Bool,
+  trivia : SourceFormatTrivia,
+) -> Document {
+  if single_parameter && self is Grouped(type_~, ..) {
+    type_.to_doc(trivia~)
+  } else {
+    self.to_doc(trivia~)
+  }
 }
 
 ///|
@@ -478,6 +581,7 @@ fn EffectDeclaration::to_doc(
     '{',
     self.loc.start_offset,
     self.loc.end_offset,
+    child_spans=self.operations.map(fn(operation) { operation.loc }),
   )
   let header = public_prefix(self.is_public) +
     keyword("effect") +
@@ -498,6 +602,8 @@ fn EffectDeclaration::to_doc(
     header,
     brace_block(
       operation_docs,
+      item_spans=self.operations.map(fn(operation) { operation.loc }),
+      trivia~,
       dangling=body_dangling,
       force_break=force_body_break,
     ),
@@ -541,6 +647,7 @@ fn EffectOperationDeclaration::to_doc(
     '(',
     payload_start,
     self.result.loc().start_offset,
+    child_spans=self.payload.map(Type::loc),
   )
   let result = self.result.to_doc(trivia~)
   let (arrow_boundary, force_arrow_break) = trivia.take_boundary(
@@ -557,6 +664,8 @@ fn EffectOperationDeclaration::to_doc(
     parenthesized_comma_list_with_suffix(
       payload_docs,
       suffix,
+      item_spans=self.payload.map(Type::loc),
+      trivia~,
       dangling=payload_dangling,
       force_break=force_payload_break,
     )
@@ -611,6 +720,7 @@ fn EnumDeclaration::to_doc(
     '{',
     self.loc.start_offset,
     self.loc.end_offset,
+    child_spans=self.variants.map(fn(variant) { variant.loc }),
   )
   let header = public_prefix(self.is_public) +
     keyword("enum") +
@@ -631,6 +741,8 @@ fn EnumDeclaration::to_doc(
     header,
     brace_block(
       variant_docs,
+      item_spans=self.variants.map(fn(variant) { variant.loc }),
+      trivia~,
       dangling=body_dangling,
       force_break=force_body_break,
     ),
@@ -667,11 +779,14 @@ fn EnumVariant::to_doc(
     '(',
     payload_start,
     self.loc.end_offset,
+    child_spans=self.payload.map(Type::loc),
   )
   let doc = text(self.name) +
     type_parameters +
     parenthesized_comma_list(
       payload_docs,
+      item_spans=self.payload.map(Type::loc),
+      trivia~,
       dangling=payload_dangling,
       force_break=force_payload_break,
     )
@@ -770,7 +885,10 @@ fn FunctionDeclaration::to_doc(
   let parameter_start = self.name_loc.end_offset
   let parameter_end = self.return_type.loc().start_offset
   let (parameter_dangling, force_parameter_break) = trivia.take_delimited(
-    '(', parameter_start, parameter_end,
+    '(',
+    parameter_start,
+    parameter_end,
+    child_spans=self.parameters.map(fn(parameter) { parameter.loc }),
   )
   let return_doc = self.return_type.to_doc(trivia~) +
     self.effect.to_annotation_doc(trivia~)
@@ -798,6 +916,8 @@ fn FunctionDeclaration::to_doc(
     parenthesized_comma_list_with_suffix(
       parameter_docs,
       parameter_suffix,
+      item_spans=self.parameters.map(fn(parameter) { parameter.loc }),
+      trivia~,
       dangling=parameter_dangling,
       force_break=force_parameter_break,
     ) +
@@ -927,8 +1047,9 @@ fn Type::to_doc(
       space +
       body.to_doc(trivia~)
     Function(type_parameters~, parameters~, result~, effect~, loc~) => {
+      let single_parameter = parameters.length() == 1
       let parameter_docs = parameters.map(fn(parameter) {
-        parameter.to_doc(trivia~)
+        parameter.function_parameter_doc(single_parameter, trivia)
       })
       let type_parameter_end = if parameters.is_empty() {
         result.loc().start_offset
@@ -970,6 +1091,22 @@ fn Type::to_doc(
       ) +
       suffix
     }
+    Grouped(type_~, loc~) => {
+      let (dangling, force_break) = trivia.take_delimited(
+        '(',
+        loc.start_offset,
+        loc.end_offset,
+      )
+      if force_break {
+        parenthesized_comma_list(
+          [type_.to_doc(trivia~)],
+          dangling~,
+          force_break~,
+        )
+      } else {
+        char('(') + type_.to_doc(trivia~) + char(')')
+      }
+    }
   }
   trivia.decorate(self.loc(), doc)
 }
@@ -988,8 +1125,15 @@ fn EffectTerm::to_doc(
         '{',
         loc.start_offset,
         loc.end_offset,
+        child_spans=items.map(Type::loc),
       )
-      braced_comma_list(item_docs, dangling~, force_break~)
+      braced_comma_list(
+        item_docs,
+        item_spans=items.map(Type::loc),
+        trivia~,
+        dangling~,
+        force_break~,
+      )
     }
   }
   trivia.decorate(self.loc(), doc)
@@ -1112,19 +1256,21 @@ fn Expr::to_doc_with_precedence(
     }
     StructLiteral(owner~, fields~, loc~) => {
       let head = owner.to_doc() + text("::")
-      let field_docs = fields.mapi(fn(index, field) {
-        field.to_doc_with_separator(index + 1 < fields.length(), trivia~)
-      })
+      let field_docs = fields.map(fn(field) { field.to_doc(trivia~) })
+      let field_spans = fields.map(StructLiteralField::loc)
       let (field_dangling, force_field_break) = trivia.take_delimited(
         '{',
         owner.loc().end_offset,
         loc.end_offset,
+        child_spans=field_spans,
       )
       (
         10,
         head +
         struct_literal_fields_doc(
           field_docs,
+          field_spans,
+          trivia,
           dangling=field_dangling,
           force_break=force_field_break,
         ),
@@ -1136,11 +1282,14 @@ fn Expr::to_doc_with_precedence(
         '[',
         loc.start_offset,
         loc.end_offset,
+        child_spans=items.map(Expr::loc),
       )
       (
         10,
         bracketed_comma_list(
           item_docs,
+          item_spans=items.map(Expr::loc),
+          trivia~,
           dangling=item_dangling,
           force_break=force_item_break,
         ),
@@ -1269,12 +1418,15 @@ fn Expr::to_doc_with_precedence(
     Block(items~, result~, loc~) => {
       let docs = items.map(fn(item) { item.to_doc(trivia~) })
       docs.push(standalone_expr_doc(result, trivia))
+      let item_spans = items.map(LocalItem::loc)
+      item_spans.push(result.loc())
       let (dangling, force_break) = trivia.take_delimited(
         '{',
         loc.start_offset,
         loc.end_offset,
+        child_spans=item_spans,
       )
-      (10, brace_block(docs, dangling~, force_break~))
+      (10, brace_block(docs, item_spans~, trivia~, dangling~, force_break~))
     }
     If(condition~, then_branch~, else_branch~, ..) => {
       let then_doc = standalone_expr_doc(then_branch, trivia)
@@ -1300,6 +1452,7 @@ fn Expr::to_doc_with_precedence(
         '{',
         loc.start_offset,
         loc.end_offset,
+        child_spans=arms.map(fn(arm) { arm.loc }),
       )
       let arm_start = if arms.is_empty() {
         loc.end_offset
@@ -1308,7 +1461,13 @@ fn Expr::to_doc_with_precedence(
       }
       let body = boundary_separated(
         breakable_head(keyword("match"), scrutinee.to_doc(trivia~)),
-        brace_block(arm_docs, dangling~, force_break~),
+        brace_block(
+          arm_docs,
+          item_spans=arms.map(fn(arm) { arm.loc }),
+          trivia~,
+          dangling~,
+          force_break~,
+        ),
         scrutinee.loc().end_offset,
         arm_start,
         trivia,
@@ -1322,13 +1481,18 @@ fn Expr::to_doc_with_precedence(
       let argument_start = callee.loc().end_offset
       let argument_end = loc.end_offset
       let (argument_dangling, force_argument_break) = trivia.take_delimited(
-        '(', argument_start, argument_end,
+        '(',
+        argument_start,
+        argument_end,
+        child_spans=arguments.map(CallArgument::loc),
       )
       (
         9,
         callee.to_doc_with_precedence(9, trivia~) +
         parenthesized_comma_list(
           argument_docs,
+          item_spans=arguments.map(CallArgument::loc),
+          trivia~,
           dangling=argument_dangling,
           force_break=force_argument_break,
         ),
@@ -1336,33 +1500,55 @@ fn Expr::to_doc_with_precedence(
     }
     Field(..) => (9, self.field_chain_doc(trivia~))
     Unary(operator~, operand~, ..) => {
-      let separator = if (trivia.has_leading)(operand.loc()) {
-        space
-      } else {
-        empty
-      }
-      (
-        8,
-        operator.to_doc() +
-        separator +
-        nest(operand.to_doc_with_precedence(8, trivia~)),
+      let (boundary, force_break) = trivia.take_boundary(
+        self.loc().start_offset,
+        operand.loc().start_offset,
       )
+      let operand_doc = operand.to_doc_with_precedence(8, trivia~)
+      let body = if force_break {
+        operator.to_doc() + space + boundary + nest(hardline + operand_doc)
+      } else {
+        operator.to_doc() + operand_doc
+      }
+      (8, body)
     }
     Binary(operator~, left~, right~, ..) => {
       let precedence = operator.precedence()
-      let right_has_leading = (trivia.has_leading)(right.loc())
       let left_doc = left.to_doc_with_precedence(precedence, trivia~)
+      let (boundary, force_break) = trivia.take_boundary(
+        left.loc().end_offset,
+        right.loc().start_offset,
+      )
       let right_doc = right.to_doc_with_precedence(precedence + 1, trivia~)
       (
         precedence,
-        if right_has_leading {
-          left_doc + space + operator.to_doc() + space + nest(right_doc)
+        if force_break {
+          left_doc +
+          space +
+          operator.to_doc() +
+          space +
+          boundary +
+          nest(hardline + right_doc)
         } else {
           group(left_doc + nest(line + operator.to_doc() + space + right_doc))
         },
       )
     }
     Pipeline(..) => (1, self.pipeline_chain_doc(trivia~))
+    Grouped(expression~, loc~) => {
+      let (dangling, force_break) = trivia.take_delimited(
+        '(',
+        loc.start_offset,
+        loc.end_offset,
+      )
+      let expression_doc = expression.to_doc_with_precedence(0, trivia~)
+      let grouped = if force_break {
+        parenthesized_comma_list([expression_doc], dangling~, force_break~)
+      } else {
+        char('(') + expression_doc + char(')')
+      }
+      (10, grouped)
+    }
   }
   let result = if precedence < context_precedence { parens(doc) } else { doc }
   trivia.decorate(self.loc(), result)
@@ -1375,21 +1561,22 @@ fn Expr::pipeline_chain_doc(
 ) -> Document {
   let (root, segments) = self.pipeline_chain_parts()
   let root_doc = root.to_doc_with_precedence(1, trivia~)
-  let segment_has_leading = segments.map(fn(segment) {
-    (trivia.has_leading)(segment.loc())
-  })
-  let segment_docs = segments.map(fn(segment) {
-    segment.to_doc_with_precedence(2, trivia~)
-  })
   let displayed_segment_docs = []
-  for index, segment_doc in segment_docs {
+  let mut previous_end = root.loc().end_offset
+  for segment in segments {
+    let (boundary, force_break) = trivia.take_boundary(
+      previous_end,
+      segment.loc().start_offset,
+    )
+    let segment_doc = segment.to_doc_with_precedence(2, trivia~)
     displayed_segment_docs.push(
-      if segment_has_leading[index] {
-        nest(segment_doc)
+      if force_break {
+        boundary + nest(hardline + segment_doc)
       } else {
         segment_doc
       },
     )
+    previous_end = segment.loc().end_offset
   }
   guard !displayed_segment_docs.is_empty() else { return root_doc }
   dynamic(fn(context) {
@@ -1449,6 +1636,10 @@ fn Expr::field_chain_doc(
   if self is Field(base~, name~, loc~) {
     let boundary_start = base.loc().end_offset
     let boundary_end = loc.end_offset
+    if (trivia.has_trailing)(base.loc()) {
+      let base_doc = base.to_doc_with_precedence(9, trivia~)
+      return base_doc + nest(hardline + text(".") + text(name))
+    }
     if (trivia.has_boundary)(boundary_start, boundary_end) {
       let boundary = (trivia.boundary)(boundary_start, boundary_end)
       let base_doc = base.to_doc_with_precedence(9, trivia~)
@@ -1503,8 +1694,15 @@ fn HandlerWithBlock::to_doc(
     '{',
     self.loc.start_offset,
     self.loc.end_offset,
+    child_spans=self.arms.map(fn(arm) { arm.loc }),
   )
-  let block = brace_block(arm_docs, dangling~, force_break~)
+  let block = brace_block(
+    arm_docs,
+    item_spans=self.arms.map(fn(arm) { arm.loc }),
+    trivia~,
+    dangling~,
+    force_break~,
+  )
   let header_end = if self.arms.is_empty() {
     self.loc.end_offset
   } else {
@@ -1584,51 +1782,71 @@ fn StructLiteralField::to_doc(
   self : StructLiteralField,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
-  self.to_doc_with_separator(false, trivia~)
-}
-
-///|
-fn StructLiteralField::to_doc_with_separator(
-  self : StructLiteralField,
-  has_next : Bool,
-  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
-) -> Document {
   let (span, doc) = match self {
     Value(name~, value~, loc~) =>
       match value {
-        Some(Var(value_name, loc=value_loc)) if value_name == name &&
-          !(trivia.has_leading)(value_loc) &&
-          !(trivia.has_trailing)(value_loc) => (loc, text(name))
-        Some(value) =>
-          (loc, text(name) + text(":") + space + value.to_doc(trivia~))
+        Some(value) => {
+          let (boundary, force_break) = trivia.take_boundary(
+            loc.start_offset,
+            value.loc().start_offset,
+          )
+          if force_break {
+            (
+              loc,
+              text(name) +
+              text(":") +
+              space +
+              boundary +
+              hardline +
+              value.to_doc(trivia~),
+            )
+          } else if value is Var(value_name, ..) && value_name == name {
+            (loc, text(name))
+          } else {
+            (loc, text(name) + text(":") + space + value.to_doc(trivia~))
+          }
+        }
         None => (loc, text(name))
       }
     TypeWitness(name~, witness~, loc~) =>
       (loc, text(name) + space + text("=") + space + witness.to_doc())
   }
-  let suffix = if has_next && !(trivia.has_trailing)(span) {
-    text(",")
-  } else {
-    empty
-  }
-  trivia.decorate(span, doc + suffix)
+  trivia.decorate(span, doc)
 }
 
 ///|
 fn struct_literal_fields_doc(
   field_docs : Array[Document],
+  field_spans : Array[SourceSpan],
+  trivia : SourceFormatTrivia,
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
+  let separators = []
+  for index in 1..<field_docs.length() {
+    separators.push(
+      (trivia.struct_field_separator)(
+        field_spans[index - 1],
+        field_spans[index],
+      ),
+    )
+  }
   delimited_list(
     char('{'),
     char('}'),
     line,
-    line,
+    separators,
     field_docs,
     dangling~,
     force_break~,
   )
+}
+
+///|
+fn StructLiteralField::loc(self : StructLiteralField) -> SourceSpan {
+  match self {
+    Value(loc~, ..) | TypeWitness(loc~, ..) => loc
+  }
 }
 
 ///|
@@ -1720,7 +1938,12 @@ fn function_literal_head_doc(
   }
   let (parameter_dangling, force_parameter_break) = if start_offset >= 0 &&
     parameter_end >= 0 {
-    trivia.take_delimited('(', parameter_start, parameter_end)
+    trivia.take_delimited(
+      '(',
+      parameter_start,
+      parameter_end,
+      child_spans=parameters.map(fn(parameter) { parameter.loc }),
+    )
   } else {
     (empty, false)
   }
@@ -1747,6 +1970,8 @@ fn function_literal_head_doc(
   type_parameters_doc +
   parenthesized_comma_list(
     parameter_docs,
+    item_spans=parameters.map(fn(parameter) { parameter.loc }),
+    trivia~,
     dangling=parameter_dangling,
     force_break=force_parameter_break,
   ) +

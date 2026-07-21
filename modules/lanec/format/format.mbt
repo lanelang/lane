@@ -11,6 +11,7 @@ using @prettyprinter {
   type Document,
   empty,
   hardline,
+  line,
   line_comment,
   separate,
   text,
@@ -66,16 +67,19 @@ fn format_parsed_source_with_options(
   parsed : @parser.ParsedSource,
   options : FormatOptions,
 ) -> Result[String, Array[CompilerDiagnostic]] {
-  let trivia = TriviaPlan::make(parsed.concrete).start_session()
+  let layout = ConcreteLayout::make(
+    parsed.concrete,
+    parsed.layout_separator_gaps,
+  ).start_session()
   let formatted = @prettyprinter.render(
       @syntax.format_source_file_with_trivia(
         parsed.syntax,
-        trivia.source_format_trivia(),
+        layout.source_format_trivia(),
       ),
       width=options.width,
     ) +
     "\n"
-  let diagnostics = trivia.unconsumed_comment_diagnostics()
+  let diagnostics = layout.unconsumed_comment_diagnostics()
   if diagnostics.is_empty() {
     Ok(formatted)
   } else {
@@ -94,6 +98,7 @@ priv struct FormatComment {
 priv enum CommentPlacement {
   Leading(@basic.SourceSpan)
   Trailing(@basic.SourceSpan)
+  Boundary
   EndOfFile
 }
 
@@ -107,19 +112,31 @@ priv struct AnchoredComment {
 }
 
 ///|
-priv struct TriviaPlan {
-  comments : Array[AnchoredComment]
-  tokens : Array[(@lexer.Token, @basic.SourceSpan)]
+priv struct CommentAnchor {
+  offset : Int
+  comment_index : Int
 }
 
 ///|
-priv struct TriviaSession {
-  plan : TriviaPlan
+priv struct ConcreteLayout {
+  comments : Array[AnchoredComment]
+  leading_anchors : Array[CommentAnchor]
+  trailing_anchors : Array[CommentAnchor]
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)]
+  layout_separator_gaps : Array[Bool]
+}
+
+///|
+priv struct ConcreteLayoutSession {
+  layout : ConcreteLayout
   claimed : Array[Bool]
 }
 
 ///|
-fn TriviaPlan::make(concrete : @lexer.ConcreteSyntax) -> TriviaPlan {
+fn ConcreteLayout::make(
+  concrete : @lexer.ConcreteSyntax,
+  layout_separator_gaps : Array[Bool],
+) -> ConcreteLayout {
   let source_tokens = non_eof_tokens(concrete.tokens)
   let comments : Array[FormatComment] = []
   for item in concrete.trivia {
@@ -145,22 +162,41 @@ fn TriviaPlan::make(concrete : @lexer.ConcreteSyntax) -> TriviaPlan {
     }
   }
   let anchored = []
+  let leading_anchors = []
+  let trailing_anchors = []
   for index, comment in comments {
-    anchored.push(
-      anchor_comment(
-        comment,
-        source_tokens,
-        blank_before_comment(comment, comments, index, source_tokens),
-        blank_after_comment(comment, comments, index, source_tokens),
-      ),
+    let anchored_comment = place_comment(
+      comment,
+      source_tokens,
+      layout_separator_gaps,
+      blank_before_comment(comment, comments, index, source_tokens),
+      blank_after_comment(comment, comments, index, source_tokens),
     )
+    let comment_index = anchored.length()
+    if anchored_comment.placement is Leading(span) {
+      leading_anchors.push({ offset: span.start_offset, comment_index })
+    } else if anchored_comment.placement is Trailing(span) {
+      trailing_anchors.push({ offset: span.end_offset, comment_index })
+    }
+    anchored.push(anchored_comment)
   }
-  { comments: anchored, tokens: source_tokens }
+  {
+    comments: anchored,
+    leading_anchors,
+    trailing_anchors,
+    tokens: source_tokens,
+    layout_separator_gaps,
+  }
 }
 
 ///|
-fn TriviaPlan::start_session(self : TriviaPlan) -> TriviaSession {
-  { plan: self, claimed: Array::make(self.comments.length(), false) }
+fn ConcreteLayout::start_session(
+  self : ConcreteLayout,
+) -> ConcreteLayoutSession {
+  if self.layout_separator_gaps.length() != self.tokens.length() + 1 {
+    abort("formatter concrete layout is out of sync with parser tokens")
+  }
+  { layout: self, claimed: Array::make(self.comments.length(), false) }
 }
 
 ///|
@@ -186,31 +222,57 @@ fn line_comment_is_standalone(
 }
 
 ///|
-fn TriviaSession::source_format_trivia(
-  self : TriviaSession,
+fn ConcreteLayoutSession::source_format_trivia(
+  self : ConcreteLayoutSession,
 ) -> @syntax.SourceFormatTrivia {
-  let comments = self.plan.comments
-  let tokens = self.plan.tokens
+  let comments = self.layout.comments
+  let leading_anchors = self.layout.leading_anchors
+  let trailing_anchors = self.layout.trailing_anchors
+  let tokens = self.layout.tokens
   let claimed = self.claimed
   if comments.is_empty() {
     return @syntax.SourceFormatTrivia::empty()
   }
   {
-    leading: fn(span) { leading_comment_doc(comments, claimed, span) },
-    trailing: fn(span) { trailing_comment_doc(comments, claimed, span) },
-    has_leading: fn(span) { has_leading_comment(comments, span) },
-    has_trailing: fn(span) { has_trailing_comment(comments, span) },
+    leading: fn(span) {
+      leading_comment_doc(comments, leading_anchors, claimed, span)
+    },
+    trailing: fn(span) {
+      trailing_comment_doc(comments, trailing_anchors, claimed, span)
+    },
+    has_leading: fn(span) {
+      has_comment_anchor(leading_anchors, span.start_offset)
+    },
+    has_trailing: fn(span) {
+      has_comment_anchor(trailing_anchors, span.end_offset)
+    },
     boundary: fn(start, end) {
       dangling_comment_doc(comments, claimed, start, end)
     },
     has_boundary: fn(start, end) {
       has_dangling_comment(comments, claimed, start, end)
     },
-    delimited: fn(open, start, end) {
-      delimited_comment_doc(comments, claimed, tokens, open, start, end)
+    delimited: fn(open, start, end, children) {
+      delimited_comment_doc(
+        comments, claimed, tokens, open, start, end, children,
+      )
     },
-    has_delimited: fn(open, start, end) {
-      has_delimited_comment(comments, claimed, tokens, open, start, end)
+    has_delimited: fn(open, start, end, children) {
+      has_delimited_comment(
+        comments, claimed, tokens, open, start, end, children,
+      )
+    },
+    comma_separator: fn(left, right) {
+      comma_separator_doc(comments, claimed, left, right)
+    },
+    item_separator: fn(left, right) {
+      item_separator_doc(comments, claimed, left, right)
+    },
+    top_level_separator: fn(left, right) {
+      top_level_separator_doc(comments, claimed, left, right)
+    },
+    struct_field_separator: fn(left, right) {
+      struct_field_separator_doc(comments, claimed, tokens, left, right)
     },
     eof: fn() { eof_comment_doc(comments, claimed) },
   }
@@ -224,9 +286,17 @@ fn has_delimited_comment(
   open : Char,
   start_offset : Int,
   end_offset : Int,
+  child_spans : Array[@basic.SourceSpan],
 ) -> Bool {
   match delimiter_interior(tokens, open, start_offset, end_offset) {
-    Some((start, end)) => has_dangling_comment(comments, claimed, start, end)
+    Some((start, end)) =>
+      has_dangling_comment(
+        comments,
+        claimed,
+        start,
+        end,
+        excluded_boundaries=child_spans,
+      )
     None => false
   }
 }
@@ -239,9 +309,17 @@ fn delimited_comment_doc(
   open : Char,
   start_offset : Int,
   end_offset : Int,
+  child_spans : Array[@basic.SourceSpan],
 ) -> Document {
   match delimiter_interior(tokens, open, start_offset, end_offset) {
-    Some((start, end)) => dangling_comment_doc(comments, claimed, start, end)
+    Some((start, end)) =>
+      dangling_comment_doc(
+        comments,
+        claimed,
+        start,
+        end,
+        excluded_boundaries=child_spans,
+      )
     None => empty
   }
 }
@@ -255,11 +333,9 @@ fn delimiter_interior(
 ) -> (Int, Int)? {
   let mut depth = 0
   let mut interior_start = -1
-  for item in tokens {
-    let (token, span) = item
-    if span.start_offset < start_offset {
-      continue
-    }
+  let mut index = first_token_at_or_after(tokens, start_offset)
+  while index < tokens.length() {
+    let (token, span) = tokens[index]
     if span.end_offset > end_offset {
       break
     }
@@ -274,6 +350,7 @@ fn delimiter_interior(
         return Some((interior_start, span.start_offset))
       }
     }
+    index += 1
   }
   None
 }
@@ -304,14 +381,22 @@ fn has_dangling_comment(
   claimed : Array[Bool],
   start_offset : Int,
   end_offset : Int,
+  excluded_boundaries? : Array[@basic.SourceSpan] = [],
 ) -> Bool {
-  for index, comment in comments {
+  let mut index = first_comment_at_or_after(comments, start_offset)
+  while index < comments.length() {
+    let comment = comments[index]
+    if comment.span.start_offset > end_offset {
+      break
+    }
     if !claimed[index] &&
-      comment.placement is Leading(_) &&
+      !(comment.placement is Boundary) &&
       comment.span.start_offset >= start_offset &&
-      comment.span.end_offset <= end_offset {
+      comment.span.end_offset <= end_offset &&
+      !comment_is_between_children(comment, excluded_boundaries) {
       return true
     }
+    index += 1
   }
   false
 }
@@ -322,26 +407,54 @@ fn dangling_comment_doc(
   claimed : Array[Bool],
   start_offset : Int,
   end_offset : Int,
+  excluded_boundaries? : Array[@basic.SourceSpan] = [],
 ) -> Document {
   let docs = []
-  for index, comment in comments {
+  let mut index = first_comment_at_or_after(comments, start_offset)
+  while index < comments.length() {
+    let comment = comments[index]
+    if comment.span.start_offset > end_offset {
+      break
+    }
     if !claimed[index] &&
-      comment.placement is Leading(_) &&
+      !(comment.placement is Boundary) &&
       comment.span.start_offset >= start_offset &&
-      comment.span.end_offset <= end_offset {
+      comment.span.end_offset <= end_offset &&
+      !comment_is_between_children(comment, excluded_boundaries) {
       claimed[index] = true
       push_leading_comment_docs(docs, comment)
     }
+    index += 1
   }
   separate(hardline, docs)
 }
 
 ///|
-fn TriviaSession::unconsumed_comment_diagnostics(
-  self : TriviaSession,
+fn comment_is_between_children(
+  comment : AnchoredComment,
+  children : Array[@basic.SourceSpan],
+) -> Bool {
+  for child in children {
+    if comment.span.start_offset >= child.start_offset &&
+      comment.span.end_offset <= child.end_offset {
+      return true
+    }
+  }
+  for index in 1..<children.length() {
+    if comment.span.start_offset >= children[index - 1].end_offset &&
+      comment.span.end_offset <= children[index].start_offset {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn ConcreteLayoutSession::unconsumed_comment_diagnostics(
+  self : ConcreteLayoutSession,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  for index, comment in self.plan.comments {
+  for index, comment in self.layout.comments {
     if !self.claimed[index] {
       diagnostics.push(
         diagnostic(
@@ -367,30 +480,9 @@ fn TriviaSession::unconsumed_comment_diagnostics(
 }
 
 ///|
-fn has_leading_comment(
-  comments : Array[AnchoredComment],
-  span : @basic.SourceSpan,
-) -> Bool {
-  for comment in comments {
-    if comment.placement is Leading(anchor) && same_leading_anchor(anchor, span) {
-      return true
-    }
-  }
-  false
-}
-
-///|
-fn has_trailing_comment(
-  comments : Array[AnchoredComment],
-  span : @basic.SourceSpan,
-) -> Bool {
-  for comment in comments {
-    if comment.placement is Trailing(anchor) &&
-      same_trailing_anchor(anchor, span) {
-      return true
-    }
-  }
-  false
+fn has_comment_anchor(anchors : Array[CommentAnchor], offset : Int) -> Bool {
+  let index = first_anchor_at_or_after(anchors, offset)
+  index < anchors.length() && anchors[index].offset == offset
 }
 
 ///|
@@ -404,9 +496,10 @@ fn non_eof_tokens(
 }
 
 ///|
-fn anchor_comment(
+fn place_comment(
   comment : FormatComment,
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  layout_separator_gaps : Array[Bool],
   blank_before : Bool,
   blank_after : Bool,
 ) -> AnchoredComment {
@@ -418,28 +511,32 @@ fn anchor_comment(
   if comment.gap < tokens.length() {
     next = Some(comment.gap)
   }
-  let placement = match next {
-    Some(index) if tokens[index].0 is COMMA && index + 1 < tokens.length() =>
-      Leading(leading_anchor_span(tokens, index + 1))
-    _ =>
-      match previous {
-        Some(index) if tokens[index].0 is SEMICOLON &&
-          index > 0 &&
-          is_same_line(tokens[index], comment) => {
-          let (_, span) = tokens[index - 1]
-          Trailing(span)
-        }
-        Some(index) if is_same_line(tokens[index], comment) &&
-          can_anchor_trailing(tokens[index].0) => {
-          let (_, span) = tokens[index]
-          Trailing(span)
-        }
-        _ =>
-          match next {
-            Some(index) => Leading(leading_anchor_span(tokens, index))
-            None => EndOfFile
-          }
+  let is_separator_boundary = layout_separator_gaps[comment.gap] ||
+    (match previous {
+      Some(index) => tokens[index].0 is COMMA || tokens[index].0 is SEMICOLON
+      None => false
+    }) ||
+    (match next {
+      Some(index) => tokens[index].0 is COMMA || tokens[index].0 is SEMICOLON
+      None => false
+    })
+  let placement = if is_separator_boundary {
+    Boundary
+  } else {
+    match previous {
+      Some(index) if is_same_line(tokens[index], comment) => {
+        let (_, span) = tokens[index]
+        Trailing(span)
       }
+      _ =>
+        match next {
+          Some(index) => {
+            let (_, span) = tokens[index]
+            Leading(span)
+          }
+          None => EndOfFile
+        }
+    }
   }
   {
     text: comment.text,
@@ -451,52 +548,147 @@ fn anchor_comment(
 }
 
 ///|
-fn can_anchor_trailing(token : @lexer.Token) -> Bool {
-  match token {
-    COMMA
-    | PLUS
-    | BANG
-    | MINUS
-    | STAR
-    | SLASH
-    | PERCENT
-    | EQEQ
-    | BANGEQ
-    | LT
-    | LTEQ
-    | GT
-    | GTEQ
-    | AMPAMP
-    | BARBAR
-    | PIPE
-    | EQUAL
-    | THIN_ARROW
-    | FAT_ARROW
-    | LPAREN
-    | LBRACE
-    | LBRACKET
-    | DOT
-    | DOTLBRACE
-    | COLON
-    | COLONCOLON
-    | TIGHT_COLONCOLON
-    | PUB => false
-    _ => true
-  }
+fn comma_separator_doc(
+  comments : Array[AnchoredComment],
+  claimed : Array[Bool],
+  left : @basic.SourceSpan,
+  right : @basic.SourceSpan,
+) -> Document {
+  separator_doc(comments, claimed, left, right, text(","), line, false)
 }
 
 ///|
-fn leading_anchor_span(
+fn item_separator_doc(
+  comments : Array[AnchoredComment],
+  claimed : Array[Bool],
+  left : @basic.SourceSpan,
+  right : @basic.SourceSpan,
+) -> Document {
+  separator_doc(comments, claimed, left, right, empty, hardline, true)
+}
+
+///|
+fn top_level_separator_doc(
+  comments : Array[AnchoredComment],
+  claimed : Array[Bool],
+  left : @basic.SourceSpan,
+  right : @basic.SourceSpan,
+) -> Document {
+  separator_doc(
+    comments,
+    claimed,
+    left,
+    right,
+    empty,
+    hardline + hardline,
+    true,
+    require_blank=true,
+  )
+}
+
+///|
+fn struct_field_separator_doc(
+  comments : Array[AnchoredComment],
+  claimed : Array[Bool],
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
-  index : Int,
-) -> @basic.SourceSpan {
-  let (token, span) = tokens[index]
-  if token is PUB && index + 1 < tokens.length() {
-    let (_, next_span) = tokens[index + 1]
-    next_span
-  } else {
-    span
+  left : @basic.SourceSpan,
+  right : @basic.SourceSpan,
+) -> Document {
+  let mut explicit_comma = false
+  let mut token_index = first_token_at_or_after(tokens, left.end_offset)
+  while token_index < tokens.length() {
+    let (token, span) = tokens[token_index]
+    if span.start_offset > right.start_offset {
+      break
+    }
+    if span.end_offset <= right.start_offset && token is COMMA {
+      explicit_comma = true
+      break
+    }
+    token_index += 1
   }
+  if !explicit_comma {
+    let mut comment_index = first_comment_at_or_after(comments, left.end_offset)
+    while comment_index < comments.length() {
+      let comment = comments[comment_index]
+      if comment.span.start_offset > right.start_offset {
+        break
+      }
+      if comment.span.end_offset <= right.start_offset &&
+        comment.span.start_line == left.end_line {
+        return item_separator_doc(comments, claimed, left, right)
+      }
+      comment_index += 1
+    }
+  }
+  comma_separator_doc(comments, claimed, left, right)
+}
+
+///|
+fn separator_doc(
+  comments : Array[AnchoredComment],
+  claimed : Array[Bool],
+  left : @basic.SourceSpan,
+  right : @basic.SourceSpan,
+  prefix : Document,
+  empty_separator : Document,
+  allow_inline : Bool,
+  require_blank? : Bool = false,
+) -> Document {
+  let between = []
+  let mut index = first_comment_at_or_after(comments, left.end_offset)
+  while index < comments.length() {
+    let comment = comments[index]
+    if comment.span.start_offset > right.start_offset {
+      break
+    }
+    if !claimed[index] &&
+      comment.placement is Boundary &&
+      comment.span.start_offset >= left.end_offset &&
+      comment.span.end_offset <= right.start_offset {
+      claimed[index] = true
+      between.push(comment)
+    }
+    index += 1
+  }
+  guard !between.is_empty() else { return prefix + empty_separator }
+  let mut has_meaningful_blank = false
+  for comment in between {
+    if comment.blank_before || comment.blank_after {
+      has_meaningful_blank = true
+      break
+    }
+  }
+  let first = between[0]
+  let first_is_inline = allow_inline && first.span.start_line == left.end_line
+  let mut result = prefix
+  if first_is_inline {
+    result = result + line_comment(first.text.trim().to_owned()) + hardline
+  } else {
+    result = result + hardline
+    if first.blank_before || (require_blank && !has_meaningful_blank) {
+      result = result + hardline
+    }
+    result = result + comment_lines_doc(first.text) + hardline
+  }
+  for index in 1..<between.length() {
+    let comment = between[index]
+    if comment.blank_before ||
+      (require_blank && !has_meaningful_blank && index == 1 && first_is_inline) {
+      result = result + hardline
+    }
+    result = result + comment_lines_doc(comment.text) + hardline
+  }
+  if between.last().unwrap().blank_after ||
+    (
+      require_blank &&
+      !has_meaningful_blank &&
+      between.length() == 1 &&
+      first_is_inline
+    ) {
+    result = result + hardline
+  }
+  result
 }
 
 ///|
@@ -510,12 +702,11 @@ fn blank_before_comment(
   if comment_index > 0 {
     previous_line = Some(comments[comment_index - 1].span.end_line)
   }
-  for item in tokens {
-    let (_, span) = item
-    if span.end_offset <= comment.span.start_offset {
-      previous_line = Some(span.end_line)
-    } else {
-      break
+  if comment.gap > 0 {
+    let (_, span) = tokens[comment.gap - 1]
+    match previous_line {
+      Some(line) if line >= span.end_line => ()
+      _ => previous_line = Some(span.end_line)
     }
   }
   match previous_line {
@@ -535,14 +726,11 @@ fn blank_after_comment(
   if comment_index + 1 < comments.length() {
     next_line = Some(comments[comment_index + 1].span.start_line)
   }
-  for item in tokens {
-    let (_, span) = item
-    if span.start_offset >= comment.span.end_offset {
-      match next_line {
-        Some(line) if line <= span.start_line => ()
-        _ => next_line = Some(span.start_line)
-      }
-      break
+  if comment.gap < tokens.length() {
+    let (_, span) = tokens[comment.gap]
+    match next_line {
+      Some(line) if line <= span.start_line => ()
+      _ => next_line = Some(span.start_line)
     }
   }
   match next_line {
@@ -563,17 +751,21 @@ fn is_same_line(
 ///|
 fn leading_comment_doc(
   comments : Array[AnchoredComment],
+  anchors : Array[CommentAnchor],
   claimed : Array[Bool],
   span : @basic.SourceSpan,
 ) -> Document {
   let docs = []
-  for index, comment in comments {
-    if comment.placement is Leading(anchor) &&
-      !claimed[index] &&
-      same_leading_anchor(anchor, span) {
-      claimed[index] = true
+  let mut anchor_index = first_anchor_at_or_after(anchors, span.start_offset)
+  while anchor_index < anchors.length() &&
+        anchors[anchor_index].offset == span.start_offset {
+    let comment_index = anchors[anchor_index].comment_index
+    if !claimed[comment_index] {
+      claimed[comment_index] = true
+      let comment = comments[comment_index]
       push_leading_comment_docs(docs, comment)
     }
+    anchor_index += 1
   }
   if docs.is_empty() {
     empty
@@ -585,17 +777,21 @@ fn leading_comment_doc(
 ///|
 fn trailing_comment_doc(
   comments : Array[AnchoredComment],
+  anchors : Array[CommentAnchor],
   claimed : Array[Bool],
   span : @basic.SourceSpan,
 ) -> Document {
   let docs = []
-  for index, comment in comments {
-    if comment.placement is Trailing(anchor) &&
-      !claimed[index] &&
-      same_trailing_anchor(anchor, span) {
-      claimed[index] = true
+  let mut anchor_index = first_anchor_at_or_after(anchors, span.end_offset)
+  while anchor_index < anchors.length() &&
+        anchors[anchor_index].offset == span.end_offset {
+    let comment_index = anchors[anchor_index].comment_index
+    if !claimed[comment_index] {
+      claimed[comment_index] = true
+      let comment = comments[comment_index]
       docs.push(line_comment(comment.text.trim().to_owned()))
     }
+    anchor_index += 1
   }
   separate(empty, docs)
 }
@@ -651,19 +847,57 @@ fn comment_lines_doc(comment_text : String) -> Document {
 }
 
 ///|
-fn same_leading_anchor(
-  anchor : @basic.SourceSpan,
-  span : @basic.SourceSpan,
-) -> Bool {
-  anchor.start_offset == span.start_offset
+fn first_anchor_at_or_after(
+  anchors : Array[CommentAnchor],
+  offset : Int,
+) -> Int {
+  let mut low = 0
+  let mut high = anchors.length()
+  while low < high {
+    let middle = low + (high - low) / 2
+    if anchors[middle].offset < offset {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  low
 }
 
 ///|
-fn same_trailing_anchor(
-  anchor : @basic.SourceSpan,
-  span : @basic.SourceSpan,
-) -> Bool {
-  anchor.end_offset == span.end_offset
+fn first_comment_at_or_after(
+  comments : Array[AnchoredComment],
+  offset : Int,
+) -> Int {
+  let mut low = 0
+  let mut high = comments.length()
+  while low < high {
+    let middle = low + (high - low) / 2
+    if comments[middle].span.start_offset < offset {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  low
+}
+
+///|
+fn first_token_at_or_after(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  offset : Int,
+) -> Int {
+  let mut low = 0
+  let mut high = tokens.length()
+  while low < high {
+    let middle = low + (high - low) / 2
+    if tokens[middle].1.start_offset < offset {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  low
 }
 
 ///|

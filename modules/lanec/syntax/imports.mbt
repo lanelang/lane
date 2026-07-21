@@ -16,6 +16,5 @@ using @prettyprinter {
   softline,
   space,
   surround,
-  switch,
   text,
 }

@@ -473,7 +473,7 @@ test "typecheck rejects public effect alias exposing private effect" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[private effect `Console` in public interface @ 5:5-5:26]
+      #|[private effect `Console` in public interface @ 5:1-5:26]
     ),
   )
 }

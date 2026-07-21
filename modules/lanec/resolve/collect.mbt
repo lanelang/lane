@@ -418,6 +418,7 @@ fn @syntax.Kind::to_binding_kind(self : @syntax.Kind) -> @types.Kind {
         parameters.map(@syntax.Kind::to_binding_kind),
         result.to_binding_kind(),
       )
+    Grouped(kind~, ..) => kind.to_binding_kind()
   }
 }
 
@@ -881,6 +882,7 @@ fn @syntax.Kind::resolve_kind(self : @syntax.Kind) -> ResolvedKind {
         result=result.resolve_kind(),
         loc~,
       )
+    Grouped(kind~, ..) => kind.resolve_kind()
   }
 }
 
@@ -1461,6 +1463,7 @@ fn @syntax.Type::resolve_type(
         loc~,
       )
     }
+    Grouped(type_~, ..) => type_.resolve_type(resolver, scope)
   }
 }
 
@@ -1776,6 +1779,7 @@ fn @syntax.Type::effect_type_parts(
 ) -> (@syntax.Type, Array[@syntax.Type]) {
   match self {
     Apply(callee~, arguments~, ..) => (callee, arguments)
+    Grouped(type_~, ..) => type_.effect_type_parts()
     _ => (self, [])
   }
 }
@@ -2262,6 +2266,7 @@ fn @syntax.Expr::resolve_expr(
         right=right.resolve_expr(resolver, scope),
         loc~,
       )
+    Grouped(expression~, ..) => expression.resolve_expr(resolver, scope)
   }
 }
 

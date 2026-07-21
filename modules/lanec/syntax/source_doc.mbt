@@ -9,21 +9,13 @@ fn source_string(value : String) -> Document {
 }
 
 ///|
-fn join_comma(docs : Array[Document]) -> Document {
-  separate(text(",") + space, docs)
-}
-
-///|
-fn comma_hardline_list(docs : Array[Document]) -> Document {
-  separate(text(",") + hardline, docs)
-}
-
-///|
 fn delimited_comma_list(
   open : Document,
   close : Document,
   edge : Document,
   docs : Array[Document],
+  item_spans? : Array[SourceSpan] = [],
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
@@ -31,7 +23,7 @@ fn delimited_comma_list(
     open,
     close,
     edge,
-    text(",") + line,
+    comma_separators(docs, item_spans, trivia),
     docs,
     dangling~,
     force_break~,
@@ -43,7 +35,7 @@ fn delimited_list(
   open : Document,
   close : Document,
   edge : Document,
-  separator : Document,
+  separators : Array[Document],
   docs : Array[Document],
   dangling? : Document = empty,
   force_break? : Bool = false,
@@ -52,19 +44,56 @@ fn delimited_list(
     let body = if docs.is_empty() {
       dangling
     } else {
-      separate(separator, docs) + hardline + dangling
+      separate_documents(docs, separators) + hardline + dangling
     }
     open + nest(hardline + body) + hardline + close
   } else if docs.is_empty() {
     open + close
   } else {
-    group(open + nest(edge + separate(separator, docs)) + edge + close)
+    group(
+      open + nest(edge + separate_documents(docs, separators)) + edge + close,
+    )
   }
+}
+
+///|
+fn separate_documents(
+  docs : Array[Document],
+  separators : Array[Document],
+) -> Document {
+  guard !docs.is_empty() else { return empty }
+  let first = docs[0]
+  let mut result = first
+  for index in 1..<docs.length() {
+    result = result + separators[index - 1] + docs[index]
+  }
+  result
+}
+
+///|
+fn comma_separators(
+  docs : Array[Document],
+  item_spans : Array[SourceSpan],
+  trivia : SourceFormatTrivia,
+) -> Array[Document] {
+  let separators = []
+  for index in 1..<docs.length() {
+    separators.push(
+      if item_spans.length() == docs.length() {
+        (trivia.comma_separator)(item_spans[index - 1], item_spans[index])
+      } else {
+        text(",") + line
+      },
+    )
+  }
+  separators
 }
 
 ///|
 fn bracketed_comma_list(
   docs : Array[Document],
+  item_spans? : Array[SourceSpan] = [],
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
@@ -73,6 +102,8 @@ fn bracketed_comma_list(
     char(']'),
     softline,
     docs,
+    item_spans~,
+    trivia~,
     dangling~,
     force_break~,
   )
@@ -81,6 +112,8 @@ fn bracketed_comma_list(
 ///|
 fn parenthesized_comma_list(
   docs : Array[Document],
+  item_spans? : Array[SourceSpan] = [],
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
@@ -89,6 +122,8 @@ fn parenthesized_comma_list(
     char(')'),
     softline,
     docs,
+    item_spans~,
+    trivia~,
     dangling~,
     force_break~,
   )
@@ -98,28 +133,28 @@ fn parenthesized_comma_list(
 fn parenthesized_comma_list_with_suffix(
   docs : Array[Document],
   suffix : Document,
+  item_spans? : Array[SourceSpan] = [],
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
+  let separators = comma_separators(docs, item_spans, trivia)
   if force_break {
     let body = if docs.is_empty() {
       dangling
     } else {
-      comma_hardline_list(docs) + hardline + dangling
+      separate_documents(docs, separators) + hardline + dangling
     }
     char('(') + nest(hardline + body) + hardline + char(')') + suffix
   } else if docs.is_empty() {
     char('(') + char(')') + suffix
   } else {
     group(
-      switch(
-        char('(') + join_comma(docs) + char(')') + suffix,
-        char('(') +
-        nest(hardline + comma_hardline_list(docs)) +
-        hardline +
-        char(')') +
-        suffix,
-      ),
+      char('(') +
+      nest(softline + separate_documents(docs, separators)) +
+      softline +
+      char(')') +
+      suffix,
     )
   }
 }
@@ -127,6 +162,8 @@ fn parenthesized_comma_list_with_suffix(
 ///|
 fn braced_comma_list(
   docs : Array[Document],
+  item_spans? : Array[SourceSpan] = [],
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
@@ -135,6 +172,8 @@ fn braced_comma_list(
     char('}'),
     line,
     docs,
+    item_spans~,
+    trivia~,
     dangling~,
     force_break~,
   )
@@ -164,6 +203,8 @@ fn source_prefixed(
 ///|
 fn brace_block(
   docs : Array[Document],
+  item_spans? : Array[SourceSpan] = [],
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
@@ -171,7 +212,7 @@ fn brace_block(
     let body = if docs.is_empty() {
       dangling
     } else {
-      separate(hardline, docs) + hardline + dangling
+      separate_source_items(docs, item_spans, trivia) + hardline + dangling
     }
     char('{') + nest(hardline + body) + hardline + char('}')
   } else if docs.is_empty() {
@@ -180,9 +221,29 @@ fn brace_block(
     surround(
       char('{'),
       hardline + char('}'),
-      nest(hardline + separate(hardline, docs)),
+      nest(hardline + separate_source_items(docs, item_spans, trivia)),
     )
   }
+}
+
+///|
+fn separate_source_items(
+  docs : Array[Document],
+  item_spans : Array[SourceSpan],
+  trivia : SourceFormatTrivia,
+) -> Document {
+  guard !docs.is_empty() else { return empty }
+  let first = docs[0]
+  let mut result = first
+  for index in 1..<docs.length() {
+    let separator = if item_spans.length() == docs.length() {
+      (trivia.item_separator)(item_spans[index - 1], item_spans[index])
+    } else {
+      hardline
+    }
+    result = result + separator + docs[index]
+  }
+  result
 }
 
 ///|
@@ -223,8 +284,12 @@ pub(all) struct SourceFormatTrivia {
   has_trailing : (SourceSpan) -> Bool
   boundary : (Int, Int) -> Document
   has_boundary : (Int, Int) -> Bool
-  delimited : (Char, Int, Int) -> Document
-  has_delimited : (Char, Int, Int) -> Bool
+  delimited : (Char, Int, Int, Array[SourceSpan]) -> Document
+  has_delimited : (Char, Int, Int, Array[SourceSpan]) -> Bool
+  comma_separator : (SourceSpan, SourceSpan) -> Document
+  item_separator : (SourceSpan, SourceSpan) -> Document
+  top_level_separator : (SourceSpan, SourceSpan) -> Document
+  struct_field_separator : (SourceSpan, SourceSpan) -> Document
   eof : () -> Document
 }
 
@@ -237,8 +302,12 @@ pub fn SourceFormatTrivia::empty() -> SourceFormatTrivia {
     has_trailing: fn(_span) { false },
     boundary: fn(_start, _end) { empty },
     has_boundary: fn(_start, _end) { false },
-    delimited: fn(_open, _start, _end) { empty },
-    has_delimited: fn(_open, _start, _end) { false },
+    delimited: fn(_open, _start, _end, _children) { empty },
+    has_delimited: fn(_open, _start, _end, _children) { false },
+    comma_separator: fn(_left, _right) { text(",") + line },
+    item_separator: fn(_left, _right) { hardline },
+    top_level_separator: fn(_left, _right) { hardline + hardline },
+    struct_field_separator: fn(_left, _right) { text(",") + line },
     eof: fn() { empty },
   }
 }
@@ -259,9 +328,12 @@ fn SourceFormatTrivia::take_delimited(
   open : Char,
   start_offset : Int,
   end_offset : Int,
+  child_spans? : Array[SourceSpan] = [],
 ) -> (Document, Bool) {
-  let force_break = (self.has_delimited)(open, start_offset, end_offset)
-  ((self.delimited)(open, start_offset, end_offset), force_break)
+  let force_break = (self.has_delimited)(
+    open, start_offset, end_offset, child_spans,
+  )
+  ((self.delimited)(open, start_offset, end_offset, child_spans), force_break)
 }
 
 ///|
