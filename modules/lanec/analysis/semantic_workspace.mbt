@@ -1,6 +1,7 @@
 ///|
 priv struct CachedSemanticModule {
   input : @module_frontend.ParsedModuleInput
+  completion_source : CompletionSource
   imported : @module_interface.ImportedEnvironment
   index : SemanticIndex
   diagnostics : Array[CompilerDiagnostic]
@@ -415,7 +416,14 @@ fn build_cached_semantic_module(
       }),
     )
   }
-  { input, imported, index, diagnostics, last_successful_interface: interface }
+  {
+    input,
+    completion_source: CompletionSource::from_input(input),
+    imported,
+    index,
+    diagnostics,
+    last_successful_interface: interface,
+  }
 }
 
 ///|

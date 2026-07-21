@@ -2,6 +2,7 @@
 pub(all) struct ParsedModuleInput {
   source_id : String
   text : String
+  concrete : @lexer.ConcreteSyntax
   header : ModuleHeader
   source : @syntax.SourceFile
 }
@@ -178,7 +179,7 @@ pub fn parse_module_inputs(
     })
     diagnostics.append(source_diagnostics)
     match parsed {
-      Parsed({ syntax: file, .. }) => {
+      Parsed({ syntax: file, concrete, .. }) => {
         let header = module_header(file)
         headers.push({
           source_id: source.source_id,
@@ -188,6 +189,7 @@ pub fn parse_module_inputs(
         modules.push({
           source_id: source.source_id,
           text: source.text,
+          concrete,
           header,
           source: file,
         })

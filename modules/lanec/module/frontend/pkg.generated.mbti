@@ -4,6 +4,7 @@ package "Milky2018/lanec/module/frontend"
 import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/lexer",
   "Milky2018/lanec/syntax",
   "moonbitlang/core/debug",
 }
@@ -63,6 +64,7 @@ pub fn ParseModuleInputsResult::source_diagnostics(Self) -> Array[@diagnostic.Co
 pub(all) struct ParsedModuleInput {
   source_id : String
   text : String
+  concrete : @lexer.ConcreteSyntax
   header : ModuleHeader
   source : @syntax.SourceFile
 }

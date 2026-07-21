@@ -70,6 +70,26 @@ priv struct CompletionIndex {
 }
 
 ///|
+priv struct CompletionSource {
+  text : String
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)]
+  line_starts : Array[Int]
+}
+
+///|
+fn CompletionSource::from_input(
+  input : @module_frontend.ParsedModuleInput,
+) -> CompletionSource {
+  let line_starts = [0]
+  for trivia in input.concrete.trivia {
+    if trivia.kind is Newline {
+      line_starts.push(trivia.span.end_offset)
+    }
+  }
+  { text: input.text, tokens: input.concrete.tokens, line_starts }
+}
+
+///|
 fn CompletionIndex::complete(
   self : CompletionIndex,
   source_id : String,
@@ -81,7 +101,7 @@ fn CompletionIndex::complete(
     None => []
     Some(module_) => {
       let context = completion_context(
-        module_.input.text,
+        module_.completion_source,
         line,
         column,
         trigger,
@@ -788,28 +808,29 @@ fn CompletionIndex::add_imported_fields_for_type(
 
 ///|
 fn completion_context(
-  source_text : String,
+  source : CompletionSource,
   line : Int,
   column : Int,
   trigger : CompletionTrigger,
   imported_modules : Array[String],
 ) -> CompletionContext {
-  let offset = source_offset(source_text, line, column)
-  let prefix_start = identifier_prefix_start(source_text, offset)
-  let prefix = source_text.unsafe_substring(start=prefix_start, end=offset)
-  let replace = span_from_offsets(source_text, prefix_start, offset)
-  let tokens = completion_tokens_before(source_text, prefix_start)
-  if completion_line_starts_with_import(tokens, line) {
+  let offset = source.offset(line, column)
+  let prefix_start = identifier_prefix_start(source.text, offset)
+  let prefix = source.text.unsafe_substring(start=prefix_start, end=offset)
+  let replace = source.span(prefix_start, offset)
+  let token_count = source.token_count_before(prefix_start)
+  if source.line_starts_with_import(line, token_count) {
     return ImportPath(prefix~, replace~)
   }
-  if tokens.last() is Some((TIGHT_COLONCOLON | COLONCOLON, _)) {
-    let owner = completion_owner_before_separator(tokens)
+  if source.tokens.get(token_count - 1)
+    is Some((TIGHT_COLONCOLON | COLONCOLON, _)) {
+    let owner = completion_owner_before_separator(source.tokens, token_count)
     if owner != "" {
       return OwnerQualified(owner~, prefix~, replace~)
     }
   }
-  if tokens.last() is Some((DOT, _)) {
-    let owner = completion_owner_before_separator(tokens)
+  if source.tokens.get(token_count - 1) is Some((DOT, _)) {
+    let owner = completion_owner_before_separator(source.tokens, token_count)
     if owner != "" {
       if module_owner_visible(owner, imported_modules) {
         return ModuleQualified(owner~, prefix~, replace~)
@@ -819,42 +840,115 @@ fn completion_context(
   }
   match trigger {
     TriggerCharacter(".") | TriggerCharacter(":") if prefix == "" => Unsupported
-    _ => Identifier(prefix~, replace~, space=completion_space(tokens))
+    _ =>
+      Identifier(
+        prefix~,
+        replace~,
+        space=completion_space(source.tokens, token_count),
+      )
   }
 }
 
 ///|
-fn completion_tokens_before(
-  source_text : String,
-  offset : Int,
-) -> Array[(@lexer.Token, @basic.SourceSpan)] {
-  let tokens = []
-  for token in @lexer.tokens_from_string(source_text).concrete.tokens {
-    if token.1.end_offset <= offset {
-      tokens.push(token)
-    }
-  }
-  tokens
-}
-
-///|
-fn completion_line_starts_with_import(
-  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+fn CompletionSource::offset(
+  self : CompletionSource,
   line : Int,
-) -> Bool {
-  for token in tokens {
-    if token.1.start_line == line {
-      return token.0 is IMPORT
+  column : Int,
+) -> Int {
+  let line_index = if line > 0 { line - 1 } else { 0 }
+  let line_start = self.line_starts
+    .get(line_index)
+    .unwrap_or(self.text.length())
+  let column_offset = if column > 1 { column - 1 } else { 0 }
+  minimum_int(line_start + column_offset, self.text.length())
+}
+
+///|
+fn CompletionSource::span(
+  self : CompletionSource,
+  start_offset : Int,
+  end_offset : Int,
+) -> @basic.SourceSpan {
+  let start = self.position(start_offset)
+  let end = self.position(end_offset)
+  {
+    start_offset,
+    end_offset,
+    start_line: start.0,
+    start_column: start.1,
+    end_line: end.0,
+    end_column: end.1,
+  }
+}
+
+///|
+fn CompletionSource::position(
+  self : CompletionSource,
+  offset : Int,
+) -> (Int, Int) {
+  let safe_offset = if offset < 0 {
+    0
+  } else {
+    minimum_int(offset, self.text.length())
+  }
+  let mut low = 0
+  let mut high = self.line_starts.length()
+  while low < high {
+    let middle = low + (high - low) / 2
+    if self.line_starts[middle] <= safe_offset {
+      low = middle + 1
+    } else {
+      high = middle
     }
   }
-  false
+  let line_index = if low > 0 { low - 1 } else { 0 }
+  (line_index + 1, safe_offset - self.line_starts[line_index] + 1)
+}
+
+///|
+fn CompletionSource::token_count_before(
+  self : CompletionSource,
+  offset : Int,
+) -> Int {
+  let mut low = 0
+  let mut high = self.tokens.length()
+  while low < high {
+    let middle = low + (high - low) / 2
+    if self.tokens[middle].1.end_offset <= offset {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  low
+}
+
+///|
+fn CompletionSource::line_starts_with_import(
+  self : CompletionSource,
+  line : Int,
+  token_count : Int,
+) -> Bool {
+  guard self.line_starts.get(line - 1) is Some(line_start) else { return false }
+  let mut low = 0
+  let mut high = token_count
+  while low < high {
+    let middle = low + (high - low) / 2
+    if self.tokens[middle].1.start_offset < line_start {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  low < token_count && self.tokens[low].0 is IMPORT
 }
 
 ///|
 fn completion_owner_before_separator(
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  token_count : Int,
 ) -> String {
-  let mut index = tokens.length() - 2
+  let mut index = token_count - 2
   let mut owner = ""
   let mut expect_identifier = true
   while index >= 0 {
@@ -875,8 +969,9 @@ fn completion_owner_before_separator(
 ///|
 fn completion_space(
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  token_count : Int,
 ) -> CompletionSpace {
-  let mut index = tokens.length() - 1
+  let mut index = token_count - 1
   while index >= 0 {
     match tokens[index].0 {
       IMPORT => return ImportSpace
@@ -922,23 +1017,6 @@ fn module_owner_visible(owner : String, modules : Array[String]) -> Bool {
 }
 
 ///|
-fn source_offset(source_text : String, line : Int, column : Int) -> Int {
-  let lines = source_text.split("\n").collect()
-  line_start_offset(lines, line) + column - 1
-}
-
-///|
-fn line_start_offset(lines : Array[StringView], line : Int) -> Int {
-  let mut offset = 0
-  for index in 0..<(line - 1) {
-    if lines.get(index) is Some(text) {
-      offset = offset + text.length() + 1
-    }
-  }
-  offset
-}
-
-///|
 fn identifier_prefix_start(source_text : String, offset : Int) -> Int {
   let mut index = minimum_int(offset, source_text.length())
   while index > 0 &&
@@ -956,43 +1034,6 @@ fn is_identifier_part(text : String) -> Bool {
   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_".contains(
     text,
   )
-}
-
-///|
-fn span_from_offsets(
-  source_text : String,
-  start_offset : Int,
-  end_offset : Int,
-) -> @basic.SourceSpan {
-  let start = line_column_at_offset(source_text, start_offset)
-  let end = line_column_at_offset(source_text, end_offset)
-  {
-    start_offset,
-    end_offset,
-    start_line: start.0,
-    start_column: start.1,
-    end_line: end.0,
-    end_column: end.1,
-  }
-}
-
-///|
-fn line_column_at_offset(source_text : String, offset : Int) -> (Int, Int) {
-  let mut line = 1
-  let mut column = 1
-  let mut index = 0
-  let safe_offset = minimum_int(offset, source_text.length())
-  while index < safe_offset {
-    let ch = source_text.unsafe_substring(start=index, end=index + 1)
-    if ch == "\n" {
-      line = line + 1
-      column = 1
-    } else {
-      column = column + 1
-    }
-    index = index + 1
-  }
-  (line, column)
 }
 
 ///|
