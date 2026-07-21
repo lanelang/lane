@@ -1674,12 +1674,10 @@ fn yy_action_77(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 776|    expression { Expression(expression=$1, loc=span($sloc)) }
+// 776|    expression { Expression(expression=$1) }
 fn yy_action_78(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
-  let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
-  let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_LocalItem({();  Expression(expression=_dollar1, loc=span((_symbol_start_pos, _end_pos))) })
+  YYObj_LocalItem({();  Expression(expression=_dollar1) })
 }
 
 // file:///./parser.mbty

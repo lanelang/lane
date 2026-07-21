@@ -233,7 +233,7 @@ pub(all) enum LocalItem {
   PatternLet(PatternLetDeclaration)
   Function(FunctionDeclaration)
   Offer(OfferDeclaration)
-  Expression(expression~ : Expr, loc~ : @basic.SourceSpan)
+  Expression(expression~ : Expr)
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for LocalItem
 pub impl @prettyprinter.Pretty for LocalItem

@@ -279,7 +279,7 @@ fn LocalItem::loc(self : LocalItem) -> SourceSpan {
     PatternLet(declaration) => declaration.loc
     Function(declaration) => declaration.loc
     Offer(declaration) => declaration.loc
-    Expression(loc~, ..) => loc
+    Expression(expression~) => expression.loc()
   }
 }
 
@@ -1866,7 +1866,7 @@ fn LocalItem::to_doc(
     PatternLet(declaration) => declaration.to_doc(trivia~)
     Function(declaration) => declaration.to_doc(trivia~)
     Offer(declaration) => declaration.to_doc(trivia~)
-    Expression(expression~, ..) =>
+    Expression(expression~) =>
       trivia.decorate(expression.loc(), expression.to_doc(trivia~))
   }
 }

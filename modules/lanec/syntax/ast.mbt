@@ -371,7 +371,7 @@ pub(all) enum LocalItem {
   PatternLet(PatternLetDeclaration)
   Function(FunctionDeclaration)
   Offer(OfferDeclaration)
-  Expression(expression~ : Expr, loc~ : SourceSpan)
+  Expression(expression~ : Expr)
 } derive(Debug, Eq)
 
 ///|

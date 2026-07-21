@@ -162,15 +162,90 @@ test "layout separates wildcard struct pattern fields" {
 
 ///|
 test "parse rejects explicit semicolons outside item bodies" {
-  assert_false(
-    parse_string("module M;\npub let answer : Int = 42")
-    .parse_errors()
-    .is_empty(),
+  debug_inspect(
+    parse_string("module M;\npub let answer : Int = 42").parse_errors(),
+    content=(
+      #|[
+      #|  {
+      #|    kind: UnexpectedToken(
+      #|      { label: "`;`" },
+      #|      [
+      #|        { label: "end of file" },
+      #|        { label: "`struct`" },
+      #|        { label: "`enum`" },
+      #|        { label: "`effect`" },
+      #|        { label: "`fn`" },
+      #|        { label: "`let`" },
+      #|        { label: "`type`" },
+      #|        { label: "`offer`" },
+      #|        { label: "`extern`" },
+      #|        { label: "`import`" },
+      #|        { label: "`pub`" },
+      #|        { label: "`.`" },
+      #|      ],
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 8,
+      #|      end_offset: 9,
+      #|      start_line: 1,
+      #|      start_column: 9,
+      #|      end_line: 1,
+      #|      end_column: 10,
+      #|    },
+      #|  },
+      #|]
+    ),
   )
-  assert_false(
-    parse_errors("let first : Int = 1;\nlet second : Int = 2").is_empty(),
+  debug_inspect(
+    parse_errors("let first : Int = 1;\nlet second : Int = 2"),
+    content=(
+      #|[
+      #|  {
+      #|    kind: UnexpectedToken(
+      #|      { label: "`;`" },
+      #|      [
+      #|        { label: "end of file" },
+      #|        { label: "`struct`" },
+      #|        { label: "`enum`" },
+      #|        { label: "`effect`" },
+      #|        { label: "`fn`" },
+      #|        { label: "`let`" },
+      #|        { label: "`type`" },
+      #|        { label: "`offer`" },
+      #|        { label: "`extern`" },
+      #|        { label: "`pub`" },
+      #|        { label: "`+`" },
+      #|        { label: "`-`" },
+      #|        { label: "`*`" },
+      #|        { label: "`/`" },
+      #|        { label: "`%`" },
+      #|        { label: "`==`" },
+      #|        { label: "`!=`" },
+      #|        { label: "`<`" },
+      #|        { label: "`<=`" },
+      #|        { label: "`>`" },
+      #|        { label: "`>=`" },
+      #|        { label: "`&&`" },
+      #|        { label: "`||`" },
+      #|        { label: "`|>`" },
+      #|        { label: "`(`" },
+      #|        { label: "`[`" },
+      #|        { label: "`.`" },
+      #|      ],
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 31,
+      #|      end_offset: 32,
+      #|      start_line: 2,
+      #|      start_column: 20,
+      #|      end_line: 2,
+      #|      end_column: 21,
+      #|    },
+      #|  },
+      #|]
+    ),
   )
-  assert_false(
+  debug_inspect(
     parse_errors(
       (
         #|struct Box[A, B] {
@@ -181,7 +256,31 @@ test "parse rejects explicit semicolons outside item bodies" {
         #|  value
         #|}
       ),
-    ).is_empty(),
+    ),
+    content=(
+      #|[
+      #|  {
+      #|    kind: UnexpectedToken(
+      #|      { label: "`;`" },
+      #|      [
+      #|        { label: "`[`" },
+      #|        { label: "`]`" },
+      #|        { label: "`,`" },
+      #|        { label: "`.`" },
+      #|        { label: "`->`" },
+      #|      ],
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 80,
+      #|      end_offset: 81,
+      #|      start_line: 6,
+      #|      start_column: 23,
+      #|      end_line: 6,
+      #|      end_column: 24,
+      #|    },
+      #|  },
+      #|]
+    ),
   )
 }
 
@@ -348,7 +447,7 @@ test "parse sequential unit expressions as block local items" {
     abort("expected main function")
   }
   guard function.body
-    is Block(items=[Expression(expression=Call(..), ..)], result=Call(..), ..) else {
+    is Block(items=[Expression(expression=Call(..))], result=Call(..), ..) else {
     abort("expected one sequential expression and one block result")
   }
   inspect(
@@ -386,7 +485,7 @@ test "parse newline-separated unit expressions as block local items" {
   }
   assert_true(
     function.body
-    is Block(items=[Expression(expression=Call(..), ..)], result=Call(..), ..),
+    is Block(items=[Expression(expression=Call(..))], result=Call(..), ..),
   )
   inspect(
     @prettyprinter.render(file),
@@ -428,7 +527,7 @@ test "parse newline after if expression as a sequence separator" {
   }
   assert_true(
     function.body
-    is Block(items=[Expression(expression=If(..), ..)], result=If(..), ..),
+    is Block(items=[Expression(expression=If(..))], result=If(..), ..),
   )
 }
 

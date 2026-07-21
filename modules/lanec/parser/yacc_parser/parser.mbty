@@ -773,7 +773,7 @@ local_item -> LocalItem
   : local_let_item { $1 }
   | function_declaration { Function($1) }
   | offer_value_declaration { Offer($1) }
-  | expression { Expression(expression=$1, loc=span($sloc)) }
+  | expression { Expression(expression=$1) }
   ;
 
 if_expression -> Expr
