@@ -751,12 +751,18 @@ fn SemanticIndex::add_resolved_operation_reference(
   self : SemanticIndex,
   name : @resolve.ResolvedEffectOperationName,
 ) -> Unit {
-  let (operation, reference, loc) = match name {
-    Qualified(operation~, reference~, loc~, ..) => (operation, reference, loc)
-    Unqualified(operation~, reference~, loc~) => (operation, reference, loc)
+  let (operation, reference, operation_loc) = match name {
+    Qualified(operation~, reference~, operation_loc~, ..) =>
+      (operation, reference, operation_loc)
+    Unqualified(operation~, reference~, operation_loc~) =>
+      (operation, reference, operation_loc)
   }
   if reference is Symbol(symbol) {
-    self.add_reference(Operation(symbol), loc, Some("operation \{operation}"))
+    self.add_reference(
+      Operation(symbol),
+      operation_loc,
+      Some("operation \{operation}"),
+    )
   }
 }
 

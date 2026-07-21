@@ -199,7 +199,7 @@ test "pretty print handler keeps with and final attached" {
             name: Qualified(
               owner=test_type("Console"),
               operation="read",
-              loc=test_loc(),
+              operation_loc=test_loc(),
             ),
             type_binders: [],
             payload_patterns: [],

@@ -65,8 +65,8 @@ pub impl @source_prettyprinter.Pretty for EffectOperationDeclaration
 pub impl @prettyprinter.Pretty for EffectOperationDeclaration
 
 pub(all) enum EffectOperationName {
-  Qualified(owner~ : Type, operation~ : String, loc~ : @basic.SourceSpan)
-  Unqualified(operation~ : String, loc~ : @basic.SourceSpan)
+  Qualified(owner~ : Type, operation~ : String, operation_loc~ : @basic.SourceSpan)
+  Unqualified(operation~ : String, operation_loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 
 pub(all) enum EffectTerm {

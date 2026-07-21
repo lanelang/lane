@@ -2315,22 +2315,27 @@ fn @syntax.EffectOperationName::resolve_effect_operation_name(
   scope : ResolveScope,
 ) -> ResolvedEffectOperationName {
   match self {
-    Qualified(owner~, operation~, loc~) => {
+    Qualified(owner~, operation~, operation_loc~) => {
       let owner = owner.resolve_effect_type(resolver, scope, owner.loc())
       let reference = match owner {
         Singleton(symbol~, ..) => {
-          resolver.record_import_use(resolver.effect_import_origin(symbol), loc)
+          resolver.record_import_use(
+            resolver.effect_import_origin(symbol),
+            operation_loc,
+          )
           resolver.operation_reference(symbol, operation)
         }
         _ => Unresolved(operation)
       }
-      Qualified(owner~, operation~, reference~, loc~)
+      Qualified(owner~, operation~, reference~, operation_loc~)
     }
-    Unqualified(operation~, loc~) =>
+    Unqualified(operation~, operation_loc~) =>
       Unqualified(
         operation~,
-        reference=resolver.unqualified_operation_reference(operation, loc),
-        loc~,
+        reference=resolver.unqualified_operation_reference(
+          operation, operation_loc,
+        ),
+        operation_loc~,
       )
   }
 }

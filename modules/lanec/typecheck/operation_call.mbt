@@ -53,7 +53,7 @@ fn SemanticChecker::synthesize_checked_operation_call(
   checked_expression_with_effect(
     OperationCall(
       operation=signature.operation,
-      operation_loc=resolved_operation_name_loc(name),
+      operation_loc=resolved_operation_name_operation_loc(name),
       generic_witnesses=signature.generic_witnesses,
       arguments=checked_arguments,
       effect=signature.effect,
@@ -66,10 +66,11 @@ fn SemanticChecker::synthesize_checked_operation_call(
 }
 
 ///|
-fn resolved_operation_name_loc(
+fn resolved_operation_name_operation_loc(
   name : @resolve.ResolvedEffectOperationName,
 ) -> SourceSpan {
   match name {
-    Qualified(loc~, ..) | Unqualified(loc~, ..) => loc
+    Qualified(operation_loc~, ..) | Unqualified(operation_loc~, ..) =>
+      operation_loc
   }
 }

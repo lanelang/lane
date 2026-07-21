@@ -380,12 +380,12 @@ pub(all) enum ResolvedEffectOperationName {
     owner~ : ResolvedEffectTerm,
     operation~ : String,
     reference~ : ResolvedOperationReference,
-    loc~ : SourceSpan
+    operation_loc~ : SourceSpan
   )
   Unqualified(
     operation~ : String,
     reference~ : ResolvedOperationReference,
-    loc~ : SourceSpan
+    operation_loc~ : SourceSpan
   )
 } derive(Debug, Eq)
 

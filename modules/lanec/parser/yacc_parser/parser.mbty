@@ -617,29 +617,29 @@ value_postfix_expression -> Expr
   | value_postfix_expression "(" argument_list ")" { Call(callee=$1, arguments=$3, loc=span($sloc)) }
   | value_postfix_expression type_arguments %prec "[" { TypeApplication(callee=$1, arguments=$2, loc=span($sloc)) }
   | value_postfix_expression "." IDENT { Field(base=$1, name=$3, name_loc=span($sloc).ascii_suffix($3.length()), loc=span($sloc)) }
-  | IDENT "!" "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1, loc=span($sloc).ascii_prefix($1.length())), type_witnesses=[], arguments=$4, loc=span($sloc)) }
-  | IDENT "!" operation_type_witnesses "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1, loc=span($sloc).ascii_prefix($1.length())), type_witnesses=$3, arguments=$5, loc=span($sloc)) }
+  | identifier "!" "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1.name, operation_loc=$1.loc), type_witnesses=[], arguments=$4, loc=span($sloc)) }
+  | identifier "!" operation_type_witnesses "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1.name, operation_loc=$1.loc), type_witnesses=$3, arguments=$5, loc=span($sloc)) }
   ;
 
 member_expression -> Expr
-  : owner_expression "tight ::" IDENT "!" "(" positional_argument_list ")" %prec "tight ::" {
+  : owner_expression "tight ::" identifier "!" "(" positional_argument_list ")" %prec "tight ::" {
     EffectOperationCall(
       name=Qualified(
         owner=$1.owner,
-        operation=$3,
-        loc=$1.owner.loc().ascii_after(2, $3.length())
+        operation=$3.name,
+        operation_loc=$3.loc
       ),
       type_witnesses=[],
       arguments=$6,
       loc=span($sloc)
     )
   }
-  | owner_expression "tight ::" IDENT "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
+  | owner_expression "tight ::" identifier "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
     EffectOperationCall(
       name=Qualified(
         owner=$1.owner,
-        operation=$3,
-        loc=$1.owner.loc().ascii_after(2, $3.length())
+        operation=$3.name,
+        operation_loc=$3.loc
       ),
       type_witnesses=$5,
       arguments=$7,
@@ -852,19 +852,19 @@ handler_operation_arm -> HandlerOperationArm
   ;
 
 handler_operation_head -> HandlerOperationHead
-  : IDENT handler_operation_head_after_ident { handler_operation_head_from_ident($1, $2, span($sloc)) }
-  | qualified_type_name handler_operation_owner_arguments "tight ::" IDENT handler_operation_type_binders { handler_operation_head_from_qualified($1, $2, $4, $5, span($sloc)) }
+  : identifier handler_operation_head_after_ident { handler_operation_head_from_ident($1, $2) }
+  | qualified_type_name handler_operation_owner_arguments "tight ::" identifier handler_operation_type_binders { handler_operation_head_from_qualified($1, $2, $4, $5) }
   ;
 
 handler_operation_head_after_ident -> HandlerOperationHeadAfterIdent
   : { Unqualified([]) }
-  | "[" non_empty_type_list "]" handler_operation_after_type_arguments { handler_operation_head_after_type_arguments($2, $4) }
-  | "tight ::" IDENT handler_operation_type_binders { Qualified(owner_arguments=[], operation=$2, type_binders=$3) }
+  | handler_operation_type_arguments handler_operation_after_type_arguments { handler_operation_head_after_type_arguments($1, $2) }
+  | "tight ::" identifier handler_operation_type_binders { Qualified(owner_arguments=None, operation=$2, type_binders=$3) }
   ;
 
 handler_operation_after_type_arguments -> HandlerOperationAfterTypeArguments
   : { OperationBinders }
-  | "tight ::" IDENT handler_operation_type_binders { OwnerArguments(operation=$2, type_binders=$3) }
+  | "tight ::" identifier handler_operation_type_binders { OwnerArguments(operation=$2, type_binders=$3) }
   ;
 
 handler_operation_type_binders -> Array[String]
@@ -877,9 +877,13 @@ ident_bracket_list -> Array[String]
   | "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
   ;
 
-handler_operation_owner_arguments -> Array[Type]
-  : { [] }
-  | type_arguments { $1 }
+handler_operation_owner_arguments -> HandlerOperationTypeArguments?
+  : { None }
+  | handler_operation_type_arguments { Some($1) }
+  ;
+
+handler_operation_type_arguments -> HandlerOperationTypeArguments
+  : "[" non_empty_type_list "]" { { arguments: $2, loc: span($sloc) } }
   ;
 
 handler_operation_arm_parameters -> HandlerOperationArmParameters

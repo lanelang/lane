@@ -1330,6 +1330,56 @@ test "parse handler expressions" {
 }
 
 ///|
+test "parse handler operation keeps exact operation token span" {
+  let file = expect_parse_ok(
+    (
+      #|effect Prompt {
+      #|  choose[A](A, A) -> A
+      #|}
+      #|fn handled() -> Int {
+      #|  handle Prompt::choose![Int](1, 2) with {
+      #|    Prompt::choose[A](left, right, resume) => resume(left)
+      #|  } final value { value }
+      #|}
+    ),
+  )
+  guard file.declarations[1] is Function(function) else {
+    abort("expected function declaration")
+  }
+  guard function.body is Block(result=Handler(handlers~, ..), ..) else {
+    abort("expected handler expression")
+  }
+  guard handlers[0].arms[0].name
+    is Qualified(owner~, operation~, operation_loc~) else {
+    abort("expected qualified handler operation")
+  }
+  debug_inspect(
+    (owner.loc(), operation, operation_loc),
+    content=(
+      #|(
+      #|  {
+      #|    start_offset: 122,
+      #|    end_offset: 128,
+      #|    start_line: 7,
+      #|    start_column: 5,
+      #|    end_line: 7,
+      #|    end_column: 11,
+      #|  },
+      #|  "choose",
+      #|  {
+      #|    start_offset: 130,
+      #|    end_offset: 136,
+      #|    start_line: 7,
+      #|    start_column: 13,
+      #|    end_line: 7,
+      #|    end_column: 19,
+      #|  },
+      #|)
+    ),
+  )
+}
+
+///|
 test "parse handler owner type arguments" {
   let file = expect_parse_ok(
     (

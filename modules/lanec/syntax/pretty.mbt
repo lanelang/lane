@@ -289,7 +289,7 @@ fn EffectOperationName::argument_search_start(
 ) -> Int {
   match self {
     Qualified(owner~, ..) => owner.loc().end_offset
-    Unqualified(loc~, ..) => loc.start_offset
+    Unqualified(operation_loc~, ..) => operation_loc.start_offset
   }
 }
 

@@ -519,7 +519,7 @@ fn SemanticChecker::check_handler_operation_arm(
   }
   {
     operation: signature.operation,
-    operation_loc: resolved_operation_name_loc(arm.name),
+    operation_loc: resolved_operation_name_operation_loc(arm.name),
     type_binders: signature.type_binders,
     payload_types: signature.payload,
     payload_patterns,

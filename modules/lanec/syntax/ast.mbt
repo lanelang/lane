@@ -388,8 +388,8 @@ pub(all) enum LocalItem {
 
 ///|
 pub(all) enum EffectOperationName {
-  Qualified(owner~ : Type, operation~ : String, loc~ : SourceSpan)
-  Unqualified(operation~ : String, loc~ : SourceSpan)
+  Qualified(owner~ : Type, operation~ : String, operation_loc~ : SourceSpan)
+  Unqualified(operation~ : String, operation_loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|

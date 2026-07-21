@@ -90,8 +90,8 @@ pub(all) struct ResolvedEffectOperationDeclaration {
 pub impl @prettyprinter.Pretty for ResolvedEffectOperationDeclaration
 
 pub(all) enum ResolvedEffectOperationName {
-  Qualified(owner~ : ResolvedEffectTerm, operation~ : String, reference~ : ResolvedOperationReference, loc~ : @basic.SourceSpan)
-  Unqualified(operation~ : String, reference~ : ResolvedOperationReference, loc~ : @basic.SourceSpan)
+  Qualified(owner~ : ResolvedEffectTerm, operation~ : String, reference~ : ResolvedOperationReference, operation_loc~ : @basic.SourceSpan)
+  Unqualified(operation~ : String, reference~ : ResolvedOperationReference, operation_loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedEffectOperationName
 

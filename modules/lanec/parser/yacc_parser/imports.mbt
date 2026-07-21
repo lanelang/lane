@@ -81,11 +81,17 @@ priv struct HandlerOperationHead {
 }
 
 ///|
+priv struct HandlerOperationTypeArguments {
+  arguments : Array[Type]
+  loc : SourceSpan
+}
+
+///|
 priv enum HandlerOperationHeadAfterIdent {
   Unqualified(Array[String])
   Qualified(
-    owner_arguments~ : Array[Type],
-    operation~ : String,
+    owner_arguments~ : HandlerOperationTypeArguments?,
+    operation~ : Identifier,
     type_binders~ : Array[String]
   )
 }
@@ -93,7 +99,7 @@ priv enum HandlerOperationHeadAfterIdent {
 ///|
 priv enum HandlerOperationAfterTypeArguments {
   OperationBinders
-  OwnerArguments(operation~ : String, type_binders~ : Array[String])
+  OwnerArguments(operation~ : Identifier, type_binders~ : Array[String])
 }
 
 ///|
@@ -260,16 +266,31 @@ fn type_binders_from_type_arguments(arguments : Array[Type]) -> Array[String] {
 
 ///|
 fn handler_operation_head_from_ident(
-  name : String,
+  identifier : Identifier,
   suffix : HandlerOperationHeadAfterIdent,
-  loc : SourceSpan,
 ) -> HandlerOperationHead {
   match suffix {
     Unqualified(type_binders) =>
-      { name: Unqualified(operation=name, loc~), type_binders }
+      {
+        name: Unqualified(
+          operation=identifier.name,
+          operation_loc=identifier.loc,
+        ),
+        type_binders,
+      }
     Qualified(owner_arguments~, operation~, type_binders~) => {
-      let owner = apply_type_arguments(Name(name~, loc~), owner_arguments, loc)
-      { name: Qualified(owner~, operation~, loc~), type_binders }
+      let owner = apply_handler_operation_owner_arguments(
+        Name(name=identifier.name, loc=identifier.loc),
+        owner_arguments,
+      )
+      {
+        name: Qualified(
+          owner~,
+          operation=operation.name,
+          operation_loc=operation.loc,
+        ),
+        type_binders,
+      }
     }
   }
 }
@@ -277,24 +298,52 @@ fn handler_operation_head_from_ident(
 ///|
 fn handler_operation_head_from_qualified(
   owner_base : Type,
-  owner_arguments : Array[Type],
-  operation : String,
+  owner_arguments : HandlerOperationTypeArguments?,
+  operation : Identifier,
   type_binders : Array[String],
-  loc : SourceSpan,
 ) -> HandlerOperationHead {
-  let owner = apply_type_arguments(owner_base, owner_arguments, loc)
-  { name: Qualified(owner~, operation~, loc~), type_binders }
+  let owner = apply_handler_operation_owner_arguments(
+    owner_base, owner_arguments,
+  )
+  {
+    name: Qualified(
+      owner~,
+      operation=operation.name,
+      operation_loc=operation.loc,
+    ),
+    type_binders,
+  }
+}
+
+///|
+fn apply_handler_operation_owner_arguments(
+  owner : Type,
+  arguments : HandlerOperationTypeArguments?,
+) -> Type {
+  match arguments {
+    None => owner
+    Some(arguments) =>
+      apply_type_arguments(
+        owner,
+        arguments.arguments,
+        SourceSpan::join(owner.loc(), arguments.loc),
+      )
+  }
 }
 
 ///|
 fn handler_operation_head_after_type_arguments(
-  owner_or_binders : Array[Type],
+  owner_or_binders : HandlerOperationTypeArguments,
   suffix : HandlerOperationAfterTypeArguments,
 ) -> HandlerOperationHeadAfterIdent {
   match suffix {
     OperationBinders =>
-      Unqualified(type_binders_from_type_arguments(owner_or_binders))
+      Unqualified(type_binders_from_type_arguments(owner_or_binders.arguments))
     OwnerArguments(operation~, type_binders~) =>
-      Qualified(owner_arguments=owner_or_binders, operation~, type_binders~)
+      Qualified(
+        owner_arguments=Some(owner_or_binders),
+        operation~,
+        type_binders~,
+      )
   }
 }
