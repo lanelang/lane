@@ -493,7 +493,7 @@ fn SemanticChecker::check_handler_operation_arm(
   if signature.payload.length() != arm.payload_patterns.length() {
     self.diagnostics.push({
       kind: PatternArityMismatch(
-        name=self.operation_display_name(signature.operation),
+        name=signature.source_name,
         expected=signature.payload.length(),
         actual=arm.payload_patterns.length(),
       ),
@@ -589,20 +589,9 @@ fn SemanticChecker::check_handler_operation_coverage(
     }
     if !matrix.is_row_exhaustive(self.declarations, payload_types) {
       self.diagnostics.push({
-        kind: MissingHandlerOperation(operation.symbol),
+        kind: MissingHandlerOperation(owner=effect.name, name=operation.name),
         loc,
       })
     }
-  }
-}
-
-///|
-fn SemanticChecker::operation_display_name(
-  self : SemanticChecker,
-  operation : OperationSymbolId,
-) -> String {
-  match self.resolved_source.symbols.operation_metadata(operation) {
-    Some(metadata) => metadata.name
-    None => "operation#\{operation.index}"
   }
 }

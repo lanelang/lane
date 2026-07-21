@@ -602,7 +602,7 @@ fn typecheck_diagnostic(
         notes=["a handler expression may handle each concrete effect once"],
         helps=["merge these operation arms into the existing `with` block"],
       )
-    MissingHandlerOperation(operation) =>
+    MissingHandlerOperation(owner~, name~) =>
       diagnostic(
         "missing handler operation",
         span~,
@@ -611,7 +611,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "this handler does not cover operation `operation#\{operation.index}`",
+            message: "this handler does not cover operation `\{owner}::\{name}`",
             style: Primary,
           },
         ],

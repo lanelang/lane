@@ -401,8 +401,12 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     MixedHandlerEffects => text("mixed_handler_effects")
     DuplicateHandledEffect(effect) =>
       text("duplicate_handled_effect") + space + effect.pretty()
-    MissingHandlerOperation(operation) =>
-      text("missing_handler_operation") + space + operation.pretty()
+    MissingHandlerOperation(owner~, name~) =>
+      text("missing_handler_operation") +
+      space +
+      text(owner) +
+      text("::") +
+      text(name)
     DuplicatePatternBinder(name~) =>
       text("duplicate_pattern_binder") + space + text(name)
     PatternArityMismatch(name~, expected~, actual~) =>

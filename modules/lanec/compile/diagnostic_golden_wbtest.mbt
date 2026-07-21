@@ -17,6 +17,18 @@ fn first_check_diagnostic(source : String) -> CompilerDiagnostic {
 }
 
 ///|
+fn single_check_sources_diagnostic(
+  root_source : String,
+  library_sources : Array[String],
+) -> CompilerDiagnostic {
+  let result = check_sources(root_source, library_sources)
+  guard result.diagnostics is [diagnostic] else {
+    abort("\{to_repr(result.diagnostics)}")
+  }
+  diagnostic
+}
+
+///|
 fn assert_diagnostic_headline(
   diagnostic : CompilerDiagnostic,
   code : String,
@@ -667,6 +679,90 @@ test "golden pattern diagnostic renders span summary and guidance" {
       #|  facts: [],
       #|  suggestions: [],
       #|}
+    ),
+  )
+}
+
+///|
+test "golden missing handler operation diagnostic uses its source name" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|effect Console {
+      #|  read() -> Int
+      #|  choose() -> Unit
+      #|}
+      #|pub fn program() -> Int {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => 0
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(diagnostic, "E3204", "missing handler operation")
+  debug_inspect(
+    diagnostic.labels.map(fn(label) { label.message }),
+    content="[\"this handler does not cover operation `Console::choose`\"]",
+  )
+}
+
+///|
+test "golden imported handler operation diagnostic uses its source name" {
+  let diagnostic = single_check_sources_diagnostic(
+    (
+      #|module Main
+      #|import Effects.{ Console }
+      #|pub fn program() -> Int {
+      #|  handle Console::read!() with {
+      #|    Console::read(resume) => 0
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+    [
+      (
+        #|module Effects
+        #|pub effect Console {
+        #|  read() -> Int
+        #|  choose() -> Unit
+        #|}
+      ),
+    ],
+  )
+  assert_diagnostic_headline(diagnostic, "E3204", "missing handler operation")
+  debug_inspect(
+    diagnostic.labels.map(fn(label) { label.message }),
+    content="[\"this handler does not cover operation `Console::choose`\"]",
+  )
+}
+
+///|
+test "golden handler operation pattern diagnostic uses its source name" {
+  let diagnostic = first_check_diagnostic(
+    (
+      #|module Test
+      #|effect Console {
+      #|  write(String, Int) -> Unit
+      #|}
+      #|pub fn program() -> Unit {
+      #|  handle Console::write!("message", 1) with {
+      #|    Console::write(_, resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3203", "wrong number of fields for pattern `Console::write`",
+  )
+  debug_inspect(
+    diagnostic.labels.map(fn(label) { label.message }),
+    content=(
+      #|["`Console::write` expects 2 payload field(s), but 1 were provided"]
     ),
   )
 }

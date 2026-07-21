@@ -5437,7 +5437,7 @@ test "typecheck rejects missing handler operation coverage" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[missing_handler_operation operation#1 @ 11:27-14:4]
+      #|[missing_handler_operation Console::choose @ 11:27-14:4]
     ),
   )
 }

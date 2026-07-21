@@ -258,7 +258,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   RefutablePatternLet(@types.Type)
   MixedHandlerEffects
   DuplicateHandledEffect(@types.Effect)
-  MissingHandlerOperation(OperationSymbolId)
+  MissingHandlerOperation(owner~ : String, name~ : String)
   DuplicatePatternBinder(name~ : String)
   PatternArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
   HiddenTypeEscape(type_~ : @types.Type)

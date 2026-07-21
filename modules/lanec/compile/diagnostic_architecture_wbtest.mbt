@@ -1,6 +1,7 @@
 ///|
 struct DiagnosticArchitectureReport {
   forbidden_markers : Array[String]
+  internal_symbol_leaks : Array[String]
   missing_owner_files : Array[String]
   missing_owner_entries : Array[String]
 } derive(Debug, Eq)
@@ -10,6 +11,7 @@ test "diagnostic ownership stays phase-local" {
   let diagnostic_source = read_compile_source("compile.mbt")
   let report : DiagnosticArchitectureReport = {
     forbidden_markers: forbidden_diagnostic_markers(diagnostic_source),
+    internal_symbol_leaks: internal_symbol_leaks(),
     missing_owner_files: missing_diagnostic_owner_files(),
     missing_owner_entries: missing_diagnostic_owner_entries(),
   }
@@ -18,11 +20,29 @@ test "diagnostic ownership stays phase-local" {
     content=(
       #|{
       #|  forbidden_markers: [],
+      #|  internal_symbol_leaks: [],
       #|  missing_owner_files: [],
       #|  missing_owner_entries: [],
       #|}
     ),
   )
+}
+
+///|
+fn internal_symbol_leaks() -> Array[String] {
+  let markers = [
+    "type#", "effect#", "operation#", "value#", "field#", "variant#", "tparam#",
+  ]
+  let leaks = []
+  for path in diagnostic_owner_files() {
+    let source = read_compile_source(path)
+    for marker in markers {
+      if source.contains(marker) {
+        leaks.push("\{path}: \{marker}")
+      }
+    }
+  }
+  leaks
 }
 
 ///|
@@ -36,11 +56,16 @@ fn forbidden_diagnostic_markers(source : String) -> Array[String] {
 
 ///|
 fn missing_diagnostic_owner_files() -> Array[String] {
+  diagnostic_owner_files().filter(fn(path) { !compile_source_exists(path) })
+}
+
+///|
+fn diagnostic_owner_files() -> Array[String] {
   [
     "../module/compile/compile_boundary_diagnostic.mbt", "../module/compile/artifact_diagnostic.mbt",
     "../module/link/diagnostic.mbt", "../parser/diagnostic.mbt", "../resolve/diagnostic.mbt",
     "../typecheck/diagnostic.mbt",
-  ].filter(fn(path) { !compile_source_exists(path) })
+  ]
 }
 
 ///|

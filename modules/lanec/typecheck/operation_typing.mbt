@@ -1,6 +1,7 @@
 ///|
 priv struct OperationCallSignature {
   operation : OperationSymbolId
+  source_name : String
   generic_witnesses : Array[@types.GenericArgument]
   type_binders : Array[@types.TypeParameter]
   payload : Array[@types.Type]
@@ -70,6 +71,7 @@ fn SemanticChecker::operation_call_signature(
   }
   Some({
     operation: instantiation.selection.operation,
+    source_name: instantiation.selection.source_name(),
     generic_witnesses: hidden.generic_witnesses,
     type_binders: [],
     payload: instantiation.payload_templates.map(fn(type_) {
@@ -150,6 +152,7 @@ fn SemanticChecker::handler_operation_signature(
   }
   Some({
     operation: instantiation.selection.operation,
+    source_name: instantiation.selection.source_name(),
     generic_witnesses: [],
     type_binders: checked_binders,
     payload: instantiation.payload_templates.map(fn(type_) {
@@ -158,6 +161,11 @@ fn SemanticChecker::handler_operation_signature(
     result: instantiation.result_template.substitute(hidden_substitution),
     effect: instantiation.effect,
   })
+}
+
+///|
+fn OperationSelection::source_name(self : OperationSelection) -> String {
+  self.owner_declaration.name + "::" + self.declaration.name
 }
 
 ///|
