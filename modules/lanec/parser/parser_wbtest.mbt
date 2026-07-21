@@ -142,6 +142,25 @@ test "layout resumes inside braces nested in call arguments" {
 }
 
 ///|
+test "layout separates wildcard struct pattern fields" {
+  let source =
+    #|module Test
+    #|struct Box[A] {
+    #|  value : A
+    #|}
+    #|fn[A] unbox(box : Box[A]) -> A {
+    #|  match box {
+    #|    Box::{
+    #|      _
+    #|      value
+    #|    } => value
+    #|  }
+    #|}
+  debug_inspect(synthetic_layout_semicolon_lines(source), content="[1, 4, 8]")
+  debug_inspect(parse_string(source).parse_errors(), content="[]")
+}
+
+///|
 test "parse rejects explicit semicolons outside item bodies" {
   assert_false(
     parse_string("module M;\npub let answer : Int = 42")

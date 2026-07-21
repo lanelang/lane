@@ -104,7 +104,8 @@ fn token_ends_layout_item(token : @lexer.Token) -> Bool {
     | RPAREN
     | RBRACKET
     | RBRACE
-    | DOTSTAR => true
+    | DOTSTAR
+    | UNDERSCORE => true
     _ => false
   }
 }
