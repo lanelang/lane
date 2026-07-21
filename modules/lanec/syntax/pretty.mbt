@@ -1537,14 +1537,26 @@ fn Expr::to_doc_with_precedence(
     }
     Pipeline(..) => (1, self.pipeline_chain_doc(trivia~))
     Grouped(expression~, loc~) => {
-      let (dangling, force_break) = trivia.take_delimited(
+      let child_has_trailing_comment = (trivia.has_trailing)(expression.loc())
+      let expression_doc = expression.to_doc_with_precedence(0, trivia~)
+      let (dangling, delimited_force_break) = trivia.take_delimited(
         '(',
         loc.start_offset,
         loc.end_offset,
       )
-      let expression_doc = expression.to_doc_with_precedence(0, trivia~)
-      let grouped = if force_break {
-        parenthesized_comma_list([expression_doc], dangling~, force_break~)
+      let grouped = if child_has_trailing_comment {
+        let body = if delimited_force_break {
+          expression_doc + hardline + dangling
+        } else {
+          expression_doc
+        }
+        char('(') + nest(hardline + body) + hardline + char(')')
+      } else if delimited_force_break {
+        parenthesized_comma_list(
+          [expression_doc],
+          dangling~,
+          force_break=delimited_force_break,
+        )
       } else {
         char('(') + expression_doc + char(')')
       }

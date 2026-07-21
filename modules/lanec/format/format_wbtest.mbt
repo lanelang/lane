@@ -1713,6 +1713,30 @@ test "format source preserves explicit expression type and kind grouping" {
 }
 
 ///|
+test "format source keeps grouped child trailing comments inside parentheses" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn grouped(value : Int) -> Int {
+      #|  (
+      #|    value // child expression
+      #|  )
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn grouped(value : Int) -> Int {
+      #|  (
+      #|    value // child expression
+      #|  )
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format grouping and function suffixes share width decisions" {
   assert_format(
     (
