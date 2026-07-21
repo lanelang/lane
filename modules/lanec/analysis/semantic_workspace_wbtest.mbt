@@ -99,6 +99,108 @@ test "semantic workspace reuses snapshot for identical sources" {
 }
 
 ///|
+test "semantic workspace reuses module topology for body-only edits" {
+  let workspace = SemanticWorkspace::new()
+  let main_source =
+    #|module Main
+    #|
+    #|pub let value : Int = 1
+  let library_source =
+    #|module Library
+    #|
+    #|pub let value : Int = 2
+  guard workspace.replace_sources([
+      { source_id: "file:///0-Main.lane", text: main_source },
+      { source_id: "file:///1-Library.lane", text: library_source },
+    ])
+    is Some(_) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard workspace.graph_cache is Some(initial_graph_cache) else {
+    abort("expected initial module graph cache")
+  }
+  let changed_body =
+    #|module Main
+    #|
+    #|pub let value : Int = 3
+  guard workspace.upsert_source({
+      source_id: "file:///0-Main.lane",
+      text: changed_body,
+    })
+    is Some(_) else {
+    abort("expected snapshot after body edit")
+  }
+  guard workspace.graph_cache is Some(reused_graph_cache) else {
+    abort("expected reused module graph cache")
+  }
+  let changed_imports =
+    #|module Main
+    #|
+    #|import Library
+    #|
+    #|pub let value : Int = Library.value
+  guard workspace.upsert_source({
+      source_id: "file:///0-Main.lane",
+      text: changed_imports,
+    })
+    is Some(_) else {
+    abort("expected snapshot after import edit")
+  }
+  guard workspace.graph_cache is Some(rebuilt_graph_cache) else {
+    abort("expected rebuilt module graph cache")
+  }
+  debug_inspect(
+    [
+      physical_equal(initial_graph_cache, reused_graph_cache),
+      physical_equal(reused_graph_cache, rebuilt_graph_cache),
+    ],
+    content="[true, false]",
+  )
+}
+
+///|
+test "semantic workspace reuses unchanged invalid module topology" {
+  let workspace = SemanticWorkspace::new()
+  let source =
+    #|module Main
+    #|
+    #|import Missing
+    #|
+    #|pub let value : Int = 1
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: source },
+    ])
+    is Some(initial_snapshot) else {
+    abort("expected initial semantic snapshot")
+  }
+  assert_false(initial_snapshot.diagnostics().is_empty())
+  guard workspace.graph_cache is Some(initial_graph_cache) else {
+    abort("expected invalid module graph cache")
+  }
+  let changed_body =
+    #|module Main
+    #|
+    #|import Missing
+    #|
+    #|pub let value : Int = 2
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: changed_body,
+    })
+    is Some(updated_snapshot) else {
+    abort("expected semantic snapshot after body edit")
+  }
+  assert_false(updated_snapshot.diagnostics().is_empty())
+  guard workspace.graph_cache is Some(reused_graph_cache) else {
+    abort("expected reused invalid module graph cache")
+  }
+  debug_inspect(
+    physical_equal(initial_graph_cache, reused_graph_cache),
+    content="true",
+  )
+}
+
+///|
 test "semantic workspace keeps healthy modules when another source cannot parse" {
   let workspace = SemanticWorkspace::new()
   let healthy =

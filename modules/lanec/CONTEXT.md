@@ -32,6 +32,8 @@ The sole mutable owner of an identified in-memory source set, incremental parse
 state, the module dependency graph, the symbol registry, and reusable
 per-module semantic results. Source updates create a new Semantic Snapshot
 rather than running an independent analysis pipeline for each editor feature.
+Body-only edits rehydrate the cached graph order with the new parsed modules;
+module names, imports, header spans, or module availability invalidate it.
 _Avoid_: filesystem workspace, LSP document store, one-shot completion world
 
 **Semantic Snapshot**:

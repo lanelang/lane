@@ -30,6 +30,7 @@ pub struct SemanticWorkspace {
   priv registry : @symbol.SymbolRegistry
   priv mut parse_cache : Map[String, CachedParsedSource]
   priv mut module_cache : Map[String, CachedSemanticModule]
+  priv mut graph_cache : CachedModuleGraph?
 }
 
 ///|
@@ -41,6 +42,7 @@ pub fn SemanticWorkspace::new() -> SemanticWorkspace {
     registry: SymbolRegistry(),
     parse_cache: Map([]),
     module_cache: Map([]),
+    graph_cache: None,
   }
 }
 
@@ -121,6 +123,7 @@ pub fn SemanticWorkspace::clear(self : SemanticWorkspace) -> Unit {
   self.current = None
   self.parse_cache.clear()
   self.module_cache.clear()
+  self.graph_cache = None
 }
 
 ///|
@@ -132,6 +135,7 @@ fn SemanticWorkspace::build_snapshot(
   if sources.is_empty() {
     self.parse_cache.clear()
     self.module_cache.clear()
+    self.graph_cache = None
     return None
   }
   let modules = []
@@ -154,6 +158,7 @@ fn SemanticWorkspace::build_snapshot(
   }
   self.parse_cache = next_parse_cache
   guard modules.get(0) is Some(root_module) else {
+    self.graph_cache = None
     return Some(self.snapshot_from_diagnostics(revision, diagnostics))
   }
   let inputs : @module_frontend.ModuleInputSet = {
@@ -166,10 +171,7 @@ fn SemanticWorkspace::build_snapshot(
   let unavailable_module_paths = known_module_paths.filter(fn(module_path) {
     !parsed_module_paths.contains(module_path)
   })
-  let tolerant = @module_frontend.build_tolerant_module_graph(
-    inputs,
-    unavailable_module_path_texts=unavailable_module_paths,
-  )
+  let tolerant = self.module_graph_for_inputs(inputs, unavailable_module_paths)
   Some(
     self.build_graph_snapshot(
       tolerant.graph,
