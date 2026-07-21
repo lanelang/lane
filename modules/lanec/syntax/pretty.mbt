@@ -511,6 +511,7 @@ fn Kind::to_doc(
         '[',
         loc.start_offset,
         result.loc().start_offset,
+        child_spans=parameters.map(Kind::loc),
       )
       bracketed_comma_list(
         parameter_docs,
@@ -529,6 +530,7 @@ fn Kind::to_doc(
         '(',
         loc.start_offset,
         loc.end_offset,
+        child_spans=[kind.loc()],
       )
       if force_break {
         parenthesized_comma_list(
@@ -1079,6 +1081,7 @@ fn Type::to_doc(
         '(',
         parameter_start,
         result.loc().start_offset,
+        child_spans=parameters.map(Type::loc),
       )
       let result_doc = result.to_doc(trivia~) +
         effect.to_annotation_doc(trivia~)
@@ -1106,6 +1109,7 @@ fn Type::to_doc(
         '(',
         loc.start_offset,
         loc.end_offset,
+        child_spans=[type_.loc()],
       )
       if force_break {
         parenthesized_comma_list(
@@ -1258,6 +1262,7 @@ fn Expr::to_doc_with_precedence(
         '(',
         argument_start,
         loc.end_offset,
+        child_spans=arguments.map(Expr::loc),
       )
       let head = owner.to_doc() + text("::") + text(variant) + type_arguments
       let doc = head +
@@ -1316,6 +1321,7 @@ fn Expr::to_doc_with_precedence(
         '(',
         loc.start_offset,
         loc.end_offset,
+        child_spans=[],
       )
       (
         10,
@@ -1334,6 +1340,7 @@ fn Expr::to_doc_with_precedence(
         '(',
         loc.start_offset,
         loc.end_offset,
+        child_spans=[],
       )
       (
         10,
@@ -1393,6 +1400,7 @@ fn Expr::to_doc_with_precedence(
         '(',
         argument_start,
         loc.end_offset,
+        child_spans=arguments.map(Expr::loc),
       )
       (
         10,
@@ -1572,6 +1580,7 @@ fn Expr::to_doc_with_precedence(
         '(',
         loc.start_offset,
         loc.end_offset,
+        child_spans=[expression.loc()],
       )
       let grouped = if child_has_trailing_comment {
         let body = if delimited_force_break {
@@ -1781,6 +1790,7 @@ fn HandlerOperationArm::to_doc(
       '[',
       self.name.argument_search_start(),
       self.loc.end_offset,
+      child_spans=self.type_binders.map(fn(binder) { binder.loc }),
     )
     bracketed_comma_list(
       self.type_binders.map(fn(binder) { text(binder.name) }),
@@ -1794,6 +1804,7 @@ fn HandlerOperationArm::to_doc(
     '(',
     self.name.argument_search_start(),
     self.body.loc().start_offset,
+    child_spans=parameter_spans,
   )
   let head = self.name.to_doc(trivia~) +
     binders +
@@ -2164,6 +2175,7 @@ fn Pattern::to_doc(
           '[',
           loc.start_offset,
           loc.end_offset,
+          child_spans=type_binders.map(fn(binder) { binder.loc }),
         )
         bracketed_comma_list(
           type_binders.map(fn(binder) { text(binder.name) }),
@@ -2181,6 +2193,7 @@ fn Pattern::to_doc(
         '(',
         loc.start_offset,
         loc.end_offset,
+        child_spans=arguments.map(Pattern::loc),
       )
       head +
       parenthesized_comma_list(
@@ -2199,6 +2212,7 @@ fn Pattern::to_doc(
           '[',
           loc.start_offset,
           loc.end_offset,
+          child_spans=type_binders.map(fn(binder) { binder.loc }),
         )
         bracketed_comma_list(
           type_binders.map(fn(binder) { text(binder.name) }),
@@ -2216,6 +2230,7 @@ fn Pattern::to_doc(
         '(',
         loc.start_offset,
         loc.end_offset,
+        child_spans=arguments.map(Pattern::loc),
       )
       head +
       parenthesized_comma_list(
@@ -2232,6 +2247,7 @@ fn Pattern::to_doc(
         '{',
         loc.start_offset,
         loc.end_offset,
+        child_spans=fields.map(StructPatternField::loc),
       )
       text(type_name) +
       text("::") +

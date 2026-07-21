@@ -322,7 +322,7 @@ fn SourceFormatTrivia::take_delimited(
   open : Char,
   start_offset : Int,
   end_offset : Int,
-  child_spans? : Array[SourceSpan] = [],
+  child_spans~ : Array[SourceSpan],
 ) -> (Document, Bool) {
   (self.delimited)(open, start_offset, end_offset, child_spans)
 }

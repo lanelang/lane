@@ -1135,6 +1135,35 @@ test "format source preserves list and struct literal comments" {
 }
 
 ///|
+test "format source preserves comments after trailing container separators" {
+  assert_format(
+    (
+      #|module Test
+      #|struct Box {
+      #|  value : Int; // trailing field separator
+      #|}
+      #|pub let numbers : List[Int] = [
+      #|  1, // trailing item separator
+      #|]
+    ),
+    (
+      #|module Test
+      #|
+      #|struct Box {
+      #|  value : Int
+      #|  // trailing field separator
+      #|}
+      #|
+      #|pub let numbers : List[Int] = [
+      #|  1
+      #|  // trailing item separator
+      #|]
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves function literal parameter comments" {
   assert_format(
     (

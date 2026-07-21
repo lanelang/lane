@@ -288,6 +288,7 @@ fn delimited_comment_doc(
         start,
         end,
         excluded_boundaries=child_spans,
+        include_boundaries=true,
       )
     None => (empty, false)
   }
@@ -351,6 +352,7 @@ fn dangling_comment_doc(
   start_offset : Int,
   end_offset : Int,
   excluded_boundaries? : Array[@basic.SourceSpan] = [],
+  include_boundaries? : Bool = false,
 ) -> (Document, Bool) {
   let docs = []
   let mut consumed = false
@@ -361,7 +363,7 @@ fn dangling_comment_doc(
       break
     }
     if !claimed[index] &&
-      !(comment.placement is Boundary) &&
+      (include_boundaries || !(comment.placement is Boundary)) &&
       comment.span.start_offset >= start_offset &&
       comment.span.end_offset <= end_offset &&
       !comment_is_between_children(comment, excluded_boundaries) {
