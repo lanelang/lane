@@ -851,6 +851,103 @@ test "parse explicit generic expression application" {
 }
 
 ///|
+test "parse braced effect generic arguments" {
+  let file = expect_parse_ok(
+    (
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|effect Ops {
+      #|  ping[E : Effect]() -> Unit
+      #|}
+      #|effect Coroutine[E : Effect] {
+      #|  yield() -> Unit
+      #|}
+      #|struct Box[A, E : Effect] {
+      #|  value : A
+      #|}
+      #|enum Task {
+      #|  task[E : Effect]()
+      #|}
+      #|fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
+      #|  action()
+      #|}
+      #|fn pure() -> Unit {
+      #|  ()
+      #|}
+      #|fn use() -> Int ! Ops {
+      #|  {
+      #|    let ran : Unit = run[{}](pure)
+      #|    let box : Box[Int, {}] = Box[Int, {}]::{ value: 1 }
+      #|    let task : Task = Task::task[{ Log }]()
+      #|    let pinged : Unit = Ops::ping![{}]()
+      #|    box.value
+      #|  }
+      #|}
+      #|fn handled() -> Unit {
+      #|  handle Coroutine[{}]::yield!() with {
+      #|    Coroutine[{}]::yield(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|
+      #|effect Ops {
+      #|  ping[E : Effect]() -> Unit
+      #|}
+      #|
+      #|effect Coroutine[E : Effect] {
+      #|  yield() -> Unit
+      #|}
+      #|
+      #|struct Box[A, E : Effect] {
+      #|  value : A
+      #|}
+      #|
+      #|enum Task {
+      #|  task[E : Effect]()
+      #|}
+      #|
+      #|fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
+      #|  action()
+      #|}
+      #|
+      #|fn pure() -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|fn use() -> Int ! Ops {
+      #|  {
+      #|    let ran : Unit = run[{}](pure)
+      #|    let box : Box[Int, {}] = Box[Int, {}]::{ value: 1 }
+      #|    let task : Task = Task::task[{ Log }]()
+      #|    let pinged : Unit = Ops::ping![{}]()
+      #|    box.value
+      #|  }
+      #|}
+      #|
+      #|fn handled() -> Unit {
+      #|  handle Coroutine[{}]::yield!() with {
+      #|    Coroutine[{}]::yield(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse rejects empty explicit generic expression arguments" {
   debug_inspect(
     parse_error_kinds(

@@ -214,13 +214,7 @@ public_type_alias_declaration -> TypeAliasDeclaration
 type_alias_body -> TypeAliasBody
   : type { TypeBody($1) }
   | "{" type_list "}" {
-    EffectBody(
-      if $2.is_empty() {
-        Empty(loc=span($sloc))
-      } else {
-        Union(items=$2, loc=span($sloc))
-      }
-    )
+    EffectBody(effect_set($2, span($sloc)))
   }
   ;
 
@@ -482,7 +476,7 @@ type_lambda -> Type
 
 type_application -> Type
   : type_primary { $1 }
-  | type_application "[" non_empty_type_list "]" {
+  | type_application "[" non_empty_generic_argument_list "]" {
     Apply(callee=$1, arguments=$3, loc=span($sloc))
   }
   | type_application "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" {
@@ -530,13 +524,7 @@ effect_annotation -> EffectTerm
 
 effect_set -> EffectTerm
   : type_application { Term(type_=$1, loc=$1.loc()) }
-  | "{" type_list "}" {
-    if $2.is_empty() {
-      Empty(loc=span($sloc))
-    } else {
-      Union(items=$2, loc=span($sloc))
-    }
-  }
+  | "{" type_list "}" { effect_set($2, span($sloc)) }
   ;
 
 type_list -> Array[Type]
@@ -687,17 +675,28 @@ list_literal_items -> Array[Expr]
   | non_empty_positional_argument_list { $1 }
   ;
 
-operation_type_witnesses -> Array[Type]
+operation_type_witnesses -> Array[GenericArgument]
   : type_arguments { $1 }
   ;
 
-type_arguments -> Array[Type]
+type_arguments -> Array[GenericArgument]
   : type_argument_bracket_list { $1 }
   ;
 
-type_argument_bracket_list -> Array[Type]
-  : "[" non_empty_type_list "]" { $2 }
+type_argument_bracket_list -> Array[GenericArgument]
+  : "[" non_empty_generic_argument_list "]" { $2 }
   | "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" { [] }
+  ;
+
+generic_argument -> GenericArgument
+  : type { TypeTerm($1) }
+  | "{" type_list "}" { EffectTerm(effect_set($2, span($sloc))) }
+  ;
+
+non_empty_generic_argument_list -> Array[GenericArgument]
+  : generic_argument { [ $1 ] }
+  | non_empty_generic_argument_list layout_list_separator generic_argument { comma_push($1, $3) }
+  | non_empty_generic_argument_list layout_list_separator { $1 }
   ;
 
 nominal_type_name -> NominalTypeName
@@ -705,7 +704,7 @@ nominal_type_name -> NominalTypeName
   | qualified_type_name { { name: type_name_text($1), loc: $1.loc() } }
   ;
 
-variant_type_arguments -> Array[Type]
+variant_type_arguments -> Array[GenericArgument]
   : %prec VARIANT_EXPR { [] }
   | type_arguments { $1 }
   ;
@@ -858,11 +857,11 @@ handler_operation_head -> HandlerOperationHead
 
 handler_operation_head_after_ident -> HandlerOperationHeadAfterIdent
   : { Unqualified([]) }
-  | handler_operation_type_arguments handler_operation_after_type_arguments { handler_operation_head_after_type_arguments($1, $2) }
+  | handler_operation_generic_arguments handler_operation_after_generic_arguments { handler_operation_head_after_generic_arguments($1, $2) }
   | "tight ::" identifier handler_operation_type_binders { Qualified(owner_arguments=None, operation=$2, type_binders=$3) }
   ;
 
-handler_operation_after_type_arguments -> HandlerOperationAfterTypeArguments
+handler_operation_after_generic_arguments -> HandlerOperationAfterGenericArguments
   : { OperationBinders }
   | "tight ::" identifier handler_operation_type_binders { OwnerArguments(operation=$2, type_binders=$3) }
   ;
@@ -877,13 +876,13 @@ ident_bracket_list -> Array[TypeBinder]
   | "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
   ;
 
-handler_operation_owner_arguments -> HandlerOperationTypeArguments?
+handler_operation_owner_arguments -> GenericArgumentList?
   : { None }
-  | handler_operation_type_arguments { Some($1) }
+  | handler_operation_generic_arguments { Some($1) }
   ;
 
-handler_operation_type_arguments -> HandlerOperationTypeArguments
-  : "[" non_empty_type_list "]" { { arguments: $2, loc: span($sloc) } }
+handler_operation_generic_arguments -> GenericArgumentList
+  : "[" non_empty_generic_argument_list "]" { { arguments: $2, loc: span($sloc) } }
   ;
 
 handler_operation_arm_parameters -> HandlerOperationArmParameters

@@ -1504,7 +1504,7 @@ fn @syntax.Type::resolve_type(
 fn @syntax.Type::resolve_type_application_arguments(
   self : @syntax.Type,
   _resolved_callee : ResolvedType,
-  arguments : Array[@syntax.Type],
+  arguments : Array[@syntax.GenericArgument],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedGenericArgument] {
@@ -1549,29 +1549,31 @@ fn @syntax.Type::resolve_type_application_arguments(
 
 ///|
 fn resolve_default_generic_arguments(
-  arguments : Array[@syntax.Type],
+  arguments : Array[@syntax.GenericArgument],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedGenericArgument] {
   arguments.map(fn(argument) {
-    TypeArgument(argument.resolve_type(resolver, scope))
+    argument.resolve_default_generic_argument(resolver, scope)
   })
 }
 
 ///|
 fn resolve_generic_arguments(
-  arguments : Array[@syntax.Type],
+  arguments : Array[@syntax.GenericArgument],
   parameter_kinds : Array[@types.Kind],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedGenericArgument] {
   arguments.mapi(fn(index, argument) {
-    if index < parameter_kinds.length() && parameter_kinds[index] == Effect {
-      EffectArgument(
-        argument.resolve_effect_type(resolver, scope, argument.loc()),
+    if index < parameter_kinds.length() {
+      argument.resolve_generic_argument_with_kind(
+        parameter_kinds[index],
+        resolver,
+        scope,
       )
     } else {
-      TypeArgument(argument.resolve_type(resolver, scope))
+      argument.resolve_default_generic_argument(resolver, scope)
     }
   })
 }
@@ -1579,7 +1581,7 @@ fn resolve_generic_arguments(
 ///|
 fn resolve_type_name_arguments(
   type_name : String,
-  arguments : Array[@syntax.Type],
+  arguments : Array[@syntax.GenericArgument],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedGenericArgument] {
@@ -1781,9 +1783,7 @@ fn @syntax.Type::resolve_effect_type(
                 }
                 None => {
                   let resolved_arguments = arguments.map(fn(argument) {
-                    ResolvedGenericArgument::TypeArgument(
-                      argument.resolve_type(resolver, scope),
-                    )
+                    argument.resolve_default_generic_argument(resolver, scope)
                   })
                   resolver.report(UnresolvedType(name), loc)
                   Unresolved(name~, arguments=resolved_arguments, loc~)
@@ -1809,7 +1809,7 @@ fn @syntax.Type::resolve_effect_type(
 ///|
 fn @syntax.Type::effect_type_parts(
   self : @syntax.Type,
-) -> (@syntax.Type, Array[@syntax.Type]) {
+) -> (@syntax.Type, Array[@syntax.GenericArgument]) {
   match self {
     Apply(callee~, arguments~, ..) => (callee, arguments)
     Grouped(type_~, ..) => type_.effect_type_parts()
@@ -1861,7 +1861,7 @@ fn Resolver::resolve_module_qualified_effect_type(
   self : Resolver,
   module_path : @syntax.ModulePath,
   name : String,
-  arguments : Array[@syntax.Type],
+  arguments : Array[@syntax.GenericArgument],
   scope : ResolveScope,
   loc : SourceSpan,
 ) -> ResolvedEffectTerm {
@@ -1914,36 +1914,73 @@ fn Resolver::resolve_module_qualified_effect_type(
 }
 
 ///|
-fn @syntax.Type::resolve_generic_argument(
-  self : @syntax.Type,
+fn @syntax.GenericArgument::resolve_generic_argument(
+  self : @syntax.GenericArgument,
   resolver : Resolver,
   scope : ResolveScope,
 ) -> ResolvedGenericArgument {
-  if self.should_resolve_as_effect_alias_argument(resolver, scope) {
-    EffectArgument(self.resolve_effect_type(resolver, scope, self.loc()))
-  } else {
-    TypeArgument(self.resolve_type(resolver, scope))
+  match self {
+    TypeTerm(type_) =>
+      if type_.should_resolve_as_effect_alias_argument(resolver, scope) {
+        EffectArgument(type_.resolve_effect_type(resolver, scope, type_.loc()))
+      } else {
+        TypeArgument(type_.resolve_type(resolver, scope))
+      }
+    EffectTerm(effect) =>
+      EffectArgument(effect.resolve_effect_term(resolver, scope))
+  }
+}
+
+///|
+fn @syntax.GenericArgument::resolve_default_generic_argument(
+  self : @syntax.GenericArgument,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedGenericArgument {
+  match self {
+    TypeTerm(type_) => TypeArgument(type_.resolve_type(resolver, scope))
+    EffectTerm(effect) =>
+      EffectArgument(effect.resolve_effect_term(resolver, scope))
+  }
+}
+
+///|
+fn @syntax.GenericArgument::resolve_generic_argument_with_kind(
+  self : @syntax.GenericArgument,
+  kind : @types.Kind,
+  resolver : Resolver,
+  scope : ResolveScope,
+) -> ResolvedGenericArgument {
+  match (self, kind) {
+    (EffectTerm(effect), _) =>
+      EffectArgument(effect.resolve_effect_term(resolver, scope))
+    (TypeTerm(type_), Effect) =>
+      EffectArgument(type_.resolve_effect_type(resolver, scope, type_.loc()))
+    (TypeTerm(type_), _) => TypeArgument(type_.resolve_type(resolver, scope))
   }
 }
 
 ///|
 fn resolve_effect_alias_arguments(
-  arguments : Array[@syntax.Type],
+  arguments : Array[@syntax.GenericArgument],
   parameter_kinds : Array[@types.Kind],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedEffectAliasArgument] {
   arguments.mapi(fn(index, argument) {
-    if index < parameter_kinds.length() && parameter_kinds[index] == Effect {
-      if argument.should_resolve_as_effect_alias_argument(resolver, scope) {
-        EffectArgument(
-          argument.resolve_effect_type(resolver, scope, argument.loc()),
-        )
-      } else {
-        TypeArgument(argument.resolve_type(resolver, scope))
-      }
-    } else {
-      TypeArgument(argument.resolve_type(resolver, scope))
+    match argument {
+      EffectTerm(effect) =>
+        EffectArgument(effect.resolve_effect_term(resolver, scope))
+      TypeTerm(type_) =>
+        if index < parameter_kinds.length() &&
+          parameter_kinds[index] == Effect &&
+          type_.should_resolve_as_effect_alias_argument(resolver, scope) {
+          EffectArgument(
+            type_.resolve_effect_type(resolver, scope, type_.loc()),
+          )
+        } else {
+          TypeArgument(type_.resolve_type(resolver, scope))
+        }
     }
   })
 }
@@ -2475,7 +2512,7 @@ fn Resolver::resolve_unqualified_name_use_with_variant_arguments(
   name : String,
   name_loc : SourceSpan,
   name_use : UnqualifiedNameUse,
-  variant_generic_arguments : Array[@syntax.Type],
+  variant_generic_arguments : Array[@syntax.GenericArgument],
 ) -> ResolvedExpr {
   match scope.value_reference(name) {
     Symbol(_) as reference => {
@@ -2496,7 +2533,7 @@ fn Resolver::resolve_unqualified_variant_use(
   name : String,
   name_loc : SourceSpan,
   name_use : UnqualifiedNameUse,
-  variant_generic_arguments : Array[@syntax.Type],
+  variant_generic_arguments : Array[@syntax.GenericArgument],
 ) -> ResolvedExpr {
   match self.unqualified_variant_reference(name, name_loc) {
     Symbol(symbol) as reference => {
@@ -2633,13 +2670,13 @@ fn UnqualifiedNameUse::resolve_as_variant(
   scope : ResolveScope,
   name : String,
   name_loc : SourceSpan,
-  variant_generic_arguments : Array[@syntax.Type],
+  variant_generic_arguments : Array[@syntax.GenericArgument],
   reference : ResolvedVariantReference,
 ) -> ResolvedExpr {
   let resolved_variant_generic_arguments = variant_generic_arguments.map(fn(
-    type_,
+    argument,
   ) {
-    type_.resolve_generic_argument(resolver, scope)
+    argument.resolve_generic_argument(resolver, scope)
   })
   match self {
     BareUse(loc) =>

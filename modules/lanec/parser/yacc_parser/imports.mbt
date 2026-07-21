@@ -15,6 +15,7 @@ using @syntax {
   type FieldDeclaration,
   type FunctionDeclaration,
   type FunctionLiteralParameter,
+  type GenericArgument,
   type HandlerFinalBranch,
   type HandlerOperationArm,
   type HandlerWithBlock,
@@ -82,8 +83,8 @@ priv struct HandlerOperationHead {
 }
 
 ///|
-priv struct HandlerOperationTypeArguments {
-  arguments : Array[Type]
+priv struct GenericArgumentList {
+  arguments : Array[GenericArgument]
   loc : SourceSpan
 }
 
@@ -91,14 +92,14 @@ priv struct HandlerOperationTypeArguments {
 priv enum HandlerOperationHeadAfterIdent {
   Unqualified(Array[TypeBinder])
   Qualified(
-    owner_arguments~ : HandlerOperationTypeArguments?,
+    owner_arguments~ : GenericArgumentList?,
     operation~ : Identifier,
     type_binders~ : Array[TypeBinder]
   )
 }
 
 ///|
-priv enum HandlerOperationAfterTypeArguments {
+priv enum HandlerOperationAfterGenericArguments {
   OperationBinders
   OwnerArguments(operation~ : Identifier, type_binders~ : Array[TypeBinder])
 }
@@ -207,7 +208,7 @@ fn type_name_text(type_ : Type) -> String {
 ///|
 fn apply_type_arguments(
   callee : Type,
-  arguments : Array[Type],
+  arguments : Array[GenericArgument],
   loc : SourceSpan,
 ) -> Type {
   if arguments.is_empty() {
@@ -251,7 +252,7 @@ fn owner_expression_field(
 ///|
 fn owner_expression_with_arguments(
   expression : OwnerExpression,
-  arguments : Array[Type],
+  arguments : Array[GenericArgument],
   loc : SourceSpan,
 ) -> OwnerExpression {
   {
@@ -261,12 +262,24 @@ fn owner_expression_with_arguments(
 }
 
 ///|
-fn type_binders_from_type_arguments(
-  arguments : Array[Type],
+fn type_binders_from_generic_arguments(
+  arguments : Array[GenericArgument],
 ) -> Array[TypeBinder] {
   arguments.map(fn(argument) {
-    { name: type_name_text(argument), loc: argument.loc() }
+    match argument {
+      TypeTerm(type_) => { name: type_name_text(type_), loc: type_.loc() }
+      EffectTerm(effect) => { name: "", loc: effect.loc() }
+    }
   })
+}
+
+///|
+fn effect_set(items : Array[Type], loc : SourceSpan) -> EffectTerm {
+  if items.is_empty() {
+    Empty(loc~)
+  } else {
+    Union(items~, loc~)
+  }
 }
 
 ///|
@@ -303,7 +316,7 @@ fn handler_operation_head_from_ident(
 ///|
 fn handler_operation_head_from_qualified(
   owner_base : Type,
-  owner_arguments : HandlerOperationTypeArguments?,
+  owner_arguments : GenericArgumentList?,
   operation : Identifier,
   type_binders : Array[TypeBinder],
 ) -> HandlerOperationHead {
@@ -323,7 +336,7 @@ fn handler_operation_head_from_qualified(
 ///|
 fn apply_handler_operation_owner_arguments(
   owner : Type,
-  arguments : HandlerOperationTypeArguments?,
+  arguments : GenericArgumentList?,
 ) -> Type {
   match arguments {
     None => owner
@@ -337,13 +350,15 @@ fn apply_handler_operation_owner_arguments(
 }
 
 ///|
-fn handler_operation_head_after_type_arguments(
-  owner_or_binders : HandlerOperationTypeArguments,
-  suffix : HandlerOperationAfterTypeArguments,
+fn handler_operation_head_after_generic_arguments(
+  owner_or_binders : GenericArgumentList,
+  suffix : HandlerOperationAfterGenericArguments,
 ) -> HandlerOperationHeadAfterIdent {
   match suffix {
     OperationBinders =>
-      Unqualified(type_binders_from_type_arguments(owner_or_binders.arguments))
+      Unqualified(
+        type_binders_from_generic_arguments(owner_or_binders.arguments),
+      )
     OwnerArguments(operation~, type_binders~) =>
       Qualified(
         owner_arguments=Some(owner_or_binders),

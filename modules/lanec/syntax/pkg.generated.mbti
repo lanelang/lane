@@ -104,14 +104,14 @@ pub(all) enum Expr {
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   UnitLiteral(loc~ : @basic.SourceSpan)
   Var(String, loc~ : @basic.SourceSpan)
-  QualifiedVariant(owner~ : Type, variant~ : String, variant_loc~ : @basic.SourceSpan, variant_type_arguments~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
+  QualifiedVariant(owner~ : Type, variant~ : String, variant_loc~ : @basic.SourceSpan, variant_type_arguments~ : Array[GenericArgument], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   StructLiteral(owner~ : Type, fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   ListLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   Extern(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
-  EffectOperationCall(name~ : EffectOperationName, type_witnesses~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
-  TypeApplication(callee~ : Expr, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
+  EffectOperationCall(name~ : EffectOperationName, type_witnesses~ : Array[GenericArgument], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
+  TypeApplication(callee~ : Expr, arguments~ : Array[GenericArgument], loc~ : @basic.SourceSpan)
   Handler(body~ : Expr, handlers~ : Array[HandlerWithBlock], final_branch~ : HandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[LocalItem], result~ : Expr, loc~ : @basic.SourceSpan)
   If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
@@ -175,6 +175,14 @@ pub(all) struct FunctionLiteralParameter {
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for FunctionLiteralParameter
 pub impl @prettyprinter.Pretty for FunctionLiteralParameter
+
+pub(all) enum GenericArgument {
+  TypeTerm(Type)
+  EffectTerm(EffectTerm)
+} derive(Eq, @debug.Debug)
+pub fn GenericArgument::loc(Self) -> @basic.SourceSpan
+pub impl @source_prettyprinter.Pretty for GenericArgument
+pub impl @prettyprinter.Pretty for GenericArgument
 
 pub(all) struct HandlerFinalBranch {
   binder : String
@@ -384,7 +392,7 @@ pub impl @prettyprinter.Pretty for TopLevelDeclaration
 pub(all) enum Type {
   Name(name~ : String, loc~ : @basic.SourceSpan)
   QualifiedName(module_path~ : ModulePath, name~ : String, loc~ : @basic.SourceSpan)
-  Apply(callee~ : Type, arguments~ : Array[Type], loc~ : @basic.SourceSpan)
+  Apply(callee~ : Type, arguments~ : Array[GenericArgument], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[TypeParameter], body~ : Type, loc~ : @basic.SourceSpan)
   Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, effect~ : EffectTerm, loc~ : @basic.SourceSpan)
   Grouped(type_~ : Type, loc~ : @basic.SourceSpan)

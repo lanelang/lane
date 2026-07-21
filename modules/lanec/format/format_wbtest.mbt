@@ -1056,6 +1056,53 @@ test "format source preserves generic parameter and argument comments" {
 }
 
 ///|
+test "format source preserves braced effect generic argument comments" {
+  assert_format(
+    (
+      #|module Test
+      #|effect Log { write(Int) -> Unit }
+      #|fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E { action() }
+      #|fn logged() -> Unit ! Log { Log::write!(1) }
+      #|pub let result : Unit = run[
+      #|  // before effect argument
+      #|  {
+      #|    // effect member
+      #|    Log
+      #|    // before effect close
+      #|  }
+      #|  // before generic close
+      #|](logged)
+    ),
+    (
+      #|module Test
+      #|
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|
+      #|fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
+      #|  action()
+      #|}
+      #|
+      #|fn logged() -> Unit ! Log {
+      #|  Log::write!(1)
+      #|}
+      #|
+      #|pub let result : Unit = run[
+      #|  // before effect argument
+      #|  {
+      #|    // effect member
+      #|    Log
+      #|    // before effect close
+      #|  }
+      #|  // before generic close
+      #|](logged)
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves enum payload comments" {
   assert_format(
     (

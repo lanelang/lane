@@ -243,7 +243,7 @@ pub(all) struct OfferDeclaration {
 pub(all) enum Type {
   Name(name~ : String, loc~ : SourceSpan)
   QualifiedName(module_path~ : ModulePath, name~ : String, loc~ : SourceSpan)
-  Apply(callee~ : Type, arguments~ : Array[Type], loc~ : SourceSpan)
+  Apply(callee~ : Type, arguments~ : Array[GenericArgument], loc~ : SourceSpan)
   TypeLambda(
     parameters~ : Array[TypeParameter],
     body~ : Type,
@@ -265,6 +265,20 @@ pub(all) enum EffectTerm {
   Term(type_~ : Type, loc~ : SourceSpan)
   Union(items~ : Array[Type], loc~ : SourceSpan)
 } derive(Debug, Eq)
+
+///|
+pub(all) enum GenericArgument {
+  TypeTerm(Type)
+  EffectTerm(EffectTerm)
+} derive(Debug, Eq)
+
+///|
+pub fn GenericArgument::loc(self : GenericArgument) -> SourceSpan {
+  match self {
+    TypeTerm(type_) => type_.loc()
+    EffectTerm(effect) => effect.loc()
+  }
+}
 
 ///|
 pub fn EffectTerm::loc(self : EffectTerm) -> SourceSpan {
@@ -298,7 +312,7 @@ pub(all) enum Expr {
     owner~ : Type,
     variant~ : String,
     variant_loc~ : SourceSpan,
-    variant_type_arguments~ : Array[Type],
+    variant_type_arguments~ : Array[GenericArgument],
     arguments~ : Array[Expr],
     loc~ : SourceSpan
   )
@@ -320,11 +334,15 @@ pub(all) enum Expr {
   )
   EffectOperationCall(
     name~ : EffectOperationName,
-    type_witnesses~ : Array[Type],
+    type_witnesses~ : Array[GenericArgument],
     arguments~ : Array[Expr],
     loc~ : SourceSpan
   )
-  TypeApplication(callee~ : Expr, arguments~ : Array[Type], loc~ : SourceSpan)
+  TypeApplication(
+    callee~ : Expr,
+    arguments~ : Array[GenericArgument],
+    loc~ : SourceSpan
+  )
   Handler(
     body~ : Expr,
     handlers~ : Array[HandlerWithBlock],

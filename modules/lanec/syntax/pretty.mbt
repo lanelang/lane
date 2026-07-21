@@ -77,8 +77,8 @@ fn bracketed_type_parameters(
 }
 
 ///|
-fn bracketed_type_arguments(
-  arguments : Array[Type],
+fn bracketed_generic_arguments(
+  arguments : Array[GenericArgument],
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   start_offset? : Int = -1,
   end_offset? : Int = -1,
@@ -92,14 +92,14 @@ fn bracketed_type_arguments(
         '[',
         start_offset,
         end_offset,
-        child_spans=arguments.map(Type::loc),
+        child_spans=arguments.map(GenericArgument::loc),
       )
     } else {
       (empty, false)
     }
     bracketed_comma_list(
       docs,
-      item_spans=arguments.map(Type::loc),
+      item_spans=arguments.map(GenericArgument::loc),
       trivia~,
       dangling~,
       force_break~,
@@ -1028,6 +1028,24 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
 }
 
 ///|
+pub impl @prettyprinter.Pretty for GenericArgument with fn pretty(
+  argument : GenericArgument,
+) {
+  argument.to_doc()
+}
+
+///|
+fn GenericArgument::to_doc(
+  self : GenericArgument,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
+  match self {
+    TypeTerm(type_) => type_.to_doc(trivia~)
+    EffectTerm(effect) => effect.to_doc(trivia~)
+  }
+}
+
+///|
 fn Type::to_doc(
   self : Type,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
@@ -1038,7 +1056,7 @@ fn Type::to_doc(
       module_path.to_doc() + text(".") + text(name)
     Apply(callee~, arguments~, loc~) =>
       callee.to_doc(trivia~) +
-      bracketed_type_arguments(
+      bracketed_generic_arguments(
         arguments,
         trivia~,
         start_offset=callee.loc().end_offset,
@@ -1213,7 +1231,7 @@ fn Expr::first_line_doc(self : Expr) -> Document {
         item_spans=arguments.map(CallArgument::loc),
       )
     TypeApplication(callee~, arguments~, ..) =>
-      callee.to_doc_with_precedence(9) + bracketed_type_arguments(arguments)
+      callee.to_doc_with_precedence(9) + bracketed_generic_arguments(arguments)
     _ => self.to_doc()
   }
 }
@@ -1247,7 +1265,7 @@ fn Expr::to_doc_with_precedence(
       } else {
         arguments[0].loc().start_offset
       }
-      let type_arguments = bracketed_type_arguments(
+      let type_arguments = bracketed_generic_arguments(
         variant_type_arguments,
         trivia~,
         start_offset=owner.loc().end_offset,
@@ -1385,7 +1403,7 @@ fn Expr::to_doc_with_precedence(
       } else {
         arguments[0].loc().start_offset
       }
-      let type_witness_docs = bracketed_type_arguments(
+      let type_witness_docs = bracketed_generic_arguments(
         type_witnesses,
         trivia~,
         start_offset=name.argument_search_start(),
@@ -1420,7 +1438,7 @@ fn Expr::to_doc_with_precedence(
       (
         9,
         callee.to_doc_with_precedence(9, trivia~) +
-        bracketed_type_arguments(
+        bracketed_generic_arguments(
           arguments,
           trivia~,
           start_offset=callee.loc().end_offset,

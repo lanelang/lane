@@ -143,6 +143,11 @@ pub impl @generic_prettyprinter.Pretty for Type with fn pretty(value) {
 }
 
 ///|
+pub impl @generic_prettyprinter.Pretty for GenericArgument with fn pretty(value) {
+  generic_pretty(value)
+}
+
+///|
 pub impl @generic_prettyprinter.Pretty for Expr with fn pretty(value) {
   generic_pretty(value)
 }

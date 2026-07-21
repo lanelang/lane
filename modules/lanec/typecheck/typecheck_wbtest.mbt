@@ -2015,6 +2015,57 @@ test "typecheck explicit effect-kind generic function argument" {
 }
 
 ///|
+test "typecheck braced effect generic arguments" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|effect Ops {
+      #|  ping[E : Effect]() -> Unit
+      #|}
+      #|effect Coroutine[E : Effect] {
+      #|  yield() -> Unit
+      #|}
+      #|struct Box[A, E : Effect] {
+      #|  value : A
+      #|}
+      #|enum Task {
+      #|  task[E : Effect]()
+      #|}
+      #|fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
+      #|  action()
+      #|}
+      #|fn pure() -> Unit {
+      #|  ()
+      #|}
+      #|fn use() -> Int ! Ops {
+      #|  {
+      #|    let ran : Unit = run[{}](pure)
+      #|    let box : Box[Int, {}] = Box[Int, {}]::{ value: 1 }
+      #|    let task : Task = Task::task[{ Log }]()
+      #|    let pinged : Unit = Ops::ping![{}]()
+      #|    box.value
+      #|  }
+      #|}
+      #|fn handled() -> Unit {
+      #|  handle Coroutine[{}]::yield!() with {
+      #|    Coroutine[{}]::yield(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[]
+    ),
+  )
+}
+
+///|
 test "typecheck infers empty residual effect row in generic function argument" {
   let result = expect_typecheck_result(
     (

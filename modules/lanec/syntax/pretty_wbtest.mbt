@@ -9,7 +9,11 @@ fn test_type(name : String, arguments? : Array[Type] = []) -> Type {
   if arguments.is_empty() {
     base
   } else {
-    Apply(callee=base, arguments~, loc=test_loc())
+    Apply(
+      callee=base,
+      arguments=arguments.map(fn(argument) { TypeTerm(argument) }),
+      loc=test_loc(),
+    )
   }
 }
 
