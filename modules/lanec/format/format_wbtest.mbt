@@ -1394,6 +1394,112 @@ test "format source preserves function type and effect row delimiters" {
 }
 
 ///|
+test "format source preserves function type separator comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub let callback : (
+      #|  Int, // first parameter
+      #|  String
+      #|) -> Int = fn(_left : Int, _right : String) -> Int { 0 }
+    ),
+    (
+      #|module Test
+      #|
+      #|pub let callback : (
+      #|  Int,
+      #|  // first parameter
+      #|  String
+      #|) -> Int =
+      #|  fn(_left : Int, _right : String) -> Int {
+      #|    0
+      #|  }
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves qualified variant separator comments" {
+  assert_format(
+    (
+      #|module Test
+      #|enum Pair { pair(Int, Int) }
+      #|pub let pair : Pair = Pair::pair(
+      #|  20, // left argument
+      #|  22
+      #|)
+    ),
+    (
+      #|module Test
+      #|
+      #|enum Pair {
+      #|  pair(Int, Int)
+      #|}
+      #|
+      #|pub let pair : Pair = Pair::pair(
+      #|  20,
+      #|  // left argument
+      #|  22
+      #|)
+      #|
+    ),
+  )
+}
+
+///|
+test "format source preserves type binder separator comments" {
+  assert_format(
+    (
+      #|module Test
+      #|effect Prompt { choose[Left, Right](Left, Right) -> Left }
+      #|pub enum Packed { hide[First, Second](First) }
+      #|pub let chosen : Int = handle Prompt::choose![Int, Int](20, 22) with {
+      #|  Prompt::choose[
+      #|    Left, // handler type binder
+      #|    Right
+      #|  ](left, _right, resume) => resume(left)
+      #|} final value {
+      #|  match Packed::hide[Int, String](value) {
+      #|    Packed::hide[
+      #|      First, // pattern type binder
+      #|      Second
+      #|    ](item) => item
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|effect Prompt {
+      #|  choose[Left, Right](Left, Right) -> Left
+      #|}
+      #|
+      #|pub enum Packed {
+      #|  hide[First, Second](First)
+      #|}
+      #|
+      #|pub let chosen : Int = handle Prompt::choose![Int, Int](20, 22) with {
+      #|  Prompt::choose[
+      #|    Left,
+      #|    // handler type binder
+      #|    Right
+      #|  ](left, _right, resume) => resume(left)
+      #|} final value {
+      #|  match Packed::hide[Int, String](value) {
+      #|    Packed::hide[
+      #|      First,
+      #|      // pattern type binder
+      #|      Second
+      #|    ](item) => item
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves operator field and control flow boundaries" {
   assert_format(
     (

@@ -512,7 +512,13 @@ fn Kind::to_doc(
         loc.start_offset,
         result.loc().start_offset,
       )
-      bracketed_comma_list(parameter_docs, dangling~, force_break~) +
+      bracketed_comma_list(
+        parameter_docs,
+        item_spans=parameters.map(Kind::loc),
+        trivia~,
+        dangling~,
+        force_break~,
+      ) +
       space +
       text("->") +
       space +
@@ -527,6 +533,8 @@ fn Kind::to_doc(
       if force_break {
         parenthesized_comma_list(
           [kind.to_doc(trivia~)],
+          item_spans=[kind.loc()],
+          trivia~,
           dangling~,
           force_break~,
         )
@@ -1086,6 +1094,8 @@ fn Type::to_doc(
       type_parameters_doc +
       parenthesized_comma_list(
         parameter_docs,
+        item_spans=parameters.map(Type::loc),
+        trivia~,
         dangling=parameter_dangling,
         force_break=force_parameter_break,
       ) +
@@ -1100,6 +1110,8 @@ fn Type::to_doc(
       if force_break {
         parenthesized_comma_list(
           [type_.to_doc(trivia~)],
+          item_spans=[type_.loc()],
+          trivia~,
           dangling~,
           force_break~,
         )
@@ -1194,6 +1206,7 @@ fn Expr::first_line_doc(self : Expr) -> Document {
       callee.to_doc_with_precedence(9) +
       parenthesized_comma_list(
         arguments.map(fn(argument) { argument.first_line_doc() }),
+        item_spans=arguments.map(CallArgument::loc),
       )
     TypeApplication(callee~, arguments~, ..) =>
       callee.to_doc_with_precedence(9) + bracketed_type_arguments(arguments)
@@ -1250,6 +1263,8 @@ fn Expr::to_doc_with_precedence(
       let doc = head +
         parenthesized_comma_list(
           argument_docs,
+          item_spans=arguments.map(Expr::loc),
+          trivia~,
           dangling=argument_dangling,
           force_break=force_argument_break,
         )
@@ -1305,7 +1320,13 @@ fn Expr::to_doc_with_precedence(
       (
         10,
         keyword("builtin") +
-        parenthesized_comma_list([source_string(name)], dangling~, force_break~),
+        parenthesized_comma_list(
+          [source_string(name)],
+          item_spans=[loc],
+          trivia~,
+          dangling~,
+          force_break~,
+        ),
       )
     }
     Extern(name, loc~) => {
@@ -1317,7 +1338,13 @@ fn Expr::to_doc_with_precedence(
       (
         10,
         keyword("extern") +
-        parenthesized_comma_list([source_string(name)], dangling~, force_break~),
+        parenthesized_comma_list(
+          [source_string(name)],
+          item_spans=[loc],
+          trivia~,
+          dangling~,
+          force_break~,
+        ),
       )
     }
     FunctionLiteral(
@@ -1374,6 +1401,8 @@ fn Expr::to_doc_with_precedence(
         type_witness_docs +
         parenthesized_comma_list(
           argument_docs,
+          item_spans=arguments.map(Expr::loc),
+          trivia~,
           dangling=argument_dangling,
           force_break=force_argument_break,
         ),
@@ -1554,6 +1583,8 @@ fn Expr::to_doc_with_precedence(
       } else if delimited_force_break {
         parenthesized_comma_list(
           [expression_doc],
+          item_spans=[expression.loc()],
+          trivia~,
           dangling~,
           force_break=delimited_force_break,
         )
@@ -1740,7 +1771,9 @@ fn HandlerOperationArm::to_doc(
   let parameters = self.payload_patterns.map(fn(pattern) {
     pattern.to_doc(trivia~)
   })
+  let parameter_spans = self.payload_patterns.map(Pattern::loc)
   parameters.push(text(self.resume_binder))
+  parameter_spans.push(self.resume_loc)
   let binders = if self.type_binders.is_empty() {
     empty
   } else {
@@ -1749,7 +1782,13 @@ fn HandlerOperationArm::to_doc(
       self.name.argument_search_start(),
       self.loc.end_offset,
     )
-    bracketed_comma_list(self.type_binders.map(text), dangling~, force_break~)
+    bracketed_comma_list(
+      self.type_binders.map(fn(binder) { text(binder.name) }),
+      item_spans=self.type_binders.map(fn(binder) { binder.loc }),
+      trivia~,
+      dangling~,
+      force_break~,
+    )
   }
   let (parameter_dangling, force_parameter_break) = trivia.take_delimited(
     '(',
@@ -1760,6 +1799,8 @@ fn HandlerOperationArm::to_doc(
     binders +
     parenthesized_comma_list(
       parameters,
+      item_spans=parameter_spans,
+      trivia~,
       dangling=parameter_dangling,
       force_break=force_parameter_break,
     ) +
@@ -2124,7 +2165,13 @@ fn Pattern::to_doc(
           loc.start_offset,
           loc.end_offset,
         )
-        bracketed_comma_list(type_binders.map(text), dangling~, force_break~)
+        bracketed_comma_list(
+          type_binders.map(fn(binder) { text(binder.name) }),
+          item_spans=type_binders.map(fn(binder) { binder.loc }),
+          trivia~,
+          dangling~,
+          force_break~,
+        )
       }
       let head = text(type_name) + text("::") + text(variant) + binders_doc
       let argument_docs = arguments.map(fn(argument) {
@@ -2135,7 +2182,14 @@ fn Pattern::to_doc(
         loc.start_offset,
         loc.end_offset,
       )
-      head + parenthesized_comma_list(argument_docs, dangling~, force_break~)
+      head +
+      parenthesized_comma_list(
+        argument_docs,
+        item_spans=arguments.map(Pattern::loc),
+        trivia~,
+        dangling~,
+        force_break~,
+      )
     }
     UnqualifiedVariant(variant~, type_binders~, arguments~, loc~, ..) => {
       let binders_doc = if type_binders.is_empty() {
@@ -2146,7 +2200,13 @@ fn Pattern::to_doc(
           loc.start_offset,
           loc.end_offset,
         )
-        bracketed_comma_list(type_binders.map(text), dangling~, force_break~)
+        bracketed_comma_list(
+          type_binders.map(fn(binder) { text(binder.name) }),
+          item_spans=type_binders.map(fn(binder) { binder.loc }),
+          trivia~,
+          dangling~,
+          force_break~,
+        )
       }
       let head = text(variant) + binders_doc
       let argument_docs = arguments.map(fn(argument) {
@@ -2157,7 +2217,14 @@ fn Pattern::to_doc(
         loc.start_offset,
         loc.end_offset,
       )
-      head + parenthesized_comma_list(argument_docs, dangling~, force_break~)
+      head +
+      parenthesized_comma_list(
+        argument_docs,
+        item_spans=arguments.map(Pattern::loc),
+        trivia~,
+        dangling~,
+        force_break~,
+      )
     }
     Struct(type_name~, fields~, loc~, ..) => {
       let field_docs = fields.map(fn(field) { field.to_doc(trivia~) })
@@ -2168,7 +2235,13 @@ fn Pattern::to_doc(
       )
       text(type_name) +
       text("::") +
-      braced_comma_list(field_docs, dangling~, force_break~)
+      braced_comma_list(
+        field_docs,
+        item_spans=fields.map(StructPatternField::loc),
+        trivia~,
+        dangling~,
+        force_break~,
+      )
     }
   }
   trivia.decorate(self.loc(), doc)
@@ -2190,6 +2263,13 @@ fn StructPatternField::to_doc(
     TypeWildcard(loc~) => (loc, text("_"))
   }
   trivia.decorate(loc, doc)
+}
+
+///|
+fn StructPatternField::loc(self : StructPatternField) -> SourceSpan {
+  match self {
+    Value(loc~, ..) | TypeBinder(loc~, ..) | TypeWildcard(loc~) => loc
+  }
 }
 
 ///|

@@ -57,6 +57,12 @@ pub(all) struct TypeParameter {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct TypeBinder {
+  name : String
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct StructDeclaration {
   is_public : Bool
   name : String
@@ -401,7 +407,7 @@ pub(all) struct HandlerWithBlock {
 ///|
 pub(all) struct HandlerOperationArm {
   name : EffectOperationName
-  type_binders : Array[String]
+  type_binders : Array[TypeBinder]
   payload_patterns : Array[Pattern]
   resume_binder : String
   resume_loc : SourceSpan
@@ -475,14 +481,14 @@ pub(all) enum Pattern {
     type_name_loc~ : SourceSpan,
     variant~ : String,
     variant_loc~ : SourceSpan,
-    type_binders~ : Array[String],
+    type_binders~ : Array[TypeBinder],
     arguments~ : Array[Pattern],
     loc~ : SourceSpan
   )
   UnqualifiedVariant(
     variant~ : String,
     variant_loc~ : SourceSpan,
-    type_binders~ : Array[String],
+    type_binders~ : Array[TypeBinder],
     arguments~ : Array[Pattern],
     loc~ : SourceSpan
   )

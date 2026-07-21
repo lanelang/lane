@@ -2984,7 +2984,7 @@ fn @syntax.HandlerOperationArm::resolve_handler_operation_arm(
 ) -> ResolvedHandlerOperationArm {
   let arm_scope = scope.copy()
   let type_binders = resolver.resolve_type_parameter_names(
-    self.type_binders,
+    self.type_binders.map(fn(binder) { binder.name }),
     self.loc,
   )
   arm_scope.type_parameters.append(type_binders)
@@ -3062,7 +3062,8 @@ fn @syntax.Pattern::resolve_pattern(
       loc~
     ) => {
       let type_binders = resolver.resolve_type_parameter_names(
-        type_binders, loc,
+        type_binders.map(fn(binder) { binder.name }),
+        loc,
       )
       scope.type_parameters.append(type_binders)
       QualifiedVariant(
@@ -3080,7 +3081,8 @@ fn @syntax.Pattern::resolve_pattern(
     }
     UnqualifiedVariant(variant~, variant_loc~, type_binders~, arguments~, loc~) => {
       let type_binders = resolver.resolve_type_parameter_names(
-        type_binders, loc,
+        type_binders.map(fn(binder) { binder.name }),
+        loc,
       )
       scope.type_parameters.append(type_binders)
       UnqualifiedVariant(

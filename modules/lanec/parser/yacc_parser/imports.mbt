@@ -37,6 +37,7 @@ using @syntax {
   type StructPatternField,
   type TypeAliasDeclaration,
   type TypeAliasBody,
+  type TypeBinder,
   type TypeMemberDeclaration,
   type TypeParameter,
   type TopLevelDeclaration,
@@ -77,7 +78,7 @@ priv struct HandlerOperationArmParameters {
 ///|
 priv struct HandlerOperationHead {
   name : EffectOperationName
-  type_binders : Array[String]
+  type_binders : Array[TypeBinder]
 }
 
 ///|
@@ -88,18 +89,18 @@ priv struct HandlerOperationTypeArguments {
 
 ///|
 priv enum HandlerOperationHeadAfterIdent {
-  Unqualified(Array[String])
+  Unqualified(Array[TypeBinder])
   Qualified(
     owner_arguments~ : HandlerOperationTypeArguments?,
     operation~ : Identifier,
-    type_binders~ : Array[String]
+    type_binders~ : Array[TypeBinder]
   )
 }
 
 ///|
 priv enum HandlerOperationAfterTypeArguments {
   OperationBinders
-  OwnerArguments(operation~ : Identifier, type_binders~ : Array[String])
+  OwnerArguments(operation~ : Identifier, type_binders~ : Array[TypeBinder])
 }
 
 ///|
@@ -260,8 +261,12 @@ fn owner_expression_with_arguments(
 }
 
 ///|
-fn type_binders_from_type_arguments(arguments : Array[Type]) -> Array[String] {
-  arguments.map(type_name_text)
+fn type_binders_from_type_arguments(
+  arguments : Array[Type],
+) -> Array[TypeBinder] {
+  arguments.map(fn(argument) {
+    { name: type_name_text(argument), loc: argument.loc() }
+  })
 }
 
 ///|
@@ -300,7 +305,7 @@ fn handler_operation_head_from_qualified(
   owner_base : Type,
   owner_arguments : HandlerOperationTypeArguments?,
   operation : Identifier,
-  type_binders : Array[String],
+  type_binders : Array[TypeBinder],
 ) -> HandlerOperationHead {
   let owner = apply_handler_operation_owner_arguments(
     owner_base, owner_arguments,

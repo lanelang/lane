@@ -412,6 +412,10 @@ priv suberror YYObj_Array_ImportItem_ {
   YYObj_Array_ImportItem_(Array[ImportItem])
 }
 
+priv suberror YYObj_Array_TypeBinder_ {
+  YYObj_Array_TypeBinder_(Array[TypeBinder])
+}
+
 priv suberror YYObj_Array_EnumVariant_ {
   YYObj_Array_EnumVariant_(Array[EnumVariant])
 }
@@ -1781,7 +1785,7 @@ fn yy_action_88(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   guard _args[0].0 is YYObj_Type(_dollar1)
   guard _args[1].0 is YYObj_HandlerOperationTypeArguments_(_dollar2)
   guard _args[3].0 is YYObj_Identifier(_dollar4)
-  guard _args[4].0 is YYObj_Array_String_(_dollar5)
+  guard _args[4].0 is YYObj_Array_TypeBinder_(_dollar5)
   YYObj_HandlerOperationHead({();  handler_operation_head_from_qualified(_dollar1, _dollar2, _dollar4, _dollar5) })
 }
 
@@ -1908,7 +1912,7 @@ fn yy_action_101(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 // 867|    "tight ::" identifier handler_operation_type_binders { OwnerArguments(operation=$2, type_binders=$3) }
 fn yy_action_102(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
-  guard _args[2].0 is YYObj_Array_String_(_dollar3)
+  guard _args[2].0 is YYObj_Array_TypeBinder_(_dollar3)
   YYObj_HandlerOperationAfterTypeArguments({();  OwnerArguments(operation=_dollar2, type_binders=_dollar3) })
 }
 
@@ -1922,34 +1926,34 @@ fn yy_action_103(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 // 862|    "tight ::" identifier handler_operation_type_binders { Qualified(owner_arguments=None, operation=$2, type_binders=$3) }
 fn yy_action_104(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
-  guard _args[2].0 is YYObj_Array_String_(_dollar3)
+  guard _args[2].0 is YYObj_Array_TypeBinder_(_dollar3)
   YYObj_HandlerOperationHeadAfterIdent({();  Qualified(owner_arguments=None, operation=_dollar2, type_binders=_dollar3) })
 }
 
 // file:///./parser.mbty
 // 872|    ident_bracket_list { $1 }
 fn yy_action_105(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_String_(_dollar1)
-  YYObj_Array_String_({();  _dollar1 })
+  guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
+  YYObj_Array_TypeBinder_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
 // 876|    "[" non_empty_ident_list "]" { $2 }
 fn yy_action_106(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[1].0 is YYObj_Array_String_(_dollar2)
-  YYObj_Array_String_({();  _dollar2 })
+  guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
+  YYObj_Array_TypeBinder_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
 // 877|    "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
 fn yy_action_107(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_Array_String_({();  [] })
+  YYObj_Array_TypeBinder_({();  [] })
 }
 
 // file:///./parser.mbty
 // 871|    { [] }
 fn yy_action_108(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_Array_String_({();  [] })
+  YYObj_Array_TypeBinder_({();  [] })
 }
 
 // file:///./parser.mbty
@@ -2041,7 +2045,7 @@ fn yy_action_118(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 fn yy_action_119(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NominalTypeName(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
-  guard _args[3].0 is YYObj_Array_String_(_dollar4)
+  guard _args[3].0 is YYObj_Array_TypeBinder_(_dollar4)
   guard _args[5].0 is YYObj_Array_Pattern_(_dollar6)
   let _start_pos = if _args.length() == 0 { _last_pos } else { _args[0].1 }
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2097,7 +2101,7 @@ fn yy_action_125(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
   guard _args[0].0 is YYObj_String(_dollar1)
   let _start_pos = if _args.length() == 0 { _last_pos } else { _args[0].1 }
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  guard _args[1].0 is YYObj_Array_String_(_dollar2)
+  guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
   guard _args[3].0 is YYObj_Array_Pattern_(_dollar4)
   YYObj_Pattern({();  UnqualifiedVariant(variant=_dollar1, variant_loc=span((_start_pos, _end_pos)).ascii_prefix(_dollar1.length()), type_binders=_dollar2, arguments=_dollar4, loc=span((_start_pos, _end_pos))) })
 }
@@ -2140,30 +2144,30 @@ fn yy_action_130(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 // file:///./parser.mbty
 // 968|    "[" non_empty_ident_list "]" { $2 }
 fn yy_action_131(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[1].0 is YYObj_Array_String_(_dollar2)
-  YYObj_Array_String_({();  _dollar2 })
+  guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
+  YYObj_Array_TypeBinder_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 973|    non_empty_ident_list "," IDENT { comma_push($1, $3) }
+// 973|    non_empty_ident_list "," identifier { comma_push($1, { name: $3.name, loc: $3.loc }) }
 fn yy_action_132(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_String_(_dollar1)
-  guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Array_String_({();  comma_push(_dollar1, _dollar3) })
+  guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
+  guard _args[2].0 is YYObj_Identifier(_dollar3)
+  YYObj_Array_TypeBinder_({();  comma_push(_dollar1, { name: _dollar3.name, loc: _dollar3.loc }) })
 }
 
 // file:///./parser.mbty
 // 974|    non_empty_ident_list "," { $1 }
 fn yy_action_133(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_String_(_dollar1)
-  YYObj_Array_String_({();  _dollar1 })
+  guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
+  YYObj_Array_TypeBinder_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 972|    IDENT { [ $1 ] }
+// 972|    identifier { [ { name: $1.name, loc: $1.loc } ] }
 fn yy_action_134(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_String(_dollar1)
-  YYObj_Array_String_({();  [ _dollar1 ] })
+  guard _args[0].0 is YYObj_Identifier(_dollar1)
+  YYObj_Array_TypeBinder_({();  [ { name: _dollar1.name, loc: _dollar1.loc } ] })
 }
 
 // file:///./parser.mbty
@@ -2187,7 +2191,7 @@ fn yy_action_136(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 // file:///./parser.mbty
 // 967|    { [] }
 fn yy_action_137(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_Array_String_({();  [] })
+  YYObj_Array_TypeBinder_({();  [] })
 }
 
 // file:///./parser.mbty
@@ -7350,7 +7354,8 @@ fn yy_state_298(_lookahead : YYSymbol) -> YYDecision {
 
 fn yy_state_299(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_IDENT => Shift(yy_state_300)
+    T_IDENT => Shift(yy_state_88)
+    NT_identifier => Shift(yy_state_300)
     NT_non_empty_ident_list => Shift(yy_state_301)
     _ => Error
   }
@@ -7370,7 +7375,8 @@ fn yy_state_301(_lookahead : YYSymbol) -> YYDecision {
 
 fn yy_state_302(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_IDENT => Shift(yy_state_303)
+    T_IDENT => Shift(yy_state_88)
+    NT_identifier => Shift(yy_state_303)
     T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_ident_list, yy_action_133)
     _ => Error
   }
@@ -7780,7 +7786,8 @@ fn yy_state_344(_lookahead : YYSymbol) -> YYDecision {
 
 fn yy_state_345(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_IDENT => Shift(yy_state_300)
+    T_IDENT => Shift(yy_state_88)
+    NT_identifier => Shift(yy_state_300)
     T_EMPTY_TYPE_PARAMETER_LIST_ERROR => Shift(yy_state_346)
     NT_non_empty_ident_list => Shift(yy_state_348)
     _ => Error

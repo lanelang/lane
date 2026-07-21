@@ -14,7 +14,7 @@ fn delimited_comma_list(
   close : Document,
   edge : Document,
   docs : Array[Document],
-  item_spans? : Array[SourceSpan] = [],
+  item_spans~ : Array[SourceSpan],
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
@@ -76,14 +76,13 @@ fn comma_separators(
   item_spans : Array[SourceSpan],
   trivia : SourceFormatTrivia,
 ) -> Array[Document] {
+  guard docs.length() == item_spans.length() else {
+    abort("comma list documents and item spans must have equal lengths")
+  }
   let separators = []
   for index in 1..<docs.length() {
     separators.push(
-      if item_spans.length() == docs.length() {
-        (trivia.comma_separator)(item_spans[index - 1], item_spans[index])
-      } else {
-        text(",") + line
-      },
+      (trivia.comma_separator)(item_spans[index - 1], item_spans[index]),
     )
   }
   separators
@@ -92,7 +91,7 @@ fn comma_separators(
 ///|
 fn bracketed_comma_list(
   docs : Array[Document],
-  item_spans? : Array[SourceSpan] = [],
+  item_spans~ : Array[SourceSpan],
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
@@ -112,7 +111,7 @@ fn bracketed_comma_list(
 ///|
 fn parenthesized_comma_list(
   docs : Array[Document],
-  item_spans? : Array[SourceSpan] = [],
+  item_spans~ : Array[SourceSpan],
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
@@ -133,7 +132,7 @@ fn parenthesized_comma_list(
 fn parenthesized_comma_list_with_suffix(
   docs : Array[Document],
   suffix : Document,
-  item_spans? : Array[SourceSpan] = [],
+  item_spans~ : Array[SourceSpan],
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
@@ -162,7 +161,7 @@ fn parenthesized_comma_list_with_suffix(
 ///|
 fn braced_comma_list(
   docs : Array[Document],
-  item_spans? : Array[SourceSpan] = [],
+  item_spans~ : Array[SourceSpan],
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
   dangling? : Document = empty,
   force_break? : Bool = false,
