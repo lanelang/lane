@@ -127,7 +127,9 @@ pub fn ParseErrorKind::diagnostic_helps(self : ParseErrorKind) -> Array[String] 
     UnexpectedToken(_, _) if self.is_empty_block() =>
       ["write a final expression before `}`"]
     UnexpectedToken(_, _) if self.is_block_item_after_result() =>
-      ["put the next expression on a new line or separate it with `;`"]
+      [
+        "put the next expression on a new line or separate it with `;` only when the preceding expression has type `Unit`; otherwise, use or bind its value",
+      ]
     UnexpectedToken(_, _) if self.is_missing_declaration_type() =>
       ["write the binding as `name : Type = expression`"]
     UnexpectedToken(_, _) if self.is_missing_function_result_type() =>

@@ -375,6 +375,61 @@ test "golden syntax diagnostic renders span summary and guidance" {
 }
 
 ///|
+test "golden block sequence help qualifies Unit expressions" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|fn bad(x : Int) -> Int { x x }
+    ),
+  )
+  debug_inspect(
+    diagnostic,
+    content=(
+      #|{
+      #|  source_id: Some("<root>"),
+      #|  message: "block result expression must be last",
+      #|  span: Some(
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
+      #|        start_offset: 39,
+      #|        end_offset: 40,
+      #|        start_line: 2,
+      #|        start_column: 28,
+      #|        end_line: 2,
+      #|        end_column: 29,
+      #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E1100"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 39,
+      #|          end_offset: 40,
+      #|          start_line: 2,
+      #|          start_column: 28,
+      #|          end_line: 2,
+      #|          end_column: 29,
+      #|        },
+      #|      ),
+      #|      message: "this appears after the block's final expression",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane blocks contain local items followed by exactly one final expression"],
+      #|  helps: ["put the next expression on a new line or separate it with `;` only when the preceding expression has type `Unit`; otherwise, use or bind its value"],
+      #|  facts: [],
+      #|  suggestions: [],
+      #|}
+    ),
+  )
+}
+
+///|
 test "golden resolver diagnostic renders span summary and guidance" {
   let diagnostic = single_check_diagnostic(
     (
