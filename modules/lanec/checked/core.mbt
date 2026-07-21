@@ -201,7 +201,7 @@ pub(all) enum CheckedExpr {
   )
   ExternBinding(
     name~ : String,
-    signature~ : @abi.HostSignature?,
+    signature~ : @abi.HostSignature,
     type_~ : @types.Type,
     loc~ : SourceSpan
   )

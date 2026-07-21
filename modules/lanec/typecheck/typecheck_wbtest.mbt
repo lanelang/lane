@@ -551,12 +551,23 @@ test "typecheck distinguishes compiler intrinsics from extern bindings" {
     is Let({ initializer: CompilerIntrinsic(..), .. }) else {
     abort("expected compiler intrinsic")
   }
-  guard source.declarations[1] is Let({ initializer: ExternBinding(..), .. }) else {
+  guard source.declarations[1]
+    is Let({ initializer: ExternBinding(signature=pure_signature, ..), .. }) else {
     abort("expected pure extern binding")
   }
-  guard source.declarations[2] is Let({ initializer: ExternBinding(..), .. }) else {
+  guard source.declarations[2]
+    is Let({ initializer: ExternBinding(signature=io_signature, ..), .. }) else {
     abort("expected Io extern binding")
   }
+  debug_inspect(
+    [pure_signature, io_signature],
+    content=(
+      #|[
+      #|  { parameters: [], result: Int },
+      #|  { parameters: [String], result: Unit },
+      #|]
+    ),
+  )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
 }
 
@@ -680,6 +691,21 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|]
     ),
   )
+}
+
+///|
+test "invalid extern ABI produces checked error recovery" {
+  let expression = expect_checked_let_initializer(
+    (
+      #|struct Box {
+      #|  value : Int
+      #|}
+      #|let bad : (Box) -> Int = extern("bad")
+    ),
+    "bad",
+    Function([Constructor({ index: 0 })], Primitive(Int), Empty),
+  )
+  assert_true(expression is ErrorRecovery(..))
 }
 
 ///|

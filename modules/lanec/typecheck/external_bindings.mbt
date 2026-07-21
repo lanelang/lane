@@ -65,20 +65,20 @@ fn SemanticChecker::check_extern_binding(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  let signature = match self.extern_type_restriction(expected) {
-    Some(restriction) => {
+  match self.validate_extern_signature(expected) {
+    Ok(signature) =>
+      checked_expression(
+        ExternBinding(name~, signature~, type_=expected, loc~),
+        expected,
+      )
+    Err(restriction) => {
       self.diagnostics.push({
         kind: InvalidExternType(name~, type_=expected, restriction~),
         loc,
       })
-      None
+      checked_expression(ErrorRecovery(type_=expected, loc~), expected)
     }
-    None => self.extern_signature(expected)
   }
-  checked_expression(
-    ExternBinding(name~, signature~, type_=expected, loc~),
-    expected,
-  )
 }
 
 ///|
@@ -92,63 +92,31 @@ fn SemanticChecker::synthesize_extern_binding(
 }
 
 ///|
-fn SemanticChecker::extern_type_restriction(
+fn SemanticChecker::validate_extern_signature(
   self : SemanticChecker,
   type_ : @types.Type,
-) -> ExternTypeRestriction? {
+) -> Result[@abi.HostSignature, ExternTypeRestriction] {
   match type_ {
-    Forall(_) | TypeLambda(_) => Some(MonomorphicRequired)
+    Forall(_) | TypeLambda(_) => Err(MonomorphicRequired)
     Function(parameters, result, effect) => {
+      let parameter_kinds = []
       for index, parameter in parameters {
-        if !self.extern_direct_type(parameter) {
-          return Some(DirectParameterRequired(index~))
+        guard self.extern_value_kind(parameter) is Some(kind) else {
+          return Err(DirectParameterRequired(index~))
         }
+        parameter_kinds.push(kind)
       }
-      if !self.extern_direct_type(result) {
-        return Some(DirectResultRequired)
+      guard self.extern_value_kind(result) is Some(result) else {
+        return Err(DirectResultRequired)
       }
       if self.extern_effect_row(effect.canonicalize()) {
-        None
+        Ok({ parameters: parameter_kinds, result })
       } else {
-        Some(ExternalEffectRowRequired)
+        Err(ExternalEffectRowRequired)
       }
     }
-    _ => Some(FunctionRequired)
+    _ => Err(FunctionRequired)
   }
-}
-
-///|
-fn SemanticChecker::extern_direct_type(
-  self : SemanticChecker,
-  type_ : @types.Type,
-) -> Bool {
-  match type_.normalize() {
-    Primitive(Unit)
-    | Primitive(Bool)
-    | Primitive(Int)
-    | Primitive(Double)
-    | Primitive(String) => true
-    Constructor(symbol) =>
-      self.declarations.checked_external_type(symbol) is Some(_)
-    _ => false
-  }
-}
-
-///|
-fn SemanticChecker::extern_signature(
-  self : SemanticChecker,
-  type_ : @types.Type,
-) -> @abi.HostSignature? {
-  guard type_.normalize() is Function(parameters, result, _) else {
-    return None
-  }
-  let parameter_kinds = []
-  for parameter in parameters {
-    guard self.extern_value_kind(parameter) is Some(kind) else { return None }
-    parameter_kinds.push(kind)
-  }
-  guard self.extern_value_kind(result) is Some(result) else { return None }
-  Some({ parameters: parameter_kinds, result })
 }
 
 ///|
