@@ -70,20 +70,6 @@ fn SemanticIndex::add_parameter_signature(
 }
 
 ///|
-fn SemanticIndex::definition_span(
-  self : SemanticIndex,
-  symbol : AnalysisSymbol,
-  fallback : @basic.SourceSpan,
-) -> @basic.SourceSpan {
-  definition_reference_span(
-    self.definitions,
-    symbol,
-    self.source_text,
-    fallback,
-  )
-}
-
-///|
 fn SemanticIndex::definition_detail(
   self : SemanticIndex,
   symbol : AnalysisSymbol,
@@ -111,7 +97,7 @@ fn SemanticIndex::add_operation_reference(
     if fact.identity == OperationMember(operation) {
       self.add_reference(
         Operation(operation),
-        name_span(self.source_text, fact.name, fallback),
+        fallback,
         Some(fact.navigation_detail),
       )
       return

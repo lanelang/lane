@@ -12,11 +12,11 @@ fn BuslaneLowerer::define_external(
 ///|
 fn BuslaneLowerer::define_builtin_external(
   self : BuslaneLowerer,
-  name : String,
+  intrinsic : @abi.Intrinsic,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId {
-  let value = self.define_external(name, type_)
-  self.builtin_externals.push({ value, name, type_ })
+  let value = self.define_external(intrinsic.name(), type_)
+  self.builtin_externals.push({ value, intrinsic, type_ })
   value
 }
 
@@ -24,10 +24,11 @@ fn BuslaneLowerer::define_builtin_external(
 fn BuslaneLowerer::define_runtime_import(
   self : BuslaneLowerer,
   symbol : String,
+  signature : @abi.HostSignature,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId {
   let value = self.define_external(symbol, type_)
-  self.runtime_imports.push({ value, symbol, type_ })
+  self.runtime_imports.push({ value, symbol, signature, type_ })
   value
 }
 

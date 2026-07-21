@@ -59,6 +59,7 @@ pub(all) struct CheckedStructDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[@types.TypeParameter]
   type_members : Array[CheckedTypeMemberDeclaration]
   fields : Array[CheckedFieldDeclaration]
@@ -70,6 +71,7 @@ pub(all) struct CheckedExternalTypeDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   loc : SourceSpan
 } derive(Debug, Eq)
 
@@ -78,6 +80,7 @@ pub(all) struct CheckedTypeMemberDeclaration {
   symbol : TypeMemberSymbolId
   type_parameter : @types.TypeParameter
   name : String
+  name_loc : SourceSpan
   kind : @types.Kind
   index : Int
   loc : SourceSpan
@@ -87,6 +90,7 @@ pub(all) struct CheckedTypeMemberDeclaration {
 pub(all) struct CheckedFieldDeclaration {
   symbol : FieldSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_ : @types.Type
   loc : SourceSpan
@@ -97,6 +101,7 @@ pub(all) struct CheckedEnumDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[@types.TypeParameter]
   variants : Array[CheckedVariantDeclaration]
   loc : SourceSpan
@@ -106,6 +111,7 @@ pub(all) struct CheckedEnumDeclaration {
 pub(all) struct CheckedVariantDeclaration {
   symbol : VariantSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
@@ -117,6 +123,7 @@ pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : EffectSymbolId
   name : String
+  name_loc : SourceSpan
   flavor : EffectFlavor
   type_parameters : Array[@types.TypeParameter]
   operations : Array[CheckedEffectOperationDeclaration]
@@ -127,6 +134,7 @@ pub(all) struct CheckedEffectDeclaration {
 pub(all) struct CheckedEffectOperationDeclaration {
   symbol : OperationSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
@@ -139,6 +147,7 @@ pub(all) struct CheckedFunctionDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
   name : String
+  name_loc : SourceSpan
   type_ : @types.Type
   parameters : Array[@checked.CheckedValueParameter]
   loc : SourceSpan
@@ -149,6 +158,7 @@ pub(all) struct CheckedLetDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
   name : String?
+  name_loc : SourceSpan?
   type_ : @types.Type
   loc : SourceSpan
 } derive(Debug, Eq)

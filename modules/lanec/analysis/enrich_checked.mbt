@@ -197,10 +197,10 @@ fn SemanticIndex::enrich_checked_declaration_body(
       self.enrich_checked_expr(declaration.body, display)
     }
     Let(declaration) => {
-      if declaration.name is Some(name) {
+      if declaration.name is Some(_) {
         if !self.annotated_values.contains(declaration.symbol) {
           self.add_type_inlay_hint(
-            name_span(self.source_text, name, declaration.loc),
+            declaration.name_loc.unwrap_or(declaration.loc),
             display,
             declaration.type_,
           )
@@ -256,7 +256,7 @@ fn SemanticIndex::enrich_checked_local_item(
         )
         if !self.annotated_values.contains(declaration.symbol) {
           self.add_type_inlay_hint(
-            name_span(self.source_text, name, declaration.loc),
+            declaration.name_loc.unwrap_or(declaration.loc),
             display,
             declaration.type_,
           )
@@ -307,11 +307,7 @@ fn SemanticIndex::enrich_checked_expr(
       for parameter in parameters {
         self.enrich_checked_parameter(parameter, display)
         if !self.annotated_values.contains(parameter.symbol) {
-          self.add_type_inlay_hint(
-            name_span(self.source_text, parameter.name, parameter.loc),
-            display,
-            parameter.type_,
-          )
+          self.add_type_inlay_hint(parameter.name_loc, display, parameter.type_)
         }
       }
       self.enrich_checked_expr(body, display)
@@ -336,8 +332,8 @@ fn SemanticIndex::enrich_checked_expr(
         self.enrich_checked_expr(argument.value, display)
       }
     }
-    OperationCall(operation~, arguments~, loc~, ..) => {
-      self.add_operation_reference(operation, loc)
+    OperationCall(operation~, operation_loc~, arguments~, ..) => {
+      self.add_operation_reference(operation, operation_loc)
       for argument in arguments {
         self.enrich_checked_expr(argument, display)
       }
@@ -348,7 +344,7 @@ fn SemanticIndex::enrich_checked_expr(
       }
       for handler in handlers {
         for arm in handler.operations {
-          self.add_operation_reference(arm.operation, arm.loc)
+          self.add_operation_reference(arm.operation, arm.operation_loc)
           self.enrich_binding(
             ValueBinding(arm.resume_symbol),
             "\{arm.resume_binder} : \{display.type_text(arm.resume_type)}",
@@ -371,18 +367,18 @@ fn SemanticIndex::enrich_checked_expr(
         self.enrich_checked_expr(body, display)
       }
     }
-    Field(base~, field~, name~, type_~, loc~) => {
+    Field(base~, field~, name~, name_loc~, type_~, ..) => {
       self.enrich_checked_expr(base, display)
       self.add_reference(
         Field(field),
-        loc,
+        name_loc,
         Some(field_detail(name, type_, display)),
       )
     }
-    StructLiteral(symbol~, type_witnesses~, fields~, loc~, ..) => {
+    StructLiteral(symbol~, type_name_loc~, type_witnesses~, fields~, ..) => {
       self.add_reference(
         Type(symbol),
-        self.definition_span(Type(symbol), loc),
+        type_name_loc,
         Some(type_reference_detail(Constructor(symbol), display)),
       )
       for witness in type_witnesses {
@@ -401,10 +397,10 @@ fn SemanticIndex::enrich_checked_expr(
         self.enrich_checked_expr(field.value, display)
       }
     }
-    Variant(symbol~, arguments~, loc~, ..) => {
+    Variant(symbol~, variant_loc~, arguments~, ..) => {
       self.add_reference(
         Variant(symbol),
-        self.definition_span(Variant(symbol), loc),
+        variant_loc,
         self.definition_detail(Variant(symbol)),
       )
       for argument in arguments {
@@ -433,24 +429,23 @@ fn SemanticIndex::enrich_checked_pattern(
         Some(type_),
       )
       if !self.annotated_values.contains(symbol) {
-        let span = self.definition_span(Value(symbol), pattern.loc())
-        self.add_type_inlay_hint(span, display, type_)
+        self.add_type_inlay_hint(pattern.loc(), display, type_)
       }
     }
-    Variant(symbol~, arguments~, loc~, ..) => {
+    Variant(symbol~, variant_loc~, arguments~, ..) => {
       self.add_reference(
         Variant(symbol),
-        self.definition_span(Variant(symbol), loc),
+        variant_loc,
         self.definition_detail(Variant(symbol)),
       )
       for argument in arguments {
         self.enrich_checked_pattern(argument, display)
       }
     }
-    Struct(symbol~, type_binders~, fields~, loc~, ..) => {
+    Struct(symbol~, type_name_loc~, type_binders~, fields~, ..) => {
       self.add_reference(
         Type(symbol),
-        self.definition_span(Type(symbol), loc),
+        type_name_loc,
         Some(type_reference_detail(Constructor(symbol), display)),
       )
       for binder in type_binders {
@@ -480,6 +475,7 @@ fn SemanticIndex::collect_checked_expr_types(
     Literal(type_~, ..)
     | CompilerIntrinsic(type_~, ..)
     | ExternBinding(type_~, ..)
+    | ErrorRecovery(type_~, ..)
     | Block(type_~, ..)
     | If(type_~, ..)
     | Match(type_~, ..)

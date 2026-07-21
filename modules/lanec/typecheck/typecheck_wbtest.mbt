@@ -248,6 +248,7 @@ fn find_first_handler_resume_callee_type(
     | Value(..)
     | CompilerIntrinsic(..)
     | ExternBinding(..)
+    | ErrorRecovery(..)
     | FunctionLiteral(..) => None
   }
 }
@@ -474,6 +475,30 @@ test "typecheck rejects public effect alias exposing private effect" {
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
       #|[private effect `Console` in public interface @ 5:1-5:26]
+    ),
+  )
+}
+
+///|
+test "typecheck locates private public-interface escapes at annotations" {
+  let result = expect_checked_source_result(
+    (
+      #|struct Secret {}
+      #|effect Console {
+      #|  read() -> Int
+      #|}
+      #|pub fn expose(value : Secret) -> Int ! Console {
+      #|  Console::read!()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[
+      #|  private type `Secret` in public interface @ 6:23-6:29,
+      #|  private effect `Console` in public interface @ 6:40-6:47
+      #|]
     ),
   )
 }
@@ -3125,6 +3150,28 @@ test "typecheck propagates expected function type into existential match arm" {
 }
 
 ///|
+test "typecheck reports hidden escape inside contextually checked function" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Packed {
+      #|  hide[T](T)
+      #|}
+      #|fn bad(p : Packed) -> () -> Int {
+      #|  match p {
+      #|    Packed::hide[T](value) => fn() { value }
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[hidden_type_escape tparam#1 @ 7:38-7:43]
+    ),
+  )
+}
+
+///|
 test "typecheck rejects escaped existential enum binder from pattern let" {
   let result = expect_typecheck_result(
     (
@@ -3942,11 +3989,11 @@ test "typecheck reports ambiguous unqualified enum variant" {
       #|    ),
       #|    loc: {
       #|      start_offset: 86,
-      #|      end_offset: 93,
+      #|      end_offset: 90,
       #|      start_line: 9,
       #|      start_column: 3,
       #|      end_line: 9,
-      #|      end_column: 10,
+      #|      end_column: 7,
       #|    },
       #|  },
       #|]

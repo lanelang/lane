@@ -20,6 +20,20 @@ pub fn tokens_from_string(source : String) -> LexResult {
 
 ///|
 fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
+  let mut rest = input
+  while !rest.is_empty() {
+    rest = lex_token(rest, base~, env~)
+  }
+  let end = env.calc_offset(rest, base~)
+  env.add_token(EOF, start=end, end~)
+}
+
+///|
+fn lex_token(
+  input : StringView,
+  base~ : StringView,
+  env~ : LexEnv,
+) -> StringView {
   lexscan input with longest {
     (re"^(\r\n|\r|\n)", after=rest) => {
       env.add_trivia(
@@ -28,7 +42,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         end=env.calc_offset(rest, base~),
       )
       env.newline(end=env.calc_offset(rest, base~))
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[\u0009\u000B\u000C\u0020]+", after=rest) => {
       env.add_trivia(
@@ -36,7 +50,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^//[^\r\n]*", after=rest) => {
       env.add_trivia(
@@ -44,7 +58,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^=>", after=rest) => {
       env.add_token(
@@ -52,7 +66,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^->", after=rest) => {
       env.add_token(
@@ -60,7 +74,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^::", after=rest) => {
       let start = env.calc_offset(input, base~)
@@ -74,7 +88,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         env.add_token(COLON, start~, end=start + 1)
         env.add_token(COLON, start=start + 1, end~)
       }
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^==", after=rest) => {
       env.add_token(
@@ -82,7 +96,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^!=", after=rest) => {
       env.add_token(
@@ -90,7 +104,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^<=", after=rest) => {
       env.add_token(
@@ -98,7 +112,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^>=", after=rest) => {
       env.add_token(
@@ -106,7 +120,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^&&", after=rest) => {
       env.add_token(
@@ -114,7 +128,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[|][|]", after=rest) => {
       env.add_token(
@@ -122,7 +136,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[|]>", after=rest) => {
       env.add_token(
@@ -130,7 +144,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+[.][0-9]+[eE][+][0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -138,7 +152,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+[.][0-9]+[eE]-[0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -146,7 +160,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+[.][0-9]+[eE][0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -154,7 +168,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+[.][0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -162,7 +176,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+[eE][+][0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -170,7 +184,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+[eE]-[0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -178,7 +192,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+[eE][0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -186,7 +200,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[0-9]+" as raw, after=rest) => {
       env.add_token(
@@ -194,7 +208,7 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^([A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)" as raw, after=rest) => {
       let name = raw.to_owned()
@@ -210,13 +224,13 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^\"", after=rest) => {
       let start = env.calc_offset(input, base~)
       let (rest, repr) = lex_string(rest, base~, env~, start~)
       env.add_token(STRING(repr), start~, end=env.calc_offset(rest, base~))
-      lex_tokens(rest, base~, env~)
+      rest
     }
     (re"^[(]", after=rest) => add_simple_token(LPAREN, input, rest, base~, env~)
     (re"^[)]", after=rest) => add_simple_token(RPAREN, input, rest, base~, env~)
@@ -246,17 +260,14 @@ fn lex_tokens(input : StringView, base~ : StringView, env~ : LexEnv) -> Unit {
     (re"^>", after=rest) => add_simple_token(GT, input, rest, base~, env~)
     (re"^!", after=rest) => add_simple_token(BANG, input, rest, base~, env~)
     (re"^=", after=rest) => add_simple_token(EQUAL, input, rest, base~, env~)
-    re"^$" => {
-      let end = env.calc_offset(input, base~)
-      env.add_token(EOF, start=end, end~)
-    }
+    re"^$" => input
     (re"^." as raw, after=rest) => {
       env.add_error(
         IllegalCharacter(raw.to_string()),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
-      lex_tokens(rest, base~, env~)
+      rest
     }
     _ => panic()
   }
@@ -269,13 +280,13 @@ fn add_simple_token(
   rest : StringView,
   base~ : StringView,
   env~ : LexEnv,
-) -> Unit {
+) -> StringView {
   env.add_token(
     token,
     start=env.calc_offset(input, base~),
     end=env.calc_offset(rest, base~),
   )
-  lex_tokens(rest, base~, env~)
+  rest
 }
 
 ///|

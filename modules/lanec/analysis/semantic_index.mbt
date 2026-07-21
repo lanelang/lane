@@ -102,6 +102,7 @@ priv struct TopLevelDeclarationFact {
   name : String
   kind : TopLevelDeclarationKind
   is_public : Bool
+  name_loc : @basic.SourceSpan
   loc : @basic.SourceSpan
 }
 
@@ -127,7 +128,6 @@ priv struct ParameterHintParameter {
 priv struct SemanticIndex {
   registry : @symbol.SymbolRegistry
   source_id : String
-  source_text : String
   has_checked_source : Bool
   bindings : Array[SemanticBindingFact]
   members : Array[SemanticMemberFact]
@@ -151,12 +151,11 @@ fn SemanticIndex::from_sources(
   checked : @checked.CheckedSourceFile?,
   display : @typecheck.TypeDisplayContext,
   source_id : String,
-  source_text : String,
+  _source_text : String,
 ) -> SemanticIndex {
   let index = SemanticIndex::{
     registry: resolved.symbols,
     source_id,
-    source_text,
     has_checked_source: checked is Some(_),
     bindings: [],
     members: [],

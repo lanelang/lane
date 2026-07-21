@@ -32,6 +32,7 @@ fn checked_function(
     is_public: false,
     symbol,
     name,
+    name_loc: loc(),
     type_parameters: [],
     parameters,
     return_type: int_type(),
@@ -108,6 +109,7 @@ test "pretty prints checked source without surface-only syntax" {
         is_public: true,
         symbol: answer,
         name: Some("answer"),
+        name_loc: Some(loc()),
         initializer: call,
         type_: int_type(),
         loc: loc(),
@@ -186,10 +188,12 @@ test "pretty prints checked match with resolved patterns" {
   let option_box = @types.nominal_type(option, [box_int])
   let pattern = CheckedPattern::Variant(
     symbol=some,
+    variant_loc=loc(),
     generic_arguments=[],
     arguments=[
       Struct(
         symbol=box,
+        type_name_loc=loc(),
         type_binders=[],
         fields=[
           {
@@ -248,6 +252,7 @@ test "value use analysis classifies local dependency groups" {
     is_auto: false,
     is_offered: false,
     name: "n",
+    name_loc: loc(),
     type_: int_type(),
     loc: loc(),
   }
@@ -273,6 +278,7 @@ test "value use analysis classifies local dependency groups" {
         is_public: false,
         symbol: x,
         name: Some("x"),
+        name_loc: Some(loc()),
         initializer: Literal(
           literal=Int({ raw: "1", value: 1 }),
           type_=int_type(),
@@ -285,6 +291,7 @@ test "value use analysis classifies local dependency groups" {
         is_public: false,
         symbol: y,
         name: Some("y"),
+        name_loc: Some(loc()),
         initializer: Value(name="x", symbol=x, type_=int_type(), loc=loc()),
         type_: int_type(),
         loc: loc(),
@@ -353,6 +360,7 @@ test "value use analysis does not cascade through unused captured function" {
         is_public: false,
         symbol: x,
         name: Some("x"),
+        name_loc: Some(loc()),
         initializer: Literal(
           literal=Int({ raw: "1", value: 1 }),
           type_=int_type(),

@@ -706,7 +706,7 @@ fn BuslaneInspectContext::intrinsic_text(
   self : BuslaneInspectContext,
   external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> String {
-  "\{external.name} : \{self.type_text(external.type_)}"
+  "\{external.intrinsic.name()} : \{self.type_text(external.type_)}"
 }
 
 ///|

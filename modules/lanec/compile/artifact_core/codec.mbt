@@ -82,15 +82,75 @@ pub fn write_externals(
   writer.write_u32_le_int(externals.builtins.length())
   for external in externals.builtins {
     write_buslane_value_id(writer, external.value)
-    writer.write_string(external.name)
+    write_intrinsic(writer, external.intrinsic)
     write_buslane_type(writer, external.type_)
   }
   writer.write_u32_le_int(externals.runtime_imports.length())
   for import_ in externals.runtime_imports {
     write_buslane_value_id(writer, import_.value)
     writer.write_string(import_.symbol)
+    write_host_signature(writer, import_.signature)
     write_buslane_type(writer, import_.type_)
   }
+}
+
+///|
+fn write_intrinsic(
+  writer : @bytecodec.ByteWriter,
+  intrinsic : @abi.Intrinsic,
+) -> Unit {
+  writer.write_u8(
+    match intrinsic {
+      I64Add => 0
+      I64Sub => 1
+      I64Mul => 2
+      I64Div => 3
+      I64Rem => 4
+      I64Neg => 5
+      I64Equal => 6
+      I64Less => 7
+      F64Add => 8
+      F64Sub => 9
+      F64Mul => 10
+      F64Div => 11
+      F64Neg => 12
+      F64Equal => 13
+      F64Less => 14
+      F64Inf => 15
+      F64NegativeInf => 16
+      F64Nan => 17
+      StringEqual => 18
+    },
+  )
+}
+
+///|
+fn write_host_signature(
+  writer : @bytecodec.ByteWriter,
+  signature : @abi.HostSignature,
+) -> Unit {
+  writer.write_u32_le_int(signature.parameters.length())
+  for parameter in signature.parameters {
+    write_host_value_kind(writer, parameter)
+  }
+  write_host_value_kind(writer, signature.result)
+}
+
+///|
+fn write_host_value_kind(
+  writer : @bytecodec.ByteWriter,
+  kind : @abi.ValueKind,
+) -> Unit {
+  writer.write_u8(
+    match kind {
+      Unit => 0
+      Bool => 1
+      Int => 2
+      Double => 3
+      String => 4
+      Opaque => 5
+    },
+  )
 }
 
 ///|

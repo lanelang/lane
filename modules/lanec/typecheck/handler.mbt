@@ -131,6 +131,7 @@ fn SemanticChecker::synthesize_checked_handler(
           Some(body) =>
             checked_operations.push({
               operation: arm_check.operation.checked.operation,
+              operation_loc: arm_check.operation.checked.operation_loc,
               type_binders: arm_check.operation.checked.type_binders,
               payload_types: arm_check.operation.checked.payload_types,
               payload_patterns: arm_check.operation.checked.payload_patterns,
@@ -518,6 +519,7 @@ fn SemanticChecker::check_handler_operation_arm(
   }
   {
     operation: signature.operation,
+    operation_loc: resolved_operation_name_loc(arm.name),
     type_binders: signature.type_binders,
     payload_types: signature.payload,
     payload_patterns,

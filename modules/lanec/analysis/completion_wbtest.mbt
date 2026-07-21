@@ -785,6 +785,64 @@ test "completion filters candidates by type and effect positions" {
 }
 
 ///|
+test "completion classifies same-line function bodies as value space" {
+  let source =
+    #|module Main
+    #|
+    #|pub fn make() -> Int { 1 }
+    #|pub fn use() -> Int { ma }
+  let entries = complete_source_inputs(
+    { source_id: "file:///Main.lane", text: source },
+    [],
+    "file:///Main.lane",
+    4,
+    25,
+    Manual,
+  )
+  debug_inspect(
+    entries.map(fn(entry) { (entry.label, entry.kind) }),
+    content="[(\"make\", Function)]",
+  )
+}
+
+///|
+test "semantic definitions retain exact spans for repeated names" {
+  let result = analyze_sources(
+    (
+      #|module Main
+      #|
+      #|pub fn same(same : Int) -> Int { same }
+    ),
+    [],
+  )
+  debug_inspect(
+    result.definitions
+    .filter(fn(definition) { definition.label == "same" })
+    .map(fn(definition) { definition.location.span }),
+    content=(
+      #|[
+      #|  {
+      #|    start_offset: 20,
+      #|    end_offset: 24,
+      #|    start_line: 3,
+      #|    start_column: 8,
+      #|    end_line: 3,
+      #|    end_column: 12,
+      #|  },
+      #|  {
+      #|    start_offset: 25,
+      #|    end_offset: 29,
+      #|    start_line: 3,
+      #|    start_column: 13,
+      #|    end_line: 3,
+      #|    end_column: 17,
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "completion returns checked selector fields" {
   let source =
     #|module Main

@@ -157,8 +157,18 @@ test "linked program roundtrips and inspects instance globals" {
     externals: {
       builtins: [],
       runtime_imports: [
-        { value: produce, symbol: "lane.test.produce", type_: produce_type },
-        { value: consume, symbol: "lane.test.consume", type_: consume_type },
+        {
+          value: produce,
+          symbol: "lane.test.produce",
+          signature: { parameters: [], result: String },
+          type_: produce_type,
+        },
+        {
+          value: consume,
+          symbol: "lane.test.consume",
+          signature: { parameters: [String], result: Unit },
+          type_: consume_type,
+        },
       ],
     },
     entries: [entry],

@@ -10,7 +10,7 @@ fn BuslaneLinker::remap_module_object(
       builtins: object.externals.builtins.map(fn(builtin) {
         {
           value: self.remap_value_id(object, builtin.value),
-          name: builtin.name,
+          intrinsic: builtin.intrinsic,
           type_: self.remap_type(object, builtin.type_),
         }
       }),
@@ -18,6 +18,7 @@ fn BuslaneLinker::remap_module_object(
         {
           value: self.remap_value_id(object, import_.value),
           symbol: import_.symbol,
+          signature: import_.signature,
           type_: self.remap_type(object, import_.type_),
         }
       }),

@@ -26,12 +26,7 @@ fn SemanticIndex::add_member(
     VariantMember(symbol) => Variant(symbol)
     OperationMember(symbol) => Operation(symbol)
   }
-  self.add_definition(
-    symbol,
-    name_span(self.source_text, name, loc),
-    name,
-    navigation_detail,
-  )
+  self.add_definition(symbol, loc, name, navigation_detail)
 }
 
 ///|
@@ -46,6 +41,7 @@ fn SemanticIndex::add_top_level_declaration(
         name: declaration.name,
         kind: StructDeclaration,
         is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
         loc: declaration.loc,
       })
     Enum(declaration) =>
@@ -54,6 +50,7 @@ fn SemanticIndex::add_top_level_declaration(
         name: declaration.name,
         kind: EnumDeclaration,
         is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
         loc: declaration.loc,
       })
     ExternalType(declaration) =>
@@ -62,6 +59,7 @@ fn SemanticIndex::add_top_level_declaration(
         name: declaration.name,
         kind: ExternalTypeDeclaration,
         is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
         loc: declaration.loc,
       })
     Effect(declaration) =>
@@ -70,6 +68,7 @@ fn SemanticIndex::add_top_level_declaration(
         name: declaration.name,
         kind: EffectDeclaration,
         is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
         loc: declaration.loc,
       })
     TypeAlias(declaration) =>
@@ -81,6 +80,7 @@ fn SemanticIndex::add_top_level_declaration(
           EffectBody(_) => EffectAliasDeclaration
         },
         is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
         loc: declaration.loc,
       })
     Function(declaration) => {
@@ -89,6 +89,7 @@ fn SemanticIndex::add_top_level_declaration(
         name: declaration.name,
         kind: FunctionDeclaration,
         is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
         loc: declaration.loc,
       })
       self.add_parameter_signature(declaration.symbol, declaration.parameters)
@@ -100,6 +101,7 @@ fn SemanticIndex::add_top_level_declaration(
           name,
           kind: ValueDeclaration,
           is_public: declaration.is_public,
+          name_loc: declaration.name_loc.unwrap_or(declaration.loc),
           loc: declaration.loc,
         })
       }
@@ -109,6 +111,7 @@ fn SemanticIndex::add_top_level_declaration(
         name: declaration.name,
         kind: ValueDeclaration,
         is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
         loc: declaration.loc,
       })
   }
@@ -188,7 +191,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         TypeBindingKind,
         "struct \{declaration.name}",
         GlobalBinding,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -205,7 +208,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
               TypeMemberKind,
               "type \{type_member.name}",
               None,
-              type_member.loc,
+              type_member.name_loc,
             )
           Field(field) => {
             self.add_member(
@@ -216,7 +219,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
               FieldMemberKind,
               "field \{field.name}",
               None,
-              field.loc,
+              field.name_loc,
             )
             self.collect_resolved_type(field.type_)
           }
@@ -230,7 +233,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         TypeBindingKind,
         "enum \{declaration.name}",
         GlobalBinding,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -245,7 +248,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
           VariantMemberKind,
           "variant \{declaration.name}::\{variant.name}",
           Some(variant.payload.length()),
-          variant.loc,
+          variant.name_loc,
         )
         self.add_resolved_type_parameters(
           variant.type_parameters,
@@ -263,7 +266,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         TypeBindingKind,
         "extern type \{declaration.name} : Type",
         GlobalBinding,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -277,7 +280,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         EffectBindingKind,
         effect_completion_detail(declaration.name, declaration.flavor),
         GlobalBinding,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       if declaration.flavor is Algebraic {
         self.add_resolved_type_parameters(
@@ -293,7 +296,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
             OperationMemberKind,
             "operation \{declaration.name}::\{operation.name}",
             None,
-            operation.loc,
+            operation.name_loc,
           )
           self.add_resolved_type_parameters(
             operation.type_parameters,
@@ -339,7 +342,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         FunctionBindingKind,
         "fn \{declaration.name}",
         GlobalBinding,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -353,7 +356,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
           ValueBindingKind,
           "parameter \{parameter.name}",
           ScopedBinding(declaration.body.loc()),
-          loc=name_span(self.source_text, parameter.name, parameter.loc),
+          loc=parameter.name_loc,
         )
         self.collect_resolved_type(parameter.type_)
       }
@@ -375,7 +378,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
           ValueBindingKind,
           "let \{name}",
           GlobalBinding,
-          loc=name_span(self.source_text, name, declaration.loc),
+          loc=declaration.name_loc.unwrap_or(declaration.loc),
         )
       }
       self.collect_resolved_expr(declaration.initializer)
@@ -389,7 +392,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         OfferBindingKind,
         "offer \{declaration.name}",
         GlobalBinding,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       self.collect_resolved_expr(declaration.initializer)
     }
@@ -419,7 +422,7 @@ fn SemanticIndex::add_generic_parameters(
         Some(Effect(_)) => GenericEffectParameter
         _ => GenericTypeParameter
       },
-      loc: parameter.loc,
+      loc: parameter.name_loc,
     })
   }
 }
@@ -437,7 +440,7 @@ fn SemanticIndex::add_completion_type_parameters(
       TypeParameterBindingKind,
       "type parameter \{parameter.name}",
       visibility,
-      loc=parameter.loc,
+      loc=parameter.name_loc,
     )
   }
 }
@@ -467,7 +470,7 @@ fn SemanticIndex::collect_resolved_local_item(
           ValueBindingKind,
           "let \{name}",
           visibility,
-          loc=name_span(self.source_text, name, declaration.loc),
+          loc=declaration.name_loc.unwrap_or(declaration.loc),
         )
       }
       self.collect_resolved_expr(declaration.initializer)
@@ -486,7 +489,7 @@ fn SemanticIndex::collect_resolved_local_item(
         FunctionBindingKind,
         "fn \{declaration.name}",
         visibility,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       self.add_parameter_signature(declaration.symbol, declaration.parameters)
       self.add_resolved_type_parameters(
@@ -501,7 +504,7 @@ fn SemanticIndex::collect_resolved_local_item(
           ValueBindingKind,
           "parameter \{parameter.name}",
           ScopedBinding(declaration.body.loc()),
-          loc=name_span(self.source_text, parameter.name, parameter.loc),
+          loc=parameter.name_loc,
         )
         self.collect_resolved_type(parameter.type_)
       }
@@ -518,7 +521,7 @@ fn SemanticIndex::collect_resolved_local_item(
         OfferBindingKind,
         "offer \{declaration.name}",
         visibility,
-        loc=name_span(self.source_text, declaration.name, declaration.loc),
+        loc=declaration.name_loc,
       )
       self.collect_resolved_expr(declaration.initializer)
     }
@@ -567,7 +570,7 @@ fn SemanticIndex::collect_resolved_expr(
           ValueBindingKind,
           "parameter \{parameter.name}",
           scope,
-          loc=name_span(self.source_text, parameter.name, parameter.loc),
+          loc=parameter.name_loc,
         )
         if parameter.type_annotation is Some(type_) {
           self.collect_resolved_type(type_)
@@ -610,7 +613,7 @@ fn SemanticIndex::collect_resolved_expr(
             ValueBindingKind,
             "resume \{arm.resume_binder}",
             visibility,
-            loc=name_span(self.source_text, arm.resume_binder, arm.resume_loc),
+            loc=arm.resume_loc,
           )
           self.collect_resolved_expr(arm.body)
         }
@@ -621,11 +624,7 @@ fn SemanticIndex::collect_resolved_expr(
         ValueBindingKind,
         "final \{final_branch.binder}",
         ScopedBinding(final_branch.body.loc()),
-        loc=name_span(
-          self.source_text,
-          final_branch.binder,
-          final_branch.binder_loc,
-        ),
+        loc=final_branch.binder_loc,
       )
       self.collect_resolved_expr(final_branch.body)
     }
@@ -686,13 +685,13 @@ fn SemanticIndex::collect_resolved_expr_symbols(
         self.add_reference(Value(symbol), loc, Some(name))
       }
     }
-    QualifiedVariant(reference~, loc~, ..)
-    | UnqualifiedVariant(reference~, loc~, ..) => {
+    QualifiedVariant(reference~, variant_loc~, ..)
+    | UnqualifiedVariant(reference~, variant_loc~, ..) => {
       self.collect_resolved_variant_reference(reference)
       if !self.has_checked_source && reference is Symbol(symbol) {
         self.add_reference(
           Variant(symbol),
-          self.definition_span(Variant(symbol), loc),
+          variant_loc,
           self.definition_detail(Variant(symbol)),
         )
       }
@@ -757,11 +756,7 @@ fn SemanticIndex::add_resolved_operation_reference(
     Unqualified(operation~, reference~, loc~) => (operation, reference, loc)
   }
   if reference is Symbol(symbol) {
-    self.add_reference(
-      Operation(symbol),
-      name_span(self.source_text, operation, loc),
-      Some("operation \{operation}"),
-    )
+    self.add_reference(Operation(symbol), loc, Some("operation \{operation}"))
   }
 }
 
@@ -849,13 +844,13 @@ fn SemanticIndex::collect_resolved_pattern(
   visibility : SemanticBindingVisibility,
 ) -> Unit {
   match pattern {
-    QualifiedVariant(type_binders~, reference~, arguments~, loc~, ..) => {
+    QualifiedVariant(type_binders~, reference~, arguments~, variant_loc~, ..) => {
       self.add_resolved_type_parameters(type_binders, visibility)
       self.collect_resolved_variant_reference(reference)
       if !self.has_checked_source && reference is Symbol(symbol) {
         self.add_reference(
           Variant(symbol),
-          self.definition_span(Variant(symbol), loc),
+          variant_loc,
           self.definition_detail(Variant(symbol)),
         )
       }

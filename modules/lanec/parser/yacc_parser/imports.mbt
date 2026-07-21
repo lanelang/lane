@@ -50,6 +50,12 @@ priv struct Identifier {
 }
 
 ///|
+priv struct NominalTypeName {
+  name : String
+  loc : SourceSpan
+}
+
+///|
 priv struct ReturnAnnotation {
   return_type : Type?
   effect : EffectTerm?
@@ -98,12 +104,19 @@ fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
 ///|
 fn make_external_type(
   is_public : Bool,
-  name : String,
+  identifier : Identifier,
   type_parameters : Array[TypeParameter],
   result_kind : ExternalTypeKind,
   loc : SourceSpan,
 ) -> ExternalTypeDeclaration {
-  { is_public, name, type_parameters, result_kind, loc }
+  {
+    is_public,
+    name: identifier.name,
+    name_loc: identifier.loc,
+    type_parameters,
+    result_kind,
+    loc,
+  }
 }
 
 ///|
@@ -219,10 +232,11 @@ fn extend_owner_type_name(
 fn owner_expression_field(
   expression : OwnerExpression,
   name : String,
+  name_loc : SourceSpan,
   loc : SourceSpan,
 ) -> OwnerExpression {
   {
-    expr: Field(base=expression.expr, name~, loc~),
+    expr: Field(base=expression.expr, name~, name_loc~, loc~),
     owner: extend_owner_type_name(expression.owner, name, loc),
   }
 }

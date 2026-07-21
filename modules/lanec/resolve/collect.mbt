@@ -520,7 +520,7 @@ fn Resolver::collect_top_level_headers(
             declaration.name,
             Struct,
             declaration.type_parameters.length(),
-            declaration.loc,
+            declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
           None,
@@ -538,7 +538,7 @@ fn Resolver::collect_top_level_headers(
             declaration.name,
             Enum,
             declaration.type_parameters.length(),
-            declaration.loc,
+            declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
           None,
@@ -554,7 +554,7 @@ fn Resolver::collect_top_level_headers(
           self.registry.define_effect(
             declaration.name,
             declaration.type_parameters.length(),
-            declaration.loc,
+            declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
           None,
@@ -574,7 +574,7 @@ fn Resolver::collect_top_level_headers(
                 declaration.name,
                 External,
                 declaration.type_parameters.length(),
-                declaration.loc,
+                declaration.name_loc,
               ),
               syntax_type_parameter_kinds(declaration.type_parameters),
               None,
@@ -590,7 +590,7 @@ fn Resolver::collect_top_level_headers(
               self.registry.define_effect(
                 declaration.name,
                 declaration.type_parameters.length(),
-                declaration.loc,
+                declaration.name_loc,
                 flavor=External,
               ),
               syntax_type_parameter_kinds(declaration.type_parameters),
@@ -691,7 +691,7 @@ fn Resolver::collect_nominal_members(
         let mut index = 0
         for item in declaration.members {
           if item is Field(field) {
-            self.registry.define_field(owner, field.name, index, field.loc)
+            self.registry.define_field(owner, field.name, index, field.name_loc)
             |> ignore
             index += 1
           }
@@ -706,7 +706,7 @@ fn Resolver::collect_nominal_members(
             variant.name,
             index,
             variant.payload.length(),
-            variant.loc,
+            variant.name_loc,
           )
           |> ignore
         }
@@ -720,7 +720,7 @@ fn Resolver::collect_nominal_members(
             operation.name,
             index,
             operation.payload.length(),
-            operation.loc,
+            operation.name_loc,
           )
           |> ignore
         }
@@ -769,6 +769,7 @@ fn @syntax.ExternalTypeDeclaration::resolve_external_type(
         is_public: self.is_public,
         symbol: resolver.type_symbol(self.name),
         name: self.name,
+        name_loc: self.name_loc,
         type_parameters,
         loc: self.loc,
       })
@@ -777,6 +778,7 @@ fn @syntax.ExternalTypeDeclaration::resolve_external_type(
         is_public: self.is_public,
         symbol: resolver.effect_symbol(self.name),
         name: self.name,
+        name_loc: self.name_loc,
         flavor: External,
         type_parameters,
         operations: [],
@@ -823,6 +825,7 @@ fn @syntax.StructDeclaration::resolve_struct(
     is_public: self.is_public,
     symbol,
     name: self.name,
+    name_loc: self.name_loc,
     type_parameters,
     members,
     loc: self.loc,
@@ -848,11 +851,12 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
   }
   let type_parameter_symbol = resolver.registry.define_type_parameter(
     self.name,
-    self.loc,
+    self.name_loc,
   )
   let type_parameter : ResolvedTypeParameter = {
     symbol: type_parameter_symbol,
     name: self.name,
+    name_loc: self.name_loc,
     kind: Some(kind),
     loc: self.loc,
   }
@@ -861,10 +865,18 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
     self.name,
     index,
     type_parameter_symbol,
-    self.loc,
+    self.name_loc,
   )
   scope.type_parameters.push(type_parameter)
-  { symbol, type_parameter, name: self.name, kind, index, loc: self.loc }
+  {
+    symbol,
+    type_parameter,
+    name: self.name,
+    name_loc: self.name_loc,
+    kind,
+    index,
+    loc: self.loc,
+  }
 }
 
 ///|
@@ -900,6 +912,7 @@ fn @syntax.TypeAliasDeclaration::resolve_type_alias(
   {
     is_public: self.is_public,
     name: self.name,
+    name_loc: self.name_loc,
     type_parameters,
     result_kind: self.result_kind.map(fn(kind) { kind.resolve_kind() }),
     body: if type_parameters.is_empty() {
@@ -958,6 +971,7 @@ fn @syntax.EnumDeclaration::resolve_enum(
     is_public: self.is_public,
     symbol,
     name: self.name,
+    name_loc: self.name_loc,
     type_parameters,
     variants,
     loc: self.loc,
@@ -977,11 +991,12 @@ fn Resolver::resolve_type_parameters(
   parameters.map(fn(parameter) {
     let symbol = self.registry.define_type_parameter(
       parameter.name,
-      parameter.loc,
+      parameter.name_loc,
     )
     {
       symbol,
       name: parameter.name,
+      name_loc: parameter.name_loc,
       kind: parameter.kind.map(@syntax.Kind::resolve_kind),
       loc: parameter.loc,
     }
@@ -996,7 +1011,7 @@ fn Resolver::resolve_type_parameter_names(
 ) -> Array[ResolvedTypeParameter] {
   names.map(fn(name) {
     let symbol = self.registry.define_type_parameter(name, loc)
-    { symbol, name, kind: None, loc }
+    { symbol, name, name_loc: loc, kind: None, loc }
   })
 }
 
@@ -1014,7 +1029,14 @@ fn @syntax.FieldDeclaration::resolve_field(
 ) -> ResolvedFieldDeclaration {
   let symbol = resolver.registry.field_named(owner, self.name).unwrap()
   let type_ = self.type_.resolve_type(resolver, scope)
-  { symbol, name: self.name, type_, index, loc: self.loc }
+  {
+    symbol,
+    name: self.name,
+    name_loc: self.name_loc,
+    type_,
+    index,
+    loc: self.loc,
+  }
 }
 
 ///|
@@ -1041,6 +1063,7 @@ fn @syntax.EnumVariant::resolve_variant(
   {
     symbol,
     name: self.name,
+    name_loc: self.name_loc,
     index,
     type_parameters: variant_parameters,
     payload: self.payload.map(fn(type_) {
@@ -1068,6 +1091,7 @@ fn @syntax.EffectDeclaration::resolve_effect(
     is_public: self.is_public,
     symbol,
     name: self.name,
+    name_loc: self.name_loc,
     flavor: Algebraic,
     type_parameters,
     operations,
@@ -1092,6 +1116,7 @@ fn @syntax.EffectOperationDeclaration::resolve_operation(
   {
     symbol: resolver.operation_symbol(owner, self.name),
     name: self.name,
+    name_loc: self.name_loc,
     index,
     type_parameters,
     payload: self.payload.map(fn(type_) {
@@ -1147,6 +1172,7 @@ fn @syntax.FunctionDeclaration::resolve_function_with_symbol(
     is_public: self.is_public,
     symbol,
     name: self.name,
+    name_loc: self.name_loc,
     type_parameters,
     parameters,
     return_type,
@@ -1167,13 +1193,18 @@ fn @syntax.Parameter::resolve_parameter(
   scope : ResolveScope,
 ) -> ResolvedValueParameter {
   let type_ = self.type_.resolve_type(resolver, scope)
-  let symbol = resolver.registry.define_value(self.name, Parameter, self.loc)
+  let symbol = resolver.registry.define_value(
+    self.name,
+    Parameter,
+    self.name_loc,
+  )
   scope.define_value(self.name, symbol, Some(type_))
   {
     symbol,
     is_auto: self.is_auto,
     is_offered: self.is_offered,
     name: self.name,
+    name_loc: self.name_loc,
     type_,
     loc: self.loc,
   }
@@ -1284,6 +1315,7 @@ fn @syntax.LetDeclaration::resolve_let_with_resolved_type(
     is_public: self.is_public,
     symbol,
     name: self.name,
+    name_loc: self.name_loc,
     type_annotation,
     initializer,
     loc: self.loc,
@@ -1369,6 +1401,7 @@ fn @syntax.OfferDeclaration::resolve_offer_value_with_resolved_type(
     is_public: self.is_public,
     symbol,
     name: self.name,
+    name_loc: self.name_loc,
     type_annotation,
     initializer,
     loc: self.loc,
@@ -1683,7 +1716,7 @@ fn @syntax.EffectTerm::resolve_effect_term(
 ) -> ResolvedEffectTerm {
   match self {
     Empty(loc~) => Empty(loc~)
-    Term(type_~, loc~) => type_.resolve_effect_type(resolver, scope, loc)
+    Term(type_~, ..) => type_.resolve_effect_type(resolver, scope, type_.loc())
     Union(items~, loc~) =>
       Union(
         items=items.map(fn(item) {
@@ -2081,6 +2114,7 @@ fn @syntax.Expr::resolve_expr(
     QualifiedVariant(
       owner~,
       variant~,
+      variant_loc~,
       variant_type_arguments~,
       arguments~,
       loc~
@@ -2090,15 +2124,17 @@ fn @syntax.Expr::resolve_expr(
       )
       QualifiedVariant(
         type_name=resolved_owner.type_name,
+        type_name_loc=owner.loc(),
         generic_arguments=resolved_owner.arguments,
         variant~,
+        variant_loc~,
         variant_generic_arguments=variant_type_arguments.map(fn(type_) {
           type_.resolve_generic_argument(resolver, scope)
         }),
         reference=resolver.variant_reference(
           resolved_owner.type_name,
           variant,
-          loc,
+          variant_loc,
         ),
         arguments=arguments.map(fn(argument) {
           argument.resolve_expr(resolver, scope)
@@ -2112,6 +2148,7 @@ fn @syntax.Expr::resolve_expr(
       )
       StructLiteral(
         type_name=resolved_owner.type_name,
+        type_name_loc=owner.loc(),
         generic_arguments=resolved_owner.arguments,
         fields=resolve_struct_literal_fields(fields, resolver, scope),
         loc~,
@@ -2221,13 +2258,14 @@ fn @syntax.Expr::resolve_expr(
       match resolver.resolve_module_value_field_chain(scope, field, loc) {
         Some(expr) => expr
         None => {
-          guard field is Field(base~, name~, ..) else {
+          guard field is Field(base~, name~, name_loc~, ..) else {
             abort("expected field")
           }
           let base = base.resolve_expr(resolver, scope)
           Field(
             base~,
             name~,
+            name_loc~,
             reference=resolver.field_reference(scope, base, name, loc),
             loc~,
           )
@@ -2455,16 +2493,16 @@ fn Resolver::resolve_unqualified_variant_use(
   name_use : UnqualifiedNameUse,
   variant_generic_arguments : Array[@syntax.Type],
 ) -> ResolvedExpr {
-  match self.unqualified_variant_reference(name, name_use.loc()) {
+  match self.unqualified_variant_reference(name, name_loc) {
     Symbol(symbol) as reference => {
       name_use.report_payloadless_variant_without_parens(self, symbol, name)
       name_use.resolve_as_variant(
-        self, scope, name, variant_generic_arguments, reference,
+        self, scope, name, name_loc, variant_generic_arguments, reference,
       )
     }
     Ambiguous(_) as reference =>
       name_use.resolve_as_variant(
-        self, scope, name, variant_generic_arguments, reference,
+        self, scope, name, name_loc, variant_generic_arguments, reference,
       )
     Unresolved(..) | UnresolvedUnqualified(_) =>
       name_use.resolve_as_unresolved_value(self, scope, name, name_loc)
@@ -2589,6 +2627,7 @@ fn UnqualifiedNameUse::resolve_as_variant(
   resolver : Resolver,
   scope : ResolveScope,
   name : String,
+  name_loc : SourceSpan,
   variant_generic_arguments : Array[@syntax.Type],
   reference : ResolvedVariantReference,
 ) -> ResolvedExpr {
@@ -2601,6 +2640,7 @@ fn UnqualifiedNameUse::resolve_as_variant(
     BareUse(loc) =>
       UnqualifiedVariant(
         variant=name,
+        variant_loc=name_loc,
         variant_generic_arguments=resolved_variant_generic_arguments,
         reference~,
         arguments=[],
@@ -2609,6 +2649,7 @@ fn UnqualifiedNameUse::resolve_as_variant(
     CallUse(arguments~, loc~) =>
       UnqualifiedVariant(
         variant=name,
+        variant_loc=name_loc,
         variant_generic_arguments=resolved_variant_generic_arguments,
         reference~,
         arguments=arguments.map(fn(argument) {
@@ -2820,12 +2861,17 @@ fn @syntax.FunctionLiteralParameter::resolve_function_literal_parameter(
   let type_annotation = self.type_annotation.map(fn(type_) {
     type_.resolve_type(resolver, scope)
   })
-  let symbol = resolver.registry.define_value(self.name, Parameter, self.loc)
+  let symbol = resolver.registry.define_value(
+    self.name,
+    Parameter,
+    self.name_loc,
+  )
   scope.define_value(self.name, symbol, type_annotation)
   {
     symbol,
     is_offered: self.is_offered,
     name: self.name,
+    name_loc: self.name_loc,
     type_annotation,
     loc: self.loc,
   }
@@ -3001,29 +3047,40 @@ fn @syntax.Pattern::resolve_pattern(
     DoubleLiteral(value, loc~) => DoubleLiteral(value, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
-    QualifiedVariant(type_name~, variant~, type_binders~, arguments~, loc~) => {
+    QualifiedVariant(
+      type_name~,
+      type_name_loc~,
+      variant~,
+      variant_loc~,
+      type_binders~,
+      arguments~,
+      loc~
+    ) => {
       let type_binders = resolver.resolve_type_parameter_names(
         type_binders, loc,
       )
       scope.type_parameters.append(type_binders)
       QualifiedVariant(
         type_name~,
+        type_name_loc~,
         variant~,
+        variant_loc~,
         type_binders~,
-        reference=resolver.variant_reference(type_name, variant, loc),
+        reference=resolver.variant_reference(type_name, variant, variant_loc),
         arguments=arguments.map(fn(argument) {
           argument.resolve_pattern(resolver, scope)
         }),
         loc~,
       )
     }
-    UnqualifiedVariant(variant~, type_binders~, arguments~, loc~) => {
+    UnqualifiedVariant(variant~, variant_loc~, type_binders~, arguments~, loc~) => {
       let type_binders = resolver.resolve_type_parameter_names(
         type_binders, loc,
       )
       scope.type_parameters.append(type_binders)
       UnqualifiedVariant(
         variant~,
+        variant_loc~,
         type_binders~,
         arguments=arguments.map(fn(argument) {
           argument.resolve_pattern(resolver, scope)
@@ -3031,9 +3088,10 @@ fn @syntax.Pattern::resolve_pattern(
         loc~,
       )
     }
-    Struct(type_name~, fields~, loc~) =>
+    Struct(type_name~, type_name_loc~, fields~, loc~) =>
       Struct(
         type_name~,
+        type_name_loc~,
         fields=resolve_struct_pattern_fields(
           fields,
           resolver,
@@ -3085,7 +3143,7 @@ fn Resolver::resolve_pattern_type_binder(
   loc : SourceSpan,
 ) -> ResolvedStructPatternField {
   let symbol = self.registry.define_type_parameter(name, loc)
-  let type_parameter = { symbol, name, kind: None, loc }
+  let type_parameter = { symbol, name, name_loc: loc, kind: None, loc }
   scope.type_parameters.push(type_parameter)
   TypeBinder(name~, type_parameter~, loc~)
 }
@@ -3100,6 +3158,7 @@ fn Resolver::resolve_pattern_type_wildcard(
   let type_parameter : ResolvedTypeParameter = {
     symbol,
     name: "_",
+    name_loc: loc,
     kind: None,
     loc,
   }

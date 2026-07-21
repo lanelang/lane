@@ -13,11 +13,69 @@ priv struct CheckedCallArguments {
 }
 
 ///|
+priv struct CheckedExpectation {
+  type_ : @types.Type
+  hidden_type_parameters : Array[TypeParameterId]
+}
+
+///|
+fn checked_expectation(type_ : @types.Type) -> CheckedExpectation {
+  { type_, hidden_type_parameters: [] }
+}
+
+///|
+fn CheckedExpectation::with_hidden_type_parameters(
+  self : CheckedExpectation,
+  parameters : Array[TypeParameterId],
+) -> CheckedExpectation {
+  if parameters.is_empty() {
+    self
+  } else {
+    let hidden_type_parameters = self.hidden_type_parameters.copy()
+    hidden_type_parameters.append(parameters)
+    { ..self, hidden_type_parameters, }
+  }
+}
+
+///|
+fn SemanticChecker::expect_checked_type(
+  self : SemanticChecker,
+  expectation : CheckedExpectation,
+  actual : @types.Type,
+  loc : SourceSpan,
+) -> Unit {
+  if !self.type_matches(expectation.type_, actual, loc) {
+    let kind = if actual.mentions_any_type_parameter(
+        expectation.hidden_type_parameters,
+      ) {
+      HiddenTypeEscape(type_=actual)
+    } else {
+      TypeMismatch(expected=expectation.type_, actual~)
+    }
+    self.diagnostics.push({ kind, loc })
+  }
+}
+
+///|
 fn SemanticChecker::check_checked_expr(
   self : SemanticChecker,
   scope : TypeScope,
   expression : @desugar.DesugaredExpr,
   expected : @types.Type,
+) -> CheckedExpressionSynthesis {
+  self.check_checked_expr_with_expectation(
+    scope,
+    expression,
+    checked_expectation(expected),
+  )
+}
+
+///|
+fn SemanticChecker::check_checked_expr_with_expectation(
+  self : SemanticChecker,
+  scope : TypeScope,
+  expression : @desugar.DesugaredExpr,
+  expectation : CheckedExpectation,
 ) -> CheckedExpressionSynthesis {
   // Checked expression construction follows the checking judgment:
   //
@@ -27,70 +85,75 @@ fn SemanticChecker::check_checked_expr(
   // this expression: block results, if branches, function literals, calls, and
   // operation payloads.
   match expression {
-    Builtin(name, loc~) => self.check_compiler_intrinsic(name, expected, loc)
-    Extern(name, loc~) => self.check_extern_binding(name, expected, loc)
+    Builtin(name, loc~) =>
+      self.check_compiler_intrinsic(name, expectation.type_, loc)
+    Extern(name, loc~) =>
+      self.check_extern_binding(name, expectation.type_, loc)
     ErrorRecovery(loc~) =>
       checked_expression(
-        CompilerIntrinsic(name="%contextual_error", type_=expected, loc~),
-        expected,
+        ErrorRecovery(type_=expectation.type_, loc~),
+        expectation.type_,
       )
     Literal(..) | Field(..) => {
       let checked = self.synthesize_checked_expr(scope, expression)
-      self.expect_type(expected, checked.type_, expression.loc())
+      self.expect_checked_type(expectation, checked.type_, expression.loc())
       checked
     }
     Block(items~, result~, loc~) =>
-      self.check_checked_block(scope, items, result, expected, loc)
+      self.check_checked_block(scope, items, result, expectation, loc)
     If(condition~, then_branch~, else_branch~, loc~) =>
       self.check_checked_if(
-        scope, condition, then_branch, else_branch, expected, loc,
+        scope, condition, then_branch, else_branch, expectation, loc,
       )
     Match(scrutinee~, arms~, loc~) =>
-      self.check_checked_match(scope, scrutinee, arms, expected, loc)
+      self.check_checked_match(scope, scrutinee, arms, expectation, loc)
     Call(callee~, arguments~, loc~) =>
-      self.check_checked_call(scope, callee, arguments, expected, loc)
+      self.check_checked_call(scope, callee, arguments, expectation, loc)
     EffectOperationCall(name~, generic_witnesses~, arguments~, loc~) => {
       let checked = self.synthesize_checked_operation_call(
         scope,
         name,
         generic_witnesses,
         arguments,
-        Some(expected),
+        Some(expectation.type_),
         loc,
       )
-      self.expect_type(expected, checked.type_, loc)
+      self.expect_checked_type(expectation, checked.type_, loc)
       checked
     }
     GenericApplication(callee~, arguments~, loc~) => {
       let checked = self.synthesize_checked_generic_application(
         scope, callee, arguments, loc,
       )
-      self.expect_type(expected, checked.type_, loc)
+      self.expect_checked_type(expectation, checked.type_, loc)
       checked
     }
     Handler(body~, handlers~, final_branch~, loc~) => {
       let checked = self.synthesize_checked_handler(
         scope, body, handlers, final_branch, loc,
       )
-      self.expect_type(expected, checked.type_, loc)
+      self.expect_checked_type(expectation, checked.type_, loc)
       checked
     }
-    StructLiteral(type_name~, generic_arguments~, fields~, loc~) => {
+    StructLiteral(type_name~, type_name_loc~, generic_arguments~, fields~, loc~) => {
       let checked = self.synthesize_checked_struct_literal(
         scope,
         type_name,
+        type_name_loc,
         generic_arguments,
         fields,
-        Some(expected),
+        Some(expectation.type_),
         loc,
       )
-      self.expect_type(expected, checked.type_, loc)
+      self.expect_checked_type(expectation, checked.type_, loc)
       checked
     }
     VariantCall(
       type_name~,
+      type_name_loc~,
       generic_arguments~,
       variant~,
+      variant_loc~,
       variant_generic_arguments~,
       reference~,
       arguments~,
@@ -99,15 +162,17 @@ fn SemanticChecker::check_checked_expr(
       let checked = self.synthesize_checked_variant_call(
         scope,
         type_name,
+        type_name_loc,
         generic_arguments,
         variant,
+        variant_loc,
         variant_generic_arguments,
         reference,
         arguments,
-        Some(expected),
+        Some(expectation.type_),
         loc,
       )
-      self.expect_type(expected, checked.type_, loc)
+      self.expect_checked_type(expectation, checked.type_, loc)
       checked
     }
     FunctionLiteral(
@@ -119,12 +184,12 @@ fn SemanticChecker::check_checked_expr(
       loc~
     ) =>
       self.check_checked_function_literal(
-        scope, type_parameters, parameters, return_type, effect, body, expected,
+        scope, type_parameters, parameters, return_type, effect, body, expectation,
         loc,
       )
     Var(..) => {
       let checked = self.synthesize_checked_expr(scope, expression)
-      self.expect_type(expected, checked.type_, expression.loc())
+      self.expect_checked_type(expectation, checked.type_, expression.loc())
       checked
     }
   }
@@ -164,8 +229,8 @@ fn SemanticChecker::synthesize_checked_expr(
       )
     Var(name~, reference~, loc~) =>
       self.synthesize_checked_value_reference(scope, reference, name, loc)
-    Field(base~, name~, reference~, loc~) =>
-      self.synthesize_checked_field(scope, base, name, reference, loc)
+    Field(base~, name~, name_loc~, reference~, loc~) =>
+      self.synthesize_checked_field(scope, base, name, name_loc, reference, loc)
     If(condition~, then_branch~, else_branch~, loc~) =>
       self.synthesize_checked_if(
         scope, condition, then_branch, else_branch, loc,
@@ -189,10 +254,11 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_handler(scope, body, handlers, final_branch, loc)
     Block(items~, result~, loc~) =>
       self.synthesize_checked_block(scope, items, result, loc)
-    StructLiteral(type_name~, generic_arguments~, fields~, loc~) =>
+    StructLiteral(type_name~, type_name_loc~, generic_arguments~, fields~, loc~) =>
       self.synthesize_checked_struct_literal(
         scope,
         type_name,
+        type_name_loc,
         generic_arguments,
         fields,
         None,
@@ -200,8 +266,10 @@ fn SemanticChecker::synthesize_checked_expr(
       )
     VariantCall(
       type_name~,
+      type_name_loc~,
       generic_arguments~,
       variant~,
+      variant_loc~,
       variant_generic_arguments~,
       reference~,
       arguments~,
@@ -210,8 +278,10 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_variant_call(
         scope,
         type_name,
+        type_name_loc,
         generic_arguments,
         variant,
+        variant_loc,
         variant_generic_arguments,
         reference,
         arguments,
@@ -270,7 +340,7 @@ fn SemanticChecker::check_checked_block(
   scope : TypeScope,
   items : Array[@desugar.DesugaredLocalItem],
   result : @desugar.DesugaredExpr,
-  expected : @types.Type,
+  expectation : CheckedExpectation,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   let next_scope = scope.copy()
@@ -327,7 +397,9 @@ fn SemanticChecker::check_checked_block(
       }
     }
   }
-  let checked_result = self.check_checked_expr(next_scope, result, expected)
+  let checked_result = self.check_checked_expr_with_expectation(
+    next_scope, result, expectation,
+  )
   effects.push(checked_result.effect)
   guard self.require_checked_expression(
       checked_result,
@@ -335,16 +407,16 @@ fn SemanticChecker::check_checked_block(
       "block result",
     )
     is Some(result) else {
-    return checked_expression_none_reported(expected)
+    return checked_expression_none_reported(expectation.type_)
   }
   if complete {
     checked_expression_with_effect(
-      Block(items=checked_items, result~, type_=expected, loc~),
-      expected,
+      Block(items=checked_items, result~, type_=expectation.type_, loc~),
+      expectation.type_,
       effect_union(effects),
     )
   } else {
-    checked_expression_none_reported(expected)
+    checked_expression_none_reported(expectation.type_)
   }
 }
 
@@ -449,7 +521,7 @@ fn SemanticChecker::check_checked_if(
   condition : @desugar.DesugaredExpr,
   then_branch : @desugar.DesugaredExpr,
   else_branch : @desugar.DesugaredExpr,
-  expected : @types.Type,
+  expectation : CheckedExpectation,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   // Gamma |- condition <= Bool ~~> checked_condition
@@ -464,29 +536,31 @@ fn SemanticChecker::check_checked_if(
   )
   guard self.require_checked_expression(checked_condition, loc, "if condition")
     is Some(condition) else {
-    return checked_expression_none_reported(expected)
+    return checked_expression_none_reported(expectation.type_)
   }
-  let checked_then_branch = self.check_checked_expr(
-    scope, then_branch, expected,
+  let checked_then_branch = self.check_checked_expr_with_expectation(
+    scope, then_branch, expectation,
   )
   guard self.require_checked_expression(
       checked_then_branch, loc, "if then branch",
     )
     is Some(then_branch) else {
-    return checked_expression_none_reported(expected)
+    return checked_expression_none_reported(expectation.type_)
   }
-  let checked_else_branch = self.check_checked_expr(
-    scope, else_branch, expected,
+  let checked_else_branch = self.check_checked_expr_with_expectation(
+    scope,
+    else_branch,
+    { ..expectation, type_: checked_then_branch.type_ },
   )
   guard self.require_checked_expression(
       checked_else_branch, loc, "if else branch",
     )
     is Some(else_branch) else {
-    return checked_expression_none_reported(expected)
+    return checked_expression_none_reported(expectation.type_)
   }
   checked_expression_with_effect(
-    If(condition~, then_branch~, else_branch~, type_=expected, loc~),
-    expected,
+    If(condition~, then_branch~, else_branch~, type_=expectation.type_, loc~),
+    expectation.type_,
     effect_union([
       checked_condition.effect,
       checked_then_branch.effect,
@@ -550,7 +624,7 @@ fn SemanticChecker::check_checked_match(
   scope : TypeScope,
   scrutinee : @desugar.DesugaredExpr,
   arms : Array[@desugar.DesugaredMatchArm],
-  expected : @types.Type,
+  expectation : CheckedExpectation,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   let checked_scrutinee = self.synthesize_checked_expr(scope, scrutinee)
@@ -560,7 +634,7 @@ fn SemanticChecker::check_checked_match(
       "match scrutinee",
     )
     is Some(scrutinee) else {
-    return checked_expression_none_reported(expected)
+    return checked_expression_none_reported(expectation.type_)
   }
   let matrix = PatternMatrix::PatternMatrix()
   let checked_arms : Array[@checked.CheckedMatchArm] = []
@@ -578,17 +652,11 @@ fn SemanticChecker::check_checked_match(
     }
     matrix.add(pattern)
     let opened_type_parameters = pattern.opened_type_parameters()
-    let diagnostic_start = self.diagnostics.length()
-    let checked_body = self.check_checked_expr(arm_scope, arm.body, expected)
-    if self.check_hidden_type_escape(
-        opened_type_parameters,
-        checked_body.type_,
-        arm.body.loc(),
-      ) {
-      self.remove_hidden_escape_type_mismatches(
-        diagnostic_start, opened_type_parameters,
-      )
-    }
+    let checked_body = self.check_checked_expr_with_expectation(
+      arm_scope,
+      arm.body,
+      expectation.with_hidden_type_parameters(opened_type_parameters),
+    )
     match
       self.require_checked_expression(checked_body, arm.body.loc(), "match arm") {
       Some(body) => {
@@ -612,12 +680,12 @@ fn SemanticChecker::check_checked_match(
   }
   if complete {
     checked_expression_with_effect(
-      Match(scrutinee~, arms=checked_arms, type_=expected, loc~),
-      expected,
+      Match(scrutinee~, arms=checked_arms, type_=expectation.type_, loc~),
+      expectation.type_,
       effect_union(effects),
     )
   } else {
-    checked_expression_none_reported(expected)
+    checked_expression_none_reported(expectation.type_)
   }
 }
 
@@ -830,7 +898,7 @@ fn SemanticChecker::check_checked_call(
   scope : TypeScope,
   callee : @desugar.DesugaredExpr,
   arguments : Array[@desugar.DesugaredCallArgument],
-  expected : @types.Type,
+  expectation : CheckedExpectation,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   // Checked call in checking mode first synthesizes the call under the expected
@@ -840,10 +908,10 @@ fn SemanticChecker::check_checked_call(
     scope,
     callee,
     arguments,
-    Some(expected),
+    Some(expectation.type_),
     loc,
   )
-  self.expect_type(expected, checked.type_, loc)
+  self.expect_checked_type(expectation, checked.type_, loc)
   checked
 }
 
@@ -1014,10 +1082,10 @@ fn SemanticChecker::check_checked_function_literal(
   return_type : @resolve.ResolvedType?,
   effect : @resolve.ResolvedEffectTerm?,
   body : @desugar.DesugaredExpr,
-  expected : @types.Type,
+  expectation : CheckedExpectation,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  match expected {
+  match expectation.type_ {
     Forall(expected_parameters, expected_body) => {
       // Checked forall introduction mirrors the non-building checker:
       //
@@ -1033,7 +1101,7 @@ fn SemanticChecker::check_checked_function_literal(
       )
       if type_parameters.length() != expected_parameters.length() {
         self.report_application_arity("generic function arity", loc)
-        return checked_expression_none_reported(expected)
+        return checked_expression_none_reported(expectation.type_)
       }
       let substitution = @types.TypeSubstitution::TypeSubstitution()
       for index in 0..<expected_parameters.length() {
@@ -1050,7 +1118,7 @@ fn SemanticChecker::check_checked_function_literal(
         return_type,
         effect,
         body,
-        expected_body.substitute(substitution),
+        { ..expectation, type_: expected_body.substitute(substitution) },
         loc,
       )
       guard checked.expression
@@ -1075,7 +1143,7 @@ fn SemanticChecker::check_checked_function_literal(
     Function(expected_parameters, expected_result, expected_effect) => {
       if !type_parameters.is_empty() {
         self.report_application_arity("generic function arity", loc)
-        return checked_expression_none_reported(expected)
+        return checked_expression_none_reported(expectation.type_)
       }
       self.check_monomorphic_function_literal(
         scope,
@@ -1086,6 +1154,7 @@ fn SemanticChecker::check_checked_function_literal(
         expected_parameters,
         expected_result,
         Some(expected_effect),
+        expectation.hidden_type_parameters,
         loc,
       )
     }
@@ -1094,7 +1163,7 @@ fn SemanticChecker::check_checked_function_literal(
       let checked = self.synthesize_checked_function_literal(
         scope, type_parameters, parameters, return_type, effect, body, loc,
       )
-      self.expect_type(expected, checked.type_, loc)
+      self.expect_checked_type(expectation, checked.type_, loc)
       checked
     }
   }
@@ -1139,6 +1208,7 @@ fn SemanticChecker::synthesize_checked_field(
   scope : TypeScope,
   base : @desugar.DesugaredExpr,
   name : String,
+  name_loc : SourceSpan,
   reference : @resolve.ResolvedFieldReference,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
@@ -1155,6 +1225,7 @@ fn SemanticChecker::synthesize_checked_field(
         checked_base.effect,
         field,
         name,
+        name_loc,
         loc,
       )
     Deferred(_) =>
@@ -1169,6 +1240,7 @@ fn SemanticChecker::synthesize_checked_field(
           checked_base.effect,
           field,
           name,
+          name_loc,
           loc,
         )
       } else if checked_base.type_ is Error {
@@ -1192,6 +1264,7 @@ fn SemanticChecker::checked_field_from_symbol(
   base_effect : @types.Effect,
   field : FieldSymbolId,
   name : String,
+  name_loc : SourceSpan,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   let type_ = self.declarations.field_type(
@@ -1202,7 +1275,7 @@ fn SemanticChecker::checked_field_from_symbol(
     loc,
   )
   checked_expression_with_effect(
-    Field(base~, field~, name~, type_~, loc~),
+    Field(base~, field~, name~, name_loc~, type_~, loc~),
     type_,
     base_effect,
   )

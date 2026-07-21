@@ -22,7 +22,7 @@ test "compile source records intrinsic and runtime import origins" {
   debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     (
-      result.externals.builtins.map(fn(external) { external.name }),
+      result.externals.builtins.map(fn(external) { external.intrinsic.name() }),
       result.externals.runtime_imports.map(fn(import_) { import_.symbol }),
     ),
     content=(
@@ -1683,7 +1683,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   }
   debug_inspect(
     (
-      program.externals.builtins.map(fn(external) { external.name }),
+      program.externals.builtins.map(fn(external) { external.intrinsic.name() }),
       program.externals.runtime_imports.map(fn(import_) { import_.symbol }),
     ),
     content=(
@@ -1928,7 +1928,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 10
+      #|schema: 11
       #|
       #|imported interfaces:
       #|  (none)
@@ -2464,7 +2464,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 10
+      #|schema: 11
       #|
       #|imported interfaces:
       #|  (none)

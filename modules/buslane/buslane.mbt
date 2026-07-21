@@ -824,7 +824,7 @@ fn GenericArgument::substitute_with_bound(
     TypeArgument(type_) =>
       TypeArgument(type_.substitute_with_bound(substitution, bound))
     EffectArgument(effect) =>
-      EffectArgument(effect.substitute_types_with_bound(substitution, bound))
+      EffectArgument(effect.substitute_with_bound(substitution, bound))
   }
 }
 
@@ -933,7 +933,7 @@ fn Type::substitute_with_bound(
           parameter.substitute_with_bound(substitution, bound)
         }),
         result.substitute_with_bound(substitution, bound),
-        effect.substitute_types_with_bound(substitution, bound),
+        effect.substitute_with_bound(substitution, bound),
       )
     Forall(parameters, body) => {
       let next_bound = bound.copy()
@@ -946,7 +946,15 @@ fn Type::substitute_with_bound(
 }
 
 ///|
-fn Effect::substitute_types_with_bound(
+pub fn Effect::substitute(
+  self : Effect,
+  substitution : TypeSubstitution,
+) -> Effect {
+  self.substitute_with_bound(substitution, [])
+}
+
+///|
+fn Effect::substitute_with_bound(
   self : Effect,
   substitution : TypeSubstitution,
   bound : Array[TypeParameterId],
@@ -968,7 +976,7 @@ fn Effect::substitute_types_with_bound(
     Union(effects) =>
       Union(
         effects.map(fn(effect) {
-          effect.substitute_types_with_bound(substitution, bound)
+          effect.substitute_with_bound(substitution, bound)
         }),
       )
   }

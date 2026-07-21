@@ -98,16 +98,34 @@ fn ImageLowerer::plan_intrinsic(
   self : ImageLowerer,
   value : @buslane.ValueId,
   external : @buslane_lowering.BuslaneBuiltinExternal,
-) -> Unit raise LoisvmLoweringError {
-  if is_scalar_intrinsic(external.name) {
-    self.globals.push({
-      value,
-      lowered: Intrinsic(external.name, external.type_),
-    })
-  } else if scalar_double_constant(external.name) is Some(bits) {
-    self.globals.push({ value, lowered: DoubleConstant(bits, external.type_) })
-  } else {
-    raise UnsupportedIntrinsic(name=external.name)
+) -> Unit {
+  match external.intrinsic {
+    F64Inf =>
+      self.globals.push({
+        value,
+        lowered: DoubleConstant(
+          (1.0 / 0.0).reinterpret_as_int64(),
+          external.type_,
+        ),
+      })
+    F64NegativeInf =>
+      self.globals.push({
+        value,
+        lowered: DoubleConstant(
+          (-1.0 / 0.0).reinterpret_as_int64(),
+          external.type_,
+        ),
+      })
+    F64Nan =>
+      self.globals.push({
+        value,
+        lowered: DoubleConstant(
+          (0.0 / 0.0).reinterpret_as_int64(),
+          external.type_,
+        ),
+      })
+    intrinsic =>
+      self.globals.push({ value, lowered: Intrinsic(intrinsic, external.type_) })
   }
 }
 
@@ -117,26 +135,10 @@ fn ImageLowerer::plan_runtime_import(
   value : @buslane.ValueId,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
 ) -> Unit raise LoisvmLoweringError {
-  guard import_.type_ is Function(parameters, result, _) else {
-    raise UnsupportedExpression(detail="runtime import must be a function")
-  }
-  let parameter_kinds = []
-  for parameter in parameters {
-    match runtime_import_value_kind(self.metadata, parameter) {
-      Some(kind) => parameter_kinds.push(kind)
-      None =>
-        raise UnsupportedExpression(
-          detail="runtime import parameters must use direct host ABI types",
-        )
-    }
-  }
-  let result_kind = match runtime_import_value_kind(self.metadata, result) {
-    Some(kind) => kind
-    None =>
-      raise UnsupportedExpression(
-        detail="runtime import result must use a direct host ABI type",
-      )
-  }
+  let parameter_kinds = import_.signature.parameters.map(
+    runtime_import_value_kind,
+  )
+  let result_kind = runtime_import_value_kind(import_.signature.result)
   if parameter_kinds.any(kind => kind is Opaque) || result_kind is Opaque {
     let _reference_layout = self.intern_layout(Reference)
   }
@@ -327,7 +329,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     plan.type_,
   )
   if !type_parameters.is_empty() {
-    raise UnsupportedIntrinsic(name=plan.name)
+    raise UnsupportedIntrinsic(name=plan.intrinsic.name())
   }
   let lowerer : FunctionLowerer = {
     image: self,
@@ -345,9 +347,9 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   for index, slot in parameter_slots {
     arguments.push(Slot(slot, parameter_types[index]))
   }
-  let result = lowerer.lower_intrinsic(plan.name, plan.type_, arguments)
+  let result = lowerer.lower_intrinsic(plan.intrinsic, plan.type_, arguments)
   guard result is Slot(result_slot, _) else {
-    raise UnsupportedIntrinsic(name=plan.name)
+    raise UnsupportedIntrinsic(name=plan.intrinsic.name())
   }
   lowerer.terminate(Return(Some(result_slot)))
   {
@@ -371,16 +373,16 @@ fn ImageLowerer::lower_intrinsic_wrapper(
 ///|
 fn ImageLowerer::intrinsic_wrapper(
   self : ImageLowerer,
-  name : String,
+  intrinsic : @abi.Intrinsic,
   type_ : @buslane.Type,
 ) -> @bytecode.FunctionId {
   for wrapper in self.intrinsic_wrappers {
-    if wrapper.name == name && wrapper.type_ == type_ {
+    if wrapper.intrinsic == intrinsic && wrapper.type_ == type_ {
       return wrapper.function
     }
   }
   let function : @bytecode.FunctionId = { value: self.plans.length() + 1 }
-  let wrapper = { function, name, type_ }
+  let wrapper = { function, intrinsic, type_ }
   self.intrinsic_wrappers.push(wrapper)
   self.plans.push(IntrinsicWrapper(wrapper))
   function

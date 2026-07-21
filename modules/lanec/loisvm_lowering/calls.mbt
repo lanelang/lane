@@ -9,8 +9,8 @@ fn FunctionLowerer::lower_call(
     self.materialize_local(self.lower_atom(argument))
   })
   match callee {
-    Global(Intrinsic(name, type_)) =>
-      self.lower_intrinsic(name, type_, lowered_arguments)
+    Global(Intrinsic(intrinsic, type_)) =>
+      self.lower_intrinsic(intrinsic, type_, lowered_arguments)
     Global(Function(function, type_)) =>
       self.lower_direct_call(function, type_, lowered_arguments, None)
     RecursiveFunction(function, type_, environment) =>
@@ -44,10 +44,13 @@ fn FunctionLowerer::materialize_local(
       self.emit(ConstFunction(destination, function))
       Slot(destination, type_)
     }
-    Global(Intrinsic(name, type_)) => {
+    Global(Intrinsic(intrinsic, type_)) => {
       let destination = self.fresh_slot(type_)
       self.emit(
-        ConstFunction(destination, self.image.intrinsic_wrapper(name, type_)),
+        ConstFunction(
+          destination,
+          self.image.intrinsic_wrapper(intrinsic, type_),
+        ),
       )
       Slot(destination, type_)
     }
@@ -465,7 +468,7 @@ fn FunctionLowerer::lower_direct_call(
 ///|
 fn FunctionLowerer::lower_intrinsic(
   self : FunctionLowerer,
-  name : String,
+  intrinsic : @abi.Intrinsic,
   type_ : @buslane.Type,
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
@@ -477,24 +480,24 @@ fn FunctionLowerer::lower_intrinsic(
     }
   })
   let destination = self.fresh_slot(result_type)
-  let instruction : @vmcfg.Instruction = match (name, slots) {
-    ("%i64_add", [left, right]) => IntAdd(destination, left, right)
-    ("%i64_sub", [left, right]) => IntSub(destination, left, right)
-    ("%i64_mul", [left, right]) => IntMul(destination, left, right)
-    ("%i64_div", [left, right]) => IntDiv(destination, left, right)
-    ("%i64_rem", [left, right]) => IntRem(destination, left, right)
-    ("%i64_neg", [source]) => IntNeg(destination, source)
-    ("%i64_equal", [left, right]) => IntEq(destination, left, right)
-    ("%i64_less", [left, right]) => IntLt(destination, left, right)
-    ("%f64_add", [left, right]) => DoubleAdd(destination, left, right)
-    ("%f64_sub", [left, right]) => DoubleSub(destination, left, right)
-    ("%f64_mul", [left, right]) => DoubleMul(destination, left, right)
-    ("%f64_div", [left, right]) => DoubleDiv(destination, left, right)
-    ("%f64_neg", [source]) => DoubleNeg(destination, source)
-    ("%f64_equal", [left, right]) => DoubleEq(destination, left, right)
-    ("%f64_less", [left, right]) => DoubleLt(destination, left, right)
-    ("%string_equal", [left, right]) => StringEq(destination, left, right)
-    _ => raise UnsupportedIntrinsic(name~)
+  let instruction : @vmcfg.Instruction = match (intrinsic, slots) {
+    (I64Add, [left, right]) => IntAdd(destination, left, right)
+    (I64Sub, [left, right]) => IntSub(destination, left, right)
+    (I64Mul, [left, right]) => IntMul(destination, left, right)
+    (I64Div, [left, right]) => IntDiv(destination, left, right)
+    (I64Rem, [left, right]) => IntRem(destination, left, right)
+    (I64Neg, [source]) => IntNeg(destination, source)
+    (I64Equal, [left, right]) => IntEq(destination, left, right)
+    (I64Less, [left, right]) => IntLt(destination, left, right)
+    (F64Add, [left, right]) => DoubleAdd(destination, left, right)
+    (F64Sub, [left, right]) => DoubleSub(destination, left, right)
+    (F64Mul, [left, right]) => DoubleMul(destination, left, right)
+    (F64Div, [left, right]) => DoubleDiv(destination, left, right)
+    (F64Neg, [source]) => DoubleNeg(destination, source)
+    (F64Equal, [left, right]) => DoubleEq(destination, left, right)
+    (F64Less, [left, right]) => DoubleLt(destination, left, right)
+    (StringEqual, [left, right]) => StringEq(destination, left, right)
+    _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)
   Slot(destination, result_type)

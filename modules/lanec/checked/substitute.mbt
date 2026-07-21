@@ -8,10 +8,17 @@ pub fn CheckedExpr::substitute(
       Literal(literal~, type_=type_.substitute(substitution), loc~)
     Value(name~, symbol~, type_~, loc~) =>
       Value(name~, symbol~, type_=type_.substitute(substitution), loc~)
-    CompilerIntrinsic(name~, type_~, loc~) =>
-      CompilerIntrinsic(name~, type_=type_.substitute(substitution), loc~)
-    ExternBinding(name~, type_~, loc~) =>
-      ExternBinding(name~, type_=type_.substitute(substitution), loc~)
+    CompilerIntrinsic(intrinsic~, type_~, loc~) =>
+      CompilerIntrinsic(intrinsic~, type_=type_.substitute(substitution), loc~)
+    ExternBinding(name~, signature~, type_~, loc~) =>
+      ExternBinding(
+        name~,
+        signature~,
+        type_=type_.substitute(substitution),
+        loc~,
+      )
+    ErrorRecovery(type_~, loc~) =>
+      ErrorRecovery(type_=type_.substitute(substitution), loc~)
     FunctionLiteral(
       type_parameters~,
       parameters~,
@@ -70,6 +77,7 @@ pub fn CheckedExpr::substitute(
       )
     OperationCall(
       operation~,
+      operation_loc~,
       generic_witnesses~,
       arguments~,
       effect~,
@@ -78,6 +86,7 @@ pub fn CheckedExpr::substitute(
     ) =>
       OperationCall(
         operation~,
+        operation_loc~,
         generic_witnesses=generic_witnesses.map(fn(witness) {
           witness.substitute(substitution)
         }),
@@ -96,16 +105,18 @@ pub fn CheckedExpr::substitute(
         type_=type_.substitute(substitution),
         loc~,
       )
-    Field(base~, field~, name~, type_~, loc~) =>
+    Field(base~, field~, name~, name_loc~, type_~, loc~) =>
       Field(
         base=base.substitute(substitution),
         field~,
         name~,
+        name_loc~,
         type_=type_.substitute(substitution),
         loc~,
       )
     StructLiteral(
       symbol~,
+      type_name_loc~,
       generic_arguments~,
       type_witnesses~,
       fields~,
@@ -114,6 +125,7 @@ pub fn CheckedExpr::substitute(
     ) =>
       StructLiteral(
         symbol~,
+        type_name_loc~,
         generic_arguments=generic_arguments.map(fn(argument) {
           argument.substitute(substitution)
         }),
@@ -129,9 +141,10 @@ pub fn CheckedExpr::substitute(
         type_=type_.substitute(substitution),
         loc~,
       )
-    Variant(symbol~, generic_arguments~, arguments~, type_~, loc~) =>
+    Variant(symbol~, variant_loc~, generic_arguments~, arguments~, type_~, loc~) =>
       Variant(
         symbol~,
+        variant_loc~,
         generic_arguments=generic_arguments.map(fn(argument) {
           argument.substitute(substitution)
         }),
@@ -155,6 +168,7 @@ fn CheckedLocalItem::substitute(
         is_public: declaration.is_public,
         symbol: declaration.symbol,
         name: declaration.name,
+        name_loc: declaration.name_loc,
         initializer: declaration.initializer.substitute(substitution),
         type_: declaration.type_.substitute(substitution),
         loc: declaration.loc,
@@ -171,6 +185,7 @@ fn CheckedLocalItem::substitute(
         is_public: declaration.is_public,
         symbol: declaration.symbol,
         name: declaration.name,
+        name_loc: declaration.name_loc,
         type_parameters: declaration.type_parameters,
         parameters: substitute_value_parameters(
           declaration.parameters,
@@ -195,6 +210,7 @@ fn substitute_value_parameters(
       is_auto: parameter.is_auto,
       is_offered: parameter.is_offered,
       name: parameter.name,
+      name_loc: parameter.name_loc,
       type_: parameter.type_.substitute(substitution),
       loc: parameter.loc,
     }
@@ -255,6 +271,7 @@ fn CheckedHandlerOperationArm::substitute(
 ) -> CheckedHandlerOperationArm {
   {
     operation: self.operation,
+    operation_loc: self.operation_loc,
     type_binders: self.type_binders,
     payload_types: self.payload_types.map(fn(type_) {
       type_.substitute(substitution)
@@ -298,9 +315,10 @@ fn CheckedPattern::substitute(
       Binding(name~, symbol~, type_=type_.substitute(substitution), loc~)
     Literal(literal~, type_~, loc~) =>
       Literal(literal~, type_=type_.substitute(substitution), loc~)
-    Variant(symbol~, generic_arguments~, arguments~, type_~, loc~) =>
+    Variant(symbol~, variant_loc~, generic_arguments~, arguments~, type_~, loc~) =>
       Variant(
         symbol~,
+        variant_loc~,
         generic_arguments=generic_arguments.map(fn(argument) {
           argument.substitute(substitution)
         }),
@@ -310,9 +328,10 @@ fn CheckedPattern::substitute(
         type_=type_.substitute(substitution),
         loc~,
       )
-    Struct(symbol~, type_binders~, fields~, type_~, loc~) =>
+    Struct(symbol~, type_name_loc~, type_binders~, fields~, type_~, loc~) =>
       Struct(
         symbol~,
+        type_name_loc~,
         type_binders~,
         fields=fields.map(fn(field) { field.substitute(substitution) }),
         type_=type_.substitute(substitution),

@@ -1065,6 +1065,7 @@ fn SemanticChecker::measure_ground_function_literal_effect_for_generic_arguments
     expected_parameters,
     expected_result,
     None,
+    [],
     loc,
   )
   guard checker.diagnostics.is_empty() &&

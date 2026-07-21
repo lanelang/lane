@@ -3,8 +3,10 @@ fn SemanticChecker::synthesize_checked_variant_call(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String?,
+  type_name_loc : SourceSpan?,
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
+  variant_loc : SourceSpan,
   variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
@@ -14,13 +16,22 @@ fn SemanticChecker::synthesize_checked_variant_call(
   match type_name {
     Some(type_name) =>
       self.synthesize_checked_qualified_variant(
-        scope, type_name, generic_arguments, variant, variant_generic_arguments,
-        reference, arguments, expected_result, loc,
+        scope,
+        type_name,
+        type_name_loc.unwrap_or(loc),
+        generic_arguments,
+        variant,
+        variant_loc,
+        variant_generic_arguments,
+        reference,
+        arguments,
+        expected_result,
+        loc,
       )
     None =>
       self.synthesize_checked_unqualified_variant(
-        scope, variant, variant_generic_arguments, reference, arguments, expected_result,
-        loc,
+        scope, variant, variant_loc, variant_generic_arguments, reference, arguments,
+        expected_result, loc,
       )
   }
 }
@@ -30,8 +41,10 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
+  _type_name_loc : SourceSpan,
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
+  variant_loc : SourceSpan,
   variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
@@ -44,6 +57,7 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
         scope,
         symbol,
         type_name + "::" + variant,
+        variant_loc,
         generic_arguments,
         variant_generic_arguments,
         arguments,
@@ -78,6 +92,7 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
   self : SemanticChecker,
   scope : TypeScope,
   variant : String,
+  variant_loc : SourceSpan,
   variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@desugar.DesugaredExpr],
@@ -90,6 +105,7 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
         scope,
         symbol,
         variant,
+        variant_loc,
         [],
         variant_generic_arguments,
         arguments,
@@ -125,6 +141,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   scope : TypeScope,
   symbol : VariantSymbolId,
   display_name : String,
+  variant_loc : SourceSpan,
   explicit_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   explicit_variant_generic_arguments : Array[@resolve.ResolvedGenericArgument],
   arguments : Array[@desugar.DesugaredExpr],
@@ -233,6 +250,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     checked_expression_with_effect(
       Variant(
         symbol~,
+        variant_loc~,
         generic_arguments=hidden_generic_arguments,
         arguments=checked_arguments,
         type_~,
@@ -384,6 +402,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
+  type_name_loc : SourceSpan,
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
   fields : Array[@desugar.DesugaredStructLiteralField],
   expected : @types.Type?,
@@ -484,6 +503,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     checked_expression_with_effect(
       StructLiteral(
         symbol~,
+        type_name_loc~,
         generic_arguments=arguments,
         type_witnesses=witnesses,
         fields=checked_fields,

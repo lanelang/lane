@@ -186,7 +186,7 @@ fn CheckedValueUseCollector::collect_top_level_declaration(
         self.add_binder(
           parameter.symbol,
           parameter.name,
-          parameter.loc,
+          parameter.name_loc,
           FunctionParameter,
         )
       }
@@ -207,7 +207,12 @@ fn CheckedValueUseCollector::collect_local_item(
     Let(declaration) =>
       match declaration.name {
         Some(name) => {
-          self.add_binder(declaration.symbol, name, declaration.loc, LocalLet)
+          self.add_binder(
+            declaration.symbol,
+            name,
+            declaration.name_loc.unwrap_or(declaration.loc),
+            LocalLet,
+          )
           self.collect_expr(declaration.initializer, Some(declaration.symbol))
         }
         None => self.collect_expr(declaration.initializer, current_origin)
@@ -221,14 +226,14 @@ fn CheckedValueUseCollector::collect_local_item(
       self.add_binder(
         declaration.symbol,
         declaration.name,
-        declaration.loc,
+        declaration.name_loc,
         LocalFunction,
       )
       for parameter in declaration.parameters {
         self.add_binder(
           parameter.symbol,
           parameter.name,
-          parameter.loc,
+          parameter.name_loc,
           FunctionParameter,
         )
       }
@@ -244,7 +249,8 @@ fn CheckedValueUseCollector::collect_expr(
   current_origin : ValueSymbolId?,
 ) -> Unit {
   match expr {
-    Literal(_) | CompilerIntrinsic(_) | ExternBinding(_) => ()
+    Literal(_) | CompilerIntrinsic(_) | ExternBinding(_) | ErrorRecovery(_) =>
+      ()
     Value(symbol~, loc~, ..) =>
       self.references.push({
         target: symbol,
@@ -256,7 +262,7 @@ fn CheckedValueUseCollector::collect_expr(
         self.add_binder(
           parameter.symbol,
           parameter.name,
-          parameter.loc,
+          parameter.name_loc,
           FunctionLiteralParameter,
         )
       }

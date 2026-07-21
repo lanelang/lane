@@ -259,13 +259,7 @@ test "buslane preserves the built-in Io effect atom" {
   )
   let substitution = TypeSubstitution::TypeSubstitution()
   substitution.insert_effect(row, Io)
-  let substituted = Type::Function([], Primitive(Unit), effect).substitute(
-    substitution,
-  )
-  guard substituted is Function(_, _, substituted_effect) else {
-    fail("expected substituted function type")
-  }
-  debug_inspect(substituted_effect.canonicalize(), content="Io")
+  debug_inspect(effect.substitute(substitution).canonicalize(), content="Io")
   assert_false(Io == Empty)
 }
 

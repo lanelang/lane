@@ -1,9 +1,9 @@
 module Examples.Warnings.UnusedImportsAndOpens
 
 import Basic.Builtins
+import Basic.Builtins.{ double_nan }
 import Basic.Trait.Ops.*
 import Basic.Io.{ println }
-import Basic.Double.{ nan }
 
 pub fn answer() -> Unit ! Io {
   println("unused import example")

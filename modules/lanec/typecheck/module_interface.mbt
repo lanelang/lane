@@ -6,17 +6,16 @@ fn SemanticChecker::module_interface(
   // Interface construction is the public-boundary judgment. It exports checked
   // declarations only after validating that public signatures do not expose
   // private local nominal types or effects.
-  self.check_public_interface_resolved_declarations()
   let module_path = @module_interface.module_path_text(
     checked_source.module_path,
   )
   let types = checked_source.declarations.filter_map(fn(declaration) {
-    self.interface_type(declaration)
+    interface_type(declaration)
   })
   let effects = checked_source.declarations.filter_map(fn(declaration) {
-    self.interface_effect(declaration)
+    interface_effect_entry(declaration)
   })
-  {
+  let interface : @module_interface.ModuleInterface = {
     module_path,
     source_id: None,
     type_references: self.interface_type_references(module_path, types),
@@ -29,6 +28,8 @@ fn SemanticChecker::module_interface(
     }),
     optimization_hints: [],
   }
+  self.check_public_interface(interface)
+  interface
 }
 
 ///|
@@ -135,25 +136,14 @@ fn append_interface_effect_reference(
 }
 
 ///|
-fn SemanticChecker::interface_type(
-  self : SemanticChecker,
+fn interface_type(
   declaration : @checked.CheckedTopLevelDeclaration,
 ) -> @module_interface.ModuleInterfaceType? {
   match declaration {
-    Struct(declaration) if declaration.is_public => {
-      for field in declaration.fields {
-        self.check_public_interface_type_fallback(field.type_, field.loc)
-      }
+    Struct(declaration) if declaration.is_public =>
       Some(Struct(interface_struct(declaration)))
-    }
-    Enum(declaration) if declaration.is_public => {
-      for variant in declaration.variants {
-        for payload in variant.payload {
-          self.check_public_interface_type_fallback(payload, variant.loc)
-        }
-      }
+    Enum(declaration) if declaration.is_public =>
       Some(Enum(interface_enum(declaration)))
-    }
     ExternalType(declaration) if declaration.is_public =>
       Some(
         External({
@@ -167,23 +157,12 @@ fn SemanticChecker::interface_type(
 }
 
 ///|
-fn SemanticChecker::interface_effect(
-  self : SemanticChecker,
+fn interface_effect_entry(
   declaration : @checked.CheckedTopLevelDeclaration,
 ) -> @module_interface.ModuleInterfaceEffect? {
   match declaration {
-    Effect(declaration) if declaration.is_public => {
-      for operation in declaration.operations {
-        for payload in operation.payload {
-          self.check_public_interface_type_fallback(payload, operation.loc)
-        }
-        self.check_public_interface_type_fallback(
-          operation.result,
-          operation.loc,
-        )
-      }
+    Effect(declaration) if declaration.is_public =>
       Some(interface_effect(declaration))
-    }
     _ => None
   }
 }
@@ -306,10 +285,6 @@ fn SemanticChecker::interface_type_aliases(
         match declaration.body {
           TypeBody(body) => {
             let result = checker.synthesize_type(body)
-            self.check_public_interface_type_fallback(
-              result.type_,
-              declaration.loc,
-            )
             aliases.push({
               name: declaration.name,
               type_parameters,
@@ -331,11 +306,6 @@ fn SemanticChecker::interface_type_aliases(
               checker.check_effect(effect),
               declaration.loc,
               context="effect alias body",
-            )
-            self.check_public_interface_effect_fallback_with_seen(
-              checked,
-              declaration.loc,
-              [],
             )
             aliases.push({
               name: declaration.name,
@@ -370,11 +340,7 @@ fn SemanticChecker::interface_value(
   declaration : @checked.CheckedTopLevelDeclaration,
 ) -> @module_interface.ModuleInterfaceValue? {
   match declaration {
-    Function(declaration) if declaration.is_public => {
-      self.check_public_interface_type_fallback(
-        declaration.type_,
-        declaration.loc,
-      )
+    Function(declaration) if declaration.is_public =>
       Some({
         symbol: declaration.symbol,
         kind: Function,
@@ -383,12 +349,7 @@ fn SemanticChecker::interface_value(
         parameters: Some(declaration.parameters.map(interface_value_parameter)),
         loc: declaration.loc,
       })
-    }
-    Let(declaration) if declaration.is_public && declaration.name is Some(name) => {
-      self.check_public_interface_type_fallback(
-        declaration.type_,
-        declaration.loc,
-      )
+    Let(declaration) if declaration.is_public && declaration.name is Some(name) =>
       Some({
         symbol: declaration.symbol,
         kind: self.interface_value_kind(declaration.symbol),
@@ -397,236 +358,333 @@ fn SemanticChecker::interface_value(
         parameters: None,
         loc: declaration.loc,
       })
-    }
     _ => None
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_resolved_declarations(
+priv enum PublicInterfaceEscape {
+  Type(TypeSymbolId, String, SourceSpan)
+  Effect(EffectSymbolId, String, SourceSpan)
+}
+
+///|
+fn SemanticChecker::check_public_interface(
   self : SemanticChecker,
+  interface : @module_interface.ModuleInterface,
 ) -> Unit {
-  // Run the escape check over resolved public annotations before the checked
-  // fallback below. This gives diagnostics near the source signature and still
-  // leaves alias-expanded checked types to catch synthesized escapes.
+  let escapes : Array[PublicInterfaceEscape] = []
+  self.collect_resolved_public_interface_escapes(escapes)
+  self.collect_checked_public_interface_escapes(interface, escapes)
+  for escape in escapes {
+    match escape {
+      Type(_, name, loc) =>
+        self.diagnostics.push({ kind: PrivateTypeEscape(name~), loc })
+      Effect(_, name, loc) =>
+        self.diagnostics.push({ kind: PrivateEffectEscape(name~), loc })
+    }
+  }
+}
+
+///|
+fn SemanticChecker::collect_resolved_public_interface_escapes(
+  self : SemanticChecker,
+  escapes : Array[PublicInterfaceEscape],
+) -> Unit {
+  // Resolved annotations provide precise source locations. The checked
+  // interface pass below only adds escapes exposed by synthesis or aliases.
   for declaration in self.resolved_source.declarations {
     match declaration {
       Struct(declaration) if declaration.is_public =>
         for member_ in declaration.members {
           match member_ {
             Field(field) =>
-              self.check_public_interface_resolved_type(field.type_)
+              self.collect_resolved_public_interface_type(field.type_, escapes)
             _ => ()
           }
         }
       Enum(declaration) if declaration.is_public =>
         for variant in declaration.variants {
           for payload in variant.payload {
-            self.check_public_interface_resolved_type(payload)
+            self.collect_resolved_public_interface_type(payload, escapes)
           }
         }
       Effect(declaration) if declaration.is_public =>
         for operation in declaration.operations {
           for payload in operation.payload {
-            self.check_public_interface_resolved_type(payload)
+            self.collect_resolved_public_interface_type(payload, escapes)
           }
-          self.check_public_interface_resolved_type(operation.result)
+          self.collect_resolved_public_interface_type(operation.result, escapes)
         }
       TypeAlias(declaration) if declaration.is_public =>
         if declaration.body is TypeBody(body) {
-          self.check_public_interface_resolved_type(body)
+          self.collect_resolved_public_interface_type(body, escapes)
         }
       Function(declaration) if declaration.is_public => {
         for parameter in declaration.parameters {
-          self.check_public_interface_resolved_type(parameter.type_)
+          self.collect_resolved_public_interface_type(parameter.type_, escapes)
         }
-        self.check_public_interface_resolved_type(declaration.return_type)
+        self.collect_resolved_public_interface_type(
+          declaration.return_type,
+          escapes,
+        )
+        self.collect_resolved_public_interface_effect(
+          declaration.effect,
+          escapes,
+        )
       }
       Let(declaration) if declaration.is_public =>
         match declaration.type_annotation {
-          Some(type_) => self.check_public_interface_resolved_type(type_)
+          Some(type_) =>
+            self.collect_resolved_public_interface_type(type_, escapes)
           None => ()
         }
       Offer(declaration) if declaration.is_public =>
-        self.check_public_interface_resolved_type(declaration.type_annotation)
+        self.collect_resolved_public_interface_type(
+          declaration.type_annotation,
+          escapes,
+        )
       _ => ()
     }
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_resolved_type(
+fn SemanticChecker::collect_resolved_public_interface_type(
   self : SemanticChecker,
   type_ : @resolve.ResolvedType,
+  escapes : Array[PublicInterfaceEscape],
 ) -> Unit {
   match type_ {
     Constructor(symbol~, loc~, ..) =>
-      self.check_public_interface_nominal(symbol, loc, [])
+      self.collect_public_interface_nominal(symbol, loc, escapes, [])
     Apply(callee~, arguments~, ..) => {
-      self.check_public_interface_resolved_type(callee)
+      self.collect_resolved_public_interface_type(callee, escapes)
       for argument in arguments {
-        self.check_public_interface_resolved_generic_argument(argument)
+        self.collect_resolved_public_interface_generic_argument(
+          argument, escapes,
+        )
       }
     }
-    TypeLambda(body~, ..) => self.check_public_interface_resolved_type(body)
-    Function(parameters~, result~, ..) => {
+    TypeLambda(body~, ..) =>
+      self.collect_resolved_public_interface_type(body, escapes)
+    Function(parameters~, result~, effect~, ..) => {
       for parameter in parameters {
-        self.check_public_interface_resolved_type(parameter)
+        self.collect_resolved_public_interface_type(parameter, escapes)
       }
-      self.check_public_interface_resolved_type(result)
+      self.collect_resolved_public_interface_type(result, escapes)
+      self.collect_resolved_public_interface_effect(effect, escapes)
     }
     Unresolved(arguments~, ..) =>
       for argument in arguments {
-        self.check_public_interface_resolved_generic_argument(argument)
+        self.collect_resolved_public_interface_generic_argument(
+          argument, escapes,
+        )
       }
     Primitive(_) | Alias(_) | Parameter(_) => ()
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_resolved_generic_argument(
+fn SemanticChecker::collect_resolved_public_interface_generic_argument(
   self : SemanticChecker,
   argument : @resolve.ResolvedGenericArgument,
+  escapes : Array[PublicInterfaceEscape],
 ) -> Unit {
   match argument {
-    TypeArgument(type_) => self.check_public_interface_resolved_type(type_)
+    TypeArgument(type_) =>
+      self.collect_resolved_public_interface_type(type_, escapes)
     EffectArgument(effect) =>
-      self.check_public_interface_resolved_effect(effect)
+      self.collect_resolved_public_interface_effect(effect, escapes)
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_resolved_effect(
+fn SemanticChecker::collect_resolved_public_interface_effect(
   self : SemanticChecker,
   effect : @resolve.ResolvedEffectTerm,
+  escapes : Array[PublicInterfaceEscape],
 ) -> Unit {
   match effect {
-    Io(arguments~, ..)
-    | Singleton(arguments~, ..)
-    | Unresolved(arguments~, ..) =>
+    Singleton(symbol~, arguments~, loc~, ..) => {
+      self.collect_public_interface_effect_symbol(symbol, loc, escapes)
       for argument in arguments {
-        self.check_public_interface_resolved_generic_argument(argument)
+        self.collect_resolved_public_interface_generic_argument(
+          argument, escapes,
+        )
+      }
+    }
+    Io(arguments~, ..) | Unresolved(arguments~, ..) =>
+      for argument in arguments {
+        self.collect_resolved_public_interface_generic_argument(
+          argument, escapes,
+        )
       }
     Alias(arguments~, ..) =>
       for argument in arguments {
         match argument {
           TypeArgument(type_) =>
-            self.check_public_interface_resolved_type(type_)
+            self.collect_resolved_public_interface_type(type_, escapes)
           EffectArgument(effect) =>
-            self.check_public_interface_resolved_effect(effect)
+            self.collect_resolved_public_interface_effect(effect, escapes)
         }
       }
     Union(items~, ..) =>
       for item in items {
-        self.check_public_interface_resolved_effect(item)
+        self.collect_resolved_public_interface_effect(item, escapes)
       }
     Empty(_) | Parameter(_) => ()
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_type_fallback(
+fn SemanticChecker::collect_checked_public_interface_escapes(
   self : SemanticChecker,
-  type_ : @types.Type,
-  loc : SourceSpan,
+  interface : @module_interface.ModuleInterface,
+  escapes : Array[PublicInterfaceEscape],
 ) -> Unit {
-  self.check_public_interface_type_fallback_with_seen(type_, loc, [])
+  for type_ in interface.types {
+    match type_ {
+      Struct(declaration) =>
+        for field in declaration.fields {
+          self.collect_public_interface_type(field.type_, field.loc, escapes, [])
+        }
+      Enum(declaration) =>
+        for variant in declaration.variants {
+          for payload in variant.payload {
+            self.collect_public_interface_type(payload, variant.loc, escapes, [])
+          }
+        }
+      External(_) => ()
+    }
+  }
+  for effect in interface.effects {
+    for operation in effect.operations {
+      for payload in operation.payload {
+        self.collect_public_interface_type(payload, operation.loc, escapes, [])
+      }
+      self.collect_public_interface_type(
+        operation.result,
+        operation.loc,
+        escapes,
+        [],
+      )
+    }
+  }
+  for type_alias in interface.type_aliases {
+    match type_alias.body {
+      TypeBody(type_) =>
+        self.collect_public_interface_type(type_, type_alias.loc, escapes, [])
+      EffectBody(effect) =>
+        self.collect_public_interface_effect(effect, type_alias.loc, escapes, [])
+    }
+  }
+  for value in interface.values {
+    self.collect_public_interface_type(value.type_, value.loc, escapes, [])
+  }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_type_fallback_with_seen(
+fn SemanticChecker::collect_public_interface_type(
   self : SemanticChecker,
   type_ : @types.Type,
   loc : SourceSpan,
+  escapes : Array[PublicInterfaceEscape],
   seen : Array[TypeSymbolId],
 ) -> Unit {
   match type_ {
     Constructor(symbol) =>
-      self.check_public_interface_nominal_fallback(symbol, loc, seen)
+      self.collect_public_interface_nominal(symbol, loc, escapes, seen)
     Apply(callee, arguments) => {
-      self.check_public_interface_type_fallback_with_seen(callee, loc, seen)
+      self.collect_public_interface_type(callee, loc, escapes, seen)
       for argument in arguments {
-        self.check_public_interface_generic_argument_fallback_with_seen(
-          argument, loc, seen,
+        self.collect_public_interface_generic_argument(
+          argument, loc, escapes, seen,
         )
       }
     }
     TypeLambda(_, body) =>
-      self.check_public_interface_type_fallback_with_seen(body, loc, seen)
+      self.collect_public_interface_type(body, loc, escapes, seen)
     Function(parameters, result, effect) => {
       for parameter in parameters {
-        self.check_public_interface_type_fallback_with_seen(
-          parameter, loc, seen,
-        )
+        self.collect_public_interface_type(parameter, loc, escapes, seen)
       }
-      self.check_public_interface_type_fallback_with_seen(result, loc, seen)
-      self.check_public_interface_effect_fallback_with_seen(effect, loc, seen)
+      self.collect_public_interface_type(result, loc, escapes, seen)
+      self.collect_public_interface_effect(effect, loc, escapes, seen)
     }
     Forall(_, body) =>
-      self.check_public_interface_type_fallback_with_seen(body, loc, seen)
+      self.collect_public_interface_type(body, loc, escapes, seen)
     Error | Primitive(_) | Parameter(_) => ()
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_generic_argument_fallback_with_seen(
+fn SemanticChecker::collect_public_interface_generic_argument(
   self : SemanticChecker,
   argument : @types.GenericArgument,
   loc : SourceSpan,
+  escapes : Array[PublicInterfaceEscape],
   seen : Array[TypeSymbolId],
 ) -> Unit {
   match argument {
     TypeArgument(type_) =>
-      self.check_public_interface_type_fallback_with_seen(type_, loc, seen)
+      self.collect_public_interface_type(type_, loc, escapes, seen)
     EffectArgument(effect) =>
-      self.check_public_interface_effect_fallback_with_seen(effect, loc, seen)
+      self.collect_public_interface_effect(effect, loc, escapes, seen)
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_effect_fallback_with_seen(
+fn SemanticChecker::collect_public_interface_effect(
   self : SemanticChecker,
   effect : @types.Effect,
   loc : SourceSpan,
+  escapes : Array[PublicInterfaceEscape],
   seen : Array[@symbol.TypeSymbolId],
 ) -> Unit {
   match effect {
     Empty | Io | Parameter(_) => ()
     Singleton(symbol, arguments) => {
-      self.check_public_interface_effect_fallback(symbol, loc)
+      self.collect_public_interface_effect_symbol(symbol, loc, escapes)
       for argument in arguments {
-        self.check_public_interface_generic_argument_fallback_with_seen(
-          argument, loc, seen,
+        self.collect_public_interface_generic_argument(
+          argument, loc, escapes, seen,
         )
       }
     }
     Union(effects) =>
       for item in effects {
-        self.check_public_interface_effect_fallback_with_seen(item, loc, seen)
+        self.collect_public_interface_effect(item, loc, escapes, seen)
       }
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_effect_fallback(
+fn SemanticChecker::collect_public_interface_effect_symbol(
   self : SemanticChecker,
   symbol : EffectSymbolId,
   loc : SourceSpan,
+  escapes : Array[PublicInterfaceEscape],
 ) -> Unit {
   match self.private_effect_name(symbol) {
-    Some(name) =>
-      if !self.has_private_effect_escape_diagnostic(name) {
-        self.diagnostics.push({ kind: PrivateEffectEscape(name~), loc })
+    Some(name) => {
+      for escape in escapes {
+        if escape is Effect(existing, _, _) && existing == symbol {
+          return
+        }
       }
+      escapes.push(Effect(symbol, name, loc))
+    }
     None => ()
   }
 }
 
 ///|
-fn SemanticChecker::check_public_interface_nominal(
+fn SemanticChecker::collect_public_interface_nominal(
   self : SemanticChecker,
   symbol : TypeSymbolId,
   loc : SourceSpan,
+  escapes : Array[PublicInterfaceEscape],
   seen : Array[TypeSymbolId],
 ) -> Unit {
   if seen.contains(symbol) {
@@ -634,57 +692,16 @@ fn SemanticChecker::check_public_interface_nominal(
   }
   seen.push(symbol)
   match self.private_nominal_type_name(symbol) {
-    Some(name) => self.diagnostics.push({ kind: PrivateTypeEscape(name~), loc })
-    None => ()
-  }
-}
-
-///|
-fn SemanticChecker::check_public_interface_nominal_fallback(
-  self : SemanticChecker,
-  symbol : TypeSymbolId,
-  loc : SourceSpan,
-  seen : Array[TypeSymbolId],
-) -> Unit {
-  if seen.contains(symbol) {
-    return
-  }
-  seen.push(symbol)
-  match self.private_nominal_type_name(symbol) {
-    Some(name) =>
-      if !self.has_private_type_escape_diagnostic(name) {
-        self.diagnostics.push({ kind: PrivateTypeEscape(name~), loc })
+    Some(name) => {
+      for escape in escapes {
+        if escape is Type(existing, _, _) && existing == symbol {
+          return
+        }
       }
+      escapes.push(Type(symbol, name, loc))
+    }
     None => ()
   }
-}
-
-///|
-fn SemanticChecker::has_private_type_escape_diagnostic(
-  self : SemanticChecker,
-  name : String,
-) -> Bool {
-  for diagnostic in self.diagnostics {
-    if diagnostic.kind is PrivateTypeEscape(name=diagnostic_name) &&
-      diagnostic_name == name {
-      return true
-    }
-  }
-  false
-}
-
-///|
-fn SemanticChecker::has_private_effect_escape_diagnostic(
-  self : SemanticChecker,
-  name : String,
-) -> Bool {
-  for diagnostic in self.diagnostics {
-    if diagnostic.kind is PrivateEffectEscape(name=diagnostic_name) &&
-      diagnostic_name == name {
-      return true
-    }
-  }
-  false
 }
 
 ///|

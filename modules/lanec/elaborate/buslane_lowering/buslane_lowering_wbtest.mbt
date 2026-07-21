@@ -365,6 +365,7 @@ fn first_checked_handler_expr_for_elaborate_test(
     | Value(..)
     | CompilerIntrinsic(..)
     | ExternBinding(..)
+    | ErrorRecovery(..)
     | FunctionLiteral(..) => None
   }
 }

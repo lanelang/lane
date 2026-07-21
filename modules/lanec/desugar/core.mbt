@@ -22,6 +22,7 @@ pub(all) struct DesugaredFunctionDeclaration {
   is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[@resolve.ResolvedTypeParameter]
   parameters : Array[@resolve.ResolvedValueParameter]
   return_type : @resolve.ResolvedType
@@ -35,6 +36,7 @@ pub(all) struct DesugaredLetDeclaration {
   is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
+  name_loc : SourceSpan?
   type_annotation : @resolve.ResolvedType?
   initializer : DesugaredExpr
   loc : SourceSpan
@@ -53,6 +55,7 @@ pub(all) struct DesugaredOfferDeclaration {
   is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
+  name_loc : SourceSpan
   type_annotation : @resolve.ResolvedType
   initializer : DesugaredExpr
   loc : SourceSpan
@@ -136,8 +139,10 @@ pub(all) enum DesugaredExpr {
   )
   VariantCall(
     type_name~ : String?,
+    type_name_loc~ : SourceSpan?,
     generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     variant~ : String,
+    variant_loc~ : SourceSpan,
     variant_generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     reference~ : @resolve.ResolvedVariantReference,
     arguments~ : Array[DesugaredExpr],
@@ -145,6 +150,7 @@ pub(all) enum DesugaredExpr {
   )
   StructLiteral(
     type_name~ : String,
+    type_name_loc~ : SourceSpan,
     generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     fields~ : Array[DesugaredStructLiteralField],
     loc~ : SourceSpan
@@ -201,6 +207,7 @@ pub(all) enum DesugaredExpr {
   Field(
     base~ : DesugaredExpr,
     name~ : String,
+    name_loc~ : SourceSpan,
     reference~ : @resolve.ResolvedFieldReference,
     loc~ : SourceSpan
   )

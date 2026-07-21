@@ -231,13 +231,7 @@ fn substitute_cps_effect(
   effect : @buslane.Effect,
   substitution : @buslane.TypeSubstitution,
 ) -> @buslane.Effect {
-  guard @buslane.Type::Function([], Primitive(Unit), effect).substitute(
-      substitution,
-    )
-    is Function(_, _, substituted) else {
-    abort("effect substitution must preserve function type")
-  }
-  substituted.canonicalize()
+  effect.substitute(substitution).canonicalize()
 }
 
 ///|

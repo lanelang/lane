@@ -8,6 +8,7 @@ fn checked_function_literal_parameter(
     is_auto: false,
     is_offered: parameter.is_offered,
     name: parameter.name,
+    name_loc: parameter.name_loc,
     type_,
     loc: parameter.loc,
   }
@@ -72,6 +73,7 @@ fn SemanticChecker::check_monomorphic_function_literal(
   expected_parameters : Array[@types.Type],
   expected_result : @types.Type,
   expected_effect : @types.Effect?,
+  hidden_type_parameters : Array[TypeParameterId],
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   let fallback_type = match expected_effect {
@@ -104,13 +106,13 @@ fn SemanticChecker::check_monomorphic_function_literal(
     [],
     checked_parameters,
   )
-  let checked_body = self.check_checked_expr(
+  let checked_body = self.check_checked_expr_with_expectation(
     match checked_effect {
       Some(effect) => body_scope.with_expected_effect(effect)
       None => body_scope
     },
     body,
-    expected_result,
+    { type_: expected_result, hidden_type_parameters },
   )
   let inferred_effect = match checked_effect {
     Some(effect) => {

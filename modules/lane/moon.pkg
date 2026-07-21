@@ -29,6 +29,7 @@ import {
 }
 
 import {
+  "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/loisvm_lowering",
   "Milky2018/loisvm/interp" @loisvm_interp,

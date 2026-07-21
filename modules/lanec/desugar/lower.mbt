@@ -42,6 +42,7 @@ fn desugar_function_declaration(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.name_loc,
     type_parameters: declaration.type_parameters,
     parameters: declaration.parameters,
     return_type: declaration.return_type,
@@ -59,6 +60,7 @@ fn desugar_let_declaration(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.name_loc,
     type_annotation: declaration.type_annotation,
     initializer: desugar_expr(declaration.initializer),
     loc: declaration.loc,
@@ -73,6 +75,7 @@ fn desugar_offer_declaration(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.name_loc,
     type_annotation: declaration.type_annotation,
     initializer: desugar_expr(declaration.initializer),
     loc: declaration.loc,
@@ -176,8 +179,10 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     Var(name~, reference~, loc~) => Var(name~, reference~, loc~)
     QualifiedVariant(
       type_name~,
+      type_name_loc~,
       generic_arguments~,
       variant~,
+      variant_loc~,
       variant_generic_arguments~,
       reference~,
       arguments~,
@@ -185,8 +190,10 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     ) =>
       VariantCall(
         type_name=Some(type_name),
+        type_name_loc=Some(type_name_loc),
         generic_arguments~,
         variant~,
+        variant_loc~,
         variant_generic_arguments~,
         reference~,
         arguments=arguments.map(desugar_expr),
@@ -194,6 +201,7 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
       )
     UnqualifiedVariant(
       variant~,
+      variant_loc~,
       variant_generic_arguments~,
       reference~,
       arguments~,
@@ -201,16 +209,19 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     ) =>
       VariantCall(
         type_name=None,
+        type_name_loc=None,
         generic_arguments=[],
         variant~,
+        variant_loc~,
         variant_generic_arguments~,
         reference~,
         arguments=arguments.map(desugar_expr),
         loc~,
       )
-    StructLiteral(type_name~, generic_arguments~, fields~, loc~) =>
+    StructLiteral(type_name~, type_name_loc~, generic_arguments~, fields~, loc~) =>
       StructLiteral(
         type_name~,
+        type_name_loc~,
         generic_arguments~,
         fields=desugar_struct_literal_fields(fields),
         loc~,
@@ -272,8 +283,8 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         arguments=arguments.map(desugar_call_argument),
         loc~,
       )
-    Field(base~, name~, reference~, loc~) =>
-      Field(base=desugar_expr(base), name~, reference~, loc~)
+    Field(base~, name~, name_loc~, reference~, loc~) =>
+      Field(base=desugar_expr(base), name~, name_loc~, reference~, loc~)
     Unary(operator~, reference~, operand~, loc~) =>
       desugar_operator_call(
         operator.operation_name(),
@@ -311,8 +322,10 @@ fn desugar_list_literal(
 ) -> DesugaredExpr {
   let mut result = VariantCall(
     type_name=None,
+    type_name_loc=None,
     generic_arguments=[],
     variant="empty",
+    variant_loc=loc,
     variant_generic_arguments=[],
     reference=empty_reference,
     arguments=[],
@@ -322,8 +335,10 @@ fn desugar_list_literal(
   for index = items.length() - 1; index >= 0; index = index - 1 {
     result = VariantCall(
       type_name=None,
+      type_name_loc=None,
       generic_arguments=[],
       variant="cons",
+      variant_loc=loc,
       variant_generic_arguments=[],
       reference=cons_reference,
       arguments=[desugar_expr(items[index]), result],

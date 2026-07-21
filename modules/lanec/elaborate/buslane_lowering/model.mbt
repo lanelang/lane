@@ -1,7 +1,7 @@
 ///|
 pub(all) struct BuslaneBuiltinExternal {
   value : @buslane.ValueId
-  name : String
+  intrinsic : @abi.Intrinsic
   type_ : @buslane.Type
 } derive(Debug, Eq)
 
@@ -9,6 +9,7 @@ pub(all) struct BuslaneBuiltinExternal {
 pub(all) struct BuslaneRuntimeImport {
   value : @buslane.ValueId
   symbol : String
+  signature : @abi.HostSignature
   type_ : @buslane.Type
 } derive(Debug, Eq)
 

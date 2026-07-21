@@ -20,6 +20,7 @@ pub(all) struct CheckedExternalTypeDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   loc : SourceSpan
 } derive(Debug, Eq)
 
@@ -28,6 +29,7 @@ pub(all) struct CheckedStructDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[@types.TypeParameter]
   type_members : Array[CheckedTypeMemberDeclaration]
   fields : Array[CheckedFieldDeclaration]
@@ -39,6 +41,7 @@ pub(all) struct CheckedTypeMemberDeclaration {
   symbol : TypeMemberSymbolId
   type_parameter : @types.TypeParameter
   name : String
+  name_loc : SourceSpan
   kind : @types.Kind
   index : Int
   loc : SourceSpan
@@ -48,6 +51,7 @@ pub(all) struct CheckedTypeMemberDeclaration {
 pub(all) struct CheckedFieldDeclaration {
   symbol : FieldSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_ : @types.Type
   loc : SourceSpan
@@ -58,6 +62,7 @@ pub(all) struct CheckedEnumDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[@types.TypeParameter]
   variants : Array[CheckedVariantDeclaration]
   loc : SourceSpan
@@ -67,6 +72,7 @@ pub(all) struct CheckedEnumDeclaration {
 pub(all) struct CheckedVariantDeclaration {
   symbol : VariantSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
@@ -78,6 +84,7 @@ pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : EffectSymbolId
   name : String
+  name_loc : SourceSpan
   flavor : EffectFlavor
   type_parameters : Array[@types.TypeParameter]
   operations : Array[CheckedEffectOperationDeclaration]
@@ -88,6 +95,7 @@ pub(all) struct CheckedEffectDeclaration {
 pub(all) struct CheckedEffectOperationDeclaration {
   symbol : OperationSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
@@ -100,6 +108,7 @@ pub(all) struct CheckedFunctionDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[@types.TypeParameter]
   parameters : Array[CheckedValueParameter]
   return_type : @types.Type
@@ -113,6 +122,7 @@ pub(all) struct CheckedLetDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
   name : String?
+  name_loc : SourceSpan?
   initializer : CheckedExpr
   type_ : @types.Type
   loc : SourceSpan
@@ -124,6 +134,7 @@ pub(all) struct CheckedValueParameter {
   is_auto : Bool
   is_offered : Bool
   name : String
+  name_loc : SourceSpan
   type_ : @types.Type
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -183,8 +194,18 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
-  CompilerIntrinsic(name~ : String, type_~ : @types.Type, loc~ : SourceSpan)
-  ExternBinding(name~ : String, type_~ : @types.Type, loc~ : SourceSpan)
+  CompilerIntrinsic(
+    intrinsic~ : @abi.Intrinsic,
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
+  ExternBinding(
+    name~ : String,
+    signature~ : @abi.HostSignature?,
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
+  ErrorRecovery(type_~ : @types.Type, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[@types.TypeParameter],
     parameters~ : Array[CheckedValueParameter],
@@ -226,6 +247,7 @@ pub(all) enum CheckedExpr {
   )
   OperationCall(
     operation~ : OperationSymbolId,
+    operation_loc~ : SourceSpan,
     generic_witnesses~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedExpr],
     effect~ : @types.Effect,
@@ -243,11 +265,13 @@ pub(all) enum CheckedExpr {
     base~ : CheckedExpr,
     field~ : FieldSymbolId,
     name~ : String,
+    name_loc~ : SourceSpan,
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
   StructLiteral(
     symbol~ : TypeSymbolId,
+    type_name_loc~ : SourceSpan,
     generic_arguments~ : Array[@types.GenericArgument],
     type_witnesses~ : Array[CheckedStructTypeWitness],
     fields~ : Array[CheckedStructLiteralField],
@@ -256,6 +280,7 @@ pub(all) enum CheckedExpr {
   )
   Variant(
     symbol~ : VariantSymbolId,
+    variant_loc~ : SourceSpan,
     generic_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedExpr],
     type_~ : @types.Type,
@@ -296,6 +321,7 @@ pub(all) struct CheckedHandlerTable {
 ///|
 pub(all) struct CheckedHandlerOperationArm {
   operation : OperationSymbolId
+  operation_loc : SourceSpan
   type_binders : Array[@types.TypeParameter]
   payload_types : Array[@types.Type]
   payload_patterns : Array[CheckedPattern]
@@ -329,6 +355,7 @@ pub(all) enum CheckedPattern {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : SourceSpan)
   Variant(
     symbol~ : VariantSymbolId,
+    variant_loc~ : SourceSpan,
     generic_arguments~ : Array[@types.GenericArgument],
     arguments~ : Array[CheckedPattern],
     type_~ : @types.Type,
@@ -336,6 +363,7 @@ pub(all) enum CheckedPattern {
   )
   Struct(
     symbol~ : TypeSymbolId,
+    type_name_loc~ : SourceSpan,
     type_binders~ : Array[CheckedStructTypeBinder],
     fields~ : Array[CheckedStructPatternField],
     type_~ : @types.Type,
@@ -367,6 +395,7 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
     | Value(type_~, ..)
     | CompilerIntrinsic(type_~, ..)
     | ExternBinding(type_~, ..)
+    | ErrorRecovery(type_~, ..)
     | FunctionLiteral(type_~, ..)
     | GenericApplication(type_~, ..)
     | Block(type_~, ..)
@@ -389,6 +418,7 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | Value(loc~, ..)
     | CompilerIntrinsic(loc~, ..)
     | ExternBinding(loc~, ..)
+    | ErrorRecovery(loc~, ..)
     | FunctionLiteral(loc~, ..)
     | GenericApplication(loc~, ..)
     | Block(loc~, ..)

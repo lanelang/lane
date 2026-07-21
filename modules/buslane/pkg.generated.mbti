@@ -68,6 +68,7 @@ pub(all) enum Effect {
 } derive(@debug.Debug)
 pub fn Effect::canonicalize(Self) -> Self
 pub fn Effect::equals(Self, Self) -> Bool
+pub fn Effect::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Effect
 pub impl Eq for Effect
 

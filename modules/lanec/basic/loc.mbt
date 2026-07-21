@@ -33,3 +33,44 @@ pub fn SourceSpan::dummy() -> SourceSpan {
     end_column: 1,
   }
 }
+
+///|
+/// Returns the leading ASCII subspan with `length` bytes.
+pub fn SourceSpan::ascii_prefix(self : SourceSpan, length : Int) -> SourceSpan {
+  {
+    ..self,
+    end_offset: self.start_offset + length,
+    end_line: self.start_line,
+    end_column: self.start_column + length,
+  }
+}
+
+///|
+/// Returns the trailing ASCII subspan with `length` bytes.
+pub fn SourceSpan::ascii_suffix(self : SourceSpan, length : Int) -> SourceSpan {
+  {
+    ..self,
+    start_offset: self.end_offset - length,
+    start_line: self.end_line,
+    start_column: self.end_column - length,
+  }
+}
+
+///|
+/// Returns an ASCII subspan immediately after this span and a separator.
+pub fn SourceSpan::ascii_after(
+  self : SourceSpan,
+  separator_length : Int,
+  length : Int,
+) -> SourceSpan {
+  let start_offset = self.end_offset + separator_length
+  let start_column = self.end_column + separator_length
+  {
+    start_offset,
+    end_offset: start_offset + length,
+    start_line: self.end_line,
+    start_column,
+    end_line: self.end_line,
+    end_column: start_column + length,
+  }
+}

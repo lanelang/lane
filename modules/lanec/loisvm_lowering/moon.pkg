@@ -1,5 +1,6 @@
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/abi",
   "Milky2018/lanec/anf",
   "Milky2018/lanec/executable",
   "Milky2018/lanec/effect_lowering/core" @effect_lowering_core,

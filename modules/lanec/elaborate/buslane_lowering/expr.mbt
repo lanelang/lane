@@ -6,10 +6,12 @@ fn BuslaneLowerer::lower_expr(
   match expression {
     Literal(literal~, ..) => Literal(lower_literal(literal))
     Value(symbol~, ..) => Ref(self.value_id(symbol))
-    CompilerIntrinsic(name~, type_~, ..) =>
-      Ref(self.define_builtin_external(name, self.lower_type(type_)))
-    ExternBinding(name~, type_~, ..) =>
-      Ref(self.define_runtime_import(name, self.lower_type(type_)))
+    CompilerIntrinsic(intrinsic~, type_~, ..) =>
+      Ref(self.define_builtin_external(intrinsic, self.lower_type(type_)))
+    ExternBinding(name~, signature=Some(signature), type_~, ..) =>
+      Ref(self.define_runtime_import(name, signature, self.lower_type(type_)))
+    ExternBinding(signature=None, ..) | ErrorRecovery(_) =>
+      abort("invalid checked expression reached Buslane lowering")
     FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) =>
       self.lower_function_literal(
         type_parameters, parameters, return_type, body,

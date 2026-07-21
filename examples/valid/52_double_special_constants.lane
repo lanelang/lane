@@ -1,13 +1,13 @@
 module Examples.Valid.DoubleSpecialConstants
 
-import Basic.Double.{ infinity, nan, neg_infinity }
+import Basic.Builtins.{ double_inf, double_nan, double_ninf }
 import Basic.Io.{ println }
 import Basic.Trait.Ops.*
 
 pub fn answer() -> Unit ! Io {
-  if infinity > 1.0 {
-    if neg_infinity < 0.0 {
-      if nan != nan {
+  if double_inf > 1.0 {
+    if double_ninf < 0.0 {
+      if double_nan != double_nan {
         println("double constants ok")
       } else {
         println("nan equality failed")

@@ -206,7 +206,6 @@ fn analyze_module_graph(graph : @module_frontend.ModuleGraph) -> AnalysisResult 
               semantic_warning_diagnostics_from_index(
                 semantic_index,
                 resolved.source,
-                input.text,
               ).map(fn(diagnostic) {
                 diagnostic.with_source_id(input.source_id)
               }),

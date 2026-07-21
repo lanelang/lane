@@ -96,11 +96,13 @@ test "generic nested closures preserve erased captures in both backends" {
           {
             value: measure,
             symbol: "lane.test.string_length",
+            signature: { parameters: [String], result: Int },
             type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
+            signature: { parameters: [Int], result: Unit },
             type_: observe_type,
           },
         ],
@@ -233,11 +235,13 @@ test "nominal values cross erased generic boundaries in both backends" {
           {
             value: measure,
             symbol: "lane.test.string_length",
+            signature: { parameters: [String], result: Int },
             type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
+            signature: { parameters: [Int], result: Unit },
             type_: observe_type,
           },
         ],

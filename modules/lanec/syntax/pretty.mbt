@@ -1219,7 +1219,8 @@ fn Expr::to_doc_with_precedence(
       variant~,
       variant_type_arguments~,
       arguments~,
-      loc~
+      loc~,
+      ..
     ) => {
       let argument_docs = arguments.map(fn(argument) {
         argument.to_doc(trivia~)
@@ -1633,7 +1634,7 @@ fn Expr::field_chain_doc(
   self : Expr,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
-  if self is Field(base~, name~, loc~) {
+  if self is Field(base~, name~, loc~, ..) {
     let boundary_start = base.loc().end_offset
     let boundary_end = loc.end_offset
     if (trivia.has_trailing)(base.loc()) {
@@ -2100,7 +2101,7 @@ fn Pattern::to_doc(
     DoubleLiteral(value, ..) => text(value)
     StringLiteral(value, ..) => source_string(value)
     BoolLiteral(value, ..) => text(value.to_string())
-    QualifiedVariant(type_name~, variant~, type_binders~, arguments~, loc~) => {
+    QualifiedVariant(type_name~, variant~, type_binders~, arguments~, loc~, ..) => {
       let binders_doc = if type_binders.is_empty() {
         empty
       } else {
@@ -2122,7 +2123,7 @@ fn Pattern::to_doc(
       )
       head + parenthesized_comma_list(argument_docs, dangling~, force_break~)
     }
-    UnqualifiedVariant(variant~, type_binders~, arguments~, loc~) => {
+    UnqualifiedVariant(variant~, type_binders~, arguments~, loc~, ..) => {
       let binders_doc = if type_binders.is_empty() {
         empty
       } else {
@@ -2144,7 +2145,7 @@ fn Pattern::to_doc(
       )
       head + parenthesized_comma_list(argument_docs, dangling~, force_break~)
     }
-    Struct(type_name~, fields~, loc~) => {
+    Struct(type_name~, fields~, loc~, ..) => {
       let field_docs = fields.map(fn(field) { field.to_doc(trivia~) })
       let (dangling, force_break) = trivia.take_delimited(
         '{',

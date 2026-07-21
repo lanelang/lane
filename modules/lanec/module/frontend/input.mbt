@@ -30,7 +30,7 @@ pub(all) struct ModuleInputHeader {
   source_id : String
   module_path_text : String
   imports : Array[String]
-}
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct SourceInput {
@@ -246,22 +246,29 @@ fn module_path_text(path : @syntax.ModulePath) -> String {
 
 ///|
 fn source_module_header(source : SourceInput) -> ModuleInputHeader? {
-  for line_view in source.text.split("\n") {
-    let line = line_view.trim()
-    if line.is_empty() {
-      continue
+  let tokens = @lexer.tokens_from_string(source.text).concrete.tokens
+  guard tokens.get(0) is Some((MODULE, _)) else { return None }
+  let components = []
+  let mut index = 1
+  let mut expect_identifier = true
+  while index < tokens.length() {
+    let token = tokens[index].0
+    if expect_identifier {
+      guard token is IDENT(name) else { break }
+      components.push(name)
+      expect_identifier = false
+    } else {
+      guard token is DOT else { break }
+      expect_identifier = true
     }
-    match line.split_once(" ") {
-      Some((keyword, rest)) if keyword == "module" =>
-        return Some({
-          source_id: source.source_id,
-          module_path_text: rest.trim().to_owned(),
-          imports: [],
-        })
-      _ => return None
-    }
+    index += 1
   }
-  None
+  guard !components.is_empty() && !expect_identifier else { return None }
+  Some({
+    source_id: source.source_id,
+    module_path_text: components.join("."),
+    imports: [],
+  })
 }
 
 ///|

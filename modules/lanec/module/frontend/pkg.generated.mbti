@@ -43,7 +43,7 @@ pub(all) struct ModuleInputHeader {
   source_id : String
   module_path_text : String
   imports : Array[String]
-}
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInputSet {
   root_module_path_text : String

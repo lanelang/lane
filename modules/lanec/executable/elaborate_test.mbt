@@ -87,7 +87,12 @@ test "whole-program elaboration records ordered reachable initializer roots" {
     externals: {
       builtins: [],
       runtime_imports: [
-        { value: observe, symbol: "observe", type_: observe_type },
+        {
+          value: observe,
+          symbol: "observe",
+          signature: { parameters: [Int], result: Unit },
+          type_: observe_type,
+        },
       ],
     },
     entries: [entry],
@@ -137,7 +142,12 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
     externals: {
       builtins: [],
       runtime_imports: [
-        { value: println, symbol: "println", type_: println_type },
+        {
+          value: println,
+          symbol: "println",
+          signature: { parameters: [String], result: Unit },
+          type_: println_type,
+        },
       ],
     },
     entries: [entry],
@@ -166,6 +176,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|      {
       #|        value: { index: 0 },
       #|        symbol: "println",
+      #|        signature: { parameters: [String], result: Unit },
       #|        type_: Function([Primitive(String)], Primitive(Unit), Io),
       #|      },
       #|    ],

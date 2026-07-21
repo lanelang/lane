@@ -39,6 +39,7 @@ pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : @symbol.EffectSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   flavor : @symbol.EffectFlavor
   type_parameters : Array[@types.TypeParameter]
   operations : Array[CheckedEffectOperationDeclaration]
@@ -49,6 +50,7 @@ pub impl @prettyprinter.Pretty for CheckedEffectDeclaration
 pub(all) struct CheckedEffectOperationDeclaration {
   symbol : @symbol.OperationSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
@@ -61,6 +63,7 @@ pub(all) struct CheckedEnumDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[@types.TypeParameter]
   variants : Array[CheckedVariantDeclaration]
   loc : @basic.SourceSpan
@@ -71,6 +74,7 @@ pub(all) struct CheckedExternalTypeDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
@@ -78,6 +82,7 @@ pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
 pub(all) struct CheckedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   index : Int
   type_ : @types.Type
   loc : @basic.SourceSpan
@@ -88,6 +93,7 @@ pub(all) struct CheckedFunctionDeclaration {
   is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   type_ : @types.Type
   parameters : Array[@checked.CheckedValueParameter]
   loc : @basic.SourceSpan
@@ -98,6 +104,7 @@ pub(all) struct CheckedLetDeclaration {
   is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
+  name_loc : @basic.SourceSpan?
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -114,6 +121,7 @@ pub(all) struct CheckedStructDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[@types.TypeParameter]
   type_members : Array[CheckedTypeMemberDeclaration]
   fields : Array[CheckedFieldDeclaration]
@@ -132,6 +140,7 @@ pub(all) struct CheckedTypeMemberDeclaration {
   symbol : @symbol.TypeMemberSymbolId
   type_parameter : @types.TypeParameter
   name : String
+  name_loc : @basic.SourceSpan
   kind : @types.Kind
   index : Int
   loc : @basic.SourceSpan
@@ -152,6 +161,7 @@ pub impl @prettyprinter.Pretty for CheckedValueEnvironment
 pub(all) struct CheckedVariantDeclaration {
   symbol : @symbol.VariantSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]

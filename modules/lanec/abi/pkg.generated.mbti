@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/abi"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct HostSignature {
+  parameters : Array[ValueKind]
+  result : ValueKind
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Intrinsic {
+  I64Add
+  I64Sub
+  I64Mul
+  I64Div
+  I64Rem
+  I64Neg
+  I64Equal
+  I64Less
+  F64Add
+  F64Sub
+  F64Mul
+  F64Div
+  F64Neg
+  F64Equal
+  F64Less
+  F64Inf
+  F64NegativeInf
+  F64Nan
+  StringEqual
+} derive(Eq, @debug.Debug)
+pub fn Intrinsic::from_name(String) -> Self?
+pub fn Intrinsic::name(Self) -> String
+pub fn Intrinsic::signature(Self) -> IntrinsicSignature
+
+pub(all) enum IntrinsicSignature {
+  Value(ValueKind)
+  Function(parameters~ : Array[ValueKind], result~ : ValueKind)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ValueKind {
+  Unit
+  Bool
+  Int
+  Double
+  String
+  Opaque
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

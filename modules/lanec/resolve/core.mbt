@@ -106,6 +106,7 @@ pub(all) struct ResolvedStructDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[ResolvedTypeParameter]
   members : Array[ResolvedStructMember]
   loc : SourceSpan
@@ -122,6 +123,7 @@ pub(all) struct ResolvedTypeMemberDeclaration {
   symbol : TypeMemberSymbolId
   type_parameter : ResolvedTypeParameter
   name : String
+  name_loc : SourceSpan
   kind : ResolvedKind
   index : Int
   loc : SourceSpan
@@ -131,6 +133,7 @@ pub(all) struct ResolvedTypeMemberDeclaration {
 pub(all) struct ResolvedFieldDeclaration {
   symbol : FieldSymbolId
   name : String
+  name_loc : SourceSpan
   type_ : ResolvedType
   index : Int
   loc : SourceSpan
@@ -141,6 +144,7 @@ pub(all) struct ResolvedEnumDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[ResolvedTypeParameter]
   variants : Array[ResolvedEnumVariant]
   loc : SourceSpan
@@ -150,6 +154,7 @@ pub(all) struct ResolvedEnumDeclaration {
 pub(all) struct ResolvedEnumVariant {
   symbol : VariantSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_parameters : Array[ResolvedTypeParameter]
   payload : Array[ResolvedType]
@@ -161,6 +166,7 @@ pub(all) struct ResolvedEffectDeclaration {
   is_public : Bool
   symbol : EffectSymbolId
   name : String
+  name_loc : SourceSpan
   flavor : EffectFlavor
   type_parameters : Array[ResolvedTypeParameter]
   operations : Array[ResolvedEffectOperationDeclaration]
@@ -172,6 +178,7 @@ pub(all) struct ResolvedExternalTypeDeclaration {
   is_public : Bool
   symbol : TypeSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[ResolvedTypeParameter]
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -180,6 +187,7 @@ pub(all) struct ResolvedExternalTypeDeclaration {
 pub(all) struct ResolvedEffectOperationDeclaration {
   symbol : OperationSymbolId
   name : String
+  name_loc : SourceSpan
   index : Int
   type_parameters : Array[ResolvedTypeParameter]
   payload : Array[ResolvedType]
@@ -191,6 +199,7 @@ pub(all) struct ResolvedEffectOperationDeclaration {
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[ResolvedTypeParameter]
   result_kind : ResolvedKind?
   body : ResolvedTypeAliasBody
@@ -208,6 +217,7 @@ pub(all) struct ResolvedFunctionDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[ResolvedTypeParameter]
   parameters : Array[ResolvedValueParameter]
   return_type : ResolvedType
@@ -221,6 +231,7 @@ pub(all) struct ResolvedLetDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
   name : String?
+  name_loc : SourceSpan?
   type_annotation : ResolvedType?
   initializer : ResolvedExpr
   loc : SourceSpan
@@ -231,6 +242,7 @@ pub(all) struct ResolvedOfferDeclaration {
   is_public : Bool
   symbol : ValueSymbolId
   name : String
+  name_loc : SourceSpan
   type_annotation : ResolvedType
   initializer : ResolvedExpr
   loc : SourceSpan
@@ -240,6 +252,7 @@ pub(all) struct ResolvedOfferDeclaration {
 pub(all) struct ResolvedTypeParameter {
   symbol : TypeParameterId
   name : String
+  name_loc : SourceSpan
   kind : ResolvedKind?
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -261,6 +274,7 @@ pub(all) struct ResolvedValueParameter {
   is_auto : Bool
   is_offered : Bool
   name : String
+  name_loc : SourceSpan
   type_ : ResolvedType
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -380,6 +394,7 @@ pub(all) struct ResolvedFunctionLiteralParameter {
   symbol : ValueSymbolId
   is_offered : Bool
   name : String
+  name_loc : SourceSpan
   type_annotation : ResolvedType?
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -473,8 +488,10 @@ pub(all) enum ResolvedExpr {
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : SourceSpan)
   QualifiedVariant(
     type_name~ : String,
+    type_name_loc~ : SourceSpan,
     generic_arguments~ : Array[ResolvedGenericArgument],
     variant~ : String,
+    variant_loc~ : SourceSpan,
     variant_generic_arguments~ : Array[ResolvedGenericArgument],
     reference~ : ResolvedVariantReference,
     arguments~ : Array[ResolvedExpr],
@@ -482,6 +499,7 @@ pub(all) enum ResolvedExpr {
   )
   UnqualifiedVariant(
     variant~ : String,
+    variant_loc~ : SourceSpan,
     variant_generic_arguments~ : Array[ResolvedGenericArgument],
     reference~ : ResolvedVariantReference,
     arguments~ : Array[ResolvedExpr],
@@ -489,6 +507,7 @@ pub(all) enum ResolvedExpr {
   )
   StructLiteral(
     type_name~ : String,
+    type_name_loc~ : SourceSpan,
     generic_arguments~ : Array[ResolvedGenericArgument],
     fields~ : Array[ResolvedStructLiteralField],
     loc~ : SourceSpan
@@ -550,6 +569,7 @@ pub(all) enum ResolvedExpr {
   Field(
     base~ : ResolvedExpr,
     name~ : String,
+    name_loc~ : SourceSpan,
     reference~ : ResolvedFieldReference,
     loc~ : SourceSpan
   )
@@ -579,7 +599,9 @@ pub(all) enum ResolvedPattern {
   BoolLiteral(Bool, loc~ : SourceSpan)
   QualifiedVariant(
     type_name~ : String,
+    type_name_loc~ : SourceSpan,
     variant~ : String,
+    variant_loc~ : SourceSpan,
     type_binders~ : Array[ResolvedTypeParameter],
     reference~ : ResolvedVariantReference,
     arguments~ : Array[ResolvedPattern],
@@ -587,12 +609,14 @@ pub(all) enum ResolvedPattern {
   )
   UnqualifiedVariant(
     variant~ : String,
+    variant_loc~ : SourceSpan,
     type_binders~ : Array[ResolvedTypeParameter],
     arguments~ : Array[ResolvedPattern],
     loc~ : SourceSpan
   )
   Struct(
     type_name~ : String,
+    type_name_loc~ : SourceSpan,
     fields~ : Array[ResolvedStructPatternField],
     loc~ : SourceSpan
   )

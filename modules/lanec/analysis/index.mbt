@@ -88,19 +88,6 @@ fn AnalysisResult::definition_for_symbol(
 }
 
 ///|
-fn definition_label(
-  definitions : Array[DefinitionEntry],
-  symbol : AnalysisSymbol,
-) -> String? {
-  for definition in definitions {
-    if definition.symbol == symbol {
-      return Some(definition.label)
-    }
-  }
-  None
-}
-
-///|
 fn definition_detail(
   definitions : Array[DefinitionEntry],
   symbol : AnalysisSymbol,
@@ -111,19 +98,6 @@ fn definition_detail(
     }
   }
   None
-}
-
-///|
-fn definition_reference_span(
-  definitions : Array[DefinitionEntry],
-  symbol : AnalysisSymbol,
-  source_text : String,
-  fallback : @basic.SourceSpan,
-) -> @basic.SourceSpan {
-  match definition_label(definitions, symbol) {
-    Some(name) => name_span(source_text, name, fallback)
-    None => fallback
-  }
 }
 
 ///|
@@ -209,65 +183,6 @@ fn smallest_definition(
 ///|
 fn location(source_id : String, span : @basic.SourceSpan) -> AnalysisLocation {
   { source_id, span }
-}
-
-///|
-fn name_span(
-  source_text : String,
-  name : String,
-  fallback : @basic.SourceSpan,
-) -> @basic.SourceSpan {
-  guard name != "" else { return fallback }
-  let lines = source_text.split("\n").collect()
-  guard lines.get(fallback.start_line - 1) is Some(line_view) else {
-    return fallback
-  }
-  let line = line_view.to_owned()
-  let mut search_start = 0
-  let mut best_column = None
-  while search_start < line.length() {
-    let rest = line.unsafe_substring(start=search_start, end=line.length())
-    match rest.find(name) {
-      Some(relative) => {
-        let column = search_start + relative + 1
-        if column <= fallback.start_column {
-          best_column = Some(column)
-        } else if best_column is None {
-          best_column = Some(column)
-        }
-        search_start = search_start + relative + name.length()
-      }
-      None => search_start = line.length()
-    }
-  }
-  match best_column {
-    Some(column) => {
-      let start_offset = line_start_offset(lines, fallback.start_line) +
-        column -
-        1
-      {
-        start_offset,
-        end_offset: start_offset + name.length(),
-        start_line: fallback.start_line,
-        start_column: column,
-        end_line: fallback.start_line,
-        end_column: column + name.length(),
-      }
-    }
-    None => fallback
-  }
-}
-
-///|
-fn line_start_offset(lines : Array[StringView], line : Int) -> Int {
-  let mut offset = 0
-  for index in 0..<(line - 1) {
-    match lines.get(index) {
-      Some(text) => offset = offset + text.length() + 1
-      None => ()
-    }
-  }
-  offset
 }
 
 ///|

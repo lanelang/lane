@@ -6,7 +6,7 @@ fn @bytecodec.ByteReader::read_externals(
   for _ in 0..<self.read_u32_le_int() {
     builtins.push({
       value: self.read_buslane_value_id(),
-      name: self.read_string(),
+      intrinsic: self.read_intrinsic(),
       type_: self.read_buslane_type(),
     })
   }
@@ -15,10 +15,158 @@ fn @bytecodec.ByteReader::read_externals(
     runtime_imports.push({
       value: self.read_buslane_value_id(),
       symbol: self.read_string(),
+      signature: self.read_host_signature(),
       type_: self.read_buslane_type(),
     })
   }
   { builtins, runtime_imports }
+}
+
+///|
+fn @bytecodec.ByteReader::read_intrinsic(
+  self : @bytecodec.ByteReader,
+) -> @abi.Intrinsic raise {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      I64Add
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      I64Sub
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      I64Mul
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      I64Div
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      I64Rem
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      I64Neg
+    }
+    [u8be(6), .. rest] => {
+      self.update_view(rest)
+      I64Equal
+    }
+    [u8be(7), .. rest] => {
+      self.update_view(rest)
+      I64Less
+    }
+    [u8be(8), .. rest] => {
+      self.update_view(rest)
+      F64Add
+    }
+    [u8be(9), .. rest] => {
+      self.update_view(rest)
+      F64Sub
+    }
+    [u8be(10), .. rest] => {
+      self.update_view(rest)
+      F64Mul
+    }
+    [u8be(11), .. rest] => {
+      self.update_view(rest)
+      F64Div
+    }
+    [u8be(12), .. rest] => {
+      self.update_view(rest)
+      F64Neg
+    }
+    [u8be(13), .. rest] => {
+      self.update_view(rest)
+      F64Equal
+    }
+    [u8be(14), .. rest] => {
+      self.update_view(rest)
+      F64Less
+    }
+    [u8be(15), .. rest] => {
+      self.update_view(rest)
+      F64Inf
+    }
+    [u8be(16), .. rest] => {
+      self.update_view(rest)
+      F64NegativeInf
+    }
+    [u8be(17), .. rest] => {
+      self.update_view(rest)
+      F64Nan
+    }
+    [u8be(18), .. rest] => {
+      self.update_view(rest)
+      StringEqual
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="Intrinsic",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
+  }
+}
+
+///|
+fn @bytecodec.ByteReader::read_host_signature(
+  self : @bytecodec.ByteReader,
+) -> @abi.HostSignature raise {
+  let parameters = []
+  for _ in 0..<self.read_u32_le_int() {
+    parameters.push(self.read_host_value_kind())
+  }
+  { parameters, result: self.read_host_value_kind() }
+}
+
+///|
+fn @bytecodec.ByteReader::read_host_value_kind(
+  self : @bytecodec.ByteReader,
+) -> @abi.ValueKind raise {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Unit
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Bool
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Int
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Double
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      String
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      Opaque
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="HostValueKind",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
+  }
 }
 
 ///|

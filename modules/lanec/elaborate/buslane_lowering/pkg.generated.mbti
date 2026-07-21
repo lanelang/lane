@@ -3,6 +3,7 @@ package "Milky2018/lanec/elaborate/buslane_lowering"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/abi",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/module",
   "Milky2018/lanec/symbol",
@@ -31,7 +32,7 @@ pub(all) suberror BuslaneLoweringError {
 // Types and methods
 pub(all) struct BuslaneBuiltinExternal {
   value : @buslane.ValueId
-  name : String
+  intrinsic : @abi.Intrinsic
   type_ : @buslane.Type
 } derive(Eq, @debug.Debug)
 
@@ -105,6 +106,7 @@ pub(all) struct BuslaneModuleObjectSet {
 pub(all) struct BuslaneRuntimeImport {
   value : @buslane.ValueId
   symbol : String
+  signature : @abi.HostSignature
   type_ : @buslane.Type
 } derive(Eq, @debug.Debug)
 

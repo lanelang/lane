@@ -18,6 +18,9 @@ pub(all) struct SourceSpan {
   end_line : Int
   end_column : Int
 } derive(Eq, @debug.Debug)
+pub fn SourceSpan::ascii_after(Self, Int, Int) -> Self
+pub fn SourceSpan::ascii_prefix(Self, Int) -> Self
+pub fn SourceSpan::ascii_suffix(Self, Int) -> Self
 pub fn SourceSpan::dummy() -> Self
 pub fn SourceSpan::join(Self, Self) -> Self
 

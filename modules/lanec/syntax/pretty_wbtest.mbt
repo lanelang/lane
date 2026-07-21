@@ -15,7 +15,7 @@ fn test_type(name : String, arguments? : Array[Type] = []) -> Type {
 
 ///|
 fn test_type_parameter(name : String) -> TypeParameter {
-  { name, kind: None, loc: test_loc() }
+  { name, name_loc: test_loc(), kind: None, loc: test_loc() }
 }
 
 ///|
@@ -34,21 +34,40 @@ test "pretty print source file" {
       Struct({
         is_public: false,
         name: "Point",
+        name_loc: test_loc(),
         type_parameters: [],
         members: [
-          Field({ name: "x", type_: int_type, loc: test_loc() }),
-          Field({ name: "y", type_: int_type, loc: test_loc() }),
+          Field({
+            name: "x",
+            name_loc: test_loc(),
+            type_: int_type,
+            loc: test_loc(),
+          }),
+          Field({
+            name: "y",
+            name_loc: test_loc(),
+            type_: int_type,
+            loc: test_loc(),
+          }),
         ],
         loc: test_loc(),
       }),
       Enum({
         is_public: false,
         name: "Option",
+        name_loc: test_loc(),
         type_parameters: [test_type_parameter("A")],
         variants: [
-          { name: "none", type_parameters: [], payload: [], loc: test_loc() },
+          {
+            name: "none",
+            name_loc: test_loc(),
+            type_parameters: [],
+            payload: [],
+            loc: test_loc(),
+          },
           {
             name: "some",
+            name_loc: test_loc(),
             type_parameters: [],
             payload: [test_type("A")],
             loc: test_loc(),
@@ -66,6 +85,7 @@ test "pretty print source file" {
             is_auto: false,
             is_offered: false,
             name: "value",
+            name_loc: test_loc(),
             type_: option_int_type,
             loc: test_loc(),
           },
@@ -73,6 +93,7 @@ test "pretty print source file" {
             is_auto: false,
             is_offered: false,
             name: "fallback",
+            name_loc: test_loc(),
             type_: int_type,
             loc: test_loc(),
           },
@@ -87,7 +108,9 @@ test "pretty print source file" {
               {
                 pattern: QualifiedVariant(
                   type_name="Option",
+                  type_name_loc=test_loc(),
                   variant="none",
+                  variant_loc=test_loc(),
                   type_binders=[],
                   arguments=[],
                   loc=test_loc(),
@@ -98,7 +121,9 @@ test "pretty print source file" {
               {
                 pattern: QualifiedVariant(
                   type_name="Option",
+                  type_name_loc=test_loc(),
                   variant="some",
+                  variant_loc=test_loc(),
                   type_binders=[],
                   arguments=[Binding("x", loc=test_loc())],
                   loc=test_loc(),

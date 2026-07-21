@@ -15,6 +15,30 @@ fn test_io_function_type(
 }
 
 ///|
+fn test_host_signature(type_ : @buslane.Type) -> @abi.HostSignature {
+  guard type_ is Function(parameters, result, _) else {
+    abort("test runtime import must be a function")
+  }
+  {
+    parameters: parameters.map(test_host_value_kind),
+    result: test_host_value_kind(result),
+  }
+}
+
+///|
+fn test_host_value_kind(type_ : @buslane.Type) -> @abi.ValueKind {
+  match type_ {
+    Primitive(Unit) => Unit
+    Primitive(Bool) => Bool
+    Primitive(Int) => Int
+    Primitive(Double) => Double
+    Primitive(String) => String
+    Constructor(_) => Opaque
+    _ => abort("test runtime import must use a direct ABI type")
+  }
+}
+
+///|
 fn contains_instruction(
   body : @bytecode.FunctionBody,
   predicate : (@bytecode.Instruction) -> Bool,
@@ -102,7 +126,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
     lower_test_executable_to_bytecode(
       program,
       {
-        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
         runtime_imports: [],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -166,7 +190,12 @@ test "runtime import origin wins over intrinsic-looking symbol" {
       {
         builtins: [],
         runtime_imports: [
-          { value: import_, symbol: "%i64_add", type_: import_type },
+          {
+            value: import_,
+            symbol: "%i64_add",
+            signature: test_host_signature(import_type),
+            type_: import_type,
+          },
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -187,47 +216,6 @@ test "runtime import origin wins over intrinsic-looking symbol" {
       #|  symbol: "%i64_add",
       #|}
     ),
-  )
-}
-
-///|
-test "unknown intrinsic never falls back to runtime import" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let intrinsic_type = test_function_type([], unit_type)
-  let intrinsic = metadata.define_value("unknown", External, intrinsic_type)
-  let main = metadata.define_value("main", Function, intrinsic_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      External(intrinsic),
-      Let(
-        main,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Call(Ref(intrinsic), []),
-        }),
-      ),
-    ],
-  }
-  assert_eq(
-    lower_linked_program_to_bytecode(
-      program,
-      {
-        builtins: [
-          { value: intrinsic, name: "lane.test.unknown", type_: intrinsic_type },
-        ],
-        runtime_imports: [],
-      },
-      {
-        module_path_text: "Main",
-        name: "main",
-        value: main,
-        type_: intrinsic_type,
-      },
-    ),
-    Err(UnsupportedIntrinsic(name="lane.test.unknown")),
   )
 }
 
@@ -292,11 +280,12 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     lower_test_executable_to_bytecode(
       program,
       {
-        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
         runtime_imports: [
           {
             value: observe,
             symbol: "lane.test.observe_intrinsic_value",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -463,6 +452,7 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
           {
             value: observe,
             symbol: "lane.test.observe_handled_value",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -525,7 +515,12 @@ test "primitive external functions become runtime imports" {
       {
         builtins: [],
         runtime_imports: [
-          { value: observe, symbol: "lane.test.observe", type_: observe_type },
+          {
+            value: observe,
+            symbol: "lane.test.observe",
+            signature: test_host_signature(observe_type),
+            type_: observe_type,
+          },
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -609,8 +604,18 @@ test "external host types erase to Opaque runtime import kinds" {
       {
         builtins: [],
         runtime_imports: [
-          { value: open, symbol: "lane.test.open", type_: open_type },
-          { value: close, symbol: "lane.test.close", type_: close_type },
+          {
+            value: open,
+            symbol: "lane.test.open",
+            signature: test_host_signature(open_type),
+            type_: open_type,
+          },
+          {
+            value: close,
+            symbol: "lane.test.close",
+            signature: test_host_signature(close_type),
+            type_: close_type,
+          },
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -688,9 +693,24 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
       {
         builtins: [],
         runtime_imports: [
-          { value: z_first, symbol: "lane.test.z", type_: import_type },
-          { value: a, symbol: "lane.test.a", type_: import_type },
-          { value: z_second, symbol: "lane.test.z", type_: import_type },
+          {
+            value: z_first,
+            symbol: "lane.test.z",
+            signature: test_host_signature(import_type),
+            type_: import_type,
+          },
+          {
+            value: a,
+            symbol: "lane.test.a",
+            signature: test_host_signature(import_type),
+            type_: import_type,
+          },
+          {
+            value: z_second,
+            symbol: "lane.test.z",
+            signature: test_host_signature(import_type),
+            type_: import_type,
+          },
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -769,11 +789,13 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
           {
             value: int_import,
             symbol: "lane.test.observe",
+            signature: test_host_signature(int_import_type),
             type_: int_import_type,
           },
           {
             value: bool_import,
             symbol: "lane.test.observe",
+            signature: test_host_signature(bool_import_type),
             type_: bool_import_type,
           },
         ],
@@ -841,6 +863,7 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
           {
             value: observe,
             symbol: "lane.test.observe_string",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -933,10 +956,16 @@ test "Bool matches lower to explicit CFG branches" {
       {
         builtins: [],
         runtime_imports: [
-          { value: read, symbol: "lane.test.read_branch", type_: read_type },
+          {
+            value: read,
+            symbol: "lane.test.read_branch",
+            signature: test_host_signature(read_type),
+            type_: read_type,
+          },
           {
             value: observe,
             symbol: "lane.test.observe_branch",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1050,6 +1079,7 @@ test "non-generic data construction and matching lower through object shapes" {
           {
             value: observe,
             symbol: "lane.test.observe_data",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1155,11 +1185,12 @@ test "capture-free functions lower as callable values for higher-order calls" {
     lower_test_executable_to_bytecode(
       program,
       {
-        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
         runtime_imports: [
           {
             value: observe,
             symbol: "lane.test.observe_higher_order",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1256,11 +1287,12 @@ test "nested functions lift with explicit reference-counted environments" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [{ value: add, name: "%i64_add", type_: add_type }],
+        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
         runtime_imports: [
           {
             value: observe,
             symbol: "lane.test.observe_closure",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1396,13 +1428,14 @@ test "local recursive functions share a cycle-free captured environment" {
       program,
       {
         builtins: [
-          { value: sub, name: "%i64_sub", type_: sub_type },
-          { value: equal, name: "%i64_equal", type_: equal_type },
+          { value: sub, intrinsic: I64Sub, type_: sub_type },
+          { value: equal, intrinsic: I64Equal, type_: equal_type },
         ],
         runtime_imports: [
           {
             value: observe,
             symbol: "lane.test.observe_recursive",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1523,6 +1556,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
           {
             value: observe,
             symbol: "lane.test.observe_generic",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1674,11 +1708,13 @@ test "generic calls adapt callable arguments and callable results" {
           {
             value: measure,
             symbol: "lane.test.generic_string_length",
+            signature: test_host_signature(measure_type),
             type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_generic_callable",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1802,11 +1838,13 @@ test "generic nested closures capture erased values and layout witnesses" {
           {
             value: measure,
             symbol: "lane.test.captured_string_length",
+            signature: test_host_signature(measure_type),
             type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_generic_capture",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -1921,6 +1959,7 @@ test "single-constructor matches keep owned captures in the current block" {
           {
             value: observe,
             symbol: "lane.test.single_box",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -2029,6 +2068,7 @@ test "generic data stores layout witnesses beside erased payloads" {
           {
             value: observe,
             symbol: "lane.test.observe_generic_data",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -2180,6 +2220,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
           {
             value: observe,
             symbol: "lane.test.observe_existential_payload",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -2321,6 +2362,7 @@ test "payload-free existential data still opens its hidden witness" {
           {
             value: observe,
             symbol: "lane.test.observe_existential_witness",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -2535,6 +2577,7 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
           {
             value: observe,
             symbol: "lane.test.observe_unit_abi",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -2637,11 +2680,13 @@ test "primitive literal matches lower to comparison decision chains" {
           {
             value: read,
             symbol: "lane.test.read_literal_match",
+            signature: test_host_signature(read_type),
             type_: read_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_literal_match",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],
@@ -2752,6 +2797,7 @@ test "generic nested functions lower as type-applied callable values" {
           {
             value: observe,
             symbol: "lane.test.observe_nested_generic",
+            signature: test_host_signature(observe_type),
             type_: observe_type,
           },
         ],

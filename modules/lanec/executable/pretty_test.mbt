@@ -35,7 +35,12 @@ test "executable pretty output emphasizes execution structure" {
     externals: {
       builtins: [],
       runtime_imports: [
-        { value: println, symbol: "println", type_: println_type },
+        {
+          value: println,
+          symbol: "println",
+          signature: { parameters: [String], result: Unit },
+          type_: println_type,
+        },
       ],
     },
     entry,

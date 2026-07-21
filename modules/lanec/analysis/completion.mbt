@@ -897,22 +897,18 @@ fn completion_context(
   let prefix_start = identifier_prefix_start(source_text, offset)
   let prefix = source_text.unsafe_substring(start=prefix_start, end=offset)
   let replace = span_from_offsets(source_text, prefix_start, offset)
-  let line_text = line_prefix(source_text, line, column)
-  if line_text.trim().has_prefix("import ") {
+  let tokens = completion_tokens_before(source_text, prefix_start)
+  if completion_line_starts_with_import(tokens, line) {
     return ImportPath(prefix~, replace~)
   }
-  if prefix_start >= 2 &&
-    source_text.unsafe_substring(start=prefix_start - 2, end=prefix_start) ==
-    "::" {
-    let owner = qualified_token_before(source_text, prefix_start - 2)
+  if tokens.last() is Some((TIGHT_COLONCOLON | COLONCOLON, _)) {
+    let owner = completion_owner_before_separator(tokens)
     if owner != "" {
       return OwnerQualified(owner~, prefix~, replace~)
     }
   }
-  if prefix_start >= 1 &&
-    source_text.unsafe_substring(start=prefix_start - 1, end=prefix_start) ==
-    "." {
-    let owner = qualified_token_before(source_text, prefix_start - 1)
+  if tokens.last() is Some((DOT, _)) {
+    let owner = completion_owner_before_separator(tokens)
     if owner != "" {
       if module_owner_visible(owner, imported_modules) {
         return ModuleQualified(owner~, prefix~, replace~)
@@ -922,22 +918,96 @@ fn completion_context(
   }
   match trigger {
     TriggerCharacter(".") | TriggerCharacter(":") if prefix == "" => Unsupported
-    _ => Identifier(prefix~, replace~, space=completion_space(line_text))
+    _ => Identifier(prefix~, replace~, space=completion_space(tokens))
   }
 }
 
 ///|
-fn completion_space(line_text : String) -> CompletionSpace {
-  let trimmed = line_text.trim()
-  if trimmed.has_prefix("import ") {
-    ImportSpace
-  } else if trimmed.has_prefix("type ") || trimmed.contains(" : ") {
-    TypeSpace
-  } else if trimmed.contains("!") || trimmed.contains("{") {
-    EffectSpace
-  } else {
-    AnySpace
+fn completion_tokens_before(
+  source_text : String,
+  offset : Int,
+) -> Array[(@lexer.Token, @basic.SourceSpan)] {
+  let tokens = []
+  for token in @lexer.tokens_from_string(source_text).concrete.tokens {
+    if token.1.end_offset <= offset {
+      tokens.push(token)
+    }
   }
+  tokens
+}
+
+///|
+fn completion_line_starts_with_import(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  line : Int,
+) -> Bool {
+  for token in tokens {
+    if token.1.start_line == line {
+      return token.0 is IMPORT
+    }
+  }
+  false
+}
+
+///|
+fn completion_owner_before_separator(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+) -> String {
+  let mut index = tokens.length() - 2
+  let mut owner = ""
+  let mut expect_identifier = true
+  while index >= 0 {
+    let token = tokens[index].0
+    if expect_identifier {
+      guard token is IDENT(name) else { break }
+      owner = if owner == "" { name } else { "\{name}.\{owner}" }
+      expect_identifier = false
+    } else {
+      guard token is DOT else { break }
+      expect_identifier = true
+    }
+    index -= 1
+  }
+  owner
+}
+
+///|
+fn completion_space(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+) -> CompletionSpace {
+  let mut index = tokens.length() - 1
+  while index >= 0 {
+    match tokens[index].0 {
+      IMPORT => return ImportSpace
+      BANG => return EffectSpace
+      COLON | THIN_ARROW => return TypeSpace
+      EQUAL =>
+        if completion_declaration_is_type_alias(tokens, index) {
+          return TypeSpace
+        } else {
+          return AnySpace
+        }
+      SEMICOLON | LBRACE | RBRACE => return AnySpace
+      _ => index -= 1
+    }
+  }
+  AnySpace
+}
+
+///|
+fn completion_declaration_is_type_alias(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  equal_index : Int,
+) -> Bool {
+  let mut index = equal_index - 1
+  while index >= 0 {
+    match tokens[index].0 {
+      TYPE => return true
+      SEMICOLON | LBRACE | RBRACE | EQUAL => return false
+      _ => index -= 1
+    }
+  }
+  false
 }
 
 ///|
@@ -957,16 +1027,14 @@ fn source_offset(source_text : String, line : Int, column : Int) -> Int {
 }
 
 ///|
-fn line_prefix(source_text : String, line : Int, column : Int) -> String {
-  let lines = source_text.split("\n").collect()
-  match lines.get(line - 1) {
-    Some(view) => {
-      let text = view.to_owned()
-      let end = minimum_int(column - 1, text.length())
-      text.unsafe_substring(start=0, end~)
+fn line_start_offset(lines : Array[StringView], line : Int) -> Int {
+  let mut offset = 0
+  for index in 0..<(line - 1) {
+    if lines.get(index) is Some(text) {
+      offset = offset + text.length() + 1
     }
-    None => ""
   }
+  offset
 }
 
 ///|
@@ -979,24 +1047,6 @@ fn identifier_prefix_start(source_text : String, offset : Int) -> Int {
     index = index - 1
   }
   index
-}
-
-///|
-fn qualified_token_before(source_text : String, offset : Int) -> String {
-  let mut end = offset
-  while end > 0 && source_text.unsafe_substring(start=end - 1, end~) == " " {
-    end = end - 1
-  }
-  let mut start = end
-  while start > 0 {
-    let ch = source_text.unsafe_substring(start=start - 1, end=start)
-    if is_identifier_part(ch) || ch == "." {
-      start = start - 1
-    } else {
-      break
-    }
-  }
-  source_text.unsafe_substring(start~, end~)
 }
 
 ///|

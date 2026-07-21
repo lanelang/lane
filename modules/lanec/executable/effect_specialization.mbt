@@ -862,13 +862,7 @@ fn raw_substitute_specialized_effect(
   effect : @buslane.Effect,
   bindings : Array[EffectSpecializationBinding],
 ) -> @buslane.Effect {
-  guard @buslane.Type::Function([], Primitive(Unit), effect).substitute(
-      effect_specialization_substitution(bindings),
-    )
-    is Function(_, _, specialized) else {
-    abort("effect substitution must preserve a function type")
-  }
-  specialized.canonicalize()
+  effect.substitute(effect_specialization_substitution(bindings)).canonicalize()
 }
 
 ///|

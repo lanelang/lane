@@ -45,6 +45,7 @@ pub impl @prettyprinter.Pretty for CallArgument
 pub(all) struct EffectDeclaration {
   is_public : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[TypeParameter]
   operations : Array[EffectOperationDeclaration]
   loc : @basic.SourceSpan
@@ -54,6 +55,7 @@ pub impl @prettyprinter.Pretty for EffectDeclaration
 
 pub(all) struct EffectOperationDeclaration {
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[TypeParameter]
   payload : Array[Type]
   result : Type
@@ -77,6 +79,7 @@ pub fn EffectTerm::loc(Self) -> @basic.SourceSpan
 pub(all) struct EnumDeclaration {
   is_public : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[TypeParameter]
   variants : Array[EnumVariant]
   loc : @basic.SourceSpan
@@ -86,6 +89,7 @@ pub impl @prettyprinter.Pretty for EnumDeclaration
 
 pub(all) struct EnumVariant {
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[TypeParameter]
   payload : Array[Type]
   loc : @basic.SourceSpan
@@ -100,7 +104,7 @@ pub(all) enum Expr {
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   UnitLiteral(loc~ : @basic.SourceSpan)
   Var(String, loc~ : @basic.SourceSpan)
-  QualifiedVariant(owner~ : Type, variant~ : String, variant_type_arguments~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
+  QualifiedVariant(owner~ : Type, variant~ : String, variant_loc~ : @basic.SourceSpan, variant_type_arguments~ : Array[Type], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   StructLiteral(owner~ : Type, fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   ListLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
@@ -113,7 +117,7 @@ pub(all) enum Expr {
   If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : @basic.SourceSpan)
   Call(callee~ : Expr, arguments~ : Array[CallArgument], loc~ : @basic.SourceSpan)
-  Field(base~ : Expr, name~ : String, loc~ : @basic.SourceSpan)
+  Field(base~ : Expr, name~ : String, name_loc~ : @basic.SourceSpan, loc~ : @basic.SourceSpan)
   Unary(operator~ : UnaryOperator, operand~ : Expr, loc~ : @basic.SourceSpan)
   Binary(operator~ : BinaryOperator, left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
   Pipeline(left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
@@ -126,6 +130,7 @@ pub impl @prettyprinter.Pretty for Expr
 pub(all) struct ExternalTypeDeclaration {
   is_public : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[TypeParameter]
   result_kind : ExternalTypeKind
   loc : @basic.SourceSpan
@@ -140,6 +145,7 @@ pub(all) enum ExternalTypeKind {
 
 pub(all) struct FieldDeclaration {
   name : String
+  name_loc : @basic.SourceSpan
   type_ : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -163,6 +169,7 @@ pub impl @prettyprinter.Pretty for FunctionDeclaration
 pub(all) struct FunctionLiteralParameter {
   is_offered : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_annotation : Type?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -268,6 +275,7 @@ pub(all) struct Parameter {
   is_auto : Bool
   is_offered : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_ : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -286,9 +294,9 @@ pub(all) enum Pattern {
   DoubleLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
-  QualifiedVariant(type_name~ : String, variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
-  UnqualifiedVariant(variant~ : String, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
-  Struct(type_name~ : String, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
+  QualifiedVariant(type_name~ : String, type_name_loc~ : @basic.SourceSpan, variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
+  UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[String], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
+  Struct(type_name~ : String, type_name_loc~ : @basic.SourceSpan, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Pattern::loc(Self) -> @basic.SourceSpan
 pub impl @source_prettyprinter.Pretty for Pattern
@@ -332,6 +340,7 @@ pub fn SourceFormatTrivia::empty() -> Self
 pub(all) struct StructDeclaration {
   is_public : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[TypeParameter]
   members : Array[StructMember]
   loc : @basic.SourceSpan
@@ -397,6 +406,7 @@ pub impl @prettyprinter.Pretty for TypeAliasBody
 pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[TypeParameter]
   result_kind : Kind?
   body : TypeAliasBody
@@ -407,6 +417,7 @@ pub impl @prettyprinter.Pretty for TypeAliasDeclaration
 
 pub(all) struct TypeMemberDeclaration {
   name : String
+  name_loc : @basic.SourceSpan
   kind : Kind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -415,6 +426,7 @@ pub impl @prettyprinter.Pretty for TypeMemberDeclaration
 
 pub(all) struct TypeParameter {
   name : String
+  name_loc : @basic.SourceSpan
   kind : Kind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

@@ -566,7 +566,7 @@
           "unused open import",
           "open import `Basic.Trait.Ops.*` contributes no used names",
           "unused import item",
-          "imported item `nan` from `Basic.Double` is never used"
+          "imported item `double_nan` from `Basic.Builtins` is never used"
         ]
       }
     },

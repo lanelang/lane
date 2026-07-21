@@ -51,10 +51,16 @@ test "executable lowering emits reachable instance globals in source order" {
       {
         builtins: [],
         runtime_imports: [
-          { value: consume, symbol: "lane.test.consume", type_: consume_type },
+          {
+            value: consume,
+            symbol: "lane.test.consume",
+            signature: { parameters: [String], result: Unit },
+            type_: consume_type,
+          },
           {
             value: unused_import,
             symbol: "lane.test.unused",
+            signature: { parameters: [String], result: Unit },
             type_: consume_type,
           },
         ],

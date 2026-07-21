@@ -2,6 +2,7 @@
 package "Milky2018/lanec/checked"
 
 import {
+  "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
@@ -29,6 +30,7 @@ pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : @symbol.EffectSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   flavor : @symbol.EffectFlavor
   type_parameters : Array[@types.TypeParameter]
   operations : Array[CheckedEffectOperationDeclaration]
@@ -39,6 +41,7 @@ pub impl @prettyprinter.Pretty for CheckedEffectDeclaration
 pub(all) struct CheckedEffectOperationDeclaration {
   symbol : @symbol.OperationSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]
@@ -51,6 +54,7 @@ pub(all) struct CheckedEnumDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[@types.TypeParameter]
   variants : Array[CheckedVariantDeclaration]
   loc : @basic.SourceSpan
@@ -60,19 +64,20 @@ pub impl @prettyprinter.Pretty for CheckedEnumDeclaration
 pub(all) enum CheckedExpr {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Value(name~ : String, symbol~ : @symbol.ValueSymbolId, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  CompilerIntrinsic(name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  ExternBinding(name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  CompilerIntrinsic(intrinsic~ : @abi.Intrinsic, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  ExternBinding(name~ : String, signature~ : @abi.HostSignature?, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  ErrorRecovery(type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : CheckedExpr, arguments~ : Array[@types.GenericArgument], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Block(items~ : Array[CheckedLocalItem], result~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   If(condition~ : CheckedExpr, then_branch~ : CheckedExpr, else_branch~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : CheckedExpr, arms~ : Array[CheckedMatchArm], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Call(callee~ : CheckedExpr, arguments~ : Array[CheckedCallArgument], type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  OperationCall(operation~ : @symbol.OperationSymbolId, generic_witnesses~ : Array[@types.GenericArgument], arguments~ : Array[CheckedExpr], effect~ : @types.Effect, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  OperationCall(operation~ : @symbol.OperationSymbolId, operation_loc~ : @basic.SourceSpan, generic_witnesses~ : Array[@types.GenericArgument], arguments~ : Array[CheckedExpr], effect~ : @types.Effect, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Handler(body~ : CheckedExpr?, handlers~ : Array[CheckedHandlerTable], final_branch~ : CheckedHandlerFinalBranch, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  Field(base~ : CheckedExpr, field~ : @symbol.FieldSymbolId, name~ : String, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  StructLiteral(symbol~ : @symbol.TypeSymbolId, generic_arguments~ : Array[@types.GenericArgument], type_witnesses~ : Array[CheckedStructTypeWitness], fields~ : Array[CheckedStructLiteralField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  Variant(symbol~ : @symbol.VariantSymbolId, generic_arguments~ : Array[@types.GenericArgument], arguments~ : Array[CheckedExpr], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Field(base~ : CheckedExpr, field~ : @symbol.FieldSymbolId, name~ : String, name_loc~ : @basic.SourceSpan, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  StructLiteral(symbol~ : @symbol.TypeSymbolId, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[@types.GenericArgument], type_witnesses~ : Array[CheckedStructTypeWitness], fields~ : Array[CheckedStructLiteralField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Variant(symbol~ : @symbol.VariantSymbolId, variant_loc~ : @basic.SourceSpan, generic_arguments~ : Array[@types.GenericArgument], arguments~ : Array[CheckedExpr], type_~ : @types.Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn CheckedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
 pub fn CheckedExpr::loc(Self) -> @basic.SourceSpan
@@ -84,6 +89,7 @@ pub(all) struct CheckedExternalTypeDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
@@ -91,6 +97,7 @@ pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
 pub(all) struct CheckedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   index : Int
   type_ : @types.Type
   loc : @basic.SourceSpan
@@ -101,6 +108,7 @@ pub(all) struct CheckedFunctionDeclaration {
   is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[@types.TypeParameter]
   parameters : Array[CheckedValueParameter]
   return_type : @types.Type
@@ -122,6 +130,7 @@ pub impl @prettyprinter.Pretty for CheckedHandlerFinalBranch
 
 pub(all) struct CheckedHandlerOperationArm {
   operation : @symbol.OperationSymbolId
+  operation_loc : @basic.SourceSpan
   type_binders : Array[@types.TypeParameter]
   payload_types : Array[@types.Type]
   payload_patterns : Array[CheckedPattern]
@@ -150,6 +159,7 @@ pub(all) struct CheckedLetDeclaration {
   is_public : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
+  name_loc : @basic.SourceSpan?
   initializer : CheckedExpr
   type_ : @types.Type
   loc : @basic.SourceSpan
@@ -184,8 +194,8 @@ pub(all) enum CheckedPattern {
   Wildcard(type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Binding(name~ : String, symbol~ : @symbol.ValueSymbolId, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  Variant(symbol~ : @symbol.VariantSymbolId, generic_arguments~ : Array[@types.GenericArgument], arguments~ : Array[CheckedPattern], type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  Struct(symbol~ : @symbol.TypeSymbolId, type_binders~ : Array[CheckedStructTypeBinder], fields~ : Array[CheckedStructPatternField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Variant(symbol~ : @symbol.VariantSymbolId, variant_loc~ : @basic.SourceSpan, generic_arguments~ : Array[@types.GenericArgument], arguments~ : Array[CheckedPattern], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Struct(symbol~ : @symbol.TypeSymbolId, type_name_loc~ : @basic.SourceSpan, type_binders~ : Array[CheckedStructTypeBinder], fields~ : Array[CheckedStructPatternField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn CheckedPattern::loc(Self) -> @basic.SourceSpan
 pub fn CheckedPattern::type_(Self) -> @types.Type
@@ -210,6 +220,7 @@ pub(all) struct CheckedStructDeclaration {
   is_public : Bool
   symbol : @symbol.TypeSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   type_parameters : Array[@types.TypeParameter]
   type_members : Array[CheckedTypeMemberDeclaration]
   fields : Array[CheckedFieldDeclaration]
@@ -263,6 +274,7 @@ pub(all) struct CheckedTypeMemberDeclaration {
   symbol : @symbol.TypeMemberSymbolId
   type_parameter : @types.TypeParameter
   name : String
+  name_loc : @basic.SourceSpan
   kind : @types.Kind
   index : Int
   loc : @basic.SourceSpan
@@ -274,6 +286,7 @@ pub(all) struct CheckedValueParameter {
   is_auto : Bool
   is_offered : Bool
   name : String
+  name_loc : @basic.SourceSpan
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
@@ -311,6 +324,7 @@ pub(all) struct CheckedValueUseReference {
 pub(all) struct CheckedVariantDeclaration {
   symbol : @symbol.VariantSymbolId
   name : String
+  name_loc : @basic.SourceSpan
   index : Int
   type_parameters : Array[@types.TypeParameter]
   payload : Array[@types.Type]

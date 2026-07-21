@@ -120,6 +120,7 @@ fn append_interface_declarations(
             is_public: true,
             symbol: declaration.symbol,
             name: declaration.name,
+            name_loc: declaration.loc,
             loc: declaration.loc,
           }),
         )
@@ -142,12 +143,14 @@ fn interface_struct_declaration(
     is_public: true,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.loc,
     type_parameters: declaration.type_parameters,
     type_members: declaration.type_members.map(fn(type_member) {
       {
         symbol: type_member.symbol,
         type_parameter: type_member.type_parameter,
         name: type_member.name,
+        name_loc: type_member.loc,
         kind: type_member.kind,
         index: type_member.index,
         loc: type_member.loc,
@@ -157,6 +160,7 @@ fn interface_struct_declaration(
       {
         symbol: field.symbol,
         name: field.name,
+        name_loc: field.loc,
         index: field.index,
         type_: field.type_,
         loc: field.loc,
@@ -174,11 +178,13 @@ fn interface_enum_declaration(
     is_public: true,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.loc,
     type_parameters: declaration.type_parameters,
     variants: declaration.variants.map(fn(variant) {
       {
         symbol: variant.symbol,
         name: variant.name,
+        name_loc: variant.loc,
         index: variant.index,
         type_parameters: variant.type_parameters,
         payload: variant.payload,
@@ -197,12 +203,14 @@ fn interface_effect_declaration(
     is_public: true,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.loc,
     flavor: declaration.flavor,
     type_parameters: declaration.type_parameters,
     operations: declaration.operations.map(fn(operation) {
       {
         symbol: operation.symbol,
         name: operation.name,
+        name_loc: operation.loc,
         index: operation.index,
         type_parameters: operation.type_parameters,
         payload: operation.payload,
@@ -285,6 +293,7 @@ fn DeclarationChecker::check_effect(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.name_loc,
     flavor: declaration.flavor,
     type_parameters,
     operations,
@@ -307,6 +316,7 @@ fn DeclarationChecker::check_external_type(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.name_loc,
     loc: declaration.loc,
   }
 }
@@ -320,6 +330,7 @@ fn DeclarationChecker::check_operation(
   {
     symbol: operation.symbol,
     name: operation.name,
+    name_loc: operation.name_loc,
     index: operation.index,
     type_parameters,
     payload: operation.payload.map(fn(type_) { self.check_type(type_) }),
@@ -347,6 +358,7 @@ fn DeclarationChecker::check_struct(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.name_loc,
     type_parameters,
     type_members,
     fields,
@@ -367,6 +379,7 @@ fn DeclarationChecker::check_type_member(
       kind,
     ),
     name: type_member.name,
+    name_loc: type_member.name_loc,
     kind,
     index: type_member.index,
     loc: type_member.loc,
@@ -381,6 +394,7 @@ fn DeclarationChecker::check_field(
   {
     symbol: field.symbol,
     name: field.name,
+    name_loc: field.name_loc,
     index: field.index,
     type_: self.check_type(field.type_),
     loc: field.loc,
@@ -401,6 +415,7 @@ fn DeclarationChecker::check_enum(
     is_public: declaration.is_public,
     symbol: declaration.symbol,
     name: declaration.name,
+    name_loc: declaration.name_loc,
     type_parameters,
     variants,
     loc: declaration.loc,
@@ -415,6 +430,7 @@ fn DeclarationChecker::check_variant(
   {
     symbol: variant.symbol,
     name: variant.name,
+    name_loc: variant.name_loc,
     index: variant.index,
     type_parameters: self.check_type_parameters(variant.type_parameters),
     payload: variant.payload.map(fn(type_) { self.check_type(type_) }),

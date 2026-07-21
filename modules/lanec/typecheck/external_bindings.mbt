@@ -5,17 +5,18 @@ fn SemanticChecker::check_compiler_intrinsic(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  guard compiler_intrinsic_type(name) is Some(actual) else {
+  guard @abi.Intrinsic::from_name(name) is Some(intrinsic) else {
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
+  let actual = compiler_intrinsic_type(intrinsic)
   if !self.type_matches(expected, actual, loc) {
     self.diagnostics.push({
       kind: BuiltinSignatureMismatch(name~, expected~, actual~),
       loc,
     })
   }
-  checked_expression(CompilerIntrinsic(name~, type_=actual, loc~), actual)
+  checked_expression(CompilerIntrinsic(intrinsic~, type_=actual, loc~), actual)
 }
 
 ///|
@@ -24,48 +25,37 @@ fn SemanticChecker::synthesize_compiler_intrinsic(
   name : String,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  guard compiler_intrinsic_type(name) is Some(type_) else {
+  guard @abi.Intrinsic::from_name(name) is Some(intrinsic) else {
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
-  checked_expression(CompilerIntrinsic(name~, type_~, loc~), type_)
+  let type_ = compiler_intrinsic_type(intrinsic)
+  checked_expression(CompilerIntrinsic(intrinsic~, type_~, loc~), type_)
 }
 
 ///|
-fn compiler_intrinsic_type(name : String) -> @types.Type? {
-  match name {
-    "%i64_add" | "%i64_sub" | "%i64_mul" | "%i64_div" | "%i64_rem" =>
-      Some(compiler_intrinsic_binary(Int, Int))
-    "%i64_neg" => Some(compiler_intrinsic_unary(Int, Int))
-    "%i64_equal" | "%i64_less" => Some(compiler_intrinsic_binary(Int, Bool))
-    "%f64_add" | "%f64_sub" | "%f64_mul" | "%f64_div" =>
-      Some(compiler_intrinsic_binary(Double, Double))
-    "%f64_neg" => Some(compiler_intrinsic_unary(Double, Double))
-    "%f64_equal" | "%f64_less" => Some(compiler_intrinsic_binary(Double, Bool))
-    "%f64_inf" | "%f64_ninf" | "%f64_nan" => Some(Primitive(Double))
-    "%string_equal" => Some(compiler_intrinsic_binary(String, Bool))
-    _ => None
+fn compiler_intrinsic_type(intrinsic : @abi.Intrinsic) -> @types.Type {
+  match intrinsic.signature() {
+    Value(kind) => Primitive(intrinsic_primitive_type(kind))
+    Function(parameters~, result~) =>
+      Function(
+        parameters.map(fn(kind) { Primitive(intrinsic_primitive_type(kind)) }),
+        Primitive(intrinsic_primitive_type(result)),
+        Empty,
+      )
   }
 }
 
 ///|
-fn compiler_intrinsic_unary(
-  parameter : @types.PrimitiveType,
-  result : @types.PrimitiveType,
-) -> @types.Type {
-  Function([Primitive(parameter)], Primitive(result), Empty)
-}
-
-///|
-fn compiler_intrinsic_binary(
-  parameter : @types.PrimitiveType,
-  result : @types.PrimitiveType,
-) -> @types.Type {
-  Function(
-    [Primitive(parameter), Primitive(parameter)],
-    Primitive(result),
-    Empty,
-  )
+fn intrinsic_primitive_type(kind : @abi.ValueKind) -> @types.PrimitiveType {
+  match kind {
+    Unit => Unit
+    Bool => Bool
+    Int => Int
+    Double => Double
+    String => String
+    Opaque => abort("compiler intrinsic cannot use an opaque ABI value")
+  }
 }
 
 ///|
@@ -75,13 +65,20 @@ fn SemanticChecker::check_extern_binding(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  if self.extern_type_restriction(expected) is Some(restriction) {
-    self.diagnostics.push({
-      kind: InvalidExternType(name~, type_=expected, restriction~),
-      loc,
-    })
+  let signature = match self.extern_type_restriction(expected) {
+    Some(restriction) => {
+      self.diagnostics.push({
+        kind: InvalidExternType(name~, type_=expected, restriction~),
+        loc,
+      })
+      None
+    }
+    None => self.extern_signature(expected)
   }
-  checked_expression(ExternBinding(name~, type_=expected, loc~), expected)
+  checked_expression(
+    ExternBinding(name~, signature~, type_=expected, loc~),
+    expected,
+  )
 }
 
 ///|
@@ -134,6 +131,44 @@ fn SemanticChecker::extern_direct_type(
     Constructor(symbol) =>
       self.declarations.checked_external_type(symbol) is Some(_)
     _ => false
+  }
+}
+
+///|
+fn SemanticChecker::extern_signature(
+  self : SemanticChecker,
+  type_ : @types.Type,
+) -> @abi.HostSignature? {
+  guard type_.normalize() is Function(parameters, result, _) else {
+    return None
+  }
+  let parameter_kinds = []
+  for parameter in parameters {
+    guard self.extern_value_kind(parameter) is Some(kind) else { return None }
+    parameter_kinds.push(kind)
+  }
+  guard self.extern_value_kind(result) is Some(result) else { return None }
+  Some({ parameters: parameter_kinds, result })
+}
+
+///|
+fn SemanticChecker::extern_value_kind(
+  self : SemanticChecker,
+  type_ : @types.Type,
+) -> @abi.ValueKind? {
+  match type_.normalize() {
+    Primitive(Unit) => Some(Unit)
+    Primitive(Bool) => Some(Bool)
+    Primitive(Int) => Some(Int)
+    Primitive(Double) => Some(Double)
+    Primitive(String) => Some(String)
+    Constructor(symbol) =>
+      if self.declarations.checked_external_type(symbol) is Some(_) {
+        Some(Opaque)
+      } else {
+        None
+      }
+    _ => None
   }
 }
 

@@ -274,11 +274,13 @@ test "existential callable fields adapt covariant results and contravariant para
           {
             value: measure,
             symbol: "lane.test.string_length",
+            signature: { parameters: [String], result: Int },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
+            signature: { parameters: [Int], result: Unit },
             type_: observe_type,
           },
         ],
@@ -457,11 +459,13 @@ test "existential callable adapters recurse through callable parameters" {
           {
             value: measure,
             symbol: "lane.test.string_length",
+            signature: { parameters: [String], result: Int },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
+            signature: { parameters: [Int], result: Unit },
             type_: observe_type,
           },
         ],
@@ -661,11 +665,13 @@ test "generic container fields round-trip callable values through erasure" {
           {
             value: measure,
             symbol: "lane.test.string_length",
+            signature: { parameters: [String], result: Int },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
+            signature: { parameters: [Int], result: Unit },
             type_: observe_type,
           },
         ],
@@ -833,11 +839,13 @@ test "existential callable adapters forward explicit forall witnesses" {
           {
             value: measure,
             symbol: "lane.test.string_length",
+            signature: { parameters: [String], result: Int },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
+            signature: { parameters: [Int], result: Unit },
             type_: observe_type,
           },
         ],

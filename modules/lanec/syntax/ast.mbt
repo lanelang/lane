@@ -51,6 +51,7 @@ pub(all) enum TopLevelDeclaration {
 ///|
 pub(all) struct TypeParameter {
   name : String
+  name_loc : SourceSpan
   kind : Kind?
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -59,6 +60,7 @@ pub(all) struct TypeParameter {
 pub(all) struct StructDeclaration {
   is_public : Bool
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[TypeParameter]
   members : Array[StructMember]
   loc : SourceSpan
@@ -73,6 +75,7 @@ pub(all) enum StructMember {
 ///|
 pub(all) struct TypeMemberDeclaration {
   name : String
+  name_loc : SourceSpan
   kind : Kind?
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -96,6 +99,7 @@ pub fn Kind::loc(self : Kind) -> SourceSpan {
 ///|
 pub(all) struct FieldDeclaration {
   name : String
+  name_loc : SourceSpan
   type_ : Type
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -104,6 +108,7 @@ pub(all) struct FieldDeclaration {
 pub(all) struct EnumDeclaration {
   is_public : Bool
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[TypeParameter]
   variants : Array[EnumVariant]
   loc : SourceSpan
@@ -112,6 +117,7 @@ pub(all) struct EnumDeclaration {
 ///|
 pub(all) struct EnumVariant {
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[TypeParameter]
   payload : Array[Type]
   loc : SourceSpan
@@ -121,6 +127,7 @@ pub(all) struct EnumVariant {
 pub(all) struct EffectDeclaration {
   is_public : Bool
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[TypeParameter]
   operations : Array[EffectOperationDeclaration]
   loc : SourceSpan
@@ -129,6 +136,7 @@ pub(all) struct EffectDeclaration {
 ///|
 pub(all) struct EffectOperationDeclaration {
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[TypeParameter]
   payload : Array[Type]
   result : Type
@@ -139,6 +147,7 @@ pub(all) struct EffectOperationDeclaration {
 pub(all) struct ExternalTypeDeclaration {
   is_public : Bool
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[TypeParameter]
   result_kind : ExternalTypeKind
   loc : SourceSpan
@@ -154,6 +163,7 @@ pub(all) enum ExternalTypeKind {
 pub(all) struct TypeAliasDeclaration {
   is_public : Bool
   name : String
+  name_loc : SourceSpan
   type_parameters : Array[TypeParameter]
   result_kind : Kind?
   body : TypeAliasBody
@@ -192,6 +202,7 @@ pub(all) struct Parameter {
   is_auto : Bool
   is_offered : Bool
   name : String
+  name_loc : SourceSpan
   type_ : Type
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -280,6 +291,7 @@ pub(all) enum Expr {
   QualifiedVariant(
     owner~ : Type,
     variant~ : String,
+    variant_loc~ : SourceSpan,
     variant_type_arguments~ : Array[Type],
     arguments~ : Array[Expr],
     loc~ : SourceSpan
@@ -322,7 +334,7 @@ pub(all) enum Expr {
   )
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : SourceSpan)
   Call(callee~ : Expr, arguments~ : Array[CallArgument], loc~ : SourceSpan)
-  Field(base~ : Expr, name~ : String, loc~ : SourceSpan)
+  Field(base~ : Expr, name~ : String, name_loc~ : SourceSpan, loc~ : SourceSpan)
   Unary(operator~ : UnaryOperator, operand~ : Expr, loc~ : SourceSpan)
   Binary(
     operator~ : BinaryOperator,
@@ -417,6 +429,7 @@ pub(all) struct PatternLetDeclaration {
 pub(all) struct FunctionLiteralParameter {
   is_offered : Bool
   name : String
+  name_loc : SourceSpan
   type_annotation : Type?
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -459,19 +472,23 @@ pub(all) enum Pattern {
   BoolLiteral(Bool, loc~ : SourceSpan)
   QualifiedVariant(
     type_name~ : String,
+    type_name_loc~ : SourceSpan,
     variant~ : String,
+    variant_loc~ : SourceSpan,
     type_binders~ : Array[String],
     arguments~ : Array[Pattern],
     loc~ : SourceSpan
   )
   UnqualifiedVariant(
     variant~ : String,
+    variant_loc~ : SourceSpan,
     type_binders~ : Array[String],
     arguments~ : Array[Pattern],
     loc~ : SourceSpan
   )
   Struct(
     type_name~ : String,
+    type_name_loc~ : SourceSpan,
     fields~ : Array[StructPatternField],
     loc~ : SourceSpan
   )

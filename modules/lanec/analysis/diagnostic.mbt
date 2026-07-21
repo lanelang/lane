@@ -37,21 +37,20 @@ fn diagnostic(
 ///|
 pub fn checked_unused_local_value_binding_diagnostics(
   source : @checked.CheckedSourceFile,
-  source_text : String,
+  _source_text : String,
 ) -> Array[CompilerDiagnostic] {
   source
   .value_use_analysis()
   .unused_binders()
   .filter(fn(binder) { !binder.name.has_prefix("_") })
-  .map(fn(binder) { unused_local_value_binding_diagnostic(binder, source_text) })
+  .map(unused_local_value_binding_diagnostic)
 }
 
 ///|
 fn unused_local_value_binding_diagnostic(
   binder : @checked.CheckedValueUseBinder,
-  source_text : String,
 ) -> CompilerDiagnostic {
-  let binder_loc = name_span(source_text, binder.name, binder.loc)
+  let binder_loc = binder.loc
   diagnostic(
     "unused local value binding",
     span=Some(binder_loc),
@@ -83,21 +82,18 @@ pub fn checked_semantic_warning_diagnostics(
     "<diagnostic>",
     source_text,
   )
-  semantic_warning_diagnostics_from_index(index, source, source_text)
+  semantic_warning_diagnostics_from_index(index, source)
 }
 
 ///|
 fn semantic_warning_diagnostics_from_index(
   index : SemanticIndex,
   source : @resolve.ResolvedSourceFile,
-  source_text : String,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = unused_private_top_level_declaration_diagnostics_from_index(
-    index, source_text,
+    index,
   )
-  diagnostics.append(
-    unused_generic_parameter_diagnostics_from_index(index, source_text),
-  )
+  diagnostics.append(unused_generic_parameter_diagnostics_from_index(index))
   diagnostics.append(
     unused_import_exposure_diagnostics_from_index(index, source),
   )
@@ -107,25 +103,19 @@ fn semantic_warning_diagnostics_from_index(
 ///|
 fn unused_private_top_level_declaration_diagnostics_from_index(
   index : SemanticIndex,
-  source_text : String,
 ) -> Array[CompilerDiagnostic] {
   index
   .unused_private_top_level_declarations()
   .map(fn(declaration) {
-    unused_private_top_level_declaration_diagnostic(declaration, source_text)
+    unused_private_top_level_declaration_diagnostic(declaration)
   })
 }
 
 ///|
 fn unused_private_top_level_declaration_diagnostic(
   declaration : TopLevelDeclarationFact,
-  source_text : String,
 ) -> CompilerDiagnostic {
-  let declaration_loc = name_span(
-    source_text,
-    declaration.name,
-    declaration.loc,
-  )
+  let declaration_loc = declaration.name_loc
   let kind = declaration.kind.text()
   diagnostic(
     "unused private top-level declaration",
@@ -149,19 +139,15 @@ fn unused_private_top_level_declaration_diagnostic(
 ///|
 fn unused_generic_parameter_diagnostics_from_index(
   index : SemanticIndex,
-  source_text : String,
 ) -> Array[CompilerDiagnostic] {
-  index
-  .unused_generic_parameters()
-  .map(fn(binder) { unused_generic_parameter_diagnostic(binder, source_text) })
+  index.unused_generic_parameters().map(unused_generic_parameter_diagnostic)
 }
 
 ///|
 fn unused_generic_parameter_diagnostic(
   binder : GenericParameterFact,
-  source_text : String,
 ) -> CompilerDiagnostic {
-  let binder_loc = name_span(source_text, binder.name, binder.loc)
+  let binder_loc = binder.loc
   let kind = binder.kind.text()
   diagnostic(
     "unused \{kind}",

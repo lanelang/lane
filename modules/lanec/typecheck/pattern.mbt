@@ -207,23 +207,26 @@ fn SemanticChecker::check_pattern(
     }
     QualifiedVariant(
       type_name~,
+      type_name_loc~,
       variant~,
+      variant_loc~,
       type_binders~,
       reference~,
       arguments~,
       loc~
     ) =>
       self.check_variant_pattern(
-        scope, type_name, variant, type_binders, reference, arguments, expected,
-        binders, loc,
+        scope, type_name, type_name_loc, variant, variant_loc, type_binders, reference,
+        arguments, expected, binders, loc,
       )
-    UnqualifiedVariant(variant~, type_binders~, arguments~, loc~) =>
+    UnqualifiedVariant(variant~, variant_loc~, type_binders~, arguments~, loc~) =>
       self.check_unqualified_variant_pattern(
-        scope, variant, type_binders, arguments, expected, binders, loc,
+        scope, variant, variant_loc, type_binders, arguments, expected, binders,
+        loc,
       )
-    Struct(type_name~, fields~, loc~) =>
+    Struct(type_name~, type_name_loc~, fields~, loc~) =>
       self.check_struct_pattern(
-        scope, type_name, fields, expected, binders, loc,
+        scope, type_name, type_name_loc, fields, expected, binders, loc,
       )
   }
 }
@@ -233,7 +236,9 @@ fn SemanticChecker::check_variant_pattern(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
+  _type_name_loc : SourceSpan,
   variant : String,
+  variant_loc : SourceSpan,
   type_binders : Array[@resolve.ResolvedTypeParameter],
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@resolve.ResolvedPattern],
@@ -244,8 +249,8 @@ fn SemanticChecker::check_variant_pattern(
   match reference {
     Symbol(symbol) =>
       self.check_variant_symbol_pattern(
-        scope, type_name, variant, symbol, type_binders, arguments, expected, binders,
-        loc,
+        scope, type_name, variant, variant_loc, symbol, type_binders, arguments,
+        expected, binders, loc,
       )
     Ambiguous(name~, ..) => {
       self.report_ambiguous_variant_reference(name, loc)
@@ -276,6 +281,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   scope : TypeScope,
   type_name : String,
   variant : String,
+  variant_loc : SourceSpan,
   symbol : VariantSymbolId,
   type_binders : Array[@resolve.ResolvedTypeParameter],
   arguments : Array[@resolve.ResolvedPattern],
@@ -399,6 +405,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   }
   Variant(
     symbol~,
+    variant_loc~,
     generic_arguments=hidden_generic_arguments,
     arguments=checked_arguments,
     type_=expected,
@@ -423,6 +430,7 @@ fn SemanticChecker::check_unqualified_variant_pattern(
   self : SemanticChecker,
   scope : TypeScope,
   variant : String,
+  variant_loc : SourceSpan,
   type_binders : Array[@resolve.ResolvedTypeParameter],
   arguments : Array[@resolve.ResolvedPattern],
   expected : @types.Type,
@@ -453,7 +461,8 @@ fn SemanticChecker::check_unqualified_variant_pattern(
     return Wildcard(type_=Error, loc~)
   }
   self.check_variant_symbol_pattern(
-    scope, "", variant, symbol, type_binders, arguments, expected, binders, loc,
+    scope, "", variant, variant_loc, symbol, type_binders, arguments, expected, binders,
+    loc,
   )
 }
 
@@ -462,6 +471,7 @@ fn SemanticChecker::check_struct_pattern(
   self : SemanticChecker,
   scope : TypeScope,
   type_name : String,
+  type_name_loc : SourceSpan,
   fields : Array[@resolve.ResolvedStructPatternField],
   expected : @types.Type,
   binders : Array[String],
@@ -547,6 +557,7 @@ fn SemanticChecker::check_struct_pattern(
   }
   Struct(
     symbol~,
+    type_name_loc~,
     type_binders=type_member_result.binders,
     fields=checked_fields,
     type_=expected,
@@ -818,6 +829,7 @@ fn enum_coverage_candidates(
       candidates.push({
         pattern: Variant(
           symbol=variant.symbol,
+          variant_loc=SourceSpan::dummy(),
           generic_arguments=[],
           arguments=row.patterns,
           type_~,
@@ -859,6 +871,7 @@ fn struct_coverage_candidates(
     {
       pattern: Struct(
         symbol=declaration.symbol,
+        type_name_loc=SourceSpan::dummy(),
         type_binders=[],
         fields~,
         type_~,

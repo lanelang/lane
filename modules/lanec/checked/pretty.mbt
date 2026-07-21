@@ -355,10 +355,11 @@ fn expression_doc(expression : CheckedExpr) -> Document {
   match expression {
     Literal(literal~, ..) => literal_doc(literal)
     Value(name~, symbol~, ..) => value_name_doc(name, symbol)
-    CompilerIntrinsic(name~, ..) =>
-      text("builtin") + text("(") + quoted_doc(name) + text(")")
+    CompilerIntrinsic(intrinsic~, ..) =>
+      text("builtin") + text("(") + quoted_doc(intrinsic.name()) + text(")")
     ExternBinding(name~, ..) =>
       text("extern") + text("(") + quoted_doc(name) + text(")")
+    ErrorRecovery(_) => text("<error>")
     FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) =>
       text("fn") +
       type_parameters_doc(type_parameters) +

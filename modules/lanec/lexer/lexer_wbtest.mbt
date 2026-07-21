@@ -370,3 +370,13 @@ test "reject non ascii identifier character" {
     ),
   )
 }
+
+///|
+test "tokenize long sources without recursive token dispatch" {
+  let source = Array::make(2000, "value").join(" ")
+  let result = tokens_from_string(source)
+  debug_inspect(
+    (result.errors, result.concrete.tokens.length()),
+    content="([], 2001)",
+  )
+}
