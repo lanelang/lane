@@ -421,7 +421,7 @@ test "golden block sequence help qualifies Unit expressions" {
       #|    },
       #|  ],
       #|  notes: ["Lane blocks contain local items followed by exactly one final expression"],
-      #|  helps: ["put the next expression on a new line or separate it with `;` only when the preceding expression has type `Unit`; otherwise, use or bind its value"],
+      #|  helps: ["separate the expressions with a newline or `;`; either form requires the preceding expression to have type `Unit`; otherwise, bind or otherwise use its value"],
       #|  facts: [],
       #|  suggestions: [],
       #|}

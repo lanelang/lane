@@ -5814,31 +5814,40 @@ test "typecheck allows declarations between sequential unit expressions" {
 }
 
 ///|
-test "typecheck rejects non-unit sequential expressions" {
-  let result = expect_checked_source_result(
-    (
-      #|fn bad() -> Int {
-      #|  1;
-      #|  2
-      #|}
-    ),
-  )
-  debug_inspect(
-    result.diagnostics,
-    content=(
-      #|[
-      #|  {
-      #|    kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(Int)),
-      #|    loc: {
-      #|      start_offset: 32,
-      #|      end_offset: 33,
-      #|      start_line: 3,
-      #|      start_column: 3,
-      #|      end_line: 3,
-      #|      end_column: 4,
-      #|    },
-      #|  },
-      #|]
-    ),
-  )
+test "typecheck rejects non-unit sequential expressions across separators" {
+  for
+    source in [
+      (
+        #|fn bad() -> Int {
+        #|  1;
+        #|  2
+        #|}
+      ),
+      (
+        #|fn bad() -> Int {
+        #|  1
+        #|  2
+        #|}
+      ),
+    ] {
+    let result = expect_checked_source_result(source)
+    debug_inspect(
+      result.diagnostics,
+      content=(
+        #|[
+        #|  {
+        #|    kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(Int)),
+        #|    loc: {
+        #|      start_offset: 32,
+        #|      end_offset: 33,
+        #|      start_line: 3,
+        #|      start_column: 3,
+        #|      end_line: 3,
+        #|      end_column: 4,
+        #|    },
+        #|  },
+        #|]
+      ),
+    )
+  }
 }
