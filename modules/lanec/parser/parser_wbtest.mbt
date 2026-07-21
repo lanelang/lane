@@ -129,6 +129,32 @@ test "layout preserves delimited and operator continuations" {
 }
 
 ///|
+test "layout resumes inside braces nested in call arguments" {
+  let source =
+    #|module Test
+    #|fn apply(callback : () -> Unit) -> Unit {
+    #|  callback()
+    #|}
+    #|fn main() -> Unit {
+    #|  apply(fn() {
+    #|    print("first")
+    #|    print("second")
+    #|  })
+    #|}
+  let lexed = @lexer.tokens_from_string(source)
+  assert_true(lexed.errors.is_empty())
+  let synthetic_semicolon_lines = []
+  for item in layout_yacc_tokens(lexed.concrete) {
+    let (token, start, end) = item
+    if token is SEMICOLON && start.start_offset == end.start_offset {
+      synthetic_semicolon_lines.push(start.start_line)
+    }
+  }
+  debug_inspect(synthetic_semicolon_lines, content="[1, 4, 7]")
+  debug_inspect(parse_string(source).parse_errors(), content="[]")
+}
+
+///|
 test "parse positional call argument keeps argument source span" {
   let file = expect_parse_ok(
     (
@@ -251,7 +277,7 @@ test "parse sequential unit expressions as block local items" {
       #|}
       #|
       #|fn main() -> Unit {
-      #|  print("hello");
+      #|  print("hello")
       #|  print("world")
       #|}
     ),

@@ -1,15 +1,19 @@
 ///|
+priv enum LayoutDelimiter {
+  Parenthesis
+  Bracket
+  Brace
+}
+
+///|
 fn layout_yacc_tokens(
   concrete : @lexer.ConcreteSyntax,
 ) -> Array[(@yacc_parser.Token, SourceSpan, SourceSpan)] {
   let tokens = []
-  let mut parenthesis_depth = 0
-  let mut bracket_depth = 0
+  let delimiters : Array[LayoutDelimiter] = []
   for index, item in concrete.tokens {
     let (token, loc) = item
-    if should_insert_layout_semicolon(
-        concrete, index, parenthesis_depth, bracket_depth,
-      ) {
+    if should_insert_layout_semicolon(concrete, index, delimiters) {
       let separator = token_end_position(concrete.tokens[index - 1].1)
       tokens.push((@yacc_parser.SEMICOLON, separator, separator))
     }
@@ -21,10 +25,12 @@ fn layout_yacc_tokens(
       ),
     )
     match token {
-      LPAREN => parenthesis_depth += 1
-      RPAREN => parenthesis_depth -= 1
-      LBRACKET => bracket_depth += 1
-      RBRACKET => bracket_depth -= 1
+      LPAREN => delimiters.push(Parenthesis)
+      LBRACKET => delimiters.push(Bracket)
+      LBRACE => delimiters.push(Brace)
+      RPAREN => pop_layout_delimiter(delimiters, Parenthesis)
+      RBRACKET => pop_layout_delimiter(delimiters, Bracket)
+      RBRACE => pop_layout_delimiter(delimiters, Brace)
       _ => ()
     }
   }
@@ -35,17 +41,38 @@ fn layout_yacc_tokens(
 fn should_insert_layout_semicolon(
   concrete : @lexer.ConcreteSyntax,
   gap : Int,
-  parenthesis_depth : Int,
-  bracket_depth : Int,
+  delimiters : Array[LayoutDelimiter],
 ) -> Bool {
-  guard gap > 0 && parenthesis_depth == 0 && bracket_depth == 0 else {
-    return false
-  }
+  guard gap > 0 && layout_semicolon_enabled(delimiters) else { return false }
   let previous = concrete.tokens[gap - 1].0
   let next = concrete.tokens[gap].0
   token_ends_layout_item(previous) &&
   token_starts_layout_item(next) &&
   concrete.trivia.any(fn(trivia) { trivia.gap == gap && trivia.kind is Newline })
+}
+
+///|
+fn layout_semicolon_enabled(delimiters : Array[LayoutDelimiter]) -> Bool {
+  match delimiters.last() {
+    None | Some(Brace) => true
+    Some(Parenthesis) | Some(Bracket) => false
+  }
+}
+
+///|
+fn pop_layout_delimiter(
+  delimiters : Array[LayoutDelimiter],
+  expected : LayoutDelimiter,
+) -> Unit {
+  let matches = match (delimiters.last(), expected) {
+    (Some(Parenthesis), Parenthesis)
+    | (Some(Bracket), Bracket)
+    | (Some(Brace), Brace) => true
+    _ => false
+  }
+  if matches {
+    ignore(delimiters.pop())
+  }
 }
 
 ///|

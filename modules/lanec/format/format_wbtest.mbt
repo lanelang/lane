@@ -386,7 +386,7 @@ test "format source keeps consecutive line comments compact inside blocks" {
 }
 
 ///|
-test "format sequential expressions and preserve semicolon comments" {
+test "format sequential expressions as newline-separated items" {
   assert_format(
     (
       #|module Test
@@ -402,8 +402,49 @@ test "format sequential expressions and preserve semicolon comments" {
       #|}
       #|
       #|pub fn main() -> Unit {
-      #|  print("hello"); // first
+      #|  print("hello") // first
       #|  print("world")
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format explicit layout separators canonically" {
+  assert_format(
+    (
+      #|module Test
+      #|struct Pair { left:Int; right:Int }
+      #|enum Choice { Left(Int); Right(Int) }
+      #|effect Console { read()->Int; write(String)->Unit }
+      #|pub fn choose(value:Bool)->Int {
+      #|match value { true => 1; false => 0 }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|struct Pair {
+      #|  left : Int
+      #|  right : Int
+      #|}
+      #|
+      #|enum Choice {
+      #|  Left(Int)
+      #|  Right(Int)
+      #|}
+      #|
+      #|effect Console {
+      #|  read() -> Int
+      #|  write(String) -> Unit
+      #|}
+      #|
+      #|pub fn choose(value : Bool) -> Int {
+      #|  match value {
+      #|    true => 1
+      #|    false => 0
+      #|  }
       #|}
       #|
     ),
