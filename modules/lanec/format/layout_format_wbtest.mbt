@@ -30,6 +30,28 @@ test "format layout sequences around comments" {
 }
 
 ///|
+test "format comments after explicit item semicolons" {
+  assert_format(
+    (
+      #|module Test
+      #|struct Pair {
+      #|left:Int; // trailing left
+      #|right:Int
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|struct Pair {
+      #|  left : Int // trailing left
+      #|  right : Int
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format layout inside function literals nested in calls" {
   assert_format(
     (
@@ -105,15 +127,15 @@ test "format layout across nested control-flow blocks" {
 }
 
 ///|
-test "format layout list separators as canonical commas" {
+test "format comma list separators canonically" {
   assert_format(
     (
       #|module Test
-      #|import Lib.{ alpha; beta }
+      #|import Lib.{ alpha,beta }
       #|struct Pair { left:Int; right:Int }
-      #|pub let pair:Pair=Pair::{ left:20; right:22 }
+      #|pub let pair:Pair=Pair::{ left:20,right:22 }
       #|pub fn sum(value:Pair)->Int {
-      #|match value { Pair::{ left; right } => left + right }
+      #|match value { Pair::{ left,right } => left + right }
       #|}
     ),
     (

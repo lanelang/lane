@@ -78,7 +78,8 @@ A block-local expression followed by an explicit or **Layout Semicolon**, requir
 _Avoid_: statement, unchecked result discard, general sequence operator
 
 **Layout Semicolon**:
-A zero-width `;` inserted between newline-delimited items before parsing when the previous token can end an item, the next token can start one, and the newline is outside parentheses and brackets. Newlines before operators, closing delimiters, continuation punctuation, `else`, `with`, or `final` do not insert a separator.
+A zero-width separator inserted between newline-delimited items before parsing when the previous token can end an item, the next token can start one, and the innermost open delimiter is a brace or there is no open delimiter. Newlines before operators, closing delimiters, continuation punctuation, `else`, `with`, or `final` do not insert a separator.
+The parser represents it separately from a source `;`: only item contexts may accept both, while top-level boundaries and comma-delimited lists never treat an explicit semicolon as layout.
 _Avoid_: parser recovery, newline AST node, unconditional line terminator
 
 **Uncurried Function**:

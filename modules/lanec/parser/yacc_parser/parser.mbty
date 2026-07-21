@@ -61,6 +61,7 @@
 %token EMPTY_TYPE_PARAMETER_LIST_ERROR
 %token COMMA ","
 %token SEMICOLON ";"
+%token LAYOUT_SEMICOLON
 %token DOTSTAR ".*"
 %token DOTLBRACE ".{"
 %token DOT "."
@@ -95,12 +96,22 @@ source_file -> SourceFile
 
 layout_semicolons -> Unit
   : { () }
-  | layout_semicolons ";" { () }
+  | layout_semicolons LAYOUT_SEMICOLON { () }
+  ;
+
+item_semicolons -> Unit
+  : { () }
+  | item_semicolons item_semicolon { () }
+  ;
+
+item_semicolon -> Unit
+  : ";" { () }
+  | LAYOUT_SEMICOLON { () }
   ;
 
 layout_list_separator -> Unit
   : "," { () }
-  | ";" { () }
+  | LAYOUT_SEMICOLON { () }
   ;
 
 module_declaration -> ModulePath
@@ -232,7 +243,7 @@ public_struct_declaration -> StructDeclaration
 
 struct_members -> Array[StructMember]
   : { [] }
-  | struct_members struct_member layout_semicolons { comma_push($1, $2) }
+  | struct_members struct_member item_semicolons { comma_push($1, $2) }
   ;
 
 struct_member -> StructMember
@@ -289,7 +300,7 @@ public_enum_declaration -> EnumDeclaration
 
 enum_variants -> Array[EnumVariant]
   : { [] }
-  | enum_variants enum_variant layout_semicolons { comma_push($1, $2) }
+  | enum_variants enum_variant item_semicolons { comma_push($1, $2) }
   ;
 
 enum_variant -> EnumVariant
@@ -315,7 +326,7 @@ public_effect_declaration -> EffectDeclaration
 
 effect_operations -> Array[EffectOperationDeclaration]
   : { [] }
-  | effect_operations effect_operation layout_semicolons { comma_push($1, $2) }
+  | effect_operations effect_operation item_semicolons { comma_push($1, $2) }
   ;
 
 effect_operation -> EffectOperationDeclaration
@@ -742,7 +753,7 @@ block_expression -> Expr
 
 local_items -> Array[LocalItem]
   : { [] }
-  | local_items local_item layout_semicolons { comma_push($1, $2) }
+  | local_items local_item item_semicolons { comma_push($1, $2) }
   ;
 
 local_item -> LocalItem
@@ -750,6 +761,7 @@ local_item -> LocalItem
   | function_declaration { Function($1) }
   | offer_value_declaration { Offer($1) }
   | expression ";" { Expression(expression=$1, loc=span($sloc)) }
+  | expression LAYOUT_SEMICOLON { Expression(expression=$1, loc=span($sloc)) }
   ;
 
 if_expression -> Expr
@@ -771,7 +783,7 @@ match_expression -> Expr
 
 match_arms -> Array[MatchArm]
   : { [] }
-  | match_arms match_arm layout_semicolons { comma_push($1, $2) }
+  | match_arms match_arm item_semicolons { comma_push($1, $2) }
   ;
 
 match_arm -> MatchArm
@@ -798,8 +810,8 @@ handler_with_block -> HandlerWithBlock
   ;
 
 handler_operation_arms -> Array[HandlerOperationArm]
-  : handler_operation_arm layout_semicolons { [ $1 ] }
-  | handler_operation_arms handler_operation_arm layout_semicolons { comma_push($1, $2) }
+  : handler_operation_arm item_semicolons { [ $1 ] }
+  | handler_operation_arms handler_operation_arm item_semicolons { comma_push($1, $2) }
   ;
 
 handler_operation_arm -> HandlerOperationArm

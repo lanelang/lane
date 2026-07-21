@@ -74,8 +74,8 @@ fn synthetic_layout_semicolon_lines(source : String) -> Array[Int] raise {
   assert_true(lexed.errors.is_empty())
   let lines = []
   for item in layout_yacc_tokens(lexed.concrete) {
-    let (token, start, end) = item
-    if token is SEMICOLON && start.start_offset == end.start_offset {
+    let (token, start, _) = item
+    if token is LAYOUT_SEMICOLON {
       lines.push(start.start_line)
     }
   }
@@ -139,6 +139,31 @@ test "layout resumes inside braces nested in call arguments" {
     #|}
   debug_inspect(synthetic_layout_semicolon_lines(source), content="[1, 4, 7]")
   debug_inspect(parse_string(source).parse_errors(), content="[]")
+}
+
+///|
+test "parse rejects explicit semicolons outside item bodies" {
+  assert_false(
+    parse_string("module M;\npub let answer : Int = 42")
+    .parse_errors()
+    .is_empty(),
+  )
+  assert_false(
+    parse_errors("let first : Int = 1;\nlet second : Int = 2").is_empty(),
+  )
+  assert_false(
+    parse_errors(
+      (
+        #|struct Box[A, B] {
+        #|  first : A
+        #|  second : B
+        #|}
+        #|fn bad(value : Box[Int; Bool]) -> Box[Int, Bool] {
+        #|  value
+        #|}
+      ),
+    ).is_empty(),
+  )
 }
 
 ///|
@@ -1083,7 +1108,6 @@ test "parse rejects expression-shaped member owner" {
       #|      { label: "`|>`" },
       #|      { label: "`(`" },
       #|      { label: "`[`" },
-      #|      { label: "`;`" },
       #|      { label: "`.`" },
       #|    ],
       #|  ),

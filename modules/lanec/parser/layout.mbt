@@ -16,7 +16,7 @@ fn layout_yacc_tokens(
     let (token, loc) = item
     if should_insert_layout_semicolon(concrete, index, delimiters, newline_gaps) {
       let separator = token_end_position(concrete.tokens[index - 1].1)
-      tokens.push((@yacc_parser.SEMICOLON, separator, separator))
+      tokens.push((@yacc_parser.LAYOUT_SEMICOLON, separator, separator))
     }
     tokens.push(
       (

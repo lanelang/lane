@@ -423,6 +423,12 @@ fn anchor_comment(
       Leading(leading_anchor_span(tokens, index + 1))
     _ =>
       match previous {
+        Some(index) if tokens[index].0 is SEMICOLON &&
+          index > 0 &&
+          is_same_line(tokens[index], comment) => {
+          let (_, span) = tokens[index - 1]
+          Trailing(span)
+        }
         Some(index) if is_same_line(tokens[index], comment) &&
           can_anchor_trailing(tokens[index].0) => {
           let (_, span) = tokens[index]
