@@ -452,7 +452,7 @@ pub(all) enum ResolvedLocalItem {
   PatternLet(ResolvedPatternLetDeclaration)
   Function(ResolvedFunctionDeclaration)
   Offer(ResolvedOfferDeclaration)
-  Expression(expression~ : ResolvedExpr, loc~ : SourceSpan)
+  Expression(ResolvedExpr)
 } derive(Debug, Eq)
 
 ///|

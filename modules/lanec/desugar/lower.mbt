@@ -88,8 +88,7 @@ fn desugar_local_item(item : @resolve.ResolvedLocalItem) -> DesugaredLocalItem? 
     Function(declaration) =>
       Some(Function(desugar_function_declaration(declaration)))
     Offer(declaration) => Some(Offer(desugar_offer_declaration(declaration)))
-    Expression(expression~, loc~) =>
-      Some(Expression(expression=desugar_expr(expression), loc~))
+    Expression(expression) => Some(Expression(desugar_expr(expression)))
   }
 }
 

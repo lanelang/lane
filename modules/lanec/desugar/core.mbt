@@ -64,7 +64,7 @@ pub(all) enum DesugaredLocalItem {
   PatternLet(DesugaredPatternLetDeclaration)
   Function(DesugaredFunctionDeclaration)
   Offer(DesugaredOfferDeclaration)
-  Expression(expression~ : DesugaredExpr, loc~ : SourceSpan)
+  Expression(DesugaredExpr)
 } derive(Debug, Eq)
 
 ///|

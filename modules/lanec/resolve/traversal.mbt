@@ -113,7 +113,7 @@ pub fn ResolvedLocalItem::for_each_child_expr(
     PatternLet(declaration) => visit(declaration.initializer)
     Function(declaration) => visit(declaration.body)
     Offer(declaration) => visit(declaration.initializer)
-    Expression(expression~, ..) => visit(expression)
+    Expression(expression) => visit(expression)
   }
 }
 

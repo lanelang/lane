@@ -286,7 +286,7 @@ pub(all) enum ResolvedLocalItem {
   PatternLet(ResolvedPatternLetDeclaration)
   Function(ResolvedFunctionDeclaration)
   Offer(ResolvedOfferDeclaration)
-  Expression(expression~ : ResolvedExpr, loc~ : @basic.SourceSpan)
+  Expression(ResolvedExpr)
 } derive(Eq, @debug.Debug)
 pub fn ResolvedLocalItem::for_each_child_expr(Self, (ResolvedExpr) -> Unit) -> Unit
 pub impl @prettyprinter.Pretty for ResolvedLocalItem

@@ -308,7 +308,7 @@ fn SemanticChecker::check_checked_block(
           }
           None => complete = false
         }
-      Expression(expression~, ..) => {
+      Expression(expression) => {
         let checked = self.check_checked_expr(
           next_scope,
           expression,
@@ -395,7 +395,7 @@ fn SemanticChecker::synthesize_checked_block(
           }
           None => complete = false
         }
-      Expression(expression~, ..) => {
+      Expression(expression) => {
         let checked = self.check_checked_expr(
           next_scope,
           expression,

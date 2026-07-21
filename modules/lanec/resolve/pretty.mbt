@@ -614,7 +614,7 @@ pub impl @prettyprinter.Pretty for ResolvedLocalItem with fn pretty(
     PatternLet(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Offer(declaration) => declaration.pretty()
-    Expression(expression~, ..) => expression.pretty() + text(";")
+    Expression(expression) => expression.pretty() + text(";")
   }
 }
 
