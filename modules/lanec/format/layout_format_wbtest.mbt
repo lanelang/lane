@@ -52,11 +52,72 @@ test "format comments after explicit item semicolons" {
 }
 
 ///|
+test "format rejects repeated item separators before attaching comments" {
+  let result = format_source(
+    (
+      #|module Test
+      #|fn mark() -> Unit { () }
+      #|fn bad() -> Unit {
+      #|  mark();; // keep
+      #|  ()
+      #|}
+    ),
+  )
+  debug_inspect(
+    result,
+    content=(
+      #|Err(
+      #|  [
+      #|    {
+      #|      source_id: None,
+      #|      message: "unexpected token",
+      #|      span: Some(
+      #|        Local(
+      #|          {
+      #|            start_offset: 65,
+      #|            end_offset: 66,
+      #|            start_line: 4,
+      #|            start_column: 10,
+      #|            end_line: 4,
+      #|            end_column: 11,
+      #|          },
+      #|        ),
+      #|      ),
+      #|      severity: Error,
+      #|      code: Some("E1100"),
+      #|      labels: [
+      #|        {
+      #|          span: Local(
+      #|            {
+      #|              start_offset: 65,
+      #|              end_offset: 66,
+      #|              start_line: 4,
+      #|              start_column: 10,
+      #|              end_line: 4,
+      #|              end_column: 11,
+      #|            },
+      #|          ),
+      #|          message: "the parser did not expect `;`",
+      #|          style: Primary,
+      #|        },
+      #|      ],
+      #|      notes: ["expected one of: integer literal, double literal, string literal, identifier, `false`, `true`, `fn`, `let`, `offer`, `if`, `match`, `handle`, `builtin`, `extern`, `-`, `!`, `(`, `{`, `[`"],
+      #|      helps: ["rewrite this position so it starts with one of: integer literal, double literal, string literal, identifier, `false`, `true`, `fn`, `let`, `offer`, `if`, `match`, `handle`, `builtin`, `extern`, `-`, `!`, `(`, `{`, `[`"],
+      #|      facts: [],
+      #|      suggestions: [],
+      #|    },
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
 test "format trailing comments on newline shorthand struct fields" {
   assert_format(
     (
       #|module Test
-      #|struct Pair { left : Int right : Int }
+      #|struct Pair { left : Int; right : Int }
       #|pub fn make(left : Int, right : Int) -> Pair {
       #|Pair::{
       #|left // keep

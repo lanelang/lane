@@ -32,7 +32,7 @@ fn canonical_syntax(source : String) -> String {
 ///|
 test "format source preserves omitted struct type member kinds" {
   assert_format(
-    "module Test\nstruct Packed { type T value : T }\nstruct Explicit { type T : Type value : T }",
+    "module Test\nstruct Packed { type T; value : T }\nstruct Explicit { type T : Type; value : T }",
     (
       #|module Test
       #|
@@ -1085,7 +1085,7 @@ test "format source preserves list and struct literal comments" {
   assert_format(
     (
       #|module Test
-      #|pub struct Pair { left : Int right : Int }
+      #|pub struct Pair { left : Int; right : Int }
       #|pub let numbers : List[Int] = [
       #|  // first item
       #|  20,
@@ -1190,7 +1190,7 @@ test "format source preserves pattern payload comments" {
   assert_format(
     (
       #|module Test
-      #|pub enum Option { none() some(Int) }
+      #|pub enum Option { none(); some(Int) }
       #|pub fn unwrap(value : Option) -> Int {
       #|  match value {
       #|    none() => 0
@@ -1391,7 +1391,7 @@ test "format source preserves operator field and control flow boundaries" {
   assert_format(
     (
       #|module Test
-      #|struct Pair { left : Int right : Int }
+      #|struct Pair { left : Int; right : Int }
       #|pub fn choose(flag : Bool, pair : Pair) -> Int {
       #|  if flag {
       #|    pair. // field boundary
@@ -1686,7 +1686,7 @@ test "format source nests broken call arguments in match arms" {
   let source =
     #|module Test
     #|import Ops.*
-    #|pub enum Term { var(Int) app(Term, Term) }
+    #|pub enum Term { var(Int); app(Term, Term) }
     #|pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
     #|  match term {
     #|    Term::var(index) => Term::var(index)
@@ -1724,7 +1724,7 @@ test "format source breaks list-like syntax at small width" {
   let source =
     #|module Test
     #|import Lib.{ alpha, beta, gamma, delta }
-    #|pub struct Pair[First, Second] { first : First second : Second }
+    #|pub struct Pair[First, Second] { first : First; second : Second }
     #|pub enum Packed { hide[Hidden](Hidden) }
     #|effect Prompt { choose[Choice](Choice, Choice) -> Choice }
     #|pub fn run(first : Int, second : Int) -> Int ! { Prompt, Log } {

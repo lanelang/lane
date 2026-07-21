@@ -186,6 +186,59 @@ test "parse rejects explicit semicolons outside item bodies" {
 }
 
 ///|
+test "parse rejects repeated item separators" {
+  debug_inspect(
+    parse_errors(
+      (
+        #|fn mark() -> Unit { () }
+        #|fn bad() -> Unit {
+        #|  mark();; // keep
+        #|  ()
+        #|}
+      ),
+    ),
+    content=(
+      #|[
+      #|  {
+      #|    kind: UnexpectedToken(
+      #|      { label: "`;`" },
+      #|      [
+      #|        { label: "integer literal" },
+      #|        { label: "double literal" },
+      #|        { label: "string literal" },
+      #|        { label: "identifier" },
+      #|        { label: "`false`" },
+      #|        { label: "`true`" },
+      #|        { label: "`fn`" },
+      #|        { label: "`let`" },
+      #|        { label: "`offer`" },
+      #|        { label: "`if`" },
+      #|        { label: "`match`" },
+      #|        { label: "`handle`" },
+      #|        { label: "`builtin`" },
+      #|        { label: "`extern`" },
+      #|        { label: "`-`" },
+      #|        { label: "`!`" },
+      #|        { label: "`(`" },
+      #|        { label: "`{`" },
+      #|        { label: "`[`" },
+      #|      ],
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 65,
+      #|      end_offset: 66,
+      #|      start_line: 4,
+      #|      start_column: 10,
+      #|      end_line: 4,
+      #|      end_column: 11,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "parse positional call argument keeps argument source span" {
   let file = expect_parse_ok(
     (
@@ -1408,7 +1461,14 @@ test "parse rejects equals function body syntax" {
 
 ///|
 test "parse accepts empty enum variant payload syntax" {
-  let file = expect_parse_ok("enum Option[A] { none() some(A) }")
+  let file = expect_parse_ok(
+    (
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+    ),
+  )
   inspect(
     @prettyprinter.render(file),
     content=(
@@ -1480,7 +1540,10 @@ test "parse rejects payloadless qualified variant pattern syntax without parenth
 test "parse accepts empty qualified variant argument syntax" {
   let file = expect_parse_ok(
     (
-      #|enum Option[A] { none() some(A) }
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
       #|let value : Option[Int] = Option::none()
     ),
   )

@@ -99,11 +99,6 @@ layout_semicolons -> Unit
   | layout_semicolons LAYOUT_SEMICOLON { () }
   ;
 
-item_semicolons -> Unit
-  : { () }
-  | item_semicolons item_semicolon { () }
-  ;
-
 item_semicolon -> Unit
   : ";" { () }
   | LAYOUT_SEMICOLON { () }
@@ -243,7 +238,13 @@ public_struct_declaration -> StructDeclaration
 
 struct_members -> Array[StructMember]
   : { [] }
-  | struct_members struct_member item_semicolons { comma_push($1, $2) }
+  | non_empty_struct_members { $1 }
+  ;
+
+non_empty_struct_members -> Array[StructMember]
+  : struct_member { [ $1 ] }
+  | non_empty_struct_members item_semicolon struct_member { comma_push($1, $3) }
+  | non_empty_struct_members item_semicolon { $1 }
   ;
 
 struct_member -> StructMember
@@ -300,7 +301,13 @@ public_enum_declaration -> EnumDeclaration
 
 enum_variants -> Array[EnumVariant]
   : { [] }
-  | enum_variants enum_variant item_semicolons { comma_push($1, $2) }
+  | non_empty_enum_variants { $1 }
+  ;
+
+non_empty_enum_variants -> Array[EnumVariant]
+  : enum_variant { [ $1 ] }
+  | non_empty_enum_variants item_semicolon enum_variant { comma_push($1, $3) }
+  | non_empty_enum_variants item_semicolon { $1 }
   ;
 
 enum_variant -> EnumVariant
@@ -326,7 +333,13 @@ public_effect_declaration -> EffectDeclaration
 
 effect_operations -> Array[EffectOperationDeclaration]
   : { [] }
-  | effect_operations effect_operation item_semicolons { comma_push($1, $2) }
+  | non_empty_effect_operations { $1 }
+  ;
+
+non_empty_effect_operations -> Array[EffectOperationDeclaration]
+  : effect_operation { [ $1 ] }
+  | non_empty_effect_operations item_semicolon effect_operation { comma_push($1, $3) }
+  | non_empty_effect_operations item_semicolon { $1 }
   ;
 
 effect_operation -> EffectOperationDeclaration
@@ -753,15 +766,14 @@ block_expression -> Expr
 
 local_items -> Array[LocalItem]
   : { [] }
-  | local_items local_item item_semicolons { comma_push($1, $2) }
+  | local_items local_item item_semicolon { comma_push($1, $2) }
   ;
 
 local_item -> LocalItem
   : local_let_item { $1 }
   | function_declaration { Function($1) }
   | offer_value_declaration { Offer($1) }
-  | expression ";" { Expression(expression=$1, loc=span($sloc)) }
-  | expression LAYOUT_SEMICOLON { Expression(expression=$1, loc=span($sloc)) }
+  | expression { Expression(expression=$1, loc=span($sloc)) }
   ;
 
 if_expression -> Expr
@@ -783,7 +795,13 @@ match_expression -> Expr
 
 match_arms -> Array[MatchArm]
   : { [] }
-  | match_arms match_arm item_semicolons { comma_push($1, $2) }
+  | non_empty_match_arms { $1 }
+  ;
+
+non_empty_match_arms -> Array[MatchArm]
+  : match_arm { [ $1 ] }
+  | non_empty_match_arms item_semicolon match_arm { comma_push($1, $3) }
+  | non_empty_match_arms item_semicolon { $1 }
   ;
 
 match_arm -> MatchArm
@@ -810,8 +828,13 @@ handler_with_block -> HandlerWithBlock
   ;
 
 handler_operation_arms -> Array[HandlerOperationArm]
-  : handler_operation_arm item_semicolons { [ $1 ] }
-  | handler_operation_arms handler_operation_arm item_semicolons { comma_push($1, $2) }
+  : non_empty_handler_operation_arms { $1 }
+  ;
+
+non_empty_handler_operation_arms -> Array[HandlerOperationArm]
+  : handler_operation_arm { [ $1 ] }
+  | non_empty_handler_operation_arms item_semicolon handler_operation_arm { comma_push($1, $3) }
+  | non_empty_handler_operation_arms item_semicolon { $1 }
   ;
 
 handler_operation_arm -> HandlerOperationArm
