@@ -118,11 +118,27 @@ priv struct CommentAnchor {
 }
 
 ///|
+priv struct DelimiterPair {
+  opening_start : Int
+  interior_start : Int
+  interior_end : Int
+  closing_end : Int
+}
+
+///|
+priv struct DelimiterPairIndex {
+  parentheses : Array[DelimiterPair]
+  brackets : Array[DelimiterPair]
+  braces : Array[DelimiterPair]
+}
+
+///|
 priv struct ConcreteLayout {
   comments : Array[AnchoredComment]
   leading_anchors : Array[CommentAnchor]
   trailing_anchors : Array[CommentAnchor]
   tokens : Array[(@lexer.Token, @basic.SourceSpan)]
+  delimiter_pairs : DelimiterPairIndex
   layout_separator_gaps : Array[Bool]
 }
 
@@ -185,8 +201,104 @@ fn ConcreteLayout::make(
     leading_anchors,
     trailing_anchors,
     tokens: source_tokens,
+    delimiter_pairs: DelimiterPairIndex::make(source_tokens),
     layout_separator_gaps,
   }
+}
+
+///|
+fn DelimiterPairIndex::make(
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+) -> DelimiterPairIndex {
+  let parentheses = []
+  let brackets = []
+  let braces = []
+  let parenthesis_stack : Array[Int] = []
+  let bracket_stack : Array[Int] = []
+  let brace_stack : Array[Int] = []
+  for item in tokens {
+    let (token, span) = item
+    match token {
+      LPAREN => open_delimiter_pair(parentheses, parenthesis_stack, span)
+      RPAREN => close_delimiter_pair(parenthesis_stack, parentheses, span)
+      LBRACKET => open_delimiter_pair(brackets, bracket_stack, span)
+      RBRACKET => close_delimiter_pair(bracket_stack, brackets, span)
+      LBRACE | DOTLBRACE => open_delimiter_pair(braces, brace_stack, span)
+      RBRACE => close_delimiter_pair(brace_stack, braces, span)
+      _ => ()
+    }
+  }
+  { parentheses, brackets, braces }
+}
+
+///|
+fn open_delimiter_pair(
+  pairs : Array[DelimiterPair],
+  openings : Array[Int],
+  opening : @basic.SourceSpan,
+) -> Unit {
+  openings.push(pairs.length())
+  pairs.push({
+    opening_start: opening.start_offset,
+    interior_start: opening.end_offset,
+    interior_end: -1,
+    closing_end: -1,
+  })
+}
+
+///|
+fn close_delimiter_pair(
+  openings : Array[Int],
+  pairs : Array[DelimiterPair],
+  closing : @basic.SourceSpan,
+) -> Unit {
+  if openings.pop() is Some(index) {
+    pairs[index] = {
+      ..pairs[index],
+      interior_end: closing.start_offset,
+      closing_end: closing.end_offset,
+    }
+  }
+}
+
+///|
+fn DelimiterPairIndex::interior(
+  self : DelimiterPairIndex,
+  open : Char,
+  start_offset : Int,
+  end_offset : Int,
+) -> (Int, Int)? {
+  let pairs = match open {
+    '(' => self.parentheses
+    '[' => self.brackets
+    '{' => self.braces
+    _ => return None
+  }
+  let index = first_delimiter_pair_at_or_after(pairs, start_offset)
+  guard pairs.get(index) is Some(pair) &&
+    pair.closing_end >= 0 &&
+    pair.closing_end <= end_offset else {
+    return None
+  }
+  Some((pair.interior_start, pair.interior_end))
+}
+
+///|
+fn first_delimiter_pair_at_or_after(
+  pairs : Array[DelimiterPair],
+  offset : Int,
+) -> Int {
+  let mut low = 0
+  let mut high = pairs.length()
+  while low < high {
+    let middle = low + (high - low) / 2
+    if pairs[middle].opening_start < offset {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  low
 }
 
 ///|
@@ -229,6 +341,7 @@ fn ConcreteLayoutSession::source_format_trivia(
   let leading_anchors = self.layout.leading_anchors
   let trailing_anchors = self.layout.trailing_anchors
   let tokens = self.layout.tokens
+  let delimiter_pairs = self.layout.delimiter_pairs
   let claimed = self.claimed
   if comments.is_empty() {
     return @syntax.SourceFormatTrivia::empty()
@@ -248,7 +361,7 @@ fn ConcreteLayoutSession::source_format_trivia(
     },
     delimited: fn(open, start, end, children) {
       delimited_comment_doc(
-        comments, claimed, tokens, open, start, end, children,
+        comments, claimed, delimiter_pairs, open, start, end, children,
       )
     },
     comma_separator: fn(left, right) {
@@ -271,13 +384,13 @@ fn ConcreteLayoutSession::source_format_trivia(
 fn delimited_comment_doc(
   comments : Array[AnchoredComment],
   claimed : Array[Bool],
-  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  delimiter_pairs : DelimiterPairIndex,
   open : Char,
   start_offset : Int,
   end_offset : Int,
   child_spans : Array[@basic.SourceSpan],
 ) -> (Document, Bool) {
-  match delimiter_interior(tokens, open, start_offset, end_offset) {
+  match delimiter_pairs.interior(open, start_offset, end_offset) {
     Some((start, end)) =>
       dangling_comment_doc(
         comments,
@@ -288,57 +401,6 @@ fn delimited_comment_doc(
         include_boundaries=true,
       )
     None => (empty, false)
-  }
-}
-
-///|
-fn delimiter_interior(
-  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
-  open : Char,
-  start_offset : Int,
-  end_offset : Int,
-) -> (Int, Int)? {
-  let mut depth = 0
-  let mut interior_start = -1
-  let mut index = first_token_at_or_after(tokens, start_offset)
-  while index < tokens.length() {
-    let (token, span) = tokens[index]
-    if span.end_offset > end_offset {
-      break
-    }
-    if is_open_delimiter(token, open) {
-      if depth == 0 {
-        interior_start = span.end_offset
-      }
-      depth += 1
-    } else if depth > 0 && is_close_delimiter(token, open) {
-      depth -= 1
-      if depth == 0 {
-        return Some((interior_start, span.start_offset))
-      }
-    }
-    index += 1
-  }
-  None
-}
-
-///|
-fn is_open_delimiter(token : @lexer.Token, open : Char) -> Bool {
-  match open {
-    '[' => token is LBRACKET
-    '(' => token is LPAREN
-    '{' => token is LBRACE || token is DOTLBRACE
-    _ => false
-  }
-}
-
-///|
-fn is_close_delimiter(token : @lexer.Token, open : Char) -> Bool {
-  match open {
-    '[' => token is RBRACKET
-    '(' => token is RPAREN
-    '{' => token is RBRACE
-    _ => false
   }
 }
 

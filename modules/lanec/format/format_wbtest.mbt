@@ -140,6 +140,28 @@ fn line_comments(source : String) -> Array[String] {
 }
 
 ///|
+test "concrete layout indexes nested delimiter pairs" {
+  let concrete = @lexer.tokens_from_string("(([.{ }]))").concrete
+  let layout = ConcreteLayout::make(
+    concrete,
+    Array::make(non_eof_tokens(concrete.tokens).length() + 1, false),
+  )
+  debug_inspect(
+    [
+      layout.delimiter_pairs.interior('(', 0, 10),
+      layout.delimiter_pairs.interior('(', 1, 9),
+      layout.delimiter_pairs.interior('[', 0, 10),
+      layout.delimiter_pairs.interior('{', 0, 10),
+      layout.delimiter_pairs.interior('[', 3, 10),
+      layout.delimiter_pairs.interior('(', 0, 9),
+    ],
+    content=(
+      #|[Some((1, 9)), Some((2, 8)), Some((3, 7)), Some((5, 6)), None, None]
+    ),
+  )
+}
+
+///|
 test "formatter reports unconsumed concrete comments" {
   let source =
     #|module Test
