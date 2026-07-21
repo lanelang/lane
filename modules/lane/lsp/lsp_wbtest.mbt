@@ -1322,7 +1322,7 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
 }
 
 ///|
-async test "workspace diagnostics are independent of triggering document" {
+async test "workspace edits publish diagnostics only for affected sources" {
   let workspace = ".tmp-lsp-stable-workspace"
   let main_path = "\{workspace}/Main.lane"
   let lib_path = "\{workspace}/Lib.lane"
@@ -1378,24 +1378,27 @@ async test "workspace diagnostics are independent of triggering document" {
     request(
       4,
       "textDocument/didChange",
-      change_params("file://\{main_path}", @fs.read_file(main_path).text()),
+      change_params(
+        "file://\{main_path}",
+        @fs.read_file(main_path).text() + "\n",
+      ),
     ),
   )
   let lib_result = state.handle_message(
     request(
       5,
       "textDocument/didChange",
-      change_params("file://\{lib_path}", @fs.read_file(lib_path).text()),
+      change_params("file://\{lib_path}", @fs.read_file(lib_path).text() + "\n"),
     ),
   )
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   inspect(
     diagnostic_publication_uris(main_result),
-    content="file://.tmp-lsp-stable-workspace/Main.lane,file://.tmp-lsp-stable-workspace/Lib.lane",
+    content="file://.tmp-lsp-stable-workspace/Main.lane",
   )
   inspect(
     diagnostic_publication_uris(lib_result),
-    content="file://.tmp-lsp-stable-workspace/Lib.lane,file://.tmp-lsp-stable-workspace/Main.lane",
+    content="file://.tmp-lsp-stable-workspace/Lib.lane",
   )
 }
 

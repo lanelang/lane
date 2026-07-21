@@ -66,7 +66,8 @@ priv enum CompletionContext {
 ///|
 priv struct CompletionIndex {
   display : @typecheck.TypeDisplayContext
-  modules : Array[CachedSemanticModule]
+  graph : CachedModuleGraph?
+  modules : SnapshotTree[CachedSemanticSlot]
 }
 
 ///|
@@ -119,12 +120,14 @@ fn CompletionIndex::module_for_source(
   self : CompletionIndex,
   source_id : String,
 ) -> CachedSemanticModule? {
-  for module_ in self.modules {
-    if module_.input.source_id == source_id {
-      return Some(module_)
-    }
+  guard self.graph is Some(graph) else { return None }
+  guard graph.module_slot_for_source(source_id) is Some(slot) else {
+    return None
   }
-  None
+  match self.modules.get(slot) {
+    Some(Available(module_)) => Some(module_)
+    _ => None
+  }
 }
 
 ///|
@@ -402,8 +405,9 @@ fn CompletionIndex::add_import_entries(
   prefix : String,
   replace : @basic.SourceSpan,
 ) -> Unit {
-  for candidate in self.modules {
-    if candidate.input.source_id != module_.input.source_id {
+  self.modules.each(fn(slot) {
+    if slot is Available(candidate) &&
+      candidate.input.source_id != module_.input.source_id {
       add_completion_entry(
         entries,
         source_id,
@@ -415,7 +419,7 @@ fn CompletionIndex::add_import_entries(
         "10",
       )
     }
-  }
+  })
 }
 
 ///|

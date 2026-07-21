@@ -35,10 +35,40 @@ fn LspWorkspaceAnalysis::update_document(
   workspace : @analysis.SemanticWorkspace,
   document : DocumentSnapshot,
 ) -> Array[DiagnosticPublication] {
-  ignore(
-    workspace.upsert_source({ source_id: document.uri, text: document.text }),
-  )
-  self.workspace_diagnostics(workspace, document.uri)
+  let previous_revision = workspace.revision()
+  guard workspace.upsert_source({ source_id: document.uri, text: document.text })
+    is Some(snapshot) else {
+    return []
+  }
+  if workspace.revision() == previous_revision {
+    return []
+  }
+  self.incremental_workspace_diagnostics(snapshot, document.uri)
+}
+
+///|
+fn LspWorkspaceAnalysis::incremental_workspace_diagnostics(
+  _self : LspWorkspaceAnalysis,
+  snapshot : @analysis.SemanticSnapshot,
+  fallback_uri : String,
+) -> Array[DiagnosticPublication] {
+  let inputs = []
+  let diagnostics = []
+  for entry in snapshot.diagnostic_delta() {
+    let (source, source_diagnostics) = entry
+    inputs.push(source)
+    diagnostics.append(source_diagnostics)
+  }
+  inputs.sort_by(fn(left, right) {
+    if left.source_id == fallback_uri {
+      -1
+    } else if right.source_id == fallback_uri {
+      1
+    } else {
+      String::compare(left.source_id, right.source_id)
+    }
+  })
+  diagnostic_publications(inputs, diagnostics, fallback_uri~)
 }
 
 ///|

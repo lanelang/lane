@@ -1,9 +1,10 @@
 ///|
 priv struct CachedModuleGraph {
-  root_module_path_text : String
-  input_headers : Array[CachedModuleGraphInputHeader]
-  unavailable_module_path_texts : Array[String]
   ordered_module_source_ids : Array[String]
+  ordered_module_paths : Array[String]
+  module_slots_by_source : Map[String, Int]
+  module_slots_by_path : Map[String, Int]
+  reverse_dependencies : Map[String, Array[String]]
   diagnostics : Array[CompilerDiagnostic]
 }
 
@@ -23,89 +24,78 @@ priv struct CachedModuleGraphImportHeader {
 
 ///|
 fn CachedModuleGraph::from_graph(
-  inputs : @module_frontend.ModuleInputSet,
-  unavailable_module_path_texts : Array[String],
   result : @module_frontend.TolerantModuleGraphResult,
 ) -> CachedModuleGraph {
+  let ordered_module_source_ids = result.graph.modules.map(fn(module_) {
+    module_.source_id
+  })
+  let ordered_module_paths = result.graph.modules.map(fn(module_) {
+    module_.header.module_path_text
+  })
+  let module_slots_by_source : Map[String, Int] = Map([])
+  let module_slots_by_path : Map[String, Int] = Map([])
+  let reverse_dependencies : Map[String, Array[String]] = Map([])
+  for index, module_ in result.graph.modules {
+    let module_path = module_.header.module_path_text
+    module_slots_by_source[module_.source_id] = index
+    module_slots_by_path[module_path] = index
+    reverse_dependencies[module_path] = []
+  }
+  for module_ in result.graph.modules {
+    let module_path = module_.header.module_path_text
+    for import_ in module_.header.imports {
+      if reverse_dependencies.get(import_.module_path_text) is Some(dependents) {
+        dependents.push(module_path)
+      }
+    }
+  }
   {
-    root_module_path_text: inputs.root_module_path_text,
-    input_headers: module_graph_input_headers(inputs.modules),
-    unavailable_module_path_texts: unavailable_module_path_texts.copy(),
-    ordered_module_source_ids: result.graph.modules.map(fn(module_) {
-      module_.source_id
-    }),
+    ordered_module_source_ids,
+    ordered_module_paths,
+    module_slots_by_source,
+    module_slots_by_path,
+    reverse_dependencies,
     diagnostics: result.diagnostics.copy(),
   }
 }
 
 ///|
-fn CachedModuleGraph::rehydrate(
+fn CachedModuleGraph::module_slot_for_source(
   self : CachedModuleGraph,
-  inputs : @module_frontend.ModuleInputSet,
-  unavailable_module_path_texts : Array[String],
-) -> @module_frontend.TolerantModuleGraphResult? {
-  if self.root_module_path_text != inputs.root_module_path_text ||
-    self.input_headers != module_graph_input_headers(inputs.modules) ||
-    self.unavailable_module_path_texts != unavailable_module_path_texts {
-    return None
-  }
-  let modules_by_source : Map[String, @module_frontend.ParsedModuleInput] = Map([],
-  )
-  for module_ in inputs.modules {
-    modules_by_source[module_.source_id] = module_
-  }
-  let modules = []
-  for source_id in self.ordered_module_source_ids {
-    guard modules_by_source.get(source_id) is Some(module_) else { return None }
-    modules.push(module_)
-  }
-  Some({
-    graph: {
-      root_module_path_text: inputs.root_module_path_text,
-      modules,
-      reachable_module_path_texts: inputs.modules.map(fn(module_) {
-        module_.header.module_path_text
-      }),
-    },
-    diagnostics: self.diagnostics.copy(),
-  })
+  source_id : String,
+) -> Int? {
+  self.module_slots_by_source.get(source_id)
 }
 
 ///|
-fn module_graph_input_headers(
-  modules : Array[@module_frontend.ParsedModuleInput],
-) -> Array[CachedModuleGraphInputHeader] {
-  modules.map(fn(module_) {
-    {
-      source_id: module_.source_id,
-      module_path_text: module_.header.module_path_text,
-      module_span: module_.header.module_span,
-      imports: module_.header.imports.map(fn(import_) {
-        {
-          module_path_text: import_.module_path_text,
-          import_span: import_.import_span,
-        }
-      }),
-    }
-  })
+fn CachedModuleGraph::module_slot_for_path(
+  self : CachedModuleGraph,
+  module_path : String,
+) -> Int? {
+  self.module_slots_by_path.get(module_path)
 }
 
 ///|
-fn SemanticWorkspace::module_graph_for_inputs(
-  self : SemanticWorkspace,
-  inputs : @module_frontend.ModuleInputSet,
-  unavailable_module_path_texts : Array[String],
-) -> @module_frontend.TolerantModuleGraphResult {
-  if self.graph_cache is Some(cache) &&
-    cache.rehydrate(inputs, unavailable_module_path_texts) is Some(result) {
-    return result
+fn CachedModuleGraph::dependents(
+  self : CachedModuleGraph,
+  module_path : String,
+) -> Array[String] {
+  self.reverse_dependencies.get(module_path).unwrap_or([])
+}
+
+///|
+fn cached_module_graph_input_header(
+  module_ : @module_frontend.ParsedModuleInput,
+) -> CachedModuleGraphInputHeader {
+  {
+    source_id: module_.source_id,
+    module_path_text: module_.header.module_path_text,
+    module_span: module_.header.module_span,
+    imports: module_.header.imports.map(fn(import_) {
+      {
+        module_path_text: import_.module_path_text,
+        import_span: import_.import_span,
+      }
+    }),
   }
-  let result = @module_frontend.build_tolerant_module_graph(
-    inputs,
-    unavailable_module_path_texts~,
-  )
-  self.graph_cache = Some(
-    CachedModuleGraph::from_graph(inputs, unavailable_module_path_texts, result),
-  )
-  result
 }

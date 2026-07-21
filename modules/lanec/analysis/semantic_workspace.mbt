@@ -5,7 +5,14 @@ priv struct CachedSemanticModule {
   imported : @module_interface.ImportedEnvironment
   index : SemanticIndex
   diagnostics : Array[CompilerDiagnostic]
+  semantic_tokens : Array[SemanticTokenEntry]
   last_successful_interface : @module_interface.ModuleInterface?
+}
+
+///|
+priv enum CachedSemanticSlot {
+  Missing
+  Available(CachedSemanticModule)
 }
 
 ///|
@@ -17,20 +24,44 @@ priv struct CachedParsedSource {
 }
 
 ///|
+priv struct SourceLayout {
+  source_ids : Array[String]
+  slots : Map[String, Int]
+}
+
+///|
+fn SourceLayout::from_ids(source_ids : Array[String]) -> SourceLayout {
+  let slots : Map[String, Int] = Map([])
+  for index, source_id in source_ids {
+    slots[source_id] = index
+  }
+  { source_ids, slots }
+}
+
+///|
 pub struct SemanticSnapshot {
   priv revision : Int
+  priv source_layout : SourceLayout
+  priv parsed_sources : SnapshotTree[CachedParsedSource]
+  priv graph : CachedModuleGraph?
+  priv modules : SnapshotTree[CachedSemanticSlot]
   priv completion : CompletionIndex
-  priv result : AnalysisResult
+  priv changed_source_ids : Array[String]
 }
 
 ///|
 pub struct SemanticWorkspace {
   priv mut revision : Int
-  priv mut sources : Array[@module_frontend.SourceInput]
+  priv mut sources : Map[String, @module_frontend.SourceInput]
+  priv mut source_layout : SourceLayout
+  priv dirty_sources : Array[String]
+  priv dirty_source_set : Map[String, Bool]
   priv mut current : SemanticSnapshot?
   priv registry : @symbol.SymbolRegistry
-  priv mut parse_cache : Map[String, CachedParsedSource]
+  priv parse_cache : Map[String, CachedParsedSource]
   priv mut module_cache : Map[String, CachedSemanticModule]
+  priv mut parsed_sources : SnapshotTree[CachedParsedSource]
+  priv mut modules : SnapshotTree[CachedSemanticSlot]
   priv mut graph_cache : CachedModuleGraph?
 }
 
@@ -38,11 +69,16 @@ pub struct SemanticWorkspace {
 pub fn SemanticWorkspace::new() -> SemanticWorkspace {
   {
     revision: 0,
-    sources: [],
+    sources: Map([]),
+    source_layout: SourceLayout::from_ids([]),
+    dirty_sources: [],
+    dirty_source_set: Map([]),
     current: None,
     registry: SymbolRegistry(),
     parse_cache: Map([]),
     module_cache: Map([]),
+    parsed_sources: Empty,
+    modules: Empty,
     graph_cache: None,
   }
 }
@@ -52,16 +88,37 @@ pub fn SemanticWorkspace::replace_sources(
   self : SemanticWorkspace,
   sources : Array[@module_frontend.SourceInput],
 ) -> SemanticSnapshot? {
-  let sources = sources.copy()
-  sources.sort_by(fn(left, right) {
-    String::compare(left.source_id, right.source_id)
-  })
-  if sources == self.sources {
+  let next_sources : Map[String, @module_frontend.SourceInput] = Map([])
+  let next_source_ids = []
+  for source in sources {
+    if !next_sources.contains(source.source_id) {
+      next_source_ids.push(source.source_id)
+    }
+    next_sources[source.source_id] = source
+  }
+  next_source_ids.sort_by(String::compare)
+  let source_set_changed = next_source_ids != self.source_layout.source_ids
+  for source_id, source in self.sources {
+    match next_sources.get(source_id) {
+      Some(next) if next == source => ()
+      _ => self.enqueue_dirty_source(source_id)
+    }
+  }
+  for source_id, source in next_sources {
+    match self.sources.get(source_id) {
+      Some(previous) if previous == source => ()
+      _ => self.enqueue_dirty_source(source_id)
+    }
+  }
+  if self.dirty_sources.is_empty() {
     return self.current
   }
-  self.sources = sources
+  self.sources = next_sources
+  if source_set_changed {
+    self.source_layout = SourceLayout::from_ids(next_source_ids)
+  }
   self.revision += 1
-  self.current = self.build_snapshot(sources, self.revision)
+  self.current = self.refresh_snapshot(source_set_changed)
   self.current
 }
 
@@ -77,22 +134,22 @@ pub fn SemanticWorkspace::upsert_source(
   self : SemanticWorkspace,
   source : @module_frontend.SourceInput,
 ) -> SemanticSnapshot? {
-  let sources = self.sources.copy()
-  let mut replaced = false
-  for index, existing in sources {
-    if existing.source_id == source.source_id {
-      if existing.text == source.text {
-        return self.current
-      }
-      sources[index] = source
-      replaced = true
-      break
-    }
+  match self.sources.get(source.source_id) {
+    Some(previous) if previous == source => return self.current
+    _ => ()
   }
-  if !replaced {
-    sources.push(source)
+  let source_set_changed = !self.sources.contains(source.source_id)
+  self.sources[source.source_id] = source
+  if source_set_changed {
+    let source_ids = self.source_layout.source_ids.copy()
+    source_ids.push(source.source_id)
+    source_ids.sort_by(String::compare)
+    self.source_layout = SourceLayout::from_ids(source_ids)
   }
-  self.replace_sources(sources)
+  self.enqueue_dirty_source(source.source_id)
+  self.revision += 1
+  self.current = self.refresh_snapshot(source_set_changed)
+  self.current
 }
 
 ///|
@@ -100,16 +157,28 @@ pub fn SemanticWorkspace::remove_source(
   self : SemanticWorkspace,
   source_id : String,
 ) -> SemanticSnapshot? {
-  self.replace_sources(
-    self.sources.filter(fn(source) { source.source_id != source_id }),
+  guard self.sources.contains(source_id) else { return self.current }
+  self.sources.remove(source_id)
+  self.source_layout = SourceLayout::from_ids(
+    self.source_layout.source_ids.filter(fn(id) { id != source_id }),
   )
+  self.enqueue_dirty_source(source_id)
+  self.revision += 1
+  self.current = self.refresh_snapshot(true)
+  self.current
 }
 
 ///|
 pub fn SemanticWorkspace::sources(
   self : SemanticWorkspace,
 ) -> Array[@module_frontend.SourceInput] {
-  self.sources.copy()
+  let result = []
+  for source_id in self.source_layout.source_ids {
+    if self.sources.get(source_id) is Some(source) {
+      result.push(source)
+    }
+  }
+  result
 }
 
 ///|
@@ -120,67 +189,108 @@ pub fn SemanticWorkspace::revision(self : SemanticWorkspace) -> Int {
 ///|
 pub fn SemanticWorkspace::clear(self : SemanticWorkspace) -> Unit {
   self.revision += 1
-  self.sources = []
+  self.sources.clear()
+  self.source_layout = SourceLayout::from_ids([])
+  self.dirty_sources.clear()
+  self.dirty_source_set.clear()
   self.current = None
   self.parse_cache.clear()
   self.module_cache.clear()
+  self.parsed_sources = Empty
+  self.modules = Empty
   self.graph_cache = None
 }
 
 ///|
-fn SemanticWorkspace::build_snapshot(
+fn SemanticWorkspace::enqueue_dirty_source(
   self : SemanticWorkspace,
-  sources : Array[@module_frontend.SourceInput],
-  revision : Int,
+  source_id : String,
+) -> Unit {
+  if !self.dirty_source_set.contains(source_id) {
+    self.dirty_source_set[source_id] = true
+    self.dirty_sources.push(source_id)
+  }
+}
+
+///|
+fn SemanticWorkspace::refresh_snapshot(
+  self : SemanticWorkspace,
+  source_set_changed : Bool,
 ) -> SemanticSnapshot? {
-  if sources.is_empty() {
+  if self.sources.is_empty() {
     self.parse_cache.clear()
     self.module_cache.clear()
+    self.parsed_sources = Empty
+    self.modules = Empty
     self.graph_cache = None
+    self.dirty_sources.clear()
+    self.dirty_source_set.clear()
     return None
   }
-  let modules = []
-  let known_module_paths = []
-  let diagnostics = []
-  let next_parse_cache : Map[String, CachedParsedSource] = Map([])
-  for source in sources {
-    let cached = match self.parse_cache.get(source.source_id) {
-      Some(cached) if cached.source == source => cached
-      _ => parse_cached_source(source)
+  let changed_source_ids = self.dirty_sources.copy()
+  self.dirty_sources.clear()
+  self.dirty_source_set.clear()
+  let dirty_module_paths = []
+  let mut topology_changed = source_set_changed
+  for source_id in changed_source_ids {
+    let previous = self.parse_cache.get(source_id)
+    let next = match self.sources.get(source_id) {
+      Some(source) => Some(parse_cached_source(source))
+      None => None
     }
-    diagnostics.append(cached.diagnostics)
-    if cached.module_path_text is Some(module_path) {
-      known_module_paths.push(module_path)
+    if !same_parsed_topology(previous, next) {
+      topology_changed = true
     }
-    if cached.module_ is Some(module_) {
-      modules.push(module_)
+    if previous is Some(cached) && cached.module_path_text is Some(module_path) {
+      push_unique(dirty_module_paths, module_path)
     }
-    next_parse_cache[source.source_id] = cached
+    match next {
+      Some(cached) => {
+        if cached.module_path_text is Some(module_path) {
+          push_unique(dirty_module_paths, module_path)
+        }
+        self.parse_cache[source_id] = cached
+      }
+      None => self.parse_cache.remove(source_id)
+    }
   }
-  self.parse_cache = next_parse_cache
-  guard modules.get(0) is Some(root_module) else {
-    self.graph_cache = None
-    return Some(self.snapshot_from_diagnostics(revision, diagnostics))
+  self.update_parsed_source_tree(changed_source_ids, source_set_changed)
+  let changed_semantic_sources = if topology_changed {
+    self.rebuild_topology()
+  } else {
+    self.rebuild_dirty_modules(dirty_module_paths)
   }
-  let inputs : @module_frontend.ModuleInputSet = {
-    root_module_path_text: root_module.header.module_path_text,
-    modules,
+  for source_id in changed_semantic_sources {
+    push_unique(changed_source_ids, source_id)
   }
-  let parsed_module_paths = modules.map(fn(module_) {
-    module_.header.module_path_text
-  })
-  let unavailable_module_paths = known_module_paths.filter(fn(module_path) {
-    !parsed_module_paths.contains(module_path)
-  })
-  let tolerant = self.module_graph_for_inputs(inputs, unavailable_module_paths)
-  Some(
-    self.build_graph_snapshot(
-      tolerant.graph,
-      revision,
-      unavailable_module_paths,
-      initial_diagnostics=diagnostics + tolerant.diagnostics,
-    ),
-  )
+  Some(self.snapshot_from_current_state(changed_source_ids))
+}
+
+///|
+fn SemanticWorkspace::update_parsed_source_tree(
+  self : SemanticWorkspace,
+  changed_source_ids : Array[String],
+  source_set_changed : Bool,
+) -> Unit {
+  if source_set_changed ||
+    self.parsed_sources.length() != self.source_layout.source_ids.length() {
+    let parsed = []
+    for source_id in self.source_layout.source_ids {
+      if self.parse_cache.get(source_id) is Some(cached) {
+        parsed.push(cached)
+      }
+    }
+    self.parsed_sources = SnapshotTree::from_array(parsed)
+    return
+  }
+  let mut tree = self.parsed_sources
+  for source_id in changed_source_ids {
+    if self.source_layout.slots.get(source_id) is Some(slot) &&
+      self.parse_cache.get(source_id) is Some(cached) {
+      tree = tree.set(slot, cached)
+    }
+  }
+  self.parsed_sources = tree
 }
 
 ///|
@@ -201,148 +311,129 @@ fn parse_cached_source(
 }
 
 ///|
-fn SemanticWorkspace::snapshot_from_diagnostics(
-  self : SemanticWorkspace,
-  revision : Int,
-  diagnostics : Array[CompilerDiagnostic],
-) -> SemanticSnapshot {
-  {
-    revision,
-    completion: {
-      display: @typecheck.TypeDisplayContext::from_registry(self.registry),
-      modules: [],
-    },
-    result: AnalysisResult::from_diagnostics(diagnostics),
+fn same_parsed_topology(
+  previous : CachedParsedSource?,
+  next : CachedParsedSource?,
+) -> Bool {
+  match (previous, next) {
+    (None, None) => true
+    (Some(previous), Some(next)) =>
+      previous.module_path_text == next.module_path_text &&
+      parsed_module_header(previous) == parsed_module_header(next)
+    _ => false
   }
 }
 
 ///|
-fn SemanticWorkspace::build_graph_snapshot(
+fn parsed_module_header(
+  source : CachedParsedSource,
+) -> CachedModuleGraphInputHeader? {
+  source.module_.map(cached_module_graph_input_header)
+}
+
+///|
+fn SemanticWorkspace::rebuild_topology(
   self : SemanticWorkspace,
-  graph : @module_frontend.ModuleGraph,
-  revision : Int,
-  unavailable_module_paths : Array[String],
-  initial_diagnostics? : Array[CompilerDiagnostic] = [],
-) -> SemanticSnapshot {
-  let registry = self.registry
-  let display = @typecheck.TypeDisplayContext::from_registry(registry)
-  let compiled : Array[AnalysisModuleSummary] = []
-  let modules : Array[CachedSemanticModule] = []
-  let next_cache : Map[String, CachedSemanticModule] = Map([])
-  let dirty_modules = self.dirty_modules(graph)
-  let changed_interfaces = self.removed_module_paths(
-    graph, unavailable_module_paths,
-  )
-  let diagnostics = initial_diagnostics.copy()
-  let definitions = []
-  let references = []
-  let hovers = []
-  let inlay_hints = []
-  for module_path in unavailable_module_paths {
-    if self.module_cache.get(module_path) is Some(cached) {
-      next_cache[module_path] = cached
-      if cached.last_successful_interface is Some(module_interface) {
-        compiled.push({
-          module_path_text: module_path,
-          interface: module_interface,
-        })
+) -> Array[String] {
+  let parsed_modules = []
+  let known_module_paths = []
+  for source_id in self.source_layout.source_ids {
+    if self.parse_cache.get(source_id) is Some(cached) {
+      if cached.module_path_text is Some(module_path) {
+        known_module_paths.push(module_path)
+      }
+      if cached.module_ is Some(module_) {
+        parsed_modules.push(module_)
       }
     }
   }
-  for input in graph.modules {
+  guard parsed_modules.get(0) is Some(root_module) else {
+    self.graph_cache = None
+    self.modules = Empty
+    return self.source_layout.source_ids.copy()
+  }
+  let inputs : @module_frontend.ModuleInputSet = {
+    root_module_path_text: root_module.header.module_path_text,
+    modules: parsed_modules,
+  }
+  let parsed_module_paths = parsed_modules.map(fn(module_) {
+    module_.header.module_path_text
+  })
+  let unavailable_module_paths = known_module_paths.filter(fn(module_path) {
+    !parsed_module_paths.contains(module_path)
+  })
+  let result = @module_frontend.build_tolerant_module_graph(
+    inputs,
+    unavailable_module_path_texts=unavailable_module_paths,
+  )
+  let graph = CachedModuleGraph::from_graph(result)
+  self.graph_cache = Some(graph)
+  self.rebuild_all_modules(result.graph.modules, unavailable_module_paths)
+  self.source_layout.source_ids.copy()
+}
+
+///|
+fn SemanticWorkspace::rebuild_all_modules(
+  self : SemanticWorkspace,
+  graph_modules : Array[@module_frontend.ParsedModuleInput],
+  unavailable_module_paths : Array[String],
+) -> Unit {
+  let next_cache : Map[String, CachedSemanticModule] = Map([])
+  let current_module_paths = graph_modules.map(fn(module_) {
+    module_.header.module_path_text
+  })
+  current_module_paths.append(unavailable_module_paths)
+  let changed_interfaces = []
+  for module_path, _ in self.module_cache {
+    if !current_module_paths.contains(module_path) {
+      changed_interfaces.push(module_path)
+    }
+  }
+  for module_path in unavailable_module_paths {
+    if self.module_cache.get(module_path) is Some(cached) {
+      next_cache[module_path] = cached
+    }
+  }
+  let slots = Array::make(graph_modules.length(), Missing)
+  let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
+  for index, input in graph_modules {
     let module_path = input.header.module_path_text
-    let imported = analysis_imported_interfaces(input.header, compiled)
+    let imported = imported_environment(input.header, next_cache)
     if imported.modules.length() != input.header.imports.length() {
       continue
+    }
+    let previous = self.module_cache.get(module_path)
+    let input_changed = match previous {
+      Some(cached) => !same_module_input(cached.input, input)
+      None => true
     }
     let imports_changed = input.header.imports.any(fn(import_) {
       changed_interfaces.contains(import_.module_path_text)
     })
-    let previous = self.module_cache.get(module_path)
-    let module_ = if !dirty_modules.contains(module_path) &&
-      !imports_changed &&
-      previous is Some(cached) {
-      cached
-    } else {
-      let rebuilt = build_cached_semantic_module(
-        input, imported, registry, display,
-      )
-      match (rebuilt.last_successful_interface, previous) {
-        (None, Some(previous)) =>
-          {
-            ..rebuilt,
-            last_successful_interface: previous.last_successful_interface,
-          }
-        _ => rebuilt
+    let module_ = match previous {
+      Some(cached) if !input_changed && !imports_changed => cached
+      _ => {
+        let rebuilt = build_cached_semantic_module(
+          input,
+          imported,
+          self.registry,
+          display,
+        )
+        preserve_last_successful_interface(rebuilt, previous)
       }
     }
     let previous_interface = match previous {
-      Some(previous) => previous.last_successful_interface
+      Some(cached) => cached.last_successful_interface
       None => None
     }
     if module_.last_successful_interface != previous_interface {
       changed_interfaces.push(module_path)
     }
-    diagnostics.append(module_.diagnostics)
-    if module_.last_successful_interface is Some(module_interface) {
-      compiled.push({
-        module_path_text: module_path,
-        interface: { ..module_interface, source_id: Some(input.source_id) },
-      })
-    }
-    module_.index.append_analysis(definitions, references, hovers, inlay_hints)
-    modules.push(module_)
     next_cache[module_path] = module_
+    slots[index] = Available(module_)
   }
   self.module_cache = next_cache
-  let semantic_tokens = build_semantic_tokens(definitions, references, registry)
-  {
-    revision,
-    completion: { display, modules },
-    result: {
-      diagnostics,
-      definitions,
-      references,
-      hovers,
-      semantic_tokens,
-      inlay_hints,
-    },
-  }
-}
-
-///|
-fn SemanticWorkspace::dirty_modules(
-  self : SemanticWorkspace,
-  graph : @module_frontend.ModuleGraph,
-) -> Array[String] {
-  let dirty = []
-  for input in graph.modules {
-    let module_path = input.header.module_path_text
-    match self.module_cache.get(module_path) {
-      Some(cached) if same_module_input(cached.input, input) => ()
-      _ => dirty.push(module_path)
-    }
-  }
-  dirty
-}
-
-///|
-fn SemanticWorkspace::removed_module_paths(
-  self : SemanticWorkspace,
-  graph : @module_frontend.ModuleGraph,
-  unavailable_module_paths : Array[String],
-) -> Array[String] {
-  let current_paths = graph.modules.map(fn(module_) {
-    module_.header.module_path_text
-  })
-  current_paths.append(unavailable_module_paths)
-  let removed = []
-  for module_path, _ in self.module_cache {
-    if !current_paths.contains(module_path) {
-      removed.push(module_path)
-    }
-  }
-  removed
+  self.modules = SnapshotTree::from_array(slots)
 }
 
 ///|
@@ -351,6 +442,139 @@ fn same_module_input(
   right : @module_frontend.ParsedModuleInput,
 ) -> Bool {
   left.source_id == right.source_id && left.text == right.text
+}
+
+///|
+fn SemanticWorkspace::rebuild_dirty_modules(
+  self : SemanticWorkspace,
+  dirty_module_paths : Array[String],
+) -> Array[String] {
+  guard self.graph_cache is Some(graph) else { return [] }
+  let pending = []
+  let queued : Map[String, Bool] = Map([])
+  for module_path in dirty_module_paths {
+    enqueue_dirty_module(graph, pending, queued, module_path)
+  }
+  let changed_source_ids = []
+  let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
+  let mut modules = self.modules
+  while !pending.is_empty() {
+    let index = pop_minimum_slot(pending)
+    let module_path = graph.ordered_module_paths[index]
+    let source_id = graph.ordered_module_source_ids[index]
+    changed_source_ids.push(source_id)
+    guard self.parse_cache.get(source_id) is Some(parsed) &&
+      parsed.module_ is Some(input) else {
+      continue
+    }
+    let imported = imported_environment(input.header, self.module_cache)
+    if imported.modules.length() != input.header.imports.length() {
+      self.module_cache.remove(module_path)
+      modules = modules.set(index, Missing)
+      continue
+    }
+    let previous = self.module_cache.get(module_path)
+    let rebuilt = build_cached_semantic_module(
+      input,
+      imported,
+      self.registry,
+      display,
+    )
+    let module_ = preserve_last_successful_interface(rebuilt, previous)
+    self.module_cache[module_path] = module_
+    modules = modules.set(index, Available(module_))
+    let previous_interface = match previous {
+      Some(cached) => cached.last_successful_interface
+      None => None
+    }
+    if module_.last_successful_interface != previous_interface {
+      for dependent in graph.dependents(module_path) {
+        enqueue_dirty_module(graph, pending, queued, dependent)
+      }
+    }
+  }
+  self.modules = modules
+  changed_source_ids
+}
+
+///|
+fn enqueue_dirty_module(
+  graph : CachedModuleGraph,
+  pending : Array[Int],
+  queued : Map[String, Bool],
+  module_path : String,
+) -> Unit {
+  if !queued.contains(module_path) &&
+    graph.module_slot_for_path(module_path) is Some(slot) {
+    queued[module_path] = true
+    pending.push(slot)
+  }
+}
+
+///|
+fn pop_minimum_slot(pending : Array[Int]) -> Int {
+  guard pending.get(0) is Some(first) else {
+    abort("dirty module queue is empty")
+  }
+  let mut minimum_index = 0
+  let mut minimum = first
+  for index = 1; index < pending.length(); index = index + 1 {
+    if pending[index] < minimum {
+      minimum_index = index
+      minimum = pending[index]
+    }
+  }
+  let last_index = pending.length() - 1
+  pending.swap(minimum_index, last_index)
+  ignore(pending.pop())
+  minimum
+}
+
+///|
+fn imported_environment(
+  header : @module_frontend.ModuleHeader,
+  modules : Map[String, CachedSemanticModule],
+) -> @module_interface.ImportedEnvironment {
+  let imported = []
+  for import_ in header.imports {
+    if modules.get(import_.module_path_text) is Some(cached) &&
+      cached.last_successful_interface is Some(interface) {
+      imported.push({ ..interface, source_id: Some(cached.input.source_id) })
+    }
+  }
+  { modules: imported }
+}
+
+///|
+fn preserve_last_successful_interface(
+  rebuilt : CachedSemanticModule,
+  previous : CachedSemanticModule?,
+) -> CachedSemanticModule {
+  match (rebuilt.last_successful_interface, previous) {
+    (None, Some(previous)) =>
+      {
+        ..rebuilt,
+        last_successful_interface: previous.last_successful_interface,
+      }
+    _ => rebuilt
+  }
+}
+
+///|
+fn SemanticWorkspace::snapshot_from_current_state(
+  self : SemanticWorkspace,
+  changed_source_ids : Array[String],
+) -> SemanticSnapshot {
+  let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
+  {
+    revision: self.revision,
+    source_layout: self.source_layout,
+    parsed_sources: self.parsed_sources,
+    graph: self.graph_cache,
+    modules: self.modules,
+    completion: { display, graph: self.graph_cache, modules: self.modules },
+    changed_source_ids,
+  }
 }
 
 ///|
@@ -422,7 +646,19 @@ fn build_cached_semantic_module(
     imported,
     index,
     diagnostics,
+    semantic_tokens: build_semantic_tokens(
+      index.definitions,
+      index.references,
+      registry,
+    ),
     last_successful_interface: interface,
+  }
+}
+
+///|
+fn push_unique(items : Array[String], item : String) -> Unit {
+  if !items.contains(item) {
+    items.push(item)
   }
 }
 
@@ -433,14 +669,85 @@ pub fn SemanticSnapshot::revision(self : SemanticSnapshot) -> Int {
 
 ///|
 pub fn SemanticSnapshot::analysis(self : SemanticSnapshot) -> AnalysisResult {
-  self.result.copy()
+  let diagnostics = self.parse_and_graph_diagnostics()
+  let definitions = []
+  let references = []
+  let hovers = []
+  let semantic_tokens = []
+  let inlay_hints = []
+  self.modules.each(fn(slot) {
+    if slot is Available(module_) {
+      diagnostics.append(module_.diagnostics)
+      module_.index.append_analysis(
+        definitions, references, hovers, inlay_hints,
+      )
+      semantic_tokens.append(module_.semantic_tokens)
+    }
+  })
+  { diagnostics, definitions, references, hovers, semantic_tokens, inlay_hints }
 }
 
 ///|
 pub fn SemanticSnapshot::diagnostics(
   self : SemanticSnapshot,
 ) -> Array[CompilerDiagnostic] {
-  self.result.diagnostics.copy()
+  let diagnostics = self.parse_and_graph_diagnostics()
+  self.modules.each(fn(slot) {
+    if slot is Available(module_) {
+      diagnostics.append(module_.diagnostics)
+    }
+  })
+  diagnostics
+}
+
+///|
+fn SemanticSnapshot::diagnostics_for_source(
+  self : SemanticSnapshot,
+  source_id : String,
+) -> Array[CompilerDiagnostic] {
+  let diagnostics = []
+  if self.source_layout.slots.get(source_id) is Some(slot) &&
+    self.parsed_sources.get(slot) is Some(source) {
+    diagnostics.append(source.diagnostics)
+  }
+  if self.graph is Some(graph) {
+    if graph.module_slot_for_source(source_id) is Some(slot) &&
+      self.modules.get(slot) is Some(Available(module_)) {
+      diagnostics.append(module_.diagnostics)
+    }
+    diagnostics.append(
+      graph.diagnostics.filter(fn(diagnostic) {
+        diagnostic.primary_source_id() == Some(source_id)
+      }),
+    )
+  }
+  diagnostics
+}
+
+///|
+pub fn SemanticSnapshot::diagnostic_delta(
+  self : SemanticSnapshot,
+) -> Array[(@module_frontend.SourceInput, Array[CompilerDiagnostic])] {
+  let delta = []
+  for source_id in self.changed_source_ids {
+    if self.source_layout.slots.get(source_id) is Some(slot) &&
+      self.parsed_sources.get(slot) is Some(source) {
+      delta.push((source.source, self.diagnostics_for_source(source_id)))
+    }
+  }
+  delta
+}
+
+///|
+fn SemanticSnapshot::parse_and_graph_diagnostics(
+  self : SemanticSnapshot,
+) -> Array[CompilerDiagnostic] {
+  let diagnostics = []
+  self.parsed_sources.each(fn(source) { diagnostics.append(source.diagnostics) })
+  if self.graph is Some(graph) {
+    diagnostics.append(graph.diagnostics)
+  }
+  diagnostics
 }
 
 ///|
@@ -450,7 +757,7 @@ pub fn SemanticSnapshot::definition_at(
   line : Int,
   column : Int,
 ) -> AnalysisLocation? {
-  self.result.definition_at(source_id, line, column)
+  self.analysis().definition_at(source_id, line, column)
 }
 
 ///|
@@ -460,7 +767,7 @@ pub fn SemanticSnapshot::hover_at(
   line : Int,
   column : Int,
 ) -> HoverEntry? {
-  self.result.hover_at(source_id, line, column)
+  self.analysis().hover_at(source_id, line, column)
 }
 
 ///|
@@ -472,7 +779,9 @@ pub fn SemanticSnapshot::inlay_hints_in_range(
   end_line : Int,
   end_column : Int,
 ) -> Array[InlayHintEntry] {
-  self.result.inlay_hints_in_range(
+  self
+  .analysis()
+  .inlay_hints_in_range(
     source_id, start_line, start_column, end_line, end_column,
   )
 }
@@ -486,16 +795,4 @@ pub fn SemanticSnapshot::complete(
   trigger : CompletionTrigger,
 ) -> Array[CompletionEntry] {
   self.completion.complete(source_id, line, column, trigger)
-}
-
-///|
-fn AnalysisResult::copy(self : AnalysisResult) -> AnalysisResult {
-  {
-    diagnostics: self.diagnostics.copy(),
-    definitions: self.definitions.copy(),
-    references: self.references.copy(),
-    hovers: self.hovers.copy(),
-    semantic_tokens: self.semantic_tokens.copy(),
-    inlay_hints: self.inlay_hints.copy(),
-  }
 }

@@ -159,6 +159,43 @@ test "semantic workspace reuses module topology for body-only edits" {
 }
 
 ///|
+test "semantic workspace persistently replaces only dirty snapshot branches" {
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      { source_id: "file:///A.lane", text: "module A\n\npub let a : Int = 1" },
+      { source_id: "file:///B.lane", text: "module B\n\npub let b : Int = 2" },
+      { source_id: "file:///C.lane", text: "module C\n\npub let c : Int = 3" },
+      { source_id: "file:///D.lane", text: "module D\n\npub let d : Int = 4" },
+    ])
+    is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard initial.parsed_sources is Branch(left=initial_parsed_left, ..) &&
+    initial.modules is Branch(left=initial_modules_left, ..) else {
+    abort("expected branched semantic snapshot")
+  }
+  guard workspace.upsert_source({
+      source_id: "file:///D.lane",
+      text: "module D\n\npub let d : Int = 5",
+    })
+    is Some(updated) else {
+    abort("expected updated semantic snapshot")
+  }
+  guard updated.parsed_sources is Branch(left=updated_parsed_left, ..) &&
+    updated.modules is Branch(left=updated_modules_left, ..) else {
+    abort("expected updated branched semantic snapshot")
+  }
+  debug_inspect(
+    [
+      physical_equal(initial_parsed_left, updated_parsed_left),
+      physical_equal(initial_modules_left, updated_modules_left),
+      updated.changed_source_ids == ["file:///D.lane"],
+    ],
+    content="[true, true, true]",
+  )
+}
+
+///|
 test "semantic workspace reuses unchanged invalid module topology" {
   let workspace = SemanticWorkspace::new()
   let source =

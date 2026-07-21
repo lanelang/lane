@@ -111,6 +111,7 @@ pub struct SemanticSnapshot {
 pub fn SemanticSnapshot::analysis(Self) -> AnalysisResult
 pub fn SemanticSnapshot::complete(Self, String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
 pub fn SemanticSnapshot::definition_at(Self, String, Int, Int) -> AnalysisLocation?
+pub fn SemanticSnapshot::diagnostic_delta(Self) -> Array[(@frontend.SourceInput, Array[@diagnostic.CompilerDiagnostic])]
 pub fn SemanticSnapshot::diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
 pub fn SemanticSnapshot::hover_at(Self, String, Int, Int) -> HoverEntry?
 pub fn SemanticSnapshot::inlay_hints_in_range(Self, String, Int, Int, Int, Int) -> Array[InlayHintEntry]

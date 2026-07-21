@@ -74,26 +74,6 @@ pub(all) struct AnalysisResult {
 } derive(Debug, Eq)
 
 ///|
-priv struct AnalysisModuleSummary {
-  module_path_text : String
-  interface : @module_interface.ModuleInterface
-}
-
-///|
-fn AnalysisResult::from_diagnostics(
-  diagnostics : Array[CompilerDiagnostic],
-) -> AnalysisResult {
-  {
-    diagnostics,
-    definitions: [],
-    references: [],
-    hovers: [],
-    semantic_tokens: [],
-    inlay_hints: [],
-  }
-}
-
-///|
 fn SemanticIndex::append_analysis(
   self : SemanticIndex,
   definitions : Array[DefinitionEntry],
@@ -105,33 +85,6 @@ fn SemanticIndex::append_analysis(
   references.append(self.references)
   hovers.append(self.hovers)
   inlay_hints.append(self.inlay_hints)
-}
-
-///|
-fn analysis_imported_interfaces(
-  header : @module_frontend.ModuleHeader,
-  modules : Array[AnalysisModuleSummary],
-) -> @module_interface.ImportedEnvironment {
-  let imported = []
-  for import_ in header.imports {
-    if find_analysis_module(modules, import_.module_path_text) is Some(module_) {
-      imported.push(module_.interface)
-    }
-  }
-  { modules: imported }
-}
-
-///|
-fn find_analysis_module(
-  modules : Array[AnalysisModuleSummary],
-  module_path_text : String,
-) -> AnalysisModuleSummary? {
-  for module_ in modules {
-    if module_.module_path_text == module_path_text {
-      return Some(module_)
-    }
-  }
-  None
 }
 
 ///|
