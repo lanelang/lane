@@ -69,6 +69,20 @@ test "parse grammar failure keeps concrete syntax" {
 }
 
 ///|
+fn synthetic_layout_semicolon_lines(source : String) -> Array[Int] raise {
+  let lexed = @lexer.tokens_from_string(source)
+  assert_true(lexed.errors.is_empty())
+  let lines = []
+  for item in layout_yacc_tokens(lexed.concrete) {
+    let (token, start, end) = item
+    if token is SEMICOLON && start.start_offset == end.start_offset {
+      lines.push(start.start_line)
+    }
+  }
+  lines
+}
+
+///|
 test "layout inserts semicolons between newline-delimited items" {
   let source =
     #|module Test
@@ -88,17 +102,8 @@ test "layout inserts semicolons between newline-delimited items" {
     #|  print("hello")
     #|  print("world")
     #|}
-  let lexed = @lexer.tokens_from_string(source)
-  assert_true(lexed.errors.is_empty())
-  let synthetic_semicolon_lines = []
-  for item in layout_yacc_tokens(lexed.concrete) {
-    let (token, start, end) = item
-    if token is SEMICOLON && start.start_offset == end.start_offset {
-      synthetic_semicolon_lines.push(start.start_line)
-    }
-  }
   debug_inspect(
-    synthetic_semicolon_lines,
+    synthetic_layout_semicolon_lines(source),
     content="[1, 3, 5, 7, 9, 11, 13, 15]",
   )
   debug_inspect(parse_string(source).parse_errors(), content="[]")
@@ -115,16 +120,7 @@ test "layout preserves delimited and operator continuations" {
     #|  left
     #|    + right
     #|}
-  let lexed = @lexer.tokens_from_string(source)
-  assert_true(lexed.errors.is_empty())
-  let synthetic_semicolon_lines = []
-  for item in layout_yacc_tokens(lexed.concrete) {
-    let (token, start, end) = item
-    if token is SEMICOLON && start.start_offset == end.start_offset {
-      synthetic_semicolon_lines.push(start.start_line)
-    }
-  }
-  debug_inspect(synthetic_semicolon_lines, content="[1]")
+  debug_inspect(synthetic_layout_semicolon_lines(source), content="[1]")
   debug_inspect(parse_string(source).parse_errors(), content="[]")
 }
 
@@ -141,16 +137,7 @@ test "layout resumes inside braces nested in call arguments" {
     #|    print("second")
     #|  })
     #|}
-  let lexed = @lexer.tokens_from_string(source)
-  assert_true(lexed.errors.is_empty())
-  let synthetic_semicolon_lines = []
-  for item in layout_yacc_tokens(lexed.concrete) {
-    let (token, start, end) = item
-    if token is SEMICOLON && start.start_offset == end.start_offset {
-      synthetic_semicolon_lines.push(start.start_line)
-    }
-  }
-  debug_inspect(synthetic_semicolon_lines, content="[1, 4, 7]")
+  debug_inspect(synthetic_layout_semicolon_lines(source), content="[1, 4, 7]")
   debug_inspect(parse_string(source).parse_errors(), content="[]")
 }
 
