@@ -10,6 +10,8 @@ priv struct DocumentSnapshot {
 ///|
 priv struct ServerState {
   documents : Map[String, DocumentSnapshot]
+  semantic_workspace : @analysis.SemanticWorkspace
+  mut workspace_loaded : Bool
   mut workspace_root : String?
   mut shutdown_requested : Bool
 }
@@ -22,7 +24,13 @@ priv struct HandlerResult {
 
 ///|
 fn ServerState::ServerState() -> ServerState {
-  { documents: Map([]), workspace_root: None, shutdown_requested: false }
+  {
+    documents: Map([]),
+    semantic_workspace: @analysis.SemanticWorkspace::new(),
+    workspace_loaded: false,
+    workspace_root: None,
+    shutdown_requested: false,
+  }
 }
 
 ///|
@@ -78,6 +86,8 @@ fn ServerState::handle_initialize(
   request : @jsonrpc.Request,
 ) -> HandlerResult {
   self.workspace_root = workspace_root_from_initialize_params(request.params)
+  self.semantic_workspace.clear()
+  self.workspace_loaded = false
   respond(request, Ok(initialize_result()))
 }
 
@@ -123,8 +133,7 @@ async fn ServerState::handle_did_open(
   self.documents[document.uri] = document
   {
     outgoing: self
-    .workspace_analysis()
-    .check(document)
+    .synchronize_document(document)
     .map(fn(publication) {
       publish_diagnostics(
         publication.uri,
@@ -147,8 +156,7 @@ async fn ServerState::handle_did_change(
   self.documents[document.uri] = document
   {
     outgoing: self
-    .workspace_analysis()
-    .check(document)
+    .synchronize_document(document)
     .map(fn(publication) {
       publish_diagnostics(
         publication.uri,
@@ -161,7 +169,7 @@ async fn ServerState::handle_did_change(
 }
 
 ///|
-fn ServerState::handle_did_close(
+async fn ServerState::handle_did_close(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -169,11 +177,53 @@ fn ServerState::handle_did_close(
     return respond(request, Err(invalid_params(invalid_did_close_params())))
   }
   self.documents.remove(uri)
-  { outgoing: [publish_diagnostics(uri, [])], exit_requested: false }
+  let outgoing = [publish_diagnostics(uri, [])]
+  match self.source_from_disk(uri) {
+    Some(source) => ignore(self.semantic_workspace.upsert_source(source))
+    None => ignore(self.semantic_workspace.remove_source(uri))
+  }
+  outgoing.append(
+    self
+    .workspace_analysis()
+    .workspace_diagnostics(self.semantic_workspace, uri)
+    .map(fn(publication) {
+      publish_diagnostics(
+        publication.uri,
+        publication.diagnostics,
+        sources=publication.sources,
+      )
+    }),
+  )
+  { outgoing, exit_requested: false }
 }
 
 ///|
-async fn ServerState::handle_definition(
+async fn ServerState::synchronize_document(
+  self : ServerState,
+  document : DocumentSnapshot,
+) -> Array[DiagnosticPublication] {
+  if self.workspace_loaded {
+    self.workspace_analysis().update_document(self.semantic_workspace, document)
+  } else {
+    self.workspace_loaded = true
+    self
+    .workspace_analysis()
+    .initialize_workspace(self.semantic_workspace, document)
+  }
+}
+
+///|
+async fn ServerState::source_from_disk(
+  _self : ServerState,
+  uri : String,
+) -> @module_frontend.SourceInput? {
+  guard file_uri_to_path(uri) is Some(path) else { return None }
+  let text = @fs.read_file(path).text() catch { _ => return None }
+  Some({ source_id: uri, text })
+}
+
+///|
+fn ServerState::handle_definition(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -183,20 +233,22 @@ async fn ServerState::handle_definition(
       Err(invalid_params(invalid_position_params("textDocument/definition"))),
     )
   }
-  guard self.document_for_uri(params.uri) is Some(document) else {
+  guard self.document_for_uri(params.uri) is Some(_) else {
     return respond(request, Ok(null))
   }
-  let analysis = self.workspace_analysis().analyze(document)
+  guard self.semantic_workspace.snapshot() is Some(snapshot) else {
+    return respond(request, Ok(null))
+  }
   let line = params.line + 1
   let column = params.character + 1
-  match analysis.definition_at(params.uri, line, column) {
+  match snapshot.definition_at(params.uri, line, column) {
     Some(location) => respond(request, Ok(location_json(location)))
     None => respond(request, Ok(null))
   }
 }
 
 ///|
-async fn ServerState::handle_hover(
+fn ServerState::handle_hover(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -206,20 +258,22 @@ async fn ServerState::handle_hover(
       Err(invalid_params(invalid_position_params("textDocument/hover"))),
     )
   }
-  guard self.document_for_uri(params.uri) is Some(document) else {
+  guard self.document_for_uri(params.uri) is Some(_) else {
     return respond(request, Ok(null))
   }
-  let analysis = self.workspace_analysis().analyze(document)
+  guard self.semantic_workspace.snapshot() is Some(snapshot) else {
+    return respond(request, Ok(null))
+  }
   let line = params.line + 1
   let column = params.character + 1
-  match analysis.hover_at(params.uri, line, column) {
+  match snapshot.hover_at(params.uri, line, column) {
     Some(hover) => respond(request, Ok(hover_json(hover)))
     None => respond(request, Ok(null))
   }
 }
 
 ///|
-async fn ServerState::handle_inlay_hint(
+fn ServerState::handle_inlay_hint(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -229,11 +283,13 @@ async fn ServerState::handle_inlay_hint(
       Err(invalid_params(invalid_range_params("textDocument/inlayHint"))),
     )
   }
-  guard self.document_for_uri(params.uri) is Some(document) else {
+  guard self.document_for_uri(params.uri) is Some(_) else {
     return respond(request, Ok(([] : Array[Json]).to_json()))
   }
-  let analysis = self.workspace_analysis().analyze(document)
-  let hints = analysis.inlay_hints_in_range(
+  guard self.semantic_workspace.snapshot() is Some(snapshot) else {
+    return respond(request, Ok(([] : Array[Json]).to_json()))
+  }
+  let hints = snapshot.inlay_hints_in_range(
     params.uri,
     params.start.line + 1,
     params.start.character + 1,
@@ -248,7 +304,7 @@ async fn ServerState::handle_inlay_hint(
 }
 
 ///|
-async fn ServerState::handle_completion(
+fn ServerState::handle_completion(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
@@ -258,16 +314,23 @@ async fn ServerState::handle_completion(
       Err(invalid_params(invalid_position_params("textDocument/completion"))),
     )
   }
-  guard self.document_for_uri(params.uri) is Some(document) else {
+  guard self.document_for_uri(params.uri) is Some(_) else {
     return respond(request, Ok(completion_list_json([])))
   }
   let trigger = match params.trigger_character {
     Some(character) => @analysis.CompletionTrigger::TriggerCharacter(character)
     None => Manual
   }
-  let entries = self
-    .workspace_analysis()
-    .complete(document, params.line + 1, params.character + 1, trigger)
+  let entries = match self.semantic_workspace.snapshot() {
+    Some(snapshot) =>
+      snapshot.complete(
+        params.uri,
+        params.line + 1,
+        params.character + 1,
+        trigger,
+      )
+    None => []
+  }
   respond(request, Ok(completion_list_json(entries)))
 }
 

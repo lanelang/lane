@@ -27,6 +27,33 @@ An in-memory API used by tools and LSP code without owning file IO or process
 IO.
 _Avoid_: native command implementation, editor extension
 
+**Semantic Workspace**:
+The sole mutable owner of an identified in-memory source set, incremental parse
+state, the module dependency graph, the symbol registry, and reusable
+per-module semantic results. Source updates create a new Semantic Snapshot
+rather than running an independent analysis pipeline for each editor feature.
+_Avoid_: filesystem workspace, LSP document store, one-shot completion world
+
+**Semantic Snapshot**:
+A revisioned, read-only view of one Semantic Workspace state used consistently
+for diagnostics, definitions, hover, inlay hints, semantic tokens, and
+completion. Queries never rebuild the module graph or rerun resolution and type
+checking.
+_Avoid_: mutable analysis result, request-local compiler run, build artifact
+
+**Reverse-Dependency Invalidation**:
+The Semantic Workspace rule that reparses only changed sources and rebuilds a
+changed module plus its transitive importers while retaining unaffected module
+semantic results.
+_Avoid_: whole-workspace rebuild, entry-reachable pruning, textual import scan
+
+**Last Successful Module Interface**:
+The most recent successfully typechecked interface retained by the Semantic
+Workspace while the current text of that module has parse errors. Importers may
+continue to use it so the snapshot reports the primary parse error without
+cascading missing-import and unresolved-name diagnostics.
+_Avoid_: stale source diagnostics, stale module definitions, persisted artifact
+
 **Compiler Diagnostic Adapter**:
 A compiler-owned translation from Lane compiler diagnostics into generic diagnostic infrastructure.
 _Avoid_: terminal renderer, LSP diagnostic, command report
@@ -144,8 +171,10 @@ A semantic candidate returned by a compiler completion query before any editor p
 _Avoid_: LSP completion item, text snippet, raw symbol
 
 **Completion Query**:
-A position-specific compiler analysis request that computes semantic completion candidates for one source location.
-_Avoid_: full analysis index, precomputed completion cache, editor request handler
+A position-specific compiler analysis request that reads one Semantic Snapshot
+and computes candidates for one source location without rebuilding semantic
+state.
+_Avoid_: request-local module graph, editor-side scope reconstruction, editor request handler
 
 **Unused Local Value Binding**:
 A value binder introduced inside an executable expression body that has no resolved `ValueSymbolId` reference within its lexical scope after source elaboration.
@@ -524,13 +553,22 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   checked structurally rather than by snapshots alone.
 - **Semantic Completion** belongs to the **Compiler Analysis API**; LSP adapters
   only transport it as protocol-specific completion items.
+- A **Semantic Workspace** is the shared compiler-analysis cache boundary for
+  all editor features; an LSP server must not maintain a second completion or
+  diagnostics cache.
+- Every editor request reads one **Semantic Snapshot**, so diagnostics and
+  navigation cannot observe different compiler revisions.
+- **Reverse-Dependency Invalidation** preserves symbol identity for unaffected
+  modules and rebuilds importers whenever a dependency is rebuilt.
+- A **Last Successful Module Interface** is recovery state only: the broken
+  module contributes its current parse diagnostics, not stale definitions or
+  stale source locations.
 - A **Completion Trigger** informs a **Semantic Completion** query but does not
   decide completion semantics outside the compiler analysis layer.
 - A **Completion Entry** carries Lane semantic identity, display text, and edit
   range without depending on editor protocol fields.
-- A **Completion Query** reuses compiler analysis inputs but does not require
-  every ordinary **Compiler Analysis API** result to precompute completion
-  scopes.
+- A **Completion Query** consumes the same **Semantic Snapshot** as diagnostics,
+  navigation, and inlay hints.
 - An **Unused Local Value Binding** warning is a compiler semantic diagnostic,
   not a control-flow reachability analysis or an API export check.
 - **Checked Value-Use Analysis** may be reused by future optimization work, but

@@ -64,140 +64,41 @@ priv enum CompletionContext {
 }
 
 ///|
-priv struct CompletionModule {
-  input : @module_frontend.ParsedModuleInput
-  imported : @module_interface.ImportedEnvironment
-  index : SemanticIndex
-}
-
-///|
-priv struct CompletionWorld {
+priv struct CompletionIndex {
   display : @typecheck.TypeDisplayContext
-  modules : Array[CompletionModule]
+  modules : Array[CachedSemanticModule]
 }
 
 ///|
-pub fn complete_source_inputs(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
+fn CompletionIndex::complete(
+  self : CompletionIndex,
   source_id : String,
   line : Int,
   column : Int,
   trigger : CompletionTrigger,
 ) -> Array[CompletionEntry] {
-  match
-    @module_frontend.parse_module_input_set_from_inputs(
-      root_source, library_sources,
-    ) {
-    Err(_) => []
-    Ok(inputs) =>
-      complete_module_input_set(inputs, source_id, line, column, trigger)
-  }
-}
-
-///|
-pub fn complete_import_reachable_source_inputs(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
-  source_id : String,
-  line : Int,
-  column : Int,
-  trigger : CompletionTrigger,
-) -> Array[CompletionEntry] {
-  match
-    @module_frontend.parse_import_reachable_module_input_set_from_inputs(
-      root_source, library_sources,
-    ) {
-    Err(_) => []
-    Ok(inputs) =>
-      complete_module_input_set(inputs, source_id, line, column, trigger)
-  }
-}
-
-///|
-fn complete_module_input_set(
-  inputs : @module_frontend.ModuleInputSet,
-  source_id : String,
-  line : Int,
-  column : Int,
-  trigger : CompletionTrigger,
-) -> Array[CompletionEntry] {
-  match @module_frontend.build_module_graph(inputs) {
-    Err(_) => []
-    Ok(graph) => {
-      let world = CompletionWorld::from_graph(graph)
-      match world.module_for_source(source_id) {
-        None => []
-        Some(module_) => {
-          let context = completion_context(
-            module_.input.text,
-            line,
-            column,
-            trigger,
-            module_.input.header.imports.map(fn(import_) {
-              import_.module_path_text
-            }),
-          )
-          world.entries_for_context(module_, source_id, context, line, column)
-        }
-      }
-    }
-  }
-}
-
-///|
-fn CompletionWorld::from_graph(
-  graph : @module_frontend.ModuleGraph,
-) -> CompletionWorld {
-  let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let display = @typecheck.TypeDisplayContext::from_registry(registry)
-  let compiled : Array[AnalysisModuleSummary] = []
-  let modules : Array[CompletionModule] = []
-  for input in graph.modules {
-    let imported = analysis_imported_interfaces(input.header, compiled)
-    let resolved = @resolve.resolve_source_file_with_imports_result(
-      input.source,
-      registry,
-      imported,
-    )
-    let mut checked_source = None
-    let mut interface = None
-    if resolved.diagnostics.is_empty() {
-      let checked = @typecheck.typecheck_checked_source_file_with_imported_environment(
-        resolved.source,
-        imported,
+  match self.module_for_source(source_id) {
+    None => []
+    Some(module_) => {
+      let context = completion_context(
+        module_.input.text,
+        line,
+        column,
+        trigger,
+        module_.input.header.imports.map(fn(import_) {
+          import_.module_path_text
+        }),
       )
-      if checked.diagnostics.is_empty() {
-        checked_source = checked.source
-        interface = checked.module_interface
-      }
+      self.entries_for_context(module_, source_id, context, line, column)
     }
-    if interface is Some(module_interface) && checked_source is Some(_) {
-      compiled.push({
-        module_path_text: input.header.module_path_text,
-        interface: { ..module_interface, source_id: Some(input.source_id) },
-      })
-    }
-    modules.push({
-      input,
-      imported,
-      index: SemanticIndex::from_sources(
-        resolved.source,
-        checked_source,
-        display,
-        input.source_id,
-        input.text,
-      ),
-    })
   }
-  { display, modules }
 }
 
 ///|
-fn CompletionWorld::module_for_source(
-  self : CompletionWorld,
+fn CompletionIndex::module_for_source(
+  self : CompletionIndex,
   source_id : String,
-) -> CompletionModule? {
+) -> CachedSemanticModule? {
   for module_ in self.modules {
     if module_.input.source_id == source_id {
       return Some(module_)
@@ -207,9 +108,9 @@ fn CompletionWorld::module_for_source(
 }
 
 ///|
-fn CompletionWorld::entries_for_context(
-  self : CompletionWorld,
-  module_ : CompletionModule,
+fn CompletionIndex::entries_for_context(
+  self : CompletionIndex,
+  module_ : CachedSemanticModule,
   source_id : String,
   context : CompletionContext,
   line : Int,
@@ -347,10 +248,10 @@ fn payloadless_variant_insert_text(
 }
 
 ///|
-fn CompletionWorld::add_identifier_entries(
-  _self : CompletionWorld,
+fn CompletionIndex::add_identifier_entries(
+  _self : CompletionIndex,
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
@@ -443,7 +344,7 @@ fn completion_allows_effect(space : CompletionSpace) -> Bool {
 ///|
 fn add_module_binding_entries(
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
@@ -473,10 +374,10 @@ fn module_binding_label(module_path_text : String) -> String {
 }
 
 ///|
-fn CompletionWorld::add_import_entries(
-  self : CompletionWorld,
+fn CompletionIndex::add_import_entries(
+  self : CompletionIndex,
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
@@ -498,10 +399,10 @@ fn CompletionWorld::add_import_entries(
 }
 
 ///|
-fn CompletionWorld::add_module_surface_entries(
-  self : CompletionWorld,
+fn CompletionIndex::add_module_surface_entries(
+  self : CompletionIndex,
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   owner : String,
   prefix : String,
@@ -517,7 +418,7 @@ fn CompletionWorld::add_module_surface_entries(
 
 ///|
 fn imported_interface_for_owner(
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   owner : String,
 ) -> @module_interface.ModuleInterface? {
   for import_ in module_.input.header.imports {
@@ -530,8 +431,8 @@ fn imported_interface_for_owner(
 }
 
 ///|
-fn CompletionWorld::add_interface_surface_entries(
-  self : CompletionWorld,
+fn CompletionIndex::add_interface_surface_entries(
+  self : CompletionIndex,
   entries : Array[CompletionEntry],
   source_id : String,
   prefix : String,
@@ -623,10 +524,10 @@ fn CompletionWorld::add_interface_surface_entries(
 }
 
 ///|
-fn CompletionWorld::add_owner_entries(
-  self : CompletionWorld,
+fn CompletionIndex::add_owner_entries(
+  self : CompletionIndex,
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   owner : String,
   prefix : String,
@@ -679,8 +580,8 @@ fn string_last_index(text : String, needle : String) -> Int? {
 }
 
 ///|
-fn CompletionWorld::add_interface_owner_entries(
-  self : CompletionWorld,
+fn CompletionIndex::add_interface_owner_entries(
+  self : CompletionIndex,
   entries : Array[CompletionEntry],
   source_id : String,
   prefix : String,
@@ -744,10 +645,10 @@ fn CompletionWorld::add_interface_owner_entries(
 }
 
 ///|
-fn CompletionWorld::add_local_owner_entries(
-  _self : CompletionWorld,
+fn CompletionIndex::add_local_owner_entries(
+  _self : CompletionIndex,
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
@@ -796,8 +697,8 @@ fn semantic_member_insert_text(fact : SemanticMemberFact) -> String? {
 }
 
 ///|
-fn CompletionWorld::operation_detail(
-  self : CompletionWorld,
+fn CompletionIndex::operation_detail(
+  self : CompletionIndex,
   effect_name : String,
   operation : @module_interface.ModuleInterfaceOperation,
 ) -> String {
@@ -812,10 +713,10 @@ fn CompletionWorld::operation_detail(
 }
 
 ///|
-fn CompletionWorld::add_receiver_entries(
-  self : CompletionWorld,
+fn CompletionIndex::add_receiver_entries(
+  self : CompletionIndex,
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   receiver : String,
   prefix : String,
@@ -854,10 +755,10 @@ fn nominal_constructor(type_ : @types.Type) -> @symbol.TypeSymbolId? {
 }
 
 ///|
-fn CompletionWorld::add_imported_fields_for_type(
-  self : CompletionWorld,
+fn CompletionIndex::add_imported_fields_for_type(
+  self : CompletionIndex,
   entries : Array[CompletionEntry],
-  module_ : CompletionModule,
+  module_ : CachedSemanticModule,
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,

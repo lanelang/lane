@@ -41,7 +41,7 @@ LoisVM bytecode is the execution-image boundary. The bytecode package stores onl
 - Closure conversion, representation erasure, ownership analysis, and ARC insertion
 - Portable LoisVM bytecode generation
 - Stable compiler observation stages for native and browser IR explorers
-- Source formatting, semantic analysis, and LSP-oriented APIs
+- Source formatting and a revisioned incremental semantic workspace for LSP-oriented APIs
 
 ## Installation
 

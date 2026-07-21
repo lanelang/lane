@@ -1,4 +1,40 @@
 ///|
+fn complete_test_source_inputs(
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
+  source_id : String,
+  line : Int,
+  column : Int,
+  trigger : CompletionTrigger,
+) -> Array[CompletionEntry] {
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([root_source] + library_sources)
+    is Some(snapshot) else {
+    return []
+  }
+  snapshot.complete(source_id, line, column, trigger)
+}
+
+///|
+fn analyze_test_sources(
+  root : String,
+  libraries : Array[String],
+) -> AnalysisResult {
+  let library_inputs : Array[@module_frontend.SourceInput] = []
+  for index, source in libraries {
+    library_inputs.push({ source_id: "<library:\{index}>", text: source })
+  }
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources(
+      [{ source_id: "<root>", text: root }] + library_inputs,
+    )
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  snapshot.analysis()
+}
+
+///|
 test "completion returns top-level semantic entries" {
   let source =
     #|module Main
@@ -7,7 +43,7 @@ test "completion returns top-level semantic entries" {
     #|  ans
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -77,7 +113,7 @@ test "completion renders external effects across semantic paths" {
     #|}
   debug_inspect(
     [
-      complete_source_inputs(
+      complete_test_source_inputs(
         { source_id: "file:///Main.lane", text: imported_root },
         [{ source_id: "file:///Lib.lane", text: imported_lib }],
         "file:///Main.lane",
@@ -85,7 +121,7 @@ test "completion renders external effects across semantic paths" {
         31,
         Manual,
       ).filter(entry => entry.label == "Runtime"),
-      complete_source_inputs(
+      complete_test_source_inputs(
         { source_id: "file:///Main.lane", text: checked_source },
         [],
         "file:///Main.lane",
@@ -93,7 +129,7 @@ test "completion renders external effects across semantic paths" {
         27,
         Manual,
       ).filter(entry => entry.label == "Runtime"),
-      complete_source_inputs(
+      complete_test_source_inputs(
         { source_id: "file:///Main.lane", text: resolved_source },
         [],
         "file:///Main.lane",
@@ -204,7 +240,7 @@ test "completion returns imported module surface entries" {
     #|  42
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: root },
       [{ source_id: "file:///Lib.lane", text: lib }],
       "file:///Main.lane",
@@ -301,7 +337,7 @@ test "completion returns owner members after double colon" {
     #|  Option::some(1)
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -376,7 +412,7 @@ test "completion inserts parens for imported payloadless owner variants" {
     #|  some(A)
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: root },
       [{ source_id: "file:///Lib.lane", text: lib }],
       "file:///Main.lane",
@@ -449,7 +485,7 @@ test "completion inserts parens for payloadless variants with resolved fallback"
     #|  Option::none()
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -524,7 +560,7 @@ test "completion returns imported owner operations after double colon" {
     #|  write(Int) -> Unit
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: root },
       [{ source_id: "file:///Lib.lane", text: lib }],
       "file:///Main.lane",
@@ -593,7 +629,7 @@ test "local operation completion uses signature detail" {
     #|pub fn use() -> Int ! Prompt {
     #|  Prompt::choose![Int](1, 2)
     #|}
-  let entries = complete_source_inputs(
+  let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: source },
     [],
     "file:///Main.lane",
@@ -625,7 +661,7 @@ test "imported operation completion includes type parameters" {
     #|pub effect Prompt {
     #|  choose[A](A, A) -> A
     #|}
-  let entries = complete_source_inputs(
+  let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: root },
     [{ source_id: "file:///Lib.lane", text: lib }],
     "file:///Main.lane",
@@ -654,7 +690,7 @@ test "completion returns known module paths in import declarations" {
     #|  42
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: root },
       [{ source_id: "file:///Lib.lane", text: lib }],
       "file:///Main.lane",
@@ -713,7 +749,7 @@ test "completion filters candidates by type and effect positions" {
     #|  ()
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -748,7 +784,7 @@ test "completion filters candidates by type and effect positions" {
     ),
   )
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -791,7 +827,7 @@ test "completion classifies same-line function bodies as value space" {
     #|
     #|pub fn make() -> Int { 1 }
     #|pub fn use() -> Int { ma }
-  let entries = complete_source_inputs(
+  let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: source },
     [],
     "file:///Main.lane",
@@ -807,7 +843,7 @@ test "completion classifies same-line function bodies as value space" {
 
 ///|
 test "semantic definitions retain exact spans for repeated names" {
-  let result = analyze_sources(
+  let result = analyze_test_sources(
     (
       #|module Main
       #|
@@ -856,7 +892,7 @@ test "completion returns checked selector fields" {
     #|  point.x
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -922,7 +958,7 @@ test "completion returns empty for unsupported triggers and unavailable receiver
     #|  missing.x
     #|}
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -933,7 +969,7 @@ test "completion returns empty for unsupported triggers and unavailable receiver
     content="[]",
   )
   debug_inspect(
-    complete_source_inputs(
+    complete_test_source_inputs(
       { source_id: "file:///Main.lane", text: source },
       [],
       "file:///Main.lane",
@@ -961,7 +997,7 @@ test "completion reads match binders from the semantic index" {
     #|    Option::some(item) => it
     #|  }
     #|}
-  let entries = complete_source_inputs(
+  let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: source },
     [],
     "file:///Main.lane",

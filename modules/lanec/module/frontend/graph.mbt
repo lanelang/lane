@@ -6,6 +6,38 @@ pub(all) struct ModuleGraph {
 }
 
 ///|
+pub(all) struct TolerantModuleGraphResult {
+  graph : ModuleGraph
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
+}
+
+///|
+pub fn build_tolerant_module_graph(
+  inputs : ModuleInputSet,
+  unavailable_module_path_texts? : Array[String] = [],
+) -> TolerantModuleGraphResult {
+  let diagnostics = validate_module_inputs(
+    inputs.modules,
+    unavailable_module_path_texts~,
+  )
+  let ordered = topological_modules(
+    inputs.modules,
+    unavailable_module_path_texts~,
+  )
+  diagnostics.append(ordered.diagnostics)
+  {
+    graph: {
+      root_module_path_text: inputs.root_module_path_text,
+      modules: ordered.modules,
+      reachable_module_path_texts: inputs.modules.map(fn(module_) {
+        module_.header.module_path_text
+      }),
+    },
+    diagnostics,
+  }
+}
+
+///|
 pub fn build_module_graph(
   inputs : ModuleInputSet,
 ) -> Result[ModuleGraph, Array[@compiler_diag.CompilerDiagnostic]] {
@@ -36,6 +68,7 @@ pub fn build_module_graph(
 ///|
 fn validate_module_inputs(
   modules : Array[ParsedModuleInput],
+  unavailable_module_path_texts? : Array[String] = [],
 ) -> Array[@compiler_diag.CompilerDiagnostic] {
   let diagnostics = []
   for index in 0..<modules.length() {
@@ -52,7 +85,8 @@ fn validate_module_inputs(
   }
   for module_ in modules {
     for import_ in module_.header.imports {
-      if find_module(modules, import_.module_path_text) is None {
+      if find_module(modules, import_.module_path_text) is None &&
+        !unavailable_module_path_texts.contains(import_.module_path_text) {
         let diagnostic = module_frontend_diagnostic(
           MissingImportWithCandidates(
             module_=import_.module_path_text,
@@ -83,6 +117,7 @@ priv struct OrderedModulesResult {
 ///|
 fn topological_modules(
   modules : Array[ParsedModuleInput],
+  unavailable_module_path_texts? : Array[String] = [],
 ) -> OrderedModulesResult {
   let ordered = []
   let visiting : Array[String] = []
@@ -96,6 +131,7 @@ fn topological_modules(
       visited,
       ordered,
       diagnostics,
+      unavailable_module_path_texts,
     )
   }
   { modules: ordered, diagnostics }
@@ -111,7 +147,13 @@ fn reachable_modules(
   let visited : Array[String] = []
   let diagnostics = []
   visit_module(
-    modules, root_module_path_text, visiting, visited, ordered, diagnostics,
+    modules,
+    root_module_path_text,
+    visiting,
+    visited,
+    ordered,
+    diagnostics,
+    [],
   )
   { modules: ordered, diagnostics }
 }
@@ -124,11 +166,15 @@ fn visit_module(
   visited : Array[String],
   ordered : Array[ParsedModuleInput],
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
+  unavailable_module_path_texts : Array[String],
 ) -> Unit {
   if visited.contains(path) {
     return
   }
   guard find_module(modules, path) is Some(module_) else {
+    if unavailable_module_path_texts.contains(path) {
+      return
+    }
     diagnostics.push(
       module_frontend_diagnostic(
         MissingImportWithCandidates(
@@ -157,6 +203,7 @@ fn visit_module(
       visited,
       ordered,
       diagnostics,
+      unavailable_module_path_texts,
     )
   }
   ignore(visiting.pop())

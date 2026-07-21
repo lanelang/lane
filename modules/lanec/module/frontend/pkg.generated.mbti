@@ -11,6 +11,8 @@ import {
 // Values
 pub fn build_module_graph(ModuleInputSet) -> Result[ModuleGraph, Array[@diagnostic.CompilerDiagnostic]]
 
+pub fn build_tolerant_module_graph(ModuleInputSet, unavailable_module_path_texts? : Array[String]) -> TolerantModuleGraphResult
+
 pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[@diagnostic.CompilerDiagnostic]]
 
 pub fn parse_import_reachable_module_input_set_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
@@ -69,6 +71,11 @@ pub(all) struct SourceInput {
   source_id : String
   text : String
 } derive(Eq, @debug.Debug)
+
+pub(all) struct TolerantModuleGraphResult {
+  graph : ModuleGraph
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
+}
 
 // Type aliases
 

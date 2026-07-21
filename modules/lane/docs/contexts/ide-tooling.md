@@ -31,19 +31,19 @@ document synchronization.
 _Avoid_: custom JSON-RPC client, compiler API
 
 **Compiler Analysis API**:
-A target-independent `lanec` API that accepts in-memory source inputs and
-returns parse, resolution, type checking, diagnostics, and semantic artifacts
-without performing file or process IO.
+A target-independent `lanec` Semantic Workspace API that accepts identified
+in-memory source inputs and publishes revisioned Semantic Snapshots without
+performing file or process IO.
 _Avoid_: LSP handler, filesystem service
 
-**Workspace Library Analysis**:
-The diagnostics-first compiler-analysis mode that checks the current Lane
-document together with other Lane library sources discovered from the editor
-workspace. Open document snapshots take precedence over on-disk files.
-_Avoid_: build-system compilation, linked-program analysis
+**LSP Semantic Workspace Mirror**:
+The Lane LSP Server state that mirrors all discovered Lane sources into one
+compiler-owned Semantic Workspace. The first opened document seeds the mirror;
+later opens, changes, closes, and disk restoration update individual sources.
+_Avoid_: request-local analysis, completion cache, build-system compilation
 
 **Document Snapshot**:
-The text and version of one editor document as seen by the Lane LSP Server.
+The current text of one open editor document as seen by the Lane LSP Server.
 _Avoid_: source file on disk, parser cache
 
 **Full Document Sync**:
@@ -52,7 +52,8 @@ the whole Document Snapshot text.
 _Avoid_: incremental text edit, range patching
 
 **Workspace Document Store**:
-The Lane LSP Server state that maps open document URIs to Document Snapshots.
+The Lane LSP Server state that maps open document URIs to Document Snapshots;
+it overlays editor text on the broader LSP Semantic Workspace Mirror.
 _Avoid_: compiler symbol table, project module graph
 
 **Workspace Library Source**:
@@ -61,10 +62,11 @@ document. It may come from an open Document Snapshot or, if not open, from the
 workspace filesystem.
 _Avoid_: module object, build artifact, implicit library
 
-**Workspace Library Source Normalization**:
-The Lane LSP Server rule that excludes the current document source identity and
-deduplicates workspace library sources before calling compiler analysis.
-_Avoid_: build graph, import resolution, module discovery
+**Workspace Source Seeding**:
+The initial LSP filesystem scan that deduplicates open documents and on-disk
+`.lane` files before replacing the compiler Semantic Workspace source set.
+Subsequent editor changes do not repeat this scan.
+_Avoid_: per-request source discovery, build graph, compiler-owned file IO
 
 **Editor Diagnostic**:
 A source-location diagnostic reported through LSP after converting compiler
@@ -76,11 +78,10 @@ A target-independent `lanec` diagnostic carrying at least a message, optional
 source span, and severity before any CLI or LSP rendering.
 _Avoid_: formatted error string, LSP diagnostic
 
-**Diagnostics-First LSP**:
-The v1 LSP feature scope: initialize the language server, track open document
-snapshots, rerun full-file compiler analysis after document changes, and publish
-editor diagnostics.
-_Avoid_: complete IDE, symbol index
+**Snapshot-Driven LSP**:
+The language-server architecture where diagnostics, completion, hover,
+go-to-definition, and inlay hints all query the same current Semantic Snapshot.
+_Avoid_: feature-specific compiler run, mutable query result, editor-side symbol index
 
 **LSP Protocol Layer**:
 The Lane LSP Server layer that owns JSON-RPC framing, request and response
@@ -93,8 +94,8 @@ JSON-RPC 2.0 messages and LSP-style `Content-Length` framing.
 _Avoid_: LSP server framework, method dispatch
 
 **Editor Intelligence**:
-Post-v1 editor features such as completion, hover, go-to-definition,
-find-references, and document symbols.
+Editor features such as completion, hover, go-to-definition, inlay hints,
+find-references, and document symbols built on Semantic Snapshot queries.
 _Avoid_: diagnostics, compiler checking
 
 **Editor Inlay Hint**:
@@ -139,12 +140,14 @@ _Avoid_: VS Code Web extension, WASM language server
 - The **Lane VS Code Extension** uses a **VS Code Language Client** rather than
   a custom JSON-RPC client.
 - The first supported deployment target is **Desktop Native LSP**.
-- The first supported feature scope is **Diagnostics-First LSP**.
-- v1 **Compiler Analysis API** uses **Workspace Library Analysis**.
+- The Lane LSP Server maintains one **LSP Semantic Workspace Mirror** and does
+  not rebuild the module graph for individual requests.
+- All implemented editor features use the same current compiler Semantic
+  Snapshot through the **Snapshot-Driven LSP** boundary.
 - The **LSP Protocol Layer** uses the **JSON-RPC Framing Library** for wire
   framing and keeps Lane-specific method dispatch in the Lane LSP Server.
-- **Editor Intelligence** is a later feature layer built on compiler-analysis
-  artifacts and stable editor document state.
+- **Editor Intelligence** is a protocol projection of compiler Semantic
+  Snapshot queries, not a second semantic implementation.
 - **Editor Inlay Hints** include **Type Inlay Hints**, **Parameter Name Hints**,
   and **Implicit Argument Hints**.
 - **Editor Inlay Hints** are derived from target-independent compiler-analysis
@@ -156,6 +159,8 @@ _Avoid_: VS Code Web extension, WASM language server
   contextual resolution.
 - **Document Snapshots** are passed to `lanec` as in-memory source text and
   override matching on-disk **Workspace Library Sources**.
+- **Workspace Source Seeding** performs the filesystem scan once; later full
+  document changes update one source in the compiler Semantic Workspace.
 - v1 **Document Snapshots** are maintained through **Full Document Sync**.
 - **Editor Diagnostics** are derived from **Structured Compiler Diagnostics**;
   they do not define separate language semantics.
@@ -175,13 +180,13 @@ _Avoid_: VS Code Web extension, WASM language server
 > **Dev:** "Does v1 need to support VS Code Web?"
 > **Domain expert:** "No. v1 uses **Desktop Native LSP**."
 
-> **Dev:** "Should completion and hover be in the first LSP milestone?"
-> **Domain expert:** "No. v1 is **Diagnostics-First LSP**; completion and hover
-> belong to **Editor Intelligence** after the diagnostic loop is stable."
+> **Dev:** "May completion rebuild semantic state independently from hover?"
+> **Domain expert:** "No. Both query the same current compiler Semantic
+> Snapshot through the **Snapshot-Driven LSP** boundary."
 
 > **Dev:** "Should the LSP derive build rules from the workspace?"
-> **Domain expert:** "No. It uses **Workspace Library Analysis** for editor
-> diagnostics, not build-system compilation."
+> **Domain expert:** "No. **Workspace Source Seeding** mirrors editor sources;
+> it is not build-system compilation."
 
 > **Dev:** "Should the LSP parse compiler diagnostic strings to recover ranges?"
 > **Domain expert:** "No. `lanec` produces **Structured Compiler Diagnostics**."

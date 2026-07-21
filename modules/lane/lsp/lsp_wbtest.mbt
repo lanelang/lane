@@ -699,6 +699,55 @@ async test "completion returns lexical entries for manual requests" {
 }
 
 ///|
+async test "semantic snapshot is reused until workspace sources change" {
+  let uri = "file:///Main.lane"
+  let source =
+    #|module Main
+    #|
+    #|pub fn answer(seed : Int) -> Int {
+    #|  ans
+    #|}
+  let state = ServerState::ServerState()
+  ignore(
+    state.handle_message(
+      request(1, "textDocument/didOpen", open_params(uri, source)),
+    ),
+  )
+  let revisions = []
+  ignore(
+    state.handle_message(
+      request(2, "textDocument/completion", completion_params(uri, 3, 5, None)),
+    ),
+  )
+  revisions.push(state.semantic_workspace.revision())
+  ignore(
+    state.handle_message(
+      request(3, "textDocument/completion", completion_params(uri, 3, 5, None)),
+    ),
+  )
+  revisions.push(state.semantic_workspace.revision())
+  ignore(
+    state.handle_message(
+      request(4, "textDocument/didChange", change_params(uri, source + "\n")),
+    ),
+  )
+  revisions.push(state.semantic_workspace.revision())
+  ignore(
+    state.handle_message(
+      request(5, "textDocument/completion", completion_params(uri, 3, 5, None)),
+    ),
+  )
+  revisions.push(state.semantic_workspace.revision())
+  ignore(
+    state.handle_message(
+      request(6, "textDocument/didClose", { "textDocument": { "uri": uri } }),
+    ),
+  )
+  revisions.push(state.semantic_workspace.revision())
+  debug_inspect(revisions, content="[1, 1, 2, 2, 3]")
+}
+
+///|
 async test "completion routes colon triggers to owner members" {
   let state = ServerState::ServerState()
   ignore(
@@ -1346,12 +1395,12 @@ async test "workspace diagnostics are independent of triggering document" {
   )
   inspect(
     diagnostic_publication_uris(lib_result),
-    content="file://.tmp-lsp-stable-workspace/Lib.lane",
+    content="file://.tmp-lsp-stable-workspace/Lib.lane,file://.tmp-lsp-stable-workspace/Main.lane",
   )
 }
 
 ///|
-async test "workspace diagnostics ignore modules outside import closure" {
+async test "workspace diagnostics include disconnected modules" {
   let workspace = ".tmp-lsp-import-closure-workspace"
   let main_path = "\{workspace}/Main.lane"
   let lib_path = "\{workspace}/Lib.lane"
@@ -1420,12 +1469,12 @@ async test "workspace diagnostics ignore modules outside import closure" {
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   inspect(
     diagnostic_publication_uris(result),
-    content="file://.tmp-lsp-import-closure-workspace/Main.lane,file://.tmp-lsp-import-closure-workspace/Lib.lane",
+    content="file://.tmp-lsp-import-closure-workspace/Main.lane,file://.tmp-lsp-import-closure-workspace/Lib.lane,file://.tmp-lsp-import-closure-workspace/Unrelated.lane",
   )
 }
 
 ///|
-async test "workspace diagnostics keep reachable parse errors" {
+async test "workspace diagnostics keep parse errors from every module" {
   let workspace = ".tmp-lsp-reachable-parse-workspace"
   let main_path = "\{workspace}/Main.lane"
   let lib_path = "\{workspace}/Lib.lane"
@@ -1494,7 +1543,7 @@ async test "workspace diagnostics keep reachable parse errors" {
   cleanup_workspace_fixture(workspace, main_path, lib_path)
   inspect(
     diagnostic_publication_uris(result),
-    content="file://.tmp-lsp-reachable-parse-workspace/Main.lane,file://.tmp-lsp-reachable-parse-workspace/Lib.lane",
+    content="file://.tmp-lsp-reachable-parse-workspace/Main.lane,file://.tmp-lsp-reachable-parse-workspace/Lib.lane,file://.tmp-lsp-reachable-parse-workspace/Unrelated.lane",
   )
 }
 

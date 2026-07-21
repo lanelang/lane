@@ -1,4 +1,16 @@
 ///|
+fn analyze_test_source_inputs(
+  root : @module_frontend.SourceInput,
+  libraries : Array[@module_frontend.SourceInput],
+) -> @analysis.AnalysisResult {
+  let workspace = @analysis.SemanticWorkspace::new()
+  guard workspace.replace_sources([root] + libraries) is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  snapshot.analysis()
+}
+
+///|
 fn test_executable_program(
   program : @module_link.LinkedProgram,
 ) -> @executable.ExecutableProgram {
@@ -4147,8 +4159,8 @@ test "import reachable source inputs ignore unrelated parse diagnostics" {
 }
 
 ///|
-test "import reachable analysis reports reachable parse diagnostics" {
-  let result = @analysis.analyze_import_reachable_source_inputs(
+test "semantic workspace reports diagnostics from every workspace module" {
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4179,7 +4191,10 @@ test "import reachable analysis reports reachable parse diagnostics" {
       (diagnostic.source_id, diagnostic.message)
     }),
     content=(
-      #|[(Some("file:///Lib.lane"), "unexpected token")]
+      #|[
+      #|  (Some("file:///Lib.lane"), "unexpected token"),
+      #|  (Some("file:///Unrelated.lane"), "unexpected token"),
+      #|]
     ),
   )
 }
@@ -4256,7 +4271,7 @@ test "check sources rejects import cycle" {
 
 ///|
 test "analysis resolves same-file definition and hover" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4293,7 +4308,7 @@ test "analysis resolves same-file definition and hover" {
 
 ///|
 test "analysis traverses explicit generic application" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4336,7 +4351,7 @@ test "analysis traverses explicit generic application" {
 
 ///|
 test "analysis keeps generic operation hover declaration detail" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4366,7 +4381,7 @@ test "analysis keeps generic operation hover declaration detail" {
 
 ///|
 test "analysis resolves cross-module definition by source identity" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4400,7 +4415,7 @@ test "analysis resolves cross-module definition by source identity" {
 
 ///|
 test "analysis resolves types fields and variants" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4469,7 +4484,7 @@ test "analysis resolves types fields and variants" {
 
 ///|
 test "analysis hovers handler binders with checked types" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4512,7 +4527,7 @@ test "analysis hovers handler binders with checked types" {
 
 ///|
 test "analysis narrows struct pattern type references" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4544,7 +4559,7 @@ test "analysis narrows struct pattern type references" {
 
 ///|
 test "analysis keeps partial definitions when unrelated diagnostics exist" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4576,7 +4591,7 @@ test "analysis keeps partial definitions when unrelated diagnostics exist" {
 
 ///|
 test "analysis produces type inlay hints for inferred binders" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4634,7 +4649,7 @@ test "analysis produces type inlay hints for inferred binders" {
 
 ///|
 test "analysis renders user-facing type names in type inlay hints" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4726,7 +4741,7 @@ test "analysis renders user-facing type names in type inlay hints" {
 
 ///|
 test "analysis produces parameter name inlay hints for calls" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4925,7 +4940,7 @@ test "analysis produces parameter name inlay hints for calls" {
 
 ///|
 test "analysis does not synthesize constructor parameter hints from payload types" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -4949,7 +4964,7 @@ test "analysis does not synthesize constructor parameter hints from payload type
 
 ///|
 test "analysis keeps nested call parameter hints at distinct positions" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -5024,7 +5039,7 @@ test "analysis keeps nested call parameter hints at distinct positions" {
 
 ///|
 test "analysis anchors field argument parameter hint at argument start" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -5072,7 +5087,7 @@ test "analysis anchors field argument parameter hint at argument start" {
 
 ///|
 test "analysis skips parameter name inlay hints for source operators" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -5163,7 +5178,7 @@ test "analysis skips parameter name inlay hints for source operators" {
 
 ///|
 test "analysis produces implicit argument inlay hints for auto offers" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -5229,7 +5244,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
 
 ///|
 test "analysis combines implicit argument inlay hints at the call end" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (
@@ -5271,7 +5286,7 @@ test "analysis combines implicit argument inlay hints at the call end" {
 
 ///|
 test "analysis does not mark explicit named auto arguments as implicit" {
-  let result = @analysis.analyze_source_inputs(
+  let result = analyze_test_source_inputs(
     {
       source_id: "file:///Main.lane",
       text: (

@@ -12,19 +12,9 @@ import {
 }
 
 // Values
-pub fn analyze_import_reachable_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> AnalysisResult
-
-pub fn analyze_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> AnalysisResult
-
-pub fn analyze_sources(String, Array[String]) -> AnalysisResult
-
 pub fn checked_semantic_warning_diagnostics(@resolve.ResolvedSourceFile, @checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
 
 pub fn checked_unused_local_value_binding_diagnostics(@checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
-
-pub fn complete_import_reachable_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
-
-pub fn complete_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput], String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
 
 // Errors
 
@@ -115,6 +105,17 @@ pub(all) struct ReferenceEntry {
   hover : String?
 } derive(Eq, @debug.Debug)
 
+pub struct SemanticSnapshot {
+  // private fields
+}
+pub fn SemanticSnapshot::analysis(Self) -> AnalysisResult
+pub fn SemanticSnapshot::complete(Self, String, Int, Int, CompletionTrigger) -> Array[CompletionEntry]
+pub fn SemanticSnapshot::definition_at(Self, String, Int, Int) -> AnalysisLocation?
+pub fn SemanticSnapshot::diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn SemanticSnapshot::hover_at(Self, String, Int, Int) -> HoverEntry?
+pub fn SemanticSnapshot::inlay_hints_in_range(Self, String, Int, Int, Int, Int) -> Array[InlayHintEntry]
+pub fn SemanticSnapshot::revision(Self) -> Int
+
 pub(all) struct SemanticTokenEntry {
   location : AnalysisLocation
   kind : SemanticTokenKind
@@ -124,6 +125,18 @@ pub(all) enum SemanticTokenKind {
   VariableToken
   ParameterToken
 } derive(Eq, @debug.Debug)
+
+pub struct SemanticWorkspace {
+  // private fields
+}
+pub fn SemanticWorkspace::clear(Self) -> Unit
+pub fn SemanticWorkspace::new() -> Self
+pub fn SemanticWorkspace::remove_source(Self, String) -> SemanticSnapshot?
+pub fn SemanticWorkspace::replace_sources(Self, Array[@frontend.SourceInput]) -> SemanticSnapshot?
+pub fn SemanticWorkspace::revision(Self) -> Int
+pub fn SemanticWorkspace::snapshot(Self) -> SemanticSnapshot?
+pub fn SemanticWorkspace::sources(Self) -> Array[@frontend.SourceInput]
+pub fn SemanticWorkspace::upsert_source(Self, @frontend.SourceInput) -> SemanticSnapshot?
 
 // Type aliases
 

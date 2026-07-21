@@ -19,108 +19,51 @@ fn LspWorkspaceAnalysis::LspWorkspaceAnalysis(
 }
 
 ///|
-async fn LspWorkspaceAnalysis::check(
+async fn LspWorkspaceAnalysis::initialize_workspace(
   self : LspWorkspaceAnalysis,
+  workspace : @analysis.SemanticWorkspace,
   document : DocumentSnapshot,
 ) -> Array[DiagnosticPublication] {
   let sources = self.analysis_sources(document)
-  let analysis = self.analyze_sources(sources)
-  diagnostic_publications(
-    self.diagnostic_publication_inputs(sources, analysis.diagnostics),
-    analysis.diagnostics,
-    fallback_uri=document.uri,
+  ignore(workspace.replace_sources(sources.all_inputs()))
+  self.workspace_diagnostics(workspace, document.uri)
+}
+
+///|
+fn LspWorkspaceAnalysis::update_document(
+  self : LspWorkspaceAnalysis,
+  workspace : @analysis.SemanticWorkspace,
+  document : DocumentSnapshot,
+) -> Array[DiagnosticPublication] {
+  ignore(
+    workspace.upsert_source({ source_id: document.uri, text: document.text }),
   )
+  self.workspace_diagnostics(workspace, document.uri)
 }
 
 ///|
-async fn LspWorkspaceAnalysis::analyze(
-  self : LspWorkspaceAnalysis,
-  document : DocumentSnapshot,
-) -> @analysis.AnalysisResult {
-  self.analyze_sources(self.analysis_sources(document))
-}
-
-///|
-async fn LspWorkspaceAnalysis::complete(
-  self : LspWorkspaceAnalysis,
-  document : DocumentSnapshot,
-  line : Int,
-  column : Int,
-  trigger : @analysis.CompletionTrigger,
-) -> Array[@analysis.CompletionEntry] {
-  let sources = self.analysis_sources(document)
-  match self.workspace_root {
-    Some(_) =>
-      @analysis.complete_import_reachable_source_inputs(
-        sources.root,
-        sources.libraries,
-        document.uri,
-        line,
-        column,
-        trigger,
-      )
-    None =>
-      @analysis.complete_source_inputs(
-        sources.root,
-        sources.libraries,
-        document.uri,
-        line,
-        column,
-        trigger,
-      )
+fn LspWorkspaceAnalysis::workspace_diagnostics(
+  _self : LspWorkspaceAnalysis,
+  workspace : @analysis.SemanticWorkspace,
+  fallback_uri : String,
+) -> Array[DiagnosticPublication] {
+  let diagnostics = match workspace.snapshot() {
+    Some(snapshot) => snapshot.diagnostics()
+    None => []
   }
+  let sources = workspace.sources()
+  let ordered = sources.filter(fn(source) { source.source_id == fallback_uri })
+  ordered.append(
+    sources.filter(fn(source) { source.source_id != fallback_uri }),
+  )
+  diagnostic_publications(ordered, diagnostics, fallback_uri~)
 }
 
 ///|
-fn LspWorkspaceAnalysis::analyze_sources(
-  self : LspWorkspaceAnalysis,
-  sources : LspAnalysisSources,
-) -> @analysis.AnalysisResult {
-  match self.workspace_root {
-    Some(_) =>
-      @analysis.analyze_import_reachable_source_inputs(
-        sources.root,
-        sources.libraries,
-      )
-    None => @analysis.analyze_source_inputs(sources.root, sources.libraries)
-  }
-}
-
-///|
-fn LspWorkspaceAnalysis::diagnostic_publication_inputs(
-  self : LspWorkspaceAnalysis,
-  sources : LspAnalysisSources,
-  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
-) -> Array[@module_frontend.SourceInput] {
-  match self.workspace_root {
-    Some(_) =>
-      match
-        @module_frontend.import_reachable_source_inputs(
-          sources.root,
-          sources.libraries,
-        ) {
-        Ok(inputs) => inputs
-        Err(_) => sources.inputs_with_diagnostics(diagnostics)
-      }
-    None => [sources.root]
-  }
-}
-
-///|
-fn LspAnalysisSources::inputs_with_diagnostics(
+fn LspAnalysisSources::all_inputs(
   self : LspAnalysisSources,
-  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> Array[@module_frontend.SourceInput] {
-  let source_ids : Array[String] = []
-  for diagnostic in diagnostics {
-    for source_id in diagnostic.source_ids() {
-      if !source_ids.contains(source_id) {
-        source_ids.push(source_id)
-      }
-    }
-  }
-  [self.root] +
-  self.libraries.filter(fn(input) { source_ids.contains(input.source_id) })
+  [self.root] + self.libraries
 }
 
 ///|
