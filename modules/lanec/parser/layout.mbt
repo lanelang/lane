@@ -11,9 +11,10 @@ fn layout_yacc_tokens(
 ) -> Array[(@yacc_parser.Token, SourceSpan, SourceSpan)] {
   let tokens = []
   let delimiters : Array[LayoutDelimiter] = []
+  let newline_gaps = collect_newline_gaps(concrete)
   for index, item in concrete.tokens {
     let (token, loc) = item
-    if should_insert_layout_semicolon(concrete, index, delimiters) {
+    if should_insert_layout_semicolon(concrete, index, delimiters, newline_gaps) {
       let separator = token_end_position(concrete.tokens[index - 1].1)
       tokens.push((@yacc_parser.SEMICOLON, separator, separator))
     }
@@ -38,17 +39,31 @@ fn layout_yacc_tokens(
 }
 
 ///|
+fn collect_newline_gaps(concrete : @lexer.ConcreteSyntax) -> Array[Bool] {
+  let newline_gaps = Array::make(concrete.tokens.length(), false)
+  for trivia in concrete.trivia {
+    if trivia.kind is Newline &&
+      trivia.gap >= 0 &&
+      trivia.gap < newline_gaps.length() {
+      newline_gaps[trivia.gap] = true
+    }
+  }
+  newline_gaps
+}
+
+///|
 fn should_insert_layout_semicolon(
   concrete : @lexer.ConcreteSyntax,
   gap : Int,
   delimiters : Array[LayoutDelimiter],
+  newline_gaps : Array[Bool],
 ) -> Bool {
   guard gap > 0 && layout_semicolon_enabled(delimiters) else { return false }
   let previous = concrete.tokens[gap - 1].0
   let next = concrete.tokens[gap].0
   token_ends_layout_item(previous) &&
   token_starts_layout_item(next) &&
-  concrete.trivia.any(fn(trivia) { trivia.gap == gap && trivia.kind is Newline })
+  newline_gaps[gap]
 }
 
 ///|
