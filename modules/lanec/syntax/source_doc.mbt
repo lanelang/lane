@@ -282,10 +282,8 @@ pub(all) struct SourceFormatTrivia {
   trailing : (SourceSpan) -> Document
   has_leading : (SourceSpan) -> Bool
   has_trailing : (SourceSpan) -> Bool
-  boundary : (Int, Int) -> Document
-  has_boundary : (Int, Int) -> Bool
-  delimited : (Char, Int, Int, Array[SourceSpan]) -> Document
-  has_delimited : (Char, Int, Int, Array[SourceSpan]) -> Bool
+  boundary : (Int, Int) -> (Document, Bool)
+  delimited : (Char, Int, Int, Array[SourceSpan]) -> (Document, Bool)
   comma_separator : (SourceSpan, SourceSpan) -> Document
   item_separator : (SourceSpan, SourceSpan) -> Document
   top_level_separator : (SourceSpan, SourceSpan) -> Document
@@ -300,10 +298,8 @@ pub fn SourceFormatTrivia::empty() -> SourceFormatTrivia {
     trailing: fn(_span) { empty },
     has_leading: fn(_span) { false },
     has_trailing: fn(_span) { false },
-    boundary: fn(_start, _end) { empty },
-    has_boundary: fn(_start, _end) { false },
-    delimited: fn(_open, _start, _end, _children) { empty },
-    has_delimited: fn(_open, _start, _end, _children) { false },
+    boundary: fn(_start, _end) { (empty, false) },
+    delimited: fn(_open, _start, _end, _children) { (empty, false) },
     comma_separator: fn(_left, _right) { text(",") + line },
     item_separator: fn(_left, _right) { hardline },
     top_level_separator: fn(_left, _right) { hardline + hardline },
@@ -318,8 +314,7 @@ fn SourceFormatTrivia::take_boundary(
   start_offset : Int,
   end_offset : Int,
 ) -> (Document, Bool) {
-  let force_break = (self.has_boundary)(start_offset, end_offset)
-  ((self.boundary)(start_offset, end_offset), force_break)
+  (self.boundary)(start_offset, end_offset)
 }
 
 ///|
@@ -330,10 +325,7 @@ fn SourceFormatTrivia::take_delimited(
   end_offset : Int,
   child_spans? : Array[SourceSpan] = [],
 ) -> (Document, Bool) {
-  let force_break = (self.has_delimited)(
-    open, start_offset, end_offset, child_spans,
-  )
-  ((self.delimited)(open, start_offset, end_offset, child_spans), force_break)
+  (self.delimited)(open, start_offset, end_offset, child_spans)
 }
 
 ///|

@@ -1641,8 +1641,10 @@ fn Expr::field_chain_doc(
       let base_doc = base.to_doc_with_precedence(9, trivia~)
       return base_doc + nest(hardline + text(".") + text(name))
     }
-    if (trivia.has_boundary)(boundary_start, boundary_end) {
-      let boundary = (trivia.boundary)(boundary_start, boundary_end)
+    let (boundary, force_break) = trivia.take_boundary(
+      boundary_start, boundary_end,
+    )
+    if force_break {
       let base_doc = base.to_doc_with_precedence(9, trivia~)
       return base_doc +
         text(".") +

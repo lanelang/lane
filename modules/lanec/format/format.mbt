@@ -249,16 +249,8 @@ fn ConcreteLayoutSession::source_format_trivia(
     boundary: fn(start, end) {
       dangling_comment_doc(comments, claimed, start, end)
     },
-    has_boundary: fn(start, end) {
-      has_dangling_comment(comments, claimed, start, end)
-    },
     delimited: fn(open, start, end, children) {
       delimited_comment_doc(
-        comments, claimed, tokens, open, start, end, children,
-      )
-    },
-    has_delimited: fn(open, start, end, children) {
-      has_delimited_comment(
         comments, claimed, tokens, open, start, end, children,
       )
     },
@@ -279,29 +271,6 @@ fn ConcreteLayoutSession::source_format_trivia(
 }
 
 ///|
-fn has_delimited_comment(
-  comments : Array[AnchoredComment],
-  claimed : Array[Bool],
-  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
-  open : Char,
-  start_offset : Int,
-  end_offset : Int,
-  child_spans : Array[@basic.SourceSpan],
-) -> Bool {
-  match delimiter_interior(tokens, open, start_offset, end_offset) {
-    Some((start, end)) =>
-      has_dangling_comment(
-        comments,
-        claimed,
-        start,
-        end,
-        excluded_boundaries=child_spans,
-      )
-    None => false
-  }
-}
-
-///|
 fn delimited_comment_doc(
   comments : Array[AnchoredComment],
   claimed : Array[Bool],
@@ -310,7 +279,7 @@ fn delimited_comment_doc(
   start_offset : Int,
   end_offset : Int,
   child_spans : Array[@basic.SourceSpan],
-) -> Document {
+) -> (Document, Bool) {
   match delimiter_interior(tokens, open, start_offset, end_offset) {
     Some((start, end)) =>
       dangling_comment_doc(
@@ -320,7 +289,7 @@ fn delimited_comment_doc(
         end,
         excluded_boundaries=child_spans,
       )
-    None => empty
+    None => (empty, false)
   }
 }
 
@@ -376,40 +345,15 @@ fn is_close_delimiter(token : @lexer.Token, open : Char) -> Bool {
 }
 
 ///|
-fn has_dangling_comment(
-  comments : Array[AnchoredComment],
-  claimed : Array[Bool],
-  start_offset : Int,
-  end_offset : Int,
-  excluded_boundaries? : Array[@basic.SourceSpan] = [],
-) -> Bool {
-  let mut index = first_comment_at_or_after(comments, start_offset)
-  while index < comments.length() {
-    let comment = comments[index]
-    if comment.span.start_offset > end_offset {
-      break
-    }
-    if !claimed[index] &&
-      !(comment.placement is Boundary) &&
-      comment.span.start_offset >= start_offset &&
-      comment.span.end_offset <= end_offset &&
-      !comment_is_between_children(comment, excluded_boundaries) {
-      return true
-    }
-    index += 1
-  }
-  false
-}
-
-///|
 fn dangling_comment_doc(
   comments : Array[AnchoredComment],
   claimed : Array[Bool],
   start_offset : Int,
   end_offset : Int,
   excluded_boundaries? : Array[@basic.SourceSpan] = [],
-) -> Document {
+) -> (Document, Bool) {
   let docs = []
+  let mut consumed = false
   let mut index = first_comment_at_or_after(comments, start_offset)
   while index < comments.length() {
     let comment = comments[index]
@@ -422,11 +366,12 @@ fn dangling_comment_doc(
       comment.span.end_offset <= end_offset &&
       !comment_is_between_children(comment, excluded_boundaries) {
       claimed[index] = true
+      consumed = true
       push_leading_comment_docs(docs, comment)
     }
     index += 1
   }
-  separate(hardline, docs)
+  (separate(hardline, docs), consumed)
 }
 
 ///|

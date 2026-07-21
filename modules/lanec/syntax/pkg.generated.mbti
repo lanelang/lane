@@ -325,10 +325,8 @@ pub(all) struct SourceFormatTrivia {
   trailing : (@basic.SourceSpan) -> @source_prettyprinter.Document
   has_leading : (@basic.SourceSpan) -> Bool
   has_trailing : (@basic.SourceSpan) -> Bool
-  boundary : (Int, Int) -> @source_prettyprinter.Document
-  has_boundary : (Int, Int) -> Bool
-  delimited : (Char, Int, Int, Array[@basic.SourceSpan]) -> @source_prettyprinter.Document
-  has_delimited : (Char, Int, Int, Array[@basic.SourceSpan]) -> Bool
+  boundary : (Int, Int) -> (@source_prettyprinter.Document, Bool)
+  delimited : (Char, Int, Int, Array[@basic.SourceSpan]) -> (@source_prettyprinter.Document, Bool)
   comma_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
   item_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
   top_level_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
