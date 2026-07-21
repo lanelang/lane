@@ -52,6 +52,38 @@ test "format comments after explicit item semicolons" {
 }
 
 ///|
+test "format trailing comments on newline shorthand struct fields" {
+  assert_format(
+    (
+      #|module Test
+      #|struct Pair { left : Int right : Int }
+      #|pub fn make(left : Int, right : Int) -> Pair {
+      #|Pair::{
+      #|left // keep
+      #|right
+      #|}
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|struct Pair {
+      #|  left : Int
+      #|  right : Int
+      #|}
+      #|
+      #|pub fn make(left : Int, right : Int) -> Pair {
+      #|  Pair::{
+      #|    left // keep
+      #|    right
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format layout inside function literals nested in calls" {
   assert_format(
     (

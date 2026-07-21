@@ -1112,7 +1112,9 @@ fn Expr::to_doc_with_precedence(
     }
     StructLiteral(owner~, fields~, loc~) => {
       let head = owner.to_doc() + text("::")
-      let field_docs = fields.map(fn(field) { field.to_doc(trivia~) })
+      let field_docs = fields.mapi(fn(index, field) {
+        field.to_doc_with_separator(index + 1 < fields.length(), trivia~)
+      })
       let (field_dangling, force_field_break) = trivia.take_delimited(
         '{',
         owner.loc().end_offset,
@@ -1121,7 +1123,7 @@ fn Expr::to_doc_with_precedence(
       (
         10,
         head +
-        braced_comma_list(
+        struct_literal_fields_doc(
           field_docs,
           dangling=field_dangling,
           force_break=force_field_break,
@@ -1582,6 +1584,15 @@ fn StructLiteralField::to_doc(
   self : StructLiteralField,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
+  self.to_doc_with_separator(false, trivia~)
+}
+
+///|
+fn StructLiteralField::to_doc_with_separator(
+  self : StructLiteralField,
+  has_next : Bool,
+  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
+) -> Document {
   let (span, doc) = match self {
     Value(name~, value~, loc~) =>
       match value {
@@ -1595,7 +1606,29 @@ fn StructLiteralField::to_doc(
     TypeWitness(name~, witness~, loc~) =>
       (loc, text(name) + space + text("=") + space + witness.to_doc())
   }
-  trivia.decorate_leading(span, doc)
+  let suffix = if has_next && !(trivia.has_trailing)(span) {
+    text(",")
+  } else {
+    empty
+  }
+  trivia.decorate(span, doc + suffix)
+}
+
+///|
+fn struct_literal_fields_doc(
+  field_docs : Array[Document],
+  dangling? : Document = empty,
+  force_break? : Bool = false,
+) -> Document {
+  delimited_list(
+    char('{'),
+    char('}'),
+    line,
+    line,
+    field_docs,
+    dangling~,
+    force_break~,
+  )
 }
 
 ///|

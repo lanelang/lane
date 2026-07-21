@@ -14,11 +14,6 @@ fn join_comma(docs : Array[Document]) -> Document {
 }
 
 ///|
-fn comma_line_list(docs : Array[Document]) -> Document {
-  separate(text(",") + line, docs)
-}
-
-///|
 fn comma_hardline_list(docs : Array[Document]) -> Document {
   separate(text(",") + hardline, docs)
 }
@@ -32,17 +27,38 @@ fn delimited_comma_list(
   dangling? : Document = empty,
   force_break? : Bool = false,
 ) -> Document {
+  delimited_list(
+    open,
+    close,
+    edge,
+    text(",") + line,
+    docs,
+    dangling~,
+    force_break~,
+  )
+}
+
+///|
+fn delimited_list(
+  open : Document,
+  close : Document,
+  edge : Document,
+  separator : Document,
+  docs : Array[Document],
+  dangling? : Document = empty,
+  force_break? : Bool = false,
+) -> Document {
   if force_break {
     let body = if docs.is_empty() {
       dangling
     } else {
-      comma_hardline_list(docs) + hardline + dangling
+      separate(separator, docs) + hardline + dangling
     }
     open + nest(hardline + body) + hardline + close
   } else if docs.is_empty() {
     open + close
   } else {
-    group(open + nest(edge + comma_line_list(docs)) + edge + close)
+    group(open + nest(edge + separate(separator, docs)) + edge + close)
   }
 }
 
