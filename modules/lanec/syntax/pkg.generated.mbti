@@ -330,9 +330,8 @@ pub impl @prettyprinter.Pretty for SourceFile
 
 pub(all) struct SourceFormatTrivia {
   leading : (@basic.SourceSpan) -> @source_prettyprinter.Document
-  trailing : (@basic.SourceSpan) -> @source_prettyprinter.Document
+  trailing : (@basic.SourceSpan) -> (@source_prettyprinter.Document, Bool)
   has_leading : (@basic.SourceSpan) -> Bool
-  has_trailing : (@basic.SourceSpan) -> Bool
   boundary : (Int, Int) -> (@source_prettyprinter.Document, Bool)
   delimited : (Char, Int, Int, Array[@basic.SourceSpan]) -> (@source_prettyprinter.Document, Bool)
   comma_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document

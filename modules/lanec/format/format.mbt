@@ -243,9 +243,6 @@ fn ConcreteLayoutSession::source_format_trivia(
     has_leading: fn(span) {
       has_comment_anchor(leading_anchors, span.start_offset)
     },
-    has_trailing: fn(span) {
-      has_comment_anchor(trailing_anchors, span.end_offset)
-    },
     boundary: fn(start, end) {
       dangling_comment_doc(comments, claimed, start, end)
     },
@@ -727,7 +724,7 @@ fn trailing_comment_doc(
   anchors : Array[CommentAnchor],
   claimed : Array[Bool],
   span : @basic.SourceSpan,
-) -> Document {
+) -> (Document, Bool) {
   let docs = []
   let mut anchor_index = first_anchor_at_or_after(anchors, span.end_offset)
   while anchor_index < anchors.length() &&
@@ -740,7 +737,7 @@ fn trailing_comment_doc(
     }
     anchor_index += 1
   }
-  separate(empty, docs)
+  (separate(empty, docs), !docs.is_empty())
 }
 
 ///|

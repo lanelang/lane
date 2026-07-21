@@ -129,6 +129,29 @@ fn parenthesized_comma_list(
 }
 
 ///|
+fn grouped_source_doc(
+  child_span : SourceSpan,
+  group_span : SourceSpan,
+  trivia : SourceFormatTrivia,
+  make_child_doc : () -> Document,
+) -> Document {
+  let (child_trailing, child_has_trailing) = trivia.take_trailing(child_span)
+  let child = make_child_doc() + child_trailing
+  let (dangling, force_break) = trivia.take_delimited(
+    '(',
+    group_span.start_offset,
+    group_span.end_offset,
+    child_spans=[child_span],
+  )
+  let body = if force_break { child + hardline + dangling } else { child }
+  if child_has_trailing || force_break {
+    char('(') + nest(hardline + body) + hardline + char(')')
+  } else {
+    char('(') + child + char(')')
+  }
+}
+
+///|
 fn parenthesized_comma_list_with_suffix(
   docs : Array[Document],
   suffix : Document,
@@ -278,9 +301,8 @@ fn source_assignment(
 ///|
 pub(all) struct SourceFormatTrivia {
   leading : (SourceSpan) -> Document
-  trailing : (SourceSpan) -> Document
+  trailing : (SourceSpan) -> (Document, Bool)
   has_leading : (SourceSpan) -> Bool
-  has_trailing : (SourceSpan) -> Bool
   boundary : (Int, Int) -> (Document, Bool)
   delimited : (Char, Int, Int, Array[SourceSpan]) -> (Document, Bool)
   comma_separator : (SourceSpan, SourceSpan) -> Document
@@ -294,9 +316,8 @@ pub(all) struct SourceFormatTrivia {
 pub fn SourceFormatTrivia::empty() -> SourceFormatTrivia {
   {
     leading: fn(_span) { empty },
-    trailing: fn(_span) { empty },
+    trailing: fn(_span) { (empty, false) },
     has_leading: fn(_span) { false },
-    has_trailing: fn(_span) { false },
     boundary: fn(_start, _end) { (empty, false) },
     delimited: fn(_open, _start, _end, _children) { (empty, false) },
     comma_separator: fn(_left, _right) { text(",") + line },
@@ -317,6 +338,14 @@ fn SourceFormatTrivia::take_boundary(
 }
 
 ///|
+fn SourceFormatTrivia::take_trailing(
+  self : SourceFormatTrivia,
+  span : SourceSpan,
+) -> (Document, Bool) {
+  (self.trailing)(span)
+}
+
+///|
 fn SourceFormatTrivia::take_delimited(
   self : SourceFormatTrivia,
   open : Char,
@@ -333,7 +362,8 @@ fn SourceFormatTrivia::decorate(
   span : SourceSpan,
   doc : Document,
 ) -> Document {
-  (self.leading)(span) + doc + (self.trailing)(span)
+  let (trailing, _) = self.take_trailing(span)
+  (self.leading)(span) + doc + trailing
 }
 
 ///|
@@ -351,5 +381,6 @@ fn SourceFormatTrivia::decorate_trailing(
   span : SourceSpan,
   doc : Document,
 ) -> Document {
-  doc + (self.trailing)(span)
+  let (trailing, _) = self.take_trailing(span)
+  doc + trailing
 }

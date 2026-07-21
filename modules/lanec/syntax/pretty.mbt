@@ -525,25 +525,8 @@ fn Kind::to_doc(
       space +
       result.to_doc(trivia~)
     }
-    Grouped(kind~, loc~) => {
-      let (dangling, force_break) = trivia.take_delimited(
-        '(',
-        loc.start_offset,
-        loc.end_offset,
-        child_spans=[kind.loc()],
-      )
-      if force_break {
-        parenthesized_comma_list(
-          [kind.to_doc(trivia~)],
-          item_spans=[kind.loc()],
-          trivia~,
-          dangling~,
-          force_break~,
-        )
-      } else {
-        char('(') + kind.to_doc(trivia~) + char(')')
-      }
-    }
+    Grouped(kind~, loc~) =>
+      grouped_source_doc(kind.loc(), loc, trivia, fn() { kind.to_doc(trivia~) })
   }
   trivia.decorate(self.loc(), doc)
 }
@@ -1122,25 +1105,10 @@ fn Type::to_doc(
       ) +
       suffix
     }
-    Grouped(type_~, loc~) => {
-      let (dangling, force_break) = trivia.take_delimited(
-        '(',
-        loc.start_offset,
-        loc.end_offset,
-        child_spans=[type_.loc()],
-      )
-      if force_break {
-        parenthesized_comma_list(
-          [type_.to_doc(trivia~)],
-          item_spans=[type_.loc()],
-          trivia~,
-          dangling~,
-          force_break~,
-        )
-      } else {
-        char('(') + type_.to_doc(trivia~) + char(')')
-      }
-    }
+    Grouped(type_~, loc~) =>
+      grouped_source_doc(type_.loc(), loc, trivia, fn() {
+        type_.to_doc(trivia~)
+      })
   }
   trivia.decorate(self.loc(), doc)
 }
@@ -1591,35 +1559,13 @@ fn Expr::to_doc_with_precedence(
       )
     }
     Pipeline(..) => (1, self.pipeline_chain_doc(trivia~))
-    Grouped(expression~, loc~) => {
-      let child_has_trailing_comment = (trivia.has_trailing)(expression.loc())
-      let expression_doc = expression.to_doc_with_precedence(0, trivia~)
-      let (dangling, delimited_force_break) = trivia.take_delimited(
-        '(',
-        loc.start_offset,
-        loc.end_offset,
-        child_spans=[expression.loc()],
+    Grouped(expression~, loc~) =>
+      (
+        10,
+        grouped_source_doc(expression.loc(), loc, trivia, fn() {
+          expression.to_doc_with_precedence(0, trivia~)
+        }),
       )
-      let grouped = if child_has_trailing_comment {
-        let body = if delimited_force_break {
-          expression_doc + hardline + dangling
-        } else {
-          expression_doc
-        }
-        char('(') + nest(hardline + body) + hardline + char(')')
-      } else if delimited_force_break {
-        parenthesized_comma_list(
-          [expression_doc],
-          item_spans=[expression.loc()],
-          trivia~,
-          dangling~,
-          force_break=delimited_force_break,
-        )
-      } else {
-        char('(') + expression_doc + char(')')
-      }
-      (10, grouped)
-    }
   }
   let result = if precedence < context_precedence { parens(doc) } else { doc }
   trivia.decorate(self.loc(), result)
@@ -1707,8 +1653,9 @@ fn Expr::field_chain_doc(
   if self is Field(base~, name~, loc~, ..) {
     let boundary_start = base.loc().end_offset
     let boundary_end = loc.end_offset
-    if (trivia.has_trailing)(base.loc()) {
-      let base_doc = base.to_doc_with_precedence(9, trivia~)
+    let (base_trailing, base_has_trailing) = trivia.take_trailing(base.loc())
+    if base_has_trailing {
+      let base_doc = base.to_doc_with_precedence(9, trivia~) + base_trailing
       return base_doc + nest(hardline + text(".") + text(name))
     }
     let (boundary, force_break) = trivia.take_boundary(

@@ -1899,6 +1899,13 @@ test "format source keeps grouped child trailing comments inside parentheses" {
   assert_format(
     (
       #|module Test
+      #|pub type Nested = (
+      #|  Int // child type
+      #|  // grouped type dangling
+      #|)
+      #|pub type Higher[F : (
+      #|  Type // child kind
+      #|)] = F[Int]
       #|pub fn grouped(value : Int) -> Int {
       #|  (
       #|    value // child expression
@@ -1907,6 +1914,17 @@ test "format source keeps grouped child trailing comments inside parentheses" {
     ),
     (
       #|module Test
+      #|
+      #|pub type Nested = (
+      #|  Int // child type
+      #|  // grouped type dangling
+      #|)
+      #|
+      #|pub type Higher[
+      #|  F : (
+      #|    Type // child kind
+      #|  )
+      #|] = F[Int]
       #|
       #|pub fn grouped(value : Int) -> Int {
       #|  (
