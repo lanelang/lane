@@ -30,6 +30,27 @@ fn standalone_expr_doc(
 }
 
 ///|
+priv enum ArmBodyPlacement {
+  Inline
+  Nested
+}
+
+///|
+fn arm_source_doc(
+  head : Document,
+  body : Expr,
+  arm_loc : SourceSpan,
+  trivia : SourceFormatTrivia,
+) -> Document {
+  let body_doc = trivia.decorate_trailing(body.loc(), body.to_doc(trivia~))
+  let doc = match body.arm_body_placement() {
+    Inline => head + space + body_doc
+    Nested => head + nest(hardline + body_doc)
+  }
+  trivia.decorate_leading(arm_loc, doc)
+}
+
+///|
 fn boundary_separated(
   left : Document,
   right : Document,
@@ -1782,18 +1803,7 @@ fn HandlerOperationArm::to_doc(
     ) +
     space +
     text("=>")
-  let doc = if self.body.breaks_after_match_arrow() {
-    head +
-    nest(
-      hardline +
-      trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~)),
-    )
-  } else {
-    head +
-    space +
-    trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~))
-  }
-  trivia.decorate_leading(self.loc, doc)
+  arm_source_doc(head, self.body, self.loc, trivia)
 }
 
 ///|
@@ -2088,25 +2098,19 @@ fn MatchArm::to_doc(
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
   let head = self.pattern.to_doc(trivia~) + space + text("=>")
-  let doc = if self.body.breaks_after_match_arrow() {
-    head +
-    nest(
-      hardline +
-      trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~)),
-    )
-  } else {
-    head +
-    space +
-    trivia.decorate_trailing(self.body.loc(), self.body.to_doc(trivia~))
-  }
-  trivia.decorate_leading(self.loc, doc)
+  arm_source_doc(head, self.body, self.loc, trivia)
 }
 
 ///|
-fn Expr::breaks_after_match_arrow(self : Expr) -> Bool {
+fn Expr::arm_body_placement(self : Expr) -> ArmBodyPlacement {
   match self {
-    If(..) | Match(..) | Handler(..) => true
-    _ => false
+    If(..) | Match(..) | Handler(..) => Nested
+    TypeApplication(callee~, ..) | Call(callee~, ..) =>
+      callee.arm_body_placement()
+    Field(base~, ..) => base.arm_body_placement()
+    Binary(left~, ..) | Pipeline(left~, ..) => left.arm_body_placement()
+    Grouped(expression~, ..) => expression.arm_body_placement()
+    _ => Inline
   }
 }
 

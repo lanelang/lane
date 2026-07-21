@@ -2034,6 +2034,93 @@ test "format source nests broken call arguments in match arms" {
 }
 
 ///|
+test "format source nests structured expressions through arm wrappers" {
+  assert_format(
+    (
+      #|module Test
+      #|effect Assert { check(Bool) -> Unit }
+      #|enum Choice { some(); grouped(); none() }
+      #|pub fn handle_check(flag : Bool) -> Unit {
+      #|  handle Assert::check!(flag) with {
+      #|    Assert::check(value, resume) =>
+      #|      if value {
+      #|        ()
+      #|      } else {
+      #|        ()
+      #|      } |> resume()
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|pub fn choose(choice : Choice, flag : Bool) -> Int {
+      #|  match choice {
+      #|    some() =>
+      #|      if flag {
+      #|        1
+      #|      } else {
+      #|        0
+      #|      }
+      #|        + 1
+      #|    grouped() =>
+      #|      (if flag {
+      #|        2
+      #|      } else {
+      #|        3
+      #|      }) |> resume()
+      #|    none() => 0
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|effect Assert {
+      #|  check(Bool) -> Unit
+      #|}
+      #|
+      #|enum Choice {
+      #|  some()
+      #|  grouped()
+      #|  none()
+      #|}
+      #|
+      #|pub fn handle_check(flag : Bool) -> Unit {
+      #|  handle Assert::check!(flag) with {
+      #|    Assert::check(value, resume) =>
+      #|      if value {
+      #|        ()
+      #|      } else {
+      #|        ()
+      #|      } |> resume()
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|
+      #|pub fn choose(choice : Choice, flag : Bool) -> Int {
+      #|  match choice {
+      #|    some() =>
+      #|      if flag {
+      #|        1
+      #|      } else {
+      #|        0
+      #|      }
+      #|        + 1
+      #|    grouped() =>
+      #|      (if flag {
+      #|        2
+      #|      } else {
+      #|        3
+      #|      }) |> resume()
+      #|    none() => 0
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source breaks list-like syntax at small width" {
   let source =
     #|module Test
