@@ -963,14 +963,16 @@ fn FunctionDeclaration::to_doc(
   }
   let parameter_suffix = if force_arrow_break { empty } else { suffix }
   let trailing_suffix = if force_arrow_break { suffix } else { empty }
-  let offered_prefix = if self.is_offered {
-    keyword("offer") + space
+  let function_prefix = if self.is_offered {
+    let offer_token_index = if self.is_public { 1 } else { 0 }
+    keyword("offer") +
+    trivia.take_token_separator(self.loc, offer_token_index) +
+    keyword("fn")
   } else {
-    empty
+    keyword("fn")
   }
   let doc = public_prefix(self.is_public) +
-    offered_prefix +
-    keyword("fn") +
+    function_prefix +
     bracketed_type_parameters(
       self.type_parameters,
       trivia~,

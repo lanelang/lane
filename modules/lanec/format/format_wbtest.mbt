@@ -73,6 +73,42 @@ test "format offered function definitions" {
 }
 
 ///|
+test "format offered function preserves comment between offer and fn" {
+  assert_format(
+    (
+      #|module Test
+      #|offer // kept
+      #|fn provide() -> Int { 1 }
+      #|pub offer // public kept
+      #|fn public_provide() -> Int { 2 }
+      #|offer
+      #|// standalone kept
+      #|fn standalone_provide() -> Int { 3 }
+    ),
+    (
+      #|module Test
+      #|
+      #|offer // kept
+      #|fn provide() -> Int {
+      #|  1
+      #|}
+      #|
+      #|pub offer // public kept
+      #|fn public_provide() -> Int {
+      #|  2
+      #|}
+      #|
+      #|offer
+      #|// standalone kept
+      #|fn standalone_provide() -> Int {
+      #|  3
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "formatter consumes the complete trivia attachment view" {
   let source =
     #|// leading module

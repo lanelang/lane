@@ -14,6 +14,7 @@ using @prettyprinter {
   line,
   line_comment,
   separate,
+  space,
   text,
 }
 
@@ -359,6 +360,9 @@ fn ConcreteLayoutSession::source_format_trivia(
     boundary: fn(start, end) {
       dangling_comment_doc(comments, claimed, start, end)
     },
+    token_separator: fn(span, left_token_index) {
+      token_separator_doc(comments, claimed, tokens, span, left_token_index)
+    },
     delimited: fn(open, start, end, children) {
       delimited_comment_doc(
         comments, claimed, delimiter_pairs, open, start, end, children,
@@ -564,6 +568,33 @@ fn comma_separator_doc(
 }
 
 ///|
+fn token_separator_doc(
+  comments : Array[AnchoredComment],
+  claimed : Array[Bool],
+  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
+  span : @basic.SourceSpan,
+  left_token_index : Int,
+) -> Document {
+  let index = first_token_at_or_after(tokens, span.start_offset) +
+    left_token_index
+  guard tokens.get(index) is Some((_, left)) &&
+    tokens.get(index + 1) is Some((_, right)) &&
+    right.end_offset <= span.end_offset else {
+    return space
+  }
+  separator_doc(
+    comments,
+    claimed,
+    left,
+    right,
+    empty,
+    space,
+    true,
+    include_attached=true,
+  )
+}
+
+///|
 fn item_separator_doc(
   comments : Array[AnchoredComment],
   claimed : Array[Bool],
@@ -640,6 +671,7 @@ fn separator_doc(
   empty_separator : Document,
   allow_inline : Bool,
   require_blank? : Bool = false,
+  include_attached? : Bool = false,
 ) -> Document {
   let between = []
   let mut index = first_comment_at_or_after(comments, left.end_offset)
@@ -649,7 +681,7 @@ fn separator_doc(
       break
     }
     if !claimed[index] &&
-      comment.placement is Boundary &&
+      (include_attached || comment.placement is Boundary) &&
       comment.span.start_offset >= left.end_offset &&
       comment.span.end_offset <= right.start_offset {
       claimed[index] = true

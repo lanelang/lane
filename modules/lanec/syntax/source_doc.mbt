@@ -321,6 +321,7 @@ pub(all) struct SourceFormatTrivia {
   trailing : (SourceSpan) -> (Document, Bool)
   has_leading : (SourceSpan) -> Bool
   boundary : (Int, Int) -> (Document, Bool)
+  token_separator : (SourceSpan, Int) -> Document
   delimited : (Char, Int, Int, Array[SourceSpan]) -> (Document, Bool)
   comma_separator : (SourceSpan, SourceSpan) -> Document
   item_separator : (SourceSpan, SourceSpan) -> Document
@@ -336,6 +337,7 @@ pub fn SourceFormatTrivia::empty() -> SourceFormatTrivia {
     trailing: fn(_span) { (empty, false) },
     has_leading: fn(_span) { false },
     boundary: fn(_start, _end) { (empty, false) },
+    token_separator: fn(_span, _left_token_index) { space },
     delimited: fn(_open, _start, _end, _children) { (empty, false) },
     comma_separator: fn(_left, _right) { text(",") + line },
     item_separator: fn(_left, _right) { hardline },
@@ -352,6 +354,15 @@ fn SourceFormatTrivia::take_boundary(
   end_offset : Int,
 ) -> (Document, Bool) {
   (self.boundary)(start_offset, end_offset)
+}
+
+///|
+fn SourceFormatTrivia::take_token_separator(
+  self : SourceFormatTrivia,
+  span : SourceSpan,
+  left_token_index : Int,
+) -> Document {
+  (self.token_separator)(span, left_token_index)
 }
 
 ///|
