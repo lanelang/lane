@@ -465,17 +465,20 @@ fn SemanticWorkspace::rebuild_dirty_modules(
   dirty_module_paths : Array[String],
 ) -> Array[String] {
   guard self.graph_cache is Some(graph) else { return [] }
-  let pending = []
-  let queued : Map[String, Bool] = Map([])
+  let dirty_slots = Array::make(graph.ordered_module_paths.length(), false)
   for module_path in dirty_module_paths {
-    enqueue_dirty_module(graph, pending, queued, module_path)
+    if graph.module_slot_for_path(module_path) is Some(slot) {
+      dirty_slots[slot] = true
+    }
   }
   let changed_source_ids = []
   let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
   let mut modules = self.modules
   let mut definition_locations = self.definition_locations
-  while !pending.is_empty() {
-    let index = pop_minimum_slot(pending)
+  for index in 0..<dirty_slots.length() {
+    if !dirty_slots[index] {
+      continue
+    }
     let module_path = graph.ordered_module_paths[index]
     let source_id = graph.ordered_module_source_ids[index]
     changed_source_ids.push(source_id)
@@ -519,47 +522,16 @@ fn SemanticWorkspace::rebuild_dirty_modules(
         module_.last_successful_interface,
         previous_interface,
       ) {
-      for dependent in graph.dependents(module_path) {
-        enqueue_dirty_module(graph, pending, queued, dependent)
+      for dependent_slot in graph.dependents_of_slot(index) {
+        if dependent_slot > index {
+          dirty_slots[dependent_slot] = true
+        }
       }
     }
   }
   self.modules = modules
   self.definition_locations = definition_locations
   changed_source_ids
-}
-
-///|
-fn enqueue_dirty_module(
-  graph : CachedModuleGraph,
-  pending : Array[Int],
-  queued : Map[String, Bool],
-  module_path : String,
-) -> Unit {
-  if !queued.contains(module_path) &&
-    graph.module_slot_for_path(module_path) is Some(slot) {
-    queued[module_path] = true
-    pending.push(slot)
-  }
-}
-
-///|
-fn pop_minimum_slot(pending : Array[Int]) -> Int {
-  guard pending.get(0) is Some(first) else {
-    abort("dirty module queue is empty")
-  }
-  let mut minimum_index = 0
-  let mut minimum = first
-  for index = 1; index < pending.length(); index = index + 1 {
-    if pending[index] < minimum {
-      minimum_index = index
-      minimum = pending[index]
-    }
-  }
-  let last_index = pending.length() - 1
-  pending.swap(minimum_index, last_index)
-  ignore(pending.pop())
-  minimum
 }
 
 ///|

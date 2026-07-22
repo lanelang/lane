@@ -4,7 +4,7 @@ priv struct CachedModuleGraph {
   ordered_module_paths : Array[String]
   module_slots_by_source : Map[String, Int]
   module_slots_by_path : Map[String, Int]
-  reverse_dependencies : Map[String, Array[String]]
+  dependent_slots : Array[Array[Int]]
   diagnostics : Array[CompilerDiagnostic]
 }
 
@@ -34,18 +34,16 @@ fn CachedModuleGraph::from_graph(
   })
   let module_slots_by_source : Map[String, Int] = Map([])
   let module_slots_by_path : Map[String, Int] = Map([])
-  let reverse_dependencies : Map[String, Array[String]] = Map([])
   for index, module_ in result.graph.modules {
     let module_path = module_.header.module_path_text
     module_slots_by_source[module_.source_id] = index
     module_slots_by_path[module_path] = index
-    reverse_dependencies[module_path] = []
   }
-  for module_ in result.graph.modules {
-    let module_path = module_.header.module_path_text
+  let dependent_slots = result.graph.modules.map(_ => [])
+  for dependent_slot, module_ in result.graph.modules {
     for import_ in module_.header.imports {
-      if reverse_dependencies.get(import_.module_path_text) is Some(dependents) {
-        dependents.push(module_path)
+      if module_slots_by_path.get(import_.module_path_text) is Some(import_slot) {
+        dependent_slots[import_slot].push(dependent_slot)
       }
     }
   }
@@ -54,7 +52,7 @@ fn CachedModuleGraph::from_graph(
     ordered_module_paths,
     module_slots_by_source,
     module_slots_by_path,
-    reverse_dependencies,
+    dependent_slots,
     diagnostics: result.diagnostics.copy(),
   }
 }
@@ -76,11 +74,11 @@ fn CachedModuleGraph::module_slot_for_path(
 }
 
 ///|
-fn CachedModuleGraph::dependents(
+fn CachedModuleGraph::dependents_of_slot(
   self : CachedModuleGraph,
-  module_path : String,
-) -> Array[String] {
-  self.reverse_dependencies.get(module_path).unwrap_or([])
+  slot : Int,
+) -> Array[Int] {
+  self.dependent_slots.get(slot).unwrap_or([])
 }
 
 ///|

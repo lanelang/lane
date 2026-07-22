@@ -226,6 +226,49 @@ test "semantic workspace invalidates importers only when the public interface ch
 }
 
 ///|
+test "semantic workspace schedules wide dependent sets in topological order" {
+  let workspace = SemanticWorkspace::new()
+  let sources : Array[@module_frontend.SourceInput] = [
+    { source_id: "file:///A.lane", text: "module A\n\npub let value : Int = 1" },
+  ]
+  let expected_changed_source_ids = ["file:///A.lane"]
+  for index in 0..<32 {
+    let module_path = "Dependent\{index}"
+    let source_id = "file:///\{module_path}.lane"
+    sources.push({
+      source_id,
+      text: "module \{module_path}\n\nimport A\n\npub let value : Int = A.value",
+    })
+    expected_changed_source_ids.push(source_id)
+  }
+  sources.push({
+    source_id: "file:///Unrelated.lane",
+    text: "module Unrelated\n\npub let value : Int = 1",
+  })
+  guard workspace.replace_sources(sources) is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  let initial_unrelated = cached_semantic_module(
+    initial, "file:///Unrelated.lane",
+  )
+  guard workspace.upsert_source({
+      source_id: "file:///A.lane",
+      text: "module A\n\npub let value : Bool = true",
+    })
+    is Some(updated) else {
+    abort("expected semantic snapshot after changing A's interface")
+  }
+  expected_changed_source_ids.sort_by(String::compare)
+  assert_eq(updated.changed_source_ids, expected_changed_source_ids)
+  assert_true(
+    physical_equal(
+      cached_semantic_module(updated, "file:///Unrelated.lane"),
+      initial_unrelated,
+    ),
+  )
+}
+
+///|
 test "semantic workspace reuses snapshot for identical sources" {
   let workspace = SemanticWorkspace::new()
   let source =
