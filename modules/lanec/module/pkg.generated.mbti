@@ -33,6 +33,7 @@ pub(all) struct ModuleInterface {
   optimization_hints : Array[OptimizationHint]
 } derive(Eq, @debug.Debug)
 pub fn ModuleInterface::exported_symbol_metadata(Self, @symbol.SymbolRegistry) -> @symbol.SymbolMetadataArena
+pub fn ModuleInterface::presentation_fingerprint(Self) -> ModuleInterfacePresentationFingerprint
 pub fn ModuleInterface::semantic_fingerprint(Self) -> ModuleInterfaceSemanticFingerprint
 pub fn ModuleInterface::semantic_fingerprint_result(Self) -> Result[ModuleInterfaceSemanticFingerprint, String]
 
@@ -81,6 +82,10 @@ pub(all) struct ModuleInterfaceOperation {
   payload : Array[@types.Type]
   result : @types.Type
   loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfacePresentationFingerprint {
+  value : String
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceSemanticFingerprint {

@@ -36,6 +36,40 @@ fn invalid_reference_interface() -> ModuleInterface {
 }
 
 ///|
+fn generic_identity_interface(binder_name : String) -> ModuleInterface {
+  let parameter : @types.TypeParameter = {
+    id: { index: 0 },
+    name: binder_name,
+    kind: Type,
+  }
+  {
+    ..empty_module_interface("A", None),
+    values: [
+      {
+        symbol: { index: 0 },
+        kind: Function,
+        name: "identity",
+        type_: Forall(
+          [parameter],
+          Function([Parameter(parameter.id)], Parameter(parameter.id), Empty),
+        ),
+        parameters: Some([
+          {
+            symbol: { index: 1 },
+            is_auto: false,
+            is_offered: false,
+            name: "value",
+            type_: Parameter(parameter.id),
+            loc: @basic.SourceSpan::dummy(),
+          },
+        ]),
+        loc: @basic.SourceSpan::dummy(),
+      },
+    ],
+  }
+}
+
+///|
 test "semantic fingerprint ignores source identity" {
   let old_fingerprint = empty_module_interface("A", Some("old-A.lane")).semantic_fingerprint()
   let new_fingerprint = empty_module_interface("A", Some("new-A.lane")).semantic_fingerprint()
@@ -51,6 +85,16 @@ test "semantic fingerprint tracks exported semantics" {
   let changed_module = empty_module_interface("B", None).semantic_fingerprint()
   assert_false(initial == changed_hint)
   assert_false(initial == changed_module)
+}
+
+///|
+test "presentation fingerprint tracks generic binder names" {
+  let with_t = generic_identity_interface("T")
+  let with_u = generic_identity_interface("U")
+  assert_eq(with_t.semantic_fingerprint(), with_u.semantic_fingerprint())
+  assert_false(
+    with_t.presentation_fingerprint() == with_u.presentation_fingerprint(),
+  )
 }
 
 ///|

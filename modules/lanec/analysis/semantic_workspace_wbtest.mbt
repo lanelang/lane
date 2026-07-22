@@ -63,7 +63,7 @@ fn semantic_interface_fingerprint(
     is Some(interface) else {
     abort("missing semantic interface for \{source_id}")
   }
-  interface.fingerprint
+  interface.interface.semantic_fingerprint()
 }
 
 ///|
@@ -328,6 +328,62 @@ test "semantic workspace invalidates importers only when the public interface ch
     definition_symbol(after_interface_change, "file:///B.lane", "dependent"),
   )
   assert_eq(definition_symbol(after_c, "file:///C.lane", "separate"), after_a_c)
+}
+
+///|
+test "semantic workspace refreshes importer presentation after binder rename" {
+  let workspace = SemanticWorkspace::new()
+  let source_a =
+    #|module A
+    #|
+    #|pub fn[T] identity(value : T) -> T {
+    #|  value
+    #|}
+  let source_b =
+    #|module B
+    #|
+    #|import A
+    #|
+    #|pub fn use() -> Int {
+    #|  A.identity(1)
+    #|}
+  guard workspace.replace_sources([
+      { source_id: "file:///A.lane", text: source_a },
+      { source_id: "file:///B.lane", text: source_b },
+    ])
+    is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard initial.hover_at("file:///B.lane", 6, 8) is Some(initial_hover) else {
+    abort("expected initial imported hover")
+  }
+  assert_eq(initial_hover.contents, "A.identity : forall [T : Type]. (T) -> T")
+  let initial_a_fingerprint = semantic_interface_fingerprint(
+    initial, "file:///A.lane",
+  )
+  let initial_b_module = cached_semantic_module(initial, "file:///B.lane")
+  let renamed_a = source_a
+    .replace(old="[T]", new="[U]")
+    .replace(old=" : T", new=" : U")
+    .replace(old=") -> T", new=") -> U")
+  guard workspace.upsert_source({ source_id: "file:///A.lane", text: renamed_a })
+    is Some(renamed) else {
+    abort("expected renamed semantic snapshot")
+  }
+  assert_eq(
+    semantic_interface_fingerprint(renamed, "file:///A.lane"),
+    initial_a_fingerprint,
+  )
+  assert_false(
+    physical_equal(
+      cached_semantic_module(renamed, "file:///B.lane"),
+      initial_b_module,
+    ),
+  )
+  guard renamed.hover_at("file:///B.lane", 6, 8) is Some(renamed_hover) else {
+    abort("expected renamed imported hover")
+  }
+  assert_eq(renamed_hover.contents, "A.identity : forall [U : Type]. (U) -> U")
 }
 
 ///|

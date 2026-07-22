@@ -1,7 +1,7 @@
 ///|
 priv struct CachedModuleInterface {
   interface : @module_interface.ModuleInterface
-  fingerprint : @module_interface.ModuleInterfaceSemanticFingerprint
+  presentation_fingerprint : @module_interface.ModuleInterfacePresentationFingerprint
   symbols : @symbol.SymbolMetadataArena
 }
 
@@ -437,7 +437,8 @@ fn SemanticWorkspace::rebuild_all_modules(
         preserve_last_successful_interface(rebuilt, previous)
       }
     }
-    if module_.interface_fingerprint() != cached_interface_fingerprint(previous) {
+    if module_.presentation_fingerprint() !=
+      cached_presentation_fingerprint(previous) {
       changed_interfaces.push(module_path)
     }
     next_cache[module_path] = module_
@@ -515,7 +516,8 @@ fn SemanticWorkspace::rebuild_dirty_modules(
       previous_definitions,
       module_.index.definitions,
     )
-    if module_.interface_fingerprint() != cached_interface_fingerprint(previous) {
+    if module_.presentation_fingerprint() !=
+      cached_presentation_fingerprint(previous) {
       for dependent_slot in graph.dependents_of_slot(index) {
         if dependent_slot > index {
           dirty_slots[dependent_slot] = true
@@ -577,21 +579,21 @@ fn preserve_last_successful_interface(
 }
 
 ///|
-fn CachedSemanticModule::interface_fingerprint(
+fn CachedSemanticModule::presentation_fingerprint(
   self : CachedSemanticModule,
-) -> @module_interface.ModuleInterfaceSemanticFingerprint? {
+) -> @module_interface.ModuleInterfacePresentationFingerprint? {
   match self.last_successful_interface {
-    Some(interface) => Some(interface.fingerprint)
+    Some(interface) => Some(interface.presentation_fingerprint)
     None => None
   }
 }
 
 ///|
-fn cached_interface_fingerprint(
+fn cached_presentation_fingerprint(
   cached : CachedSemanticModule?,
-) -> @module_interface.ModuleInterfaceSemanticFingerprint? {
+) -> @module_interface.ModuleInterfacePresentationFingerprint? {
   match cached {
-    Some(cached) => cached.interface_fingerprint()
+    Some(cached) => cached.presentation_fingerprint()
     None => None
   }
 }
@@ -658,10 +660,10 @@ fn build_cached_semantic_module(
     if checked.diagnostics.is_empty() {
       checked_source = checked.source
       if checked.module_interface is Some(interface) {
-        let fingerprint = interface.semantic_fingerprint()
+        let presentation_fingerprint = interface.presentation_fingerprint()
         last_successful_interface = Some({
           interface,
-          fingerprint,
+          presentation_fingerprint,
           symbols: interface.exported_symbol_metadata(resolved.source.symbols),
         })
       }

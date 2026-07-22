@@ -6,8 +6,27 @@ pub(all) struct ModuleInterfaceSemanticFingerprint {
 } derive(Debug, Eq)
 
 ///|
+/// Stable digest of interface metadata that affects source presentation.
+pub(all) struct ModuleInterfacePresentationFingerprint {
+  value : String
+} derive(Debug, Eq)
+
+///|
+priv struct ModuleInterfaceFingerprints {
+  semantic : ModuleInterfaceSemanticFingerprint
+  presentation : ModuleInterfacePresentationFingerprint
+}
+
+///|
+priv struct CanonicalInterfaceEncoding {
+  semantic : Bytes
+  binder_names : Bytes
+}
+
+///|
 priv struct CanonicalInterfaceEncoder {
   writer : @bytecodec.ByteWriter
+  binder_names : @bytecodec.ByteWriter
   interface : ModuleInterface
   type_parameters : Array[@symbol.TypeParameterId]
 }
@@ -35,32 +54,73 @@ pub fn ModuleInterface::semantic_fingerprint(
 pub fn ModuleInterface::semantic_fingerprint_result(
   self : ModuleInterface,
 ) -> Result[ModuleInterfaceSemanticFingerprint, String] {
-  match self.canonical_semantic_bytes() {
-    Ok(payload) => {
-      let writer = @bytecodec.ByteWriter::new()
-      writer.write_string("lane-interface-fingerprint-v2")
-      writer.write_raw_bytes(payload)
-      Ok({
-        value: "sha256:\{@crypto.bytes_to_hex_string(@crypto.sha256(writer.to_bytes()))}",
-      })
+  match self.fingerprints_result() {
+    Ok(fingerprints) => Ok(fingerprints.semantic)
+    Err(message) => Err(message)
+  }
+}
+
+///|
+/// Computes the fingerprint used to reuse source presentation metadata.
+pub fn ModuleInterface::presentation_fingerprint(
+  self : ModuleInterface,
+) -> ModuleInterfacePresentationFingerprint {
+  match self.fingerprints_result() {
+    Ok(fingerprints) => fingerprints.presentation
+    Err(message) => abort("invalid module interface: " + message)
+  }
+}
+
+///|
+fn ModuleInterface::fingerprints_result(
+  self : ModuleInterface,
+) -> Result[ModuleInterfaceFingerprints, String] {
+  match self.canonical_interface_encoding() {
+    Ok(encoding) => {
+      let semantic : ModuleInterfaceSemanticFingerprint = {
+        value: fingerprint_hash(
+          "lane-interface-fingerprint-v2",
+          encoding.semantic,
+        ),
+      }
+      let presentation_payload = @bytecodec.ByteWriter::new()
+      presentation_payload.write_string(semantic.value)
+      presentation_payload.write_raw_bytes(encoding.binder_names)
+      let presentation : ModuleInterfacePresentationFingerprint = {
+        value: fingerprint_hash(
+          "lane-interface-presentation-fingerprint-v1",
+          presentation_payload.to_bytes(),
+        ),
+      }
+      Ok({ semantic, presentation })
     }
     Err(message) => Err(message)
   }
 }
 
 ///|
-fn ModuleInterface::canonical_semantic_bytes(
+fn fingerprint_hash(tag : String, payload : Bytes) -> String {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_string(tag)
+  writer.write_raw_bytes(payload)
+  "sha256:\{@crypto.bytes_to_hex_string(@crypto.sha256(writer.to_bytes()))}"
+}
+
+///|
+fn ModuleInterface::canonical_interface_encoding(
   self : ModuleInterface,
-) -> Result[Bytes, String] {
+) -> Result[CanonicalInterfaceEncoding, String] {
   try {
     let writer = @bytecodec.ByteWriter::new()
+    let binder_names = @bytecodec.ByteWriter::new()
     let encoder = CanonicalInterfaceEncoder::{
       writer,
+      binder_names,
       interface: self,
       type_parameters: [],
     }
     encoder.write_interface()
-    Ok(writer.to_bytes())
+    Ok({ semantic: writer.to_bytes(), binder_names: binder_names.to_bytes() })
   } catch {
     InvalidCanonicalInterface(message) => Err(message)
   }
@@ -241,8 +301,10 @@ fn CanonicalInterfaceEncoder::write_type_parameters(
   parameters : Array[@types.TypeParameter],
 ) -> Unit {
   self.writer.write_u32_le_int(parameters.length())
+  self.binder_names.write_u32_le_int(parameters.length())
   for parameter in parameters {
     self.write_kind(parameter.kind)
+    self.binder_names.write_string(parameter.name)
   }
 }
 
