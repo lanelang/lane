@@ -102,6 +102,55 @@ test "semantic snapshot queries use persistent source indexes" {
 }
 
 ///|
+test "semantic workspace preserves imported definitions across source renames" {
+  let workspace = SemanticWorkspace::new()
+  let source_a =
+    #|module A
+    #|
+    #|pub let value : Int = 1
+  let source_b =
+    #|module B
+    #|
+    #|import A
+    #|
+    #|pub let dependent : Int = A.value
+  guard workspace.replace_sources([
+      { source_id: "file:///old-A.lane", text: source_a },
+      { source_id: "file:///B.lane", text: source_b },
+    ])
+    is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  let initial_symbol = definition_symbol(initial, "file:///old-A.lane", "value")
+  let initial_b_module = cached_semantic_module(initial, "file:///B.lane")
+  guard initial.definition_at("file:///B.lane", 5, 32) is Some(initial_location) else {
+    abort("expected initial imported definition")
+  }
+  assert_eq(initial_location.source_id, "file:///old-A.lane")
+  guard workspace.replace_sources([
+      { source_id: "file:///new-A.lane", text: source_a },
+      { source_id: "file:///B.lane", text: source_b },
+    ])
+    is Some(renamed) else {
+    abort("expected semantic snapshot after source rename")
+  }
+  assert_true(
+    physical_equal(
+      cached_semantic_module(renamed, "file:///B.lane"),
+      initial_b_module,
+    ),
+  )
+  assert_eq(
+    definition_symbol(renamed, "file:///new-A.lane", "value"),
+    initial_symbol,
+  )
+  guard renamed.definition_at("file:///B.lane", 5, 32) is Some(renamed_location) else {
+    abort("expected imported definition after source rename")
+  }
+  assert_eq(renamed_location.source_id, "file:///new-A.lane")
+}
+
+///|
 test "semantic workspace invalidates importers only when the public interface changes" {
   let workspace = SemanticWorkspace::new()
   let source_a =

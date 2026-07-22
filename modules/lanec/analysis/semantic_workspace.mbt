@@ -613,7 +613,6 @@ fn build_cached_semantic_module(
     input.source,
     registry,
     imported,
-    symbol_scope=input.source_id,
   )
   let diagnostics = resolved.diagnostics.map(fn(diagnostic) {
     resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)

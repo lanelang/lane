@@ -102,11 +102,11 @@ pub fn resolve_source_file_with_imports_result(
   source : @syntax.SourceFile,
   registry : SymbolRegistry,
   imported_environment : @module_interface.ImportedEnvironment,
-  symbol_scope? : String = @module_interface.module_path_text(
-    source.module_path,
-  ),
 ) -> ResolveResult {
-  let resolver = Resolver::Resolver(registry, symbol_scope)
+  let resolver = Resolver::Resolver(
+    registry,
+    @module_interface.module_path_text(source.module_path),
+  )
   resolver.publish_imported_bindings(source, imported_environment)
   resolver.resolve_source_file_result(source)
 }

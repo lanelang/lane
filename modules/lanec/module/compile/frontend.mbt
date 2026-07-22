@@ -99,7 +99,6 @@ fn compile_one_module(
     input.source,
     registry,
     direct,
-    symbol_scope=input.source_id,
   )
   let resolve_diagnostics = resolved.diagnostics.map(fn(diagnostic) {
     resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)
