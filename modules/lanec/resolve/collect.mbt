@@ -88,10 +88,8 @@ priv struct QualifiedNameText {
 /// Example: resolving `fn f(x : Missing) -> Int { x }` records an unresolved
 /// type diagnostic while still returning a resolved tree for later phases.
 pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult {
-  let resolver = Resolver::Resolver(
-    SymbolRegistry(),
-    @module_interface.module_path_text(source.module_path),
-  )
+  let registry = SymbolRegistry()
+  let resolver = Resolver::Resolver(registry, None)
   resolver.resolve_source_file_result(source)
 }
 
@@ -102,11 +100,9 @@ pub fn resolve_source_file_with_imports_result(
   source : @syntax.SourceFile,
   registry : SymbolRegistry,
   imported_environment : @module_interface.ImportedEnvironment,
+  previous_declarations? : @symbol.DeclarationIdentities? = None,
 ) -> ResolveResult {
-  let resolver = Resolver::Resolver(
-    registry,
-    @module_interface.module_path_text(source.module_path),
-  )
+  let resolver = Resolver::Resolver(registry, previous_declarations)
   resolver.publish_imported_bindings(source, imported_environment)
   resolver.resolve_source_file_result(source)
 }
@@ -138,11 +134,13 @@ fn Resolver::resolve_source_file_result(
 ///|
 fn Resolver::Resolver(
   registry : SymbolRegistry,
-  scope_key : String,
+  previous_declarations : @symbol.DeclarationIdentities?,
 ) -> Resolver {
   {
     registry,
-    declaration_symbols: registry.declaration_scope(scope_key),
+    declaration_symbols: registry.declaration_scope(
+      previous=previous_declarations,
+    ),
     modules: [],
     types: [],
     effects: [],

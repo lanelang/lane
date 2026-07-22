@@ -197,38 +197,51 @@ pub impl @prettyprinter.Pretty for OperationSymbolMetadata with fn pretty(
 pub impl @prettyprinter.Pretty for SymbolRegistry with fn pretty(
   registry : SymbolRegistry,
 ) {
-  let sections = [
-    @pretty.section("types", registry.types.map(TypeSymbolMetadata::pretty)),
-    @pretty.section(
-      "type_parameters",
-      registry.type_parameters.map(TypeParameterMetadata::pretty),
-    ),
-    @pretty.section(
-      "type_members",
-      registry.type_members.map(TypeMemberSymbolMetadata::pretty),
-    ),
-    @pretty.section("values", registry.values.map(ValueSymbolMetadata::pretty)),
-    @pretty.section("fields", registry.fields.map(FieldSymbolMetadata::pretty)),
-    @pretty.section(
-      "variants",
-      registry.variants.map(VariantSymbolMetadata::pretty),
-    ),
-  ]
-  if !registry.effects.is_empty() {
-    sections.push(
-      @pretty.section(
-        "effects",
-        registry.effects.map(EffectSymbolMetadata::pretty),
-      ),
-    )
+  let types = []
+  for _, metadata in registry.metadata.types {
+    types.push(metadata.pretty())
   }
-  if !registry.operations.is_empty() {
-    sections.push(
-      @pretty.section(
-        "operations",
-        registry.operations.map(OperationSymbolMetadata::pretty),
-      ),
-    )
+  let type_parameters = []
+  for _, metadata in registry.metadata.type_parameters {
+    type_parameters.push(metadata.pretty())
+  }
+  let type_members = []
+  for _, metadata in registry.metadata.type_members {
+    type_members.push(metadata.pretty())
+  }
+  let values = []
+  for _, metadata in registry.metadata.values {
+    values.push(metadata.pretty())
+  }
+  let fields = []
+  for _, metadata in registry.metadata.fields {
+    fields.push(metadata.pretty())
+  }
+  let variants = []
+  for _, metadata in registry.metadata.variants {
+    variants.push(metadata.pretty())
+  }
+  let effects = []
+  for _, metadata in registry.metadata.effects {
+    effects.push(metadata.pretty())
+  }
+  let operations = []
+  for _, metadata in registry.metadata.operations {
+    operations.push(metadata.pretty())
+  }
+  let sections = [
+    @pretty.section("types", types),
+    @pretty.section("type_parameters", type_parameters),
+    @pretty.section("type_members", type_members),
+    @pretty.section("values", values),
+    @pretty.section("fields", fields),
+    @pretty.section("variants", variants),
+  ]
+  if !effects.is_empty() {
+    sections.push(@pretty.section("effects", effects))
+  }
+  if !operations.is_empty() {
+    sections.push(@pretty.section("operations", operations))
   }
   text("symbols") + space + @pretty.braced_block(sections)
 }

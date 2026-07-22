@@ -1,6 +1,7 @@
 ///|
 priv struct CompileOneModuleSuccess {
   module_ : CompiledModule
+  exported_symbols : @symbol.SymbolMetadataArena
   diagnostics : Array[CompilerDiagnostic]
 }
 
@@ -163,7 +164,11 @@ fn compile_one_module(
         object_fingerprint,
         imported_interface_fingerprints: imported_fingerprints,
       }
-      Ok({ module_: { interface, object }, diagnostics: warning_diagnostics })
+      Ok({
+        module_: { interface, object },
+        exported_symbols: interface.exported_symbol_metadata(registry),
+        diagnostics: warning_diagnostics,
+      })
     }
     _ =>
       Err([

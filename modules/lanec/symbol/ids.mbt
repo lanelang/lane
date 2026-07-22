@@ -37,3 +37,17 @@ pub(all) struct EffectSymbolId {
 pub(all) struct OperationSymbolId {
   index : Int
 } derive(Debug, Eq, Compare)
+
+///|
+/// A heterogeneous symbol identity used when selecting metadata for a module
+/// interface snapshot.
+pub(all) enum SymbolId {
+  Type(TypeSymbolId)
+  TypeParameter(TypeParameterId)
+  TypeMember(TypeMemberSymbolId)
+  Value(ValueSymbolId)
+  Field(FieldSymbolId)
+  Variant(VariantSymbolId)
+  Effect(EffectSymbolId)
+  Operation(OperationSymbolId)
+} derive(Debug, Eq)

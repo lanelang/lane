@@ -1,29 +1,56 @@
 ///|
-
-///|
-pub struct SymbolRegistry {
-  types : Array[TypeSymbolMetadata]
-  scoped_types : Map[String, TypeSymbolId]
-  type_parameters : Array[TypeParameterMetadata]
-  type_members : Array[TypeMemberSymbolMetadata]
-  scoped_type_members : Map[String, TypeMemberSymbolId]
-  values : Array[ValueSymbolMetadata]
-  scoped_values : Map[String, ValueSymbolId]
-  fields : Array[FieldSymbolMetadata]
-  scoped_fields : Map[String, FieldSymbolId]
-  variants : Array[VariantSymbolMetadata]
-  scoped_variants : Map[String, VariantSymbolId]
-  effects : Array[EffectSymbolMetadata]
-  scoped_effects : Map[String, EffectSymbolId]
-  operations : Array[OperationSymbolMetadata]
-  scoped_operations : Map[String, OperationSymbolId]
+/// Allocates globally unique symbol identities without retaining revision
+/// metadata.
+pub struct SymbolIdentityAllocator {
+  mut next_type : Int
+  mut next_type_parameter : Int
+  mut next_type_member : Int
+  mut next_value : Int
+  mut next_field : Int
+  mut next_variant : Int
+  mut next_effect : Int
+  mut next_operation : Int
 } derive(Debug, Eq)
 
 ///|
-/// Allocates stable declaration identities for one source across revisions.
+/// Metadata owned by one module snapshot or exported interface snapshot.
+pub struct SymbolMetadataArena {
+  types : Map[Int, TypeSymbolMetadata]
+  type_parameters : Map[Int, TypeParameterMetadata]
+  type_members : Map[Int, TypeMemberSymbolMetadata]
+  values : Map[Int, ValueSymbolMetadata]
+  fields : Map[Int, FieldSymbolMetadata]
+  variants : Map[Int, VariantSymbolMetadata]
+  effects : Map[Int, EffectSymbolMetadata]
+  operations : Map[Int, OperationSymbolMetadata]
+} derive(Debug, Eq)
+
+///|
+/// Stable declaration identities owned by one module revision.
+pub struct DeclarationIdentities {
+  types : Map[String, TypeSymbolId]
+  values : Map[String, ValueSymbolId]
+  effects : Map[String, EffectSymbolId]
+  type_members : Map[String, TypeMemberSymbolId]
+  fields : Map[String, FieldSymbolId]
+  variants : Map[String, VariantSymbolId]
+  operations : Map[String, OperationSymbolId]
+} derive(Debug, Eq)
+
+///|
+/// Symbol metadata visible while resolving and checking one module revision.
+pub struct SymbolRegistry {
+  allocator : SymbolIdentityAllocator
+  metadata : SymbolMetadataArena
+  imports : Array[SymbolMetadataArena]
+  declarations : DeclarationIdentities
+} derive(Debug, Eq)
+
+///|
+/// Allocates stable declaration identities for one module revision.
 pub struct DeclarationSymbolScope {
   registry : SymbolRegistry
-  scope_key : String
+  previous : DeclarationIdentities?
   claimed_types : Map[String, Bool]
   claimed_values : Map[String, Bool]
   claimed_effects : Map[String, Bool]
@@ -34,36 +61,81 @@ pub struct DeclarationSymbolScope {
 }
 
 ///|
-/// Creates an empty symbol registry.
-pub fn SymbolRegistry::SymbolRegistry() -> SymbolRegistry {
+pub fn SymbolIdentityAllocator::SymbolIdentityAllocator() -> SymbolIdentityAllocator {
   {
-    types: [],
-    scoped_types: Map([]),
-    type_parameters: [],
-    type_members: [],
-    scoped_type_members: Map([]),
-    values: [],
-    scoped_values: Map([]),
-    fields: [],
-    scoped_fields: Map([]),
-    variants: [],
-    scoped_variants: Map([]),
-    effects: [],
-    scoped_effects: Map([]),
-    operations: [],
-    scoped_operations: Map([]),
+    next_type: 0,
+    next_type_parameter: 0,
+    next_type_member: 0,
+    next_value: 0,
+    next_field: 0,
+    next_variant: 0,
+    next_effect: 0,
+    next_operation: 0,
   }
 }
 
 ///|
-/// Opens the stable allocation scope used while resolving one source revision.
+fn SymbolMetadataArena::empty() -> SymbolMetadataArena {
+  {
+    types: Map([]),
+    type_parameters: Map([]),
+    type_members: Map([]),
+    values: Map([]),
+    fields: Map([]),
+    variants: Map([]),
+    effects: Map([]),
+    operations: Map([]),
+  }
+}
+
+///|
+fn DeclarationIdentities::empty() -> DeclarationIdentities {
+  {
+    types: Map([]),
+    values: Map([]),
+    effects: Map([]),
+    type_members: Map([]),
+    fields: Map([]),
+    variants: Map([]),
+    operations: Map([]),
+  }
+}
+
+///|
+pub fn SymbolIdentityAllocator::registry(
+  self : SymbolIdentityAllocator,
+  imports? : Array[SymbolMetadataArena] = [],
+) -> SymbolRegistry {
+  {
+    allocator: self,
+    metadata: SymbolMetadataArena::empty(),
+    imports,
+    declarations: DeclarationIdentities::empty(),
+  }
+}
+
+///|
+/// Creates a standalone symbol registry.
+pub fn SymbolRegistry::SymbolRegistry() -> SymbolRegistry {
+  SymbolIdentityAllocator().registry()
+}
+
+///|
+pub fn SymbolRegistry::declaration_identities(
+  self : SymbolRegistry,
+) -> DeclarationIdentities {
+  self.declarations
+}
+
+///|
+/// Opens the stable allocation scope used while resolving one module revision.
 pub fn SymbolRegistry::declaration_scope(
   self : SymbolRegistry,
-  scope_key : String,
+  previous? : DeclarationIdentities? = None,
 ) -> DeclarationSymbolScope {
   {
     registry: self,
-    scope_key,
+    previous,
     claimed_types: Map([]),
     claimed_values: Map([]),
     claimed_effects: Map([]),
@@ -75,7 +147,123 @@ pub fn SymbolRegistry::declaration_scope(
 }
 
 ///|
-/// Defines a nominal type symbol and returns its identity.
+pub fn SymbolRegistry::metadata_for(
+  self : SymbolRegistry,
+  symbols : Array[SymbolId],
+) -> SymbolMetadataArena {
+  let metadata = SymbolMetadataArena::empty()
+  for symbol in symbols {
+    match symbol {
+      Type(id) =>
+        if self.type_metadata(id) is Some(value) {
+          metadata.types[id.index] = value
+        }
+      TypeParameter(id) =>
+        if self.type_parameter_metadata(id) is Some(value) {
+          metadata.type_parameters[id.index] = value
+        }
+      TypeMember(id) =>
+        if self.type_member_metadata(id) is Some(value) {
+          metadata.type_members[id.index] = value
+        }
+      Value(id) =>
+        if self.value_metadata(id) is Some(value) {
+          metadata.values[id.index] = value
+        }
+      Field(id) =>
+        if self.field_metadata(id) is Some(value) {
+          metadata.fields[id.index] = value
+        }
+      Variant(id) =>
+        if self.variant_metadata(id) is Some(value) {
+          metadata.variants[id.index] = value
+        }
+      Effect(id) =>
+        if self.effect_metadata(id) is Some(value) {
+          metadata.effects[id.index] = value
+        }
+      Operation(id) =>
+        if self.operation_metadata(id) is Some(value) {
+          metadata.operations[id.index] = value
+        }
+    }
+  }
+  metadata
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_type(
+  self : SymbolIdentityAllocator,
+) -> TypeSymbolId {
+  let id = TypeSymbolId::{ index: self.next_type }
+  self.next_type = self.next_type + 1
+  id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_type_parameter(
+  self : SymbolIdentityAllocator,
+) -> TypeParameterId {
+  let id = TypeParameterId::{ index: self.next_type_parameter }
+  self.next_type_parameter = self.next_type_parameter + 1
+  id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_type_member(
+  self : SymbolIdentityAllocator,
+) -> TypeMemberSymbolId {
+  let id = TypeMemberSymbolId::{ index: self.next_type_member }
+  self.next_type_member = self.next_type_member + 1
+  id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_value(
+  self : SymbolIdentityAllocator,
+) -> ValueSymbolId {
+  let id = ValueSymbolId::{ index: self.next_value }
+  self.next_value = self.next_value + 1
+  id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_field(
+  self : SymbolIdentityAllocator,
+) -> FieldSymbolId {
+  let id = FieldSymbolId::{ index: self.next_field }
+  self.next_field = self.next_field + 1
+  id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_variant(
+  self : SymbolIdentityAllocator,
+) -> VariantSymbolId {
+  let id = VariantSymbolId::{ index: self.next_variant }
+  self.next_variant = self.next_variant + 1
+  id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_effect(
+  self : SymbolIdentityAllocator,
+) -> EffectSymbolId {
+  let id = EffectSymbolId::{ index: self.next_effect }
+  self.next_effect = self.next_effect + 1
+  id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_operation(
+  self : SymbolIdentityAllocator,
+) -> OperationSymbolId {
+  let id = OperationSymbolId::{ index: self.next_operation }
+  self.next_operation = self.next_operation + 1
+  id
+}
+
+///|
 pub fn SymbolRegistry::define_type(
   self : SymbolRegistry,
   name : String,
@@ -83,13 +271,12 @@ pub fn SymbolRegistry::define_type(
   arity : Int,
   loc : SourceSpan,
 ) -> TypeSymbolId {
-  let id = TypeSymbolId::{ index: self.types.length() }
-  self.types.push({ id, name, kind, arity, loc })
+  let id = self.allocator.allocate_type()
+  self.metadata.types[id.index] = { id, name, kind, arity, loc }
   id
 }
 
 ///|
-/// Defines a scoped nominal type, reusing its identity across source revisions.
 pub fn DeclarationSymbolScope::define_type(
   self : DeclarationSymbolScope,
   name : String,
@@ -97,35 +284,32 @@ pub fn DeclarationSymbolScope::define_type(
   arity : Int,
   loc : SourceSpan,
 ) -> TypeSymbolId {
-  let key = scoped_symbol_name(self.scope_key, name)
-  if self.claimed_types.contains(key) {
+  if self.claimed_types.contains(name) {
     return self.registry.define_type(name, kind, arity, loc)
   }
-  self.claimed_types[key] = true
-  if self.registry.scoped_types.get(key) is Some(id) {
-    self.registry.types[id.index] = { id, name, kind, arity, loc }
+  self.claimed_types[name] = true
+  if self.previous is Some(previous) && previous.types.get(name) is Some(id) {
+    self.registry.metadata.types[id.index] = { id, name, kind, arity, loc }
+    self.registry.declarations.types[name] = id
     return id
   }
-  let id = TypeSymbolId::{ index: self.registry.types.length() }
-  self.registry.types.push({ id, name, kind, arity, loc })
-  self.registry.scoped_types[key] = id
+  let id = self.registry.define_type(name, kind, arity, loc)
+  self.registry.declarations.types[name] = id
   id
 }
 
 ///|
-/// Defines a type parameter symbol and returns its identity.
 pub fn SymbolRegistry::define_type_parameter(
   self : SymbolRegistry,
   name : String,
   loc : SourceSpan,
 ) -> TypeParameterId {
-  let id = TypeParameterId::{ index: self.type_parameters.length() }
-  self.type_parameters.push({ id, name, loc })
+  let id = self.allocator.allocate_type_parameter()
+  self.metadata.type_parameters[id.index] = { id, name, loc }
   id
 }
 
 ///|
-/// Defines a struct type-member symbol and returns its identity.
 pub fn SymbolRegistry::define_type_member(
   self : SymbolRegistry,
   owner : TypeSymbolId,
@@ -134,13 +318,19 @@ pub fn SymbolRegistry::define_type_member(
   type_parameter : TypeParameterId,
   loc : SourceSpan,
 ) -> TypeMemberSymbolId {
-  let id = TypeMemberSymbolId::{ index: self.type_members.length() }
-  self.type_members.push({ id, owner, type_parameter, name, index, loc })
+  let id = self.allocator.allocate_type_member()
+  self.metadata.type_members[id.index] = {
+    id,
+    owner,
+    type_parameter,
+    name,
+    index,
+    loc,
+  }
   id
 }
 
 ///|
-/// Defines a scoped struct type member, reusing its identity across revisions.
 pub fn DeclarationSymbolScope::define_type_member(
   self : DeclarationSymbolScope,
   owner : TypeSymbolId,
@@ -156,8 +346,9 @@ pub fn DeclarationSymbolScope::define_type_member(
     )
   }
   self.claimed_type_members[key] = true
-  if self.registry.scoped_type_members.get(key) is Some(id) {
-    self.registry.type_members[id.index] = {
+  if self.previous is Some(previous) &&
+    previous.type_members.get(key) is Some(id) {
+    self.registry.metadata.type_members[id.index] = {
       id,
       owner,
       type_parameter,
@@ -165,53 +356,50 @@ pub fn DeclarationSymbolScope::define_type_member(
       index,
       loc,
     }
+    self.registry.declarations.type_members[key] = id
     return id
   }
   let id = self.registry.define_type_member(
     owner, name, index, type_parameter, loc,
   )
-  self.registry.scoped_type_members[key] = id
+  self.registry.declarations.type_members[key] = id
   id
 }
 
 ///|
-/// Defines a value symbol and returns its identity.
 pub fn SymbolRegistry::define_value(
   self : SymbolRegistry,
   name : String,
   kind : ValueSymbolKind,
   loc : SourceSpan,
 ) -> ValueSymbolId {
-  let id = ValueSymbolId::{ index: self.values.length() }
-  self.values.push({ id, name, kind, loc })
+  let id = self.allocator.allocate_value()
+  self.metadata.values[id.index] = { id, name, kind, loc }
   id
 }
 
 ///|
-/// Defines a scoped top-level value, reusing its identity across source revisions.
 pub fn DeclarationSymbolScope::define_value(
   self : DeclarationSymbolScope,
   name : String,
   kind : ValueSymbolKind,
   loc : SourceSpan,
 ) -> ValueSymbolId {
-  let key = scoped_symbol_name(self.scope_key, name)
-  if self.claimed_values.contains(key) {
+  if self.claimed_values.contains(name) {
     return self.registry.define_value(name, kind, loc)
   }
-  self.claimed_values[key] = true
-  if self.registry.scoped_values.get(key) is Some(id) {
-    self.registry.values[id.index] = { id, name, kind, loc }
+  self.claimed_values[name] = true
+  if self.previous is Some(previous) && previous.values.get(name) is Some(id) {
+    self.registry.metadata.values[id.index] = { id, name, kind, loc }
+    self.registry.declarations.values[name] = id
     return id
   }
-  let id = ValueSymbolId::{ index: self.registry.values.length() }
-  self.registry.values.push({ id, name, kind, loc })
-  self.registry.scoped_values[key] = id
+  let id = self.registry.define_value(name, kind, loc)
+  self.registry.declarations.values[name] = id
   id
 }
 
 ///|
-/// Defines a struct field symbol and returns its identity.
 pub fn SymbolRegistry::define_field(
   self : SymbolRegistry,
   owner : TypeSymbolId,
@@ -219,13 +407,12 @@ pub fn SymbolRegistry::define_field(
   index : Int,
   loc : SourceSpan,
 ) -> FieldSymbolId {
-  let id = FieldSymbolId::{ index: self.fields.length() }
-  self.fields.push({ id, owner, name, index, loc })
+  let id = self.allocator.allocate_field()
+  self.metadata.fields[id.index] = { id, owner, name, index, loc }
   id
 }
 
 ///|
-/// Defines an enum variant symbol and returns its identity.
 pub fn SymbolRegistry::define_variant(
   self : SymbolRegistry,
   owner : TypeSymbolId,
@@ -234,13 +421,19 @@ pub fn SymbolRegistry::define_variant(
   payload_count : Int,
   loc : SourceSpan,
 ) -> VariantSymbolId {
-  let id = VariantSymbolId::{ index: self.variants.length() }
-  self.variants.push({ id, owner, name, index, payload_count, loc })
+  let id = self.allocator.allocate_variant()
+  self.metadata.variants[id.index] = {
+    id,
+    owner,
+    name,
+    index,
+    payload_count,
+    loc,
+  }
   id
 }
 
 ///|
-/// Defines an effect constructor symbol and returns its identity.
 pub fn SymbolRegistry::define_effect(
   self : SymbolRegistry,
   name : String,
@@ -248,13 +441,12 @@ pub fn SymbolRegistry::define_effect(
   loc : SourceSpan,
   flavor? : EffectFlavor = Algebraic,
 ) -> EffectSymbolId {
-  let id = EffectSymbolId::{ index: self.effects.length() }
-  self.effects.push({ id, name, flavor, arity, loc })
+  let id = self.allocator.allocate_effect()
+  self.metadata.effects[id.index] = { id, name, flavor, arity, loc }
   id
 }
 
 ///|
-/// Defines a scoped effect, reusing its identity across source revisions.
 pub fn DeclarationSymbolScope::define_effect(
   self : DeclarationSymbolScope,
   name : String,
@@ -262,23 +454,21 @@ pub fn DeclarationSymbolScope::define_effect(
   loc : SourceSpan,
   flavor? : EffectFlavor = Algebraic,
 ) -> EffectSymbolId {
-  let key = scoped_symbol_name(self.scope_key, name)
-  if self.claimed_effects.contains(key) {
+  if self.claimed_effects.contains(name) {
     return self.registry.define_effect(name, arity, loc, flavor~)
   }
-  self.claimed_effects[key] = true
-  if self.registry.scoped_effects.get(key) is Some(id) {
-    self.registry.effects[id.index] = { id, name, flavor, arity, loc }
+  self.claimed_effects[name] = true
+  if self.previous is Some(previous) && previous.effects.get(name) is Some(id) {
+    self.registry.metadata.effects[id.index] = { id, name, flavor, arity, loc }
+    self.registry.declarations.effects[name] = id
     return id
   }
-  let id = EffectSymbolId::{ index: self.registry.effects.length() }
-  self.registry.effects.push({ id, name, flavor, arity, loc })
-  self.registry.scoped_effects[key] = id
+  let id = self.registry.define_effect(name, arity, loc, flavor~)
+  self.registry.declarations.effects[name] = id
   id
 }
 
 ///|
-/// Defines or updates a field owned by a stable module type.
 pub fn DeclarationSymbolScope::define_field(
   self : DeclarationSymbolScope,
   owner : TypeSymbolId,
@@ -291,17 +481,17 @@ pub fn DeclarationSymbolScope::define_field(
     return self.registry.define_field(owner, name, index, loc)
   }
   self.claimed_fields[key] = true
-  if self.registry.scoped_fields.get(key) is Some(id) {
-    self.registry.fields[id.index] = { id, owner, name, index, loc }
+  if self.previous is Some(previous) && previous.fields.get(key) is Some(id) {
+    self.registry.metadata.fields[id.index] = { id, owner, name, index, loc }
+    self.registry.declarations.fields[key] = id
     return id
   }
   let id = self.registry.define_field(owner, name, index, loc)
-  self.registry.scoped_fields[key] = id
+  self.registry.declarations.fields[key] = id
   id
 }
 
 ///|
-/// Defines or updates a variant owned by a stable module type.
 pub fn DeclarationSymbolScope::define_variant(
   self : DeclarationSymbolScope,
   owner : TypeSymbolId,
@@ -315,8 +505,8 @@ pub fn DeclarationSymbolScope::define_variant(
     return self.registry.define_variant(owner, name, index, payload_count, loc)
   }
   self.claimed_variants[key] = true
-  if self.registry.scoped_variants.get(key) is Some(id) {
-    self.registry.variants[id.index] = {
+  if self.previous is Some(previous) && previous.variants.get(key) is Some(id) {
+    self.registry.metadata.variants[id.index] = {
       id,
       owner,
       name,
@@ -324,15 +514,15 @@ pub fn DeclarationSymbolScope::define_variant(
       payload_count,
       loc,
     }
+    self.registry.declarations.variants[key] = id
     return id
   }
   let id = self.registry.define_variant(owner, name, index, payload_count, loc)
-  self.registry.scoped_variants[key] = id
+  self.registry.declarations.variants[key] = id
   id
 }
 
 ///|
-/// Defines or updates an operation owned by a stable module effect.
 pub fn DeclarationSymbolScope::define_operation(
   self : DeclarationSymbolScope,
   owner : EffectSymbolId,
@@ -348,8 +538,8 @@ pub fn DeclarationSymbolScope::define_operation(
     )
   }
   self.claimed_operations[key] = true
-  if self.registry.scoped_operations.get(key) is Some(id) {
-    self.registry.operations[id.index] = {
+  if self.previous is Some(previous) && previous.operations.get(key) is Some(id) {
+    self.registry.metadata.operations[id.index] = {
       id,
       owner,
       name,
@@ -357,18 +547,14 @@ pub fn DeclarationSymbolScope::define_operation(
       payload_count,
       loc,
     }
+    self.registry.declarations.operations[key] = id
     return id
   }
   let id = self.registry.define_operation(
     owner, name, index, payload_count, loc,
   )
-  self.registry.scoped_operations[key] = id
+  self.registry.declarations.operations[key] = id
   id
-}
-
-///|
-fn scoped_symbol_name(scope_key : String, name : String) -> String {
-  "\{scope_key.length()}:\{scope_key}\{name}"
 }
 
 ///|
@@ -377,7 +563,6 @@ fn owned_symbol_name(owner : Int, name : String) -> String {
 }
 
 ///|
-/// Defines an effect operation symbol and returns its identity.
 pub fn SymbolRegistry::define_operation(
   self : SymbolRegistry,
   owner : EffectSymbolId,
@@ -386,79 +571,142 @@ pub fn SymbolRegistry::define_operation(
   payload_count : Int,
   loc : SourceSpan,
 ) -> OperationSymbolId {
-  let id = OperationSymbolId::{ index: self.operations.length() }
-  self.operations.push({ id, owner, name, index, payload_count, loc })
+  let id = self.allocator.allocate_operation()
+  self.metadata.operations[id.index] = {
+    id,
+    owner,
+    name,
+    index,
+    payload_count,
+    loc,
+  }
   id
 }
 
 ///|
-/// Returns metadata for a nominal type symbol.
 pub fn SymbolRegistry::type_metadata(
   self : SymbolRegistry,
   id : TypeSymbolId,
 ) -> TypeSymbolMetadata? {
-  self.types.get(id.index)
+  if self.metadata.types.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.types.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }
 
 ///|
-/// Returns metadata for a type parameter symbol.
 pub fn SymbolRegistry::type_parameter_metadata(
   self : SymbolRegistry,
   id : TypeParameterId,
 ) -> TypeParameterMetadata? {
-  self.type_parameters.get(id.index)
+  if self.metadata.type_parameters.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.type_parameters.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }
 
 ///|
-/// Returns metadata for a struct type-member symbol.
 pub fn SymbolRegistry::type_member_metadata(
   self : SymbolRegistry,
   id : TypeMemberSymbolId,
 ) -> TypeMemberSymbolMetadata? {
-  self.type_members.get(id.index)
+  if self.metadata.type_members.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.type_members.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }
 
 ///|
-/// Returns metadata for a value symbol.
 pub fn SymbolRegistry::value_metadata(
   self : SymbolRegistry,
   id : ValueSymbolId,
 ) -> ValueSymbolMetadata? {
-  self.values.get(id.index)
+  if self.metadata.values.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.values.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }
 
 ///|
-/// Returns metadata for a struct field symbol.
 pub fn SymbolRegistry::field_metadata(
   self : SymbolRegistry,
   id : FieldSymbolId,
 ) -> FieldSymbolMetadata? {
-  self.fields.get(id.index)
+  if self.metadata.fields.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.fields.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }
 
 ///|
-/// Returns metadata for an enum variant symbol.
 pub fn SymbolRegistry::variant_metadata(
   self : SymbolRegistry,
   id : VariantSymbolId,
 ) -> VariantSymbolMetadata? {
-  self.variants.get(id.index)
+  if self.metadata.variants.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.variants.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }
 
 ///|
-/// Returns metadata for an effect constructor symbol.
 pub fn SymbolRegistry::effect_metadata(
   self : SymbolRegistry,
   id : EffectSymbolId,
 ) -> EffectSymbolMetadata? {
-  self.effects.get(id.index)
+  if self.metadata.effects.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.effects.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }
 
 ///|
-/// Returns metadata for an effect operation symbol.
 pub fn SymbolRegistry::operation_metadata(
   self : SymbolRegistry,
   id : OperationSymbolId,
 ) -> OperationSymbolMetadata? {
-  self.operations.get(id.index)
+  if self.metadata.operations.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.operations.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
 }

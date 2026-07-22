@@ -13,6 +13,35 @@ fn definition_symbol(
 }
 
 ///|
+fn value_definition_symbol(
+  snapshot : SemanticSnapshot,
+  source_id : String,
+  label : String,
+) -> @symbol.ValueSymbolId {
+  guard definition_symbol(snapshot, source_id, label) is Value(symbol) else {
+    abort("expected value definition \{label} in \{source_id}")
+  }
+  symbol
+}
+
+///|
+fn type_parameter_definition_symbol(
+  snapshot : SemanticSnapshot,
+  source_id : String,
+  label : String,
+) -> @symbol.TypeParameterId {
+  guard definition_symbol(snapshot, source_id, label) is TypeParameter(symbol) else {
+    abort("expected type parameter definition \{label} in \{source_id}")
+  }
+  symbol
+}
+
+///|
+fn semantic_revision_source(revision : Int) -> String {
+  "module A\n\npub fn[T] identity(value : T) -> T {\n  // revision \{revision}\n  let local = value\n  local\n}"
+}
+
+///|
 fn cached_semantic_module(
   snapshot : SemanticSnapshot,
   source_id : String,
@@ -272,6 +301,79 @@ test "semantic workspace invalidates importers only when the public interface ch
     definition_symbol(after_interface_change, "file:///B.lane", "dependent"),
   )
   assert_eq(definition_symbol(after_c, "file:///C.lane", "separate"), after_a_c)
+}
+
+///|
+test "semantic workspace releases replaced revision metadata" {
+  let workspace = SemanticWorkspace::new()
+  let source_id = "file:///A.lane"
+  guard workspace.replace_sources([
+      { source_id, text: semantic_revision_source(0) },
+    ])
+    is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  let identity = value_definition_symbol(initial, source_id, "identity")
+  let stale_values : Array[@symbol.ValueSymbolId] = []
+  let stale_parameters : Array[@symbol.TypeParameterId] = []
+  let mut current = initial
+  for revision in 1..<=8 {
+    stale_values.push(value_definition_symbol(current, source_id, "value"))
+    stale_values.push(value_definition_symbol(current, source_id, "local"))
+    stale_parameters.push(
+      type_parameter_definition_symbol(current, source_id, "T"),
+    )
+    guard workspace.upsert_source({
+        source_id,
+        text: semantic_revision_source(revision),
+      })
+      is Some(updated) else {
+      abort("expected updated semantic snapshot")
+    }
+    assert_eq(value_definition_symbol(updated, source_id, "identity"), identity)
+    let registry = cached_semantic_module(updated, source_id).index.registry
+    for symbol in stale_values {
+      assert_true(registry.value_metadata(symbol) is None)
+    }
+    for symbol in stale_parameters {
+      assert_true(registry.type_parameter_metadata(symbol) is None)
+    }
+    current = updated
+  }
+}
+
+///|
+test "imported symbol metadata excludes dependency revision locals" {
+  let workspace = SemanticWorkspace::new()
+  let source_a =
+    #|module A
+    #|
+    #|pub fn exposed(value : Int) -> Int {
+    #|  let private_local = value
+    #|  private_local
+    #|}
+  let source_b =
+    #|module B
+    #|
+    #|import A
+    #|
+    #|pub let result : Int = A.exposed(1)
+  guard workspace.replace_sources([
+      { source_id: "file:///A.lane", text: source_a },
+      { source_id: "file:///B.lane", text: source_b },
+    ])
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  let exposed = value_definition_symbol(snapshot, "file:///A.lane", "exposed")
+  let private_local = value_definition_symbol(
+    snapshot, "file:///A.lane", "private_local",
+  )
+  let dependency_registry = cached_semantic_module(snapshot, "file:///A.lane").index.registry
+  let importer_registry = cached_semantic_module(snapshot, "file:///B.lane").index.registry
+  assert_true(dependency_registry.value_metadata(private_local) is Some(_))
+  assert_true(importer_registry.value_metadata(exposed) is Some(_))
+  assert_true(importer_registry.value_metadata(private_local) is None)
 }
 
 ///|

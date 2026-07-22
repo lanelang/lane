@@ -79,7 +79,8 @@ pub fn compile_module_graph_observed(
   graph : @module_frontend.ModuleGraph,
   observe : (String, ModuleCompileStage) -> Unit,
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
-  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let allocator = @symbol.SymbolIdentityAllocator::SymbolIdentityAllocator()
+  let visible_symbols : Array[@symbol.SymbolMetadataArena] = []
   let modules : Array[CompiledModule] = []
   let diagnostics : Array[CompilerDiagnostic] = []
   for input in graph.modules {
@@ -88,9 +89,11 @@ pub fn compile_module_graph_observed(
       input.header.imports.map(fn(import_) { import_.module_path_text }),
       modules,
     )
+    let registry = allocator.registry(imports=visible_symbols)
     match compile_one_module(input, registry, direct, available, observe) {
       Ok(compiled) => {
         modules.push(compiled.module_)
+        visible_symbols.push(compiled.exported_symbols)
         diagnostics.append(compiled.diagnostics)
       }
       Err(diagnostics) => return Err(diagnostics)
@@ -135,7 +138,8 @@ pub fn compile_module_from_interface_artifacts(
       }),
     )
   }
-  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let allocator = @symbol.SymbolIdentityAllocator::SymbolIdentityAllocator()
+  let registry = allocator.registry()
   let imported = freshen_module_interface_artifacts(
     registry,
     ordered_interfaces.interfaces,

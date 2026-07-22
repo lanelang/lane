@@ -7,6 +7,7 @@ priv struct CachedSemanticModule {
   diagnostics : Array[CompilerDiagnostic]
   semantic_tokens : Array[SemanticTokenEntry]
   last_successful_interface : @module_interface.ModuleInterface?
+  last_successful_symbols : @symbol.SymbolMetadataArena?
 }
 
 ///|
@@ -58,7 +59,7 @@ pub struct SemanticWorkspace {
   priv dirty_sources : Array[String]
   priv dirty_source_set : Map[String, Bool]
   priv mut current : SemanticSnapshot?
-  priv registry : @symbol.SymbolRegistry
+  priv mut allocator : @symbol.SymbolIdentityAllocator
   priv parse_cache : Map[String, CachedParsedSource]
   priv mut module_cache : Map[String, CachedSemanticModule]
   priv mut parsed_sources : SnapshotTree[CachedParsedSource]
@@ -76,7 +77,7 @@ pub fn SemanticWorkspace::new() -> SemanticWorkspace {
     dirty_sources: [],
     dirty_source_set: Map([]),
     current: None,
-    registry: SymbolRegistry(),
+    allocator: SymbolIdentityAllocator(),
     parse_cache: Map([]),
     module_cache: Map([]),
     parsed_sources: Empty,
@@ -197,6 +198,7 @@ pub fn SemanticWorkspace::clear(self : SemanticWorkspace) -> Unit {
   self.dirty_sources.clear()
   self.dirty_source_set.clear()
   self.current = None
+  self.allocator = SymbolIdentityAllocator()
   self.parse_cache.clear()
   self.module_cache.clear()
   self.parsed_sources = Empty
@@ -402,7 +404,6 @@ fn SemanticWorkspace::rebuild_all_modules(
   }
   let slots = Array::make(graph_modules.length(), Missing)
   let mut definition_locations = SymbolLocationIndex::empty()
-  let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
   for index, input in graph_modules {
     let module_path = input.header.module_path_text
     let imported = imported_environment(input.header, next_cache)
@@ -423,8 +424,9 @@ fn SemanticWorkspace::rebuild_all_modules(
         let rebuilt = build_cached_semantic_module(
           input,
           imported,
-          self.registry,
-          display,
+          imported_symbol_metadata(input.header, next_cache),
+          self.allocator,
+          previous,
         )
         preserve_last_successful_interface(rebuilt, previous)
       }
@@ -472,7 +474,6 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     }
   }
   let changed_source_ids = []
-  let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
   let mut modules = self.modules
   let mut definition_locations = self.definition_locations
   for index in 0..<dirty_slots.length() {
@@ -504,8 +505,9 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     let rebuilt = build_cached_semantic_module(
       input,
       imported,
-      self.registry,
-      display,
+      imported_symbol_metadata(input.header, self.module_cache),
+      self.allocator,
+      previous,
     )
     let module_ = preserve_last_successful_interface(rebuilt, previous)
     self.module_cache[module_path] = module_
@@ -550,6 +552,21 @@ fn imported_environment(
 }
 
 ///|
+fn imported_symbol_metadata(
+  header : @module_frontend.ModuleHeader,
+  modules : Map[String, CachedSemanticModule],
+) -> Array[@symbol.SymbolMetadataArena] {
+  let imported = []
+  for import_ in header.imports {
+    if modules.get(import_.module_path_text) is Some(cached) &&
+      cached.last_successful_symbols is Some(symbols) {
+      imported.push(symbols)
+    }
+  }
+  imported
+}
+
+///|
 fn preserve_last_successful_interface(
   rebuilt : CachedSemanticModule,
   previous : CachedSemanticModule?,
@@ -559,6 +576,7 @@ fn preserve_last_successful_interface(
       {
         ..rebuilt,
         last_successful_interface: previous.last_successful_interface,
+        last_successful_symbols: previous.last_successful_symbols,
       }
     _ => rebuilt
   }
@@ -589,7 +607,15 @@ fn SemanticWorkspace::snapshot_from_current_state(
   self : SemanticWorkspace,
   changed_source_ids : Array[String],
 ) -> SemanticSnapshot {
-  let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
+  let visible_symbols = []
+  for _, module_ in self.module_cache {
+    if module_.last_successful_symbols is Some(symbols) {
+      visible_symbols.push(symbols)
+    }
+  }
+  let display = @typecheck.TypeDisplayContext::from_registry(
+    self.allocator.registry(imports=visible_symbols),
+  )
   {
     revision: self.revision,
     source_layout: self.source_layout,
@@ -606,14 +632,21 @@ fn SemanticWorkspace::snapshot_from_current_state(
 fn build_cached_semantic_module(
   input : @module_frontend.ParsedModuleInput,
   imported : @module_interface.ImportedEnvironment,
-  registry : @symbol.SymbolRegistry,
-  display : @typecheck.TypeDisplayContext,
+  imported_symbols : Array[@symbol.SymbolMetadataArena],
+  allocator : @symbol.SymbolIdentityAllocator,
+  previous : CachedSemanticModule?,
 ) -> CachedSemanticModule {
+  let registry = allocator.registry(imports=imported_symbols)
+  let previous_declarations = previous.map(fn(previous) {
+    previous.index.registry.declaration_identities()
+  })
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
     registry,
     imported,
+    previous_declarations~,
   )
+  let display = @typecheck.TypeDisplayContext::from_registry(registry)
   let diagnostics = resolved.diagnostics.map(fn(diagnostic) {
     resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)
   })
@@ -629,6 +662,7 @@ fn build_cached_semantic_module(
   }
   let mut checked_source = None
   let mut interface = None
+  let mut exported_symbols = None
   if checked is Some(checked) {
     diagnostics.append(
       checked.diagnostics.map(fn(diagnostic) {
@@ -640,6 +674,11 @@ fn build_cached_semantic_module(
     if checked.diagnostics.is_empty() {
       checked_source = checked.source
       interface = checked.module_interface
+      if interface is Some(interface) {
+        exported_symbols = Some(
+          interface.exported_symbol_metadata(resolved.source.symbols),
+        )
+      }
     }
   }
   let index = SemanticIndex::from_sources(
@@ -677,6 +716,7 @@ fn build_cached_semantic_module(
       registry,
     ),
     last_successful_interface: interface,
+    last_successful_symbols: exported_symbols,
   }
 }
 

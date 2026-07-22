@@ -62,10 +62,11 @@ test "symbol registry looks up owned metadata" {
 
 ///|
 test "declaration scopes keep stable identities across revisions" {
-  let registry = SymbolRegistry()
-  let first = registry.declaration_scope("A")
+  let allocator = SymbolIdentityAllocator()
+  let first_registry = allocator.registry()
+  let first = first_registry.declaration_scope()
   let first_type = first.define_type("Item", Struct, 0, loc())
-  let first_parameter = registry.define_type_parameter("T", loc())
+  let first_parameter = first_registry.define_type_parameter("T", loc())
   let first_type_member = first.define_type_member(
     first_type,
     "T",
@@ -84,9 +85,12 @@ test "declaration scopes keep stable identities across revisions" {
     0,
     loc(),
   )
-  let revised = registry.declaration_scope("A")
+  let revised_registry = allocator.registry()
+  let revised = revised_registry.declaration_scope(
+    previous=Some(first_registry.declaration_identities()),
+  )
   let revised_type = revised.define_type("Item", Struct, 0, loc())
-  let revised_parameter = registry.define_type_parameter("T", loc())
+  let revised_parameter = revised_registry.define_type_parameter("T", loc())
   let revised_type_member = revised.define_type_member(
     revised_type,
     "T",
@@ -111,8 +115,9 @@ test "declaration scopes keep stable identities across revisions" {
     0,
     loc(),
   )
-  let other_type = registry
-    .declaration_scope("B")
+  let other_type = allocator
+    .registry()
+    .declaration_scope()
     .define_type("Item", Struct, 0, loc())
   debug_inspect(
     [
@@ -127,4 +132,24 @@ test "declaration scopes keep stable identities across revisions" {
     ],
     content="[true, true, true, true, true, true, true, false]",
   )
+}
+
+///|
+test "declaration revisions release removed scoped names" {
+  let allocator = SymbolIdentityAllocator()
+  let first_registry = allocator.registry()
+  let first = first_registry
+    .declaration_scope()
+    .define_value("before", TopLevelValue, loc())
+  let second_registry = allocator.registry()
+  second_registry
+  .declaration_scope(previous=Some(first_registry.declaration_identities()))
+  .define_value("after", TopLevelValue, loc())
+  |> ignore
+  let third_registry = allocator.registry()
+  let third = third_registry
+    .declaration_scope(previous=Some(second_registry.declaration_identities()))
+    .define_value("before", TopLevelValue, loc())
+  assert_false(first == third)
+  assert_true(third_registry.value_metadata(first) is None)
 }

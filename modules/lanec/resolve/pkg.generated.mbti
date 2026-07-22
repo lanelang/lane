@@ -15,7 +15,7 @@ import {
 // Values
 pub fn resolve_source_file_result(@syntax.SourceFile) -> ResolveResult
 
-pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module.ImportedEnvironment) -> ResolveResult
+pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module.ImportedEnvironment, previous_declarations? : @symbol.DeclarationIdentities?) -> ResolveResult
 
 // Errors
 
