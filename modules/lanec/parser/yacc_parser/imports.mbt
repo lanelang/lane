@@ -89,22 +89,6 @@ priv struct GenericArgumentList {
 }
 
 ///|
-priv enum HandlerOperationHeadAfterIdent {
-  Unqualified(Array[TypeBinder])
-  Qualified(
-    owner_arguments~ : GenericArgumentList?,
-    operation~ : Identifier,
-    type_binders~ : Array[TypeBinder]
-  )
-}
-
-///|
-priv enum HandlerOperationAfterGenericArguments {
-  OperationBinders
-  OwnerArguments(operation~ : Identifier, type_binders~ : Array[TypeBinder])
-}
-
-///|
 fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
   SourceSpan::join(loc.0, loc.1)
 }
@@ -262,18 +246,6 @@ fn owner_expression_with_arguments(
 }
 
 ///|
-fn type_binders_from_generic_arguments(
-  arguments : Array[GenericArgument],
-) -> Array[TypeBinder] {
-  arguments.map(fn(argument) {
-    match argument {
-      TypeTerm(type_) => { name: type_name_text(type_), loc: type_.loc() }
-      EffectTerm(effect) => { name: "", loc: effect.loc() }
-    }
-  })
-}
-
-///|
 fn effect_set(items : Array[Type], loc : SourceSpan) -> EffectTerm {
   if items.is_empty() {
     Empty(loc~)
@@ -283,33 +255,13 @@ fn effect_set(items : Array[Type], loc : SourceSpan) -> EffectTerm {
 }
 
 ///|
-fn handler_operation_head_from_ident(
+fn unqualified_handler_operation_head(
   identifier : Identifier,
-  suffix : HandlerOperationHeadAfterIdent,
+  type_binders : Array[TypeBinder],
 ) -> HandlerOperationHead {
-  match suffix {
-    Unqualified(type_binders) =>
-      {
-        name: Unqualified(
-          operation=identifier.name,
-          operation_loc=identifier.loc,
-        ),
-        type_binders,
-      }
-    Qualified(owner_arguments~, operation~, type_binders~) => {
-      let owner = apply_handler_operation_owner_arguments(
-        Name(name=identifier.name, loc=identifier.loc),
-        owner_arguments,
-      )
-      {
-        name: Qualified(
-          owner~,
-          operation=operation.name,
-          operation_loc=operation.loc,
-        ),
-        type_binders,
-      }
-    }
+  {
+    name: Unqualified(operation=identifier.name, operation_loc=identifier.loc),
+    type_binders,
   }
 }
 
@@ -345,25 +297,6 @@ fn apply_handler_operation_owner_arguments(
         owner,
         arguments.arguments,
         SourceSpan::join(owner.loc(), arguments.loc),
-      )
-  }
-}
-
-///|
-fn handler_operation_head_after_generic_arguments(
-  owner_or_binders : GenericArgumentList,
-  suffix : HandlerOperationAfterGenericArguments,
-) -> HandlerOperationHeadAfterIdent {
-  match suffix {
-    OperationBinders =>
-      Unqualified(
-        type_binders_from_generic_arguments(owner_or_binders.arguments),
-      )
-    OwnerArguments(operation~, type_binders~) =>
-      Qualified(
-        owner_arguments=Some(owner_or_binders),
-        operation~,
-        type_binders~,
       )
   }
 }

@@ -63,13 +63,14 @@ fn unexpected_token_error_kind(
   token : @yacc_parser.Token,
   expected : Array[@yacc_parser.TokenKind],
 ) -> ParseErrorKind {
-  if expected.contains(TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR) {
-    EmptyGenericArgumentList
-  } else if expected.contains(TK_EMPTY_TYPE_PARAMETER_LIST_ERROR) {
-    EmptyTypeParameterList
-  } else {
-    UnexpectedToken(token_summary(token), expected_syntax(expected))
+  if token is RBRACKET {
+    if expected.contains(TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR) {
+      return EmptyGenericArgumentList
+    } else if expected.contains(TK_EMPTY_TYPE_PARAMETER_LIST_ERROR) {
+      return EmptyTypeParameterList
+    }
   }
+  UnexpectedToken(token_summary(token), expected_syntax(expected))
 }
 
 ///|
@@ -83,7 +84,10 @@ fn expected_syntax(
 ) -> Array[ExpectedSyntax] {
   let result = []
   for kind in kinds {
-    if kind is TK_LAYOUT_SEMICOLON {
+    if kind
+      is (TK_LAYOUT_SEMICOLON
+      | TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR
+      | TK_EMPTY_TYPE_PARAMETER_LIST_ERROR) {
       continue
     }
     let syntax : ExpectedSyntax = { label: token_kind_label(kind) }
@@ -146,6 +150,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     LBRACE => "`{`"
     RBRACE => "`}`"
     LBRACKET => "`[`"
+    OWNER_LBRACKET => "`[`"
     RBRACKET => "`]`"
     EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
     EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
@@ -217,6 +222,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_LBRACE => "`{`"
     TK_RBRACE => "`}`"
     TK_LBRACKET => "`[`"
+    TK_OWNER_LBRACKET => "`[`"
     TK_RBRACKET => "`]`"
     TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
     TK_EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"

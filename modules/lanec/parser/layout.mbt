@@ -16,6 +16,7 @@ fn prepare_layout_tokens(concrete : @lexer.ConcreteSyntax) -> LayoutTokenStream 
   let tokens = []
   let delimiters : Array[LayoutDelimiter] = []
   let newline_gaps = collect_newline_gaps(concrete)
+  let owner_argument_openings = collect_owner_argument_openings(concrete)
   let separator_gaps = Array::make(concrete.tokens.length(), false)
   for index, item in concrete.tokens {
     let (token, loc) = item
@@ -26,7 +27,7 @@ fn prepare_layout_tokens(concrete : @lexer.ConcreteSyntax) -> LayoutTokenStream 
     }
     tokens.push(
       (
-        token.to_yacc_token(),
+        parser_token(token, owner_argument_openings[index]),
         token_start_position(loc),
         token_end_position(loc),
       ),
@@ -42,6 +43,41 @@ fn prepare_layout_tokens(concrete : @lexer.ConcreteSyntax) -> LayoutTokenStream 
     }
   }
   { tokens, separator_gaps }
+}
+
+///|
+fn parser_token(
+  token : @lexer.Token,
+  owner_argument_opening : Bool,
+) -> @yacc_parser.Token {
+  if owner_argument_opening {
+    OWNER_LBRACKET
+  } else {
+    token.to_yacc_token()
+  }
+}
+
+///|
+fn collect_owner_argument_openings(
+  concrete : @lexer.ConcreteSyntax,
+) -> Array[Bool] {
+  let result = Array::make(concrete.tokens.length(), false)
+  let openings : Array[Int] = []
+  for index, item in concrete.tokens {
+    match item.0 {
+      LBRACKET => openings.push(index)
+      RBRACKET =>
+        if openings.last() is Some(opening) {
+          ignore(openings.pop())
+          if concrete.tokens.get(index + 1).map(fn(next) { next.0 }) ==
+            Some(TIGHT_COLONCOLON) {
+            result[opening] = true
+          }
+        }
+      _ => ()
+    }
+  }
+  result
 }
 
 ///|

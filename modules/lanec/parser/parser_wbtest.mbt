@@ -1513,6 +1513,55 @@ test "parse handler owner type arguments" {
 }
 
 ///|
+test "parse rejects effect arguments as unqualified handler binders" {
+  debug_inspect(
+    parse_error_kinds(
+      (
+        #|fn bad() -> Int {
+        #|  handle 0 with {
+        #|    ask[{}](resume) => resume(0)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|}
+      ),
+    ),
+    content=(
+      #|[UnexpectedToken({ label: "`{`" }, [{ label: "identifier" }])]
+    ),
+  )
+}
+
+///|
+test "parse unqualified handler operation type binders" {
+  let file = expect_parse_ok(
+    (
+      #|fn good() -> Int {
+      #|  handle 0 with {
+      #|    ask[A](resume) => resume(0)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|fn good() -> Int {
+      #|  handle 0 with {
+      #|    ask[A](resume) => resume(0)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse rejects malformed handler expressions" {
   let empty_with_errors = parse_error_kinds(
     (
