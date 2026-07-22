@@ -30,21 +30,56 @@ fn standalone_expr_doc(
 }
 
 ///|
-/// Expression output plus whether its leading expression is structured.
-/// Transparent wrappers preserve `starts_with_structured` while composing.
+/// How the rendered expression exposes a leading structured expression.
+priv enum ExprLeadingForm {
+  Plain
+  BareStructured
+  WrappedStructured
+}
+
+///|
+fn ExprLeadingForm::is_structured(self : ExprLeadingForm) -> Bool {
+  match self {
+    Plain => false
+    BareStructured | WrappedStructured => true
+  }
+}
+
+///|
+fn ExprLeadingForm::wrapped(self : ExprLeadingForm) -> ExprLeadingForm {
+  match self {
+    Plain => Plain
+    BareStructured | WrappedStructured => WrappedStructured
+  }
+}
+
+///|
+fn ExprLeadingForm::prefix_operand_doc(
+  self : ExprLeadingForm,
+  document : Document,
+) -> Document {
+  match self {
+    BareStructured => parens(document)
+    Plain | WrappedStructured => document
+  }
+}
+
+///|
+/// Expression output plus the form of its leading expression.
+/// Transparent wrappers preserve `leading_form` while composing.
 priv struct RenderedExpr {
   precedence : Int
   document : Document
-  starts_with_structured : Bool
+  leading_form : ExprLeadingForm
 }
 
 ///|
 fn rendered_expr(
   precedence : Int,
   document : Document,
-  starts_with_structured? : Bool = false,
+  leading_form? : ExprLeadingForm = Plain,
 ) -> RenderedExpr {
-  { precedence, document, starts_with_structured }
+  { precedence, document, leading_form }
 }
 
 ///|
@@ -56,7 +91,7 @@ fn arm_source_doc(
 ) -> Document {
   let rendered = body.render_with_precedence(0, trivia~)
   let body_doc = trivia.decorate_trailing(body.loc(), rendered.document)
-  let doc = if rendered.starts_with_structured {
+  let doc = if rendered.leading_form.is_structured() {
     head + nest(hardline + body_doc)
   } else {
     head + space + body_doc
@@ -1457,7 +1492,7 @@ fn Expr::render_with_precedence(
           start_offset=callee.loc().end_offset,
           end_offset=loc.end_offset,
         ),
-        starts_with_structured=callee_rendered.starts_with_structured,
+        leading_form=callee_rendered.leading_form,
       )
     }
     Handler(body~, handlers~, final_branch~, ..) => {
@@ -1484,7 +1519,7 @@ fn Expr::render_with_precedence(
         final_branch.loc.start_offset,
         trivia,
       )
-      rendered_expr(10, doc, starts_with_structured=true)
+      rendered_expr(10, doc, leading_form=BareStructured)
     }
     Block(items~, result~, loc~) => {
       let docs = items.map(fn(item) { item.to_doc(trivia~) })
@@ -1518,7 +1553,7 @@ fn Expr::render_with_precedence(
         else_head +
         space +
         standalone_expr_doc(else_branch, trivia),
-        starts_with_structured=true,
+        leading_form=BareStructured,
       )
     }
     Match(scrutinee~, arms~, loc~) => {
@@ -1547,7 +1582,7 @@ fn Expr::render_with_precedence(
         arm_start,
         trivia,
       )
-      rendered_expr(10, body, starts_with_structured=true)
+      rendered_expr(10, body, leading_form=BareStructured)
     }
     Call(callee~, arguments~, loc~) => {
       let callee_rendered = callee.render_with_precedence(9, trivia~)
@@ -1572,7 +1607,7 @@ fn Expr::render_with_precedence(
           dangling=argument_dangling,
           force_break=force_argument_break,
         ),
-        starts_with_structured=callee_rendered.starts_with_structured,
+        leading_form=callee_rendered.leading_form,
       )
     }
     Field(..) => self.render_field_chain(trivia~)
@@ -1582,18 +1617,18 @@ fn Expr::render_with_precedence(
         operand.loc().start_offset,
       )
       let operand_rendered = operand.render_with_precedence(8, trivia~)
+      let operand_doc = operand_rendered.leading_form.prefix_operand_doc(
+        operand_rendered.document,
+      )
       let body = if force_break {
-        operator.to_doc() +
-        space +
-        boundary +
-        nest(hardline + operand_rendered.document)
+        operator.to_doc() + space + boundary + nest(hardline + operand_doc)
       } else {
-        operator.to_doc() + operand_rendered.document
+        operator.to_doc() + operand_doc
       }
       rendered_expr(
         8,
         body,
-        starts_with_structured=operand_rendered.starts_with_structured,
+        leading_form=operand_rendered.leading_form.wrapped(),
       )
     }
     Binary(operator~, left~, right~, ..) => {
@@ -1619,7 +1654,7 @@ fn Expr::render_with_precedence(
             nest(line + operator.to_doc() + space + right_doc),
           )
         },
-        starts_with_structured=left_rendered.starts_with_structured,
+        leading_form=left_rendered.leading_form,
       )
     }
     Pipeline(..) => self.render_pipeline_chain(trivia~)
@@ -1634,16 +1669,22 @@ fn Expr::render_with_precedence(
       rendered_expr(
         10,
         document,
-        starts_with_structured=expression_rendered.starts_with_structured,
+        leading_form=expression_rendered.leading_form.wrapped(),
       )
     }
   }
-  let document = if rendered.precedence < context_precedence {
+  let needs_parentheses = rendered.precedence < context_precedence
+  let document = if needs_parentheses {
     parens(rendered.document)
   } else {
     rendered.document
   }
-  { ..rendered, document: trivia.decorate(self.loc(), document) }
+  let leading_form = if needs_parentheses {
+    rendered.leading_form.wrapped()
+  } else {
+    rendered.leading_form
+  }
+  { ..rendered, leading_form, document: trivia.decorate(self.loc(), document) }
 }
 
 ///|
@@ -1672,11 +1713,7 @@ fn Expr::render_pipeline_chain(
     previous_end = segment.loc().end_offset
   }
   guard !displayed_segment_docs.is_empty() else {
-    return rendered_expr(
-      1,
-      root_doc,
-      starts_with_structured=root_rendered.starts_with_structured,
-    )
+    return rendered_expr(1, root_doc, leading_form=root_rendered.leading_form)
   }
   let document = dynamic(fn(context) {
     let separator = if root_doc.fits_current_line(context) {
@@ -1692,11 +1729,7 @@ fn Expr::render_pipeline_chain(
       pipeline_segment_docs(displayed_segment_docs, 0),
     )
   })
-  rendered_expr(
-    1,
-    document,
-    starts_with_structured=root_rendered.starts_with_structured,
-  )
+  rendered_expr(1, document, leading_form=root_rendered.leading_form)
 }
 
 ///|
@@ -1748,7 +1781,7 @@ fn Expr::render_field_chain(
         base_rendered.document +
         base_trailing +
         nest(hardline + text(".") + text(name)),
-        starts_with_structured=base_rendered.starts_with_structured,
+        leading_form=base_rendered.leading_form,
       )
     }
     let (boundary, force_break) = trivia.take_boundary(
@@ -1763,7 +1796,7 @@ fn Expr::render_field_chain(
         space +
         boundary +
         nest(hardline + text(name)),
-        starts_with_structured=base_rendered.starts_with_structured,
+        leading_form=base_rendered.leading_form,
       )
     }
   }
@@ -1778,7 +1811,7 @@ fn Expr::render_field_chain(
         separate(softline, fields.map(fn(field) { text(".") + text(field) })),
       ),
     ),
-    starts_with_structured=root_rendered.starts_with_structured,
+    leading_form=root_rendered.leading_form,
   )
 }
 

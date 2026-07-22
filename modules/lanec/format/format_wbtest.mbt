@@ -2039,7 +2039,7 @@ test "format source nests structured expressions through arm wrappers" {
     (
       #|module Test
       #|effect Assert { check(Bool) -> Unit }
-      #|enum Choice { some(); grouped(); unary(); none() }
+      #|enum Choice { some(); grouped(); unary(); unary_match(); unary_handler(); double_unary(); grouped_unary(); commented_unary(); none() }
       #|pub fn handle_check(flag : Bool) -> Unit {
       #|  handle Assert::check!(flag) with {
       #|    Assert::check(value, resume) =>
@@ -2073,6 +2073,36 @@ test "format source nests structured expressions through arm wrappers" {
       #|      } else {
       #|        false
       #|      }
+      #|    unary_match() =>
+      #|      !match flag {
+      #|        true => true
+      #|        false => false
+      #|      }
+      #|    unary_handler() =>
+      #|      !handle Assert::check!(flag) with {
+      #|        Assert::check(value, resume) => resume()
+      #|      } final value {
+      #|        value
+      #|      }
+      #|    double_unary() =>
+      #|      !!if flag {
+      #|        true
+      #|      } else {
+      #|        false
+      #|      }
+      #|    grouped_unary() =>
+      #|      !(if flag {
+      #|        true
+      #|      } else {
+      #|        false
+      #|      })
+      #|    commented_unary() =>
+      #|      ! // unary operand
+      #|        if flag {
+      #|          true
+      #|        } else {
+      #|          false
+      #|        }
       #|    none() => 0
       #|  }
       #|}
@@ -2088,6 +2118,11 @@ test "format source nests structured expressions through arm wrappers" {
       #|  some()
       #|  grouped()
       #|  unary()
+      #|  unary_match()
+      #|  unary_handler()
+      #|  double_unary()
+      #|  grouped_unary()
+      #|  commented_unary()
       #|  none()
       #|}
       #|
@@ -2120,11 +2155,41 @@ test "format source nests structured expressions through arm wrappers" {
       #|        3
       #|      }) |> resume()
       #|    unary() =>
-      #|      !if flag {
+      #|      !(if flag {
       #|        true
       #|      } else {
       #|        false
-      #|      }
+      #|      })
+      #|    unary_match() =>
+      #|      !(match flag {
+      #|        true => true
+      #|        false => false
+      #|      })
+      #|    unary_handler() =>
+      #|      !(handle Assert::check!(flag) with {
+      #|        Assert::check(value, resume) => resume()
+      #|      } final value {
+      #|        value
+      #|      })
+      #|    double_unary() =>
+      #|      !!(if flag {
+      #|        true
+      #|      } else {
+      #|        false
+      #|      })
+      #|    grouped_unary() =>
+      #|      !(if flag {
+      #|        true
+      #|      } else {
+      #|        false
+      #|      })
+      #|    commented_unary() =>
+      #|      ! // unary operand
+      #|        (if flag {
+      #|          true
+      #|        } else {
+      #|          false
+      #|        })
       #|    none() => 0
       #|  }
       #|}
