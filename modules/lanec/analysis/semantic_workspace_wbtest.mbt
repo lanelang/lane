@@ -13,7 +13,20 @@ fn definition_symbol(
 }
 
 ///|
-test "semantic workspace invalidates only reverse dependencies" {
+fn cached_semantic_module(
+  snapshot : SemanticSnapshot,
+  source_id : String,
+) -> CachedSemanticModule {
+  guard snapshot.graph is Some(graph) &&
+    graph.module_slot_for_source(source_id) is Some(slot) &&
+    snapshot.modules.get(slot) is Some(Available(module_)) else {
+    abort("missing semantic module for \{source_id}")
+  }
+  module_
+}
+
+///|
+test "semantic workspace invalidates importers only when the public interface changes" {
   let workspace = SemanticWorkspace::new()
   let source_a =
     #|module A
@@ -40,6 +53,9 @@ test "semantic workspace invalidates only reverse dependencies" {
   let initial_a = definition_symbol(initial, "file:///A.lane", "value")
   let initial_b = definition_symbol(initial, "file:///B.lane", "dependent")
   let initial_c = definition_symbol(initial, "file:///C.lane", "separate")
+  let initial_a_module = cached_semantic_module(initial, "file:///A.lane")
+  let initial_b_module = cached_semantic_module(initial, "file:///B.lane")
+  let initial_c_module = cached_semantic_module(initial, "file:///C.lane")
   let changed_a =
     #|module A
     #|
@@ -51,9 +67,69 @@ test "semantic workspace invalidates only reverse dependencies" {
   let after_a_symbol = definition_symbol(after_a, "file:///A.lane", "value")
   let after_a_b = definition_symbol(after_a, "file:///B.lane", "dependent")
   let after_a_c = definition_symbol(after_a, "file:///C.lane", "separate")
-  assert_false(after_a_symbol == initial_a)
-  assert_false(after_a_b == initial_b)
+  assert_eq(after_a_symbol, initial_a)
+  assert_eq(after_a_b, initial_b)
   assert_eq(after_a_c, initial_c)
+  assert_false(
+    physical_equal(
+      cached_semantic_module(after_a, "file:///A.lane"),
+      initial_a_module,
+    ),
+  )
+  assert_true(
+    physical_equal(
+      cached_semantic_module(after_a, "file:///B.lane"),
+      initial_b_module,
+    ),
+  )
+  assert_true(
+    physical_equal(
+      cached_semantic_module(after_a, "file:///C.lane"),
+      initial_c_module,
+    ),
+  )
+  guard workspace.upsert_source({
+      source_id: "file:///A.lane",
+      text: "\n" + changed_a,
+    })
+    is Some(after_span_shift) else {
+    abort("expected semantic snapshot after shifting A's source spans")
+  }
+  assert_true(
+    physical_equal(
+      cached_semantic_module(after_span_shift, "file:///B.lane"),
+      cached_semantic_module(after_a, "file:///B.lane"),
+    ),
+  )
+  let changed_interface_a =
+    #|module A
+    #|
+    #|pub let value : Bool = true
+  guard workspace.upsert_source({
+      source_id: "file:///A.lane",
+      text: changed_interface_a,
+    })
+    is Some(after_interface_change) else {
+    abort("expected semantic snapshot after changing A's interface")
+  }
+  assert_false(
+    physical_equal(
+      cached_semantic_module(after_interface_change, "file:///A.lane"),
+      cached_semantic_module(after_span_shift, "file:///A.lane"),
+    ),
+  )
+  assert_false(
+    physical_equal(
+      cached_semantic_module(after_interface_change, "file:///B.lane"),
+      cached_semantic_module(after_span_shift, "file:///B.lane"),
+    ),
+  )
+  assert_true(
+    physical_equal(
+      cached_semantic_module(after_interface_change, "file:///C.lane"),
+      cached_semantic_module(after_span_shift, "file:///C.lane"),
+    ),
+  )
   let changed_c =
     #|module C
     #|
@@ -64,15 +140,13 @@ test "semantic workspace invalidates only reverse dependencies" {
   }
   assert_eq(
     definition_symbol(after_c, "file:///A.lane", "value"),
-    after_a_symbol,
+    definition_symbol(after_interface_change, "file:///A.lane", "value"),
   )
   assert_eq(
     definition_symbol(after_c, "file:///B.lane", "dependent"),
-    after_a_b,
+    definition_symbol(after_interface_change, "file:///B.lane", "dependent"),
   )
-  assert_false(
-    definition_symbol(after_c, "file:///C.lane", "separate") == after_a_c,
-  )
+  assert_eq(definition_symbol(after_c, "file:///C.lane", "separate"), after_a_c)
 }
 
 ///|
@@ -313,8 +387,8 @@ test "semantic workspace uses the last successful interface during parse recover
     is Some(recovered) else {
     abort("expected recovered semantic snapshot")
   }
-  assert_false(
-    definition_symbol(recovered, "file:///B.lane", "dependent") ==
+  assert_eq(
+    definition_symbol(recovered, "file:///B.lane", "dependent"),
     initial_dependent,
   )
 }
@@ -360,4 +434,223 @@ test "semantic workspace uses the last successful interface during type recovery
     .diagnostics()
     .all(fn(diagnostic) { diagnostic.source_id == Some("file:///A.lane") }),
   )
+}
+
+///|
+test "semantic workspace diagnostics match a fresh workspace after harmless edits" {
+  let effect_source =
+    #|module EffectCase
+    #|
+    #|pub effect Assert {
+    #|  assert_true(Bool) -> Unit
+    #|}
+    #|
+    #|pub fn execute(f : () -> Unit ! Assert) -> Unit {
+    #|  handle f() with {
+    #|    assert_true(_condition, resume) => resume(())
+    #|  } final _value {
+    #|    ()
+    #|  }
+    #|}
+  let enum_source =
+    #|module EnumCase
+    #|
+    #|pub enum Option {
+    #|  none()
+    #|  some(Int)
+    #|}
+    #|
+    #|pub let value : Option = some(1)
+  let struct_source =
+    #|module StructCase
+    #|
+    #|pub struct Box {
+    #|  value : Int
+    #|}
+    #|
+    #|pub let boxed : Box = Box::{ value: 1 }
+  for
+    case in [
+      ("effect", "file:///EffectCase.lane", effect_source),
+      ("enum", "file:///EnumCase.lane", enum_source),
+      ("struct", "file:///StructCase.lane", struct_source),
+    ] {
+    let (name, source_id, source) = case
+    let workspace = SemanticWorkspace::new()
+    guard workspace.replace_sources([{ source_id, text: source }]) is Some(_) else {
+      abort("expected initial snapshot for \{name}")
+    }
+    for edited in [source + "\n", "\n" + source] {
+      guard workspace.upsert_source({ source_id, text: edited })
+        is Some(incremental) else {
+        abort("expected incremental snapshot for \{name}")
+      }
+      let fresh_workspace = SemanticWorkspace::new()
+      guard fresh_workspace.replace_sources([{ source_id, text: edited }])
+        is Some(fresh) else {
+        abort("expected fresh snapshot for \{name}")
+      }
+      assert_eq(incremental.diagnostics(), fresh.diagnostics())
+    }
+  }
+}
+
+///|
+test "semantic workspace does not retain removed nominal members" {
+  let enum_before =
+    #|module EnumCase
+    #|
+    #|pub enum Option {
+    #|  none()
+    #|  some(Int)
+    #|}
+    #|
+    #|pub let value : Option = some(1)
+  let enum_after =
+    #|module EnumCase
+    #|
+    #|pub enum Option {
+    #|  none()
+    #|}
+    #|
+    #|pub let value : Option = some(1)
+  let effect_before =
+    #|module EffectCase
+    #|
+    #|pub effect Assert {
+    #|  assert_true(Bool) -> Unit
+    #|}
+    #|
+    #|pub fn execute(f : () -> Unit ! Assert) -> Unit {
+    #|  handle f() with {
+    #|    assert_true(_condition, resume) => resume(())
+    #|  } final _value {
+    #|    ()
+    #|  }
+    #|}
+  let effect_after =
+    #|module EffectCase
+    #|
+    #|pub effect Assert {}
+    #|
+    #|pub fn execute(f : () -> Unit ! Assert) -> Unit {
+    #|  handle f() with {
+    #|    assert_true(_condition, resume) => resume(())
+    #|  } final _value {
+    #|    ()
+    #|  }
+    #|}
+  let struct_before =
+    #|module StructCase
+    #|
+    #|pub struct Box {
+    #|  value : Int
+    #|}
+    #|
+    #|pub let boxed : Box = Box::{ value: 1 }
+  let struct_after =
+    #|module StructCase
+    #|
+    #|pub struct Box {}
+    #|
+    #|pub let boxed : Box = Box::{ value: 1 }
+  for
+    case in [
+      ("enum", "file:///EnumCase.lane", enum_before, enum_after),
+      ("effect", "file:///EffectCase.lane", effect_before, effect_after),
+      ("struct", "file:///StructCase.lane", struct_before, struct_after),
+    ] {
+    let (name, source_id, before, after) = case
+    let workspace = SemanticWorkspace::new()
+    guard workspace.replace_sources([{ source_id, text: before }])
+      is Some(initial) else {
+      abort("expected initial snapshot for \{name}")
+    }
+    assert_true(initial.diagnostics().is_empty())
+    guard workspace.upsert_source({ source_id, text: after })
+      is Some(incremental) else {
+      abort("expected incremental snapshot for \{name}")
+    }
+    let fresh_workspace = SemanticWorkspace::new()
+    guard fresh_workspace.replace_sources([{ source_id, text: after }])
+      is Some(fresh) else {
+      abort("expected fresh snapshot for \{name}")
+    }
+    assert_false(fresh.diagnostics().is_empty())
+    assert_eq(incremental.diagnostics(), fresh.diagnostics())
+  }
+}
+
+///|
+test "semantic workspace does not retain removed top-level declarations" {
+  let type_before =
+    #|module TypeCase
+    #|
+    #|pub struct Box {
+    #|  value : Int
+    #|}
+    #|
+    #|pub let boxed : Box = Box::{ value: 1 }
+  let type_after =
+    #|module TypeCase
+    #|
+    #|pub let boxed : Box = Box::{ value: 1 }
+  let effect_before =
+    #|module EffectCase
+    #|
+    #|pub effect Assert {
+    #|  assert_true(Bool) -> Unit
+    #|}
+    #|
+    #|pub fn execute(f : () -> Unit ! Assert) -> Unit {
+    #|  handle f() with {
+    #|    assert_true(_condition, resume) => resume(())
+    #|  } final _value {
+    #|    ()
+    #|  }
+    #|}
+  let effect_after =
+    #|module EffectCase
+    #|
+    #|pub fn execute(f : () -> Unit ! Assert) -> Unit {
+    #|  handle f() with {
+    #|    assert_true(_condition, resume) => resume(())
+    #|  } final _value {
+    #|    ()
+    #|  }
+    #|}
+  let value_before =
+    #|module ValueCase
+    #|
+    #|pub let value : Int = 1
+    #|pub let copy : Int = value
+  let value_after =
+    #|module ValueCase
+    #|
+    #|pub let copy : Int = value
+  for
+    case in [
+      ("type", "file:///TypeCase.lane", type_before, type_after),
+      ("effect", "file:///EffectCase.lane", effect_before, effect_after),
+      ("value", "file:///ValueCase.lane", value_before, value_after),
+    ] {
+    let (name, source_id, before, after) = case
+    let workspace = SemanticWorkspace::new()
+    guard workspace.replace_sources([{ source_id, text: before }])
+      is Some(initial) else {
+      abort("expected initial snapshot for \{name}")
+    }
+    assert_true(initial.diagnostics().is_empty())
+    guard workspace.upsert_source({ source_id, text: after })
+      is Some(incremental) else {
+      abort("expected incremental snapshot for \{name}")
+    }
+    let fresh_workspace = SemanticWorkspace::new()
+    guard fresh_workspace.replace_sources([{ source_id, text: after }])
+      is Some(fresh) else {
+      abort("expected fresh snapshot for \{name}")
+    }
+    assert_false(fresh.diagnostics().is_empty())
+    assert_eq(incremental.diagnostics(), fresh.diagnostics())
+  }
 }

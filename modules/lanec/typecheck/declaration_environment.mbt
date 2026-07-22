@@ -110,6 +110,19 @@ fn CheckedStructDeclaration::field(
 }
 
 ///|
+fn CheckedStructDeclaration::field_named(
+  self : CheckedStructDeclaration,
+  name : String,
+) -> CheckedFieldDeclaration? {
+  for field in self.fields {
+    if field.name == name {
+      return Some(field)
+    }
+  }
+  None
+}
+
+///|
 fn CheckedStructDeclaration::type_member(
   self : CheckedStructDeclaration,
   symbol : TypeMemberSymbolId,
@@ -142,6 +155,19 @@ fn CheckedEnumDeclaration::variant(
 ) -> CheckedVariantDeclaration? {
   for variant in self.variants {
     if variant.symbol == symbol {
+      return Some(variant)
+    }
+  }
+  None
+}
+
+///|
+fn CheckedEnumDeclaration::variant_named(
+  self : CheckedEnumDeclaration,
+  name : String,
+) -> CheckedVariantDeclaration? {
+  for variant in self.variants {
+    if variant.name == name {
       return Some(variant)
     }
   }

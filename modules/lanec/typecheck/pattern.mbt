@@ -224,9 +224,9 @@ fn SemanticChecker::check_pattern(
         scope, variant, variant_loc, type_binders, arguments, expected, binders,
         loc,
       )
-    Struct(type_name~, type_name_loc~, fields~, loc~) =>
+    Struct(type_name~, type_name_loc~, reference~, fields~, loc~) =>
       self.check_struct_pattern(
-        scope, type_name, type_name_loc, fields, expected, binders, loc,
+        scope, type_name, type_name_loc, reference, fields, expected, binders, loc,
       )
   }
 }
@@ -446,14 +446,14 @@ fn SemanticChecker::check_unqualified_variant_pattern(
     }
     return Wildcard(type_=Error, loc~)
   }
-  guard self.declarations.checked_enum(owner) is Some(_) else {
+  guard self.declarations.checked_enum(owner) is Some(declaration) else {
     self.diagnostics.push({
       kind: UnqualifiedVariantPatternNeedsExpectedEnum(variant~),
       loc,
     })
     return Wildcard(type_=Error, loc~)
   }
-  guard self.source.symbols.variant_named(owner, variant) is Some(symbol) else {
+  guard declaration.variant_named(variant) is Some(variant_declaration) else {
     self.diagnostics.push({
       kind: VariantReferenceFailure(label="unknown variant " + variant),
       loc,
@@ -461,7 +461,15 @@ fn SemanticChecker::check_unqualified_variant_pattern(
     return Wildcard(type_=Error, loc~)
   }
   self.check_variant_symbol_pattern(
-    scope, "", variant, variant_loc, symbol, type_binders, arguments, expected, binders,
+    scope,
+    "",
+    variant,
+    variant_loc,
+    variant_declaration.symbol,
+    type_binders,
+    arguments,
+    expected,
+    binders,
     loc,
   )
 }
@@ -472,6 +480,7 @@ fn SemanticChecker::check_struct_pattern(
   scope : TypeScope,
   type_name : String,
   type_name_loc : SourceSpan,
+  reference : @resolve.ResolvedTypeReference,
   fields : Array[@resolve.ResolvedStructPatternField],
   expected : @types.Type,
   binders : Array[String],
@@ -486,7 +495,7 @@ fn SemanticChecker::check_struct_pattern(
   // Source field order is ignored after checking. The checked struct pattern is
   // emitted in declaration order so ANF and later execution lowering do
   // not depend on source spelling order.
-  guard self.type_symbol_for_name(type_name) is Some(symbol) else {
+  guard reference is Symbol(symbol) else {
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return Wildcard(type_=Error, loc~)
   }
@@ -515,7 +524,7 @@ fn SemanticChecker::check_struct_pattern(
       } else {
         seen.push(name)
       }
-      if self.source.symbols.field_named(symbol, name) is None {
+      if declaration.field_named(name) is None {
         self.diagnostics.push({ kind: UnknownField(name~), loc })
       }
     }

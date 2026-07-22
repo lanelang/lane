@@ -426,7 +426,10 @@ fn SemanticWorkspace::rebuild_all_modules(
       Some(cached) => cached.last_successful_interface
       None => None
     }
-    if module_.last_successful_interface != previous_interface {
+    if !same_module_interface_semantics(
+        module_.last_successful_interface,
+        previous_interface,
+      ) {
       changed_interfaces.push(module_path)
     }
     next_cache[module_path] = module_
@@ -487,7 +490,10 @@ fn SemanticWorkspace::rebuild_dirty_modules(
       Some(cached) => cached.last_successful_interface
       None => None
     }
-    if module_.last_successful_interface != previous_interface {
+    if !same_module_interface_semantics(
+        module_.last_successful_interface,
+        previous_interface,
+      ) {
       for dependent in graph.dependents(module_path) {
         enqueue_dirty_module(graph, pending, queued, dependent)
       }
@@ -561,6 +567,26 @@ fn preserve_last_successful_interface(
 }
 
 ///|
+fn same_module_interface_semantics(
+  left : @module_interface.ModuleInterface?,
+  right : @module_interface.ModuleInterface?,
+) -> Bool {
+  match (left, right) {
+    (None, None) => true
+    (Some(left), Some(right)) =>
+      match
+        (
+          @artifact_core.canonical_module_interface_bytes(left),
+          @artifact_core.canonical_module_interface_bytes(right),
+        ) {
+        (Ok(left), Ok(right)) => left == right
+        _ => false
+      }
+    _ => false
+  }
+}
+
+///|
 fn SemanticWorkspace::snapshot_from_current_state(
   self : SemanticWorkspace,
   changed_source_ids : Array[String],
@@ -588,6 +614,7 @@ fn build_cached_semantic_module(
     input.source,
     registry,
     imported,
+    symbol_scope=input.source_id,
   )
   let diagnostics = resolved.diagnostics.map(fn(diagnostic) {
     resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)

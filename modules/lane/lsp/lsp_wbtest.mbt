@@ -885,6 +885,58 @@ async test "didOpen publishes compiler diagnostics" {
 }
 
 ///|
+async test "didChange does not publish stale nominal diagnostics" {
+  let uri = "file:///incremental.lane"
+  let source =
+    #|module Incremental
+    #|
+    #|pub enum Option {
+    #|  none()
+    #|  some(Int)
+    #|}
+    #|
+    #|pub struct Box {
+    #|  value : Option
+    #|}
+    #|
+    #|pub effect Read {
+    #|  read() -> Option
+    #|}
+    #|
+    #|pub fn use(value : Int) -> Box {
+    #|  Box::{ value: some(value) }
+    #|}
+  let state = ServerState::ServerState()
+  let opened = state.handle_message(
+    request(1, "textDocument/didOpen", open_params(uri, source)),
+  )
+  let changed = state.handle_message(
+    request(2, "textDocument/didChange", change_params(uri, source + "\n")),
+  )
+  json_inspect(
+    [opened, changed].map(fn(result) {
+      result.outgoing.map(fn(message) { message.to_json() })
+    }),
+    content=[
+      [
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": { "uri": uri, "diagnostics": [] },
+        },
+      ],
+      [
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": { "uri": uri, "diagnostics": [] },
+        },
+      ],
+    ],
+  )
+}
+
+///|
 test "lsp diagnostics convert text offsets before transport" {
   let input : @module_frontend.SourceInput = {
     source_id: "file:///unicode.lane",

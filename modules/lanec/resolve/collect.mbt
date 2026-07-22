@@ -1,6 +1,7 @@
 ///|
 priv struct Resolver {
   registry : SymbolRegistry
+  declaration_symbols : @symbol.DeclarationSymbolScope
   modules : Array[ModuleBinding]
   types : Array[TypeBinding]
   effects : Array[EffectBinding]
@@ -22,10 +23,31 @@ priv struct ModuleBinding {
 }
 
 ///|
+priv struct VariantBinding {
+  name : String
+  symbol : VariantSymbolId
+}
+
+///|
+priv struct FieldBinding {
+  name : String
+  symbol : FieldSymbolId
+}
+
+///|
+priv struct OperationBinding {
+  name : String
+  symbol : OperationSymbolId
+}
+
+///|
 priv struct TypeBinding {
   name : String
   symbol : TypeSymbolId
   parameter_kinds : Array[@types.Kind]
+  type_members : Array[String]
+  fields : Array[FieldBinding]
+  variants : Array[VariantBinding]
   import_origin : Int?
 }
 
@@ -34,6 +56,7 @@ priv struct EffectBinding {
   name : String
   symbol : EffectSymbolId
   parameter_kinds : Array[@types.Kind]
+  operations : Array[OperationBinding]
   import_origin : Int?
 }
 
@@ -65,7 +88,10 @@ priv struct QualifiedNameText {
 /// Example: resolving `fn f(x : Missing) -> Int { x }` records an unresolved
 /// type diagnostic while still returning a resolved tree for later phases.
 pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult {
-  let resolver = Resolver::Resolver(SymbolRegistry())
+  let resolver = Resolver::Resolver(
+    SymbolRegistry(),
+    @module_interface.module_path_text(source.module_path),
+  )
   resolver.resolve_source_file_result(source)
 }
 
@@ -76,8 +102,11 @@ pub fn resolve_source_file_with_imports_result(
   source : @syntax.SourceFile,
   registry : SymbolRegistry,
   imported_environment : @module_interface.ImportedEnvironment,
+  symbol_scope? : String = @module_interface.module_path_text(
+    source.module_path,
+  ),
 ) -> ResolveResult {
-  let resolver = Resolver::Resolver(registry)
+  let resolver = Resolver::Resolver(registry, symbol_scope)
   resolver.publish_imported_bindings(source, imported_environment)
   resolver.resolve_source_file_result(source)
 }
@@ -107,9 +136,13 @@ fn Resolver::resolve_source_file_result(
 }
 
 ///|
-fn Resolver::Resolver(registry : SymbolRegistry) -> Resolver {
+fn Resolver::Resolver(
+  registry : SymbolRegistry,
+  scope_key : String,
+) -> Resolver {
   {
     registry,
+    declaration_symbols: registry.declaration_scope(scope_key),
     modules: [],
     types: [],
     effects: [],
@@ -300,6 +333,10 @@ fn Resolver::publish_imported_public_types(
           declaration.name,
           declaration.symbol,
           interface_type_parameter_kinds(declaration.type_parameters),
+          type_members=declaration.type_members.map(fn(item) { item.name }),
+          fields=declaration.fields.map(fn(field) {
+            { name: field.name, symbol: field.symbol }
+          }),
           import_origin,
         )
       Enum(declaration) =>
@@ -307,6 +344,9 @@ fn Resolver::publish_imported_public_types(
           declaration.name,
           declaration.symbol,
           interface_type_parameter_kinds(declaration.type_parameters),
+          variants=declaration.variants.map(fn(variant) {
+            { name: variant.name, symbol: variant.symbol }
+          }),
           import_origin,
         )
       External(declaration) =>
@@ -342,6 +382,9 @@ fn Resolver::publish_imported_public_effects(
       effect.name,
       effect.symbol,
       interface_type_parameter_kinds(effect.type_parameters),
+      operations=effect.operations.map(fn(operation) {
+        { name: operation.name, symbol: operation.symbol }
+      }),
       import_origin,
     )
   }
@@ -361,6 +404,10 @@ fn Resolver::publish_imported_selected_types(
             declaration.name,
             declaration.symbol,
             interface_type_parameter_kinds(declaration.type_parameters),
+            type_members=declaration.type_members.map(fn(item) { item.name }),
+            fields=declaration.fields.map(fn(field) {
+              { name: field.name, symbol: field.symbol }
+            }),
             Some(item.origin),
           )
         Enum(declaration) if declaration.name == item.name =>
@@ -368,6 +415,9 @@ fn Resolver::publish_imported_selected_types(
             declaration.name,
             declaration.symbol,
             interface_type_parameter_kinds(declaration.type_parameters),
+            variants=declaration.variants.map(fn(variant) {
+              { name: variant.name, symbol: variant.symbol }
+            }),
             Some(item.origin),
           )
         _ => ()
@@ -435,6 +485,9 @@ fn Resolver::publish_imported_selected_effects(
           effect.name,
           effect.symbol,
           interface_type_parameter_kinds(effect.type_parameters),
+          operations=effect.operations.map(fn(operation) {
+            { name: operation.name, symbol: operation.symbol }
+          }),
           Some(item.origin),
         )
       }
@@ -506,6 +559,7 @@ fn Resolver::collect_top_level_headers(
   self : Resolver,
   source : @syntax.SourceFile,
 ) -> Unit {
+  let symbols = self.declaration_symbols
   for declaration in source.declarations {
     match declaration {
       Struct(declaration) => {
@@ -516,7 +570,7 @@ fn Resolver::collect_top_level_headers(
         )
         self.publish_type_binding(
           declaration.name,
-          self.registry.define_type(
+          symbols.define_type(
             declaration.name,
             Struct,
             declaration.type_parameters.length(),
@@ -534,7 +588,7 @@ fn Resolver::collect_top_level_headers(
         )
         self.publish_type_binding(
           declaration.name,
-          self.registry.define_type(
+          symbols.define_type(
             declaration.name,
             Enum,
             declaration.type_parameters.length(),
@@ -551,7 +605,7 @@ fn Resolver::collect_top_level_headers(
         )
         self.publish_effect_binding(
           declaration.name,
-          self.registry.define_effect(
+          symbols.define_effect(
             declaration.name,
             declaration.type_parameters.length(),
             declaration.name_loc,
@@ -570,7 +624,7 @@ fn Resolver::collect_top_level_headers(
             )
             self.publish_type_binding(
               declaration.name,
-              self.registry.define_type(
+              symbols.define_type(
                 declaration.name,
                 External,
                 declaration.type_parameters.length(),
@@ -587,7 +641,7 @@ fn Resolver::collect_top_level_headers(
             )
             self.publish_effect_binding(
               declaration.name,
-              self.registry.define_effect(
+              symbols.define_effect(
                 declaration.name,
                 declaration.type_parameters.length(),
                 declaration.name_loc,
@@ -615,7 +669,7 @@ fn Resolver::collect_top_level_headers(
         })
       }
       Function(declaration) => {
-        let symbol = self.registry.define_value(
+        let symbol = symbols.define_value(
           declaration.name,
           TopLevelFunction,
           declaration.name_loc,
@@ -633,7 +687,7 @@ fn Resolver::collect_top_level_headers(
       }
       Let(declaration) =>
         if declaration.name is Some(name) {
-          let symbol = self.registry.define_value(
+          let symbol = symbols.define_value(
             name,
             TopLevelValue,
             declaration.name_loc.unwrap_or(declaration.loc),
@@ -654,7 +708,7 @@ fn Resolver::collect_top_level_headers(
           )
         }
       Offer(declaration) => {
-        let symbol = self.registry.define_value(
+        let symbol = symbols.define_value(
           declaration.name,
           TopLevelValue,
           declaration.name_loc,
@@ -684,16 +738,31 @@ fn Resolver::collect_nominal_members(
   self : Resolver,
   source : @syntax.SourceFile,
 ) -> Unit {
+  let symbols = self.declaration_symbols
   for declaration in source.declarations {
     match declaration {
       Struct(declaration) => {
         let owner = self.type_symbol(declaration.name)
         let mut index = 0
         for item in declaration.members {
-          if item is Field(field) {
-            self.registry.define_field(owner, field.name, index, field.name_loc)
-            |> ignore
-            index += 1
+          match item {
+            TypeMember(type_member) =>
+              self.type_binding_for_symbol(owner).unwrap().type_members.push(
+                type_member.name,
+              )
+            Field(field) => {
+              let symbol = symbols.define_field(
+                owner,
+                field.name,
+                index,
+                field.name_loc,
+              )
+              self.type_binding_for_symbol(owner).unwrap().fields.push({
+                name: field.name,
+                symbol,
+              })
+              index += 1
+            }
           }
         }
       }
@@ -701,28 +770,34 @@ fn Resolver::collect_nominal_members(
         let owner = self.type_symbol(declaration.name)
         for index = 0; index < declaration.variants.length(); index = index + 1 {
           let variant = declaration.variants[index]
-          self.registry.define_variant(
+          let symbol = symbols.define_variant(
             owner,
             variant.name,
             index,
             variant.payload.length(),
             variant.name_loc,
           )
-          |> ignore
+          self.type_binding_for_symbol(owner).unwrap().variants.push({
+            name: variant.name,
+            symbol,
+          })
         }
       }
       Effect(declaration) => {
         let owner = self.effect_symbol(declaration.name)
         for index in 0..<declaration.operations.length() {
           let operation = declaration.operations[index]
-          self.registry.define_operation(
+          let symbol = symbols.define_operation(
             owner,
             operation.name,
             index,
             operation.payload.length(),
             operation.name_loc,
           )
-          |> ignore
+          self.effect_binding_for_symbol(owner).unwrap().operations.push({
+            name: operation.name,
+            symbol,
+          })
         }
       }
       ExternalType(_) | TypeAlias(_) | Function(_) | Let(_) | Offer(_) => ()
@@ -860,7 +935,7 @@ fn @syntax.TypeMemberDeclaration::resolve_type_member(
     kind: Some(kind),
     loc: self.loc,
   }
-  let symbol = resolver.registry.define_type_member(
+  let symbol = resolver.declaration_symbols.define_type_member(
     owner,
     self.name,
     index,
@@ -1027,7 +1102,7 @@ fn @syntax.FieldDeclaration::resolve_field(
   owner : TypeSymbolId,
   index : Int,
 ) -> ResolvedFieldDeclaration {
-  let symbol = resolver.registry.field_named(owner, self.name).unwrap()
+  let symbol = resolver.field_symbol(owner, self.name)
   let type_ = self.type_.resolve_type(resolver, scope)
   {
     symbol,
@@ -1051,7 +1126,7 @@ fn @syntax.EnumVariant::resolve_variant(
   owner : TypeSymbolId,
   index : Int,
 ) -> ResolvedEnumVariant {
-  let symbol = resolver.registry.variant_named(owner, self.name).unwrap()
+  let symbol = resolver.variant_symbol(owner, self.name)
   let variant_parameters = resolver.resolve_type_parameters(
     self.type_parameters,
     self.loc,
@@ -2186,6 +2261,7 @@ fn @syntax.Expr::resolve_expr(
       StructLiteral(
         type_name=resolved_owner.type_name,
         type_name_loc=owner.loc(),
+        reference=resolver.type_reference(resolved_owner.type_name, owner.loc()),
         generic_arguments=resolved_owner.arguments,
         fields=resolve_struct_literal_fields(fields, resolver, scope),
         loc~,
@@ -2435,9 +2511,9 @@ fn Resolver::field_reference(
   name : String,
   loc : SourceSpan,
 ) -> ResolvedFieldReference {
-  match self.nominal_type_of_expr(scope, base) {
+  match nominal_type_of_expr(scope, base) {
     Some(symbol) =>
-      match self.registry.field_named(symbol, name) {
+      match self.field_symbol_opt(symbol, name) {
         Some(field) => Symbol(field)
         None => {
           self.report_unresolved_field(symbol, name, loc)
@@ -2453,8 +2529,7 @@ fn Resolver::field_reference(
 }
 
 ///|
-fn Resolver::nominal_type_of_expr(
-  self : Resolver,
+fn nominal_type_of_expr(
   scope : ResolveScope,
   expr : ResolvedExpr,
 ) -> TypeSymbolId? {
@@ -2468,7 +2543,7 @@ fn Resolver::nominal_type_of_expr(
           }
         _ => None
       }
-    StructLiteral(type_name~, ..) => self.type_symbol_opt(type_name)
+    StructLiteral(reference=Symbol(symbol), ..) => Some(symbol)
     _ => None
   }
 }
@@ -3132,18 +3207,20 @@ fn @syntax.Pattern::resolve_pattern(
         loc~,
       )
     }
-    Struct(type_name~, type_name_loc~, fields~, loc~) =>
+    Struct(type_name~, type_name_loc~, fields~, loc~) => {
+      let reference = resolver.type_reference(type_name, type_name_loc)
+      let owner = match reference {
+        Symbol(symbol) => Some(symbol)
+        Unresolved(_) => None
+      }
       Struct(
         type_name~,
         type_name_loc~,
-        fields=resolve_struct_pattern_fields(
-          fields,
-          resolver,
-          scope,
-          resolver.type_symbol_opt(type_name),
-        ),
+        reference~,
+        fields=resolve_struct_pattern_fields(fields, resolver, scope, owner),
         loc~,
       )
+    }
   }
 }
 
@@ -3217,7 +3294,7 @@ fn owner_has_type_member(
   name : String,
 ) -> Bool {
   if owner is Some(owner) {
-    resolver.registry.type_member_named(owner, name) is Some(_)
+    resolver.type_has_member(owner, name)
   } else {
     false
   }
@@ -3260,10 +3337,31 @@ fn Resolver::type_symbol(self : Resolver, name : String) -> TypeSymbolId {
 }
 
 ///|
-fn Resolver::type_symbol_opt(self : Resolver, name : String) -> TypeSymbolId? {
+fn Resolver::type_reference(
+  self : Resolver,
+  name : String,
+  loc : SourceSpan,
+) -> ResolvedTypeReference {
   match self.type_binding(name) {
-    Some(binding) => Some(binding.symbol)
-    None => self.qualified_type_symbol_opt(name)
+    Some(binding) => {
+      self.record_import_use(binding.import_origin, loc)
+      Symbol(binding.symbol)
+    }
+    None =>
+      match qualified_name_text(name) {
+        Some(qualified) =>
+          match self.module_binding(qualified.module_path) {
+            Some(module_) => {
+              self.record_import_use(module_.import_origin, loc)
+              match module_.interface.type_symbol_named(qualified.name) {
+                Some(symbol) => Symbol(symbol)
+                None => Unresolved(name)
+              }
+            }
+            None => Unresolved(name)
+          }
+        None => Unresolved(name)
+      }
   }
 }
 
@@ -3327,6 +3425,74 @@ fn Resolver::type_binding(self : Resolver, name : String) -> TypeBinding? {
 }
 
 ///|
+fn Resolver::type_binding_for_symbol(
+  self : Resolver,
+  symbol : TypeSymbolId,
+) -> TypeBinding? {
+  for binding in self.types {
+    if binding.symbol == symbol {
+      return Some(binding)
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::field_symbol_opt(
+  self : Resolver,
+  owner : TypeSymbolId,
+  name : String,
+) -> FieldSymbolId? {
+  if self.type_binding_for_symbol(owner) is Some(binding) {
+    for field in binding.fields {
+      if field.name == name {
+        return Some(field.symbol)
+      }
+    }
+  }
+  for module_ in self.modules {
+    for type_ in module_.interface.types {
+      if type_ is Struct(declaration) && declaration.symbol == owner {
+        for field in declaration.fields {
+          if field.name == name {
+            return Some(field.symbol)
+          }
+        }
+      }
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::field_symbol(
+  self : Resolver,
+  owner : TypeSymbolId,
+  name : String,
+) -> FieldSymbolId {
+  self.field_symbol_opt(owner, name).unwrap()
+}
+
+///|
+fn Resolver::type_has_member(
+  self : Resolver,
+  owner : TypeSymbolId,
+  name : String,
+) -> Bool {
+  if self.type_binding_for_symbol(owner) is Some(binding) {
+    return binding.type_members.contains(name)
+  }
+  for module_ in self.modules {
+    for type_ in module_.interface.types {
+      if type_ is Struct(declaration) && declaration.symbol == owner {
+        return declaration.type_members.any(fn(item) { item.name == name })
+      }
+    }
+  }
+  false
+}
+
+///|
 fn Resolver::type_import_origin(self : Resolver, symbol : TypeSymbolId) -> Int? {
   for binding in self.types {
     if binding.symbol == symbol {
@@ -3342,9 +3508,20 @@ fn Resolver::publish_type_binding(
   name : String,
   symbol : TypeSymbolId,
   parameter_kinds : Array[@types.Kind],
+  type_members? : Array[String] = [],
+  fields? : Array[FieldBinding] = [],
+  variants? : Array[VariantBinding] = [],
   import_origin : Int?,
 ) -> Unit {
-  self.types.push({ name, symbol, parameter_kinds, import_origin })
+  self.types.push({
+    name,
+    symbol,
+    parameter_kinds,
+    type_members,
+    fields,
+    variants,
+    import_origin,
+  })
   self.record_import_symbol(import_origin, TypeSymbol(symbol))
 }
 
@@ -3373,6 +3550,19 @@ fn Resolver::effect_binding(self : Resolver, name : String) -> EffectBinding? {
 }
 
 ///|
+fn Resolver::effect_binding_for_symbol(
+  self : Resolver,
+  symbol : EffectSymbolId,
+) -> EffectBinding? {
+  for binding in self.effects {
+    if binding.symbol == symbol {
+      return Some(binding)
+    }
+  }
+  None
+}
+
+///|
 fn Resolver::effect_import_origin(
   self : Resolver,
   symbol : EffectSymbolId,
@@ -3391,9 +3581,10 @@ fn Resolver::publish_effect_binding(
   name : String,
   symbol : EffectSymbolId,
   parameter_kinds : Array[@types.Kind],
+  operations? : Array[OperationBinding] = [],
   import_origin : Int?,
 ) -> Unit {
-  self.effects.push({ name, symbol, parameter_kinds, import_origin })
+  self.effects.push({ name, symbol, parameter_kinds, operations, import_origin })
   self.record_import_symbol(import_origin, EffectSymbol(symbol))
 }
 
@@ -3403,7 +3594,7 @@ fn Resolver::operation_reference(
   owner : EffectSymbolId,
   name : String,
 ) -> ResolvedOperationReference {
-  match self.registry.operation_named(owner, name) {
+  match self.operation_binding(owner, name) {
     Some(symbol) => Symbol(symbol)
     None => Unresolved(name)
   }
@@ -3415,7 +3606,14 @@ fn Resolver::unqualified_operation_reference(
   name : String,
   loc : SourceSpan,
 ) -> ResolvedOperationReference {
-  let candidates = self.registry.operations_named(name)
+  let candidates = []
+  for binding in self.effects {
+    for operation in binding.operations {
+      if operation.name == name && !candidates.contains(operation.symbol) {
+        candidates.push(operation.symbol)
+      }
+    }
+  }
   match candidates.length() {
     0 => Unresolved(name)
     1 => {
@@ -3434,7 +3632,34 @@ fn Resolver::operation_symbol(
   owner : EffectSymbolId,
   name : String,
 ) -> OperationSymbolId {
-  self.registry.operation_named(owner, name).unwrap()
+  self.operation_binding(owner, name).unwrap()
+}
+
+///|
+fn Resolver::operation_binding(
+  self : Resolver,
+  owner : EffectSymbolId,
+  name : String,
+) -> OperationSymbolId? {
+  if self.effect_binding_for_symbol(owner) is Some(binding) {
+    for operation in binding.operations {
+      if operation.name == name {
+        return Some(operation.symbol)
+      }
+    }
+  }
+  for module_ in self.modules {
+    for effect in module_.interface.effects {
+      if effect.symbol == owner {
+        for operation in effect.operations {
+          if operation.name == name {
+            return Some(operation.symbol)
+          }
+        }
+      }
+    }
+  }
+  None
 }
 
 ///|
@@ -3597,18 +3822,34 @@ fn Resolver::variant_reference(
     return Symbol(symbol)
   }
   if self.type_binding(type_name) is Some(binding) {
-    let owner = binding.symbol
     self.record_import_use(binding.import_origin, loc)
-    if self.registry.variant_named(owner, variant) is Some(symbol) {
-      Symbol(symbol)
-    } else {
-      resolver_report_qualified_variant(self, type_name, variant, loc)
-      Unresolved(type_name~, variant~)
+    for item in binding.variants {
+      if item.name == variant {
+        return Symbol(item.symbol)
+      }
     }
+    resolver_report_qualified_variant(self, type_name, variant, loc)
+    Unresolved(type_name~, variant~)
   } else {
     resolver_report_qualified_variant(self, type_name, variant, loc)
     Unresolved(type_name~, variant~)
   }
+}
+
+///|
+fn Resolver::variant_symbol(
+  self : Resolver,
+  owner : TypeSymbolId,
+  name : String,
+) -> VariantSymbolId {
+  if self.type_binding_for_symbol(owner) is Some(binding) {
+    for variant in binding.variants {
+      if variant.name == name {
+        return variant.symbol
+      }
+    }
+  }
+  abort("missing predeclared variant symbol")
 }
 
 ///|
@@ -3657,7 +3898,14 @@ fn Resolver::unqualified_variant_reference(
   name : String,
   loc : SourceSpan,
 ) -> ResolvedVariantReference {
-  let candidates = self.registry.variants_named(name)
+  let candidates = []
+  for binding in self.types {
+    for variant in binding.variants {
+      if variant.name == name && !candidates.contains(variant.symbol) {
+        candidates.push(variant.symbol)
+      }
+    }
+  }
   match candidates.length() {
     0 => UnresolvedUnqualified(name)
     1 => {

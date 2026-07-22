@@ -15,7 +15,7 @@ import {
 // Values
 pub fn resolve_source_file_result(@syntax.SourceFile) -> ResolveResult
 
-pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module.ImportedEnvironment) -> ResolveResult
+pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module.ImportedEnvironment, symbol_scope? : String) -> ResolveResult
 
 // Errors
 
@@ -137,7 +137,7 @@ pub(all) enum ResolvedExpr {
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[ResolvedGenericArgument], variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
-  StructLiteral(type_name~ : String, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
+  StructLiteral(type_name~ : String, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   ListLiteral(items~ : Array[ResolvedExpr], empty_reference~ : ResolvedVariantReference, cons_reference~ : ResolvedVariantReference?, loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   Extern(String, loc~ : @basic.SourceSpan)
@@ -333,7 +333,7 @@ pub(all) enum ResolvedPattern {
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   QualifiedVariant(type_name~ : String, type_name_loc~ : @basic.SourceSpan, variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[ResolvedTypeParameter], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[ResolvedTypeParameter], arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
-  Struct(type_name~ : String, type_name_loc~ : @basic.SourceSpan, fields~ : Array[ResolvedStructPatternField], loc~ : @basic.SourceSpan)
+  Struct(type_name~ : String, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, fields~ : Array[ResolvedStructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedPattern
 
@@ -446,6 +446,11 @@ pub(all) struct ResolvedTypeParameter {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedTypeParameter
+
+pub(all) enum ResolvedTypeReference {
+  Symbol(@symbol.TypeSymbolId)
+  Unresolved(String)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ResolvedValueParameter {
   symbol : @symbol.ValueSymbolId

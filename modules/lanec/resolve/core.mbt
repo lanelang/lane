@@ -353,6 +353,12 @@ pub(all) enum ResolvedValueReference {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ResolvedTypeReference {
+  Symbol(TypeSymbolId)
+  Unresolved(String)
+} derive(Debug, Eq)
+
+///|
 pub(all) enum ResolvedFieldReference {
   Symbol(FieldSymbolId)
   Deferred(String)
@@ -508,6 +514,7 @@ pub(all) enum ResolvedExpr {
   StructLiteral(
     type_name~ : String,
     type_name_loc~ : SourceSpan,
+    reference~ : ResolvedTypeReference,
     generic_arguments~ : Array[ResolvedGenericArgument],
     fields~ : Array[ResolvedStructLiteralField],
     loc~ : SourceSpan
@@ -617,6 +624,7 @@ pub(all) enum ResolvedPattern {
   Struct(
     type_name~ : String,
     type_name_loc~ : SourceSpan,
+    reference~ : ResolvedTypeReference,
     fields~ : Array[ResolvedStructPatternField],
     loc~ : SourceSpan
   )

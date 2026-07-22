@@ -218,10 +218,18 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         arguments=arguments.map(desugar_expr),
         loc~,
       )
-    StructLiteral(type_name~, type_name_loc~, generic_arguments~, fields~, loc~) =>
+    StructLiteral(
+      type_name~,
+      type_name_loc~,
+      reference~,
+      generic_arguments~,
+      fields~,
+      loc~
+    ) =>
       StructLiteral(
         type_name~,
         type_name_loc~,
+        reference~,
         generic_arguments~,
         fields=desugar_struct_literal_fields(fields),
         loc~,

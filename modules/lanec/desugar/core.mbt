@@ -151,6 +151,7 @@ pub(all) enum DesugaredExpr {
   StructLiteral(
     type_name~ : String,
     type_name_loc~ : SourceSpan,
+    reference~ : @resolve.ResolvedTypeReference,
     generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     fields~ : Array[DesugaredStructLiteralField],
     loc~ : SourceSpan

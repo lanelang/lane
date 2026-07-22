@@ -26,7 +26,7 @@ pub(all) enum DesugaredExpr {
   Literal(literal~ : DesugaredLiteral, loc~ : @basic.SourceSpan)
   Var(name~ : String, reference~ : @resolve.ResolvedValueReference, loc~ : @basic.SourceSpan)
   VariantCall(type_name~ : String?, type_name_loc~ : @basic.SourceSpan?, generic_arguments~ : Array[@resolve.ResolvedGenericArgument], variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[@resolve.ResolvedGenericArgument], reference~ : @resolve.ResolvedVariantReference, arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
-  StructLiteral(type_name~ : String, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[@resolve.ResolvedGenericArgument], fields~ : Array[DesugaredStructLiteralField], loc~ : @basic.SourceSpan)
+  StructLiteral(type_name~ : String, type_name_loc~ : @basic.SourceSpan, reference~ : @resolve.ResolvedTypeReference, generic_arguments~ : Array[@resolve.ResolvedGenericArgument], fields~ : Array[DesugaredStructLiteralField], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   Extern(String, loc~ : @basic.SourceSpan)
   ErrorRecovery(loc~ : @basic.SourceSpan)

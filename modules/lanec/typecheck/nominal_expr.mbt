@@ -403,6 +403,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   scope : TypeScope,
   type_name : String,
   type_name_loc : SourceSpan,
+  reference : @resolve.ResolvedTypeReference,
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
   fields : Array[@desugar.DesugaredStructLiteralField],
   expected : @types.Type?,
@@ -411,7 +412,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   // Struct literals synthesize a nominal owner type. Value fields are checked
   // after substituting owner generic arguments and explicit existential type
   // witnesses supplied by the literal.
-  guard self.type_symbol_for_name(type_name) is Some(symbol) else {
+  guard reference is Symbol(symbol) else {
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return checked_expression_none_reported(Error)
   }
@@ -468,11 +469,8 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     } else {
       seen.push(name)
     }
-    if self.source.symbols.field_named(symbol, name) is Some(field_symbol) {
-      guard struct_declaration.field(field_symbol) is Some(field_declaration) else {
-        self.diagnostics.push({ kind: UnknownField(name~), loc: field_loc })
-        continue
-      }
+    if struct_declaration.field_named(name) is Some(field_declaration) {
+      let field_symbol = field_declaration.symbol
       let expected = field_declaration.type_
         .substitute(nominal_substitution)
         .substitute(existential_substitution)
@@ -542,9 +540,7 @@ fn SemanticChecker::struct_literal_generic_arguments(
   if parameters.is_empty() {
     return []
   }
-  let evidence = struct_literal_generic_evidence(
-    self, symbol, struct_declaration, fields,
-  )
+  let evidence = struct_literal_generic_evidence(struct_declaration, fields)
   guard self.infer_struct_literal_generic_arguments(
       scope,
       parameters,
@@ -567,8 +563,6 @@ fn SemanticChecker::struct_literal_generic_arguments(
 
 ///|
 fn struct_literal_generic_evidence(
-  checker : SemanticChecker,
-  symbol : @symbol.TypeSymbolId,
   declaration : CheckedStructDeclaration,
   fields : Array[@desugar.DesugaredStructLiteralField],
 ) -> StructLiteralGenericEvidence {
@@ -576,10 +570,7 @@ fn struct_literal_generic_evidence(
   let field_expressions = []
   for field in fields {
     guard field is Value(name~, value~, ..) else { continue }
-    guard checker.source.symbols.field_named(symbol, name) is Some(field_symbol) else {
-      continue
-    }
-    guard declaration.field(field_symbol) is Some(field_declaration) else {
+    guard declaration.field_named(name) is Some(field_declaration) else {
       continue
     }
     field_templates.push(field_declaration.type_)

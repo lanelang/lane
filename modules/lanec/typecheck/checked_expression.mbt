@@ -135,11 +135,19 @@ fn SemanticChecker::check_checked_expr_with_expectation(
       self.expect_checked_type(expectation, checked.type_, loc)
       checked
     }
-    StructLiteral(type_name~, type_name_loc~, generic_arguments~, fields~, loc~) => {
+    StructLiteral(
+      type_name~,
+      type_name_loc~,
+      reference~,
+      generic_arguments~,
+      fields~,
+      loc~
+    ) => {
       let checked = self.synthesize_checked_struct_literal(
         scope,
         type_name,
         type_name_loc,
+        reference,
         generic_arguments,
         fields,
         Some(expectation.type_),
@@ -254,11 +262,19 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_handler(scope, body, handlers, final_branch, loc)
     Block(items~, result~, loc~) =>
       self.synthesize_checked_block(scope, items, result, loc)
-    StructLiteral(type_name~, type_name_loc~, generic_arguments~, fields~, loc~) =>
+    StructLiteral(
+      type_name~,
+      type_name_loc~,
+      reference~,
+      generic_arguments~,
+      fields~,
+      loc~
+    ) =>
       self.synthesize_checked_struct_literal(
         scope,
         type_name,
         type_name_loc,
+        reference,
         generic_arguments,
         fields,
         None,
@@ -1230,7 +1246,8 @@ fn SemanticChecker::synthesize_checked_field(
       )
     Deferred(_) =>
       if checked_base.type_.decompose_nominal() is Some((symbol, _)) {
-        guard self.source.symbols.field_named(symbol, name) is Some(field) else {
+        guard self.declarations.checked_struct(symbol) is Some(declaration) &&
+          declaration.field_named(name) is Some(field_declaration) else {
           self.diagnostics.push({ kind: UnknownField(name~), loc })
           return checked_expression_none_reported(Error)
         }
@@ -1238,7 +1255,7 @@ fn SemanticChecker::synthesize_checked_field(
           base,
           checked_base.type_,
           checked_base.effect,
-          field,
+          field_declaration.symbol,
           name,
           name_loc,
           loc,
