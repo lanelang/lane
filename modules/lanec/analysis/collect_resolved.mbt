@@ -137,9 +137,18 @@ fn SemanticIndex::add_binding(
   kind : SemanticBindingKind,
   detail : String,
   visibility : SemanticBindingVisibility,
+  is_offered? : Bool = false,
   loc? : @basic.SourceSpan,
 ) -> Unit {
-  self.bindings.push({ identity, name, kind, detail, type_: None, visibility })
+  self.bindings.push({
+    identity,
+    name,
+    kind,
+    is_offered,
+    detail,
+    type_: None,
+    visibility,
+  })
   if loc is Some(loc) {
     let symbol = match identity {
       ValueBinding(symbol) => Some(AnalysisSymbol::Value(symbol))
@@ -332,6 +341,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
         FunctionBindingKind,
         "fn \{declaration.name}",
         GlobalBinding,
+        is_offered=declaration.is_offered,
         loc=declaration.name_loc,
       )
       self.add_resolved_type_parameters(
@@ -362,11 +372,6 @@ fn SemanticIndex::collect_resolved_declaration_body(
         self.collect_resolved_type(type_)
       }
       if declaration.name is Some(name) {
-        let binding_kind = if declaration.is_offered {
-          OfferBindingKind
-        } else {
-          ValueBindingKind
-        }
         let binding_detail = if declaration.is_offered {
           "offer \{name}"
         } else {
@@ -375,9 +380,10 @@ fn SemanticIndex::collect_resolved_declaration_body(
         self.add_binding(
           ValueBinding(declaration.symbol),
           name,
-          binding_kind,
+          ValueBindingKind,
           binding_detail,
           GlobalBinding,
+          is_offered=declaration.is_offered,
           loc=declaration.name_loc.unwrap_or(declaration.loc),
         )
       }
@@ -451,11 +457,6 @@ fn SemanticIndex::collect_resolved_local_item(
         self.collect_resolved_type(type_)
       }
       if declaration.name is Some(name) {
-        let binding_kind = if declaration.is_offered {
-          OfferBindingKind
-        } else {
-          ValueBindingKind
-        }
         let binding_detail = if declaration.is_offered {
           "offer \{name}"
         } else {
@@ -464,9 +465,10 @@ fn SemanticIndex::collect_resolved_local_item(
         self.add_binding(
           ValueBinding(declaration.symbol),
           name,
-          binding_kind,
+          ValueBindingKind,
           binding_detail,
           visibility,
+          is_offered=declaration.is_offered,
           loc=declaration.name_loc.unwrap_or(declaration.loc),
         )
       }
@@ -486,6 +488,7 @@ fn SemanticIndex::collect_resolved_local_item(
         FunctionBindingKind,
         "fn \{declaration.name}",
         visibility,
+        is_offered=declaration.is_offered,
         loc=declaration.name_loc,
       )
       self.add_parameter_signature(declaration.symbol, declaration.parameters)

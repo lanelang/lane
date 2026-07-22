@@ -89,6 +89,7 @@ test "completion returns top-level semantic entries" {
       #|  {
       #|    label: "answer",
       #|    kind: Function,
+      #|    is_offered: false,
       #|    detail: Some("fn answer"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -177,6 +178,7 @@ test "completion renders external effects across semantic paths" {
       #|    {
       #|      label: "Runtime",
       #|      kind: Effect,
+      #|      is_offered: false,
       #|      detail: Some("extern type Runtime : Effect"),
       #|      documentation: None,
       #|      insert_text: None,
@@ -200,6 +202,7 @@ test "completion renders external effects across semantic paths" {
       #|    {
       #|      label: "Runtime",
       #|      kind: Effect,
+      #|      is_offered: false,
       #|      detail: Some("extern type Runtime : Effect"),
       #|      documentation: None,
       #|      insert_text: None,
@@ -223,6 +226,7 @@ test "completion renders external effects across semantic paths" {
       #|    {
       #|      label: "Runtime",
       #|      kind: Effect,
+      #|      is_offered: false,
       #|      detail: Some("extern type Runtime : Effect"),
       #|      documentation: None,
       #|      insert_text: None,
@@ -286,6 +290,7 @@ test "completion returns imported module surface entries" {
       #|  {
       #|    label: "answer",
       #|    kind: Function,
+      #|    is_offered: false,
       #|    detail: Some("answer : () -> Int"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -307,6 +312,7 @@ test "completion returns imported module surface entries" {
       #|  {
       #|    label: "Option",
       #|    kind: Type,
+      #|    is_offered: false,
       #|    detail: Some("enum Option"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -328,6 +334,7 @@ test "completion returns imported module surface entries" {
       #|  {
       #|    label: "Console",
       #|    kind: Effect,
+      #|    is_offered: false,
       #|    detail: Some("effect Console"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -348,6 +355,66 @@ test "completion returns imported module surface entries" {
       #|  },
       #|]
     ),
+  )
+}
+
+///|
+test "completion keeps offeredness orthogonal to semantic binding kind" {
+  let source =
+    #|module Main
+    #|
+    #|offer offered_value : Int = 1
+    #|
+    #|offer fn offered_function() -> Int {
+    #|  1
+    #|}
+    #|
+    #|pub fn use() -> Int {
+    #|  off
+    #|}
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: source },
+    [],
+    "file:///Main.lane",
+    10,
+    6,
+    Manual,
+  )
+  debug_inspect(
+    entries.map(fn(entry) { (entry.label, entry.kind, entry.is_offered) }),
+    content="[(\"offered_value\", Value, true), (\"offered_function\", Function, true)]",
+  )
+}
+
+///|
+test "module completion keeps offeredness orthogonal to interface value kind" {
+  let root =
+    #|module Main
+    #|
+    #|import Lib
+    #|
+    #|pub fn use() -> Int {
+    #|  Lib.off
+    #|}
+  let library =
+    #|module Lib
+    #|
+    #|pub offer offered_value : Int = 1
+    #|
+    #|pub offer fn offered_function() -> Int {
+    #|  1
+    #|}
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: root },
+    [{ source_id: "file:///Lib.lane", text: library }],
+    "file:///Main.lane",
+    6,
+    10,
+    Manual,
+  )
+  debug_inspect(
+    entries.map(fn(entry) { (entry.label, entry.kind, entry.is_offered) }),
+    content="[(\"offered_value\", Value, true), (\"offered_function\", Function, true)]",
   )
 }
 
@@ -444,6 +511,7 @@ test "completion returns owner members after double colon" {
       #|  {
       #|    label: "none",
       #|    kind: Variant,
+      #|    is_offered: false,
       #|    detail: Some("variant Option::none"),
       #|    documentation: None,
       #|    insert_text: Some("none()"),
@@ -465,6 +533,7 @@ test "completion returns owner members after double colon" {
       #|  {
       #|    label: "some",
       #|    kind: Variant,
+      #|    is_offered: false,
       #|    detail: Some("variant Option::some"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -519,6 +588,7 @@ test "completion inserts parens for imported payloadless owner variants" {
       #|  {
       #|    label: "none",
       #|    kind: Variant,
+      #|    is_offered: false,
       #|    detail: Some("variant Lib.Option::none"),
       #|    documentation: None,
       #|    insert_text: Some("none()"),
@@ -540,6 +610,7 @@ test "completion inserts parens for imported payloadless owner variants" {
       #|  {
       #|    label: "some",
       #|    kind: Variant,
+      #|    is_offered: false,
       #|    detail: Some("variant Lib.Option::some"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -592,6 +663,7 @@ test "completion inserts parens for payloadless variants with resolved fallback"
       #|  {
       #|    label: "none",
       #|    kind: Variant,
+      #|    is_offered: false,
       #|    detail: Some("variant Option::none"),
       #|    documentation: None,
       #|    insert_text: Some("none()"),
@@ -613,6 +685,7 @@ test "completion inserts parens for payloadless variants with resolved fallback"
       #|  {
       #|    label: "some",
       #|    kind: Variant,
+      #|    is_offered: false,
       #|    detail: Some("variant Option::some"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -667,6 +740,7 @@ test "completion returns imported owner operations after double colon" {
       #|  {
       #|    label: "read",
       #|    kind: Operation,
+      #|    is_offered: false,
       #|    detail: Some("Console::read() -> Int"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -688,6 +762,7 @@ test "completion returns imported owner operations after double colon" {
       #|  {
       #|    label: "write",
       #|    kind: Operation,
+      #|    is_offered: false,
       #|    detail: Some("Console::write(Int) -> Unit"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -797,6 +872,7 @@ test "completion returns known module paths in import declarations" {
       #|  {
       #|    label: "Lib",
       #|    kind: Module,
+      #|    is_offered: false,
       #|    detail: Some("module Lib"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -856,6 +932,7 @@ test "completion filters candidates by type and effect positions" {
       #|  {
       #|    label: "Thing",
       #|    kind: Type,
+      #|    is_offered: false,
       #|    detail: Some("struct Thing"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -891,6 +968,7 @@ test "completion filters candidates by type and effect positions" {
       #|  {
       #|    label: "Console",
       #|    kind: Effect,
+      #|    is_offered: false,
       #|    detail: Some("effect Console"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -999,6 +1077,7 @@ test "completion returns checked selector fields" {
       #|  {
       #|    label: "x",
       #|    kind: Field,
+      #|    is_offered: false,
       #|    detail: Some("x : Int"),
       #|    documentation: None,
       #|    insert_text: None,
@@ -1020,6 +1099,7 @@ test "completion returns checked selector fields" {
       #|  {
       #|    label: "y",
       #|    kind: Field,
+      #|    is_offered: false,
       #|    detail: Some("y : Int"),
       #|    documentation: None,
       #|    insert_text: None,

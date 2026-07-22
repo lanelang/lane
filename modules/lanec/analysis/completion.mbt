@@ -15,13 +15,13 @@ pub(all) enum CompletionKind {
   Field
   Variant
   Module
-  Offer
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct CompletionEntry {
   label : String
   kind : CompletionKind
+  is_offered : Bool
   detail : String?
   documentation : String?
   insert_text : String?
@@ -185,7 +185,6 @@ fn completion_kind_rank(kind : CompletionKind) -> String {
   match kind {
     Value => "20"
     Function => "21"
-    Offer => "22"
     Field => "23"
     Variant => "24"
     Type => "30"
@@ -206,6 +205,7 @@ fn add_completion_entry(
   kind : CompletionKind,
   detail : String?,
   rank : String,
+  is_offered? : Bool = false,
 ) -> Unit {
   add_completion_entry_with_insert_text(
     entries,
@@ -217,6 +217,7 @@ fn add_completion_entry(
     detail,
     insert_text=None,
     rank,
+    is_offered~,
   )
 }
 
@@ -231,18 +232,23 @@ fn add_completion_entry_with_insert_text(
   detail : String?,
   insert_text~ : String?,
   rank : String,
+  is_offered? : Bool = false,
 ) -> Unit {
   if !label.has_prefix(prefix) {
     return
   }
   for entry in entries {
-    if entry.label == label && entry.kind == kind && entry.detail == detail {
+    if entry.label == label &&
+      entry.kind == kind &&
+      entry.is_offered == is_offered &&
+      entry.detail == detail {
       return
     }
   }
   entries.push({
     label,
     kind,
+    is_offered,
     detail,
     documentation: None,
     insert_text,
@@ -289,8 +295,7 @@ fn CompletionIndex::add_identifier_entries(
 ) -> Unit {
   for binding in module_.index.visible_bindings(line, column) {
     let allowed = match binding.kind {
-      ValueBindingKind | FunctionBindingKind | OfferBindingKind =>
-        completion_allows_value(space)
+      ValueBindingKind | FunctionBindingKind => completion_allows_value(space)
       TypeBindingKind | TypeParameterBindingKind =>
         completion_allows_type(space)
       EffectBindingKind => completion_allows_effect(space)
@@ -305,6 +310,7 @@ fn CompletionIndex::add_identifier_entries(
         semantic_binding_completion_kind(binding.kind),
         Some(binding.detail),
         semantic_binding_sort_text(binding),
+        is_offered=binding.is_offered,
       )
     }
   }
@@ -321,7 +327,6 @@ fn semantic_binding_completion_kind(
     TypeBindingKind => Type
     TypeParameterBindingKind => TypeParameter
     EffectBindingKind => Effect
-    OfferBindingKind => Offer
   }
 }
 
@@ -337,11 +342,6 @@ fn semantic_binding_sort_text(binding : SemanticBindingFact) -> String {
     TypeBindingKind => "30"
     TypeParameterBindingKind => "01"
     EffectBindingKind => "32"
-    OfferBindingKind =>
-      match binding.visibility {
-        GlobalBinding => "22"
-        ScopedBinding(_) | OrderedBinding(_) => "02"
-      }
   }
 }
 
@@ -473,7 +473,7 @@ fn CompletionIndex::add_interface_surface_entries(
   for value in interface.values {
     let kind = match value.kind {
       Function => Function
-      Let => if value.is_offered { Offer } else { Value }
+      Let => Value
     }
     add_completion_entry(
       entries,
@@ -484,6 +484,7 @@ fn CompletionIndex::add_interface_surface_entries(
       kind,
       Some("\{value.name} : \{display.type_text(value.type_)}"),
       "20",
+      is_offered=value.is_offered,
     )
   }
   for type_ in interface.types {

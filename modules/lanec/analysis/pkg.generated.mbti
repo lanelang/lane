@@ -50,6 +50,7 @@ pub(all) enum AnalysisSymbol {
 pub(all) struct CompletionEntry {
   label : String
   kind : CompletionKind
+  is_offered : Bool
   detail : String?
   documentation : String?
   insert_text : String?
@@ -67,7 +68,6 @@ pub(all) enum CompletionKind {
   Field
   Variant
   Module
-  Offer
 } derive(Eq, @debug.Debug)
 
 pub(all) enum CompletionTrigger {

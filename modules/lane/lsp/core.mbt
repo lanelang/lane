@@ -688,6 +688,5 @@ fn completion_item_kind_json(kind : @analysis.CompletionKind) -> Json {
     Field => 5
     Variant => 20
     Module => 9
-    Offer => 12
   }
 }

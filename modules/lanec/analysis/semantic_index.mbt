@@ -21,7 +21,6 @@ priv enum SemanticBindingKind {
   TypeBindingKind
   TypeParameterBindingKind
   EffectBindingKind
-  OfferBindingKind
 }
 
 ///|
@@ -29,6 +28,7 @@ priv struct SemanticBindingFact {
   identity : SemanticBindingIdentity
   name : String
   kind : SemanticBindingKind
+  is_offered : Bool
   mut detail : String
   mut type_ : @types.Type?
   visibility : SemanticBindingVisibility
