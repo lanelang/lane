@@ -103,8 +103,8 @@ fn expect_checked_let_initializer(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: ContextualOfferScope(source.symbols),
-    ordered_offers: ContextualOfferScope(source.symbols),
+    offers: ContextualOfferScope(),
+    ordered_offers: ContextualOfferScope(),
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -274,15 +274,19 @@ fn expect_first_checked_match_pattern(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: ContextualOfferScope(source.symbols),
-    ordered_offers: ContextualOfferScope(source.symbols),
+    offers: ContextualOfferScope(),
+    ordered_offers: ContextualOfferScope(),
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
     if declaration is Function(declaration) && declaration.name == name {
       let scope = checker.root_scope()
       for parameter in declaration.parameters {
-        scope.bind(parameter.symbol, checker.check_type(parameter.type_))
+        scope.bind(
+          parameter.symbol,
+          parameter.name,
+          checker.check_type(parameter.type_),
+        )
       }
       let body = match declaration.body {
         Block(items=[], result~, ..) => result
@@ -952,6 +956,59 @@ test "typecheck inner offered function shadows same-named outer offer" {
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "contextual offers do not share a fallback name" {
+  let offers = ContextualOfferScope()
+  offers.bind(
+    contextual_offer(
+      { index: 0 },
+      "first",
+      Primitive(Int),
+      None,
+      @basic.SourceSpan::dummy(),
+    ),
+  )
+  offers.bind(
+    contextual_offer(
+      { index: 1 },
+      "second",
+      Primitive(Bool),
+      None,
+      @basic.SourceSpan::dummy(),
+    ),
+  )
+  let visible : Array[ContextualOffer] = []
+  offers.each_visible(fn(offer) { visible.push(offer) })
+  assert_eq(visible.length(), 2)
+}
+
+///|
+test "contextual offer requires a declaration name" {
+  let diagnostics : Array[TypeCheckDiagnostic] = []
+  assert_eq(
+    require_contextual_offer_name(diagnostics, None, @basic.SourceSpan::dummy()),
+    None,
+  )
+  debug_inspect(
+    diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: InternalTypecheckFailure(label="offered binding is missing its declaration name"),
+      #|    loc: {
+      #|      start_offset: 0,
+      #|      end_offset: 0,
+      #|      start_line: 1,
+      #|      start_column: 1,
+      #|      end_line: 1,
+      #|      end_column: 1,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|
@@ -6012,9 +6069,7 @@ fn deeply_nested_test_type(base : @types.Type) -> @types.Type {
 }
 
 ///|
-fn empty_generic_argument_inference(
-  registry : @symbol.SymbolRegistry,
-) -> GenericArgumentInference {
+fn empty_generic_argument_inference() -> GenericArgumentInference {
   GenericArgumentInference(
     {
       types: [],
@@ -6026,7 +6081,7 @@ fn empty_generic_argument_inference(
     },
     {
       values: [],
-      offers: ContextualOfferScope(registry),
+      offers: ContextualOfferScope(),
       type_parameters: [],
       provisional_effect_parameters: [],
       expected_effect: None,
@@ -6037,8 +6092,7 @@ fn empty_generic_argument_inference(
 
 ///|
 test "generic inference records type computation failure" {
-  let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let inference = empty_generic_argument_inference(registry)
+  let inference = empty_generic_argument_inference()
   assert_false(
     inference.types_equal(
       deeply_nested_test_type(Primitive(Unit)),
@@ -6064,7 +6118,7 @@ test "generic inference rejects missing kind metadata" {
     "Missing",
     @basic.SourceSpan::dummy(),
   )
-  let inference = empty_generic_argument_inference(registry)
+  let inference = empty_generic_argument_inference()
   assert_false(
     inference.generic_argument_has_kind(
       TypeArgument(Constructor(nominal)),
@@ -6075,7 +6129,7 @@ test "generic inference rejects missing kind metadata" {
     inference.internal_failure is Some(MissingNominalKindMetadata(id)) &&
     id == nominal,
   )
-  let parameter_inference = empty_generic_argument_inference(registry)
+  let parameter_inference = empty_generic_argument_inference()
   assert_false(
     parameter_inference.generic_argument_has_kind(
       TypeArgument(Parameter(parameter)),

@@ -29,8 +29,8 @@ pub fn typecheck_source_file(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: ContextualOfferScope(source.symbols),
-    ordered_offers: ContextualOfferScope(source.symbols),
+    offers: ContextualOfferScope(),
+    ordered_offers: ContextualOfferScope(),
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -85,16 +85,18 @@ fn SemanticChecker::seed_imported_top_level_value_type(
   self.value_types.push(binding)
   self.ordered_value_types.push(binding)
   if value.is_offered && self.imported_offer_is_visible(value.symbol) {
-    self.offer_symbol_with_source_id(
+    offer_symbol_with_source_id(
       self.offers,
       value.symbol,
+      value.name,
       value.type_,
       source_id,
       value.loc,
     )
-    self.offer_symbol_with_source_id(
+    offer_symbol_with_source_id(
       self.ordered_offers,
       value.symbol,
+      value.name,
       value.type_,
       source_id,
       value.loc,
@@ -186,10 +188,17 @@ fn SemanticChecker::collect_top_level_function_type(
     }),
   )
   if declaration.is_offered {
-    self.offer_symbol(self.offers, declaration.symbol, type_, declaration.loc)
+    self.offer_symbol(
+      self.offers,
+      declaration.symbol,
+      Some(declaration.name),
+      type_,
+      declaration.loc,
+    )
     self.offer_symbol(
       self.ordered_offers,
       declaration.symbol,
+      Some(declaration.name),
       type_,
       declaration.loc,
     )
@@ -209,7 +218,13 @@ fn SemanticChecker::collect_top_level_let_type(
       parameters: None,
     })
     if declaration.is_offered {
-      self.offer_symbol(self.offers, declaration.symbol, type_, declaration.loc)
+      self.offer_symbol(
+        self.offers,
+        declaration.symbol,
+        declaration.name,
+        type_,
+        declaration.loc,
+      )
     }
   }
 }
@@ -268,6 +283,7 @@ fn SemanticChecker::check_top_level_let(
     self.offer_symbol(
       self.ordered_offers,
       declaration.symbol,
+      declaration.name,
       type_,
       declaration.loc,
     )

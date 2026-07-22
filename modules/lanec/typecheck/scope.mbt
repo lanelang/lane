@@ -17,7 +17,6 @@ priv struct ContextualOffer {
 
 ///|
 priv struct ContextualOfferScope {
-  symbols : @symbol.SymbolRegistry
   visible_by_name : Map[String, Array[ContextualOffer]]
 }
 
@@ -62,21 +61,23 @@ fn SemanticChecker::ordered_root_scope(self : SemanticChecker) -> TypeScope {
 fn TypeScope::bind(
   self : TypeScope,
   symbol : ValueSymbolId,
+  name : String,
   type_ : @types.Type,
 ) -> Unit {
   self.values.push({ symbol, type_, parameters: None })
-  self.offers.hide(symbol)
+  self.offers.hide(name)
 }
 
 ///|
 fn TypeScope::bind_function(
   self : TypeScope,
   symbol : ValueSymbolId,
+  name : String,
   type_ : @types.Type,
   parameters : Array[@checked.CheckedValueParameter],
 ) -> Unit {
   self.values.push({ symbol, type_, parameters: Some(parameters) })
-  self.offers.hide(symbol)
+  self.offers.hide(name)
 }
 
 ///|
@@ -190,11 +191,12 @@ fn SemanticChecker::function_body_scope(
 ) -> TypeScope {
   let scope = parent.with_type_parameter_kinds(type_parameters)
   for parameter in parameters {
-    scope.bind(parameter.symbol, parameter.type_)
+    scope.bind(parameter.symbol, parameter.name, parameter.type_)
     if parameter.is_offered {
       self.bind_offer_symbol(
         scope,
         parameter.symbol,
+        Some(parameter.name),
         parameter.type_,
         parameter.loc,
       )
@@ -222,22 +224,26 @@ fn SemanticChecker::offer_symbol(
   self : SemanticChecker,
   offers : ContextualOfferScope,
   symbol : ValueSymbolId,
+  name : String?,
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  self.offer_symbol_with_source_id(offers, symbol, type_, None, loc)
+  guard require_contextual_offer_name(self.diagnostics, name, loc) is Some(name) else {
+    return
+  }
+  offer_symbol_with_source_id(offers, symbol, name, type_, None, loc)
 }
 
 ///|
-fn SemanticChecker::offer_symbol_with_source_id(
-  self : SemanticChecker,
+fn offer_symbol_with_source_id(
   offers : ContextualOfferScope,
   symbol : ValueSymbolId,
+  name : String,
   type_ : @types.Type,
   source_id : String?,
   loc : SourceSpan,
 ) -> Unit {
-  offers.add_visible(self.contextual_offer(symbol, type_, source_id, loc))
+  offers.add_visible(contextual_offer(symbol, name, type_, source_id, loc))
 }
 
 ///|
@@ -245,24 +251,44 @@ fn SemanticChecker::bind_offer_symbol(
   self : SemanticChecker,
   scope : TypeScope,
   symbol : ValueSymbolId,
+  name : String?,
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  scope.offers.bind(self.contextual_offer(symbol, type_, None, loc))
+  guard require_contextual_offer_name(self.diagnostics, name, loc) is Some(name) else {
+    return
+  }
+  scope.offers.bind(contextual_offer(symbol, name, type_, None, loc))
 }
 
 ///|
-fn SemanticChecker::contextual_offer(
-  self : SemanticChecker,
+fn require_contextual_offer_name(
+  diagnostics : Array[TypeCheckDiagnostic],
+  name : String?,
+  loc : SourceSpan,
+) -> String? {
+  match name {
+    Some(name) => Some(name)
+    None => {
+      diagnostics.push({
+        kind: InternalTypecheckFailure(
+          label="offered binding is missing its declaration name",
+        ),
+        loc,
+      })
+      None
+    }
+  }
+}
+
+///|
+fn contextual_offer(
   symbol : ValueSymbolId,
+  name : String,
   type_ : @types.Type,
   source_id : String?,
   loc : SourceSpan,
 ) -> ContextualOffer {
-  let name = match self.source.symbols.value_metadata(symbol) {
-    Some(metadata) => metadata.name
-    None => "<unknown>"
-  }
   let expression = @desugar.DesugaredExpr::Var(
     name~,
     reference=Symbol(symbol),
@@ -284,27 +310,23 @@ fn contextual_offer_diagnostic_candidate(
 }
 
 ///|
-fn ContextualOfferScope::ContextualOfferScope(
-  symbols : @symbol.SymbolRegistry,
-) -> ContextualOfferScope {
-  { symbols, visible_by_name: Map([]) }
+fn ContextualOfferScope::ContextualOfferScope() -> ContextualOfferScope {
+  { visible_by_name: Map([]) }
 }
 
 ///|
 fn ContextualOfferScope::copy(
   self : ContextualOfferScope,
 ) -> ContextualOfferScope {
-  { symbols: self.symbols, visible_by_name: self.visible_by_name.copy() }
+  { visible_by_name: self.visible_by_name.copy() }
 }
 
 ///|
 fn ContextualOfferScope::hide(
   self : ContextualOfferScope,
-  symbol : ValueSymbolId,
+  name : String,
 ) -> Unit {
-  if self.symbols.value_metadata(symbol) is Some(metadata) {
-    self.visible_by_name[metadata.name] = []
-  }
+  self.visible_by_name[name] = []
 }
 
 ///|

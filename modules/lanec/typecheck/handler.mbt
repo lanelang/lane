@@ -77,7 +77,11 @@ fn SemanticChecker::synthesize_checked_handler_computed(
     loc,
   )
   let final_scope = scope.copy()
-  final_scope.bind(final_branch.binder_symbol, checked_body.type_)
+  final_scope.bind(
+    final_branch.binder_symbol,
+    final_branch.binder,
+    checked_body.type_,
+  )
   let checked_final_body = self.synthesize_checked_expr(
     final_scope,
     final_branch.body,
@@ -253,6 +257,7 @@ fn handler_operation_scope(
   }
   arm_scope.bind(
     checked.resume_symbol,
+    checked.resume_binder,
     handler_resume_type(signature, result_type, residual_effect),
   )
   arm_scope
@@ -264,7 +269,7 @@ fn TypeScope::bind_checked_pattern(
   pattern : @checked.CheckedPattern,
 ) -> Unit {
   match pattern {
-    Binding(symbol~, type_~, ..) => self.bind(symbol, type_)
+    Binding(name~, symbol~, type_~, ..) => self.bind(symbol, name, type_)
     Variant(generic_arguments~, arguments~, ..) => {
       for argument in generic_arguments {
         match argument {

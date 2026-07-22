@@ -30,8 +30,8 @@ pub fn typecheck_checked_source_file_with_imported_environment(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: ContextualOfferScope(current_source.symbols),
-    ordered_offers: ContextualOfferScope(current_source.symbols),
+    offers: ContextualOfferScope(),
+    ordered_offers: ContextualOfferScope(),
   }
   checker.seed_imported_top_level_value_types(imported_environment)
   checker.collect_top_level_value_types()
@@ -232,6 +232,7 @@ fn SemanticChecker::checked_top_level_let(
     self.offer_symbol(
       self.ordered_offers,
       declaration.symbol,
+      declaration.name,
       type_,
       declaration.loc,
     )
@@ -310,9 +311,22 @@ fn SemanticChecker::check_checked_local_let(
     )
     (checked_initializer.type_, checked_initializer)
   }
-  scope.bind(declaration.symbol, type_)
+  guard declaration.name is Some(name) else {
+    self.report_internal_typecheck_failure(
+      "local value binding is missing its declaration name",
+      declaration.loc,
+    )
+    return None
+  }
+  scope.bind(declaration.symbol, name, type_)
   if declaration.is_offered {
-    self.bind_offer_symbol(scope, declaration.symbol, type_, declaration.loc)
+    self.bind_offer_symbol(
+      scope,
+      declaration.symbol,
+      declaration.name,
+      type_,
+      declaration.loc,
+    )
   }
   let initializer_context = if declaration.is_offered {
     "local offer initializer"
@@ -401,9 +415,15 @@ fn SemanticChecker::check_checked_local_function(
     declaration.effect,
   )
   let parameters = self.checked_value_parameters(declaration.parameters)
-  scope.bind_function(declaration.symbol, type_, parameters)
+  scope.bind_function(declaration.symbol, declaration.name, type_, parameters)
   if declaration.is_offered {
-    self.bind_offer_symbol(scope, declaration.symbol, type_, declaration.loc)
+    self.bind_offer_symbol(
+      scope,
+      declaration.symbol,
+      Some(declaration.name),
+      type_,
+      declaration.loc,
+    )
   }
   let body_scope = self.function_body_scope(
     scope,
