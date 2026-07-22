@@ -321,7 +321,7 @@ pub(all) struct SourceFormatTrivia {
   trailing : (SourceSpan) -> (Document, Bool)
   has_leading : (SourceSpan) -> Bool
   boundary : (Int, Int) -> (Document, Bool)
-  token_separator : (SourceSpan, Int) -> Document
+  token_prefix_separators : (SourceSpan, Int) -> Array[Document]
   delimited : (Char, Int, Int, Array[SourceSpan]) -> (Document, Bool)
   comma_separator : (SourceSpan, SourceSpan) -> Document
   item_separator : (SourceSpan, SourceSpan) -> Document
@@ -337,7 +337,7 @@ pub fn SourceFormatTrivia::empty() -> SourceFormatTrivia {
     trailing: fn(_span) { (empty, false) },
     has_leading: fn(_span) { false },
     boundary: fn(_start, _end) { (empty, false) },
-    token_separator: fn(_span, _left_token_index) { space },
+    token_prefix_separators: fn(_span, count) { Array::make(count, space) },
     delimited: fn(_open, _start, _end, _children) { (empty, false) },
     comma_separator: fn(_left, _right) { text(",") + line },
     item_separator: fn(_left, _right) { hardline },
@@ -357,12 +357,19 @@ fn SourceFormatTrivia::take_boundary(
 }
 
 ///|
-fn SourceFormatTrivia::take_token_separator(
+fn SourceFormatTrivia::join_token_prefix(
   self : SourceFormatTrivia,
   span : SourceSpan,
-  left_token_index : Int,
+  parts : Array[Document],
 ) -> Document {
-  (self.token_separator)(span, left_token_index)
+  guard parts.get(0) is Some(first) else { return empty }
+  let separators = (self.token_prefix_separators)(span, parts.length() - 1)
+  let mut result = first
+  for index in 1..<parts.length() {
+    let separator = separators.get(index - 1).unwrap_or(space)
+    result = result + separator + parts[index]
+  }
+  result
 }
 
 ///|

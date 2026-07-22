@@ -109,6 +109,49 @@ test "format offered function preserves comment between offer and fn" {
 }
 
 ///|
+test "format declaration keyword chains preserve comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub // pub offer
+      #|offer // offer fn
+      #|fn provide() -> Int { 1 }
+      #|pub // pub fn
+      #|fn ordinary() -> Int { 2 }
+      #|pub // pub struct
+      #|struct Box { value : Int }
+      #|pub // pub extern
+      #|extern // extern type
+      #|type Handle : Type
+    ),
+    (
+      #|module Test
+      #|
+      #|pub // pub offer
+      #|offer // offer fn
+      #|fn provide() -> Int {
+      #|  1
+      #|}
+      #|
+      #|pub // pub fn
+      #|fn ordinary() -> Int {
+      #|  2
+      #|}
+      #|
+      #|pub // pub struct
+      #|struct Box {
+      #|  value : Int
+      #|}
+      #|
+      #|pub // pub extern
+      #|extern // extern type
+      #|type Handle : Type
+      #|
+    ),
+  )
+}
+
+///|
 test "formatter consumes the complete trivia attachment view" {
   let source =
     #|// leading module

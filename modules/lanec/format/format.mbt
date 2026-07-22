@@ -360,8 +360,8 @@ fn ConcreteLayoutSession::source_format_trivia(
     boundary: fn(start, end) {
       dangling_comment_doc(comments, claimed, start, end)
     },
-    token_separator: fn(span, left_token_index) {
-      token_separator_doc(comments, claimed, tokens, span, left_token_index)
+    token_prefix_separators: fn(span, count) {
+      token_prefix_separator_docs(comments, claimed, tokens, span, count)
     },
     delimited: fn(open, start, end, children) {
       delimited_comment_doc(
@@ -568,30 +568,37 @@ fn comma_separator_doc(
 }
 
 ///|
-fn token_separator_doc(
+fn token_prefix_separator_docs(
   comments : Array[AnchoredComment],
   claimed : Array[Bool],
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
   span : @basic.SourceSpan,
-  left_token_index : Int,
-) -> Document {
-  let index = first_token_at_or_after(tokens, span.start_offset) +
-    left_token_index
-  guard tokens.get(index) is Some((_, left)) &&
-    tokens.get(index + 1) is Some((_, right)) &&
-    right.end_offset <= span.end_offset else {
-    return space
+  count : Int,
+) -> Array[Document] {
+  let separators = []
+  let first = first_token_at_or_after(tokens, span.start_offset)
+  for offset in 0..<count {
+    let index = first + offset
+    guard tokens.get(index) is Some((_, left)) &&
+      tokens.get(index + 1) is Some((_, right)) &&
+      right.end_offset <= span.end_offset else {
+      separators.push(space)
+      continue
+    }
+    separators.push(
+      separator_doc(
+        comments,
+        claimed,
+        left,
+        right,
+        empty,
+        space,
+        true,
+        include_attached=true,
+      ),
+    )
   }
-  separator_doc(
-    comments,
-    claimed,
-    left,
-    right,
-    empty,
-    space,
-    true,
-    include_attached=true,
-  )
+  separators
 }
 
 ///|

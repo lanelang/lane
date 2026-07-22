@@ -318,12 +318,20 @@ fn ImportItem::to_doc(
 }
 
 ///|
-fn public_prefix(is_public : Bool) -> Document {
+fn declaration_keyword_chain(
+  is_public : Bool,
+  keywords : Array[String],
+  loc : SourceSpan,
+  trivia : SourceFormatTrivia,
+) -> Document {
+  let parts = []
   if is_public {
-    keyword("pub") + space
-  } else {
-    empty
+    parts.push(keyword("pub"))
   }
+  for item in keywords {
+    parts.push(keyword(item))
+  }
+  trivia.join_token_prefix(loc, parts)
 }
 
 ///|
@@ -397,10 +405,12 @@ fn ExternalTypeDeclaration::to_doc(
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
   let result_kind = self.result_kind.to_doc(trivia~)
-  let header = public_prefix(self.is_public) +
-    keyword("extern") +
-    space +
-    keyword("type") +
+  let header = declaration_keyword_chain(
+      self.is_public,
+      ["extern", "type"],
+      self.loc,
+      trivia,
+    ) +
     space +
     text(self.name) +
     bracketed_type_parameters(
@@ -488,8 +498,12 @@ fn StructDeclaration::to_doc(
     self.loc.end_offset,
     child_spans=self.members.map(StructMember::loc),
   )
-  let header = public_prefix(self.is_public) +
-    keyword("struct") +
+  let header = declaration_keyword_chain(
+      self.is_public,
+      ["struct"],
+      self.loc,
+      trivia,
+    ) +
     space +
     text(self.name) +
     type_parameters
@@ -643,8 +657,12 @@ fn EffectDeclaration::to_doc(
     self.loc.end_offset,
     child_spans=self.operations.map(fn(operation) { operation.loc }),
   )
-  let header = public_prefix(self.is_public) +
-    keyword("effect") +
+  let header = declaration_keyword_chain(
+      self.is_public,
+      ["effect"],
+      self.loc,
+      trivia,
+    ) +
     space +
     text(self.name) +
     type_parameters
@@ -782,8 +800,12 @@ fn EnumDeclaration::to_doc(
     self.loc.end_offset,
     child_spans=self.variants.map(fn(variant) { variant.loc }),
   )
-  let header = public_prefix(self.is_public) +
-    keyword("enum") +
+  let header = declaration_keyword_chain(
+      self.is_public,
+      ["enum"],
+      self.loc,
+      trivia,
+    ) +
     space +
     text(self.name) +
     type_parameters
@@ -877,8 +899,12 @@ fn TypeAliasDeclaration::to_doc(
     None => empty
   }
   let body = self.body.to_doc(trivia~)
-  let header = public_prefix(self.is_public) +
-    keyword("type") +
+  let header = declaration_keyword_chain(
+      self.is_public,
+      ["type"],
+      self.loc,
+      trivia,
+    ) +
     space +
     text(self.name) +
     bracketed_type_parameters(
@@ -963,16 +989,13 @@ fn FunctionDeclaration::to_doc(
   }
   let parameter_suffix = if force_arrow_break { empty } else { suffix }
   let trailing_suffix = if force_arrow_break { suffix } else { empty }
-  let function_prefix = if self.is_offered {
-    let offer_token_index = if self.is_public { 1 } else { 0 }
-    keyword("offer") +
-    trivia.take_token_separator(self.loc, offer_token_index) +
-    keyword("fn")
-  } else {
-    keyword("fn")
-  }
-  let doc = public_prefix(self.is_public) +
-    function_prefix +
+  let function_keywords = if self.is_offered { ["offer", "fn"] } else { ["fn"] }
+  let doc = declaration_keyword_chain(
+      self.is_public,
+      function_keywords,
+      self.loc,
+      trivia,
+    ) +
     bracketed_type_parameters(
       self.type_parameters,
       trivia~,
@@ -1043,13 +1066,16 @@ fn LetDeclaration::to_doc(
       .map(fn(loc) { loc.end_offset })
       .unwrap_or(self.loc.start_offset)
   }
-  let declaration_keyword = if self.is_offered {
-    keyword("offer")
-  } else {
-    keyword("let")
-  }
+  let declaration_keyword = if self.is_offered { "offer" } else { "let" }
   let doc = assignment_expr_doc(
-    public_prefix(self.is_public) + declaration_keyword + name_doc + type_doc,
+    declaration_keyword_chain(
+      self.is_public,
+      [declaration_keyword],
+      self.loc,
+      trivia,
+    ) +
+    name_doc +
+    type_doc,
     head_end_offset,
     self.initializer,
     trivia~,
