@@ -19,7 +19,14 @@ priv struct GenericArgumentInference {
   bindings : Array[GenericArgumentBinding]
   mut failure : GenericArgumentInferenceFailure?
   mut failure_loc : SourceSpan?
-  mut computation_error : @types.TypeComputationError?
+  mut internal_failure : GenericArgumentInferenceInternalFailure?
+}
+
+///|
+priv enum GenericArgumentInferenceInternalFailure {
+  TypeComputationFailure(@types.TypeComputationError)
+  MissingNominalKindMetadata(TypeSymbolId)
+  MissingTypeParameterKindMetadata(TypeParameterId)
 }
 
 ///|
@@ -99,7 +106,7 @@ fn GenericArgumentInference::GenericArgumentInference(
     bindings: [],
     failure: None,
     failure_loc: None,
-    computation_error: None,
+    internal_failure: None,
   }
 }
 
@@ -129,8 +136,16 @@ fn GenericArgumentInference::record_computation_error(
   self : GenericArgumentInference,
   error : @types.TypeComputationError,
 ) -> Unit {
-  if self.computation_error is None {
-    self.computation_error = Some(error)
+  self.record_internal_failure(TypeComputationFailure(error))
+}
+
+///|
+fn GenericArgumentInference::record_internal_failure(
+  self : GenericArgumentInference,
+  failure : GenericArgumentInferenceInternalFailure,
+) -> Unit {
+  if self.internal_failure is None {
+    self.internal_failure = Some(failure)
   }
 }
 
@@ -350,7 +365,7 @@ fn GenericArgumentInference::generic_argument_has_kind(
     TypeArgument(type_) =>
       match self.type_kind(type_, []) {
         Some(actual) => actual == expected
-        None => true
+        None => false
       }
     EffectArgument(_) => expected == Effect
   }
@@ -364,7 +379,7 @@ fn GenericArgumentInference::type_kind(
 ) -> @types.Kind? {
   match type_ {
     Error | Primitive(_) | Function(_, _, _) | Forall(_, _) => Some(Type)
-    Constructor(symbol) => Some(self.nominal_type_kind(symbol))
+    Constructor(symbol) => self.nominal_type_kind(symbol)
     Apply(callee, _) =>
       match self.type_kind(callee, bound) {
         Some(Function(_, result)) => Some(result)
@@ -395,14 +410,22 @@ fn GenericArgumentInference::type_kind(
 fn GenericArgumentInference::nominal_type_kind(
   self : GenericArgumentInference,
   symbol : TypeSymbolId,
-) -> @types.Kind {
+) -> @types.Kind? {
   if self.declarations.checked_struct(symbol) is Some(declaration) {
-    return type_parameters_to_constructor_kind(declaration.type_parameters)
+    return Some(
+      type_parameters_to_constructor_kind(declaration.type_parameters),
+    )
   }
   if self.declarations.checked_enum(symbol) is Some(declaration) {
-    return type_parameters_to_constructor_kind(declaration.type_parameters)
+    return Some(
+      type_parameters_to_constructor_kind(declaration.type_parameters),
+    )
   }
-  Type
+  if self.declarations.checked_external_type(symbol) is Some(_) {
+    return Some(Type)
+  }
+  self.record_internal_failure(MissingNominalKindMetadata(symbol))
+  None
 }
 
 ///|
@@ -424,7 +447,8 @@ fn GenericArgumentInference::type_parameter_kind(
     Some(kind) => return Some(kind)
     None => ()
   }
-  Some(Type)
+  self.record_internal_failure(MissingTypeParameterKindMetadata(symbol))
+  None
 }
 
 ///|
@@ -1142,6 +1166,33 @@ fn SemanticChecker::report_internal_typecheck_failure(
 }
 
 ///|
+fn report_generic_argument_inference_internal_failure(
+  diagnostics : Array[TypeCheckDiagnostic],
+  label : String,
+  loc : SourceSpan,
+  failure : GenericArgumentInferenceInternalFailure,
+) -> Unit {
+  match failure {
+    TypeComputationFailure(error) =>
+      report_type_computation_failure(diagnostics, label, loc, error)
+    MissingNominalKindMetadata(symbol) =>
+      diagnostics.push({
+        kind: InternalTypecheckFailure(
+          label="missing kind metadata for nominal type identity \{symbol.index} while inferring \{label}",
+        ),
+        loc,
+      })
+    MissingTypeParameterKindMetadata(symbol) =>
+      diagnostics.push({
+        kind: InternalTypecheckFailure(
+          label="missing kind metadata for type parameter identity \{symbol.index} while inferring \{label}",
+        ),
+        loc,
+      })
+  }
+}
+
+///|
 fn SemanticChecker::report_application_arity(
   self : SemanticChecker,
   label : String,
@@ -1285,12 +1336,12 @@ fn SemanticChecker::infer_application_generic_arguments(
       inference.set_failure_loc_if_missing(argument.loc())
     }
   }
-  if inference.computation_error is Some(error) {
-    report_type_computation_failure(
+  if inference.internal_failure is Some(failure) {
+    report_generic_argument_inference_internal_failure(
       self.diagnostics,
       evidence.failure_label,
       evidence.loc,
-      error,
+      failure,
     )
     return None
   }

@@ -6012,9 +6012,10 @@ fn deeply_nested_test_type(base : @types.Type) -> @types.Type {
 }
 
 ///|
-test "generic inference records type computation failure" {
-  let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let inference = GenericArgumentInference::GenericArgumentInference(
+fn empty_generic_argument_inference(
+  registry : @symbol.SymbolRegistry,
+) -> GenericArgumentInference {
+  GenericArgumentInference(
     {
       types: [],
       type_members: [],
@@ -6032,15 +6033,128 @@ test "generic inference records type computation failure" {
     },
     [],
   )
+}
+
+///|
+test "generic inference records type computation failure" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let inference = empty_generic_argument_inference(registry)
   assert_false(
     inference.types_equal(
       deeply_nested_test_type(Primitive(Unit)),
       deeply_nested_test_type(Primitive(Bool)),
     ),
   )
+  assert_true(
+    inference.internal_failure
+    is Some(TypeComputationFailure(TypeNormalizationFuelExhausted)),
+  )
+}
+
+///|
+test "generic inference rejects missing kind metadata" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let nominal = registry.define_type(
+    "Missing",
+    Struct,
+    0,
+    @basic.SourceSpan::dummy(),
+  )
+  let parameter = registry.define_type_parameter(
+    "Missing",
+    @basic.SourceSpan::dummy(),
+  )
+  let inference = empty_generic_argument_inference(registry)
+  assert_false(
+    inference.generic_argument_has_kind(
+      TypeArgument(Constructor(nominal)),
+      Type,
+    ),
+  )
+  assert_true(
+    inference.internal_failure is Some(MissingNominalKindMetadata(id)) &&
+    id == nominal,
+  )
+  let parameter_inference = empty_generic_argument_inference(registry)
+  assert_false(
+    parameter_inference.generic_argument_has_kind(
+      TypeArgument(Parameter(parameter)),
+      Type,
+    ),
+  )
+  assert_true(
+    parameter_inference.internal_failure
+    is Some(MissingTypeParameterKindMetadata(id)) &&
+    id == parameter,
+  )
+}
+
+///|
+test "generic inference reads external nominal kind metadata" {
+  let result = expect_checked_source_result(
+    (
+      #|extern type Fd : Type
+      #|fn[T] identity(value : T) -> T { value }
+      #|fn keep(fd : Fd) -> Fd { identity(fd) }
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "generic inference reports missing kind metadata as internal failures" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let nominal = registry.define_type(
+    "Missing",
+    Struct,
+    0,
+    @basic.SourceSpan::dummy(),
+  )
+  let parameter = registry.define_type_parameter(
+    "Missing",
+    @basic.SourceSpan::dummy(),
+  )
+  let diagnostics : Array[TypeCheckDiagnostic] = []
+  report_generic_argument_inference_internal_failure(
+    diagnostics,
+    "call generic arguments",
+    @basic.SourceSpan::dummy(),
+    MissingNominalKindMetadata(nominal),
+  )
+  report_generic_argument_inference_internal_failure(
+    diagnostics,
+    "call generic arguments",
+    @basic.SourceSpan::dummy(),
+    MissingTypeParameterKindMetadata(parameter),
+  )
   debug_inspect(
-    inference.computation_error,
-    content="Some(TypeNormalizationFuelExhausted)",
+    diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: InternalTypecheckFailure(label="missing kind metadata for nominal type identity 0 while inferring call generic arguments"),
+      #|    loc: {
+      #|      start_offset: 0,
+      #|      end_offset: 0,
+      #|      start_line: 1,
+      #|      start_column: 1,
+      #|      end_line: 1,
+      #|      end_column: 1,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: InternalTypecheckFailure(label="missing kind metadata for type parameter identity 0 while inferring call generic arguments"),
+      #|    loc: {
+      #|      start_offset: 0,
+      #|      end_offset: 0,
+      #|      start_line: 1,
+      #|      start_column: 1,
+      #|      end_line: 1,
+      #|      end_column: 1,
+      #|    },
+      #|  },
+      #|]
+    ),
   )
 }
 
