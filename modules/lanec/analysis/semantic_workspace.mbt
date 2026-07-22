@@ -601,15 +601,6 @@ fn SemanticWorkspace::snapshot_from_current_state(
   self : SemanticWorkspace,
   changed_source_ids : Array[String],
 ) -> SemanticSnapshot {
-  let visible_symbols = []
-  for _, module_ in self.module_cache {
-    if module_.last_successful_interface is Some(interface) {
-      visible_symbols.push(interface.symbols)
-    }
-  }
-  let display = @typecheck.TypeDisplayContext::from_registry(
-    self.allocator.registry(imports=visible_symbols),
-  )
   {
     revision: self.revision,
     source_layout: self.source_layout,
@@ -617,7 +608,7 @@ fn SemanticWorkspace::snapshot_from_current_state(
     graph: self.graph_cache,
     modules: self.modules,
     definition_locations: self.definition_locations,
-    completion: { display, graph: self.graph_cache, modules: self.modules },
+    completion: { graph: self.graph_cache, modules: self.modules },
     changed_source_ids,
   }
 }

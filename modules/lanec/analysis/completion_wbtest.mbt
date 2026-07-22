@@ -352,6 +352,67 @@ test "completion returns imported module surface entries" {
 }
 
 ///|
+test "completion uses importer revision symbol metadata" {
+  let workspace = SemanticWorkspace::new()
+  let source_a =
+    #|module A
+    #|
+    #|pub fn[T] identity(value : T) -> T {
+    #|  value
+    #|}
+  let source_b =
+    #|module B
+    #|
+    #|import A
+    #|
+    #|pub fn use() -> Int {
+    #|  A.identity(1)
+    #|}
+  guard workspace.replace_sources([
+      { source_id: "file:///A.lane", text: source_a },
+      { source_id: "file:///B.lane", text: source_b },
+    ])
+    is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  let initial_entries = initial.complete(
+    "file:///B.lane",
+    6,
+    5,
+    TriggerCharacter("."),
+  )
+  debug_inspect(
+    initial_entries
+    .filter(fn(entry) { entry.label == "identity" })
+    .map(fn(entry) { entry.detail }),
+    content="[Some(\"identity : forall [T : Type]. (T) -> T\")]",
+  )
+  let revised_a =
+    #|module A
+    #|
+    #|pub fn[T] identity(value : T) -> T {
+    #|  let unchanged = value
+    #|  unchanged
+    #|}
+  guard workspace.upsert_source({ source_id: "file:///A.lane", text: revised_a })
+    is Some(revised) else {
+    abort("expected revised semantic snapshot")
+  }
+  let revised_entries = revised.complete(
+    "file:///B.lane",
+    6,
+    5,
+    TriggerCharacter("."),
+  )
+  debug_inspect(
+    revised_entries
+    .filter(fn(entry) { entry.label == "identity" })
+    .map(fn(entry) { entry.detail }),
+    content="[Some(\"identity : forall [T : Type]. (T) -> T\")]",
+  )
+}
+
+///|
 test "completion returns owner members after double colon" {
   let source =
     #|module Main

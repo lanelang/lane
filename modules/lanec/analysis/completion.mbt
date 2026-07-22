@@ -65,7 +65,6 @@ priv enum CompletionContext {
 
 ///|
 priv struct CompletionIndex {
-  display : @typecheck.TypeDisplayContext
   graph : CachedModuleGraph?
   modules : SnapshotTree[CachedSemanticSlot]
 }
@@ -101,6 +100,9 @@ fn CompletionIndex::complete(
   match self.module_for_source(source_id) {
     None => []
     Some(module_) => {
+      let display = @typecheck.TypeDisplayContext::from_registry(
+        module_.index.registry,
+      )
       let context = completion_context(
         module_.completion_source,
         line,
@@ -110,7 +112,9 @@ fn CompletionIndex::complete(
           import_.module_path_text
         }),
       )
-      self.entries_for_context(module_, source_id, context, line, column)
+      self.entries_for_context(
+        module_, source_id, context, display, line, column,
+      )
     }
   }
 }
@@ -136,6 +140,7 @@ fn CompletionIndex::entries_for_context(
   module_ : CachedSemanticModule,
   source_id : String,
   context : CompletionContext,
+  display : @typecheck.TypeDisplayContext,
   line : Int,
   column : Int,
 ) -> Array[CompletionEntry] {
@@ -149,15 +154,15 @@ fn CompletionIndex::entries_for_context(
       self.add_import_entries(entries, module_, source_id, prefix, replace)
     ModuleQualified(owner~, prefix~, replace~) =>
       self.add_module_surface_entries(
-        entries, module_, source_id, owner, prefix, replace,
+        entries, module_, source_id, owner, prefix, replace, display,
       )
     OwnerQualified(owner~, prefix~, replace~) =>
       self.add_owner_entries(
-        entries, module_, source_id, owner, prefix, replace,
+        entries, module_, source_id, owner, prefix, replace, display,
       )
     ReceiverSelector(receiver~, prefix~, replace~) =>
       self.add_receiver_entries(
-        entries, module_, source_id, receiver, prefix, replace, line, column,
+        entries, module_, source_id, receiver, prefix, replace, display, line, column,
       )
     Unsupported => ()
   }
@@ -431,12 +436,13 @@ fn CompletionIndex::add_module_surface_entries(
   owner : String,
   prefix : String,
   replace : @basic.SourceSpan,
+  display : @typecheck.TypeDisplayContext,
 ) -> Unit {
   guard imported_interface_for_owner(module_, owner) is Some(interface) else {
     return
   }
   self.add_interface_surface_entries(
-    entries, source_id, prefix, replace, interface,
+    entries, source_id, prefix, replace, interface, display,
   )
 }
 
@@ -456,12 +462,13 @@ fn imported_interface_for_owner(
 
 ///|
 fn CompletionIndex::add_interface_surface_entries(
-  self : CompletionIndex,
+  _self : CompletionIndex,
   entries : Array[CompletionEntry],
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
   interface : @module_interface.ModuleInterface,
+  display : @typecheck.TypeDisplayContext,
 ) -> Unit {
   for value in interface.values {
     let kind = match value.kind {
@@ -476,7 +483,7 @@ fn CompletionIndex::add_interface_surface_entries(
       replace,
       value.name,
       kind,
-      Some("\{value.name} : \{self.display.type_text(value.type_)}"),
+      Some("\{value.name} : \{display.type_text(value.type_)}"),
       "20",
     )
   }
@@ -556,12 +563,13 @@ fn CompletionIndex::add_owner_entries(
   owner : String,
   prefix : String,
   replace : @basic.SourceSpan,
+  display : @typecheck.TypeDisplayContext,
 ) -> Unit {
   match split_qualified_owner(owner) {
     Some((module_owner, member_owner)) =>
       if imported_interface_for_owner(module_, module_owner) is Some(interface) {
         self.add_interface_owner_entries(
-          entries, source_id, prefix, replace, interface, member_owner,
+          entries, source_id, prefix, replace, interface, member_owner, display,
         )
       }
     None =>
@@ -605,13 +613,14 @@ fn string_last_index(text : String, needle : String) -> Int? {
 
 ///|
 fn CompletionIndex::add_interface_owner_entries(
-  self : CompletionIndex,
+  _self : CompletionIndex,
   entries : Array[CompletionEntry],
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
   interface : @module_interface.ModuleInterface,
   owner : String,
+  display : @typecheck.TypeDisplayContext,
 ) -> Unit {
   for type_ in interface.types {
     match type_ {
@@ -641,9 +650,7 @@ fn CompletionIndex::add_interface_owner_entries(
             replace,
             type_member.name,
             TypeParameter,
-            Some(
-              "\{type_member.name} : \{self.display.kind_text(type_member.kind)}",
-            ),
+            Some("\{type_member.name} : \{display.kind_text(type_member.kind)}"),
             "21",
           )
         }
@@ -660,7 +667,7 @@ fn CompletionIndex::add_interface_owner_entries(
           replace,
           operation.name,
           Operation,
-          Some(self.operation_detail(effect.name, operation)),
+          Some(operation_detail(display, effect.name, operation)),
           "20",
         )
       }
@@ -721,8 +728,8 @@ fn semantic_member_insert_text(fact : SemanticMemberFact) -> String? {
 }
 
 ///|
-fn CompletionIndex::operation_detail(
-  self : CompletionIndex,
+fn operation_detail(
+  display : @typecheck.TypeDisplayContext,
   effect_name : String,
   operation : @module_interface.ModuleInterfaceOperation,
 ) -> String {
@@ -732,7 +739,7 @@ fn CompletionIndex::operation_detail(
     operation.type_parameters,
     operation.payload,
     operation.result,
-    self.display,
+    display,
   )
 }
 
@@ -745,6 +752,7 @@ fn CompletionIndex::add_receiver_entries(
   receiver : String,
   prefix : String,
   replace : @basic.SourceSpan,
+  display : @typecheck.TypeDisplayContext,
   line : Int,
   column : Int,
 ) -> Unit {
@@ -765,7 +773,7 @@ fn CompletionIndex::add_receiver_entries(
     )
   }
   self.add_imported_fields_for_type(
-    entries, module_, source_id, prefix, replace, symbol,
+    entries, module_, source_id, prefix, replace, symbol, display,
   )
 }
 
@@ -780,13 +788,14 @@ fn nominal_constructor(type_ : @types.Type) -> @symbol.TypeSymbolId? {
 
 ///|
 fn CompletionIndex::add_imported_fields_for_type(
-  self : CompletionIndex,
+  _self : CompletionIndex,
   entries : Array[CompletionEntry],
   module_ : CachedSemanticModule,
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
   symbol : @symbol.TypeSymbolId,
+  display : @typecheck.TypeDisplayContext,
 ) -> Unit {
   for interface in module_.imported.modules {
     for type_ in interface.types {
@@ -800,7 +809,7 @@ fn CompletionIndex::add_imported_fields_for_type(
               replace,
               field.name,
               Field,
-              Some("\{field.name} : \{self.display.type_text(field.type_)}"),
+              Some("\{field.name} : \{display.type_text(field.type_)}"),
               "20",
             )
           }
