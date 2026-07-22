@@ -2039,7 +2039,7 @@ test "format source nests structured expressions through arm wrappers" {
     (
       #|module Test
       #|effect Assert { check(Bool) -> Unit }
-      #|enum Choice { some(); grouped(); none() }
+      #|enum Choice { some(); grouped(); unary(); none() }
       #|pub fn handle_check(flag : Bool) -> Unit {
       #|  handle Assert::check!(flag) with {
       #|    Assert::check(value, resume) =>
@@ -2067,6 +2067,12 @@ test "format source nests structured expressions through arm wrappers" {
       #|      } else {
       #|        3
       #|      }) |> resume()
+      #|    unary() =>
+      #|      !if flag {
+      #|        true
+      #|      } else {
+      #|        false
+      #|      }
       #|    none() => 0
       #|  }
       #|}
@@ -2081,6 +2087,7 @@ test "format source nests structured expressions through arm wrappers" {
       #|enum Choice {
       #|  some()
       #|  grouped()
+      #|  unary()
       #|  none()
       #|}
       #|
@@ -2112,6 +2119,12 @@ test "format source nests structured expressions through arm wrappers" {
       #|      } else {
       #|        3
       #|      }) |> resume()
+      #|    unary() =>
+      #|      !if flag {
+      #|        true
+      #|      } else {
+      #|        false
+      #|      }
       #|    none() => 0
       #|  }
       #|}

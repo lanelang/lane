@@ -135,8 +135,24 @@ fn grouped_source_doc(
   trivia : SourceFormatTrivia,
   make_child_doc : () -> Document,
 ) -> Document {
+  grouped_source_with_child(child_span, group_span, trivia, make_child_doc, fn(
+    document,
+  ) {
+    document
+  }).0
+}
+
+///|
+fn[T] grouped_source_with_child(
+  child_span : SourceSpan,
+  group_span : SourceSpan,
+  trivia : SourceFormatTrivia,
+  make_child : () -> T,
+  child_document : (T) -> Document,
+) -> (Document, T) {
   let (child_trailing, child_has_trailing) = trivia.take_trailing(child_span)
-  let child = make_child_doc() + child_trailing
+  let child_value = make_child()
+  let child = child_document(child_value) + child_trailing
   let (dangling, force_break) = trivia.take_delimited(
     '(',
     group_span.start_offset,
@@ -144,11 +160,12 @@ fn grouped_source_doc(
     child_spans=[child_span],
   )
   let body = if force_break { child + hardline + dangling } else { child }
-  if child_has_trailing || force_break {
+  let document = if child_has_trailing || force_break {
     char('(') + nest(hardline + body) + hardline + char(')')
   } else {
     char('(') + child + char(')')
   }
+  (document, child_value)
 }
 
 ///|
