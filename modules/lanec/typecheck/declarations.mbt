@@ -500,7 +500,7 @@ fn check_resolved_nominal_generic_arguments(
         diagnostics,
         {
           values: [],
-          offers: [],
+          offers: ContextualOfferScope(source.symbols),
           type_parameters: [],
           provisional_effect_parameters: [],
           expected_effect: None,
@@ -515,7 +515,7 @@ fn check_resolved_nominal_generic_arguments(
         diagnostics,
         {
           values: [],
-          offers: [],
+          offers: ContextualOfferScope(source.symbols),
           type_parameters: [],
           provisional_effect_parameters: [],
           expected_effect: None,

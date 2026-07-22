@@ -30,8 +30,8 @@ pub fn typecheck_checked_source_file_with_imported_environment(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: [],
-    ordered_offers: [],
+    offers: ContextualOfferScope(current_source.symbols),
+    ordered_offers: ContextualOfferScope(current_source.symbols),
   }
   checker.seed_imported_top_level_value_types(imported_environment)
   checker.collect_top_level_value_types()
@@ -312,7 +312,7 @@ fn SemanticChecker::check_checked_local_let(
   }
   scope.bind(declaration.symbol, type_)
   if declaration.is_offered {
-    self.offer_symbol(scope.offers, declaration.symbol, type_, declaration.loc)
+    self.bind_offer_symbol(scope, declaration.symbol, type_, declaration.loc)
   }
   let initializer_context = if declaration.is_offered {
     "local offer initializer"
@@ -403,7 +403,7 @@ fn SemanticChecker::check_checked_local_function(
   let parameters = self.checked_value_parameters(declaration.parameters)
   scope.bind_function(declaration.symbol, type_, parameters)
   if declaration.is_offered {
-    self.offer_symbol(scope.offers, declaration.symbol, type_, declaration.loc)
+    self.bind_offer_symbol(scope, declaration.symbol, type_, declaration.loc)
   }
   let body_scope = self.function_body_scope(
     scope,

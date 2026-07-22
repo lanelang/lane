@@ -277,14 +277,14 @@ fn SemanticChecker::contextual_offer_expr(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
-  // Offer matching is exact type equality over the already-resolved flat offer
-  // environment. It must not infer generics from the offer set.
+  // Offer matching is exact type equality over the visible lexical offer
+  // scope. It must not infer generics from the offer set.
   let matches = []
-  for offer in scope.offers {
+  scope.offers.each_visible(fn(offer) {
     if self.type_matches(expected, offer.type_, loc) {
       matches.push(offer)
     }
-  }
+  })
   match matches.length() {
     0 => {
       self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
@@ -299,7 +299,7 @@ fn SemanticChecker::contextual_offer_expr(
         kind: AmbiguousContextualOffer(
           expected~,
           candidates=matches.map(fn(offer) {
-            self.contextual_offer_diagnostic_candidate(offer)
+            contextual_offer_diagnostic_candidate(offer)
           }),
         ),
         loc,

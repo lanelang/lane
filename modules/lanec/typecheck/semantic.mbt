@@ -8,8 +8,8 @@ priv struct SemanticChecker {
   values : Array[CheckedValueDeclaration]
   value_types : Array[ValueTypeBinding]
   ordered_value_types : Array[ValueTypeBinding]
-  offers : Array[ContextualOffer]
-  ordered_offers : Array[ContextualOffer]
+  offers : ContextualOfferScope
+  ordered_offers : ContextualOfferScope
 }
 
 ///|
@@ -29,8 +29,8 @@ pub fn typecheck_source_file(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: [],
-    ordered_offers: [],
+    offers: ContextualOfferScope(source.symbols),
+    ordered_offers: ContextualOfferScope(source.symbols),
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {

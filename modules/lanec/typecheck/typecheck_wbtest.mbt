@@ -103,8 +103,8 @@ fn expect_checked_let_initializer(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: [],
-    ordered_offers: [],
+    offers: ContextualOfferScope(source.symbols),
+    ordered_offers: ContextualOfferScope(source.symbols),
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -274,8 +274,8 @@ fn expect_first_checked_match_pattern(
     values: [],
     value_types: [],
     ordered_value_types: [],
-    offers: [],
-    ordered_offers: [],
+    offers: ContextualOfferScope(source.symbols),
+    ordered_offers: ContextualOfferScope(source.symbols),
   }
   checker.collect_top_level_value_types()
   for declaration in source.declarations {
@@ -931,6 +931,102 @@ test "typecheck offered function supplies contextual argument" {
       #|call#0(provide#1) : Int
     ),
   )
+}
+
+///|
+test "typecheck inner offered function shadows same-named outer offer" {
+  let result = expect_typecheck_result(
+    (
+      #|fn consume(auto provider : () -> Int) -> Int {
+      #|  provider()
+      #|}
+      #|offer fn provider() -> Int {
+      #|  1
+      #|}
+      #|let answer : Int = {
+      #|  offer fn provider() -> Int {
+      #|    2
+      #|  }
+      #|  consume()
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck inner ordinary binding hides same-named outer offer" {
+  let result = expect_typecheck_result(
+    (
+      #|fn consume(auto provider : () -> Int) -> Int {
+      #|  provider()
+      #|}
+      #|offer fn provider() -> Int {
+      #|  1
+      #|}
+      #|let answer : Int = {
+      #|  fn provider() -> Int {
+      #|    2
+      #|  }
+      #|  consume()
+      #|}
+    ),
+  )
+  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(expected, Function([], Primitive(Int), Empty))
+}
+
+///|
+test "typecheck applies offer shadowing before contextual type matching" {
+  let result = expect_typecheck_result(
+    (
+      #|fn consume(auto provider : () -> Int) -> Int {
+      #|  provider()
+      #|}
+      #|offer fn provider() -> Int {
+      #|  1
+      #|}
+      #|let answer : Int = {
+      #|  offer fn provider() -> Bool {
+      #|    true
+      #|  }
+      #|  consume()
+      #|}
+    ),
+  )
+  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(expected, Function([], Primitive(Int), Empty))
+}
+
+///|
+test "typecheck restores outer offer after leaving lexical scope" {
+  let result = expect_typecheck_result(
+    (
+      #|fn consume_int(auto provider : () -> Int) -> Int {
+      #|  provider()
+      #|}
+      #|fn consume_bool(auto provider : () -> Bool) -> Bool {
+      #|  provider()
+      #|}
+      #|offer fn provider() -> Int {
+      #|  1
+      #|}
+      #|let answer : Int = {
+      #|  let inner : Bool = {
+      #|    offer fn provider() -> Bool {
+      #|      true
+      #|    }
+      #|    consume_bool()
+      #|  }
+      #|  consume_int()
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
