@@ -315,6 +315,7 @@ pub(all) struct SourceFile {
   declarations : Array[TopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn SourceFile::syntactic_identifier_index(Self) -> SyntacticIdentifierIndex
 pub impl @source_prettyprinter.Pretty for SourceFile
 pub impl @prettyprinter.Pretty for SourceFile
 
@@ -365,6 +366,16 @@ pub(all) enum StructPatternField {
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for StructPatternField
 pub impl @prettyprinter.Pretty for StructPatternField
+
+pub struct SyntacticIdentifierIndex {
+  // private fields
+}
+pub fn SyntacticIdentifierIndex::role_at(Self, Int) -> SyntacticIdentifierRole?
+
+pub(all) enum SyntacticIdentifierRole {
+  TypeIdentifier
+  EffectIdentifier
+} derive(Eq, @debug.Debug)
 
 pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)

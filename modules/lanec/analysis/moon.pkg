@@ -7,6 +7,7 @@ import {
   "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
+  "Milky2018/lanec/syntax",
   "Milky2018/lanec/typecheck",
   "Milky2018/lanec/types",
   "moonbitlang/core/immut/hashmap" @immut_hashmap,

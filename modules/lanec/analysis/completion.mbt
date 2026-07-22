@@ -34,7 +34,6 @@ priv enum CompletionSpace {
   AnySpace
   TypeSpace
   EffectSpace
-  ImportSpace
 }
 
 ///|
@@ -74,6 +73,7 @@ priv struct CompletionSource {
   text : String
   tokens : Array[(@lexer.Token, @basic.SourceSpan)]
   line_starts : Array[Int]
+  syntax_identifiers : @syntax.SyntacticIdentifierIndex
 }
 
 ///|
@@ -86,7 +86,12 @@ fn CompletionSource::from_input(
       line_starts.push(trivia.span.end_offset)
     }
   }
-  { text: input.text, tokens: input.concrete.tokens, line_starts }
+  {
+    text: input.text,
+    tokens: input.concrete.tokens,
+    line_starts,
+    syntax_identifiers: input.source.syntactic_identifier_index(),
+  }
 }
 
 ///|
@@ -349,7 +354,7 @@ fn semantic_binding_sort_text(binding : SemanticBindingFact) -> String {
 fn completion_allows_value(space : CompletionSpace) -> Bool {
   match space {
     AnySpace => true
-    TypeSpace | EffectSpace | ImportSpace => false
+    TypeSpace | EffectSpace => false
   }
 }
 
@@ -357,7 +362,7 @@ fn completion_allows_value(space : CompletionSpace) -> Bool {
 fn completion_allows_type(space : CompletionSpace) -> Bool {
   match space {
     AnySpace | TypeSpace => true
-    EffectSpace | ImportSpace => false
+    EffectSpace => false
   }
 }
 
@@ -365,7 +370,6 @@ fn completion_allows_type(space : CompletionSpace) -> Bool {
 fn completion_allows_effect(space : CompletionSpace) -> Bool {
   match space {
     AnySpace | TypeSpace | EffectSpace => true
-    ImportSpace => false
   }
 }
 
@@ -857,8 +861,21 @@ fn completion_context(
       Identifier(
         prefix~,
         replace~,
-        space=completion_space(source.tokens, token_count),
+        space=completion_space_from_syntax_role(
+          source.syntax_identifiers.role_at(offset),
+        ),
       )
+  }
+}
+
+///|
+fn completion_space_from_syntax_role(
+  role : @syntax.SyntacticIdentifierRole?,
+) -> CompletionSpace {
+  match role {
+    Some(TypeIdentifier) => TypeSpace
+    Some(EffectIdentifier) => EffectSpace
+    None => AnySpace
   }
 }
 
@@ -977,46 +994,6 @@ fn completion_owner_before_separator(
     index -= 1
   }
   owner
-}
-
-///|
-fn completion_space(
-  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
-  token_count : Int,
-) -> CompletionSpace {
-  let mut index = token_count - 1
-  while index >= 0 {
-    match tokens[index].0 {
-      IMPORT => return ImportSpace
-      BANG => return EffectSpace
-      COLON | THIN_ARROW => return TypeSpace
-      EQUAL =>
-        if completion_declaration_is_type_alias(tokens, index) {
-          return TypeSpace
-        } else {
-          return AnySpace
-        }
-      SEMICOLON | LBRACE | RBRACE => return AnySpace
-      _ => index -= 1
-    }
-  }
-  AnySpace
-}
-
-///|
-fn completion_declaration_is_type_alias(
-  tokens : Array[(@lexer.Token, @basic.SourceSpan)],
-  equal_index : Int,
-) -> Bool {
-  let mut index = equal_index - 1
-  while index >= 0 {
-    match tokens[index].0 {
-      TYPE => return true
-      SEMICOLON | LBRACE | RBRACE | EQUAL => return false
-      _ => index -= 1
-    }
-  }
-  false
 }
 
 ///|

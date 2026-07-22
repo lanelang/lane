@@ -1014,6 +1014,58 @@ test "completion classifies same-line function bodies as value space" {
 }
 
 ///|
+test "completion classifies struct field initializers as value space" {
+  let source =
+    #|module Main
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub let item : Thing = Thing::{ value: ma }
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: source },
+    [],
+    "file:///Main.lane",
+    9,
+    42,
+    Manual,
+  )
+  debug_inspect(
+    entries.map(fn(entry) { (entry.label, entry.kind) }),
+    content="[(\"make\", Function)]",
+  )
+}
+
+///|
+test "completion classifies type alias bodies as type space" {
+  let source =
+    #|module Main
+    #|
+    #|pub struct make_type {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub type Alias = ma
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: source },
+    [],
+    "file:///Main.lane",
+    9,
+    20,
+    Manual,
+  )
+  debug_inspect(
+    entries.map(fn(entry) { (entry.label, entry.kind) }),
+    content="[(\"make_type\", Type)]",
+  )
+}
+
+///|
 test "semantic definitions retain exact spans for repeated names" {
   let result = analyze_test_sources(
     (
