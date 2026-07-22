@@ -22,11 +22,7 @@ pub fn AnalysisResult::hover_at(
   line : Int,
   column : Int,
 ) -> HoverEntry? {
-  let hovers = self.hovers.filter(fn(hover) {
-    hover.location.source_id == source_id &&
-    hover.location.span.contains_position(line, column)
-  })
-  smallest_hover(hovers)
+  smallest_hover_at(self.hovers, Some(source_id), line, column)
 }
 
 ///|
@@ -53,11 +49,7 @@ fn AnalysisResult::reference_at(
   line : Int,
   column : Int,
 ) -> ReferenceEntry? {
-  let references = self.references.filter(fn(reference) {
-    reference.location.source_id == source_id &&
-    reference.location.span.contains_position(line, column)
-  })
-  smallest_reference(references)
+  smallest_reference_at(self.references, Some(source_id), line, column)
 }
 
 ///|
@@ -67,11 +59,49 @@ fn AnalysisResult::definition_entry_at(
   line : Int,
   column : Int,
 ) -> DefinitionEntry? {
-  let definitions = self.definitions.filter(fn(definition) {
-    definition.location.source_id == source_id &&
-    definition.location.span.contains_position(line, column)
+  smallest_definition_at(self.definitions, Some(source_id), line, column)
+}
+
+///|
+fn SemanticIndex::reference_at(
+  self : SemanticIndex,
+  line : Int,
+  column : Int,
+) -> ReferenceEntry? {
+  smallest_reference_at(self.references, None, line, column)
+}
+
+///|
+fn SemanticIndex::definition_entry_at(
+  self : SemanticIndex,
+  line : Int,
+  column : Int,
+) -> DefinitionEntry? {
+  smallest_definition_at(self.definitions, None, line, column)
+}
+
+///|
+fn SemanticIndex::hover_at(
+  self : SemanticIndex,
+  line : Int,
+  column : Int,
+) -> HoverEntry? {
+  smallest_hover_at(self.hovers, None, line, column)
+}
+
+///|
+fn SemanticIndex::inlay_hints_in_range(
+  self : SemanticIndex,
+  start_line : Int,
+  start_column : Int,
+  end_line : Int,
+  end_column : Int,
+) -> Array[InlayHintEntry] {
+  self.inlay_hints.filter(fn(hint) {
+    hint.location.span.overlaps_range(
+      start_line, start_column, end_line, end_column,
+    )
   })
-  smallest_definition(definitions)
 }
 
 ///|
@@ -134,9 +164,17 @@ fn @basic.SourceSpan::size(self : @basic.SourceSpan) -> Int {
 }
 
 ///|
-fn smallest_reference(references : Array[ReferenceEntry]) -> ReferenceEntry? {
+fn smallest_reference_at(
+  references : Array[ReferenceEntry],
+  source_id : String?,
+  line : Int,
+  column : Int,
+) -> ReferenceEntry? {
   let mut best = None
   for reference in references {
+    if !location_matches(reference.location, source_id, line, column) {
+      continue
+    }
     match best {
       None => best = Some(reference)
       Some(current) =>
@@ -149,9 +187,17 @@ fn smallest_reference(references : Array[ReferenceEntry]) -> ReferenceEntry? {
 }
 
 ///|
-fn smallest_hover(hovers : Array[HoverEntry]) -> HoverEntry? {
+fn smallest_hover_at(
+  hovers : Array[HoverEntry],
+  source_id : String?,
+  line : Int,
+  column : Int,
+) -> HoverEntry? {
   let mut best = None
   for hover in hovers {
+    if !location_matches(hover.location, source_id, line, column) {
+      continue
+    }
     match best {
       None => best = Some(hover)
       Some(current) =>
@@ -164,11 +210,17 @@ fn smallest_hover(hovers : Array[HoverEntry]) -> HoverEntry? {
 }
 
 ///|
-fn smallest_definition(
+fn smallest_definition_at(
   definitions : Array[DefinitionEntry],
+  source_id : String?,
+  line : Int,
+  column : Int,
 ) -> DefinitionEntry? {
   let mut best = None
   for definition in definitions {
+    if !location_matches(definition.location, source_id, line, column) {
+      continue
+    }
     match best {
       None => best = Some(definition)
       Some(current) =>
@@ -178,6 +230,20 @@ fn smallest_definition(
     }
   }
   best
+}
+
+///|
+fn location_matches(
+  location : AnalysisLocation,
+  source_id : String?,
+  line : Int,
+  column : Int,
+) -> Bool {
+  let source_matches = match source_id {
+    Some(source_id) => location.source_id == source_id
+    None => true
+  }
+  source_matches && location.span.contains_position(line, column)
 }
 
 ///|

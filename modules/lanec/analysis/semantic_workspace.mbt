@@ -45,6 +45,7 @@ pub struct SemanticSnapshot {
   priv parsed_sources : SnapshotTree[CachedParsedSource]
   priv graph : CachedModuleGraph?
   priv modules : SnapshotTree[CachedSemanticSlot]
+  priv definition_locations : SymbolLocationIndex
   priv completion : CompletionIndex
   priv changed_source_ids : Array[String]
 }
@@ -62,6 +63,7 @@ pub struct SemanticWorkspace {
   priv mut module_cache : Map[String, CachedSemanticModule]
   priv mut parsed_sources : SnapshotTree[CachedParsedSource]
   priv mut modules : SnapshotTree[CachedSemanticSlot]
+  priv mut definition_locations : SymbolLocationIndex
   priv mut graph_cache : CachedModuleGraph?
 }
 
@@ -79,6 +81,7 @@ pub fn SemanticWorkspace::new() -> SemanticWorkspace {
     module_cache: Map([]),
     parsed_sources: Empty,
     modules: Empty,
+    definition_locations: SymbolLocationIndex::empty(),
     graph_cache: None,
   }
 }
@@ -198,6 +201,7 @@ pub fn SemanticWorkspace::clear(self : SemanticWorkspace) -> Unit {
   self.module_cache.clear()
   self.parsed_sources = Empty
   self.modules = Empty
+  self.definition_locations = SymbolLocationIndex::empty()
   self.graph_cache = None
 }
 
@@ -222,6 +226,7 @@ fn SemanticWorkspace::refresh_snapshot(
     self.module_cache.clear()
     self.parsed_sources = Empty
     self.modules = Empty
+    self.definition_locations = SymbolLocationIndex::empty()
     self.graph_cache = None
     self.dirty_sources.clear()
     self.dirty_source_set.clear()
@@ -350,6 +355,7 @@ fn SemanticWorkspace::rebuild_topology(
   guard parsed_modules.get(0) is Some(root_module) else {
     self.graph_cache = None
     self.modules = Empty
+    self.definition_locations = SymbolLocationIndex::empty()
     return self.source_layout.source_ids.copy()
   }
   let inputs : @module_frontend.ModuleInputSet = {
@@ -395,6 +401,7 @@ fn SemanticWorkspace::rebuild_all_modules(
     }
   }
   let slots = Array::make(graph_modules.length(), Missing)
+  let mut definition_locations = SymbolLocationIndex::empty()
   let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
   for index, input in graph_modules {
     let module_path = input.header.module_path_text
@@ -434,9 +441,14 @@ fn SemanticWorkspace::rebuild_all_modules(
     }
     next_cache[module_path] = module_
     slots[index] = Available(module_)
+    definition_locations = definition_locations.replace_definitions(
+      [],
+      module_.index.definitions,
+    )
   }
   self.module_cache = next_cache
   self.modules = SnapshotTree::from_array(slots)
+  self.definition_locations = definition_locations
 }
 
 ///|
@@ -461,6 +473,7 @@ fn SemanticWorkspace::rebuild_dirty_modules(
   let changed_source_ids = []
   let display = @typecheck.TypeDisplayContext::from_registry(self.registry)
   let mut modules = self.modules
+  let mut definition_locations = self.definition_locations
   while !pending.is_empty() {
     let index = pop_minimum_slot(pending)
     let module_path = graph.ordered_module_paths[index]
@@ -471,9 +484,17 @@ fn SemanticWorkspace::rebuild_dirty_modules(
       continue
     }
     let imported = imported_environment(input.header, self.module_cache)
+    let previous_definitions = match modules.get(index) {
+      Some(Available(module_)) => module_.index.definitions
+      _ => []
+    }
     if imported.modules.length() != input.header.imports.length() {
       self.module_cache.remove(module_path)
       modules = modules.set(index, Missing)
+      definition_locations = definition_locations.replace_definitions(
+        previous_definitions,
+        [],
+      )
       continue
     }
     let previous = self.module_cache.get(module_path)
@@ -486,6 +507,10 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     let module_ = preserve_last_successful_interface(rebuilt, previous)
     self.module_cache[module_path] = module_
     modules = modules.set(index, Available(module_))
+    definition_locations = definition_locations.replace_definitions(
+      previous_definitions,
+      module_.index.definitions,
+    )
     let previous_interface = match previous {
       Some(cached) => cached.last_successful_interface
       None => None
@@ -500,6 +525,7 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     }
   }
   self.modules = modules
+  self.definition_locations = definition_locations
   changed_source_ids
 }
 
@@ -598,6 +624,7 @@ fn SemanticWorkspace::snapshot_from_current_state(
     parsed_sources: self.parsed_sources,
     graph: self.graph_cache,
     modules: self.modules,
+    definition_locations: self.definition_locations,
     completion: { display, graph: self.graph_cache, modules: self.modules },
     changed_source_ids,
   }
@@ -784,7 +811,14 @@ pub fn SemanticSnapshot::definition_at(
   line : Int,
   column : Int,
 ) -> AnalysisLocation? {
-  self.analysis().definition_at(source_id, line, column)
+  guard self.semantic_index(source_id) is Some(index) else { return None }
+  match index.reference_at(line, column) {
+    Some(reference) => self.definition_locations.get(reference.symbol)
+    None =>
+      index
+      .definition_entry_at(line, column)
+      .map(fn(definition) { definition.location })
+  }
 }
 
 ///|
@@ -794,7 +828,8 @@ pub fn SemanticSnapshot::hover_at(
   line : Int,
   column : Int,
 ) -> HoverEntry? {
-  self.analysis().hover_at(source_id, line, column)
+  guard self.semantic_index(source_id) is Some(index) else { return None }
+  index.hover_at(line, column)
 }
 
 ///|
@@ -806,11 +841,21 @@ pub fn SemanticSnapshot::inlay_hints_in_range(
   end_line : Int,
   end_column : Int,
 ) -> Array[InlayHintEntry] {
-  self
-  .analysis()
-  .inlay_hints_in_range(
-    source_id, start_line, start_column, end_line, end_column,
-  )
+  guard self.semantic_index(source_id) is Some(index) else { return [] }
+  index.inlay_hints_in_range(start_line, start_column, end_line, end_column)
+}
+
+///|
+fn SemanticSnapshot::semantic_index(
+  self : SemanticSnapshot,
+  source_id : String,
+) -> SemanticIndex? {
+  guard self.graph is Some(graph) &&
+    graph.module_slot_for_source(source_id) is Some(slot) &&
+    self.modules.get(slot) is Some(Available(module_)) else {
+    return None
+  }
+  Some(module_.index)
 }
 
 ///|
