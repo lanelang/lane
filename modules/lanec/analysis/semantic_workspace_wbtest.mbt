@@ -55,6 +55,18 @@ fn cached_semantic_module(
 }
 
 ///|
+fn semantic_interface_fingerprint(
+  snapshot : SemanticSnapshot,
+  source_id : String,
+) -> @module_interface.ModuleInterfaceSemanticFingerprint {
+  guard cached_semantic_module(snapshot, source_id).last_successful_interface
+    is Some(interface) else {
+    abort("missing semantic interface for \{source_id}")
+  }
+  interface.fingerprint
+}
+
+///|
 test "semantic snapshot queries use persistent source indexes" {
   let workspace = SemanticWorkspace::new()
   let source_a =
@@ -210,6 +222,9 @@ test "semantic workspace invalidates importers only when the public interface ch
   let initial_a_module = cached_semantic_module(initial, "file:///A.lane")
   let initial_b_module = cached_semantic_module(initial, "file:///B.lane")
   let initial_c_module = cached_semantic_module(initial, "file:///C.lane")
+  let initial_a_fingerprint = semantic_interface_fingerprint(
+    initial, "file:///A.lane",
+  )
   let changed_a =
     #|module A
     #|
@@ -242,6 +257,10 @@ test "semantic workspace invalidates importers only when the public interface ch
       initial_c_module,
     ),
   )
+  assert_eq(
+    semantic_interface_fingerprint(after_a, "file:///A.lane"),
+    initial_a_fingerprint,
+  )
   guard workspace.upsert_source({
       source_id: "file:///A.lane",
       text: "\n" + changed_a,
@@ -254,6 +273,10 @@ test "semantic workspace invalidates importers only when the public interface ch
       cached_semantic_module(after_span_shift, "file:///B.lane"),
       cached_semantic_module(after_a, "file:///B.lane"),
     ),
+  )
+  assert_eq(
+    semantic_interface_fingerprint(after_span_shift, "file:///A.lane"),
+    initial_a_fingerprint,
   )
   let changed_interface_a =
     #|module A
@@ -283,6 +306,10 @@ test "semantic workspace invalidates importers only when the public interface ch
       cached_semantic_module(after_interface_change, "file:///C.lane"),
       cached_semantic_module(after_span_shift, "file:///C.lane"),
     ),
+  )
+  assert_false(
+    semantic_interface_fingerprint(after_interface_change, "file:///A.lane") ==
+    initial_a_fingerprint,
   )
   let changed_c =
     #|module C

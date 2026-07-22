@@ -97,9 +97,8 @@ pub fn interface_fingerprint(
 fn interface_fingerprint_result(
   interface : @module_interface.ModuleInterface,
 ) -> Result[@artifact_core.CompilationFingerprint, String] {
-  match @artifact_core.canonical_module_interface_bytes(interface) {
-    Ok(payload) =>
-      Ok(fingerprint_hash_bytes("lane-interface-fingerprint-v2", payload))
+  match interface.semantic_fingerprint() {
+    Ok(fingerprint) => Ok({ value: fingerprint.value })
     Err(message) => Err(message)
   }
 }

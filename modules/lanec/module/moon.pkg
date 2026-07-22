@@ -1,6 +1,8 @@
 import {
+  "Milky2018/bytecodec",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
   "Milky2018/lanec/types",
+  "moonbitlang/x/crypto",
 }

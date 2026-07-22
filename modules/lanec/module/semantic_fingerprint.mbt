@@ -1,7 +1,14 @@
 ///|
+/// Stable digest of the source-independent semantics exported by a module
+/// interface.
+pub(all) struct ModuleInterfaceSemanticFingerprint {
+  value : String
+} derive(Debug, Eq)
+
+///|
 priv struct CanonicalInterfaceEncoder {
   writer : @bytecodec.ByteWriter
-  interface : @module_interface.ModuleInterface
+  interface : ModuleInterface
   type_parameters : Array[@symbol.TypeParameterId]
 }
 
@@ -11,14 +18,31 @@ priv suberror CanonicalInterfaceEncodingError {
 }
 
 ///|
-pub fn canonical_module_interface_bytes(
-  interface : @module_interface.ModuleInterface,
+pub fn ModuleInterface::semantic_fingerprint(
+  self : ModuleInterface,
+) -> Result[ModuleInterfaceSemanticFingerprint, String] {
+  match self.canonical_semantic_bytes() {
+    Ok(payload) => {
+      let writer = @bytecodec.ByteWriter::new()
+      writer.write_string("lane-interface-fingerprint-v2")
+      writer.write_raw_bytes(payload)
+      Ok({
+        value: "sha256:\{@crypto.bytes_to_hex_string(@crypto.sha256(writer.to_bytes()))}",
+      })
+    }
+    Err(message) => Err(message)
+  }
+}
+
+///|
+fn ModuleInterface::canonical_semantic_bytes(
+  self : ModuleInterface,
 ) -> Result[Bytes, String] {
   try {
     let writer = @bytecodec.ByteWriter::new()
     let encoder = CanonicalInterfaceEncoder::{
       writer,
-      interface,
+      interface: self,
       type_parameters: [],
     }
     encoder.write_interface()
@@ -46,7 +70,7 @@ fn CanonicalInterfaceEncoder::write_interface(
 ///|
 fn CanonicalInterfaceEncoder::write_types(
   self : CanonicalInterfaceEncoder,
-  types : Array[@module_interface.ModuleInterfaceType],
+  types : Array[ModuleInterfaceType],
 ) -> Unit raise CanonicalInterfaceEncodingError {
   self.writer.write_u32_le_int(types.length())
   for type_ in types {
@@ -107,7 +131,7 @@ fn CanonicalInterfaceEncoder::write_types(
 ///|
 fn CanonicalInterfaceEncoder::write_effects(
   self : CanonicalInterfaceEncoder,
-  effects : Array[@module_interface.ModuleInterfaceEffect],
+  effects : Array[ModuleInterfaceEffect],
 ) -> Unit raise CanonicalInterfaceEncodingError {
   self.writer.write_u32_le_int(effects.length())
   for effect in effects {
@@ -140,7 +164,7 @@ fn CanonicalInterfaceEncoder::write_effects(
 ///|
 fn CanonicalInterfaceEncoder::write_type_aliases(
   self : CanonicalInterfaceEncoder,
-  aliases : Array[@module_interface.ModuleInterfaceTypeAlias],
+  aliases : Array[ModuleInterfaceTypeAlias],
 ) -> Unit raise CanonicalInterfaceEncodingError {
   self.writer.write_u32_le_int(aliases.length())
   for alias_ in aliases {
@@ -164,7 +188,7 @@ fn CanonicalInterfaceEncoder::write_type_aliases(
 ///|
 fn CanonicalInterfaceEncoder::write_values(
   self : CanonicalInterfaceEncoder,
-  values : Array[@module_interface.ModuleInterfaceValue],
+  values : Array[ModuleInterfaceValue],
 ) -> Unit raise CanonicalInterfaceEncodingError {
   self.writer.write_u32_le_int(values.length())
   for value in values {

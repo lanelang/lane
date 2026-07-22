@@ -1,4 +1,11 @@
 ///|
+priv struct CachedModuleInterface {
+  interface : @module_interface.ModuleInterface
+  fingerprint : @module_interface.ModuleInterfaceSemanticFingerprint
+  symbols : @symbol.SymbolMetadataArena
+}
+
+///|
 priv struct CachedSemanticModule {
   input : @module_frontend.ParsedModuleInput
   completion_source : CompletionSource
@@ -6,8 +13,7 @@ priv struct CachedSemanticModule {
   index : SemanticIndex
   diagnostics : Array[CompilerDiagnostic]
   semantic_tokens : Array[SemanticTokenEntry]
-  last_successful_interface : @module_interface.ModuleInterface?
-  last_successful_symbols : @symbol.SymbolMetadataArena?
+  last_successful_interface : CachedModuleInterface?
 }
 
 ///|
@@ -431,14 +437,7 @@ fn SemanticWorkspace::rebuild_all_modules(
         preserve_last_successful_interface(rebuilt, previous)
       }
     }
-    let previous_interface = match previous {
-      Some(cached) => cached.last_successful_interface
-      None => None
-    }
-    if !same_module_interface_semantics(
-        module_.last_successful_interface,
-        previous_interface,
-      ) {
+    if module_.interface_fingerprint() != cached_interface_fingerprint(previous) {
       changed_interfaces.push(module_path)
     }
     next_cache[module_path] = module_
@@ -516,14 +515,7 @@ fn SemanticWorkspace::rebuild_dirty_modules(
       previous_definitions,
       module_.index.definitions,
     )
-    let previous_interface = match previous {
-      Some(cached) => cached.last_successful_interface
-      None => None
-    }
-    if !same_module_interface_semantics(
-        module_.last_successful_interface,
-        previous_interface,
-      ) {
+    if module_.interface_fingerprint() != cached_interface_fingerprint(previous) {
       for dependent_slot in graph.dependents_of_slot(index) {
         if dependent_slot > index {
           dirty_slots[dependent_slot] = true
@@ -545,7 +537,10 @@ fn imported_environment(
   for import_ in header.imports {
     if modules.get(import_.module_path_text) is Some(cached) &&
       cached.last_successful_interface is Some(interface) {
-      imported.push({ ..interface, source_id: Some(cached.input.source_id) })
+      imported.push({
+        ..interface.interface,
+        source_id: Some(cached.input.source_id),
+      })
     }
   }
   { modules: imported }
@@ -559,8 +554,8 @@ fn imported_symbol_metadata(
   let imported = []
   for import_ in header.imports {
     if modules.get(import_.module_path_text) is Some(cached) &&
-      cached.last_successful_symbols is Some(symbols) {
-      imported.push(symbols)
+      cached.last_successful_interface is Some(interface) {
+      imported.push(interface.symbols)
     }
   }
   imported
@@ -576,29 +571,28 @@ fn preserve_last_successful_interface(
       {
         ..rebuilt,
         last_successful_interface: previous.last_successful_interface,
-        last_successful_symbols: previous.last_successful_symbols,
       }
     _ => rebuilt
   }
 }
 
 ///|
-fn same_module_interface_semantics(
-  left : @module_interface.ModuleInterface?,
-  right : @module_interface.ModuleInterface?,
-) -> Bool {
-  match (left, right) {
-    (None, None) => true
-    (Some(left), Some(right)) =>
-      match
-        (
-          @artifact_core.canonical_module_interface_bytes(left),
-          @artifact_core.canonical_module_interface_bytes(right),
-        ) {
-        (Ok(left), Ok(right)) => left == right
-        _ => false
-      }
-    _ => false
+fn CachedSemanticModule::interface_fingerprint(
+  self : CachedSemanticModule,
+) -> @module_interface.ModuleInterfaceSemanticFingerprint? {
+  match self.last_successful_interface {
+    Some(interface) => Some(interface.fingerprint)
+    None => None
+  }
+}
+
+///|
+fn cached_interface_fingerprint(
+  cached : CachedSemanticModule?,
+) -> @module_interface.ModuleInterfaceSemanticFingerprint? {
+  match cached {
+    Some(cached) => cached.interface_fingerprint()
+    None => None
   }
 }
 
@@ -609,8 +603,8 @@ fn SemanticWorkspace::snapshot_from_current_state(
 ) -> SemanticSnapshot {
   let visible_symbols = []
   for _, module_ in self.module_cache {
-    if module_.last_successful_symbols is Some(symbols) {
-      visible_symbols.push(symbols)
+    if module_.last_successful_interface is Some(interface) {
+      visible_symbols.push(interface.symbols)
     }
   }
   let display = @typecheck.TypeDisplayContext::from_registry(
@@ -661,8 +655,7 @@ fn build_cached_semantic_module(
     None
   }
   let mut checked_source = None
-  let mut interface = None
-  let mut exported_symbols = None
+  let mut last_successful_interface = None
   if checked is Some(checked) {
     diagnostics.append(
       checked.diagnostics.map(fn(diagnostic) {
@@ -673,11 +666,13 @@ fn build_cached_semantic_module(
     )
     if checked.diagnostics.is_empty() {
       checked_source = checked.source
-      interface = checked.module_interface
-      if interface is Some(interface) {
-        exported_symbols = Some(
-          interface.exported_symbol_metadata(resolved.source.symbols),
-        )
+      if checked.module_interface is Some(interface) &&
+        interface.semantic_fingerprint() is Ok(fingerprint) {
+        last_successful_interface = Some({
+          interface,
+          fingerprint,
+          symbols: interface.exported_symbol_metadata(resolved.source.symbols),
+        })
       }
     }
   }
@@ -715,8 +710,7 @@ fn build_cached_semantic_module(
       index.references,
       registry,
     ),
-    last_successful_interface: interface,
-    last_successful_symbols: exported_symbols,
+    last_successful_interface,
   }
 }
 
