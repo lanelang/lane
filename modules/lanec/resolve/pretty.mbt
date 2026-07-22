@@ -25,7 +25,6 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration with fn pretty(
     TypeAlias(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
-    Offer(declaration) => declaration.pretty()
   }
 }
 
@@ -303,6 +302,7 @@ pub impl @prettyprinter.Pretty for ResolvedEffectOperationDeclaration with fn pr
 pub impl @prettyprinter.Pretty for ResolvedFunctionDeclaration with fn pretty(
   declaration : ResolvedFunctionDeclaration,
 ) {
+  (if declaration.is_offered { text("offer") + space } else { empty }) +
   text("fn") +
   space +
   declaration.symbol.pretty() +
@@ -331,31 +331,12 @@ pub impl @prettyprinter.Pretty for ResolvedLetDeclaration with fn pretty(
     Some(type_) => space + text(":") + space + type_.pretty()
     None => empty
   }
-  text("let") +
+  text(if declaration.is_offered { "offer" } else { "let" }) +
   space +
   declaration.symbol.pretty() +
   space +
   name +
   annotation +
-  space +
-  text("=") +
-  space +
-  declaration.initializer.pretty()
-}
-
-///|
-pub impl @prettyprinter.Pretty for ResolvedOfferDeclaration with fn pretty(
-  declaration : ResolvedOfferDeclaration,
-) {
-  text("offer") +
-  space +
-  declaration.symbol.pretty() +
-  space +
-  text(declaration.name) +
-  space +
-  text(":") +
-  space +
-  declaration.type_annotation.pretty() +
   space +
   text("=") +
   space +
@@ -613,7 +594,6 @@ pub impl @prettyprinter.Pretty for ResolvedLocalItem with fn pretty(
     Let(declaration) => declaration.pretty()
     PatternLet(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
-    Offer(declaration) => declaration.pretty()
     Expression(expression) => expression.pretty() + text(";")
   }
 }

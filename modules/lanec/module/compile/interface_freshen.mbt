@@ -392,6 +392,7 @@ fn InterfaceSymbolFreshener::freshen_value(
   {
     symbol,
     kind: value.kind,
+    is_offered: value.is_offered,
     name: value.name,
     type_: self.freshen_lane_type(value.type_),
     parameters: value.parameters.map(fn(parameters) {
@@ -427,7 +428,7 @@ fn value_symbol_kind_from_interface(
 ) -> @symbol.ValueSymbolKind {
   match kind {
     Function => TopLevelFunction
-    Let | Offer => TopLevelValue
+    Let => TopLevelValue
   }
 }
 

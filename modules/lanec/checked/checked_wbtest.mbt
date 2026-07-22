@@ -30,6 +30,7 @@ fn checked_function(
 ) -> CheckedFunctionDeclaration {
   {
     is_public: false,
+    is_offered: false,
     symbol,
     name,
     name_loc: loc(),
@@ -107,6 +108,7 @@ test "pretty prints checked source without surface-only syntax" {
     declarations: [
       Let({
         is_public: true,
+        is_offered: false,
         symbol: answer,
         name: Some("answer"),
         name_loc: Some(loc()),
@@ -276,6 +278,7 @@ test "value use analysis classifies local dependency groups" {
     items=[
       Let({
         is_public: false,
+        is_offered: false,
         symbol: x,
         name: Some("x"),
         name_loc: Some(loc()),
@@ -289,6 +292,7 @@ test "value use analysis classifies local dependency groups" {
       }),
       Let({
         is_public: false,
+        is_offered: false,
         symbol: y,
         name: Some("y"),
         name_loc: Some(loc()),
@@ -358,6 +362,7 @@ test "value use analysis does not cascade through unused captured function" {
     items=[
       Let({
         is_public: false,
+        is_offered: false,
         symbol: x,
         name: Some("x"),
         name_loc: Some(loc()),

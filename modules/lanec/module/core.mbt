@@ -132,6 +132,7 @@ pub(all) enum ModuleInterfaceTypeAliasBody {
 pub(all) struct ModuleInterfaceValue {
   symbol : ValueSymbolId
   kind : ModuleInterfaceValueKind
+  is_offered : Bool
   name : String
   type_ : @types.Type
   parameters : Array[ModuleInterfaceValueParameter]?
@@ -142,7 +143,6 @@ pub(all) struct ModuleInterfaceValue {
 pub(all) enum ModuleInterfaceValueKind {
   Function
   Let
-  Offer
 } derive(Debug, Eq)
 
 ///|

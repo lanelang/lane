@@ -154,6 +154,7 @@ pub impl @prettyprinter.Pretty for FieldDeclaration
 
 pub(all) struct FunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   type_parameters : Array[TypeParameter]
   name : String
   name_loc : @basic.SourceSpan
@@ -234,6 +235,7 @@ pub impl @prettyprinter.Pretty for Kind
 
 pub(all) struct LetDeclaration {
   is_public : Bool
+  is_offered : Bool
   name : String?
   name_loc : @basic.SourceSpan?
   type_annotation : Type?
@@ -247,7 +249,6 @@ pub(all) enum LocalItem {
   Let(LetDeclaration)
   PatternLet(PatternLetDeclaration)
   Function(FunctionDeclaration)
-  Offer(OfferDeclaration)
   Expression(expression~ : Expr)
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for LocalItem
@@ -267,17 +268,6 @@ pub(all) struct ModulePath {
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for ModulePath
 pub impl @prettyprinter.Pretty for ModulePath
-
-pub(all) struct OfferDeclaration {
-  is_public : Bool
-  name : String
-  name_loc : @basic.SourceSpan
-  type_annotation : Type
-  initializer : Expr
-  loc : @basic.SourceSpan
-} derive(Eq, @debug.Debug)
-pub impl @source_prettyprinter.Pretty for OfferDeclaration
-pub impl @prettyprinter.Pretty for OfferDeclaration
 
 pub(all) struct Parameter {
   is_auto : Bool
@@ -383,7 +373,6 @@ pub(all) enum TopLevelDeclaration {
   TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)
-  Offer(OfferDeclaration)
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for TopLevelDeclaration
 pub impl @prettyprinter.Pretty for TopLevelDeclaration

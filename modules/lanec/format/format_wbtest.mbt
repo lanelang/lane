@@ -51,6 +51,28 @@ test "format source preserves omitted struct type member kinds" {
 }
 
 ///|
+test "format offered function definitions" {
+  assert_format(
+    "module Test\npub offer fn[A] identity(value:A)->A{value}\nfn outer()->Int{offer fn local()->Int{42};local()}",
+    (
+      #|module Test
+      #|
+      #|pub offer fn[A] identity(value : A) -> A {
+      #|  value
+      #|}
+      #|
+      #|fn outer() -> Int {
+      #|  offer fn local() -> Int {
+      #|    42
+      #|  }
+      #|  local()
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "formatter consumes the complete trivia attachment view" {
   let source =
     #|// leading module

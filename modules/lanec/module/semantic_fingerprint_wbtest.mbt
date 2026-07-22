@@ -26,6 +26,7 @@ fn invalid_reference_interface() -> ModuleInterface {
       {
         symbol: { index: 0 },
         kind: Let,
+        is_offered: false,
         name: "value",
         type_: Constructor(missing_type),
         parameters: None,
@@ -48,6 +49,7 @@ fn generic_identity_interface(binder_name : String) -> ModuleInterface {
       {
         symbol: { index: 0 },
         kind: Function,
+        is_offered: false,
         name: "identity",
         type_: Forall(
           [parameter],
@@ -74,6 +76,18 @@ test "semantic fingerprint ignores source identity" {
   let old_fingerprint = empty_module_interface("A", Some("old-A.lane")).semantic_fingerprint()
   let new_fingerprint = empty_module_interface("A", Some("new-A.lane")).semantic_fingerprint()
   assert_eq(old_fingerprint, new_fingerprint)
+}
+
+///|
+test "semantic fingerprint includes offeredness" {
+  let ordinary = generic_identity_interface("T")
+  let offered = {
+    ..ordinary,
+    values: ordinary.values.map(fn(value) { { ..value, is_offered: true } }),
+  }
+  assert_false(
+    ordinary.semantic_fingerprint() == offered.semantic_fingerprint(),
+  )
 }
 
 ///|

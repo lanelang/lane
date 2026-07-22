@@ -473,8 +473,7 @@ fn CompletionIndex::add_interface_surface_entries(
   for value in interface.values {
     let kind = match value.kind {
       Function => Function
-      Let => Value
-      Offer => Offer
+      Let => if value.is_offered { Offer } else { Value }
     }
     add_completion_entry(
       entries,

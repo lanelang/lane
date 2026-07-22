@@ -45,6 +45,7 @@ pub impl @prettyprinter.Pretty for DesugaredExpr
 
 pub(all) struct DesugaredFunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   name_loc : @basic.SourceSpan
@@ -86,6 +87,7 @@ pub impl @prettyprinter.Pretty for DesugaredHandlerWithBlock
 
 pub(all) struct DesugaredLetDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   name_loc : @basic.SourceSpan?
@@ -108,7 +110,6 @@ pub(all) enum DesugaredLocalItem {
   Let(DesugaredLetDeclaration)
   PatternLet(DesugaredPatternLetDeclaration)
   Function(DesugaredFunctionDeclaration)
-  Offer(DesugaredOfferDeclaration)
   Expression(DesugaredExpr)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DesugaredLocalItem
@@ -119,17 +120,6 @@ pub(all) struct DesugaredMatchArm {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DesugaredMatchArm
-
-pub(all) struct DesugaredOfferDeclaration {
-  is_public : Bool
-  symbol : @symbol.ValueSymbolId
-  name : String
-  name_loc : @basic.SourceSpan
-  type_annotation : @resolve.ResolvedType
-  initializer : DesugaredExpr
-  loc : @basic.SourceSpan
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for DesugaredOfferDeclaration
 
 pub(all) struct DesugaredPatternLetDeclaration {
   pattern : @resolve.ResolvedPattern
@@ -160,7 +150,6 @@ pub(all) enum DesugaredTopLevelDeclaration {
   ExternalType(@resolve.ResolvedExternalTypeDeclaration)
   Function(DesugaredFunctionDeclaration)
   Let(DesugaredLetDeclaration)
-  Offer(DesugaredOfferDeclaration)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DesugaredTopLevelDeclaration
 

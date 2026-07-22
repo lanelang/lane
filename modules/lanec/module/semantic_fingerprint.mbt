@@ -271,9 +271,9 @@ fn CanonicalInterfaceEncoder::write_values(
       match value.kind {
         Function => 0
         Let => 1
-        Offer => 2
       },
     )
+    self.writer.write_bool(value.is_offered)
     self.write_type(value.type_)
     let parameter_encoder = match value.type_ {
       Forall(parameters, _) => self.with_type_parameters(parameters)

@@ -705,28 +705,6 @@ fn Resolver::collect_top_level_headers(
             declaration.name_loc.unwrap_or(declaration.loc),
           )
         }
-      Offer(declaration) => {
-        let symbol = symbols.define_value(
-          declaration.name,
-          TopLevelValue,
-          declaration.name_loc,
-        )
-        let type_annotation = declaration.type_annotation.resolve_type(
-          self,
-          self.scope([]),
-        )
-        self.publish_complete_top_level_binding(
-          {
-            name: declaration.name,
-            reference: Symbol(symbol),
-            type_: Some(type_annotation),
-            kind: Plain,
-            source: CurrentSource,
-            import_origin: None,
-          },
-          declaration.name_loc,
-        )
-      }
     }
   }
 }
@@ -798,7 +776,7 @@ fn Resolver::collect_nominal_members(
           })
         }
       }
-      ExternalType(_) | TypeAlias(_) | Function(_) | Let(_) | Offer(_) => ()
+      ExternalType(_) | TypeAlias(_) | Function(_) | Let(_) => ()
     }
   }
 }
@@ -807,8 +785,7 @@ fn Resolver::collect_nominal_members(
 /// Resolves one top-level declaration after the global headers are known.
 ///
 /// Example: `fn f() -> Int { 1 }` resolves through the function path, while
-/// `offer int_ops : Add[Int] = value` resolves through the top-level offered
-/// value path.
+/// `offer int_ops : Add[Int] = value` resolves as an offered let binding.
 fn @syntax.TopLevelDeclaration::resolve_top_level(
   self : @syntax.TopLevelDeclaration,
   resolver : Resolver,
@@ -823,7 +800,6 @@ fn @syntax.TopLevelDeclaration::resolve_top_level(
     Function(declaration) =>
       Function(declaration.resolve_top_level_function(resolver))
     Let(declaration) => Let(declaration.resolve_top_level_let(resolver))
-    Offer(declaration) => Offer(declaration.resolve_top_level_offer(resolver))
   }
 }
 
@@ -1243,6 +1219,7 @@ fn @syntax.FunctionDeclaration::resolve_function_with_symbol(
   // value parameters.
   {
     is_public: self.is_public,
+    is_offered: self.is_offered,
     symbol,
     name: self.name,
     name_loc: self.name_loc,
@@ -1386,92 +1363,7 @@ fn @syntax.LetDeclaration::resolve_let_with_resolved_type(
   }
   {
     is_public: self.is_public,
-    symbol,
-    name: self.name,
-    name_loc: self.name_loc,
-    type_annotation,
-    initializer,
-    loc: self.loc,
-  }
-}
-
-///|
-/// Resolves a top-level offered value declaration.
-///
-/// Example: `offer int_add_ops : Add[Int] = value` defines `int_add_ops` for
-/// later top-level declarations and marks it for Contextual Resolution.
-fn @syntax.OfferDeclaration::resolve_top_level_offer(
-  self : @syntax.OfferDeclaration,
-  resolver : Resolver,
-) -> ResolvedOfferDeclaration {
-  let scope = resolver.ordered_scope([])
-  let symbol = resolver.value_symbol(self.name)
-  let type_annotation = match resolver.top_value_binding(self.name) {
-    Some({ type_: Some(type_annotation), .. }) => type_annotation
-    _ => self.type_annotation.resolve_type(resolver, scope)
-  }
-  let declaration = self.resolve_offer_value_with_resolved_type(
-    resolver, scope, symbol, type_annotation,
-  )
-  resolver.publish_top_level_offer(declaration, self.name_loc)
-  declaration
-}
-
-///|
-fn Resolver::publish_top_level_offer(
-  self : Resolver,
-  declaration : ResolvedOfferDeclaration,
-  loc : SourceSpan,
-) -> Unit {
-  self.publish_ordered_top_level_binding(
-    {
-      name: declaration.name,
-      reference: Symbol(declaration.symbol),
-      type_: Some(declaration.type_annotation),
-      kind: Plain,
-      source: CurrentSource,
-      import_origin: None,
-    },
-    loc,
-  )
-}
-
-///|
-fn @syntax.OfferDeclaration::resolve_offer_value(
-  self : @syntax.OfferDeclaration,
-  resolver : Resolver,
-  scope : ResolveScope,
-  kind : @symbol.ValueSymbolKind,
-) -> ResolvedOfferDeclaration {
-  let symbol = resolver.registry.define_value(self.name, kind, self.name_loc)
-  self.resolve_offer_value_with_symbol(resolver, scope, symbol)
-}
-
-///|
-fn @syntax.OfferDeclaration::resolve_offer_value_with_symbol(
-  self : @syntax.OfferDeclaration,
-  resolver : Resolver,
-  scope : ResolveScope,
-  symbol : ValueSymbolId,
-) -> ResolvedOfferDeclaration {
-  let type_annotation = self.type_annotation.resolve_type(resolver, scope)
-  self.resolve_offer_value_with_resolved_type(
-    resolver, scope, symbol, type_annotation,
-  )
-}
-
-///|
-fn @syntax.OfferDeclaration::resolve_offer_value_with_resolved_type(
-  self : @syntax.OfferDeclaration,
-  resolver : Resolver,
-  scope : ResolveScope,
-  symbol : ValueSymbolId,
-  type_annotation : ResolvedType,
-) -> ResolvedOfferDeclaration {
-  let initializer = self.initializer.resolve_expr(resolver, scope)
-  scope.define_value(self.name, symbol, Some(type_annotation))
-  {
-    is_public: self.is_public,
+    is_offered: self.is_offered,
     symbol,
     name: self.name,
     name_loc: self.name_loc,
@@ -3020,8 +2912,6 @@ fn @syntax.LocalItem::resolve_local_item(
         declaration.resolve_function_with_symbol(resolver, symbol, scope),
       )
     }
-    Offer(declaration) =>
-      Offer(declaration.resolve_local_offer(resolver, scope))
     Expression(expression~) =>
       Expression(expression.resolve_expr(resolver, scope))
   }
@@ -3039,19 +2929,6 @@ fn @syntax.PatternLetDeclaration::resolve_pattern_let(
   })
   let pattern = self.pattern.resolve_pattern(resolver, scope)
   { pattern, type_annotation, initializer, loc: self.loc }
-}
-
-///|
-/// Resolves a local offered value declaration.
-///
-/// Example: `{ offer ops : Add[Int] = value; body }` defines `ops` for later
-/// local items and marks it for Contextual Resolution.
-fn @syntax.OfferDeclaration::resolve_local_offer(
-  self : @syntax.OfferDeclaration,
-  resolver : Resolver,
-  scope : ResolveScope,
-) -> ResolvedOfferDeclaration {
-  self.resolve_offer_value(resolver, scope, LocalBinding)
 }
 
 ///|

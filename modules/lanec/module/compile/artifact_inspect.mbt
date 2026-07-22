@@ -478,18 +478,23 @@ fn ArtifactInspectContext::interface_value_text(
   self : ArtifactInspectContext,
   value : @module_interface.ModuleInterfaceValue,
 ) -> String {
+  let offered = if value.is_offered { "offer " } else { "" }
   match value.kind {
     Function =>
       if value.parameters is Some(parameters) {
         let parameter_text = parameters
           .map(fn(parameter) { self.value_parameter_text(parameter) })
           .join(", ")
-        "pub fn \{value.name}(\{parameter_text}) : \{self.type_text(value.type_)}"
+        "pub \{offered}fn \{value.name}(\{parameter_text}) : \{self.type_text(value.type_)}"
       } else {
-        "pub fn \{value.name} : \{self.type_text(value.type_)}"
+        "pub \{offered}fn \{value.name} : \{self.type_text(value.type_)}"
       }
-    Let => "pub let \{value.name} : \{self.type_text(value.type_)}"
-    Offer => "pub offer \{value.name} : \{self.type_text(value.type_)}"
+    Let =>
+      if value.is_offered {
+        "pub offer \{value.name} : \{self.type_text(value.type_)}"
+      } else {
+        "pub let \{value.name} : \{self.type_text(value.type_)}"
+      }
   }
 }
 

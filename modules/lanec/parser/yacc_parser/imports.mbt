@@ -27,7 +27,6 @@ using @syntax {
   type MatchArm,
   type ModulePath,
   type CallArgument,
-  type OfferDeclaration,
   type Parameter,
   type ParameterModifiers,
   type Pattern,
@@ -124,7 +123,6 @@ fn with_public_loc(
     TypeAlias(value) => TypeAlias({ ..value, loc, })
     Function(value) => Function({ ..value, loc, })
     Let(value) => Let({ ..value, loc, })
-    Offer(value) => Offer({ ..value, loc, })
   }
 }
 
@@ -145,6 +143,7 @@ fn local_let_item(
     Binding(name, loc=name_loc) =>
       Let({
         is_public: false,
+        is_offered: false,
         name: Some(name),
         name_loc: Some(name_loc),
         type_annotation,

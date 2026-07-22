@@ -14,12 +14,12 @@ pub(all) enum DesugaredTopLevelDeclaration {
   ExternalType(@resolve.ResolvedExternalTypeDeclaration)
   Function(DesugaredFunctionDeclaration)
   Let(DesugaredLetDeclaration)
-  Offer(DesugaredOfferDeclaration)
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct DesugaredFunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   name_loc : SourceSpan
@@ -34,6 +34,7 @@ pub(all) struct DesugaredFunctionDeclaration {
 ///|
 pub(all) struct DesugaredLetDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   name_loc : SourceSpan?
@@ -51,22 +52,10 @@ pub(all) struct DesugaredPatternLetDeclaration {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct DesugaredOfferDeclaration {
-  is_public : Bool
-  symbol : @symbol.ValueSymbolId
-  name : String
-  name_loc : SourceSpan
-  type_annotation : @resolve.ResolvedType
-  initializer : DesugaredExpr
-  loc : SourceSpan
-} derive(Debug, Eq)
-
-///|
 pub(all) enum DesugaredLocalItem {
   Let(DesugaredLetDeclaration)
   PatternLet(DesugaredPatternLetDeclaration)
   Function(DesugaredFunctionDeclaration)
-  Offer(DesugaredOfferDeclaration)
   Expression(DesugaredExpr)
 } derive(Debug, Eq)
 

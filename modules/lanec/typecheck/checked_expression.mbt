@@ -378,14 +378,6 @@ fn SemanticChecker::check_checked_block(
           Some(declaration) => checked_items.push(Function(declaration))
           None => complete = false
         }
-      Offer(declaration) =>
-        match self.check_checked_local_offer(next_scope, declaration) {
-          Some(result) => {
-            effects.push(result.effect)
-            checked_items.push(Let(result.declaration))
-          }
-          None => complete = false
-        }
       PatternLet(declaration) =>
         match self.check_checked_local_pattern_let(next_scope, declaration) {
           Some(result) => {
@@ -462,14 +454,6 @@ fn SemanticChecker::synthesize_checked_block(
       Function(declaration) =>
         match self.check_checked_local_function(next_scope, declaration) {
           Some(declaration) => checked_items.push(Function(declaration))
-          None => complete = false
-        }
-      Offer(declaration) =>
-        match self.check_checked_local_offer(next_scope, declaration) {
-          Some(result) => {
-            effects.push(result.effect)
-            checked_items.push(Let(result.declaration))
-          }
           None => complete = false
         }
       PatternLet(declaration) =>

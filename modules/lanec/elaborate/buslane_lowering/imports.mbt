@@ -333,7 +333,7 @@ fn BuslaneLowerer::seed_imported_value(
   let type_ = self.lower_type(value.type_)
   let kind : @buslane.ValueKind = match value.kind {
     Function => Function
-    Let | Offer => Value
+    Let => Value
   }
   let target = self.define_value(value.symbol, value.name, kind, type_)
   self.imports.push({

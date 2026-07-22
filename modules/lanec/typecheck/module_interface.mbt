@@ -336,7 +336,7 @@ fn effect_alias_interface_kind(
 
 ///|
 fn SemanticChecker::interface_value(
-  self : SemanticChecker,
+  _self : SemanticChecker,
   declaration : @checked.CheckedTopLevelDeclaration,
 ) -> @module_interface.ModuleInterfaceValue? {
   match declaration {
@@ -344,6 +344,7 @@ fn SemanticChecker::interface_value(
       Some({
         symbol: declaration.symbol,
         kind: Function,
+        is_offered: declaration.is_offered,
         name: declaration.name,
         type_: declaration.type_,
         parameters: Some(declaration.parameters.map(interface_value_parameter)),
@@ -352,7 +353,8 @@ fn SemanticChecker::interface_value(
     Let(declaration) if declaration.is_public && declaration.name is Some(name) =>
       Some({
         symbol: declaration.symbol,
-        kind: self.interface_value_kind(declaration.symbol),
+        kind: Let,
+        is_offered: declaration.is_offered,
         name,
         type_: declaration.type_,
         parameters: None,
@@ -439,11 +441,6 @@ fn SemanticChecker::collect_resolved_public_interface_escapes(
             self.collect_resolved_public_interface_type(type_, escapes)
           None => ()
         }
-      Offer(declaration) if declaration.is_public =>
-        self.collect_resolved_public_interface_type(
-          declaration.type_annotation,
-          escapes,
-        )
       _ => ()
     }
   }
@@ -754,18 +751,4 @@ fn interface_value_parameter(
     type_: parameter.type_,
     loc: parameter.loc,
   }
-}
-
-///|
-fn SemanticChecker::interface_value_kind(
-  self : SemanticChecker,
-  symbol : ValueSymbolId,
-) -> @module_interface.ModuleInterfaceValueKind {
-  for declaration in self.resolved_source.declarations {
-    match declaration {
-      Offer(declaration) if declaration.symbol == symbol => return Offer
-      _ => ()
-    }
-  }
-  Let
 }

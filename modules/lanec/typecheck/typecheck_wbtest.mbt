@@ -123,7 +123,6 @@ fn expect_checked_let_initializer(
         } else {
           checker.check_top_level_let(declaration)
         }
-      Offer(declaration) => checker.check_top_level_offer(declaration)
       _ => ()
     }
   }
@@ -909,6 +908,94 @@ test "typecheck offer value declaration supplies contextual argument" {
       #|op_add#0[Int](1, 2, int_add_ops#1) : Int
     ),
   )
+}
+
+///|
+test "typecheck offered function supplies contextual argument" {
+  let expression = expect_checked_let_initializer(
+    (
+      #|fn call(auto provider : () -> Int) -> Int {
+      #|  provider()
+      #|}
+      #|offer fn provide() -> Int {
+      #|  42
+      #|}
+      #|let answer : Int = call()
+    ),
+    "answer",
+    Primitive(Int),
+  )
+  inspect(
+    @prettyprinter.render(expression, width=100),
+    content=(
+      #|call#0(provide#1) : Int
+    ),
+  )
+}
+
+///|
+test "typecheck offered function follows recursive and ordered scopes" {
+  let result = expect_typecheck_result(
+    (
+      #|fn accept_top(auto provider : () -> Int) -> Unit {
+      #|  ()
+      #|}
+      #|fn before() -> Unit {
+      #|  accept_top()
+      #|}
+      #|offer fn provide() -> Int {
+      #|  accept_top()
+      #|  42
+      #|}
+      #|fn accept_local(auto transform : (Int) -> Int) -> Unit {
+      #|  ()
+      #|}
+      #|let answer : Int = {
+      #|  offer fn local(value : Int) -> Int {
+      #|    accept_local()
+      #|    value
+      #|  }
+      #|  accept_local()
+      #|  local(42)
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck does not specialize a generic offered function" {
+  let result = expect_typecheck_result(
+    (
+      #|fn use_mono(auto transform : (Int) -> Int) -> Int {
+      #|  transform(1)
+      #|}
+      #|offer fn[A] identity(value : A) -> A {
+      #|  value
+      #|}
+      #|let answer : Int = use_mono()
+    ),
+  )
+  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(expected, Function([Primitive(Int)], Primitive(Int), Empty))
+}
+
+///|
+test "typecheck matches a generic offered function by its forall type" {
+  let result = expect_typecheck_result(
+    (
+      #|fn use_poly(auto transform : [A](A) -> A) -> Int {
+      #|  transform[Int](1)
+      #|}
+      #|offer fn[A] identity(value : A) -> A {
+      #|  value
+      #|}
+      #|let answer : Int = use_poly()
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|

@@ -17,6 +17,10 @@ _Avoid_: variable, mutable binding
 A value definition that defines a named value and immediately adds it to the contextual offer environment.
 _Avoid_: anonymous offer, open binding, standalone offer form, implicit library entry
 
+**Offered Function Definition**:
+A top-level or local named function definition that makes the function value itself available to contextual resolution under the same identity.
+_Avoid_: anonymous function offer, generated offer binding, function plus hidden value
+
 **Recursive Definition Group**:
 A set of top-level functions or types that may refer to one another regardless of textual order.
 _Avoid_: forward declarations, hoisted statements
@@ -149,6 +153,10 @@ _Avoid_: enum variant, nominal constructor
 - Top-level functions and types may form a **Recursive Definition Group**.
 - Top-level immutable values follow **Ordered Top-Level Value Scope**.
 - A top-level **Immutable Value Definition** must include an explicit type annotation.
+- An **Offered Function Definition** offers its own function value and does not introduce a second value binding.
+- A local **Offered Function Definition** follows the sequential scope of a **Sequential Local Function**.
+- An **Offered Function Definition** makes its function value available to contextual resolution inside its own recursively scoped body.
+- Top-level **Offered Function Definitions** participate in the **Recursive Definition Group** and are available as offers to every top-level function body regardless of textual order.
 - A function uses an **Explicit Named Function Signature**, **Arrow Return Type**, and **Block Function Body**.
 - A **Block Expression** may contain **Sequential Local Bindings**, **Sequential Local Functions**, and **Sequential Unit Expressions** followed by exactly one final expression.
 - Local value names may shadow earlier value names; ordinary value bindings in the same scope must have distinct names.

@@ -30,7 +30,6 @@ fn desugar_top_level_declaration(
     Function(declaration) =>
       Some(Function(desugar_function_declaration(declaration)))
     Let(declaration) => Some(Let(desugar_let_declaration(declaration)))
-    Offer(declaration) => Some(Offer(desugar_offer_declaration(declaration)))
   }
 }
 
@@ -40,6 +39,7 @@ fn desugar_function_declaration(
 ) -> DesugaredFunctionDeclaration {
   {
     is_public: declaration.is_public,
+    is_offered: declaration.is_offered,
     symbol: declaration.symbol,
     name: declaration.name,
     name_loc: declaration.name_loc,
@@ -58,21 +58,7 @@ fn desugar_let_declaration(
 ) -> DesugaredLetDeclaration {
   {
     is_public: declaration.is_public,
-    symbol: declaration.symbol,
-    name: declaration.name,
-    name_loc: declaration.name_loc,
-    type_annotation: declaration.type_annotation,
-    initializer: desugar_expr(declaration.initializer),
-    loc: declaration.loc,
-  }
-}
-
-///|
-fn desugar_offer_declaration(
-  declaration : @resolve.ResolvedOfferDeclaration,
-) -> DesugaredOfferDeclaration {
-  {
-    is_public: declaration.is_public,
+    is_offered: declaration.is_offered,
     symbol: declaration.symbol,
     name: declaration.name,
     name_loc: declaration.name_loc,
@@ -90,7 +76,6 @@ fn desugar_local_item(item : @resolve.ResolvedLocalItem) -> DesugaredLocalItem? 
       Some(PatternLet(desugar_pattern_let_declaration(declaration)))
     Function(declaration) =>
       Some(Function(desugar_function_declaration(declaration)))
-    Offer(declaration) => Some(Offer(desugar_offer_declaration(declaration)))
     Expression(expression) => Some(Expression(desugar_expr(expression)))
   }
 }

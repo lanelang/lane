@@ -81,6 +81,7 @@ test "pretty print source file" {
       }),
       Function({
         is_public: false,
+        is_offered: false,
         type_parameters: [],
         name: "unwrap_or",
         name_loc: test_loc(),

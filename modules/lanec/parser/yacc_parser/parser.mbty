@@ -172,7 +172,7 @@ top_level_declaration -> TopLevelDeclaration
   | type_alias_declaration { TypeAlias($1) }
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
-  | offer_value_declaration { Offer($1) }
+  | offer_value_declaration { Let($1) }
   | "pub" public_top_level_declaration { with_public_loc($2, span($sloc)) }
   ;
 
@@ -184,7 +184,7 @@ public_top_level_declaration -> TopLevelDeclaration
   | public_type_alias_declaration { TypeAlias($1) }
   | public_function_declaration { Function($1) }
   | public_top_level_let_declaration { Let($1) }
-  | public_offer_value_declaration { Offer($1) }
+  | public_offer_value_declaration { Let($1) }
   ;
 
 external_type_declaration -> ExternalTypeDeclaration
@@ -350,6 +350,7 @@ function_declaration -> FunctionDeclaration
   : "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: false,
+      is_offered: false,
       type_parameters: $2,
       name: $3.name,
       name_loc: $3.loc,
@@ -360,12 +361,27 @@ function_declaration -> FunctionDeclaration
       loc: span($sloc),
     }
   }
+  | "offer" "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
+    {
+      is_public: false,
+      is_offered: true,
+      type_parameters: $3,
+      name: $4.name,
+      name_loc: $4.loc,
+      parameters: $5,
+      return_type: $7,
+      effect: effect_or_empty($8, $7),
+      body: $9,
+      loc: span($sloc),
+    }
+  }
   ;
 
 public_function_declaration -> FunctionDeclaration
   : "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: true,
+      is_offered: false,
       type_parameters: $2,
       name: $3.name,
       name_loc: $3.loc,
@@ -373,6 +389,20 @@ public_function_declaration -> FunctionDeclaration
       return_type: $6,
       effect: effect_or_empty($7, $6),
       body: $8,
+      loc: span($sloc),
+    }
+  }
+  | "offer" "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
+    {
+      is_public: true,
+      is_offered: true,
+      type_parameters: $3,
+      name: $4.name,
+      name_loc: $4.loc,
+      parameters: $5,
+      return_type: $7,
+      effect: effect_or_empty($8, $7),
+      body: $9,
       loc: span($sloc),
     }
   }
@@ -404,13 +434,13 @@ parameter_modifiers -> ParameterModifiers
 
 top_level_let_declaration -> LetDeclaration
   : "let" identifier ":" type "=" expression {
-    { is_public: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+    { is_public: false, is_offered: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
 public_top_level_let_declaration -> LetDeclaration
   : "let" identifier ":" type "=" expression {
-    { is_public: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+    { is_public: true, is_offered: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
@@ -423,15 +453,15 @@ local_type_annotation -> Type?
   | ":" type { Some($2) }
   ;
 
-offer_value_declaration -> OfferDeclaration
+offer_value_declaration -> LetDeclaration
   : "offer" identifier ":" type "=" expression {
-    { is_public: false, name: $2.name, name_loc: $2.loc, type_annotation: $4, initializer: $6, loc: span($sloc) }
+    { is_public: false, is_offered: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
-public_offer_value_declaration -> OfferDeclaration
+public_offer_value_declaration -> LetDeclaration
   : "offer" identifier ":" type "=" expression {
-    { is_public: true, name: $2.name, name_loc: $2.loc, type_annotation: $4, initializer: $6, loc: span($sloc) }
+    { is_public: true, is_offered: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
@@ -777,7 +807,7 @@ local_items -> Array[LocalItem]
 local_item -> LocalItem
   : local_let_item { $1 }
   | function_declaration { Function($1) }
-  | offer_value_declaration { Offer($1) }
+  | offer_value_declaration { Let($1) }
   | expression { Expression(expression=$1) }
   ;
 

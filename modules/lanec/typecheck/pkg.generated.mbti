@@ -91,6 +91,7 @@ pub impl @prettyprinter.Pretty for CheckedFieldDeclaration
 
 pub(all) struct CheckedFunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   name_loc : @basic.SourceSpan
@@ -102,6 +103,7 @@ pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration
 
 pub(all) struct CheckedLetDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   name_loc : @basic.SourceSpan?

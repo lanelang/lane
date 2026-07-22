@@ -166,6 +166,7 @@ fn CheckedLocalItem::substitute(
     Let(declaration) =>
       Let({
         is_public: declaration.is_public,
+        is_offered: declaration.is_offered,
         symbol: declaration.symbol,
         name: declaration.name,
         name_loc: declaration.name_loc,
@@ -183,6 +184,7 @@ fn CheckedLocalItem::substitute(
     Function(declaration) =>
       Function({
         is_public: declaration.is_public,
+        is_offered: declaration.is_offered,
         symbol: declaration.symbol,
         name: declaration.name,
         name_loc: declaration.name_loc,

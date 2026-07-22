@@ -20,7 +20,6 @@ pub impl @prettyprinter.Pretty for DesugaredTopLevelDeclaration with fn pretty(
     ExternalType(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
     Let(declaration) => declaration.pretty()
-    Offer(declaration) => declaration.pretty()
   }
 }
 
@@ -28,6 +27,7 @@ pub impl @prettyprinter.Pretty for DesugaredTopLevelDeclaration with fn pretty(
 pub impl @prettyprinter.Pretty for DesugaredFunctionDeclaration with fn pretty(
   declaration : DesugaredFunctionDeclaration,
 ) {
+  (if declaration.is_offered { text("offer") + space } else { empty }) +
   text("fn") +
   space +
   declaration.symbol.pretty() +
@@ -56,24 +56,11 @@ pub impl @prettyprinter.Pretty for DesugaredLetDeclaration with fn pretty(
     Some(name) => text(name)
     None => text("<anonymous>")
   }
-  text("let") +
+  text(if declaration.is_offered { "offer" } else { "let" }) +
   space +
   declaration.symbol.pretty() +
   space +
   name +
-  space +
-  @pretty.braced_block([declaration.initializer.pretty()])
-}
-
-///|
-pub impl @prettyprinter.Pretty for DesugaredOfferDeclaration with fn pretty(
-  declaration : DesugaredOfferDeclaration,
-) {
-  text("offer") +
-  space +
-  declaration.symbol.pretty() +
-  space +
-  text(declaration.name) +
   space +
   @pretty.braced_block([declaration.initializer.pretty()])
 }
@@ -86,7 +73,6 @@ pub impl @prettyprinter.Pretty for DesugaredLocalItem with fn pretty(
     Let(declaration) => declaration.pretty()
     PatternLet(declaration) => declaration.pretty()
     Function(declaration) => declaration.pretty()
-    Offer(declaration) => declaration.pretty()
     Expression(expression) => expression.pretty() + text(";")
   }
 }

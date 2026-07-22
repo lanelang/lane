@@ -37,7 +37,6 @@ pub fn typecheck_source_file(
     match declaration {
       Function(declaration) => checker.check_top_level_function(declaration)
       Let(declaration) => checker.check_top_level_let(declaration)
-      Offer(declaration) => checker.check_top_level_offer(declaration)
       _ => ()
     }
   }
@@ -56,7 +55,6 @@ fn SemanticChecker::collect_top_level_value_types(
     match declaration {
       Function(declaration) => self.collect_top_level_function_type(declaration)
       Let(declaration) => self.collect_top_level_let_type(declaration)
-      Offer(declaration) => self.collect_top_level_offer_type(declaration)
       _ => ()
     }
   }
@@ -86,11 +84,28 @@ fn SemanticChecker::seed_imported_top_level_value_type(
   let binding = { symbol: value.symbol, type_: value.type_, parameters }
   self.value_types.push(binding)
   self.ordered_value_types.push(binding)
+  if value.is_offered && self.imported_offer_is_visible(value.symbol) {
+    self.offer_symbol_with_source_id(
+      self.offers,
+      value.symbol,
+      value.type_,
+      source_id,
+      value.loc,
+    )
+    self.offer_symbol_with_source_id(
+      self.ordered_offers,
+      value.symbol,
+      value.type_,
+      source_id,
+      value.loc,
+    )
+  }
   match value.kind {
     Function =>
       self.values.push(
         Function({
           is_public: true,
+          is_offered: value.is_offered,
           symbol: value.symbol,
           name: value.name,
           name_loc: value.loc,
@@ -103,6 +118,7 @@ fn SemanticChecker::seed_imported_top_level_value_type(
       self.values.push(
         Let({
           is_public: true,
+          is_offered: value.is_offered,
           symbol: value.symbol,
           name: Some(value.name),
           name_loc: Some(value.loc),
@@ -110,34 +126,6 @@ fn SemanticChecker::seed_imported_top_level_value_type(
           loc: value.loc,
         }),
       )
-    Offer => {
-      if self.imported_offer_is_visible(value.symbol) {
-        self.offer_symbol_with_source_id(
-          self.offers,
-          value.symbol,
-          value.type_,
-          source_id,
-          value.loc,
-        )
-        self.offer_symbol_with_source_id(
-          self.ordered_offers,
-          value.symbol,
-          value.type_,
-          source_id,
-          value.loc,
-        )
-      }
-      self.values.push(
-        Let({
-          is_public: true,
-          symbol: value.symbol,
-          name: Some(value.name),
-          name_loc: Some(value.loc),
-          type_: value.type_,
-          loc: value.loc,
-        }),
-      )
-    }
   }
 }
 
@@ -188,6 +176,7 @@ fn SemanticChecker::collect_top_level_function_type(
   self.values.push(
     Function({
       is_public: declaration.is_public,
+      is_offered: declaration.is_offered,
       symbol: declaration.symbol,
       name: declaration.name,
       name_loc: declaration.name_loc,
@@ -196,6 +185,15 @@ fn SemanticChecker::collect_top_level_function_type(
       loc: declaration.loc,
     }),
   )
+  if declaration.is_offered {
+    self.offer_symbol(self.offers, declaration.symbol, type_, declaration.loc)
+    self.offer_symbol(
+      self.ordered_offers,
+      declaration.symbol,
+      type_,
+      declaration.loc,
+    )
+  }
 }
 
 ///|
@@ -210,17 +208,10 @@ fn SemanticChecker::collect_top_level_let_type(
       type_,
       parameters: None,
     })
+    if declaration.is_offered {
+      self.offer_symbol(self.offers, declaration.symbol, type_, declaration.loc)
+    }
   }
-}
-
-///|
-fn SemanticChecker::collect_top_level_offer_type(
-  self : SemanticChecker,
-  declaration : @desugar.DesugaredOfferDeclaration,
-) -> Unit {
-  let type_ = self.check_type(declaration.type_annotation)
-  self.value_types.push({ symbol: declaration.symbol, type_, parameters: None })
-  self.offer_symbol(self.offers, declaration.symbol, type_, declaration.loc)
 }
 
 ///|
@@ -273,51 +264,21 @@ fn SemanticChecker::check_top_level_let(
     type_,
     parameters: None,
   })
+  if declaration.is_offered {
+    self.offer_symbol(
+      self.ordered_offers,
+      declaration.symbol,
+      type_,
+      declaration.loc,
+    )
+  }
   self.values.push(
     Let({
       is_public: declaration.is_public,
+      is_offered: declaration.is_offered,
       symbol: declaration.symbol,
       name: declaration.name,
       name_loc: declaration.name_loc,
-      type_,
-      loc: declaration.loc,
-    }),
-  )
-}
-
-///|
-fn SemanticChecker::check_top_level_offer(
-  self : SemanticChecker,
-  declaration : @desugar.DesugaredOfferDeclaration,
-) -> Unit {
-  let type_ = match self.value_type(declaration.symbol) {
-    Some(type_) => type_
-    None => self.check_type(declaration.type_annotation)
-  }
-  let scope = self.ordered_root_scope()
-  let initializer = self.check_checked_expr(
-    scope,
-    declaration.initializer,
-    type_,
-  )
-  self.expect_effect(Empty, initializer.effect, declaration.initializer.loc())
-  self.ordered_value_types.push({
-    symbol: declaration.symbol,
-    type_,
-    parameters: None,
-  })
-  self.offer_symbol(
-    self.ordered_offers,
-    declaration.symbol,
-    type_,
-    declaration.loc,
-  )
-  self.values.push(
-    Let({
-      is_public: declaration.is_public,
-      symbol: declaration.symbol,
-      name: Some(declaration.name),
-      name_loc: Some(declaration.name_loc),
       type_,
       loc: declaration.loc,
     }),

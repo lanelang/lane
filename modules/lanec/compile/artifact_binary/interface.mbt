@@ -480,6 +480,7 @@ fn @bytecodec.ByteWriter::write_module_interface_values(
   for item in items {
     self.write_value_symbol_id(item.symbol)
     self.write_module_interface_value_kind(item.kind)
+    self.write_bool(item.is_offered)
     self.write_string(item.name)
     self.write_lane_type(item.type_)
     self.write_optional_value_parameters(item.parameters)
@@ -496,6 +497,7 @@ fn @bytecodec.ByteReader::read_module_interface_values(
     items.push({
       symbol: self.read_value_symbol_id(),
       kind: self.read_module_interface_value_kind(),
+      is_offered: self.read_bool(),
       name: self.read_string(),
       type_: self.read_lane_type(),
       parameters: self.read_optional_value_parameters(),
@@ -514,7 +516,6 @@ fn @bytecodec.ByteWriter::write_module_interface_value_kind(
     match kind {
       Function => 0
       Let => 1
-      Offer => 2
     },
   )
 }
@@ -532,10 +533,6 @@ fn @bytecodec.ByteReader::read_module_interface_value_kind(
     [u8be(1), .. rest] => {
       self.update_view(rest)
       Let
-    }
-    [u8be(2), .. rest] => {
-      self.update_view(rest)
-      Offer
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

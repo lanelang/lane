@@ -45,7 +45,6 @@ pub(all) enum TopLevelDeclaration {
   TypeAlias(TypeAliasDeclaration)
   Function(FunctionDeclaration)
   Let(LetDeclaration)
-  Offer(OfferDeclaration)
 } derive(Debug, Eq)
 
 ///|
@@ -193,6 +192,7 @@ pub fn TypeAliasBody::loc(self : TypeAliasBody) -> SourceSpan {
 ///|
 pub(all) struct FunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   type_parameters : Array[TypeParameter]
   name : String
   name_loc : SourceSpan
@@ -222,19 +222,10 @@ pub(all) struct ParameterModifiers {
 ///|
 pub(all) struct LetDeclaration {
   is_public : Bool
+  is_offered : Bool
   name : String?
   name_loc : SourceSpan?
   type_annotation : Type?
-  initializer : Expr
-  loc : SourceSpan
-} derive(Debug, Eq)
-
-///|
-pub(all) struct OfferDeclaration {
-  is_public : Bool
-  name : String
-  name_loc : SourceSpan
-  type_annotation : Type
   initializer : Expr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -406,7 +397,6 @@ pub(all) enum LocalItem {
   Let(LetDeclaration)
   PatternLet(PatternLetDeclaration)
   Function(FunctionDeclaration)
-  Offer(OfferDeclaration)
   Expression(expression~ : Expr)
 } derive(Debug, Eq)
 

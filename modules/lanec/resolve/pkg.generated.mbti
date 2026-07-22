@@ -187,6 +187,7 @@ pub impl @prettyprinter.Pretty for ResolvedFieldReference
 
 pub(all) struct ResolvedFunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String
   name_loc : @basic.SourceSpan
@@ -281,6 +282,7 @@ pub impl @prettyprinter.Pretty for ResolvedKind
 
 pub(all) struct ResolvedLetDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : @symbol.ValueSymbolId
   name : String?
   name_loc : @basic.SourceSpan?
@@ -294,7 +296,6 @@ pub(all) enum ResolvedLocalItem {
   Let(ResolvedLetDeclaration)
   PatternLet(ResolvedPatternLetDeclaration)
   Function(ResolvedFunctionDeclaration)
-  Offer(ResolvedOfferDeclaration)
   Expression(ResolvedExpr)
 } derive(Eq, @debug.Debug)
 pub fn ResolvedLocalItem::for_each_child_expr(Self, (ResolvedExpr) -> Unit) -> Unit
@@ -306,17 +307,6 @@ pub(all) struct ResolvedMatchArm {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedMatchArm
-
-pub(all) struct ResolvedOfferDeclaration {
-  is_public : Bool
-  symbol : @symbol.ValueSymbolId
-  name : String
-  name_loc : @basic.SourceSpan
-  type_annotation : ResolvedType
-  initializer : ResolvedExpr
-  loc : @basic.SourceSpan
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for ResolvedOfferDeclaration
 
 pub(all) enum ResolvedOperationReference {
   Symbol(@symbol.OperationSymbolId)
@@ -394,7 +384,6 @@ pub(all) enum ResolvedTopLevelDeclaration {
   TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
-  Offer(ResolvedOfferDeclaration)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration
 

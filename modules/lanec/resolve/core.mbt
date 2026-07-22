@@ -98,7 +98,6 @@ pub(all) enum ResolvedTopLevelDeclaration {
   TypeAlias(ResolvedTypeAliasDeclaration)
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
-  Offer(ResolvedOfferDeclaration)
 } derive(Debug, Eq)
 
 ///|
@@ -215,6 +214,7 @@ pub(all) enum ResolvedTypeAliasBody {
 ///|
 pub(all) struct ResolvedFunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : ValueSymbolId
   name : String
   name_loc : SourceSpan
@@ -229,21 +229,11 @@ pub(all) struct ResolvedFunctionDeclaration {
 ///|
 pub(all) struct ResolvedLetDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : ValueSymbolId
   name : String?
   name_loc : SourceSpan?
   type_annotation : ResolvedType?
-  initializer : ResolvedExpr
-  loc : SourceSpan
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ResolvedOfferDeclaration {
-  is_public : Bool
-  symbol : ValueSymbolId
-  name : String
-  name_loc : SourceSpan
-  type_annotation : ResolvedType
   initializer : ResolvedExpr
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -472,7 +462,6 @@ pub(all) enum ResolvedLocalItem {
   Let(ResolvedLetDeclaration)
   PatternLet(ResolvedPatternLetDeclaration)
   Function(ResolvedFunctionDeclaration)
-  Offer(ResolvedOfferDeclaration)
   Expression(ResolvedExpr)
 } derive(Debug, Eq)
 

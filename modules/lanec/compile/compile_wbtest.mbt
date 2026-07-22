@@ -203,6 +203,71 @@ test "compile modules keeps artifacts when unused local warning exists" {
 }
 
 ///|
+test "selective import preserves an offered function" {
+  let library = compile_modules(
+    (
+      #|module A
+      #|pub offer fn provide() -> Int {
+      #|  42
+      #|}
+    ),
+    [],
+  )
+  guard library.modules is Some(modules) else {
+    abort("expected compiled library")
+  }
+  guard @module_compile.find_compiled_module(modules.modules, "A")
+    is Some(module_) else {
+    abort("expected module A")
+  }
+  let binary = @artifact_binary.module_interface_artifact_to_binary(
+    module_.to_interface_artifact(),
+  )
+  let interface = match
+    @artifact_binary.parse_module_interface_artifact_binary(binary) {
+    Ok(interface) => interface
+    Err(message) => abort(message)
+  }
+  guard interface.interface.values
+    is [{ kind: Function, is_offered: true, name: "provide", .. }] else {
+    abort("expected offered function interface metadata")
+  }
+  let result = check_source_with_interface_artifacts(
+    (
+      #|module B
+      #|import A.{ provide }
+      #|fn use(auto provider : () -> Int) -> Int {
+      #|  provider()
+      #|}
+      #|pub let answer : Int = use()
+    ),
+    [interface],
+  )
+  guard result.source is Some(_) else { abort("expected checked source") }
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "unused local offered function remains unused" {
+  let result = check_source(
+    (
+      #|module Test
+      #|pub fn program() -> Unit {
+      #|  offer fn unused() -> Int {
+      #|    42
+      #|  };
+      #|  ()
+      #|}
+    ),
+  )
+  guard result.source is Some(_) else { abort("expected checked source") }
+  guard result.diagnostics
+    is [{ message: "unused local value binding", code: Some("W2001"), .. }] else {
+    abort("expected one unused local value binding warning")
+  }
+}
+
+///|
 test "check reports unused private top-level declarations as warnings" {
   let result = check_source(
     (
@@ -1864,7 +1929,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 3
+      #|schema: 4
       #|
       #|imported interfaces:
       #|  (none)
@@ -2034,7 +2099,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 3
+      #|schema: 4
       #|
       #|imported interfaces:
       #|  (none)
@@ -2454,7 +2519,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 3
+      #|schema: 4
       #|
       #|imported interfaces:
       #|  (none)

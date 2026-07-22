@@ -1152,6 +1152,40 @@ test "parse offered value definitions and contextual parameter syntax" {
 }
 
 ///|
+test "parse offered function definitions" {
+  let file = expect_parse_ok(
+    (
+      #|pub offer fn[A] provide(value : A) -> A {
+      #|  value
+      #|}
+      #|fn outer() -> Int {
+      #|  offer fn local() -> Int {
+      #|    42
+      #|  }
+      #|  local()
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|pub offer fn[A] provide(value : A) -> A {
+      #|  value
+      #|}
+      #|
+      #|fn outer() -> Int {
+      #|  offer fn local() -> Int {
+      #|    42
+      #|  }
+      #|  local()
+      #|}
+    ),
+  )
+}
+
+///|
 test "parse effect declarations and effect kind" {
   let file = expect_parse_ok(
     (

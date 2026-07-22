@@ -248,7 +248,6 @@ fn TopLevelDeclaration::loc(self : TopLevelDeclaration) -> SourceSpan {
     TypeAlias(value) => value.loc
     Function(value) => value.loc
     Let(value) => value.loc
-    Offer(value) => value.loc
   }
 }
 
@@ -348,7 +347,6 @@ fn LocalItem::loc(self : LocalItem) -> SourceSpan {
     Let(declaration) => declaration.loc
     PatternLet(declaration) => declaration.loc
     Function(declaration) => declaration.loc
-    Offer(declaration) => declaration.loc
     Expression(expression~) => expression.loc()
   }
 }
@@ -383,7 +381,6 @@ fn TopLevelDeclaration::to_doc(
     TypeAlias(declaration) => declaration.to_doc(trivia~)
     Function(declaration) => declaration.to_doc(trivia~)
     Let(declaration) => declaration.to_doc(trivia~)
-    Offer(declaration) => declaration.to_doc(trivia~)
   }
 }
 
@@ -966,7 +963,13 @@ fn FunctionDeclaration::to_doc(
   }
   let parameter_suffix = if force_arrow_break { empty } else { suffix }
   let trailing_suffix = if force_arrow_break { suffix } else { empty }
+  let offered_prefix = if self.is_offered {
+    keyword("offer") + space
+  } else {
+    empty
+  }
   let doc = public_prefix(self.is_public) +
+    offered_prefix +
     keyword("fn") +
     bracketed_type_parameters(
       self.type_parameters,
@@ -1038,37 +1041,14 @@ fn LetDeclaration::to_doc(
       .map(fn(loc) { loc.end_offset })
       .unwrap_or(self.loc.start_offset)
   }
+  let declaration_keyword = if self.is_offered {
+    keyword("offer")
+  } else {
+    keyword("let")
+  }
   let doc = assignment_expr_doc(
-    public_prefix(self.is_public) + keyword("let") + name_doc + type_doc,
+    public_prefix(self.is_public) + declaration_keyword + name_doc + type_doc,
     head_end_offset,
-    self.initializer,
-    trivia~,
-  )
-  trivia.decorate(self.loc, doc)
-}
-
-///|
-pub impl @prettyprinter.Pretty for OfferDeclaration with fn pretty(
-  declaration : OfferDeclaration,
-) {
-  declaration.to_doc()
-}
-
-///|
-fn OfferDeclaration::to_doc(
-  self : OfferDeclaration,
-  trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
-) -> Document {
-  let doc = assignment_expr_doc(
-    public_prefix(self.is_public) +
-    keyword("offer") +
-    space +
-    text(self.name) +
-    space +
-    text(":") +
-    space +
-    self.type_annotation.to_doc(trivia~),
-    self.type_annotation.loc().end_offset,
     self.initializer,
     trivia~,
   )
@@ -2021,7 +2001,6 @@ fn LocalItem::to_doc(
     Let(declaration) => declaration.to_doc(trivia~)
     PatternLet(declaration) => declaration.to_doc(trivia~)
     Function(declaration) => declaration.to_doc(trivia~)
-    Offer(declaration) => declaration.to_doc(trivia~)
     Expression(expression~) =>
       trivia.decorate(expression.loc(), expression.to_doc(trivia~))
   }

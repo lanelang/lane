@@ -77,7 +77,6 @@ fn SemanticChecker::check_checked_top_level_declaration(
       self.checked_top_level_external_type(declaration)
     Function(declaration) => self.checked_top_level_function(declaration)
     Let(declaration) => self.checked_top_level_let(declaration)
-    Offer(declaration) => self.checked_top_level_offer(declaration)
   }
 }
 
@@ -174,6 +173,7 @@ fn SemanticChecker::checked_top_level_function(
   Some(
     Function({
       is_public: declaration.is_public,
+      is_offered: declaration.is_offered,
       symbol: declaration.symbol,
       name: declaration.name,
       name_loc: declaration.name_loc,
@@ -228,9 +228,18 @@ fn SemanticChecker::checked_top_level_let(
     type_,
     parameters: None,
   })
+  if declaration.is_offered {
+    self.offer_symbol(
+      self.ordered_offers,
+      declaration.symbol,
+      type_,
+      declaration.loc,
+    )
+  }
   self.values.push(
     Let({
       is_public: declaration.is_public,
+      is_offered: declaration.is_offered,
       symbol: declaration.symbol,
       name: declaration.name,
       name_loc: declaration.name_loc,
@@ -238,10 +247,15 @@ fn SemanticChecker::checked_top_level_let(
       loc: declaration.loc,
     }),
   )
+  let initializer_context = if declaration.is_offered {
+    "offer initializer"
+  } else {
+    "let initializer"
+  }
   guard self.require_checked_expression(
       checked_initializer,
       declaration.initializer.loc(),
-      "let initializer",
+      initializer_context,
     )
     is Some(initializer) else {
     return None
@@ -249,70 +263,10 @@ fn SemanticChecker::checked_top_level_let(
   Some(
     Let({
       is_public: declaration.is_public,
+      is_offered: declaration.is_offered,
       symbol: declaration.symbol,
       name: declaration.name,
       name_loc: declaration.name_loc,
-      initializer,
-      type_,
-      loc: declaration.loc,
-    }),
-  )
-}
-
-///|
-fn SemanticChecker::checked_top_level_offer(
-  self : SemanticChecker,
-  declaration : @desugar.DesugaredOfferDeclaration,
-) -> @checked.CheckedTopLevelDeclaration? {
-  let type_ = match self.value_type(declaration.symbol) {
-    Some(type_) => type_
-    None => self.check_type(declaration.type_annotation)
-  }
-  let checked_initializer = self.check_checked_expr(
-    self.ordered_root_scope(),
-    declaration.initializer,
-    type_,
-  )
-  self.expect_effect(
-    Empty,
-    checked_initializer.effect,
-    declaration.initializer.loc(),
-  )
-  self.ordered_value_types.push({
-    symbol: declaration.symbol,
-    type_,
-    parameters: None,
-  })
-  self.offer_symbol(
-    self.ordered_offers,
-    declaration.symbol,
-    type_,
-    declaration.loc,
-  )
-  self.values.push(
-    Let({
-      is_public: declaration.is_public,
-      symbol: declaration.symbol,
-      name: Some(declaration.name),
-      name_loc: Some(declaration.name_loc),
-      type_,
-      loc: declaration.loc,
-    }),
-  )
-  guard self.require_checked_expression(
-      checked_initializer,
-      declaration.initializer.loc(),
-      "offer initializer",
-    )
-    is Some(initializer) else {
-    return None
-  }
-  Some(
-    Let({
-      is_public: declaration.is_public,
-      symbol: declaration.symbol,
-      name: Some(declaration.name),
-      name_loc: Some(declaration.name_loc),
       initializer,
       type_,
       loc: declaration.loc,
@@ -357,10 +311,18 @@ fn SemanticChecker::check_checked_local_let(
     (checked_initializer.type_, checked_initializer)
   }
   scope.bind(declaration.symbol, type_)
+  if declaration.is_offered {
+    self.offer_symbol(scope.offers, declaration.symbol, type_, declaration.loc)
+  }
+  let initializer_context = if declaration.is_offered {
+    "local offer initializer"
+  } else {
+    "local let initializer"
+  }
   guard self.require_checked_expression(
       checked_initializer,
       declaration.initializer.loc(),
-      "local let initializer",
+      initializer_context,
     )
     is Some(initializer) else {
     return None
@@ -368,48 +330,10 @@ fn SemanticChecker::check_checked_local_let(
   Some({
     declaration: {
       is_public: false,
+      is_offered: declaration.is_offered,
       symbol: declaration.symbol,
       name: declaration.name,
       name_loc: declaration.name_loc,
-      initializer,
-      type_,
-      loc: declaration.loc,
-    },
-    effect: checked_initializer.effect,
-  })
-}
-
-///|
-fn SemanticChecker::check_checked_local_offer(
-  self : SemanticChecker,
-  scope : TypeScope,
-  declaration : @desugar.DesugaredOfferDeclaration,
-) -> CheckedLocalLetSynthesis? {
-  // Local offer is a typed local let plus insertion into the contextual-offer
-  // environment. Offer resolution still happens by type after ordinary local
-  // checking has established the target type.
-  let type_ = self.check_type(declaration.type_annotation)
-  let checked_initializer = self.check_checked_expr(
-    scope,
-    declaration.initializer,
-    type_,
-  )
-  scope.bind(declaration.symbol, type_)
-  self.offer_symbol(scope.offers, declaration.symbol, type_, declaration.loc)
-  guard self.require_checked_expression(
-      checked_initializer,
-      declaration.initializer.loc(),
-      "local offer initializer",
-    )
-    is Some(initializer) else {
-    return None
-  }
-  Some({
-    declaration: {
-      is_public: false,
-      symbol: declaration.symbol,
-      name: Some(declaration.name),
-      name_loc: Some(declaration.name_loc),
       initializer,
       type_,
       loc: declaration.loc,
@@ -478,6 +402,9 @@ fn SemanticChecker::check_checked_local_function(
   )
   let parameters = self.checked_value_parameters(declaration.parameters)
   scope.bind_function(declaration.symbol, type_, parameters)
+  if declaration.is_offered {
+    self.offer_symbol(scope.offers, declaration.symbol, type_, declaration.loc)
+  }
   let body_scope = self.function_body_scope(
     scope,
     declaration.type_parameters,
@@ -501,6 +428,7 @@ fn SemanticChecker::check_checked_local_function(
   }
   Some({
     is_public: false,
+    is_offered: declaration.is_offered,
     symbol: declaration.symbol,
     name: declaration.name,
     name_loc: declaration.name_loc,

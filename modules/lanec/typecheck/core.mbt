@@ -145,6 +145,7 @@ pub(all) struct CheckedEffectOperationDeclaration {
 ///|
 pub(all) struct CheckedFunctionDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : ValueSymbolId
   name : String
   name_loc : SourceSpan
@@ -156,6 +157,7 @@ pub(all) struct CheckedFunctionDeclaration {
 ///|
 pub(all) struct CheckedLetDeclaration {
   is_public : Bool
+  is_offered : Bool
   symbol : ValueSymbolId
   name : String?
   name_loc : SourceSpan?

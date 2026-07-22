@@ -112,7 +112,6 @@ pub fn ResolvedLocalItem::for_each_child_expr(
     Let(declaration) => visit(declaration.initializer)
     PatternLet(declaration) => visit(declaration.initializer)
     Function(declaration) => visit(declaration.body)
-    Offer(declaration) => visit(declaration.initializer)
     Expression(expression) => visit(expression)
   }
 }

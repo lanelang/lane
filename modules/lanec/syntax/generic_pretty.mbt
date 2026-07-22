@@ -131,13 +131,6 @@ pub impl @generic_prettyprinter.Pretty for LetDeclaration with fn pretty(value) 
 }
 
 ///|
-pub impl @generic_prettyprinter.Pretty for OfferDeclaration with fn pretty(
-  value,
-) {
-  generic_pretty(value)
-}
-
-///|
 pub impl @generic_prettyprinter.Pretty for Type with fn pretty(value) {
   generic_pretty(value)
 }

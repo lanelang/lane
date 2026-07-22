@@ -1104,7 +1104,7 @@ fn TypeExpressionChecker::find_type_parameter_kind(
           }
         }
       }
-      Let(_) | Offer(_) => ()
+      Let(_) => ()
     }
   }
   None
