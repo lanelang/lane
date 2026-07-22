@@ -657,8 +657,8 @@ fn build_cached_semantic_module(
     )
     if checked.diagnostics.is_empty() {
       checked_source = checked.source
-      if checked.module_interface is Some(interface) &&
-        interface.semantic_fingerprint() is Ok(fingerprint) {
+      if checked.module_interface is Some(interface) {
+        let fingerprint = interface.semantic_fingerprint()
         last_successful_interface = Some({
           interface,
           fingerprint,

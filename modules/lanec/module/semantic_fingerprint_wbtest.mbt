@@ -18,31 +18,50 @@ fn empty_module_interface(
 }
 
 ///|
+fn invalid_reference_interface() -> ModuleInterface {
+  let missing_type : @symbol.TypeSymbolId = { index: 0 }
+  {
+    ..empty_module_interface("A", None),
+    values: [
+      {
+        symbol: { index: 0 },
+        kind: Let,
+        name: "value",
+        type_: Constructor(missing_type),
+        parameters: None,
+        loc: @basic.SourceSpan::dummy(),
+      },
+    ],
+  }
+}
+
+///|
 test "semantic fingerprint ignores source identity" {
-  guard empty_module_interface("A", Some("old-A.lane")).semantic_fingerprint()
-    is Ok(old_fingerprint) else {
-    abort("expected old fingerprint")
-  }
-  guard empty_module_interface("A", Some("new-A.lane")).semantic_fingerprint()
-    is Ok(new_fingerprint) else {
-    abort("expected new fingerprint")
-  }
+  let old_fingerprint = empty_module_interface("A", Some("old-A.lane")).semantic_fingerprint()
+  let new_fingerprint = empty_module_interface("A", Some("new-A.lane")).semantic_fingerprint()
   assert_eq(old_fingerprint, new_fingerprint)
 }
 
 ///|
 test "semantic fingerprint tracks exported semantics" {
-  guard empty_module_interface("A", None).semantic_fingerprint() is Ok(initial) else {
-    abort("expected initial fingerprint")
-  }
-  guard empty_module_interface("A", None, hints=[{ name: "specialize" }]).semantic_fingerprint()
-    is Ok(changed_hint) else {
-    abort("expected hint fingerprint")
-  }
-  guard empty_module_interface("B", None).semantic_fingerprint()
-    is Ok(changed_module) else {
-    abort("expected module fingerprint")
-  }
+  let initial = empty_module_interface("A", None).semantic_fingerprint()
+  let changed_hint = empty_module_interface("A", None, hints=[
+    { name: "specialize" },
+  ]).semantic_fingerprint()
+  let changed_module = empty_module_interface("B", None).semantic_fingerprint()
   assert_false(initial == changed_hint)
   assert_false(initial == changed_module)
+}
+
+///|
+test "semantic fingerprint result reports invalid interface references" {
+  assert_eq(
+    invalid_reference_interface().semantic_fingerprint_result(),
+    Err("unresolved interface type reference"),
+  )
+}
+
+///|
+test "panic semantic fingerprint rejects invalid interface" {
+  invalid_reference_interface().semantic_fingerprint() |> ignore
 }

@@ -18,7 +18,21 @@ priv suberror CanonicalInterfaceEncodingError {
 }
 
 ///|
+/// Computes the semantic fingerprint of a compiler-produced module interface.
+/// An invalid interface violates an internal compiler invariant and aborts.
 pub fn ModuleInterface::semantic_fingerprint(
+  self : ModuleInterface,
+) -> ModuleInterfaceSemanticFingerprint {
+  match self.semantic_fingerprint_result() {
+    Ok(fingerprint) => fingerprint
+    Err(message) => abort("invalid module interface: " + message)
+  }
+}
+
+///|
+/// Validates and fingerprints an interface from an untrusted source such as an
+/// artifact.
+pub fn ModuleInterface::semantic_fingerprint_result(
   self : ModuleInterface,
 ) -> Result[ModuleInterfaceSemanticFingerprint, String] {
   match self.canonical_semantic_bytes() {

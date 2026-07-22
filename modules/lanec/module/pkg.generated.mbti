@@ -33,7 +33,8 @@ pub(all) struct ModuleInterface {
   optimization_hints : Array[OptimizationHint]
 } derive(Eq, @debug.Debug)
 pub fn ModuleInterface::exported_symbol_metadata(Self, @symbol.SymbolRegistry) -> @symbol.SymbolMetadataArena
-pub fn ModuleInterface::semantic_fingerprint(Self) -> Result[ModuleInterfaceSemanticFingerprint, String]
+pub fn ModuleInterface::semantic_fingerprint(Self) -> ModuleInterfaceSemanticFingerprint
+pub fn ModuleInterface::semantic_fingerprint_result(Self) -> Result[ModuleInterfaceSemanticFingerprint, String]
 
 pub(all) struct ModuleInterfaceEffect {
   symbol : @symbol.EffectSymbolId

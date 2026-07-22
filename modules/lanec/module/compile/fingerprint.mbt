@@ -97,7 +97,7 @@ pub fn interface_fingerprint(
 fn interface_fingerprint_result(
   interface : @module_interface.ModuleInterface,
 ) -> Result[@artifact_core.CompilationFingerprint, String] {
-  match interface.semantic_fingerprint() {
+  match interface.semantic_fingerprint_result() {
     Ok(fingerprint) => Ok({ value: fingerprint.value })
     Err(message) => Err(message)
   }
