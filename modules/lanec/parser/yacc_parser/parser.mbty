@@ -347,10 +347,10 @@ effect_operation -> EffectOperationDeclaration
   ;
 
 function_declaration -> FunctionDeclaration
-  : "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
+  : function_prefix type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: false,
-      is_offered: false,
+      is_offered: $1,
       type_parameters: $2,
       name: $3.name,
       name_loc: $3.loc,
@@ -358,30 +358,16 @@ function_declaration -> FunctionDeclaration
       return_type: $6,
       effect: effect_or_empty($7, $6),
       body: $8,
-      loc: span($sloc),
-    }
-  }
-  | "offer" "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
-    {
-      is_public: false,
-      is_offered: true,
-      type_parameters: $3,
-      name: $4.name,
-      name_loc: $4.loc,
-      parameters: $5,
-      return_type: $7,
-      effect: effect_or_empty($8, $7),
-      body: $9,
       loc: span($sloc),
     }
   }
   ;
 
 public_function_declaration -> FunctionDeclaration
-  : "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
+  : function_prefix type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
     {
       is_public: true,
-      is_offered: false,
+      is_offered: $1,
       type_parameters: $2,
       name: $3.name,
       name_loc: $3.loc,
@@ -392,20 +378,11 @@ public_function_declaration -> FunctionDeclaration
       loc: span($sloc),
     }
   }
-  | "offer" "fn" type_parameters identifier parameters "->" type effect_annotation_opt block_expression {
-    {
-      is_public: true,
-      is_offered: true,
-      type_parameters: $3,
-      name: $4.name,
-      name_loc: $4.loc,
-      parameters: $5,
-      return_type: $7,
-      effect: effect_or_empty($8, $7),
-      body: $9,
-      loc: span($sloc),
-    }
-  }
+  ;
+
+%inline function_prefix -> Bool
+  : "fn" { false }
+  | "offer" "fn" { true }
   ;
 
 parameters -> Array[Parameter]
