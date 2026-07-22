@@ -583,15 +583,17 @@ fn check_resolved_generic_argument(
     expanding: [],
   }
   match (expected, argument) {
-    (Effect, EffectArgument(effect)) =>
+    (Effect, EffectArgument(effect)) => {
+      let checked = checker.check_effect(effect)
       EffectArgument(
-        normalize_effect_or_empty(
+        normalize_effect_or_report(
           checker.diagnostics,
-          checker.check_effect(effect),
+          checked,
           resolved_generic_argument_loc(argument),
           context="generic effect argument",
-        ),
+        ).unwrap_or(checked),
       )
+    }
     (Effect, TypeArgument(type_)) => {
       let result = checker.synthesize_type(type_)
       let actual = resolved_type_kind_with_scope(scope, type_, result.kind)
@@ -818,15 +820,17 @@ fn TypeExpressionChecker::check_generic_argument(
   // category. Effect-kind arguments must remain EffectArgument values; they are
   // not encoded as ordinary TypeArgument nodes.
   match (expected, argument) {
-    (Effect, EffectArgument(effect)) =>
+    (Effect, EffectArgument(effect)) => {
+      let checked = self.check_effect(effect)
       EffectArgument(
-        normalize_effect_or_empty(
+        normalize_effect_or_report(
           self.diagnostics,
-          self.check_effect(effect),
+          checked,
           resolved_generic_argument_loc(argument),
           context="generic effect argument",
-        ),
+        ).unwrap_or(checked),
       )
+    }
     (Effect, TypeArgument(type_)) => {
       let result = self.synthesize_type(type_)
       if result.kind == Effect && result.type_ is Parameter(symbol) {

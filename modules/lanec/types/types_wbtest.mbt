@@ -107,32 +107,45 @@ test "Io is a canonical built-in effect atom" {
 
 ///|
 test "try normalize reports type fuel exhaustion without aborting" {
-  let mut type_ = Primitive(Unit)
+  let mut left = Primitive(Unit)
+  let mut right = Primitive(Bool)
   for _ in 0..<(NORMALIZATION_DEPTH_LIMIT + 6) {
-    type_ = Function([type_], type_, Empty)
+    left = Function([left], left, Empty)
+    right = Function([right], right, Empty)
   }
-  try type_.try_normalize() catch {
+  try left.try_normalize() catch {
     error => debug_inspect(error, content="TypeNormalizationFuelExhausted")
   } noraise {
     _ => fail("expected type normalization fuel exhaustion")
   }
-  inspect(@prettyprinter.render(type_.normalize()), content="<error>")
+  try left.equals(right) catch {
+    error => debug_inspect(error, content="TypeNormalizationFuelExhausted")
+  } noraise {
+    _ => fail("type equality must propagate normalization failure")
+  }
 }
 
 ///|
 test "try normalize reports effect fuel exhaustion without aborting" {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())
-  let mut effect = Singleton(console, [])
+  let other = registry.define_effect("Other", 0, @basic.SourceSpan::dummy())
+  let mut left = Singleton(console, [])
+  let mut right = Singleton(other, [])
   for _ in 0..<(NORMALIZATION_DEPTH_LIMIT + 6) {
-    effect = Union([effect])
+    left = Union([left])
+    right = Union([right])
   }
-  try effect.try_normalize() catch {
+  try left.try_normalize() catch {
     error => debug_inspect(error, content="EffectNormalizationFuelExhausted")
   } noraise {
     _ => fail("expected effect normalization fuel exhaustion")
   }
-  inspect(@prettyprinter.render(effect.normalize()), content="{}")
+  try left.equals(right) catch {
+    error => debug_inspect(error, content="EffectNormalizationFuelExhausted")
+  } noraise {
+    _ => fail("effect equality must propagate normalization failure")
+  }
 }
 
 ///|

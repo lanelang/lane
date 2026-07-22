@@ -188,12 +188,15 @@ fn TypeExpressionChecker::expand_effect_alias(
       match type_alias.body {
         EffectBody(effect) => {
           let expanded = next.check_effect(effect).substitute(type_substitution)
-          normalize_effect_or_empty(
+          let substituted = expanded.substitute_effect_parameters(
+            effect_substitution,
+          )
+          normalize_effect_or_report(
             self.diagnostics,
-            expanded.substitute_effect_parameters(effect_substitution),
+            substituted,
             loc,
             context="effect alias expansion",
-          )
+          ).unwrap_or(substituted)
         }
         TypeBody(body) => {
           let result = next.synthesize_type(body)
@@ -220,12 +223,15 @@ fn TypeExpressionChecker::expand_effect_alias(
                 return Empty
               }
               let expanded = effect.substitute(type_substitution)
-              normalize_effect_or_empty(
+              let substituted = expanded.substitute_effect_parameters(
+                effect_substitution,
+              )
+              normalize_effect_or_report(
                 self.diagnostics,
-                expanded.substitute_effect_parameters(effect_substitution),
+                substituted,
                 loc,
                 context="imported effect alias expansion",
-              )
+              ).unwrap_or(substituted)
             }
             TypeBody(_) => {
               self.diagnostics.push({
@@ -540,7 +546,7 @@ fn SemanticChecker::expect_effect(
   actual : @types.Effect,
   loc : SourceSpan,
 ) -> Unit {
-  if !self.effect_allowed(expected, actual, loc) {
+  if self.effect_allowed(expected, actual, loc) is Some(false) {
     self.diagnostics.push({ kind: EffectMismatch(expected~, actual~), loc })
   }
 }
@@ -551,20 +557,26 @@ fn SemanticChecker::effect_allowed(
   expected : @types.Effect,
   actual : @types.Effect,
   loc : SourceSpan,
-) -> Bool {
-  normalize_effect_or_empty(
-    self.diagnostics,
-    expected,
-    loc,
-    context="expected effect",
-  ).alpha_equal(
-    normalize_effect_or_empty(
+) -> Bool? {
+  guard normalize_effect_or_report(
+      self.diagnostics,
+      expected,
+      loc,
+      context="expected effect",
+    )
+    is Some(expected) else {
+    return None
+  }
+  guard normalize_effect_or_report(
       self.diagnostics,
       actual,
       loc,
       context="actual effect",
-    ),
-  )
+    )
+    is Some(actual) else {
+    return None
+  }
+  Some(expected.alpha_equal(actual))
 }
 
 ///|
@@ -587,7 +599,7 @@ fn effect_is_empty(effect : @types.Effect) -> Bool {
 fn effect_union(effects : Array[@types.Effect]) -> @types.Effect {
   let items = []
   for effect in effects {
-    match effect.normalize() {
+    match effect.canonicalize() {
       Empty => ()
       Union(nested) =>
         for item in nested {

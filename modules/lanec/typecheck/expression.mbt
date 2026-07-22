@@ -14,7 +14,7 @@ fn SemanticChecker::expect_type(
   actual : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  if !self.type_matches(expected, actual, loc) {
+  if self.type_matches(expected, actual, loc) is Some(false) {
     self.diagnostics.push({ kind: TypeMismatch(expected~, actual~), loc })
   }
 }
@@ -25,22 +25,29 @@ fn SemanticChecker::type_matches(
   expected : @types.Type,
   actual : @types.Type,
   loc : SourceSpan,
-) -> Bool {
-  expected.contains_error() ||
-  actual.contains_error() ||
-  normalize_type_or_error(
-    self.diagnostics,
-    expected,
-    loc,
-    context="expected type",
-  ).alpha_equal(
-    normalize_type_or_error(
+) -> Bool? {
+  if expected.contains_error() || actual.contains_error() {
+    return Some(true)
+  }
+  guard normalize_type_or_report(
+      self.diagnostics,
+      expected,
+      loc,
+      context="expected type",
+    )
+    is Some(expected) else {
+    return None
+  }
+  guard normalize_type_or_report(
       self.diagnostics,
       actual,
       loc,
       context="actual type",
-    ),
-  )
+    )
+    is Some(actual) else {
+    return None
+  }
+  Some(expected.alpha_equal(actual))
 }
 
 ///|

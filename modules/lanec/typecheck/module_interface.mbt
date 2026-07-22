@@ -301,19 +301,21 @@ fn SemanticChecker::interface_type_aliases(
             })
           }
           EffectBody(effect) => {
-            let checked = normalize_effect_or_empty(
+            let checked = normalize_effect_or_report(
               checker.diagnostics,
               checker.check_effect(effect),
               declaration.loc,
               context="effect alias body",
             )
-            aliases.push({
-              name: declaration.name,
-              type_parameters,
-              body: EffectBody(checked),
-              kind: effect_alias_interface_kind(type_parameters),
-              loc: declaration.loc,
-            })
+            if checked is Some(checked) {
+              aliases.push({
+                name: declaration.name,
+                type_parameters,
+                body: EffectBody(checked),
+                kind: effect_alias_interface_kind(type_parameters),
+                loc: declaration.loc,
+              })
+            }
           }
         }
       }

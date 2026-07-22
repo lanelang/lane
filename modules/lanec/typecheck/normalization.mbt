@@ -33,25 +33,35 @@ fn normalize_type_or_error(
   loc : SourceSpan,
   context~ : String,
 ) -> @types.Type {
-  type_.try_normalize() catch {
+  normalize_type_or_report(diagnostics, type_, loc, context~).unwrap_or(Error)
+}
+
+///|
+fn normalize_type_or_report(
+  diagnostics : Array[TypeCheckDiagnostic],
+  type_ : @types.Type,
+  loc : SourceSpan,
+  context~ : String,
+) -> @types.Type? {
+  Some(type_.try_normalize()) catch {
     error => {
       report_type_computation_failure(diagnostics, context, loc, error)
-      Error
+      None
     }
   }
 }
 
 ///|
-fn normalize_effect_or_empty(
+fn normalize_effect_or_report(
   diagnostics : Array[TypeCheckDiagnostic],
   effect : @types.Effect,
   loc : SourceSpan,
   context~ : String,
-) -> @types.Effect {
-  effect.try_normalize() catch {
+) -> @types.Effect? {
+  Some(effect.try_normalize()) catch {
     error => {
       report_type_computation_failure(diagnostics, context, loc, error)
-      Empty
+      None
     }
   }
 }

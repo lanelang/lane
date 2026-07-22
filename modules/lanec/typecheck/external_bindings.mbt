@@ -10,7 +10,7 @@ fn SemanticChecker::check_compiler_intrinsic(
     return checked_expression_none_reported(Error)
   }
   let actual = compiler_intrinsic_type(intrinsic)
-  if !self.type_matches(expected, actual, loc) {
+  if self.type_matches(expected, actual, loc) is Some(false) {
     self.diagnostics.push({
       kind: BuiltinSignatureMismatch(name~, expected~, actual~),
       loc,
@@ -65,7 +65,7 @@ fn SemanticChecker::check_extern_binding(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  match self.validate_extern_signature(expected) {
+  match self.validate_extern_signature(expected, loc) {
     Ok(signature) =>
       checked_expression(
         ExternBinding(name~, signature~, type_=expected, loc~),
@@ -95,18 +95,19 @@ fn SemanticChecker::synthesize_extern_binding(
 fn SemanticChecker::validate_extern_signature(
   self : SemanticChecker,
   type_ : @types.Type,
+  loc : SourceSpan,
 ) -> Result[@abi.HostSignature, ExternTypeRestriction] {
   match type_ {
     Forall(_) | TypeLambda(_) => Err(MonomorphicRequired)
     Function(parameters, result, effect) => {
       let parameter_kinds = []
       for index, parameter in parameters {
-        guard self.extern_value_kind(parameter) is Some(kind) else {
+        guard self.extern_value_kind(parameter, loc) is Some(kind) else {
           return Err(DirectParameterRequired(index~))
         }
         parameter_kinds.push(kind)
       }
-      guard self.extern_value_kind(result) is Some(result) else {
+      guard self.extern_value_kind(result, loc) is Some(result) else {
         return Err(DirectResultRequired)
       }
       if self.extern_effect_row(effect.canonicalize()) {
@@ -123,8 +124,15 @@ fn SemanticChecker::validate_extern_signature(
 fn SemanticChecker::extern_value_kind(
   self : SemanticChecker,
   type_ : @types.Type,
+  loc : SourceSpan,
 ) -> @abi.ValueKind? {
-  match type_.normalize() {
+  match
+    normalize_type_or_error(
+      self.diagnostics,
+      type_,
+      loc,
+      context="external value type",
+    ) {
     Primitive(Unit) => Some(Unit)
     Primitive(Bool) => Some(Bool)
     Primitive(Int) => Some(Int)

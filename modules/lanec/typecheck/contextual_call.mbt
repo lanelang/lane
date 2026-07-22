@@ -280,11 +280,17 @@ fn SemanticChecker::contextual_offer_expr(
   // Offer matching is exact type equality over the visible lexical offer
   // scope. It must not infer generics from the offer set.
   let matches = []
+  let mut computation_failed = false
   scope.offers.each_visible(fn(offer) {
-    if self.type_matches(expected, offer.type_, loc) {
-      matches.push(offer)
+    match self.type_matches(expected, offer.type_, loc) {
+      Some(true) => matches.push(offer)
+      Some(false) => ()
+      None => computation_failed = true
     }
   })
+  if computation_failed {
+    return None
+  }
   match matches.length() {
     0 => {
       self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })

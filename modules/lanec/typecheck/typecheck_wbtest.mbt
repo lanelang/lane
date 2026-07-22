@@ -6003,6 +6003,65 @@ test "typecheck reports normalization fuel exhaustion as internal diagnostic" {
 }
 
 ///|
+fn deeply_nested_test_type(base : @types.Type) -> @types.Type {
+  let mut type_ = base
+  for _ in 0..<270 {
+    type_ = Function([type_], Primitive(Unit), Empty)
+  }
+  type_
+}
+
+///|
+test "generic inference records type computation failure" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let inference = GenericArgumentInference::GenericArgumentInference(
+    {
+      types: [],
+      type_members: [],
+      fields: [],
+      variants: [],
+      effects: [],
+      operations: [],
+    },
+    {
+      values: [],
+      offers: ContextualOfferScope(registry),
+      type_parameters: [],
+      provisional_effect_parameters: [],
+      expected_effect: None,
+    },
+    [],
+  )
+  assert_false(
+    inference.types_equal(
+      deeply_nested_test_type(Primitive(Unit)),
+      deeply_nested_test_type(Primitive(Bool)),
+    ),
+  )
+  debug_inspect(
+    inference.computation_error,
+    content="Some(TypeNormalizationFuelExhausted)",
+  )
+}
+
+///|
+test "handler effect operations propagate type computation failure" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let effect = registry.define_effect("State", 0, @basic.SourceSpan::dummy())
+  let left = @types.Effect::Singleton(effect, [
+    TypeArgument(deeply_nested_test_type(Primitive(Unit))),
+  ])
+  let right = @types.Effect::Singleton(effect, [
+    TypeArgument(deeply_nested_test_type(Primitive(Bool))),
+  ])
+  try handler_effect_union([left, right]) catch {
+    error => debug_inspect(error, content="TypeNormalizationFuelExhausted")
+  } noraise {
+    _ => fail("handler effect equality must propagate normalization failure")
+  }
+}
+
+///|
 test "typecheck accepts sequential unit expressions" {
   let result = expect_checked_source_result(
     (

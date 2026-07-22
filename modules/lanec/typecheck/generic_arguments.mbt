@@ -19,6 +19,7 @@ priv struct GenericArgumentInference {
   bindings : Array[GenericArgumentBinding]
   mut failure : GenericArgumentInferenceFailure?
   mut failure_loc : SourceSpan?
+  mut computation_error : @types.TypeComputationError?
 }
 
 ///|
@@ -98,6 +99,7 @@ fn GenericArgumentInference::GenericArgumentInference(
     bindings: [],
     failure: None,
     failure_loc: None,
+    computation_error: None,
   }
 }
 
@@ -119,6 +121,44 @@ fn GenericArgumentInference::set_failure_loc_if_missing(
 ) -> Unit {
   if self.failure_loc is None {
     self.failure_loc = Some(loc)
+  }
+}
+
+///|
+fn GenericArgumentInference::record_computation_error(
+  self : GenericArgumentInference,
+  error : @types.TypeComputationError,
+) -> Unit {
+  if self.computation_error is None {
+    self.computation_error = Some(error)
+  }
+}
+
+///|
+fn GenericArgumentInference::types_equal(
+  self : GenericArgumentInference,
+  left : @types.Type,
+  right : @types.Type,
+) -> Bool {
+  left.equals(right) catch {
+    error => {
+      self.record_computation_error(error)
+      false
+    }
+  }
+}
+
+///|
+fn GenericArgumentInference::effects_equal(
+  self : GenericArgumentInference,
+  left : @types.Effect,
+  right : @types.Effect,
+) -> Bool {
+  left.equals(right) catch {
+    error => {
+      self.record_computation_error(error)
+      false
+    }
   }
 }
 
@@ -242,7 +282,7 @@ fn GenericArgumentInference::remember(
         }
         return true
       }
-      if !generic_argument_equals(previous.argument, candidate) {
+      if !self.generic_arguments_equal(previous.argument, candidate) {
         return self.fail(
           ConflictingGenericArgument(
             parameter=tracked,
@@ -283,7 +323,7 @@ fn merge_provisional_arguments(
 ) -> @types.GenericArgument {
   match (left, right) {
     (EffectArgument(left), EffectArgument(right)) =>
-      EffectArgument(@types.Effect::Union([left, right]).normalize())
+      EffectArgument(@types.Effect::Union([left, right]).canonicalize())
     _ => left
   }
 }
@@ -639,14 +679,14 @@ fn GenericArgumentInference::effect_term_candidate(
     (Empty, Empty) => true
     (Parameter(_), _) =>
       self.tracked_effect_row_parameter(template) is Some(_) ||
-      template.equals(actual)
+      self.effects_equal(template, actual)
     (
       Singleton(left_symbol, left_arguments),
       Singleton(right_symbol, right_arguments),
     ) =>
       left_symbol == right_symbol &&
       self.generic_arguments_are_candidates(left_arguments, right_arguments)
-    _ => template.equals(actual)
+    _ => self.effects_equal(template, actual)
   }
 }
 
@@ -681,7 +721,7 @@ fn GenericArgumentInference::type_is_candidate(
   template : @types.Type,
   actual : @types.Type,
 ) -> Bool {
-  if template.equals(actual) {
+  if self.types_equal(template, actual) {
     return true
   }
   match (template, actual) {
@@ -739,7 +779,7 @@ fn GenericArgumentInference::effect_is_candidate(
   template : @types.Effect,
   actual : @types.Effect,
 ) -> Bool {
-  if template.equals(actual) {
+  if self.effects_equal(template, actual) {
     return true
   }
   match (template, actual) {
@@ -780,7 +820,7 @@ fn GenericArgumentInference::collect_effect_term(
         Some(tracked) =>
           if tracked.kind == Effect {
             self.remember(parameter, EffectArgument(actual))
-          } else if template.equals(actual) {
+          } else if self.effects_equal(template, actual) {
             true
           } else {
             self.fail(
@@ -791,7 +831,7 @@ fn GenericArgumentInference::collect_effect_term(
             )
           }
         None =>
-          if template.equals(actual) {
+          if self.effects_equal(template, actual) {
             true
           } else {
             self.fail(
@@ -817,7 +857,7 @@ fn GenericArgumentInference::collect_effect_term(
         )
       }
     _ =>
-      if template.equals(actual) {
+      if self.effects_equal(template, actual) {
         true
       } else {
         self.fail(
@@ -930,13 +970,15 @@ fn GenericArgumentInference::partial_substitution(
 }
 
 ///|
-fn generic_argument_equals(
+fn GenericArgumentInference::generic_arguments_equal(
+  self : GenericArgumentInference,
   left : @types.GenericArgument,
   right : @types.GenericArgument,
 ) -> Bool {
   match (left, right) {
-    (TypeArgument(left), TypeArgument(right)) => left.equals(right)
-    (EffectArgument(left), EffectArgument(right)) => left.equals(right)
+    (TypeArgument(left), TypeArgument(right)) => self.types_equal(left, right)
+    (EffectArgument(left), EffectArgument(right)) =>
+      self.effects_equal(left, right)
     _ => false
   }
 }
@@ -996,7 +1038,7 @@ fn effect_is_parameter(
 
 ///|
 fn effect_terms(effect : @types.Effect) -> Array[@types.Effect] {
-  match effect.normalize() {
+  match effect.canonicalize() {
     Empty => []
     Union(items) => items
     item => [item]
@@ -1008,7 +1050,7 @@ fn effect_from_terms(terms : Array[@types.Effect]) -> @types.Effect {
   match terms {
     [] => Empty
     [term] => term
-    _ => @types.Effect::Union(terms).normalize()
+    _ => @types.Effect::Union(terms).canonicalize()
   }
 }
 
@@ -1242,6 +1284,15 @@ fn SemanticChecker::infer_application_generic_arguments(
       inference_failed = true
       inference.set_failure_loc_if_missing(argument.loc())
     }
+  }
+  if inference.computation_error is Some(error) {
+    report_type_computation_failure(
+      self.diagnostics,
+      evidence.failure_label,
+      evidence.loc,
+      error,
+    )
+    return None
   }
   guard !inference_failed else {
     if evidence.report_failure {

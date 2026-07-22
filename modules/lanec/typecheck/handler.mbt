@@ -27,6 +27,30 @@ fn SemanticChecker::synthesize_checked_handler(
   final_branch : @desugar.DesugaredHandlerFinalBranch,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  self.synthesize_checked_handler_computed(
+    scope, body, handlers, final_branch, loc,
+  ) catch {
+    error => {
+      report_type_computation_failure(
+        self.diagnostics,
+        "handler effect computation",
+        loc,
+        error,
+      )
+      checked_expression_none_reported(Error)
+    }
+  }
+}
+
+///|
+fn SemanticChecker::synthesize_checked_handler_computed(
+  self : SemanticChecker,
+  scope : TypeScope,
+  body : @desugar.DesugaredExpr,
+  handlers : Array[@desugar.DesugaredHandlerWithBlock],
+  final_branch : @desugar.DesugaredHandlerFinalBranch,
+  loc : SourceSpan,
+) -> CheckedExpressionSynthesis raise @types.TypeComputationError {
   // Handler typing:
   //
   //   Gamma |- body => BodyT ! BodyEff
@@ -274,7 +298,7 @@ fn SemanticChecker::handler_residual_effect(
   body_effect : @types.Effect,
   handled_effects : Array[@types.Effect],
   loc : SourceSpan,
-) -> @types.Effect {
+) -> @types.Effect raise @types.TypeComputationError {
   // Residual effect rule:
   //
   //   Residual = BodyEff - handled_effects
@@ -285,7 +309,7 @@ fn SemanticChecker::handler_residual_effect(
   let mut residual = body_effect
   let removed_effects : Array[@types.Effect] = []
   for handled in handled_effects {
-    if removed_effects.any(fn(effect) { effect.equals(handled) }) {
+    if removed_effects.any(effect => effect.equals(handled)) {
       continue
     }
     removed_effects.push(handled)
@@ -302,7 +326,7 @@ fn SemanticChecker::handler_residual_effect(
 
 ///|
 fn effect_is_open(effect : @types.Effect) -> Bool {
-  match effect.normalize() {
+  match effect.canonicalize() {
     Parameter(_) => true
     Union(items) => items.any(effect_is_open)
     Empty | Io | Singleton(_, _) => false
@@ -310,12 +334,15 @@ fn effect_is_open(effect : @types.Effect) -> Bool {
 }
 
 ///|
-fn effect_contains(effect : @types.Effect, needle : @types.Effect) -> Bool {
-  match effect.normalize() {
+fn effect_contains(
+  effect : @types.Effect,
+  needle : @types.Effect,
+) -> Bool raise @types.TypeComputationError {
+  match effect.canonicalize() {
     Empty | Parameter(_) => false
     Io as item => item.equals(needle)
     Singleton(_, _) as item => item.equals(needle)
-    Union(items) => items.any(fn(item) { effect_contains(item, needle) })
+    Union(items) => items.any(item => effect_contains(item, needle))
   }
 }
 
@@ -323,24 +350,24 @@ fn effect_contains(effect : @types.Effect, needle : @types.Effect) -> Bool {
 fn effect_without(
   effect : @types.Effect,
   removed : @types.Effect,
-) -> @types.Effect {
-  match effect.normalize() {
+) -> @types.Effect raise @types.TypeComputationError {
+  match effect.canonicalize() {
     Empty => Empty
     Io as item => if item.equals(removed) { Empty } else { item }
     Singleton(_, _) as item => if item.equals(removed) { Empty } else { item }
     Parameter(_) as item => item
     Union(items) =>
-      handler_effect_union(
-        items.map(fn(item) { effect_without(item, removed) }),
-      )
+      handler_effect_union(items.map(item => effect_without(item, removed)))
   }
 }
 
 ///|
-fn handler_effect_union(effects : Array[@types.Effect]) -> @types.Effect {
+fn handler_effect_union(
+  effects : Array[@types.Effect],
+) -> @types.Effect raise @types.TypeComputationError {
   let items = []
   for effect in effects {
-    match effect.normalize() {
+    match effect.canonicalize() {
       Empty => ()
       Union(nested) =>
         for item in nested {
@@ -360,8 +387,8 @@ fn handler_effect_union(effects : Array[@types.Effect]) -> @types.Effect {
 fn push_unique_effect(
   effects : Array[@types.Effect],
   effect : @types.Effect,
-) -> Unit {
-  if !effect_is_empty(effect) && !effects.any(fn(item) { item.equals(effect) }) {
+) -> Unit raise @types.TypeComputationError {
+  if !effect_is_empty(effect) && !effects.any(item => item.equals(effect)) {
     effects.push(effect)
   }
 }
@@ -386,7 +413,7 @@ fn SemanticChecker::check_handler_table_data(
   scope : TypeScope,
   handlers : Array[@desugar.DesugaredHandlerWithBlock],
   body_effect : @types.Effect,
-) -> Array[HandlerTableCheck] {
+) -> Array[HandlerTableCheck] raise @types.TypeComputationError {
   let checked = []
   let handled_effects = []
   for handler in handlers {
@@ -406,7 +433,7 @@ fn SemanticChecker::check_handler_table(
   handler : @desugar.DesugaredHandlerWithBlock,
   handled_effects : Array[@types.Effect],
   body_effect : @types.Effect,
-) -> HandlerTableCheck? {
+) -> HandlerTableCheck? raise @types.TypeComputationError {
   // A `with` block handles exactly one singleton effect. All operation arms in
   // the block must belong to that same owner effect, and later coverage uses
   // the effect declaration's complete operation set.

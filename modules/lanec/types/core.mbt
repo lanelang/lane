@@ -279,14 +279,6 @@ fn GenericArgument::substitute_with_bound(
 }
 
 ///|
-pub fn GenericArgument::normalize(self : GenericArgument) -> GenericArgument {
-  match self {
-    TypeArgument(type_) => TypeArgument(type_.normalize())
-    EffectArgument(effect) => EffectArgument(effect.normalize())
-  }
-}
-
-///|
 pub fn GenericArgument::try_normalize(
   self : GenericArgument,
 ) -> GenericArgument raise TypeComputationError {
@@ -318,8 +310,15 @@ pub fn Type::alpha_equal(self : Type, other : Type) -> Bool {
 
 ///|
 /// Returns whether two types are equal under Lane2 type equality.
-pub fn Type::equals(self : Type, other : Type) -> Bool {
-  self.normalize().alpha_equal(other.normalize())
+///
+/// Raises when type-level computation cannot be normalized within the compiler
+/// fuel limit. Use `alpha_equal` when the inputs are already normalized or only
+/// structural equality is required.
+pub fn Type::equals(
+  self : Type,
+  other : Type,
+) -> Bool raise TypeComputationError {
+  self.try_normalize().alpha_equal(other.try_normalize())
 }
 
 ///|
@@ -329,8 +328,15 @@ pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
 
 ///|
 /// Returns whether two effects are equal under Lane2 effect equality.
-pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
-  self.normalize().alpha_equal(other.normalize())
+///
+/// Raises when type-level computation in an effect argument cannot be normalized
+/// within the compiler fuel limit. Use `alpha_equal` for structural effect-row
+/// equality without type-level computation.
+pub fn Effect::equals(
+  self : Effect,
+  other : Effect,
+) -> Bool raise TypeComputationError {
+  self.try_normalize().alpha_equal(other.try_normalize())
 }
 
 ///|
@@ -340,7 +346,8 @@ pub fn Effect::alpha_equal(self : Effect, other : Effect) -> Bool {
 }
 
 ///|
-/// Returns the canonical effect shape used by equality.
+/// Flattens unions and removes structurally alpha-equivalent duplicate terms.
+/// This operation does not perform type-level computation in generic arguments.
 pub fn Effect::canonicalize(self : Effect) -> Effect {
   match canonical_effect_terms([], self) {
     [] => Empty
@@ -351,7 +358,7 @@ pub fn Effect::canonicalize(self : Effect) -> Effect {
 
 ///|
 pub impl Eq for Effect with fn equal(self : Effect, other : Effect) -> Bool {
-  self.equals(other)
+  self.alpha_equal(other)
 }
 
 ///|
@@ -429,13 +436,7 @@ fn collect_effect_terms(
   match effect {
     Empty => ()
     Io => push_unique_effect_term(bindings, terms, Io)
-    Singleton(symbol, arguments) => {
-      let term = Singleton(
-        symbol,
-        arguments.map(fn(argument) { argument.normalize() }),
-      )
-      push_unique_effect_term(bindings, terms, term)
-    }
+    Singleton(_, _) => push_unique_effect_term(bindings, terms, effect)
     Parameter(_) => push_unique_effect_term(bindings, terms, effect)
     Union(effects) =>
       for nested in effects {
@@ -569,13 +570,6 @@ fn alpha_equal_parameter(
 }
 
 ///|
-pub fn Type::normalize(self : Type) -> Type {
-  self.try_normalize() catch {
-    TypeNormalizationFuelExhausted | EffectNormalizationFuelExhausted => Error
-  }
-}
-
-///|
 pub fn Type::try_normalize(self : Type) -> Type raise TypeComputationError {
   self.normalize_with_fuel(NORMALIZATION_DEPTH_LIMIT)
 }
@@ -622,13 +616,6 @@ fn Type::normalize_with_fuel(
       )
     Forall(parameters, body) =>
       Forall(parameters, body.normalize_with_fuel(fuel - 1))
-  }
-}
-
-///|
-pub fn Effect::normalize(self : Effect) -> Effect {
-  self.try_normalize() catch {
-    TypeNormalizationFuelExhausted | EffectNormalizationFuelExhausted => Empty
   }
 }
 
@@ -682,10 +669,12 @@ pub fn nominal_type_generic(
 }
 
 ///|
+/// Decomposes an already-normalized nominal type without running type-level
+/// computation.
 pub fn Type::decompose_nominal(
   self : Type,
 ) -> (TypeSymbolId, Array[GenericArgument])? {
-  match self.normalize() {
+  match self {
     Constructor(symbol) => Some((symbol, []))
     Apply(Constructor(symbol), arguments) => Some((symbol, arguments))
     _ => None

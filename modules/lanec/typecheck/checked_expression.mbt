@@ -44,7 +44,7 @@ fn SemanticChecker::expect_checked_type(
   actual : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  if !self.type_matches(expectation.type_, actual, loc) {
+  if self.type_matches(expectation.type_, actual, loc) is Some(false) {
     let kind = if actual.mentions_any_type_parameter(
         expectation.hidden_type_parameters,
       ) {
