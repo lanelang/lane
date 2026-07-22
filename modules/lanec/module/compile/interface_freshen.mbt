@@ -602,7 +602,10 @@ fn InterfaceSymbolFreshener::remap_type_parameter(
 ) -> @symbol.TypeParameterId {
   match self.lookup_type_parameter(source) {
     Some(target) => target
-    None => source
+    None =>
+      abort(
+        "missing canonical interface type parameter mapping for \{source.index}",
+      )
   }
 }
 

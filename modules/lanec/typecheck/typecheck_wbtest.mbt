@@ -6106,6 +6106,48 @@ test "generic inference records type computation failure" {
 }
 
 ///|
+test "generic inference reports a missing failure reason as internal" {
+  let file = expect_parse_ok("")
+  let resolution = @resolve.resolve_source_file_result(file)
+  let source = @desugar.desugar_source_file(resolution.source)
+  let checker = SemanticChecker::{
+    resolved_source: resolution.source,
+    source,
+    imported_environment: empty_imported_environment(),
+    declarations: {
+      types: [],
+      type_members: [],
+      fields: [],
+      variants: [],
+      effects: [],
+      operations: [],
+    },
+    diagnostics: [],
+    values: [],
+    value_types: [],
+    ordered_value_types: [],
+    offers: ContextualOfferScope(),
+    ordered_offers: ContextualOfferScope(),
+  }
+  checker.report_generic_argument_inference_failure(
+    "call generic arguments",
+    empty_generic_argument_inference(),
+    @basic.SourceSpan::dummy(),
+  )
+  guard checker.diagnostics
+    is [
+      {
+        kind: InternalTypecheckFailure(
+          label="generic argument inference failed without a recorded reason while inferring call generic arguments"
+        ),
+        ..,
+      },
+    ] else {
+    abort(@prettyprinter.render(checker.diagnostics, width=100))
+  }
+}
+
+///|
 test "generic inference rejects missing kind metadata" {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let nominal = registry.define_type(

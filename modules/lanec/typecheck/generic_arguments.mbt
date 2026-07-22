@@ -1525,9 +1525,12 @@ fn SemanticChecker::report_generic_argument_inference_failure(
   inference : GenericArgumentInference,
   loc : SourceSpan,
 ) -> Unit {
-  let failure = match inference.failure {
-    Some(failure) => failure
-    None => MissingGenericArguments(parameters=[])
+  guard inference.failure is Some(failure) else {
+    self.report_internal_typecheck_failure(
+      "generic argument inference failed without a recorded reason while inferring \{label}",
+      loc,
+    )
+    return
   }
   self.diagnostics.push({
     kind: GenericArgumentInferenceFailed(label~, failure~),
