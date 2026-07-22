@@ -1,0 +1,33 @@
+module Examples.Valid61
+
+pub offer fn offered_identity(value : Int) -> Int {
+  accept_identity()
+  value
+}
+
+fn accept_identity(auto _transform : (Int) -> Int) -> Unit {
+  ()
+}
+
+fn obtain(auto provider : () -> Int) -> Int {
+  provider()
+}
+
+pub fn local_answer() -> Int {
+  offer fn provide() -> Int {
+    42
+  }
+  obtain()
+}
+
+fn use_polymorphic(auto transform : [A](A) -> A) -> Int {
+  transform[Int](42)
+}
+
+offer fn[A] identity(value : A) -> A {
+  value
+}
+
+pub let top_level_answer : Int = offered_identity(42)
+
+pub let polymorphic_answer : Int = use_polymorphic()

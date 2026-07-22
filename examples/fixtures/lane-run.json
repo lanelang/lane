@@ -1421,6 +1421,23 @@
           "write a final expression before `}`"
         ]
       }
+    },
+    {
+      "name": "61 offered function definitions",
+      "file": "examples/valid/61_offered_function_definitions.lane",
+      "mode": "check"
+    },
+    {
+      "name": "invalid 69 generic offered function not specialized",
+      "file": "examples/invalid/69_generic_offered_function_not_specialized.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3013]",
+          "missing contextual offer",
+          "no visible offer matches required type `(Int) -> Int`"
+        ]
+      }
     }
   ]
 }

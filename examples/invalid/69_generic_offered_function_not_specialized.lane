@@ -1,0 +1,12 @@
+// invalid: a generic offered function is not specialized to satisfy a monomorphic contextual parameter
+module Examples.Invalid69
+
+fn use_monomorphic(auto transform : (Int) -> Int) -> Int {
+  transform(1)
+}
+
+offer fn[A] identity(value : A) -> A {
+  value
+}
+
+let answer : Int = use_monomorphic()
