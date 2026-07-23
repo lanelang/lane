@@ -44,114 +44,6 @@ test "surface expansion removes tuple and list sugar" {
 }
 
 ///|
-test "surface expansion records authored sugar provenance" {
-  let result = @parser.parse_string(
-    (
-      #|module Test
-      #|type Pair = (Int, Bool)
-      #|fn make() -> (Int, Bool) {
-      #|  [(1, true)]
-      #|}
-      #|fn first(value : (Int, Bool)) -> Int {
-      #|  match value {
-      #|    (head, _) => head
-      #|  }
-      #|}
-    ),
-  )
-  guard result.syntax() is Some(file) else { abort("expected parsed source") }
-  debug_inspect(
-    expand_source(file).presentations,
-    content=(
-      #|[
-      #|  TupleType(
-      #|    {
-      #|      start_offset: 24,
-      #|      end_offset: 35,
-      #|      start_line: 2,
-      #|      start_column: 13,
-      #|      end_line: 2,
-      #|      end_column: 24,
-      #|    },
-      #|  ),
-      #|  ValueType(
-      #|    loc={
-      #|      start_offset: 36,
-      #|      end_offset: 78,
-      #|      start_line: 3,
-      #|      start_column: 1,
-      #|      end_line: 5,
-      #|      end_column: 2,
-      #|    },
-      #|    text="() -> (Int, Bool)",
-      #|  ),
-      #|  TupleType(
-      #|    {
-      #|      start_offset: 49,
-      #|      end_offset: 60,
-      #|      start_line: 3,
-      #|      start_column: 14,
-      #|      end_line: 3,
-      #|      end_column: 25,
-      #|    },
-      #|  ),
-      #|  ListExpression(
-      #|    {
-      #|      start_offset: 65,
-      #|      end_offset: 76,
-      #|      start_line: 4,
-      #|      start_column: 3,
-      #|      end_line: 4,
-      #|      end_column: 14,
-      #|    },
-      #|  ),
-      #|  TupleExpression(
-      #|    {
-      #|      start_offset: 66,
-      #|      end_offset: 75,
-      #|      start_line: 4,
-      #|      start_column: 4,
-      #|      end_line: 4,
-      #|      end_column: 13,
-      #|    },
-      #|  ),
-      #|  ValueType(
-      #|    loc={
-      #|      start_offset: 79,
-      #|      end_offset: 161,
-      #|      start_line: 6,
-      #|      start_column: 1,
-      #|      end_line: 10,
-      #|      end_column: 2,
-      #|    },
-      #|    text="((Int, Bool)) -> Int",
-      #|  ),
-      #|  TupleType(
-      #|    {
-      #|      start_offset: 96,
-      #|      end_offset: 107,
-      #|      start_line: 6,
-      #|      start_column: 18,
-      #|      end_line: 6,
-      #|      end_column: 29,
-      #|    },
-      #|  ),
-      #|  TuplePattern(
-      #|    {
-      #|      start_offset: 138,
-      #|      end_offset: 147,
-      #|      start_line: 8,
-      #|      start_column: 5,
-      #|      end_line: 8,
-      #|      end_column: 14,
-      #|    },
-      #|  ),
-      #|]
-    ),
-  )
-}
-
-///|
 test "surface expansion records value signature presentation only for authored tuple sugar" {
   let result = @parser.parse_string(
     (
@@ -166,16 +58,11 @@ test "surface expansion records value signature presentation only for authored t
   )
   guard result.syntax() is Some(file) else { abort("expected parsed source") }
   debug_inspect(
-    expand_source(file).presentations.filter_map(fn(presentation) {
-      match presentation {
-        ValueType(loc~, text~) => Some((loc, text))
-        _ => None
-      }
-    }),
+    expand_source(file).value_type_presentations,
     content=(
       #|[
-      #|  (
-      #|    {
+      #|  {
+      #|    loc: {
       #|      start_offset: 12,
       #|      end_offset: 74,
       #|      start_line: 2,
@@ -183,8 +70,8 @@ test "surface expansion records value signature presentation only for authored t
       #|      end_line: 4,
       #|      end_column: 2,
       #|    },
-      #|    "(Int) -> (Int, Bool)",
-      #|  ),
+      #|    text: "(Int) -> (Int, Bool)",
+      #|  },
       #|]
     ),
   )

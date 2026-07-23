@@ -133,13 +133,10 @@ fn[T] surface_sugar_reached_resolver() -> T {
 
 ///|
 fn resolved_value_type_presentations(
-  presentations : Array[@surface.SurfacePresentation],
+  presentations : Array[@surface.SurfaceValueTypePresentation],
 ) -> Array[ResolvedValueTypePresentation] {
-  presentations.filter_map(fn(presentation) {
-    match presentation {
-      ValueType(loc~, text~) => Some({ loc, text })
-      _ => None
-    }
+  presentations.map(fn(presentation) {
+    { loc: presentation.loc, text: presentation.text }
   })
 }
 
@@ -159,7 +156,7 @@ pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult 
   )
   resolver.resolve_source_file_result(
     expanded.source,
-    resolved_value_type_presentations(expanded.presentations),
+    resolved_value_type_presentations(expanded.value_type_presentations),
   )
 }
 
@@ -182,7 +179,7 @@ pub fn resolve_source_file_with_imports_result(
   resolver.publish_imported_bindings(expanded.source, imported_environment)
   resolver.resolve_source_file_result(
     expanded.source,
-    resolved_value_type_presentations(expanded.presentations),
+    resolved_value_type_presentations(expanded.value_type_presentations),
   )
 }
 

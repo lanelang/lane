@@ -15,7 +15,7 @@ pub fn expand_source(@syntax.SourceFile) -> SurfaceExpansion
 // Types and methods
 pub(all) struct SurfaceExpansion {
   source : @syntax.SourceFile
-  presentations : Array[SurfacePresentation]
+  value_type_presentations : Array[SurfaceValueTypePresentation]
   generated_references : Array[SurfaceGeneratedReference]
 } derive(Eq, @debug.Debug)
 
@@ -24,12 +24,9 @@ pub(all) enum SurfaceGeneratedReference {
   Variant(type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 
-pub(all) enum SurfacePresentation {
-  TupleType(@basic.SourceSpan)
-  TupleExpression(@basic.SourceSpan)
-  TuplePattern(@basic.SourceSpan)
-  ListExpression(@basic.SourceSpan)
-  ValueType(loc~ : @basic.SourceSpan, text~ : String)
+pub(all) struct SurfaceValueTypePresentation {
+  loc : @basic.SourceSpan
+  text : String
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -1,10 +1,7 @@
 ///|
-pub(all) enum SurfacePresentation {
-  TupleType(@basic.SourceSpan)
-  TupleExpression(@basic.SourceSpan)
-  TuplePattern(@basic.SourceSpan)
-  ListExpression(@basic.SourceSpan)
-  ValueType(loc~ : @basic.SourceSpan, text~ : String)
+pub(all) struct SurfaceValueTypePresentation {
+  loc : @basic.SourceSpan
+  text : String
 } derive(Debug, Eq)
 
 ///|
@@ -16,25 +13,25 @@ pub(all) enum SurfaceGeneratedReference {
 ///|
 pub(all) struct SurfaceExpansion {
   source : @syntax.SourceFile
-  presentations : Array[SurfacePresentation]
+  value_type_presentations : Array[SurfaceValueTypePresentation]
   generated_references : Array[SurfaceGeneratedReference]
 } derive(Debug, Eq)
 
 ///|
 priv struct SurfaceExpander {
-  presentations : Array[SurfacePresentation]
+  value_type_presentations : Array[SurfaceValueTypePresentation]
   generated_references : Array[SurfaceGeneratedReference]
 }
 
 ///|
 pub fn expand_source(source : @syntax.SourceFile) -> SurfaceExpansion {
   let expander : SurfaceExpander = {
-    presentations: [],
+    value_type_presentations: [],
     generated_references: [],
   }
   {
     source: expander.expand_source(source),
-    presentations: expander.presentations,
+    value_type_presentations: expander.value_type_presentations,
     generated_references: expander.generated_references,
   }
 }
@@ -88,12 +85,10 @@ fn SurfaceExpander::record_function_type_presentation(
     loc=declaration.loc,
   )
   if signature.contains_tuple_sugar() {
-    self.presentations.push(
-      ValueType(
-        loc=declaration.loc,
-        text=@prettyprinter.render(signature, width=80),
-      ),
-    )
+    self.value_type_presentations.push({
+      loc: declaration.loc,
+      text: @prettyprinter.render(signature, width=80),
+    })
   }
 }
 
@@ -103,12 +98,10 @@ fn SurfaceExpander::record_let_type_presentation(
   declaration : @syntax.LetDeclaration,
 ) -> Unit {
   if declaration.type_annotation is Some(type_) && type_.contains_tuple_sugar() {
-    self.presentations.push(
-      ValueType(
-        loc=declaration.loc,
-        text=@prettyprinter.render(type_, width=80),
-      ),
-    )
+    self.value_type_presentations.push({
+      loc: declaration.loc,
+      text: @prettyprinter.render(type_, width=80),
+    })
   }
 }
 
@@ -271,7 +264,6 @@ fn SurfaceExpander::expand_type(
         loc~,
       )
     Tuple(items~, loc~) => {
-      self.presentations.push(TupleType(loc))
       self.generated_references.push(Type(name="Basic.Data.Tuple.Tuple", loc~))
       expand_right_nested(items, fn(item) { self.expand_type(item) }, fn(
         left,
@@ -394,7 +386,6 @@ fn SurfaceExpander::expand_expression(
         loc~,
       )
     ListLiteral(items~, loc~) => {
-      self.presentations.push(ListExpression(loc))
       if !items.is_empty() {
         self.generated_references.push(
           Variant(type_name="Basic.Data.List.List", variant="cons", loc~),
@@ -406,7 +397,6 @@ fn SurfaceExpander::expand_expression(
       self.expand_list_expression(items, 0, loc)
     }
     TupleLiteral(items~, loc~) => {
-      self.presentations.push(TupleExpression(loc))
       self.generated_references.push(
         Variant(type_name="Basic.Data.Tuple.Tuple", variant="tuple", loc~),
       )
@@ -648,7 +638,6 @@ fn SurfaceExpander::expand_pattern(
         loc~,
       )
     Tuple(items~, loc~) => {
-      self.presentations.push(TuplePattern(loc))
       self.generated_references.push(
         Variant(type_name="Basic.Data.Tuple.Tuple", variant="tuple", loc~),
       )
