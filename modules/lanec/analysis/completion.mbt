@@ -32,6 +32,8 @@ pub(all) struct CompletionEntry {
 ///|
 priv enum CompletionSpace {
   AnySpace
+  ValueSpace
+  PatternSpace
   TypeSpace
   EffectSpace
 }
@@ -314,13 +316,7 @@ fn CompletionIndex::add_identifier_entries(
   column : Int,
 ) -> Unit {
   for binding in module_.index.visible_bindings(line, column) {
-    let allowed = match binding.kind {
-      ValueBindingKind | FunctionBindingKind => completion_allows_value(space)
-      TypeBindingKind | TypeParameterBindingKind =>
-        completion_allows_type(space)
-      EffectBindingKind => completion_allows_effect(space)
-    }
-    if allowed {
+    if space.allows(binding.kind) {
       add_completion_entry(
         entries,
         source_id,
@@ -366,25 +362,18 @@ fn semantic_binding_sort_text(binding : SemanticBindingFact) -> String {
 }
 
 ///|
-fn completion_allows_value(space : CompletionSpace) -> Bool {
-  match space {
-    AnySpace => true
-    TypeSpace | EffectSpace => false
-  }
-}
-
-///|
-fn completion_allows_type(space : CompletionSpace) -> Bool {
-  match space {
-    AnySpace | TypeSpace => true
-    EffectSpace => false
-  }
-}
-
-///|
-fn completion_allows_effect(space : CompletionSpace) -> Bool {
-  match space {
-    AnySpace | TypeSpace | EffectSpace => true
+fn CompletionSpace::allows(
+  self : CompletionSpace,
+  kind : SemanticBindingKind,
+) -> Bool {
+  match (self, kind) {
+    (AnySpace, _) => true
+    (ValueSpace, ValueBindingKind | FunctionBindingKind) => true
+    (PatternSpace, TypeBindingKind) => true
+    (TypeSpace, TypeBindingKind | TypeParameterBindingKind | EffectBindingKind) =>
+      true
+    (EffectSpace, EffectBindingKind) => true
+    _ => false
   }
 }
 
@@ -894,7 +883,9 @@ fn completion_space_from_syntax_role(
   match role {
     Some(TypeIdentifier) => TypeSpace
     Some(EffectIdentifier) => EffectSpace
-    Some(ValueIdentifier) | Some(PatternIdentifier) | None => AnySpace
+    Some(ValueIdentifier) => ValueSpace
+    Some(PatternIdentifier) => PatternSpace
+    None => AnySpace
   }
 }
 

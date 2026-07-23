@@ -61,7 +61,7 @@ pub fn SyntacticIdentifierIndex::expected_identifier(
 
 ///|
 /// Returns the grammatical role at a source offset, or `None` when the syntax
-/// does not constrain the identifier to a type or effect position.
+/// does not constrain the identifier namespace.
 pub fn SyntacticIdentifierIndex::role_at(
   self : SyntacticIdentifierIndex,
   offset : Int,
@@ -222,21 +222,25 @@ fn collect_pattern_identifier_roles(
 ) -> Unit {
   match pattern {
     Wildcard(_)
-    | Binding(_, ..)
     | IntLiteral(_, ..)
     | DoubleLiteral(_, ..)
     | StringLiteral(_, ..)
     | BoolLiteral(_, ..) => ()
-    QualifiedVariant(type_name_loc~, arguments~, ..) => {
+    Binding(_, loc~) =>
+      push_syntactic_identifier_role(slots, loc, PatternIdentifier)
+    QualifiedVariant(type_name_loc~, variant_loc~, arguments~, ..) => {
       push_syntactic_identifier_role(slots, type_name_loc, TypeIdentifier)
+      push_syntactic_identifier_role(slots, variant_loc, PatternIdentifier)
       for argument in arguments {
         collect_pattern_identifier_roles(argument, slots)
       }
     }
-    UnqualifiedVariant(arguments~, ..) =>
+    UnqualifiedVariant(variant_loc~, arguments~, ..) => {
+      push_syntactic_identifier_role(slots, variant_loc, PatternIdentifier)
       for argument in arguments {
         collect_pattern_identifier_roles(argument, slots)
       }
+    }
     Struct(type_name_loc~, fields~, ..) => {
       push_syntactic_identifier_role(slots, type_name_loc, TypeIdentifier)
       for field in fields {
@@ -263,11 +267,18 @@ fn collect_expression_identifier_roles(
     | StringLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)
-    | Var(_)
     | Builtin(_)
     | Extern(_) => ()
-    QualifiedVariant(owner~, variant_type_arguments~, arguments~, ..) => {
+    Var(_, loc~) => push_syntactic_identifier_role(slots, loc, ValueIdentifier)
+    QualifiedVariant(
+      owner~,
+      variant_loc~,
+      variant_type_arguments~,
+      arguments~,
+      ..
+    ) => {
       collect_type_identifier_roles(owner, TypeIdentifier, slots)
+      push_syntactic_identifier_role(slots, variant_loc, ValueIdentifier)
       for argument in variant_type_arguments {
         collect_generic_argument_identifier_roles(argument, slots)
       }

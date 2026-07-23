@@ -1115,19 +1115,19 @@ test "completion classifies struct field initializers as value space" {
   let source =
     #|module Main
     #|
-    #|pub struct Thing {
+    #|pub struct make_type {
     #|  value : Int
     #|}
     #|
     #|pub fn make() -> Int { 0 }
     #|
-    #|pub let item : Thing = Thing::{ value: ma }
+    #|pub let item : make_type = make_type::{ value: ma }
   let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: source },
     [],
     "file:///Main.lane",
     9,
-    42,
+    50,
     Manual,
   )
   debug_inspect(
@@ -1287,6 +1287,138 @@ test "completion classifies an empty tuple type item as type space" {
     .filter(entry => entry.label == "Thing" || entry.label == "make")
     .map(entry => (entry.label, entry.kind)),
     content="[(\"Thing\", Type)]",
+  )
+}
+
+///|
+test "completion classifies an empty tuple expression item as value space" {
+  let valid_source =
+    #|module Main
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn pair() -> (Int, Int) {
+    #|  (1, make())
+    #|}
+  let edited_source =
+    #|module Main
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn pair() -> (Int, Int) {
+    #|  (1,
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: valid_source },
+    ])
+    is Some(_) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: edited_source,
+    })
+    is Some(snapshot) else {
+    abort("expected edited semantic snapshot")
+  }
+  let entries = snapshot.complete("file:///Main.lane", 10, 6, Manual)
+  debug_inspect(
+    entries
+    .filter(entry => entry.label == "Thing" || entry.label == "make")
+    .map(entry => (entry.label, entry.kind)),
+    content="[(\"make\", Function)]",
+  )
+}
+
+///|
+test "completion classifies an empty tuple pattern item as pattern space" {
+  let valid_source =
+    #|module Main
+    #|
+    #|pub struct make_type {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn use(value : (Int, Int)) -> Int {
+    #|  match value {
+    #|    (head, tail) => head
+    #|  }
+    #|}
+  let edited_source =
+    #|module Main
+    #|
+    #|pub struct make_type {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn use(value : (Int, Int)) -> Int {
+    #|  match value {
+    #|    (head,
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: valid_source },
+    ])
+    is Some(_) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: edited_source,
+    })
+    is Some(snapshot) else {
+    abort("expected edited semantic snapshot")
+  }
+  let entries = snapshot.complete("file:///Main.lane", 11, 11, Manual)
+  debug_inspect(
+    entries
+    .filter(entry => entry.label == "make_type" || entry.label == "make")
+    .map(entry => (entry.label, entry.kind)),
+    content="[(\"make_type\", Type)]",
+  )
+  let prefix_source =
+    #|module Main
+    #|
+    #|pub struct make_type {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn use(value : (Int, Int)) -> Int {
+    #|  match value {
+    #|    (head, ma) => head
+    #|  }
+    #|}
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: prefix_source,
+    })
+    is Some(prefix_snapshot) else {
+    abort("expected prefix semantic snapshot")
+  }
+  let prefix_entries = prefix_snapshot.complete(
+    "file:///Main.lane",
+    11,
+    14,
+    Manual,
+  )
+  debug_inspect(
+    prefix_entries
+    .filter(entry => entry.label == "make_type" || entry.label == "make")
+    .map(entry => (entry.label, entry.kind)),
+    content="[(\"make_type\", Type)]",
   )
 }
 
