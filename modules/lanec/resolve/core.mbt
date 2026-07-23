@@ -549,7 +549,7 @@ pub(all) enum ResolvedExpr {
   If(
     condition~ : ResolvedExpr,
     then_branch~ : ResolvedExpr,
-    else_branch~ : ResolvedExpr,
+    else_branch~ : ResolvedExpr?,
     loc~ : SourceSpan
   )
   Match(

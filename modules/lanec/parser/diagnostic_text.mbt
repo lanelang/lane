@@ -29,8 +29,6 @@ pub fn ParseErrorKind::diagnostic_title(self : ParseErrorKind) -> String {
       "struct spread is not supported"
     UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
       "variant constructor needs parentheses"
-    UnexpectedToken(_, _) if self.is_missing_final_else() =>
-      "`if` expression needs an `else` branch"
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       "variant patterns do not use leading `::`"
     UnexpectedToken(_, _) => "unexpected token"
@@ -61,8 +59,6 @@ pub fn ParseErrorKind::diagnostic_label(self : ParseErrorKind) -> String {
       "`..` spread is not part of Lane struct literals"
     UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
       "write empty parentheses after this payloadless constructor"
-    UnexpectedToken(_, _) if self.is_missing_final_else() =>
-      "add an `else` branch before the block ends"
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       "write the variant pattern without leading `::`"
     UnexpectedToken(token, _) => "the parser did not expect \{token.label}"
@@ -102,8 +98,6 @@ pub fn ParseErrorKind::diagnostic_notes(self : ParseErrorKind) -> Array[String] 
       ["Lane struct literals list their fields explicitly"]
     UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
       ["all enum variant constructors use parentheses in expressions"]
-    UnexpectedToken(_, _) if self.is_missing_final_else() =>
-      ["Lane `if` is an expression, so both branches must produce a value"]
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       ["unqualified variant patterns are written as `variant(...)`"]
     UnexpectedToken(_, expected) | UnexpectedEndOfInput(expected) =>
@@ -144,8 +138,6 @@ pub fn ParseErrorKind::diagnostic_helps(self : ParseErrorKind) -> Array[String] 
       ["write each field explicitly, for example `Point::{ x: 3, y: point.y }`"]
     UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
       ["write the constructor call with `()`"]
-    UnexpectedToken(_, _) if self.is_missing_final_else() =>
-      ["add `else { ... }`"]
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       ["use `none()` instead of `::none()`"]
     UnexpectedToken(_, expected) =>
@@ -253,15 +245,6 @@ fn ParseErrorKind::is_missing_variant_constructor_parens(
       token.label == "end of file" &&
       expected.contains_label("`(`") &&
       expected.contains_label("`[`")
-    _ => false
-  }
-}
-
-///|
-fn ParseErrorKind::is_missing_final_else(self : ParseErrorKind) -> Bool {
-  match self {
-    UnexpectedToken(token, expected) =>
-      token.label == "`}`" && expected.contains_label("`else`")
     _ => false
   }
 }

@@ -336,7 +336,9 @@ fn collect_expression_identifier_roles(
     If(condition~, then_branch~, else_branch~, ..) => {
       collect_expression_identifier_roles(condition, slots)
       collect_expression_identifier_roles(then_branch, slots)
-      collect_expression_identifier_roles(else_branch, slots)
+      if else_branch is Some(branch) {
+        collect_expression_identifier_roles(branch, slots)
+      }
     }
     Match(scrutinee~, arms~, ..) => {
       collect_expression_identifier_roles(scrutinee, slots)

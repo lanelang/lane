@@ -1541,20 +1541,22 @@ fn Expr::render_with_precedence(
     }
     If(condition~, then_branch~, else_branch~, ..) => {
       let then_doc = standalone_expr_doc(then_branch, trivia)
-      let else_head = boundary_separated(
-        then_doc,
-        keyword("else"),
-        then_branch.loc().end_offset,
-        else_branch.loc().start_offset,
-        trivia,
-      )
+      let body = match else_branch {
+        None => then_doc
+        Some(branch) => {
+          let else_head = boundary_separated(
+            then_doc,
+            keyword("else"),
+            then_branch.loc().end_offset,
+            branch.loc().start_offset,
+            trivia,
+          )
+          else_head + space + standalone_expr_doc(branch, trivia)
+        }
+      }
       rendered_expr(
         10,
-        breakable_head(keyword("if"), condition.to_doc(trivia~)) +
-        space +
-        else_head +
-        space +
-        standalone_expr_doc(else_branch, trivia),
+        breakable_head(keyword("if"), condition.to_doc(trivia~)) + space + body,
         leading_form=BareStructured,
       )
     }

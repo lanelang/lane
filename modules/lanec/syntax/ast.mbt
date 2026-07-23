@@ -344,7 +344,7 @@ pub(all) enum Expr {
   If(
     condition~ : Expr,
     then_branch~ : Expr,
-    else_branch~ : Expr,
+    else_branch~ : Expr?,
     loc~ : SourceSpan
   )
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : SourceSpan)

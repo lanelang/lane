@@ -858,14 +858,15 @@
       }
     },
     {
-      "name": "invalid 25 else-if missing final else",
-      "file": "examples/invalid/25_else_if_missing_final_else.lane",
+      "name": "invalid 25 else-omitting if with non-unit branches",
+      "file": "examples/invalid/25_else_omitting_if_non_unit.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
-          "`if` expression needs an `else` branch",
-          "add an `else` branch before the block ends"
+          "error[E3016]",
+          "`if` without `else` must produce `Unit`",
+          "this branch produces `Int`",
+          "add an `else` branch if this conditional should produce a value"
         ]
       }
     },
@@ -1425,6 +1426,11 @@
     {
       "name": "61 offered function definitions",
       "file": "examples/valid/61_offered_function_definitions.lane",
+      "mode": "check"
+    },
+    {
+      "name": "62 else-omitting conditionals",
+      "file": "examples/valid/62_else_omitting_conditionals.lane",
       "mode": "check"
     },
     {

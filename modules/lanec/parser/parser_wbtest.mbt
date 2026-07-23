@@ -582,12 +582,8 @@ test "parse newline after if expression as a sequence separator" {
       #|fn main(condition : Bool) -> Unit {
       #|  if condition {
       #|    ()
-      #|  } else {
-      #|    ()
       #|  }
       #|  if condition {
-      #|    ()
-      #|  } else {
       #|    ()
       #|  }
       #|}
@@ -1888,21 +1884,30 @@ test "parse rejects payloadless enum variant declaration syntax without parenthe
 }
 
 ///|
-test "parse rejects else-if chain without final else" {
-  debug_inspect(
-    parse_error_kinds(
-      (
-        #|fn choose(first : Bool, second : Bool) -> Int {
-        #|  if first {
-        #|    1
-        #|  } else if second {
-        #|    2
-        #|  }
-        #|}
-      ),
+test "parse accepts else-if chain without final else" {
+  let file = expect_parse_ok(
+    (
+      #|fn choose(first : Bool, second : Bool) -> Unit {
+      #|  if first {
+      #|    ()
+      #|  } else if second {
+      #|    ()
+      #|  }
+      #|}
     ),
+  )
+  inspect(
+    @prettyprinter.render(file),
     content=(
-      #|[UnexpectedToken({ label: "`}`" }, [{ label: "`else`" }])]
+      #|module Test
+      #|
+      #|fn choose(first : Bool, second : Bool) -> Unit {
+      #|  if first {
+      #|    ()
+      #|  } else if second {
+      #|    ()
+      #|  }
+      #|}
     ),
   )
 }

@@ -691,6 +691,39 @@ test "semantic workspace keeps healthy modules when another source cannot parse"
 }
 
 ///|
+test "semantic workspace accepts removing an explicit Unit else branch" {
+  let workspace = SemanticWorkspace::new()
+  let source_id = "file:///Main.lane"
+  let explicit =
+    #|module Main
+    #|
+    #|pub fn run(flag : Bool) -> Unit {
+    #|  if flag {
+    #|    ()
+    #|  } else {
+    #|    ()
+    #|  }
+    #|}
+  guard workspace.replace_sources([{ source_id, text: explicit }])
+    is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  assert_true(initial.diagnostics().is_empty())
+  let omitted =
+    #|module Main
+    #|
+    #|pub fn run(flag : Bool) -> Unit {
+    #|  if flag {
+    #|    ()
+    #|  }
+    #|}
+  guard workspace.upsert_source({ source_id, text: omitted }) is Some(updated) else {
+    abort("expected semantic snapshot after removing else")
+  }
+  debug_inspect(updated.diagnostics(), content="[]")
+}
+
+///|
 test "semantic workspace uses the last successful interface during parse recovery" {
   let workspace = SemanticWorkspace::new()
   let source_a =

@@ -6251,6 +6251,134 @@ test "typecheck accepts sequential unit expressions" {
 }
 
 ///|
+test "typecheck elaborates an omitted else to a zero-width Unit branch" {
+  let result = expect_checked_source_result(
+    (
+      #|fn run(flag : Bool) -> Unit {
+      #|  if flag {
+      #|    ()
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.source is Some(source) &&
+    source.declarations[0] is Function(declaration) &&
+    declaration.body
+    is Block(
+      result=If(
+        else_branch=Literal(literal=Unit, loc=else_loc, ..),
+        loc=if_loc,
+        ..
+      ),
+      ..
+    ) else {
+    abort("expected checked if with a synthetic Unit else branch")
+  }
+  assert_eq(if_loc.end_offset, else_loc.start_offset)
+  assert_eq(else_loc.start_offset, else_loc.end_offset)
+}
+
+///|
+test "typecheck rejects a value-producing if without else" {
+  let result = expect_checked_source_result(
+    (
+      #|fn choose(flag : Bool) -> Int {
+      #|  if flag {
+      #|    1
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[else-omitting conditional requires Unit, found Int @ 4:5-4:6]
+    ),
+  )
+}
+
+///|
+test "typecheck aggregates omitted-else mismatches across nested checking" {
+  let result = expect_checked_source_result(
+    (
+      #|fn choose(flag : Bool, branch : Bool) -> Int {
+      #|  if flag {
+      #|    match branch {
+      #|      true => 1
+      #|      false => ()
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[else-omitting conditional requires Unit, found Int @ 5:15-5:16]
+    ),
+  )
+}
+
+///|
+test "typecheck propagates an omitted-else mismatch through nested conditionals" {
+  let result = expect_checked_source_result(
+    (
+      #|fn choose(first : Bool, second : Bool) -> Int {
+      #|  if first {
+      #|    if second {
+      #|      1
+      #|    }
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[else-omitting conditional requires Unit, found Int @ 5:7-5:8]
+    ),
+  )
+}
+
+///|
+test "typecheck reports the surrounding mismatch for a well-typed omitted else" {
+  let result = expect_checked_source_result(
+    (
+      #|fn choose(flag : Bool) -> Int {
+      #|  if flag {
+      #|    ()
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[type_mismatch expected=Int actual=Unit @ 3:3-5:4]
+    ),
+  )
+}
+
+///|
+test "typecheck retains then-branch effects when else is omitted" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Console {
+      #|  log() -> Unit
+      #|}
+      #|fn run(flag : Bool) -> Unit ! Console {
+      #|  if flag {
+      #|    Console::log!()
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  assert_true(checked_function_effect(result, "run") is Singleton(_, _))
+}
+
+///|
 test "typecheck allows declarations between sequential unit expressions" {
   let result = expect_checked_source_result(
     (

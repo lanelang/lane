@@ -181,7 +181,7 @@ pub(all) enum DesugaredExpr {
   If(
     condition~ : DesugaredExpr,
     then_branch~ : DesugaredExpr,
-    else_branch~ : DesugaredExpr,
+    else_branch~ : DesugaredExpr?,
     loc~ : SourceSpan
   )
   Match(

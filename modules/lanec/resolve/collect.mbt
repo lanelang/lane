@@ -2224,7 +2224,9 @@ fn @syntax.Expr::resolve_expr(
       If(
         condition=condition.resolve_expr(resolver, scope),
         then_branch=then_branch.resolve_expr(resolver, scope),
-        else_branch=else_branch.resolve_expr(resolver, scope),
+        else_branch=else_branch.map(fn(branch) {
+          branch.resolve_expr(resolver, scope)
+        }),
         loc~,
       )
     Match(scrutinee~, arms~, loc~) =>

@@ -765,16 +765,18 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       docs.push(result.pretty())
       @pretty.braced_block(docs)
     }
-    If(condition~, then_branch~, else_branch~, ..) =>
-      text("if") +
-      space +
-      condition.pretty() +
-      space +
-      then_branch.pretty() +
-      space +
-      text("else") +
-      space +
-      else_branch.pretty()
+    If(condition~, then_branch~, else_branch~, ..) => {
+      let conditional = text("if") +
+        space +
+        condition.pretty() +
+        space +
+        then_branch.pretty()
+      match else_branch {
+        None => conditional
+        Some(branch) =>
+          conditional + space + text("else") + space + branch.pretty()
+      }
+    }
     Match(scrutinee~, arms~, ..) =>
       text("match") +
       space +

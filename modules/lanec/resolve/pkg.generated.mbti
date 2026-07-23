@@ -146,7 +146,7 @@ pub(all) enum ResolvedExpr {
   GenericApplication(callee~ : ResolvedExpr, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Handler(body~ : ResolvedExpr, handlers~ : Array[ResolvedHandlerWithBlock], final_branch~ : ResolvedHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[ResolvedLocalItem], result~ : ResolvedExpr, loc~ : @basic.SourceSpan)
-  If(condition~ : ResolvedExpr, then_branch~ : ResolvedExpr, else_branch~ : ResolvedExpr, loc~ : @basic.SourceSpan)
+  If(condition~ : ResolvedExpr, then_branch~ : ResolvedExpr, else_branch~ : ResolvedExpr?, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : ResolvedExpr, arms~ : Array[ResolvedMatchArm], loc~ : @basic.SourceSpan)
   Call(callee~ : ResolvedExpr, arguments~ : Array[ResolvedCallArgument], loc~ : @basic.SourceSpan)
   Field(base~ : ResolvedExpr, name~ : String, name_loc~ : @basic.SourceSpan, reference~ : ResolvedFieldReference, loc~ : @basic.SourceSpan)

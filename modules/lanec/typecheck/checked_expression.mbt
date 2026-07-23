@@ -13,14 +13,21 @@ priv struct CheckedCallArguments {
 }
 
 ///|
+priv enum CheckedMismatchContext {
+  OrdinaryMismatch
+  ElseOmittingConditionalMismatch(result~ : Ref[Bool?])
+}
+
+///|
 priv struct CheckedExpectation {
   type_ : @types.Type
   hidden_type_parameters : Array[TypeParameterId]
+  mismatch_context : CheckedMismatchContext
 }
 
 ///|
 fn checked_expectation(type_ : @types.Type) -> CheckedExpectation {
-  { type_, hidden_type_parameters: [] }
+  { type_, hidden_type_parameters: [], mismatch_context: OrdinaryMismatch }
 }
 
 ///|
@@ -38,19 +45,55 @@ fn CheckedExpectation::with_hidden_type_parameters(
 }
 
 ///|
+fn CheckedExpectation::for_else_omitting_conditional(
+  self : CheckedExpectation,
+  result : Ref[Bool?],
+) -> CheckedExpectation {
+  { ..self, mismatch_context: ElseOmittingConditionalMismatch(result~) }
+}
+
+///|
+fn merge_checked_expectation_result(
+  accumulated : Bool?,
+  current : Bool?,
+) -> Bool? {
+  match (accumulated, current) {
+    (Some(false), _) | (_, Some(false)) => Some(false)
+    (None, _) | (_, None) => None
+    (Some(true), Some(true)) => Some(true)
+  }
+}
+
+///|
+fn CheckedExpectation::record_match_result(
+  self : CheckedExpectation,
+  current : Bool?,
+) -> Unit {
+  if self.mismatch_context is ElseOmittingConditionalMismatch(result~) {
+    result.val = merge_checked_expectation_result(result.val, current)
+  }
+}
+
+///|
 fn SemanticChecker::expect_checked_type(
   self : SemanticChecker,
   expectation : CheckedExpectation,
   actual : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  if self.type_matches(expectation.type_, actual, loc) is Some(false) {
+  let matches = self.type_matches(expectation.type_, actual, loc)
+  expectation.record_match_result(matches)
+  if matches is Some(false) {
     let kind = if actual.mentions_any_type_parameter(
         expectation.hidden_type_parameters,
       ) {
       HiddenTypeEscape(type_=actual)
     } else {
-      TypeMismatch(expected=expectation.type_, actual~)
+      match expectation.mismatch_context {
+        OrdinaryMismatch => TypeMismatch(expected=expectation.type_, actual~)
+        ElseOmittingConditionalMismatch(..) =>
+          ElseOmittingConditionalRequiresUnit(actual~)
+      }
     }
     self.diagnostics.push({ kind, loc })
   }
@@ -520,10 +563,21 @@ fn SemanticChecker::check_checked_if(
   scope : TypeScope,
   condition : @desugar.DesugaredExpr,
   then_branch : @desugar.DesugaredExpr,
-  else_branch : @desugar.DesugaredExpr,
+  else_branch : @desugar.DesugaredExpr?,
   expectation : CheckedExpectation,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  guard else_branch is Some(else_branch) else {
+    let (checked, then_matches_unit) = self.check_else_omitting_if(
+      scope, condition, then_branch, loc,
+    )
+    if then_matches_unit is Some(true) {
+      self.expect_checked_type(expectation, Primitive(Unit), loc)
+    } else {
+      expectation.record_match_result(then_matches_unit)
+    }
+    return checked
+  }
   // Gamma |- condition <= Bool ~~> checked_condition
   // Gamma |- then <= Expected ~~> checked_then
   // Gamma |- else <= Expected ~~> checked_else
@@ -575,9 +629,12 @@ fn SemanticChecker::synthesize_checked_if(
   scope : TypeScope,
   condition : @desugar.DesugaredExpr,
   then_branch : @desugar.DesugaredExpr,
-  else_branch : @desugar.DesugaredExpr,
+  else_branch : @desugar.DesugaredExpr?,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  guard else_branch is Some(else_branch) else {
+    return self.check_else_omitting_if(scope, condition, then_branch, loc).0
+  }
   // Gamma |- condition <= Bool ~~> checked_condition
   // Gamma |- then => T ~~> checked_then
   // Gamma |- else <= T ~~> checked_else
@@ -615,6 +672,67 @@ fn SemanticChecker::synthesize_checked_if(
       checked_then_branch.effect,
       checked_else_branch.effect,
     ]),
+  )
+}
+
+///|
+fn SemanticChecker::check_else_omitting_if(
+  self : SemanticChecker,
+  scope : TypeScope,
+  condition : @desugar.DesugaredExpr,
+  then_branch : @desugar.DesugaredExpr,
+  loc : SourceSpan,
+) -> (CheckedExpressionSynthesis, Bool?) {
+  let checked_condition = self.check_checked_expr(
+    scope,
+    condition,
+    Primitive(Bool),
+  )
+  guard self.require_checked_expression(checked_condition, loc, "if condition")
+    is Some(condition) else {
+    return (checked_expression_none_reported(Primitive(Unit)), None)
+  }
+  let unit_type : @types.Type = Primitive(Unit)
+  let then_matches_unit : Ref[Bool?] = Ref(Some(true))
+  let checked_then_branch = self.check_checked_expr_with_expectation(
+    scope,
+    then_branch,
+    checked_expectation(unit_type).for_else_omitting_conditional(
+      then_matches_unit,
+    ),
+  )
+  guard self.require_checked_expression(
+      checked_then_branch, loc, "if then branch",
+    )
+    is Some(then_branch_expr) else {
+    return (checked_expression_none_reported(unit_type), None)
+  }
+  let else_loc : SourceSpan = {
+    start_offset: loc.end_offset,
+    end_offset: loc.end_offset,
+    start_line: loc.end_line,
+    start_column: loc.end_column,
+    end_line: loc.end_line,
+    end_column: loc.end_column,
+  }
+  let else_branch : @checked.CheckedExpr = Literal(
+    literal=Unit,
+    type_=unit_type,
+    loc=else_loc,
+  )
+  (
+    checked_expression_with_effect(
+      If(
+        condition~,
+        then_branch=then_branch_expr,
+        else_branch~,
+        type_=unit_type,
+        loc~,
+      ),
+      unit_type,
+      effect_union([checked_condition.effect, checked_then_branch.effect]),
+    ),
+    then_matches_unit.val,
   )
 }
 

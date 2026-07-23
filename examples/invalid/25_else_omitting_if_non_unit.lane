@@ -1,0 +1,10 @@
+// invalid: every branch in an else-if chain without a final else must produce Unit
+module Examples.Invalid.ElseOmittingIfNonUnit
+
+pub fn choose(first : Bool, second : Bool) -> Unit {
+  if first {
+    ()
+  } else if second {
+    2
+  }
+}

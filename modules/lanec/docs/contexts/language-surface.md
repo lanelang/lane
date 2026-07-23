@@ -66,8 +66,12 @@ A scoped expression containing local value or function bindings followed by a fi
 _Avoid_: statement block, local type scope
 
 **Conditional Expression**:
-An `if` expression with both then and else branches, where both branches have the same type.
-_Avoid_: statement if, optional else
+An `if` expression whose condition has type `Bool`, with either a same-typed `else` branch or the **Else-Omitting Conditional Expression** form.
+_Avoid_: statement if, conditional statement
+
+**Else-Omitting Conditional Expression**:
+A conditional expression without an authored `else`. Its then branch and whole expression have type `Unit`, and the omitted path denotes `()`. It may appear in any `Unit` context, and source formatting preserves the omission without collapsing an explicit `else { () }`.
+_Avoid_: statement if, optional-else statement, implicit result discard
 
 **Sequential Local Binding**:
 A local binding that is visible only to later items in the same block.
@@ -159,6 +163,7 @@ _Avoid_: enum variant, nominal constructor
 - Top-level **Offered Function Definitions** participate in the **Recursive Definition Group** and are available as offers to every top-level function body regardless of textual order.
 - A function uses an **Explicit Named Function Signature**, **Arrow Return Type**, and **Block Function Body**.
 - A **Block Expression** may contain **Sequential Local Bindings**, **Sequential Local Functions**, and **Sequential Unit Expressions** followed by exactly one final expression.
+- An `else if` chain ending in an **Else-Omitting Conditional Expression** has type `Unit`, so every branch in the chain must have type `Unit`.
 - Local value names may shadow earlier value names; ordinary value bindings in the same scope must have distinct names.
 - Lane functions are **Uncurried Functions** and may still be **First-Class Function Values**.
 - Enum variants in expressions may be **Qualified Variants** or unambiguous **Unqualified Variants**.

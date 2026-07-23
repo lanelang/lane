@@ -261,7 +261,7 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
       If(
         condition=desugar_expr(condition),
         then_branch=desugar_expr(then_branch),
-        else_branch=desugar_expr(else_branch),
+        else_branch=else_branch.map(desugar_expr),
         loc~,
       )
     Match(scrutinee~, arms~, loc~) =>

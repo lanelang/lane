@@ -80,7 +80,9 @@ pub fn ResolvedExpr::for_each_child_expr(
     If(condition~, then_branch~, else_branch~, ..) => {
       visit(condition)
       visit(then_branch)
-      visit(else_branch)
+      if else_branch is Some(branch) {
+        visit(branch)
+      }
     }
     Match(scrutinee~, arms~, ..) => {
       visit(scrutinee)

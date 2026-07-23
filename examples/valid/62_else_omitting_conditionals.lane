@@ -1,0 +1,24 @@
+module Examples.Valid.ElseOmittingConditionals
+
+pub fn run(flag : Bool) -> Unit {
+  if flag {
+    ()
+  }
+}
+
+pub fn run_chain(first : Bool, second : Bool) -> Unit {
+  if first {
+    ()
+  } else if second {
+    ()
+  }
+}
+
+pub fn run_sequence(first : Bool, second : Bool) -> Unit {
+  if first {
+    ()
+  }
+  if second {
+    ()
+  }
+}

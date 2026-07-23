@@ -295,6 +295,24 @@ fn typecheck_diagnostic(
           "change the expression type or adjust the annotation/expected type",
         ],
       )
+    ElseOmittingConditionalRequiresUnit(actual~) =>
+      diagnostic(
+        "`if` without `else` must produce `Unit`",
+        span~,
+        severity=Error,
+        code=Some("E3016"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "this branch produces `\{display.type_text(actual)}`, but an `if` without `else` must produce `Unit`",
+            style: Primary,
+          },
+        ],
+        notes=["the omitted branch produces `Unit` as `()`"],
+        helps=[
+          "add an `else` branch if this conditional should produce a value",
+        ],
+      )
     EffectMismatch(expected~, actual~) =>
       diagnostic(
         "effect mismatch",

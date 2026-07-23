@@ -1008,6 +1008,41 @@ test "format source keeps else-if chains parseable" {
 }
 
 ///|
+test "format source preserves omitted else and its trailing comment" {
+  let source =
+    #|module Test
+    #|pub fn run(flag : Bool) -> Unit {
+    #|  if flag { () } // keep
+    #|  ()
+    #|}
+    #|pub fn explicit(flag : Bool) -> Unit {
+    #|  if flag { () } else { () }
+    #|}
+  assert_format(
+    source,
+    (
+      #|module Test
+      #|
+      #|pub fn run(flag : Bool) -> Unit {
+      #|  if flag {
+      #|    ()
+      #|  } // keep
+      #|  ()
+      #|}
+      #|
+      #|pub fn explicit(flag : Bool) -> Unit {
+      #|  if flag {
+      #|    ()
+      #|  } else {
+      #|    ()
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source keeps selective imports parseable" {
   let source =
     #|module Test

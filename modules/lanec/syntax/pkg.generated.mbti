@@ -114,7 +114,7 @@ pub(all) enum Expr {
   TypeApplication(callee~ : Expr, arguments~ : Array[GenericArgument], loc~ : @basic.SourceSpan)
   Handler(body~ : Expr, handlers~ : Array[HandlerWithBlock], final_branch~ : HandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[LocalItem], result~ : Expr, loc~ : @basic.SourceSpan)
-  If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr, loc~ : @basic.SourceSpan)
+  If(condition~ : Expr, then_branch~ : Expr, else_branch~ : Expr?, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : Expr, arms~ : Array[MatchArm], loc~ : @basic.SourceSpan)
   Call(callee~ : Expr, arguments~ : Array[CallArgument], loc~ : @basic.SourceSpan)
   Field(base~ : Expr, name~ : String, name_loc~ : @basic.SourceSpan, loc~ : @basic.SourceSpan)

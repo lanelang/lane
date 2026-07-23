@@ -112,7 +112,9 @@ fn SemanticChecker::check_monomorphic_function_literal(
       None => body_scope
     },
     body,
-    { type_: expected_result, hidden_type_parameters },
+    checked_expectation(expected_result).with_hidden_type_parameters(
+      hidden_type_parameters,
+    ),
   )
   let inferred_effect = match checked_effect {
     Some(effect) => {

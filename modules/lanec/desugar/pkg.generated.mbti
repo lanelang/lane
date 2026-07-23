@@ -35,7 +35,7 @@ pub(all) enum DesugaredExpr {
   GenericApplication(callee~ : DesugaredExpr, arguments~ : Array[@resolve.ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Handler(body~ : DesugaredExpr, handlers~ : Array[DesugaredHandlerWithBlock], final_branch~ : DesugaredHandlerFinalBranch, loc~ : @basic.SourceSpan)
   Block(items~ : Array[DesugaredLocalItem], result~ : DesugaredExpr, loc~ : @basic.SourceSpan)
-  If(condition~ : DesugaredExpr, then_branch~ : DesugaredExpr, else_branch~ : DesugaredExpr, loc~ : @basic.SourceSpan)
+  If(condition~ : DesugaredExpr, then_branch~ : DesugaredExpr, else_branch~ : DesugaredExpr?, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : DesugaredExpr, arms~ : Array[DesugaredMatchArm], loc~ : @basic.SourceSpan)
   Call(callee~ : DesugaredExpr, arguments~ : Array[DesugaredCallArgument], loc~ : @basic.SourceSpan)
   Field(base~ : DesugaredExpr, name~ : String, name_loc~ : @basic.SourceSpan, reference~ : @resolve.ResolvedFieldReference, loc~ : @basic.SourceSpan)
