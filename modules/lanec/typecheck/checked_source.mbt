@@ -149,7 +149,7 @@ fn SemanticChecker::checked_top_level_function(
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> @checked.CheckedTopLevelDeclaration? {
   let parameters = self.checked_value_parameters(declaration.parameters)
-  let body_scope = self.function_body_scope(
+  let body_scope = function_body_scope(
     self.root_scope(),
     declaration.type_parameters,
     parameters,
@@ -228,11 +228,11 @@ fn SemanticChecker::checked_top_level_let(
     type_,
     parameters: None,
   })
-  if declaration.is_offered {
-    self.offer_symbol(
+  if declaration.is_offered && declaration.name is Some(name) {
+    offer_symbol(
       self.ordered_offers,
       declaration.symbol,
-      declaration.name,
+      name,
       type_,
       declaration.loc,
     )
@@ -320,13 +320,7 @@ fn SemanticChecker::check_checked_local_let(
   }
   scope.bind(declaration.symbol, name, type_)
   if declaration.is_offered {
-    self.bind_offer_symbol(
-      scope,
-      declaration.symbol,
-      declaration.name,
-      type_,
-      declaration.loc,
-    )
+    bind_offer_symbol(scope, declaration.symbol, name, type_, declaration.loc)
   }
   let initializer_context = if declaration.is_offered {
     "local offer initializer"
@@ -417,15 +411,15 @@ fn SemanticChecker::check_checked_local_function(
   let parameters = self.checked_value_parameters(declaration.parameters)
   scope.bind_function(declaration.symbol, declaration.name, type_, parameters)
   if declaration.is_offered {
-    self.bind_offer_symbol(
+    bind_offer_symbol(
       scope,
       declaration.symbol,
-      Some(declaration.name),
+      declaration.name,
       type_,
       declaration.loc,
     )
   }
-  let body_scope = self.function_body_scope(
+  let body_scope = function_body_scope(
     scope,
     declaration.type_parameters,
     parameters,

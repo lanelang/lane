@@ -19,14 +19,14 @@ priv struct GenericArgumentInference {
   bindings : Array[GenericArgumentBinding]
   mut failure : GenericArgumentInferenceFailure?
   mut failure_loc : SourceSpan?
-  mut internal_failure : GenericArgumentInferenceInternalFailure?
+  mut computation_error : @types.TypeComputationError?
+  mut missing_kind_metadata : GenericArgumentKindMetadataFailure?
 }
 
 ///|
-priv enum GenericArgumentInferenceInternalFailure {
-  TypeComputationFailure(@types.TypeComputationError)
-  MissingNominalKindMetadata(TypeSymbolId)
-  MissingTypeParameterKindMetadata(TypeParameterId)
+priv enum GenericArgumentKindMetadataFailure {
+  Nominal(TypeSymbolId)
+  TypeParameter(TypeParameterId)
 }
 
 ///|
@@ -106,7 +106,8 @@ fn GenericArgumentInference::GenericArgumentInference(
     bindings: [],
     failure: None,
     failure_loc: None,
-    internal_failure: None,
+    computation_error: None,
+    missing_kind_metadata: None,
   }
 }
 
@@ -136,16 +137,18 @@ fn GenericArgumentInference::record_computation_error(
   self : GenericArgumentInference,
   error : @types.TypeComputationError,
 ) -> Unit {
-  self.record_internal_failure(TypeComputationFailure(error))
+  if self.computation_error is None {
+    self.computation_error = Some(error)
+  }
 }
 
 ///|
-fn GenericArgumentInference::record_internal_failure(
+fn GenericArgumentInference::record_missing_kind_metadata(
   self : GenericArgumentInference,
-  failure : GenericArgumentInferenceInternalFailure,
+  failure : GenericArgumentKindMetadataFailure,
 ) -> Unit {
-  if self.internal_failure is None {
-    self.internal_failure = Some(failure)
+  if self.missing_kind_metadata is None {
+    self.missing_kind_metadata = Some(failure)
   }
 }
 
@@ -424,7 +427,7 @@ fn GenericArgumentInference::nominal_type_kind(
   if self.declarations.checked_external_type(symbol) is Some(_) {
     return Some(Type)
   }
-  self.record_internal_failure(MissingNominalKindMetadata(symbol))
+  self.record_missing_kind_metadata(Nominal(symbol))
   None
 }
 
@@ -447,7 +450,7 @@ fn GenericArgumentInference::type_parameter_kind(
     Some(kind) => return Some(kind)
     None => ()
   }
-  self.record_internal_failure(MissingTypeParameterKindMetadata(symbol))
+  self.record_missing_kind_metadata(TypeParameter(symbol))
   None
 }
 
@@ -1166,33 +1169,6 @@ fn SemanticChecker::report_internal_typecheck_failure(
 }
 
 ///|
-fn report_generic_argument_inference_internal_failure(
-  diagnostics : Array[TypeCheckDiagnostic],
-  label : String,
-  loc : SourceSpan,
-  failure : GenericArgumentInferenceInternalFailure,
-) -> Unit {
-  match failure {
-    TypeComputationFailure(error) =>
-      report_type_computation_failure(diagnostics, label, loc, error)
-    MissingNominalKindMetadata(symbol) =>
-      diagnostics.push({
-        kind: InternalTypecheckFailure(
-          label="missing kind metadata for nominal type identity \{symbol.index} while inferring \{label}",
-        ),
-        loc,
-      })
-    MissingTypeParameterKindMetadata(symbol) =>
-      diagnostics.push({
-        kind: InternalTypecheckFailure(
-          label="missing kind metadata for type parameter identity \{symbol.index} while inferring \{label}",
-        ),
-        loc,
-      })
-  }
-}
-
-///|
 fn SemanticChecker::report_application_arity(
   self : SemanticChecker,
   label : String,
@@ -1336,12 +1312,23 @@ fn SemanticChecker::infer_application_generic_arguments(
       inference.set_failure_loc_if_missing(argument.loc())
     }
   }
-  if inference.internal_failure is Some(failure) {
-    report_generic_argument_inference_internal_failure(
+  if inference.computation_error is Some(error) {
+    report_type_computation_failure(
       self.diagnostics,
       evidence.failure_label,
       evidence.loc,
-      failure,
+      error,
+    )
+    return None
+  }
+  if inference.missing_kind_metadata is Some(failure) {
+    let subject = match failure {
+      Nominal(symbol) => "nominal type identity \{symbol.index}"
+      TypeParameter(symbol) => "type parameter identity \{symbol.index}"
+    }
+    self.report_internal_typecheck_failure(
+      "missing kind metadata for \{subject} while inferring \{evidence.failure_label}",
+      evidence.loc,
     )
     return None
   }

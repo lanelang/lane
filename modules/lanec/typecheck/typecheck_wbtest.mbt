@@ -985,33 +985,6 @@ test "contextual offers do not share a fallback name" {
 }
 
 ///|
-test "contextual offer requires a declaration name" {
-  let diagnostics : Array[TypeCheckDiagnostic] = []
-  assert_eq(
-    require_contextual_offer_name(diagnostics, None, @basic.SourceSpan::dummy()),
-    None,
-  )
-  debug_inspect(
-    diagnostics,
-    content=(
-      #|[
-      #|  {
-      #|    kind: InternalTypecheckFailure(label="offered binding is missing its declaration name"),
-      #|    loc: {
-      #|      start_offset: 0,
-      #|      end_offset: 0,
-      #|      start_line: 1,
-      #|      start_column: 1,
-      #|      end_line: 1,
-      #|      end_column: 1,
-      #|    },
-      #|  },
-      #|]
-    ),
-  )
-}
-
-///|
 test "typecheck inner ordinary binding hides same-named outer offer" {
   let result = expect_typecheck_result(
     (
@@ -6100,8 +6073,7 @@ test "generic inference records type computation failure" {
     ),
   )
   assert_true(
-    inference.internal_failure
-    is Some(TypeComputationFailure(TypeNormalizationFuelExhausted)),
+    inference.computation_error is Some(TypeNormalizationFuelExhausted),
   )
 }
 
@@ -6168,8 +6140,7 @@ test "generic inference rejects missing kind metadata" {
     ),
   )
   assert_true(
-    inference.internal_failure is Some(MissingNominalKindMetadata(id)) &&
-    id == nominal,
+    inference.missing_kind_metadata is Some(Nominal(id)) && id == nominal,
   )
   let parameter_inference = empty_generic_argument_inference()
   assert_false(
@@ -6179,8 +6150,7 @@ test "generic inference rejects missing kind metadata" {
     ),
   )
   assert_true(
-    parameter_inference.internal_failure
-    is Some(MissingTypeParameterKindMetadata(id)) &&
+    parameter_inference.missing_kind_metadata is Some(TypeParameter(id)) &&
     id == parameter,
   )
 }
@@ -6195,63 +6165,6 @@ test "generic inference reads external nominal kind metadata" {
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
-}
-
-///|
-test "generic inference reports missing kind metadata as internal failures" {
-  let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let nominal = registry.define_type(
-    "Missing",
-    Struct,
-    0,
-    @basic.SourceSpan::dummy(),
-  )
-  let parameter = registry.define_type_parameter(
-    "Missing",
-    @basic.SourceSpan::dummy(),
-  )
-  let diagnostics : Array[TypeCheckDiagnostic] = []
-  report_generic_argument_inference_internal_failure(
-    diagnostics,
-    "call generic arguments",
-    @basic.SourceSpan::dummy(),
-    MissingNominalKindMetadata(nominal),
-  )
-  report_generic_argument_inference_internal_failure(
-    diagnostics,
-    "call generic arguments",
-    @basic.SourceSpan::dummy(),
-    MissingTypeParameterKindMetadata(parameter),
-  )
-  debug_inspect(
-    diagnostics,
-    content=(
-      #|[
-      #|  {
-      #|    kind: InternalTypecheckFailure(label="missing kind metadata for nominal type identity 0 while inferring call generic arguments"),
-      #|    loc: {
-      #|      start_offset: 0,
-      #|      end_offset: 0,
-      #|      start_line: 1,
-      #|      start_column: 1,
-      #|      end_line: 1,
-      #|      end_column: 1,
-      #|    },
-      #|  },
-      #|  {
-      #|    kind: InternalTypecheckFailure(label="missing kind metadata for type parameter identity 0 while inferring call generic arguments"),
-      #|    loc: {
-      #|      start_offset: 0,
-      #|      end_offset: 0,
-      #|      start_line: 1,
-      #|      start_column: 1,
-      #|      end_line: 1,
-      #|      end_column: 1,
-      #|    },
-      #|  },
-      #|]
-    ),
-  )
 }
 
 ///|

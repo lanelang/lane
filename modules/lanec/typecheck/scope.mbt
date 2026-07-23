@@ -183,8 +183,7 @@ fn TypeScope::with_type_parameter_kinds(
 }
 
 ///|
-fn SemanticChecker::function_body_scope(
-  self : SemanticChecker,
+fn function_body_scope(
   parent : TypeScope,
   type_parameters : Array[@resolve.ResolvedTypeParameter],
   parameters : Array[@checked.CheckedValueParameter],
@@ -193,10 +192,10 @@ fn SemanticChecker::function_body_scope(
   for parameter in parameters {
     scope.bind(parameter.symbol, parameter.name, parameter.type_)
     if parameter.is_offered {
-      self.bind_offer_symbol(
+      bind_offer_symbol(
         scope,
         parameter.symbol,
-        Some(parameter.name),
+        parameter.name,
         parameter.type_,
         parameter.loc,
       )
@@ -220,17 +219,13 @@ fn TypeScope::type_parameter_kind(
 }
 
 ///|
-fn SemanticChecker::offer_symbol(
-  self : SemanticChecker,
+fn offer_symbol(
   offers : ContextualOfferScope,
   symbol : ValueSymbolId,
-  name : String?,
+  name : String,
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  guard require_contextual_offer_name(self.diagnostics, name, loc) is Some(name) else {
-    return
-  }
   offer_symbol_with_source_id(offers, symbol, name, type_, None, loc)
 }
 
@@ -247,38 +242,14 @@ fn offer_symbol_with_source_id(
 }
 
 ///|
-fn SemanticChecker::bind_offer_symbol(
-  self : SemanticChecker,
+fn bind_offer_symbol(
   scope : TypeScope,
   symbol : ValueSymbolId,
-  name : String?,
+  name : String,
   type_ : @types.Type,
   loc : SourceSpan,
 ) -> Unit {
-  guard require_contextual_offer_name(self.diagnostics, name, loc) is Some(name) else {
-    return
-  }
   scope.offers.bind(contextual_offer(symbol, name, type_, None, loc))
-}
-
-///|
-fn require_contextual_offer_name(
-  diagnostics : Array[TypeCheckDiagnostic],
-  name : String?,
-  loc : SourceSpan,
-) -> String? {
-  match name {
-    Some(name) => Some(name)
-    None => {
-      diagnostics.push({
-        kind: InternalTypecheckFailure(
-          label="offered binding is missing its declaration name",
-        ),
-        loc,
-      })
-      None
-    }
-  }
 }
 
 ///|

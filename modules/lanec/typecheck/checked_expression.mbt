@@ -1013,7 +1013,7 @@ fn SemanticChecker::synthesize_checked_function_literal(
   let (parameter_types, checked_parameters) = self.synthesize_function_literal_parameters(
     parameters,
   )
-  let body_scope = self.function_body_scope(
+  let body_scope = function_body_scope(
     scope, type_parameters, checked_parameters,
   )
   let checked_effect = match effect {

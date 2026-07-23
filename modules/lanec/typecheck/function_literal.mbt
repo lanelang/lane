@@ -101,7 +101,7 @@ fn SemanticChecker::check_monomorphic_function_literal(
       Some(self.check_effect(effect_annotation))
     (None, None) => None
   }
-  let body_scope = self.function_body_scope(
+  let body_scope = function_body_scope(
     scope.without_expected_effect(),
     [],
     checked_parameters,

@@ -188,17 +188,17 @@ fn SemanticChecker::collect_top_level_function_type(
     }),
   )
   if declaration.is_offered {
-    self.offer_symbol(
+    offer_symbol(
       self.offers,
       declaration.symbol,
-      Some(declaration.name),
+      declaration.name,
       type_,
       declaration.loc,
     )
-    self.offer_symbol(
+    offer_symbol(
       self.ordered_offers,
       declaration.symbol,
-      Some(declaration.name),
+      declaration.name,
       type_,
       declaration.loc,
     )
@@ -217,11 +217,11 @@ fn SemanticChecker::collect_top_level_let_type(
       type_,
       parameters: None,
     })
-    if declaration.is_offered {
-      self.offer_symbol(
+    if declaration.is_offered && declaration.name is Some(name) {
+      offer_symbol(
         self.offers,
         declaration.symbol,
-        declaration.name,
+        name,
         type_,
         declaration.loc,
       )
@@ -235,7 +235,7 @@ fn SemanticChecker::check_top_level_function(
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> Unit {
   let parameters = self.checked_value_parameters(declaration.parameters)
-  let scope = self.function_body_scope(
+  let scope = function_body_scope(
     self.root_scope(),
     declaration.type_parameters,
     parameters,
@@ -279,11 +279,11 @@ fn SemanticChecker::check_top_level_let(
     type_,
     parameters: None,
   })
-  if declaration.is_offered {
-    self.offer_symbol(
+  if declaration.is_offered && declaration.name is Some(name) {
+    offer_symbol(
       self.ordered_offers,
       declaration.symbol,
-      declaration.name,
+      name,
       type_,
       declaration.loc,
     )
