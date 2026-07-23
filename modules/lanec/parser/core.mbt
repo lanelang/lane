@@ -31,8 +31,12 @@ pub(all) struct ParsedSource {
 
 ///|
 pub(all) enum ParseFailure {
-  Lexical(Array[@lexer.LexError])
-  Grammar(@lexer.ConcreteSyntax, Array[ParseError])
+  Lexical(@lexer.ConcreteSyntax, Array[@lexer.LexError])
+  Grammar(
+    @lexer.ConcreteSyntax,
+    Array[ParseError],
+    @syntax.SyntacticIdentifierIndex
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -54,7 +58,7 @@ pub fn ParseResult::lexical_errors(
   self : ParseResult,
 ) -> Array[@lexer.LexError] {
   match self {
-    Failed(Lexical(errors)) => errors
+    Failed(Lexical(_, errors)) => errors
     _ => []
   }
 }
@@ -62,7 +66,18 @@ pub fn ParseResult::lexical_errors(
 ///|
 pub fn ParseResult::parse_errors(self : ParseResult) -> Array[ParseError] {
   match self {
-    Failed(Grammar(_, errors)) => errors
+    Failed(Grammar(_, errors, _)) => errors
     _ => []
+  }
+}
+
+///|
+pub fn ParseResult::syntactic_identifier_index(
+  self : ParseResult,
+) -> @syntax.SyntacticIdentifierIndex {
+  match self {
+    Parsed({ syntax, .. }) => syntax.syntactic_identifier_index()
+    Failed(Grammar(_, _, identifiers)) => identifiers
+    Failed(Lexical(_, _)) => @syntax.SyntacticIdentifierIndex::empty()
   }
 }

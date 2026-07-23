@@ -40,8 +40,8 @@ pub fn ParseErrorKind::diagnostic_notes(Self) -> Array[String]
 pub fn ParseErrorKind::diagnostic_title(Self) -> String
 
 pub(all) enum ParseFailure {
-  Lexical(Array[@lexer.LexError])
-  Grammar(@lexer.ConcreteSyntax, Array[ParseError])
+  Lexical(@lexer.ConcreteSyntax, Array[@lexer.LexError])
+  Grammar(@lexer.ConcreteSyntax, Array[ParseError], @syntax.SyntacticIdentifierIndex)
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ParseResult {
@@ -50,6 +50,7 @@ pub(all) enum ParseResult {
 } derive(Eq, @debug.Debug)
 pub fn ParseResult::lexical_errors(Self) -> Array[@lexer.LexError]
 pub fn ParseResult::parse_errors(Self) -> Array[ParseError]
+pub fn ParseResult::syntactic_identifier_index(Self) -> @syntax.SyntacticIdentifierIndex
 pub fn ParseResult::syntax(Self) -> @syntax.SourceFile?
 
 pub(all) struct ParsedSource {

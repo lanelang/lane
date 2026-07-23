@@ -3,7 +3,7 @@
 pub fn parse_string(source : String) -> ParseResult {
   let lexed = @lexer.tokens_from_string(source)
   if !lexed.errors.is_empty() {
-    Failed(Lexical(lexed.errors))
+    Failed(Lexical(lexed.concrete, lexed.errors))
   } else {
     parse_concrete(lexed.concrete)
   }
@@ -16,14 +16,20 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
   let source = @yacc_parser.source_file(layout.tokens) catch {
     UnexpectedEndOfInput(loc, expected) =>
       return Failed(
-        Grammar(concrete, [
-          { kind: UnexpectedEndOfInput(expected_syntax(expected)), loc },
-        ]),
+        Grammar(
+          concrete,
+          [{ kind: UnexpectedEndOfInput(expected_syntax(expected)), loc }],
+          expected_identifier_index(loc, expected),
+        ),
       )
     UnexpectedToken(token, (start, end), expected) => {
       let kind = unexpected_token_error_kind(token, expected)
       return Failed(
-        Grammar(concrete, [{ kind, loc: SourceSpan::join(start, end) }]),
+        Grammar(
+          concrete,
+          [{ kind, loc: SourceSpan::join(start, end) }],
+          expected_identifier_index(token_start_position(start), expected),
+        ),
       )
     }
   }
@@ -87,7 +93,9 @@ fn expected_syntax(
     if kind
       is (TK_LAYOUT_SEMICOLON
       | TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR
-      | TK_EMPTY_TYPE_PARAMETER_LIST_ERROR) {
+      | TK_EMPTY_TYPE_PARAMETER_LIST_ERROR
+      | TK_TYPE_IDENTIFIER_SLOT
+      | TK_EFFECT_IDENTIFIER_SLOT) {
       continue
     }
     let syntax : ExpectedSyntax = { label: token_kind_label(kind) }
@@ -96,6 +104,27 @@ fn expected_syntax(
     }
   }
   result
+}
+
+///|
+fn expected_identifier_index(
+  loc : SourceSpan,
+  expected : Array[@yacc_parser.TokenKind],
+) -> @syntax.SyntacticIdentifierIndex {
+  match
+    (
+      expected.contains(TK_TYPE_IDENTIFIER_SLOT),
+      expected.contains(TK_EFFECT_IDENTIFIER_SLOT),
+    ) {
+    (true, false) =>
+      @syntax.SyntacticIdentifierIndex::expected_identifier(loc, TypeIdentifier)
+    (false, true) =>
+      @syntax.SyntacticIdentifierIndex::expected_identifier(
+        loc,
+        EffectIdentifier,
+      )
+    _ => @syntax.SyntacticIdentifierIndex::empty()
+  }
 }
 
 ///|
@@ -154,6 +183,8 @@ fn token_label(token : @yacc_parser.Token) -> String {
     RBRACKET => "`]`"
     EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
     EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
+    TYPE_IDENTIFIER_SLOT => "type identifier slot"
+    EFFECT_IDENTIFIER_SLOT => "effect identifier slot"
     COMMA => "`,`"
     SEMICOLON => "`;`"
     LAYOUT_SEMICOLON => "line break"
@@ -226,6 +257,8 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_RBRACKET => "`]`"
     TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR => "empty generic argument list"
     TK_EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
+    TK_TYPE_IDENTIFIER_SLOT => "type identifier slot"
+    TK_EFFECT_IDENTIFIER_SLOT => "effect identifier slot"
     TK_COMMA => "`,`"
     TK_SEMICOLON => "`;`"
     TK_LAYOUT_SEMICOLON => "line break"

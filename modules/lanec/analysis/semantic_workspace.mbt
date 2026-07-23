@@ -27,6 +27,7 @@ priv struct CachedParsedSource {
   source : @module_frontend.SourceInput
   module_ : @module_frontend.ParsedModuleInput?
   module_path_text : String?
+  completion_source : CompletionSource
   diagnostics : Array[CompilerDiagnostic]
 }
 
@@ -315,10 +316,14 @@ fn parse_cached_source(
     Some(header) => Some(header.module_path_text)
     None => None
   }
+  guard parsed.source_syntax.get(0) is Some(source_syntax) else {
+    abort("module frontend omitted source syntax")
+  }
   {
     source,
     module_: parsed.modules.get(0),
     module_path_text,
+    completion_source: CompletionSource::from_source_syntax(source_syntax),
     diagnostics: parsed.diagnostics,
   }
 }
@@ -331,8 +336,12 @@ fn same_parsed_topology(
   match (previous, next) {
     (None, None) => true
     (Some(previous), Some(next)) =>
-      previous.module_path_text == next.module_path_text &&
-      parsed_module_header(previous) == parsed_module_header(next)
+      if next.module_ is None {
+        previous.module_path_text == next.module_path_text
+      } else {
+        previous.module_path_text == next.module_path_text &&
+        parsed_module_header(previous) == parsed_module_header(next)
+      }
     _ => false
   }
 }
@@ -483,10 +492,19 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     let module_path = graph.ordered_module_paths[index]
     let source_id = graph.ordered_module_source_ids[index]
     changed_source_ids.push(source_id)
-    guard self.parse_cache.get(source_id) is Some(parsed) &&
-      parsed.module_ is Some(input) else {
+    guard self.parse_cache.get(source_id) is Some(parsed) else { continue }
+    if parsed.module_ is None {
+      if modules.get(index) is Some(Available(previous)) {
+        let updated = {
+          ..previous,
+          completion_source: parsed.completion_source,
+        }
+        self.module_cache[module_path] = updated
+        modules = modules.set(index, Available(updated))
+      }
       continue
     }
+    guard parsed.module_ is Some(input) else { continue }
     let imported = imported_environment(input.header, self.module_cache)
     let previous_definitions = match modules.get(index) {
       Some(Available(module_)) => module_.index.definitions

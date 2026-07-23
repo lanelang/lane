@@ -80,18 +80,33 @@ priv struct CompletionSource {
 fn CompletionSource::from_input(
   input : @module_frontend.ParsedModuleInput,
 ) -> CompletionSource {
+  CompletionSource::from_syntax(
+    input.text,
+    input.concrete,
+    input.source.syntactic_identifier_index(),
+  )
+}
+
+///|
+fn CompletionSource::from_source_syntax(
+  input : @module_frontend.SourceSyntaxInput,
+) -> CompletionSource {
+  CompletionSource::from_syntax(input.text, input.concrete, input.identifiers)
+}
+
+///|
+fn CompletionSource::from_syntax(
+  text : String,
+  concrete : @lexer.ConcreteSyntax,
+  syntax_identifiers : @syntax.SyntacticIdentifierIndex,
+) -> CompletionSource {
   let line_starts = [0]
-  for trivia in input.concrete.trivia {
+  for trivia in concrete.trivia {
     if trivia.kind is Newline {
       line_starts.push(trivia.span.end_offset)
     }
   }
-  {
-    text: input.text,
-    tokens: input.concrete.tokens,
-    line_starts,
-    syntax_identifiers: input.source.syntactic_identifier_index(),
-  }
+  { text, tokens: concrete.tokens, line_starts, syntax_identifiers }
 }
 
 ///|

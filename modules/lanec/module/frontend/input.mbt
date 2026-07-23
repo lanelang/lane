@@ -143,7 +143,16 @@ pub fn import_reachable_source_inputs(
 pub(all) struct ParseModuleInputsResult {
   modules : Array[ParsedModuleInput]
   headers : Array[ModuleInputHeader]
+  source_syntax : Array[SourceSyntaxInput]
   diagnostics : Array[@compiler_diag.CompilerDiagnostic]
+}
+
+///|
+pub(all) struct SourceSyntaxInput {
+  source_id : String
+  text : String
+  concrete : @lexer.ConcreteSyntax
+  identifiers : @syntax.SyntacticIdentifierIndex
 }
 
 ///|
@@ -170,10 +179,23 @@ pub fn parse_module_inputs(
 ) -> ParseModuleInputsResult {
   let modules = []
   let headers = []
+  let source_syntax = []
   let diagnostics = []
   let sources = [root_source] + library_sources
   for source in sources {
     let parsed = @parser.parse_string(source.text)
+    let identifiers = parsed.syntactic_identifier_index()
+    let concrete = match parsed {
+      Parsed({ concrete, .. }) => concrete
+      Failed(Grammar(concrete, _, _)) => concrete
+      Failed(Lexical(concrete, _)) => concrete
+    }
+    source_syntax.push({
+      source_id: source.source_id,
+      text: source.text,
+      concrete,
+      identifiers,
+    })
     let source_diagnostics = parse_diagnostics(parsed).map(fn(diagnostic) {
       diagnostic.with_source_id(source.source_id)
     })
@@ -208,7 +230,7 @@ pub fn parse_module_inputs(
         }
     }
   }
-  { modules, headers, diagnostics }
+  { modules, headers, source_syntax, diagnostics }
 }
 
 ///|

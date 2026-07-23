@@ -1066,6 +1066,104 @@ test "completion classifies type alias bodies as type space" {
 }
 
 ///|
+test "completion classifies an empty type annotation slot as type space" {
+  let valid_source =
+    #|module Main
+    #|
+    #|import Base
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub let x : Thing = Thing::{ value: 1 }
+  let edited_source =
+    #|module Main
+    #|
+    #|import Base
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub let x :
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      {
+        source_id: "file:///Base.lane",
+        text: "module Base\n\npub let base : Int = 0",
+      },
+      { source_id: "file:///Main.lane", text: valid_source },
+    ])
+    is Some(_) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: edited_source,
+    })
+    is Some(snapshot) else {
+    abort("expected edited semantic snapshot")
+  }
+  let entries = snapshot.complete("file:///Main.lane", 11, 12, Manual)
+  debug_inspect(
+    entries
+    .filter(entry => entry.label == "Thing" || entry.label == "make")
+    .map(entry => (entry.label, entry.kind)),
+    content="[(\"Thing\", Type)]",
+  )
+}
+
+///|
+test "completion classifies an empty effect annotation slot as effect space" {
+  let valid_source =
+    #|module Main
+    #|
+    #|pub effect Console {
+    #|  log(String) -> Unit
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn run() -> Unit ! Console { () }
+  let edited_source =
+    #|module Main
+    #|
+    #|pub effect Console {
+    #|  log(String) -> Unit
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn run() -> Unit !
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: valid_source },
+    ])
+    is Some(_) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: edited_source,
+    })
+    is Some(snapshot) else {
+    abort("expected edited semantic snapshot")
+  }
+  let entries = snapshot.complete("file:///Main.lane", 9, 23, Manual)
+  debug_inspect(
+    entries
+    .filter(entry => entry.label == "Console" || entry.label == "make")
+    .map(entry => (entry.label, entry.kind)),
+    content="[(\"Console\", Effect)]",
+  )
+}
+
+///|
 test "semantic definitions retain exact spans for repeated names" {
   let result = analyze_test_sources(
     (

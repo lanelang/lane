@@ -9,13 +9,13 @@ pub(all) enum SyntacticIdentifierRole {
 priv struct SyntacticIdentifierSlot {
   span : @basic.SourceSpan
   role : SyntacticIdentifierRole
-}
+} derive(Debug, Eq)
 
 ///|
 /// An immutable source-position index over grammatical identifier roles.
 pub struct SyntacticIdentifierIndex {
   priv slots : Array[SyntacticIdentifierSlot]
-}
+} derive(Debug, Eq)
 
 ///|
 /// Builds the identifier-role index for a parsed source file.
@@ -26,6 +26,13 @@ pub fn SourceFile::syntactic_identifier_index(
   for declaration in self.declarations {
     collect_declaration_identifier_roles(declaration, slots)
   }
+  SyntacticIdentifierIndex::from_slots(slots)
+}
+
+///|
+fn SyntacticIdentifierIndex::from_slots(
+  slots : Array[SyntacticIdentifierSlot],
+) -> SyntacticIdentifierIndex {
   slots.sort_by(fn(left, right) {
     let start_order = left.span.start_offset.compare(right.span.start_offset)
     if start_order != 0 {
@@ -35,6 +42,19 @@ pub fn SourceFile::syntactic_identifier_index(
     }
   })
   { slots, }
+}
+
+///|
+pub fn SyntacticIdentifierIndex::empty() -> SyntacticIdentifierIndex {
+  { slots: [] }
+}
+
+///|
+pub fn SyntacticIdentifierIndex::expected_identifier(
+  span : @basic.SourceSpan,
+  role : SyntacticIdentifierRole,
+) -> SyntacticIdentifierIndex {
+  { slots: [{ span, role }] }
 }
 
 ///|

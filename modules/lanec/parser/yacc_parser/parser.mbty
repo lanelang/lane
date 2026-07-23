@@ -60,6 +60,8 @@
 %token RBRACKET "]"
 %token EMPTY_GENERIC_ARGUMENT_LIST_ERROR
 %token EMPTY_TYPE_PARAMETER_LIST_ERROR
+%token TYPE_IDENTIFIER_SLOT
+%token EFFECT_IDENTIFIER_SLOT
 %token COMMA ","
 %token SEMICOLON ";"
 %token LAYOUT_SEMICOLON
@@ -468,7 +470,8 @@ type_parameter -> TypeParameter
   ;
 
 type -> Type
-  : type_lambda { $1 }
+  : TYPE_IDENTIFIER_SLOT { abort("type completion slot token must not be shifted") }
+  | type_lambda { $1 }
   | type_application "->" type effect_annotation_opt {
     Function(type_parameters=[], parameters=[$1], result=$3, effect=effect_or_empty($4, $3), loc=span($sloc))
   }
@@ -531,7 +534,8 @@ effect_annotation -> EffectTerm
   ;
 
 effect_set -> EffectTerm
-  : type_application { Term(type_=$1, loc=$1.loc()) }
+  : EFFECT_IDENTIFIER_SLOT { abort("effect completion slot token must not be shifted") }
+  | type_application { Term(type_=$1, loc=$1.loc()) }
   | "{" type_list "}" { effect_set($2, span($sloc)) }
   ;
 

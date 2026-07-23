@@ -33,7 +33,7 @@ priv struct ParseFailureConcreteSummary {
 ///|
 test "parse grammar failure keeps concrete syntax" {
   let result = parse_string("module Test\nlet x : = // keep")
-  guard result is Failed(Grammar(concrete, errors)) else {
+  guard result is Failed(Grammar(concrete, errors, _)) else {
     abort("expected grammar parse failure")
   }
   debug_inspect(
@@ -65,6 +65,42 @@ test "parse grammar failure keeps concrete syntax" {
       #|  ],
       #|}
     ),
+  )
+}
+
+///|
+test "parse failures retain expected identifier slots" {
+  let type_result = parse_string("module Test\npub let value :")
+  guard type_result.parse_errors().get(0) is Some(type_error) else {
+    abort("expected missing type parse error")
+  }
+  assert_eq(type_error.loc.start_offset, type_error.loc.end_offset)
+  assert_eq(
+    type_result
+    .syntactic_identifier_index()
+    .role_at(type_error.loc.start_offset),
+    Some(TypeIdentifier),
+  )
+  let effect_result = parse_string("module Test\nfn run() -> Unit !")
+  guard effect_result.parse_errors().get(0) is Some(effect_error) else {
+    abort("expected missing effect parse error")
+  }
+  assert_eq(effect_error.loc.start_offset, effect_error.loc.end_offset)
+  assert_eq(
+    effect_result
+    .syntactic_identifier_index()
+    .role_at(effect_error.loc.start_offset),
+    Some(EffectIdentifier),
+  )
+  let value_result = parse_string("module Test\npub let value : Int =")
+  guard value_result.parse_errors().get(0) is Some(value_error) else {
+    abort("expected missing value parse error")
+  }
+  assert_eq(
+    value_result
+    .syntactic_identifier_index()
+    .role_at(value_error.loc.start_offset),
+    None,
   )
 }
 

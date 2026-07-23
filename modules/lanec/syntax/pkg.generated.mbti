@@ -369,7 +369,9 @@ pub impl @prettyprinter.Pretty for StructPatternField
 
 pub struct SyntacticIdentifierIndex {
   // private fields
-}
+} derive(Eq, @debug.Debug)
+pub fn SyntacticIdentifierIndex::empty() -> Self
+pub fn SyntacticIdentifierIndex::expected_identifier(@basic.SourceSpan, SyntacticIdentifierRole) -> Self
 pub fn SyntacticIdentifierIndex::role_at(Self, Int) -> SyntacticIdentifierRole?
 
 pub(all) enum SyntacticIdentifierRole {
