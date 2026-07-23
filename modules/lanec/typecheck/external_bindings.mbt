@@ -4,19 +4,24 @@ fn SemanticChecker::check_compiler_intrinsic(
   name : String,
   expected : @types.Type,
   loc : SourceSpan,
-) -> CheckedExpressionSynthesis {
+) -> CheckedExpressionCheck {
   guard @abi.Intrinsic::from_name(name) is Some(intrinsic) else {
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
-    return checked_expression_none_reported(Error)
+    return undetermined_checked_expression(Error)
   }
   let actual = compiler_intrinsic_type(intrinsic)
-  if self.type_matches(expected, actual, loc) is Some(false) {
+  let expectation_match = checked_expectation_match(
+    self.type_matches(expected, actual, loc),
+  )
+  if expectation_match is MismatchesExpectation {
     self.diagnostics.push({
       kind: BuiltinSignatureMismatch(name~, expected~, actual~),
       loc,
     })
   }
-  checked_expression(CompilerIntrinsic(intrinsic~, type_=actual, loc~), actual)
+  checked_expression(CompilerIntrinsic(intrinsic~, type_=actual, loc~), actual).with_expectation_match(
+    expectation_match,
+  )
 }
 
 ///|

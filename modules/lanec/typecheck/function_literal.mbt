@@ -118,16 +118,16 @@ fn SemanticChecker::check_monomorphic_function_literal(
   )
   let inferred_effect = match checked_effect {
     Some(effect) => {
-      self.expect_effect(effect, checked_body.effect, body.loc())
+      self.expect_effect(effect, checked_body.synthesis.effect, body.loc())
       effect
     }
-    None => checked_body.effect
+    None => checked_body.synthesis.effect
   }
   let function_type = @types.Type::Function(
     expected_parameters, expected_result, inferred_effect,
   )
   guard self.require_checked_expression(
-      checked_body,
+      checked_body.synthesis,
       body.loc(),
       "function body",
     )
