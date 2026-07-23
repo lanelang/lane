@@ -52,10 +52,7 @@ fn @resolve.ResolvedEffectTerm::annotation_doc(
 pub impl @prettyprinter.Pretty for DesugaredLetDeclaration with fn pretty(
   declaration : DesugaredLetDeclaration,
 ) {
-  let name = match declaration.name {
-    Some(name) => text(name)
-    None => text("<anonymous>")
-  }
+  let name = text(declaration.name)
   text(if declaration.is_offered { "offer" } else { "let" }) +
   space +
   declaration.symbol.pretty() +

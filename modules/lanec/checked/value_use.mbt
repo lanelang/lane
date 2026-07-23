@@ -204,19 +204,15 @@ fn CheckedValueUseCollector::collect_local_item(
   current_origin : ValueSymbolId?,
 ) -> Unit {
   match item {
-    Let(declaration) =>
-      match declaration.name {
-        Some(name) => {
-          self.add_binder(
-            declaration.symbol,
-            name,
-            declaration.name_loc.unwrap_or(declaration.loc),
-            LocalLet,
-          )
-          self.collect_expr(declaration.initializer, Some(declaration.symbol))
-        }
-        None => self.collect_expr(declaration.initializer, current_origin)
-      }
+    Let(declaration) => {
+      self.add_binder(
+        declaration.symbol,
+        declaration.name,
+        declaration.name_loc,
+        LocalLet,
+      )
+      self.collect_expr(declaration.initializer, Some(declaration.symbol))
+    }
     PatternLet(declaration) => {
       self.collect_expr(declaration.initializer, current_origin)
       self.collect_pattern(declaration.pattern)

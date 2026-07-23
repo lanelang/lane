@@ -36,8 +36,8 @@ pub(all) struct DesugaredLetDeclaration {
   is_public : Bool
   is_offered : Bool
   symbol : @symbol.ValueSymbolId
-  name : String?
-  name_loc : SourceSpan?
+  name : String
+  name_loc : SourceSpan
   type_annotation : @resolve.ResolvedType?
   initializer : DesugaredExpr
   loc : SourceSpan

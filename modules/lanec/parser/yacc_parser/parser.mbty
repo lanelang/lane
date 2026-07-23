@@ -413,13 +413,13 @@ parameter_modifiers -> ParameterModifiers
 
 top_level_let_declaration -> LetDeclaration
   : "let" identifier ":" type "=" expression {
-    { is_public: false, is_offered: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+    { is_public: false, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
 public_top_level_let_declaration -> LetDeclaration
   : "let" identifier ":" type "=" expression {
-    { is_public: true, is_offered: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+    { is_public: true, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
@@ -434,13 +434,13 @@ local_type_annotation -> Type?
 
 offer_value_declaration -> LetDeclaration
   : "offer" identifier ":" type "=" expression {
-    { is_public: false, is_offered: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+    { is_public: false, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 
 public_offer_value_declaration -> LetDeclaration
   : "offer" identifier ":" type "=" expression {
-    { is_public: true, is_offered: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+    { is_public: true, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
   }
   ;
 

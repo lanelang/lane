@@ -110,7 +110,7 @@ fn expect_checked_let_initializer(
   for declaration in source.declarations {
     match declaration {
       Let(declaration) =>
-        if declaration.name == Some(name) {
+        if declaration.name == name {
           let checked = checker.check_checked_expr(
             checker.root_scope(),
             declaration.initializer,

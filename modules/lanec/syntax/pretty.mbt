@@ -1051,20 +1051,14 @@ fn LetDeclaration::to_doc(
   self : LetDeclaration,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
-  let name_doc = match self.name {
-    Some(name) => space + text(name)
-    None => empty
-  }
+  let name_doc = space + text(self.name)
   let type_doc = match self.type_annotation {
     Some(type_) => space + text(":") + space + type_.to_doc(trivia~)
     None => empty
   }
   let head_end_offset = match self.type_annotation {
     Some(type_) => type_.loc().end_offset
-    None =>
-      self.name_loc
-      .map(fn(loc) { loc.end_offset })
-      .unwrap_or(self.loc.start_offset)
+    None => self.name_loc.end_offset
   }
   let declaration_keyword = if self.is_offered { "offer" } else { "let" }
   let doc = assignment_expr_doc(

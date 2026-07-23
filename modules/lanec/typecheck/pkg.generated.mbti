@@ -105,8 +105,8 @@ pub(all) struct CheckedLetDeclaration {
   is_public : Bool
   is_offered : Bool
   symbol : @symbol.ValueSymbolId
-  name : String?
-  name_loc : @basic.SourceSpan?
+  name : String
+  name_loc : @basic.SourceSpan
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

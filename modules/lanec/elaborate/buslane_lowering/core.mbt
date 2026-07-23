@@ -317,11 +317,10 @@ fn BuslaneLowerer::module_exports(
           operation: None,
           value: Some(self.value_id(declaration.symbol)),
         })
-      Let(declaration) if declaration.is_public &&
-        declaration.name is Some(name) =>
+      Let(declaration) if declaration.is_public =>
         exports.push({
           kind: Value,
-          name,
+          name: declaration.name,
           type_id: None,
           data_constructor: None,
           effect_id: None,

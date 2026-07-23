@@ -111,13 +111,9 @@ fn BuslaneLowerer::lower_items(
   } else {
     match items[index] {
       Let(declaration) => {
-        let occurrence = match declaration.name {
-          Some(name) => name
-          None => "let"
-        }
         let id = self.define_value(
           declaration.symbol,
-          occurrence,
+          declaration.name,
           Local,
           self.lower_type(declaration.type_),
         )

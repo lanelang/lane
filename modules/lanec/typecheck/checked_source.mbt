@@ -228,11 +228,11 @@ fn SemanticChecker::checked_top_level_let(
     type_,
     parameters: None,
   })
-  if declaration.is_offered && declaration.name is Some(name) {
+  if declaration.is_offered {
     offer_symbol(
       self.ordered_offers,
       declaration.symbol,
-      name,
+      declaration.name,
       type_,
       declaration.loc,
     )
@@ -311,16 +311,15 @@ fn SemanticChecker::check_checked_local_let(
     )
     (checked_initializer.type_, checked_initializer)
   }
-  guard declaration.name is Some(name) else {
-    self.report_internal_typecheck_failure(
-      "local value binding is missing its declaration name",
+  scope.bind(declaration.symbol, declaration.name, type_)
+  if declaration.is_offered {
+    bind_offer_symbol(
+      scope,
+      declaration.symbol,
+      declaration.name,
+      type_,
       declaration.loc,
     )
-    return None
-  }
-  scope.bind(declaration.symbol, name, type_)
-  if declaration.is_offered {
-    bind_offer_symbol(scope, declaration.symbol, name, type_, declaration.loc)
   }
   let initializer_context = if declaration.is_offered {
     "local offer initializer"

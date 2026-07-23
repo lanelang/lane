@@ -95,16 +95,14 @@ fn SemanticIndex::add_top_level_declaration(
       self.add_parameter_signature(declaration.symbol, declaration.parameters)
     }
     Let(declaration) =>
-      if declaration.name is Some(name) {
-        self.top_level_declarations.push({
-          symbol: TopLevelValue(declaration.symbol),
-          name,
-          kind: ValueDeclaration,
-          is_public: declaration.is_public,
-          name_loc: declaration.name_loc.unwrap_or(declaration.loc),
-          loc: declaration.loc,
-        })
-      }
+      self.top_level_declarations.push({
+        symbol: TopLevelValue(declaration.symbol),
+        name: declaration.name,
+        kind: ValueDeclaration,
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      })
   }
 }
 
@@ -120,12 +118,7 @@ fn SemanticIndex::top_level_symbol(
     Effect(declaration) => Some(TopLevelEffect(declaration.symbol))
     TypeAlias(declaration) => Some(TopLevelAlias(declaration.name))
     Function(declaration) => Some(TopLevelValue(declaration.symbol))
-    Let(declaration) =>
-      if declaration.name is Some(_) {
-        Some(TopLevelValue(declaration.symbol))
-      } else {
-        None
-      }
+    Let(declaration) => Some(TopLevelValue(declaration.symbol))
   }
 }
 
@@ -371,22 +364,20 @@ fn SemanticIndex::collect_resolved_declaration_body(
       if declaration.type_annotation is Some(type_) {
         self.collect_resolved_type(type_)
       }
-      if declaration.name is Some(name) {
-        let binding_detail = if declaration.is_offered {
-          "offer \{name}"
-        } else {
-          "let \{name}"
-        }
-        self.add_binding(
-          ValueBinding(declaration.symbol),
-          name,
-          ValueBindingKind,
-          binding_detail,
-          GlobalBinding,
-          is_offered=declaration.is_offered,
-          loc=declaration.name_loc.unwrap_or(declaration.loc),
-        )
+      let binding_detail = if declaration.is_offered {
+        "offer \{declaration.name}"
+      } else {
+        "let \{declaration.name}"
       }
+      self.add_binding(
+        ValueBinding(declaration.symbol),
+        declaration.name,
+        ValueBindingKind,
+        binding_detail,
+        GlobalBinding,
+        is_offered=declaration.is_offered,
+        loc=declaration.name_loc,
+      )
       self.collect_resolved_expr(declaration.initializer)
     }
   }
@@ -456,22 +447,20 @@ fn SemanticIndex::collect_resolved_local_item(
       if declaration.type_annotation is Some(type_) {
         self.collect_resolved_type(type_)
       }
-      if declaration.name is Some(name) {
-        let binding_detail = if declaration.is_offered {
-          "offer \{name}"
-        } else {
-          "let \{name}"
-        }
-        self.add_binding(
-          ValueBinding(declaration.symbol),
-          name,
-          ValueBindingKind,
-          binding_detail,
-          visibility,
-          is_offered=declaration.is_offered,
-          loc=declaration.name_loc.unwrap_or(declaration.loc),
-        )
+      let binding_detail = if declaration.is_offered {
+        "offer \{declaration.name}"
+      } else {
+        "let \{declaration.name}"
       }
+      self.add_binding(
+        ValueBinding(declaration.symbol),
+        declaration.name,
+        ValueBindingKind,
+        binding_detail,
+        visibility,
+        is_offered=declaration.is_offered,
+        loc=declaration.name_loc,
+      )
       self.collect_resolved_expr(declaration.initializer)
     }
     PatternLet(declaration) => {

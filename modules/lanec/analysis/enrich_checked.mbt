@@ -153,13 +153,11 @@ fn SemanticIndex::enrich_checked_declaration_header(
       }
     }
     Let(declaration) =>
-      if declaration.name is Some(name) {
-        self.enrich_binding(
-          ValueBinding(declaration.symbol),
-          "\{name} : \{display.type_text(declaration.type_)}",
-          Some(declaration.type_),
-        )
-      }
+      self.enrich_binding(
+        ValueBinding(declaration.symbol),
+        "\{declaration.name} : \{display.type_text(declaration.type_)}",
+        Some(declaration.type_),
+      )
   }
 }
 
@@ -197,14 +195,12 @@ fn SemanticIndex::enrich_checked_declaration_body(
       self.enrich_checked_expr(declaration.body, display)
     }
     Let(declaration) => {
-      if declaration.name is Some(_) {
-        if !self.annotated_values.contains(declaration.symbol) {
-          self.add_type_inlay_hint(
-            declaration.name_loc.unwrap_or(declaration.loc),
-            display,
-            declaration.type_,
-          )
-        }
+      if !self.annotated_values.contains(declaration.symbol) {
+        self.add_type_inlay_hint(
+          declaration.name_loc,
+          display,
+          declaration.type_,
+        )
       }
       self.collect_checked_type(declaration.type_)
       self.enrich_checked_expr(declaration.initializer, display)
@@ -248,19 +244,17 @@ fn SemanticIndex::enrich_checked_local_item(
 ) -> Unit {
   match item {
     Let(declaration) => {
-      if declaration.name is Some(name) {
-        self.enrich_binding(
-          ValueBinding(declaration.symbol),
-          "\{name} : \{display.type_text(declaration.type_)}",
-          Some(declaration.type_),
+      self.enrich_binding(
+        ValueBinding(declaration.symbol),
+        "\{declaration.name} : \{display.type_text(declaration.type_)}",
+        Some(declaration.type_),
+      )
+      if !self.annotated_values.contains(declaration.symbol) {
+        self.add_type_inlay_hint(
+          declaration.name_loc,
+          display,
+          declaration.type_,
         )
-        if !self.annotated_values.contains(declaration.symbol) {
-          self.add_type_inlay_hint(
-            declaration.name_loc.unwrap_or(declaration.loc),
-            display,
-            declaration.type_,
-          )
-        }
       }
       self.collect_checked_type(declaration.type_)
       self.enrich_checked_expr(declaration.initializer, display)

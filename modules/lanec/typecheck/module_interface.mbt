@@ -352,12 +352,12 @@ fn SemanticChecker::interface_value(
         parameters: Some(declaration.parameters.map(interface_value_parameter)),
         loc: declaration.loc,
       })
-    Let(declaration) if declaration.is_public && declaration.name is Some(name) =>
+    Let(declaration) if declaration.is_public =>
       Some({
         symbol: declaration.symbol,
         kind: Let,
         is_offered: declaration.is_offered,
-        name,
+        name: declaration.name,
         type_: declaration.type_,
         parameters: None,
         loc: declaration.loc,

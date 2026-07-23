@@ -236,8 +236,8 @@ pub impl @prettyprinter.Pretty for Kind
 pub(all) struct LetDeclaration {
   is_public : Bool
   is_offered : Bool
-  name : String?
-  name_loc : @basic.SourceSpan?
+  name : String
+  name_loc : @basic.SourceSpan
   type_annotation : Type?
   initializer : Expr
   loc : @basic.SourceSpan

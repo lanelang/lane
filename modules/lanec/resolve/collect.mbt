@@ -683,28 +683,27 @@ fn Resolver::collect_top_level_headers(
         self.publish_complete_top_level_binding(binding, declaration.name_loc)
         self.publish_ordered_top_level_binding(binding, declaration.name_loc)
       }
-      Let(declaration) =>
-        if declaration.name is Some(name) {
-          let symbol = symbols.define_value(
-            name,
-            TopLevelValue,
-            declaration.name_loc.unwrap_or(declaration.loc),
-          )
-          let type_annotation = declaration.type_annotation.map(fn(type_) {
-            type_.resolve_type(self, self.scope([]))
-          })
-          self.publish_complete_top_level_binding(
-            {
-              name,
-              reference: Symbol(symbol),
-              type_: type_annotation,
-              kind: Plain,
-              source: CurrentSource,
-              import_origin: None,
-            },
-            declaration.name_loc.unwrap_or(declaration.loc),
-          )
-        }
+      Let(declaration) => {
+        let symbol = symbols.define_value(
+          declaration.name,
+          TopLevelValue,
+          declaration.name_loc,
+        )
+        let type_annotation = declaration.type_annotation.map(fn(type_) {
+          type_.resolve_type(self, self.scope([]))
+        })
+        self.publish_complete_top_level_binding(
+          {
+            name: declaration.name,
+            reference: Symbol(symbol),
+            type_: type_annotation,
+            kind: Plain,
+            source: CurrentSource,
+            import_origin: None,
+          },
+          declaration.name_loc,
+        )
+      }
     }
   }
 }
@@ -1270,27 +1269,16 @@ fn @syntax.LetDeclaration::resolve_top_level_let(
   resolver : Resolver,
 ) -> ResolvedLetDeclaration {
   let scope = resolver.ordered_scope([])
-  let symbol = match self.name {
-    Some(name) => resolver.value_symbol(name)
-    None =>
-      resolver.registry.define_value("<anonymous>", TopLevelValue, self.loc)
-  }
-  let type_annotation = match self.name {
-    Some(name) =>
-      match resolver.top_value_binding(name) {
-        Some(binding) => binding.type_
-        None =>
-          self.type_annotation.map(fn(type_) {
-            type_.resolve_type(resolver, scope)
-          })
-      }
+  let symbol = resolver.value_symbol(self.name)
+  let type_annotation = match resolver.top_value_binding(self.name) {
+    Some(binding) => binding.type_
     None =>
       self.type_annotation.map(fn(type_) { type_.resolve_type(resolver, scope) })
   }
   let declaration = self.resolve_let_with_resolved_type(
     resolver, scope, symbol, type_annotation,
   )
-  resolver.publish_top_level_let(declaration, self.name_loc.unwrap_or(self.loc))
+  resolver.publish_top_level_let(declaration, self.name_loc)
   declaration
 }
 
@@ -1301,17 +1289,14 @@ fn Resolver::publish_top_level_let(
   loc : SourceSpan,
 ) -> Unit {
   let binding = {
-    name: declaration.name.unwrap_or("<anonymous>"),
+    name: declaration.name,
     reference: Symbol(declaration.symbol),
     type_: declaration.type_annotation,
     kind: Plain,
     source: CurrentSource,
     import_origin: None,
   }
-  match declaration.name {
-    Some(_) => self.publish_ordered_top_level_binding(binding, loc)
-    None => ()
-  }
+  self.publish_ordered_top_level_binding(binding, loc)
 }
 
 ///|
@@ -1325,12 +1310,7 @@ fn @syntax.LetDeclaration::resolve_let(
   scope : ResolveScope,
   kind : @symbol.ValueSymbolKind,
 ) -> ResolvedLetDeclaration {
-  let display_name = self.name.unwrap_or("<anonymous>")
-  let symbol = resolver.registry.define_value(
-    display_name,
-    kind,
-    self.name_loc.unwrap_or(self.loc),
-  )
+  let symbol = resolver.registry.define_value(self.name, kind, self.name_loc)
   self.resolve_let_with_symbol(resolver, scope, symbol)
 }
 
@@ -1358,9 +1338,7 @@ fn @syntax.LetDeclaration::resolve_let_with_resolved_type(
   // The initializer is resolved before the binding is inserted. This keeps
   // local let bindings sequential and non-recursive.
   let initializer = self.initializer.resolve_expr(resolver, scope)
-  if self.name is Some(name) {
-    scope.define_value(name, symbol, type_annotation)
-  }
+  scope.define_value(self.name, symbol, type_annotation)
   {
     is_public: self.is_public,
     is_offered: self.is_offered,

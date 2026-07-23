@@ -323,10 +323,7 @@ pub impl @prettyprinter.Pretty for ResolvedFunctionDeclaration with fn pretty(
 pub impl @prettyprinter.Pretty for ResolvedLetDeclaration with fn pretty(
   declaration : ResolvedLetDeclaration,
 ) {
-  let name = match declaration.name {
-    Some(name) => text(name)
-    None => text("<anonymous>")
-  }
+  let name = text(declaration.name)
   let annotation = match declaration.type_annotation {
     Some(type_) => space + text(":") + space + type_.pretty()
     None => empty

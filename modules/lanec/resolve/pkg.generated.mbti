@@ -284,8 +284,8 @@ pub(all) struct ResolvedLetDeclaration {
   is_public : Bool
   is_offered : Bool
   symbol : @symbol.ValueSymbolId
-  name : String?
-  name_loc : @basic.SourceSpan?
+  name : String
+  name_loc : @basic.SourceSpan
   type_annotation : ResolvedType?
   initializer : ResolvedExpr
   loc : @basic.SourceSpan

@@ -144,8 +144,8 @@ fn local_let_item(
       Let({
         is_public: false,
         is_offered: false,
-        name: Some(name),
-        name_loc: Some(name_loc),
+        name,
+        name_loc,
         type_annotation,
         initializer,
         loc,

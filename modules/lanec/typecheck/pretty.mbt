@@ -230,10 +230,7 @@ pub impl @prettyprinter.Pretty for CheckedEffectOperationDeclaration with fn pre
 pub impl @prettyprinter.Pretty for CheckedLetDeclaration with fn pretty(
   declaration : CheckedLetDeclaration,
 ) {
-  let name = match declaration.name {
-    Some(name) => value_name_doc(name, declaration.symbol)
-    None => text("_") + value_suffix(declaration.symbol)
-  }
+  let name = value_name_doc(declaration.name, declaration.symbol)
   text("let") +
   space +
   name +

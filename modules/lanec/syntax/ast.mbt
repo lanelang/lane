@@ -223,8 +223,8 @@ pub(all) struct ParameterModifiers {
 pub(all) struct LetDeclaration {
   is_public : Bool
   is_offered : Bool
-  name : String?
-  name_loc : SourceSpan?
+  name : String
+  name_loc : SourceSpan
   type_annotation : Type?
   initializer : Expr
   loc : SourceSpan

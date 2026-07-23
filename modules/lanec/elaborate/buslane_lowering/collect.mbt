@@ -345,20 +345,14 @@ fn BuslaneLowerer::collect_top_values(
       }
       Let(declaration) => {
         let type_ = self.lower_type(declaration.type_)
-        let occurrence = match declaration.name {
-          Some(name) => name
-          None => "let"
-        }
         let value = self.define_value(
           declaration.symbol,
-          occurrence,
+          declaration.name,
           Value,
           type_,
         )
         if include_entries && declaration.is_public {
-          if declaration.name is Some(name) {
-            self.add_entry(module_path_text, name, value, type_)
-          }
+          self.add_entry(module_path_text, declaration.name, value, type_)
         }
       }
       _ => ()

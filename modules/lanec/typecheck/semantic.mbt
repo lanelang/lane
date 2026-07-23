@@ -122,8 +122,8 @@ fn SemanticChecker::seed_imported_top_level_value_type(
           is_public: true,
           is_offered: value.is_offered,
           symbol: value.symbol,
-          name: Some(value.name),
-          name_loc: Some(value.loc),
+          name: value.name,
+          name_loc: value.loc,
           type_: value.type_,
           loc: value.loc,
         }),
@@ -217,11 +217,11 @@ fn SemanticChecker::collect_top_level_let_type(
       type_,
       parameters: None,
     })
-    if declaration.is_offered && declaration.name is Some(name) {
+    if declaration.is_offered {
       offer_symbol(
         self.offers,
         declaration.symbol,
-        name,
+        declaration.name,
         type_,
         declaration.loc,
       )
@@ -279,11 +279,11 @@ fn SemanticChecker::check_top_level_let(
     type_,
     parameters: None,
   })
-  if declaration.is_offered && declaration.name is Some(name) {
+  if declaration.is_offered {
     offer_symbol(
       self.ordered_offers,
       declaration.symbol,
-      name,
+      declaration.name,
       type_,
       declaration.loc,
     )

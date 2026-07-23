@@ -1197,7 +1197,7 @@ fn yy_action_26(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 
 // file:///./parser.mbty
 // 442|    "offer" identifier ":" type "=" expression {
-// 443|    { is_public: true, is_offered: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 443|    { is_public: true, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
 // 444|  }
 fn yy_action_28(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
@@ -1206,13 +1206,13 @@ fn yy_action_28(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_LetDeclaration({(); 
-    { is_public: true, is_offered: true, name: Some(_dollar2.name), name_loc: Some(_dollar2.loc), type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
+    { is_public: true, is_offered: true, name: _dollar2.name, name_loc: _dollar2.loc, type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
   })
 }
 
 // file:///./parser.mbty
 // 421|    "let" identifier ":" type "=" expression {
-// 422|    { is_public: true, is_offered: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 422|    { is_public: true, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
 // 423|  }
 fn yy_action_29(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
@@ -1221,7 +1221,7 @@ fn yy_action_29(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_LetDeclaration({(); 
-    { is_public: true, is_offered: false, name: Some(_dollar2.name), name_loc: Some(_dollar2.loc), type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
+    { is_public: true, is_offered: false, name: _dollar2.name, name_loc: _dollar2.loc, type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
   })
 }
 
@@ -1568,7 +1568,7 @@ fn yy_action_64(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 
 // file:///./parser.mbty
 // 415|    "let" identifier ":" type "=" expression {
-// 416|    { is_public: false, is_offered: false, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 416|    { is_public: false, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
 // 417|  }
 fn yy_action_65(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
@@ -1577,7 +1577,7 @@ fn yy_action_65(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_LetDeclaration({(); 
-    { is_public: false, is_offered: false, name: Some(_dollar2.name), name_loc: Some(_dollar2.loc), type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
+    { is_public: false, is_offered: false, name: _dollar2.name, name_loc: _dollar2.loc, type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
   })
 }
 
@@ -1759,7 +1759,7 @@ fn yy_action_78(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 
 // file:///./parser.mbty
 // 436|    "offer" identifier ":" type "=" expression {
-// 437|    { is_public: false, is_offered: true, name: Some($2.name), name_loc: Some($2.loc), type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 437|    { is_public: false, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
 // 438|  }
 fn yy_action_79(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
@@ -1768,7 +1768,7 @@ fn yy_action_79(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_LetDeclaration({(); 
-    { is_public: false, is_offered: true, name: Some(_dollar2.name), name_loc: Some(_dollar2.loc), type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
+    { is_public: false, is_offered: true, name: _dollar2.name, name_loc: _dollar2.loc, type_annotation: Some(_dollar4), initializer: _dollar6, loc: span((_symbol_start_pos, _end_pos)) }
   })
 }
 

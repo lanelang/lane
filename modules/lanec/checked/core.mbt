@@ -123,8 +123,8 @@ pub(all) struct CheckedLetDeclaration {
   is_public : Bool
   is_offered : Bool
   symbol : ValueSymbolId
-  name : String?
-  name_loc : SourceSpan?
+  name : String
+  name_loc : SourceSpan
   initializer : CheckedExpr
   type_ : @types.Type
   loc : SourceSpan
