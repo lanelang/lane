@@ -4086,6 +4086,51 @@ test "a sugar provider resolves its own fully qualified nominal expansion" {
 }
 
 ///|
+test "self-qualified namespace excludes imported declarations" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Lib.{ Box }
+      #|pub let value : Main.Box[Int] = Main.Box::box(1)
+    ),
+    [
+      (
+        #|module Lib
+        #|pub enum Box[A] {
+        #|  box(A)
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(
+    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|["cannot find type `Main.Box`", "cannot find variant `Main.Box::box`"]
+    ),
+  )
+}
+
+///|
+test "self-qualified namespace includes local type declarations" {
+  let result = check_source(
+    (
+      #|module Main
+      #|pub enum Box[A] {
+      #|  box(A)
+      #|}
+      #|pub effect Ask[A] {
+      #|  read() -> A
+      #|}
+      #|pub let boxed : Main.Box[Int] = Main.Box::box(1)
+      #|pub fn value() -> Int ! Main.Ask[Int] {
+      #|  Main.Ask[Int]::read!()
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
 test "tuple and list sugar do not use unqualified fallback providers" {
   let tuple_result = check_source(
     (

@@ -2,7 +2,7 @@
 priv struct Resolver {
   registry : SymbolRegistry
   declaration_symbols : @symbol.DeclarationSymbolScope
-  current_module_path : String
+  local_module : LocalModuleNamespace
   modules : Array[ModuleBinding]
   types : Array[TypeBinding]
   effects : Array[EffectBinding]
@@ -34,6 +34,35 @@ priv struct GeneratedReferenceKey {
 priv struct ModuleBinding {
   path_text : String
   interface : @module_interface.ModuleInterface
+  import_origin : Int?
+}
+
+///|
+priv struct LocalModuleNamespace {
+  path_text : String
+  types : Array[TypeBinding]
+  effects : Array[EffectBinding]
+  type_aliases : Array[TypeAliasBinding]
+}
+
+///|
+priv enum ModuleNamespaceSource {
+  LocalModule(LocalModuleNamespace)
+  ImportedModule(ModuleBinding)
+}
+
+///|
+priv enum ModuleTypeBindingKind {
+  NominalType(symbol~ : TypeSymbolId, variants~ : Array[VariantBinding])
+  EffectType(EffectSymbolId)
+  TypeAlias(is_effect~ : Bool)
+}
+
+///|
+priv struct ModuleTypeBinding {
+  owner_module_path : String
+  parameter_kinds : Array[@types.Kind]
+  kind : ModuleTypeBindingKind
   import_origin : Int?
 }
 
@@ -195,7 +224,12 @@ fn Resolver::Resolver(
     declaration_symbols: registry.declaration_scope(
       previous=previous_declarations,
     ),
-    current_module_path,
+    local_module: {
+      path_text: current_module_path,
+      types: [],
+      effects: [],
+      type_aliases: [],
+    },
     modules: [],
     types: [],
     effects: [],
@@ -669,7 +703,7 @@ fn Resolver::collect_top_level_headers(
           "type",
           declaration.loc,
         )
-        self.publish_type_binding(
+        self.publish_local_type_binding(
           declaration.name,
           symbols.define_type(
             declaration.name,
@@ -678,7 +712,6 @@ fn Resolver::collect_top_level_headers(
             declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
-          None,
         )
       }
       Enum(declaration) => {
@@ -687,7 +720,7 @@ fn Resolver::collect_top_level_headers(
           "type",
           declaration.loc,
         )
-        self.publish_type_binding(
+        self.publish_local_type_binding(
           declaration.name,
           symbols.define_type(
             declaration.name,
@@ -696,7 +729,6 @@ fn Resolver::collect_top_level_headers(
             declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
-          None,
         )
       }
       Effect(declaration) => {
@@ -704,7 +736,7 @@ fn Resolver::collect_top_level_headers(
           declaration.name,
           declaration.loc,
         )
-        self.publish_effect_binding(
+        self.publish_local_effect_binding(
           declaration.name,
           symbols.define_effect(
             declaration.name,
@@ -712,7 +744,6 @@ fn Resolver::collect_top_level_headers(
             declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
-          None,
         )
       }
       ExternalType(declaration) =>
@@ -723,7 +754,7 @@ fn Resolver::collect_top_level_headers(
               "external type",
               declaration.loc,
             )
-            self.publish_type_binding(
+            self.publish_local_type_binding(
               declaration.name,
               symbols.define_type(
                 declaration.name,
@@ -732,7 +763,6 @@ fn Resolver::collect_top_level_headers(
                 declaration.name_loc,
               ),
               syntax_type_parameter_kinds(declaration.type_parameters),
-              None,
             )
           }
           Effect(_) => {
@@ -740,7 +770,7 @@ fn Resolver::collect_top_level_headers(
               declaration.name,
               declaration.loc,
             )
-            self.publish_effect_binding(
+            self.publish_local_effect_binding(
               declaration.name,
               symbols.define_effect(
                 declaration.name,
@@ -749,7 +779,6 @@ fn Resolver::collect_top_level_headers(
                 flavor=External,
               ),
               syntax_type_parameter_kinds(declaration.type_parameters),
-              None,
             )
           }
         }
@@ -759,7 +788,7 @@ fn Resolver::collect_top_level_headers(
           "type alias",
           declaration.loc,
         )
-        self.type_aliases.push({
+        let binding : TypeAliasBinding = {
           name: declaration.name,
           owner_module_path: None,
           is_effect: declaration.body is EffectBody(_),
@@ -767,7 +796,9 @@ fn Resolver::collect_top_level_headers(
             declaration.type_parameters,
           ),
           import_origin: None,
-        })
+        }
+        self.type_aliases.push(binding)
+        self.local_module.type_aliases.push(binding)
       }
       Function(declaration) => {
         let symbol = symbols.define_value(
@@ -1580,14 +1611,17 @@ fn @syntax.Type::resolve_type_application_arguments(
       }
     QualifiedName(module_path~, name~, ..) =>
       match
-        resolver.module_binding(@module_interface.module_path_text(module_path)) {
-        Some(module_) =>
-          match interface_type_application_parameters(module_.interface, name) {
-            Some(parameters) =>
-              resolve_generic_arguments(arguments, parameters, resolver, scope)
-            None =>
-              resolve_default_generic_arguments(arguments, resolver, scope)
-          }
+        resolver.module_type_binding(
+          @module_interface.module_path_text(module_path),
+          name,
+        ) {
+        Some(binding) =>
+          resolve_generic_arguments(
+            arguments,
+            binding.parameter_kinds,
+            resolver,
+            scope,
+          )
         None => resolve_default_generic_arguments(arguments, resolver, scope)
       }
     _ => resolve_default_generic_arguments(arguments, resolver, scope)
@@ -1660,9 +1694,23 @@ fn resolve_type_name_arguments(
           )
         }
         None =>
-          match qualified_type_name_parameters(resolver, type_name) {
-            Some(parameters) =>
-              resolve_generic_arguments(arguments, parameters, resolver, scope)
+          match split_qualified_name(type_name) {
+            Some(qualified) =>
+              match
+                resolver.module_type_binding(
+                  qualified.module_path,
+                  qualified.name,
+                ) {
+                Some(binding) =>
+                  resolve_generic_arguments(
+                    arguments,
+                    binding.parameter_kinds,
+                    resolver,
+                    scope,
+                  )
+                None =>
+                  resolve_default_generic_arguments(arguments, resolver, scope)
+              }
             None =>
               resolve_default_generic_arguments(arguments, resolver, scope)
           }
@@ -1710,26 +1758,6 @@ fn resolve_owner_generic_arguments(
 }
 
 ///|
-fn qualified_type_name_parameters(
-  resolver : Resolver,
-  type_name : String,
-) -> Array[@types.Kind]? {
-  guard split_qualified_name(type_name) is Some(qualified) else { return None }
-  if resolver.local_qualified_type_binding(
-      qualified.module_path,
-      qualified.name,
-    )
-    is Some(binding) {
-    return Some(binding.parameter_kinds)
-  }
-  match resolver.module_binding(qualified.module_path) {
-    Some(module_) =>
-      interface_type_application_parameters(module_.interface, qualified.name)
-    None => None
-  }
-}
-
-///|
 fn split_qualified_name(type_name : String) -> QualifiedNameText? {
   let parts = type_name.split(".").map(StringView::to_owned).collect()
   if parts.length() < 2 {
@@ -1740,28 +1768,6 @@ fn split_qualified_name(type_name : String) -> QualifiedNameText? {
     module_parts.push(parts[index])
   }
   Some({ module_path: module_parts.join("."), name: parts[parts.length() - 1] })
-}
-
-///|
-fn interface_type_application_parameters(
-  interface : @module_interface.ModuleInterface,
-  name : String,
-) -> Array[@types.Kind]? {
-  for type_ in interface.types {
-    match type_ {
-      Struct(declaration) if declaration.name == name =>
-        return Some(interface_type_parameter_kinds(declaration.type_parameters))
-      Enum(declaration) if declaration.name == name =>
-        return Some(interface_type_parameter_kinds(declaration.type_parameters))
-      _ => ()
-    }
-  }
-  for type_alias in interface.type_aliases {
-    if type_alias.name == name {
-      return Some(interface_type_parameter_kinds(type_alias.type_parameters))
-    }
-  }
-  None
 }
 
 ///|
@@ -1880,42 +1886,19 @@ fn Resolver::resolve_module_qualified_type(
 ) -> ResolvedType {
   let full_name = module_qualified_name(module_path, name)
   let module_path_text = @module_interface.module_path_text(module_path)
-  if self.current_module_path == module_path_text {
-    match self.local_qualified_type_binding(module_path_text, name) {
-      Some(binding) =>
-        return Constructor(symbol=binding.symbol, name=full_name, loc~)
-      None =>
-        match self.type_alias_binding(name) {
-          Some(_) =>
-            return Alias(
-              owner_module_path=Some(self.current_module_path),
-              name=full_name,
-              loc~,
-            )
-          None => ()
-        }
-    }
-  }
-  match self.module_binding(module_path_text) {
-    Some(module_) => {
-      self.record_import_use(module_.import_origin, loc)
-      for type_ in module_.interface.types {
-        if interface_type_name(type_) == name {
-          return Constructor(
-            symbol=interface_type_symbol(type_),
-            name=full_name,
-            loc~,
-          )
-        }
-      }
-      for type_alias in module_.interface.type_aliases {
-        if type_alias.name == name {
+  match self.module_type_binding(module_path_text, name) {
+    Some(binding) => {
+      self.record_import_use(binding.import_origin, loc)
+      match binding.kind {
+        NominalType(symbol~, ..) =>
+          return Constructor(symbol~, name=full_name, loc~)
+        TypeAlias(_) =>
           return Alias(
-            owner_module_path=Some(module_.interface.module_path),
+            owner_module_path=Some(binding.owner_module_path),
             name=full_name,
             loc~,
           )
-        }
+        EffectType(_) => ()
       }
       self.report_reference(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments=[], loc~)
@@ -1937,40 +1920,38 @@ fn Resolver::resolve_module_qualified_effect_type(
   loc : SourceSpan,
 ) -> ResolvedEffectTerm {
   let full_name = module_qualified_name(module_path, name)
-  match self.module_binding(@module_interface.module_path_text(module_path)) {
-    Some(module_) => {
-      self.record_import_use(module_.import_origin, loc)
-      for effect in module_.interface.effects {
-        if effect.name == name {
+  match
+    self.module_type_binding(
+      @module_interface.module_path_text(module_path),
+      name,
+    ) {
+    Some(binding) => {
+      self.record_import_use(binding.import_origin, loc)
+      match binding.kind {
+        EffectType(symbol) => {
           let arguments = resolve_generic_arguments(
             arguments,
-            interface_type_parameter_kinds(effect.type_parameters),
+            binding.parameter_kinds,
             self,
             scope,
           )
-          return Singleton(
-            symbol=effect.symbol,
-            name=full_name,
-            arguments~,
-            loc~,
-          )
+          return Singleton(symbol~, name=full_name, arguments~, loc~)
         }
-      }
-      for type_alias in module_.interface.type_aliases {
-        if type_alias.name == name {
+        TypeAlias(is_effect=true) => {
           let arguments = resolve_effect_alias_arguments(
             arguments,
-            interface_type_parameter_kinds(type_alias.type_parameters),
+            binding.parameter_kinds,
             self,
             scope,
           )
           return Alias(
-            owner_module_path=Some(module_.interface.module_path),
+            owner_module_path=Some(binding.owner_module_path),
             name=full_name,
             arguments~,
             loc~,
           )
         }
+        NominalType(_) | TypeAlias(is_effect=false) => ()
       }
       let arguments = resolve_default_generic_arguments(arguments, self, scope)
       self.report_reference(UnresolvedType(full_name), loc)
@@ -2095,21 +2076,13 @@ fn Resolver::module_qualified_name_can_be_effect_alias_argument(
   module_path : @syntax.ModulePath,
   name : String,
 ) -> Bool {
-  match self.module_binding(@module_interface.module_path_text(module_path)) {
-    Some(module_) => {
-      for effect in module_.interface.effects {
-        if effect.name == name {
-          return true
-        }
-      }
-      for type_alias in module_.interface.type_aliases {
-        if type_alias.name == name {
-          return type_alias.kind == Effect
-        }
-      }
-      false
-    }
-    None => false
+  match
+    self.module_type_binding(
+      @module_interface.module_path_text(module_path),
+      name,
+    ) {
+    Some({ kind: EffectType(_) | TypeAlias(is_effect=true), .. }) => true
+    _ => false
   }
 }
 
@@ -2119,26 +2092,6 @@ fn module_qualified_name(
   name : String,
 ) -> String {
   @module_interface.module_path_text(module_path) + "." + name
-}
-
-///|
-fn interface_type_name(type_ : @module_interface.ModuleInterfaceType) -> String {
-  match type_ {
-    Struct(declaration) => declaration.name
-    Enum(declaration) => declaration.name
-    External(declaration) => declaration.name
-  }
-}
-
-///|
-fn interface_type_symbol(
-  type_ : @module_interface.ModuleInterfaceType,
-) -> TypeSymbolId {
-  match type_ {
-    Struct(declaration) => declaration.symbol
-    Enum(declaration) => declaration.symbol
-    External(declaration) => declaration.symbol
-  }
 }
 
 ///|
@@ -2689,6 +2642,137 @@ fn Resolver::module_binding(
     }
   }
   None
+}
+
+///|
+fn Resolver::module_namespace_source(
+  self : Resolver,
+  path_text : String,
+) -> ModuleNamespaceSource? {
+  if path_text == self.local_module.path_text {
+    Some(LocalModule(self.local_module))
+  } else {
+    match self.module_binding(path_text) {
+      Some(binding) => Some(ImportedModule(binding))
+      None => None
+    }
+  }
+}
+
+///|
+fn ModuleNamespaceSource::type_binding(
+  self : ModuleNamespaceSource,
+  name : String,
+) -> ModuleTypeBinding? {
+  match self {
+    LocalModule(local_module) => {
+      for binding in local_module.types {
+        if binding.name == name {
+          return Some({
+            owner_module_path: local_module.path_text,
+            parameter_kinds: binding.parameter_kinds,
+            kind: NominalType(symbol=binding.symbol, variants=binding.variants),
+            import_origin: None,
+          })
+        }
+      }
+      for binding in local_module.effects {
+        if binding.name == name {
+          return Some({
+            owner_module_path: local_module.path_text,
+            parameter_kinds: binding.parameter_kinds,
+            kind: EffectType(binding.symbol),
+            import_origin: None,
+          })
+        }
+      }
+      for binding in local_module.type_aliases {
+        if binding.name == name {
+          return Some({
+            owner_module_path: local_module.path_text,
+            parameter_kinds: binding.parameter_kinds,
+            kind: TypeAlias(is_effect=binding.is_effect),
+            import_origin: None,
+          })
+        }
+      }
+      None
+    }
+    ImportedModule(module_) => {
+      for type_ in module_.interface.types {
+        match type_ {
+          Struct(declaration) if declaration.name == name =>
+            return Some({
+              owner_module_path: module_.path_text,
+              parameter_kinds: interface_type_parameter_kinds(
+                declaration.type_parameters,
+              ),
+              kind: NominalType(symbol=declaration.symbol, variants=[]),
+              import_origin: module_.import_origin,
+            })
+          Enum(declaration) if declaration.name == name =>
+            return Some({
+              owner_module_path: module_.path_text,
+              parameter_kinds: interface_type_parameter_kinds(
+                declaration.type_parameters,
+              ),
+              kind: NominalType(
+                symbol=declaration.symbol,
+                variants=declaration.variants.map(fn(variant) {
+                  { name: variant.name, symbol: variant.symbol }
+                }),
+              ),
+              import_origin: module_.import_origin,
+            })
+          External(declaration) if declaration.name == name =>
+            return Some({
+              owner_module_path: module_.path_text,
+              parameter_kinds: [],
+              kind: NominalType(symbol=declaration.symbol, variants=[]),
+              import_origin: module_.import_origin,
+            })
+          _ => ()
+        }
+      }
+      for effect in module_.interface.effects {
+        if effect.name == name {
+          return Some({
+            owner_module_path: module_.path_text,
+            parameter_kinds: interface_type_parameter_kinds(
+              effect.type_parameters,
+            ),
+            kind: EffectType(effect.symbol),
+            import_origin: module_.import_origin,
+          })
+        }
+      }
+      for type_alias in module_.interface.type_aliases {
+        if type_alias.name == name {
+          return Some({
+            owner_module_path: module_.path_text,
+            parameter_kinds: interface_type_parameter_kinds(
+              type_alias.type_parameters,
+            ),
+            kind: TypeAlias(is_effect=type_alias.kind == Effect),
+            import_origin: module_.import_origin,
+          })
+        }
+      }
+      None
+    }
+  }
+}
+
+///|
+fn Resolver::module_type_binding(
+  self : Resolver,
+  module_path : String,
+  name : String,
+) -> ModuleTypeBinding? {
+  match self.module_namespace_source(module_path) {
+    Some(source) => source.type_binding(name)
+    None => None
+  }
 }
 
 ///|
@@ -3324,15 +3408,13 @@ fn Resolver::type_reference(
     None =>
       match qualified_name_text(name) {
         Some(qualified) =>
-          match self.module_binding(qualified.module_path) {
-            Some(module_) => {
-              self.record_import_use(module_.import_origin, loc)
-              match module_.interface.type_symbol_named(qualified.name) {
-                Some(symbol) => Symbol(symbol)
-                None => Unresolved(name)
-              }
+          match
+            self.module_type_binding(qualified.module_path, qualified.name) {
+            Some({ kind: NominalType(symbol~, ..), import_origin, .. }) => {
+              self.record_import_use(import_origin, loc)
+              Symbol(symbol)
             }
-            None => Unresolved(name)
+            _ => Unresolved(name)
           }
         None => Unresolved(name)
       }
@@ -3346,37 +3428,12 @@ fn Resolver::qualified_type_symbol_opt(
 ) -> TypeSymbolId? {
   match qualified_name_text(name) {
     Some(qualified) =>
-      if self.local_qualified_type_binding(
-          qualified.module_path,
-          qualified.name,
-        )
-        is Some(binding) {
-        return Some(binding.symbol)
-      } else {
-        match self.module_binding(qualified.module_path) {
-          Some(module_) => module_.interface.type_symbol_named(qualified.name)
-          None => None
-        }
+      match self.module_type_binding(qualified.module_path, qualified.name) {
+        Some({ kind: NominalType(symbol~, ..), .. }) => Some(symbol)
+        _ => None
       }
     None => None
   }
-}
-
-///|
-fn @module_interface.ModuleInterface::type_symbol_named(
-  self : @module_interface.ModuleInterface,
-  name : String,
-) -> TypeSymbolId? {
-  for type_ in self.types {
-    match type_ {
-      Struct(declaration) if declaration.name == name =>
-        return Some(declaration.symbol)
-      Enum(declaration) if declaration.name == name =>
-        return Some(declaration.symbol)
-      _ => ()
-    }
-  }
-  None
 }
 
 ///|
@@ -3404,19 +3461,6 @@ fn Resolver::type_binding(self : Resolver, name : String) -> TypeBinding? {
     }
   }
   None
-}
-
-///|
-fn Resolver::local_qualified_type_binding(
-  self : Resolver,
-  module_path : String,
-  name : String,
-) -> TypeBinding? {
-  if module_path == self.current_module_path {
-    self.type_binding(name)
-  } else {
-    None
-  }
 }
 
 ///|
@@ -3521,6 +3565,17 @@ fn Resolver::publish_type_binding(
 }
 
 ///|
+fn Resolver::publish_local_type_binding(
+  self : Resolver,
+  name : String,
+  symbol : TypeSymbolId,
+  parameter_kinds : Array[@types.Kind],
+) -> Unit {
+  self.publish_type_binding(name, symbol, parameter_kinds, None)
+  self.local_module.types.push(self.types[self.types.length() - 1])
+}
+
+///|
 fn Resolver::effect_symbol(self : Resolver, name : String) -> EffectSymbolId {
   self.effect_binding(name).unwrap().symbol
 }
@@ -3581,6 +3636,17 @@ fn Resolver::publish_effect_binding(
 ) -> Unit {
   self.effects.push({ name, symbol, parameter_kinds, operations, import_origin })
   self.record_import_symbol(import_origin, EffectSymbol(symbol))
+}
+
+///|
+fn Resolver::publish_local_effect_binding(
+  self : Resolver,
+  name : String,
+  symbol : EffectSymbolId,
+  parameter_kinds : Array[@types.Kind],
+) -> Unit {
+  self.publish_effect_binding(name, symbol, parameter_kinds, None)
+  self.local_module.effects.push(self.effects[self.effects.length() - 1])
 }
 
 ///|
@@ -3856,48 +3922,20 @@ fn Resolver::qualified_variant_symbol(
 ) -> VariantSymbolId? {
   match qualified_name_text(type_name) {
     Some(qualified) =>
-      if self.local_qualified_type_binding(
-          qualified.module_path,
-          qualified.name,
-        )
-        is Some(binding) {
-        for item in binding.variants {
-          if item.name == variant {
-            return Some(item.symbol)
+      match self.module_type_binding(qualified.module_path, qualified.name) {
+        Some({ kind: NominalType(variants~, ..), import_origin, .. }) => {
+          self.record_import_use(import_origin, loc)
+          for item in variants {
+            if item.name == variant {
+              return Some(item.symbol)
+            }
           }
+          None
         }
-        return None
-      } else {
-        match self.module_binding(qualified.module_path) {
-          Some(module_) => {
-            self.record_import_use(module_.import_origin, loc)
-            module_.interface.variant_symbol_named(qualified.name, variant)
-          }
-          None => None
-        }
+        _ => None
       }
     None => None
   }
-}
-
-///|
-fn @module_interface.ModuleInterface::variant_symbol_named(
-  self : @module_interface.ModuleInterface,
-  type_name : String,
-  variant : String,
-) -> VariantSymbolId? {
-  for type_ in self.types {
-    match type_ {
-      Enum(declaration) if declaration.name == type_name =>
-        for item in declaration.variants {
-          if item.name == variant {
-            return Some(item.symbol)
-          }
-        }
-      _ => ()
-    }
-  }
-  None
 }
 
 ///|
