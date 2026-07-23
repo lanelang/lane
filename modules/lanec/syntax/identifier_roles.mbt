@@ -210,6 +210,39 @@ fn collect_generic_argument_identifier_roles(
 }
 
 ///|
+fn collect_pattern_identifier_roles(
+  pattern : Pattern,
+  slots : Array[SyntacticIdentifierSlot],
+) -> Unit {
+  match pattern {
+    Wildcard(_)
+    | Binding(_, ..)
+    | IntLiteral(_, ..)
+    | DoubleLiteral(_, ..)
+    | StringLiteral(_, ..)
+    | BoolLiteral(_, ..) => ()
+    QualifiedVariant(type_name_loc~, arguments~, ..) => {
+      push_syntactic_identifier_role(slots, type_name_loc, TypeIdentifier)
+      for argument in arguments {
+        collect_pattern_identifier_roles(argument, slots)
+      }
+    }
+    UnqualifiedVariant(arguments~, ..) =>
+      for argument in arguments {
+        collect_pattern_identifier_roles(argument, slots)
+      }
+    Struct(type_name_loc~, fields~, ..) => {
+      push_syntactic_identifier_role(slots, type_name_loc, TypeIdentifier)
+      for field in fields {
+        if field is Value(pattern=Some(pattern), ..) {
+          collect_pattern_identifier_roles(pattern, slots)
+        }
+      }
+    }
+  }
+}
+
+///|
 fn collect_expression_identifier_roles(
   expression : Expr,
   slots : Array[SyntacticIdentifierSlot],
@@ -286,6 +319,9 @@ fn collect_expression_identifier_roles(
           if arm.name is Qualified(owner~, ..) {
             collect_type_identifier_roles(owner, EffectIdentifier, slots)
           }
+          for pattern in arm.payload_patterns {
+            collect_pattern_identifier_roles(pattern, slots)
+          }
           collect_expression_identifier_roles(arm.body, slots)
         }
       }
@@ -305,6 +341,7 @@ fn collect_expression_identifier_roles(
     Match(scrutinee~, arms~, ..) => {
       collect_expression_identifier_roles(scrutinee, slots)
       for arm in arms {
+        collect_pattern_identifier_roles(arm.pattern, slots)
         collect_expression_identifier_roles(arm.body, slots)
       }
     }
@@ -334,6 +371,7 @@ fn collect_local_item_identifier_roles(
   match item {
     Let(declaration) => collect_let_identifier_roles(declaration, slots)
     PatternLet(declaration) => {
+      collect_pattern_identifier_roles(declaration.pattern, slots)
       if declaration.type_annotation is Some(type_) {
         collect_type_identifier_roles(type_, TypeIdentifier, slots)
       }

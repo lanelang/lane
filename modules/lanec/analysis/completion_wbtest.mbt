@@ -1066,6 +1066,36 @@ test "completion classifies type alias bodies as type space" {
 }
 
 ///|
+test "completion classifies pattern owners as type space" {
+  let source =
+    #|module Main
+    #|
+    #|pub struct make_type {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub fn use(item : make_type) -> Int {
+    #|  match item {
+    #|    ma::{ value } => value
+    #|  }
+    #|}
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: source },
+    [],
+    "file:///Main.lane",
+    11,
+    7,
+    Manual,
+  )
+  debug_inspect(
+    entries.map(fn(entry) { (entry.label, entry.kind) }),
+    content="[(\"make_type\", Type)]",
+  )
+}
+
+///|
 test "completion classifies an empty type annotation slot as type space" {
   let valid_source =
     #|module Main

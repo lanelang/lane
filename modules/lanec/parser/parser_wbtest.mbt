@@ -105,6 +105,41 @@ test "parse failures retain expected identifier slots" {
 }
 
 ///|
+test "syntactic identifier roles include nested pattern type owners" {
+  let source =
+    #|module Test
+    #|
+    #|fn inspect(value : Int) -> Int {
+    #|  match value {
+    #|    MatchOwner::variant(NestedOwner::{ field }) => 0
+    #|  }
+    #|}
+    #|
+    #|fn destructure(value : Int) -> Int {
+    #|  let LetOwner::{ field: LetNested::variant() } = value
+    #|  0
+    #|}
+    #|
+    #|fn handle_it(value : Int) -> Int {
+    #|  handle value with {
+    #|    Console::op(HandlerOwner::{ field: HandlerNested::variant() }, resume) => 0
+    #|  } final result { result }
+    #|}
+  let result = parse_string(source)
+  guard result is Parsed(_) else { abort("expected parsed source") }
+  let index = result.syntactic_identifier_index()
+  for
+    owner in [
+      "MatchOwner", "NestedOwner", "LetOwner", "LetNested", "HandlerOwner", "HandlerNested",
+    ] {
+    guard source.find(owner) is Some(offset) else {
+      abort("expected pattern owner in source")
+    }
+    assert_eq(index.role_at(offset), Some(TypeIdentifier))
+  }
+}
+
+///|
 fn synthetic_layout_semicolon_lines(source : String) -> Array[Int] raise {
   let lexed = @lexer.tokens_from_string(source)
   assert_true(lexed.errors.is_empty())
