@@ -287,9 +287,13 @@ pub(all) struct TypeCheckResult {
 pub impl @prettyprinter.Pretty for TypeCheckResult
 
 pub struct TypeDisplayContext {
-  registry : @symbol.SymbolRegistry
+  registry : @symbol.SymbolRegistry?
+  type_names : Array[(@symbol.TypeSymbolId, String)]
+  effect_names : Array[(@symbol.EffectSymbolId, String)]
+  type_parameter_names : Array[(@symbol.TypeParameterId, String)]
 }
 pub fn TypeDisplayContext::effect_text(Self, @types.Effect) -> String
+pub fn TypeDisplayContext::from_names(Array[(@symbol.TypeSymbolId, String)], Array[(@symbol.EffectSymbolId, String)], Array[(@symbol.TypeParameterId, String)]) -> Self
 pub fn TypeDisplayContext::from_registry(@symbol.SymbolRegistry) -> Self
 pub fn TypeDisplayContext::generic_argument_text(Self, @types.GenericArgument) -> String
 pub fn TypeDisplayContext::kind_text(Self, @types.Kind) -> String
@@ -297,6 +301,7 @@ pub fn TypeDisplayContext::operation_text(Self, @symbol.OperationSymbolId) -> St
 pub fn TypeDisplayContext::type_parameter_binding_text(Self, @types.TypeParameter) -> String
 pub fn TypeDisplayContext::type_text(Self, @types.Type) -> String
 pub fn TypeDisplayContext::type_text_with_tuple_presentations(Self, @types.Type, Array[@types.TuplePresentation]) -> String
+pub fn TypeDisplayContext::type_text_with_tuple_presentations_at(Self, @types.Type, Array[@types.TuplePresentation], Array[@types.TuplePresentationPathStep]) -> String
 
 // Type aliases
 

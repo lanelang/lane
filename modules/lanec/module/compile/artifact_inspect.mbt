@@ -118,29 +118,32 @@ fn interface_summary_doc(
   interface : @module_interface.ModuleInterface,
 ) -> Document {
   let context = ArtifactInspectContext::from_interface(interface)
+  let display = context.type_display_context()
   text("interface \{interface.module_path}:") +
   @prettyprinter.hardline +
   separate(@prettyprinter.hardline, [
     section_doc(
       "types:",
-      interface.types.map(fn(type_) { text(context.interface_type_text(type_)) }),
+      interface.types.map(fn(type_) {
+        text(context.interface_type_text(type_, display))
+      }),
     ),
     section_doc(
       "effects:",
       interface.effects.map(fn(effect) {
-        text(context.interface_effect_text(effect))
+        text(context.interface_effect_text(effect, display))
       }),
     ),
     section_doc(
       "type aliases:",
       interface.type_aliases.map(fn(alias_) {
-        text(context.interface_type_alias_text(alias_))
+        text(context.interface_type_alias_text(alias_, display))
       }),
     ),
     section_doc(
       "values:",
       interface.values.map(fn(value) {
-        text(context.interface_value_text(value))
+        text(context.interface_value_text(value, display))
       }),
     ),
   ])
@@ -217,6 +220,18 @@ fn ArtifactInspectContext::from_interface(
     effects: [],
     type_parameters: [],
   }
+  for reference in interface.type_references {
+    context.types.push({
+      type_symbol: reference.symbol,
+      type_name: reference.name,
+    })
+  }
+  for reference in interface.effect_references {
+    context.effects.push({
+      effect_symbol: reference.symbol,
+      effect_name: reference.name,
+    })
+  }
   for type_ in interface.types {
     match type_ {
       Struct(declaration) => {
@@ -272,6 +287,19 @@ fn ArtifactInspectContext::from_interface(
     }
   }
   context
+}
+
+///|
+fn ArtifactInspectContext::type_display_context(
+  self : ArtifactInspectContext,
+) -> @typecheck.TypeDisplayContext {
+  @typecheck.TypeDisplayContext::from_names(
+    self.types.map(fn(item) { (item.type_symbol, item.type_name) }),
+    self.effects.map(fn(item) { (item.effect_symbol, item.effect_name) }),
+    self.type_parameters.map(fn(item) {
+      (item.parameter_id, item.parameter_name)
+    }),
+  )
 }
 
 ///|
@@ -346,28 +374,14 @@ fn ArtifactInspectContext::add_type_parameters_from_generic_argument(
 }
 
 ///|
-fn ArtifactInspectContext::with_type_parameters(
-  self : ArtifactInspectContext,
-  parameters : Array[@types.TypeParameter],
-) -> ArtifactInspectContext {
-  let type_parameters = self.type_parameters.copy()
-  for parameter in parameters {
-    type_parameters.push({
-      parameter_id: parameter.id,
-      parameter_name: parameter.name,
-    })
-  }
-  { types: self.types, effects: self.effects, type_parameters }
-}
-
-///|
 fn ArtifactInspectContext::interface_type_text(
   self : ArtifactInspectContext,
   type_ : @module_interface.ModuleInterfaceType,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   match type_ {
-    Struct(declaration) => self.struct_text(declaration)
-    Enum(declaration) => self.enum_text(declaration)
+    Struct(declaration) => self.struct_text(declaration, display)
+    Enum(declaration) => self.enum_text(declaration, display)
     External(declaration) => "pub extern type \{declaration.name} : Type"
   }
 }
@@ -376,13 +390,14 @@ fn ArtifactInspectContext::interface_type_text(
 fn ArtifactInspectContext::struct_text(
   self : ArtifactInspectContext,
   declaration : @module_interface.ModuleInterfaceStruct,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
-  let header = "pub struct \{declaration.name}\{self.type_parameters_suffix(declaration.type_parameters)}"
+  let header = "pub struct \{declaration.name}\{self.type_parameters_suffix(declaration.type_parameters, display)}"
   let members = declaration.type_members.map(fn(member_) {
-    "type \{member_.name} : \{self.kind_text(member_.kind)}"
+    "type \{member_.name} : \{display.kind_text(member_.kind)}"
   })
   let fields = declaration.fields.map(fn(field) {
-    "\{field.name} : \{self.type_text(field.type_)}"
+    "\{field.name} : \{display.type_text(field.type_)}"
   })
   let body = (members + fields).join("; ")
   if body.is_empty() {
@@ -396,20 +411,25 @@ fn ArtifactInspectContext::struct_text(
 fn ArtifactInspectContext::enum_text(
   self : ArtifactInspectContext,
   declaration : @module_interface.ModuleInterfaceEnum,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   let variants = declaration.variants.map(fn(variant) {
-    self.variant_text(variant)
+    self.variant_text(variant, display)
   })
-  "pub enum \{declaration.name}\{self.type_parameters_suffix(declaration.type_parameters)} { \{variants.join("; ")} }"
+  "pub enum \{declaration.name}\{self.type_parameters_suffix(declaration.type_parameters, display)} { \{variants.join("; ")} }"
 }
 
 ///|
 fn ArtifactInspectContext::variant_text(
   self : ArtifactInspectContext,
   variant : @module_interface.ModuleInterfaceVariant,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
-  let type_parameters = self.type_parameters_suffix(variant.type_parameters)
-  let payload = self.type_arguments_text(variant.payload)
+  let type_parameters = self.type_parameters_suffix(
+    variant.type_parameters,
+    display,
+  )
+  let payload = self.type_arguments_text(variant.payload, display)
   "\{variant.name}\{type_parameters}\{payload}"
 }
 
@@ -417,14 +437,15 @@ fn ArtifactInspectContext::variant_text(
 fn ArtifactInspectContext::interface_effect_text(
   self : ArtifactInspectContext,
   effect : @module_interface.ModuleInterfaceEffect,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   let operations = effect.operations.map(fn(operation) {
-    self.operation_text(operation)
+    self.operation_text(operation, display)
   })
   let header = if effect.flavor is External {
-    "pub extern type \{effect.name}\{self.type_parameters_suffix(effect.type_parameters)} : Effect"
+    "pub extern type \{effect.name}\{self.type_parameters_suffix(effect.type_parameters, display)} : Effect"
   } else {
-    "pub effect \{effect.name}\{self.type_parameters_suffix(effect.type_parameters)}"
+    "pub effect \{effect.name}\{self.type_parameters_suffix(effect.type_parameters, display)}"
   }
   if effect.flavor is External {
     header
@@ -437,28 +458,34 @@ fn ArtifactInspectContext::interface_effect_text(
 fn ArtifactInspectContext::operation_text(
   self : ArtifactInspectContext,
   operation : @module_interface.ModuleInterfaceOperation,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
-  let parameters = self.type_parameters_suffix(operation.type_parameters)
-  let payload = self.type_arguments_text(operation.payload)
-  "\{operation.name}\{parameters}\{payload} -> \{self.type_text(operation.result)}"
+  let parameters = self.type_parameters_suffix(
+    operation.type_parameters,
+    display,
+  )
+  let payload = self.type_arguments_text(operation.payload, display)
+  "\{operation.name}\{parameters}\{payload} -> \{display.type_text(operation.result)}"
 }
 
 ///|
 fn ArtifactInspectContext::interface_type_alias_text(
   self : ArtifactInspectContext,
   alias_ : @module_interface.ModuleInterfaceTypeAlias,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
-  "pub type \{alias_.name}\{self.type_parameters_text(alias_.type_parameters)} : \{self.kind_text(alias_.kind)} = \{self.type_alias_body_text(alias_.body)}"
+  "pub type \{alias_.name}\{self.type_parameters_suffix(alias_.type_parameters, display)} : \{display.kind_text(alias_.kind)} = \{self.type_alias_body_text(alias_.body, display)}"
 }
 
 ///|
 fn ArtifactInspectContext::type_alias_body_text(
-  self : ArtifactInspectContext,
+  _self : ArtifactInspectContext,
   body : @module_interface.ModuleInterfaceTypeAliasBody,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   match body {
-    TypeBody(type_) => self.type_text(type_)
-    EffectBody(effect) => self.effect_text(effect)
+    TypeBody(type_) => display.type_text(type_)
+    EffectBody(effect) => display.effect_text(effect)
   }
 }
 
@@ -477,31 +504,45 @@ fn ArtifactInspectContext::add_type_parameters_from_type_alias_body(
 fn ArtifactInspectContext::interface_value_text(
   self : ArtifactInspectContext,
   value : @module_interface.ModuleInterfaceValue,
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   let offered = if value.is_offered { "offer " } else { "" }
+  let type_text = display.type_text_with_tuple_presentations(
+    value.type_,
+    value.tuple_presentations,
+  )
   match value.kind {
     Function =>
       if value.parameters is Some(parameters) {
-        let parameter_text = parameters
-          .map(fn(parameter) { self.value_parameter_text(parameter) })
-          .join(", ")
-        "pub \{offered}fn \{value.name}(\{parameter_text}) : \{self.type_text(value.type_)}"
+        let parameter_text = []
+        for index, parameter in parameters {
+          let parameter_type_text = display.type_text_with_tuple_presentations_at(
+            parameter.type_,
+            value.tuple_presentations,
+            [FunctionParameter(index)],
+          )
+          parameter_text.push(
+            self.value_parameter_text(parameter, parameter_type_text),
+          )
+        }
+        "pub \{offered}fn \{value.name}(\{parameter_text.join(", ")}) : \{type_text}"
       } else {
-        "pub \{offered}fn \{value.name} : \{self.type_text(value.type_)}"
+        "pub \{offered}fn \{value.name} : \{type_text}"
       }
     Let =>
       if value.is_offered {
-        "pub offer \{value.name} : \{self.type_text(value.type_)}"
+        "pub offer \{value.name} : \{type_text}"
       } else {
-        "pub let \{value.name} : \{self.type_text(value.type_)}"
+        "pub let \{value.name} : \{type_text}"
       }
   }
 }
 
 ///|
 fn ArtifactInspectContext::value_parameter_text(
-  self : ArtifactInspectContext,
+  _self : ArtifactInspectContext,
   parameter : @module_interface.ModuleInterfaceValueParameter,
+  type_text : String,
 ) -> String {
   let prefix = if parameter.is_auto {
     "auto "
@@ -510,181 +551,32 @@ fn ArtifactInspectContext::value_parameter_text(
   } else {
     ""
   }
-  "\{prefix}\{parameter.name} : \{self.type_text(parameter.type_)}"
-}
-
-///|
-fn ArtifactInspectContext::type_text(
-  self : ArtifactInspectContext,
-  type_ : @types.Type,
-) -> String {
-  match type_ {
-    Error => "<error>"
-    Primitive(primitive) => lane_primitive_text(primitive)
-    Constructor(symbol) => self.type_symbol_text(symbol)
-    Apply(callee, arguments) =>
-      "\{self.type_text(callee)}[\{arguments.map(fn(argument) { self.generic_argument_text(argument) }).join(", ")}]"
-    TypeLambda(parameters, body) => {
-      let context = self.with_type_parameters(parameters)
-      "type [\{context.type_parameter_bindings_text(parameters)}] => \{context.type_text(body)}"
-    }
-    Parameter(id) => self.type_parameter_text(id)
-    Function(parameters, result, effect) => {
-      let parameter_text = parameters
-        .map(fn(parameter) { self.type_text(parameter) })
-        .join(", ")
-      let result_text = self.type_text(result)
-      let effect_text = self.effect_text(effect)
-      if effect_text == "{}" {
-        "(\{parameter_text}) -> \{result_text}"
-      } else {
-        "(\{parameter_text}) -> \{result_text} ! \{effect_text}"
-      }
-    }
-    Forall(parameters, body) => {
-      let context = self.with_type_parameters(parameters)
-      "forall [\{context.type_parameter_bindings_text(parameters)}]. \{context.type_text(body)}"
-    }
-  }
-}
-
-///|
-fn ArtifactInspectContext::effect_text(
-  self : ArtifactInspectContext,
-  effect : @types.Effect,
-) -> String {
-  match effect {
-    Empty => "{}"
-    Io => "Io"
-    Singleton(symbol, arguments) =>
-      if arguments.is_empty() {
-        self.effect_symbol_text(symbol)
-      } else {
-        "\{self.effect_symbol_text(symbol)}[\{arguments.map(fn(argument) { self.generic_argument_text(argument) }).join(", ")}]"
-      }
-    Parameter(id) => self.type_parameter_text(id)
-    Union(effects) =>
-      "{ \{effects.map(fn(effect) { self.effect_text(effect) }).join(", ")} }"
-  }
+  "\{prefix}\{parameter.name} : \{type_text}"
 }
 
 ///|
 fn ArtifactInspectContext::type_parameters_suffix(
-  self : ArtifactInspectContext,
+  _self : ArtifactInspectContext,
   parameters : Array[@types.TypeParameter],
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   if parameters.is_empty() {
     ""
   } else {
-    "[\{self.type_parameter_bindings_text(parameters)}]"
-  }
-}
-
-///|
-fn ArtifactInspectContext::type_parameter_bindings_text(
-  self : ArtifactInspectContext,
-  parameters : Array[@types.TypeParameter],
-) -> String {
-  parameters
-  .map(fn(parameter) { "\{parameter.name} : \{self.kind_text(parameter.kind)}" })
-  .join(", ")
-}
-
-///|
-fn ArtifactInspectContext::type_parameters_text(
-  self : ArtifactInspectContext,
-  parameters : Array[@types.TypeParameter],
-) -> String {
-  if parameters.is_empty() {
-    ""
-  } else {
-    "[\{self.type_parameter_bindings_text(parameters)}]"
+    "[\{parameters.map(fn(parameter) { display.type_parameter_binding_text(parameter) }).join(", ")}]"
   }
 }
 
 ///|
 fn ArtifactInspectContext::type_arguments_text(
-  self : ArtifactInspectContext,
+  _self : ArtifactInspectContext,
   arguments : Array[@types.Type],
+  display : @typecheck.TypeDisplayContext,
 ) -> String {
   if arguments.is_empty() {
     "()"
   } else {
-    "(\{arguments.map(fn(argument) { self.type_text(argument) }).join(", ")})"
-  }
-}
-
-///|
-fn ArtifactInspectContext::generic_argument_text(
-  self : ArtifactInspectContext,
-  argument : @types.GenericArgument,
-) -> String {
-  match argument {
-    TypeArgument(type_) => self.type_text(type_)
-    EffectArgument(effect) => self.effect_text(effect)
-  }
-}
-
-///|
-fn ArtifactInspectContext::kind_text(
-  self : ArtifactInspectContext,
-  kind : @types.Kind,
-) -> String {
-  match kind {
-    Type => "Type"
-    Effect => "Effect"
-    Function(parameters, result) =>
-      "[\{parameters.map(fn(parameter) { self.kind_text(parameter) }).join(", ")}] -> \{self.kind_text(result)}"
-  }
-}
-
-///|
-fn ArtifactInspectContext::type_symbol_text(
-  self : ArtifactInspectContext,
-  symbol : @symbol.TypeSymbolId,
-) -> String {
-  for item in self.types {
-    if item.type_symbol == symbol {
-      return item.type_name
-    }
-  }
-  "type#\{symbol.index}"
-}
-
-///|
-fn ArtifactInspectContext::effect_symbol_text(
-  self : ArtifactInspectContext,
-  symbol : @symbol.EffectSymbolId,
-) -> String {
-  for item in self.effects {
-    if item.effect_symbol == symbol {
-      return item.effect_name
-    }
-  }
-  "effect#\{symbol.index}"
-}
-
-///|
-fn ArtifactInspectContext::type_parameter_text(
-  self : ArtifactInspectContext,
-  id : @symbol.TypeParameterId,
-) -> String {
-  for item in self.type_parameters {
-    if item.parameter_id == id {
-      return item.parameter_name
-    }
-  }
-  "tparam#\{id.index}"
-}
-
-///|
-fn lane_primitive_text(primitive : @types.PrimitiveType) -> String {
-  match primitive {
-    Int => "Int"
-    Double => "Double"
-    Bool => "Bool"
-    String => "String"
-    Unit => "Unit"
+    "(\{arguments.map(fn(argument) { display.type_text(argument) }).join(", ")})"
   }
 }
 

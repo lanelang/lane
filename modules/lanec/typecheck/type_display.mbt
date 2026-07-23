@@ -1,13 +1,30 @@
 ///|
 pub struct TypeDisplayContext {
-  registry : @symbol.SymbolRegistry
+  registry : @symbol.SymbolRegistry?
+  type_names : Array[(@symbol.TypeSymbolId, String)]
+  effect_names : Array[(@symbol.EffectSymbolId, String)]
+  type_parameter_names : Array[(@symbol.TypeParameterId, String)]
 }
 
 ///|
 pub fn TypeDisplayContext::from_registry(
   registry : @symbol.SymbolRegistry,
 ) -> TypeDisplayContext {
-  { registry, }
+  {
+    registry: Some(registry),
+    type_names: [],
+    effect_names: [],
+    type_parameter_names: [],
+  }
+}
+
+///|
+pub fn TypeDisplayContext::from_names(
+  type_names : Array[(@symbol.TypeSymbolId, String)],
+  effect_names : Array[(@symbol.EffectSymbolId, String)],
+  type_parameter_names : Array[(@symbol.TypeParameterId, String)],
+) -> TypeDisplayContext {
+  { registry: None, type_names, effect_names, type_parameter_names }
 }
 
 ///|
@@ -25,6 +42,16 @@ pub fn TypeDisplayContext::type_text_with_tuple_presentations(
   presentations : Array[@types.TuplePresentation],
 ) -> String {
   self.type_text_at(type_, presentations, [])
+}
+
+///|
+pub fn TypeDisplayContext::type_text_with_tuple_presentations_at(
+  self : TypeDisplayContext,
+  type_ : @types.Type,
+  presentations : Array[@types.TuplePresentation],
+  path : Array[@types.TuplePresentationPathStep],
+) -> String {
+  self.type_text_at(type_, presentations, path)
 }
 
 ///|
@@ -255,10 +282,11 @@ pub fn TypeDisplayContext::operation_text(
   self : TypeDisplayContext,
   symbol : @symbol.OperationSymbolId,
 ) -> String {
-  match self.registry.operation_metadata(symbol) {
-    Some(metadata) =>
-      self.effect_symbol_text(metadata.owner) + "::" + metadata.name
-    None => @prettyprinter.render(symbol.pretty(), width=80)
+  if self.registry is Some(registry) &&
+    registry.operation_metadata(symbol) is Some(metadata) {
+    self.effect_symbol_text(metadata.owner) + "::" + metadata.name
+  } else {
+    @prettyprinter.render(symbol.pretty(), width=80)
   }
 }
 
@@ -267,10 +295,17 @@ fn TypeDisplayContext::type_symbol_text(
   self : TypeDisplayContext,
   symbol : @symbol.TypeSymbolId,
 ) -> String {
-  match self.registry.type_metadata(symbol) {
-    Some(metadata) => metadata.name
-    None => @prettyprinter.render(symbol.pretty(), width=80)
+  if self.registry is Some(registry) &&
+    registry.type_metadata(symbol) is Some(metadata) {
+    return metadata.name
   }
+  for item in self.type_names {
+    let (id, name) = item
+    if id == symbol {
+      return name
+    }
+  }
+  @prettyprinter.render(symbol.pretty(), width=80)
 }
 
 ///|
@@ -278,10 +313,17 @@ fn TypeDisplayContext::effect_symbol_text(
   self : TypeDisplayContext,
   symbol : @symbol.EffectSymbolId,
 ) -> String {
-  match self.registry.effect_metadata(symbol) {
-    Some(metadata) => metadata.name
-    None => @prettyprinter.render(symbol.pretty(), width=80)
+  if self.registry is Some(registry) &&
+    registry.effect_metadata(symbol) is Some(metadata) {
+    return metadata.name
   }
+  for item in self.effect_names {
+    let (id, name) = item
+    if id == symbol {
+      return name
+    }
+  }
+  @prettyprinter.render(symbol.pretty(), width=80)
 }
 
 ///|
@@ -289,10 +331,17 @@ fn TypeDisplayContext::type_parameter_text(
   self : TypeDisplayContext,
   id : @symbol.TypeParameterId,
 ) -> String {
-  match self.registry.type_parameter_metadata(id) {
-    Some(metadata) => metadata.name
-    None => @prettyprinter.render(id.pretty(), width=80)
+  if self.registry is Some(registry) &&
+    registry.type_parameter_metadata(id) is Some(metadata) {
+    return metadata.name
   }
+  for item in self.type_parameter_names {
+    let (candidate, name) = item
+    if candidate == id {
+      return name
+    }
+  }
+  @prettyprinter.render(id.pretty(), width=80)
 }
 
 ///|

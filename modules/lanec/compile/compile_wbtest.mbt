@@ -4027,8 +4027,8 @@ test "tuple signature presentation roundtrips through interface artifacts" {
     (
       #|module Main
       #|import Basic.Data.Tuple
-      #|pub fn pair(value : Int) -> (Int, Bool) {
-      #|  (value, true)
+      #|pub fn pair(value : (Int, Bool)) -> (Int, Bool) {
+      #|  value
       #|}
     ),
     [
@@ -4058,7 +4058,42 @@ test "tuple signature presentation roundtrips through interface artifacts" {
       (value.name, value.tuple_presentations)
     }),
     content=(
-      #|[("pair", [{ path: [FunctionResult], item_count: 2 }])]
+      #|[
+      #|  (
+      #|    "pair",
+      #|    [
+      #|      { path: [FunctionParameter(0)], item_count: 2 },
+      #|      { path: [FunctionResult], item_count: 2 },
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+  let inspect_text = match
+    @artifact_binary.artifact_binary_to_inspect_text(binary) {
+    Ok(text) => text
+    Err(message) => abort(message)
+  }
+  inspect(
+    artifact_inspect_without_fingerprints(inspect_text),
+    content=(
+      #|Lane interface artifact
+      #|module: Main
+      #|schema: 6
+      #|
+      #|imported interfaces:
+      #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0
+      #|
+      #|interface Main:
+      #|types:
+      #|  (none)
+      #|effects:
+      #|  (none)
+      #|type aliases:
+      #|  (none)
+      #|values:
+      #|  pub fn pair(value : (Int, Bool)) : ((Int, Bool)) -> (Int, Bool)
+      #|
     ),
   )
 }
