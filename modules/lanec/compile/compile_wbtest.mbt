@@ -4133,6 +4133,116 @@ test "self-qualified namespace includes local type declarations" {
 }
 
 ///|
+test "tuple ABI module cannot borrow declarations from an open import" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Basic.Data.Tuple
+      #|pub let pair : (Int, Bool) = (1, true)
+    ),
+    [
+      (
+        #|module Basic.Data.Tuple
+        #|import Other.*
+      ),
+      (
+        #|module Other
+        #|pub enum Tuple[A, B] {
+        #|  tuple(A, B)
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "cannot find type `Basic.Data.Tuple.Tuple`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 51,
+      #|          end_offset: 62,
+      #|          start_line: 3,
+      #|          start_column: 16,
+      #|          end_line: 3,
+      #|          end_column: 27,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E2000"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 51,
+      #|            end_offset: 62,
+      #|            start_line: 3,
+      #|            start_column: 16,
+      #|            end_line: 3,
+      #|            end_column: 27,
+      #|          },
+      #|        ),
+      #|        message: "no type named `Basic.Data.Tuple.Tuple` is visible here",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["Lane resolves type names from the current module and explicitly imported public types"],
+      #|    helps: ["declare `Basic.Data.Tuple.Tuple`, import the module that exports it, or qualify the type as `Module.Basic.Data.Tuple.Tuple`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "cannot find variant `Basic.Data.Tuple.Tuple::tuple`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 65,
+      #|          end_offset: 74,
+      #|          start_line: 3,
+      #|          start_column: 30,
+      #|          end_line: 3,
+      #|          end_column: 39,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 65,
+      #|            end_offset: 74,
+      #|            start_line: 3,
+      #|            start_column: 30,
+      #|            end_line: 3,
+      #|            end_column: 39,
+      #|          },
+      #|        ),
+      #|        message: "this enum type does not expose a variant named `tuple`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["qualified variant lookup first resolves the enum type, then its variants"],
+      #|    helps: ["check the variant spelling or use a variant declared by `Basic.Data.Tuple.Tuple`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "tuple and list sugar do not use unqualified fallback providers" {
   let tuple_result = check_source(
     (
