@@ -4159,11 +4159,92 @@ test "tuple and list sugar do not use unqualified fallback providers" {
       #|pub let numbers : LocalList[Int] = [1, 2]
     ),
   )
-  assert_false(list_result.diagnostics.is_empty())
-  assert_true(
-    list_result.diagnostics.any(fn(diagnostic) {
-      diagnostic.message.contains("Basic.Data.List.List")
-    }),
+  debug_inspect(
+    list_result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "cannot find variant `Basic.Data.List.List::cons`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 103,
+      #|          end_offset: 109,
+      #|          start_line: 6,
+      #|          start_column: 36,
+      #|          end_line: 6,
+      #|          end_column: 42,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 103,
+      #|            end_offset: 109,
+      #|            start_line: 6,
+      #|            start_column: 36,
+      #|            end_line: 6,
+      #|            end_column: 42,
+      #|          },
+      #|        ),
+      #|        message: "this enum type does not expose a variant named `cons`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["qualified variant lookup first resolves the enum type, then its variants"],
+      #|    helps: ["check the variant spelling or use a variant declared by `Basic.Data.List.List`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "cannot find variant `Basic.Data.List.List::empty`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 103,
+      #|          end_offset: 109,
+      #|          start_line: 6,
+      #|          start_column: 36,
+      #|          end_line: 6,
+      #|          end_column: 42,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E2003"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 103,
+      #|            end_offset: 109,
+      #|            start_line: 6,
+      #|            start_column: 36,
+      #|            end_line: 6,
+      #|            end_column: 42,
+      #|          },
+      #|        ),
+      #|        message: "this enum type does not expose a variant named `empty`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["qualified variant lookup first resolves the enum type, then its variants"],
+      #|    helps: ["check the variant spelling or use a variant declared by `Basic.Data.List.List`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
   )
 }
 

@@ -1169,7 +1169,40 @@ test "tuple syntax rejects singleton tuples and bare function parameter types" {
     ),
     [MissingTupleItem],
   )
-  assert_false(parse_errors("type Bad = Int -> Int").is_empty())
+  debug_inspect(
+    parse_errors("type Bad = Int -> Int"),
+    content=(
+      #|[
+      #|  {
+      #|    kind: UnexpectedToken(
+      #|      { label: "`->`" },
+      #|      [
+      #|        { label: "end of file" },
+      #|        { label: "`struct`" },
+      #|        { label: "`enum`" },
+      #|        { label: "`effect`" },
+      #|        { label: "`fn`" },
+      #|        { label: "`let`" },
+      #|        { label: "`type`" },
+      #|        { label: "`offer`" },
+      #|        { label: "`extern`" },
+      #|        { label: "`pub`" },
+      #|        { label: "`[`" },
+      #|        { label: "`.`" },
+      #|      ],
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 27,
+      #|      end_offset: 29,
+      #|      start_line: 2,
+      #|      start_column: 16,
+      #|      end_line: 2,
+      #|      end_column: 18,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|
