@@ -981,7 +981,10 @@ test "contextual offers do not share a fallback name" {
   )
   let visible : Array[ContextualOffer] = []
   offers.each_visible(fn(offer) { visible.push(offer) })
-  assert_eq(visible.length(), 2)
+  debug_inspect(
+    visible.map(fn(offer) { (offer.name, offer.symbol) }),
+    content="[(\"first\", { index: 0 }), (\"second\", { index: 1 })]",
+  )
 }
 
 ///|
