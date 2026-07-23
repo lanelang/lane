@@ -27,6 +27,32 @@ fn report_type_computation_failure(
 }
 
 ///|
+priv enum NominalDecomposition {
+  Nominal(TypeSymbolId, Array[@types.GenericArgument])
+  NotNominal
+  ComputationFailed
+}
+
+///|
+fn decompose_nominal_or_report(
+  diagnostics : Array[TypeCheckDiagnostic],
+  type_ : @types.Type,
+  loc : SourceSpan,
+  context~ : String,
+) -> NominalDecomposition {
+  let decomposition = type_.decompose_nominal() catch {
+    error => {
+      report_type_computation_failure(diagnostics, context, loc, error)
+      return ComputationFailed
+    }
+  }
+  match decomposition {
+    Some((symbol, arguments)) => Nominal(symbol, arguments)
+    None => NotNominal
+  }
+}
+
+///|
 fn normalize_type_or_error(
   diagnostics : Array[TypeCheckDiagnostic],
   type_ : @types.Type,

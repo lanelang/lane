@@ -264,7 +264,7 @@ fn BuslaneLowerer::complete_alt_constructors_for_type(
   self : BuslaneLowerer,
   type_ : @types.Type,
 ) -> Array[@buslane.AltCon]? {
-  if type_.decompose_nominal() is Some((symbol, _)) {
+  if decompose_checked_nominal(type_) is Some((symbol, _)) {
     if self.metadata.type_info(self.type_id(symbol)) is Some(info) {
       return Some(
         info.constructors.map(fn(data_constructor) { DataCon(data_constructor) }),

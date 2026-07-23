@@ -72,8 +72,14 @@ fn CheckedDeclarationEnvironment::field_type(
   name : String,
   loc : SourceSpan,
 ) -> @types.Type {
-  match base_type.decompose_nominal() {
-    Some((owner, arguments)) => {
+  match
+    decompose_nominal_or_report(
+      diagnostics,
+      base_type,
+      loc,
+      context="field receiver type",
+    ) {
+    Nominal(owner, arguments) => {
       guard self.checked_struct(owner) is Some(declaration) else {
         diagnostics.push({ kind: NotAStruct(base_type), loc })
         return Error
@@ -86,13 +92,14 @@ fn CheckedDeclarationEnvironment::field_type(
         declaration.nominal_substitution(arguments),
       )
     }
-    None =>
+    NotNominal =>
       if base_type is Error {
         Error
       } else {
         diagnostics.push({ kind: NotAStruct(base_type), loc })
         Error
       }
+    ComputationFailed => Error
   }
 }
 

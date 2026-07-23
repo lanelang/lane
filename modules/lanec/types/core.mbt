@@ -669,12 +669,11 @@ pub fn nominal_type_generic(
 }
 
 ///|
-/// Decomposes an already-normalized nominal type without running type-level
-/// computation.
+/// Decomposes a nominal type after evaluating type-level computation.
 pub fn Type::decompose_nominal(
   self : Type,
-) -> (TypeSymbolId, Array[GenericArgument])? {
-  match self {
+) -> (TypeSymbolId, Array[GenericArgument])? raise TypeComputationError {
+  match self.try_normalize() {
     Constructor(symbol) => Some((symbol, []))
     Apply(Constructor(symbol), arguments) => Some((symbol, arguments))
     _ => None

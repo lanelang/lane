@@ -953,6 +953,33 @@ test "elaborate struct field access into buslane selector" {
 }
 
 ///|
+test "elaborate higher-order field access into a typed selector" {
+  let result = elaborate_buslane_source(
+    (
+      #|struct Inner[A] {
+      #|  value : A
+      #|}
+      #|struct Wrapper[F : [Type] -> Type] {
+      #|  inner : F[Int]
+      #|}
+      #|type Boxed : [Type] -> Type = type[A] => Inner[A]
+      #|fn get(w : Wrapper[Boxed]) -> Int {
+      #|  w.inner.value
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
 test "elaborate pattern binders before match arm bodies" {
   let result = elaborate_buslane_source(
     (

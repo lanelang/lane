@@ -497,8 +497,20 @@ fn GenericArgumentInference::collect(
       self.collect_array(left_parameters, right_parameters, include_effects~) &&
       self.collect(left_result, right_result, include_effects~) &&
       (!include_effects || self.collect_effect(left_effect, right_effect))
-    _ =>
-      match (template.decompose_nominal(), actual.decompose_nominal()) {
+    _ => {
+      let template_nominal = template.decompose_nominal() catch {
+        error => {
+          self.record_computation_error(error)
+          return false
+        }
+      }
+      let actual_nominal = actual.decompose_nominal() catch {
+        error => {
+          self.record_computation_error(error)
+          return false
+        }
+      }
+      match (template_nominal, actual_nominal) {
         (
           Some((left_symbol, left_arguments)),
           Some((right_symbol, right_arguments)),
@@ -514,6 +526,7 @@ fn GenericArgumentInference::collect(
           }
         _ => true
       }
+    }
   }
 }
 

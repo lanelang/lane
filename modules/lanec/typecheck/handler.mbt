@@ -625,5 +625,6 @@ fn SemanticChecker::check_handler_operation_coverage(
         loc,
       })
     }
+    matrix.report_computation_error(self.diagnostics, loc)
   }
 }

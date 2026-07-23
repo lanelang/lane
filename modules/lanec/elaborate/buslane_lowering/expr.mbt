@@ -256,7 +256,7 @@ fn BuslaneLowerer::lower_field(
   field : @symbol.FieldSymbolId,
 ) -> @buslane.Expr {
   let selector : @buslane.Expr = Ref(self.field_selector_id(field))
-  let callee = match base.type_().decompose_nominal() {
+  let callee = match decompose_checked_nominal(base.type_()) {
     Some((_, arguments)) =>
       if arguments.is_empty() {
         selector
@@ -374,10 +374,19 @@ fn BuslaneLowerer::nominal_type_arguments(
   self : BuslaneLowerer,
   type_ : @types.Type,
 ) -> Array[@buslane.GenericArgument] {
-  match type_.decompose_nominal() {
+  match decompose_checked_nominal(type_) {
     Some((_, arguments)) =>
       arguments.map(fn(argument) { self.lower_generic_argument(argument) })
     None => []
+  }
+}
+
+///|
+fn decompose_checked_nominal(
+  type_ : @types.Type,
+) -> (@symbol.TypeSymbolId, Array[@types.GenericArgument])? {
+  type_.decompose_nominal() catch {
+    _ => abort("type computation failure reached Buslane lowering")
   }
 }
 

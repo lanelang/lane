@@ -126,6 +126,28 @@ test "try normalize reports type fuel exhaustion without aborting" {
 }
 
 ///|
+test "decompose nominal evaluates type-level computation" {
+  let (option, parameter, _) = test_symbols()
+  let type_ = Apply(TypeLambda([parameter], Parameter(parameter.id)), [
+    TypeArgument(Constructor(option)),
+  ])
+  assert_eq(type_.decompose_nominal(), Some((option, [])))
+}
+
+///|
+test "decompose nominal propagates type computation failure" {
+  let mut type_ = Primitive(Unit)
+  for _ in 0..<NORMALIZATION_DEPTH_LIMIT {
+    type_ = Forall([], type_)
+  }
+  try type_.decompose_nominal() catch {
+    error => debug_inspect(error, content="TypeNormalizationFuelExhausted")
+  } noraise {
+    _ => fail("nominal decomposition must propagate normalization failure")
+  }
+}
+
+///|
 test "try normalize reports effect fuel exhaustion without aborting" {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())

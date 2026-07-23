@@ -678,6 +678,7 @@ fn SemanticChecker::check_checked_match(
       loc,
     })
   }
+  matrix.report_computation_error(self.diagnostics, loc)
   if complete {
     checked_expression_with_effect(
       Match(scrutinee~, arms=checked_arms, type_=expectation.type_, loc~),
@@ -761,6 +762,7 @@ fn SemanticChecker::synthesize_checked_match(
       loc,
     })
   }
+  matrix.report_computation_error(self.diagnostics, loc)
   if complete {
     checked_expression_with_effect(
       Match(scrutinee~, arms=checked_arms, type_=result, loc~),
@@ -1229,26 +1231,37 @@ fn SemanticChecker::synthesize_checked_field(
         loc,
       )
     Deferred(_) =>
-      if checked_base.type_.decompose_nominal() is Some((symbol, _)) {
-        guard self.declarations.checked_struct(symbol) is Some(declaration) &&
-          declaration.field_named(name) is Some(field_declaration) else {
-          self.diagnostics.push({ kind: UnknownField(name~), loc })
-          return checked_expression_none_reported(Error)
-        }
-        self.checked_field_from_symbol(
-          base,
+      match
+        decompose_nominal_or_report(
+          self.diagnostics,
           checked_base.type_,
-          checked_base.effect,
-          field_declaration.symbol,
-          name,
-          name_loc,
           loc,
-        )
-      } else if checked_base.type_ is Error {
-        checked_expression_none_reported(Error)
-      } else {
-        self.diagnostics.push({ kind: NotAStruct(checked_base.type_), loc })
-        checked_expression_none_reported(Error)
+          context="field receiver type",
+        ) {
+        Nominal(symbol, _) => {
+          guard self.declarations.checked_struct(symbol) is Some(declaration) &&
+            declaration.field_named(name) is Some(field_declaration) else {
+            self.diagnostics.push({ kind: UnknownField(name~), loc })
+            return checked_expression_none_reported(Error)
+          }
+          self.checked_field_from_symbol(
+            base,
+            checked_base.type_,
+            checked_base.effect,
+            field_declaration.symbol,
+            name,
+            name_loc,
+            loc,
+          )
+        }
+        NotNominal =>
+          if checked_base.type_ is Error {
+            checked_expression_none_reported(Error)
+          } else {
+            self.diagnostics.push({ kind: NotAStruct(checked_base.type_), loc })
+            checked_expression_none_reported(Error)
+          }
+        ComputationFailed => checked_expression_none_reported(Error)
       }
     Unresolved(..) => {
       self.diagnostics.push({ kind: UnknownField(name~), loc })

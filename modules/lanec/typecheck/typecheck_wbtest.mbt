@@ -2915,6 +2915,48 @@ test "typecheck generic struct construction and field access" {
 }
 
 ///|
+test "typecheck field access through a higher-order type alias" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Inner {
+      #|  value : Int
+      #|}
+      #|struct Wrapper[F : [Type] -> Type] {
+      #|  inner : F[Inner]
+      #|}
+      #|type Id : [Type] -> Type = type[A] => A
+      #|fn get(w : Wrapper[Id]) -> Int {
+      #|  w.inner.value
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
+test "typecheck pattern coverage through a higher-order type alias" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|struct Wrapper[F : [Type] -> Type] {
+      #|  inner : F[Int]
+      #|}
+      #|type Maybe : [Type] -> Type = type[A] => Option[A]
+      #|fn unwrap(w : Wrapper[Maybe]) -> Int {
+      #|  match w.inner {
+      #|    Option::none() => 0
+      #|    Option::some(value) => value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+}
+
+///|
 test "typecheck infers struct literal generic arguments from fields" {
   let result = expect_typecheck_result(
     (

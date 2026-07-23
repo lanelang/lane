@@ -1,11 +1,33 @@
 ///|
 priv struct PatternMatrix {
   rows : Array[Array[@checked.CheckedPattern]]
+  mut computation_error : @types.TypeComputationError?
 }
 
 ///|
 fn PatternMatrix::PatternMatrix() -> PatternMatrix {
-  { rows: [] }
+  { rows: [], computation_error: None }
+}
+
+///|
+fn PatternMatrix::record_computation_error(
+  self : PatternMatrix,
+  error : @types.TypeComputationError,
+) -> Unit {
+  if self.computation_error is None {
+    self.computation_error = Some(error)
+  }
+}
+
+///|
+fn PatternMatrix::report_computation_error(
+  self : PatternMatrix,
+  diagnostics : Array[TypeCheckDiagnostic],
+  loc : SourceSpan,
+) -> Unit {
+  if self.computation_error is Some(error) {
+    report_type_computation_failure(diagnostics, "pattern coverage", loc, error)
+  }
 }
 
 ///|
@@ -31,7 +53,12 @@ fn PatternMatrix::is_row_useful(
   patterns : Array[@checked.CheckedPattern],
   types : Array[@types.Type],
 ) -> Bool {
-  matrix_useful(declarations, self.rows, patterns, types)
+  matrix_useful(declarations, self.rows, patterns, types) catch {
+    error => {
+      self.record_computation_error(error)
+      true
+    }
+  }
 }
 
 ///|
@@ -43,7 +70,12 @@ fn PatternMatrix::is_row_exhaustive(
   if types.any(fn(type_) { type_ is Error }) {
     true
   } else {
-    !matrix_useful(declarations, self.rows, wildcard_patterns(types), types)
+    (!matrix_useful(declarations, self.rows, wildcard_patterns(types), types)) catch {
+      error => {
+        self.record_computation_error(error)
+        true
+      }
+    }
   }
 }
 
@@ -53,6 +85,20 @@ fn PatternMatrix::missing_witness(
   declarations : CheckedDeclarationEnvironment,
   type_ : @types.Type,
 ) -> String? {
+  self.try_missing_witness(declarations, type_) catch {
+    error => {
+      self.record_computation_error(error)
+      None
+    }
+  }
+}
+
+///|
+fn PatternMatrix::try_missing_witness(
+  self : PatternMatrix,
+  declarations : CheckedDeclarationEnvironment,
+  type_ : @types.Type,
+) -> String? raise @types.TypeComputationError {
   if type_ is Error {
     return None
   }
@@ -323,8 +369,15 @@ fn SemanticChecker::check_variant_symbol_pattern(
     })
     return Wildcard(type_=Error, loc~)
   }
-  let generic_arguments = match expected.decompose_nominal() {
-    Some((owner, arguments)) if owner == metadata.owner => arguments
+  let generic_arguments = match
+    decompose_nominal_or_report(
+      self.diagnostics,
+      expected,
+      loc,
+      context="variant pattern type",
+    ) {
+    Nominal(owner, arguments) if owner == metadata.owner => arguments
+    ComputationFailed => return Wildcard(type_=Error, loc~)
     _ =>
       if expected is Error {
         []
@@ -437,14 +490,24 @@ fn SemanticChecker::check_unqualified_variant_pattern(
   binders : Array[String],
   loc : SourceSpan,
 ) -> @checked.CheckedPattern {
-  guard expected.decompose_nominal() is Some((owner, _)) else {
-    if !(expected is Error) {
-      self.diagnostics.push({
-        kind: UnqualifiedVariantPatternNeedsExpectedEnum(variant~),
-        loc,
-      })
+  let owner = match
+    decompose_nominal_or_report(
+      self.diagnostics,
+      expected,
+      loc,
+      context="variant pattern type",
+    ) {
+    Nominal(owner, _) => owner
+    NotNominal => {
+      if !(expected is Error) {
+        self.diagnostics.push({
+          kind: UnqualifiedVariantPatternNeedsExpectedEnum(variant~),
+          loc,
+        })
+      }
+      return Wildcard(type_=Error, loc~)
     }
-    return Wildcard(type_=Error, loc~)
+    ComputationFailed => return Wildcard(type_=Error, loc~)
   }
   guard self.declarations.checked_enum(owner) is Some(declaration) else {
     self.diagnostics.push({
@@ -499,8 +562,15 @@ fn SemanticChecker::check_struct_pattern(
     self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
     return Wildcard(type_=Error, loc~)
   }
-  let generic_arguments = match expected.decompose_nominal() {
-    Some((owner, arguments)) if owner == symbol => arguments
+  let generic_arguments = match
+    decompose_nominal_or_report(
+      self.diagnostics,
+      expected,
+      loc,
+      context="struct pattern type",
+    ) {
+    Nominal(owner, arguments) if owner == symbol => arguments
+    ComputationFailed => return Wildcard(type_=Error, loc~)
     _ =>
       if expected is Error {
         []
@@ -698,7 +768,7 @@ fn PatternMatrix::is_useful(
   // specialization algorithm. Constructor columns are recursively expanded into
   // payload/field columns, so nested enum and struct patterns are handled by the
   // same coverage rule as top-level patterns.
-  matrix_useful(declarations, self.rows, [pattern], [type_])
+  self.is_row_useful(declarations, [pattern], [type_])
 }
 
 ///|
@@ -714,7 +784,7 @@ fn PatternMatrix::is_exhaustive(
   if type_ is Error {
     true
   } else {
-    !matrix_useful(declarations, self.rows, [wildcard_pattern(type_)], [type_])
+    self.is_row_exhaustive(declarations, [type_])
   }
 }
 
@@ -767,7 +837,7 @@ fn coverage_candidates(
   declarations : CheckedDeclarationEnvironment,
   type_ : @types.Type,
   depth : Int,
-) -> Array[CoverageCandidate] {
+) -> Array[CoverageCandidate] raise @types.TypeComputationError {
   if depth <= 0 {
     return [coverage_wildcard_candidate(type_)]
   }
@@ -809,7 +879,7 @@ fn nominal_coverage_candidates(
   arguments : Array[@types.GenericArgument],
   type_ : @types.Type,
   depth : Int,
-) -> Array[CoverageCandidate] {
+) -> Array[CoverageCandidate] raise @types.TypeComputationError {
   if declarations.checked_enum(symbol) is Some(declaration) {
     return enum_coverage_candidates(
       declarations, declaration, arguments, type_, depth,
@@ -830,7 +900,7 @@ fn enum_coverage_candidates(
   arguments : Array[@types.GenericArgument],
   type_ : @types.Type,
   depth : Int,
-) -> Array[CoverageCandidate] {
+) -> Array[CoverageCandidate] raise @types.TypeComputationError {
   let candidates = []
   for variant in declaration.variants {
     let payload_types = variant_payload_types(declaration, variant, arguments)
@@ -858,7 +928,7 @@ fn struct_coverage_candidates(
   arguments : Array[@types.GenericArgument],
   type_ : @types.Type,
   depth : Int,
-) -> Array[CoverageCandidate] {
+) -> Array[CoverageCandidate] raise @types.TypeComputationError {
   let field_types = struct_field_types(declaration, arguments)
   coverage_candidate_rows(declarations, field_types, depth - 1).map(fn(row) {
     let fields : Array[@checked.CheckedStructPatternField] = []
@@ -896,7 +966,7 @@ fn coverage_candidate_rows(
   declarations : CheckedDeclarationEnvironment,
   types : Array[@types.Type],
   depth : Int,
-) -> Array[CoverageCandidateRow] {
+) -> Array[CoverageCandidateRow] raise @types.TypeComputationError {
   if types.is_empty() {
     return [{ patterns: [], witnesses: [] }]
   }
@@ -944,7 +1014,7 @@ fn matrix_useful(
   matrix : Array[Array[@checked.CheckedPattern]],
   vector : Array[@checked.CheckedPattern],
   types : Array[@types.Type],
-) -> Bool {
+) -> Bool raise @types.TypeComputationError {
   if vector.is_empty() {
     return matrix.is_empty()
   }
@@ -963,7 +1033,7 @@ fn matrix_useful(
   let seen = first_column_constructor_signatures(matrix)
   if complete_constructor_signatures(declarations, type_) is Some(constructors) {
     if constructor_signatures_complete(constructors, seen) {
-      return constructors.any(fn(signature) {
+      return constructors.any(signature => {
         matrix_useful(
           declarations,
           specialize_matrix(matrix, signature),
@@ -1030,7 +1100,7 @@ fn default_matrix(
 fn complete_constructor_signatures(
   declarations : CheckedDeclarationEnvironment,
   type_ : @types.Type,
-) -> Array[ConstructorSignature]? {
+) -> Array[ConstructorSignature]? raise @types.TypeComputationError {
   if type_.decompose_nominal() is Some((symbol, arguments)) {
     if declarations.checked_enum(symbol) is Some(declaration) {
       return Some(

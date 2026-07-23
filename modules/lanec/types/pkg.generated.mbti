@@ -71,7 +71,7 @@ pub(all) enum Type {
   Forall(Array[TypeParameter], Type)
 } derive(@debug.Debug)
 pub fn Type::alpha_equal(Self, Self) -> Bool
-pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[GenericArgument])?
+pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[GenericArgument])? raise TypeComputationError
 pub fn Type::equals(Self, Self) -> Bool raise TypeComputationError
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
 pub fn Type::try_normalize(Self) -> Self raise TypeComputationError
