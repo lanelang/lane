@@ -480,6 +480,58 @@ test "completion uses importer revision symbol metadata" {
 }
 
 ///|
+test "imported completion preserves authored tuple signature presentation" {
+  let root =
+    #|module Main
+    #|
+    #|import A
+    #|
+    #|pub fn use() -> (Int, Bool) {
+    #|  A.sugared(1)
+    #|}
+  let library =
+    #|module A
+    #|
+    #|import Basic.Data.Tuple
+    #|
+    #|pub fn sugared(value : Int) -> (Int, Bool) {
+    #|  (value, true)
+    #|}
+    #|
+    #|pub fn explicit(value : Int) -> Basic.Data.Tuple.Tuple[Int, Bool] {
+    #|  Basic.Data.Tuple.Tuple::tuple(value, true)
+    #|}
+  let tuple =
+    #|module Basic.Data.Tuple
+    #|
+    #|pub enum Tuple[A, B] {
+    #|  tuple(A, B)
+    #|}
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: root },
+    [
+      { source_id: "file:///A.lane", text: library },
+      { source_id: "file:///Tuple.lane", text: tuple },
+    ],
+    "file:///Main.lane",
+    6,
+    5,
+    TriggerCharacter("."),
+  )
+  debug_inspect(
+    entries
+    .filter(fn(entry) { entry.label == "sugared" || entry.label == "explicit" })
+    .map(fn(entry) { (entry.label, entry.detail) }),
+    content=(
+      #|[
+      #|  ("sugared", Some("sugared : (Int) -> (Int, Bool)")),
+      #|  ("explicit", Some("explicit : (Int) -> Tuple[Int, Bool]")),
+      #|]
+    ),
+  )
+}
+
+///|
 test "completion returns owner members after double colon" {
   let source =
     #|module Main
@@ -1140,6 +1192,51 @@ test "completion classifies an empty type annotation slot as type space" {
     abort("expected edited semantic snapshot")
   }
   let entries = snapshot.complete("file:///Main.lane", 11, 12, Manual)
+  debug_inspect(
+    entries
+    .filter(entry => entry.label == "Thing" || entry.label == "make")
+    .map(entry => (entry.label, entry.kind)),
+    content="[(\"Thing\", Type)]",
+  )
+}
+
+///|
+test "completion classifies an empty tuple type item as type space" {
+  let valid_source =
+    #|module Main
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub type Pair = (Thing, Int)
+  let edited_source =
+    #|module Main
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn make() -> Int { 0 }
+    #|
+    #|pub type Pair = (Thing,
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: valid_source },
+    ])
+    is Some(_) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: edited_source,
+    })
+    is Some(snapshot) else {
+    abort("expected edited semantic snapshot")
+  }
+  let entries = snapshot.complete("file:///Main.lane", 9, 24, Manual)
   debug_inspect(
     entries
     .filter(entry => entry.label == "Thing" || entry.label == "make")

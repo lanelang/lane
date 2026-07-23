@@ -27,6 +27,7 @@ fn parse_error_summary(errors : Array[@parser.ParseError]) -> String {
       expected.map(fn(item) { item.label }).join(",")
     EmptyGenericArgumentList => "empty generic argument list"
     EmptyTypeParameterList => "empty type parameter list"
+    MissingTupleItem => "missing tuple item"
   }
 }
 

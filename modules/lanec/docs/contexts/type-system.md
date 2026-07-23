@@ -109,6 +109,13 @@ _Avoid_: source alias reference in Buslane metadata, nominal alias identity
 The diagnostic-facing source spelling or origin information for a type-level expression.
 _Avoid_: semantic alias identity, Buslane alias metadata
 
+**Tuple Source Presentation**:
+The source-facing rendering of an authored tuple type from Surface Presentation
+metadata rather than reconstruction from its expanded nominal type. An
+explicitly authored `Basic.Data.Tuple.Tuple[A, B]` remains nominal in
+source-facing output even though it is semantically equal to `(A, B)`.
+_Avoid_: semantic tuple type, Tuple identity detection, artifact encoding
+
 **General Type Application Callee**:
 The rule that the callee of a type-level application may be any type-level expression with constructor kind.
 _Avoid_: name-only type application, nominal-only application callee
@@ -334,6 +341,12 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - Public and private **Top-Level Type Aliases** share the same **Type Alias Declaration Syntax**; `pub` controls module-interface visibility only.
 - A public **Type Alias Parameter Header** is exported through the module interface as the equivalent transparent **Type-Level Lambda** body.
 - Diagnostics may use **Source Type Presentation** to show user-written alias names even when semantic type equality is alias-free.
+- Value hover, completion, and exported value signature presentation use
+  **Tuple Source Presentation** carried by presentation metadata; internal IR
+  pretty printers and artifact semantic types retain the nominal expansion.
+- Presentation preserves the authored distinction between tuple syntax and an
+  explicit nominal `Basic.Data.Tuple.Tuple` application; it never reverse-sugars
+  a type by inspecting semantic identity.
 - Source pretty printing and parser fixtures preserve a user-written **Type Alias Parameter Header**; semantic debug output and module interfaces may print the equivalent **Type-Level Lambda** form.
 - Diagnostics for a **Type Alias Parameter Header** use source locations and source terminology for the header and right-hand side, not the synthetic desugared **Type-Level Lambda**.
 - **Definitional Type Equality** is **Beta Definitional Equality**; v1 does not use eta equality for type-level functions.
@@ -391,6 +404,10 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - A generic struct or enum uses **Generic Type Definition** syntax and is used with **Generic Type Application** syntax.
 - Structs and enums keep a **Nominal Type Parameter Header**; type alias parameter headers are pure sugar for **Type-Level Lambdas**.
 - Lane function types use **Parameter-List Function Type** syntax.
+- Every function type, including a unary function type, uses a parenthesized
+  parameter list; bare `A -> B` syntax is invalid.
+- `(A, B) -> C` has two value parameters, while `((A, B)) -> C` has one
+  tuple-typed value parameter.
 - **Generic Function Type** syntax elaborates to a **Forall Type**.
 - **Forall Types** bind **Kinded Forall Binders**; omitted kinds default to `Type`.
 - **Forall Types** and **Type Lambdas** use the same **Buslane Type Parameter Identity** model.

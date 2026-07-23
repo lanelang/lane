@@ -21,6 +21,33 @@ _Avoid_: ANF IR, resolved surface AST, environment-only check result
 The expression structure of the source language, such as blocks, conditionals, matches, calls, literals, and function literals, preserved before ANF lowering.
 _Avoid_: atomized core shape, source-only syntax, basic blocks
 
+**Surface Sugar Expansion**:
+A recursive pre-resolution transformation that replaces source-only type,
+expression, and pattern sugar with ordinary qualified source syntax while the
+parsed Syntax AST remains available to formatting and source tooling. For
+expression sugar, expansion preserves the lexical left-to-right evaluation of
+authored child expressions and never duplicates or discards their evaluation.
+_Avoid_: resolver special case, typechecker sugar rule, formatter reconstruction
+
+**Surface Presentation Map**:
+A non-semantic sidecar produced with Surface Sugar Expansion that preserves
+authored source presentation for value hover, completion, and exported value
+signature display without reconstructing sugar from resolved identities.
+_Avoid_: semantic type metadata, symbol-name re-sugaring, internal IR pretty print
+
+**Surface Source Provenance**:
+The mapping from nodes introduced by Surface Sugar Expansion to the real source
+span of the authored sugar node that produced them. Generated qualified names
+do not invent identifier-token spans.
+_Avoid_: synthetic token location, generated-name source text, Buslane span field
+
+**Expected Syntax Slot**:
+A zero-width tolerant-parser/CST node recording the grammar category expected
+at an incomplete source position, such as a type, expression, or pattern.
+Completion consumes this role directly instead of inferring it by scanning
+nearby punctuation.
+_Avoid_: token backscan, delimiter heuristic, tuple-specific completion rule
+
 **Source Elaboration**:
 The source-level checking phase that turns resolved surface syntax into checked source syntax by removing source-only forms and selecting concrete symbols.
 _Avoid_: pure desugaring, Buslane lowering
@@ -327,7 +354,22 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 
 ## Relationships
 
-- A **Syntax AST** is resolved into a **Resolved AST** before type checking.
+- A parsed **Syntax AST** undergoes **Surface Sugar Expansion** before it is
+  resolved into a **Resolved AST**.
+- List and tuple syntax are absent after **Surface Sugar Expansion**; resolution
+  and typechecking observe only ordinary qualified nominal syntax.
+- **Surface Sugar Expansion** produces a **Surface Presentation Map** alongside
+  expanded syntax; semantic equality, internal IR, and canonical artifacts do
+  not consume that sidecar.
+- Nodes introduced by **Surface Sugar Expansion** carry **Surface Source
+  Provenance**, so diagnostics and source tooling point to authored sugar rather
+  than synthetic qualified names.
+- Incomplete surface lists expose **Expected Syntax Slots** through the tolerant
+  parser/CST; completion uses their type, expression, or pattern roles without
+  recognizing tuple syntax or scanning punctuation.
+- Expression **Surface Sugar Expansion** preserves authored child-expression
+  evaluation order even when the expanded nominal representation is
+  right-nested.
 - A **Resolved AST** attaches **Symbol Identity** to resolved names while preserving source names for diagnostics.
 - Lane compiler IR uses **Separated Symbol Identity** and **Separated Namespaces**.
 - **Source Elaboration** consumes type checking information and produces a **Checked Source AST**.

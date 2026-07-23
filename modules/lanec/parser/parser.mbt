@@ -69,6 +69,14 @@ fn unexpected_token_error_kind(
   token : @yacc_parser.Token,
   expected : Array[@yacc_parser.TokenKind],
 ) -> ParseErrorKind {
+  if token is RPAREN &&
+    (
+      expected.contains(TK_MISSING_TUPLE_TYPE_ITEM_ERROR) ||
+      expected.contains(TK_MISSING_TUPLE_EXPRESSION_ITEM_ERROR) ||
+      expected.contains(TK_MISSING_TUPLE_PATTERN_ITEM_ERROR)
+    ) {
+    return MissingTupleItem
+  }
   if token is RBRACKET {
     if expected.contains(TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR) {
       return EmptyGenericArgumentList
@@ -95,7 +103,12 @@ fn expected_syntax(
       | TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR
       | TK_EMPTY_TYPE_PARAMETER_LIST_ERROR
       | TK_TYPE_IDENTIFIER_SLOT
-      | TK_EFFECT_IDENTIFIER_SLOT) {
+      | TK_EFFECT_IDENTIFIER_SLOT
+      | TK_VALUE_IDENTIFIER_SLOT
+      | TK_PATTERN_IDENTIFIER_SLOT
+      | TK_MISSING_TUPLE_TYPE_ITEM_ERROR
+      | TK_MISSING_TUPLE_EXPRESSION_ITEM_ERROR
+      | TK_MISSING_TUPLE_PATTERN_ITEM_ERROR) {
       continue
     }
     let syntax : ExpectedSyntax = { label: token_kind_label(kind) }
@@ -111,19 +124,19 @@ fn expected_identifier_index(
   loc : SourceSpan,
   expected : Array[@yacc_parser.TokenKind],
 ) -> @syntax.SyntacticIdentifierIndex {
-  match
-    (
-      expected.contains(TK_TYPE_IDENTIFIER_SLOT),
-      expected.contains(TK_EFFECT_IDENTIFIER_SLOT),
-    ) {
-    (true, false) =>
-      @syntax.SyntacticIdentifierIndex::expected_identifier(loc, TypeIdentifier)
-    (false, true) =>
-      @syntax.SyntacticIdentifierIndex::expected_identifier(
-        loc,
-        EffectIdentifier,
-      )
-    _ => @syntax.SyntacticIdentifierIndex::empty()
+  if expected.contains(TK_TYPE_IDENTIFIER_SLOT) {
+    @syntax.SyntacticIdentifierIndex::expected_identifier(loc, TypeIdentifier)
+  } else if expected.contains(TK_EFFECT_IDENTIFIER_SLOT) {
+    @syntax.SyntacticIdentifierIndex::expected_identifier(loc, EffectIdentifier)
+  } else if expected.contains(TK_VALUE_IDENTIFIER_SLOT) {
+    @syntax.SyntacticIdentifierIndex::expected_identifier(loc, ValueIdentifier)
+  } else if expected.contains(TK_PATTERN_IDENTIFIER_SLOT) {
+    @syntax.SyntacticIdentifierIndex::expected_identifier(
+      loc,
+      PatternIdentifier,
+    )
+  } else {
+    @syntax.SyntacticIdentifierIndex::empty()
   }
 }
 
@@ -185,6 +198,11 @@ fn token_label(token : @yacc_parser.Token) -> String {
     EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
     TYPE_IDENTIFIER_SLOT => "type identifier slot"
     EFFECT_IDENTIFIER_SLOT => "effect identifier slot"
+    VALUE_IDENTIFIER_SLOT => "value identifier slot"
+    PATTERN_IDENTIFIER_SLOT => "pattern identifier slot"
+    MISSING_TUPLE_TYPE_ITEM_ERROR => "missing tuple type item"
+    MISSING_TUPLE_EXPRESSION_ITEM_ERROR => "missing tuple expression item"
+    MISSING_TUPLE_PATTERN_ITEM_ERROR => "missing tuple pattern item"
     COMMA => "`,`"
     SEMICOLON => "`;`"
     LAYOUT_SEMICOLON => "line break"
@@ -259,6 +277,11 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_EMPTY_TYPE_PARAMETER_LIST_ERROR => "empty type parameter list"
     TK_TYPE_IDENTIFIER_SLOT => "type identifier slot"
     TK_EFFECT_IDENTIFIER_SLOT => "effect identifier slot"
+    TK_VALUE_IDENTIFIER_SLOT => "value identifier slot"
+    TK_PATTERN_IDENTIFIER_SLOT => "pattern identifier slot"
+    TK_MISSING_TUPLE_TYPE_ITEM_ERROR => "missing tuple type item"
+    TK_MISSING_TUPLE_EXPRESSION_ITEM_ERROR => "missing tuple expression item"
+    TK_MISSING_TUPLE_PATTERN_ITEM_ERROR => "missing tuple pattern item"
     TK_COMMA => "`,`"
     TK_SEMICOLON => "`;`"
     TK_LAYOUT_SEMICOLON => "line break"

@@ -138,7 +138,6 @@ pub(all) enum ResolvedExpr {
   QualifiedVariant(type_name~ : String, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[ResolvedGenericArgument], variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   StructLiteral(type_name~ : String, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
-  ListLiteral(items~ : Array[ResolvedExpr], empty_reference~ : ResolvedVariantReference, cons_reference~ : ResolvedVariantReference?, loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   Extern(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
@@ -338,6 +337,7 @@ pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
 pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
   symbols : @symbol.SymbolRegistry
+  value_type_presentations : Array[ResolvedValueTypePresentation]
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
@@ -457,6 +457,11 @@ pub(all) enum ResolvedValueReference {
   Unresolved(String)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedValueReference
+
+pub(all) struct ResolvedValueTypePresentation {
+  loc : @basic.SourceSpan
+  text : String
+} derive(Eq, @debug.Debug)
 
 pub(all) enum ResolvedVariantReference {
   Symbol(@symbol.VariantSymbolId)

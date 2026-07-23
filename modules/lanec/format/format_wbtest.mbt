@@ -2538,3 +2538,88 @@ test "format source keeps short block-like assignment attached" {
     width=80,
   )
 }
+
+///|
+test "format tuple syntax with flat right spine and preserved left nesting" {
+  assert_format(
+    (
+      #|module Test
+      #|type Right = (Int,(Bool,String))
+      #|type Left = ((Int,Bool),String)
+      #|fn make()->(Int,Bool,String){(1,(true,"lane"))}
+      #|fn first(value:(Int,Bool,String))->Int{
+      #|  match value { ((head,_),tail) => head }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|type Right = (Int, Bool, String)
+      #|
+      #|type Left = ((Int, Bool), String)
+      #|
+      #|fn make() -> (Int, Bool, String) {
+      #|  (1, true, "lane")
+      #|}
+      #|
+      #|fn first(value : (Int, Bool, String)) -> Int {
+      #|  match value {
+      #|    ((head, _), tail) => head
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
+test "format flattened tuple syntax preserves nested comments" {
+  assert_format(
+    (
+      #|module Test
+      #|type Triple = (Int, (Bool, // type kept
+      #|String))
+      #|fn make() -> (Int, Bool, String) {
+      #|  (1, (true, // expression kept
+      #|  "lane"))
+      #|}
+      #|fn first(value : (Int, Bool, String)) -> Int {
+      #|  match value {
+      #|    (head, (_, // pattern kept
+      #|    _)) => head
+      #|  }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|type Triple = (
+      #|  Int,
+      #|  Bool,
+      #|  // type kept
+      #|  String
+      #|)
+      #|
+      #|fn make() -> (Int, Bool, String) {
+      #|  (
+      #|    1,
+      #|    true,
+      #|    // expression kept
+      #|    "lane"
+      #|  )
+      #|}
+      #|
+      #|fn first(value : (Int, Bool, String)) -> Int {
+      #|  match value {
+      #|    (
+      #|      head,
+      #|      _,
+      #|      // pattern kept
+      #|      _
+      #|    ) => head
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}

@@ -750,14 +750,15 @@
       }
     },
     {
-      "name": "invalid 16 tuple type",
+      "name": "invalid 16 singleton tuple type",
       "file": "examples/invalid/16_tuple_type.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
-          "tuple types are not supported",
-          "parenthesized types are parsed as function types and need `->`"
+          "error[E1104]",
+          "tuple item is missing",
+          "a comma in tuple syntax must be followed by another item",
+          "remove the comma for grouping or add another tuple item"
         ]
       }
     },
@@ -1161,10 +1162,10 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3012]",
-          "invalid variant reference",
-          "unresolved variant cons",
-          "check the variant name and enum owner"
+          "error[E2003]",
+          "cannot find variant `Basic.Data.List.List::cons`",
+          "cannot find variant `Basic.Data.List.List::empty`",
+          "check the variant spelling or use a variant declared by `Basic.Data.List.List`"
         ]
       }
     },
@@ -1431,6 +1432,11 @@
     {
       "name": "62 else-omitting conditionals",
       "file": "examples/valid/62_else_omitting_conditionals.lane",
+      "mode": "check"
+    },
+    {
+      "name": "63 nominal tuple sugar",
+      "file": "examples/valid/63_nominal_tuple_sugar.lane",
       "mode": "check"
     },
     {

@@ -494,6 +494,9 @@ fn CompletionIndex::add_interface_surface_entries(
       Function => Function
       Let => Value
     }
+    let type_text = value.type_presentation.unwrap_or_else(fn() {
+      display.type_text(value.type_)
+    })
     add_completion_entry(
       entries,
       source_id,
@@ -501,7 +504,7 @@ fn CompletionIndex::add_interface_surface_entries(
       replace,
       value.name,
       kind,
-      Some("\{value.name} : \{display.type_text(value.type_)}"),
+      Some("\{value.name} : \{type_text}"),
       "20",
       is_offered=value.is_offered,
     )
@@ -890,7 +893,7 @@ fn completion_space_from_syntax_role(
   match role {
     Some(TypeIdentifier) => TypeSpace
     Some(EffectIdentifier) => EffectSpace
-    None => AnySpace
+    Some(ValueIdentifier) | Some(PatternIdentifier) | None => AnySpace
   }
 }
 

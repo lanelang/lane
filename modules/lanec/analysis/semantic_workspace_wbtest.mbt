@@ -143,6 +143,36 @@ test "semantic snapshot queries use persistent source indexes" {
 }
 
 ///|
+test "local hover preserves authored tuple signature presentation" {
+  let workspace = SemanticWorkspace::new()
+  let main =
+    #|module Main
+    #|import Basic.Data.Tuple
+    #|
+    #|pub fn use() -> Int {
+    #|  let pair : (Int, Bool) = (1, true)
+    #|  let (first, _) = pair
+    #|  first
+    #|}
+  let tuple =
+    #|module Basic.Data.Tuple
+    #|pub enum Tuple[A, B] {
+    #|  tuple(A, B)
+    #|}
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: main },
+      { source_id: "file:///Tuple.lane", text: tuple },
+    ])
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  guard snapshot.hover_at("file:///Main.lane", 5, 8) is Some(hover) else {
+    abort("expected local tuple hover")
+  }
+  assert_eq(hover.contents, "pair : (Int, Bool)")
+}
+
+///|
 test "semantic workspace preserves imported definitions across source renames" {
   let workspace = SemanticWorkspace::new()
   let source_a =

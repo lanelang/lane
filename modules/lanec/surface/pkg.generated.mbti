@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/surface"
+
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/syntax",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn expand_source(@syntax.SourceFile) -> SurfaceExpansion
+
+// Errors
+
+// Types and methods
+pub(all) struct SurfaceExpansion {
+  source : @syntax.SourceFile
+  presentations : Array[SurfacePresentation]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SurfacePresentation {
+  TupleType(@basic.SourceSpan)
+  TupleExpression(@basic.SourceSpan)
+  TuplePattern(@basic.SourceSpan)
+  ListExpression(@basic.SourceSpan)
+  ValueType(loc~ : @basic.SourceSpan, text~ : String)
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

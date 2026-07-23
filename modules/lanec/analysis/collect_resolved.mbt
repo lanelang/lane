@@ -671,12 +671,6 @@ fn SemanticIndex::collect_resolved_expr_symbols(
         )
       }
     }
-    ListLiteral(empty_reference~, cons_reference~, ..) => {
-      self.collect_resolved_variant_reference(empty_reference)
-      if cons_reference is Some(reference) {
-        self.collect_resolved_variant_reference(reference)
-      }
-    }
     StructLiteral(fields~, ..) =>
       for field in fields {
         if field is Value(name~, value~, punned_reference=Some(reference), loc~) {

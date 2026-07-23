@@ -2,6 +2,7 @@
 priv struct Resolver {
   registry : SymbolRegistry
   declaration_symbols : @symbol.DeclarationSymbolScope
+  current_module_path : String
   modules : Array[ModuleBinding]
   types : Array[TypeBinding]
   effects : Array[EffectBinding]
@@ -83,14 +84,39 @@ priv struct QualifiedNameText {
 }
 
 ///|
+fn[T] surface_sugar_reached_resolver() -> T {
+  abort("surface sugar must be expanded before name resolution")
+}
+
+///|
+fn resolved_value_type_presentations(
+  presentations : Array[@surface.SurfacePresentation],
+) -> Array[ResolvedValueTypePresentation] {
+  presentations.filter_map(fn(presentation) {
+    match presentation {
+      ValueType(loc~, text~) => Some({ loc, text })
+      _ => None
+    }
+  })
+}
+
+///|
 /// Resolves a syntax source file and returns diagnostics with the result.
 ///
 /// Example: resolving `fn f(x : Missing) -> Int { x }` records an unresolved
 /// type diagnostic while still returning a resolved tree for later phases.
 pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult {
   let registry = SymbolRegistry()
-  let resolver = Resolver::Resolver(registry, None)
-  resolver.resolve_source_file_result(source)
+  let expanded = @surface.expand_source(source)
+  let resolver = Resolver::Resolver(
+    registry,
+    None,
+    @module_interface.module_path_text(expanded.source.module_path),
+  )
+  resolver.resolve_source_file_result(
+    expanded.source,
+    resolved_value_type_presentations(expanded.presentations),
+  )
 }
 
 ///|
@@ -102,15 +128,24 @@ pub fn resolve_source_file_with_imports_result(
   imported_environment : @module_interface.ImportedEnvironment,
   previous_declarations? : @symbol.DeclarationIdentities? = None,
 ) -> ResolveResult {
-  let resolver = Resolver::Resolver(registry, previous_declarations)
-  resolver.publish_imported_bindings(source, imported_environment)
-  resolver.resolve_source_file_result(source)
+  let expanded = @surface.expand_source(source)
+  let resolver = Resolver::Resolver(
+    registry,
+    previous_declarations,
+    @module_interface.module_path_text(expanded.source.module_path),
+  )
+  resolver.publish_imported_bindings(expanded.source, imported_environment)
+  resolver.resolve_source_file_result(
+    expanded.source,
+    resolved_value_type_presentations(expanded.presentations),
+  )
 }
 
 ///|
 fn Resolver::resolve_source_file_result(
   self : Resolver,
   source : @syntax.SourceFile,
+  value_type_presentations : Array[ResolvedValueTypePresentation],
 ) -> ResolveResult {
   // Headers and nominal members are collected before declaration bodies so
   // top-level functions, structs, enums, fields, and variants can be recursive.
@@ -122,6 +157,7 @@ fn Resolver::resolve_source_file_result(
   let resolved = {
     module_path: source.module_path,
     symbols: self.registry,
+    value_type_presentations,
     import_exposures: self.import_exposures,
     import_uses: self.import_uses,
     import_symbols: self.import_symbols,
@@ -135,12 +171,14 @@ fn Resolver::resolve_source_file_result(
 fn Resolver::Resolver(
   registry : SymbolRegistry,
   previous_declarations : @symbol.DeclarationIdentities?,
+  current_module_path : String,
 ) -> Resolver {
   {
     registry,
     declaration_symbols: registry.declaration_scope(
       previous=previous_declarations,
     ),
+    current_module_path,
     modules: [],
     types: [],
     effects: [],
@@ -1439,6 +1477,7 @@ fn @syntax.Type::resolve_type(
         loc~,
       )
     }
+    Tuple(_) => surface_sugar_reached_resolver()
     Grouped(type_~, ..) => type_.resolve_type(resolver, scope)
   }
 }
@@ -1611,6 +1650,13 @@ fn qualified_type_name_parameters(
   type_name : String,
 ) -> Array[@types.Kind]? {
   guard split_qualified_name(type_name) is Some(qualified) else { return None }
+  if resolver.local_qualified_type_binding(
+      qualified.module_path,
+      qualified.name,
+    )
+    is Some(binding) {
+    return Some(binding.parameter_kinds)
+  }
   match resolver.module_binding(qualified.module_path) {
     Some(module_) =>
       interface_type_application_parameters(module_.interface, qualified.name)
@@ -1768,7 +1814,24 @@ fn Resolver::resolve_module_qualified_type(
   loc : SourceSpan,
 ) -> ResolvedType {
   let full_name = module_qualified_name(module_path, name)
-  match self.module_binding(@module_interface.module_path_text(module_path)) {
+  let module_path_text = @module_interface.module_path_text(module_path)
+  if self.current_module_path == module_path_text {
+    match self.local_qualified_type_binding(module_path_text, name) {
+      Some(binding) =>
+        return Constructor(symbol=binding.symbol, name=full_name, loc~)
+      None =>
+        match self.type_alias_binding(name) {
+          Some(_) =>
+            return Alias(
+              owner_module_path=Some(self.current_module_path),
+              name=full_name,
+              loc~,
+            )
+          None => ()
+        }
+    }
+  }
+  match self.module_binding(module_path_text) {
     Some(module_) => {
       self.record_import_use(module_.import_origin, loc)
       for type_ in module_.interface.types {
@@ -2135,17 +2198,7 @@ fn @syntax.Expr::resolve_expr(
         loc~,
       )
     }
-    ListLiteral(items~, loc~) =>
-      ListLiteral(
-        items=items.map(fn(item) { item.resolve_expr(resolver, scope) }),
-        empty_reference=resolver.unqualified_variant_reference("empty", loc),
-        cons_reference=if items.is_empty() {
-          None
-        } else {
-          Some(resolver.unqualified_variant_reference("cons", loc))
-        },
-        loc~,
-      )
+    ListLiteral(_) | TupleLiteral(_) => surface_sugar_reached_resolver()
     Builtin(name, loc~) => Builtin(name, loc~)
     Extern(name, loc~) => Extern(name, loc~)
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
@@ -3076,6 +3129,7 @@ fn @syntax.Pattern::resolve_pattern(
         loc~,
       )
     }
+    Tuple(_) => surface_sugar_reached_resolver()
   }
 }
 
@@ -3227,9 +3281,17 @@ fn Resolver::qualified_type_symbol_opt(
 ) -> TypeSymbolId? {
   match qualified_name_text(name) {
     Some(qualified) =>
-      match self.module_binding(qualified.module_path) {
-        Some(module_) => module_.interface.type_symbol_named(qualified.name)
-        None => None
+      if self.local_qualified_type_binding(
+          qualified.module_path,
+          qualified.name,
+        )
+        is Some(binding) {
+        return Some(binding.symbol)
+      } else {
+        match self.module_binding(qualified.module_path) {
+          Some(module_) => module_.interface.type_symbol_named(qualified.name)
+          None => None
+        }
       }
     None => None
   }
@@ -3277,6 +3339,19 @@ fn Resolver::type_binding(self : Resolver, name : String) -> TypeBinding? {
     }
   }
   None
+}
+
+///|
+fn Resolver::local_qualified_type_binding(
+  self : Resolver,
+  module_path : String,
+  name : String,
+) -> TypeBinding? {
+  if module_path == self.current_module_path {
+    self.type_binding(name)
+  } else {
+    None
+  }
 }
 
 ///|
@@ -3716,12 +3791,25 @@ fn Resolver::qualified_variant_symbol(
 ) -> VariantSymbolId? {
   match qualified_name_text(type_name) {
     Some(qualified) =>
-      match self.module_binding(qualified.module_path) {
-        Some(module_) => {
-          self.record_import_use(module_.import_origin, loc)
-          module_.interface.variant_symbol_named(qualified.name, variant)
+      if self.local_qualified_type_binding(
+          qualified.module_path,
+          qualified.name,
+        )
+        is Some(binding) {
+        for item in binding.variants {
+          if item.name == variant {
+            return Some(item.symbol)
+          }
         }
-        None => None
+        return None
+      } else {
+        match self.module_binding(qualified.module_path) {
+          Some(module_) => {
+            self.record_import_use(module_.import_origin, loc)
+            module_.interface.variant_symbol_named(qualified.name, variant)
+          }
+          None => None
+        }
       }
     None => None
   }
@@ -3805,7 +3893,10 @@ fn Resolver::report(
   kind : ResolveDiagnosticKind,
   loc : SourceSpan,
 ) -> Unit {
-  self.diagnostics.push({ kind, loc })
+  let diagnostic : ResolveDiagnostic = { kind, loc }
+  if !self.diagnostics.contains(diagnostic) {
+    self.diagnostics.push(diagnostic)
+  }
 }
 
 ///|

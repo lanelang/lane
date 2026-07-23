@@ -483,6 +483,13 @@ fn @bytecodec.ByteWriter::write_module_interface_values(
     self.write_bool(item.is_offered)
     self.write_string(item.name)
     self.write_lane_type(item.type_)
+    match item.type_presentation {
+      Some(text) => {
+        self.write_bool(true)
+        self.write_string(text)
+      }
+      None => self.write_bool(false)
+    }
     self.write_optional_value_parameters(item.parameters)
     self.write_source_span(item.loc)
   }
@@ -500,6 +507,11 @@ fn @bytecodec.ByteReader::read_module_interface_values(
       is_offered: self.read_bool(),
       name: self.read_string(),
       type_: self.read_lane_type(),
+      type_presentation: if self.read_bool() {
+        Some(self.read_string())
+      } else {
+        None
+      },
       parameters: self.read_optional_value_parameters(),
       loc: self.read_source_span(),
     })

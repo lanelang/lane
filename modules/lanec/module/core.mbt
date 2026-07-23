@@ -135,6 +135,7 @@ pub(all) struct ModuleInterfaceValue {
   is_offered : Bool
   name : String
   type_ : @types.Type
+  type_presentation : String?
   parameters : Array[ModuleInterfaceValueParameter]?
   loc : SourceSpan
 } derive(Debug, Eq)

@@ -247,6 +247,7 @@ pub(all) enum Type {
     effect~ : EffectTerm,
     loc~ : SourceSpan
   )
+  Tuple(items~ : Array[Type], loc~ : SourceSpan)
   Grouped(type_~ : Type, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
@@ -287,6 +288,7 @@ pub fn Type::loc(self : Type) -> SourceSpan {
     | Apply(loc~, ..)
     | TypeLambda(loc~, ..)
     | Function(loc~, ..)
+    | Tuple(loc~, ..)
     | Grouped(loc~, ..) => loc
   }
 }
@@ -313,6 +315,7 @@ pub(all) enum Expr {
     loc~ : SourceSpan
   )
   ListLiteral(items~ : Array[Expr], loc~ : SourceSpan)
+  TupleLiteral(items~ : Array[Expr], loc~ : SourceSpan)
   Builtin(String, loc~ : SourceSpan)
   Extern(String, loc~ : SourceSpan)
   FunctionLiteral(
@@ -374,6 +377,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | QualifiedVariant(loc~, ..)
     | StructLiteral(loc~, ..)
     | ListLiteral(loc~, ..)
+    | TupleLiteral(loc~, ..)
     | Builtin(_, loc~)
     | Extern(_, loc~)
     | FunctionLiteral(loc~, ..)
@@ -506,6 +510,7 @@ pub(all) enum Pattern {
     fields~ : Array[StructPatternField],
     loc~ : SourceSpan
   )
+  Tuple(items~ : Array[Pattern], loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|
@@ -520,7 +525,8 @@ pub fn Pattern::loc(self : Pattern) -> SourceSpan {
     | BoolLiteral(_, loc~)
     | QualifiedVariant(loc~, ..)
     | UnqualifiedVariant(loc~, ..)
-    | Struct(loc~, ..) => loc
+    | Struct(loc~, ..)
+    | Tuple(loc~, ..) => loc
   }
 }
 

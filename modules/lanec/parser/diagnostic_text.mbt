@@ -5,6 +5,7 @@ pub fn ParseErrorKind::diagnostic_code(self : ParseErrorKind) -> String {
     UnexpectedEndOfInput(_) => "E1101"
     EmptyGenericArgumentList => "E1102"
     EmptyTypeParameterList => "E1103"
+    MissingTupleItem => "E1104"
   }
 }
 
@@ -21,8 +22,6 @@ pub fn ParseErrorKind::diagnostic_title(self : ParseErrorKind) -> String {
       "function declaration needs a result type"
     UnexpectedToken(_, _) if self.is_equals_function_body() =>
       "function body must be a block"
-    UnexpectedToken(_, _) if self.is_tuple_type() =>
-      "tuple types are not supported"
     UnexpectedToken(_, _) if self.is_extra_type_parameter_list() =>
       "type alias has one parameter list"
     UnexpectedToken(_, _) if self.is_struct_spread() =>
@@ -35,6 +34,7 @@ pub fn ParseErrorKind::diagnostic_title(self : ParseErrorKind) -> String {
     UnexpectedEndOfInput(_) => "unexpected end of input"
     EmptyGenericArgumentList => "empty generic argument list"
     EmptyTypeParameterList => "empty type parameter list"
+    MissingTupleItem => "tuple item is missing"
   }
 }
 
@@ -51,8 +51,6 @@ pub fn ParseErrorKind::diagnostic_label(self : ParseErrorKind) -> String {
       "write `-> Type` before the function body"
     UnexpectedToken(_, _) if self.is_equals_function_body() =>
       "write the function body as `{ ... }`, not after `=`"
-    UnexpectedToken(_, _) if self.is_tuple_type() =>
-      "parenthesized types are parsed as function types and need `->`"
     UnexpectedToken(_, _) if self.is_extra_type_parameter_list() =>
       "put every type parameter in the first `[...]` list"
     UnexpectedToken(_, _) if self.is_struct_spread() =>
@@ -68,6 +66,8 @@ pub fn ParseErrorKind::diagnostic_label(self : ParseErrorKind) -> String {
       "explicit generic argument lists must contain at least one argument"
     EmptyTypeParameterList =>
       "generic parameter lists must contain at least one parameter"
+    MissingTupleItem =>
+      "a comma in tuple syntax must be followed by another item"
   }
 }
 
@@ -90,8 +90,6 @@ pub fn ParseErrorKind::diagnostic_notes(self : ParseErrorKind) -> Array[String] 
       ["Lane function declarations state their result type before the body"]
     UnexpectedToken(_, _) if self.is_equals_function_body() =>
       ["Lane named functions always use block bodies"]
-    UnexpectedToken(_, _) if self.is_tuple_type() =>
-      ["Lane v1 has structs and function types, but no tuple type syntax"]
     UnexpectedToken(_, _) if self.is_extra_type_parameter_list() =>
       ["Lane declarations use one generic parameter list before `=`"]
     UnexpectedToken(_, _) if self.is_struct_spread() =>
@@ -112,6 +110,8 @@ pub fn ParseErrorKind::diagnostic_notes(self : ParseErrorKind) -> Array[String] 
       ]
     EmptyTypeParameterList =>
       ["omit the brackets when a declaration has no generic parameters"]
+    MissingTupleItem =>
+      ["tuple syntax starts at two items and does not allow a trailing comma"]
   }
 }
 
@@ -130,8 +130,6 @@ pub fn ParseErrorKind::diagnostic_helps(self : ParseErrorKind) -> Array[String] 
       ["write the declaration as `fn name(...) -> Type { ... }`"]
     UnexpectedToken(_, _) if self.is_equals_function_body() =>
       ["write `fn name(...) -> Type { expression }`"]
-    UnexpectedToken(_, _) if self.is_tuple_type() =>
-      ["define a struct for this pair-shaped value"]
     UnexpectedToken(_, _) if self.is_extra_type_parameter_list() =>
       ["write all parameters together, for example `Result[E, A]`"]
     UnexpectedToken(_, _) if self.is_struct_spread() =>
@@ -160,6 +158,8 @@ pub fn ParseErrorKind::diagnostic_helps(self : ParseErrorKind) -> Array[String] 
       ["remove the empty `[]` or provide at least one generic argument"]
     EmptyTypeParameterList =>
       ["remove the empty `[]` or add a parameter name such as `[A]`"]
+    MissingTupleItem =>
+      ["remove the comma for grouping or add another tuple item"]
   }
 }
 
@@ -198,20 +198,7 @@ fn ParseErrorKind::is_missing_declaration_type(self : ParseErrorKind) -> Bool {
 fn ParseErrorKind::is_equals_function_body(self : ParseErrorKind) -> Bool {
   match self {
     UnexpectedToken(token, expected) =>
-      token.label == "`=`" &&
-      expected.contains_label("`{`") &&
-      expected.contains_label("`->`")
-    _ => false
-  }
-}
-
-///|
-fn ParseErrorKind::is_tuple_type(self : ParseErrorKind) -> Bool {
-  match self {
-    UnexpectedToken(token, expected) =>
-      token.label == "`=`" &&
-      expected.contains_label("`->`") &&
-      !expected.contains_label("`{`")
+      token.label == "`=`" && expected.contains_label("`{`")
     _ => false
   }
 }

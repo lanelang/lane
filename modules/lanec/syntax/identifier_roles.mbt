@@ -3,6 +3,8 @@
 pub(all) enum SyntacticIdentifierRole {
   TypeIdentifier
   EffectIdentifier
+  ValueIdentifier
+  PatternIdentifier
 } derive(Debug, Eq)
 
 ///|
@@ -177,6 +179,10 @@ fn collect_type_identifier_roles(
       collect_type_identifier_roles(result, TypeIdentifier, slots)
       collect_effect_identifier_roles(effect, slots)
     }
+    Tuple(items~, ..) =>
+      for item in items {
+        collect_type_identifier_roles(item, TypeIdentifier, slots)
+      }
     Grouped(type_~, ..) => collect_type_identifier_roles(type_, role, slots)
   }
 }
@@ -239,6 +245,10 @@ fn collect_pattern_identifier_roles(
         }
       }
     }
+    Tuple(items~, ..) =>
+      for item in items {
+        collect_pattern_identifier_roles(item, slots)
+      }
   }
 }
 
@@ -277,7 +287,7 @@ fn collect_expression_identifier_roles(
         }
       }
     }
-    ListLiteral(items~, ..) =>
+    ListLiteral(items~, ..) | TupleLiteral(items~, ..) =>
       for item in items {
         collect_expression_identifier_roles(item, slots)
       }

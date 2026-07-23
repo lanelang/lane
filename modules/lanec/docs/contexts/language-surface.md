@@ -147,6 +147,30 @@ _Avoid_: core pipeline node, method call, placeholder pipeline
 An optional final comma in a comma-separated syntax list.
 _Avoid_: comma-sensitive list ending
 
+**Tuple Syntax**:
+Parenthesized comma syntax for values and types that denotes the nominal `Tuple`
+exported by `Basic.Data.Tuple`; the grammar recognizes the syntax independently
+of whether that provider module is imported.
+_Avoid_: structural product type, primitive tuple, opened Basic namespace
+
+**Right-Nested Tuple Chain**:
+The semantic expansion of tuple syntax with at least two elements into nested
+applications and constructions of `Basic.Data.Tuple.Tuple`, associating to the
+right.
+_Avoid_: flat n-tuple, arity-specific tuple type, singleton tuple
+
+**Sugar Provider ABI**:
+The fixed fully qualified declarations targeted by built-in surface expansion:
+`Basic.Data.Tuple.Tuple`, `Basic.Data.Tuple.Tuple::tuple`,
+`Basic.Data.List.List`, `Basic.Data.List.List::empty`, and
+`Basic.Data.List.List::cons`.
+_Avoid_: configurable sugar provider, shape-based enum discovery, unqualified lookup
+
+**Tuple Pattern**:
+Parenthesized comma pattern syntax that destructures a Right-Nested Tuple Chain
+without introducing numeric tuple projection.
+_Avoid_: tuple index access, flat positional record, numeric field
+
 **Primitive Inhabitant**:
 A value belonging to a primitive type, such as an integer literal, boolean literal, string literal, or `()`.
 _Avoid_: enum variant, nominal constructor
@@ -169,6 +193,38 @@ _Avoid_: enum variant, nominal constructor
 - Enum variants in expressions may be **Qualified Variants** or unambiguous **Unqualified Variants**.
 - **Field Access** is source syntax and lowers through **Selector Lowering** before Buslane.
 - A **Pipeline Expression** is source syntax and does not survive into Buslane or ANF.
+- **Tuple Syntax** does not open `Basic.Data.Tuple` or make its declarations
+  available by unqualified name.
+- Resolving **Tuple Syntax** follows ordinary module availability: without an
+  import of `Basic.Data.Tuple`, its qualified nominal type and constructor
+  references remain unresolved and produce diagnostics.
+- Qualified, open, and selective imports of `Basic.Data.Tuple` all establish
+  the module binding needed by **Tuple Syntax**; the sugar does not depend on
+  which declarations the import also exposes as unqualified names.
+- **Surface Sugar Expansion** targets the exact declarations in the **Sugar
+  Provider ABI**. Missing imports, declarations, or incompatible signatures use
+  ordinary resolution and typechecking diagnostics; the compiler neither
+  configures providers nor searches for structurally similar declarations.
+- A **Right-Nested Tuple Chain** makes `(A, B, C)` and `(A, (B, C))`
+  semantically identical; `()` remains `Unit`, `(A)` remains grouping, and
+  singleton tuple syntax is invalid.
+- The formatter canonicalizes every right-nested tuple-syntax chain to flat
+  source spelling in types, expressions, and patterns. It preserves left-nested
+  tuple elements because flattening them would change nominal structure.
+- Tuple types, expressions, and patterns use the same comma-separation policy
+  as function parameter lists: commas are required between items and trailing
+  commas are invalid.
+- A call argument list is not **Tuple Syntax**: `f(a, b)` passes two arguments,
+  while `f((a, b))` passes one tuple value.
+- Tuple elements are accessed through a **Tuple Pattern** or ordinary Basic
+  functions; Lane has no `.0`, `.1`, or other numeric tuple projection syntax.
+- **Tuple Patterns** expand into ordinary nested nominal variant patterns and
+  receive no special irrefutability or exhaustiveness rule.
+- **Tuple Patterns** are accepted in every existing Pattern position, including
+  local pattern bindings, match arms, nested nominal patterns, struct-pattern
+  fields, and handler payloads.
+- Function parameters remain named parameter declarations rather than Pattern
+  positions; tuple syntax does not introduce destructuring parameters.
 
 ## Example dialogue
 

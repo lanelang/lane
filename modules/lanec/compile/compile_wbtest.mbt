@@ -1929,7 +1929,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 4
+      #|schema: 5
       #|
       #|imported interfaces:
       #|  (none)
@@ -2099,7 +2099,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 4
+      #|schema: 5
       #|
       #|imported interfaces:
       #|  (none)
@@ -2519,7 +2519,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 4
+      #|schema: 5
       #|
       #|imported interfaces:
       #|  (none)
@@ -3978,6 +3978,177 @@ test "check sources rejects values against the selected imported alias" {
       #|["type mismatch"]
     ),
   )
+}
+
+///|
+test "compile tuple and list sugar through fixed qualified providers" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|import Basic.Data.Tuple
+      #|import Basic.Data.List
+      #|pub fn make() -> (Int, Bool, String) {
+      #|  (1, true, "lane")
+      #|}
+      #|pub fn first(value : (Int, Bool, String)) -> Int {
+      #|  let (head, _, _) = value
+      #|  head
+      #|}
+      #|pub fn numbers() -> Basic.Data.List.List[Int] {
+      #|  [1, 2, 3]
+      #|}
+    ),
+    [
+      (
+        #|module Basic.Data.Tuple
+        #|pub enum Tuple[A, B] {
+        #|  tuple(A, B)
+        #|}
+      ),
+      (
+        #|module Basic.Data.List
+        #|pub enum List[A] {
+        #|  empty()
+        #|  cons(A, List[A])
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  inspect(
+    result.entries.map(fn(entry) { entry.name }).join(","),
+    content="make,first,numbers",
+  )
+}
+
+///|
+test "tuple signature presentation roundtrips through interface artifacts" {
+  let compiled = compile_modules(
+    (
+      #|module Main
+      #|import Basic.Data.Tuple
+      #|pub fn pair(value : Int) -> (Int, Bool) {
+      #|  (value, true)
+      #|}
+    ),
+    [
+      (
+        #|module Basic.Data.Tuple
+        #|pub enum Tuple[A, B] {
+        #|  tuple(A, B)
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(compiled.diagnostics, content="[]")
+  guard compiled.modules is Some(modules) &&
+    @module_compile.find_compiled_module(modules.modules, "Main")
+    is Some(module_) else {
+    abort("expected compiled Main module")
+  }
+  let binary = @artifact_binary.module_interface_artifact_to_binary(
+    module_.to_interface_artifact(),
+  )
+  guard @artifact_binary.parse_module_interface_artifact_binary(binary)
+    is Ok(artifact) else {
+    abort("expected decoded interface artifact")
+  }
+  debug_inspect(
+    artifact.interface.values.map(fn(value) {
+      (value.name, value.type_presentation)
+    }),
+    content="[(\"pair\", Some(\"(Int) -> (Int, Bool)\"))]",
+  )
+}
+
+///|
+test "a sugar provider resolves its own fully qualified nominal expansion" {
+  let result = check_sources(
+    (
+      #|module Main
+      #|import Basic.Data.List.*
+      #|pub let number : Basic.Data.List.List[Int] = singleton(1)
+    ),
+    [
+      (
+        #|module Basic.Data.List
+        #|pub enum List[A] {
+        #|  empty()
+        #|  cons(A, List[A])
+        #|}
+        #|pub fn[A] singleton(value : A) -> List[A] {
+        #|  [value]
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "tuple and list sugar do not use unqualified fallback providers" {
+  let tuple_result = check_source(
+    (
+      #|module Main
+      #|pub let pair : (Int, Bool) = (1, true)
+    ),
+  )
+  debug_inspect(
+    tuple_result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    content=(
+      #|[
+      #|  "cannot find type `Basic.Data.Tuple.Tuple`",
+      #|  "cannot find variant `Basic.Data.Tuple.Tuple::tuple`",
+      #|]
+    ),
+  )
+  let list_result = check_source(
+    (
+      #|module Main
+      #|enum LocalList[A] {
+      #|  empty()
+      #|  cons(A, LocalList[A])
+      #|}
+      #|pub let numbers : LocalList[Int] = [1, 2]
+    ),
+  )
+  assert_false(list_result.diagnostics.is_empty())
+  assert_true(
+    list_result.diagnostics.any(fn(diagnostic) {
+      diagnostic.message.contains("Basic.Data.List.List")
+    }),
+  )
+}
+
+///|
+test "all import exposure forms provide the module binding used by sugar" {
+  for
+    imports in [
+      "import Basic.Data.Tuple\nimport Basic.Data.List", "import Basic.Data.Tuple.*\nimport Basic.Data.List.*",
+      "import Basic.Data.Tuple.{ Tuple }\nimport Basic.Data.List.{ List }",
+    ] {
+    let result = check_sources(
+      "module Main\n" +
+      imports +
+      "\npub let pair : (Int, Bool) = (1, true)\npub let numbers : Basic.Data.List.List[Int] = [1, 2]",
+      [
+        (
+          #|module Basic.Data.Tuple
+          #|pub enum Tuple[A, B] {
+          #|  tuple(A, B)
+          #|}
+        ),
+        (
+          #|module Basic.Data.List
+          #|pub enum List[A] {
+          #|  empty()
+          #|  cons(A, List[A])
+          #|}
+        ),
+      ],
+    )
+    debug_inspect(result.diagnostics, content="[]")
+  }
 }
 
 ///|

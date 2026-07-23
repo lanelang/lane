@@ -219,8 +219,6 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         fields=desugar_struct_literal_fields(fields),
         loc~,
       )
-    ListLiteral(items~, empty_reference~, cons_reference~, loc~) =>
-      desugar_list_literal(items, empty_reference, cons_reference, loc)
     Builtin(name, loc~) => Builtin(name, loc~)
     Extern(name, loc~) => Extern(name, loc~)
     FunctionLiteral(
@@ -304,41 +302,6 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     Pipeline(left~, right~, loc~) =>
       desugar_pipeline(desugar_expr(left), desugar_expr(right), loc)
   }
-}
-
-///|
-fn desugar_list_literal(
-  items : Array[@resolve.ResolvedExpr],
-  empty_reference : @resolve.ResolvedVariantReference,
-  cons_reference : @resolve.ResolvedVariantReference?,
-  loc : @basic.SourceSpan,
-) -> DesugaredExpr {
-  let mut result = VariantCall(
-    type_name=None,
-    type_name_loc=None,
-    generic_arguments=[],
-    variant="empty",
-    variant_loc=loc,
-    variant_generic_arguments=[],
-    reference=empty_reference,
-    arguments=[],
-    loc~,
-  )
-  guard cons_reference is Some(cons_reference) else { return result }
-  for index = items.length() - 1; index >= 0; index = index - 1 {
-    result = VariantCall(
-      type_name=None,
-      type_name_loc=None,
-      generic_arguments=[],
-      variant="cons",
-      variant_loc=loc,
-      variant_generic_arguments=[],
-      reference=cons_reference,
-      arguments=[desugar_expr(items[index]), result],
-      loc~,
-    )
-  }
-  result
 }
 
 ///|

@@ -14,6 +14,7 @@ pub(all) enum ParseErrorKind {
   UnexpectedEndOfInput(Array[ExpectedSyntax])
   EmptyGenericArgumentList
   EmptyTypeParameterList
+  MissingTupleItem
 } derive(Debug, Eq)
 
 ///|

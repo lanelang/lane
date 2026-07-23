@@ -626,6 +626,46 @@ fn Type::function_parameter_doc(
 }
 
 ///|
+fn[T] flatten_right_nested_items(
+  items : Array[T],
+  nested_items : (T) -> Array[T]?,
+) -> Array[T] {
+  let flattened = []
+  for index, item in items {
+    if index == items.length() - 1 && nested_items(item) is Some(nested) {
+      flattened.append(flatten_right_nested_items(nested, nested_items))
+    } else {
+      flattened.push(item)
+    }
+  }
+  flattened
+}
+
+///|
+fn tuple_type_items(type_ : Type) -> Array[Type]? {
+  match type_ {
+    Tuple(items~, ..) => Some(items)
+    _ => None
+  }
+}
+
+///|
+fn tuple_expression_items(expression : Expr) -> Array[Expr]? {
+  match expression {
+    TupleLiteral(items~, ..) => Some(items)
+    _ => None
+  }
+}
+
+///|
+fn tuple_pattern_items(pattern : Pattern) -> Array[Pattern]? {
+  match pattern {
+    Tuple(items~, ..) => Some(items)
+    _ => None
+  }
+}
+
+///|
 pub impl @prettyprinter.Pretty for EffectDeclaration with fn pretty(
   declaration : EffectDeclaration,
 ) {
@@ -1177,6 +1217,22 @@ fn Type::to_doc(
       ) +
       suffix
     }
+    Tuple(items~, loc~) => {
+      let flattened = flatten_right_nested_items(items, tuple_type_items)
+      let (dangling, force_break) = trivia.take_delimited(
+        '(',
+        loc.start_offset,
+        loc.end_offset,
+        child_spans=flattened.map(Type::loc),
+      )
+      parenthesized_comma_list(
+        flattened.map(fn(item) { item.to_doc(trivia~) }),
+        item_spans=flattened.map(Type::loc),
+        trivia~,
+        dangling~,
+        force_break~,
+      )
+    }
     Grouped(type_~, loc~) =>
       grouped_source_doc(type_.loc(), loc, trivia, fn() {
         type_.to_doc(trivia~)
@@ -1380,6 +1436,25 @@ fn Expr::render_with_precedence(
           trivia~,
           dangling=item_dangling,
           force_break=force_item_break,
+        ),
+      )
+    }
+    TupleLiteral(items~, loc~) => {
+      let flattened = flatten_right_nested_items(items, tuple_expression_items)
+      let (dangling, force_break) = trivia.take_delimited(
+        '(',
+        loc.start_offset,
+        loc.end_offset,
+        child_spans=flattened.map(Expr::loc),
+      )
+      rendered_expr(
+        10,
+        parenthesized_comma_list(
+          flattened.map(fn(item) { item.to_doc(trivia~) }),
+          item_spans=flattened.map(Expr::loc),
+          trivia~,
+          dangling~,
+          force_break~,
         ),
       )
     }
@@ -2327,6 +2402,22 @@ fn Pattern::to_doc(
       braced_comma_list(
         field_docs,
         item_spans=fields.map(StructPatternField::loc),
+        trivia~,
+        dangling~,
+        force_break~,
+      )
+    }
+    Tuple(items~, loc~) => {
+      let flattened = flatten_right_nested_items(items, tuple_pattern_items)
+      let (dangling, force_break) = trivia.take_delimited(
+        '(',
+        loc.start_offset,
+        loc.end_offset,
+        child_spans=flattened.map(Pattern::loc),
+      )
+      parenthesized_comma_list(
+        flattened.map(fn(item) { item.to_doc(trivia~) }),
+        item_spans=flattened.map(Pattern::loc),
         trivia~,
         dangling~,
         force_break~,

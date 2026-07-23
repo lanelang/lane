@@ -338,7 +338,7 @@ fn effect_alias_interface_kind(
 
 ///|
 fn SemanticChecker::interface_value(
-  _self : SemanticChecker,
+  self : SemanticChecker,
   declaration : @checked.CheckedTopLevelDeclaration,
 ) -> @module_interface.ModuleInterfaceValue? {
   match declaration {
@@ -349,6 +349,7 @@ fn SemanticChecker::interface_value(
         is_offered: declaration.is_offered,
         name: declaration.name,
         type_: declaration.type_,
+        type_presentation: self.value_type_presentation(declaration.loc),
         parameters: Some(declaration.parameters.map(interface_value_parameter)),
         loc: declaration.loc,
       })
@@ -359,11 +360,25 @@ fn SemanticChecker::interface_value(
         is_offered: declaration.is_offered,
         name: declaration.name,
         type_: declaration.type_,
+        type_presentation: self.value_type_presentation(declaration.loc),
         parameters: None,
         loc: declaration.loc,
       })
     _ => None
   }
+}
+
+///|
+fn SemanticChecker::value_type_presentation(
+  self : SemanticChecker,
+  loc : SourceSpan,
+) -> String? {
+  for presentation in self.resolved_source.value_type_presentations {
+    if presentation.loc == loc {
+      return Some(presentation.text)
+    }
+  }
+  None
 }
 
 ///|

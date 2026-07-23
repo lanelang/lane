@@ -100,7 +100,43 @@ test "parse failures retain expected identifier slots" {
     value_result
     .syntactic_identifier_index()
     .role_at(value_error.loc.start_offset),
-    None,
+    Some(ValueIdentifier),
+  )
+}
+
+///|
+test "incomplete tuple items retain type value and pattern slots" {
+  let type_result = parse_string("module Test\ntype Pair = (Int,")
+  guard type_result.parse_errors().get(0) is Some(type_error) else {
+    abort("expected missing tuple type item")
+  }
+  assert_eq(
+    type_result
+    .syntactic_identifier_index()
+    .role_at(type_error.loc.start_offset),
+    Some(TypeIdentifier),
+  )
+  let value_result = parse_string("module Test\nfn make() -> Int { (1,")
+  guard value_result.parse_errors().get(0) is Some(value_error) else {
+    abort("expected missing tuple expression item")
+  }
+  assert_eq(
+    value_result
+    .syntactic_identifier_index()
+    .role_at(value_error.loc.start_offset),
+    Some(ValueIdentifier),
+  )
+  let pattern_result = parse_string(
+    "module Test\nfn use(value : Int) -> Int { match value { (head,",
+  )
+  guard pattern_result.parse_errors().get(0) is Some(pattern_error) else {
+    abort("expected missing tuple pattern item")
+  }
+  assert_eq(
+    pattern_result
+    .syntactic_identifier_index()
+    .role_at(pattern_error.loc.start_offset),
+    Some(PatternIdentifier),
   )
 }
 
@@ -338,7 +374,6 @@ test "parse rejects explicit semicolons outside item bodies" {
       #|        { label: "`]`" },
       #|        { label: "`,`" },
       #|        { label: "`.`" },
-      #|        { label: "`->`" },
       #|      ],
       #|    ),
       #|    loc: {
@@ -1071,6 +1106,70 @@ test "parse type alias with effect set body" {
       #|type Task[E : Effect] : Effect = { UI, E }
     ),
   )
+}
+
+///|
+test "parse tuple syntax and format right-nested tuples flat" {
+  let file = expect_parse_ok(
+    (
+      #|type Pair = (Int, Bool)
+      #|type Triple = (Int, (Bool, String))
+      #|fn make() -> (Int, Bool, String) {
+      #|  (1, (true, "lane"))
+      #|}
+      #|fn first(value : (Int, Bool, String)) -> Int {
+      #|  match value {
+      #|    (head, _, _) => head
+      #|  }
+      #|}
+      #|fn apply(f : ((Int, Bool)) -> Int, value : (Int, Bool)) -> Int {
+      #|  f(value)
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(file),
+    content=(
+      #|module Test
+      #|
+      #|type Pair = (Int, Bool)
+      #|
+      #|type Triple = (Int, Bool, String)
+      #|
+      #|fn make() -> (Int, Bool, String) {
+      #|  (1, true, "lane")
+      #|}
+      #|
+      #|fn first(value : (Int, Bool, String)) -> Int {
+      #|  match value {
+      #|    (head, _, _) => head
+      #|  }
+      #|}
+      #|
+      #|fn apply(f : ((Int, Bool)) -> Int, value : (Int, Bool)) -> Int {
+      #|  f(value)
+      #|}
+    ),
+  )
+}
+
+///|
+test "tuple syntax rejects singleton tuples and bare function parameter types" {
+  assert_eq(parse_error_kinds("type Bad = (Int,)"), [MissingTupleItem])
+  assert_eq(parse_error_kinds("fn bad() -> Int { (1,) }"), [MissingTupleItem])
+  assert_eq(
+    parse_error_kinds(
+      (
+        #|fn bad(value : Int) -> Int {
+        #|  match value {
+        #|    (item,) => item
+        #|  }
+        #|}
+      ),
+    ),
+    [MissingTupleItem],
+  )
+  assert_false(parse_errors("type Bad = Int -> Int").is_empty())
 }
 
 ///|
@@ -1847,7 +1946,6 @@ test "parse rejects equals function body syntax" {
       #|      { label: "`{`" },
       #|      { label: "`[`" },
       #|      { label: "`.`" },
-      #|      { label: "`->`" },
       #|    ],
       #|  ),
       #|]

@@ -46,6 +46,21 @@ fn SemanticIndex::enrich_binding(
 }
 
 ///|
+fn SemanticIndex::value_type_text(
+  self : SemanticIndex,
+  loc : @basic.SourceSpan,
+  type_ : @types.Type,
+  display : @typecheck.TypeDisplayContext,
+) -> String {
+  for presentation in self.value_type_presentations {
+    if presentation.loc == loc {
+      return presentation.text
+    }
+  }
+  display.type_text(type_)
+}
+
+///|
 fn SemanticIndex::enrich_checked_declaration(
   self : SemanticIndex,
   declaration : @checked.CheckedTopLevelDeclaration,
@@ -142,9 +157,14 @@ fn SemanticIndex::enrich_checked_declaration_header(
       }
     }
     Function(declaration) => {
+      let type_text = self.value_type_text(
+        declaration.loc,
+        declaration.type_,
+        display,
+      )
       self.enrich_binding(
         ValueBinding(declaration.symbol),
-        "\{declaration.name} : \{display.type_text(declaration.type_)}",
+        "\{declaration.name} : \{type_text}",
         Some(declaration.type_),
       )
       self.enrich_checked_type_parameters(declaration.type_parameters, display)
@@ -152,12 +172,18 @@ fn SemanticIndex::enrich_checked_declaration_header(
         self.enrich_checked_parameter(parameter, display)
       }
     }
-    Let(declaration) =>
+    Let(declaration) => {
+      let type_text = self.value_type_text(
+        declaration.loc,
+        declaration.type_,
+        display,
+      )
       self.enrich_binding(
         ValueBinding(declaration.symbol),
-        "\{declaration.name} : \{display.type_text(declaration.type_)}",
+        "\{declaration.name} : \{type_text}",
         Some(declaration.type_),
       )
+    }
   }
 }
 
@@ -244,9 +270,14 @@ fn SemanticIndex::enrich_checked_local_item(
 ) -> Unit {
   match item {
     Let(declaration) => {
+      let type_text = self.value_type_text(
+        declaration.loc,
+        declaration.type_,
+        display,
+      )
       self.enrich_binding(
         ValueBinding(declaration.symbol),
-        "\{declaration.name} : \{display.type_text(declaration.type_)}",
+        "\{declaration.name} : \{type_text}",
         Some(declaration.type_),
       )
       if !self.annotated_values.contains(declaration.symbol) {
@@ -265,9 +296,14 @@ fn SemanticIndex::enrich_checked_local_item(
     }
     Expression(expression) => self.enrich_checked_expr(expression, display)
     Function(declaration) => {
+      let type_text = self.value_type_text(
+        declaration.loc,
+        declaration.type_,
+        display,
+      )
       self.enrich_binding(
         ValueBinding(declaration.symbol),
-        "\{declaration.name} : \{display.type_text(declaration.type_)}",
+        "\{declaration.name} : \{type_text}",
         Some(declaration.type_),
       )
       self.enrich_checked_type_parameters(declaration.type_parameters, display)

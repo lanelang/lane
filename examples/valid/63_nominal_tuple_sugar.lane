@@ -1,0 +1,20 @@
+module Examples.Valid.NominalTupleSugar
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn reorder(value : (Int, Bool, String)) -> (Bool, String, Int) {
+  let (number, flag, text) = value
+  let reordered = (flag, text, number)
+  reordered
+}
+
+pub fn answer() -> Unit ! Io {
+  let (flag, text, number) = reorder((42, true, "lane"))
+  if flag && text == "lane" && number == 42 {
+    println("tuple=42")
+  } else {
+    println("tuple failed")
+  }
+}

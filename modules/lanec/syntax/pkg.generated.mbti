@@ -107,6 +107,7 @@ pub(all) enum Expr {
   QualifiedVariant(owner~ : Type, variant~ : String, variant_loc~ : @basic.SourceSpan, variant_type_arguments~ : Array[GenericArgument], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   StructLiteral(owner~ : Type, fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   ListLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
+  TupleLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   Extern(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
@@ -295,6 +296,7 @@ pub(all) enum Pattern {
   QualifiedVariant(type_name~ : String, type_name_loc~ : @basic.SourceSpan, variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[TypeBinder], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[TypeBinder], arguments~ : Array[Pattern], loc~ : @basic.SourceSpan)
   Struct(type_name~ : String, type_name_loc~ : @basic.SourceSpan, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
+  Tuple(items~ : Array[Pattern], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Pattern::loc(Self) -> @basic.SourceSpan
 pub impl @source_prettyprinter.Pretty for Pattern
@@ -377,6 +379,8 @@ pub fn SyntacticIdentifierIndex::role_at(Self, Int) -> SyntacticIdentifierRole?
 pub(all) enum SyntacticIdentifierRole {
   TypeIdentifier
   EffectIdentifier
+  ValueIdentifier
+  PatternIdentifier
 } derive(Eq, @debug.Debug)
 
 pub(all) enum TopLevelDeclaration {
@@ -397,6 +401,7 @@ pub(all) enum Type {
   Apply(callee~ : Type, arguments~ : Array[GenericArgument], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[TypeParameter], body~ : Type, loc~ : @basic.SourceSpan)
   Function(type_parameters~ : Array[TypeParameter], parameters~ : Array[Type], result~ : Type, effect~ : EffectTerm, loc~ : @basic.SourceSpan)
+  Tuple(items~ : Array[Type], loc~ : @basic.SourceSpan)
   Grouped(type_~ : Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn Type::loc(Self) -> @basic.SourceSpan

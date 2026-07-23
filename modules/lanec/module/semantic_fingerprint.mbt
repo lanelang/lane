@@ -20,13 +20,13 @@ priv struct ModuleInterfaceFingerprints {
 ///|
 priv struct CanonicalInterfaceEncoding {
   semantic : Bytes
-  binder_names : Bytes
+  presentation : Bytes
 }
 
 ///|
 priv struct CanonicalInterfaceEncoder {
   writer : @bytecodec.ByteWriter
-  binder_names : @bytecodec.ByteWriter
+  presentation : @bytecodec.ByteWriter
   interface : ModuleInterface
   type_parameters : Array[@symbol.TypeParameterId]
 }
@@ -85,7 +85,7 @@ fn ModuleInterface::fingerprints_result(
       }
       let presentation_payload = @bytecodec.ByteWriter::new()
       presentation_payload.write_string(semantic.value)
-      presentation_payload.write_raw_bytes(encoding.binder_names)
+      presentation_payload.write_raw_bytes(encoding.presentation)
       let presentation : ModuleInterfacePresentationFingerprint = {
         value: fingerprint_hash(
           "lane-interface-presentation-fingerprint-v1",
@@ -112,15 +112,15 @@ fn ModuleInterface::canonical_interface_encoding(
 ) -> Result[CanonicalInterfaceEncoding, String] {
   try {
     let writer = @bytecodec.ByteWriter::new()
-    let binder_names = @bytecodec.ByteWriter::new()
+    let presentation = @bytecodec.ByteWriter::new()
     let encoder = CanonicalInterfaceEncoder::{
       writer,
-      binder_names,
+      presentation,
       interface: self,
       type_parameters: [],
     }
     encoder.write_interface()
-    Ok({ semantic: writer.to_bytes(), binder_names: binder_names.to_bytes() })
+    Ok({ semantic: writer.to_bytes(), presentation: presentation.to_bytes() })
   } catch {
     InvalidCanonicalInterface(message) => Err(message)
   }
@@ -292,6 +292,13 @@ fn CanonicalInterfaceEncoder::write_values(
       }
       None => self.writer.write_bool(false)
     }
+    match value.type_presentation {
+      Some(text) => {
+        self.presentation.write_bool(true)
+        self.presentation.write_string(text)
+      }
+      None => self.presentation.write_bool(false)
+    }
   }
 }
 
@@ -301,10 +308,10 @@ fn CanonicalInterfaceEncoder::write_type_parameters(
   parameters : Array[@types.TypeParameter],
 ) -> Unit {
   self.writer.write_u32_le_int(parameters.length())
-  self.binder_names.write_u32_le_int(parameters.length())
+  self.presentation.write_u32_le_int(parameters.length())
   for parameter in parameters {
     self.write_kind(parameter.kind)
-    self.binder_names.write_string(parameter.name)
+    self.presentation.write_string(parameter.name)
   }
 }
 
