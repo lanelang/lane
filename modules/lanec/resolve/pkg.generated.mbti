@@ -460,7 +460,7 @@ pub impl @prettyprinter.Pretty for ResolvedValueReference
 
 pub(all) struct ResolvedValueTypePresentation {
   loc : @basic.SourceSpan
-  text : String
+  tuple_presentations : Array[@types.TuplePresentation]
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ResolvedVariantReference {

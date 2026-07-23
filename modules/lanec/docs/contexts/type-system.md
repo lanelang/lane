@@ -110,11 +110,12 @@ The diagnostic-facing source spelling or origin information for a type-level exp
 _Avoid_: semantic alias identity, Buslane alias metadata
 
 **Tuple Source Presentation**:
-The source-facing rendering of an authored tuple type from Surface Presentation
-metadata rather than reconstruction from its expanded nominal type. An
-explicitly authored `Basic.Data.Tuple.Tuple[A, B]` remains nominal in
-source-facing output even though it is semantically equal to `(A, B)`.
-_Avoid_: semantic tuple type, Tuple identity detection, artifact encoding
+The structural paths of authored tuple type nodes carried separately from the
+semantic type. Source-facing rendering applies those paths to the exported
+checked type, so private aliases cannot leak through captured source text. An
+explicitly authored `Basic.Data.Tuple.Tuple[A, B]` remains nominal even though
+it is semantically equal to `(A, B)`.
+_Avoid_: semantic tuple type, Tuple identity detection, captured signature string
 
 **General Type Application Callee**:
 The rule that the callee of a type-level application may be any type-level expression with constructor kind.
@@ -342,8 +343,8 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - A public **Type Alias Parameter Header** is exported through the module interface as the equivalent transparent **Type-Level Lambda** body.
 - Diagnostics may use **Source Type Presentation** to show user-written alias names even when semantic type equality is alias-free.
 - Value hover, completion, and exported value signature presentation use
-  **Tuple Source Presentation** carried by presentation metadata; internal IR
-  pretty printers and artifact semantic types retain the nominal expansion.
+  **Tuple Source Presentation** to render the checked type; internal IR pretty
+  printers and artifact semantic types retain the nominal expansion.
 - Presentation preserves the authored distinction between tuple syntax and an
   explicit nominal `Basic.Data.Tuple.Tuple` application; it never reverse-sugars
   a type by inspecting semantic identity.

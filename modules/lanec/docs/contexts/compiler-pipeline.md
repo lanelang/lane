@@ -30,9 +30,10 @@ authored child expressions and never duplicates or discards their evaluation.
 _Avoid_: resolver special case, typechecker sugar rule, formatter reconstruction
 
 **Surface Presentation Map**:
-A non-semantic sidecar produced with Surface Sugar Expansion that preserves
-authored source presentation for value hover, completion, and exported value
-signature display without reconstructing sugar from resolved identities.
+A non-semantic sidecar produced with Surface Sugar Expansion that records the
+structural paths of authored tuple type nodes. Value hover, completion, and
+exported value signatures apply those paths to the checked type, so visible
+names come from the checked module interface rather than captured source text.
 _Avoid_: semantic type metadata, symbol-name re-sugaring, internal IR pretty print
 
 **Surface Source Provenance**:

@@ -136,7 +136,10 @@ fn resolved_value_type_presentations(
   presentations : Array[@surface.SurfaceValueTypePresentation],
 ) -> Array[ResolvedValueTypePresentation] {
   presentations.map(fn(presentation) {
-    { loc: presentation.loc, text: presentation.text }
+    {
+      loc: presentation.loc,
+      tuple_presentations: presentation.tuple_presentations,
+    }
   })
 }
 

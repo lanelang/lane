@@ -13,7 +13,7 @@ pub(all) struct ResolvedSourceFile {
 ///|
 pub(all) struct ResolvedValueTypePresentation {
   loc : SourceSpan
-  text : String
+  tuple_presentations : Array[@types.TuplePresentation]
 } derive(Debug, Eq)
 
 ///|

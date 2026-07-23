@@ -70,8 +70,66 @@ test "surface expansion records value signature presentation only for authored t
       #|      end_line: 4,
       #|      end_column: 2,
       #|    },
-      #|    text: "(Int) -> (Int, Bool)",
+      #|    tuple_presentations: [{ path: [FunctionResult], item_count: 2 }],
       #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "surface expansion records structural tuple presentation paths" {
+  let result = @parser.parse_string(
+    (
+      #|module Test
+      #|fn nested(value : (Int, (Bool, String))) -> (Basic.Data.Tuple.Tuple[Int, Bool], String) {
+      #|  value
+      #|}
+      #|fn generic(value : Box[(Int, Bool)]) -> Int {
+      #|  0
+      #|}
+      #|fn effectful() -> Unit ! { E[(Int, Bool)], F[(String, Bool)] } {
+      #|  ()
+      #|}
+    ),
+  )
+  guard result.syntax() is Some(file) else { abort("expected parsed source") }
+  debug_inspect(
+    expand_source(file).value_type_presentations.map(fn(presentation) {
+      presentation.tuple_presentations
+    }),
+    content=(
+      #|[
+      #|  [
+      #|    { path: [FunctionParameter(0)], item_count: 3 },
+      #|    { path: [FunctionResult], item_count: 2 },
+      #|  ],
+      #|  [
+      #|    {
+      #|      path: [FunctionParameter(0), TypeApplicationArgument(0)],
+      #|      item_count: 2,
+      #|    },
+      #|  ],
+      #|  [
+      #|    {
+      #|      path: [
+      #|        FunctionEffect,
+      #|        EffectUnionItem(0),
+      #|        EffectTerm,
+      #|        TypeApplicationArgument(0),
+      #|      ],
+      #|      item_count: 2,
+      #|    },
+      #|    {
+      #|      path: [
+      #|        FunctionEffect,
+      #|        EffectUnionItem(1),
+      #|        EffectTerm,
+      #|        TypeApplicationArgument(0),
+      #|      ],
+      #|      item_count: 2,
+      #|    },
+      #|  ],
       #|]
     ),
   )

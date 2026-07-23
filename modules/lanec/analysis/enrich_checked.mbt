@@ -54,7 +54,10 @@ fn SemanticIndex::value_type_text(
 ) -> String {
   for presentation in self.value_type_presentations {
     if presentation.loc == loc {
-      return presentation.text
+      return display.type_text_with_tuple_presentations(
+        type_,
+        presentation.tuple_presentations,
+      )
     }
   }
   display.type_text(type_)

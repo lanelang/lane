@@ -1,7 +1,7 @@
 import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/syntax",
-  "moonbit-community/prettyprinter",
+  "Milky2018/lanec/types",
 }
 
 import {

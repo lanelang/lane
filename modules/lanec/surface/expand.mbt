@@ -1,7 +1,7 @@
 ///|
 pub(all) struct SurfaceValueTypePresentation {
   loc : @basic.SourceSpan
-  text : String
+  tuple_presentations : Array[@types.TuplePresentation]
 } derive(Debug, Eq)
 
 ///|
@@ -37,38 +37,122 @@ pub fn expand_source(source : @syntax.SourceFile) -> SurfaceExpansion {
 }
 
 ///|
-fn @syntax.Type::contains_tuple_sugar(self : @syntax.Type) -> Bool {
+fn tuple_presentation_path(
+  path : Array[@types.TuplePresentationPathStep],
+  step : @types.TuplePresentationPathStep,
+) -> Array[@types.TuplePresentationPathStep] {
+  let result = path.copy()
+  result.push(step)
+  result
+}
+
+///|
+fn flattened_tuple_type_items(
+  items : Array[@syntax.Type],
+) -> Array[@syntax.Type] {
+  let flattened = []
+  for index, item in items {
+    if index == items.length() - 1 && item is Tuple(items=nested, ..) {
+      flattened.append(flattened_tuple_type_items(nested))
+    } else {
+      flattened.push(item)
+    }
+  }
+  flattened
+}
+
+///|
+fn @syntax.Type::collect_tuple_presentations(
+  self : @syntax.Type,
+  path : Array[@types.TuplePresentationPathStep],
+  presentations : Array[@types.TuplePresentation],
+) -> Unit {
   match self {
-    Tuple(_) => true
-    Name(_) | QualifiedName(_) => false
-    Apply(callee~, arguments~, ..) =>
-      callee.contains_tuple_sugar() ||
-      arguments.any(fn(argument) { argument.contains_tuple_sugar() })
-    TypeLambda(body~, ..) => body.contains_tuple_sugar()
-    Function(parameters~, result~, effect~, ..) =>
-      parameters.any(fn(parameter) { parameter.contains_tuple_sugar() }) ||
-      result.contains_tuple_sugar() ||
-      effect.contains_tuple_sugar()
-    Grouped(type_~, ..) => type_.contains_tuple_sugar()
+    Name(_) | QualifiedName(_) => ()
+    Apply(callee~, arguments~, ..) => {
+      callee.collect_tuple_presentations(
+        tuple_presentation_path(path, TypeApplicationCallee),
+        presentations,
+      )
+      for index in 0..<arguments.length() {
+        arguments[index].collect_tuple_presentations(
+          tuple_presentation_path(path, TypeApplicationArgument(index)),
+          presentations,
+        )
+      }
+    }
+    TypeLambda(body~, ..) =>
+      body.collect_tuple_presentations(
+        tuple_presentation_path(path, TypeLambdaBody),
+        presentations,
+      )
+    Function(parameters~, result~, effect~, ..) => {
+      for index in 0..<parameters.length() {
+        parameters[index].collect_tuple_presentations(
+          tuple_presentation_path(path, FunctionParameter(index)),
+          presentations,
+        )
+      }
+      result.collect_tuple_presentations(
+        tuple_presentation_path(path, FunctionResult),
+        presentations,
+      )
+      effect.collect_tuple_presentations(
+        tuple_presentation_path(path, FunctionEffect),
+        presentations,
+      )
+    }
+    Tuple(items~, ..) => {
+      let items = flattened_tuple_type_items(items)
+      presentations.push({ path: path.copy(), item_count: items.length() })
+      for index in 0..<items.length() {
+        items[index].collect_tuple_presentations(
+          tuple_presentation_path(path, TupleItem(index)),
+          presentations,
+        )
+      }
+    }
+    Grouped(type_~, ..) =>
+      type_.collect_tuple_presentations(path, presentations)
   }
 }
 
 ///|
-fn @syntax.EffectTerm::contains_tuple_sugar(self : @syntax.EffectTerm) -> Bool {
+fn @syntax.EffectTerm::collect_tuple_presentations(
+  self : @syntax.EffectTerm,
+  path : Array[@types.TuplePresentationPathStep],
+  presentations : Array[@types.TuplePresentation],
+) -> Unit {
   match self {
-    Empty(_) => false
-    Term(type_~, ..) => type_.contains_tuple_sugar()
-    Union(items~, ..) => items.any(fn(item) { item.contains_tuple_sugar() })
+    Empty(_) => ()
+    Term(type_~, ..) =>
+      type_.collect_tuple_presentations(
+        tuple_presentation_path(path, EffectTerm),
+        presentations,
+      )
+    Union(items~, ..) =>
+      for index in 0..<items.length() {
+        items[index].collect_tuple_presentations(
+          tuple_presentation_path(
+            tuple_presentation_path(path, EffectUnionItem(index)),
+            EffectTerm,
+          ),
+          presentations,
+        )
+      }
   }
 }
 
 ///|
-fn @syntax.GenericArgument::contains_tuple_sugar(
+fn @syntax.GenericArgument::collect_tuple_presentations(
   self : @syntax.GenericArgument,
-) -> Bool {
+  path : Array[@types.TuplePresentationPathStep],
+  presentations : Array[@types.TuplePresentation],
+) -> Unit {
   match self {
-    TypeTerm(type_) => type_.contains_tuple_sugar()
-    EffectTerm(effect) => effect.contains_tuple_sugar()
+    TypeTerm(type_) => type_.collect_tuple_presentations(path, presentations)
+    EffectTerm(effect) =>
+      effect.collect_tuple_presentations(path, presentations)
   }
 }
 
@@ -84,10 +168,12 @@ fn SurfaceExpander::record_function_type_presentation(
     effect=declaration.effect,
     loc=declaration.loc,
   )
-  if signature.contains_tuple_sugar() {
+  let tuple_presentations = []
+  signature.collect_tuple_presentations([], tuple_presentations)
+  if !tuple_presentations.is_empty() {
     self.value_type_presentations.push({
       loc: declaration.loc,
-      text: @prettyprinter.render(signature, width=80),
+      tuple_presentations,
     })
   }
 }
@@ -97,11 +183,15 @@ fn SurfaceExpander::record_let_type_presentation(
   self : SurfaceExpander,
   declaration : @syntax.LetDeclaration,
 ) -> Unit {
-  if declaration.type_annotation is Some(type_) && type_.contains_tuple_sugar() {
-    self.value_type_presentations.push({
-      loc: declaration.loc,
-      text: @prettyprinter.render(type_, width=80),
-    })
+  if declaration.type_annotation is Some(type_) {
+    let tuple_presentations = []
+    type_.collect_tuple_presentations([], tuple_presentations)
+    if !tuple_presentations.is_empty() {
+      self.value_type_presentations.push({
+        loc: declaration.loc,
+        tuple_presentations,
+      })
+    }
   }
 }
 

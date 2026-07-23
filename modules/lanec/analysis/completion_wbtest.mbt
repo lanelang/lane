@@ -532,6 +532,51 @@ test "imported completion preserves authored tuple signature presentation" {
 }
 
 ///|
+test "imported tuple presentation does not expose private aliases" {
+  let root =
+    #|module Main
+    #|
+    #|import A
+    #|
+    #|pub fn use() -> (Int, Bool) {
+    #|  A.exposed(1)
+    #|}
+  let library =
+    #|module A
+    #|
+    #|import Basic.Data.Tuple
+    #|
+    #|type Secret = Int
+    #|
+    #|pub fn exposed(value : Secret) -> (Secret, Bool) {
+    #|  (value, true)
+    #|}
+  let tuple =
+    #|module Basic.Data.Tuple
+    #|
+    #|pub enum Tuple[A, B] {
+    #|  tuple(A, B)
+    #|}
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: root },
+    [
+      { source_id: "file:///A.lane", text: library },
+      { source_id: "file:///Tuple.lane", text: tuple },
+    ],
+    "file:///Main.lane",
+    6,
+    5,
+    TriggerCharacter("."),
+  )
+  debug_inspect(
+    entries
+    .filter(fn(entry) { entry.label == "exposed" })
+    .map(fn(entry) { entry.detail }),
+    content="[Some(\"exposed : (Int) -> (Int, Bool)\")]",
+  )
+}
+
+///|
 test "completion returns owner members after double colon" {
   let source =
     #|module Main

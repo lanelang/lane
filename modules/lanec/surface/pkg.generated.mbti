@@ -4,6 +4,7 @@ package "Milky2018/lanec/surface"
 import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/syntax",
+  "Milky2018/lanec/types",
   "moonbitlang/core/debug",
 }
 
@@ -26,7 +27,7 @@ pub(all) enum SurfaceGeneratedReference {
 
 pub(all) struct SurfaceValueTypePresentation {
   loc : @basic.SourceSpan
-  text : String
+  tuple_presentations : Array[@types.TuplePresentation]
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -48,8 +48,10 @@ materialize nested nominal values when they escape.
   pattern slots through the tolerant parser. Completion consumes those roles
   without punctuation scans or tuple-specific inference.
 - Value hover, completion, and exported value signature display consume the
-  surface-presentation sidecar. The sidecar has a separate presentation
-  fingerprint, preserves the difference between authored tuple syntax and
-  explicit nominal syntax, and does not affect semantic equality.
+  surface-presentation sidecar. The sidecar stores structural tuple paths, not
+  a pre-rendered signature, and is applied to the exported checked type. It has
+  a separate presentation fingerprint, preserves the difference between
+  authored tuple syntax and explicit nominal syntax, and does not affect
+  semantic equality.
 - Internal IR printers and the semantic portion of artifact encoding expose
   the true nominal expansion.

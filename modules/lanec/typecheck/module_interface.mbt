@@ -349,7 +349,7 @@ fn SemanticChecker::interface_value(
         is_offered: declaration.is_offered,
         name: declaration.name,
         type_: declaration.type_,
-        type_presentation: self.value_type_presentation(declaration.loc),
+        tuple_presentations: self.value_tuple_presentations(declaration.loc),
         parameters: Some(declaration.parameters.map(interface_value_parameter)),
         loc: declaration.loc,
       })
@@ -360,7 +360,7 @@ fn SemanticChecker::interface_value(
         is_offered: declaration.is_offered,
         name: declaration.name,
         type_: declaration.type_,
-        type_presentation: self.value_type_presentation(declaration.loc),
+        tuple_presentations: self.value_tuple_presentations(declaration.loc),
         parameters: None,
         loc: declaration.loc,
       })
@@ -369,16 +369,16 @@ fn SemanticChecker::interface_value(
 }
 
 ///|
-fn SemanticChecker::value_type_presentation(
+fn SemanticChecker::value_tuple_presentations(
   self : SemanticChecker,
   loc : SourceSpan,
-) -> String? {
+) -> Array[@types.TuplePresentation] {
   for presentation in self.resolved_source.value_type_presentations {
     if presentation.loc == loc {
-      return Some(presentation.text)
+      return presentation.tuple_presentations
     }
   }
-  None
+  []
 }
 
 ///|

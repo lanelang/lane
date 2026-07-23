@@ -1929,7 +1929,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 5
+      #|schema: 6
       #|
       #|imported interfaces:
       #|  (none)
@@ -2099,7 +2099,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 5
+      #|schema: 6
       #|
       #|imported interfaces:
       #|  (none)
@@ -2519,7 +2519,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 5
+      #|schema: 6
       #|
       #|imported interfaces:
       #|  (none)
@@ -4055,9 +4055,11 @@ test "tuple signature presentation roundtrips through interface artifacts" {
   }
   debug_inspect(
     artifact.interface.values.map(fn(value) {
-      (value.name, value.type_presentation)
+      (value.name, value.tuple_presentations)
     }),
-    content="[(\"pair\", Some(\"(Int) -> (Int, Bool)\"))]",
+    content=(
+      #|[("pair", [{ path: [FunctionResult], item_count: 2 }])]
+    ),
   )
 }
 
