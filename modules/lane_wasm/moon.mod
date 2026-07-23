@@ -17,5 +17,5 @@ import {
   "Milky2018/lanec@0.1.0",
   "Milky2018/loisvm@0.1.0",
   "moonbit-community/prettyprinter@0.4.10",
-  "moonbitlang/x@0.4.45",
+  "moonbitlang/x@0.4.47",
 }

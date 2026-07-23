@@ -17,8 +17,8 @@ import {
   "Milky2018/diagnostic@0.1.0",
   "Milky2018/lanec@0.1.0",
   "Milky2018/loisvm@0.1.0",
-  "gmlewis/jsonrpc2@0.0.32",
+  "gmlewis/jsonrpc2@0.0.33",
   "moonbit-community/prettyprinter@0.4.10",
-  "moonbitlang/async@0.19.1",
-  "moonbitlang/x@0.4.45",
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/x@0.4.47",
 }

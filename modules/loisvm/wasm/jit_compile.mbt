@@ -23,143 +23,135 @@ fn jit_function_name(
 }
 
 ///|
-fn jit_emit_target(
-  target : @wasmoon_cwasm.TargetArch,
-) -> Result[@machv_emit.EmitTarget, String] {
-  match target {
-    X86_64 => Ok(X64)
-    AArch64 => Ok(AArch64)
-    Unknown => Err("Wasmoon JIT does not recognize the host architecture")
-  }
+fn jit_function_names(module_ : @wasm_types.Module) -> Array[String] {
+  let function_count = jit_function_import_count(module_) +
+    module_.funcs.length()
+  Array::makei(function_count, function_index => {
+    jit_function_name(module_, function_index)
+  })
 }
 
 ///|
-fn jit_function_address_fixups(
-  compiled : @wasmoon_jit.CompiledFunction,
-) -> Result[Array[@wasmoon_cwasm.FuncAddrFixup], String] {
-  let fixups : Array[@wasmoon_cwasm.FuncAddrFixup] = []
-  for fixup in compiled.get_func_addr_fixups() {
-    guard @wasmoon_jit.machv_reloc_target_to_cwasm_func_idx(fixup.target)
-      is Some(function_index) else {
-      return Err("Wasmoon JIT produced an unsupported function-address fixup")
-    }
-    fixups.push({
-      offset: fixup.offset,
-      func_idx: function_index,
-      reg: fixup.reg,
-    })
-  }
-  Ok(fixups)
+fn jit_module_identity(
+  module_ : @wasm_types.Module,
+) -> @wasmoon_artifact.ModuleIdentity {
+  let encoded = @wasm_encoder.encode(module_)
+  @wasmoon_jit.artifact_module_identity(
+    "loisvm-in-memory",
+    Bytes::from_iter(encoded.iter().map(value => value.to_byte())),
+    b"o2-direct-cancel",
+  )
 }
 
 ///|
-fn jit_call_fixups(
-  compiled : @wasmoon_jit.CompiledFunction,
-) -> Result[Array[@wasmoon_cwasm.CallFixup], String] {
-  let fixups : Array[@wasmoon_cwasm.CallFixup] = []
-  for fixup in compiled.get_call_fixups() {
-    guard @wasmoon_jit.machv_reloc_target_to_cwasm_func_idx(fixup.target)
-      is Some(function_index) else {
-      return Err("Wasmoon JIT produced an unsupported direct-call fixup")
-    }
-    fixups.push({
-      offset: fixup.offset,
-      func_idx: function_index,
-      veneer_offset: fixup.veneer_offset,
-    })
+fn jit_manifest(
+  module_ : @wasm_types.Module,
+) -> Result[@wasmoon_artifact.CompatibilityManifest, String] {
+  let policy : @wasmoon_artifact.CompilationPolicy = {
+    optimization_level: O2,
+    code_model: Small,
+    call_binding: DirectBody,
+    cancellation_safepoints: true,
+    debug_info: false,
   }
-  Ok(fixups)
+  let manifest = @wasmoon_jit.build_host_artifact_manifest(
+    module_identity=jit_module_identity(module_),
+    policy~,
+  ) catch {
+    error =>
+      return Err(
+        "Wasmoon JIT manifest construction failed: \{error.to_string()}",
+      )
+  }
+  Ok(manifest)
 }
 
 ///|
-fn jit_gc_safepoints(
-  compiled : @wasmoon_jit.CompiledFunction,
-) -> Array[@wasmoon_cwasm.GcSafepoint] {
-  let safepoints : Array[@wasmoon_cwasm.GcSafepoint] = []
-  for safepoint in compiled.get_gc_safepoints() {
-    safepoints.push(
-      GcSafepoint(
-        safepoint.code_offset,
-        safepoint.live_refs,
-        safepoint.metadata,
-      ),
-    )
+fn verify_jit_artifact(
+  artifact : @wasmoon_artifact.Artifact,
+) -> Result[@wasmoon_jit.LoadedArtifact, String] {
+  let compatibility = @wasmoon_jit.artifact_compatibility(
+    artifact.manifest,
+    available_cpu_features=[],
+    runtime_symbols=@wasmoon_jit.wasmoon_runtime_external_symbols(),
+    data_symbols=[],
+  )
+  let loaded = @wasmoon_jit.verify_artifact(artifact, compatibility) catch {
+    error =>
+      return Err("Wasmoon JIT artifact verification failed: \{to_repr(error)}")
   }
-  safepoints
+  Ok(loaded)
 }
 
 ///|
 fn compile_wasm_module_for_jit(
   module_ : @wasm_types.Module,
-) -> Result[@wasmoon_cwasm.PrecompiledModule, String] {
-  let target = @wasmoon_jit.host_target_arch()
-  let emit_target = match jit_emit_target(target) {
-    Ok(target) => target
+) -> Result[@wasmoon_jit.LoadedArtifact, String] {
+  let manifest = match jit_manifest(module_) {
+    Ok(manifest) => manifest
     Err(detail) => return Err(detail)
   }
-  let precompiled = @wasmoon_cwasm.PrecompiledModule::PrecompiledModule(
-    target,
-    features=CompilationFeatures(cancellation_safepoints=true),
-  )
-  for import_ in module_.imports {
-    if import_.desc is Func(type_index) {
-      let function_type = module_.get_func_type(type_index)
-      precompiled.add_import(
-        import_.mod_name,
-        import_.name,
-        function_type.params.length(),
-        function_type.results.length(),
+  let target = @wasmoon_jit.host_native_target() catch {
+    error =>
+      return Err(
+        "Wasmoon JIT does not recognize the host target: \{error.to_string()}",
       )
-    }
   }
   let environment = @wasmoon.wasm_frontend_embedding_environment(
     cancellation_safepoints=true,
   )
-  let import_count = jit_function_import_count(module_)
+  let translation = @wasm_frontend.translation_context_from_module(
+    module_, environment,
+  )
+  let validation = @wasm_frontend.wasm_validation_context(translation)
+  let canonical_type_indices = @wasm_types.compute_canonical_type_indices(
+    module_.types,
+    type_rec_groups=module_.type_rec_groups,
+  )
+  let imports : Array[@wasmoon_artifact.ImportIdentity] = []
+  let functions : Array[@wasmoon_artifact.FunctionCode] = []
+  let mut function_index = 0
+  for import_ in module_.imports {
+    if import_.desc is Func(type_index) {
+      imports.push(
+        @wasmoon_jit.wasm_import_identity(
+          function_index,
+          import_.mod_name,
+          import_.name,
+          module_.get_func_type(type_index),
+        ),
+      )
+      function_index = function_index + 1
+    }
+  }
   for local_index, type_index in module_.funcs {
-    let function_index = import_count + local_index
-    let function_name = jit_function_name(module_, function_index)
-    let plan = @wasmoon.plan_wasm_function_with_compiler_infra(
-      environment,
-      module_,
-      local_index,
-      emit_target,
-      opt_level=2,
+    let function_type = module_.get_func_type(type_index)
+    let code = module_.codes[local_index]
+    let function = @wasm_frontend.translate_function_body(
+      translation,
+      jit_function_name(module_, function_index),
+      function_type,
+      code.locals,
+      code.body,
+    )
+    @milkir.optimize_with_level(function, @milkir.OptLevel::from_int(2))
+    |> ignore
+    let compiled = @wasmoon_jit.compile_wasm_body_artifact_function(
+      function,
+      validation,
+      target,
+      function_index~,
+      signature=@wasmoon_jit.wasm_function_signature(function_type),
+      use_subtype_indirect_check=false,
+      canonical_type_indices~,
     ) catch {
       error =>
         return Err(
-          "Wasmoon JIT compilation failed for `\{function_name}`: \{error.to_string()}",
+          "Wasmoon JIT compilation failed for `\{jit_function_name(module_, function_index)}`: \{error.to_string()}",
         )
     }
-    let compiled = @wasmoon_jit.CompiledFunction::CompiledFunction(
-      function_name,
-      plan.object,
-      0,
-    )
-    let function_address_fixups = match jit_function_address_fixups(compiled) {
-      Ok(fixups) => fixups
-      Err(detail) => return Err(detail)
-    }
-    let call_fixups = match jit_call_fixups(compiled) {
-      Ok(fixups) => fixups
-      Err(detail) => return Err(detail)
-    }
-    let function_type = module_.get_func_type(type_index)
-    precompiled.add_function(
-      @wasmoon_jit.build_cwasm_entry_from_code(
-        function_index,
-        function_name,
-        compiled.get_code(),
-        compiled.frame_size,
-        compiled.entry_offset,
-        function_type.params.length(),
-        function_type.results.length(),
-        func_addr_fixups=function_address_fixups,
-        call_fixups~,
-        gc_safepoints=jit_gc_safepoints(compiled),
-        gc_stackmap_blob=compiled.get_gc_stackmap_blob(),
-      ),
-    )
+    functions.push(compiled)
+    function_index = function_index + 1
   }
-  Ok(precompiled)
+  verify_jit_artifact({ manifest, imports, functions })
 }

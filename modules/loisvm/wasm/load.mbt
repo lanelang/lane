@@ -12,7 +12,7 @@ pub(all) enum ExecutionMode {
 
 ///|
 enum LoadedExecutionBackend {
-  Jit(@wasmoon_cwasm.PrecompiledModule)
+  Jit(@wasmoon_jit.LoadedArtifact)
   Interpreter
 }
 
@@ -182,7 +182,7 @@ fn LoadedImage::create_instance_backend(
 ) -> Result[InstanceExecutionBackend, @loisvm_runtime.ExecutionError] {
   match self.backend {
     Interpreter => Ok(Interpreter)
-    Jit(precompiled) => {
+    Jit(artifact) => {
       let signatures = @wasmoon_wast.build_func_signatures(self.wasm_module)
       let external_imports = @wasmoon_wast.build_external_imports_for_jit(
         self.wasm_module,
@@ -190,8 +190,11 @@ fn LoadedImage::create_instance_backend(
         store,
       )
       let jit_module = try
-        @wasmoon_jit_runtime.JITModule::load_with_imports(
-          precompiled, signatures, external_imports,
+        @wasmoon_jit_runtime.JITModule::load_artifact_with_imports(
+          artifact,
+          signatures,
+          external_imports,
+          function_names=jit_function_names(self.wasm_module),
         )
       catch {
         error =>
