@@ -8,22 +8,34 @@ pub(all) enum SurfacePresentation {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum SurfaceGeneratedReference {
+  Type(name~ : String, loc~ : @basic.SourceSpan)
+  Variant(type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
+} derive(Debug, Eq)
+
+///|
 pub(all) struct SurfaceExpansion {
   source : @syntax.SourceFile
   presentations : Array[SurfacePresentation]
+  generated_references : Array[SurfaceGeneratedReference]
 } derive(Debug, Eq)
 
 ///|
 priv struct SurfaceExpander {
   presentations : Array[SurfacePresentation]
+  generated_references : Array[SurfaceGeneratedReference]
 }
 
 ///|
 pub fn expand_source(source : @syntax.SourceFile) -> SurfaceExpansion {
-  let expander : SurfaceExpander = { presentations: [] }
+  let expander : SurfaceExpander = {
+    presentations: [],
+    generated_references: [],
+  }
   {
     source: expander.expand_source(source),
     presentations: expander.presentations,
+    generated_references: expander.generated_references,
   }
 }
 
@@ -260,6 +272,7 @@ fn SurfaceExpander::expand_type(
       )
     Tuple(items~, loc~) => {
       self.presentations.push(TupleType(loc))
+      self.generated_references.push(Type(name="Basic.Data.Tuple.Tuple", loc~))
       expand_right_nested(items, fn(item) { self.expand_type(item) }, fn(
         left,
         right,
@@ -382,10 +395,21 @@ fn SurfaceExpander::expand_expression(
       )
     ListLiteral(items~, loc~) => {
       self.presentations.push(ListExpression(loc))
+      if !items.is_empty() {
+        self.generated_references.push(
+          Variant(type_name="Basic.Data.List.List", variant="cons", loc~),
+        )
+      }
+      self.generated_references.push(
+        Variant(type_name="Basic.Data.List.List", variant="empty", loc~),
+      )
       self.expand_list_expression(items, 0, loc)
     }
     TupleLiteral(items~, loc~) => {
       self.presentations.push(TupleExpression(loc))
+      self.generated_references.push(
+        Variant(type_name="Basic.Data.Tuple.Tuple", variant="tuple", loc~),
+      )
       expand_right_nested(items, fn(item) { self.expand_expression(item) }, fn(
         left,
         right,
@@ -625,6 +649,9 @@ fn SurfaceExpander::expand_pattern(
       )
     Tuple(items~, loc~) => {
       self.presentations.push(TuplePattern(loc))
+      self.generated_references.push(
+        Variant(type_name="Basic.Data.Tuple.Tuple", variant="tuple", loc~),
+      )
       expand_right_nested(items, fn(item) { self.expand_pattern(item) }, fn(
         left,
         right,

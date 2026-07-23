@@ -40,6 +40,10 @@ materialize nested nominal values when they escape.
 - Surface expansion visits children left to right and preserves their authored
   spans. It never reorders, duplicates, or discards child-expression
   evaluation.
+- Surface expansion records one diagnostic origin for each provider reference
+  introduced by an authored sugar form. Resolver failures share that origin;
+  ordinary resolver diagnostics remain independent and are never globally
+  deduplicated.
 - Incomplete tuple syntax exposes zero-width expected type, expression, or
   pattern slots through the tolerant parser. Completion consumes those roles
   without punctuation scans or tuple-specific inference.

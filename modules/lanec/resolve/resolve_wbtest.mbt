@@ -1014,3 +1014,64 @@ test "report unresolved operator operation name" {
     ),
   )
 }
+
+///|
+test "resolver reports repeated diagnostics independently" {
+  let file = expect_parse_ok("fn value() -> Int { 0 }")
+  let resolver = Resolver::Resolver(SymbolRegistry(), None, "Test", [])
+  resolver.report(UnresolvedValue("missing"), file.loc)
+  resolver.report(UnresolvedValue("missing"), file.loc)
+  inspect(
+    @prettyprinter.render(
+      resolver.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[unresolved_value missing, unresolved_value missing]
+    ),
+  )
+}
+
+///|
+test "surface expansion reports each generated reference once" {
+  let file = expect_parse_ok(
+    (
+      #|fn tuple_type(value : (Int, Bool, String, Double)) -> Int {
+      #|  0
+      #|}
+      #|fn tuple_value() -> Unit {
+      #|  let _value = (1, true, "lane", 2.0);
+      #|  ()
+      #|}
+      #|fn second_tuple_value() -> Unit {
+      #|  let _value = (2, false);
+      #|  ()
+      #|}
+      #|fn list_value() -> Unit {
+      #|  let _value = [1, 2, 3];
+      #|  ()
+      #|}
+      #|fn empty_list_value() -> Unit {
+      #|  let _value = [];
+      #|  ()
+      #|}
+    ),
+  )
+  let result = resolve_source_file_result(file)
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content=(
+      #|[
+      #|  unresolved_type Basic.Data.Tuple.Tuple,
+      #|  unresolved_variant Basic.Data.Tuple.Tuple::tuple,
+      #|  unresolved_variant Basic.Data.Tuple.Tuple::tuple,
+      #|  unresolved_variant Basic.Data.List.List::cons,
+      #|  unresolved_variant Basic.Data.List.List::empty,
+      #|  unresolved_variant Basic.Data.List.List::empty
+      #|]
+    ),
+  )
+}

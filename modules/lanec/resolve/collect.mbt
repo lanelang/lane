@@ -13,8 +13,22 @@ priv struct Resolver {
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
+  generated_reference_reports : Map[GeneratedReferenceKey, Bool]
   diagnostics : Array[ResolveDiagnostic]
 }
+
+///|
+priv enum GeneratedReferenceName {
+  TypeReference(String)
+  VariantReference(type_name~ : String, variant~ : String)
+} derive(Eq, Hash)
+
+///|
+priv struct GeneratedReferenceKey {
+  name : GeneratedReferenceName
+  start_offset : Int
+  end_offset : Int
+} derive(Eq, Hash)
 
 ///|
 priv struct ModuleBinding {
@@ -112,6 +126,7 @@ pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult 
     registry,
     None,
     @module_interface.module_path_text(expanded.source.module_path),
+    expanded.generated_references,
   )
   resolver.resolve_source_file_result(
     expanded.source,
@@ -133,6 +148,7 @@ pub fn resolve_source_file_with_imports_result(
     registry,
     previous_declarations,
     @module_interface.module_path_text(expanded.source.module_path),
+    expanded.generated_references,
   )
   resolver.publish_imported_bindings(expanded.source, imported_environment)
   resolver.resolve_source_file_result(
@@ -172,6 +188,7 @@ fn Resolver::Resolver(
   registry : SymbolRegistry,
   previous_declarations : @symbol.DeclarationIdentities?,
   current_module_path : String,
+  generated_references : Array[@surface.SurfaceGeneratedReference],
 ) -> Resolver {
   {
     registry,
@@ -189,8 +206,56 @@ fn Resolver::Resolver(
     import_exposures: [],
     import_uses: [],
     import_symbols: [],
+    generated_reference_reports: generated_reference_reports(
+      generated_references,
+    ),
     diagnostics: [],
   }
+}
+
+///|
+fn surface_generated_reference_key(
+  reference : @surface.SurfaceGeneratedReference,
+) -> GeneratedReferenceKey {
+  match reference {
+    Type(name~, loc~) =>
+      {
+        name: TypeReference(name),
+        start_offset: loc.start_offset,
+        end_offset: loc.end_offset,
+      }
+    Variant(type_name~, variant~, loc~) =>
+      {
+        name: VariantReference(type_name~, variant~),
+        start_offset: loc.start_offset,
+        end_offset: loc.end_offset,
+      }
+  }
+}
+
+///|
+fn generated_reference_reports(
+  references : Array[@surface.SurfaceGeneratedReference],
+) -> Map[GeneratedReferenceKey, Bool] {
+  let reports : Map[GeneratedReferenceKey, Bool] = Map([])
+  for reference in references {
+    reports[surface_generated_reference_key(reference)] = false
+  }
+  reports
+}
+
+///|
+fn generated_reference_key(
+  kind : ResolveDiagnosticKind,
+  loc : SourceSpan,
+) -> GeneratedReferenceKey? {
+  let name = match kind {
+    UnresolvedType(name) => TypeReference(name)
+    UnresolvedQualifiedVariant(type_name~, variant~) =>
+      VariantReference(type_name~, variant~)
+    _ => return None
+  }
+  Some({ name, start_offset: loc.start_offset, end_offset: loc.end_offset })
 }
 
 ///|
@@ -1429,7 +1494,7 @@ fn @syntax.Type::resolve_type(
                       match resolver.qualified_type_symbol_opt(name) {
                         Some(symbol) => Constructor(symbol~, name~, loc~)
                         None => {
-                          resolver.report(UnresolvedType(name), loc)
+                          resolver.report_reference(UnresolvedType(name), loc)
                           Unresolved(name~, arguments=[], loc~)
                         }
                       }
@@ -1774,7 +1839,7 @@ fn @syntax.Type::resolve_effect_type(
                   let resolved_arguments = arguments.map(fn(argument) {
                     argument.resolve_default_generic_argument(resolver, scope)
                   })
-                  resolver.report(UnresolvedType(name), loc)
+                  resolver.report_reference(UnresolvedType(name), loc)
                   Unresolved(name~, arguments=resolved_arguments, loc~)
                 }
               }
@@ -1852,11 +1917,11 @@ fn Resolver::resolve_module_qualified_type(
           )
         }
       }
-      self.report(UnresolvedType(full_name), loc)
+      self.report_reference(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments=[], loc~)
     }
     None => {
-      self.report(UnresolvedType(full_name), loc)
+      self.report_reference(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments=[], loc~)
     }
   }
@@ -1908,12 +1973,12 @@ fn Resolver::resolve_module_qualified_effect_type(
         }
       }
       let arguments = resolve_default_generic_arguments(arguments, self, scope)
-      self.report(UnresolvedType(full_name), loc)
+      self.report_reference(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
     None => {
       let arguments = resolve_default_generic_arguments(arguments, self, scope)
-      self.report(UnresolvedType(full_name), loc)
+      self.report_reference(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
   }
@@ -3893,9 +3958,23 @@ fn Resolver::report(
   kind : ResolveDiagnosticKind,
   loc : SourceSpan,
 ) -> Unit {
-  let diagnostic : ResolveDiagnostic = { kind, loc }
-  if !self.diagnostics.contains(diagnostic) {
-    self.diagnostics.push(diagnostic)
+  self.diagnostics.push({ kind, loc })
+}
+
+///|
+fn Resolver::report_reference(
+  self : Resolver,
+  kind : ResolveDiagnosticKind,
+  loc : SourceSpan,
+) -> Unit {
+  if generated_reference_key(kind, loc) is Some(key) &&
+    self.generated_reference_reports.get(key) is Some(reported) {
+    if !reported {
+      self.generated_reference_reports[key] = true
+      self.report(kind, loc)
+    }
+  } else {
+    self.report(kind, loc)
   }
 }
 
@@ -3932,7 +4011,10 @@ fn resolver_report_qualified_variant(
   variant : String,
   loc : SourceSpan,
 ) -> Unit {
-  resolver.report(UnresolvedQualifiedVariant(type_name~, variant~), loc)
+  resolver.report_reference(
+    UnresolvedQualifiedVariant(type_name~, variant~),
+    loc,
+  )
 }
 
 ///|

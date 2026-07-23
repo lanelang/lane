@@ -16,6 +16,12 @@ pub fn expand_source(@syntax.SourceFile) -> SurfaceExpansion
 pub(all) struct SurfaceExpansion {
   source : @syntax.SourceFile
   presentations : Array[SurfacePresentation]
+  generated_references : Array[SurfaceGeneratedReference]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SurfaceGeneratedReference {
+  Type(name~ : String, loc~ : @basic.SourceSpan)
+  Variant(type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 
 pub(all) enum SurfacePresentation {
