@@ -868,27 +868,26 @@ fn completion_context(
   }
   match trigger {
     TriggerCharacter(".") | TriggerCharacter(":") if prefix == "" => Unsupported
-    _ =>
-      Identifier(
-        prefix~,
-        replace~,
-        space=completion_space_from_syntax_role(
-          source.syntax_identifiers.role_at(offset),
-        ),
-      )
+    _ => {
+      let space = match source.syntax_identifiers.role_at(offset) {
+        Some(role) => completion_space_from_syntax_role(role)
+        None if prefix == "" => AnySpace
+        None => return Unsupported
+      }
+      Identifier(prefix~, replace~, space~)
+    }
   }
 }
 
 ///|
 fn completion_space_from_syntax_role(
-  role : @syntax.SyntacticIdentifierRole?,
+  role : @syntax.SyntacticIdentifierRole,
 ) -> CompletionSpace {
   match role {
-    Some(TypeIdentifier) => TypeSpace
-    Some(EffectIdentifier) => EffectSpace
-    Some(ValueIdentifier) => ValueSpace
-    Some(PatternIdentifier) => PatternSpace
-    None => AnySpace
+    TypeIdentifier => TypeSpace
+    EffectIdentifier => EffectSpace
+    ValueIdentifier => ValueSpace
+    PatternIdentifier => PatternSpace
   }
 }
 

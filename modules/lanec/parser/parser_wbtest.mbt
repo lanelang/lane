@@ -105,6 +105,28 @@ test "parse failures retain expected identifier slots" {
 }
 
 ///|
+test "truncated identifiers retain their syntactic roles" {
+  let sources = [
+    "module Test\npub let value : Thi", "module Test\nfn run() -> Unit ! Con", "module Test\nfn make() -> (Int, Int) { (1, Thi",
+    "module Test\nfn use(value : Int) -> Int { match value { (head, Thi",
+  ]
+  let roles = sources.map(fn(source) {
+    parse_string(source).syntactic_identifier_index().role_at(source.length())
+  })
+  debug_inspect(
+    roles,
+    content=(
+      #|[
+      #|  Some(TypeIdentifier),
+      #|  Some(EffectIdentifier),
+      #|  Some(ValueIdentifier),
+      #|  Some(PatternIdentifier),
+      #|]
+    ),
+  )
+}
+
+///|
 test "incomplete tuple items retain type value and pattern slots" {
   let type_result = parse_string("module Test\ntype Pair = (Int,")
   guard type_result.parse_errors().get(0) is Some(type_error) else {

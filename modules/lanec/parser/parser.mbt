@@ -19,16 +19,21 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
         Grammar(
           concrete,
           [{ kind: UnexpectedEndOfInput(expected_syntax(expected)), loc }],
-          expected_identifier_index(loc, expected),
+          failure_identifier_index(layout.tokens, loc, expected),
         ),
       )
     UnexpectedToken(token, (start, end), expected) => {
       let kind = unexpected_token_error_kind(token, expected)
+      let loc = SourceSpan::join(start, end)
       return Failed(
         Grammar(
           concrete,
-          [{ kind, loc: SourceSpan::join(start, end) }],
-          expected_identifier_index(token_start_position(start), expected),
+          [{ kind, loc }],
+          failure_identifier_index(
+            layout.tokens,
+            token_start_position(start),
+            expected,
+          ),
         ),
       )
     }
@@ -120,24 +125,85 @@ fn expected_syntax(
 }
 
 ///|
-fn expected_identifier_index(
+fn expected_identifier_role(
+  expected : Array[@yacc_parser.TokenKind],
+) -> @syntax.SyntacticIdentifierRole? {
+  if expected.contains(TK_TYPE_IDENTIFIER_SLOT) {
+    Some(TypeIdentifier)
+  } else if expected.contains(TK_EFFECT_IDENTIFIER_SLOT) {
+    Some(EffectIdentifier)
+  } else if expected.contains(TK_VALUE_IDENTIFIER_SLOT) {
+    Some(ValueIdentifier)
+  } else if expected.contains(TK_PATTERN_IDENTIFIER_SLOT) {
+    Some(PatternIdentifier)
+  } else {
+    None
+  }
+}
+
+///|
+fn failure_identifier_index(
+  tokens : Array[(@yacc_parser.Token, SourceSpan, SourceSpan)],
   loc : SourceSpan,
   expected : Array[@yacc_parser.TokenKind],
 ) -> @syntax.SyntacticIdentifierIndex {
-  if expected.contains(TK_TYPE_IDENTIFIER_SLOT) {
-    @syntax.SyntacticIdentifierIndex::expected_identifier(loc, TypeIdentifier)
-  } else if expected.contains(TK_EFFECT_IDENTIFIER_SLOT) {
-    @syntax.SyntacticIdentifierIndex::expected_identifier(loc, EffectIdentifier)
-  } else if expected.contains(TK_VALUE_IDENTIFIER_SLOT) {
-    @syntax.SyntacticIdentifierIndex::expected_identifier(loc, ValueIdentifier)
-  } else if expected.contains(TK_PATTERN_IDENTIFIER_SLOT) {
-    @syntax.SyntacticIdentifierIndex::expected_identifier(
-      loc,
-      PatternIdentifier,
-    )
-  } else {
-    @syntax.SyntacticIdentifierIndex::empty()
+  if expected_identifier_role(expected) is Some(role) {
+    return @syntax.SyntacticIdentifierIndex::expected_identifier(loc, role)
   }
+  let mut low = 0
+  let mut high = tokens.length()
+  while low < high {
+    let middle = low + (high - low) / 2
+    let (_, _, end) = tokens[middle]
+    if end.end_offset <= loc.start_offset {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  let mut index = low - 1
+  while index >= 0 {
+    let (token, start, end) = tokens[index]
+    if end.end_offset == loc.start_offset && token is IDENT(_) {
+      let prefix = []
+      for prefix_index in 0..<index {
+        prefix.push(tokens[prefix_index])
+      }
+      prefix.push((EOF, start, start))
+      let role = identifier_role_at_end_of_prefix(prefix, start)
+      return match role {
+        Some(role) =>
+          @syntax.SyntacticIdentifierIndex::expected_identifier(
+            SourceSpan::join(start, end),
+            role,
+          )
+        None => @syntax.SyntacticIdentifierIndex::empty()
+      }
+    }
+    if end.end_offset != loc.start_offset {
+      break
+    }
+    index -= 1
+  }
+  @syntax.SyntacticIdentifierIndex::empty()
+}
+
+///|
+fn identifier_role_at_end_of_prefix(
+  tokens : Array[(@yacc_parser.Token, SourceSpan, SourceSpan)],
+  loc : SourceSpan,
+) -> @syntax.SyntacticIdentifierRole? {
+  let _ = @yacc_parser.source_file(tokens) catch {
+    UnexpectedEndOfInput(error_loc, expected) => {
+      guard error_loc.start_offset == loc.start_offset else { return None }
+      return expected_identifier_role(expected)
+    }
+    UnexpectedToken(_, (error_start, _), expected) => {
+      guard error_start.start_offset == loc.start_offset else { return None }
+      return expected_identifier_role(expected)
+    }
+  }
+  None
 }
 
 ///|

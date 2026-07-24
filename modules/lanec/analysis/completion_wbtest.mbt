@@ -1460,6 +1460,50 @@ test "completion classifies an empty tuple expression item as value space" {
 }
 
 ///|
+test "completion preserves value space for a truncated identifier" {
+  let valid_source =
+    #|module Main
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn[T] pair() -> (Int, Thing) {
+    #|  (1, Thing::{ value: 0 })
+    #|}
+  let edited_source =
+    #|module Main
+    #|
+    #|pub struct Thing {
+    #|  value : Int
+    #|}
+    #|
+    #|pub fn[T] pair() -> (Int, Thing) {
+    #|  (1, T
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: valid_source },
+    ])
+    is Some(_) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard workspace.upsert_source({
+      source_id: "file:///Main.lane",
+      text: edited_source,
+    })
+    is Some(snapshot) else {
+    abort("expected edited semantic snapshot")
+  }
+  debug_inspect(
+    snapshot
+    .complete("file:///Main.lane", 8, 8, Manual)
+    .filter(entry => entry.label == "T" || entry.label == "Thing")
+    .map(entry => (entry.label, entry.kind)),
+    content="[(\"Thing\", Type)]",
+  )
+}
+
+///|
 test "completion classifies an empty tuple pattern item as pattern space" {
   let valid_source =
     #|module Main
