@@ -3158,26 +3158,90 @@ test "value use analysis excludes struct sequencing temporaries" {
   }
   let registry = resolution.source.symbols
   let analysis = source.value_use_analysis(registry)
-  let binder_names = analysis.binders.map(fn(binder) { binder.name })
-  let reference_origins = analysis.references.map(fn(reference) {
-    guard registry.value_metadata(reference.target) is Some(target) else {
-      abort("missing reference target metadata")
-    }
-    let origin = match reference.origin_binder {
-      Some(symbol) =>
-        match registry.value_metadata(symbol) {
-          Some(metadata) => metadata.name
-          None => abort("missing reference origin metadata")
-        }
-      None => "<top-level>"
-    }
-    "\{target.name} <- \{origin}"
-  })
-  assert_eq(
-    (binder_names, reference_origins),
-    (
-      ["number", "flag", "pair"],
-      ["flag <- pair", "number <- pair", "pair <- <top-level>"],
+  debug_inspect(
+    analysis,
+    content=(
+      #|{
+      #|  binders: [
+      #|    {
+      #|      symbol: { index: 1 },
+      #|      name: "number",
+      #|      loc: {
+      #|        start_offset: 66,
+      #|        end_offset: 72,
+      #|        start_line: 6,
+      #|        start_column: 9,
+      #|        end_line: 6,
+      #|        end_column: 15,
+      #|      },
+      #|      kind: FunctionParameter,
+      #|    },
+      #|    {
+      #|      symbol: { index: 2 },
+      #|      name: "flag",
+      #|      loc: {
+      #|        start_offset: 80,
+      #|        end_offset: 84,
+      #|        start_line: 6,
+      #|        start_column: 23,
+      #|        end_line: 6,
+      #|        end_column: 27,
+      #|      },
+      #|      kind: FunctionParameter,
+      #|    },
+      #|    {
+      #|      symbol: { index: 3 },
+      #|      name: "pair",
+      #|      loc: {
+      #|        start_offset: 109,
+      #|        end_offset: 113,
+      #|        start_line: 7,
+      #|        start_column: 7,
+      #|        end_line: 7,
+      #|        end_column: 11,
+      #|      },
+      #|      kind: LocalLet,
+      #|    },
+      #|  ],
+      #|  references: [
+      #|    {
+      #|      target: { index: 2 },
+      #|      origin_binder: Some({ index: 3 }),
+      #|      loc: {
+      #|        start_offset: 132,
+      #|        end_offset: 136,
+      #|        start_line: 7,
+      #|        start_column: 30,
+      #|        end_line: 7,
+      #|        end_column: 34,
+      #|      },
+      #|    },
+      #|    {
+      #|      target: { index: 1 },
+      #|      origin_binder: Some({ index: 3 }),
+      #|      loc: {
+      #|        start_offset: 145,
+      #|        end_offset: 151,
+      #|        start_line: 7,
+      #|        start_column: 43,
+      #|        end_line: 7,
+      #|        end_column: 49,
+      #|      },
+      #|    },
+      #|    {
+      #|      target: { index: 3 },
+      #|      origin_binder: None,
+      #|      loc: {
+      #|        start_offset: 156,
+      #|        end_offset: 160,
+      #|        start_line: 8,
+      #|        start_column: 3,
+      #|        end_line: 8,
+      #|        end_column: 7,
+      #|      },
+      #|    },
+      #|  ],
+      #|}
     ),
   )
 }
