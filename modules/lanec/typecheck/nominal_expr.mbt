@@ -451,9 +451,10 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     loc,
   )
   let type_ = @types.nominal_type_generic(symbol, arguments)
-  let witnesses = self.check_struct_type_witnesses(
+  let witness_check = self.check_struct_type_witnesses(
     struct_declaration, fields, loc,
   )
+  let witnesses = witness_check.witnesses
   let nominal_substitution = struct_declaration.nominal_substitution(arguments)
   let existential_substitution = struct_declaration.existential_substitution(
     witnesses,
@@ -467,7 +468,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     (Int, @checked.CheckedStructLiteralField),
   ] = []
   let effects = []
-  let mut complete = true
+  let mut complete = witness_check.complete
   for field in fields {
     guard field is Value(name~, value~, loc=field_loc) else { continue }
     if seen.contains(name) {
@@ -654,21 +655,29 @@ fn struct_literal_generic_evidence(
 }
 
 ///|
+priv struct StructTypeWitnessCheck {
+  witnesses : Array[@checked.CheckedStructTypeWitness]
+  complete : Bool
+}
+
+///|
 fn SemanticChecker::check_struct_type_witnesses(
   self : SemanticChecker,
   declaration : CheckedStructDeclaration,
   fields : Array[@desugar.DesugaredStructLiteralField],
   loc : SourceSpan,
-) -> Array[@checked.CheckedStructTypeWitness] {
+) -> StructTypeWitnessCheck {
   let seen = []
   let witnesses : Array[@checked.CheckedStructTypeWitness?] = Array::make(
     declaration.type_members.length(),
     None,
   )
+  let mut complete = true
   for field in fields {
     guard field is TypeWitness(name~, witness~, loc=field_loc) else { continue }
     if seen.contains(name) {
       self.diagnostics.push({ kind: DuplicateTypeMember(name~), loc: field_loc })
+      complete = false
     } else {
       seen.push(name)
     }
@@ -684,8 +693,10 @@ fn SemanticChecker::check_struct_type_witnesses(
           witnesses[type_member.index] = Some(checked)
         }
       }
-      None =>
+      None => {
         self.diagnostics.push({ kind: UnknownTypeMember(name~), loc: field_loc })
+        complete = false
+      }
     }
   }
   for type_member in declaration.type_members {
@@ -694,7 +705,8 @@ fn SemanticChecker::check_struct_type_witnesses(
         kind: MissingTypeMember(name=type_member.name),
         loc,
       })
+      complete = false
     }
   }
-  witnesses.filter_map(fn(witness) { witness })
+  { witnesses: witnesses.filter_map(fn(witness) { witness }), complete }
 }

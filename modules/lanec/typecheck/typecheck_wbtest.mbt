@@ -82,11 +82,7 @@ fn checked_function_effect(
 }
 
 ///|
-fn expect_checked_let_initializer(
-  source : String,
-  name : String,
-  expected : @types.Type,
-) -> @checked.CheckedExpr {
+fn semantic_checker_for_test_source(source : String) -> SemanticChecker {
   let file = expect_parse_ok(source)
   let resolution = @resolve.resolve_source_file_result(file)
   if !resolution.diagnostics.is_empty() {
@@ -108,7 +104,17 @@ fn expect_checked_let_initializer(
     ordered_offers: ContextualOfferScope(),
   }
   checker.collect_top_level_value_types()
-  for declaration in source.declarations {
+  checker
+}
+
+///|
+fn expect_checked_let_initializer(
+  source : String,
+  name : String,
+  expected : @types.Type,
+) -> @checked.CheckedExpr {
+  let checker = semantic_checker_for_test_source(source)
+  for declaration in checker.source.declarations {
     match declaration {
       Let(declaration) =>
         if declaration.name == name {
@@ -121,6 +127,30 @@ fn expect_checked_let_initializer(
             abort(@prettyprinter.render(checker.diagnostics, width=100))
           }
           return expression
+        } else {
+          checker.check_top_level_let(declaration)
+        }
+      _ => ()
+    }
+  }
+  abort("expected named let")
+}
+
+///|
+fn synthesize_named_let_initializer(
+  source : String,
+  name : String,
+) -> (CheckedExpressionSynthesis, Array[TypeCheckDiagnostic]) {
+  let checker = semantic_checker_for_test_source(source)
+  for declaration in checker.source.declarations {
+    match declaration {
+      Let(declaration) =>
+        if declaration.name == name {
+          let checked = checker.synthesize_checked_expr(
+            checker.root_scope(),
+            declaration.initializer,
+          )
+          return (checked, checker.diagnostics)
         } else {
           checker.check_top_level_let(declaration)
         }
@@ -3119,6 +3149,66 @@ test "typecheck reports missing existential struct type witness" {
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
       #|[missing_type_member T @ 6:21-6:37]
+    ),
+  )
+}
+
+///|
+test "typecheck rejects incomplete existential struct witnesses before checked AST" {
+  let cases = [
+    (
+      #|struct Hide {
+      #|  type T : Type
+      #|  value : T
+      #|}
+      #|let hidden : Hide = Hide::{ value: 1 }
+    ),
+    (
+      #|struct Hide {
+      #|  type T : Type
+      #|  value : T
+      #|}
+      #|let hidden : Hide = Hide::{ T = Int, T = Bool, value: 1 }
+    ),
+    (
+      #|struct Hide {
+      #|  type T : Type
+      #|  value : T
+      #|}
+      #|let hidden : Hide = Hide::{ T = Int, Unknown = Bool, value: 1 }
+    ),
+    (
+      #|struct Hide {
+      #|  type T : Type
+      #|  value : T
+      #|}
+      #|let hidden : Hide = Hide::{ unknown: true }
+    ),
+  ]
+  let results = []
+  for source in cases {
+    let (checked, diagnostics) = synthesize_named_let_initializer(
+      source, "hidden",
+    )
+    results.push(
+      (
+        checked.expression is None,
+        @prettyprinter.render(diagnostics, width=100),
+      ),
+    )
+  }
+  debug_inspect(
+    results,
+    content=(
+      #|[
+      #|  (true, "[missing_type_member T @ 6:21-6:39]"),
+      #|  (true, "[duplicate_type_member T @ 6:38-6:46]"),
+      #|  (true, "[unknown_type_member Unknown @ 6:38-6:52]"),
+      #|  (
+      #|    true,
+      #|    "[\n  missing_type_member T @ 6:21-6:44,\n  unknown_field unknown @ 6:29-6:42,\n  missing_field value @ 6:21-6:44\n]",
+      #|  ),
+      #|]
     ),
   )
 }
