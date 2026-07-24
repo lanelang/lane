@@ -47,8 +47,10 @@ fn checked_function(
 }
 
 ///|
-fn checked_source(body : CheckedExpr) -> CheckedSourceFile {
-  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+fn checked_source(
+  registry : @symbol.SymbolRegistry,
+  body : CheckedExpr,
+) -> CheckedSourceFile {
   let main = registry.define_value("main", TopLevelFunction, loc())
   {
     module_path: { components: ["Test"], loc: loc() },
@@ -340,7 +342,9 @@ test "value use analysis classifies local dependency groups" {
   )
   debug_inspect(
     unused_binder_summary(
-      checked_source(block).value_use_analysis().unused_binders(),
+      checked_source(registry, block)
+      .value_use_analysis(registry)
+      .unused_binders(),
     ),
     content=(
       #|[
@@ -393,10 +397,91 @@ test "value use analysis does not cascade through unused captured function" {
   )
   debug_inspect(
     unused_binder_summary(
-      checked_source(block).value_use_analysis().unused_binders(),
+      checked_source(registry, block)
+      .value_use_analysis(registry)
+      .unused_binders(),
     ),
     content=(
       #|["helper:local-function"]
     ),
   )
+}
+
+///|
+test "value use analysis excludes generated locals without losing authored uses" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let main = registry.define_value("main", TopLevelFunction, loc())
+  let input = registry.define_value("input", Parameter, loc())
+  let result = registry.define_value("result", LocalBinding, loc())
+  let temporary = registry.define_generated_local("_temporary", loc())
+  let input_parameter : CheckedValueParameter = {
+    is_auto: false,
+    is_offered: false,
+    symbol: input,
+    name: "input",
+    name_loc: loc(),
+    type_: int_type(),
+    loc: loc(),
+  }
+  let generated_initializer = CheckedExpr::Block(
+    items=[
+      Let({
+        is_public: false,
+        is_offered: false,
+        symbol: temporary,
+        name: "_temporary",
+        name_loc: loc(),
+        initializer: Value(
+          name="input",
+          symbol=input,
+          type_=int_type(),
+          loc=loc(),
+        ),
+        type_: int_type(),
+        loc: loc(),
+      }),
+    ],
+    result=Value(
+      name="_temporary",
+      symbol=temporary,
+      type_=int_type(),
+      loc=loc(),
+    ),
+    type_=int_type(),
+    loc=loc(),
+  )
+  let body = CheckedExpr::Block(
+    items=[
+      Let({
+        is_public: false,
+        is_offered: false,
+        symbol: result,
+        name: "result",
+        name_loc: loc(),
+        initializer: generated_initializer,
+        type_: int_type(),
+        loc: loc(),
+      }),
+    ],
+    result=Value(name="result", symbol=result, type_=int_type(), loc=loc()),
+    type_=int_type(),
+    loc=loc(),
+  )
+  let source = CheckedSourceFile::{
+    module_path: { components: ["Test"], loc: loc() },
+    declarations: [
+      Function(checked_function(main, "main", [input_parameter], body)),
+    ],
+    loc: loc(),
+  }
+  assert_eq(source.value_use_analysis(registry), {
+    binders: [
+      { symbol: input, name: "input", loc: loc(), kind: FunctionParameter },
+      { symbol: result, name: "result", loc: loc(), kind: LocalLet },
+    ],
+    references: [
+      { target: input, origin_binder: Some(result), loc: loc() },
+      { target: result, origin_binder: None, loc: loc() },
+    ],
+  })
 }

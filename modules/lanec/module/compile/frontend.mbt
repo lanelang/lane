@@ -123,6 +123,7 @@ fn compile_one_module(
     (Some(checked), Some(interface)) => {
       let warning_diagnostics = @analysis.checked_unused_local_value_binding_diagnostics(
         checked,
+        registry,
         input.text,
       )
       warning_diagnostics.append(

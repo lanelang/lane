@@ -32,6 +32,7 @@ pub(all) struct CheckedValueUseAnalysis {
 
 ///|
 priv struct CheckedValueUseCollector {
+  registry : @symbol.SymbolRegistry
   binders : Array[CheckedValueUseBinder]
   references : Array[CheckedValueUseReference]
 }
@@ -39,8 +40,13 @@ priv struct CheckedValueUseCollector {
 ///|
 pub fn CheckedSourceFile::value_use_analysis(
   self : CheckedSourceFile,
+  registry : @symbol.SymbolRegistry,
 ) -> CheckedValueUseAnalysis {
-  let collector = CheckedValueUseCollector::{ binders: [], references: [] }
+  let collector = CheckedValueUseCollector::{
+    registry,
+    binders: [],
+    references: [],
+  }
   for declaration in self.declarations {
     collector.collect_top_level_declaration(declaration)
   }
@@ -205,13 +211,19 @@ fn CheckedValueUseCollector::collect_local_item(
 ) -> Unit {
   match item {
     Let(declaration) => {
+      let provenance = self.value_provenance(declaration.symbol)
       self.add_binder(
         declaration.symbol,
         declaration.name,
         declaration.name_loc,
         LocalLet,
       )
-      self.collect_expr(declaration.initializer, Some(declaration.symbol))
+      let origin = if provenance is Authored {
+        Some(declaration.symbol)
+      } else {
+        current_origin
+      }
+      self.collect_expr(declaration.initializer, origin)
     }
     PatternLet(declaration) => {
       self.collect_expr(declaration.initializer, current_origin)
@@ -219,12 +231,18 @@ fn CheckedValueUseCollector::collect_local_item(
     }
     Expression(expression) => self.collect_expr(expression, current_origin)
     Function(declaration) => {
+      let provenance = self.value_provenance(declaration.symbol)
       self.add_binder(
         declaration.symbol,
         declaration.name,
         declaration.name_loc,
         LocalFunction,
       )
+      let origin = if provenance is Authored {
+        Some(declaration.symbol)
+      } else {
+        current_origin
+      }
       for parameter in declaration.parameters {
         self.add_binder(
           parameter.symbol,
@@ -233,7 +251,7 @@ fn CheckedValueUseCollector::collect_local_item(
           FunctionParameter,
         )
       }
-      self.collect_expr(declaration.body, Some(declaration.symbol))
+      self.collect_expr(declaration.body, origin)
     }
   }
 }
@@ -247,12 +265,7 @@ fn CheckedValueUseCollector::collect_expr(
   match expr {
     Literal(_) | CompilerIntrinsic(_) | ExternBinding(_) | ErrorRecovery(_) =>
       ()
-    Value(symbol~, loc~, ..) =>
-      self.references.push({
-        target: symbol,
-        origin_binder: current_origin,
-        loc,
-      })
+    Value(symbol~, loc~, ..) => self.add_reference(symbol, current_origin, loc)
     FunctionLiteral(parameters~, body~, ..) => {
       for parameter in parameters {
         self.add_binder(
@@ -363,5 +376,31 @@ fn CheckedValueUseCollector::add_binder(
   loc : SourceSpan,
   kind : CheckedValueUseBinderKind,
 ) -> Unit {
-  self.binders.push({ symbol, name, loc, kind })
+  match self.value_provenance(symbol) {
+    Authored => self.binders.push({ symbol, name, loc, kind })
+    GeneratedLocal => ()
+  }
+}
+
+///|
+fn CheckedValueUseCollector::add_reference(
+  self : CheckedValueUseCollector,
+  target : ValueSymbolId,
+  origin_binder : ValueSymbolId?,
+  loc : SourceSpan,
+) -> Unit {
+  if self.value_provenance(target) is Authored {
+    self.references.push({ target, origin_binder, loc })
+  }
+}
+
+///|
+fn CheckedValueUseCollector::value_provenance(
+  self : CheckedValueUseCollector,
+  symbol : ValueSymbolId,
+) -> @symbol.ValueSymbolProvenance {
+  guard self.registry.value_metadata(symbol) is Some(metadata) else {
+    abort("value use analysis missing metadata for value#\{symbol.index}")
+  }
+  metadata.provenance
 }

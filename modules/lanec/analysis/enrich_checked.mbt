@@ -504,8 +504,10 @@ fn SemanticIndex::collect_checked_expr_types(
       self.collect_checked_type(type_)
     }
     Value(symbol~, type_~, ..) => {
-      self.use_import_symbol(ValueSymbol(symbol))
-      self.add_top_level_reference(TopLevelValue(symbol))
+      if value_provenance(self.registry, symbol) is Authored {
+        self.use_import_symbol(ValueSymbol(symbol))
+        self.add_top_level_reference(TopLevelValue(symbol))
+      }
       self.collect_checked_type(type_)
     }
     FunctionLiteral(parameters~, return_type~, type_~, ..) => {

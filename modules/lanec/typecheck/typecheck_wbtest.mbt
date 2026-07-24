@@ -3135,6 +3135,54 @@ test "typecheck existential struct witnesses in declaration order" {
 }
 
 ///|
+test "value use analysis excludes struct sequencing temporaries" {
+  let file = expect_parse_ok(
+    (
+      #|struct Pair {
+      #|  first : Int
+      #|  second : Bool
+      #|}
+      #|fn make(number : Int, flag : Bool) -> Pair {
+      #|  let pair = Pair::{ second: flag, first: number }
+      #|  pair
+      #|}
+    ),
+  )
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  let result = typecheck_checked_source_file(resolution.source)
+  guard result.source is Some(source) else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  let registry = resolution.source.symbols
+  let analysis = source.value_use_analysis(registry)
+  let binder_names = analysis.binders.map(fn(binder) { binder.name })
+  let reference_origins = analysis.references.map(fn(reference) {
+    guard registry.value_metadata(reference.target) is Some(target) else {
+      abort("missing reference target metadata")
+    }
+    let origin = match reference.origin_binder {
+      Some(symbol) =>
+        match registry.value_metadata(symbol) {
+          Some(metadata) => metadata.name
+          None => abort("missing reference origin metadata")
+        }
+      None => "<top-level>"
+    }
+    "\{target.name} <- \{origin}"
+  })
+  assert_eq(
+    (binder_names, reference_origins),
+    (
+      ["number", "flag", "pair"],
+      ["flag <- pair", "number <- pair", "pair <- <top-level>"],
+    ),
+  )
+}
+
+///|
 test "typecheck reports missing existential struct type witness" {
   let result = expect_typecheck_result(
     (

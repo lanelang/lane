@@ -37,10 +37,11 @@ fn diagnostic(
 ///|
 pub fn checked_unused_local_value_binding_diagnostics(
   source : @checked.CheckedSourceFile,
+  registry : @symbol.SymbolRegistry,
   _source_text : String,
 ) -> Array[CompilerDiagnostic] {
   source
-  .value_use_analysis()
+  .value_use_analysis(registry)
   .unused_binders()
   .filter(fn(binder) { !binder.name.has_prefix("_") })
   .map(unused_local_value_binding_diagnostic)
