@@ -135,10 +135,15 @@ fn semantic_token_kind_for_value(
   registry : @symbol.SymbolRegistry,
   symbol : @symbol.ValueSymbolId,
 ) -> SemanticTokenKind? {
-  match required_value_metadata(registry, symbol).kind {
-    Parameter => Some(ParameterToken)
-    TopLevelValue | LocalBinding | PatternBinder => Some(VariableToken)
-    TopLevelFunction | LocalFunction => None
+  let metadata = required_value_metadata(registry, symbol)
+  match metadata.provenance {
+    GeneratedLocal => None
+    Authored =>
+      match metadata.kind {
+        Parameter => Some(ParameterToken)
+        TopLevelValue | LocalBinding | PatternBinder => Some(VariableToken)
+        TopLevelFunction | LocalFunction => None
+      }
   }
 }
 
