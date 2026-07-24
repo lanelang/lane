@@ -4727,6 +4727,27 @@ test "typecheck struct literal punning and required fields" {
 }
 
 ///|
+test "typecheck reports missing leading struct field" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Pair {
+      #|  first : Int
+      #|  second : Bool
+      #|}
+      #|fn bad() -> Pair {
+      #|  Pair::{ second: true }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[missing_field first @ 7:3-7:25]
+    ),
+  )
+}
+
+///|
 test "typecheck reports nominal type arity mismatch" {
   let result = expect_declaration_typecheck_result(
     (

@@ -472,6 +472,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     guard field is Value(name~, value~, loc=field_loc) else { continue }
     if seen.contains(name) {
       self.diagnostics.push({ kind: DuplicateField(name~), loc: field_loc })
+      complete = false
     } else {
       seen.push(name)
     }
@@ -502,11 +503,13 @@ fn SemanticChecker::synthesize_checked_struct_literal(
       }
     } else {
       self.diagnostics.push({ kind: UnknownField(name~), loc: field_loc })
+      complete = false
     }
   }
   for field in struct_declaration.fields {
     if !seen.contains(field.name) {
       self.diagnostics.push({ kind: MissingField(name=field.name), loc })
+      complete = false
     }
   }
   if complete {
@@ -526,8 +529,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
         fields_reordered = true
       }
     }
-    if fields.length() == checked_fields_in_source_order.length() &&
-      fields_reordered {
+    if fields_reordered {
       let items : Array[@checked.CheckedLocalItem] = []
       let referenced_fields : Array[@checked.CheckedStructLiteralField?] = Array::make(
         fields.length(),
