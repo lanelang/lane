@@ -232,7 +232,6 @@ pub impl @prettyprinter.Pretty for CheckedStructDeclaration
 
 pub(all) struct CheckedStructLiteralField {
   symbol : @symbol.FieldSymbolId
-  index : Int
   name : String
   value : CheckedExpr
   loc : @basic.SourceSpan

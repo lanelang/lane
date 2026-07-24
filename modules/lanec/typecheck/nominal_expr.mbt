@@ -459,7 +459,10 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     witnesses,
   )
   let seen = []
-  let checked_fields : Array[@checked.CheckedStructLiteralField] = []
+  let checked_fields : Array[@checked.CheckedStructLiteralField?] = Array::make(
+    struct_declaration.fields.length(),
+    None,
+  )
   let effects = []
   let mut complete = true
   for field in fields {
@@ -479,13 +482,15 @@ fn SemanticChecker::synthesize_checked_struct_literal(
         self.require_checked_expression(checked, field_loc, "struct field") {
         Some(value) => {
           effects.push(checked.effect)
-          checked_fields.push({
+          let checked_field : @checked.CheckedStructLiteralField = {
             symbol: field_symbol,
-            index: field_declaration.index,
             name,
             value,
             loc: field_loc,
-          })
+          }
+          if checked_fields[field_declaration.index] is None {
+            checked_fields[field_declaration.index] = Some(checked_field)
+          }
         }
         None => complete = false
       }
@@ -505,7 +510,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
         type_name_loc~,
         generic_arguments=arguments,
         type_witnesses=witnesses,
-        fields=checked_fields,
+        fields=checked_fields.filter_map(fn(field) { field }),
         type_~,
         loc~,
       ),

@@ -3090,8 +3090,8 @@ test "typecheck existential struct witnesses in declaration order" {
       #|    let hidden#0 : type#0 = type#0::{
       #|      type A#0 = Int
       #|      type B#1 = Bool
-      #|      second#1: true
       #|      first#0: 1
+      #|      second#1: true
       #|    }
       #|  }
       #|  diagnostics {}
