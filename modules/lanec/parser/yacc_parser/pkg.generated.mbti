@@ -17,6 +17,10 @@ pub suberror ParseError {
 } derive(@debug.Debug)
 
 // Types and methods
+pub(all) struct LayoutNewlineClaim {
+  mut is_separator : Bool
+} derive(@debug.Debug)
+
 pub(all) enum Token {
   INT(String)
   DOUBLE(String)
@@ -80,7 +84,7 @@ pub(all) enum Token {
   MISSING_TUPLE_PATTERN_ITEM_ERROR
   COMMA
   SEMICOLON
-  LAYOUT_SEMICOLON
+  LAYOUT_NEWLINE(LayoutNewlineClaim)
   DOTSTAR
   DOTLBRACE
   DOT
@@ -157,7 +161,7 @@ pub(all) enum TokenKind {
   TK_MISSING_TUPLE_PATTERN_ITEM_ERROR
   TK_COMMA
   TK_SEMICOLON
-  TK_LAYOUT_SEMICOLON
+  TK_LAYOUT_NEWLINE
   TK_DOTSTAR
   TK_DOTLBRACE
   TK_DOT

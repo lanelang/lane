@@ -45,6 +45,16 @@ using @syntax {
 }
 
 ///|
+pub(all) struct LayoutNewlineClaim {
+  mut is_separator : Bool
+} derive(Debug)
+
+///|
+fn claim_layout_separator(claim : LayoutNewlineClaim) -> Unit {
+  claim.is_separator = true
+}
+
+///|
 priv struct Identifier {
   name : String
   loc : SourceSpan
@@ -79,6 +89,12 @@ priv struct HandlerOperationArmParameters {
 priv struct HandlerOperationHead {
   name : EffectOperationName
   type_binders : Array[TypeBinder]
+}
+
+///|
+priv struct VariantPatternArguments {
+  type_binders : Array[TypeBinder]
+  arguments : Array[Pattern]
 }
 
 ///|
@@ -254,34 +270,15 @@ fn effect_set(items : Array[Type], loc : SourceSpan) -> EffectTerm {
 }
 
 ///|
-fn unqualified_handler_operation_head(
-  identifier : Identifier,
-  type_binders : Array[TypeBinder],
-) -> HandlerOperationHead {
-  {
-    name: Unqualified(operation=identifier.name, operation_loc=identifier.loc),
-    type_binders,
-  }
-}
-
-///|
-fn handler_operation_head_from_qualified(
+fn qualified_handler_operation_name(
   owner_base : Type,
   owner_arguments : GenericArgumentList?,
   operation : Identifier,
-  type_binders : Array[TypeBinder],
-) -> HandlerOperationHead {
+) -> EffectOperationName {
   let owner = apply_handler_operation_owner_arguments(
     owner_base, owner_arguments,
   )
-  {
-    name: Qualified(
-      owner~,
-      operation=operation.name,
-      operation_loc=operation.loc,
-    ),
-    type_binders,
-  }
+  Qualified(owner~, operation=operation.name, operation_loc=operation.loc)
 }
 
 ///|

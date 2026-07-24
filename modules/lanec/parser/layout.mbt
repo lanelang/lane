@@ -8,7 +8,13 @@ priv enum LayoutDelimiter {
 ///|
 priv struct LayoutTokenStream {
   tokens : Array[(@yacc_parser.Token, SourceSpan, SourceSpan)]
-  separator_gaps : Array[Bool]
+  separator_claims : Array[@yacc_parser.LayoutNewlineClaim?]
+}
+
+///|
+priv struct LayoutTokenRole {
+  ends_item : Bool
+  starts_item : Bool
 }
 
 ///|
@@ -17,13 +23,21 @@ fn prepare_layout_tokens(concrete : @lexer.ConcreteSyntax) -> LayoutTokenStream 
   let delimiters : Array[LayoutDelimiter] = []
   let newline_gaps = collect_newline_gaps(concrete)
   let owner_argument_openings = collect_owner_argument_openings(concrete)
-  let separator_gaps = Array::make(concrete.tokens.length(), false)
+  let separator_claims : Array[@yacc_parser.LayoutNewlineClaim?] = Array::make(
+    concrete.tokens.length(),
+    None,
+  )
   for index, item in concrete.tokens {
     let (token, loc) = item
-    if should_insert_layout_semicolon(concrete, index, delimiters, newline_gaps) {
-      separator_gaps[index] = true
+    if should_insert_layout_newline(concrete, index, delimiters, newline_gaps) {
+      let separator_claim : @yacc_parser.LayoutNewlineClaim = {
+        is_separator: false,
+      }
+      separator_claims[index] = Some(separator_claim)
       let separator = token_end_position(concrete.tokens[index - 1].1)
-      tokens.push((@yacc_parser.LAYOUT_SEMICOLON, separator, separator))
+      tokens.push(
+        (@yacc_parser.LAYOUT_NEWLINE(separator_claim), separator, separator),
+      )
     }
     tokens.push(
       (
@@ -42,7 +56,17 @@ fn prepare_layout_tokens(concrete : @lexer.ConcreteSyntax) -> LayoutTokenStream 
       _ => ()
     }
   }
-  { tokens, separator_gaps }
+  { tokens, separator_claims }
+}
+
+///|
+fn LayoutTokenStream::separator_gaps(self : LayoutTokenStream) -> Array[Bool] {
+  self.separator_claims.map(fn(claim) {
+    match claim {
+      Some(claim) => claim.is_separator
+      None => false
+    }
+  })
 }
 
 ///|
@@ -94,7 +118,7 @@ fn collect_newline_gaps(concrete : @lexer.ConcreteSyntax) -> Array[Bool] {
 }
 
 ///|
-fn should_insert_layout_semicolon(
+fn should_insert_layout_newline(
   concrete : @lexer.ConcreteSyntax,
   gap : Int,
   delimiters : Array[LayoutDelimiter],
@@ -103,8 +127,8 @@ fn should_insert_layout_semicolon(
   guard gap > 0 && layout_semicolon_enabled(delimiters) else { return false }
   let previous = concrete.tokens[gap - 1].0
   let next = concrete.tokens[gap].0
-  token_ends_layout_item(previous) &&
-  token_starts_layout_item(next) &&
+  layout_token_role(previous).ends_item &&
+  layout_token_role(next).starts_item &&
   newline_gaps[gap]
 }
 
@@ -133,35 +157,13 @@ fn pop_layout_delimiter(
 }
 
 ///|
-fn token_ends_layout_item(token : @lexer.Token) -> Bool {
+fn layout_token_role(token : @lexer.Token) -> LayoutTokenRole {
   match token {
-    INT(_)
-    | DOUBLE(_)
-    | STRING(_)
-    | IDENT(_)
-    | FALSE
-    | TRUE
-    | KIND_TYPE
-    | KIND_EFFECT
-    | RPAREN
-    | RBRACKET
-    | RBRACE
-    | DOTSTAR
-    | UNDERSCORE => true
-    _ => false
-  }
-}
-
-///|
-fn token_starts_layout_item(token : @lexer.Token) -> Bool {
-  match token {
-    INT(_)
-    | DOUBLE(_)
-    | STRING(_)
-    | IDENT(_)
-    | RESERVED(_)
-    | FALSE
-    | TRUE
+    INT(_) | DOUBLE(_) | STRING(_) | IDENT(_) | FALSE | TRUE | UNDERSCORE =>
+      { ends_item: true, starts_item: true }
+    RPAREN | RBRACE | RBRACKET => { ends_item: true, starts_item: false }
+    KIND_TYPE | KIND_EFFECT | DOTSTAR => { ends_item: true, starts_item: false }
+    RESERVED(_)
     | STRUCT
     | ENUM
     | EFFECT
@@ -177,7 +179,38 @@ fn token_starts_layout_item(token : @lexer.Token) -> Bool {
     | MODULE
     | IMPORT
     | PUB
-    | UNDERSCORE => true
-    _ => false
+    | LPAREN
+    | LBRACE
+    | LBRACKET => { ends_item: false, starts_item: true }
+    EOF
+    | AUTO
+    | ELSE
+    | WITH
+    | FINAL
+    | PLUS
+    | MINUS
+    | STAR
+    | SLASH
+    | PERCENT
+    | EQEQ
+    | BANGEQ
+    | LT
+    | LTEQ
+    | GT
+    | GTEQ
+    | AMPAMP
+    | BARBAR
+    | BANG
+    | PIPE
+    | COMMA
+    | SEMICOLON
+    | DOTLBRACE
+    | DOT
+    | COLON
+    | COLONCOLON
+    | TIGHT_COLONCOLON
+    | THIN_ARROW
+    | FAT_ARROW
+    | EQUAL => { ends_item: false, starts_item: false }
   }
 }

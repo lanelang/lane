@@ -198,14 +198,29 @@ test "syntactic identifier roles include nested pattern type owners" {
 }
 
 ///|
-fn synthetic_layout_semicolon_lines(source : String) -> Array[Int] raise {
+fn synthetic_layout_newline_lines(source : String) -> Array[Int] raise {
   let lexed = @lexer.tokens_from_string(source)
   assert_true(lexed.errors.is_empty())
   let lines = []
   for item in prepare_layout_tokens(lexed.concrete).tokens {
     let (token, start, _) = item
-    if token is LAYOUT_SEMICOLON {
+    if token is LAYOUT_NEWLINE(_) {
       lines.push(start.start_line)
+    }
+  }
+  lines
+}
+
+///|
+fn claimed_layout_separator_lines(source : String) -> Array[Int] {
+  guard parse_string(source) is Parsed(parsed) else {
+    abort("expected parsed source")
+  }
+  let lines = []
+  for gap, claimed in parsed.layout_separator_gaps {
+    if claimed {
+      guard gap > 0 else { abort("layout separator must follow a token") }
+      lines.push(parsed.concrete.tokens[gap - 1].1.end_line)
     }
   }
   lines
@@ -232,7 +247,7 @@ test "layout inserts semicolons between newline-delimited items" {
     #|  print("world")
     #|}
   debug_inspect(
-    synthetic_layout_semicolon_lines(source),
+    synthetic_layout_newline_lines(source),
     content="[1, 3, 5, 7, 9, 11, 13, 15]",
   )
   debug_inspect(parse_string(source).parse_errors(), content="[]")
@@ -249,8 +264,185 @@ test "layout preserves delimited and operator continuations" {
     #|  left
     #|    + right
     #|}
-  debug_inspect(synthetic_layout_semicolon_lines(source), content="[1]")
+  debug_inspect(synthetic_layout_newline_lines(source), content="[1]")
   debug_inspect(parse_string(source).parse_errors(), content="[]")
+}
+
+///|
+test "layout separates a tuple initializer from a following unit expression" {
+  let source =
+    #|module Test
+    #|fn some_f() -> Unit {
+    #|  let x : (Int, Int) = (1, 2)
+    #|  ()
+    #|}
+  debug_inspect(synthetic_layout_newline_lines(source), content="[1, 3]")
+  let file = expect_parse_ok(
+    (
+      #|fn some_f() -> Unit {
+      #|  let x : (Int, Int) = (1, 2)
+      #|  ()
+      #|}
+    ),
+  )
+  guard file.declarations[0] is Function(function) else {
+    abort("expected function declaration")
+  }
+  assert_true(
+    function.body
+    is Block(
+      items=[
+        Let(
+          {
+            name: "x",
+            initializer: TupleLiteral(
+              items=[IntLiteral("1", ..), IntLiteral("2", ..)],
+              ..
+            ),
+            ..,
+          }
+        ),
+      ],
+      result=UnitLiteral(..),
+      ..
+    ),
+  )
+}
+
+///|
+test "layout separates delimiter-led expressions" {
+  let file = expect_parse_ok(
+    (
+      #|fn delimiter_starts() -> Unit {
+      #|  ()
+      #|  []
+      #|  { () }
+      #|  ()
+      #|}
+    ),
+  )
+  guard file.declarations[0] is Function(function) else {
+    abort("expected function declaration")
+  }
+  assert_true(
+    function.body
+    is Block(
+      items=[
+        Expression(expression=UnitLiteral(..)),
+        Expression(expression=ListLiteral(items=[], ..)),
+        Expression(expression=Block(items=[], result=UnitLiteral(..), ..)),
+      ],
+      result=UnitLiteral(..),
+      ..
+    ),
+  )
+}
+
+///|
+test "layout grammar claims item boundaries but not brace continuations" {
+  let source =
+    #|module Test
+    #|struct Box
+    #|{
+    #|  value : Int
+    #|}
+    #|fn body() -> Unit
+    #|{
+    #|  ()
+    #|  { () }
+    #|  ()
+    #|}
+  debug_inspect(
+    synthetic_layout_newline_lines(source),
+    content="[1, 2, 5, 6, 8, 9]",
+  )
+  debug_inspect(claimed_layout_separator_lines(source), content="[1, 5, 8, 9]")
+}
+
+///|
+test "layout grammar preserves delimiter continuations in incomplete headers" {
+  let source =
+    #|module Test
+    #|struct Box
+    #|[A]
+    #|{
+    #|  value : A
+    #|}
+    #|enum Option
+    #|[A]
+    #|{
+    #|  some
+    #|  (A)
+    #|}
+    #|fn identity
+    #|(value : A) -> A
+    #|{
+    #|  value
+    #|}
+  debug_inspect(
+    synthetic_layout_newline_lines(source),
+    content="[1, 2, 3, 6, 7, 8, 10, 12, 13, 14]",
+  )
+  debug_inspect(claimed_layout_separator_lines(source), content="[1, 6, 12]")
+}
+
+///|
+test "layout continues variant patterns and handler operation heads" {
+  let file = expect_parse_ok(
+    (
+      #|enum Option {
+      #|  some(Int)
+      #|}
+      #|fn inspect(value : Option) -> Unit {
+      #|  match value {
+      #|    some
+      #|    (item) => ()
+      #|  }
+      #|}
+      #|fn handled() -> Unit {
+      #|  handle () with {
+      #|    op
+      #|    (resume) => resume(())
+      #|  } final value { value }
+      #|}
+    ),
+  )
+  guard file.declarations[1] is Function(inspect_function) &&
+    inspect_function.body
+    is Block(
+      result=Match(
+        arms=[
+          {
+            pattern: UnqualifiedVariant(
+              variant="some",
+              arguments=[Binding("item", ..)],
+              ..
+            ),
+            ..,
+          },
+        ],
+        ..
+      ),
+      ..
+    ) else {
+    abort("expected continued variant pattern")
+  }
+  guard file.declarations[2] is Function(handler_function) &&
+    handler_function.body is Block(result=Handler(handlers~, ..), ..) else {
+    abort("expected continued handler operation head")
+  }
+  guard handlers is [{ arms, .. }] &&
+    arms
+    is [
+      {
+        name: Unqualified(operation="op", ..),
+        payload_patterns: [],
+        resume_binder: "resume",
+        ..,
+      },
+    ] else {
+    abort("expected continued handler operation head")
+  }
 }
 
 ///|
@@ -266,7 +458,7 @@ test "layout resumes inside braces nested in call arguments" {
     #|    print("second")
     #|  })
     #|}
-  debug_inspect(synthetic_layout_semicolon_lines(source), content="[1, 4, 7]")
+  debug_inspect(synthetic_layout_newline_lines(source), content="[1, 4, 7]")
   debug_inspect(parse_string(source).parse_errors(), content="[]")
 }
 
@@ -285,7 +477,7 @@ test "layout separates wildcard struct pattern fields" {
     #|    } => value
     #|  }
     #|}
-  debug_inspect(synthetic_layout_semicolon_lines(source), content="[1, 4, 8]")
+  debug_inspect(synthetic_layout_newline_lines(source), content="[1, 4, 8]")
   debug_inspect(parse_string(source).parse_errors(), content="[]")
 }
 

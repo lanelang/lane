@@ -86,10 +86,14 @@ A block-local expression followed by an explicit or **Layout Semicolon**, requir
 _Avoid_: statement, unchecked result discard, general sequence operator
 
 **Layout Semicolon**:
-A zero-width separator inserted between newline-delimited items before parsing when the previous token can end an item, the next token can start one, and the innermost open delimiter is a brace or there is no open delimiter. Newlines before operators, closing delimiters, continuation punctuation, `else`, `with`, or `final` do not insert a separator.
-The parser represents it separately from a source `;`: only item contexts may accept both, while top-level boundaries and comma-delimited lists never treat an explicit semicolon as layout.
+A zero-width separator claimed by the grammar from a **Layout Newline** between consecutive items. Only item contexts may accept both a source `;` and a Layout Semicolon, while top-level boundaries and comma-delimited lists never treat an explicit semicolon as layout.
 Each item boundary consumes exactly one source or layout semicolon; repeated separators are invalid.
 _Avoid_: parser recovery, newline AST node, unconditional line terminator
+
+**Layout Newline**:
+A zero-width parser token produced when a newline follows a token that can end an item, precedes a token that can start one, and the innermost open delimiter is a brace or there is no open delimiter. The grammar consumes it either as a **Layout Semicolon** or at an explicitly declared continuation boundary such as the opening brace after a declaration or structured-expression head. Only the former claims the gap as a formatter separator boundary.
+Newlines before operators, closing delimiters, continuation punctuation, `else`, `with`, or `final` do not produce a Layout Newline.
+_Avoid_: lexer newline token, preclassified semicolon, formatter-inferred separator
 
 **Uncurried Function**:
 A function that accepts its parameters as one call shape and is not automatically transformed into nested one-argument functions.

@@ -41,7 +41,7 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
   Parsed({
     syntax: source,
     concrete,
-    layout_separator_gaps: layout.separator_gaps,
+    layout_separator_gaps: layout.separator_gaps(),
   })
 }
 
@@ -104,7 +104,7 @@ fn expected_syntax(
   let result = []
   for kind in kinds {
     if kind
-      is (TK_LAYOUT_SEMICOLON
+      is (TK_LAYOUT_NEWLINE
       | TK_EMPTY_GENERIC_ARGUMENT_LIST_ERROR
       | TK_EMPTY_TYPE_PARAMETER_LIST_ERROR
       | TK_TYPE_IDENTIFIER_SLOT
@@ -271,7 +271,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     MISSING_TUPLE_PATTERN_ITEM_ERROR => "missing tuple pattern item"
     COMMA => "`,`"
     SEMICOLON => "`;`"
-    LAYOUT_SEMICOLON => "line break"
+    LAYOUT_NEWLINE(_) => "line break"
     DOTSTAR => "`.*`"
     DOTLBRACE => "`.{`"
     DOT => "`.`"
@@ -350,7 +350,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_MISSING_TUPLE_PATTERN_ITEM_ERROR => "missing tuple pattern item"
     TK_COMMA => "`,`"
     TK_SEMICOLON => "`;`"
-    TK_LAYOUT_SEMICOLON => "line break"
+    TK_LAYOUT_NEWLINE => "line break"
     TK_DOTSTAR => "`.*`"
     TK_DOTLBRACE => "`.{`"
     TK_DOT => "`.`"
