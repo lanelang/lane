@@ -81,7 +81,12 @@ fn SemanticChecker::seed_imported_top_level_value_type(
   let parameters = value.parameters.map(fn(parameters) {
     parameters.map(checked_value_parameter_from_interface)
   })
-  let binding = { symbol: value.symbol, type_: value.type_, parameters }
+  let binding = {
+    symbol: value.symbol,
+    type_: value.type_,
+    parameters,
+    compile_time_intrinsic: value.compile_time_intrinsic,
+  }
   self.value_types.push(binding)
   self.ordered_value_types.push(binding)
   if value.is_offered && self.imported_offer_is_visible(value.symbol) {
@@ -172,6 +177,7 @@ fn SemanticChecker::collect_top_level_function_type(
     symbol: declaration.symbol,
     type_,
     parameters: Some(parameters),
+    compile_time_intrinsic: desugared_compile_time_intrinsic(declaration.body),
   }
   self.value_types.push(binding)
   self.ordered_value_types.push(binding)
@@ -216,6 +222,9 @@ fn SemanticChecker::collect_top_level_let_type(
       symbol: declaration.symbol,
       type_,
       parameters: None,
+      compile_time_intrinsic: desugared_compile_time_intrinsic(
+        declaration.initializer,
+      ),
     })
     if declaration.is_offered {
       offer_symbol(
@@ -278,6 +287,9 @@ fn SemanticChecker::check_top_level_let(
     symbol: declaration.symbol,
     type_,
     parameters: None,
+    compile_time_intrinsic: desugared_compile_time_intrinsic(
+      declaration.initializer,
+    ),
   })
   if declaration.is_offered {
     offer_symbol(

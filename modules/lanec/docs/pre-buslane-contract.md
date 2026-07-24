@@ -26,6 +26,8 @@ A successful checked source result must satisfy these invariants:
 - Contextual `auto` parameters are either filled with ordinary checked call
   arguments or rejected before checked source success.
 - Contextual offer ambiguity is rejected before checked source success.
+- Compile-time Shape witnesses are consumed by Shape Fold or rejected before
+  checked source success; they cannot occur inside runtime declarations.
 - Transparent type and effect aliases are expanded in semantic type/effect
   objects; user-written aliases survive only as diagnostic presentation data.
 - A type alias may declare its result kind after the parameter list, as in
@@ -70,6 +72,8 @@ Buslane lowering must eliminate the following front-end-only shapes:
   kind-aware generic arguments.
 - Struct and enum construction lower to nominal data construction with all
   required universal arguments and existential witnesses.
+- Top-level `%shape` and `%shape_fold` declarations remain interface metadata
+  but produce no Buslane value, object export, or imported runtime reference.
 
 The lowered Buslane program must not contain parser nodes, resolver nodes,
 checked-source nodes, compiler symbol ids, source spans, source names,

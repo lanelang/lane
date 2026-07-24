@@ -10,6 +10,18 @@ pub fn CheckedExpr::substitute(
       Value(name~, symbol~, type_=type_.substitute(substitution), loc~)
     CompilerIntrinsic(intrinsic~, type_~, loc~) =>
       CompilerIntrinsic(intrinsic~, type_=type_.substitute(substitution), loc~)
+    CompileTimeIntrinsic(intrinsic~, type_~, loc~) =>
+      CompileTimeIntrinsic(
+        intrinsic~,
+        type_=type_.substitute(substitution),
+        loc~,
+      )
+    ShapeWitness(represented~, type_~, loc~) =>
+      ShapeWitness(
+        represented=represented.substitute(substitution),
+        type_=type_.substitute(substitution),
+        loc~,
+      )
     ExternBinding(name~, signature~, type_~, loc~) =>
       ExternBinding(
         name~,

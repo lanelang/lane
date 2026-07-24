@@ -209,6 +209,13 @@ pub(all) enum ExternTypeRestriction {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ShapeTargetRestriction {
+  EmptyEnum
+  StructTypeMembers
+  VariantTypeParameters
+} derive(Debug, Eq)
+
+///|
 pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
@@ -275,6 +282,12 @@ pub(all) enum TypeCheckDiagnosticKind {
     expected~ : @types.Type,
     actual~ : @types.Type
   )
+  CompileTimeBuiltinNeedsExpectedType(name~ : String)
+  InvalidCompileTimeBuiltinSignature(name~ : String, @types.Type)
+  InvalidShapeWitnessType(@types.Type)
+  CompileTimeValueEscapes(name~ : String)
+  UnsupportedShapeTarget(@types.Type, ShapeTargetRestriction)
+  InvalidShapeAlgebraRepresentation(operation~ : String, @types.Type)
   ExternNeedsExpectedType(name~ : String)
   InvalidExternType(
     name~ : String,

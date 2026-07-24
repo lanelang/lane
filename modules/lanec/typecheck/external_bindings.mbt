@@ -1,10 +1,25 @@
 ///|
+fn desugared_compile_time_intrinsic(
+  expression : @desugar.DesugaredExpr,
+) -> @abi.CompileTimeIntrinsic? {
+  match expression {
+    Builtin(name, ..) => @abi.CompileTimeIntrinsic::from_name(name)
+    Block(items~, result~, ..) if items.is_empty() =>
+      desugared_compile_time_intrinsic(result)
+    _ => None
+  }
+}
+
+///|
 fn SemanticChecker::check_compiler_intrinsic(
   self : SemanticChecker,
   name : String,
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionCheck {
+  if @abi.CompileTimeIntrinsic::from_name(name) is Some(intrinsic) {
+    return self.check_compile_time_intrinsic(intrinsic, expected, loc)
+  }
   guard @abi.Intrinsic::from_name(name) is Some(intrinsic) else {
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return undetermined_checked_expression(Error)
@@ -30,12 +45,66 @@ fn SemanticChecker::synthesize_compiler_intrinsic(
   name : String,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  if @abi.CompileTimeIntrinsic::from_name(name) is Some(_) {
+    self.diagnostics.push({
+      kind: CompileTimeBuiltinNeedsExpectedType(name~),
+      loc,
+    })
+    return checked_expression_none_reported(Error)
+  }
   guard @abi.Intrinsic::from_name(name) is Some(intrinsic) else {
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
   let type_ = compiler_intrinsic_type(intrinsic)
   checked_expression(CompilerIntrinsic(intrinsic~, type_~, loc~), type_)
+}
+
+///|
+fn SemanticChecker::check_compile_time_intrinsic(
+  self : SemanticChecker,
+  intrinsic : @abi.CompileTimeIntrinsic,
+  expected : @types.Type,
+  loc : SourceSpan,
+) -> CheckedExpressionCheck {
+  match intrinsic {
+    Shape => {
+      guard shape_witness_represented_type(expected, self.diagnostics, loc)
+        is Some(represented) else {
+        self.diagnostics.push({ kind: InvalidShapeWitnessType(expected), loc })
+        return undetermined_checked_expression(Error)
+      }
+      checked_expression(
+        ShapeWitness(represented~, type_=expected, loc~),
+        expected,
+      ).with_expectation_match(MatchesExpectation)
+    }
+    ShapeFold =>
+      checked_expression(
+        CompileTimeIntrinsic(intrinsic~, type_=expected, loc~),
+        expected,
+      ).with_expectation_match(MatchesExpectation)
+  }
+}
+
+///|
+fn shape_witness_represented_type(
+  type_ : @types.Type,
+  diagnostics : Array[TypeCheckDiagnostic],
+  loc : SourceSpan,
+) -> @types.Type? {
+  let nominal = type_.decompose_nominal() catch {
+    error => {
+      report_type_computation_failure(
+        diagnostics, "shape witness type", loc, error,
+      )
+      return None
+    }
+  }
+  match nominal {
+    Some((_, [TypeArgument(represented)])) => Some(represented)
+    _ => None
+  }
 }
 
 ///|

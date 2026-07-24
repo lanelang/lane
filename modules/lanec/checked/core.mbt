@@ -201,6 +201,16 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
+  CompileTimeIntrinsic(
+    intrinsic~ : @abi.CompileTimeIntrinsic,
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
+  ShapeWitness(
+    represented~ : @types.Type,
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
   ExternBinding(
     name~ : String,
     signature~ : @abi.HostSignature,
@@ -396,6 +406,8 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
     Literal(type_~, ..)
     | Value(type_~, ..)
     | CompilerIntrinsic(type_~, ..)
+    | CompileTimeIntrinsic(type_~, ..)
+    | ShapeWitness(type_~, ..)
     | ExternBinding(type_~, ..)
     | ErrorRecovery(type_~, ..)
     | FunctionLiteral(type_~, ..)
@@ -419,6 +431,8 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     Literal(loc~, ..)
     | Value(loc~, ..)
     | CompilerIntrinsic(loc~, ..)
+    | CompileTimeIntrinsic(loc~, ..)
+    | ShapeWitness(loc~, ..)
     | ExternBinding(loc~, ..)
     | ErrorRecovery(loc~, ..)
     | FunctionLiteral(loc~, ..)
@@ -432,6 +446,30 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | Field(loc~, ..)
     | StructLiteral(loc~, ..)
     | Variant(loc~, ..) => loc
+  }
+}
+
+///|
+pub fn CheckedExpr::compile_time_intrinsic(
+  self : CheckedExpr,
+) -> @abi.CompileTimeIntrinsic? {
+  match self {
+    CompileTimeIntrinsic(intrinsic~, ..) => Some(intrinsic)
+    ShapeWitness(..) => Some(Shape)
+    Block(items~, result~, ..) if items.is_empty() =>
+      result.compile_time_intrinsic()
+    _ => None
+  }
+}
+
+///|
+pub fn CheckedExpr::compile_time_callable_intrinsic(
+  self : CheckedExpr,
+) -> @abi.CompileTimeIntrinsic? {
+  match self {
+    CompileTimeIntrinsic(intrinsic~, ..) => Some(intrinsic)
+    GenericApplication(callee~, ..) => callee.compile_time_callable_intrinsic()
+    _ => None
   }
 }
 

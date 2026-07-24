@@ -49,6 +49,96 @@ test "compile source records intrinsic and runtime import origins" {
 }
 
 ///|
+test "compile expands imported Shape intrinsics before Buslane lowering" {
+  let root_source =
+    #|module B
+    #|import A.{
+    #|  Shape,
+    #|  Pair,
+    #|  Count,
+    #|  ShapeAlgebra,
+    #|  shape_fold,
+    #|  int_count,
+    #|  count_algebra,
+    #|}
+    #|struct Point {
+    #|  x : Int
+    #|  y : Int
+    #|}
+    #|offer point_shape : Shape[Point] = builtin("%shape")
+    #|pub fn point_field_count() -> Int {
+    #|  let derived : Count[Point] =
+    #|    shape_fold(point_shape, count_algebra)
+    #|  derived.value
+    #|}
+  let library_source =
+    #|module A
+    #|pub struct Shape[_A] {}
+    #|pub struct Pair[A, B] {
+    #|  first : A
+    #|  second : B
+    #|}
+    #|pub struct Count[_A] {
+    #|  value : Int
+    #|}
+    #|pub struct ShapeAlgebra[F : [Type] -> Type] {
+    #|  unit : F[Unit]
+    #|  product : [A, B](F[A], F[B]) -> F[Pair[A, B]]
+    #|  field : [A](String, F[A]) -> F[A]
+    #|  iso : [T, R](String, (T) -> R, (R) -> T, F[R]) -> F[T]
+    #|}
+    #|pub fn[F : [Type] -> Type, T] shape_fold(
+    #|  _shape : Shape[T],
+    #|  _algebra : ShapeAlgebra[F]
+    #|) -> F[T] {
+    #|  builtin("%shape_fold")
+    #|}
+    #|pub offer int_count : Count[Int] = Count::{ value: 1 }
+    #|pub let count_algebra : ShapeAlgebra[Count] = ShapeAlgebra::{
+    #|  unit: Count::{ value: 0 },
+    #|  product: fn[A, B](a, b) {
+    #|    Count::{ value: builtin("%i64_add")(a.value, b.value) }
+    #|  },
+    #|  field: fn[A](_name, count) { count },
+    #|  iso: fn[T, R](_name, _to, _from, count) {
+    #|    Count::{ value: count.value }
+    #|  },
+    #|}
+  let result = compile_sources(root_source, [library_source])
+  debug_inspect(result.diagnostics, content="[]")
+  guard result.program is Some(_) else { abort("expected Buslane program") }
+  debug_inspect(
+    (
+      result.externals.builtins.map(fn(external) { external.intrinsic.name() }),
+      result.entries.map(fn(entry) { entry.name }),
+    ),
+    content=(
+      #|(["%i64_add"], ["point_field_count"])
+    ),
+  )
+  let library = compile_modules(library_source, [])
+  guard library.modules is Some(modules) &&
+    @module_compile.find_compiled_module(modules.modules, "A") is Some(module_) else {
+    abort("expected compiled Shape ABI module")
+  }
+  let binary = @artifact_binary.module_interface_artifact_to_binary(
+    module_.to_interface_artifact(),
+  )
+  let interface = match
+    @artifact_binary.parse_module_interface_artifact_binary(binary) {
+    Ok(interface) => interface
+    Err(message) => abort(message)
+  }
+  let consumer = compile_module_with_interface_artifacts(root_source, [
+    interface,
+  ])
+  guard consumer.modules is Some(_) else {
+    abort("expected consumer compiled from binary interface")
+  }
+  debug_inspect(consumer.diagnostics, content="[]")
+}
+
+///|
 test "compile verifies handler around effectful function call" {
   let result = compile_source(
     (
@@ -1929,7 +2019,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  (none)
@@ -2099,7 +2189,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  (none)
@@ -2519,7 +2609,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  (none)
@@ -4059,7 +4149,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0

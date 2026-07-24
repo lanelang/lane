@@ -7,6 +7,8 @@ This directory contains compiler-owned design and planning material.
   boundary contract.
 - `existential-types.md`: source feature design kept here because the compiler
   still tracks implementation tasks for it.
+- `shape-derivation-abi.md`: compiler ABI that Basic declarations must satisfy
+  to expose library-defined custom derivation.
 - `adr/`: decisions that affect compiler representation, resolution,
   typechecking, source elaboration, Buslane lowering, ANF, and diagnostics.
 - `contexts/`: glossary slices used by compiler work.

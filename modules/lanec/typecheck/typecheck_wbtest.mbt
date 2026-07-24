@@ -247,6 +247,8 @@ fn find_first_handler_resume_callee_type(
     Literal(..)
     | Value(..)
     | CompilerIntrinsic(..)
+    | CompileTimeIntrinsic(..)
+    | ShapeWitness(..)
     | ExternBinding(..)
     | ErrorRecovery(..)
     | FunctionLiteral(..) => None
@@ -1126,6 +1128,377 @@ test "typecheck matches a generic offered function by its forall type" {
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck applies a generic contextual provider" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Equal[A] {
+      #|  equal : (A, A) -> Bool
+      #|}
+      #|enum List[A] {
+      #|  empty()
+      #|  cons(A, List[A])
+      #|}
+      #|fn consume(auto equal : Equal[List[Int]]) -> Bool {
+      #|  equal.equal(List::empty(), List::empty())
+      #|}
+      #|offer int_equal : Equal[Int] = Equal::{
+      #|  equal: fn(a, b) { builtin("%i64_equal")(a, b) }
+      #|}
+      #|offer fn[A] list_equal(auto offer element : Equal[A]) -> Equal[List[A]] {
+      #|  Equal::{ equal: fn(_a, _b) { true } }
+      #|}
+      #|let answer : Bool = consume()
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck composes contextual providers" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Equal[A] {
+      #|  equal : (A, A) -> Bool
+      #|}
+      #|enum Option[A] {
+      #|  none()
+      #|  some(A)
+      #|}
+      #|enum List[A] {
+      #|  empty()
+      #|  cons(A, List[A])
+      #|}
+      #|fn consume(auto equal : Equal[List[Option[Int]]]) -> Bool {
+      #|  true
+      #|}
+      #|offer int_equal : Equal[Int] = Equal::{
+      #|  equal: fn(a, b) { builtin("%i64_equal")(a, b) }
+      #|}
+      #|offer fn[A] option_equal(auto offer element : Equal[A]) -> Equal[Option[A]] {
+      #|  Equal::{ equal: fn(_a, _b) { true } }
+      #|}
+      #|offer fn[A] list_equal(auto offer element : Equal[A]) -> Equal[List[A]] {
+      #|  Equal::{ equal: fn(_a, _b) { true } }
+      #|}
+      #|let answer : Bool = consume()
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck prefers exact evidence over a contextual provider" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|fn consume(auto box : Box[Int]) -> Int {
+      #|  box.value
+      #|}
+      #|offer int_box : Box[Int] = Box::{ value: 42 }
+      #|offer fn[A] derived_box(auto value : A) -> Box[A] {
+      #|  Box::{ value }
+      #|}
+      #|let answer : Int = consume()
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck rejects a cyclic contextual provider without exact evidence" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|fn consume(auto box : Box[Int]) -> Int {
+      #|  box.value
+      #|}
+      #|offer fn[A] cycle(auto box : Box[A]) -> Box[A] {
+      #|  box
+      #|}
+      #|let answer : Int = consume()
+    ),
+  )
+  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(
+    expected,
+    Apply(Constructor({ index: 0 }), [TypeArgument(Primitive(Int))]),
+  )
+}
+
+///|
+test "typecheck rejects a Shape witness that escapes into runtime code" {
+  let result = expect_checked_source_result(
+    (
+      #|struct Shape[A] {}
+      #|fn consume(auto shape : Shape[Int]) -> Unit {
+      #|  ()
+      #|}
+      #|offer fn[A] shape() -> Shape[A] {
+      #|  builtin("%shape")
+      #|}
+      #|let answer : Unit = consume()
+    ),
+  )
+  assert_eq(result.source, None)
+  guard result.diagnostics is [{ kind: CompileTimeValueEscapes(name~), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(name, "%shape")
+}
+
+///|
+test "typecheck folds a struct Shape through a user algebra" {
+  let result = expect_checked_source_result(
+    (
+      #|struct Shape[A] {}
+      #|struct Pair[A, B] {
+      #|  first : A
+      #|  second : B
+      #|}
+      #|struct Equal[A] {
+      #|  equal : (A, A) -> Bool
+      #|}
+      #|struct ShapeAlgebra[F : [Type] -> Type] {
+      #|  unit : F[Unit]
+      #|  product : [A, B](F[A], F[B]) -> F[Pair[A, B]]
+      #|  field : [A](String, F[A]) -> F[A]
+      #|  iso : [T, R](String, (T) -> R, (R) -> T, F[R]) -> F[T]
+      #|}
+      #|struct Point {
+      #|  x : Int
+      #|  y : Int
+      #|}
+      #|fn[F : [Type] -> Type, T] shape_fold(
+      #|  shape : Shape[T],
+      #|  algebra : ShapeAlgebra[F]
+      #|) -> F[T] {
+      #|  builtin("%shape_fold")
+      #|}
+      #|offer point_shape : Shape[Point] = builtin("%shape")
+      #|offer int_equal : Equal[Int] = Equal::{
+      #|  equal: fn(a, b) { builtin("%i64_equal")(a, b) }
+      #|}
+      #|let equal_algebra : ShapeAlgebra[Equal] = ShapeAlgebra::{
+      #|  unit: Equal::{ equal: fn(_a, _b) { true } },
+      #|  product: fn[A, B](a, b) {
+      #|    Equal::{
+      #|      equal: fn(left, right) {
+      #|        if a.equal(left.first, right.first) {
+      #|          b.equal(left.second, right.second)
+      #|        } else {
+      #|          false
+      #|        }
+      #|      }
+      #|    }
+      #|  },
+      #|  field: fn[A](_name, equal) { equal },
+      #|  iso: fn[T, R](_name, to, _from, equal) {
+      #|    Equal::{ equal: fn(a, b) { equal.equal(to(a), to(b)) } }
+      #|  },
+      #|}
+      #|offer point_equal : Equal[Point] =
+      #|  shape_fold(point_shape, equal_algebra)
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "Shape fold reports missing component evidence through contextual resolution" {
+  let result = expect_checked_source_result(
+    (
+      #|struct Shape[A] {}
+      #|struct Pair[A, B] {
+      #|  first : A
+      #|  second : B
+      #|}
+      #|struct Need[A] {}
+      #|struct ShapeAlgebra[F : [Type] -> Type] {
+      #|  unit : F[Unit]
+      #|  product : [A, B](F[A], F[B]) -> F[Pair[A, B]]
+      #|  field : [A](String, F[A]) -> F[A]
+      #|  iso : [T, R](String, (T) -> R, (R) -> T, F[R]) -> F[T]
+      #|}
+      #|struct Message {
+      #|  text : String
+      #|}
+      #|fn[F : [Type] -> Type, T] shape_fold(
+      #|  _shape : Shape[T],
+      #|  _algebra : ShapeAlgebra[F]
+      #|) -> F[T] {
+      #|  builtin("%shape_fold")
+      #|}
+      #|offer message_shape : Shape[Message] = builtin("%shape")
+      #|let algebra : ShapeAlgebra[Need] = ShapeAlgebra::{
+      #|  unit: Need::{},
+      #|  product: fn[A, B](_a, _b) { Need::{} },
+      #|  field: fn[A](_name, _item) { Need::{} },
+      #|  iso: fn[T, R](_name, _to, _from, _item) { Need::{} },
+      #|}
+      #|let derived : Need[Message] =
+      #|  shape_fold(message_shape, algebra)
+    ),
+  )
+  assert_eq(result.source, None)
+  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(
+    expected,
+    Apply(Constructor({ index: 2 }), [TypeArgument(Primitive(String))]),
+  )
+}
+
+///|
+test "Shape fold rejects an empty enum without inventing a representation" {
+  let result = expect_checked_source_result(
+    (
+      #|struct Shape[A] {}
+      #|struct Result[A] {}
+      #|struct Algebra[F : [Type] -> Type] {}
+      #|enum Never {}
+      #|fn[F : [Type] -> Type, T] shape_fold(
+      #|  _shape : Shape[T],
+      #|  _algebra : Algebra[F]
+      #|) -> F[T] {
+      #|  builtin("%shape_fold")
+      #|}
+      #|offer never_shape : Shape[Never] = builtin("%shape")
+      #|let algebra : Algebra[Result] = Algebra::{}
+      #|let derived : Result[Never] =
+      #|  shape_fold(never_shape, algebra)
+    ),
+  )
+  assert_eq(result.source, None)
+  guard result.diagnostics
+    is [{ kind: UnsupportedShapeTarget(target, restriction), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(target, Constructor({ index: 3 }))
+  assert_eq(restriction, EmptyEnum)
+}
+
+///|
+test "typecheck folds a recursive enum Shape through algebra fix" {
+  let result = expect_checked_source_result(
+    (
+      #|struct Shape[A] {}
+      #|struct Pair[A, B] {
+      #|  first : A
+      #|  second : B
+      #|}
+      #|enum Sum[A, B] {
+      #|  left(A)
+      #|  right(B)
+      #|}
+      #|struct Equal[A] {
+      #|  equal : (A, A) -> Bool
+      #|}
+      #|struct ShapeAlgebra[F : [Type] -> Type] {
+      #|  unit : F[Unit]
+      #|  product : [A, B](F[A], F[B]) -> F[Pair[A, B]]
+      #|  sum : [A, B](F[A], F[B]) -> F[Sum[A, B]]
+      #|  field : [A](String, F[A]) -> F[A]
+      #|  variant : [A](String, F[A]) -> F[A]
+      #|  iso : [T, R](String, (T) -> R, (R) -> T, F[R]) -> F[T]
+      #|  fix : [T](((F[T]) -> F[T])) -> F[T]
+      #|}
+      #|enum List[A] {
+      #|  empty()
+      #|  cons(A, List[A])
+      #|}
+      #|fn[F : [Type] -> Type, T] shape_fold(
+      #|  shape : Shape[T],
+      #|  algebra : ShapeAlgebra[F]
+      #|) -> F[T] {
+      #|  builtin("%shape_fold")
+      #|}
+      #|offer fn[A] list_shape() -> Shape[List[A]] {
+      #|  builtin("%shape")
+      #|}
+      #|offer int_equal : Equal[Int] = Equal::{
+      #|  equal: fn(a, b) { builtin("%i64_equal")(a, b) }
+      #|}
+      #|let equal_algebra : ShapeAlgebra[Equal] = ShapeAlgebra::{
+      #|  unit: Equal::{ equal: fn(_a, _b) { true } },
+      #|  product: fn[A, B](a, b) {
+      #|    Equal::{
+      #|      equal: fn(left, right) {
+      #|        if a.equal(left.first, right.first) {
+      #|          b.equal(left.second, right.second)
+      #|        } else {
+      #|          false
+      #|        }
+      #|      }
+      #|    }
+      #|  },
+      #|  sum: fn[A, B](a, b) {
+      #|    Equal::{
+      #|      equal: fn(left, right) {
+      #|        match left {
+      #|          Sum::left(x) => match right {
+      #|            Sum::left(y) => a.equal(x, y)
+      #|            Sum::right(_) => false
+      #|          }
+      #|          Sum::right(x) => match right {
+      #|            Sum::left(_) => false
+      #|            Sum::right(y) => b.equal(x, y)
+      #|          }
+      #|        }
+      #|      }
+      #|    }
+      #|  },
+      #|  field: fn[A](_name, equal) { equal },
+      #|  variant: fn[A](_name, equal) { equal },
+      #|  iso: fn[T, R](_name, to, _from, equal) {
+      #|    Equal::{ equal: fn(a, b) { equal.equal(to(a), to(b)) } }
+      #|  },
+      #|  fix: fn[T](builder) {
+      #|    fn loop(a : T, b : T) -> Bool {
+      #|      builder(Equal::{ equal: loop }).equal(a, b)
+      #|    }
+      #|    Equal::{ equal: loop }
+      #|  },
+      #|}
+      #|offer list_equal : Equal[List[Int]] =
+      #|  shape_fold(list_shape(), equal_algebra)
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck does not apply an offered generic function with required arguments as a provider" {
+  let result = expect_typecheck_result(
+    (
+      #|struct Box[A] {
+      #|  value : A
+      #|}
+      #|fn consume(auto box : Box[Int]) -> Int {
+      #|  box.value
+      #|}
+      #|offer fn[A] make_box(value : A) -> Box[A] {
+      #|  Box::{ value }
+      #|}
+      #|let answer : Int = consume()
+    ),
+  )
+  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+    abort(@prettyprinter.render(result.diagnostics, width=100))
+  }
+  assert_eq(
+    expected,
+    Apply(Constructor({ index: 0 }), [TypeArgument(Primitive(Int))]),
+  )
 }
 
 ///|

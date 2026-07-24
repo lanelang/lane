@@ -8,8 +8,8 @@ ordinary Lane types, functions, builtins, and offers. The compiler never
 recognizes those capability names.
 
 A Shape is an opaque capability for a type of kind `Type`. Programs introduce
-Shapes explicitly as ordinary named offers, including generic providers for
-applications of a fixed higher-kinded constructor:
+Shapes explicitly as ordinary named values or offers, including generic
+constructors for applications of a fixed higher-kinded constructor:
 
 ```lane
 offer point_shape : Shape[Point] = builtin(...)
@@ -38,11 +38,14 @@ derivations use reconstruction. Labels remain available to algebras such as
 The general fold is parameterized by a fixed result constructor
 `F : [Type] -> Type` and a user-defined Shape Algebra. Conceptually, the algebra
 provides operations for Unit, Product, Sum, Iso, labels, and a recursive
-strategy. `derive_equal` is therefore library code equivalent to:
+strategy. A library constructs a derived offer by applying the fold directly:
 
 ```lane
-fn[T] derive_equal(shape : Shape[T]) -> Equal[T] {
-  shape_fold(shape, equal_algebra)
+offer point_equal : Equal[Point] =
+  shape_fold(point_shape, equal_algebra)
+
+offer fn[T] list_equal(auto element : Equal[T]) -> Equal[List[T]] {
+  shape_fold(list_shape(), equal_algebra)
 }
 ```
 
@@ -60,7 +63,7 @@ For example, deriving `Equal[User]` for a `User` containing `Address` requires
 an explicit `Equal[Address]`. The presence of `Shape[Address]` records
 structural access, not authorization to select structural equality. The
 `Equal[Address]` offer may itself be handwritten or explicitly constructed by
-`derive_equal`.
+another Shape Fold.
 
 This rule keeps generic dependencies expressible. Deriving `Equal[List[T]]`
 has the ordinary requirement:
@@ -73,6 +76,12 @@ It does not introduce a hidden `Equal[T] or Shape[T]` constraint. Ordinary
 Contextual Providers may compose evidence, such as constructing
 `Equal[List[A]]` from `Equal[A]`, but provider application is a general offer
 resolution capability and has no Shape-specific rule.
+
+Shape Fold does not inspect the caller's lexical offer scope. Its expansion
+introduces ordinary omitted contextual arguments of type `F[A]`; the existing
+Contextual Resolution mechanism alone performs lookup, shadowing, provider
+composition, ambiguity reporting, and cycle rejection. This preserves one
+semantic owner for contextual lookup.
 
 ## Recursive derivation
 
@@ -146,6 +155,6 @@ Escaping sum-of-products values retain their ordinary nominal semantics.
   folding, and Shape erasure.
 - Libraries own all capability-specific combinators, fixed-point
   implementations, and runtime artifacts.
-- The exact source names and concrete standard-library layout of Shape Algebra
-  operations remain implementation details, but they must preserve this
-  compiler/library boundary.
+- The compiler Shape Fold ABI fixes the required algebra operation names and
+  structural result contracts. The standard library supplies ordinary Lane
+  declarations conforming to that ABI.

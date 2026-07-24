@@ -802,6 +802,114 @@ fn typecheck_diagnostic(
           "change the annotation or use the builtin with its canonical type",
         ],
       )
+    CompileTimeBuiltinNeedsExpectedType(name~) =>
+      diagnostic(
+        "compile-time builtin `\{name}` needs an expected type",
+        span~,
+        severity=Error,
+        code=Some("E3029"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "use this builtin in a declaration or call with a complete expected type",
+            style: Primary,
+          },
+        ],
+        notes=[],
+        helps=[],
+      )
+    InvalidCompileTimeBuiltinSignature(name~, type_) =>
+      diagnostic(
+        "compile-time builtin `\{name}` has an invalid declaration type",
+        span~,
+        severity=Error,
+        code=Some("E3030"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "found `\{display.type_text(type_)}`",
+            style: Primary,
+          },
+        ],
+        notes=[],
+        helps=[],
+      )
+    InvalidShapeWitnessType(type_) =>
+      diagnostic(
+        "shape witness must have a unary nominal capability type",
+        span~,
+        severity=Error,
+        code=Some("E3031"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "found `\{display.type_text(type_)}`",
+            style: Primary,
+          },
+        ],
+        notes=[],
+        helps=[],
+      )
+    CompileTimeValueEscapes(name~) =>
+      diagnostic(
+        "compile-time value `\{name}` escapes into runtime code",
+        span~,
+        severity=Error,
+        code=Some("E3032"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "this value must be consumed by a compile-time intrinsic",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "compile-time values are erased before Buslane lowering and have no runtime representation",
+        ],
+        helps=["pass the Shape directly to `%shape_fold`"],
+      )
+    UnsupportedShapeTarget(type_, restriction) => {
+      let reason = match restriction {
+        EmptyEnum => "empty enums have no sum representation"
+        StructTypeMembers =>
+          "structs with type members require an existential representation"
+        VariantTypeParameters =>
+          "variants with local type parameters require an existential representation"
+      }
+      diagnostic(
+        "Shape cannot fold this nominal type",
+        span~,
+        severity=Error,
+        code=Some("E3033"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "cannot derive `\{display.type_text(type_)}`: \{reason}",
+            style: Primary,
+          },
+        ],
+        notes=[],
+        helps=["provide the requested capability explicitly"],
+      )
+    }
+    InvalidShapeAlgebraRepresentation(operation~, type_) =>
+      diagnostic(
+        "Shape algebra operation `\{operation}` returned an invalid representation",
+        span~,
+        severity=Error,
+        code=Some("E3034"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "found `\{display.type_text(type_)}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "`product` must return a binary struct and `sum` must return a binary enum with unary variants",
+        ],
+        helps=["make the algebra conform to the compiler Shape Fold ABI"],
+      )
     ExternNeedsExpectedType(name~) =>
       diagnostic(
         "extern `\{name}` needs a complete expected function type",

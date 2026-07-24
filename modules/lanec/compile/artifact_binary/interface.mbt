@@ -481,6 +481,7 @@ fn @bytecodec.ByteWriter::write_module_interface_values(
     self.write_value_symbol_id(item.symbol)
     self.write_module_interface_value_kind(item.kind)
     self.write_bool(item.is_offered)
+    self.write_optional_compile_time_intrinsic(item.compile_time_intrinsic)
     self.write_string(item.name)
     self.write_lane_type(item.type_)
     self.write_optional_value_parameters(item.parameters)
@@ -498,6 +499,7 @@ fn @bytecodec.ByteReader::read_module_interface_values(
       symbol: self.read_value_symbol_id(),
       kind: self.read_module_interface_value_kind(),
       is_offered: self.read_bool(),
+      compile_time_intrinsic: self.read_optional_compile_time_intrinsic(),
       name: self.read_string(),
       type_: self.read_lane_type(),
       parameters: self.read_optional_value_parameters(),
@@ -505,6 +507,50 @@ fn @bytecodec.ByteReader::read_module_interface_values(
     })
   }
   items
+}
+
+///|
+fn @bytecodec.ByteWriter::write_optional_compile_time_intrinsic(
+  self : @bytecodec.ByteWriter,
+  intrinsic : @abi.CompileTimeIntrinsic?,
+) -> Unit {
+  self.write_u8(
+    match intrinsic {
+      None => 0
+      Some(Shape) => 1
+      Some(ShapeFold) => 2
+    },
+  )
+}
+
+///|
+fn @bytecodec.ByteReader::read_optional_compile_time_intrinsic(
+  self : @bytecodec.ByteReader,
+) -> @abi.CompileTimeIntrinsic? raise {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      None
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Some(Shape)
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Some(ShapeFold)
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="CompileTimeIntrinsic",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
+  }
 }
 
 ///|

@@ -473,6 +473,8 @@ fn SemanticIndex::collect_checked_expr_types(
   match expr {
     Literal(type_~, ..)
     | CompilerIntrinsic(type_~, ..)
+    | CompileTimeIntrinsic(type_~, ..)
+    | ShapeWitness(type_~, ..)
     | ExternBinding(type_~, ..)
     | ErrorRecovery(type_~, ..)
     | Block(type_~, ..)

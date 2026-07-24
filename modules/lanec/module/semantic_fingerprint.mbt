@@ -274,6 +274,13 @@ fn CanonicalInterfaceEncoder::write_values(
       },
     )
     self.writer.write_bool(value.is_offered)
+    self.writer.write_u8(
+      match value.compile_time_intrinsic {
+        None => 0
+        Some(Shape) => 1
+        Some(ShapeFold) => 2
+      },
+    )
     self.write_type(value.type_)
     let parameter_encoder = match value.type_ {
       Forall(parameters, _) => self.with_type_parameters(parameters)

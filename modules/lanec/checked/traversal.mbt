@@ -7,6 +7,8 @@ pub fn CheckedExpr::for_each_child_expr(
     Literal(_)
     | Value(_)
     | CompilerIntrinsic(_)
+    | CompileTimeIntrinsic(_)
+    | ShapeWitness(_)
     | ExternBinding(_)
     | ErrorRecovery(_) => ()
     FunctionLiteral(body~, ..) => visit(body)

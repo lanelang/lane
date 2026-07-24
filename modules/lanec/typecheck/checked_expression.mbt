@@ -997,6 +997,16 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
   if self.diagnostics.length() != diagnostic_count {
     return checked_expression_none_reported(Error)
   }
+  if checked_callee_expr.compile_time_callable_intrinsic() is Some(intrinsic) {
+    return self.synthesize_checked_compile_time_call(
+      scope,
+      intrinsic,
+      checked_callee.type_,
+      arguments,
+      expected_result,
+      loc,
+    )
+  }
   match checked_callee.type_ {
     Function(parameters, result, effect) => {
       guard self.check_checked_call_arguments(scope, parameters, arguments, loc)
@@ -1384,7 +1394,24 @@ fn SemanticChecker::synthesize_checked_symbol_value(
     self.diagnostics.push({ kind: UnresolvedValue(name), loc })
     return checked_expression_none(Error)
   }
-  checked_expression(Value(name~, symbol~, type_~, loc~), type_)
+  match scope.lookup_compile_time_intrinsic(symbol) {
+    Some(Shape) =>
+      match shape_witness_represented_type(type_, self.diagnostics, loc) {
+        Some(represented) =>
+          checked_expression(ShapeWitness(represented~, type_~, loc~), type_)
+        None =>
+          checked_expression(
+            CompileTimeIntrinsic(intrinsic=Shape, type_~, loc~),
+            type_,
+          )
+      }
+    Some(ShapeFold) =>
+      checked_expression(
+        CompileTimeIntrinsic(intrinsic=ShapeFold, type_~, loc~),
+        type_,
+      )
+    None => checked_expression(Value(name~, symbol~, type_~, loc~), type_)
+  }
 }
 
 ///|

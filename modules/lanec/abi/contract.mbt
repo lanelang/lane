@@ -21,6 +21,29 @@ pub(all) enum IntrinsicSignature {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum CompileTimeIntrinsic {
+  Shape
+  ShapeFold
+} derive(Debug, Eq)
+
+///|
+pub fn CompileTimeIntrinsic::from_name(name : String) -> CompileTimeIntrinsic? {
+  match name {
+    "%shape" => Some(Shape)
+    "%shape_fold" => Some(ShapeFold)
+    _ => None
+  }
+}
+
+///|
+pub fn CompileTimeIntrinsic::name(self : CompileTimeIntrinsic) -> String {
+  match self {
+    Shape => "%shape"
+    ShapeFold => "%shape_fold"
+  }
+}
+
+///|
 pub(all) enum Intrinsic {
   I64Add
   I64Sub
