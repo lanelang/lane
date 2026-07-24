@@ -135,10 +135,20 @@ fn semantic_token_kind_for_value(
   registry : @symbol.SymbolRegistry,
   symbol : @symbol.ValueSymbolId,
 ) -> SemanticTokenKind? {
-  guard registry.value_metadata(symbol) is Some(metadata) else { return None }
-  match metadata.kind {
+  match required_value_metadata(registry, symbol).kind {
     Parameter => Some(ParameterToken)
     TopLevelValue | LocalBinding | PatternBinder => Some(VariableToken)
     TopLevelFunction | LocalFunction => None
   }
+}
+
+///|
+fn required_value_metadata(
+  registry : @symbol.SymbolRegistry,
+  symbol : @symbol.ValueSymbolId,
+) -> @symbol.ValueSymbolMetadata {
+  guard registry.value_metadata(symbol) is Some(metadata) else {
+    abort("semantic analysis missing metadata for value#\{symbol.index}")
+  }
+  metadata
 }

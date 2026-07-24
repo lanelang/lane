@@ -28,7 +28,7 @@ fn SemanticIndex::enrich_binding(
   type_ : @types.Type?,
 ) -> Unit {
   if identity is ValueBinding(symbol) &&
-    value_provenance(self.registry, symbol) is GeneratedLocal {
+    required_value_metadata(self.registry, symbol).provenance is GeneratedLocal {
     return
   }
   for binding in self.bindings {
@@ -257,7 +257,8 @@ fn SemanticIndex::enrich_checked_local_item(
         "\{declaration.name} : \{type_text}",
         Some(declaration.type_),
       )
-      if value_provenance(self.registry, declaration.symbol) is Authored &&
+      if required_value_metadata(self.registry, declaration.symbol).provenance
+        is Authored &&
         !self.annotated_values.contains(declaration.symbol) {
         self.add_type_inlay_hint(
           declaration.name_loc,
@@ -301,7 +302,7 @@ fn SemanticIndex::enrich_checked_expr(
   self.collect_checked_expr_types(expr)
   match expr {
     Value(name~, symbol~, type_~, loc~) =>
-      if value_provenance(self.registry, symbol) is Authored {
+      if required_value_metadata(self.registry, symbol).provenance is Authored {
         self.add_reference(
           Value(symbol),
           loc,
@@ -421,17 +422,6 @@ fn SemanticIndex::enrich_checked_expr(
 }
 
 ///|
-fn value_provenance(
-  registry : @symbol.SymbolRegistry,
-  symbol : @symbol.ValueSymbolId,
-) -> @symbol.ValueSymbolProvenance {
-  guard registry.value_metadata(symbol) is Some(metadata) else {
-    abort("semantic analysis missing metadata for value#\{symbol.index}")
-  }
-  metadata.provenance
-}
-
-///|
 fn SemanticIndex::enrich_checked_pattern(
   self : SemanticIndex,
   pattern : @checked.CheckedPattern,
@@ -504,7 +494,7 @@ fn SemanticIndex::collect_checked_expr_types(
       self.collect_checked_type(type_)
     }
     Value(symbol~, type_~, ..) => {
-      if value_provenance(self.registry, symbol) is Authored {
+      if required_value_metadata(self.registry, symbol).provenance is Authored {
         self.use_import_symbol(ValueSymbol(symbol))
         self.add_top_level_reference(TopLevelValue(symbol))
       }
