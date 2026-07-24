@@ -254,10 +254,7 @@ test "buslane effect containment is independent from equality" {
   let first = EffectId::{ index: 0 }
   let second = EffectId::{ index: 1 }
   let narrow = Effect::Singleton(first, [])
-  let wide = Effect::Union([
-    Effect::Singleton(first, []),
-    Effect::Singleton(second, []),
-  ])
+  let wide = Effect::Union([Singleton(first, []), Singleton(second, [])])
   assert_true(Effect::Empty.is_subeffect_of(narrow))
   assert_true(narrow.is_subeffect_of(wide))
   assert_false(wide.is_subeffect_of(narrow))
@@ -861,6 +858,80 @@ test "verify buslane generic function parameter scope" {
             Function({
               parameters: [parameter],
               result_type: Parameter(parameter_type),
+              body: Ref(parameter),
+            }),
+          ),
+        },
+      ]),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
+test "verify buslane rejects effect widening through ordinary value binding" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let read = metadata.define_effect("Read", [])
+  let narrow_type = Type::Function([], int_type(), Empty)
+  let wide_type = Type::Function([], int_type(), Singleton(read, []))
+  let narrow = metadata.define_value("narrow", External, narrow_type)
+  let wide = metadata.define_value("wide", Value, wide_type)
+  let program = Program::{
+    metadata,
+    terms: [External(narrow), Let(wide, Ref(narrow))],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  type_mismatch {
+      #|    expected () -> Int ! effect#0
+      #|    actual () -> Int
+      #|  }
+      #|}
+    ),
+  )
+}
+
+///|
+test "verify buslane widens function effects below forall binders" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let expected_parameter = metadata.define_type_parameter("A", Type)
+  let actual_parameter = metadata.define_type_parameter("B", Type)
+  let read = metadata.define_effect("Read", [])
+  let function = metadata.define_value(
+    "function",
+    Function,
+    Forall(
+      [expected_parameter],
+      Function(
+        [Parameter(expected_parameter)],
+        Parameter(expected_parameter),
+        Singleton(read, []),
+      ),
+    ),
+  )
+  let parameter = metadata.define_value(
+    "parameter",
+    Parameter,
+    Parameter(actual_parameter),
+  )
+  let program = Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: function,
+          rhs: TypeLambda(
+            [actual_parameter],
+            Function({
+              parameters: [parameter],
+              result_type: Parameter(actual_parameter),
               body: Ref(parameter),
             }),
           ),

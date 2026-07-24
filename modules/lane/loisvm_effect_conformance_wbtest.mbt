@@ -184,6 +184,31 @@ test "effect widening preserves indirect call ABI across production backends" {
 }
 
 ///|
+test "algebraic effect widening preserves anonymous function ABI" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Read {
+      #|  read() -> String
+      #|}
+      #|fn invoke(callback : () -> String ! Read) -> String ! Read {
+      #|  callback()
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let message : String = handle invoke(fn() { "literal" }) with {
+      #|    Read::read(resume) => resume("unused")
+      #|  } final value {
+      #|    value
+      #|  }
+      #|  println(message)
+      #|}
+    ),
+    ["literal"],
+  )
+}
+
+///|
 fn interpreter_resolution_error(
   image : @loisvm_bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,

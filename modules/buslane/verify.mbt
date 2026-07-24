@@ -208,9 +208,12 @@ fn VerifyContext::verify_top_letrec(
       self.report(UnknownValue(binding.id))
       continue
     }
-    let effect = self.check_expr(binding.rhs, info.type_, scope, {
-      parameters: [],
-    })
+    let effect = self.check_function_implementation(
+      binding.rhs,
+      info.type_,
+      scope,
+      { parameters: [] },
+    )
     self.require_effect_equals(Empty, effect)
   }
 }
@@ -224,27 +227,25 @@ fn VerifyContext::check_expr(
   type_scope : TypeScope,
 ) -> Effect {
   let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if !type_compatible_with_expected(expected, actual.type_) {
+  if expected != actual.type_ {
     self.report(TypeMismatch(expected~, actual=actual.type_))
   }
   actual.effect
 }
 
 ///|
-fn type_compatible_with_expected(expected : Type, actual : Type) -> Bool {
-  if expected == actual {
-    return true
+fn VerifyContext::check_function_implementation(
+  self : VerifyContext,
+  expr : Expr,
+  expected : Type,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> Effect {
+  let actual = self.synthesize_expr(expr, value_scope, type_scope)
+  if !actual.type_.is_direct_function_implementation_of(expected) {
+    self.report(TypeMismatch(expected~, actual=actual.type_))
   }
-  match (expected.normalize(), actual.normalize()) {
-    (
-      Function(expected_parameters, expected_result, expected_effect),
-      Function(actual_parameters, actual_result, actual_effect),
-    ) =>
-      expected_parameters == actual_parameters &&
-      expected_result == actual_result &&
-      actual_effect.is_subeffect_of(expected_effect)
-    _ => false
-  }
+  actual.effect
 }
 
 ///|
@@ -824,7 +825,7 @@ fn VerifyContext::synthesize_letrec(
       self.report(UnknownValue(binding.id))
       continue
     }
-    let rhs_effect = self.check_expr(
+    let rhs_effect = self.check_function_implementation(
       binding.rhs,
       info.type_,
       body_scope,

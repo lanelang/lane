@@ -12,9 +12,16 @@ fn BuslaneLowerer::lower_expr(
       Ref(self.define_runtime_import(name, signature, self.lower_type(type_)))
     ErrorRecovery(_) =>
       abort("invalid checked expression reached Buslane lowering")
-    FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) =>
-      self.lower_function_literal(
-        type_parameters, parameters, return_type, body,
+    FunctionLiteral(
+      type_parameters~,
+      parameters~,
+      return_type~,
+      body~,
+      type_~,
+      ..
+    ) =>
+      self.lower_function_literal_value(
+        type_parameters, parameters, return_type, body, type_,
       )
     FunctionEffectWiden(value~, type_~, ..) =>
       self.lower_function_effect_widen(value, type_)
@@ -66,6 +73,26 @@ fn BuslaneLowerer::lower_expr(
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
   }
+}
+
+///|
+fn BuslaneLowerer::lower_function_literal_value(
+  self : BuslaneLowerer,
+  type_parameters : Array[@types.TypeParameter],
+  parameters : Array[@checked.CheckedValueParameter],
+  return_type : @types.Type,
+  body : @checked.CheckedExpr,
+  type_ : @types.Type,
+) -> @buslane.Expr {
+  let rhs = self.lower_function_literal(
+    type_parameters, parameters, return_type, body,
+  )
+  let id = self.define_fresh_value(
+    "function_literal",
+    Function,
+    self.lower_type(type_),
+  )
+  LetRec([{ id, rhs }], Ref(id))
 }
 
 ///|

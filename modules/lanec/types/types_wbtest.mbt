@@ -110,10 +110,7 @@ test "effect containment is independent from effect equality" {
   let first = EffectSymbolId::{ index: 0 }
   let second = EffectSymbolId::{ index: 1 }
   let narrow = Effect::Singleton(first, [])
-  let wide = Effect::Union([
-    Effect::Singleton(first, []),
-    Effect::Singleton(second, []),
-  ])
+  let wide = Effect::Union([Singleton(first, []), Singleton(second, [])])
   assert_true(Effect::Empty.alpha_subeffect_of(narrow))
   assert_true(narrow.alpha_subeffect_of(wide))
   assert_false(wide.alpha_subeffect_of(narrow))

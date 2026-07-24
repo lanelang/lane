@@ -488,11 +488,62 @@ pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
 ///|
 /// Returns whether every effect term in this row occurs in `upper`.
 pub fn Effect::is_subeffect_of(self : Effect, upper : Effect) -> Bool {
-  let lower_terms = canonical_effect_terms([], self)
-  let upper_terms = canonical_effect_terms([], upper)
+  effect_is_subeffect_with([], self, upper)
+}
+
+///|
+fn Type::is_direct_function_implementation_of(
+  self : Type,
+  declaration : Type,
+) -> Bool {
+  function_implementation_with([], self.normalize(), declaration.normalize())
+}
+
+///|
+fn function_implementation_with(
+  bindings : Array[AlphaBinding],
+  implementation : Type,
+  declaration : Type,
+) -> Bool {
+  match (implementation, declaration) {
+    (
+      Function(actual_parameters, actual_result, actual_effect),
+      Function(expected_parameters, expected_result, expected_effect),
+    ) =>
+      same_length_alpha_equal(bindings, actual_parameters, expected_parameters) &&
+      alpha_equal_with(bindings, actual_result, expected_result) &&
+      effect_is_subeffect_with(bindings, actual_effect, expected_effect)
+    (
+      Forall(actual_parameters, actual_body),
+      Forall(expected_parameters, expected_body),
+    ) => {
+      if actual_parameters.length() != expected_parameters.length() {
+        return false
+      }
+      let next = bindings.copy()
+      for index in 0..<actual_parameters.length() {
+        next.push({
+          left: actual_parameters[index],
+          right: expected_parameters[index],
+        })
+      }
+      function_implementation_with(next, actual_body, expected_body)
+    }
+    _ => false
+  }
+}
+
+///|
+fn effect_is_subeffect_with(
+  bindings : Array[AlphaBinding],
+  lower : Effect,
+  upper : Effect,
+) -> Bool {
+  let lower_terms = canonical_effect_terms(bindings, lower)
+  let upper_terms = canonical_effect_terms(bindings, upper)
   lower_terms.all(fn(lower_term) {
     upper_terms.any(fn(upper_term) {
-      alpha_equal_effect_term_with([], lower_term, upper_term)
+      alpha_equal_effect_term_with(bindings, lower_term, upper_term)
     })
   })
 }

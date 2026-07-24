@@ -1,6 +1,4 @@
 ///|
-
-///|
 priv enum GenericArgumentConstraintMode {
   ExactConstraint
   EffectLowerBoundConstraint
@@ -216,13 +214,13 @@ fn GenericArgumentInference::lookup(
 }
 
 ///|
-fn GenericArgumentInference::has_concrete_binding(
+fn GenericArgumentInference::has_exact_binding(
   self : GenericArgumentInference,
   parameter : TypeParameterId,
 ) -> Bool {
   for binding in self.bindings {
     if binding.parameter == parameter {
-      return !binding.is_provisional
+      return !binding.is_provisional && binding.mode is ExactConstraint
     }
   }
   false
@@ -355,73 +353,6 @@ fn GenericArgumentInference::remember(
     is_provisional: evidence.is_provisional,
     mode: ExactConstraint,
   })
-  true
-}
-
-///|
-fn GenericArgumentInference::remember_effect_lower_bound(
-  self : GenericArgumentInference,
-  parameter : TypeParameterId,
-  effect : @types.Effect,
-) -> Bool {
-  for index in 0..<self.bindings.length() {
-    let previous = self.bindings[index]
-    if previous.parameter != parameter {
-      continue
-    }
-    guard previous.argument is EffectArgument(previous_effect) else {
-      return self.fail(
-        GenericArgumentConstraintMismatch(
-          expected=previous.argument,
-          actual=EffectArgument(effect),
-        ),
-      )
-    }
-    if previous.mode is EffectLowerBoundConstraint {
-      let combined : @types.GenericArgument = EffectArgument(
-        @types.Effect::Union([previous_effect, effect]).canonicalize(),
-      )
-      let evidence = self.classify_generic_argument_evidence(combined)
-      self.bindings[index] = {
-        parameter,
-        argument: evidence.argument,
-        is_provisional: evidence.is_provisional,
-        mode: EffectLowerBoundConstraint,
-      }
-      return true
-    }
-    let allowed = effect.is_subeffect_of(previous_effect) catch {
-      error => {
-        self.record_computation_error(error)
-        return false
-      }
-    }
-    if allowed {
-      return true
-    }
-    guard self.tracked_parameter(parameter) is Some(tracked) else {
-      return true
-    }
-    return self.fail(
-      ConflictingGenericArgument(
-        parameter=tracked,
-        previous=previous.argument,
-        actual=EffectArgument(effect),
-      ),
-    )
-  }
-  if !self.remember(parameter, EffectArgument(effect)) {
-    return false
-  }
-  for index in 0..<self.bindings.length() {
-    if self.bindings[index].parameter == parameter {
-      self.bindings[index] = {
-        ..self.bindings[index],
-        mode: EffectLowerBoundConstraint,
-      }
-      return true
-    }
-  }
   true
 }
 
@@ -650,7 +581,7 @@ fn GenericArgumentInference::collect_effect(
   //
   // Every concrete template singleton must match one unique actual singleton.
   // The optional tracked row parameter receives only the unmatched residual.
-  let instantiated = template.substitute(self.partial_substitution())
+  let instantiated = template.substitute(self.exact_substitution())
   match self.match_effect_rows(instantiated, actual) {
     EffectRowsMatched(term_pairs~, residual_parameter~, residual_effect~) =>
       self.collect_effect_row_match(
@@ -665,111 +596,6 @@ fn GenericArgumentInference::collect_effect(
       )
     EffectRowsAmbiguous =>
       self.fail(AmbiguousEffectRowInference(expected=template, actual~))
-  }
-}
-
-///|
-fn GenericArgumentInference::collect_effect_upper_bound(
-  self : GenericArgumentInference,
-  template : @types.Effect,
-  actual : @types.Effect,
-) -> Bool {
-  // Function effects are upper bounds. Concrete terms in the template cover
-  // matching actual terms, while a tracked row parameter accumulates the
-  // unmatched lower bound required by all call arguments.
-  let instantiated = template.substitute(
-    self.partial_substitution_excluding_effect_lower_bounds(),
-  )
-  match self.match_effect_upper_bound_rows(instantiated, actual) {
-    EffectRowsMatched(term_pairs~, residual_parameter~, residual_effect~) =>
-      for pair in term_pairs {
-        if !self.collect_effect_term(pair.template, pair.actual) {
-          return false
-        }
-      } nobreak {
-        match residual_parameter {
-          Some(parameter) =>
-            self.remember_effect_lower_bound(parameter, residual_effect)
-          None => true
-        }
-      }
-    EffectRowsMismatched =>
-      self.fail(
-        GenericArgumentConstraintMismatch(
-          expected=EffectArgument(template),
-          actual=EffectArgument(actual),
-        ),
-      )
-    EffectRowsAmbiguous =>
-      self.fail(AmbiguousEffectRowInference(expected=template, actual~))
-  }
-}
-
-///|
-fn GenericArgumentInference::match_effect_upper_bound_rows(
-  self : GenericArgumentInference,
-  template : @types.Effect,
-  actual : @types.Effect,
-) -> EffectRowMatch {
-  guard self.effect_row_pattern(template) is Some(pattern) else {
-    return EffectRowsAmbiguous
-  }
-  let actual_terms = effect_terms(actual)
-  let used_templates = []
-  for _ in pattern.concrete_terms {
-    used_templates.push(false)
-  }
-  let term_pairs = []
-  let residual_terms = []
-  for actual_term in actual_terms {
-    match
-      self.unique_upper_effect_term_candidate(
-        actual_term,
-        pattern.concrete_terms,
-        used_templates,
-      ) {
-      UniqueEffectTermCandidate(index) => {
-        term_pairs.push({
-          template: pattern.concrete_terms[index],
-          actual: actual_term,
-        })
-        used_templates[index] = true
-      }
-      NoEffectTermCandidate =>
-        if pattern.row_parameter is Some(_) {
-          residual_terms.push(actual_term)
-        } else {
-          return EffectRowsMismatched
-        }
-      AmbiguousEffectTermCandidate => return EffectRowsAmbiguous
-    }
-  }
-  EffectRowsMatched(
-    term_pairs~,
-    residual_parameter=pattern.row_parameter,
-    residual_effect=effect_from_terms(residual_terms),
-  )
-}
-
-///|
-fn GenericArgumentInference::unique_upper_effect_term_candidate(
-  self : GenericArgumentInference,
-  actual : @types.Effect,
-  templates : Array[@types.Effect],
-  used : Array[Bool],
-) -> EffectTermCandidateResult {
-  let mut found_index : Int? = None
-  for index in 0..<templates.length() {
-    if !used[index] && self.effect_term_candidate(templates[index], actual) {
-      if found_index is Some(_) {
-        return AmbiguousEffectTermCandidate
-      }
-      found_index = Some(index)
-    }
-  }
-  match found_index {
-    Some(index) => UniqueEffectTermCandidate(index)
-    None => NoEffectTermCandidate
   }
 }
 
@@ -878,7 +704,7 @@ fn GenericArgumentInference::collect_effect_term_from_row(
   template : @types.Effect,
   actual : @types.Effect,
 ) -> Bool {
-  let instantiated = template.substitute(self.partial_substitution())
+  let instantiated = template.substitute(self.exact_substitution())
   let actual_terms = effect_terms(actual)
   let used_actuals = []
   for _ in actual_terms {
@@ -981,7 +807,7 @@ fn GenericArgumentInference::type_is_candidate(
     (Error, _) | (_, Error) => true
     (Parameter(parameter), _) =>
       self.tracked_parameter(parameter) is Some(_) &&
-      !self.has_concrete_binding(parameter)
+      !self.has_exact_binding(parameter)
     (Primitive(left), Primitive(right)) => left == right
     (Constructor(left), Constructor(right)) => left == right
     (Apply(left_callee, left_arguments), Apply(right_callee, right_arguments)) =>
@@ -1004,7 +830,7 @@ fn GenericArgumentInference::type_has_unbound_inference_parameter(
   type_ : @types.Type,
 ) -> Bool {
   self.parameters.any(fn(parameter) {
-    !self.has_concrete_binding(parameter.id) &&
+    !self.has_exact_binding(parameter.id) &&
     type_.mentions_any_type_parameter([parameter.id])
   })
 }
@@ -1038,7 +864,7 @@ fn GenericArgumentInference::effect_is_candidate(
   match (template, actual) {
     (Parameter(parameter), _) =>
       self.tracked_parameter(parameter) is Some(_) &&
-      !self.has_concrete_binding(parameter)
+      !self.has_exact_binding(parameter)
     (
       Singleton(left_symbol, left_arguments),
       Singleton(right_symbol, right_arguments),
@@ -1055,7 +881,7 @@ fn GenericArgumentInference::effect_has_unbound_inference_parameter(
   effect : @types.Effect,
 ) -> Bool {
   self.parameters.any(fn(parameter) {
-    !self.has_concrete_binding(parameter.id) &&
+    !self.has_exact_binding(parameter.id) &&
     effect.mentions_any_type_parameter_with_bound([parameter.id], [])
   })
 }
@@ -1191,7 +1017,7 @@ fn GenericArgumentInference::collect_generic_array(
 fn GenericArgumentInference::finish(
   self : GenericArgumentInference,
 ) -> InferredApplicationGenericArguments? {
-  let substitution = self.partial_substitution(include_provisional=true)
+  let substitution = self.inferred_substitution(include_provisional=true)
   let generic_arguments = []
   let missing = []
   for parameter in self.parameters {
@@ -1209,7 +1035,7 @@ fn GenericArgumentInference::finish(
 }
 
 ///|
-fn GenericArgumentInference::partial_substitution(
+fn GenericArgumentInference::inferred_substitution(
   self : GenericArgumentInference,
   include_provisional? : Bool = false,
 ) -> @types.TypeSubstitution {
@@ -1223,7 +1049,7 @@ fn GenericArgumentInference::partial_substitution(
 }
 
 ///|
-fn GenericArgumentInference::partial_substitution_excluding_effect_lower_bounds(
+fn GenericArgumentInference::exact_substitution(
   self : GenericArgumentInference,
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
@@ -1539,7 +1365,7 @@ fn SemanticChecker::infer_application_generic_arguments(
   for index in 0..<count {
     let template = evidence.parameter_templates[index]
     guard template is Function(_, _, template_effect) else { continue }
-    let instantiated = template.substitute(inference.partial_substitution())
+    let instantiated = template.substitute(inference.exact_substitution())
     guard instantiated is Function(parameters, result, _) else { continue }
     let argument = evidence.argument_expressions[index]
     if self.measure_ground_function_literal_effect_for_generic_arguments(

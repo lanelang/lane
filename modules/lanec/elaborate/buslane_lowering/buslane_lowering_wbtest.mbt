@@ -496,7 +496,7 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|  types: 5,
       #|  effects: 1,
       #|  operations: 1,
-      #|  values: 42,
+      #|  values: 43,
       #|  data_constructors: 6,
       #|  top_lets: 6,
       #|  top_let_recs: 1,

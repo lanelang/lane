@@ -26,6 +26,10 @@ When an already-typed function value is widened, Checked AST records
 `FunctionEffectWiden`. Buslane lowering evaluates the original value once and
 constructs an adapter with the target function type. Selective CPS lowering
 therefore chooses the target ABI for the adapter while calls inside it retain
-the original function ABI. Function declarations and context-checked function
-literals can select their declared or expected ABI directly and need no value
-adapter.
+the original function ABI. Function declarations and function literals lower
+through Buslane function bindings whose metadata carries the declared or
+expected type, so selective CPS receives their target latent effect directly.
+Buslane permits this containment relation only while verifying the direct
+`Function` or `TypeLambda` implementation of such a binding. Ordinary
+references, calls, and value bindings continue to require exact types; a
+widened first-class value must use the explicit adapter.
