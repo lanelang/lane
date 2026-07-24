@@ -3064,14 +3064,16 @@ test "typecheck reports missing struct literal generic arguments" {
 }
 
 ///|
-test "typecheck existential struct construction with type witness" {
+test "typecheck existential struct witnesses in declaration order" {
   let result = expect_checked_source_result(
     (
       #|struct Hide {
-      #|  type T
-      #|  val : T
+      #|  type A
+      #|  type B
+      #|  first : A
+      #|  second : B
       #|}
-      #|let hidden : Hide = Hide::{ T = Int, val: 1 }
+      #|let hidden : Hide = Hide::{ B = Bool, A = Int, second: true, first: 1 }
     ),
   )
   inspect(
@@ -3080,12 +3082,16 @@ test "typecheck existential struct construction with type witness" {
       #|checked_source_typecheck_result {
       #|  checked {
       #|    struct Hide#0 {
-      #|      type T#0 : Type
-      #|      val#0 : tparam#0
+      #|      type A#0 : Type
+      #|      type B#1 : Type
+      #|      first#0 : tparam#0
+      #|      second#1 : tparam#1
       #|    }
       #|    let hidden#0 : type#0 = type#0::{
-      #|      type T#0 = Int
-      #|      val#0: 1
+      #|      type A#0 = Int
+      #|      type B#1 = Bool
+      #|      second#1: true
+      #|      first#0: 1
       #|    }
       #|  }
       #|  diagnostics {}

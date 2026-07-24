@@ -588,7 +588,10 @@ fn SemanticChecker::check_struct_type_witnesses(
   loc : SourceSpan,
 ) -> Array[@checked.CheckedStructTypeWitness] {
   let seen = []
-  let witnesses : Array[@checked.CheckedStructTypeWitness] = []
+  let witnesses : Array[@checked.CheckedStructTypeWitness?] = Array::make(
+    declaration.type_members.length(),
+    None,
+  )
   for field in fields {
     guard field is TypeWitness(name~, witness~, loc=field_loc) else { continue }
     if seen.contains(name) {
@@ -597,13 +600,17 @@ fn SemanticChecker::check_struct_type_witnesses(
       seen.push(name)
     }
     match declaration.type_member_named(name) {
-      Some(type_member) =>
-        witnesses.push({
+      Some(type_member) => {
+        let checked : @checked.CheckedStructTypeWitness = {
           symbol: type_member.symbol,
           name,
           type_: self.check_type(witness),
           loc: field_loc,
-        })
+        }
+        if witnesses[type_member.index] is None {
+          witnesses[type_member.index] = Some(checked)
+        }
+      }
       None =>
         self.diagnostics.push({ kind: UnknownTypeMember(name~), loc: field_loc })
     }
@@ -616,5 +623,5 @@ fn SemanticChecker::check_struct_type_witnesses(
       })
     }
   }
-  witnesses
+  witnesses.filter_map(fn(witness) { witness })
 }

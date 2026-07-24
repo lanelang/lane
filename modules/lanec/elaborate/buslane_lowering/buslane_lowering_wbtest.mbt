@@ -1198,14 +1198,21 @@ test "elaborate sequential unit expressions in source order" {
 }
 
 ///|
-test "elaborate existential struct construction into verifiable buslane" {
+test "elaborate reversed existential witnesses into verifiable buslane" {
   let result = elaborate_buslane_source(
     (
       #|struct Hide {
-      #|  type T : Type
-      #|  val : T
+      #|  type A : Type
+      #|  type B : Type
+      #|  first : A
+      #|  second : B
       #|}
-      #|let packed : Hide = Hide::{ T = Int, val: 1 }
+      #|let packed : Hide = Hide::{
+      #|  B = Bool,
+      #|  A = Int,
+      #|  second: true,
+      #|  first: 1,
+      #|}
     ),
   )
   guard result.program is Some(program) else {
