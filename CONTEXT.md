@@ -222,54 +222,6 @@ _Avoid_: textual include, module shorthand, hidden global scope
 An exported offer available to contextual resolution in the current **Compilation Unit**.
 _Avoid_: qualified-only offer, hidden candidate, trait instance
 
-**Contextual Provider**:
-An ordinary offered generic function that constructs requested contextual evidence from other contextual evidence. Provider application is a general offer-resolution capability and does not recognize Shape or any particular derived capability.
-_Avoid_: derive hook, Shape-only provider, hard-coded container instance
-
-**Custom Derivation**:
-A library-defined construction of contextual offers for nominal data types using ordinary Lane declarations, compiler builtins, and offer resolution, without derive-specific syntax.
-_Avoid_: derive annotation, AST macro, compiler plugin
-
-**Shape**:
-A compile-time-only, opaque structural capability defined for every `T : Type` that library-defined custom derivations consume through one general structural fold builtin without the compiler knowing the derived offer type. A program makes Shape available by explicitly defining an ordinary named contextual offer; its visibility, shadowing, and ambiguity rules are exactly those of every other offer. The compiler never injects Shape offers, and Lane retains no Shape values or other type reflection data at runtime.
-_Avoid_: inspectable metadata tree, Equal builtin, Show builtin, derive target registry, runtime reflection, special offer scope
-
-**Shape Fold**:
-The total compile-time, rank-N operation that unfolds exactly one structural layer when available and otherwise treats its subject as an atomic component. It combines a user-defined derivation algebra for any result constructor `F : [Type] -> Type`. Every non-recursive component `A` requires ordinary contextual evidence `F[A]`; if that evidence is absent, folding fails even when `Shape[A]` is visible. Only a genuine back-edge to the current derivation root is interpreted through the algebra's Recursive Derivation Strategy.
-_Avoid_: Shape fallback, Shape-owned instance search, runtime traversal, implicit nested Shape expansion
-
-**Shape Provider**:
-An ordinary generic function that constructs `Shape` for applications of one fixed higher-kinded type constructor, such as `[T]() -> Shape[Option[T]]`. Its type parameters remain atomic components and do not require their own Shape offers.
-_Avoid_: `Shape[Option]`, kind-polymorphic Shape, recursive Shape provider
-
-**Shape Metadata**:
-The compile-time declaration names, field and variant names, declaration order, and structural operations exposed to a Shape Fold. It excludes source spans, comments, visibility, import spelling, and transparent alias presentation.
-_Avoid_: syntax tree, documentation metadata, runtime type information
-
-**Shape Algebra**:
-The user-defined, arity-independent sum-of-products rules consumed by a Shape Fold. Products combine fields in declaration order, sums combine variants in declaration order, and nominal, field, and variant labels preserve source structure without heterogeneous arrays or arity-specific cases.
-_Avoid_: erased field array, `struct1`/`struct2` rules, separate struct and enum derivation protocols
-
-**Shape Isomorphism**:
-The type-safe bidirectional correspondence between a shaped type and its canonical sum-of-products representation. Observation-oriented derivations use its projection direction, while construction-oriented derivations use its reconstruction direction.
-_Avoid_: getter-only Shape, erased cast, runtime typecase
-
-**Shape Representation**:
-The ordinary standard-library `Product`, `Sum`, and `Iso` types used to express a Shape Algebra with normal Lane types and functions. They are not compiler-private IR types or a special callback ABI.
-_Avoid_: virtual Shape type, erased representation value, compiler-only derivation object
-
-**Shape Representation Fusion**:
-The general optimization contract that inlines Shape Isomorphisms and derivation combinators and scalar-replaces non-escaping Product and Sum values. Shape Representation remains ordinary Lane semantics, while standard observation-oriented derivations must not retain avoidable representation allocations.
-_Avoid_: Shape-specific runtime object, Equal-only lowering, semantic zero-allocation type
-
-**Recursive Derivation Strategy**:
-The ordinary `fix : [T]((F[T]) -> F[T]) -> F[T]` operation supplied by a Shape Algebra to interpret a recursive reference in its result constructor. Operational capabilities may implement it with recursive worker functions, graph-like artifacts may produce explicit reference nodes, and algebras with no lawful recursive result may reject the derivation. The result remains an ordinary `F[T]`; contextual resolution does not replace it with a thunk or infer a universal lazy fixed point.
-_Avoid_: delayed evidence keyword, thunk-valued `Equal[T]`, universal recursive dictionary
-
-**Derived Runtime Artifact**:
-Ordinary Lane code or data intentionally produced by a custom derivation, such as `Equal[T]`, `Show[T]`, or an explicitly requested `Schema[T]`. It may retain constants selected by the deriver, but it has no access to Shape, a dynamic type registry, or runtime typecase.
-_Avoid_: retained Shape, compiler reflection service, implicit runtime metadata
-
 **Module Name Ambiguity**:
 A module-level name conflict between local declarations and open imports, or between multiple open imports.
 _Avoid_: import-order priority, implicit prelude shadowing, local block shadowing

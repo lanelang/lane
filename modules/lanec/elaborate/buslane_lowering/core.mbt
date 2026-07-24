@@ -307,8 +307,7 @@ fn BuslaneLowerer::module_exports(
           })
         }
       }
-      Function(declaration) if declaration.is_public &&
-        !compile_time_only_expr(declaration.body) =>
+      Function(declaration) if declaration.is_public =>
         exports.push({
           kind: Value,
           name: declaration.name,
@@ -318,8 +317,7 @@ fn BuslaneLowerer::module_exports(
           operation: None,
           value: Some(self.value_id(declaration.symbol)),
         })
-      Let(declaration) if declaration.is_public &&
-        !compile_time_only_expr(declaration.initializer) =>
+      Let(declaration) if declaration.is_public =>
         exports.push({
           kind: Value,
           name: declaration.name,

@@ -10,13 +10,6 @@ import {
 // Errors
 
 // Types and methods
-pub(all) enum CompileTimeIntrinsic {
-  Shape
-  ShapeFold
-} derive(Eq, @debug.Debug)
-pub fn CompileTimeIntrinsic::from_name(String) -> Self?
-pub fn CompileTimeIntrinsic::name(Self) -> String
-
 pub(all) struct HostSignature {
   parameters : Array[ValueKind]
   result : ValueKind

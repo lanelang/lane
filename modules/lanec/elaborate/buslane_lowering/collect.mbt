@@ -328,7 +328,7 @@ fn BuslaneLowerer::collect_top_values(
   let module_path_text = checked_module_path_text(source)
   for declaration in source.declarations {
     match declaration {
-      Function(declaration) if !compile_time_only_expr(declaration.body) => {
+      Function(declaration) => {
         for parameter in declaration.type_parameters {
           ignore(self.define_type_parameter(parameter))
         }
@@ -343,7 +343,7 @@ fn BuslaneLowerer::collect_top_values(
           self.add_entry(module_path_text, declaration.name, value, type_)
         }
       }
-      Let(declaration) if !compile_time_only_expr(declaration.initializer) => {
+      Let(declaration) => {
         let type_ = self.lower_type(declaration.type_)
         let value = self.define_value(
           declaration.symbol,
@@ -373,8 +373,7 @@ fn BuslaneLowerer::lower_top_terms(
   }
   let recursive_functions : Array[@buslane.RecursiveBinding] = []
   for declaration in source.declarations {
-    if declaration is Function(function) &&
-      !compile_time_only_expr(function.body) {
+    if declaration is Function(function) {
       recursive_functions.push(self.lower_recursive_function(function))
     }
   }
@@ -382,8 +381,7 @@ fn BuslaneLowerer::lower_top_terms(
     terms.push(LetRec(recursive_functions))
   }
   for declaration in source.declarations {
-    if declaration is Let(declaration) &&
-      !compile_time_only_expr(declaration.initializer) {
+    if declaration is Let(declaration) {
       terms.push(
         Let(
           self.value_id(declaration.symbol),
@@ -393,11 +391,6 @@ fn BuslaneLowerer::lower_top_terms(
     }
   }
   terms
-}
-
-///|
-fn compile_time_only_expr(expression : @checked.CheckedExpr) -> Bool {
-  expression.compile_time_intrinsic() is Some(_)
 }
 
 ///|

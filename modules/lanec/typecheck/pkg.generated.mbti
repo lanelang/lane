@@ -214,12 +214,6 @@ pub(all) enum GenericArgumentSubject {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for GenericArgumentSubject
 
-pub(all) enum ShapeTargetRestriction {
-  EmptyEnum
-  StructTypeMembers
-  VariantTypeParameters
-} derive(Eq, @debug.Debug)
-
 pub(all) struct TypeCheckDiagnostic {
   kind : TypeCheckDiagnosticKind
   loc : @basic.SourceSpan
@@ -276,12 +270,6 @@ pub(all) enum TypeCheckDiagnosticKind {
   InvalidDoubleLiteral(String)
   UnknownBuiltin(name~ : String)
   BuiltinSignatureMismatch(name~ : String, expected~ : @types.Type, actual~ : @types.Type)
-  CompileTimeBuiltinNeedsExpectedType(name~ : String)
-  InvalidCompileTimeBuiltinSignature(name~ : String, @types.Type)
-  InvalidShapeWitnessType(@types.Type)
-  CompileTimeValueEscapes(name~ : String)
-  UnsupportedShapeTarget(@types.Type, ShapeTargetRestriction)
-  InvalidShapeAlgebraRepresentation(operation~ : String, @types.Type)
   ExternNeedsExpectedType(name~ : String)
   InvalidExternType(name~ : String, type_~ : @types.Type, restriction~ : ExternTypeRestriction)
   FunctionLiteralParameterNeedsAnnotation(name~ : String?)

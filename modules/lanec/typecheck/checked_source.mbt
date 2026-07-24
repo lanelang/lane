@@ -39,10 +39,7 @@ pub fn typecheck_checked_source_file_with_imported_environment(
   let mut complete = true
   for declaration in current_source.declarations {
     match checker.check_checked_top_level_declaration(declaration) {
-      Some(declaration) => {
-        checker.validate_compile_time_erasure(declaration)
-        checked_declarations.push(declaration)
-      }
+      Some(declaration) => checked_declarations.push(declaration)
       None => complete = false
     }
   }
@@ -64,49 +61,6 @@ pub fn typecheck_checked_source_file_with_imported_environment(
     source: checked_source,
     module_interface,
     diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
-  }
-}
-
-///|
-fn SemanticChecker::validate_compile_time_erasure(
-  self : SemanticChecker,
-  declaration : @checked.CheckedTopLevelDeclaration,
-) -> Unit {
-  match declaration {
-    Function(declaration) =>
-      if declaration.body.compile_time_intrinsic() is None {
-        self.validate_runtime_expression(declaration.body)
-      }
-    Let(declaration) =>
-      if declaration.initializer.compile_time_intrinsic() is None {
-        self.validate_runtime_expression(declaration.initializer)
-      }
-    _ => ()
-  }
-}
-
-///|
-fn SemanticChecker::validate_runtime_expression(
-  self : SemanticChecker,
-  expression : @checked.CheckedExpr,
-) -> Unit {
-  match expression {
-    CompileTimeIntrinsic(intrinsic~, loc~, ..) =>
-      self.diagnostics.push({
-        kind: CompileTimeValueEscapes(name=intrinsic.name()),
-        loc,
-      })
-    ShapeWitness(loc~, ..) =>
-      self.diagnostics.push({
-        kind: CompileTimeValueEscapes(
-          name=@abi.CompileTimeIntrinsic::Shape.name(),
-        ),
-        loc,
-      })
-    _ =>
-      expression.for_each_child_expr(fn(child) {
-        self.validate_runtime_expression(child)
-      })
   }
 }
 
@@ -273,9 +227,6 @@ fn SemanticChecker::checked_top_level_let(
     symbol: declaration.symbol,
     type_,
     parameters: None,
-    compile_time_intrinsic: desugared_compile_time_intrinsic(
-      declaration.initializer,
-    ),
   })
   if declaration.is_offered {
     offer_symbol(

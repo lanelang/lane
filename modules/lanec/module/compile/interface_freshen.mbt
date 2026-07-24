@@ -393,7 +393,6 @@ fn InterfaceSymbolFreshener::freshen_value(
     symbol,
     kind: value.kind,
     is_offered: value.is_offered,
-    compile_time_intrinsic: value.compile_time_intrinsic,
     name: value.name,
     type_: self.freshen_lane_type(value.type_),
     parameters: value.parameters.map(fn(parameters) {

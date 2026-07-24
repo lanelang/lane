@@ -133,7 +133,6 @@ pub(all) struct ModuleInterfaceValue {
   symbol : ValueSymbolId
   kind : ModuleInterfaceValueKind
   is_offered : Bool
-  compile_time_intrinsic : @abi.CompileTimeIntrinsic?
   name : String
   type_ : @types.Type
   parameters : Array[ModuleInterfaceValueParameter]?

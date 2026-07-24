@@ -245,12 +245,8 @@ fn CheckedValueUseCollector::collect_expr(
   current_origin : ValueSymbolId?,
 ) -> Unit {
   match expr {
-    Literal(_)
-    | CompilerIntrinsic(_)
-    | CompileTimeIntrinsic(_)
-    | ShapeWitness(_)
-    | ExternBinding(_)
-    | ErrorRecovery(_) => ()
+    Literal(_) | CompilerIntrinsic(_) | ExternBinding(_) | ErrorRecovery(_) =>
+      ()
     Value(symbol~, loc~, ..) =>
       self.references.push({
         target: symbol,

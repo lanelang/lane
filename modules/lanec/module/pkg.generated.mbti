@@ -2,7 +2,6 @@
 package "Milky2018/lanec/module"
 
 import {
-  "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
@@ -140,7 +139,6 @@ pub(all) struct ModuleInterfaceValue {
   symbol : @symbol.ValueSymbolId
   kind : ModuleInterfaceValueKind
   is_offered : Bool
-  compile_time_intrinsic : @abi.CompileTimeIntrinsic?
   name : String
   type_ : @types.Type
   parameters : Array[ModuleInterfaceValueParameter]?

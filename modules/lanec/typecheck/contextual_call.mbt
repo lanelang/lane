@@ -296,12 +296,17 @@ fn SemanticChecker::contextual_offer_expr(
       self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
       None
     }
-    1 => Some(matches[0].expression)
+    1 => {
+      let offer = matches[0]
+      Some(offer.expression)
+    }
     _ => {
       self.diagnostics.push({
         kind: AmbiguousContextualOffer(
           expected~,
-          candidates=matches.map(contextual_offer_diagnostic_candidate),
+          candidates=matches.map(fn(offer) {
+            contextual_offer_diagnostic_candidate(offer)
+          }),
         ),
         loc,
       })

@@ -436,36 +436,6 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text("actual=") +
       actual.pretty()
-    CompileTimeBuiltinNeedsExpectedType(name~) =>
-      text("compile_time_builtin_needs_expected_type") + space + text(name)
-    InvalidCompileTimeBuiltinSignature(name~, type_) =>
-      text("invalid_compile_time_builtin_signature") +
-      space +
-      text(name) +
-      space +
-      type_.pretty()
-    InvalidShapeWitnessType(type_) =>
-      text("invalid_shape_witness_type") + space + type_.pretty()
-    CompileTimeValueEscapes(name~) =>
-      text("compile_time_value_escapes") + space + text(name)
-    UnsupportedShapeTarget(type_, restriction) =>
-      text("unsupported_shape_target") +
-      space +
-      type_.pretty() +
-      space +
-      text(
-        match restriction {
-          EmptyEnum => "empty_enum"
-          StructTypeMembers => "struct_type_members"
-          VariantTypeParameters => "variant_type_parameters"
-        },
-      )
-    InvalidShapeAlgebraRepresentation(operation~, type_) =>
-      text("invalid_shape_algebra_representation") +
-      space +
-      text(operation) +
-      space +
-      type_.pretty()
     ExternNeedsExpectedType(name~) =>
       text("extern_needs_expected_type") + space + text(name)
     InvalidExternType(name~, type_~, restriction~) =>

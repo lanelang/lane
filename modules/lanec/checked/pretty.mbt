@@ -354,10 +354,6 @@ fn expression_doc(expression : CheckedExpr) -> Document {
     Value(name~, symbol~, ..) => value_name_doc(name, symbol)
     CompilerIntrinsic(intrinsic~, ..) =>
       text("builtin") + text("(") + quoted_doc(intrinsic.name()) + text(")")
-    CompileTimeIntrinsic(intrinsic~, ..) =>
-      text("builtin") + text("(") + quoted_doc(intrinsic.name()) + text(")")
-    ShapeWitness(represented~, ..) =>
-      text("<shape ") + represented.pretty() + text(">")
     ExternBinding(name~, ..) =>
       text("extern") + text("(") + quoted_doc(name) + text(")")
     ErrorRecovery(_) => text("<error>")

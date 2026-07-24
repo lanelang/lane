@@ -27,7 +27,6 @@ fn invalid_reference_interface() -> ModuleInterface {
         symbol: { index: 0 },
         kind: Let,
         is_offered: false,
-        compile_time_intrinsic: None,
         name: "value",
         type_: Constructor(missing_type),
         parameters: None,
@@ -51,7 +50,6 @@ fn generic_identity_interface(binder_name : String) -> ModuleInterface {
         symbol: { index: 0 },
         kind: Function,
         is_offered: false,
-        compile_time_intrinsic: None,
         name: "identity",
         type_: Forall(
           [parameter],

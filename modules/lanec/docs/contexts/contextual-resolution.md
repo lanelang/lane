@@ -100,9 +100,7 @@ _Avoid_: placeholder builtin, implementation-only primitive
 - An **Offered Value Definition** has the shape `offer name : Type = expression`.
 - An **Offered Value Definition** must be named and must have an explicit type annotation.
 - An **Offered Function Definition** offers the function's own named value and does not create a hidden value binding.
-- A generic **Offered Function Definition** remains an ordinary value with its
-  complete forall function type; Contextual Resolution does not specialize it
-  to match a monomorphic Contextual Parameter.
+- A generic **Offered Function Definition** offers its complete forall function type; Contextual Resolution does not specialize it to match a monomorphic contextual parameter.
 - A local **Offered Value Definition** is visible from its declaration point to the end of the current block.
 - A local **Offered Function Definition** is visible as an offer from its declaration point to the end of the current block.
 - An **Offered Function Definition** is already visible as an offer inside its own recursively scoped body.
@@ -111,8 +109,6 @@ _Avoid_: placeholder builtin, implementation-only primitive
 - A public **Offered Function Definition** exports one function binding whose offered status is preserved by the module interface.
 - Marking a binding as offered does not itself constitute a value use; ordinary unused-binding rules still apply.
 - **Contextual Offers** use lexical scope and affect only **Contextual Resolution**.
-- Compile-time Shape Fold creates ordinary omitted Contextual Parameters and
-  relies on the same exact-type lookup; it does not add provider search.
 - An imported **Contextual Offer** is visible only when an open import or selective import exposes its value name unqualified.
 - Selectively importing an offered function with `import A.{ function_name }` exposes both its ordinary function binding and its offered status.
 - A qualified module import does not implicitly expose its offers; a qualified offer value may still be passed as an **Explicit Contextual Argument**.

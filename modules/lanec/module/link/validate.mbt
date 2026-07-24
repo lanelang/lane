@@ -162,8 +162,7 @@ fn validate_imported_exports(
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for value in interface.values {
-    if value.compile_time_intrinsic is None &&
-      !module_exports_value(exports, value.name) {
+    if !module_exports_value(exports, value.name) {
       diagnostics.push(
         link_diagnostic(
           MissingExported(kind="value", provider~, name=value.name, importer~),

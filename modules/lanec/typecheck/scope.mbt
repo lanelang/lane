@@ -3,7 +3,6 @@ priv struct ValueTypeBinding {
   symbol : ValueSymbolId
   type_ : @types.Type
   parameters : Array[@checked.CheckedValueParameter]?
-  compile_time_intrinsic : @abi.CompileTimeIntrinsic?
 }
 
 ///|
@@ -65,12 +64,7 @@ fn TypeScope::bind(
   name : String,
   type_ : @types.Type,
 ) -> Unit {
-  self.values.push({
-    symbol,
-    type_,
-    parameters: None,
-    compile_time_intrinsic: None,
-  })
+  self.values.push({ symbol, type_, parameters: None })
   self.offers.hide(name)
 }
 
@@ -82,12 +76,7 @@ fn TypeScope::bind_function(
   type_ : @types.Type,
   parameters : Array[@checked.CheckedValueParameter],
 ) -> Unit {
-  self.values.push({
-    symbol,
-    type_,
-    parameters: Some(parameters),
-    compile_time_intrinsic: None,
-  })
+  self.values.push({ symbol, type_, parameters: Some(parameters) })
   self.offers.hide(name)
 }
 
@@ -111,20 +100,6 @@ fn TypeScope::lookup_function_parameters(
     let binding = self.values[index]
     if binding.symbol == symbol {
       return binding.parameters
-    }
-  }
-  None
-}
-
-///|
-fn TypeScope::lookup_compile_time_intrinsic(
-  self : TypeScope,
-  symbol : ValueSymbolId,
-) -> @abi.CompileTimeIntrinsic? {
-  for index = self.values.length() - 1; index >= 0; index = index - 1 {
-    let binding = self.values[index]
-    if binding.symbol == symbol {
-      return binding.compile_time_intrinsic
     }
   }
   None
