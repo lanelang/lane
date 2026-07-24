@@ -92,15 +92,15 @@ Struct fields and enum variants retain declaration order.
 For a non-recursive component `A`, the expansion creates an ordinary omitted
 contextual argument of type `F[A]`. Shape Fold itself never reads a lexical
 offer scope. Existing Contextual Resolution performs exact lookup, lexical
-shadowing, Contextual Provider composition, ambiguity reporting, and cycle
-rejection. Missing evidence therefore remains the ordinary
+shadowing, and missing or ambiguity reporting. Missing evidence therefore remains the ordinary
 `MissingContextualOffer(F[A])` diagnostic.
 
 A component exactly equal to the current root type is a direct recursive
 back-edge. The compiler builds `(F[T]) -> F[T]` and passes it to `fix`.
 Recursion nested inside another constructor is not unfolded by Shape; it is an
-ordinary `F[Container[T]]` component goal and may be satisfied by an ordinary
-Contextual Provider.
+ordinary `F[Container[T]]` component goal and requires an exact visible offer.
+Such evidence may be constructed explicitly by calling an ordinary library
+function.
 
 Empty enums, structs with type members, and variants with local type parameters
 do not fit this sum-of-products ABI and are rejected with E3033. A library may
@@ -138,11 +138,13 @@ offer fn[A] list_shape() -> Shape[List[A]] {
   builtin("%shape")
 }
 
-pub offer fn[A] list_equal(
-  auto element : Equal[A]
+pub fn[A] list_equal(
+  auto offer element : Equal[A]
 ) -> Equal[List[A]] {
   shape_fold(list_shape(), equal_algebra)
 }
+
+pub offer int_list_equal : Equal[List[Int]] = list_equal()
 ```
 
 The one-layer representation is:
@@ -153,6 +155,7 @@ Sum[Unit, Pair[A, Pair[List[A], Unit]]]
 
 The `A` component creates the ordinary `Equal[A]` contextual requirement. The
 direct `List[A]` back-edge uses `equal_algebra.fix`. The resulting
-`list_equal` is an ordinary Contextual Provider: when `Equal[List[Int]]` is
-requested, general contextual resolution infers `A = Int`, resolves
-`Equal[Int]`, and calls the provider. No Shape-specific offer search occurs.
+`list_equal` is an ordinary function called explicitly to construct exact
+evidence. Its offered parameter makes `Equal[A]` visible to the Shape Fold.
+Requesting `Equal[List[Int]]` alone does not cause Contextual Resolution to
+invoke `list_equal`.

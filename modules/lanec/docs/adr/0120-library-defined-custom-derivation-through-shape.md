@@ -44,9 +44,11 @@ strategy. A library constructs a derived offer by applying the fold directly:
 offer point_equal : Equal[Point] =
   shape_fold(point_shape, equal_algebra)
 
-offer fn[T] list_equal(auto element : Equal[T]) -> Equal[List[T]] {
+fn[T] list_equal(auto offer element : Equal[T]) -> Equal[List[T]] {
   shape_fold(list_shape(), equal_algebra)
 }
+
+offer int_list_equal : Equal[List[Int]] = list_equal()
 ```
 
 The compiler knows only the abstract `F`. It never branches on whether `F` is
@@ -72,16 +74,15 @@ has the ordinary requirement:
 Equal[T] -> Equal[List[T]]
 ```
 
-It does not introduce a hidden `Equal[T] or Shape[T]` constraint. Ordinary
-Contextual Providers may compose evidence, such as constructing
-`Equal[List[A]]` from `Equal[A]`, but provider application is a general offer
-resolution capability and has no Shape-specific rule.
+It does not introduce a hidden `Equal[T] or Shape[T]` constraint. A generic
+builder remains an ordinary function and must be called explicitly to create
+an exact offered value.
 
 Shape Fold does not inspect the caller's lexical offer scope. Its expansion
 introduces ordinary omitted contextual arguments of type `F[A]`; the existing
-Contextual Resolution mechanism alone performs lookup, shadowing, provider
-composition, ambiguity reporting, and cycle rejection. This preserves one
-semantic owner for contextual lookup.
+exact-only Contextual Resolution mechanism alone performs lexical lookup,
+shadowing, and missing or ambiguity reporting. This preserves one semantic
+owner for contextual lookup.
 
 ## Recursive derivation
 
@@ -145,7 +146,7 @@ Escaping sum-of-products values retain their ordinary nominal semantics.
 - Shape does not imply any particular derived semantics.
 - User-defined field capabilities are never replaced by implicit structural
   derivation.
-- Generic derived providers expose their component requirements in their
+- Generic derivation functions expose their component requirements in their
   ordinary function types.
 - Direct recursion is interpreted by the selected Shape Algebra rather than by
   lazy contextual dictionaries.

@@ -18,20 +18,6 @@ priv struct CollectedDirectArguments {
 }
 
 ///|
-priv struct ContextualProviderParameter {
-  name : String
-  type_ : @types.Type
-}
-
-///|
-priv enum ContextualOfferResolution {
-  UniqueContextualOffer(@desugar.DesugaredExpr)
-  MissingContextualOfferResolution(@types.Type)
-  AmbiguousContextualOfferResolution(@types.Type, Array[ContextualOffer])
-  ContextualOfferComputationFailed
-}
-
-///|
 fn SemanticChecker::prepare_direct_call_arguments(
   self : SemanticChecker,
   scope : TypeScope,
@@ -291,163 +277,37 @@ fn SemanticChecker::contextual_offer_expr(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
-  match self.resolve_contextual_offer(scope, expected, loc, []) {
-    UniqueContextualOffer(expression) => Some(expression)
-    MissingContextualOfferResolution(expected) => {
-      self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
-      None
-    }
-    AmbiguousContextualOfferResolution(expected, candidates) => {
-      self.diagnostics.push({
-        kind: AmbiguousContextualOffer(
-          expected~,
-          candidates=candidates.map(contextual_offer_diagnostic_candidate),
-        ),
-        loc,
-      })
-      None
-    }
-    ContextualOfferComputationFailed => None
-  }
-}
-
-///|
-fn SemanticChecker::resolve_contextual_offer(
-  self : SemanticChecker,
-  scope : TypeScope,
-  expected : @types.Type,
-  loc : SourceSpan,
-  active_goals : Array[@types.Type],
-) -> ContextualOfferResolution {
-  // Exact evidence is selected before providers. A provider is an ordinary
-  // offered function whose parameters are all contextual; its generic
-  // arguments are determined only from the requested result type.
-  let exact_matches = []
+  // Offer matching is exact type equality over the visible lexical offer
+  // scope. It must not infer generics from the offer set.
+  let matches = []
   let mut computation_failed = false
   scope.offers.each_visible(fn(offer) {
     match self.type_matches(expected, offer.type_, loc) {
-      Some(true) => exact_matches.push(offer)
+      Some(true) => matches.push(offer)
       Some(false) => ()
       None => computation_failed = true
     }
   })
   if computation_failed {
-    return ContextualOfferComputationFailed
-  }
-  if exact_matches.length() == 1 {
-    return UniqueContextualOffer(exact_matches[0].expression)
-  }
-  if exact_matches.length() > 1 {
-    return AmbiguousContextualOfferResolution(expected, exact_matches)
-  }
-  for active in active_goals {
-    match self.type_matches(expected, active, loc) {
-      Some(true) => return MissingContextualOfferResolution(expected)
-      Some(false) => ()
-      None => return ContextualOfferComputationFailed
-    }
-  }
-  let next_goals = active_goals.copy()
-  next_goals.push(expected)
-  let provider_matches = []
-  let mut blocked : ContextualOfferResolution? = None
-  scope.offers.each_visible(fn(offer) {
-    guard self.contextual_provider_parameters(scope, offer, expected, loc)
-      is Some(parameters) else {
-      return
-    }
-    let arguments = []
-    for parameter in parameters {
-      match
-        self.resolve_contextual_offer(scope, parameter.type_, loc, next_goals) {
-        UniqueContextualOffer(expression) =>
-          arguments.push(
-            @desugar.DesugaredCallArgument::Named(
-              name=parameter.name,
-              value=expression,
-              loc~,
-            ),
-          )
-        failure => {
-          if blocked is None {
-            blocked = Some(failure)
-          }
-          return
-        }
-      }
-    }
-    provider_matches.push(
-      (
-        offer,
-        @desugar.DesugaredExpr::Call(callee=offer.expression, arguments~, loc~),
-      ),
-    )
-  })
-  if provider_matches.length() == 1 {
-    return UniqueContextualOffer(provider_matches[0].1)
-  }
-  if provider_matches.length() > 1 {
-    return AmbiguousContextualOfferResolution(
-      expected,
-      provider_matches.map(fn(match_) { match_.0 }),
-    )
-  }
-  match blocked {
-    Some(failure) => failure
-    None => MissingContextualOfferResolution(expected)
-  }
-}
-
-///|
-fn SemanticChecker::contextual_provider_parameters(
-  self : SemanticChecker,
-  scope : TypeScope,
-  offer : ContextualOffer,
-  expected : @types.Type,
-  loc : SourceSpan,
-) -> Array[ContextualProviderParameter]? {
-  guard scope.lookup_function_parameters(offer.symbol) is Some(parameters) else {
     return None
   }
-  if parameters.any(fn(parameter) { !parameter.is_auto }) {
-    return None
-  }
-  let (parameter_types, result) = match offer.type_ {
-    Function(parameter_types, result, _) => (parameter_types, result)
-    Forall(type_parameters, Function(parameter_types, result, _)) => {
-      guard self.infer_application_generic_arguments(scope, type_parameters, {
-          parameter_templates: [],
-          argument_expressions: [],
-          result_template: Some(result),
-          expected_result: Some(expected),
-          effect_template: None,
-          expected_effect: None,
-          collect_result_first: true,
-          failure_label: "contextual provider result",
-          loc,
-          report_failure: false,
-        })
-        is Some(inferred) else {
-        return None
-      }
-      (
-        parameter_types.map(fn(parameter) {
-          parameter.substitute(inferred.substitution)
-        }),
-        result.substitute(inferred.substitution),
-      )
+  match matches.length() {
+    0 => {
+      self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
+      None
     }
-    _ => return None
+    1 => Some(matches[0].expression)
+    _ => {
+      self.diagnostics.push({
+        kind: AmbiguousContextualOffer(
+          expected~,
+          candidates=matches.map(contextual_offer_diagnostic_candidate),
+        ),
+        loc,
+      })
+      None
+    }
   }
-  guard parameter_types.length() == parameters.length() else { return None }
-  guard self.type_matches(expected, result, loc) is Some(true) else {
-    return None
-  }
-  let result = []
-  for index in 0..<parameters.length() {
-    result.push({ name: parameters[index].name, type_: parameter_types[index] })
-  }
-  Some(result)
 }
 
 ///|

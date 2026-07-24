@@ -1131,66 +1131,7 @@ test "typecheck matches a generic offered function by its forall type" {
 }
 
 ///|
-test "typecheck applies a generic contextual provider" {
-  let result = expect_typecheck_result(
-    (
-      #|struct Equal[A] {
-      #|  equal : (A, A) -> Bool
-      #|}
-      #|enum List[A] {
-      #|  empty()
-      #|  cons(A, List[A])
-      #|}
-      #|fn consume(auto equal : Equal[List[Int]]) -> Bool {
-      #|  equal.equal(List::empty(), List::empty())
-      #|}
-      #|offer int_equal : Equal[Int] = Equal::{
-      #|  equal: fn(a, b) { builtin("%i64_equal")(a, b) }
-      #|}
-      #|offer fn[A] list_equal(auto offer element : Equal[A]) -> Equal[List[A]] {
-      #|  Equal::{ equal: fn(_a, _b) { true } }
-      #|}
-      #|let answer : Bool = consume()
-    ),
-  )
-  debug_inspect(result.diagnostics, content="[]")
-}
-
-///|
-test "typecheck composes contextual providers" {
-  let result = expect_typecheck_result(
-    (
-      #|struct Equal[A] {
-      #|  equal : (A, A) -> Bool
-      #|}
-      #|enum Option[A] {
-      #|  none()
-      #|  some(A)
-      #|}
-      #|enum List[A] {
-      #|  empty()
-      #|  cons(A, List[A])
-      #|}
-      #|fn consume(auto equal : Equal[List[Option[Int]]]) -> Bool {
-      #|  true
-      #|}
-      #|offer int_equal : Equal[Int] = Equal::{
-      #|  equal: fn(a, b) { builtin("%i64_equal")(a, b) }
-      #|}
-      #|offer fn[A] option_equal(auto offer element : Equal[A]) -> Equal[Option[A]] {
-      #|  Equal::{ equal: fn(_a, _b) { true } }
-      #|}
-      #|offer fn[A] list_equal(auto offer element : Equal[A]) -> Equal[List[A]] {
-      #|  Equal::{ equal: fn(_a, _b) { true } }
-      #|}
-      #|let answer : Bool = consume()
-    ),
-  )
-  debug_inspect(result.diagnostics, content="[]")
-}
-
-///|
-test "typecheck prefers exact evidence over a contextual provider" {
+test "typecheck does not specialize an offered generic function by its result" {
   let result = expect_typecheck_result(
     (
       #|struct Box[A] {
@@ -1199,28 +1140,8 @@ test "typecheck prefers exact evidence over a contextual provider" {
       #|fn consume(auto box : Box[Int]) -> Int {
       #|  box.value
       #|}
-      #|offer int_box : Box[Int] = Box::{ value: 42 }
-      #|offer fn[A] derived_box(auto value : A) -> Box[A] {
+      #|offer fn[A] make_box(value : A) -> Box[A] {
       #|  Box::{ value }
-      #|}
-      #|let answer : Int = consume()
-    ),
-  )
-  debug_inspect(result.diagnostics, content="[]")
-}
-
-///|
-test "typecheck rejects a cyclic contextual provider without exact evidence" {
-  let result = expect_typecheck_result(
-    (
-      #|struct Box[A] {
-      #|  value : A
-      #|}
-      #|fn consume(auto box : Box[Int]) -> Int {
-      #|  box.value
-      #|}
-      #|offer fn[A] cycle(auto box : Box[A]) -> Box[A] {
-      #|  box
       #|}
       #|let answer : Int = consume()
     ),
@@ -1242,9 +1163,7 @@ test "typecheck rejects a Shape witness that escapes into runtime code" {
       #|fn consume(auto shape : Shape[Int]) -> Unit {
       #|  ()
       #|}
-      #|offer fn[A] shape() -> Shape[A] {
-      #|  builtin("%shape")
-      #|}
+      #|offer int_shape : Shape[Int] = builtin("%shape")
       #|let answer : Unit = consume()
     ),
   )
@@ -1474,31 +1393,6 @@ test "typecheck folds a recursive enum Shape through algebra fix" {
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
-}
-
-///|
-test "typecheck does not apply an offered generic function with required arguments as a provider" {
-  let result = expect_typecheck_result(
-    (
-      #|struct Box[A] {
-      #|  value : A
-      #|}
-      #|fn consume(auto box : Box[Int]) -> Int {
-      #|  box.value
-      #|}
-      #|offer fn[A] make_box(value : A) -> Box[A] {
-      #|  Box::{ value }
-      #|}
-      #|let answer : Int = consume()
-    ),
-  )
-  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
-    abort(@prettyprinter.render(result.diagnostics, width=100))
-  }
-  assert_eq(
-    expected,
-    Apply(Constructor({ index: 0 }), [TypeArgument(Primitive(Int))]),
-  )
 }
 
 ///|

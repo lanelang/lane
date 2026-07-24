@@ -565,7 +565,7 @@ fn SemanticChecker::checked_contextual_requirement(
 ) -> CheckedExpressionSynthesis {
   // Shape expansion introduces an ordinary local function with an omitted
   // contextual parameter. The existing direct-call checker owns lookup,
-  // provider composition, ambiguity, shadowing, and cycle handling.
+  // exact matching, ambiguity, and shadowing.
   let function_symbol = self.resolved_source.symbols.define_value(
     "$shape_requirement",
     LocalFunction,

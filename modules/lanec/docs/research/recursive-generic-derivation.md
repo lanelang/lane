@@ -152,9 +152,9 @@ The common structural model supports these conclusions:
 
 1. `Shape[T]` can describe exactly one nominal layer and leave every field at
    its original type.
-2. Folding a field can request ordinary `F[Field]` evidence; a container field
-   can therefore compose through an ordinary provider such as
-   `F[A] -> F[List[A]]`.
+2. Folding a field can request ordinary `F[Field]` evidence. A library can
+   expose an ordinary function such as `F[A] -> F[List[A]]`, and users call it
+   explicitly when constructing exact evidence for a container field.
 3. Recursive construction needs an explicit semantic boundary somewhere, but
    it need not be a lazy contextual dictionary. Lane's subsequent design in
    [ADR 0120][lane-adr] makes recursion a Shape Algebra operation
