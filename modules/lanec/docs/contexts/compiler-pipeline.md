@@ -29,13 +29,6 @@ expression sugar, expansion preserves the lexical left-to-right evaluation of
 authored child expressions and never duplicates or discards their evaluation.
 _Avoid_: resolver special case, typechecker sugar rule, formatter reconstruction
 
-**Surface Presentation Map**:
-A non-semantic sidecar produced with Surface Sugar Expansion that records the
-structural paths of authored tuple type nodes. Value hover, completion, and
-exported value signatures apply those paths to the checked type, so visible
-names come from the checked module interface rather than captured source text.
-_Avoid_: semantic type metadata, symbol-name re-sugaring, internal IR pretty print
-
 **Surface Source Provenance**:
 The mapping from nodes introduced by Surface Sugar Expansion to the real source
 span of the authored sugar node that produced them. Generated qualified names
@@ -359,9 +352,6 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
   resolved into a **Resolved AST**.
 - List and tuple syntax are absent after **Surface Sugar Expansion**; resolution
   and typechecking observe only ordinary qualified nominal syntax.
-- **Surface Sugar Expansion** produces a **Surface Presentation Map** alongside
-  expanded syntax; semantic equality, internal IR, and canonical artifacts do
-  not consume that sidecar.
 - Nodes introduced by **Surface Sugar Expansion** carry **Surface Source
   Provenance**, so diagnostics and source tooling point to authored sugar rather
   than synthetic qualified names.
