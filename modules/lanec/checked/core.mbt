@@ -301,6 +301,7 @@ pub(all) struct CheckedStructTypeWitness {
 ///|
 pub(all) struct CheckedStructLiteralField {
   symbol : FieldSymbolId
+  index : Int
   name : String
   value : CheckedExpr
   loc : SourceSpan

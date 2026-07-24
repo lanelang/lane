@@ -44,16 +44,9 @@ fn BuslaneLowerer::lower_expr(
       self.lower_handler(body, handlers, final_branch, type_)
     Field(base~, field~, ..) => self.lower_field(base, field)
     StructLiteral(symbol~, generic_arguments~, type_witnesses~, fields~, ..) =>
-      Construct({
-        data_constructor: self.struct_constructor_id(symbol),
-        type_arguments: generic_arguments.map(fn(argument) {
-          self.lower_generic_argument(argument)
-        }),
-        hidden_witnesses: type_witnesses.map(fn(witness) {
-          TypeArgument(self.lower_type(witness.type_))
-        }),
-        payloads: fields.map(fn(field) { self.lower_expr(field.value) }),
-      })
+      self.lower_struct_literal(
+        symbol, generic_arguments, type_witnesses, fields,
+      )
     Variant(symbol~, generic_arguments~, arguments~, type_~, ..) =>
       Construct({
         data_constructor: self.data_constructor_id(symbol),
@@ -64,6 +57,81 @@ fn BuslaneLowerer::lower_expr(
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
   }
+}
+
+///|
+fn BuslaneLowerer::lower_struct_literal(
+  self : BuslaneLowerer,
+  symbol : @symbol.TypeSymbolId,
+  generic_arguments : Array[@types.GenericArgument],
+  type_witnesses : Array[@checked.CheckedStructTypeWitness],
+  fields : Array[@checked.CheckedStructLiteralField],
+) -> @buslane.Expr {
+  if struct_fields_match_layout(fields) {
+    return self.lower_struct_construct(
+      symbol,
+      generic_arguments,
+      type_witnesses,
+      fields.map(fn(field) { self.lower_expr(field.value) }),
+    )
+  }
+  let bindings : Array[@buslane.ValueId?] = Array::make(fields.length(), None)
+  let initializers : Array[(@buslane.ValueId, @buslane.Expr)] = []
+  for field in fields {
+    let binding = self.define_fresh_value(
+      field.name,
+      Local,
+      self.lower_type(field.value.type_()),
+    )
+    bindings[field.index] = Some(binding)
+    initializers.push((binding, self.lower_expr(field.value)))
+  }
+  let payloads = bindings.map(fn(binding) {
+    guard binding is Some(binding) else {
+      abort("checked struct literal is missing a declared field")
+    }
+    @buslane.Expr::Ref(binding)
+  })
+  let mut body = self.lower_struct_construct(
+    symbol, generic_arguments, type_witnesses, payloads,
+  )
+  for entry in initializers.rev_iter() {
+    let (binding, initializer) = entry
+    body = Let(binding, initializer, body)
+  }
+  body
+}
+
+///|
+fn BuslaneLowerer::lower_struct_construct(
+  self : BuslaneLowerer,
+  symbol : @symbol.TypeSymbolId,
+  generic_arguments : Array[@types.GenericArgument],
+  type_witnesses : Array[@checked.CheckedStructTypeWitness],
+  payloads : Array[@buslane.Expr],
+) -> @buslane.Expr {
+  Construct({
+    data_constructor: self.struct_constructor_id(symbol),
+    type_arguments: generic_arguments.map(fn(argument) {
+      self.lower_generic_argument(argument)
+    }),
+    hidden_witnesses: type_witnesses.map(fn(witness) {
+      TypeArgument(self.lower_type(witness.type_))
+    }),
+    payloads,
+  })
+}
+
+///|
+fn struct_fields_match_layout(
+  fields : Array[@checked.CheckedStructLiteralField],
+) -> Bool {
+  for index in 0..<fields.length() {
+    if fields[index].index != index {
+      return false
+    }
+  }
+  true
 }
 
 ///|

@@ -481,6 +481,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
           effects.push(checked.effect)
           checked_fields.push({
             symbol: field_symbol,
+            index: field_declaration.index,
             name,
             value,
             loc: field_loc,

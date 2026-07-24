@@ -81,10 +81,13 @@ fn checked_source_for_elaborate_test(
 ///|
 fn checked_module_for_elaborate_test(
   source : String,
+  registry : @symbol.SymbolRegistry,
   imported : @module_interface.ImportedEnvironment,
 ) -> @typecheck.CheckedSourceTypeCheckResult {
   let file = expect_parse_module_ok(source)
-  let resolution = @resolve.resolve_source_file_result(file)
+  let resolution = @resolve.resolve_source_file_with_imports_result(
+    file, registry, imported,
+  )
   if !resolution.diagnostics.is_empty() {
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
@@ -250,6 +253,59 @@ fn BuslaneLoweringShape::add_expr(
         }
       }
     }
+  }
+}
+
+///|
+priv struct StructLiteralLoweringOrder {
+  evaluation_order : Array[String]
+  payload_order : Array[String]
+} derive(Debug)
+
+///|
+fn struct_literal_lowering_order(
+  program : @buslane.Program,
+  binding_name : String,
+) -> StructLiteralLoweringOrder {
+  for term in program.terms {
+    guard term is Let(id, initializer) else { continue }
+    if program.metadata.values[id.index].name.occurrence == binding_name {
+      let evaluation_order = []
+      let payload_order = collect_struct_literal_lowering_order(
+        program, initializer, evaluation_order,
+      )
+      return { evaluation_order, payload_order }
+    }
+  }
+  abort("expected struct literal binding")
+}
+
+///|
+fn collect_struct_literal_lowering_order(
+  program : @buslane.Program,
+  expression : @buslane.Expr,
+  evaluation_order : Array[String],
+) -> Array[String] {
+  match expression {
+    Let(_, Call(Ref(callee), []), body) => {
+      evaluation_order.push(
+        program.metadata.values[callee.index].name.occurrence,
+      )
+      collect_struct_literal_lowering_order(program, body, evaluation_order)
+    }
+    Construct(construct) =>
+      construct.payloads.map(fn(payload) {
+        match payload {
+          Ref(id) => program.metadata.values[id.index].name.occurrence
+          Call(Ref(callee), []) => {
+            let name = program.metadata.values[callee.index].name.occurrence
+            evaluation_order.push(name)
+            name
+          }
+          _ => abort("expected field call or lowered field binding")
+        }
+      })
+    _ => abort("expected lowered struct literal")
   }
 }
 
@@ -601,11 +657,13 @@ test "buslane lowering registry covers nominal and effect declarations" {
 
 ///|
 test "buslane lowering registry covers imported references" {
+  let registry = @symbol.SymbolRegistry()
   let lib = checked_module_for_elaborate_test(
     (
       #|module Lib
       #|pub struct Box {
-      #|  value : Int
+      #|  first : Int
+      #|  second : Int
       #|}
       #|pub effect Console {
       #|  read() -> Int
@@ -614,6 +672,7 @@ test "buslane lowering registry covers imported references" {
       #|  Console::read!()
       #|}
     ),
+    registry,
     { modules: [] },
   )
   if !lib.diagnostics.is_empty() {
@@ -629,8 +688,12 @@ test "buslane lowering registry covers imported references" {
   let main = checked_module_for_elaborate_test(
     (
       #|module Main
-      #|pub let answer : Int = 1
+      #|import Lib.{ Box }
+      #|fn first() -> Int { 1 }
+      #|fn second() -> Int { 2 }
+      #|pub let answer : Box = Box::{ second: second(), first: first() }
     ),
+    registry,
     imported,
   )
   if !main.diagnostics.is_empty() {
@@ -642,6 +705,18 @@ test "buslane lowering registry covers imported references" {
     { direct: imported, available: imported },
   )
   guard object is Ok(object) else { abort("expected imported lowering") }
+  debug_inspect(
+    struct_literal_lowering_order(
+      { metadata: object.metadata, terms: object.terms },
+      "answer",
+    ),
+    content=(
+      #|{
+      #|  evaluation_order: ["second", "first"],
+      #|  payload_order: ["first", "second"],
+      #|}
+    ),
+  )
   guard object.imports.any(fn(item) {
     item.kind is Type && item.type_id is Some(_)
   }) else {

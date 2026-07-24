@@ -234,6 +234,7 @@ fn CheckedStructLiteralField::substitute(
 ) -> CheckedStructLiteralField {
   {
     symbol: self.symbol,
+    index: self.index,
     name: self.name,
     value: self.value.substitute(substitution),
     loc: self.loc,
