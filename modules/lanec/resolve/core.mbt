@@ -2,18 +2,11 @@
 pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
   symbols : SymbolRegistry
-  value_type_presentations : Array[ResolvedValueTypePresentation]
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : SourceSpan
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ResolvedValueTypePresentation {
-  loc : SourceSpan
-  tuple_presentations : Array[@types.TuplePresentation]
 } derive(Debug, Eq)
 
 ///|

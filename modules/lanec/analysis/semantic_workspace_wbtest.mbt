@@ -143,7 +143,7 @@ test "semantic snapshot queries use persistent source indexes" {
 }
 
 ///|
-test "local hover preserves authored tuple signature presentation" {
+test "local hover uses nominal tuple presentation" {
   let workspace = SemanticWorkspace::new()
   let main =
     #|module Main
@@ -169,7 +169,7 @@ test "local hover preserves authored tuple signature presentation" {
   guard snapshot.hover_at("file:///Main.lane", 5, 8) is Some(hover) else {
     abort("expected local tuple hover")
   }
-  assert_eq(hover.contents, "pair : (Int, Bool)")
+  assert_eq(hover.contents, "pair : Tuple[Int, Bool]")
 }
 
 ///|

@@ -135,7 +135,6 @@ pub(all) struct ModuleInterfaceValue {
   is_offered : Bool
   name : String
   type_ : @types.Type
-  tuple_presentations : Array[@types.TuplePresentation]
   parameters : Array[ModuleInterfaceValueParameter]?
   loc : SourceSpan
 } derive(Debug, Eq)

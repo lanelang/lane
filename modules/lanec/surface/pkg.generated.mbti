@@ -4,7 +4,6 @@ package "Milky2018/lanec/surface"
 import {
   "Milky2018/lanec/basic",
   "Milky2018/lanec/syntax",
-  "Milky2018/lanec/types",
   "moonbitlang/core/debug",
 }
 
@@ -16,18 +15,12 @@ pub fn expand_source(@syntax.SourceFile) -> SurfaceExpansion
 // Types and methods
 pub(all) struct SurfaceExpansion {
   source : @syntax.SourceFile
-  value_type_presentations : Array[SurfaceValueTypePresentation]
   generated_references : Array[SurfaceGeneratedReference]
 } derive(Eq, @debug.Debug)
 
 pub(all) enum SurfaceGeneratedReference {
   Type(name~ : String, loc~ : @basic.SourceSpan)
   Variant(type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
-} derive(Eq, @debug.Debug)
-
-pub(all) struct SurfaceValueTypePresentation {
-  loc : @basic.SourceSpan
-  tuple_presentations : Array[@types.TuplePresentation]
 } derive(Eq, @debug.Debug)
 
 // Type aliases

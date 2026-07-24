@@ -480,7 +480,7 @@ test "completion uses importer revision symbol metadata" {
 }
 
 ///|
-test "imported completion preserves authored tuple signature presentation" {
+test "imported completion uses nominal tuple signature presentation" {
   let root =
     #|module Main
     #|
@@ -524,7 +524,7 @@ test "imported completion preserves authored tuple signature presentation" {
     .map(fn(entry) { (entry.label, entry.detail) }),
     content=(
       #|[
-      #|  ("sugared", Some("sugared : (Int) -> (Int, Bool)")),
+      #|  ("sugared", Some("sugared : (Int) -> Tuple[Int, Bool]")),
       #|  ("explicit", Some("explicit : (Int) -> Tuple[Int, Bool]")),
       #|]
     ),
@@ -532,7 +532,7 @@ test "imported completion preserves authored tuple signature presentation" {
 }
 
 ///|
-test "imported tuple presentation does not expose private aliases" {
+test "imported nominal tuple signature does not expose private aliases" {
   let root =
     #|module Main
     #|
@@ -572,7 +572,99 @@ test "imported tuple presentation does not expose private aliases" {
     entries
     .filter(fn(entry) { entry.label == "exposed" })
     .map(fn(entry) { entry.detail }),
-    content="[Some(\"exposed : (Int) -> (Int, Bool)\")]",
+    content="[Some(\"exposed : (Int) -> Tuple[Int, Bool]\")]",
+  )
+}
+
+///|
+test "alias normalization uses safe nominal presentation" {
+  let root =
+    #|module Main
+    #|
+    #|import A
+    #|
+    #|pub fn use() -> Unit {
+    #|  A.moved(())
+    #|}
+  let library =
+    #|module A
+    #|
+    #|import Basic.Data.Tuple
+    #|
+    #|pub enum Pairish[A, B] {
+    #|  pairish(A, B)
+    #|}
+    #|
+    #|pub enum Other[A, B] {
+    #|  other(A, B)
+    #|}
+    #|
+    #|type Wrap[A] = Other[Pairish[Int, Bool], A]
+    #|type Swap[A, B] = Other[B, A]
+    #|type Dup[A] = Other[A, A]
+    #|type Drop[_A] = Pairish[Int, Bool]
+    #|
+    #|pub fn moved(_value : Wrap[(Int, Bool)]) -> Unit {
+    #|  ()
+    #|}
+    #|
+    #|pub fn swapped(_value : Swap[(Int, Bool), String]) -> Unit {
+    #|  ()
+    #|}
+    #|
+    #|pub fn duplicated(_value : Dup[(Int, Bool)]) -> Unit {
+    #|  ()
+    #|}
+    #|
+    #|pub fn dropped(_value : Drop[(Int, Bool)]) -> Unit {
+    #|  ()
+    #|}
+  let tuple =
+    #|module Basic.Data.Tuple
+    #|
+    #|pub enum Tuple[A, B] {
+    #|  tuple(A, B)
+    #|}
+  let analyzed = analyze_test_sources(library, [tuple])
+  debug_inspect(analyzed.diagnostics, content="[]")
+  let inputs : Array[@module_frontend.SourceInput] = [
+    { source_id: "file:///A.lane", text: library },
+    { source_id: "file:///Tuple.lane", text: tuple },
+  ]
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: root },
+    inputs,
+    "file:///Main.lane",
+    6,
+    5,
+    TriggerCharacter("."),
+  )
+  debug_inspect(
+    entries
+    .filter(fn(entry) {
+      entry.label == "moved" ||
+      entry.label == "swapped" ||
+      entry.label == "duplicated" ||
+      entry.label == "dropped"
+    })
+    .map(fn(entry) { (entry.label, entry.detail) }),
+    content=(
+      #|[
+      #|  (
+      #|    "moved",
+      #|    Some("moved : (Other[Pairish[Int, Bool], Tuple[Int, Bool]]) -> Unit"),
+      #|  ),
+      #|  ("dropped", Some("dropped : (Pairish[Int, Bool]) -> Unit")),
+      #|  (
+      #|    "swapped",
+      #|    Some("swapped : (Other[String, Tuple[Int, Bool]]) -> Unit"),
+      #|  ),
+      #|  (
+      #|    "duplicated",
+      #|    Some("duplicated : (Other[Tuple[Int, Bool], Tuple[Int, Bool]]) -> Unit"),
+      #|  ),
+      #|]
+    ),
   )
 }
 

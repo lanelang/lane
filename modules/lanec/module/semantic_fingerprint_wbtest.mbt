@@ -29,7 +29,6 @@ fn invalid_reference_interface() -> ModuleInterface {
         is_offered: false,
         name: "value",
         type_: Constructor(missing_type),
-        tuple_presentations: [],
         parameters: None,
         loc: @basic.SourceSpan::dummy(),
       },
@@ -56,7 +55,6 @@ fn generic_identity_interface(binder_name : String) -> ModuleInterface {
           [parameter],
           Function([Parameter(parameter.id)], Parameter(parameter.id), Empty),
         ),
-        tuple_presentations: [],
         parameters: Some([
           {
             symbol: { index: 1 },
@@ -110,24 +108,6 @@ test "presentation fingerprint tracks generic binder names" {
   assert_eq(with_t.semantic_fingerprint(), with_u.semantic_fingerprint())
   assert_false(
     with_t.presentation_fingerprint() == with_u.presentation_fingerprint(),
-  )
-}
-
-///|
-test "tuple presentation changes only presentation fingerprint" {
-  let nominal = generic_identity_interface("T")
-  let tuple = {
-    ..nominal,
-    values: nominal.values.map(fn(value) {
-      {
-        ..value,
-        tuple_presentations: [{ path: [FunctionResult], item_count: 2 }],
-      }
-    }),
-  }
-  assert_eq(nominal.semantic_fingerprint(), tuple.semantic_fingerprint())
-  assert_false(
-    nominal.presentation_fingerprint() == tuple.presentation_fingerprint(),
   )
 }
 

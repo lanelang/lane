@@ -292,41 +292,6 @@ fn CanonicalInterfaceEncoder::write_values(
       }
       None => self.writer.write_bool(false)
     }
-    self.write_tuple_presentations(value.tuple_presentations)
-  }
-}
-
-///|
-fn CanonicalInterfaceEncoder::write_tuple_presentations(
-  self : CanonicalInterfaceEncoder,
-  presentations : Array[@types.TuplePresentation],
-) -> Unit {
-  self.presentation.write_u32_le_int(presentations.length())
-  for presentation in presentations {
-    self.presentation.write_u32_le_int(presentation.path.length())
-    for step in presentation.path {
-      self.presentation.write_u8(
-        match step {
-          TypeApplicationCallee => 0
-          TypeApplicationArgument(_) => 1
-          TypeLambdaBody => 2
-          FunctionParameter(_) => 3
-          FunctionResult => 4
-          FunctionEffect => 5
-          EffectTerm => 6
-          EffectUnionItem(_) => 7
-          TupleItem(_) => 8
-        },
-      )
-      match step {
-        TypeApplicationArgument(index)
-        | FunctionParameter(index)
-        | EffectUnionItem(index)
-        | TupleItem(index) => self.presentation.write_u32_le_int(index)
-        _ => ()
-      }
-    }
-    self.presentation.write_u32_le_int(presentation.item_count)
   }
 }
 

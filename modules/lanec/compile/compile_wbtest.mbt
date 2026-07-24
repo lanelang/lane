@@ -1929,7 +1929,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 6
+      #|schema: 7
       #|
       #|imported interfaces:
       #|  (none)
@@ -2099,7 +2099,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 6
+      #|schema: 7
       #|
       #|imported interfaces:
       #|  (none)
@@ -2519,7 +2519,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 6
+      #|schema: 7
       #|
       #|imported interfaces:
       #|  (none)
@@ -4022,7 +4022,7 @@ test "compile tuple and list sugar through fixed qualified providers" {
 }
 
 ///|
-test "tuple signature presentation roundtrips through interface artifacts" {
+test "tuple signatures use safe nominal artifact presentation" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -4049,26 +4049,6 @@ test "tuple signature presentation roundtrips through interface artifacts" {
   let binary = @artifact_binary.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   )
-  guard @artifact_binary.parse_module_interface_artifact_binary(binary)
-    is Ok(artifact) else {
-    abort("expected decoded interface artifact")
-  }
-  debug_inspect(
-    artifact.interface.values.map(fn(value) {
-      (value.name, value.tuple_presentations)
-    }),
-    content=(
-      #|[
-      #|  (
-      #|    "pair",
-      #|    [
-      #|      { path: [FunctionParameter(0)], item_count: 2 },
-      #|      { path: [FunctionResult], item_count: 2 },
-      #|    ],
-      #|  ),
-      #|]
-    ),
-  )
   let inspect_text = match
     @artifact_binary.artifact_binary_to_inspect_text(binary) {
     Ok(text) => text
@@ -4079,7 +4059,7 @@ test "tuple signature presentation roundtrips through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 6
+      #|schema: 7
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0
@@ -4092,7 +4072,7 @@ test "tuple signature presentation roundtrips through interface artifacts" {
       #|type aliases:
       #|  (none)
       #|values:
-      #|  pub fn pair(value : (Int, Bool)) : ((Int, Bool)) -> (Int, Bool)
+      #|  pub fn pair(value : Tuple[Int, Bool]) : (Tuple[Int, Bool]) -> Tuple[Int, Bool]
       #|
     ),
   )

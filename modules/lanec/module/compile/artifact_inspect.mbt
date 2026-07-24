@@ -507,24 +507,16 @@ fn ArtifactInspectContext::interface_value_text(
   display : @typecheck.TypeDisplayContext,
 ) -> String {
   let offered = if value.is_offered { "offer " } else { "" }
-  let type_text = display.type_text_with_tuple_presentations(
-    value.type_,
-    value.tuple_presentations,
-  )
+  let type_text = display.type_text(value.type_)
   match value.kind {
     Function =>
       if value.parameters is Some(parameters) {
-        let parameter_text = []
-        for index, parameter in parameters {
-          let parameter_type_text = display.type_text_with_tuple_presentations_at(
-            parameter.type_,
-            value.tuple_presentations,
-            [FunctionParameter(index)],
+        let parameter_text = parameters.map(fn(parameter) {
+          self.value_parameter_text(
+            parameter,
+            display.type_text(parameter.type_),
           )
-          parameter_text.push(
-            self.value_parameter_text(parameter, parameter_type_text),
-          )
-        }
+        })
         "pub \{offered}fn \{value.name}(\{parameter_text.join(", ")}) : \{type_text}"
       } else {
         "pub \{offered}fn \{value.name} : \{type_text}"

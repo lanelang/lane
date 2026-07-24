@@ -60,23 +60,6 @@ pub(all) enum PrimitiveType {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for PrimitiveType
 
-pub(all) struct TuplePresentation {
-  path : Array[TuplePresentationPathStep]
-  item_count : Int
-} derive(Eq, @debug.Debug)
-
-pub(all) enum TuplePresentationPathStep {
-  TypeApplicationCallee
-  TypeApplicationArgument(Int)
-  TypeLambdaBody
-  FunctionParameter(Int)
-  FunctionResult
-  FunctionEffect
-  EffectTerm
-  EffectUnionItem(Int)
-  TupleItem(Int)
-} derive(Eq, @debug.Debug)
-
 pub(all) enum Type {
   Error
   Primitive(PrimitiveType)

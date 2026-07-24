@@ -483,10 +483,7 @@ fn CompletionIndex::add_interface_surface_entries(
       Function => Function
       Let => Value
     }
-    let type_text = display.type_text_with_tuple_presentations(
-      value.type_,
-      value.tuple_presentations,
-    )
+    let type_text = display.type_text(value.type_)
     add_completion_entry(
       entries,
       source_id,

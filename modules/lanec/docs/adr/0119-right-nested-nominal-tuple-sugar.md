@@ -47,11 +47,13 @@ materialize nested nominal values when they escape.
 - Incomplete tuple syntax exposes zero-width expected type, expression, or
   pattern slots through the tolerant parser. Completion consumes those roles
   without punctuation scans or tuple-specific inference.
-- Value hover, completion, and exported value signature display consume the
-  surface-presentation sidecar. The sidecar stores structural tuple paths, not
-  a pre-rendered signature, and is applied to the exported checked type. It has
-  a separate presentation fingerprint, preserves the difference between
-  authored tuple syntax and explicit nominal syntax, and does not affect
-  semantic equality.
-- Internal IR printers and the semantic portion of artifact encoding expose
-  the true nominal expansion.
+- Type display after checking exposes the true nominal expansion. The compiler
+  does not apply paths collected from the surface syntax to a normalized type:
+  alias expansion and type-parameter substitution may move, copy, or discard
+  subtrees, so such paths do not identify the same nodes.
+- Restoring authored tuple syntax across checking or module boundaries requires
+  transformation-aware provenance. Alias expansion, beta reduction, and every
+  type substitution must transform provenance together with the type. Until
+  that representation exists, hover, completion, exported signatures, artifact
+  inspection, and internal IR printers all use the nominal form rather than
+  risk displaying a different type.

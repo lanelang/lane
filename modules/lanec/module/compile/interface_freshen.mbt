@@ -395,7 +395,6 @@ fn InterfaceSymbolFreshener::freshen_value(
     is_offered: value.is_offered,
     name: value.name,
     type_: self.freshen_lane_type(value.type_),
-    tuple_presentations: value.tuple_presentations,
     parameters: value.parameters.map(fn(parameters) {
       parameters.map(fn(parameter) { self.freshen_value_parameter(parameter) })
     }),

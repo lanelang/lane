@@ -483,7 +483,6 @@ fn @bytecodec.ByteWriter::write_module_interface_values(
     self.write_bool(item.is_offered)
     self.write_string(item.name)
     self.write_lane_type(item.type_)
-    self.write_tuple_presentations(item.tuple_presentations)
     self.write_optional_value_parameters(item.parameters)
     self.write_source_span(item.loc)
   }
@@ -501,126 +500,11 @@ fn @bytecodec.ByteReader::read_module_interface_values(
       is_offered: self.read_bool(),
       name: self.read_string(),
       type_: self.read_lane_type(),
-      tuple_presentations: self.read_tuple_presentations(),
       parameters: self.read_optional_value_parameters(),
       loc: self.read_source_span(),
     })
   }
   items
-}
-
-///|
-fn @bytecodec.ByteWriter::write_tuple_presentations(
-  self : @bytecodec.ByteWriter,
-  presentations : Array[@types.TuplePresentation],
-) -> Unit {
-  self.write_u32_le_int(presentations.length())
-  for presentation in presentations {
-    self.write_u32_le_int(presentation.path.length())
-    for step in presentation.path {
-      self.write_tuple_presentation_path_step(step)
-    }
-    self.write_u32_le_int(presentation.item_count)
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_tuple_presentations(
-  self : @bytecodec.ByteReader,
-) -> Array[@types.TuplePresentation] raise {
-  let presentations : Array[@types.TuplePresentation] = []
-  for _ in 0..<self.read_u32_le_int() {
-    let path = []
-    for _ in 0..<self.read_u32_le_int() {
-      path.push(self.read_tuple_presentation_path_step())
-    }
-    presentations.push({ path, item_count: self.read_u32_le_int() })
-  }
-  presentations
-}
-
-///|
-fn @bytecodec.ByteWriter::write_tuple_presentation_path_step(
-  self : @bytecodec.ByteWriter,
-  step : @types.TuplePresentationPathStep,
-) -> Unit {
-  match step {
-    TypeApplicationCallee => self.write_u8(0)
-    TypeApplicationArgument(index) => {
-      self.write_u8(1)
-      self.write_u32_le_int(index)
-    }
-    TypeLambdaBody => self.write_u8(2)
-    FunctionParameter(index) => {
-      self.write_u8(3)
-      self.write_u32_le_int(index)
-    }
-    FunctionResult => self.write_u8(4)
-    FunctionEffect => self.write_u8(5)
-    EffectTerm => self.write_u8(6)
-    EffectUnionItem(index) => {
-      self.write_u8(7)
-      self.write_u32_le_int(index)
-    }
-    TupleItem(index) => {
-      self.write_u8(8)
-      self.write_u32_le_int(index)
-    }
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_tuple_presentation_path_step(
-  self : @bytecodec.ByteReader,
-) -> @types.TuplePresentationPathStep raise {
-  let offset = self.offset()
-  match self.view() {
-    [u8be(0), .. rest] => {
-      self.update_view(rest)
-      TypeApplicationCallee
-    }
-    [u8be(1), .. rest] => {
-      self.update_view(rest)
-      TypeApplicationArgument(self.read_u32_le_int())
-    }
-    [u8be(2), .. rest] => {
-      self.update_view(rest)
-      TypeLambdaBody
-    }
-    [u8be(3), .. rest] => {
-      self.update_view(rest)
-      FunctionParameter(self.read_u32_le_int())
-    }
-    [u8be(4), .. rest] => {
-      self.update_view(rest)
-      FunctionResult
-    }
-    [u8be(5), .. rest] => {
-      self.update_view(rest)
-      FunctionEffect
-    }
-    [u8be(6), .. rest] => {
-      self.update_view(rest)
-      EffectTerm
-    }
-    [u8be(7), .. rest] => {
-      self.update_view(rest)
-      EffectUnionItem(self.read_u32_le_int())
-    }
-    [u8be(8), .. rest] => {
-      self.update_view(rest)
-      TupleItem(self.read_u32_le_int())
-    }
-    [u8be(tag), .. rest] => {
-      self.update_view(rest)
-      invalid_binary_tag(
-        offset~,
-        domain="TuplePresentationPathStep",
-        tag=tag.reinterpret_as_int(),
-      )
-    }
-    _ => unexpected_u8(self)
-  }
 }
 
 ///|

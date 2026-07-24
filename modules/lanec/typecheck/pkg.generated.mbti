@@ -300,8 +300,6 @@ pub fn TypeDisplayContext::kind_text(Self, @types.Kind) -> String
 pub fn TypeDisplayContext::operation_text(Self, @symbol.OperationSymbolId) -> String
 pub fn TypeDisplayContext::type_parameter_binding_text(Self, @types.TypeParameter) -> String
 pub fn TypeDisplayContext::type_text(Self, @types.Type) -> String
-pub fn TypeDisplayContext::type_text_with_tuple_presentations(Self, @types.Type, Array[@types.TuplePresentation]) -> String
-pub fn TypeDisplayContext::type_text_with_tuple_presentations_at(Self, @types.Type, Array[@types.TuplePresentation], Array[@types.TuplePresentationPathStep]) -> String
 
 // Type aliases
 

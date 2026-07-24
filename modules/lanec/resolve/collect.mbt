@@ -132,18 +132,6 @@ fn[T] surface_sugar_reached_resolver() -> T {
 }
 
 ///|
-fn resolved_value_type_presentations(
-  presentations : Array[@surface.SurfaceValueTypePresentation],
-) -> Array[ResolvedValueTypePresentation] {
-  presentations.map(fn(presentation) {
-    {
-      loc: presentation.loc,
-      tuple_presentations: presentation.tuple_presentations,
-    }
-  })
-}
-
-///|
 /// Resolves a syntax source file and returns diagnostics with the result.
 ///
 /// Example: resolving `fn f(x : Missing) -> Int { x }` records an unresolved
@@ -157,10 +145,7 @@ pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult 
     @module_interface.module_path_text(expanded.source.module_path),
     expanded.generated_references,
   )
-  resolver.resolve_source_file_result(
-    expanded.source,
-    resolved_value_type_presentations(expanded.value_type_presentations),
-  )
+  resolver.resolve_source_file_result(expanded.source)
 }
 
 ///|
@@ -180,17 +165,13 @@ pub fn resolve_source_file_with_imports_result(
     expanded.generated_references,
   )
   resolver.publish_imported_bindings(expanded.source, imported_environment)
-  resolver.resolve_source_file_result(
-    expanded.source,
-    resolved_value_type_presentations(expanded.value_type_presentations),
-  )
+  resolver.resolve_source_file_result(expanded.source)
 }
 
 ///|
 fn Resolver::resolve_source_file_result(
   self : Resolver,
   source : @syntax.SourceFile,
-  value_type_presentations : Array[ResolvedValueTypePresentation],
 ) -> ResolveResult {
   // Headers and nominal members are collected before declaration bodies so
   // top-level functions, structs, enums, fields, and variants can be recursive.
@@ -202,7 +183,6 @@ fn Resolver::resolve_source_file_result(
   let resolved = {
     module_path: source.module_path,
     symbols: self.registry,
-    value_type_presentations,
     import_exposures: self.import_exposures,
     import_uses: self.import_uses,
     import_symbols: self.import_symbols,

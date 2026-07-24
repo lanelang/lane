@@ -128,7 +128,6 @@ priv struct ParameterHintParameter {
 priv struct SemanticIndex {
   registry : @symbol.SymbolRegistry
   source_id : String
-  value_type_presentations : Array[@resolve.ResolvedValueTypePresentation]
   has_checked_source : Bool
   bindings : Array[SemanticBindingFact]
   members : Array[SemanticMemberFact]
@@ -157,7 +156,6 @@ fn SemanticIndex::from_sources(
   let index = SemanticIndex::{
     registry: resolved.symbols,
     source_id,
-    value_type_presentations: resolved.value_type_presentations,
     has_checked_source: checked is Some(_),
     bindings: [],
     members: [],

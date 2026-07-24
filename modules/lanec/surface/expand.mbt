@@ -1,10 +1,4 @@
 ///|
-pub(all) struct SurfaceValueTypePresentation {
-  loc : @basic.SourceSpan
-  tuple_presentations : Array[@types.TuplePresentation]
-} derive(Debug, Eq)
-
-///|
 pub(all) enum SurfaceGeneratedReference {
   Type(name~ : String, loc~ : @basic.SourceSpan)
   Variant(type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
@@ -13,185 +7,20 @@ pub(all) enum SurfaceGeneratedReference {
 ///|
 pub(all) struct SurfaceExpansion {
   source : @syntax.SourceFile
-  value_type_presentations : Array[SurfaceValueTypePresentation]
   generated_references : Array[SurfaceGeneratedReference]
 } derive(Debug, Eq)
 
 ///|
 priv struct SurfaceExpander {
-  value_type_presentations : Array[SurfaceValueTypePresentation]
   generated_references : Array[SurfaceGeneratedReference]
 }
 
 ///|
 pub fn expand_source(source : @syntax.SourceFile) -> SurfaceExpansion {
-  let expander : SurfaceExpander = {
-    value_type_presentations: [],
-    generated_references: [],
-  }
+  let expander : SurfaceExpander = { generated_references: [] }
   {
     source: expander.expand_source(source),
-    value_type_presentations: expander.value_type_presentations,
     generated_references: expander.generated_references,
-  }
-}
-
-///|
-fn tuple_presentation_path(
-  path : Array[@types.TuplePresentationPathStep],
-  step : @types.TuplePresentationPathStep,
-) -> Array[@types.TuplePresentationPathStep] {
-  let result = path.copy()
-  result.push(step)
-  result
-}
-
-///|
-fn flattened_tuple_type_items(
-  items : Array[@syntax.Type],
-) -> Array[@syntax.Type] {
-  let flattened = []
-  for index, item in items {
-    if index == items.length() - 1 && item is Tuple(items=nested, ..) {
-      flattened.append(flattened_tuple_type_items(nested))
-    } else {
-      flattened.push(item)
-    }
-  }
-  flattened
-}
-
-///|
-fn @syntax.Type::collect_tuple_presentations(
-  self : @syntax.Type,
-  path : Array[@types.TuplePresentationPathStep],
-  presentations : Array[@types.TuplePresentation],
-) -> Unit {
-  match self {
-    Name(_) | QualifiedName(_) => ()
-    Apply(callee~, arguments~, ..) => {
-      callee.collect_tuple_presentations(
-        tuple_presentation_path(path, TypeApplicationCallee),
-        presentations,
-      )
-      for index in 0..<arguments.length() {
-        arguments[index].collect_tuple_presentations(
-          tuple_presentation_path(path, TypeApplicationArgument(index)),
-          presentations,
-        )
-      }
-    }
-    TypeLambda(body~, ..) =>
-      body.collect_tuple_presentations(
-        tuple_presentation_path(path, TypeLambdaBody),
-        presentations,
-      )
-    Function(parameters~, result~, effect~, ..) => {
-      for index in 0..<parameters.length() {
-        parameters[index].collect_tuple_presentations(
-          tuple_presentation_path(path, FunctionParameter(index)),
-          presentations,
-        )
-      }
-      result.collect_tuple_presentations(
-        tuple_presentation_path(path, FunctionResult),
-        presentations,
-      )
-      effect.collect_tuple_presentations(
-        tuple_presentation_path(path, FunctionEffect),
-        presentations,
-      )
-    }
-    Tuple(items~, ..) => {
-      let items = flattened_tuple_type_items(items)
-      presentations.push({ path: path.copy(), item_count: items.length() })
-      for index in 0..<items.length() {
-        items[index].collect_tuple_presentations(
-          tuple_presentation_path(path, TupleItem(index)),
-          presentations,
-        )
-      }
-    }
-    Grouped(type_~, ..) =>
-      type_.collect_tuple_presentations(path, presentations)
-  }
-}
-
-///|
-fn @syntax.EffectTerm::collect_tuple_presentations(
-  self : @syntax.EffectTerm,
-  path : Array[@types.TuplePresentationPathStep],
-  presentations : Array[@types.TuplePresentation],
-) -> Unit {
-  match self {
-    Empty(_) => ()
-    Term(type_~, ..) =>
-      type_.collect_tuple_presentations(
-        tuple_presentation_path(path, EffectTerm),
-        presentations,
-      )
-    Union(items~, ..) =>
-      for index in 0..<items.length() {
-        items[index].collect_tuple_presentations(
-          tuple_presentation_path(
-            tuple_presentation_path(path, EffectUnionItem(index)),
-            EffectTerm,
-          ),
-          presentations,
-        )
-      }
-  }
-}
-
-///|
-fn @syntax.GenericArgument::collect_tuple_presentations(
-  self : @syntax.GenericArgument,
-  path : Array[@types.TuplePresentationPathStep],
-  presentations : Array[@types.TuplePresentation],
-) -> Unit {
-  match self {
-    TypeTerm(type_) => type_.collect_tuple_presentations(path, presentations)
-    EffectTerm(effect) =>
-      effect.collect_tuple_presentations(path, presentations)
-  }
-}
-
-///|
-fn SurfaceExpander::record_function_type_presentation(
-  self : SurfaceExpander,
-  declaration : @syntax.FunctionDeclaration,
-) -> Unit {
-  let signature = @syntax.Type::Function(
-    type_parameters=declaration.type_parameters,
-    parameters=declaration.parameters.map(fn(parameter) { parameter.type_ }),
-    result=declaration.return_type,
-    effect=declaration.effect,
-    loc=declaration.loc,
-  )
-  let tuple_presentations = []
-  signature.collect_tuple_presentations([], tuple_presentations)
-  if !tuple_presentations.is_empty() {
-    self.value_type_presentations.push({
-      loc: declaration.loc,
-      tuple_presentations,
-    })
-  }
-}
-
-///|
-fn SurfaceExpander::record_let_type_presentation(
-  self : SurfaceExpander,
-  declaration : @syntax.LetDeclaration,
-) -> Unit {
-  if declaration.type_annotation is Some(type_) {
-    let tuple_presentations = []
-    type_.collect_tuple_presentations([], tuple_presentations)
-    if !tuple_presentations.is_empty() {
-      self.value_type_presentations.push({
-        loc: declaration.loc,
-        tuple_presentations,
-      })
-    }
   }
 }
 
@@ -266,7 +95,6 @@ fn SurfaceExpander::expand_function_declaration(
   self : SurfaceExpander,
   declaration : @syntax.FunctionDeclaration,
 ) -> @syntax.FunctionDeclaration {
-  self.record_function_type_presentation(declaration)
   {
     ..declaration,
     parameters: declaration.parameters.map(fn(parameter) {
@@ -283,7 +111,6 @@ fn SurfaceExpander::expand_let_declaration(
   self : SurfaceExpander,
   declaration : @syntax.LetDeclaration,
 ) -> @syntax.LetDeclaration {
-  self.record_let_type_presentation(declaration)
   {
     ..declaration,
     type_annotation: declaration.type_annotation.map(fn(type_) {

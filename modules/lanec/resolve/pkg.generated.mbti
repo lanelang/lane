@@ -337,7 +337,6 @@ pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
 pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
   symbols : @symbol.SymbolRegistry
-  value_type_presentations : Array[ResolvedValueTypePresentation]
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
@@ -457,11 +456,6 @@ pub(all) enum ResolvedValueReference {
   Unresolved(String)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedValueReference
-
-pub(all) struct ResolvedValueTypePresentation {
-  loc : @basic.SourceSpan
-  tuple_presentations : Array[@types.TuplePresentation]
-} derive(Eq, @debug.Debug)
 
 pub(all) enum ResolvedVariantReference {
   Symbol(@symbol.VariantSymbolId)
