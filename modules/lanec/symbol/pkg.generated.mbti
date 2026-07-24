@@ -143,6 +143,7 @@ pub fn SymbolRegistry::declaration_identities(Self) -> DeclarationIdentities
 pub fn SymbolRegistry::declaration_scope(Self, previous? : DeclarationIdentities?) -> DeclarationSymbolScope
 pub fn SymbolRegistry::define_effect(Self, String, Int, @basic.SourceSpan, flavor? : EffectFlavor) -> EffectSymbolId
 pub fn SymbolRegistry::define_field(Self, TypeSymbolId, String, Int, @basic.SourceSpan) -> FieldSymbolId
+pub fn SymbolRegistry::define_generated_local(Self, String, @basic.SourceSpan) -> ValueSymbolId
 pub fn SymbolRegistry::define_operation(Self, EffectSymbolId, String, Int, Int, @basic.SourceSpan) -> OperationSymbolId
 pub fn SymbolRegistry::define_type(Self, String, NominalTypeKind, Int, @basic.SourceSpan) -> TypeSymbolId
 pub fn SymbolRegistry::define_type_member(Self, TypeSymbolId, String, Int, TypeParameterId, @basic.SourceSpan) -> TypeMemberSymbolId
@@ -151,7 +152,6 @@ pub fn SymbolRegistry::define_value(Self, String, ValueSymbolKind, @basic.Source
 pub fn SymbolRegistry::define_variant(Self, TypeSymbolId, String, Int, Int, @basic.SourceSpan) -> VariantSymbolId
 pub fn SymbolRegistry::effect_metadata(Self, EffectSymbolId) -> EffectSymbolMetadata?
 pub fn SymbolRegistry::field_metadata(Self, FieldSymbolId) -> FieldSymbolMetadata?
-pub fn SymbolRegistry::fresh_value_identity(Self) -> ValueSymbolId
 pub fn SymbolRegistry::metadata_for(Self, Array[SymbolId]) -> SymbolMetadataArena
 pub fn SymbolRegistry::operation_metadata(Self, OperationSymbolId) -> OperationSymbolMetadata?
 pub fn SymbolRegistry::type_member_metadata(Self, TypeMemberSymbolId) -> TypeMemberSymbolMetadata?
@@ -221,9 +221,15 @@ pub(all) struct ValueSymbolMetadata {
   id : ValueSymbolId
   name : String
   kind : ValueSymbolKind
+  provenance : ValueSymbolProvenance
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ValueSymbolMetadata
+
+pub(all) enum ValueSymbolProvenance {
+  Authored
+  GeneratedLocal
+} derive(Eq, @debug.Debug)
 
 pub(all) struct VariantSymbolId {
   index : Int

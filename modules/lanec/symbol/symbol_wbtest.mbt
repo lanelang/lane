@@ -61,6 +61,33 @@ test "symbol registry looks up owned metadata" {
 }
 
 ///|
+test "generated values have registry metadata" {
+  let registry = SymbolRegistry()
+  let generated = registry.define_generated_local("_generated", loc())
+  debug_inspect(
+    registry.value_metadata(generated),
+    content=(
+      #|Some(
+      #|  {
+      #|    id: { index: 0 },
+      #|    name: "_generated",
+      #|    kind: LocalBinding,
+      #|    provenance: GeneratedLocal,
+      #|    loc: {
+      #|      start_offset: 0,
+      #|      end_offset: 0,
+      #|      start_line: 1,
+      #|      start_column: 1,
+      #|      end_line: 1,
+      #|      end_column: 1,
+      #|    },
+      #|  },
+      #|)
+    ),
+  )
+}
+
+///|
 test "declaration scopes keep stable identities across revisions" {
   let allocator = SymbolIdentityAllocator()
   let first_registry = allocator.registry()

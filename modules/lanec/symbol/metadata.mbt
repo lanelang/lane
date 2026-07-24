@@ -22,6 +22,12 @@ pub(all) enum ValueSymbolKind {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ValueSymbolProvenance {
+  Authored
+  GeneratedLocal
+} derive(Debug, Eq)
+
+///|
 pub(all) struct TypeSymbolMetadata {
   id : TypeSymbolId
   name : String
@@ -52,6 +58,7 @@ pub(all) struct ValueSymbolMetadata {
   id : ValueSymbolId
   name : String
   kind : ValueSymbolKind
+  provenance : ValueSymbolProvenance
   loc : SourceSpan
 } derive(Debug, Eq)
 

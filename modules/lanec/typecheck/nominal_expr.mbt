@@ -538,7 +538,10 @@ fn SemanticChecker::synthesize_checked_struct_literal(
       for indexed_field in checked_fields_in_source_order {
         let (field_index, field) = indexed_field
         let temporary_name = "_struct_field_\{field.name}"
-        let temporary_symbol = self.resolved_source.symbols.fresh_value_identity()
+        let temporary_symbol = self.resolved_source.symbols.define_generated_local(
+          temporary_name,
+          field.loc,
+        )
         let field_type = field.value.type_()
         items.push(
           Let({

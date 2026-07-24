@@ -27,6 +27,10 @@ fn SemanticIndex::enrich_binding(
   detail : String,
   type_ : @types.Type?,
 ) -> Unit {
+  if identity is ValueBinding(symbol) &&
+    value_provenance(self.registry, symbol) is GeneratedLocal {
+    return
+  }
   for binding in self.bindings {
     if binding.identity == identity {
       binding.detail = detail
@@ -253,7 +257,7 @@ fn SemanticIndex::enrich_checked_local_item(
         "\{declaration.name} : \{type_text}",
         Some(declaration.type_),
       )
-      if self.registry.value_metadata(declaration.symbol) is Some(_) &&
+      if value_provenance(self.registry, declaration.symbol) is Authored &&
         !self.annotated_values.contains(declaration.symbol) {
         self.add_type_inlay_hint(
           declaration.name_loc,
@@ -297,7 +301,7 @@ fn SemanticIndex::enrich_checked_expr(
   self.collect_checked_expr_types(expr)
   match expr {
     Value(name~, symbol~, type_~, loc~) =>
-      if self.registry.value_metadata(symbol) is Some(_) {
+      if value_provenance(self.registry, symbol) is Authored {
         self.add_reference(
           Value(symbol),
           loc,
@@ -414,6 +418,17 @@ fn SemanticIndex::enrich_checked_expr(
         self.enrich_checked_expr(child, display)
       })
   }
+}
+
+///|
+fn value_provenance(
+  registry : @symbol.SymbolRegistry,
+  symbol : @symbol.ValueSymbolId,
+) -> @symbol.ValueSymbolProvenance {
+  guard registry.value_metadata(symbol) is Some(metadata) else {
+    abort("semantic analysis missing metadata for value#\{symbol.index}")
+  }
+  metadata.provenance
 }
 
 ///|

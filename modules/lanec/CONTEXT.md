@@ -190,6 +190,10 @@ _Avoid_: type scope, lexical scope tree, dead-code elimination, textual name sca
 A named local value binder whose source name starts with `_`; unused-local-value warnings do not fire for these binders.
 _Avoid_: wildcard pattern, dead binding, generated temporary
 
+**Generated Local Symbol**:
+A compiler-created local value whose registry metadata carries explicit `GeneratedLocal` provenance. Semantic analysis excludes these symbols by provenance; absent metadata remains an internal invariant failure.
+_Avoid_: missing metadata sentinel, authored local binding, source name convention
+
 **Explore Stage**:
 A compiler-owned, named, and intentionally stable observation point exposed by Executable IR Exploration. Its identity combines the represented IR with the semantic transformation boundary, so one IR form may appear in multiple stages. An Explore Stage represents a useful semantic boundary and does not automatically correspond to every internal compiler pass.
 _Avoid_: arbitrary pass output, compiler trace event, private helper boundary

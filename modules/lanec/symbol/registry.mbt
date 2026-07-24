@@ -374,17 +374,26 @@ pub fn SymbolRegistry::define_value(
   loc : SourceSpan,
 ) -> ValueSymbolId {
   let id = self.allocator.allocate_value()
-  self.metadata.values[id.index] = { id, name, kind, loc }
+  self.metadata.values[id.index] = { id, name, kind, provenance: Authored, loc }
   id
 }
 
 ///|
-/// Allocates an identity for a compiler-generated value that has no authored
-/// declaration metadata.
-pub fn SymbolRegistry::fresh_value_identity(
+/// Defines a compiler-generated local value with explicit provenance.
+pub fn SymbolRegistry::define_generated_local(
   self : SymbolRegistry,
+  name : String,
+  loc : SourceSpan,
 ) -> ValueSymbolId {
-  self.allocator.allocate_value()
+  let id = self.allocator.allocate_value()
+  self.metadata.values[id.index] = {
+    id,
+    name,
+    kind: LocalBinding,
+    provenance: GeneratedLocal,
+    loc,
+  }
+  id
 }
 
 ///|
@@ -399,7 +408,13 @@ pub fn DeclarationSymbolScope::define_value(
   }
   self.claimed_values[name] = true
   if self.previous is Some(previous) && previous.values.get(name) is Some(id) {
-    self.registry.metadata.values[id.index] = { id, name, kind, loc }
+    self.registry.metadata.values[id.index] = {
+      id,
+      name,
+      kind,
+      provenance: Authored,
+      loc,
+    }
     self.registry.declarations.values[name] = id
     return id
   }

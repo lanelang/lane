@@ -42,6 +42,11 @@ fn semantic_revision_source(revision : Int) -> String {
 }
 
 ///|
+test "panic semantic analysis rejects missing value metadata" {
+  value_provenance(SymbolRegistry(), { index: 0 }) |> ignore
+}
+
+///|
 fn cached_semantic_module(
   snapshot : SemanticSnapshot,
   source_id : String,
