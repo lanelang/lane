@@ -1,0 +1,27 @@
+module Examples.Valid.GenericTuples
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn[A, B] swap(value : (A, B)) -> (B, A) {
+  let (left, right) = value
+  let result = (right, left)
+  result
+}
+
+fn[A, B, C] rotate(value : (A, B, C)) -> (C, A, B) {
+  let (first, second, third) = value
+  let result = (third, first, second)
+  result
+}
+
+pub fn answer() -> Unit ! Io {
+  let (flag, number) = swap((42, true))
+  let (text, first, second) = rotate((40, 2, "lane"))
+  if flag && number == 42 && text == "lane" && first + second == 42 {
+    println("generic tuples=42")
+  } else {
+    println("generic tuples failed")
+  }
+}

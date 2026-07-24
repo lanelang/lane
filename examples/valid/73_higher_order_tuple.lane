@@ -1,0 +1,29 @@
+module Examples.Valid.HigherOrderTuple
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn apply_transforms(transforms : ((Int) -> Int, (Bool) -> Bool)) -> (Int, Bool) {
+  let (transform_int, transform_bool) = transforms
+  let result = (transform_int(41), transform_bool(false))
+  result
+}
+
+pub fn answer() -> Unit ! Io {
+  let transforms : ((Int) -> Int, (Bool) -> Bool) =
+    (
+      fn(value) {
+        value + 1
+      },
+      fn(flag) {
+        !flag
+      }
+    )
+  let (number, enabled) = apply_transforms(transforms)
+  if enabled && number == 42 {
+    println("higher order tuple=42")
+  } else {
+    println("higher order tuple failed")
+  }
+}

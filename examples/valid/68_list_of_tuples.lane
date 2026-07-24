@@ -1,0 +1,22 @@
+module Examples.Valid.ListOfTuples
+
+import Basic.Data.List.*
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn sum_pairs(values : List[(Int, Int)]) -> Int {
+  match values {
+    empty() => 0
+    cons((left, right), tail) => left + right + sum_pairs(tail)
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  let pairs : List[(Int, Int)] = [(1, 2), (3, 4), (10, 22)]
+  if sum_pairs(pairs) == 42 {
+    println("list of tuples=42")
+  } else {
+    println("list of tuples failed")
+  }
+}

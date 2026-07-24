@@ -1,0 +1,15 @@
+module Examples.Valid.TupleOpenImport
+
+import Basic.Data.Tuple.*
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+pub fn answer() -> Unit ! Io {
+  let pair : (Int, Bool) = (42, true)
+  let (number, enabled) = pair
+  if enabled && number == 42 {
+    println("tuple open import=42")
+  } else {
+    println("tuple open import failed")
+  }
+}

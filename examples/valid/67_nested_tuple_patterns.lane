@@ -1,0 +1,41 @@
+module Examples.Valid.NestedTuplePatterns
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+enum Message {
+  item((Int, Bool, String))
+  empty()
+}
+
+fn message_score(message : Message) -> Int {
+  match message {
+    item((number, enabled, _label)) =>
+      if enabled {
+        number
+      } else {
+        0
+      }
+    empty() => 0
+  }
+}
+
+fn left_nested_score(value : ((Int, Bool), String)) -> Int {
+  let ((number, enabled), _label) = value
+  if enabled {
+    number
+  } else {
+    0
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  let message = Message::item((40, true, "lane"))
+  let nested = ((2, true), "nested")
+  if message_score(message) + left_nested_score(nested) == 42 {
+    println("nested tuple patterns=42")
+  } else {
+    println("nested tuple patterns failed")
+  }
+}

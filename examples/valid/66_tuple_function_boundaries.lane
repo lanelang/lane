@@ -1,0 +1,40 @@
+module Examples.Valid.TupleFunctionBoundaries
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn apply_tuple(callee : ((Int, Bool)) -> Int, value : (Int, Bool)) -> Int {
+  callee(value)
+}
+
+fn apply_two(callee : (Int, Bool) -> Int, number : Int, enabled : Bool) -> Int {
+  callee(number, enabled)
+}
+
+fn read_tuple(value : (Int, Bool)) -> Int {
+  let (number, enabled) = value
+  if enabled {
+    number
+  } else {
+    0
+  }
+}
+
+fn read_two(number : Int, enabled : Bool) -> Int {
+  if enabled {
+    number
+  } else {
+    0
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  let from_tuple = apply_tuple(read_tuple, (40, true))
+  let from_two = apply_two(read_two, 2, true)
+  if from_tuple + from_two == 42 {
+    println("tuple function boundaries=42")
+  } else {
+    println("tuple function boundaries failed")
+  }
+}

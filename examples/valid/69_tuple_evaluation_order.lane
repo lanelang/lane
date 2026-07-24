@@ -1,0 +1,19 @@
+module Examples.Valid.TupleEvaluationOrder
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn mark(label : String, value : Int) -> Int ! Io {
+  println(label)
+  value
+}
+
+pub fn answer() -> Unit ! Io {
+  let (first, second, third) = (mark("first", 10), mark("second", 20), mark("third", 12))
+  if first + second + third == 42 {
+    println("tuple evaluation=42")
+  } else {
+    println("tuple evaluation failed")
+  }
+}

@@ -1,0 +1,18 @@
+module Examples.Valid.DeepGenericTuple
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn[A] identity(value : A) -> A {
+  value
+}
+
+pub fn answer() -> Unit ! Io {
+  let (first, second, third, fourth, fifth) = identity((10, 20, true, "lane", 12))
+  if first + second + fifth == 42 && third && fourth == "lane" {
+    println("deep generic tuple=42")
+  } else {
+    println("deep generic tuple failed")
+  }
+}

@@ -1,0 +1,16 @@
+module Examples.Valid.TopLevelTuple
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+pub let answer_pair : (Int, Bool) = (42, true)
+
+pub fn answer() -> Unit ! Io {
+  let (number, enabled) = answer_pair
+  if enabled && number == 42 {
+    println("top level tuple=42")
+  } else {
+    println("top level tuple failed")
+  }
+}

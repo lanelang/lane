@@ -1,0 +1,32 @@
+module Examples.Valid.EffectfulTuples
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+effect Prompt {
+  choose((Int, Bool), (Int, Bool)) -> (Int, Bool)
+}
+
+fn choose_pair() -> (Int, Bool) ! Prompt {
+  Prompt::choose!((40, true), (0, false))
+}
+
+fn handled_pair() -> (Int, Bool) {
+  handle choose_pair() with {
+    Prompt::choose((number, enabled), (_other_number, _other_enabled), resume) => resume(
+      (number + 2, enabled)
+    )
+  } final result {
+    result
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  let (number, enabled) = handled_pair()
+  if enabled && number == 42 {
+    println("effectful tuples=42")
+  } else {
+    println("effectful tuples failed")
+  }
+}

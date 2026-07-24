@@ -1437,7 +1437,152 @@
     {
       "name": "63 nominal tuple sugar",
       "file": "examples/valid/63_nominal_tuple_sugar.lane",
-      "mode": "check"
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "tuple=42"
+      }
+    },
+    {
+      "name": "64 tuple shapes",
+      "file": "examples/valid/64_tuple_shapes.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "tuple shapes=42"
+      }
+    },
+    {
+      "name": "65 generic tuples",
+      "file": "examples/valid/65_generic_tuples.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "generic tuples=42"
+      }
+    },
+    {
+      "name": "66 tuple function boundaries",
+      "file": "examples/valid/66_tuple_function_boundaries.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "tuple function boundaries=42"
+      }
+    },
+    {
+      "name": "67 nested tuple patterns",
+      "file": "examples/valid/67_nested_tuple_patterns.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "nested tuple patterns=42"
+      }
+    },
+    {
+      "name": "68 list of tuples",
+      "file": "examples/valid/68_list_of_tuples.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "list of tuples=42"
+      }
+    },
+    {
+      "name": "69 tuple evaluation order",
+      "file": "examples/valid/69_tuple_evaluation_order.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "first\nsecond\nthird\ntuple evaluation=42"
+      }
+    },
+    {
+      "name": "70 tuple open import",
+      "file": "examples/valid/70_tuple_open_import.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "tuple open import=42"
+      }
+    },
+    {
+      "name": "71 tuple selective import",
+      "file": "examples/valid/71_tuple_selective_import.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "tuple selective import=42"
+      }
+    },
+    {
+      "name": "72 tuple alias nominal interop",
+      "file": "examples/valid/72_tuple_alias_nominal_interop.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "tuple alias nominal interop=42"
+      }
+    },
+    {
+      "name": "73 higher order tuple",
+      "file": "examples/valid/73_higher_order_tuple.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "higher order tuple=42"
+      }
+    },
+    {
+      "name": "74 deep generic tuple",
+      "file": "examples/valid/74_deep_generic_tuple.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "deep generic tuple=42"
+      }
+    },
+    {
+      "name": "75 top level tuple",
+      "file": "examples/valid/75_top_level_tuple.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "top level tuple=42"
+      }
+    },
+    {
+      "name": "76 effectful tuples",
+      "file": "examples/valid/76_effectful_tuples.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "effectful tuples=42"
+      }
+    },
+    {
+      "name": "invalid 70 tuple without import",
+      "file": "examples/invalid/70_tuple_without_import.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E2000]",
+          "cannot find type `Basic.Data.Tuple.Tuple`",
+          "error[E2003]",
+          "cannot find variant `Basic.Data.Tuple.Tuple::tuple`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 71 tuple arity mismatch",
+      "file": "examples/invalid/71_tuple_arity_mismatch.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3006]",
+          "expected `Tuple[Bool, String]`, found `Bool`"
+        ]
+      }
     },
     {
       "name": "invalid 69 generic offered function not specialized",

@@ -1,0 +1,33 @@
+module Examples.Valid.TupleShapes
+
+import Basic.Data.Tuple
+import Basic.Io.{ println }
+import Basic.Trait.Ops.*
+
+fn flat_score(value : (Int, Bool, String)) -> Int {
+  let (number, enabled, _label) = value
+  if enabled {
+    number
+  } else {
+    0
+  }
+}
+
+fn left_nested_score(value : ((Int, Bool), String)) -> Int {
+  let ((number, enabled), _label) = value
+  if enabled {
+    number
+  } else {
+    0
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  let flat = flat_score((40, true, "flat"))
+  let left_nested = left_nested_score(((2, true), "left"))
+  if flat + left_nested == 42 {
+    println("tuple shapes=42")
+  } else {
+    println("tuple shapes failed")
+  }
+}
