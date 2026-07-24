@@ -125,6 +125,40 @@ fn assert_effect_conformance(
 }
 
 ///|
+test "struct fields evaluate in source order with reversed existential witnesses" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|struct Hide {
+      #|  type A : Type
+      #|  type B : Type
+      #|  first : A
+      #|  second : B
+      #|}
+      #|fn mark_int(label : String, value : Int) -> Int ! Io {
+      #|  println(label)
+      #|  value
+      #|}
+      #|fn mark_bool(label : String, value : Bool) -> Bool ! Io {
+      #|  println(label)
+      #|  value
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let _hidden : Hide = Hide::{
+      #|    B = Bool,
+      #|    A = Int,
+      #|    second: mark_bool("second", true),
+      #|    first: mark_int("first", 1),
+      #|  };
+      #|  ()
+      #|}
+    ),
+    ["second", "first"],
+  )
+}
+
+///|
 fn interpreter_resolution_error(
   image : @loisvm_bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,

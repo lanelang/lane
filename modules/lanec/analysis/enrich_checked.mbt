@@ -253,7 +253,8 @@ fn SemanticIndex::enrich_checked_local_item(
         "\{declaration.name} : \{type_text}",
         Some(declaration.type_),
       )
-      if !self.annotated_values.contains(declaration.symbol) {
+      if self.registry.value_metadata(declaration.symbol) is Some(_) &&
+        !self.annotated_values.contains(declaration.symbol) {
         self.add_type_inlay_hint(
           declaration.name_loc,
           display,
@@ -296,11 +297,13 @@ fn SemanticIndex::enrich_checked_expr(
   self.collect_checked_expr_types(expr)
   match expr {
     Value(name~, symbol~, type_~, loc~) =>
-      self.add_reference(
-        Value(symbol),
-        loc,
-        Some(value_detail(name, type_, display)),
-      )
+      if self.registry.value_metadata(symbol) is Some(_) {
+        self.add_reference(
+          Value(symbol),
+          loc,
+          Some(value_detail(name, type_, display)),
+        )
+      }
     FunctionLiteral(type_parameters~, parameters~, body~, ..) => {
       self.enrich_checked_type_parameters(type_parameters, display)
       for parameter in parameters {

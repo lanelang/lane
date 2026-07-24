@@ -67,6 +67,30 @@ fn semantic_interface_fingerprint(
 }
 
 ///|
+test "struct sequencing temporaries stay outside the semantic index" {
+  let workspace = SemanticWorkspace::new()
+  let source =
+    #|module Main
+    #|
+    #|struct Pair {
+    #|  first : Int
+    #|  second : Bool
+    #|}
+    #|
+    #|pub fn make() -> Pair {
+    #|  Pair::{ second: true, first: 1 }
+    #|}
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: source },
+    ])
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  assert_eq(snapshot.inlay_hints_in_range("file:///Main.lane", 1, 0, 11, 0), [])
+  assert_eq(snapshot.hover_at("file:///Main.lane", 9, 19), None)
+}
+
+///|
 test "semantic snapshot queries use persistent source indexes" {
   let workspace = SemanticWorkspace::new()
   let source_a =

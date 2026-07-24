@@ -463,6 +463,9 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     struct_declaration.fields.length(),
     None,
   )
+  let checked_fields_in_source_order : Array[
+    (Int, @checked.CheckedStructLiteralField),
+  ] = []
   let effects = []
   let mut complete = true
   for field in fields {
@@ -490,6 +493,9 @@ fn SemanticChecker::synthesize_checked_struct_literal(
           }
           if checked_fields[field_declaration.index] is None {
             checked_fields[field_declaration.index] = Some(checked_field)
+            checked_fields_in_source_order.push(
+              (field_declaration.index, checked_field),
+            )
           }
         }
         None => complete = false
@@ -504,19 +510,76 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     }
   }
   if complete {
-    checked_expression_with_effect(
-      StructLiteral(
-        symbol~,
-        type_name_loc~,
-        generic_arguments=arguments,
-        type_witnesses=witnesses,
-        fields=checked_fields.filter_map(fn(field) { field }),
+    let fields = checked_fields.filter_map(fn(field) { field })
+    let mut expression = @checked.CheckedExpr::StructLiteral(
+      symbol~,
+      type_name_loc~,
+      generic_arguments=arguments,
+      type_witnesses=witnesses,
+      fields~,
+      type_~,
+      loc~,
+    )
+    let mut fields_reordered = false
+    for source_index, indexed_field in checked_fields_in_source_order {
+      if indexed_field.0 != source_index {
+        fields_reordered = true
+      }
+    }
+    if fields.length() == checked_fields_in_source_order.length() &&
+      fields_reordered {
+      let items : Array[@checked.CheckedLocalItem] = []
+      let referenced_fields : Array[@checked.CheckedStructLiteralField?] = Array::make(
+        fields.length(),
+        None,
+      )
+      for indexed_field in checked_fields_in_source_order {
+        let (field_index, field) = indexed_field
+        let temporary_name = "_struct_field_\{field.name}"
+        let temporary_symbol = self.resolved_source.symbols.fresh_value_identity()
+        let field_type = field.value.type_()
+        items.push(
+          Let({
+            is_public: false,
+            is_offered: false,
+            symbol: temporary_symbol,
+            name: temporary_name,
+            name_loc: field.loc,
+            initializer: field.value,
+            type_: field_type,
+            loc: field.loc,
+          }),
+        )
+        referenced_fields[field_index] = Some({
+          ..field,
+          value: Value(
+            name="_struct_field_\{field.name}",
+            symbol=temporary_symbol,
+            type_=field.value.type_(),
+            loc=field.value.loc(),
+          ),
+        })
+      }
+      let referenced_fields = referenced_fields.filter_map(fn(field) { field })
+      if referenced_fields.length() != fields.length() {
+        abort("struct field sequencing lost a declaration slot")
+      }
+      expression = Block(
+        items~,
+        result=StructLiteral(
+          symbol~,
+          type_name_loc~,
+          generic_arguments=arguments,
+          type_witnesses=witnesses,
+          fields=referenced_fields,
+          type_~,
+          loc~,
+        ),
         type_~,
         loc~,
-      ),
-      type_,
-      effect_union(effects),
-    )
+      )
+    }
+    checked_expression_with_effect(expression, type_, effect_union(effects))
   } else {
     checked_expression_none_reported(type_)
   }

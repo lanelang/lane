@@ -3087,11 +3087,15 @@ test "typecheck existential struct witnesses in declaration order" {
       #|      first#0 : tparam#0
       #|      second#1 : tparam#1
       #|    }
-      #|    let hidden#0 : type#0 = type#0::{
-      #|      type A#0 = Int
-      #|      type B#1 = Bool
-      #|      first#0: 1
-      #|      second#1: true
+      #|    let hidden#0 : type#0 = {
+      #|      let _struct_field_second#1 : Bool = true
+      #|      let _struct_field_first#2 : Int = 1
+      #|      type#0::{
+      #|        type A#0 = Int
+      #|        type B#1 = Bool
+      #|        first#0: _struct_field_first#2
+      #|        second#1: _struct_field_second#1
+      #|      }
       #|    }
       #|  }
       #|  diagnostics {}

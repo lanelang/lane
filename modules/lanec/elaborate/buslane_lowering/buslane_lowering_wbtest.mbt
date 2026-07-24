@@ -712,8 +712,8 @@ test "buslane lowering registry covers imported references" {
     ),
     content=(
       #|{
-      #|  evaluation_order: ["first", "second"],
-      #|  payload_order: ["first", "second"],
+      #|  evaluation_order: ["second", "first"],
+      #|  payload_order: ["_struct_field_first", "_struct_field_second"],
       #|}
     ),
   )

@@ -379,6 +379,15 @@ pub fn SymbolRegistry::define_value(
 }
 
 ///|
+/// Allocates an identity for a compiler-generated value that has no authored
+/// declaration metadata.
+pub fn SymbolRegistry::fresh_value_identity(
+  self : SymbolRegistry,
+) -> ValueSymbolId {
+  self.allocator.allocate_value()
+}
+
+///|
 pub fn DeclarationSymbolScope::define_value(
   self : DeclarationSymbolScope,
   name : String,
