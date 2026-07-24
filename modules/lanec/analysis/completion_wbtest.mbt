@@ -1122,7 +1122,7 @@ test "completion filters candidates by type and effect positions" {
       #|    label: "Thing",
       #|    kind: Type,
       #|    is_offered: false,
-      #|    detail: Some("struct Thing"),
+      #|    detail: Some("type Thing : Type"),
       #|    documentation: None,
       #|    insert_text: None,
       #|    replace: Some(

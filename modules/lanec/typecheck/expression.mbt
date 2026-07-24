@@ -1,4 +1,24 @@
 ///|
+priv enum TypeCompatibility {
+  ExactType
+  FunctionEffectWidening
+  IncompatibleType
+}
+
+///|
+fn same_types(left : Array[@types.Type], right : Array[@types.Type]) -> Bool {
+  if left.length() != right.length() {
+    return false
+  }
+  for index in 0..<left.length() {
+    if !left[index].alpha_equal(right[index]) {
+      return false
+    }
+  }
+  true
+}
+
+///|
 fn SemanticChecker::synthesize_expr(
   self : SemanticChecker,
   scope : TypeScope,
@@ -48,6 +68,53 @@ fn SemanticChecker::type_matches(
     return None
   }
   Some(expected.alpha_equal(actual))
+}
+
+///|
+fn SemanticChecker::type_compatibility(
+  self : SemanticChecker,
+  expected : @types.Type,
+  actual : @types.Type,
+  loc : SourceSpan,
+) -> TypeCompatibility? {
+  if expected.contains_error() || actual.contains_error() {
+    return Some(ExactType)
+  }
+  guard normalize_type_or_report(
+      self.diagnostics,
+      expected,
+      loc,
+      context="expected type",
+    )
+    is Some(expected) else {
+    return None
+  }
+  guard normalize_type_or_report(
+      self.diagnostics,
+      actual,
+      loc,
+      context="actual type",
+    )
+    is Some(actual) else {
+    return None
+  }
+  if expected.alpha_equal(actual) {
+    return Some(ExactType)
+  }
+  match (expected, actual) {
+    (
+      Function(expected_parameters, expected_result, expected_effect),
+      Function(actual_parameters, actual_result, actual_effect),
+    ) =>
+      if same_types(expected_parameters, actual_parameters) &&
+        expected_result.alpha_equal(actual_result) &&
+        actual_effect.alpha_subeffect_of(expected_effect) {
+        Some(FunctionEffectWidening)
+      } else {
+        Some(IncompatibleType)
+      }
+    _ => Some(IncompatibleType)
+  }
 }
 
 ///|

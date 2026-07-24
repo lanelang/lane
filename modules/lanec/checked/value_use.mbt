@@ -277,6 +277,7 @@ fn CheckedValueUseCollector::collect_expr(
       }
       self.collect_expr(body, current_origin)
     }
+    FunctionEffectWiden(value~, ..) => self.collect_expr(value, current_origin)
     GenericApplication(callee~, ..) => self.collect_expr(callee, current_origin)
     Block(items~, result~, ..) => {
       for item in items {

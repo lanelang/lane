@@ -257,6 +257,8 @@ fn find_first_handler_resume_callee_type(
       }
     GenericApplication(callee~, ..) =>
       find_first_handler_resume_callee_type(callee)
+    FunctionEffectWiden(value~, ..) =>
+      find_first_handler_resume_callee_type(value)
     OperationCall(arguments~, ..) | Variant(arguments~, ..) =>
       for argument in arguments {
         if find_first_handler_resume_callee_type(argument) is Some(type_) {
@@ -2370,6 +2372,163 @@ test "typecheck infers empty effect parameter from unannotated callback" {
 }
 
 ///|
+test "typecheck accepts pure computation under an effect upper bound" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Int
+      #|}
+      #|fn pure() -> Int {
+      #|  42
+      #|}
+      #|fn declared() -> Int ! Read {
+      #|  42
+      #|}
+      #|fn consume(callback : () -> Int ! Read) -> Int ! Read {
+      #|  callback()
+      #|}
+      #|fn use() -> Int ! Read {
+      #|  let direct : () -> Int ! Read = pure
+      #|  consume(direct)
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck records function effect widening in checked expressions" {
+  let expression = expect_checked_let_initializer(
+    (
+      #|effect Read {
+      #|  read() -> Int
+      #|}
+      #|fn pure() -> Int {
+      #|  42
+      #|}
+      #|let widened : () -> Int ! Read = pure
+    ),
+    "widened",
+    Function([], Primitive(Int), Singleton(EffectSymbolId::{ index: 0 }, [])),
+  )
+  assert_true(
+    expression
+    is FunctionEffectWiden(
+      value=Value(name="pure", type_=Function([], Primitive(Int), Empty), ..),
+      ..
+    ),
+  )
+}
+
+///|
+test "typecheck widens a narrower effect row" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Int
+      #|}
+      #|effect Write {
+      #|  write(Int) -> Unit
+      #|}
+      #|fn read() -> Int ! Read {
+      #|  Read::read!()
+      #|}
+      #|fn consume(callback : () -> Int ! { Read, Write }) -> Int ! { Read, Write } {
+      #|  callback()
+      #|}
+      #|fn use() -> Int ! { Read, Write } {
+      #|  consume(read)
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "typecheck rejects function effect narrowing" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Unit
+      #|}
+      #|effect Write {
+      #|  write() -> Unit
+      #|}
+      #|fn wide() -> Unit ! { Read, Write } {
+      #|  let _read : Unit = Read::read!()
+      #|  Write::write!()
+      #|}
+      #|let narrow : () -> Unit ! Read = wide
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[
+      #|  type_mismatch expected=() -> Unit ! effect#0 actual=() -> Unit ! {effect#0, effect#1} @ 12:34-12:38
+      #|]
+    ),
+  )
+}
+
+///|
+test "function literal annotation remains its body effect bound" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Unit
+      #|}
+      #|effect Write {
+      #|  write() -> Unit
+      #|}
+      #|fn consume(callback : () -> Unit ! { Read, Write }) -> Unit {
+      #|  ()
+      #|}
+      #|fn use() -> Unit {
+      #|  consume(fn() -> Unit ! Read { Write::write!() })
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[effect_mismatch expected=effect#0 actual=effect#1 @ 12:31-12:50]
+    ),
+  )
+}
+
+///|
+test "generic effect inference accepts a narrower repeated constraint" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Int
+      #|}
+      #|fn effectful() -> Int ! Read {
+      #|  Read::read!()
+      #|}
+      #|fn pure() -> Int {
+      #|  42
+      #|}
+      #|fn[E : Effect] choose(
+      #|  first : () -> Int ! E,
+      #|  second : () -> Int ! E
+      #|) -> Int ! E {
+      #|  let _first : Int = first()
+      #|  second()
+      #|}
+      #|fn use() -> Int ! Read {
+      #|  choose(effectful, pure)
+      #|}
+      #|fn use_reverse() -> Int ! Read {
+      #|  choose(pure, effectful)
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
 test "typecheck infers non-empty effect from ground anonymous callback" {
   let result = expect_typecheck_result(
     (
@@ -2658,7 +2817,7 @@ test "typecheck does not backtrack ambiguous effect row inference" {
 }
 
 ///|
-test "typecheck keeps unmatched effect rows as constraint mismatches" {
+test "typecheck infers unmatched terms into an effect upper bound" {
   let result = expect_typecheck_result(
     (
       #|effect Ask {
@@ -2678,30 +2837,7 @@ test "typecheck keeps unmatched effect rows as constraint mismatches" {
       #|}
     ),
   )
-  debug_inspect(
-    result.diagnostics,
-    content=(
-      #|[
-      #|  {
-      #|    kind: GenericArgumentInferenceFailed(
-      #|      label="consume",
-      #|      failure=GenericArgumentConstraintMismatch(
-      #|        expected=EffectArgument(Union([Singleton({ index: 0 }, []), Parameter({ index: 0 })])),
-      #|        actual=EffectArgument(Singleton({ index: 1 }, [])),
-      #|      ),
-      #|    ),
-      #|    loc: {
-      #|      start_offset: 225,
-      #|      end_offset: 233,
-      #|      start_line: 15,
-      #|      start_column: 11,
-      #|      end_line: 15,
-      #|      end_column: 19,
-      #|    },
-      #|  },
-      #|]
-    ),
-  )
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -5323,10 +5459,7 @@ test "typecheck reports effect operation generic witness arity mismatch once" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[
-      #|  application_arity_mismatch effect operation generic arguments @ 6:3-6:35,
-      #|  effect_mismatch expected=effect#0 actual={} @ 5:26-7:2
-      #|]
+      #|[application_arity_mismatch effect operation generic arguments @ 6:3-6:35]
     ),
   )
 }
@@ -5364,7 +5497,7 @@ test "typecheck rejects operation call in pure function" {
 }
 
 ///|
-test "typecheck rejects pure body with non-empty effect annotation" {
+test "typecheck accepts pure body under non-empty effect annotation" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
@@ -5375,12 +5508,7 @@ test "typecheck rejects pure body with non-empty effect annotation" {
       #|}
     ),
   )
-  inspect(
-    @prettyprinter.render(result.diagnostics, width=100),
-    content=(
-      #|[effect_mismatch expected=effect#0 actual={} @ 5:28-7:2]
-    ),
-  )
+  debug_inspect(result.diagnostics, content="[]")
 }
 
 ///|
@@ -5518,17 +5646,6 @@ test "typecheck checks operation payload arity" {
       #|      start_column: 3,
       #|      end_line: 6,
       #|      end_column: 20,
-      #|    },
-      #|  },
-      #|  {
-      #|    kind: EffectMismatch(expected=Singleton({ index: 0 }, []), actual=Empty),
-      #|    loc: {
-      #|      start_offset: 82,
-      #|      end_offset: 105,
-      #|      start_line: 5,
-      #|      start_column: 28,
-      #|      end_line: 7,
-      #|      end_column: 2,
       #|    },
       #|  },
       #|]

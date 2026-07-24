@@ -398,6 +398,8 @@ fn first_checked_handler_expr_for_elaborate_test(
     }
     GenericApplication(callee~, ..) =>
       first_checked_handler_expr_for_elaborate_test(callee)
+    FunctionEffectWiden(value~, ..) =>
+      first_checked_handler_expr_for_elaborate_test(value)
     OperationCall(arguments~, ..) | Variant(arguments~, ..) =>
       for argument in arguments {
         if first_checked_handler_expr_for_elaborate_test(argument)

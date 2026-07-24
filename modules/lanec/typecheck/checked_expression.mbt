@@ -115,20 +115,66 @@ fn SemanticChecker::expect_checked_type(
     self.type_matches(expectation.type_, actual, loc),
   )
   if expectation_match is MismatchesExpectation {
-    let kind = if actual.mentions_any_type_parameter(
-        expectation.hidden_type_parameters,
-      ) {
-      HiddenTypeEscape(type_=actual)
-    } else {
-      match expectation.mismatch_context {
-        OrdinaryMismatch => TypeMismatch(expected=expectation.type_, actual~)
-        ElseOmittingConditionalMismatch =>
-          ElseOmittingConditionalRequiresUnit(actual~)
-      }
-    }
-    self.diagnostics.push({ kind, loc })
+    self.report_checked_expectation_mismatch(expectation, actual, loc)
   }
   expectation_match
+}
+
+///|
+fn SemanticChecker::report_checked_expectation_mismatch(
+  self : SemanticChecker,
+  expectation : CheckedExpectation,
+  actual : @types.Type,
+  loc : SourceSpan,
+) -> Unit {
+  let kind = if actual.mentions_any_type_parameter(
+      expectation.hidden_type_parameters,
+    ) {
+    HiddenTypeEscape(type_=actual)
+  } else {
+    match expectation.mismatch_context {
+      OrdinaryMismatch => TypeMismatch(expected=expectation.type_, actual~)
+      ElseOmittingConditionalMismatch =>
+        ElseOmittingConditionalRequiresUnit(actual~)
+    }
+  }
+  self.diagnostics.push({ kind, loc })
+}
+
+///|
+fn SemanticChecker::check_synthesis_against_expectation(
+  self : SemanticChecker,
+  synthesis : CheckedExpressionSynthesis,
+  expectation : CheckedExpectation,
+  loc : SourceSpan,
+) -> CheckedExpressionCheck {
+  let compatibility = self.type_compatibility(
+    expectation.type_,
+    synthesis.type_,
+    loc,
+  )
+  match compatibility {
+    Some(ExactType) => synthesis.with_expectation_match(MatchesExpectation)
+    Some(FunctionEffectWidening) => {
+      guard synthesis.expression is Some(value) else {
+        return synthesis.with_expectation_match(UndeterminedExpectationMatch)
+      }
+      checked_expression_with_effect(
+        FunctionEffectWiden(value~, type_=expectation.type_, loc~),
+        expectation.type_,
+        synthesis.effect,
+      ).with_expectation_match(MatchesExpectation)
+    }
+    Some(IncompatibleType) => {
+      self.report_checked_expectation_mismatch(
+        expectation,
+        synthesis.type_,
+        loc,
+      )
+      synthesis.with_expectation_match(MismatchesExpectation)
+    }
+    None => synthesis.with_expectation_match(UndeterminedExpectationMatch)
+  }
 }
 
 ///|
@@ -173,8 +219,10 @@ fn SemanticChecker::check_checked_expr_with_expectation(
       ).with_expectation_match(MatchesExpectation)
     Literal(..) | Field(..) => {
       let synthesis = self.synthesize_checked_expr(scope, expression)
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, expression.loc()),
+      self.check_synthesis_against_expectation(
+        synthesis,
+        expectation,
+        expression.loc(),
       )
     }
     Block(items~, result~, loc~) =>
@@ -196,25 +244,19 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         Some(expectation.type_),
         loc,
       )
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, loc),
-      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
     GenericApplication(callee~, arguments~, loc~) => {
       let synthesis = self.synthesize_checked_generic_application(
         scope, callee, arguments, loc,
       )
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, loc),
-      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
     Handler(body~, handlers~, final_branch~, loc~) => {
       let synthesis = self.synthesize_checked_handler(
         scope, body, handlers, final_branch, loc,
       )
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, loc),
-      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
     StructLiteral(
       type_name~,
@@ -234,9 +276,7 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         Some(expectation.type_),
         loc,
       )
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, loc),
-      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
     VariantCall(
       type_name~,
@@ -262,9 +302,7 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         Some(expectation.type_),
         loc,
       )
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, loc),
-      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
     FunctionLiteral(
       type_parameters~,
@@ -280,8 +318,10 @@ fn SemanticChecker::check_checked_expr_with_expectation(
       )
     Var(..) => {
       let synthesis = self.synthesize_checked_expr(scope, expression)
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, expression.loc()),
+      self.check_synthesis_against_expectation(
+        synthesis,
+        expectation,
+        expression.loc(),
       )
     }
   }
@@ -1089,9 +1129,7 @@ fn SemanticChecker::check_checked_call(
     Some(expectation.type_),
     loc,
   )
-  synthesis.with_expectation_match(
-    self.expect_checked_type(expectation, synthesis.type_, loc),
-  )
+  self.check_synthesis_against_expectation(synthesis, expectation, loc)
 }
 
 ///|
@@ -1347,9 +1385,7 @@ fn SemanticChecker::check_checked_function_literal(
       let synthesis = self.synthesize_checked_function_literal(
         scope, type_parameters, parameters, return_type, effect, body, loc,
       )
-      synthesis.with_expectation_match(
-        self.expect_checked_type(expectation, synthesis.type_, loc),
-      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
   }
 }

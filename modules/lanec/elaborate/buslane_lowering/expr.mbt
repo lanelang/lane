@@ -16,6 +16,8 @@ fn BuslaneLowerer::lower_expr(
       self.lower_function_literal(
         type_parameters, parameters, return_type, body,
       )
+    FunctionEffectWiden(value~, type_~, ..) =>
+      self.lower_function_effect_widen(value, type_)
     GenericApplication(callee~, arguments~, ..) =>
       TypeApply(
         self.lower_expr(callee),
@@ -64,6 +66,54 @@ fn BuslaneLowerer::lower_expr(
         payloads: arguments.map(fn(argument) { self.lower_expr(argument) }),
       })
   }
+}
+
+///|
+fn BuslaneLowerer::lower_function_effect_widen(
+  self : BuslaneLowerer,
+  value : @checked.CheckedExpr,
+  target_type : @types.Type,
+) -> @buslane.Expr {
+  guard target_type is Function(parameters, result, _) else {
+    abort("function effect widening target must be a function")
+  }
+  let source = self.define_fresh_value(
+    "effect_adapter_source",
+    Local,
+    self.lower_type(value.type_()),
+  )
+  let wrapper = self.define_fresh_value(
+    "effect_adapter",
+    Function,
+    self.lower_type(target_type),
+  )
+  let lowered_parameters = parameters.map(fn(parameter) {
+    self.define_fresh_value(
+      "effect_adapter_parameter",
+      Local,
+      self.lower_type(parameter),
+    )
+  })
+  Let(
+    source,
+    self.lower_expr(value),
+    LetRec(
+      [
+        {
+          id: wrapper,
+          rhs: Function({
+            parameters: lowered_parameters,
+            result_type: self.lower_type(result),
+            body: Call(
+              Ref(source),
+              lowered_parameters.map(fn(parameter) { Ref(parameter) }),
+            ),
+          }),
+        },
+      ],
+      Ref(wrapper),
+    ),
+  )
 }
 
 ///|

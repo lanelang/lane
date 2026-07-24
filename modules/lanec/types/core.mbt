@@ -346,6 +346,27 @@ pub fn Effect::alpha_equal(self : Effect, other : Effect) -> Bool {
 }
 
 ///|
+/// Returns whether every effect term in this row occurs in `upper`.
+///
+/// This is the structural counterpart of `is_subeffect_of`: it does not
+/// evaluate type-level computation in generic arguments.
+pub fn Effect::alpha_subeffect_of(self : Effect, upper : Effect) -> Bool {
+  effect_alpha_subeffect_with([], self, upper)
+}
+
+///|
+/// Returns whether this effect is contained by `upper`.
+///
+/// Raises when type-level computation in either effect cannot be normalized
+/// within the compiler fuel limit.
+pub fn Effect::is_subeffect_of(
+  self : Effect,
+  upper : Effect,
+) -> Bool raise TypeComputationError {
+  self.try_normalize().alpha_subeffect_of(upper.try_normalize())
+}
+
+///|
 /// Flattens unions and removes structurally alpha-equivalent duplicate terms.
 /// This operation does not perform type-level computation in generic arguments.
 pub fn Effect::canonicalize(self : Effect) -> Effect {
@@ -415,6 +436,21 @@ fn effect_alpha_equal_with(
     }
   }
   true
+}
+
+///|
+fn effect_alpha_subeffect_with(
+  bindings : Array[AlphaBinding],
+  lower : Effect,
+  upper : Effect,
+) -> Bool {
+  let lower_terms = canonical_effect_terms(bindings, lower)
+  let upper_terms = canonical_effect_terms(bindings, upper)
+  lower_terms.all(fn(lower_term) {
+    upper_terms.any(fn(upper_term) {
+      effect_term_alpha_equal_with(bindings, lower_term, upper_term)
+    })
+  })
 }
 
 ///|

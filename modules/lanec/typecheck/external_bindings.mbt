@@ -10,18 +10,27 @@ fn SemanticChecker::check_compiler_intrinsic(
     return undetermined_checked_expression(Error)
   }
   let actual = compiler_intrinsic_type(intrinsic)
-  let expectation_match = checked_expectation_match(
-    self.type_matches(expected, actual, loc),
+  let synthesis = checked_expression(
+    CompilerIntrinsic(intrinsic~, type_=actual, loc~),
+    actual,
   )
-  if expectation_match is MismatchesExpectation {
-    self.diagnostics.push({
-      kind: BuiltinSignatureMismatch(name~, expected~, actual~),
-      loc,
-    })
+  match self.type_compatibility(expected, actual, loc) {
+    Some(ExactType) => synthesis.with_expectation_match(MatchesExpectation)
+    Some(FunctionEffectWidening) =>
+      self.check_synthesis_against_expectation(
+        synthesis,
+        checked_expectation(expected),
+        loc,
+      )
+    Some(IncompatibleType) => {
+      self.diagnostics.push({
+        kind: BuiltinSignatureMismatch(name~, expected~, actual~),
+        loc,
+      })
+      synthesis.with_expectation_match(MismatchesExpectation)
+    }
+    None => synthesis.with_expectation_match(UndeterminedExpectationMatch)
   }
-  checked_expression(CompilerIntrinsic(intrinsic~, type_=actual, loc~), actual).with_expectation_match(
-    expectation_match,
-  )
 }
 
 ///|

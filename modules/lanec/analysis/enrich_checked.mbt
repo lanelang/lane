@@ -487,6 +487,7 @@ fn SemanticIndex::collect_checked_expr_types(
     | If(type_~, ..)
     | Match(type_~, ..)
     | Call(type_~, ..) => self.collect_checked_type(type_)
+    FunctionEffectWiden(type_~, ..) => self.collect_checked_type(type_)
     Field(field~, type_~, ..) => {
       if self.registry.field_metadata(field) is Some(metadata) {
         self.add_top_level_reference(TopLevelType(metadata.owner))

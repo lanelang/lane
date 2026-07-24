@@ -10,6 +10,7 @@ pub fn CheckedExpr::for_each_child_expr(
     | ExternBinding(_)
     | ErrorRecovery(_) => ()
     FunctionLiteral(body~, ..) => visit(body)
+    FunctionEffectWiden(value~, ..) => visit(value)
     GenericApplication(callee~, ..) => visit(callee)
     Block(items~, result~, ..) => {
       for item in items {

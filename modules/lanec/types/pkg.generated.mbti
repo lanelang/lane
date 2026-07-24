@@ -29,8 +29,10 @@ pub(all) enum Effect {
   Union(Array[Effect])
 } derive(@debug.Debug)
 pub fn Effect::alpha_equal(Self, Self) -> Bool
+pub fn Effect::alpha_subeffect_of(Self, Self) -> Bool
 pub fn Effect::canonicalize(Self) -> Self
 pub fn Effect::equals(Self, Self) -> Bool raise TypeComputationError
+pub fn Effect::is_subeffect_of(Self, Self) -> Bool raise TypeComputationError
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
 pub fn Effect::try_normalize(Self) -> Self raise TypeComputationError
 pub impl @prettyprinter.Pretty for Effect

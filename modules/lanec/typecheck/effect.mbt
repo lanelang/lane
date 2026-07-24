@@ -576,7 +576,7 @@ fn SemanticChecker::effect_allowed(
     is Some(actual) else {
     return None
   }
-  Some(expected.alpha_equal(actual))
+  Some(actual.alpha_subeffect_of(expected))
 }
 
 ///|

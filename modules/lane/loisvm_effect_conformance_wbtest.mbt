@@ -159,6 +159,31 @@ test "struct fields evaluate in source order with reversed existential witnesses
 }
 
 ///|
+test "effect widening preserves indirect call ABI across production backends" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|fn pure_message() -> String {
+      #|  "widened"
+      #|}
+      #|fn declared_message() -> String ! Io {
+      #|  "declared"
+      #|}
+      #|fn invoke(callback : () -> String ! Io) -> Unit ! Io {
+      #|  println(callback())
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  invoke(pure_message)
+      #|  invoke(fn() { "literal" })
+      #|  invoke(declared_message)
+      #|}
+    ),
+    ["widened", "literal", "declared"],
+  )
+}
+
+///|
 fn interpreter_resolution_error(
   image : @loisvm_bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,

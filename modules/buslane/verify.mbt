@@ -224,10 +224,27 @@ fn VerifyContext::check_expr(
   type_scope : TypeScope,
 ) -> Effect {
   let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if actual.type_ != expected {
+  if !type_compatible_with_expected(expected, actual.type_) {
     self.report(TypeMismatch(expected~, actual=actual.type_))
   }
   actual.effect
+}
+
+///|
+fn type_compatible_with_expected(expected : Type, actual : Type) -> Bool {
+  if expected == actual {
+    return true
+  }
+  match (expected.normalize(), actual.normalize()) {
+    (
+      Function(expected_parameters, expected_result, expected_effect),
+      Function(actual_parameters, actual_result, actual_effect),
+    ) =>
+      expected_parameters == actual_parameters &&
+      expected_result == actual_result &&
+      actual_effect.is_subeffect_of(expected_effect)
+    _ => false
+  }
 }
 
 ///|

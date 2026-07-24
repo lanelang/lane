@@ -68,6 +68,7 @@ pub(all) enum CheckedExpr {
   ExternBinding(name~ : String, signature~ : @abi.HostSignature, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   ErrorRecovery(type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  FunctionEffectWiden(value~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : CheckedExpr, arguments~ : Array[@types.GenericArgument], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Block(items~ : Array[CheckedLocalItem], result~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   If(condition~ : CheckedExpr, then_branch~ : CheckedExpr, else_branch~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)

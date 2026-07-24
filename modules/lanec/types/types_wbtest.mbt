@@ -106,6 +106,21 @@ test "Io is a canonical built-in effect atom" {
 }
 
 ///|
+test "effect containment is independent from effect equality" {
+  let first = EffectSymbolId::{ index: 0 }
+  let second = EffectSymbolId::{ index: 1 }
+  let narrow = Effect::Singleton(first, [])
+  let wide = Effect::Union([
+    Effect::Singleton(first, []),
+    Effect::Singleton(second, []),
+  ])
+  assert_true(Effect::Empty.alpha_subeffect_of(narrow))
+  assert_true(narrow.alpha_subeffect_of(wide))
+  assert_false(wide.alpha_subeffect_of(narrow))
+  assert_false(narrow.alpha_equal(wide))
+}
+
+///|
 test "try normalize reports type fuel exhaustion without aborting" {
   let mut left = Primitive(Unit)
   let mut right = Primitive(Bool)

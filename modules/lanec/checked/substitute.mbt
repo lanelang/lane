@@ -35,6 +35,12 @@ pub fn CheckedExpr::substitute(
         type_=type_.substitute(substitution),
         loc~,
       )
+    FunctionEffectWiden(value~, type_~, loc~) =>
+      FunctionEffectWiden(
+        value=value.substitute(substitution),
+        type_=type_.substitute(substitution),
+        loc~,
+      )
     GenericApplication(callee~, arguments~, type_~, loc~) =>
       GenericApplication(
         callee=callee.substitute(substitution),

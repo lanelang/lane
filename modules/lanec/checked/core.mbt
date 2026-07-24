@@ -216,6 +216,11 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
+  FunctionEffectWiden(
+    value~ : CheckedExpr,
+    type_~ : @types.Type,
+    loc~ : SourceSpan
+  )
   GenericApplication(
     callee~ : CheckedExpr,
     arguments~ : Array[@types.GenericArgument],
@@ -399,6 +404,7 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
     | ExternBinding(type_~, ..)
     | ErrorRecovery(type_~, ..)
     | FunctionLiteral(type_~, ..)
+    | FunctionEffectWiden(type_~, ..)
     | GenericApplication(type_~, ..)
     | Block(type_~, ..)
     | If(type_~, ..)
@@ -422,6 +428,7 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | ExternBinding(loc~, ..)
     | ErrorRecovery(loc~, ..)
     | FunctionLiteral(loc~, ..)
+    | FunctionEffectWiden(loc~, ..)
     | GenericApplication(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)

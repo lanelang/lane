@@ -93,8 +93,9 @@ fn SemanticChecker::check_monomorphic_function_literal(
   }
   let checked_effect = match (expected_effect, effect) {
     (Some(expected), Some(effect_annotation)) => {
-      self.expect_effect(expected, self.check_effect(effect_annotation), loc)
-      Some(expected)
+      let annotated = self.check_effect(effect_annotation)
+      self.expect_effect(expected, annotated, loc)
+      Some(annotated)
     }
     (Some(expected), None) => Some(expected)
     (None, Some(effect_annotation)) =>
@@ -116,12 +117,24 @@ fn SemanticChecker::check_monomorphic_function_literal(
       hidden_type_parameters,
     ),
   )
-  let inferred_effect = match checked_effect {
-    Some(effect) => {
-      self.expect_effect(effect, checked_body.synthesis.effect, body.loc())
-      effect
+  let inferred_effect = match (expected_effect, checked_effect) {
+    (Some(expected), Some(effect_bound)) => {
+      self.expect_effect(
+        effect_bound,
+        checked_body.synthesis.effect,
+        body.loc(),
+      )
+      expected
     }
-    None => checked_body.synthesis.effect
+    (None, Some(effect_bound)) => {
+      self.expect_effect(
+        effect_bound,
+        checked_body.synthesis.effect,
+        body.loc(),
+      )
+      effect_bound
+    }
+    (_, None) => checked_body.synthesis.effect
   }
   let function_type = @types.Type::Function(
     expected_parameters, expected_result, inferred_effect,

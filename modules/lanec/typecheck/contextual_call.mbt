@@ -277,14 +277,14 @@ fn SemanticChecker::contextual_offer_expr(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
-  // Offer matching is exact type equality over the visible lexical offer
-  // scope. It must not infer generics from the offer set.
+  // Offer matching uses ordinary checked-expression compatibility over the
+  // visible lexical offer scope. It must not infer generics from the offer set.
   let matches = []
   let mut computation_failed = false
   scope.offers.each_visible(fn(offer) {
-    match self.type_matches(expected, offer.type_, loc) {
-      Some(true) => matches.push(offer)
-      Some(false) => ()
+    match self.type_compatibility(expected, offer.type_, loc) {
+      Some(ExactType) | Some(FunctionEffectWidening) => matches.push(offer)
+      Some(IncompatibleType) => ()
       None => computation_failed = true
     }
   })

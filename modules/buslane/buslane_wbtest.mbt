@@ -250,6 +250,21 @@ test "buslane canonical effect equality ignores ordering and duplicates" {
 }
 
 ///|
+test "buslane effect containment is independent from equality" {
+  let first = EffectId::{ index: 0 }
+  let second = EffectId::{ index: 1 }
+  let narrow = Effect::Singleton(first, [])
+  let wide = Effect::Union([
+    Effect::Singleton(first, []),
+    Effect::Singleton(second, []),
+  ])
+  assert_true(Effect::Empty.is_subeffect_of(narrow))
+  assert_true(narrow.is_subeffect_of(wide))
+  assert_false(wide.is_subeffect_of(narrow))
+  assert_false(narrow == wide)
+}
+
+///|
 test "buslane preserves the built-in Io effect atom" {
   let row = TypeParameterId::{ index: 0 }
   let effect = Effect::Union([Io, Empty, Parameter(row), Io])

@@ -486,6 +486,18 @@ pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
 }
 
 ///|
+/// Returns whether every effect term in this row occurs in `upper`.
+pub fn Effect::is_subeffect_of(self : Effect, upper : Effect) -> Bool {
+  let lower_terms = canonical_effect_terms([], self)
+  let upper_terms = canonical_effect_terms([], upper)
+  lower_terms.all(fn(lower_term) {
+    upper_terms.any(fn(upper_term) {
+      alpha_equal_effect_term_with([], lower_term, upper_term)
+    })
+  })
+}
+
+///|
 pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
   self.equals(other)
 }

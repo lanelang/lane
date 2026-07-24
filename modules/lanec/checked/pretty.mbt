@@ -369,6 +369,8 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       return_type.pretty() +
       space +
       function_body_doc(body)
+    FunctionEffectWiden(value~, ..) =>
+      text("widen_effect") + text("(") + expression_doc(value) + text(")")
     GenericApplication(callee~, arguments~, ..) =>
       expression_doc(callee) + generic_arguments_doc(arguments)
     Block(items~, result~, ..) => block_doc(items, result)

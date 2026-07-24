@@ -385,8 +385,12 @@ A type whose fully expanded transparent-alias target is one supported primitive 
 _Avoid_: nominal wrapper, nested host type, unexpanded alias name
 
 **Callable Effect Contract**:
-The single latent-effect contract shared by Lane-defined and extern-bound functions for calls, branching, aliases, higher-order typing, and effect propagation. A Lane body is checked against the contract, while an extern binding supplies it as an unsafe assertion because no Lane body is visible.
+The single latent-effect upper bound shared by Lane-defined and extern-bound functions for calls, branching, aliases, higher-order typing, and effect propagation. A Lane body must produce a subeffect of the contract, while an extern binding supplies it as an unsafe assertion because no Lane body is visible.
 _Avoid_: extern effect rules, host-only effect subtyping, symbol-derived effect
+
+**Function Effect Widening**:
+The checked conversion from an already-typed function value to the same parameter and result types with a larger latent-effect upper bound. Checked AST records the conversion explicitly, and Buslane lowering generates a target-ABI adapter rather than relabeling the original callable.
+_Avoid_: pure-function special case, general function variance, erased ABI cast
 
 **Effect Origin**:
 The identity provenance that determines how an effect is linked and serialized: compiler-provided for built-in names such as `Io`, or declaration-owned for source External and Algebraic Effects. Origin does not determine lowering behavior.

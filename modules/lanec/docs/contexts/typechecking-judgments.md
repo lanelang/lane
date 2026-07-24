@@ -126,14 +126,18 @@ Gamma |- e <= Expected
 Gamma |- e => T
 ```
 
-Checking mode may delegate to synthesis and then require equality:
+Checking mode may delegate to synthesis and then require compatibility:
 
 ```text
 Gamma |- e => Actual
-Actual = Expected
--------------------
+Actual <= Expected
+------------------
 Gamma |- e <= Expected
 ```
+
+Compatibility is equality except when both sides are monomorphic function
+types with equal parameter and result types. In that case the actual latent
+effect may be a subset of the expected latent effect.
 
 Calls push parameter types down into arguments:
 
@@ -252,7 +256,7 @@ If more than one offer has the required type, it reports ambiguity. Contextual
 resolution never searches for offers to infer generic arguments. For generic
 direct calls, generic arguments are inferred first from supplied direct
 arguments and the adjacent expected result type; only then are omitted
-contextual arguments matched by type equality.
+contextual arguments matched by ordinary checked-expression compatibility.
 
 Offer fields are already resolved before typechecking reaches this rewrite.
 The typechecker consumes a flat offer environment; it must not re-open values or
@@ -260,8 +264,8 @@ perform field search during contextual insertion.
 
 ## Generic effect-row matching
 
-For generic inference over effects, a template effect set is split into concrete
-singleton terms plus at most one tracked effect-row parameter:
+For generic inference from function effects, a template effect set is split
+into concrete singleton terms plus at most one tracked effect-row parameter:
 
 ```text
 Template = { C_1, ..., C_n, E? }
@@ -274,18 +278,26 @@ substitution to the template effect. It matches each resulting effect row once;
 row constraints are never retained beyond the current call or retried through
 backtracking.
 
-Each concrete template term must match one unique actual term. The residual
-actual terms bind the row parameter when present:
+Function effects are upper bounds. Each actual term may be covered by one
+unique concrete template term. Actual terms not covered by a concrete term
+contribute a lower-bound constraint to the row parameter:
 
 ```text
-match(C_i, A_j) is unique for every C_i
-Residual = Actual - matched(A_j)
+match(C_i, A_j) is unique for every matched A_j
+Residual = Actual - covered(A_j)
 --------------------------------------
-collect(Template, Actual) binds E := Residual
+collect_upper(Template, Actual) adds E >= Residual
 ```
 
-Ambiguous matching is an inference failure, not a delayed constraint. This keeps
-local inference terminating and prevents accidental effect subtyping.
+Repeated lower bounds are joined as a canonical effect union, making inference
+independent of argument order. Unmatched concrete template terms are permitted:
+they describe effects the callback may perform, not effects it must perform.
+Ambiguous matching is still an inference failure rather than a delayed
+constraint.
+
+This upper-bound rule applies only to function-effect positions. Effect generic
+arguments inside nominal applications use exact row matching, so this rule does
+not introduce general covariance.
 
 ## Effect operation calls
 
