@@ -1224,7 +1224,7 @@ test "completion classifies struct field initializers as value space" {
   )
   debug_inspect(
     entries.map(fn(entry) { (entry.label, entry.kind) }),
-    content="[(\"make\", Function)]",
+    content="[(\"make\", Function), (\"make_type\", Type)]",
   )
 }
 
@@ -1391,9 +1391,17 @@ test "completion classifies an empty tuple expression item as value space" {
     #|  value : Int
     #|}
     #|
+    #|pub enum Option[A] {
+    #|  some(A)
+    #|}
+    #|
+    #|pub effect Prompt {
+    #|  choose() -> Bool
+    #|}
+    #|
     #|pub fn make() -> Int { 0 }
     #|
-    #|pub fn pair() -> (Int, Int) {
+    #|pub fn[T] pair() -> (Int, Int) {
     #|  (1, make())
     #|}
   let edited_source =
@@ -1403,9 +1411,17 @@ test "completion classifies an empty tuple expression item as value space" {
     #|  value : Int
     #|}
     #|
+    #|pub enum Option[A] {
+    #|  some(A)
+    #|}
+    #|
+    #|pub effect Prompt {
+    #|  choose() -> Bool
+    #|}
+    #|
     #|pub fn make() -> Int { 0 }
     #|
-    #|pub fn pair() -> (Int, Int) {
+    #|pub fn[T] pair() -> (Int, Int) {
     #|  (1,
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
@@ -1421,12 +1437,25 @@ test "completion classifies an empty tuple expression item as value space" {
     is Some(snapshot) else {
     abort("expected edited semantic snapshot")
   }
-  let entries = snapshot.complete("file:///Main.lane", 10, 6, Manual)
+  let entries = snapshot.complete("file:///Main.lane", 18, 6, Manual)
   debug_inspect(
     entries
-    .filter(entry => entry.label == "Thing" || entry.label == "make")
+    .filter(entry => {
+      entry.label == "Thing" ||
+      entry.label == "Option" ||
+      entry.label == "Prompt" ||
+      entry.label == "T" ||
+      entry.label == "make"
+    })
     .map(entry => (entry.label, entry.kind)),
-    content="[(\"make\", Function)]",
+    content=(
+      #|[
+      #|  ("make", Function),
+      #|  ("Thing", Type),
+      #|  ("Option", Type),
+      #|  ("Prompt", Effect),
+      #|]
+    ),
   )
 }
 

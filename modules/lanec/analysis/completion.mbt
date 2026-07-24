@@ -368,7 +368,13 @@ fn CompletionSpace::allows(
 ) -> Bool {
   match (self, kind) {
     (AnySpace, _) => true
-    (ValueSpace, ValueBindingKind | FunctionBindingKind) => true
+    (
+      ValueSpace,
+      ValueBindingKind
+      | FunctionBindingKind
+      | TypeBindingKind
+      | EffectBindingKind,
+    ) => true
     (PatternSpace, TypeBindingKind) => true
     (TypeSpace, TypeBindingKind | TypeParameterBindingKind | EffectBindingKind) =>
       true
