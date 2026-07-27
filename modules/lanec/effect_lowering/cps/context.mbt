@@ -167,14 +167,15 @@ fn cps_call_context_requirements(
     let actual = terminal_type.substitute(substitution)
     raise ExpectedFunction(actual)
   }
-  effect_terms(mon_effect_part(metadata, latent_effect)).map(term => {
+  effect_terms(metadata, mon_effect_part(metadata, latent_effect)).map(term => {
     match term {
       Parameter(parameter) =>
         match applied_effect_argument(applied, parameter) {
-          Some(effect) => Packed(substitute_cps_effect(effect, substitution))
-          None => Direct(substitute_cps_effect(term, substitution))
+          Some(effect) =>
+            Packed(substitute_cps_effect(metadata, effect, substitution))
+          None => Direct(substitute_cps_effect(metadata, term, substitution))
         }
-      _ => Direct(substitute_cps_effect(term, substitution))
+      _ => Direct(substitute_cps_effect(metadata, term, substitution))
     }
   })
 }
@@ -228,10 +229,11 @@ fn applied_effect_argument(
 
 ///|
 fn substitute_cps_effect(
+  metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
   substitution : @buslane.TypeSubstitution,
 ) -> @buslane.Effect {
-  effect.substitute(substitution).canonicalize()
+  metadata.canonicalize_effect(effect.substitute(substitution))
 }
 
 ///|
@@ -245,7 +247,8 @@ fn select_cps_contexts(
   let mut adapted = false
   for requirement in requirements {
     match requirement {
-      Direct(term) => values.push(find_cps_context(environment, term))
+      Direct(term) =>
+        values.push(find_cps_context(schema.metadata, environment, term))
       Packed(effect) => {
         let packed = pack_cps_context(schema, environment, effect, answer_type)
         values.push(packed.0)
@@ -258,11 +261,12 @@ fn select_cps_contexts(
 
 ///|
 fn find_cps_context(
+  metadata : @buslane.MetadataRegistry,
   environment : CpsEnvironment,
   term : @buslane.Effect,
 ) -> Expr raise SynthesisError {
   for binding in environment.bindings {
-    if binding.term == term {
+    if metadata.effects_definitionally_equal(binding.term, term) {
       return binding.value
     }
   }
@@ -276,11 +280,17 @@ fn pack_cps_context(
   effect : @buslane.Effect,
   answer_type : @buslane.Type,
 ) -> (Expr, Bool) raise SynthesisError {
-  let terms = effect_terms(mon_effect_part(schema.metadata, effect))
-  let values = terms.map(term => find_cps_context(environment, term))
+  let terms = effect_terms(
+    schema.metadata,
+    mon_effect_part(schema.metadata, effect),
+  )
+  let values = terms.map(term => {
+    find_cps_context(schema.metadata, environment, term)
+  })
   match values {
     [] => (Literal(Unit), true)
-    [value] => (value, effect.canonicalize() != terms[0])
+    [value] =>
+      (value, !schema.metadata.effects_definitionally_equal(effect, terms[0]))
     values => {
       let pack = schema.context_pack(values.length())
       guard schema.metadata.type_info(pack.type_id) is Some(info) else {

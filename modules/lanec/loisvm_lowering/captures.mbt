@@ -34,15 +34,6 @@ fn collect_free_expr(
       }
       collect_free_expr(body, next_values, bound_temps, captures)
     }
-    Match(match_) => {
-      collect_free_atom(match_.scrutinee, bound_values, bound_temps, captures)
-      for alternative in match_.alternatives {
-        let next_values = bound_values.copy()
-        next_values.push(match_.binder)
-        next_values.append(alternative.value_binders)
-        collect_free_expr(alternative.body, next_values, bound_temps, captures)
-      }
-    }
   }
 }
 
@@ -66,6 +57,15 @@ fn collect_free_rhs(
       for payload in construct.payloads {
         collect_free_atom(payload, bound_values, bound_temps, captures)
       }
+    Match(match_) => {
+      collect_free_atom(match_.scrutinee, bound_values, bound_temps, captures)
+      for alternative in match_.alternatives {
+        let next_values = bound_values.copy()
+        next_values.push(match_.binder)
+        next_values.append(alternative.value_binders)
+        collect_free_expr(alternative.body, next_values, bound_temps, captures)
+      }
+    }
     Perform(perform) =>
       for payload in perform.payloads {
         collect_free_atom(payload, bound_values, bound_temps, captures)

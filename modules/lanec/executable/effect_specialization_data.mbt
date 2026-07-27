@@ -173,7 +173,12 @@ fn EffectSpecializer::require_data_instance(
     }
   }
   for instance in self.data_instances {
-    if instance.source == source && instance.bindings == bindings {
+    if instance.source == source &&
+      specialization_bindings_equal(
+        self.program.metadata,
+        instance.bindings,
+        bindings,
+      ) {
       return instance
     }
   }

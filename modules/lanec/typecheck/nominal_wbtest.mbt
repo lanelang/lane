@@ -249,6 +249,66 @@ test "typecheck existential struct witnesses in declaration order" {
 }
 
 ///|
+test "silent handler measurement does not consume generated local identities" {
+  let result = expect_checked_source_result(
+    (
+      #|struct Pair {
+      #|  first : Int
+      #|  second : Bool
+      #|}
+      #|effect Prompt {
+      #|  ask() -> Unit
+      #|}
+      #|fn make() -> Pair {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(_resume) => Pair::{ second: true, first: 1 }
+      #|  } final _value {
+      #|    Pair::{ first: 0, second: false }
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|checked_source_typecheck_result {
+      #|  checked {
+      #|    struct Pair#0 {
+      #|      first#0 : Int
+      #|      second#1 : Bool
+      #|    }
+      #|    effect Prompt#0 {
+      #|      ask#0 -> Unit
+      #|    }
+      #|    fn make#0() -> type#0 {
+      #|      {
+      #|        handle operation#0!()
+      #|        with effect#0 {
+      #|          operation#0(_resume#1) => {
+      #|            let _struct_field_second#3 : Bool = true
+      #|            let _struct_field_first#4 : Int = 1
+      #|            type#0::{
+      #|              first#0: _struct_field_first#4
+      #|              second#1: _struct_field_second#3
+      #|            }
+      #|          }
+      #|        }
+      #|        final _value#2 {
+      #|          type#0::{
+      #|            first#0: 0
+      #|            second#1: false
+      #|          }
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}
+
+///|
 test "value use analysis excludes struct sequencing temporaries" {
   let file = expect_parse_ok(
     (

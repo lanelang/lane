@@ -17,7 +17,11 @@ fn lower_cps_invoke(
     operation.owner,
     invoke.effect_arguments,
   )
-  let dictionary_expression = find_cps_context(environment, term)
+  let dictionary_expression = find_cps_context(
+    program.metadata,
+    environment,
+    term,
+  )
   let residual_effect = residual_effect_part(
     program.metadata,
     environment.effect,

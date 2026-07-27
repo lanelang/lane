@@ -9,7 +9,44 @@ priv struct EffectGenericDefinition {
 priv struct EffectSpecializationBinding {
   parameter : @buslane.TypeParameterId
   argument : @buslane.GenericArgument
-} derive(Eq)
+}
+
+///|
+fn specialization_bindings_equal(
+  metadata : @buslane.MetadataRegistry,
+  left : Array[EffectSpecializationBinding],
+  right : Array[EffectSpecializationBinding],
+) -> Bool {
+  if left.length() != right.length() {
+    return false
+  }
+  for index in 0..<left.length() {
+    if left[index].parameter != right[index].parameter ||
+      !generic_arguments_definitionally_equal(
+        metadata,
+        left[index].argument,
+        right[index].argument,
+      ) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn generic_arguments_definitionally_equal(
+  metadata : @buslane.MetadataRegistry,
+  left : @buslane.GenericArgument,
+  right : @buslane.GenericArgument,
+) -> Bool {
+  match (left, right) {
+    (TypeArgument(left), TypeArgument(right)) =>
+      metadata.types_definitionally_equal(left, right)
+    (EffectArgument(left), EffectArgument(right)) =>
+      metadata.effects_definitionally_equal(left, right)
+    _ => false
+  }
+}
 
 ///|
 priv struct EffectSpecializationInstance {
@@ -138,6 +175,7 @@ priv struct EffectDataInstance {
 priv struct EffectSpecializer {
   program : @buslane.Program
   definitions : Array[EffectGenericDefinition]
+  runtime_polymorphic_values : Array[Bool]
   instances : Array[EffectSpecializationInstance]
   data_instances : Array[EffectDataInstance]
   reachable : Array[Bool]
@@ -150,9 +188,11 @@ fn specialize_reachable_effects(
 ) -> @buslane.Program raise ExecutableElaborationError {
   let occurrence = @occurrence.analyze({ program, entry, roots: [] })
   let reachable = occurrence.facts.map(fact => fact.reachable_from_entry)
+  let definitions = collect_effect_generic_definitions(program)
   let specializer = EffectSpecializer::{
     program,
-    definitions: collect_effect_generic_definitions(program),
+    definitions,
+    runtime_polymorphic_values: collect_runtime_polymorphic_values(program),
     instances: [],
     data_instances: [],
     reachable,
@@ -167,21 +207,27 @@ fn specialize_reachable_effects(
     match term {
       Let(id, rhs) =>
         if specializer.is_reachable(id) &&
-          specializer.find_definition(id) is None {
+          (
+            specializer.find_definition(id) is None ||
+            specializer.is_runtime_polymorphic_definition(id)
+          ) {
           terms.push(
-            Let(id, specializer.rewrite_expr(rhs, EffectRewriteScope::new([]))),
+            Let(id, specializer.rewrite_expr(rhs, specializer.root_scope())),
           )
         }
       LetRec(bindings) => {
         let rewritten : Array[@buslane.RecursiveBinding] = []
         for binding in bindings {
           if specializer.is_reachable(binding.id) &&
-            specializer.find_definition(binding.id) is None {
+            (
+              specializer.find_definition(binding.id) is None ||
+              specializer.is_runtime_polymorphic_definition(binding.id)
+            ) {
             rewritten.push({
               id: binding.id,
               rhs: specializer.rewrite_expr(
                 binding.rhs,
-                EffectRewriteScope::new([]),
+                specializer.root_scope(),
               ),
             })
           }
@@ -239,6 +285,108 @@ fn collect_effect_generic_definitions(
     }
   }
   definitions
+}
+
+///|
+priv struct EffectPolymorphicUseIndex {
+  parameter_counts : Array[Int]
+  runtime_values : Array[Bool]
+}
+
+///|
+fn collect_runtime_polymorphic_values(
+  program : @buslane.Program,
+) -> Array[Bool] {
+  let parameter_counts = []
+  let runtime_values = []
+  for index in 0..<program.metadata.values.length() {
+    let value : @buslane.ValueId = { index, }
+    parameter_counts.push(
+      match effect_scheme_parameters(program.metadata, value) {
+        Some(parameters) => parameters.length()
+        None => 0
+      },
+    )
+    runtime_values.push(false)
+  }
+  let use_index = EffectPolymorphicUseIndex::{
+    parameter_counts,
+    runtime_values,
+  }
+  for term in program.terms {
+    match term {
+      Let(_, expression) => use_index.record_expression(expression, 0)
+      LetRec(bindings) =>
+        for binding in bindings {
+          use_index.record_expression(binding.rhs, 0)
+        }
+      External(_) => ()
+    }
+  }
+  runtime_values
+}
+
+///|
+fn EffectPolymorphicUseIndex::record_expression(
+  self : EffectPolymorphicUseIndex,
+  expression : @buslane.Expr,
+  applied_argument_count : Int,
+) -> Unit {
+  match expression {
+    Ref(id) => {
+      let parameter_count = self.parameter_counts.get(id.index).unwrap_or(0)
+      if parameter_count > applied_argument_count {
+        self.runtime_values[id.index] = true
+      }
+    }
+    Literal(_) | Resume(_) => ()
+    Function(function) => self.record_expression(function.body, 0)
+    Call(callee, arguments) => {
+      self.record_expression(callee, 0)
+      for argument in arguments {
+        self.record_expression(argument, 0)
+      }
+    }
+    TypeLambda(_, body) => self.record_expression(body, 0)
+    TypeApply(callee, arguments) =>
+      self.record_expression(
+        callee,
+        applied_argument_count + arguments.length(),
+      )
+    Construct(construct) =>
+      for payload in construct.payloads {
+        self.record_expression(payload, 0)
+      }
+    Let(_, initializer, body) => {
+      self.record_expression(initializer, 0)
+      self.record_expression(body, 0)
+    }
+    LetRec(bindings, body) => {
+      for binding in bindings {
+        self.record_expression(binding.rhs, 0)
+      }
+      self.record_expression(body, 0)
+    }
+    Match(match_) => {
+      self.record_expression(match_.scrutinee, 0)
+      for alternative in match_.alternatives {
+        self.record_expression(alternative.body, 0)
+      }
+    }
+    Perform(perform) =>
+      for payload in perform.payloads {
+        self.record_expression(payload, 0)
+      }
+    Handle(handle) => {
+      self.record_expression(handle.body, 0)
+      self.record_expression(handle.final_body, 0)
+      for table in handle.handlers {
+        for operation in table.operations {
+          self.record_expression(operation.body, 0)
+        }
+      }
+    }
+  }
 }
 
 ///|
@@ -333,6 +481,27 @@ fn EffectSpecializer::is_reachable(
 }
 
 ///|
+fn EffectSpecializer::is_runtime_polymorphic_definition(
+  self : EffectSpecializer,
+  id : @buslane.ValueId,
+) -> Bool {
+  self.runtime_polymorphic_values.get(id.index).unwrap_or(false)
+}
+
+///|
+fn EffectSpecializer::root_scope(
+  self : EffectSpecializer,
+) -> EffectRewriteScope {
+  let scope = EffectRewriteScope::new([])
+  for definition in self.definitions {
+    if self.is_runtime_polymorphic_definition(definition.id) {
+      scope.bind_value(definition.id, definition.id)
+    }
+  }
+  scope
+}
+
+///|
 fn EffectSpecializer::rewrite_specialized_definition(
   self : EffectSpecializer,
   definition : EffectGenericDefinition,
@@ -341,7 +510,7 @@ fn EffectSpecializer::rewrite_specialized_definition(
   self.rewrite_specialized_definition_in_scope(
     definition,
     instance,
-    EffectRewriteScope::new([]),
+    self.root_scope(),
   )
 }
 
@@ -401,8 +570,13 @@ fn EffectSpecializer::rewrite_expr(
       if scope.lookup_value(id) is Some(target) {
         Ref(target)
       } else if self.resolve_definition(scope, id) is Some(_) {
+        guard self.program.metadata.value_info(id) is Some(info) else {
+          raise UnsupportedEffectSpecialization(
+            detail="effect-polymorphic value metadata is missing",
+          )
+        }
         raise UnsupportedEffectSpecialization(
-          detail="a reachable effect-polymorphic value must be explicitly applied",
+          detail="reachable effect-polymorphic value `\{info.name.occurrence}` must be explicitly applied",
         )
       } else {
         Ref(id)
@@ -414,16 +588,8 @@ fn EffectSpecializer::rewrite_expr(
         self.rewrite_expr(callee, scope),
         arguments.map(argument => self.rewrite_expr(argument, scope)),
       )
-    TypeLambda(parameters, body) => {
-      if parameters.any(parameter => {
-          type_parameter_is_effect(self.program.metadata, parameter)
-        }) {
-        raise UnsupportedEffectSpecialization(
-          detail="an executable effect-polymorphic type lambda must be bound before specialization",
-        )
-      }
+    TypeLambda(parameters, body) =>
       TypeLambda(parameters, self.rewrite_expr(body, scope))
-    }
     TypeApply(_, _) => self.rewrite_type_application(expression, scope)
     Construct(construct) => {
       let type_arguments = construct.type_arguments.map(argument => {
@@ -495,6 +661,12 @@ fn EffectSpecializer::rewrite_let(
   scope : EffectRewriteScope,
 ) -> @buslane.Expr raise ExecutableElaborationError {
   match effect_scheme_parameters(self.program.metadata, id) {
+    Some(_) if self.is_runtime_polymorphic_definition(id) => {
+      let rewritten_initializer = self.rewrite_expr(initializer, scope)
+      let body_scope = scope.enter_scope()
+      let target = self.fresh_bound_value(id, body_scope)
+      Let(target, rewritten_initializer, self.rewrite_expr(body, body_scope))
+    }
     Some(parameters) => {
       let group = EffectLocalDefinitionGroup::{
         definitions: [{ id, parameters, rhs: initializer }],
@@ -534,7 +706,14 @@ fn EffectSpecializer::rewrite_let_rec(
   for binding in bindings {
     match effect_scheme_parameters(self.program.metadata, binding.id) {
       Some(parameters) =>
-        definitions.push({ id: binding.id, parameters, rhs: binding.rhs })
+        if self.is_runtime_polymorphic_definition(binding.id) {
+          ordinary_bindings.push(binding)
+          ordinary_targets.push(
+            self.fresh_bound_value(binding.id, recursive_scope),
+          )
+        } else {
+          definitions.push({ id: binding.id, parameters, rhs: binding.rhs })
+        }
       None => {
         ordinary_bindings.push(binding)
         ordinary_targets.push(
@@ -672,6 +851,7 @@ fn EffectSpecializer::rewrite_type_application(
     }
   }
   if base is Ref(source) &&
+    scope.lookup_value(source) is None &&
     self.resolve_definition(scope, source) is Some(definition_site) {
     let (definition, instances, ambient_bindings) = match definition_site {
       TopLevel(definition) => (definition, self.instances, [])
@@ -765,7 +945,12 @@ fn EffectSpecializer::require_instance(
     }
   }
   for instance in instances {
-    if instance.source == definition.id && instance.bindings == bindings {
+    if instance.source == definition.id &&
+      specialization_bindings_equal(
+        self.program.metadata,
+        instance.bindings,
+        bindings,
+      ) {
       return instance
     }
   }
@@ -971,7 +1156,7 @@ fn abstract_specialized_type(
   for index in 0..<parameters.length() {
     if !type_parameter_is_effect(metadata, parameters[index]) &&
       arguments[index] is TypeArgument(actual) &&
-      type_ == actual {
+      metadata.types_definitionally_equal(type_, actual) {
       return Parameter(parameters[index])
     }
   }

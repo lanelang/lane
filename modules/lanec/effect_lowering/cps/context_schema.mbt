@@ -176,7 +176,10 @@ fn DictionaryCpsSchema::dictionary(
 ) -> DictionaryHeader raise SynthesisError {
   for dictionary in self.dictionaries {
     if dictionary.effect == effect &&
-      dictionary.residual_effect == residual_effect {
+      self.metadata.effects_definitionally_equal(
+        dictionary.residual_effect,
+        residual_effect,
+      ) {
       return dictionary
     }
   }
@@ -273,7 +276,7 @@ fn DictionaryCpsSchema::context_argument_types(
   answer_type : @buslane.Type,
 ) -> Array[@buslane.Type] raise SynthesisError {
   let residual_effect = residual_effect_part(self.metadata, effect)
-  effect_terms(mon_effect_part(self.metadata, effect)).map(term => {
+  effect_terms(self.metadata, mon_effect_part(self.metadata, effect)).map(term => {
     self.context_term_type(term, answer_type, residual_effect)
   })
 }

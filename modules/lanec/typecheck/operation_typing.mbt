@@ -322,7 +322,7 @@ fn SemanticChecker::infer_operation_owner(
   loc : SourceSpan,
 ) -> @types.Effect? {
   match name {
-    Qualified(owner~, ..) => Some(self.check_effect(owner))
+    Qualified(owner~, ..) => Some(self.check_effect_in_scope(scope, owner))
     Unqualified(..) => {
       if selection.owner_declaration.type_parameters.is_empty() {
         return Some(Singleton(selection.owner, []))

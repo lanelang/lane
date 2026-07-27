@@ -6,7 +6,10 @@ fn SemanticChecker::copy_for_silent_analysis(
   // measurements, such as handler residual effects. Diagnostics and mutations
   // stay in the copied checker.
   {
-    resolved_source: self.resolved_source,
+    resolved_source: {
+      ..self.resolved_source,
+      symbols: self.resolved_source.symbols.fork_revision(),
+    },
     source: self.source,
     imported_environment: self.imported_environment,
     declarations: self.declarations,

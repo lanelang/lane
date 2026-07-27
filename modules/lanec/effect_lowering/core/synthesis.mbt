@@ -64,7 +64,10 @@ pub fn synthesize_expr_or_raise(
       let body_facts = synthesize_expr_or_raise(metadata, body)
       {
         type_: body_facts.type_,
-        effect: effect_union([initializer_facts.effect, body_facts.effect]),
+        effect: effect_union(metadata, [
+          initializer_facts.effect,
+          body_facts.effect,
+        ]),
       }
     }
     LetRec(bindings, body) => {
@@ -85,7 +88,7 @@ pub fn synthesize_expr_or_raise(
           synthesize_expr_or_raise(metadata, alternative.body).effect,
         )
       }
-      { type_: match_.result_type, effect: effect_union(effects) }
+      { type_: match_.result_type, effect: effect_union(metadata, effects) }
     }
     Invoke(invoke) => synthesize_invoke(metadata, invoke)
     Install(install) => synthesize_install(metadata, install)
@@ -100,7 +103,7 @@ pub fn synthesize_expr_or_raise(
       }
       {
         type_: result_type,
-        effect: effect_union([computation_facts.effect, latent_effect]),
+        effect: effect_union(metadata, [computation_facts.effect, latent_effect]),
       }
     }
     OpenContext(open) => synthesize_expr_or_raise(metadata, open.body)
@@ -128,7 +131,7 @@ fn synthesize_call(
     raise ExpectedFunction(callee_facts.type_)
   }
   if arguments.length() > parameters.length() &&
-    latent_effect.canonicalize() != Empty {
+    metadata.canonicalize_effect(latent_effect) != Empty {
     guard arguments.last() is Some(continuation) else {
       raise ArityMismatch(
         expected=parameters.length(),
@@ -143,7 +146,7 @@ fn synthesize_call(
     for argument in arguments {
       effects.push(synthesize_expr_or_raise(metadata, argument).effect)
     }
-    return { type_: answer, effect: effect_union(effects) }
+    return { type_: answer, effect: effect_union(metadata, effects) }
   }
   require_arity(parameters.length(), arguments.length())
   let effects = [callee_facts.effect]
@@ -151,7 +154,7 @@ fn synthesize_call(
     effects.push(synthesize_expr_or_raise(metadata, argument).effect)
   }
   effects.push(latent_effect)
-  { type_: result, effect: effect_union(effects) }
+  { type_: result, effect: effect_union(metadata, effects) }
 }
 
 ///|
@@ -199,7 +202,7 @@ fn synthesize_construct(
   })
   {
     type_: nominal_type(info.owner, construct.type_arguments),
-    effect: effect_union(effects),
+    effect: effect_union(metadata, effects),
   }
 }
 
@@ -239,7 +242,7 @@ fn synthesize_invoke(
   effects.push(Singleton(info.owner, invoke.effect_arguments))
   {
     type_: info.result_type.substitute(substitution),
-    effect: effect_union(effects),
+    effect: effect_union(metadata, effects),
   }
 }
 
@@ -250,7 +253,7 @@ fn synthesize_install(
 ) -> ExprFacts raise SynthesisError {
   let body_facts = synthesize_expr_or_raise(metadata, install.body)
   let handled = install.dictionaries.map(dictionary => dictionary.handled_effect)
-  let effects = [remove_handled_effects(body_facts.effect, handled)]
+  let effects = [remove_handled_effects(metadata, body_facts.effect, handled)]
   let final_facts = synthesize_function(metadata, install.final_clause)
   effects.push(callable_latent_effect(final_facts.type_))
   for dictionary in install.dictionaries {
@@ -262,7 +265,7 @@ fn synthesize_install(
       )
     }
   }
-  { type_: install.result_type, effect: effect_union(effects) }
+  { type_: install.result_type, effect: effect_union(metadata, effects) }
 }
 
 ///|
@@ -326,13 +329,19 @@ fn pure_facts(type_ : @buslane.Type) -> ExprFacts {
 }
 
 ///|
-fn effect_union(effects : Array[@buslane.Effect]) -> @buslane.Effect {
-  @buslane.Effect::Union(effects).canonicalize()
+fn effect_union(
+  metadata : @buslane.MetadataRegistry,
+  effects : Array[@buslane.Effect],
+) -> @buslane.Effect {
+  metadata.canonicalize_effect(@buslane.Effect::Union(effects))
 }
 
 ///|
-pub fn effect_terms(effect : @buslane.Effect) -> Array[@buslane.Effect] {
-  match effect.canonicalize() {
+pub fn effect_terms(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+) -> Array[@buslane.Effect] {
+  match metadata.canonicalize_effect(effect) {
     Empty => []
     Union(effects) => effects
     effect => [effect]
@@ -341,12 +350,16 @@ pub fn effect_terms(effect : @buslane.Effect) -> Array[@buslane.Effect] {
 
 ///|
 fn remove_handled_effects(
+  metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
   handled : Array[@buslane.Effect],
 ) -> @buslane.Effect {
   effect_union(
-    effect_terms(effect).filter(term => {
-      !handled.any(handled_effect => term == handled_effect)
+    metadata,
+    effect_terms(metadata, effect).filter(term => {
+      !handled.any(handled_effect => {
+        metadata.effects_definitionally_equal(term, handled_effect)
+      })
     }),
   )
 }

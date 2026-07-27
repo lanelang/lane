@@ -563,6 +563,34 @@ test "elaborate lowers handler payload binders before alternatives" {
 }
 
 ///|
+test "elaborate alpha-renames generic binders across operation arms" {
+  let result = elaborate_buslane_source(
+    (
+      #|effect Prompt {
+      #|  choose[A](Bool, A) -> A
+      #|}
+      #|fn program() -> Int {
+      #|  handle Prompt::choose![Int](true, 42) with {
+      #|    Prompt::choose[T](true, value, resume) => resume(value)
+      #|    Prompt::choose[U](false, value, resume) => resume(value)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort(@prettyprinter.render(result, width=100))
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {}
+    ),
+  )
+}
+
+///|
 test "elaborate resolved source into buslane core" {
   let result = elaborate_buslane_source(
     (

@@ -36,6 +36,7 @@ fn finalize_body(
   body : FunctionBody,
 ) -> @bytecode.FunctionBody raise FinalizeError {
   let body = simplify_body(body)
+  let body = promote_cross_block_borrows(body)
   let body = thread_owned_block_values(body)
   for index, metadata in body.values {
     validate_metadata({ value: index }, metadata)

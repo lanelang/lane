@@ -115,6 +115,16 @@ fn SemanticChecker::synthesize_checked_handler_computed(
           handler_residual_substitution(residual_parameter, Empty),
         ),
       )
+      if handler_effect_has_nested_residual(
+          checked_arm_body.effect,
+          residual_parameter,
+        ) {
+        self.diagnostics.push({
+          kind: RecursiveHandlerResidualEffect(checked_arm_body.effect),
+          loc: operation.source.body.loc(),
+        })
+        return checked_expression_none_reported(result_type)
+      }
     }
   }
   let residual_effect = handler_effect_union(
@@ -582,6 +592,76 @@ fn handler_residual_substitution(
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   substitution.insert_effect(parameter, effect)
   substitution
+}
+
+///|
+fn handler_effect_has_nested_residual(
+  effect : @types.Effect,
+  residual : TypeParameterId,
+) -> Bool {
+  match effect.canonicalize() {
+    Empty | Io | Parameter(_) => false
+    Singleton(_, arguments) =>
+      arguments.any(argument => {
+        handler_generic_argument_contains_residual(argument, residual)
+      })
+    Union(effects) =>
+      effects.any(effect => handler_effect_has_nested_residual(effect, residual))
+  }
+}
+
+///|
+fn handler_generic_argument_contains_residual(
+  argument : @types.GenericArgument,
+  residual : TypeParameterId,
+) -> Bool {
+  match argument {
+    TypeArgument(type_) => handler_type_contains_residual(type_, residual)
+    EffectArgument(effect) =>
+      handler_nested_effect_contains_residual(effect, residual)
+  }
+}
+
+///|
+fn handler_type_contains_residual(
+  type_ : @types.Type,
+  residual : TypeParameterId,
+) -> Bool {
+  match type_ {
+    Error | Primitive(_) | Constructor(_) | Parameter(_) => false
+    Apply(callee, arguments) =>
+      handler_type_contains_residual(callee, residual) ||
+      arguments.any(argument => {
+        handler_generic_argument_contains_residual(argument, residual)
+      })
+    TypeLambda(_, body) | Forall(_, body) =>
+      handler_type_contains_residual(body, residual)
+    Function(parameters, result, effect) =>
+      parameters.any(parameter => {
+        handler_type_contains_residual(parameter, residual)
+      }) ||
+      handler_type_contains_residual(result, residual) ||
+      handler_nested_effect_contains_residual(effect, residual)
+  }
+}
+
+///|
+fn handler_nested_effect_contains_residual(
+  effect : @types.Effect,
+  residual : TypeParameterId,
+) -> Bool {
+  match effect {
+    Empty | Io => false
+    Parameter(parameter) => parameter == residual
+    Singleton(_, arguments) =>
+      arguments.any(argument => {
+        handler_generic_argument_contains_residual(argument, residual)
+      })
+    Union(effects) =>
+      effects.any(effect => {
+        handler_nested_effect_contains_residual(effect, residual)
+      })
+  }
 }
 
 ///|

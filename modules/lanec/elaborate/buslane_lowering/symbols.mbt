@@ -93,6 +93,15 @@ fn BuslaneLowerer::bind_value_alias(
 }
 
 ///|
+fn BuslaneLowerer::bind_type_parameter_alias(
+  self : BuslaneLowerer,
+  source : @symbol.TypeParameterId,
+  target : @buslane.TypeParameterId,
+) -> Unit {
+  ignore(self.registry.register_type_parameter(source, target))
+}
+
+///|
 fn BuslaneLowerer::define_type_parameter(
   self : BuslaneLowerer,
   parameter : @types.TypeParameter,

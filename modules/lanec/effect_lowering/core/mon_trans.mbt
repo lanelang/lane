@@ -254,7 +254,9 @@ fn finish_call(
   if !is_mon_effect(program.metadata, latent_effect) {
     continuation.apply(call)
   } else {
-    let computation = if latent_effect == ambient_effect {
+    let computation = if program.metadata.effects_definitionally_equal(
+        latent_effect, ambient_effect,
+      ) {
       call
     } else {
       OpenContext({

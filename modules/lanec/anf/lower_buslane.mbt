@@ -96,19 +96,22 @@ fn AnfLowerer::lower_to_atom(
       )
     Match(match_) =>
       self.lower_to_atom(match_.scrutinee, fn(scrutinee) {
-        Match({
-          scrutinee,
-          binder: match_.binder,
-          result_type: match_.result_type,
-          alternatives: match_.alternatives.map(fn(alternative) {
-            {
-              alt_constructor: alternative.alt_constructor,
-              type_binders: alternative.type_binders,
-              value_binders: alternative.value_binders,
-              body: self.lower_to_atom(alternative.body, continuation),
-            }
+        self.bind_temp(
+          Match({
+            scrutinee,
+            binder: match_.binder,
+            result_type: match_.result_type,
+            alternatives: match_.alternatives.map(fn(alternative) {
+              {
+                alt_constructor: alternative.alt_constructor,
+                type_binders: alternative.type_binders,
+                value_binders: alternative.value_binders,
+                body: self.lower_expr(alternative.body),
+              }
+            }),
           }),
-        })
+          continuation,
+        )
       })
     Perform(perform) =>
       self.lower_exprs_to_atoms(perform.payloads, 0, [], fn(payloads) {

@@ -22,7 +22,6 @@ pub(all) enum AnfExpr {
   Atom(AnfAtom)
   Let(AnfBinding, AnfExpr)
   LetRec(Array[AnfRecursiveBinding], AnfExpr)
-  Match(AnfMatch)
 } derive(Debug, Eq)
 
 ///|
@@ -37,6 +36,7 @@ pub(all) enum AnfRhs {
   Call(callee~ : AnfAtom, arguments~ : Array[AnfAtom])
   TypeApply(callee~ : AnfAtom, arguments~ : Array[@buslane.GenericArgument])
   Construct(AnfConstruct)
+  Match(AnfMatch)
   Perform(AnfPerform)
   Handle(AnfHandle)
 } derive(Debug, Eq)

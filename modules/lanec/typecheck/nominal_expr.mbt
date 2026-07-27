@@ -452,7 +452,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   )
   let type_ = @types.nominal_type_generic(symbol, arguments)
   let witness_check = self.check_struct_type_witnesses(
-    struct_declaration, fields, loc,
+    scope, struct_declaration, fields, loc,
   )
   let witnesses = witness_check.witnesses
   let nominal_substitution = struct_declaration.nominal_substitution(arguments)
@@ -663,6 +663,7 @@ priv struct StructTypeWitnessCheck {
 ///|
 fn SemanticChecker::check_struct_type_witnesses(
   self : SemanticChecker,
+  scope : TypeScope,
   declaration : CheckedStructDeclaration,
   fields : Array[@desugar.DesugaredStructLiteralField],
   loc : SourceSpan,
@@ -686,7 +687,7 @@ fn SemanticChecker::check_struct_type_witnesses(
         let checked : @checked.CheckedStructTypeWitness = {
           symbol: type_member.symbol,
           name,
-          type_: self.check_type(witness),
+          type_: self.check_type_in_scope(scope, witness),
           loc: field_loc,
         }
         if witnesses[type_member.index] is None {

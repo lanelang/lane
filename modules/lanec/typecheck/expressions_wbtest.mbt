@@ -1063,6 +1063,35 @@ test "typecheck checked generic function literal parameters from expected forall
 }
 
 ///|
+test "typecheck generic function literal binder kinds against expected forall" {
+  let result = expect_typecheck_result(
+    (
+      #|let action : [E : Effect]() -> Unit ! E = fn[T]() {
+      #|  ()
+      #|}
+    ),
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: KindMismatch(expected=Effect, actual=Type),
+      #|    loc: {
+      #|      start_offset: 57,
+      #|      end_offset: 58,
+      #|      start_line: 2,
+      #|      start_column: 46,
+      #|      end_line: 2,
+      #|      end_column: 47,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "typecheck reports generic function literal arity mismatch" {
   let result = expect_typecheck_result(
     (

@@ -1227,18 +1227,21 @@ fn SemanticChecker::synthesize_checked_function_literal(
   body : @desugar.DesugaredExpr,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  let annotation_scope = scope.with_type_parameter_kinds(type_parameters)
   let (parameter_types, checked_parameters) = self.synthesize_function_literal_parameters(
-    parameters,
+    annotation_scope, parameters,
   )
   let body_scope = function_body_scope(
     scope, type_parameters, checked_parameters,
   )
   let checked_effect = match effect {
-    Some(effect) => self.check_effect(effect)
+    Some(effect) => self.check_effect_in_scope(annotation_scope, effect)
     None => Empty
   }
   let (result_type, checked_body) = if return_type is Some(type_annotation) {
-    let result_type = self.check_type(type_annotation)
+    let result_type = self.check_type_in_scope(
+      annotation_scope, type_annotation,
+    )
     (
       result_type,
       self.check_checked_expr(
@@ -1321,11 +1324,29 @@ fn SemanticChecker::check_checked_function_literal(
         return undetermined_checked_expression(expectation.type_)
       }
       let substitution = @types.TypeSubstitution::TypeSubstitution()
+      let mut kinds_compatible = true
       for index in 0..<expected_parameters.length() {
-        substitution.insert(
-          expected_parameters[index].id,
-          Parameter(type_parameters[index].symbol),
-        )
+        let expected = expected_parameters[index]
+        let actual = checked_type_parameters[index]
+        if expected.kind != actual.kind {
+          self.diagnostics.push({
+            kind: KindMismatch(expected=expected.kind, actual=actual.kind),
+            loc: type_parameters[index].loc,
+          })
+          kinds_compatible = false
+        }
+        match expected.kind {
+          Effect =>
+            substitution.insert_effect(
+              expected.id,
+              @types.Effect::Parameter(actual.id),
+            )
+          _ =>
+            substitution.insert(expected.id, @types.Type::Parameter(actual.id))
+        }
+      }
+      if !kinds_compatible {
+        return undetermined_checked_expression(expectation.type_)
       }
       let scope = scope.with_type_parameter_kinds(type_parameters)
       let checked = self.check_checked_function_literal(

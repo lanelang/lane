@@ -136,6 +136,9 @@ fn BuslaneLowerer::lower_handler_operation_group(
     self.lower_type(group.resume_type),
   )
   let rows = group.arms.map(fn(arm) {
+    for index, parameter in arm.type_binders {
+      self.bind_type_parameter_alias(parameter.id, type_binders[index])
+    }
     self.bind_value_alias(arm.resume_symbol, resume_binder)
     for pattern in arm.payload_patterns {
       self.define_pattern_binders(pattern)

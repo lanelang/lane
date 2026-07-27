@@ -17,13 +17,14 @@ fn checked_function_literal_parameter(
 ///|
 fn SemanticChecker::synthesize_function_literal_parameters(
   self : SemanticChecker,
+  scope : TypeScope,
   parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
 ) -> (Array[@types.Type], Array[@checked.CheckedValueParameter]) {
   let parameter_types = []
   let checked_parameters = []
   for parameter in parameters {
     let type_ = match parameter.type_annotation {
-      Some(type_annotation) => self.check_type(type_annotation)
+      Some(type_annotation) => self.check_type_in_scope(scope, type_annotation)
       None => {
         self.diagnostics.push({
           kind: FunctionLiteralParameterNeedsAnnotation(
@@ -45,6 +46,7 @@ fn SemanticChecker::synthesize_function_literal_parameters(
 ///|
 fn SemanticChecker::checked_function_literal_parameters_from_expected(
   self : SemanticChecker,
+  scope : TypeScope,
   parameters : Array[@resolve.ResolvedFunctionLiteralParameter],
   expected_parameters : Array[@types.Type],
 ) -> Array[@checked.CheckedValueParameter] {
@@ -53,7 +55,11 @@ fn SemanticChecker::checked_function_literal_parameters_from_expected(
     let parameter = parameters[index]
     let type_ = expected_parameters[index]
     if parameter.type_annotation is Some(type_annotation) {
-      self.expect_type(type_, self.check_type(type_annotation), parameter.loc)
+      self.expect_type(
+        type_,
+        self.check_type_in_scope(scope, type_annotation),
+        parameter.loc,
+      )
     }
     checked_parameters.push(
       checked_function_literal_parameter(parameter, type_),
@@ -86,20 +92,24 @@ fn SemanticChecker::check_monomorphic_function_literal(
     return checked_expression_none_reported(fallback_type)
   }
   let checked_parameters = self.checked_function_literal_parameters_from_expected(
-    parameters, expected_parameters,
+    scope, parameters, expected_parameters,
   )
   if return_type is Some(type_annotation) {
-    self.expect_type(expected_result, self.check_type(type_annotation), loc)
+    self.expect_type(
+      expected_result,
+      self.check_type_in_scope(scope, type_annotation),
+      loc,
+    )
   }
   let checked_effect = match (expected_effect, effect) {
     (Some(expected), Some(effect_annotation)) => {
-      let annotated = self.check_effect(effect_annotation)
+      let annotated = self.check_effect_in_scope(scope, effect_annotation)
       self.expect_effect(expected, annotated, loc)
       Some(annotated)
     }
     (Some(expected), None) => Some(expected)
     (None, Some(effect_annotation)) =>
-      Some(self.check_effect(effect_annotation))
+      Some(self.check_effect_in_scope(scope, effect_annotation))
     (None, None) => None
   }
   let body_scope = function_body_scope(

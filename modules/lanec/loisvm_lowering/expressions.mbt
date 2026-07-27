@@ -14,7 +14,6 @@ fn FunctionLowerer::lower_expr(
       self.lower_expr(body)
     }
     LetRec(bindings, body) => self.lower_recursive_group(bindings, body)
-    Match(match_) => self.lower_match(match_)
   }
 }
 
@@ -35,6 +34,7 @@ fn FunctionLowerer::lower_rhs(
     TypeApply(callee~, arguments~) => self.lower_type_apply(callee, arguments)
     Call(callee~, arguments~) => self.lower_call(callee, arguments)
     Construct(construct) => self.lower_construct(construct)
+    Match(match_) => self.lower_match(match_)
     Perform(_) =>
       raise UnsupportedExpression(
         detail="perform must be erased before VM CFG lowering",

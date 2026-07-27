@@ -502,7 +502,7 @@ fn MetadataRegistry::definitional_equality_context(
 }
 
 ///|
-fn MetadataRegistry::types_definitionally_equal(
+pub fn MetadataRegistry::types_definitionally_equal(
   self : MetadataRegistry,
   left : Type,
   right : Type,
@@ -512,6 +512,25 @@ fn MetadataRegistry::types_definitionally_equal(
     left.normalize(),
     right.normalize(),
   )
+}
+
+///|
+/// Returns whether two Buslane effects are definitionally equal.
+pub fn MetadataRegistry::effects_definitionally_equal(
+  self : MetadataRegistry,
+  left : Effect,
+  right : Effect,
+) -> Bool {
+  alpha_equal_effect_with(self.definitional_equality_context(), left, right)
+}
+
+///|
+/// Returns the canonical effect shape under metadata-aware alpha equivalence.
+pub fn MetadataRegistry::canonicalize_effect(
+  self : MetadataRegistry,
+  effect : Effect,
+) -> Effect {
+  canonicalize_effect_with(self.definitional_equality_context(), effect)
 }
 
 ///|
@@ -554,7 +573,12 @@ pub impl Eq for Effect with fn equal(self : Effect, other : Effect) -> Bool {
 ///|
 /// Returns the canonical effect shape used for equality and diagnostics.
 pub fn Effect::canonicalize(self : Effect) -> Effect {
-  let terms = canonical_effect_terms(unconstrained_alpha_context(), self)
+  canonicalize_effect_with(unconstrained_alpha_context(), self)
+}
+
+///|
+fn canonicalize_effect_with(context : AlphaContext, effect : Effect) -> Effect {
+  let terms = canonical_effect_terms(context, effect)
   match terms {
     [] => Empty
     [term] => term

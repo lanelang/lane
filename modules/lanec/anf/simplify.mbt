@@ -57,24 +57,6 @@ fn simplify_expr(expr : AnfExpr, scope : AnfRewriteScope) -> AnfExpr {
         simplify_expr(body, body_scope),
       )
     }
-    Match(match_) =>
-      Match({
-        scrutinee: simplify_atom(match_.scrutinee, scope),
-        binder: match_.binder,
-        result_type: match_.result_type,
-        alternatives: match_.alternatives.map(fn(alternative) {
-          let alternative_scope = alternative.value_binders.fold(
-            init=scope.without_value(match_.binder),
-            fn(scope, binder) { scope.without_value(binder) },
-          )
-          {
-            alt_constructor: alternative.alt_constructor,
-            type_binders: alternative.type_binders,
-            value_binders: alternative.value_binders,
-            body: simplify_expr(alternative.body, alternative_scope),
-          }
-        }),
-      })
   }
 }
 
@@ -118,6 +100,24 @@ fn simplify_rhs(rhs : AnfRhs, scope : AnfRewriteScope) -> AnfRhs {
         type_arguments: construct.type_arguments,
         hidden_witnesses: construct.hidden_witnesses,
         payloads: construct.payloads.map(fn(atom) { simplify_atom(atom, scope) }),
+      })
+    Match(match_) =>
+      Match({
+        scrutinee: simplify_atom(match_.scrutinee, scope),
+        binder: match_.binder,
+        result_type: match_.result_type,
+        alternatives: match_.alternatives.map(fn(alternative) {
+          let alternative_scope = alternative.value_binders.fold(
+            init=scope.without_value(match_.binder),
+            fn(scope, binder) { scope.without_value(binder) },
+          )
+          {
+            alt_constructor: alternative.alt_constructor,
+            type_binders: alternative.type_binders,
+            value_binders: alternative.value_binders,
+            body: simplify_expr(alternative.body, alternative_scope),
+          }
+        }),
       })
     Perform(perform) =>
       Perform({

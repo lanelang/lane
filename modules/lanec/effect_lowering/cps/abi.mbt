@@ -147,6 +147,7 @@ fn lower_cps_function(
     )
     let answer_type = @buslane.Type::Parameter(answer_parameter)
     let context_terms = effect_terms(
+      program.metadata,
       mon_effect_part(program.metadata, latent_effect),
     )
     let context_parameters = []
@@ -231,6 +232,7 @@ fn lower_cps_direct_expr(
           lower_cps_direct_expr(schema, program, argument, current_answer)
         }),
         schema.rewrite_type(source_result),
+        empty_callee_context_count(program.metadata, callee) +
         empty_result_context_count(program.metadata, callee),
       )
     }
@@ -479,8 +481,41 @@ fn empty_result_context_count(
   guard source_callable_effect(result_type) is Some(result_effect) else {
     return 0
   }
+  applied_empty_context_count(metadata, parameters, arguments, result_effect)
+}
+
+///|
+fn empty_callee_context_count(
+  metadata : @buslane.MetadataRegistry,
+  expression : Expr,
+) -> Int raise SynthesisError {
+  let argument_groups = []
+  let base = collect_cps_type_applications(expression, argument_groups)
+  let parameters = []
+  let terminal_type = collect_cps_forall_parameters(
+    synthesize_expr_or_raise(metadata, base).type_,
+    parameters,
+  )
+  let arguments = []
+  for group in argument_groups {
+    arguments.append(group)
+  }
+  if arguments.length() < parameters.length() {
+    raise ArityMismatch(expected=parameters.length(), actual=arguments.length())
+  }
+  guard terminal_type is Function(_, _, latent_effect) else { return 0 }
+  applied_empty_context_count(metadata, parameters, arguments, latent_effect)
+}
+
+///|
+fn applied_empty_context_count(
+  metadata : @buslane.MetadataRegistry,
+  parameters : Array[@buslane.TypeParameterId],
+  arguments : Array[@buslane.GenericArgument],
+  effect : @buslane.Effect,
+) -> Int {
   let mut count = 0
-  for term in effect_terms(result_effect) {
+  for term in effect_terms(metadata, effect) {
     if term is Parameter(parameter) &&
       applied_empty_effect_argument(parameters, arguments, parameter) {
       count += 1

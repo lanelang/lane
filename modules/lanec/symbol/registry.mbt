@@ -121,6 +121,47 @@ pub fn SymbolRegistry::SymbolRegistry() -> SymbolRegistry {
 }
 
 ///|
+/// Forks the revision-owned allocator and metadata for speculative analysis.
+///
+/// Imported arenas are immutable snapshots and remain shared. New identities
+/// and local metadata allocated through the fork cannot mutate the source
+/// revision.
+pub fn SymbolRegistry::fork_revision(self : SymbolRegistry) -> SymbolRegistry {
+  {
+    allocator: {
+      next_type: self.allocator.next_type,
+      next_type_parameter: self.allocator.next_type_parameter,
+      next_type_member: self.allocator.next_type_member,
+      next_value: self.allocator.next_value,
+      next_field: self.allocator.next_field,
+      next_variant: self.allocator.next_variant,
+      next_effect: self.allocator.next_effect,
+      next_operation: self.allocator.next_operation,
+    },
+    metadata: {
+      types: self.metadata.types.copy(),
+      type_parameters: self.metadata.type_parameters.copy(),
+      type_members: self.metadata.type_members.copy(),
+      values: self.metadata.values.copy(),
+      fields: self.metadata.fields.copy(),
+      variants: self.metadata.variants.copy(),
+      effects: self.metadata.effects.copy(),
+      operations: self.metadata.operations.copy(),
+    },
+    imports: self.imports,
+    declarations: {
+      types: self.declarations.types.copy(),
+      values: self.declarations.values.copy(),
+      effects: self.declarations.effects.copy(),
+      type_members: self.declarations.type_members.copy(),
+      fields: self.declarations.fields.copy(),
+      variants: self.declarations.variants.copy(),
+      operations: self.declarations.operations.copy(),
+    },
+  }
+}
+
+///|
 pub fn SymbolRegistry::declaration_identities(
   self : SymbolRegistry,
 ) -> DeclarationIdentities {

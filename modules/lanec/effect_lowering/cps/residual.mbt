@@ -79,7 +79,7 @@ fn ResidualComputationSchema::fresh_frame(
   let answer_type = @buslane.Type::Parameter(answer_parameter)
   let context_parameters = []
   let bindings = []
-  for term in effect_terms(self.effect) {
+  for term in effect_terms(program.metadata, self.effect) {
     let parameter = program.metadata.define_value(
       "%residual_context",
       Parameter,
@@ -98,7 +98,9 @@ fn ResidualComputationSchema::fresh_frame(
     answer_type,
     context_parameters,
     environment: {
-      effect: @buslane.Effect::Union([self.effect, self.residual_effect]).canonicalize(),
+      effect: program.metadata.canonicalize_effect(
+        @buslane.Effect::Union([self.effect, self.residual_effect]),
+      ),
       bindings,
     },
     continuation,
@@ -135,6 +137,7 @@ fn ResidualComputationSchema::pure(
 ///|
 fn ResidualComputationSchema::run(
   self : ResidualComputationSchema,
+  metadata : @buslane.MetadataRegistry,
   computation : Expr,
   environment : CpsEnvironment,
   answer_type : @buslane.Type,
@@ -145,7 +148,9 @@ fn ResidualComputationSchema::run(
   } else {
     Call(
       TypeApply(computation, [TypeArgument(answer_type)]),
-      effect_terms(self.effect).map(term => find_cps_context(environment, term)) +
+      effect_terms(metadata, self.effect).map(term => {
+        find_cps_context(metadata, environment, term)
+      }) +
       [continuation],
     )
   }
@@ -160,7 +165,7 @@ fn build_residual_relay_bindings(
 ) -> ResidualRelayPlan raise SynthesisError {
   let bindings = []
   let initializers = []
-  for term in effect_terms(residual.effect) {
+  for term in effect_terms(program.metadata, residual.effect) {
     match term {
       Io => ()
       Singleton(effect, arguments) => {
@@ -180,7 +185,10 @@ fn build_residual_relay_bindings(
         initializers.push({ id, value })
       }
       Parameter(_) =>
-        bindings.push({ term, value: find_cps_context(outer_environment, term) })
+        bindings.push({
+          term,
+          value: find_cps_context(program.metadata, outer_environment, term),
+        })
       Empty | Union(_) => abort("canonical residual effect term expected")
     }
   }
@@ -240,7 +248,10 @@ fn build_residual_relay_field(
     field_type,
   )
   guard function_type is Function(parameter_types, result_type, function_effect) &&
-    function_effect == residual.residual_effect else {
+    program.metadata.effects_definitionally_equal(
+      function_effect,
+      residual.residual_effect,
+    ) else {
     raise ExpectedFunction(function_type)
   }
   let parameters = parameter_types.map(type_ => {
@@ -251,11 +262,14 @@ fn build_residual_relay_field(
   }
   guard parameter_types.last()
     is Some(Function([operation_result], resume_result, resume_effect)) &&
-    resume_effect == residual.residual_effect else {
+    program.metadata.effects_definitionally_equal(
+      resume_effect,
+      residual.residual_effect,
+    ) else {
     raise ExpectedFunction(parameter_types.last().unwrap())
   }
-  if !resume_result.equals(residual.type_) ||
-    !result_type.equals(residual.type_) {
+  if !program.metadata.types_definitionally_equal(resume_result, residual.type_) ||
+    !program.metadata.types_definitionally_equal(result_type, residual.type_) {
     raise ExpectedFunction(function_type)
   }
   let frame = residual.fresh_frame(schema, program)
@@ -271,6 +285,7 @@ fn build_residual_relay_field(
     parameters: [operation_result_parameter],
     result_type: frame.answer_type,
     body: residual.run(
+      program.metadata,
       resumed,
       frame.environment,
       frame.answer_type,

@@ -161,13 +161,21 @@ fn SemanticChecker::collect_top_level_function_type(
   self : SemanticChecker,
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> Unit {
+  let root_scope = self.root_scope()
+  let annotation_scope = root_scope.with_type_parameter_kinds(
+    declaration.type_parameters,
+  )
   let type_ = self.function_type(
+    root_scope,
     declaration.type_parameters,
     declaration.parameters,
     declaration.return_type,
     declaration.effect,
   )
-  let parameters = self.checked_value_parameters(declaration.parameters)
+  let parameters = self.checked_value_parameters(
+    annotation_scope,
+    declaration.parameters,
+  )
   let binding = {
     symbol: declaration.symbol,
     type_,
@@ -234,17 +242,24 @@ fn SemanticChecker::check_top_level_function(
   self : SemanticChecker,
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> Unit {
-  let parameters = self.checked_value_parameters(declaration.parameters)
+  let root_scope = self.root_scope()
+  let annotation_scope = root_scope.with_type_parameter_kinds(
+    declaration.type_parameters,
+  )
+  let parameters = self.checked_value_parameters(
+    annotation_scope,
+    declaration.parameters,
+  )
   let scope = function_body_scope(
-    self.root_scope(),
+    root_scope,
     declaration.type_parameters,
     parameters,
   )
-  let effect = self.check_effect(declaration.effect)
+  let effect = self.check_effect_in_scope(annotation_scope, declaration.effect)
   let body = self.check_checked_expr(
     scope.with_expected_effect(effect),
     declaration.body,
-    self.check_type(declaration.return_type),
+    self.check_type_in_scope(annotation_scope, declaration.return_type),
   )
   self.expect_effect(effect, body.effect, declaration.body.loc())
 }
@@ -304,19 +319,21 @@ fn SemanticChecker::check_top_level_let(
 ///|
 fn SemanticChecker::function_type(
   self : SemanticChecker,
+  scope : TypeScope,
   type_parameters : Array[@resolve.ResolvedTypeParameter],
   parameters : Array[@resolve.ResolvedValueParameter],
   return_type : @resolve.ResolvedType,
   effect : @resolve.ResolvedEffectTerm,
 ) -> @types.Type {
+  let annotation_scope = scope.with_type_parameter_kinds(type_parameters)
   let parameters = parameters.map(fn(parameter) {
-    self.check_type(parameter.type_)
+    self.check_type_in_scope(annotation_scope, parameter.type_)
   })
-  let result = self.check_type(return_type)
+  let result = self.check_type_in_scope(annotation_scope, return_type)
   let type_ = @types.Type::Function(
     parameters,
     result,
-    self.check_effect(effect),
+    self.check_effect_in_scope(annotation_scope, effect),
   )
   if type_parameters.is_empty() {
     type_
@@ -336,6 +353,21 @@ fn SemanticChecker::check_type(
     self.diagnostics,
     type_,
   )
+}
+
+///|
+fn SemanticChecker::check_type_in_scope(
+  self : SemanticChecker,
+  scope : TypeScope,
+  type_ : @resolve.ResolvedType,
+) -> @types.Type {
+  TypeExpressionChecker::{
+    source: self.resolved_source,
+    imported_environment: self.imported_environment,
+    diagnostics: self.diagnostics,
+    expanding: [],
+    scope: Some(scope),
+  }.check_value_type(type_)
 }
 
 ///|

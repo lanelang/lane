@@ -43,6 +43,89 @@ test "lower buslane function call to ANF" {
 }
 
 ///|
+test "ANF binds a match before applying its continuation" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let consume = metadata.define_value(
+    "consume",
+    Function,
+    Function([Primitive(Bool)], Primitive(Int), Empty),
+  )
+  let result = metadata.define_value("result", Value, Primitive(Int))
+  let binder = metadata.define_value("matched", MatchBinder, Primitive(Bool))
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      External(consume),
+      Let(
+        result,
+        Call(Ref(consume), [
+          Match({
+            scrutinee: Literal(Bool(true)),
+            binder,
+            result_type: Primitive(Bool),
+            alternatives: [
+              {
+                alt_constructor: Literal(Bool(true)),
+                type_binders: [],
+                value_binders: [],
+                body: Literal(Bool(true)),
+              },
+              {
+                alt_constructor: Default,
+                type_binders: [],
+                value_binders: [],
+                body: Literal(Bool(false)),
+              },
+            ],
+          }),
+        ]),
+      ),
+    ],
+  }
+  debug_inspect(
+    lower_buslane_program_to_anf(program).terms[1],
+    content=(
+      #|Let(
+      #|  { index: 1 },
+      #|  Let(
+      #|    Temp(
+      #|      temp={ index: 0 },
+      #|      rhs=Match(
+      #|        {
+      #|          scrutinee: Literal(Bool(true)),
+      #|          binder: { index: 2 },
+      #|          result_type: Primitive(Bool),
+      #|          alternatives: [
+      #|            {
+      #|              alt_constructor: Literal(Bool(true)),
+      #|              type_binders: [],
+      #|              value_binders: [],
+      #|              body: Atom(Literal(Bool(true))),
+      #|            },
+      #|            {
+      #|              alt_constructor: Default,
+      #|              type_binders: [],
+      #|              value_binders: [],
+      #|              body: Atom(Literal(Bool(false))),
+      #|            },
+      #|          ],
+      #|        },
+      #|      ),
+      #|    ),
+      #|    Let(
+      #|      Temp(
+      #|        temp={ index: 1 },
+      #|        rhs=Call(callee=Ref({ index: 0 }), arguments=[Temp({ index: 0 })]),
+      #|      ),
+      #|      Atom(Temp({ index: 1 })),
+      #|    ),
+      #|  ),
+      #|)
+    ),
+  )
+}
+
+///|
 test "lower buslane handler and perform to ANF" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])

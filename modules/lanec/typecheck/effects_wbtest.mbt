@@ -320,6 +320,87 @@ test "handler final pass rejects deferred effect lower bound conflicts" {
 }
 
 ///|
+test "handler measurement rejects recursive residual effect arguments" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  ask() -> Unit
+      #|}
+      #|effect Wrap[_E : Effect] {
+      #|  touch() -> Unit
+      #|}
+      #|fn[E : Effect] wrap(callback : (Unit) -> Unit ! E) -> Unit ! Wrap[{ E }] {
+      #|  ()
+      #|}
+      #|fn run() -> Unit {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(resume) => wrap(resume)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: RecursiveHandlerResidualEffect(Singleton({ index: 1 }, [EffectArgument(Parameter({ index: 2 }))])),
+      #|    loc: {
+      #|      start_offset: 252,
+      #|      end_offset: 264,
+      #|      start_line: 13,
+      #|      start_column: 28,
+      #|      end_line: 13,
+      #|      end_column: 40,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "handler arm type binders retain their lexical kind" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  ask[A]() -> Unit
+      #|}
+      #|fn run() -> Unit {
+      #|  handle Prompt::ask![Int]() with {
+      #|    Prompt::ask[T](resume) => {
+      #|      let callback : () -> Unit ! T = fn () { () }
+      #|      resume(())
+      #|    }
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: KindMismatch(expected=Effect, actual=Type),
+      #|    loc: {
+      #|      start_offset: 170,
+      #|      end_offset: 171,
+      #|      start_line: 8,
+      #|      start_column: 35,
+      #|      end_line: 8,
+      #|      end_column: 36,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 fn expect_first_handler_resume_callee_type(source : String) -> @types.Type {
   let result = expect_checked_source_result(source)
   guard result.source is Some(source_file) else {

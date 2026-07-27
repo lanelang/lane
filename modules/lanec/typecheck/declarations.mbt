@@ -234,6 +234,7 @@ fn DeclarationChecker::check_type_alias(
         imported_environment: self.imported_environment,
         diagnostics: self.diagnostics,
         expanding: [declaration.name],
+        scope: None,
       }.synthesize_type(body).kind
     EffectBody(effect) => {
       ignore(
@@ -242,6 +243,7 @@ fn DeclarationChecker::check_type_alias(
           imported_environment: self.imported_environment,
           diagnostics: self.diagnostics,
           expanding: [declaration.name],
+          scope: None,
         }.check_effect(effect),
       )
       type_alias_kind(declaration.type_parameters, Effect)
@@ -479,6 +481,7 @@ fn check_resolved_type_with_imported_environment(
     imported_environment,
     diagnostics,
     expanding: [],
+    scope: None,
   }
   checker.check_value_type(type_)
 }
@@ -581,6 +584,7 @@ fn check_resolved_generic_argument(
     imported_environment,
     diagnostics,
     expanding: [],
+    scope: Some(scope),
   }
   match (expected, argument) {
     (Effect, EffectArgument(effect)) => {
@@ -596,7 +600,7 @@ fn check_resolved_generic_argument(
     }
     (Effect, TypeArgument(type_)) => {
       let result = checker.synthesize_type(type_)
-      let actual = resolved_type_kind_with_scope(scope, type_, result.kind)
+      let actual = result.kind
       if actual == Effect && result.type_ is Parameter(symbol) {
         EffectArgument(Parameter(symbol))
       } else {
@@ -609,7 +613,7 @@ fn check_resolved_generic_argument(
     }
     (expected, TypeArgument(type_)) => {
       let result = checker.synthesize_type(type_)
-      let actual = resolved_type_kind_with_scope(scope, type_, result.kind)
+      let actual = result.kind
       if actual != expected {
         diagnostics.push({
           kind: KindMismatch(expected~, actual~),
@@ -637,27 +641,12 @@ fn check_resolved_generic_argument(
 }
 
 ///|
-fn resolved_type_kind_with_scope(
-  scope : TypeScope,
-  type_ : @resolve.ResolvedType,
-  fallback : @types.Kind,
-) -> @types.Kind {
-  match type_ {
-    Parameter(symbol~, ..) =>
-      match scope.type_parameter_kind(symbol) {
-        Some(kind) => kind
-        None => fallback
-      }
-    _ => fallback
-  }
-}
-
-///|
 priv struct TypeExpressionChecker {
   source : @resolve.ResolvedSourceFile
   imported_environment : @module_interface.ImportedEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
   expanding : Array[String]
+  scope : TypeScope?
 }
 
 ///|
@@ -765,7 +754,9 @@ fn TypeExpressionChecker::synthesize_type(
         self.diagnostics,
         parameters,
       )
-      let body_result = self.synthesize_type(body)
+      let body_result = self
+        .with_type_parameters(parameters)
+        .synthesize_type(body)
       {
         type_: TypeLambda(checked_parameters, body_result.type_),
         kind: Function(
@@ -775,9 +766,14 @@ fn TypeExpressionChecker::synthesize_type(
       }
     }
     Parameter(symbol~, ..) => {
-      let kind = match self.find_type_parameter_kind(symbol) {
-        Some(kind) => kind
-        None => Type
+      guard self.find_type_parameter_kind(symbol) is Some(kind) else {
+        self.diagnostics.push({
+          kind: InternalTypecheckFailure(
+            label="missing type parameter kind metadata",
+          ),
+          loc: resolved_type_loc(type_),
+        })
+        return { type_: Error, kind: Type }
       }
       { type_: Parameter(symbol), kind }
     }
@@ -786,11 +782,12 @@ fn TypeExpressionChecker::synthesize_type(
         self.diagnostics,
         type_parameters,
       )
+      let body_checker = self.with_type_parameters(type_parameters)
       let checked_parameters = parameters.map(fn(parameter) {
-        self.expect_kind(parameter, Type).type_
+        body_checker.expect_kind(parameter, Type).type_
       })
-      let checked_result = self.expect_kind(result, Type).type_
-      let checked_effect = self.check_effect(effect)
+      let checked_result = body_checker.expect_kind(result, Type).type_
+      let checked_effect = body_checker.check_effect(effect)
       let function_type = @types.Type::Function(
         checked_parameters, checked_result, checked_effect,
       )
@@ -807,6 +804,32 @@ fn TypeExpressionChecker::synthesize_type(
       self.diagnostics.push({ kind: UnresolvedType(name), loc })
       { type_: Error, kind: Type }
     }
+  }
+}
+
+///|
+fn TypeExpressionChecker::with_type_parameters(
+  self : TypeExpressionChecker,
+  parameters : Array[@resolve.ResolvedTypeParameter],
+) -> TypeExpressionChecker {
+  let scope = match self.scope {
+    Some(scope) => scope.copy()
+    None =>
+      TypeScope::{
+        values: [],
+        offers: ContextualOfferScope(),
+        type_parameters: [],
+        provisional_effect_parameters: [],
+        expected_effect: None,
+      }
+  }
+  scope.bind_resolved_type_parameter_kinds(parameters)
+  {
+    source: self.source,
+    imported_environment: self.imported_environment,
+    diagnostics: self.diagnostics,
+    expanding: self.expanding,
+    scope: Some(scope),
   }
 }
 
@@ -910,6 +933,7 @@ fn TypeExpressionChecker::expand_alias(
         imported_environment: self.imported_environment,
         diagnostics: self.diagnostics,
         expanding: self.expanding.copy(),
+        scope: self.scope,
       }
       next.expanding.push(identity)
       match type_alias.body {
@@ -1030,6 +1054,10 @@ fn TypeExpressionChecker::find_type_parameter_kind(
   self : TypeExpressionChecker,
   symbol : TypeParameterId,
 ) -> @types.Kind? {
+  if self.scope is Some(scope) &&
+    scope.type_parameter_kind(symbol) is Some(kind) {
+    return Some(kind)
+  }
   for declaration in self.source.declarations {
     match declaration {
       Struct(declaration) => {

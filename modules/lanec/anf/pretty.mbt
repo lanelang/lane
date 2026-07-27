@@ -185,7 +185,6 @@ fn anf_expr_doc(expr : AnfExpr) -> Document {
       push_anf_expr_docs(expr, docs)
       @pretty.braced_block(docs)
     }
-    Match(match_) => match_.pretty()
   }
 }
 
@@ -226,6 +225,7 @@ fn anf_rhs_doc(rhs : AnfRhs) -> Document {
     TypeApply(callee~, arguments~) =>
       anf_atom_doc(callee) + buslane_generic_arguments_doc(arguments)
     Construct(construct) => anf_construct_doc(construct)
+    Match(match_) => match_.pretty()
     Perform(perform) => anf_perform_doc(perform)
     Handle(handle) => anf_handle_doc(handle)
   }

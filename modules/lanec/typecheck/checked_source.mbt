@@ -148,14 +148,24 @@ fn SemanticChecker::checked_top_level_function(
   self : SemanticChecker,
   declaration : @desugar.DesugaredFunctionDeclaration,
 ) -> @checked.CheckedTopLevelDeclaration? {
-  let parameters = self.checked_value_parameters(declaration.parameters)
+  let root_scope = self.root_scope()
+  let annotation_scope = root_scope.with_type_parameter_kinds(
+    declaration.type_parameters,
+  )
+  let parameters = self.checked_value_parameters(
+    annotation_scope,
+    declaration.parameters,
+  )
   let body_scope = function_body_scope(
-    self.root_scope(),
+    root_scope,
     declaration.type_parameters,
     parameters,
   )
-  let return_type = self.check_type(declaration.return_type)
-  let effect = self.check_effect(declaration.effect)
+  let return_type = self.check_type_in_scope(
+    annotation_scope,
+    declaration.return_type,
+  )
+  let effect = self.check_effect_in_scope(annotation_scope, declaration.effect)
   let checked_body = self.check_checked_expr(
     body_scope.with_expected_effect(effect),
     declaration.body,
@@ -182,6 +192,7 @@ fn SemanticChecker::checked_top_level_function(
       return_type,
       body,
       type_: self.function_type(
+        root_scope,
         declaration.type_parameters,
         declaration.parameters,
         declaration.return_type,
@@ -302,7 +313,7 @@ fn SemanticChecker::check_checked_local_let(
   // value binder becomes visible only after the initializer is checked.
   let (type_, checked_initializer) = if declaration.type_annotation
     is Some(type_annotation) {
-    let type_ = self.check_type(type_annotation)
+    let type_ = self.check_type_in_scope(scope, type_annotation)
     (type_, self.check_checked_expr(scope, declaration.initializer, type_))
   } else {
     let checked_initializer = self.synthesize_checked_expr(
@@ -366,7 +377,7 @@ fn SemanticChecker::check_checked_local_pattern_let(
   // following block items when the enclosing block consumes this result.
   let (type_, checked_initializer) = if declaration.type_annotation
     is Some(type_annotation) {
-    let type_ = self.check_type(type_annotation)
+    let type_ = self.check_type_in_scope(scope, type_annotation)
     (type_, self.check_checked_expr(scope, declaration.initializer, type_))
   } else {
     let checked_initializer = self.synthesize_checked_expr(
@@ -402,12 +413,19 @@ fn SemanticChecker::check_checked_local_function(
   // annotations define the function type; the body then checks against the
   // annotated result and effect.
   let type_ = self.function_type(
+    scope,
     declaration.type_parameters,
     declaration.parameters,
     declaration.return_type,
     declaration.effect,
   )
-  let parameters = self.checked_value_parameters(declaration.parameters)
+  let annotation_scope = scope.with_type_parameter_kinds(
+    declaration.type_parameters,
+  )
+  let parameters = self.checked_value_parameters(
+    annotation_scope,
+    declaration.parameters,
+  )
   scope.bind_function(declaration.symbol, declaration.name, type_, parameters)
   if declaration.is_offered {
     bind_offer_symbol(
@@ -423,8 +441,11 @@ fn SemanticChecker::check_checked_local_function(
     declaration.type_parameters,
     parameters,
   )
-  let return_type = self.check_type(declaration.return_type)
-  let effect = self.check_effect(declaration.effect)
+  let return_type = self.check_type_in_scope(
+    annotation_scope,
+    declaration.return_type,
+  )
+  let effect = self.check_effect_in_scope(annotation_scope, declaration.effect)
   let checked_body = self.check_checked_expr(
     body_scope.with_expected_effect(effect),
     declaration.body,
@@ -457,14 +478,18 @@ fn SemanticChecker::check_checked_local_function(
 ///|
 fn SemanticChecker::checked_value_parameters(
   self : SemanticChecker,
+  scope : TypeScope,
   parameters : Array[@resolve.ResolvedValueParameter],
 ) -> Array[@checked.CheckedValueParameter] {
-  parameters.map(fn(parameter) { self.checked_value_parameter(parameter) })
+  parameters.map(fn(parameter) {
+    self.checked_value_parameter(scope, parameter)
+  })
 }
 
 ///|
 fn SemanticChecker::checked_value_parameter(
   self : SemanticChecker,
+  scope : TypeScope,
   parameter : @resolve.ResolvedValueParameter,
 ) -> @checked.CheckedValueParameter {
   {
@@ -473,7 +498,7 @@ fn SemanticChecker::checked_value_parameter(
     is_offered: parameter.is_offered,
     name: parameter.name,
     name_loc: parameter.name_loc,
-    type_: self.check_type(parameter.type_),
+    type_: self.check_type_in_scope(scope, parameter.type_),
     loc: parameter.loc,
   }
 }

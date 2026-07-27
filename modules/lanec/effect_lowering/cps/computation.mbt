@@ -91,8 +91,10 @@ fn lower_cps_monadic_call(
   if (
       force_open ||
       selected.adapted ||
-      mon_effect_part(program.metadata, latent_effect) !=
-      mon_effect_part(program.metadata, environment.effect)
+      !program.metadata.effects_definitionally_equal(
+        mon_effect_part(program.metadata, latent_effect),
+        mon_effect_part(program.metadata, environment.effect),
+      )
     ) &&
     (
       effect_has_parameter(latent_effect) ||

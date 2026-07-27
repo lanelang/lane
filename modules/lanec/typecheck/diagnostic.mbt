@@ -638,6 +638,26 @@ fn typecheck_diagnostic(
         ],
         helps=["add an arm for the missing operation"],
       )
+    RecursiveHandlerResidualEffect(effect) =>
+      diagnostic(
+        "recursive handler residual effect",
+        span~,
+        severity=Error,
+        code=Some("E3206"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "the handler residual effect occurs inside `\{display.effect_text(effect)}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "a handler residual row may be propagated directly, but it cannot occur inside another effect argument",
+        ],
+        helps=[
+          "remove the recursive dependency on `resume` from this handler arm",
+        ],
+      )
     DuplicatePatternBinder(name~) =>
       diagnostic(
         "duplicate pattern binder `\{name}`",

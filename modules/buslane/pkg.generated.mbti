@@ -171,6 +171,7 @@ pub(all) struct MetadataRegistry {
   operations : Array[OperationInfo]
 } derive(Eq, @debug.Debug)
 pub fn MetadataRegistry::MetadataRegistry() -> Self
+pub fn MetadataRegistry::canonicalize_effect(Self, Effect) -> Effect
 pub fn MetadataRegistry::data_constructor_info(Self, DataConId) -> DataConInfo?
 pub fn MetadataRegistry::define_data_constructor(Self, String, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
 pub fn MetadataRegistry::define_effect(Self, String, Array[TypeParameterId], flavor? : EffectFlavor) -> EffectId
@@ -179,9 +180,11 @@ pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId], flavo
 pub fn MetadataRegistry::define_type_parameter(Self, String, Kind) -> TypeParameterId
 pub fn MetadataRegistry::define_value(Self, String, ValueKind, Type) -> ValueId
 pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
+pub fn MetadataRegistry::effects_definitionally_equal(Self, Effect, Effect) -> Bool
 pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
 pub fn MetadataRegistry::type_parameter_info(Self, TypeParameterId) -> TypeParameterInfo?
+pub fn MetadataRegistry::types_definitionally_equal(Self, Type, Type) -> Bool
 pub fn MetadataRegistry::value_info(Self, ValueId) -> ValueInfo?
 pub impl @prettyprinter.Pretty for MetadataRegistry
 

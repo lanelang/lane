@@ -356,7 +356,7 @@ fn VerifyContext::synthesize_call(
     )
     return {
       type_: result_type,
-      effect: effect_union(effects + [latent_effect]),
+      effect: effect_union(self.program.metadata, effects + [latent_effect]),
     }
   }
   for index in 0..<arguments.length() {
@@ -369,7 +369,7 @@ fn VerifyContext::synthesize_call(
     effects.push(argument_effect)
   }
   effects.push(latent_effect)
-  { type_: result_type, effect: effect_union(effects) }
+  { type_: result_type, effect: effect_union(self.program.metadata, effects) }
 }
 
 ///|
@@ -505,7 +505,7 @@ fn VerifyContext::synthesize_construct(
   }
   {
     type_: nominal_type(info.owner, construct.type_arguments),
-    effect: effect_union(effects),
+    effect: effect_union(self.program.metadata, effects),
   }
 }
 
@@ -596,7 +596,7 @@ fn VerifyContext::synthesize_perform(
   effects.push(Singleton(info.owner, perform.effect_arguments))
   {
     type_: info.result_type.substitute(substitution),
-    effect: effect_union(effects),
+    effect: effect_union(self.program.metadata, effects),
   }
 }
 
@@ -617,7 +617,10 @@ fn VerifyContext::synthesize_handle(
   guard self.program.metadata.value_info(handle.result_binder)
     is Some(result_info) else {
     self.report(UnknownValue(handle.result_binder))
-    return { type_: handle.result_type, effect: effect_union(effects) }
+    return {
+      type_: handle.result_type,
+      effect: effect_union(self.program.metadata, effects),
+    }
   }
   if !self.program.metadata.types_definitionally_equal(
       result_info.type_,
@@ -649,7 +652,10 @@ fn VerifyContext::synthesize_handle(
       effects.push(arm_effect)
     }
   }
-  { type_: handle.result_type, effect: effect_union(effects) }
+  {
+    type_: handle.result_type,
+    effect: effect_union(self.program.metadata, effects),
+  }
 }
 
 ///|
@@ -820,7 +826,10 @@ fn VerifyContext::synthesize_let(
   let body_result = self.synthesize_expr(body, body_scope, type_scope)
   {
     type_: body_result.type_,
-    effect: effect_union([initializer_effect, body_result.effect]),
+    effect: effect_union(self.program.metadata, [
+      initializer_effect,
+      body_result.effect,
+    ]),
   }
 }
 
@@ -894,7 +903,10 @@ fn VerifyContext::synthesize_match(
     )
     effects.push(alternative_effect)
   }
-  { type_: match_.result_type, effect: effect_union(effects) }
+  {
+    type_: match_.result_type,
+    effect: effect_union(self.program.metadata, effects),
+  }
 }
 
 ///|
@@ -1371,8 +1383,8 @@ fn pure_expr(type_ : Type) -> SynthesizedExpr {
 }
 
 ///|
-fn effect_union(effects : Array[Effect]) -> Effect {
-  Union(effects).canonicalize()
+fn effect_union(metadata : MetadataRegistry, effects : Array[Effect]) -> Effect {
+  metadata.canonicalize_effect(Union(effects))
 }
 
 ///|
@@ -1381,7 +1393,7 @@ fn VerifyContext::require_effect_equals(
   expected : Effect,
   actual : Effect,
 ) -> Unit {
-  if actual != expected {
+  if !self.program.metadata.effects_definitionally_equal(actual, expected) {
     self.report(EffectMismatch(expected~, actual~))
   }
 }
@@ -1394,31 +1406,40 @@ fn VerifyContext::remove_handled_effects(
 ) -> Effect {
   let residual : Array[Effect] = []
   let mut has_open_row = false
-  for term in effect_terms(effect) {
+  let effect_terms = effect_terms(self.program.metadata, effect)
+  for term in effect_terms {
     match term {
       Parameter(_) => {
         has_open_row = true
         residual.push(term)
       }
       _ =>
-        if !handled.any(fn(handled_effect) { term == handled_effect }) {
+        if !handled.any(fn(handled_effect) {
+            self.program.metadata.effects_definitionally_equal(
+              term, handled_effect,
+            )
+          }) {
           residual.push(term)
         }
     }
   }
   if !has_open_row {
     for handled_effect in handled {
-      if !effect_terms(effect).any(fn(term) { term == handled_effect }) {
+      if !effect_terms.any(fn(term) {
+          self.program.metadata.effects_definitionally_equal(
+            term, handled_effect,
+          )
+        }) {
         self.report(EffectMismatch(expected=handled_effect, actual=effect))
       }
     }
   }
-  effect_union(residual)
+  effect_union(self.program.metadata, residual)
 }
 
 ///|
-fn effect_terms(effect : Effect) -> Array[Effect] {
-  match effect.canonicalize() {
+fn effect_terms(metadata : MetadataRegistry, effect : Effect) -> Array[Effect] {
+  match metadata.canonicalize_effect(effect) {
     Empty => []
     Union(effects) => effects
     effect => [effect]

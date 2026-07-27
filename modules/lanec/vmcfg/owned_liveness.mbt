@@ -1,4 +1,55 @@
 ///|
+fn promote_cross_block_borrows(body : FunctionBody) -> FunctionBody {
+  let use_def = analyze_use_def(body)
+  let values = body.values.copy()
+  let instruction_promotions : Array[Array[Array[(ValueId, ValueId)]]] = body.blocks.map(block => {
+      block.instructions.map(_ => [])
+    },
+  )
+  for value_index, metadata in body.values {
+    guard metadata.ownership is Borrowed &&
+      use_def.definitions[value_index] is Some(definition) &&
+      use_def.uses[value_index].any(site => site.block() != definition.block()) else {
+      continue
+    }
+    values[value_index] = { ..metadata, ownership: Owned }
+    if definition is InstructionResult(block, instruction) {
+      let borrowed : ValueId = { value: values.length() }
+      values.push(metadata)
+      instruction_promotions[block][instruction].push(
+        ({ value: value_index }, borrowed),
+      )
+    }
+  }
+  {
+    ..body,
+    values,
+    blocks: body.blocks.mapi(fn(block_index, block) {
+      let instructions = []
+      for instruction_index, instruction in block.instructions {
+        let promotions = instruction_promotions[block_index][instruction_index]
+        instructions.push(
+          map_instruction_values(instruction, fn(value) {
+            for promotion in promotions {
+              let (original, borrowed) = promotion
+              if value == original {
+                return borrowed
+              }
+            }
+            value
+          }),
+        )
+        for promotion in promotions {
+          let (owned, borrowed) = promotion
+          instructions.push(RetainCopy(owned, borrowed))
+        }
+      }
+      { ..block, instructions, }
+    }),
+  }
+}
+
+///|
 fn thread_owned_block_values(body : FunctionBody) -> FunctionBody {
   let block_count = body.blocks.length()
   let value_count = body.values.length()

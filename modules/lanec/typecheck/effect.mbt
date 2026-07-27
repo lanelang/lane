@@ -1,28 +1,15 @@
 ///|
-fn SemanticChecker::check_effect(
+fn SemanticChecker::check_effect_in_scope(
   self : SemanticChecker,
-  effect : @resolve.ResolvedEffectTerm,
-) -> @types.Effect {
-  check_resolved_effect_with_imported_environment(
-    self.resolved_source,
-    self.imported_environment,
-    self.diagnostics,
-    effect,
-  )
-}
-
-///|
-fn check_resolved_effect_with_imported_environment(
-  source : @resolve.ResolvedSourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
-  diagnostics : Array[TypeCheckDiagnostic],
+  scope : TypeScope,
   effect : @resolve.ResolvedEffectTerm,
 ) -> @types.Effect {
   TypeExpressionChecker::{
-    source,
-    imported_environment,
-    diagnostics,
+    source: self.resolved_source,
+    imported_environment: self.imported_environment,
+    diagnostics: self.diagnostics,
     expanding: [],
+    scope: Some(scope),
   }.check_effect(effect)
 }
 
@@ -71,9 +58,14 @@ fn TypeExpressionChecker::check_effect(
       )
     }
     Parameter(symbol~, loc~, ..) => {
-      let kind = match self.find_type_parameter_kind(symbol) {
-        Some(kind) => kind
-        None => Effect
+      guard self.find_type_parameter_kind(symbol) is Some(kind) else {
+        self.diagnostics.push({
+          kind: InternalTypecheckFailure(
+            label="missing effect parameter kind metadata",
+          ),
+          loc,
+        })
+        return Empty
       }
       if kind != Effect {
         self.diagnostics.push({
@@ -173,6 +165,7 @@ fn TypeExpressionChecker::expand_effect_alias(
         imported_environment: self.imported_environment,
         diagnostics: self.diagnostics,
         expanding: self.expanding.copy(),
+        scope: self.scope,
       }
       next.expanding.push(identity)
       let checked_parameters = check_type_parameters(

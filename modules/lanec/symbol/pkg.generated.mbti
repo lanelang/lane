@@ -152,6 +152,7 @@ pub fn SymbolRegistry::define_value(Self, String, ValueSymbolKind, @basic.Source
 pub fn SymbolRegistry::define_variant(Self, TypeSymbolId, String, Int, Int, @basic.SourceSpan) -> VariantSymbolId
 pub fn SymbolRegistry::effect_metadata(Self, EffectSymbolId) -> EffectSymbolMetadata?
 pub fn SymbolRegistry::field_metadata(Self, FieldSymbolId) -> FieldSymbolMetadata?
+pub fn SymbolRegistry::fork_revision(Self) -> Self
 pub fn SymbolRegistry::metadata_for(Self, Array[SymbolId]) -> SymbolMetadataArena
 pub fn SymbolRegistry::operation_metadata(Self, OperationSymbolId) -> OperationSymbolMetadata?
 pub fn SymbolRegistry::type_member_metadata(Self, TypeMemberSymbolId) -> TypeMemberSymbolMetadata?

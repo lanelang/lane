@@ -497,3 +497,70 @@ test "finalize threads an owned function input into its using branch" {
   )
   assert_eq(lowered.blocks[3].instructions, [Release({ value: 1 })])
 }
+
+///|
+test "finalize promotes a borrowed global before it crosses a branch" {
+  let borrowed_callable : ValueMetadata = {
+    representation: I64,
+    cleanup: OwnedCallable,
+    ownership: Borrowed,
+    erased_companion: None,
+  }
+  let body : FunctionBody = {
+    values: [trivial_value(I32), borrowed_callable],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [BorrowGlobal({ value: 1 }, { value: 0 })],
+        terminator: BranchBool(
+          { value: 0 },
+          { target: { value: 1 }, arguments: [] },
+          { target: { value: 2 }, arguments: [] },
+        ),
+      },
+      {
+        parameters: [],
+        instructions: [],
+        terminator: TailCallValue({ value: 1 }, [], []),
+      },
+      { parameters: [], instructions: [], terminator: Return(None) },
+    ],
+  }
+  let image = match
+    finalize({
+      ..test_image(body),
+      globals: [
+        { representation: I64, cleanup: OwnedCallable, erased_companion: None },
+      ],
+    }) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{to_repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(lowered.blocks[0].instructions, [
+    BorrowGlobal({ value: 2 }, { value: 0 }),
+    RetainCopy({ value: 1 }, { value: 2 }),
+  ])
+  assert_eq(lowered.blocks[1].parameters, [{ value: 1 }])
+  assert_eq(
+    lowered.blocks[0].terminator,
+    BranchBool(
+      { value: 0 },
+      { target: { value: 1 }, arguments: [{ value: 1 }] },
+      { target: { value: 3 }, arguments: [] },
+    ),
+  )
+  assert_eq(lowered.blocks[3], {
+    parameters: [],
+    instructions: [Release({ value: 1 })],
+    terminator: Jump({ target: { value: 2 }, arguments: [] }),
+  })
+}

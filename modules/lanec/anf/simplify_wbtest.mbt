@@ -71,24 +71,31 @@ test "simplify ANF aliases inside function and match scopes" {
     Value,
     Function([Primitive(Int)], Primitive(Int), Empty),
   )
+  let match_result = AnfTempId::{ index: 0 }
   let function = Function({
     parameters: [parameter],
     result_type: Primitive(Int),
     body: Let(
       Value(id=local_alias, rhs=Atom(Ref(parameter))),
-      Match({
-        scrutinee: Ref(local_alias),
-        binder,
-        result_type: Primitive(Int),
-        alternatives: [
-          {
-            alt_constructor: Default,
-            type_binders: [],
-            value_binders: [],
-            body: Atom(Ref(local_alias)),
-          },
-        ],
-      }),
+      Let(
+        Temp(
+          temp=match_result,
+          rhs=Match({
+            scrutinee: Ref(local_alias),
+            binder,
+            result_type: Primitive(Int),
+            alternatives: [
+              {
+                alt_constructor: Default,
+                type_binders: [],
+                value_binders: [],
+                body: Atom(Ref(local_alias)),
+              },
+            ],
+          }),
+        ),
+        Atom(Temp(match_result)),
+      ),
     ),
   })
   let program = AnfProgram::{ metadata, terms: [Let(result, Atom(function))] }
@@ -103,20 +110,26 @@ test "simplify ANF aliases inside function and match scopes" {
       #|        {
       #|          parameters: [{ index: 0 }],
       #|          result_type: Primitive(Int),
-      #|          body: Match(
-      #|            {
-      #|              scrutinee: Ref({ index: 0 }),
-      #|              binder: { index: 2 },
-      #|              result_type: Primitive(Int),
-      #|              alternatives: [
+      #|          body: Let(
+      #|            Temp(
+      #|              temp={ index: 0 },
+      #|              rhs=Match(
       #|                {
-      #|                  alt_constructor: Default,
-      #|                  type_binders: [],
-      #|                  value_binders: [],
-      #|                  body: Atom(Ref({ index: 0 })),
+      #|                  scrutinee: Ref({ index: 0 }),
+      #|                  binder: { index: 2 },
+      #|                  result_type: Primitive(Int),
+      #|                  alternatives: [
+      #|                    {
+      #|                      alt_constructor: Default,
+      #|                      type_binders: [],
+      #|                      value_binders: [],
+      #|                      body: Atom(Ref({ index: 0 })),
+      #|                    },
+      #|                  ],
       #|                },
-      #|              ],
-      #|            },
+      #|              ),
+      #|            ),
+      #|            Atom(Temp({ index: 0 })),
       #|          ),
       #|        },
       #|      ),

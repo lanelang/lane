@@ -277,6 +277,7 @@ fn SemanticChecker::interface_type_aliases(
           imported_environment: self.imported_environment,
           diagnostics: self.diagnostics,
           expanding: [declaration.name],
+          scope: None,
         }
         let type_parameters = check_type_parameters(
           self.diagnostics,

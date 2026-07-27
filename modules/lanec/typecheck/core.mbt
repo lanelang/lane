@@ -262,6 +262,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   MixedHandlerEffects
   DuplicateHandledEffect(@types.Effect)
   MissingHandlerOperation(owner~ : String, name~ : String)
+  RecursiveHandlerResidualEffect(@types.Effect)
   DuplicatePatternBinder(name~ : String)
   PatternArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
   HiddenTypeEscape(type_~ : @types.Type)

@@ -406,6 +406,8 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text(owner) +
       text("::") +
       text(name)
+    RecursiveHandlerResidualEffect(effect) =>
+      text("recursive_handler_residual_effect") + space + effect.pretty()
     DuplicatePatternBinder(name~) =>
       text("duplicate_pattern_binder") + space + text(name)
     PatternArityMismatch(name~, expected~, actual~) =>

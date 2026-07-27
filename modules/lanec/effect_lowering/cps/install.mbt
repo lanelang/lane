@@ -53,7 +53,9 @@ fn lower_cps_install(
     schema, program, residual, outer_environment,
   )
   let relay_environment = CpsEnvironment::{
-    effect: @buslane.Effect::Union([residual.effect, residual.residual_effect]).canonicalize(),
+    effect: program.metadata.canonicalize_effect(
+      @buslane.Effect::Union([residual.effect, residual.residual_effect]),
+    ),
     bindings: relay.bindings,
   }
   let handlers = build_handler_dictionary_plan(
@@ -67,7 +69,9 @@ fn lower_cps_install(
     relay_environment,
   )
   let inner_environment = CpsEnvironment::{
-    effect: @buslane.Effect::Union([body_facts.effect, residual.residual_effect]).canonicalize(),
+    effect: program.metadata.canonicalize_effect(
+      @buslane.Effect::Union([body_facts.effect, residual.residual_effect]),
+    ),
     bindings: handlers.bindings + relay.bindings,
   }
   let body = lower_cps_with_continuation(
@@ -83,7 +87,13 @@ fn lower_cps_install(
     0,
     body,
   )
-  residual.run(scoped, outer_environment, answer_type, continuation)
+  residual.run(
+    program.metadata,
+    scoped,
+    outer_environment,
+    answer_type,
+    continuation,
+  )
 }
 
 ///|
@@ -177,10 +187,13 @@ fn lower_handler_operation_clause(
   })
   let function_type = instantiate_clause_field_type(field_type, type_binders)
   guard function_type is Function(parameter_types, result_type, function_effect) &&
-    function_effect == residual.residual_effect else {
+    program.metadata.effects_definitionally_equal(
+      function_effect,
+      residual.residual_effect,
+    ) else {
     raise ExpectedFunction(function_type)
   }
-  if !result_type.equals(residual.type_) {
+  if !program.metadata.types_definitionally_equal(result_type, residual.type_) {
     raise ExpectedFunction(function_type)
   }
   let source_parameters = source_function.parameters.copy()
@@ -193,10 +206,13 @@ fn lower_handler_operation_clause(
   }
   guard direct_resume_type
     is Function([operation_result], direct_result, resume_effect) &&
-    resume_effect == residual.residual_effect else {
+    program.metadata.effects_definitionally_equal(
+      resume_effect,
+      residual.residual_effect,
+    ) else {
     raise ExpectedFunction(direct_resume_type)
   }
-  if !direct_result.equals(residual.type_) {
+  if !program.metadata.types_definitionally_equal(direct_result, residual.type_) {
     raise ExpectedFunction(direct_resume_type)
   }
   let direct_resume = program.metadata.define_value(
@@ -275,6 +291,7 @@ fn build_handler_resume_value(
     frame.wrap_with_parameter(
       parameter,
       residual.run(
+        program.metadata,
         resumed,
         frame.environment,
         frame.answer_type,

@@ -250,6 +250,67 @@ test "handler measurement preserves exact effect context in production lowering"
 }
 
 ///|
+test "effect instances preserve nested forall binder kinds" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|type TypePoly = [_A]() -> Unit
+      #|type EffectPoly = [_E : Effect]() -> Unit
+      #|effect Carrier[_T] {
+      #|  ask() -> Bool
+      #|}
+      #|fn both() -> Bool ! { Carrier[TypePoly], Carrier[EffectPoly] } {
+      #|  let first = Carrier[TypePoly]::ask!()
+      #|  let second = Carrier[EffectPoly]::ask!()
+      #|  if first { second } else { false }
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let result = handle both() with {
+      #|    Carrier[TypePoly]::ask(resume) => resume(true)
+      #|  } with {
+      #|    Carrier[EffectPoly]::ask(resume) => resume(false)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|  if result {
+      #|    println("true")
+      #|  } else {
+      #|    println("false")
+      #|  }
+      #|}
+    ),
+    ["false"],
+  )
+}
+
+///|
+test "effect lowering preserves a resumed operation result across branching" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect First {
+      #|  ask() -> Bool
+      #|}
+      #|fn choose() -> Unit ! First {
+      #|  let result = First::ask!()
+      #|  if result { () } else { () }
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  handle choose() with {
+      #|    First::ask(resume) => resume(false)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|  println("after")
+      #|}
+    ),
+    ["after"],
+  )
+}
+
+///|
 fn interpreter_resolution_error(
   image : @loisvm_bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,
@@ -384,6 +445,34 @@ test "runtime import failures agree across production backends" {
       #|  Err(RuntimeImportFailure(symbol="println", message="boom")),
       #|)
     ),
+  )
+}
+
+///|
+test "first-class effect-polymorphic values lower through explicit application" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|type EffectPoly = [E : Effect]() -> Unit ! E
+      #|fn make() -> EffectPoly {
+      #|  fn[E : Effect]() -> Unit ! E { () }
+      #|}
+      #|fn[E : Effect] named() -> Unit ! E {
+      #|  ()
+      #|}
+      #|fn use(value : EffectPoly) -> Unit {
+      #|  value[{}]()
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let local : EffectPoly = fn[E : Effect]() -> Unit ! E { () }
+      #|  use(local)
+      #|  use(make())
+      #|  use(named)
+      #|  println("ok")
+      #|}
+    ),
+    ["ok"],
   )
 }
 

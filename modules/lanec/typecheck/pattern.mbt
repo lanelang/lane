@@ -429,6 +429,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
           Type
         }
     }
+    scope.bind_type_parameter_kind(parameter.symbol, kind)
     match kind {
       Effect => effect_parameter_argument(parameter.symbol)
       _ => type_parameter_argument(parameter.symbol)
@@ -603,6 +604,11 @@ fn SemanticChecker::check_struct_pattern(
   let type_member_result = self.check_struct_pattern_type_binders(
     declaration, fields, loc,
   )
+  for binder in type_member_result.binders {
+    if binder.type_parameter is Some(parameter) {
+      scope.bind_type_parameter_kind(parameter.id, parameter.kind)
+    }
+  }
   let existential_substitution = declaration.pattern_existential_substitution(
     type_member_result.binders,
   )
