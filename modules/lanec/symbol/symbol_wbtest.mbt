@@ -88,6 +88,53 @@ test "generated values have registry metadata" {
 }
 
 ///|
+test "measurement registries use a temporary identity namespace" {
+  let registry = SymbolRegistry()
+  registry.define_value("existing", TopLevelValue, loc()) |> ignore
+  let measurement = registry.measurement_registry()
+  let other_measurement = registry.measurement_registry()
+  let type_ = measurement.define_type("Temporary", Struct, 0, loc())
+  let type_parameter = measurement.define_type_parameter("T", loc())
+  let effect = measurement.define_effect("TemporaryEffect", 0, loc())
+  let value = measurement.define_value("first", LocalBinding, loc())
+  let symbols = [
+    SymbolId::Type(type_),
+    SymbolId::TypeParameter(type_parameter),
+    SymbolId::TypeMember(
+      measurement.define_type_member(type_, "T", 0, type_parameter, loc()),
+    ),
+    SymbolId::Value(value),
+    SymbolId::Field(measurement.define_field(type_, "field", 0, loc())),
+    SymbolId::Variant(measurement.define_variant(type_, "variant", 0, 0, loc())),
+    SymbolId::Effect(effect),
+    SymbolId::Operation(
+      measurement.define_operation(effect, "operation", 0, 0, loc()),
+    ),
+  ]
+  debug_inspect(
+    symbols,
+    content=(
+      #|[
+      #|  Type({ index: -1 }),
+      #|  TypeParameter({ index: -2 }),
+      #|  TypeMember({ index: -5 }),
+      #|  Value({ index: -4 }),
+      #|  Field({ index: -6 }),
+      #|  Variant({ index: -7 }),
+      #|  Effect({ index: -3 }),
+      #|  Operation({ index: -8 }),
+      #|]
+    ),
+  )
+  let second = other_measurement.define_value("second", LocalBinding, loc())
+  let persistent = registry.define_value("persistent", TopLevelValue, loc())
+  assert_eq(
+    (persistent, second, registry.value_metadata(value)),
+    (ValueSymbolId::{ index: 1 }, ValueSymbolId::{ index: -9 }, None),
+  )
+}
+
+///|
 test "declaration scopes keep stable identities across revisions" {
   let allocator = SymbolIdentityAllocator()
   let first_registry = allocator.registry()

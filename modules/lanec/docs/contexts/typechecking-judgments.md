@@ -456,4 +456,6 @@ Silent analysis uses the same typing rules with a copied checker and an empty
 diagnostic sink. It is allowed only where the checker needs a bounded local
 measurement, such as computing handler residual effects. A silent pass must not
 commit values, offers, inferred generic arguments, or diagnostics back into the
-real checker.
+real checker. Symbols created during measurement use an allocator-owned
+temporary identity namespace and must not escape into checked output or
+revision snapshots.

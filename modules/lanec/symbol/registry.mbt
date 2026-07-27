@@ -1,6 +1,9 @@
 ///|
 /// Allocates globally unique symbol identities without retaining revision
 /// metadata.
+///
+/// Persistent revision identities and discard-only measurement identities use
+/// disjoint namespaces.
 pub struct SymbolIdentityAllocator {
   mut next_type : Int
   mut next_type_parameter : Int
@@ -10,6 +13,7 @@ pub struct SymbolIdentityAllocator {
   mut next_variant : Int
   mut next_effect : Int
   mut next_operation : Int
+  mut next_measurement : Int
 } derive(Debug, Eq)
 
 ///|
@@ -41,6 +45,7 @@ pub struct DeclarationIdentities {
 /// Symbol metadata visible while resolving and checking one module revision.
 pub struct SymbolRegistry {
   allocator : SymbolIdentityAllocator
+  uses_measurement_identities : Bool
   metadata : SymbolMetadataArena
   imports : Array[SymbolMetadataArena]
   declarations : DeclarationIdentities
@@ -71,6 +76,7 @@ pub fn SymbolIdentityAllocator::SymbolIdentityAllocator() -> SymbolIdentityAlloc
     next_variant: 0,
     next_effect: 0,
     next_operation: 0,
+    next_measurement: -1,
   }
 }
 
@@ -108,6 +114,7 @@ pub fn SymbolIdentityAllocator::registry(
 ) -> SymbolRegistry {
   {
     allocator: self,
+    uses_measurement_identities: false,
     metadata: SymbolMetadataArena::empty(),
     imports,
     declarations: DeclarationIdentities::empty(),
@@ -121,23 +128,20 @@ pub fn SymbolRegistry::SymbolRegistry() -> SymbolRegistry {
 }
 
 ///|
-/// Forks the revision-owned allocator and metadata for speculative analysis.
+/// Creates an isolated registry for bounded, discard-only semantic measurement.
 ///
-/// Imported arenas are immutable snapshots and remain shared. New identities
-/// and local metadata allocated through the fork cannot mutate the source
-/// revision.
-pub fn SymbolRegistry::fork_revision(self : SymbolRegistry) -> SymbolRegistry {
+/// Persistent identities are non-negative. New identities in this registry use
+/// the allocator's negative measurement namespace, so they cannot alias
+/// persistent identities or identities from another measurement registry.
+/// Measurement identities must not escape into checked output or revision
+/// snapshots.
+/// Imported arenas are immutable snapshots and remain shared.
+pub fn SymbolRegistry::measurement_registry(
+  self : SymbolRegistry,
+) -> SymbolRegistry {
   {
-    allocator: {
-      next_type: self.allocator.next_type,
-      next_type_parameter: self.allocator.next_type_parameter,
-      next_type_member: self.allocator.next_type_member,
-      next_value: self.allocator.next_value,
-      next_field: self.allocator.next_field,
-      next_variant: self.allocator.next_variant,
-      next_effect: self.allocator.next_effect,
-      next_operation: self.allocator.next_operation,
-    },
+    allocator: self.allocator,
+    uses_measurement_identities: true,
     metadata: {
       types: self.metadata.types.copy(),
       type_parameters: self.metadata.type_parameters.copy(),
@@ -233,75 +237,122 @@ pub fn SymbolRegistry::metadata_for(
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_type(
-  self : SymbolIdentityAllocator,
-) -> TypeSymbolId {
-  let id = TypeSymbolId::{ index: self.next_type }
-  self.next_type = self.next_type + 1
+fn SymbolRegistry::allocate_type(self : SymbolRegistry) -> TypeSymbolId {
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_type
+    self.allocator.next_type = index + 1
+    index
+  }
+  let id = TypeSymbolId::{ index, }
   id
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_type_parameter(
-  self : SymbolIdentityAllocator,
+fn SymbolRegistry::allocate_type_parameter(
+  self : SymbolRegistry,
 ) -> TypeParameterId {
-  let id = TypeParameterId::{ index: self.next_type_parameter }
-  self.next_type_parameter = self.next_type_parameter + 1
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_type_parameter
+    self.allocator.next_type_parameter = index + 1
+    index
+  }
+  let id = TypeParameterId::{ index, }
   id
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_type_member(
-  self : SymbolIdentityAllocator,
+fn SymbolRegistry::allocate_type_member(
+  self : SymbolRegistry,
 ) -> TypeMemberSymbolId {
-  let id = TypeMemberSymbolId::{ index: self.next_type_member }
-  self.next_type_member = self.next_type_member + 1
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_type_member
+    self.allocator.next_type_member = index + 1
+    index
+  }
+  let id = TypeMemberSymbolId::{ index, }
   id
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_value(
-  self : SymbolIdentityAllocator,
-) -> ValueSymbolId {
-  let id = ValueSymbolId::{ index: self.next_value }
-  self.next_value = self.next_value + 1
+fn SymbolRegistry::allocate_value(self : SymbolRegistry) -> ValueSymbolId {
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_value
+    self.allocator.next_value = index + 1
+    index
+  }
+  let id = ValueSymbolId::{ index, }
   id
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_field(
-  self : SymbolIdentityAllocator,
-) -> FieldSymbolId {
-  let id = FieldSymbolId::{ index: self.next_field }
-  self.next_field = self.next_field + 1
+fn SymbolRegistry::allocate_field(self : SymbolRegistry) -> FieldSymbolId {
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_field
+    self.allocator.next_field = index + 1
+    index
+  }
+  let id = FieldSymbolId::{ index, }
   id
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_variant(
-  self : SymbolIdentityAllocator,
-) -> VariantSymbolId {
-  let id = VariantSymbolId::{ index: self.next_variant }
-  self.next_variant = self.next_variant + 1
+fn SymbolRegistry::allocate_variant(self : SymbolRegistry) -> VariantSymbolId {
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_variant
+    self.allocator.next_variant = index + 1
+    index
+  }
+  let id = VariantSymbolId::{ index, }
   id
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_effect(
-  self : SymbolIdentityAllocator,
-) -> EffectSymbolId {
-  let id = EffectSymbolId::{ index: self.next_effect }
-  self.next_effect = self.next_effect + 1
+fn SymbolRegistry::allocate_effect(self : SymbolRegistry) -> EffectSymbolId {
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_effect
+    self.allocator.next_effect = index + 1
+    index
+  }
+  let id = EffectSymbolId::{ index, }
   id
 }
 
 ///|
-fn SymbolIdentityAllocator::allocate_operation(
-  self : SymbolIdentityAllocator,
+fn SymbolRegistry::allocate_operation(
+  self : SymbolRegistry,
 ) -> OperationSymbolId {
-  let id = OperationSymbolId::{ index: self.next_operation }
-  self.next_operation = self.next_operation + 1
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_operation
+    self.allocator.next_operation = index + 1
+    index
+  }
+  let id = OperationSymbolId::{ index, }
   id
+}
+
+///|
+fn SymbolIdentityAllocator::allocate_measurement(
+  self : SymbolIdentityAllocator,
+) -> Int {
+  let index = self.next_measurement
+  self.next_measurement = index - 1
+  index
 }
 
 ///|
@@ -312,7 +363,7 @@ pub fn SymbolRegistry::define_type(
   arity : Int,
   loc : SourceSpan,
 ) -> TypeSymbolId {
-  let id = self.allocator.allocate_type()
+  let id = self.allocate_type()
   self.metadata.types[id.index] = { id, name, kind, arity, loc }
   id
 }
@@ -345,7 +396,7 @@ pub fn SymbolRegistry::define_type_parameter(
   name : String,
   loc : SourceSpan,
 ) -> TypeParameterId {
-  let id = self.allocator.allocate_type_parameter()
+  let id = self.allocate_type_parameter()
   self.metadata.type_parameters[id.index] = { id, name, loc }
   id
 }
@@ -359,7 +410,7 @@ pub fn SymbolRegistry::define_type_member(
   type_parameter : TypeParameterId,
   loc : SourceSpan,
 ) -> TypeMemberSymbolId {
-  let id = self.allocator.allocate_type_member()
+  let id = self.allocate_type_member()
   self.metadata.type_members[id.index] = {
     id,
     owner,
@@ -414,7 +465,7 @@ pub fn SymbolRegistry::define_value(
   kind : ValueSymbolKind,
   loc : SourceSpan,
 ) -> ValueSymbolId {
-  let id = self.allocator.allocate_value()
+  let id = self.allocate_value()
   self.metadata.values[id.index] = { id, name, kind, provenance: Authored, loc }
   id
 }
@@ -426,7 +477,7 @@ pub fn SymbolRegistry::define_generated_local(
   name : String,
   loc : SourceSpan,
 ) -> ValueSymbolId {
-  let id = self.allocator.allocate_value()
+  let id = self.allocate_value()
   self.metadata.values[id.index] = {
     id,
     name,
@@ -472,7 +523,7 @@ pub fn SymbolRegistry::define_field(
   index : Int,
   loc : SourceSpan,
 ) -> FieldSymbolId {
-  let id = self.allocator.allocate_field()
+  let id = self.allocate_field()
   self.metadata.fields[id.index] = { id, owner, name, index, loc }
   id
 }
@@ -486,7 +537,7 @@ pub fn SymbolRegistry::define_variant(
   payload_count : Int,
   loc : SourceSpan,
 ) -> VariantSymbolId {
-  let id = self.allocator.allocate_variant()
+  let id = self.allocate_variant()
   self.metadata.variants[id.index] = {
     id,
     owner,
@@ -506,7 +557,7 @@ pub fn SymbolRegistry::define_effect(
   loc : SourceSpan,
   flavor? : EffectFlavor = Algebraic,
 ) -> EffectSymbolId {
-  let id = self.allocator.allocate_effect()
+  let id = self.allocate_effect()
   self.metadata.effects[id.index] = { id, name, flavor, arity, loc }
   id
 }
@@ -636,7 +687,7 @@ pub fn SymbolRegistry::define_operation(
   payload_count : Int,
   loc : SourceSpan,
 ) -> OperationSymbolId {
-  let id = self.allocator.allocate_operation()
+  let id = self.allocate_operation()
   self.metadata.operations[id.index] = {
     id,
     owner,

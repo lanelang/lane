@@ -8,7 +8,7 @@ fn SemanticChecker::copy_for_silent_analysis(
   {
     resolved_source: {
       ..self.resolved_source,
-      symbols: self.resolved_source.symbols.fork_revision(),
+      symbols: self.resolved_source.symbols.measurement_registry(),
     },
     source: self.source,
     imported_environment: self.imported_environment,
