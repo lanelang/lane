@@ -1,12 +1,7 @@
 ///|
-fn function_effect_widen_test_loc() -> SourceSpan {
-  SourceSpan::dummy()
-}
-
-///|
 test "function effect widening preserves checked expression contracts" {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
-  let location = function_effect_widen_test_loc()
+  let location = SourceSpan::dummy()
   let parameter = registry.define_type_parameter("T", location)
   let target = registry.define_value("target", TopLevelFunction, location)
   let widened = registry.define_value("widened", TopLevelValue, location)
