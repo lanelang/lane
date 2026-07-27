@@ -1,40 +1,39 @@
 ///|
-priv struct GenericEffectLowerBound {
-  parameter : TypeParameterId
-  effect : @types.Effect
-  is_provisional : Bool
-}
-
-///|
 fn GenericArgumentInference::remember_effect_lower_bound(
   self : GenericArgumentInference,
-  parameter : TypeParameterId,
+  tracked : @types.TypeParameter,
   effect : @types.Effect,
 ) -> Bool {
   let evidence = self.classify_generic_argument_evidence(EffectArgument(effect))
-  guard evidence.argument is EffectArgument(bound) else { return false }
   if !evidence.is_provisional {
     for binding in self.bindings {
-      if binding.parameter != parameter || binding.is_provisional {
+      if binding.parameter.id != tracked.id {
         continue
       }
-      guard binding.argument is EffectArgument(exact) else {
-        return self.fail(
-          GenericArgumentConstraintMismatch(
-            expected=binding.argument,
-            actual=EffectArgument(bound),
-          ),
-        )
-      }
-      if !self.effect_lower_bound_is_allowed(parameter, bound, exact) {
-        return false
+      if binding.constraint
+        is ExactConstraint(argument=exact_argument, is_provisional=false) {
+        match exact_argument {
+          EffectArgument(exact) =>
+            if !self.effect_lower_bound_is_allowed(tracked, effect, exact) {
+              return false
+            }
+          TypeArgument(_) =>
+            return self.fail(
+              GenericArgumentConstraintMismatch(
+                expected=exact_argument,
+                actual=EffectArgument(effect),
+              ),
+            )
+        }
       }
     }
   }
-  self.effect_lower_bounds.push({
-    parameter,
-    effect: bound,
-    is_provisional: evidence.is_provisional,
+  self.bindings.push({
+    parameter: tracked,
+    constraint: EffectLowerBoundConstraint(
+      effect~,
+      is_provisional=evidence.is_provisional,
+    ),
   })
   true
 }
@@ -42,16 +41,18 @@ fn GenericArgumentInference::remember_effect_lower_bound(
 ///|
 fn GenericArgumentInference::exact_effect_binding_accepts_lower_bounds(
   self : GenericArgumentInference,
-  parameter : TypeParameterId,
-  candidate : @types.GenericArgument,
+  tracked : @types.TypeParameter,
+  exact : @types.Effect,
 ) -> Bool {
-  guard candidate is EffectArgument(exact) else { return true }
-  for lower_bound in self.effect_lower_bounds {
-    if lower_bound.parameter != parameter || lower_bound.is_provisional {
+  for binding in self.bindings {
+    if binding.parameter.id != tracked.id {
       continue
     }
-    if !self.effect_lower_bound_is_allowed(parameter, lower_bound.effect, exact) {
-      return false
+    if binding.constraint
+      is EffectLowerBoundConstraint(effect=lower, is_provisional=false) {
+      if !self.effect_lower_bound_is_allowed(tracked, lower, exact) {
+        return false
+      }
     }
   }
   true
@@ -60,7 +61,7 @@ fn GenericArgumentInference::exact_effect_binding_accepts_lower_bounds(
 ///|
 fn GenericArgumentInference::effect_lower_bound_is_allowed(
   self : GenericArgumentInference,
-  parameter : TypeParameterId,
+  tracked : @types.TypeParameter,
   lower : @types.Effect,
   exact : @types.Effect,
 ) -> Bool {
@@ -73,7 +74,6 @@ fn GenericArgumentInference::effect_lower_bound_is_allowed(
   if allowed {
     return true
   }
-  guard self.tracked_parameter(parameter) is Some(tracked) else { return true }
   self.fail(
     ConflictingGenericArgument(
       parameter=tracked,
@@ -86,14 +86,15 @@ fn GenericArgumentInference::effect_lower_bound_is_allowed(
 ///|
 fn GenericArgumentInference::combined_effect_lower_bound(
   self : GenericArgumentInference,
-  parameter : TypeParameterId,
+  tracked : @types.TypeParameter,
   include_provisional? : Bool = false,
 ) -> @types.Effect? {
   let effects = []
-  for lower_bound in self.effect_lower_bounds {
-    if lower_bound.parameter == parameter &&
-      (include_provisional || !lower_bound.is_provisional) {
-      effects.push(lower_bound.effect)
+  for binding in self.bindings {
+    if binding.parameter.id == tracked.id &&
+      binding.constraint is EffectLowerBoundConstraint(effect~, is_provisional~) &&
+      (include_provisional || !is_provisional) {
+      effects.push(effect)
     }
   }
   match effects {

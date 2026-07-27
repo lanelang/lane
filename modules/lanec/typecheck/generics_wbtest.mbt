@@ -1309,6 +1309,31 @@ fn empty_generic_argument_inference() -> GenericArgumentInference {
 }
 
 ///|
+test "generic inference records an effect lower bound atomically" {
+  let parameter : @types.TypeParameter = {
+    id: { index: 0 },
+    name: "E",
+    kind: Effect,
+  }
+  let inference = empty_generic_argument_inference()
+  inference.parameters.push(parameter)
+  assert_true(inference.remember_effect_lower_bound(parameter, Empty))
+  guard inference.bindings
+    is [
+      {
+        parameter: recorded_parameter,
+        constraint: EffectLowerBoundConstraint(
+          effect=Empty,
+          is_provisional=false
+        ),
+      },
+    ] &&
+    recorded_parameter == parameter else {
+    abort("expected one atomic effect lower-bound constraint")
+  }
+}
+
+///|
 test "generic inference records type computation failure" {
   let inference = empty_generic_argument_inference()
   assert_false(

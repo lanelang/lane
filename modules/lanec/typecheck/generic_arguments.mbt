@@ -1,8 +1,13 @@
 ///|
+priv enum GenericArgumentConstraint {
+  ExactConstraint(argument~ : @types.GenericArgument, is_provisional~ : Bool)
+  EffectLowerBoundConstraint(effect~ : @types.Effect, is_provisional~ : Bool)
+}
+
+///|
 priv struct GenericArgumentBinding {
-  parameter : TypeParameterId
-  argument : @types.GenericArgument
-  is_provisional : Bool
+  parameter : @types.TypeParameter
+  constraint : GenericArgumentConstraint
 }
 
 ///|
@@ -17,7 +22,6 @@ priv struct GenericArgumentInference {
   scope : TypeScope
   parameters : Array[@types.TypeParameter]
   bindings : Array[GenericArgumentBinding]
-  effect_lower_bounds : Array[GenericEffectLowerBound]
   mut failure : GenericArgumentInferenceFailure?
   mut failure_loc : SourceSpan?
   mut computation_error : @types.TypeComputationError?
@@ -39,14 +43,14 @@ priv struct EffectTermPair {
 ///|
 priv struct EffectRowPattern {
   concrete_terms : Array[@types.Effect]
-  row_parameter : TypeParameterId?
+  row_parameter : @types.TypeParameter?
 }
 
 ///|
 priv enum EffectRowMatch {
   EffectRowsMatched(
     term_pairs~ : Array[EffectTermPair],
-    residual_parameter~ : TypeParameterId?,
+    residual_parameter~ : @types.TypeParameter?,
     residual_effect~ : @types.Effect
   )
   EffectRowsMismatched
@@ -105,7 +109,6 @@ fn GenericArgumentInference::GenericArgumentInference(
     scope,
     parameters,
     bindings: [],
-    effect_lower_bounds: [],
     failure: None,
     failure_loc: None,
     computation_error: None,
@@ -198,11 +201,12 @@ fn GenericArgumentInference::tracked_parameter(
 ///|
 fn GenericArgumentInference::lookup(
   self : GenericArgumentInference,
-  parameter : TypeParameterId,
+  parameter : @types.TypeParameter,
 ) -> @types.GenericArgument? {
   for binding in self.bindings {
-    if binding.parameter == parameter {
-      return Some(binding.argument)
+    if binding.parameter.id == parameter.id &&
+      binding.constraint is ExactConstraint(argument~, ..) {
+      return Some(argument)
     }
   }
   match self.combined_effect_lower_bound(parameter, include_provisional=true) {
@@ -217,8 +221,9 @@ fn GenericArgumentInference::has_exact_binding(
   parameter : TypeParameterId,
 ) -> Bool {
   for binding in self.bindings {
-    if binding.parameter == parameter {
-      return !binding.is_provisional
+    if binding.parameter.id == parameter &&
+      binding.constraint is ExactConstraint(is_provisional~, ..) {
+      return !is_provisional
     }
   }
   false
@@ -245,7 +250,7 @@ fn GenericArgumentInference::function_literal_shape_is_ground(
 ///|
 fn GenericArgumentInference::remember(
   self : GenericArgumentInference,
-  parameter : TypeParameterId,
+  tracked : @types.TypeParameter,
   argument : @types.GenericArgument,
 ) -> Bool {
   // Generic inference is a finite map from this call's forall parameters to
@@ -260,7 +265,6 @@ fn GenericArgumentInference::remember(
   if candidate is TypeArgument(Error) {
     return true
   }
-  guard self.tracked_parameter(parameter) is Some(tracked) else { return true }
   if !self.generic_argument_has_kind(candidate, tracked.kind) {
     return self.fail(
       GenericArgumentConstraintMismatch(
@@ -269,6 +273,7 @@ fn GenericArgumentInference::remember(
       ),
     )
   }
+  let parameter = tracked.id
   if candidate is TypeArgument(type_) &&
     !type_is_parameter(type_, parameter) &&
     type_.mentions_any_type_parameter([parameter]) {
@@ -285,34 +290,41 @@ fn GenericArgumentInference::remember(
   }
   for index in 0..<self.bindings.length() {
     let previous = self.bindings[index]
-    if previous.parameter == parameter {
-      if previous.is_provisional && !evidence.is_provisional {
-        if !self.exact_effect_binding_accepts_lower_bounds(parameter, candidate) {
+    if previous.parameter.id == parameter &&
+      previous.constraint
+      is ExactConstraint(
+        argument=previous_argument,
+        is_provisional=previous_is_provisional
+      ) {
+      if previous_is_provisional && !evidence.is_provisional {
+        if candidate is EffectArgument(exact) &&
+          !self.exact_effect_binding_accepts_lower_bounds(tracked, exact) {
           return false
         }
         self.bindings[index] = {
-          parameter,
-          argument: candidate,
-          is_provisional: false,
+          parameter: tracked,
+          constraint: ExactConstraint(argument=candidate, is_provisional=false),
         }
         return true
       }
-      if !previous.is_provisional && evidence.is_provisional {
+      if !previous_is_provisional && evidence.is_provisional {
         return true
       }
-      if previous.is_provisional && evidence.is_provisional {
+      if previous_is_provisional && evidence.is_provisional {
         self.bindings[index] = {
-          parameter,
-          argument: merge_provisional_arguments(previous.argument, candidate),
-          is_provisional: true,
+          parameter: tracked,
+          constraint: ExactConstraint(
+            argument=merge_provisional_arguments(previous_argument, candidate),
+            is_provisional=true,
+          ),
         }
         return true
       }
-      if !self.generic_arguments_equal(previous.argument, candidate) {
+      if !self.generic_arguments_equal(previous_argument, candidate) {
         return self.fail(
           ConflictingGenericArgument(
             parameter=tracked,
-            previous=previous.argument,
+            previous=previous_argument,
             actual=candidate,
           ),
         )
@@ -321,13 +333,16 @@ fn GenericArgumentInference::remember(
     }
   }
   if !evidence.is_provisional &&
-    !self.exact_effect_binding_accepts_lower_bounds(parameter, candidate) {
+    candidate is EffectArgument(exact) &&
+    !self.exact_effect_binding_accepts_lower_bounds(tracked, exact) {
     return false
   }
   self.bindings.push({
-    parameter,
-    argument: candidate,
-    is_provisional: evidence.is_provisional,
+    parameter: tracked,
+    constraint: ExactConstraint(
+      argument=candidate,
+      is_provisional=evidence.is_provisional,
+    ),
   })
   true
 }
@@ -485,7 +500,7 @@ fn GenericArgumentInference::collect(
     (Parameter(parameter), actual) =>
       if self.tracked_parameter(parameter) is Some(tracked) &&
         tracked.kind != Effect {
-        self.remember(parameter, TypeArgument(actual))
+        self.remember(tracked, TypeArgument(actual))
       } else {
         true
       }
@@ -640,7 +655,7 @@ fn GenericArgumentInference::effect_row_pattern(
   effect : @types.Effect,
 ) -> EffectRowPattern? {
   let concrete_terms = []
-  let mut row_parameter : TypeParameterId? = None
+  let mut row_parameter : @types.TypeParameter? = None
   for term in effect_terms(effect) {
     match self.tracked_effect_row_parameter(term) {
       Some(parameter) =>
@@ -659,7 +674,7 @@ fn GenericArgumentInference::effect_row_pattern(
 fn GenericArgumentInference::collect_effect_row_match(
   self : GenericArgumentInference,
   term_pairs : Array[EffectTermPair],
-  residual_parameter : TypeParameterId?,
+  residual_parameter : @types.TypeParameter?,
   residual_effect : @types.Effect,
 ) -> Bool {
   for pair in term_pairs {
@@ -667,8 +682,8 @@ fn GenericArgumentInference::collect_effect_row_match(
       return false
     }
   }
-  if residual_parameter is Some(parameter) {
-    self.remember(parameter, EffectArgument(residual_effect))
+  if residual_parameter is Some(tracked) {
+    self.remember(tracked, EffectArgument(residual_effect))
   } else {
     true
   }
@@ -874,7 +889,7 @@ fn GenericArgumentInference::collect_effect_term(
       match self.tracked_parameter(parameter) {
         Some(tracked) =>
           if tracked.kind == Effect {
-            self.remember(parameter, EffectArgument(actual))
+            self.remember(tracked, EffectArgument(actual))
           } else if self.effects_equal(template, actual) {
             true
           } else {
@@ -929,13 +944,13 @@ fn GenericArgumentInference::collect_effect_term(
 fn GenericArgumentInference::tracked_effect_row_parameter(
   self : GenericArgumentInference,
   effect : @types.Effect,
-) -> TypeParameterId? {
+) -> @types.TypeParameter? {
   match effect {
     Parameter(parameter) =>
       match self.tracked_parameter(parameter) {
         Some(tracked) =>
           if tracked.kind == Effect {
-            Some(parameter)
+            Some(tracked)
           } else {
             None
           }
@@ -997,7 +1012,7 @@ fn GenericArgumentInference::finish(
   let generic_arguments = []
   let missing = []
   for parameter in self.parameters {
-    guard self.lookup(parameter.id) is Some(argument) else {
+    guard self.lookup(parameter) is Some(argument) else {
       missing.push(parameter)
       continue
     }
@@ -1019,15 +1034,16 @@ fn GenericArgumentInference::inferred_substitution(
   for parameter in self.parameters {
     let mut inserted = false
     for binding in self.bindings {
-      if binding.parameter == parameter.id &&
-        (include_provisional || !binding.is_provisional) {
-        substitution.insert_argument(binding.parameter, binding.argument)
+      if binding.parameter.id == parameter.id &&
+        binding.constraint is ExactConstraint(argument~, is_provisional~) &&
+        (include_provisional || !is_provisional) {
+        substitution.insert_argument(parameter.id, argument)
         inserted = true
         break
       }
     }
     if !inserted &&
-      self.combined_effect_lower_bound(parameter.id, include_provisional~)
+      self.combined_effect_lower_bound(parameter, include_provisional~)
       is Some(effect) {
       substitution.insert_effect(parameter.id, effect)
     }
@@ -1041,8 +1057,8 @@ fn GenericArgumentInference::exact_substitution(
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for binding in self.bindings {
-    if !binding.is_provisional {
-      substitution.insert_argument(binding.parameter, binding.argument)
+    if binding.constraint is ExactConstraint(argument~, is_provisional=false) {
+      substitution.insert_argument(binding.parameter.id, argument)
     }
   }
   substitution
