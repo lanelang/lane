@@ -1,5 +1,7 @@
 ///|
-fn promote_cross_block_borrows(body : FunctionBody) -> FunctionBody {
+fn promote_cross_block_instruction_borrows(
+  body : FunctionBody,
+) -> FunctionBody raise FinalizeError {
   let use_def = analyze_use_def(body)
   let values = body.values.copy()
   let instruction_promotions : Array[Array[Array[(ValueId, ValueId)]]] = body.blocks.map(block => {
@@ -12,14 +14,15 @@ fn promote_cross_block_borrows(body : FunctionBody) -> FunctionBody {
       use_def.uses[value_index].any(site => site.block() != definition.block()) else {
       continue
     }
-    values[value_index] = { ..metadata, ownership: Owned }
-    if definition is InstructionResult(block, instruction) {
-      let borrowed : ValueId = { value: values.length() }
-      values.push(metadata)
-      instruction_promotions[block][instruction].push(
-        ({ value: value_index }, borrowed),
-      )
+    guard definition is InstructionResult(block, instruction) else {
+      raise IllegalValueMetadata(value={ value: value_index })
     }
+    values[value_index] = { ..metadata, ownership: Owned }
+    let borrowed : ValueId = { value: values.length() }
+    values.push(metadata)
+    instruction_promotions[block][instruction].push(
+      ({ value: value_index }, borrowed),
+    )
   }
   {
     ..body,

@@ -499,6 +499,49 @@ test "finalize threads an owned function input into its using branch" {
 }
 
 ///|
+test "finalize rejects a borrowed function input used across blocks" {
+  let body : FunctionBody = {
+    values: [
+      trivial_value(I32),
+      borrowed_ref_value(),
+      trivial_value(I64),
+      trivial_value(I64),
+    ],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }, { value: 1 }],
+    },
+    result: I64,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [],
+        terminator: BranchBool(
+          { value: 0 },
+          { target: { value: 1 }, arguments: [] },
+          { target: { value: 2 }, arguments: [] },
+        ),
+      },
+      {
+        parameters: [],
+        instructions: [StringLength({ value: 2 }, { value: 1 })],
+        terminator: Return(Some({ value: 2 })),
+      },
+      {
+        parameters: [],
+        instructions: [ConstInt({ value: 3 }, 0)],
+        terminator: Return(Some({ value: 3 })),
+      },
+    ],
+  }
+  assert_eq(
+    finalize(test_image(body)),
+    Err(IllegalValueMetadata(value={ value: 1 })),
+  )
+}
+
+///|
 test "finalize promotes a borrowed global before it crosses a branch" {
   let borrowed_callable : ValueMetadata = {
     representation: I64,
