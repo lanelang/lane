@@ -94,6 +94,64 @@ test "typecheck preserves existential declaration metadata" {
 }
 
 ///|
+test "type expression checking requires lexical kind bindings" {
+  let file = expect_parse_ok(
+    (
+      #|struct Apply[F : [Type] -> Type] {
+      #|  value : F[Int]
+      #|}
+    ),
+  )
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  guard resolution.source.declarations
+    is [Struct({ members: [Field({ type_: body, .. })], .. })] else {
+    abort("expected struct field")
+  }
+  let diagnostics : Array[TypeCheckDiagnostic] = []
+  ignore(
+    TypeExpressionChecker::{
+      source: resolution.source,
+      imported_environment: empty_imported_environment(),
+      diagnostics,
+      expanding: [],
+      scope: TypeKindScope::empty(),
+    }.synthesize_type(body),
+  )
+  debug_inspect(
+    diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: InternalTypecheckFailure(label="missing type parameter kind metadata"),
+      #|    loc: {
+      #|      start_offset: 57,
+      #|      end_offset: 58,
+      #|      start_line: 3,
+      #|      start_column: 11,
+      #|      end_line: 3,
+      #|      end_column: 12,
+      #|    },
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Function([], Type), actual=Type),
+      #|    loc: {
+      #|      start_offset: 57,
+      #|      end_offset: 63,
+      #|      start_line: 3,
+      #|      start_column: 11,
+      #|      end_line: 3,
+      #|      end_column: 17,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "typecheck effect declaration environment and public interface" {
   let result = expect_declaration_typecheck_result(
     (

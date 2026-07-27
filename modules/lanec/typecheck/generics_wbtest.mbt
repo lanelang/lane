@@ -1300,7 +1300,7 @@ fn empty_generic_argument_inference() -> GenericArgumentInference {
     {
       values: [],
       offers: ContextualOfferScope(),
-      type_parameters: [],
+      type_kinds: TypeKindScope::empty(),
       provisional_effect_parameters: [],
       expected_effect: None,
     },

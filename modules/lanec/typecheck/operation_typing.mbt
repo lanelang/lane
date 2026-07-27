@@ -224,7 +224,7 @@ fn SemanticChecker::operation_generic_witnesses(
       self.resolved_source,
       self.imported_environment,
       self.diagnostics,
-      scope,
+      scope.type_kinds,
       declaration.type_parameters,
       generic_witnesses,
     )
@@ -415,7 +415,7 @@ fn SemanticChecker::explicit_operation_witness_substitution(
     self.resolved_source,
     self.imported_environment,
     self.diagnostics,
-    scope,
+    scope.type_kinds,
     declaration.type_parameters,
     generic_witnesses,
   )

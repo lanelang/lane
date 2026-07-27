@@ -189,6 +189,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
       self.resolved_source,
       self.imported_environment,
       self.diagnostics,
+      scope.type_kinds,
       declaration.type_parameters,
       explicit_generic_arguments,
     )
@@ -291,7 +292,7 @@ fn SemanticChecker::variant_hidden_generic_arguments(
         self.resolved_source,
         self.imported_environment,
         self.diagnostics,
-        scope,
+        scope.type_kinds,
         variant.type_parameters,
         explicit,
       ),
@@ -425,6 +426,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
       self.resolved_source,
       self.imported_environment,
       self.diagnostics,
+      scope.type_kinds,
       parameters,
       generic_arguments,
     )
@@ -608,6 +610,7 @@ fn SemanticChecker::struct_literal_generic_arguments(
       self.resolved_source,
       self.imported_environment,
       self.diagnostics,
+      scope.type_kinds,
       parameters,
       generic_arguments,
     )

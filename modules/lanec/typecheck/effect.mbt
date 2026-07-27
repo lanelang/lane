@@ -9,7 +9,7 @@ fn SemanticChecker::check_effect_in_scope(
     imported_environment: self.imported_environment,
     diagnostics: self.diagnostics,
     expanding: [],
-    scope: Some(scope),
+    scope: scope.type_kinds,
   }.check_effect(effect)
 }
 
@@ -165,7 +165,9 @@ fn TypeExpressionChecker::expand_effect_alias(
         imported_environment: self.imported_environment,
         diagnostics: self.diagnostics,
         expanding: self.expanding.copy(),
-        scope: self.scope,
+        scope: self.scope.with_resolved_type_parameters(
+          type_alias.type_parameters,
+        ),
       }
       next.expanding.push(identity)
       let checked_parameters = check_type_parameters(

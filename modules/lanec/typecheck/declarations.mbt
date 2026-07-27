@@ -227,6 +227,9 @@ fn DeclarationChecker::check_type_alias(
   self : DeclarationChecker,
   declaration : @resolve.ResolvedTypeAliasDeclaration,
 ) -> Unit {
+  let scope = TypeKindScope::from_resolved_type_parameters(
+    declaration.type_parameters,
+  )
   let actual_kind = match declaration.body {
     TypeBody(body) =>
       TypeExpressionChecker::{
@@ -234,7 +237,7 @@ fn DeclarationChecker::check_type_alias(
         imported_environment: self.imported_environment,
         diagnostics: self.diagnostics,
         expanding: [declaration.name],
-        scope: None,
+        scope,
       }.synthesize_type(body).kind
     EffectBody(effect) => {
       ignore(
@@ -243,7 +246,7 @@ fn DeclarationChecker::check_type_alias(
           imported_environment: self.imported_environment,
           diagnostics: self.diagnostics,
           expanding: [declaration.name],
-          scope: None,
+          scope,
         }.check_effect(effect),
       )
       type_alias_kind(declaration.type_parameters, Effect)
@@ -288,8 +291,11 @@ fn DeclarationChecker::check_effect(
   declaration : @resolve.ResolvedEffectDeclaration,
 ) -> CheckedEffectDeclaration {
   let type_parameters = self.check_type_parameters(declaration.type_parameters)
+  let scope = TypeKindScope::from_resolved_type_parameters(
+    declaration.type_parameters,
+  )
   let operations = declaration.operations.map(fn(operation) {
-    self.check_operation(operation)
+    self.check_operation(scope, operation)
   })
   {
     is_public: declaration.is_public,
@@ -326,17 +332,21 @@ fn DeclarationChecker::check_external_type(
 ///|
 fn DeclarationChecker::check_operation(
   self : DeclarationChecker,
+  parent_scope : TypeKindScope,
   operation : @resolve.ResolvedEffectOperationDeclaration,
 ) -> CheckedEffectOperationDeclaration {
   let type_parameters = self.check_type_parameters(operation.type_parameters)
+  let scope = parent_scope.with_resolved_type_parameters(
+    operation.type_parameters,
+  )
   {
     symbol: operation.symbol,
     name: operation.name,
     name_loc: operation.name_loc,
     index: operation.index,
     type_parameters,
-    payload: operation.payload.map(fn(type_) { self.check_type(type_) }),
-    result: self.check_type(operation.result),
+    payload: operation.payload.map(fn(type_) { self.check_type(scope, type_) }),
+    result: self.check_type(scope, operation.result),
     loc: operation.loc,
   }
 }
@@ -347,13 +357,24 @@ fn DeclarationChecker::check_struct(
   declaration : @resolve.ResolvedStructDeclaration,
 ) -> CheckedStructDeclaration {
   let type_parameters = self.check_type_parameters(declaration.type_parameters)
+  let scope = TypeKindScope::from_resolved_type_parameters(
+    declaration.type_parameters,
+  )
+  for item in declaration.members {
+    if item is TypeMember(type_member) {
+      scope.bind(
+        type_member.type_parameter.symbol,
+        check_resolved_kind(type_member.kind),
+      )
+    }
+  }
   let type_members = []
   let fields = []
   for item in declaration.members {
     match item {
       TypeMember(type_member) =>
         type_members.push(self.check_type_member(type_member))
-      Field(field) => fields.push(self.check_field(field))
+      Field(field) => fields.push(self.check_field(scope, field))
     }
   }
   {
@@ -391,6 +412,7 @@ fn DeclarationChecker::check_type_member(
 ///|
 fn DeclarationChecker::check_field(
   self : DeclarationChecker,
+  scope : TypeKindScope,
   field : @resolve.ResolvedFieldDeclaration,
 ) -> CheckedFieldDeclaration {
   {
@@ -398,7 +420,7 @@ fn DeclarationChecker::check_field(
     name: field.name,
     name_loc: field.name_loc,
     index: field.index,
-    type_: self.check_type(field.type_),
+    type_: self.check_type(scope, field.type_),
     loc: field.loc,
   }
 }
@@ -409,9 +431,12 @@ fn DeclarationChecker::check_enum(
   declaration : @resolve.ResolvedEnumDeclaration,
 ) -> CheckedEnumDeclaration {
   let type_parameters = self.check_type_parameters(declaration.type_parameters)
+  let scope = TypeKindScope::from_resolved_type_parameters(
+    declaration.type_parameters,
+  )
   let variants = []
   for variant in declaration.variants {
-    variants.push(self.check_variant(variant))
+    variants.push(self.check_variant(scope, variant))
   }
   {
     is_public: declaration.is_public,
@@ -427,15 +452,19 @@ fn DeclarationChecker::check_enum(
 ///|
 fn DeclarationChecker::check_variant(
   self : DeclarationChecker,
+  parent_scope : TypeKindScope,
   variant : @resolve.ResolvedEnumVariant,
 ) -> CheckedVariantDeclaration {
+  let scope = parent_scope.with_resolved_type_parameters(
+    variant.type_parameters,
+  )
   {
     symbol: variant.symbol,
     name: variant.name,
     name_loc: variant.name_loc,
     index: variant.index,
     type_parameters: self.check_type_parameters(variant.type_parameters),
-    payload: variant.payload.map(fn(type_) { self.check_type(type_) }),
+    payload: variant.payload.map(fn(type_) { self.check_type(scope, type_) }),
     loc: variant.loc,
   }
 }
@@ -451,12 +480,14 @@ fn DeclarationChecker::check_type_parameters(
 ///|
 fn DeclarationChecker::check_type(
   self : DeclarationChecker,
+  scope : TypeKindScope,
   type_ : @resolve.ResolvedType,
 ) -> @types.Type {
   check_resolved_type_with_imported_environment(
     self.source,
     self.imported_environment,
     self.diagnostics,
+    scope,
     type_,
   )
 }
@@ -474,6 +505,7 @@ fn check_resolved_type_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
   imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
+  scope : TypeKindScope,
   type_ : @resolve.ResolvedType,
 ) -> @types.Type {
   let checker = TypeExpressionChecker::{
@@ -481,7 +513,7 @@ fn check_resolved_type_with_imported_environment(
     imported_environment,
     diagnostics,
     expanding: [],
-    scope: None,
+    scope,
   }
   checker.check_value_type(type_)
 }
@@ -491,6 +523,7 @@ fn check_resolved_nominal_generic_arguments(
   source : @resolve.ResolvedSourceFile,
   imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
+  scope : TypeKindScope,
   parameters : Array[@types.TypeParameter],
   arguments : Array[@resolve.ResolvedGenericArgument],
 ) -> Array[@types.GenericArgument] {
@@ -501,13 +534,7 @@ fn check_resolved_nominal_generic_arguments(
         source,
         imported_environment,
         diagnostics,
-        {
-          values: [],
-          offers: ContextualOfferScope(),
-          type_parameters: [],
-          provisional_effect_parameters: [],
-          expected_effect: None,
-        },
+        scope,
         parameters[index].kind,
         arguments[index],
       )
@@ -516,13 +543,7 @@ fn check_resolved_nominal_generic_arguments(
         source,
         imported_environment,
         diagnostics,
-        {
-          values: [],
-          offers: ContextualOfferScope(),
-          type_parameters: [],
-          provisional_effect_parameters: [],
-          expected_effect: None,
-        },
+        scope,
         Type,
         arguments[index],
       )
@@ -537,7 +558,7 @@ fn check_resolved_generic_arguments(
   source : @resolve.ResolvedSourceFile,
   imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
-  scope : TypeScope,
+  scope : TypeKindScope,
   parameters : Array[@types.TypeParameter],
   arguments : Array[@resolve.ResolvedGenericArgument],
 ) -> Array[@types.GenericArgument] {
@@ -575,7 +596,7 @@ fn check_resolved_generic_argument(
   source : @resolve.ResolvedSourceFile,
   imported_environment : @module_interface.ImportedEnvironment,
   diagnostics : Array[TypeCheckDiagnostic],
-  scope : TypeScope,
+  scope : TypeKindScope,
   expected : @types.Kind,
   argument : @resolve.ResolvedGenericArgument,
 ) -> @types.GenericArgument {
@@ -584,7 +605,7 @@ fn check_resolved_generic_argument(
     imported_environment,
     diagnostics,
     expanding: [],
-    scope: Some(scope),
+    scope,
   }
   match (expected, argument) {
     (Effect, EffectArgument(effect)) => {
@@ -646,7 +667,7 @@ priv struct TypeExpressionChecker {
   imported_environment : @module_interface.ImportedEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
   expanding : Array[String]
-  scope : TypeScope?
+  scope : TypeKindScope
 }
 
 ///|
@@ -812,24 +833,14 @@ fn TypeExpressionChecker::with_type_parameters(
   self : TypeExpressionChecker,
   parameters : Array[@resolve.ResolvedTypeParameter],
 ) -> TypeExpressionChecker {
-  let scope = match self.scope {
-    Some(scope) => scope.copy()
-    None =>
-      TypeScope::{
-        values: [],
-        offers: ContextualOfferScope(),
-        type_parameters: [],
-        provisional_effect_parameters: [],
-        expected_effect: None,
-      }
-  }
+  let scope = self.scope.copy()
   scope.bind_resolved_type_parameter_kinds(parameters)
   {
     source: self.source,
     imported_environment: self.imported_environment,
     diagnostics: self.diagnostics,
     expanding: self.expanding,
-    scope: Some(scope),
+    scope,
   }
 }
 
@@ -1054,214 +1065,7 @@ fn TypeExpressionChecker::find_type_parameter_kind(
   self : TypeExpressionChecker,
   symbol : TypeParameterId,
 ) -> @types.Kind? {
-  if self.scope is Some(scope) &&
-    scope.type_parameter_kind(symbol) is Some(kind) {
-    return Some(kind)
-  }
-  for declaration in self.source.declarations {
-    match declaration {
-      Struct(declaration) => {
-        if find_kind_in_parameters(declaration.type_parameters, symbol)
-          is Some(kind) {
-          return Some(kind)
-        }
-        for item in declaration.members {
-          match item {
-            TypeMember(type_member) =>
-              if type_member.type_parameter.symbol == symbol {
-                return Some(check_resolved_kind(type_member.kind))
-              }
-            Field(field) =>
-              if find_kind_in_type(field.type_, symbol) is Some(kind) {
-                return Some(kind)
-              }
-          }
-        }
-      }
-      Enum(declaration) => {
-        if find_kind_in_parameters(declaration.type_parameters, symbol)
-          is Some(kind) {
-          return Some(kind)
-        }
-        for variant in declaration.variants {
-          if find_kind_in_parameters(variant.type_parameters, symbol)
-            is Some(kind) {
-            return Some(kind)
-          }
-          for payload in variant.payload {
-            if find_kind_in_type(payload, symbol) is Some(kind) {
-              return Some(kind)
-            }
-          }
-        }
-      }
-      Function(declaration) =>
-        if find_kind_in_parameters(declaration.type_parameters, symbol)
-          is Some(kind) {
-          return Some(kind)
-        }
-      TypeAlias(type_alias) =>
-        match type_alias.body {
-          TypeBody(body) =>
-            if find_kind_in_type(body, symbol) is Some(kind) {
-              return Some(kind)
-            }
-          EffectBody(effect) =>
-            if find_kind_in_effect(effect, symbol) is Some(kind) {
-              return Some(kind)
-            }
-        }
-      ExternalType(declaration) =>
-        if find_kind_in_parameters(declaration.type_parameters, symbol)
-          is Some(kind) {
-          return Some(kind)
-        }
-      Effect(declaration) => {
-        if find_kind_in_parameters(declaration.type_parameters, symbol)
-          is Some(kind) {
-          return Some(kind)
-        }
-        for operation in declaration.operations {
-          if find_kind_in_parameters(operation.type_parameters, symbol)
-            is Some(kind) {
-            return Some(kind)
-          }
-          for payload in operation.payload {
-            if find_kind_in_type(payload, symbol) is Some(kind) {
-              return Some(kind)
-            }
-          }
-          if find_kind_in_type(operation.result, symbol) is Some(kind) {
-            return Some(kind)
-          }
-        }
-      }
-      Let(_) => ()
-    }
-  }
-  None
-}
-
-///|
-fn find_kind_in_parameters(
-  parameters : Array[@resolve.ResolvedTypeParameter],
-  symbol : TypeParameterId,
-) -> @types.Kind? {
-  for parameter in parameters {
-    if parameter.symbol == symbol {
-      return Some(resolve_type_parameter_kind(parameter))
-    }
-  }
-  None
-}
-
-///|
-fn find_kind_in_type(
-  type_ : @resolve.ResolvedType,
-  symbol : TypeParameterId,
-) -> @types.Kind? {
-  match type_ {
-    TypeLambda(parameters~, body~, ..) =>
-      match find_kind_in_parameters(parameters, symbol) {
-        Some(kind) => Some(kind)
-        None => find_kind_in_type(body, symbol)
-      }
-    Apply(callee~, arguments~, ..) => {
-      match find_kind_in_type(callee, symbol) {
-        Some(kind) => return Some(kind)
-        None => ()
-      }
-      for argument in arguments {
-        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
-          return Some(kind)
-        }
-      }
-      None
-    }
-    Function(type_parameters~, parameters~, result~, effect~, ..) => {
-      for parameter in parameters {
-        if find_kind_in_type(parameter, symbol) is Some(kind) {
-          return Some(kind)
-        }
-      }
-      match find_kind_in_parameters(type_parameters, symbol) {
-        Some(kind) => return Some(kind)
-        None => ()
-      }
-      match find_kind_in_type(result, symbol) {
-        Some(kind) => Some(kind)
-        None => find_kind_in_effect(effect, symbol)
-      }
-    }
-    _ => None
-  }
-}
-
-///|
-fn find_kind_in_effect(
-  effect : @resolve.ResolvedEffectTerm,
-  symbol : TypeParameterId,
-) -> @types.Kind? {
-  match effect {
-    Empty(..) => None
-    Io(arguments~, ..) => {
-      for argument in arguments {
-        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
-          return Some(kind)
-        }
-      }
-      None
-    }
-    Singleton(arguments~, ..) => {
-      for argument in arguments {
-        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
-          return Some(kind)
-        }
-      }
-      None
-    }
-    Parameter(symbol=effect_symbol, ..) =>
-      if effect_symbol == symbol {
-        Some(Effect)
-      } else {
-        None
-      }
-    Alias(arguments~, ..) => {
-      for argument in arguments {
-        if find_kind_in_effect_alias_argument(argument, symbol) is Some(kind) {
-          return Some(kind)
-        }
-      }
-      None
-    }
-    Union(items~, ..) => {
-      for item in items {
-        if find_kind_in_effect(item, symbol) is Some(kind) {
-          return Some(kind)
-        }
-      }
-      None
-    }
-    Unresolved(arguments~, ..) => {
-      for argument in arguments {
-        if find_kind_in_generic_argument(argument, symbol) is Some(kind) {
-          return Some(kind)
-        }
-      }
-      None
-    }
-  }
-}
-
-///|
-fn find_kind_in_generic_argument(
-  argument : @resolve.ResolvedGenericArgument,
-  symbol : TypeParameterId,
-) -> @types.Kind? {
-  match argument {
-    TypeArgument(type_) => find_kind_in_type(type_, symbol)
-    EffectArgument(effect) => find_kind_in_effect(effect, symbol)
-  }
+  self.scope.type_parameter_kind(symbol)
 }
 
 ///|
@@ -1331,17 +1135,6 @@ fn check_resolved_kind(kind : @resolve.ResolvedKind) -> @types.Kind {
     Effect(..) => Effect
     Function(parameters~, result~, ..) =>
       Function(parameters.map(check_resolved_kind), check_resolved_kind(result))
-  }
-}
-
-///|
-fn find_kind_in_effect_alias_argument(
-  argument : @resolve.ResolvedEffectAliasArgument,
-  symbol : TypeParameterId,
-) -> @types.Kind? {
-  match argument {
-    TypeArgument(type_) => find_kind_in_type(type_, symbol)
-    EffectArgument(effect) => find_kind_in_effect(effect, symbol)
   }
 }
 

@@ -38,6 +38,11 @@ transparent and must be fully expanded before comparison.
 contains value bindings, function bindings with parameter metadata, contextual
 offers, and type-parameter kind bindings.
 
+Type-level checking receives the `TypeKindScope` projection of `Gamma`
+explicitly. This scope contains only lexical type-parameter kind bindings;
+missing bindings are internal consistency failures and are never recovered by
+searching the source AST.
+
 The checker also maintains a checked declaration environment `Delta`. `Delta`
 contains nominal type metadata, field and variant declarations, effect
 operations, imported module interfaces, and transparent type aliases. Expression

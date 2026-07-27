@@ -27,12 +27,31 @@ priv struct TypeParameterKindBinding {
 }
 
 ///|
+priv struct TypeKindScope {
+  bindings : Array[TypeParameterKindBinding]
+}
+
+///|
 priv struct TypeScope {
   values : Array[ValueTypeBinding]
   offers : ContextualOfferScope
-  type_parameters : Array[TypeParameterKindBinding]
+  type_kinds : TypeKindScope
   provisional_effect_parameters : Array[TypeParameterId]
   expected_effect : @types.Effect?
+}
+
+///|
+fn TypeKindScope::empty() -> TypeKindScope {
+  { bindings: [] }
+}
+
+///|
+fn TypeKindScope::from_resolved_type_parameters(
+  parameters : Array[@resolve.ResolvedTypeParameter],
+) -> TypeKindScope {
+  let scope = TypeKindScope::empty()
+  scope.bind_resolved_type_parameter_kinds(parameters)
+  scope
 }
 
 ///|
@@ -40,7 +59,7 @@ fn SemanticChecker::root_scope(self : SemanticChecker) -> TypeScope {
   {
     values: self.value_types.copy(),
     offers: self.offers.copy(),
-    type_parameters: [],
+    type_kinds: TypeKindScope::empty(),
     provisional_effect_parameters: [],
     expected_effect: None,
   }
@@ -51,7 +70,7 @@ fn SemanticChecker::ordered_root_scope(self : SemanticChecker) -> TypeScope {
   {
     values: self.ordered_value_types.copy(),
     offers: self.ordered_offers.copy(),
-    type_parameters: [],
+    type_kinds: TypeKindScope::empty(),
     provisional_effect_parameters: [],
     expected_effect: None,
   }
@@ -110,7 +129,7 @@ fn TypeScope::copy(self : TypeScope) -> TypeScope {
   {
     values: self.values.copy(),
     offers: self.offers.copy(),
-    type_parameters: self.type_parameters.copy(),
+    type_kinds: self.type_kinds.copy(),
     provisional_effect_parameters: self.provisional_effect_parameters.copy(),
     expected_effect: self.expected_effect,
   }
@@ -124,7 +143,7 @@ fn TypeScope::with_expected_effect(
   {
     values: self.values.copy(),
     offers: self.offers.copy(),
-    type_parameters: self.type_parameters.copy(),
+    type_kinds: self.type_kinds.copy(),
     provisional_effect_parameters: self.provisional_effect_parameters.copy(),
     expected_effect: Some(effect),
   }
@@ -135,7 +154,7 @@ fn TypeScope::without_expected_effect(self : TypeScope) -> TypeScope {
   {
     values: self.values.copy(),
     offers: self.offers.copy(),
-    type_parameters: self.type_parameters.copy(),
+    type_kinds: self.type_kinds.copy(),
     provisional_effect_parameters: self.provisional_effect_parameters.copy(),
     expected_effect: None,
   }
@@ -147,7 +166,7 @@ fn TypeScope::bind_type_parameter_kind(
   symbol : TypeParameterId,
   kind : @types.Kind,
 ) -> Unit {
-  self.type_parameters.push({ symbol, kind })
+  self.type_kinds.bind(symbol, kind)
 }
 
 ///|
@@ -164,11 +183,40 @@ fn TypeScope::bind_resolved_type_parameter_kinds(
   self : TypeScope,
   parameters : Array[@resolve.ResolvedTypeParameter],
 ) -> Unit {
+  self.type_kinds.bind_resolved_type_parameter_kinds(parameters)
+}
+
+///|
+fn TypeKindScope::copy(self : TypeKindScope) -> TypeKindScope {
+  { bindings: self.bindings.copy() }
+}
+
+///|
+fn TypeKindScope::with_resolved_type_parameters(
+  self : TypeKindScope,
+  parameters : Array[@resolve.ResolvedTypeParameter],
+) -> TypeKindScope {
+  let scope = self.copy()
+  scope.bind_resolved_type_parameter_kinds(parameters)
+  scope
+}
+
+///|
+fn TypeKindScope::bind(
+  self : TypeKindScope,
+  symbol : TypeParameterId,
+  kind : @types.Kind,
+) -> Unit {
+  self.bindings.push({ symbol, kind })
+}
+
+///|
+fn TypeKindScope::bind_resolved_type_parameter_kinds(
+  self : TypeKindScope,
+  parameters : Array[@resolve.ResolvedTypeParameter],
+) -> Unit {
   for parameter in parameters {
-    self.bind_type_parameter_kind(
-      parameter.symbol,
-      resolve_type_parameter_kind(parameter),
-    )
+    self.bind(parameter.symbol, resolve_type_parameter_kind(parameter))
   }
 }
 
@@ -209,8 +257,16 @@ fn TypeScope::type_parameter_kind(
   self : TypeScope,
   symbol : TypeParameterId,
 ) -> @types.Kind? {
-  for index = self.type_parameters.length() - 1; index >= 0; index = index - 1 {
-    let binding = self.type_parameters[index]
+  self.type_kinds.type_parameter_kind(symbol)
+}
+
+///|
+fn TypeKindScope::type_parameter_kind(
+  self : TypeKindScope,
+  symbol : TypeParameterId,
+) -> @types.Kind? {
+  for index = self.bindings.length() - 1; index >= 0; index = index - 1 {
+    let binding = self.bindings[index]
     if binding.symbol == symbol {
       return Some(binding.kind)
     }

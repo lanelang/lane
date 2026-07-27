@@ -1619,7 +1619,7 @@ fn SemanticChecker::check_explicit_generic_application(
         self.resolved_source,
         self.imported_environment,
         self.diagnostics,
-        scope,
+        scope.type_kinds,
         type_parameters,
         arguments,
       )

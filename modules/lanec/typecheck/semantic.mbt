@@ -351,6 +351,7 @@ fn SemanticChecker::check_type(
     self.resolved_source,
     self.imported_environment,
     self.diagnostics,
+    TypeKindScope::empty(),
     type_,
   )
 }
@@ -366,7 +367,7 @@ fn SemanticChecker::check_type_in_scope(
     imported_environment: self.imported_environment,
     diagnostics: self.diagnostics,
     expanding: [],
-    scope: Some(scope),
+    scope: scope.type_kinds,
   }.check_value_type(type_)
 }
 
