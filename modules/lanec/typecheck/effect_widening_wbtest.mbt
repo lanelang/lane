@@ -191,3 +191,97 @@ test "typecheck effect lower bounds and exact constraints are order independent"
   )
   debug_inspect(result.diagnostics, content="[]")
 }
+
+///|
+test "handler measurement retains provisional and exact effect constraints" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  ask() -> String
+      #|}
+      #|effect Log {
+      #|  write() -> Unit
+      #|}
+      #|struct Carrier[_E : Effect] {
+      #|  value : String
+      #|}
+      #|fn[E : Effect] invoke(callback : (String) -> String ! E, carrier : Carrier[{ E }]) -> String ! E {
+      #|  callback(carrier.value)
+      #|}
+      #|fn run() -> String {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(resume) => invoke(
+      #|      resume,
+      #|      Carrier[{ Log }]::{ value: "measured" },
+      #|    )
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[effect_mismatch expected={} actual=effect#1 @ 14:20-23:2]
+    ),
+  )
+}
+
+///|
+test "handler final pass rejects deferred effect lower bound conflicts" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  ask() -> String
+      #|}
+      #|effect Read {
+      #|  read() -> Unit
+      #|}
+      #|effect Log {
+      #|  write() -> Unit
+      #|}
+      #|struct Carrier[_E : Effect] {
+      #|  value : String
+      #|}
+      #|fn[E : Effect] invoke(callback : (String) -> String ! E, carrier : Carrier[{ E }]) -> String ! E {
+      #|  callback(carrier.value)
+      #|}
+      #|fn run() -> String ! { Read, Log } {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(resume) => {
+      #|      let _written : Unit = Log::write!()
+      #|      invoke(resume, Carrier[{ Read }]::{ value: "invalid" })
+      #|    }
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: GenericArgumentInferenceFailed(
+      #|      label="invoke",
+      #|      failure=ConflictingGenericArgument(
+      #|        parameter={ id: { index: 1 }, name: "E", kind: Effect },
+      #|        previous=EffectArgument(Union([Singleton({ index: 2 }, []), Singleton({ index: 1 }, [])])),
+      #|        actual=EffectArgument(Singleton({ index: 1 }, [])),
+      #|      ),
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 450,
+      #|      end_offset: 489,
+      #|      start_line: 21,
+      #|      start_column: 22,
+      #|      end_line: 21,
+      #|      end_column: 61,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}

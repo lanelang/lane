@@ -1,15 +1,8 @@
 ///|
-priv enum GenericArgumentConstraintMode {
-  ExactConstraint
-  EffectLowerBoundConstraint
-}
-
-///|
 priv struct GenericArgumentBinding {
   parameter : TypeParameterId
   argument : @types.GenericArgument
   is_provisional : Bool
-  mode : GenericArgumentConstraintMode
 }
 
 ///|
@@ -24,6 +17,7 @@ priv struct GenericArgumentInference {
   scope : TypeScope
   parameters : Array[@types.TypeParameter]
   bindings : Array[GenericArgumentBinding]
+  effect_lower_bounds : Array[GenericEffectLowerBound]
   mut failure : GenericArgumentInferenceFailure?
   mut failure_loc : SourceSpan?
   mut computation_error : @types.TypeComputationError?
@@ -111,6 +105,7 @@ fn GenericArgumentInference::GenericArgumentInference(
     scope,
     parameters,
     bindings: [],
+    effect_lower_bounds: [],
     failure: None,
     failure_loc: None,
     computation_error: None,
@@ -210,7 +205,10 @@ fn GenericArgumentInference::lookup(
       return Some(binding.argument)
     }
   }
-  None
+  match self.combined_effect_lower_bound(parameter, include_provisional=true) {
+    Some(effect) => Some(EffectArgument(effect))
+    None => None
+  }
 }
 
 ///|
@@ -220,7 +218,7 @@ fn GenericArgumentInference::has_exact_binding(
 ) -> Bool {
   for binding in self.bindings {
     if binding.parameter == parameter {
-      return !binding.is_provisional && binding.mode is ExactConstraint
+      return !binding.is_provisional
     }
   }
   false
@@ -288,38 +286,14 @@ fn GenericArgumentInference::remember(
   for index in 0..<self.bindings.length() {
     let previous = self.bindings[index]
     if previous.parameter == parameter {
-      if previous.mode is EffectLowerBoundConstraint &&
-        previous.argument is EffectArgument(previous_effect) &&
-        candidate is EffectArgument(candidate_effect) {
-        let allowed = previous_effect.is_subeffect_of(candidate_effect) catch {
-          error => {
-            self.record_computation_error(error)
-            return false
-          }
-        }
-        if !allowed {
-          return self.fail(
-            ConflictingGenericArgument(
-              parameter=tracked,
-              previous=previous.argument,
-              actual=candidate,
-            ),
-          )
-        }
-        self.bindings[index] = {
-          parameter,
-          argument: candidate,
-          is_provisional: evidence.is_provisional,
-          mode: ExactConstraint,
-        }
-        return true
-      }
       if previous.is_provisional && !evidence.is_provisional {
+        if !self.exact_effect_binding_accepts_lower_bounds(parameter, candidate) {
+          return false
+        }
         self.bindings[index] = {
           parameter,
           argument: candidate,
           is_provisional: false,
-          mode: ExactConstraint,
         }
         return true
       }
@@ -331,7 +305,6 @@ fn GenericArgumentInference::remember(
           parameter,
           argument: merge_provisional_arguments(previous.argument, candidate),
           is_provisional: true,
-          mode: previous.mode,
         }
         return true
       }
@@ -347,11 +320,14 @@ fn GenericArgumentInference::remember(
       return true
     }
   }
+  if !evidence.is_provisional &&
+    !self.exact_effect_binding_accepts_lower_bounds(parameter, candidate) {
+    return false
+  }
   self.bindings.push({
     parameter,
     argument: candidate,
     is_provisional: evidence.is_provisional,
-    mode: ExactConstraint,
   })
   true
 }
@@ -1040,9 +1016,20 @@ fn GenericArgumentInference::inferred_substitution(
   include_provisional? : Bool = false,
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
-  for binding in self.bindings {
-    if include_provisional || !binding.is_provisional {
-      substitution.insert_argument(binding.parameter, binding.argument)
+  for parameter in self.parameters {
+    let mut inserted = false
+    for binding in self.bindings {
+      if binding.parameter == parameter.id &&
+        (include_provisional || !binding.is_provisional) {
+        substitution.insert_argument(binding.parameter, binding.argument)
+        inserted = true
+        break
+      }
+    }
+    if !inserted &&
+      self.combined_effect_lower_bound(parameter.id, include_provisional~)
+      is Some(effect) {
+      substitution.insert_effect(parameter.id, effect)
     }
   }
   substitution
@@ -1054,7 +1041,7 @@ fn GenericArgumentInference::exact_substitution(
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for binding in self.bindings {
-    if binding.mode is ExactConstraint && !binding.is_provisional {
+    if !binding.is_provisional {
       substitution.insert_argument(binding.parameter, binding.argument)
     }
   }

@@ -1,68 +1,106 @@
 ///|
+priv struct GenericEffectLowerBound {
+  parameter : TypeParameterId
+  effect : @types.Effect
+  is_provisional : Bool
+}
+
+///|
 fn GenericArgumentInference::remember_effect_lower_bound(
   self : GenericArgumentInference,
   parameter : TypeParameterId,
   effect : @types.Effect,
 ) -> Bool {
-  for index in 0..<self.bindings.length() {
-    let previous = self.bindings[index]
-    if previous.parameter != parameter {
-      continue
-    }
-    guard previous.argument is EffectArgument(previous_effect) else {
-      return self.fail(
-        GenericArgumentConstraintMismatch(
-          expected=previous.argument,
-          actual=EffectArgument(effect),
-        ),
-      )
-    }
-    if previous.mode is EffectLowerBoundConstraint {
-      let combined : @types.GenericArgument = EffectArgument(
-        @types.Effect::Union([previous_effect, effect]).canonicalize(),
-      )
-      let evidence = self.classify_generic_argument_evidence(combined)
-      self.bindings[index] = {
-        parameter,
-        argument: evidence.argument,
-        is_provisional: evidence.is_provisional,
-        mode: EffectLowerBoundConstraint,
+  let evidence = self.classify_generic_argument_evidence(EffectArgument(effect))
+  guard evidence.argument is EffectArgument(bound) else { return false }
+  if !evidence.is_provisional {
+    for binding in self.bindings {
+      if binding.parameter != parameter || binding.is_provisional {
+        continue
       }
-      return true
-    }
-    let allowed = effect.is_subeffect_of(previous_effect) catch {
-      error => {
-        self.record_computation_error(error)
+      guard binding.argument is EffectArgument(exact) else {
+        return self.fail(
+          GenericArgumentConstraintMismatch(
+            expected=binding.argument,
+            actual=EffectArgument(bound),
+          ),
+        )
+      }
+      if !self.effect_lower_bound_is_allowed(parameter, bound, exact) {
         return false
       }
     }
-    if allowed {
-      return true
-    }
-    guard self.tracked_parameter(parameter) is Some(tracked) else {
-      return true
-    }
-    return self.fail(
-      ConflictingGenericArgument(
-        parameter=tracked,
-        previous=previous.argument,
-        actual=EffectArgument(effect),
-      ),
-    )
   }
-  if !self.remember(parameter, EffectArgument(effect)) {
-    return false
-  }
-  for index in 0..<self.bindings.length() {
-    if self.bindings[index].parameter == parameter {
-      self.bindings[index] = {
-        ..self.bindings[index],
-        mode: EffectLowerBoundConstraint,
-      }
-      return true
+  self.effect_lower_bounds.push({
+    parameter,
+    effect: bound,
+    is_provisional: evidence.is_provisional,
+  })
+  true
+}
+
+///|
+fn GenericArgumentInference::exact_effect_binding_accepts_lower_bounds(
+  self : GenericArgumentInference,
+  parameter : TypeParameterId,
+  candidate : @types.GenericArgument,
+) -> Bool {
+  guard candidate is EffectArgument(exact) else { return true }
+  for lower_bound in self.effect_lower_bounds {
+    if lower_bound.parameter != parameter || lower_bound.is_provisional {
+      continue
+    }
+    if !self.effect_lower_bound_is_allowed(parameter, lower_bound.effect, exact) {
+      return false
     }
   }
   true
+}
+
+///|
+fn GenericArgumentInference::effect_lower_bound_is_allowed(
+  self : GenericArgumentInference,
+  parameter : TypeParameterId,
+  lower : @types.Effect,
+  exact : @types.Effect,
+) -> Bool {
+  let allowed = lower.is_subeffect_of(exact) catch {
+    error => {
+      self.record_computation_error(error)
+      return false
+    }
+  }
+  if allowed {
+    return true
+  }
+  guard self.tracked_parameter(parameter) is Some(tracked) else { return true }
+  self.fail(
+    ConflictingGenericArgument(
+      parameter=tracked,
+      previous=EffectArgument(lower),
+      actual=EffectArgument(exact),
+    ),
+  )
+}
+
+///|
+fn GenericArgumentInference::combined_effect_lower_bound(
+  self : GenericArgumentInference,
+  parameter : TypeParameterId,
+  include_provisional? : Bool = false,
+) -> @types.Effect? {
+  let effects = []
+  for lower_bound in self.effect_lower_bounds {
+    if lower_bound.parameter == parameter &&
+      (include_provisional || !lower_bound.is_provisional) {
+      effects.push(lower_bound.effect)
+    }
+  }
+  match effects {
+    [] => None
+    [effect] => Some(effect)
+    effects => Some(@types.Effect::Union(effects).canonicalize())
+  }
 }
 
 ///|

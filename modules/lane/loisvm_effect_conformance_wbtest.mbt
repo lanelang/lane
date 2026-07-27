@@ -209,6 +209,47 @@ test "algebraic effect widening preserves anonymous function ABI" {
 }
 
 ///|
+test "handler measurement preserves exact effect context in production lowering" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Prompt {
+      #|  ask() -> String
+      #|}
+      #|effect Log {
+      #|  write() -> Unit
+      #|}
+      #|struct Carrier[_E : Effect] {
+      #|  value : String
+      #|}
+      #|fn[E : Effect] invoke(callback : (String) -> String ! E, carrier : Carrier[{ E }]) -> String ! E {
+      #|  callback(carrier.value)
+      #|}
+      #|fn run() -> String ! Log {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(resume) => invoke(
+      #|      resume,
+      #|      Carrier[{ Log }]::{ value: "measured" },
+      #|    )
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let result : String = handle run() with {
+      #|    Log::write(resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|  println(result)
+      #|}
+    ),
+    ["measured"],
+  )
+}
+
+///|
 fn interpreter_resolution_error(
   image : @loisvm_bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,
