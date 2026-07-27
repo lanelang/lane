@@ -81,8 +81,9 @@ effect-polymorphic functions and handlers.
 _Avoid_: singleton effect, operation identity, runtime value
 
 **Canonical Effect**:
-The normalized representation of an effect set used for equality, removal, and
-unification.
+The metadata-registry-normalized representation of an effect set used for
+equality, removal, and unification. Binder kinds participate in canonical
+identity.
 _Avoid_: source effect syntax, array order, duplicate-preserving effect list
 
 **Effect Operation**:
@@ -154,6 +155,9 @@ _Avoid_: artifact text parser, compiler artifact writer, inspect renderer
 - **Closed Effect Set** is the fully known case of an effect set; **Open Effect
   Row** is the effect-polymorphic case.
 - **Canonical Effect** ignores singleton order and duplicate singleton effects.
+- **Buslane Type Logic** uses the **Metadata Registry** for definitional type
+  equality, effect equality, subeffect checks, and effect canonicalization;
+  structural `Eq` on core terms is not semantic equality.
 - **Buslane Effect Core** must be represented by Buslane text parsing and
   pretty printing.
 - Buslane text is a readable canonical core-language representation; it may use

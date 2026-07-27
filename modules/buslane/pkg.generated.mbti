@@ -65,13 +65,9 @@ pub(all) enum Effect {
   Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
-} derive(@debug.Debug)
-pub fn Effect::canonicalize(Self) -> Self
-pub fn Effect::equals(Self, Self) -> Bool
-pub fn Effect::is_subeffect_of(Self, Self) -> Bool
+} derive(Eq, @debug.Debug)
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Effect
-pub impl Eq for Effect
 
 pub(all) enum EffectFlavor {
   Algebraic
@@ -180,6 +176,7 @@ pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId], flavo
 pub fn MetadataRegistry::define_type_parameter(Self, String, Kind) -> TypeParameterId
 pub fn MetadataRegistry::define_value(Self, String, ValueKind, Type) -> ValueId
 pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
+pub fn MetadataRegistry::effect_is_subeffect_of(Self, Effect, Effect) -> Bool
 pub fn MetadataRegistry::effects_definitionally_equal(Self, Effect, Effect) -> Bool
 pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
@@ -264,11 +261,9 @@ pub(all) enum Type {
   TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
-} derive(@debug.Debug)
-pub fn Type::equals(Self, Self) -> Bool
+} derive(Eq, @debug.Debug)
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
 pub impl @prettyprinter.Pretty for Type
-pub impl Eq for Type
 
 pub(all) enum TypeFlavor {
   Data

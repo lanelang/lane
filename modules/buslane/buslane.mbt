@@ -75,7 +75,7 @@ pub(all) enum Type {
   TypeLambda(Array[TypeParameterId], Type)
   Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
-} derive(Debug)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum Effect {
@@ -84,7 +84,7 @@ pub(all) enum Effect {
   Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
-} derive(Debug)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum GenericArgument {
@@ -474,16 +474,6 @@ pub fn MetadataRegistry::operation_info(
 }
 
 ///|
-/// Returns whether two Buslane types are definitionally equal.
-pub fn Type::equals(self : Type, other : Type) -> Bool {
-  alpha_equal_with(
-    unconstrained_alpha_context(),
-    self.normalize(),
-    other.normalize(),
-  )
-}
-
-///|
 fn MetadataRegistry::definitional_equality_context(
   self : MetadataRegistry,
 ) -> AlphaContext {
@@ -525,24 +515,22 @@ pub fn MetadataRegistry::effects_definitionally_equal(
 }
 
 ///|
+/// Returns whether every effect term in `lower` occurs in `upper`.
+pub fn MetadataRegistry::effect_is_subeffect_of(
+  self : MetadataRegistry,
+  lower : Effect,
+  upper : Effect,
+) -> Bool {
+  effect_is_subeffect_with(self.definitional_equality_context(), lower, upper)
+}
+
+///|
 /// Returns the canonical effect shape under metadata-aware alpha equivalence.
 pub fn MetadataRegistry::canonicalize_effect(
   self : MetadataRegistry,
   effect : Effect,
 ) -> Effect {
   canonicalize_effect_with(self.definitional_equality_context(), effect)
-}
-
-///|
-/// Returns whether two Buslane effects are canonically equal.
-pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
-  alpha_equal_effect_with(unconstrained_alpha_context(), self, other)
-}
-
-///|
-/// Returns whether every effect term in this row occurs in `upper`.
-pub fn Effect::is_subeffect_of(self : Effect, upper : Effect) -> Bool {
-  effect_is_subeffect_with(unconstrained_alpha_context(), self, upper)
 }
 
 ///|
@@ -558,22 +546,6 @@ fn effect_is_subeffect_with(
       alpha_equal_effect_term_with(context, lower_term, upper_term)
     })
   })
-}
-
-///|
-pub impl Eq for Type with fn equal(self : Type, other : Type) -> Bool {
-  self.equals(other)
-}
-
-///|
-pub impl Eq for Effect with fn equal(self : Effect, other : Effect) -> Bool {
-  self.equals(other)
-}
-
-///|
-/// Returns the canonical effect shape used for equality and diagnostics.
-pub fn Effect::canonicalize(self : Effect) -> Effect {
-  canonicalize_effect_with(unconstrained_alpha_context(), self)
 }
 
 ///|
@@ -596,11 +568,6 @@ priv struct AlphaBinding {
 priv struct AlphaContext {
   bindings : Array[AlphaBinding]
   binders_compatible : (TypeParameterId, TypeParameterId) -> Bool
-}
-
-///|
-fn unconstrained_alpha_context() -> AlphaContext {
-  { bindings: [], binders_compatible: fn(_, _) { true } }
 }
 
 ///|

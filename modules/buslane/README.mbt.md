@@ -82,7 +82,9 @@ The metadata registry allocates IDs and globally unique readable names. Expressi
 
 ### Canonicalize effects
 
-Effect equality treats unions as sets. Canonicalization removes empty and duplicate members.
+The metadata registry owns effect equality and canonicalization because nested
+binders require their declared kinds. Canonicalization treats unions as sets and
+removes empty and duplicate members.
 
 ```mbt check
 ///|
@@ -97,10 +99,15 @@ test "canonicalize a Buslane effect set" {
   ])
 
   inspect(
-    @prettyprinter.render(effect.canonicalize(), width=80),
+    @prettyprinter.render(metadata.canonicalize_effect(effect), width=80),
     content="{effect#0, Io}",
   )
-  assert_true(effect.equals(Union([Io, Singleton(state, [])])))
+  assert_true(
+    metadata.effects_definitionally_equal(
+      effect,
+      Effect::Union([Io, Singleton(state, [])]),
+    ),
+  )
 }
 ```
 
@@ -222,7 +229,11 @@ Effects include:
 - `Parameter(type_parameter_id)` for an open effect row;
 - `Union(effects)` for a set of effects.
 
-Use `Effect::canonicalize` or `Effect::equals` when comparing effect sets. Canonicalization removes empty terms and duplicates while making equality independent from union ordering.
+Use `MetadataRegistry::canonicalize_effect` or
+`MetadataRegistry::effects_definitionally_equal` when comparing effect sets.
+Canonicalization removes empty terms and duplicates while making equality
+independent from union ordering and respecting the declared kinds of nested
+binders.
 
 ### Expressions
 

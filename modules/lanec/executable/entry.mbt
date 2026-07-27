@@ -18,7 +18,7 @@ pub fn entry_effect_is_executable(
   if effect_contains_parameter(effect) {
     return false
   }
-  match effect.canonicalize() {
+  match metadata.canonicalize_effect(effect) {
     Empty | Io => true
     Singleton(effect_id, _) =>
       metadata

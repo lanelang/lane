@@ -85,7 +85,10 @@ fn compatible_alias(
   guard program.metadata.value_info(target) is Some(target_info) else {
     return false
   }
-  value_info.type_.equals(target_info.type_)
+  program.metadata.types_definitionally_equal(
+    value_info.type_,
+    target_info.type_,
+  )
 }
 
 ///|

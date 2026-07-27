@@ -189,7 +189,7 @@ fn FunctionLowerer::make_callable_adapter(
   target_type : @buslane.Type,
   substitutions : Array[TypeArgumentBinding],
 ) -> LocalValue raise LoisvmLoweringError {
-  if source_type == target_type {
+  if self.image.metadata.types_definitionally_equal(source_type, target_type) {
     return Slot(source, target_type)
   }
   let source_parameter_targets = callable_parameter_targets(
@@ -289,7 +289,7 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
   substitutions : Array[TypeArgumentBinding],
 ) -> LocalValue raise LoisvmLoweringError {
   let source_type = local_value_type(value).unwrap_or(source_type)
-  if source_type == target_type {
+  if self.image.metadata.types_definitionally_equal(source_type, target_type) {
     return match value {
       Unit => Unit
       Slot(slot, _) => Slot(slot, target_type)
@@ -446,7 +446,9 @@ fn ImageLowerer::lower_callable_adapter(
       call_witnesses.push(lowerer.find_witness(parameter))
     }
   }
-  if source_result_type == target_result_type {
+  if self.metadata.types_definitionally_equal(
+      source_result_type, target_result_type,
+    ) {
     lowerer.terminate(
       TailCallValue(source_callable, call_witnesses, source_arguments),
     )

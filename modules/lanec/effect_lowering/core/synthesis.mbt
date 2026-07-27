@@ -51,7 +51,7 @@ pub fn synthesize_expr_or_raise(
     Call(callee, arguments) => synthesize_call(metadata, callee, arguments)
     TypeLambda(parameters, body) => {
       let body_facts = synthesize_expr_or_raise(metadata, body)
-      if body_facts.effect != Empty {
+      if !metadata.effects_definitionally_equal(body_facts.effect, Empty) {
         raise EffectfulTypeLambda(body_facts.effect)
       }
       pure_facts(Forall(parameters, body_facts.type_))
@@ -73,7 +73,7 @@ pub fn synthesize_expr_or_raise(
     LetRec(bindings, body) => {
       for binding in bindings {
         let rhs_facts = synthesize_expr_or_raise(metadata, binding.rhs)
-        if rhs_facts.effect != Empty {
+        if !metadata.effects_definitionally_equal(rhs_facts.effect, Empty) {
           raise EffectfulRecursiveBinding(binding.id, rhs_facts.effect)
         }
       }
@@ -131,7 +131,7 @@ fn synthesize_call(
     raise ExpectedFunction(callee_facts.type_)
   }
   if arguments.length() > parameters.length() &&
-    metadata.canonicalize_effect(latent_effect) != Empty {
+    !metadata.effects_definitionally_equal(latent_effect, Empty) {
     guard arguments.last() is Some(continuation) else {
       raise ArityMismatch(
         expected=parameters.length(),

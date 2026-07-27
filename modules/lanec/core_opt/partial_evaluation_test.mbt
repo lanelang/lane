@@ -125,6 +125,93 @@ test "core optimizer partially evaluates a known generic call" {
 }
 
 ///|
+test "core optimizer preserves distinct effects with different binder kinds" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let type_binder = metadata.define_type_parameter("A", Type)
+  let effect_binder = metadata.define_type_parameter("F", Effect)
+  let type_polymorphic = @buslane.Type::Forall(
+    [type_binder],
+    Function([], unit_type, Empty),
+  )
+  let effect_polymorphic = @buslane.Type::Forall(
+    [effect_binder],
+    Function([], unit_type, Empty),
+  )
+  let carrier_parameter = metadata.define_type_parameter("T", Type)
+  let carrier = metadata.define_effect("Carrier", [carrier_parameter])
+  let concrete_effect = @buslane.Effect::Union([
+    Singleton(carrier, [TypeArgument(type_polymorphic)]),
+    Singleton(carrier, [TypeArgument(effect_polymorphic)]),
+  ])
+  let provider_effect = metadata.define_type_parameter("ProviderE", Effect)
+  let provider = metadata.define_value(
+    "provider",
+    External,
+    Forall(
+      [provider_effect],
+      Function([], unit_type, Parameter(provider_effect)),
+    ),
+  )
+  let wrapper_effect = metadata.define_type_parameter("WrapperE", Effect)
+  let wrapped_type = @buslane.Type::Function(
+    [],
+    unit_type,
+    Parameter(wrapper_effect),
+  )
+  let wrapper = metadata.define_value(
+    "wrapper",
+    Function,
+    Forall([wrapper_effect], Function([], wrapped_type, Empty)),
+  )
+  let value = metadata.define_value(
+    "value",
+    Value,
+    Function([], unit_type, concrete_effect),
+  )
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], unit_type, Empty),
+  )
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(provider),
+      Let(
+        wrapper,
+        TypeLambda(
+          [wrapper_effect],
+          Function({
+            parameters: [],
+            result_type: wrapped_type,
+            body: TypeApply(Ref(provider), [
+              EffectArgument(Parameter(wrapper_effect)),
+            ]),
+          }),
+        ),
+      ),
+      Let(
+        value,
+        Call(TypeApply(Ref(wrapper), [EffectArgument(concrete_effect)]), []),
+      ),
+      Let(
+        main,
+        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+      ),
+    ],
+  }
+  let before = @buslane.verify_program(program)
+  guard optimize({ program, entry: main, roots: [value] }) is Ok(optimized) else {
+    fail("expected core optimization to succeed")
+  }
+  debug_inspect(
+    (before, @buslane.verify_program(optimized)),
+    content="({ diagnostics: [] }, { diagnostics: [] })",
+  )
+}
+
+///|
 test "core optimizer devirtualizes a known dictionary projection" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let int_type = @buslane.Type::Primitive(Int)

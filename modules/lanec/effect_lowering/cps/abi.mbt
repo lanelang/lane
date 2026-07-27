@@ -64,7 +64,7 @@ fn lower_cps_top_term(
   match term {
     Let(id, expression) => {
       let facts = synthesize_expr_or_raise(program.metadata, expression)
-      if facts.effect == Empty {
+      if program.metadata.effects_definitionally_equal(facts.effect, Empty) {
         let lowered = match expression {
           Function(_) | TypeLambda(_, _) =>
             lower_cps_recursable(

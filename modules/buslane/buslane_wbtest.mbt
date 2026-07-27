@@ -9,8 +9,12 @@ fn bool_type() -> Type {
 }
 
 ///|
-fn assert_type_equal(actual : Type, expected : Type) -> Unit {
-  if actual != expected {
+fn assert_type_equal(
+  metadata : MetadataRegistry,
+  actual : Type,
+  expected : Type,
+) -> Unit {
+  if !metadata.types_definitionally_equal(actual, expected) {
     abort(
       "expected equal buslane types\nactual:\n" +
       @prettyprinter.render(actual, width=100) +
@@ -21,8 +25,12 @@ fn assert_type_equal(actual : Type, expected : Type) -> Unit {
 }
 
 ///|
-fn assert_effect_equal(actual : Effect, expected : Effect) -> Unit {
-  if actual != expected {
+fn assert_effect_equal(
+  metadata : MetadataRegistry,
+  actual : Effect,
+  expected : Effect,
+) -> Unit {
+  if !metadata.effects_definitionally_equal(actual, expected) {
     abort(
       "expected equal buslane effects\nactual:\n" +
       @prettyprinter.render(actual, width=100) +
@@ -167,25 +175,34 @@ test "buslane metadata owns effect operation shape" {
 
 ///|
 test "buslane forall equality is alpha equivalent" {
-  let left_param = TypeParameterId::{ index: 0 }
-  let right_param = TypeParameterId::{ index: 1 }
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let left_param = metadata.define_type_parameter("A", Type)
+  let right_param = metadata.define_type_parameter("B", Type)
   let left = Type::Forall([left_param], Parameter(left_param))
   let right = Type::Forall([right_param], Parameter(right_param))
-  assert_type_equal(left, right)
+  assert_type_equal(metadata, left, right)
+  assert_false(left == right)
 }
 
 ///|
 test "buslane type equality beta normalizes type lambdas" {
-  let parameter = TypeParameterId::{ index: 0 }
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let parameter = metadata.define_type_parameter("A", Type)
   let lambda = Type::TypeLambda([parameter], Parameter(parameter))
-  assert_type_equal(Apply(lambda, [TypeArgument(int_type())]), int_type())
+  assert_type_equal(
+    metadata,
+    Apply(lambda, [TypeArgument(int_type())]),
+    int_type(),
+  )
 }
 
 ///|
 test "buslane function latent effects participate in type equality and substitution" {
-  let left_param = TypeParameterId::{ index: 0 }
-  let right_param = TypeParameterId::{ index: 1 }
-  let effect_id = EffectId::{ index: 0 }
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let left_param = metadata.define_type_parameter("A", Type)
+  let right_param = metadata.define_type_parameter("B", Type)
+  let effect_parameter = metadata.define_type_parameter("T", Type)
+  let effect_id = metadata.define_effect("Effect", [effect_parameter])
   let left = Type::Forall(
     [left_param],
     Function(
@@ -202,16 +219,18 @@ test "buslane function latent effects participate in type equality and substitut
       Singleton(effect_id, [TypeArgument(Parameter(right_param))]),
     ),
   )
-  assert_type_equal(left, right)
+  assert_type_equal(metadata, left, right)
+  let left_effect_param = metadata.define_type_parameter("E", Effect)
+  let right_effect_param = metadata.define_type_parameter("F", Effect)
   let left_row : Type = Forall(
-    [left_param],
-    Function([], int_type(), Parameter(left_param)),
+    [left_effect_param],
+    Function([], int_type(), Parameter(left_effect_param)),
   )
   let right_row : Type = Forall(
-    [right_param],
-    Function([], int_type(), Parameter(right_param)),
+    [right_effect_param],
+    Function([], int_type(), Parameter(right_effect_param)),
   )
-  assert_type_equal(left_row, right_row)
+  assert_type_equal(metadata, left_row, right_row)
   let substitution = TypeSubstitution::TypeSubstitution()
   substitution.insert(left_param, int_type())
   let effectful : Type = Function(
@@ -227,9 +246,11 @@ test "buslane function latent effects participate in type equality and substitut
 
 ///|
 test "buslane canonical effect equality ignores ordering and duplicates" {
-  let console = EffectId::{ index: 0 }
-  let state = EffectId::{ index: 1 }
-  let row = TypeParameterId::{ index: 2 }
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let console_parameter = metadata.define_type_parameter("T", Type)
+  let console = metadata.define_effect("Console", [console_parameter])
+  let state = metadata.define_effect("State", [])
+  let row = metadata.define_type_parameter("E", Effect)
   let left = Effect::Union([
     Singleton(state, []),
     Empty,
@@ -242,36 +263,41 @@ test "buslane canonical effect equality ignores ordering and duplicates" {
     Singleton(console, [TypeArgument(int_type())]),
     Singleton(state, []),
   ])
-  assert_effect_equal(left, right)
+  assert_effect_equal(metadata, left, right)
   inspect(
-    @prettyprinter.render(left.canonicalize(), width=100),
-    content="{effect#1, effect#0[Int], tparam#2}",
+    @prettyprinter.render(metadata.canonicalize_effect(left), width=100),
+    content="{effect#1, effect#0[Int], tparam#1}",
   )
 }
 
 ///|
 test "buslane effect containment is independent from equality" {
-  let first = EffectId::{ index: 0 }
-  let second = EffectId::{ index: 1 }
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let first = metadata.define_effect("First", [])
+  let second = metadata.define_effect("Second", [])
   let narrow = Effect::Singleton(first, [])
   let wide = Effect::Union([Singleton(first, []), Singleton(second, [])])
-  assert_true(Effect::Empty.is_subeffect_of(narrow))
-  assert_true(narrow.is_subeffect_of(wide))
-  assert_false(wide.is_subeffect_of(narrow))
+  assert_true(metadata.effect_is_subeffect_of(Empty, narrow))
+  assert_true(metadata.effect_is_subeffect_of(narrow, wide))
+  assert_false(metadata.effect_is_subeffect_of(wide, narrow))
   assert_false(narrow == wide)
 }
 
 ///|
 test "buslane preserves the built-in Io effect atom" {
-  let row = TypeParameterId::{ index: 0 }
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let row = metadata.define_type_parameter("E", Effect)
   let effect = Effect::Union([Io, Empty, Parameter(row), Io])
   inspect(
-    @prettyprinter.render(effect.canonicalize(), width=100),
+    @prettyprinter.render(metadata.canonicalize_effect(effect), width=100),
     content="{Io, tparam#0}",
   )
   let substitution = TypeSubstitution::TypeSubstitution()
   substitution.insert_effect(row, Io)
-  debug_inspect(effect.substitute(substitution).canonicalize(), content="Io")
+  debug_inspect(
+    metadata.canonicalize_effect(effect.substitute(substitution)),
+    content="Io",
+  )
   assert_false(Io == Empty)
 }
 

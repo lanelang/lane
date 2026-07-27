@@ -206,7 +206,9 @@ fn InlineCloneContext::substitute_argument(
   match argument {
     TypeArgument(type_) => TypeArgument(type_.substitute(self.substitution))
     EffectArgument(effect) =>
-      EffectArgument(self.substitute_effect(effect).canonicalize())
+      EffectArgument(
+        self.metadata.canonicalize_effect(self.substitute_effect(effect)),
+      )
   }
 }
 

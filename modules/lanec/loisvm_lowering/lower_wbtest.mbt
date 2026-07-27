@@ -2888,11 +2888,18 @@ test "type substitution resolves parameters inside replacement types" {
 
 ///|
 test "concrete effect contexts use erased Unit or reference layouts" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect : @buslane.EffectId = { index: 3 }
-  assert_eq(effect_context_layout_recipe(Empty), Unit)
-  assert_eq(effect_context_layout_recipe(Singleton(effect, [])), Reference)
+  assert_eq(effect_context_layout_recipe(metadata, Empty), Unit)
   assert_eq(
-    effect_context_layout_recipe(Union([Empty, Singleton(effect, [])])),
+    effect_context_layout_recipe(metadata, Singleton(effect, [])),
+    Reference,
+  )
+  assert_eq(
+    effect_context_layout_recipe(
+      metadata,
+      Union([Empty, Singleton(effect, [])]),
+    ),
     Reference,
   )
 }

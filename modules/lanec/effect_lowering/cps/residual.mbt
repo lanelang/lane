@@ -36,7 +36,7 @@ fn build_residual_computation_schema(
   let canonical = mon_effect_part(schema.metadata, effect)
   let residual_effect = residual_effect_part(schema.metadata, effect)
   let rewritten_result = schema.rewrite_type(result_type)
-  if canonical == Empty {
+  if schema.metadata.effects_definitionally_equal(canonical, Empty) {
     {
       effect: canonical,
       residual_effect,
@@ -126,7 +126,7 @@ fn ResidualComputationSchema::pure(
   program : Program,
   value : Expr,
 ) -> Expr raise SynthesisError {
-  if self.effect == Empty {
+  if schema.metadata.effects_definitionally_equal(self.effect, Empty) {
     value
   } else {
     let frame = self.fresh_frame(schema, program)
@@ -143,7 +143,7 @@ fn ResidualComputationSchema::run(
   answer_type : @buslane.Type,
   continuation : Expr,
 ) -> Expr raise SynthesisError {
-  if self.effect == Empty {
+  if metadata.effects_definitionally_equal(self.effect, Empty) {
     Call(continuation, [computation])
   } else {
     Call(

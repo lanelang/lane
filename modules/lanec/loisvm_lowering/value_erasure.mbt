@@ -18,7 +18,9 @@ fn FunctionLowerer::effect_context_witness(
   self : FunctionLowerer,
   effect : @buslane.Effect,
 ) -> @vmcfg.ValueId {
-  let layout = self.image.intern_layout(effect_context_layout_recipe(effect))
+  let layout = self.image.intern_layout(
+    effect_context_layout_recipe(self.image.metadata, effect),
+  )
   let witness = self.fresh_metadata(layout_witness_metadata())
   self.emit(ConstLayout(witness, layout))
   witness
@@ -26,9 +28,10 @@ fn FunctionLowerer::effect_context_witness(
 
 ///|
 fn effect_context_layout_recipe(
+  metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
 ) -> @bytecode.LayoutRecipe {
-  if effect.canonicalize() == Empty {
+  if metadata.effects_definitionally_equal(effect, Empty) {
     Unit
   } else {
     Reference

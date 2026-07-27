@@ -97,7 +97,11 @@ fn define_dictionary_header(
     info.name.occurrence + "%answer",
     Type,
   )
-  let suffix = if residual_effect == Io { "%io" } else { "" }
+  let suffix = if metadata.effects_definitionally_equal(residual_effect, Io) {
+    "%io"
+  } else {
+    ""
+  }
   let type_id = metadata.define_type(
     info.name.occurrence + "%dictionary" + suffix,
     parameters + [answer_parameter],

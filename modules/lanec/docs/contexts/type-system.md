@@ -259,6 +259,9 @@ _Avoid_: display-name equality, raw binder identity equality
 
 **Buslane Type Logic**:
 The Buslane-owned implementation of type well-formedness, kind checking, equality, and alpha-equivalence.
+The metadata registry is the authority for definitional equality and effect
+canonicalization because binder kinds are semantic inputs. Structural `Eq` on
+Buslane terms is only an IR identity comparison.
 _Avoid_: compiler-front-end type checker, source type syntax
 
 **Core Coercion**:

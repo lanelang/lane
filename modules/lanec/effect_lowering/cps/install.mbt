@@ -280,7 +280,7 @@ fn build_handler_resume_value(
     operation_result,
   )
   let resumed = Expr::Call(Ref(direct_resume), [Ref(parameter)])
-  if residual.effect == Empty {
+  if program.metadata.effects_definitionally_equal(residual.effect, Empty) {
     Function({
       parameters: [parameter],
       result_type: residual.result_type,

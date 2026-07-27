@@ -386,7 +386,10 @@ fn VerifyContext::synthesize_type_lambda(
     body_scope.parameters.push(parameter)
   }
   let body_result = self.synthesize_expr(body, value_scope, body_scope)
-  if body_result.effect != Empty {
+  if !self.program.metadata.effects_definitionally_equal(
+      body_result.effect,
+      Empty,
+    ) {
     self.report(EffectMismatch(expected=Empty, actual=body_result.effect))
   }
   pure_expr(Forall(parameters, body_result.type_))
@@ -860,7 +863,7 @@ fn VerifyContext::synthesize_letrec(
       body_scope,
       type_scope,
     )
-    if rhs_effect != Empty {
+    if !self.program.metadata.effects_definitionally_equal(rhs_effect, Empty) {
       self.report(EffectMismatch(expected=Empty, actual=rhs_effect))
     }
   }
