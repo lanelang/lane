@@ -74,6 +74,7 @@ fn empty_occurrence(
     callee_only: false,
     escapes: false,
     used_in_effectful_context: false,
+    has_incomplete_type_application: false,
     reachable_from_entry: false,
   }
 }

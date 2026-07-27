@@ -630,7 +630,10 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   diagnostics, not to core occurrence.
 - **Core Occurrence Analysis** records structured occurrence facts for
   optimization, including use counts, call-position use, non-call escape,
-  effectful-context use, and selected-entry reachability.
+  effectful-context use, reachable incomplete type application, and
+  selected-entry reachability. Type-application completeness is collected only
+  while traversing entry- or root-reachable definitions, so dead references
+  cannot change executable specialization strategy.
 - **Core Call Graph Analysis** is compiler-private analysis in `lanec/core_opt`
   that discovers top-level callable definitions, resolves immutable local and
   top-level value-alias chains, records known direct callable edges, and detects

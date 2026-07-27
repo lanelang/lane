@@ -13,6 +13,7 @@ pub(all) struct ValueOccurrenceFact {
   callee_only : Bool
   escapes : Bool
   used_in_effectful_context : Bool
+  has_incomplete_type_application : Bool
   reachable_from_entry : Bool
 } derive(Debug, Eq)
 
@@ -89,6 +90,7 @@ fn ValueOccurrenceFact::empty(id : @buslane.ValueId) -> ValueOccurrenceFact {
     callee_only: false,
     escapes: false,
     used_in_effectful_context: false,
+    has_incomplete_type_application: false,
     reachable_from_entry: false,
   }
 }
@@ -233,7 +235,7 @@ fn OccurrenceAnalyzer::mark_reachable(
   }
   self.facts[id.index] = { ..fact, reachable_from_entry: true }
   if self.find_top_definition(id) is Some(definition) {
-    self.mark_reachable_expr(definition.rhs)
+    self.mark_reachable_expr(definition.rhs, 0)
   }
 }
 
@@ -254,69 +256,101 @@ fn OccurrenceAnalyzer::find_top_definition(
 fn OccurrenceAnalyzer::mark_reachable_expr(
   self : OccurrenceAnalyzer,
   expr : @buslane.Expr,
+  applied_type_argument_count : Int,
 ) -> Unit {
   match expr {
-    Ref(id) | Resume(id) => self.mark_reachable(id)
+    Ref(id) => {
+      self.record_reachable_type_application(id, applied_type_argument_count)
+      self.mark_reachable(id)
+    }
+    Resume(id) => self.mark_reachable(id)
     Literal(_) => ()
     Function(function) => {
       for parameter in function.parameters {
         self.mark_reachable_value(parameter)
       }
-      self.mark_reachable_expr(function.body)
+      self.mark_reachable_expr(function.body, 0)
     }
     Call(callee, arguments) => {
-      self.mark_reachable_expr(callee)
+      self.mark_reachable_expr(callee, 0)
       for argument in arguments {
-        self.mark_reachable_expr(argument)
+        self.mark_reachable_expr(argument, 0)
       }
     }
-    TypeLambda(_, body) | TypeApply(body, _) => self.mark_reachable_expr(body)
+    TypeLambda(_, body) => self.mark_reachable_expr(body, 0)
+    TypeApply(callee, arguments) =>
+      self.mark_reachable_expr(
+        callee,
+        applied_type_argument_count + arguments.length(),
+      )
     Construct(construct) =>
       for payload in construct.payloads {
-        self.mark_reachable_expr(payload)
+        self.mark_reachable_expr(payload, 0)
       }
     Let(id, initializer, body) => {
       self.mark_reachable_value(id)
-      self.mark_reachable_expr(initializer)
-      self.mark_reachable_expr(body)
+      self.mark_reachable_expr(initializer, 0)
+      self.mark_reachable_expr(body, 0)
     }
     LetRec(bindings, body) => {
       for binding in bindings {
         self.mark_reachable_value(binding.id)
       }
       for binding in bindings {
-        self.mark_reachable_expr(binding.rhs)
+        self.mark_reachable_expr(binding.rhs, 0)
       }
-      self.mark_reachable_expr(body)
+      self.mark_reachable_expr(body, 0)
     }
     Match(match_) => {
-      self.mark_reachable_expr(match_.scrutinee)
+      self.mark_reachable_expr(match_.scrutinee, 0)
       self.mark_reachable_value(match_.binder)
       for alternative in match_.alternatives {
         for binder in alternative.value_binders {
           self.mark_reachable_value(binder)
         }
-        self.mark_reachable_expr(alternative.body)
+        self.mark_reachable_expr(alternative.body, 0)
       }
     }
     Perform(perform) =>
       for payload in perform.payloads {
-        self.mark_reachable_expr(payload)
+        self.mark_reachable_expr(payload, 0)
       }
     Handle(handle) => {
-      self.mark_reachable_expr(handle.body)
+      self.mark_reachable_expr(handle.body, 0)
       self.mark_reachable_value(handle.result_binder)
-      self.mark_reachable_expr(handle.final_body)
+      self.mark_reachable_expr(handle.final_body, 0)
       for table in handle.handlers {
         for alternative in table.operations {
           for binder in alternative.payload_binders {
             self.mark_reachable_value(binder)
           }
           self.mark_reachable_value(alternative.resume_binder)
-          self.mark_reachable_expr(alternative.body)
+          self.mark_reachable_expr(alternative.body, 0)
         }
       }
     }
+  }
+}
+
+///|
+fn OccurrenceAnalyzer::record_reachable_type_application(
+  self : OccurrenceAnalyzer,
+  id : @buslane.ValueId,
+  applied_argument_count : Int,
+) -> Unit {
+  guard self.facts.get(id.index) is Some(fact) else { return }
+  guard self.program.metadata.value_info(id) is Some(info) else { return }
+  if applied_argument_count < forall_parameter_count(info.type_) {
+    self.facts[id.index] = { ..fact, has_incomplete_type_application: true }
+  }
+}
+
+///|
+fn forall_parameter_count(type_ : @buslane.Type) -> Int {
+  match type_ {
+    Forall(parameters, body) =>
+      parameters.length() + forall_parameter_count(body)
+    _ => 0
   }
 }
 

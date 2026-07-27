@@ -158,6 +158,64 @@ test "reachable effect applications create concrete callable instances" {
 }
 
 ///|
+test "unreachable bare references do not retain effect-polymorphic definitions" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let log_effect = metadata.define_effect("Log", [])
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let generic_type = @buslane.Type::Forall(
+    [effect_parameter],
+    Function([], unit_type, Parameter(effect_parameter)),
+  )
+  let generic = metadata.define_value("generic", Function, generic_type)
+  let entry_type = @buslane.Type::Function([], unit_type, Empty)
+  let entry = metadata.define_value("entry", Function, entry_type)
+  let dead = metadata.define_value("dead", Function, generic_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: generic,
+          rhs: TypeLambda(
+            [effect_parameter],
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Literal(Unit),
+            }),
+          ),
+        },
+        {
+          id: entry,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Call(
+              TypeApply(Ref(generic), [
+                EffectArgument(Singleton(log_effect, [])),
+              ]),
+              [],
+            ),
+          }),
+        },
+        { id: dead, rhs: Ref(generic) },
+      ]),
+    ],
+  }
+  let specialized = specialize_reachable_effects(program, entry)
+  guard specialized.terms is [LetRec([entry_binding]), LetRec([instance])] else {
+    abort("expected dead references to leave one concrete specialization")
+  }
+  assert_eq(entry_binding.id, entry)
+  guard entry_binding.rhs is Function({ body: Call(Ref(target), []), .. }) else {
+    abort("expected the entry to call the concrete specialization")
+  }
+  assert_eq(instance.id, target)
+  assert_true(target != generic)
+}
+
+///|
 test "handler residual effects specialize before answer-type CPS" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)

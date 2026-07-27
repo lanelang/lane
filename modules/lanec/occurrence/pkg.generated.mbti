@@ -33,6 +33,7 @@ pub(all) struct ValueOccurrenceFact {
   callee_only : Bool
   escapes : Bool
   used_in_effectful_context : Bool
+  has_incomplete_type_application : Bool
   reachable_from_entry : Bool
 } derive(Eq, @debug.Debug)
 

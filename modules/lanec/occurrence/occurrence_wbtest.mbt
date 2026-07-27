@@ -71,6 +71,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      callee_only: false,
       #|      escapes: false,
       #|      used_in_effectful_context: false,
+      #|      has_incomplete_type_application: false,
       #|      reachable_from_entry: true,
       #|    },
       #|    {
@@ -80,6 +81,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      callee_only: true,
       #|      escapes: false,
       #|      used_in_effectful_context: false,
+      #|      has_incomplete_type_application: false,
       #|      reachable_from_entry: true,
       #|    },
       #|    {
@@ -89,6 +91,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      callee_only: false,
       #|      escapes: true,
       #|      used_in_effectful_context: false,
+      #|      has_incomplete_type_application: false,
       #|      reachable_from_entry: true,
       #|    },
       #|    {
@@ -98,6 +101,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      callee_only: true,
       #|      escapes: false,
       #|      used_in_effectful_context: true,
+      #|      has_incomplete_type_application: false,
       #|      reachable_from_entry: true,
       #|    },
       #|    {
@@ -107,6 +111,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      callee_only: false,
       #|      escapes: false,
       #|      used_in_effectful_context: false,
+      #|      has_incomplete_type_application: false,
       #|      reachable_from_entry: false,
       #|    },
       #|    {
@@ -116,6 +121,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      callee_only: false,
       #|      escapes: true,
       #|      used_in_effectful_context: false,
+      #|      has_incomplete_type_application: false,
       #|      reachable_from_entry: true,
       #|    },
       #|    {
@@ -125,6 +131,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      callee_only: false,
       #|      escapes: false,
       #|      used_in_effectful_context: false,
+      #|      has_incomplete_type_application: false,
       #|      reachable_from_entry: true,
       #|    },
       #|  ],
@@ -162,6 +169,7 @@ test "occurrence treats explicit roots as reachable" {
       #|    callee_only: false,
       #|    escapes: false,
       #|    used_in_effectful_context: false,
+      #|    has_incomplete_type_application: false,
       #|    reachable_from_entry: true,
       #|  },
       #|  {
@@ -171,9 +179,76 @@ test "occurrence treats explicit roots as reachable" {
       #|    callee_only: false,
       #|    escapes: false,
       #|    used_in_effectful_context: false,
+      #|    has_incomplete_type_application: false,
       #|    reachable_from_entry: true,
       #|  },
       #|]
     ),
+  )
+}
+
+///|
+test "occurrence records incomplete type applications only on reachable paths" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit = @buslane.Type::Primitive(Unit)
+  let int = @buslane.Type::Primitive(Int)
+  let function_type = @buslane.Type::Function([], unit, Empty)
+  let full_parameter = metadata.define_type_parameter("Full", Type)
+  let partial_parameter = metadata.define_type_parameter("Partial", Type)
+  let dead_parameter = metadata.define_type_parameter("Dead", Type)
+  let fully_applied = metadata.define_value(
+    "fully_applied",
+    Function,
+    Forall([full_parameter], function_type),
+  )
+  let partially_applied = metadata.define_value(
+    "partially_applied",
+    Function,
+    Forall([partial_parameter], function_type),
+  )
+  let dead_generic = metadata.define_value(
+    "dead_generic",
+    Function,
+    Forall([dead_parameter], function_type),
+  )
+  let entry = metadata.define_value("entry", Function, function_type)
+  let full_use = metadata.define_value("full_use", Local, function_type)
+  let partial_use = metadata.define_value(
+    "partial_use",
+    Local,
+    Forall([partial_parameter], function_type),
+  )
+  let dead_use = metadata.define_value(
+    "dead_use",
+    Function,
+    Forall([dead_parameter], function_type),
+  )
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: unit,
+          body: Let(
+            full_use,
+            TypeApply(Ref(fully_applied), [TypeArgument(int)]),
+            Let(partial_use, Ref(partially_applied), Literal(Unit)),
+          ),
+        }),
+      ),
+      Let(dead_use, Ref(dead_generic)),
+    ],
+  }
+  let facts = analyze({ program, entry, roots: [] }).facts
+  assert_eq(
+    (
+      facts[fully_applied.index].has_incomplete_type_application,
+      facts[partially_applied.index].has_incomplete_type_application,
+      facts[dead_generic.index].has_incomplete_type_application,
+      facts[dead_generic.index].reachable_from_entry,
+    ),
+    (false, true, false, false),
   )
 }
