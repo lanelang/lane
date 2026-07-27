@@ -199,19 +199,42 @@ fn GenericArgumentInference::tracked_parameter(
 }
 
 ///|
-fn GenericArgumentInference::lookup(
+/// Projects the constraints collected for one parameter into the argument used
+/// by the current inference pass. A concrete exact constraint is final. A
+/// provisional exact constraint remains open to effect lower bounds so silent
+/// handler measurement preserves concrete contributions alongside its
+/// placeholder.
+fn GenericArgumentInference::inferred_argument(
   self : GenericArgumentInference,
   parameter : @types.TypeParameter,
+  include_provisional? : Bool = false,
 ) -> @types.GenericArgument? {
+  let mut provisional_exact : @types.GenericArgument? = None
   for binding in self.bindings {
     if binding.parameter.id == parameter.id &&
-      binding.constraint is ExactConstraint(argument~, ..) {
-      return Some(argument)
+      binding.constraint is ExactConstraint(argument~, is_provisional~) {
+      if !is_provisional {
+        return Some(argument)
+      }
+      if include_provisional {
+        provisional_exact = Some(argument)
+      }
     }
   }
-  match self.combined_effect_lower_bound(parameter, include_provisional=true) {
-    Some(effect) => Some(EffectArgument(effect))
-    None => None
+  match self.combined_effect_lower_bound(parameter, include_provisional~) {
+    Some(lower_bound) =>
+      match provisional_exact {
+        Some(EffectArgument(exact)) =>
+          Some(
+            EffectArgument(
+              @types.Effect::Union([exact, lower_bound]).canonicalize(),
+            ),
+          )
+        Some(TypeArgument(_)) =>
+          abort("effect lower bound paired with a type exact constraint")
+        None => Some(EffectArgument(lower_bound))
+      }
+    None => provisional_exact
   }
 }
 
@@ -1012,7 +1035,8 @@ fn GenericArgumentInference::finish(
   let generic_arguments = []
   let missing = []
   for parameter in self.parameters {
-    guard self.lookup(parameter) is Some(argument) else {
+    guard self.inferred_argument(parameter, include_provisional=true)
+      is Some(argument) else {
       missing.push(parameter)
       continue
     }
@@ -1032,20 +1056,8 @@ fn GenericArgumentInference::inferred_substitution(
 ) -> @types.TypeSubstitution {
   let substitution = @types.TypeSubstitution::TypeSubstitution()
   for parameter in self.parameters {
-    let mut inserted = false
-    for binding in self.bindings {
-      if binding.parameter.id == parameter.id &&
-        binding.constraint is ExactConstraint(argument~, is_provisional~) &&
-        (include_provisional || !is_provisional) {
-        substitution.insert_argument(parameter.id, argument)
-        inserted = true
-        break
-      }
-    }
-    if !inserted &&
-      self.combined_effect_lower_bound(parameter, include_provisional~)
-      is Some(effect) {
-      substitution.insert_effect(parameter.id, effect)
+    if self.inferred_argument(parameter, include_provisional~) is Some(argument) {
+      substitution.insert_argument(parameter.id, argument)
     }
   }
   substitution

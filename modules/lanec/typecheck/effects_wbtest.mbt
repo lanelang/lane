@@ -1254,6 +1254,44 @@ test "typecheck measures effects around provisional handler generic evidence" {
 }
 
 ///|
+test "handler measurement merges provisional exact and concrete lower bound" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Prompt {
+      #|  ask() -> String
+      #|}
+      #|effect Log {
+      #|  write() -> Unit
+      #|}
+      #|struct Carrier[_E : Effect] {
+      #|  callback : (String) -> String ! _E
+      #|}
+      #|fn[E : Effect] pack(callback : (String) -> String ! E) -> Carrier[{ E }] {
+      #|  Carrier::{ callback }
+      #|}
+      #|fn[E : Effect] invoke(
+      #|  carrier : Carrier[{ E }],
+      #|  callback : (String) -> String ! E
+      #|) -> String ! E {
+      #|  callback(carrier.callback("measured"))
+      #|}
+      #|fn logged(value : String) -> String ! Log {
+      #|  let _written : Unit = Log::write!()
+      #|  value
+      #|}
+      #|fn run() -> String ! Log {
+      #|  handle Prompt::ask!() with {
+      #|    Prompt::ask(resume) => invoke(pack(resume), logged)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
 test "typecheck rejects mixed handler effects" {
   let result = expect_typecheck_result(
     (
