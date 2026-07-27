@@ -931,7 +931,7 @@ fn EffectSpecializer::require_instance(
         )
       }
       let specialized = abstract_effect_type_arguments(
-        effect.canonicalize(),
+        self.program.metadata.canonicalize_effect(effect),
         definition.parameters,
         arguments,
         self.program.metadata,
@@ -1047,7 +1047,7 @@ fn raw_substitute_specialized_effect(
   effect : @buslane.Effect,
   bindings : Array[EffectSpecializationBinding],
 ) -> @buslane.Effect {
-  effect.substitute(effect_specialization_substitution(bindings)).canonicalize()
+  effect.substitute(effect_specialization_substitution(bindings))
 }
 
 ///|
@@ -1117,13 +1117,15 @@ fn abstract_effect_type_arguments(
         }),
       )
     Union(effects) =>
-      @buslane.Effect::Union(
-        effects.map(effect => {
-          abstract_effect_type_arguments(
-            effect, parameters, arguments, metadata,
-          )
-        }),
-      ).canonicalize()
+      metadata.canonicalize_effect(
+        Union(
+          effects.map(effect => {
+            abstract_effect_type_arguments(
+              effect, parameters, arguments, metadata,
+            )
+          }),
+        ),
+      )
   }
 }
 

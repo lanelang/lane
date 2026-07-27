@@ -100,9 +100,9 @@ fn EffectSpecializer::specialize_substituted_effect(
         arguments.map(argument => self.specialize_substituted_argument(argument)),
       )
     Union(effects) =>
-      @buslane.Effect::Union(
-        effects.map(effect => self.specialize_substituted_effect(effect)),
-      ).canonicalize()
+      self.program.metadata.canonicalize_effect(
+        Union(effects.map(effect => self.specialize_substituted_effect(effect))),
+      )
   }
 }
 
@@ -159,7 +159,7 @@ fn EffectSpecializer::require_data_instance(
         )
       }
       let specialized = abstract_effect_type_arguments(
-        effect.canonicalize(),
+        self.program.metadata.canonicalize_effect(effect),
         info.parameters,
         arguments,
         self.program.metadata,

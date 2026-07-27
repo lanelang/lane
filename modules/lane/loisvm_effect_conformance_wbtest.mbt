@@ -285,6 +285,44 @@ test "effect instances preserve nested forall binder kinds" {
 }
 
 ///|
+test "generic effect rows preserve nested forall binder kinds" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|type TypePoly = [_A]() -> Unit
+      #|type EffectPoly = [_E : Effect]() -> Unit
+      #|effect Carrier[_T] {
+      #|  ask() -> Bool
+      #|}
+      #|fn[E : Effect] run(action : () -> Bool ! E) -> Bool ! E {
+      #|  action()
+      #|}
+      #|fn both() -> Bool ! { Carrier[TypePoly], Carrier[EffectPoly] } {
+      #|  let first = Carrier[TypePoly]::ask!()
+      #|  let second = Carrier[EffectPoly]::ask!()
+      #|  if first { second } else { false }
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  let result = handle run[{ Carrier[TypePoly], Carrier[EffectPoly] }](both) with {
+      #|    Carrier[TypePoly]::ask(resume) => resume(true)
+      #|  } with {
+      #|    Carrier[EffectPoly]::ask(resume) => resume(false)
+      #|  } final value {
+      #|    value
+      #|  }
+      #|  if result {
+      #|    println("true")
+      #|  } else {
+      #|    println("false")
+      #|  }
+      #|}
+    ),
+    ["false"],
+  )
+}
+
+///|
 test "effect lowering preserves a resumed operation result across branching" {
   assert_effect_conformance(
     (
