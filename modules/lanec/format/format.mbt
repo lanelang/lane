@@ -564,7 +564,7 @@ fn comma_separator_doc(
   left : @basic.SourceSpan,
   right : @basic.SourceSpan,
 ) -> Document {
-  separator_doc(comments, claimed, left, right, text(","), line, false)
+  separator_doc(comments, claimed, left, right, text(","), line, true)
 }
 
 ///|

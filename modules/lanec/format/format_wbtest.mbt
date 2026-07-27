@@ -1119,6 +1119,32 @@ test "format source preserves parameter comments" {
 }
 
 ///|
+test "format source preserves trailing parameter comments" {
+  assert_format(
+    (
+      #|module Test
+      #|pub fn add(
+      #|  left : Int, // left operand
+      #|  right : Int // right operand
+      #|) -> Int {
+      #|  left + right
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|pub fn add(
+      #|  left : Int, // left operand
+      #|  right : Int // right operand
+      #|) -> Int {
+      #|  left + right
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves call separator and closing comments" {
   assert_format(
     (
@@ -1138,8 +1164,7 @@ test "format source preserves call separator and closing comments" {
       #|}
       #|
       #|pub let answer : Int = add(
-      #|  20,
-      #|  // second follows
+      #|  20, // second follows
       #|  22
       #|  // before close
       #|)
@@ -1149,7 +1174,7 @@ test "format source preserves call separator and closing comments" {
 }
 
 ///|
-test "format source moves pre-comma comments after the separator" {
+test "format source places pre-comma comments after the separator inline" {
   assert_format(
     (
       #|module Test
@@ -1167,8 +1192,7 @@ test "format source moves pre-comma comments after the separator" {
       #|}
       #|
       #|pub let answer : Int = add(
-      #|  20,
-      #|  // after first item
+      #|  20, // after first item
       #|  22
       #|)
       #|
@@ -1641,8 +1665,7 @@ test "format source preserves function type separator comments" {
       #|module Test
       #|
       #|pub let callback : (
-      #|  Int,
-      #|  // first parameter
+      #|  Int, // first parameter
       #|  String
       #|) -> Int =
       #|  fn(_left : Int, _right : String) -> Int {
@@ -1672,8 +1695,7 @@ test "format source preserves qualified variant separator comments" {
       #|}
       #|
       #|pub let pair : Pair = Pair::pair(
-      #|  20,
-      #|  // left argument
+      #|  20, // left argument
       #|  22
       #|)
       #|
@@ -1715,15 +1737,13 @@ test "format source preserves type binder separator comments" {
       #|
       #|pub let chosen : Int = handle Prompt::choose![Int, Int](20, 22) with {
       #|  Prompt::choose[
-      #|    Left,
-      #|    // handler type binder
+      #|    Left, // handler type binder
       #|    Right
       #|  ](left, _right, resume) => resume(left)
       #|} final value {
       #|  match Packed::hide[Int, String](value) {
       #|    Packed::hide[
-      #|      First,
-      #|      // pattern type binder
+      #|      First, // pattern type binder
       #|      Second
       #|    ](item) => item
       #|  }
@@ -2595,16 +2615,14 @@ test "format flattened tuple syntax preserves nested comments" {
       #|
       #|type Triple = (
       #|  Int,
-      #|  Bool,
-      #|  // type kept
+      #|  Bool, // type kept
       #|  String
       #|)
       #|
       #|fn make() -> (Int, Bool, String) {
       #|  (
       #|    1,
-      #|    true,
-      #|    // expression kept
+      #|    true, // expression kept
       #|    "lane"
       #|  )
       #|}
@@ -2613,8 +2631,7 @@ test "format flattened tuple syntax preserves nested comments" {
       #|  match value {
       #|    (
       #|      head,
-      #|      _,
-      #|      // pattern kept
+      #|      _, // pattern kept
       #|      _
       #|    ) => head
       #|  }
