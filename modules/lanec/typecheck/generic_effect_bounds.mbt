@@ -157,11 +157,11 @@ fn GenericArgumentInference::match_effect_upper_bound_rows(
   let residual_terms = []
   for actual_term in actual_terms {
     match
-      self.unique_upper_effect_term_candidate(
-        actual_term,
-        pattern.concrete_terms,
-        used_templates,
+      unique_effect_term_candidate(pattern.concrete_terms, used_templates, fn(
+        template,
       ) {
+        self.effect_term_candidate(template, actual_term)
+      }) {
       UniqueEffectTermCandidate(index) => {
         term_pairs.push({
           template: pattern.concrete_terms[index],
@@ -183,26 +183,4 @@ fn GenericArgumentInference::match_effect_upper_bound_rows(
     residual_parameter=pattern.row_parameter,
     residual_effect=effect_from_terms(residual_terms),
   )
-}
-
-///|
-fn GenericArgumentInference::unique_upper_effect_term_candidate(
-  self : GenericArgumentInference,
-  actual : @types.Effect,
-  templates : Array[@types.Effect],
-  used : Array[Bool],
-) -> EffectTermCandidateResult {
-  let mut found_index : Int? = None
-  for index in 0..<templates.length() {
-    if !used[index] && self.effect_term_candidate(templates[index], actual) {
-      if found_index is Some(_) {
-        return AmbiguousEffectTermCandidate
-      }
-      found_index = Some(index)
-    }
-  }
-  match found_index {
-    Some(index) => UniqueEffectTermCandidate(index)
-    None => NoEffectTermCandidate
-  }
 }

@@ -633,7 +633,9 @@ fn GenericArgumentInference::match_effect_rows(
   let term_pairs = []
   for concrete in pattern.concrete_terms {
     match
-      self.unique_effect_term_candidate(concrete, actual_terms, used_actuals) {
+      unique_effect_term_candidate(actual_terms, used_actuals, fn(actual) {
+        self.effect_term_candidate(concrete, actual)
+      }) {
       UniqueEffectTermCandidate(index) => {
         let pair : EffectTermPair = {
           template: concrete,
@@ -725,7 +727,9 @@ fn GenericArgumentInference::collect_effect_term_from_row(
     used_actuals.push(false)
   }
   match
-    self.unique_effect_term_candidate(instantiated, actual_terms, used_actuals) {
+    unique_effect_term_candidate(actual_terms, used_actuals, fn(actual) {
+      self.effect_term_candidate(instantiated, actual)
+    }) {
     UniqueEffectTermCandidate(index) =>
       self.collect_effect_term(instantiated, actual_terms[index])
     NoEffectTermCandidate =>
@@ -741,15 +745,14 @@ fn GenericArgumentInference::collect_effect_term_from_row(
 }
 
 ///|
-fn GenericArgumentInference::unique_effect_term_candidate(
-  self : GenericArgumentInference,
-  template : @types.Effect,
-  actuals : Array[@types.Effect],
+fn unique_effect_term_candidate(
+  candidates : Array[@types.Effect],
   used : Array[Bool],
+  is_candidate : (@types.Effect) -> Bool,
 ) -> EffectTermCandidateResult {
   let mut found_index : Int? = None
-  for index in 0..<actuals.length() {
-    if !used[index] && self.effect_term_candidate(template, actuals[index]) {
+  for index in 0..<candidates.length() {
+    if !used[index] && is_candidate(candidates[index]) {
       if found_index is Some(_) {
         return AmbiguousEffectTermCandidate
       }
