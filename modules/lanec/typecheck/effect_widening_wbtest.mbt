@@ -193,6 +193,39 @@ test "typecheck effect lower bounds and exact constraints are order independent"
 }
 
 ///|
+test "typecheck upgrades an effect lower bound with an exact effect-atom argument" {
+  let result = expect_typecheck_result(
+    (
+      #|effect Read {
+      #|  read() -> Unit
+      #|}
+      #|effect Write {
+      #|  write() -> Unit
+      #|}
+      #|effect Carrier[_E : Effect] {
+      #|  carry() -> Unit
+      #|}
+      #|fn callback() -> Unit ! Read {
+      #|  Read::read!()
+      #|}
+      #|fn carrier() -> Unit ! Carrier[{ Read, Write }] {
+      #|  ()
+      #|}
+      #|fn[E : Effect] lower_then_exact(
+      #|  action : () -> Unit ! E,
+      #|  carrier : () -> Unit ! Carrier[E]
+      #|) -> Unit {
+      #|  ()
+      #|}
+      #|fn use() -> Unit {
+      #|  lower_then_exact(callback, carrier)
+      #|}
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
 test "handler measurement retains provisional and exact effect constraints" {
   let result = expect_typecheck_result(
     (
