@@ -141,28 +141,8 @@ fn expect_first_checked_match_pattern(
   source : String,
   name : String,
 ) -> @checked.CheckedPattern {
-  let file = expect_parse_ok(source)
-  let resolution = @resolve.resolve_source_file_result(file)
-  if !resolution.diagnostics.is_empty() {
-    abort(@prettyprinter.render(resolution.diagnostics, width=100))
-  }
-  let resolved = resolution.source
-  let declaration_result = typecheck_declarations(resolved)
-  let source = @desugar.desugar_source_file(resolved)
-  let checker = SemanticChecker::{
-    resolved_source: resolved,
-    source,
-    imported_environment: empty_imported_environment(),
-    declarations: declaration_result.declarations,
-    diagnostics: declaration_result.diagnostics.copy(),
-    values: [],
-    value_types: [],
-    ordered_value_types: [],
-    offers: ContextualOfferScope(),
-    ordered_offers: ContextualOfferScope(),
-  }
-  checker.collect_top_level_value_types()
-  for declaration in source.declarations {
+  let checker = semantic_checker_for_test_source(source)
+  for declaration in checker.source.declarations {
     if declaration is Function(declaration) && declaration.name == name {
       let scope = checker.root_scope()
       for parameter in declaration.parameters {
