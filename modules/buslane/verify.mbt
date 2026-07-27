@@ -242,7 +242,7 @@ fn VerifyContext::check_function_implementation(
   type_scope : TypeScope,
 ) -> Effect {
   let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if !actual.type_.is_direct_function_implementation_of(expected) {
+  if !self.function_implementation_matches(actual.type_, expected) {
     self.report(TypeMismatch(expected~, actual=actual.type_))
   }
   actual.effect

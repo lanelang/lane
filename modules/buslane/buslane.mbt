@@ -476,74 +476,36 @@ pub fn MetadataRegistry::operation_info(
 ///|
 /// Returns whether two Buslane types are definitionally equal.
 pub fn Type::equals(self : Type, other : Type) -> Bool {
-  alpha_equal_with([], self.normalize(), other.normalize())
+  alpha_equal_with(
+    unconstrained_alpha_context(),
+    self.normalize(),
+    other.normalize(),
+  )
 }
 
 ///|
 /// Returns whether two Buslane effects are canonically equal.
 pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
-  alpha_equal_effect_with([], self, other)
+  alpha_equal_effect_with(unconstrained_alpha_context(), self, other)
 }
 
 ///|
 /// Returns whether every effect term in this row occurs in `upper`.
 pub fn Effect::is_subeffect_of(self : Effect, upper : Effect) -> Bool {
-  effect_is_subeffect_with([], self, upper)
-}
-
-///|
-fn Type::is_direct_function_implementation_of(
-  self : Type,
-  declaration : Type,
-) -> Bool {
-  function_implementation_with([], self.normalize(), declaration.normalize())
-}
-
-///|
-fn function_implementation_with(
-  bindings : Array[AlphaBinding],
-  implementation : Type,
-  declaration : Type,
-) -> Bool {
-  match (implementation, declaration) {
-    (
-      Function(actual_parameters, actual_result, actual_effect),
-      Function(expected_parameters, expected_result, expected_effect),
-    ) =>
-      same_length_alpha_equal(bindings, actual_parameters, expected_parameters) &&
-      alpha_equal_with(bindings, actual_result, expected_result) &&
-      effect_is_subeffect_with(bindings, actual_effect, expected_effect)
-    (
-      Forall(actual_parameters, actual_body),
-      Forall(expected_parameters, expected_body),
-    ) => {
-      if actual_parameters.length() != expected_parameters.length() {
-        return false
-      }
-      let next = bindings.copy()
-      for index in 0..<actual_parameters.length() {
-        next.push({
-          left: actual_parameters[index],
-          right: expected_parameters[index],
-        })
-      }
-      function_implementation_with(next, actual_body, expected_body)
-    }
-    _ => false
-  }
+  effect_is_subeffect_with(unconstrained_alpha_context(), self, upper)
 }
 
 ///|
 fn effect_is_subeffect_with(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   lower : Effect,
   upper : Effect,
 ) -> Bool {
-  let lower_terms = canonical_effect_terms(bindings, lower)
-  let upper_terms = canonical_effect_terms(bindings, upper)
+  let lower_terms = canonical_effect_terms(context, lower)
+  let upper_terms = canonical_effect_terms(context, upper)
   lower_terms.all(fn(lower_term) {
     upper_terms.any(fn(upper_term) {
-      alpha_equal_effect_term_with(bindings, lower_term, upper_term)
+      alpha_equal_effect_term_with(context, lower_term, upper_term)
     })
   })
 }
@@ -561,7 +523,7 @@ pub impl Eq for Effect with fn equal(self : Effect, other : Effect) -> Bool {
 ///|
 /// Returns the canonical effect shape used for equality and diagnostics.
 pub fn Effect::canonicalize(self : Effect) -> Effect {
-  let terms = canonical_effect_terms([], self)
+  let terms = canonical_effect_terms(unconstrained_alpha_context(), self)
   match terms {
     [] => Empty
     [term] => term
@@ -576,33 +538,59 @@ priv struct AlphaBinding {
 }
 
 ///|
-fn alpha_equal_with(
-  bindings : Array[AlphaBinding],
-  left : Type,
-  right : Type,
-) -> Bool {
+priv struct AlphaContext {
+  bindings : Array[AlphaBinding]
+  binders_compatible : (TypeParameterId, TypeParameterId) -> Bool
+}
+
+///|
+fn unconstrained_alpha_context() -> AlphaContext {
+  { bindings: [], binders_compatible: fn(_, _) { true } }
+}
+
+///|
+fn AlphaContext::with_binders(
+  self : AlphaContext,
+  left : Array[TypeParameterId],
+  right : Array[TypeParameterId],
+) -> AlphaContext? {
+  if left.length() != right.length() {
+    return None
+  }
+  let next = self.bindings.copy()
+  for index in 0..<left.length() {
+    if !(self.binders_compatible)(left[index], right[index]) {
+      return None
+    }
+    next.push({ left: left[index], right: right[index] })
+  }
+  Some({ ..self, bindings: next })
+}
+
+///|
+fn alpha_equal_with(context : AlphaContext, left : Type, right : Type) -> Bool {
   match (left, right) {
     (Primitive(left), Primitive(right)) => left == right
     (Parameter(left), Parameter(right)) =>
-      alpha_equal_parameter(bindings, left, right)
+      alpha_equal_parameter(context.bindings, left, right)
     (Constructor(left_id), Constructor(right_id)) => left_id == right_id
     (Apply(left_callee, left_args), Apply(right_callee, right_args)) =>
-      alpha_equal_with(bindings, left_callee, right_callee) &&
-      same_length_generic_argument_alpha_equal(bindings, left_args, right_args)
+      alpha_equal_with(context, left_callee, right_callee) &&
+      same_length_generic_argument_alpha_equal(context, left_args, right_args)
     (TypeLambda(left_params, left_body), TypeLambda(right_params, right_body)) =>
       alpha_equal_binders(
-        bindings, left_params, right_params, left_body, right_body,
+        context, left_params, right_params, left_body, right_body,
       )
     (
       Function(left_params, left_result, left_effect),
       Function(right_params, right_result, right_effect),
     ) =>
-      same_length_alpha_equal(bindings, left_params, right_params) &&
-      alpha_equal_with(bindings, left_result, right_result) &&
-      alpha_equal_effect_with(bindings, left_effect, right_effect)
+      same_length_alpha_equal(context, left_params, right_params) &&
+      alpha_equal_with(context, left_result, right_result) &&
+      alpha_equal_effect_with(context, left_effect, right_effect)
     (Forall(left_params, left_body), Forall(right_params, right_body)) =>
       alpha_equal_binders(
-        bindings, left_params, right_params, left_body, right_body,
+        context, left_params, right_params, left_body, right_body,
       )
     _ => false
   }
@@ -610,18 +598,18 @@ fn alpha_equal_with(
 
 ///|
 fn alpha_equal_effect_with(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   left : Effect,
   right : Effect,
 ) -> Bool {
-  let left_terms = canonical_effect_terms(bindings, left)
-  let right_terms = canonical_effect_terms(bindings, right)
+  let left_terms = canonical_effect_terms(context, left)
+  let right_terms = canonical_effect_terms(context, right)
   if left_terms.length() != right_terms.length() {
     return false
   }
   for left_term in left_terms {
     if !right_terms.any(fn(right_term) {
-        alpha_equal_effect_term_with(bindings, left_term, right_term)
+        alpha_equal_effect_term_with(context, left_term, right_term)
       }) {
       return false
     }
@@ -631,46 +619,46 @@ fn alpha_equal_effect_with(
 
 ///|
 fn canonical_effect_terms(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   effect : Effect,
 ) -> Array[Effect] {
   let terms : Array[Effect] = []
-  collect_effect_terms(bindings, effect, terms)
+  collect_effect_terms(context, effect, terms)
   terms
 }
 
 ///|
 fn collect_effect_terms(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   effect : Effect,
   terms : Array[Effect],
 ) -> Unit {
   match effect {
     Empty => ()
-    Io => push_unique_effect_term(bindings, terms, Io)
+    Io => push_unique_effect_term(context, terms, Io)
     Singleton(id, arguments) => {
       let term = Singleton(
         id,
         arguments.map(fn(argument) { argument.normalize() }),
       )
-      push_unique_effect_term(bindings, terms, term)
+      push_unique_effect_term(context, terms, term)
     }
-    Parameter(_) => push_unique_effect_term(bindings, terms, effect)
+    Parameter(_) => push_unique_effect_term(context, terms, effect)
     Union(effects) =>
       for nested in effects {
-        collect_effect_terms(bindings, nested, terms)
+        collect_effect_terms(context, nested, terms)
       }
   }
 }
 
 ///|
 fn push_unique_effect_term(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   terms : Array[Effect],
   term : Effect,
 ) -> Unit {
   if terms.any(fn(existing) {
-      alpha_equal_effect_term_with(bindings, existing, term)
+      alpha_equal_effect_term_with(context, existing, term)
     }) {
     return
   }
@@ -679,7 +667,7 @@ fn push_unique_effect_term(
 
 ///|
 fn alpha_equal_effect_term_with(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   left : Effect,
   right : Effect,
 ) -> Bool {
@@ -688,35 +676,31 @@ fn alpha_equal_effect_term_with(
     (Singleton(left_id, left_arguments), Singleton(right_id, right_arguments)) =>
       left_id == right_id &&
       same_length_generic_argument_alpha_equal(
-        bindings, left_arguments, right_arguments,
+        context, left_arguments, right_arguments,
       )
     (Parameter(left), Parameter(right)) =>
-      alpha_equal_parameter(bindings, left, right)
+      alpha_equal_parameter(context.bindings, left, right)
     _ => false
   }
 }
 
 ///|
 fn alpha_equal_binders(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   left_params : Array[TypeParameterId],
   right_params : Array[TypeParameterId],
   left_body : Type,
   right_body : Type,
 ) -> Bool {
-  if left_params.length() != right_params.length() {
-    return false
+  match context.with_binders(left_params, right_params) {
+    Some(next) => alpha_equal_with(next, left_body, right_body)
+    None => false
   }
-  let next = bindings.copy()
-  for index in 0..<left_params.length() {
-    next.push({ left: left_params[index], right: right_params[index] })
-  }
-  alpha_equal_with(next, left_body, right_body)
 }
 
 ///|
 fn same_length_alpha_equal(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   left : Array[Type],
   right : Array[Type],
 ) -> Bool {
@@ -724,7 +708,7 @@ fn same_length_alpha_equal(
     return false
   }
   for index in 0..<left.length() {
-    if !alpha_equal_with(bindings, left[index], right[index]) {
+    if !alpha_equal_with(context, left[index], right[index]) {
       return false
     }
   }
@@ -733,7 +717,7 @@ fn same_length_alpha_equal(
 
 ///|
 fn same_length_generic_argument_alpha_equal(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   left : Array[GenericArgument],
   right : Array[GenericArgument],
 ) -> Bool {
@@ -741,7 +725,7 @@ fn same_length_generic_argument_alpha_equal(
     return false
   }
   for index in 0..<left.length() {
-    if !generic_argument_alpha_equal_with(bindings, left[index], right[index]) {
+    if !generic_argument_alpha_equal_with(context, left[index], right[index]) {
       return false
     }
   }
@@ -750,15 +734,15 @@ fn same_length_generic_argument_alpha_equal(
 
 ///|
 fn generic_argument_alpha_equal_with(
-  bindings : Array[AlphaBinding],
+  context : AlphaContext,
   left : GenericArgument,
   right : GenericArgument,
 ) -> Bool {
   match (left, right) {
     (TypeArgument(left), TypeArgument(right)) =>
-      alpha_equal_with(bindings, left, right)
+      alpha_equal_with(context, left, right)
     (EffectArgument(left), EffectArgument(right)) =>
-      alpha_equal_effect_with(bindings, left, right)
+      alpha_equal_effect_with(context, left, right)
     _ => false
   }
 }
