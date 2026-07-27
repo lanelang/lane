@@ -1309,6 +1309,29 @@ fn empty_generic_argument_inference() -> GenericArgumentInference {
 }
 
 ///|
+test "generic effect occurs-check sees latent effects in type arguments" {
+  let parameter : @types.TypeParameter = {
+    id: { index: 0 },
+    name: "E",
+    kind: Effect,
+  }
+  let candidate : @types.GenericArgument = EffectArgument(
+    @types.Effect::Singleton({ index: 0 }, [
+      TypeArgument(
+        Function([], Primitive(Unit), @types.Effect::Parameter(parameter.id)),
+      ),
+    ]),
+  )
+  let inference = empty_generic_argument_inference()
+  inference.parameters.push(parameter)
+  let remembered = inference.remember(parameter, candidate)
+  assert_eq(
+    (remembered, inference.failure),
+    (false, Some(RecursiveGenericArgument(parameter~, actual=candidate))),
+  )
+}
+
+///|
 test "generic inference records an effect lower bound atomically" {
   let parameter : @types.TypeParameter = {
     id: { index: 0 },

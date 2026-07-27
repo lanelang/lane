@@ -306,7 +306,7 @@ fn GenericArgumentInference::remember(
   }
   if candidate is EffectArgument(effect) &&
     !effect_is_parameter(effect, parameter) &&
-    effect_mentions_free_parameter(effect, parameter) {
+    effect.mentions_any_type_parameter_with_bound([parameter], []) {
     return self.fail(
       RecursiveGenericArgument(parameter=tracked, actual=candidate),
     )
@@ -401,11 +401,7 @@ fn generic_argument_mentions_effect_parameter(
   argument : @types.GenericArgument,
   parameter : TypeParameterId,
 ) -> Bool {
-  match argument {
-    TypeArgument(type_) => type_.mentions_any_type_parameter([parameter])
-    EffectArgument(effect) =>
-      effect.mentions_any_type_parameter_with_bound([parameter], [])
-  }
+  argument.mentions_any_type_parameter_with_bound([parameter], [])
 }
 
 ///|
@@ -1109,29 +1105,6 @@ fn type_is_parameter(type_ : @types.Type, parameter : TypeParameterId) -> Bool {
   match type_ {
     Parameter(id) => id == parameter
     _ => false
-  }
-}
-
-///|
-fn effect_mentions_free_parameter(
-  effect : @types.Effect,
-  parameter : TypeParameterId,
-) -> Bool {
-  match effect {
-    Empty | Io => false
-    Parameter(id) => id == parameter
-    Singleton(_, arguments) =>
-      arguments.any(fn(argument) {
-        match argument {
-          EffectArgument(effect) =>
-            effect_mentions_free_parameter(effect, parameter)
-          TypeArgument(_) => false
-        }
-      })
-    Union(effects) =>
-      effects.any(fn(effect) {
-        effect_mentions_free_parameter(effect, parameter)
-      })
   }
 }
 
