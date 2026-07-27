@@ -26,6 +26,7 @@ import {
 Its `moon.pkg` imports only the platform packages it uses:
 
 ```moonbit nocheck
+///|
 import {
   "Milky2018/loisvm/bytecode",
   "Milky2018/loisvm/interp",

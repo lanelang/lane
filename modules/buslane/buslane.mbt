@@ -484,6 +484,37 @@ pub fn Type::equals(self : Type, other : Type) -> Bool {
 }
 
 ///|
+fn MetadataRegistry::definitional_equality_context(
+  self : MetadataRegistry,
+) -> AlphaContext {
+  {
+    bindings: [],
+    binders_compatible: fn(left, right) {
+      guard self.type_parameter_info(left) is Some(left_info) else {
+        return false
+      }
+      guard self.type_parameter_info(right) is Some(right_info) else {
+        return false
+      }
+      left_info.kind == right_info.kind
+    },
+  }
+}
+
+///|
+fn MetadataRegistry::types_definitionally_equal(
+  self : MetadataRegistry,
+  left : Type,
+  right : Type,
+) -> Bool {
+  alpha_equal_with(
+    self.definitional_equality_context(),
+    left.normalize(),
+    right.normalize(),
+  )
+}
+
+///|
 /// Returns whether two Buslane effects are canonically equal.
 pub fn Effect::equals(self : Effect, other : Effect) -> Bool {
   alpha_equal_effect_with(unconstrained_alpha_context(), self, other)

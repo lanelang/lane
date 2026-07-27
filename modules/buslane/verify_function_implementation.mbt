@@ -39,12 +39,7 @@ fn VerifyContext::function_implementation_matches(
   declaration : Type,
 ) -> Bool {
   self.function_implementation_matches_with(
-    {
-      bindings: [],
-      binders_compatible: fn(actual, expected) {
-        self.function_implementation_binders_compatible(actual, expected)
-      },
-    },
+    self.program.metadata.definitional_equality_context(),
     implementation.normalize(),
     declaration.normalize(),
   )
@@ -78,20 +73,4 @@ fn VerifyContext::function_implementation_matches_with(
       }
     _ => false
   }
-}
-
-///|
-fn VerifyContext::function_implementation_binders_compatible(
-  self : VerifyContext,
-  actual : TypeParameterId,
-  expected : TypeParameterId,
-) -> Bool {
-  guard self.program.metadata.type_parameter_info(actual) is Some(actual_info) else {
-    return false
-  }
-  guard self.program.metadata.type_parameter_info(expected)
-    is Some(expected_info) else {
-    return false
-  }
-  actual_info.kind == expected_info.kind
 }

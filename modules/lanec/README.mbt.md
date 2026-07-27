@@ -54,6 +54,7 @@ moon add Milky2018/lanec
 The root `Milky2018/lanec` package intentionally exports no API. Import the focused package that owns the operation you need:
 
 ```moonbit nocheck
+///|
 import {
   "Milky2018/lanec/compile",
   "Milky2018/lanec/driver",

@@ -236,7 +236,7 @@ fn VerifyContext::check_expr(
   type_scope : TypeScope,
 ) -> Effect {
   let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if expected != actual.type_ {
+  if !self.program.metadata.types_definitionally_equal(expected, actual.type_) {
     self.report(TypeMismatch(expected~, actual=actual.type_))
   }
   actual.effect
@@ -619,7 +619,10 @@ fn VerifyContext::synthesize_handle(
     self.report(UnknownValue(handle.result_binder))
     return { type_: handle.result_type, effect: effect_union(effects) }
   }
-  if result_info.type_ != body_result.type_ {
+  if !self.program.metadata.types_definitionally_equal(
+      result_info.type_,
+      body_result.type_,
+    ) {
     self.report(
       TypeMismatch(expected=body_result.type_, actual=result_info.type_),
     )
@@ -744,7 +747,10 @@ fn VerifyContext::verify_operation_alternative(
       continue
     }
     let expected = info.payload_types[index].substitute(substitution)
-    if binder_info.type_ != expected {
+    if !self.program.metadata.types_definitionally_equal(
+        binder_info.type_,
+        expected,
+      ) {
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
     arm_scope.values.push(binder)
@@ -778,10 +784,13 @@ fn VerifyContext::verify_resume_binder(
   }
   if parameters.length() != 1 {
     self.report(ArityMismatch(expected=1, actual=parameters.length()))
-  } else if parameters[0] != parameter {
+  } else if !self.program.metadata.types_definitionally_equal(
+      parameters[0],
+      parameter,
+    ) {
     self.report(TypeMismatch(expected=parameter, actual=parameters[0]))
   }
-  if actual_result != result {
+  if !self.program.metadata.types_definitionally_equal(actual_result, result) {
     self.report(TypeMismatch(expected=result, actual=actual_result))
   }
 }
@@ -865,7 +874,10 @@ fn VerifyContext::synthesize_match(
     self.report(UnknownValue(match_.binder))
     return pure_expr(match_.result_type)
   }
-  if binder_info.type_ != scrutinee_result.type_ {
+  if !self.program.metadata.types_definitionally_equal(
+      binder_info.type_,
+      scrutinee_result.type_,
+    ) {
     self.report(
       TypeMismatch(expected=scrutinee_result.type_, actual=binder_info.type_),
     )
@@ -900,7 +912,9 @@ fn VerifyContext::verify_alternative(
     Default => ()
     Literal(literal) => {
       let literal_type = literal.type_()
-      if literal_type != scrutinee_type {
+      if !self.program.metadata.types_definitionally_equal(
+          literal_type, scrutinee_type,
+        ) {
         self.report(TypeMismatch(expected=scrutinee_type, actual=literal_type))
       }
     }
@@ -992,7 +1006,10 @@ fn VerifyContext::verify_data_alternative(
       continue
     }
     let expected = info.payload_types[index].substitute(substitution)
-    if !binder_info.type_.equals(expected) {
+    if !self.program.metadata.types_definitionally_equal(
+        binder_info.type_,
+        expected,
+      ) {
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
     body_scope.values.push(binder)
