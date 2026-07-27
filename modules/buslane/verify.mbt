@@ -188,9 +188,17 @@ fn VerifyContext::verify_top_let(
     self.report(UnknownValue(id))
     return
   }
-  let effect = self.check_expr(initializer, info.type_, scope, {
-    parameters: [],
-  })
+  let effect = self.check_binding_initializer(
+    if info.kind is Function {
+      FunctionBinding
+    } else {
+      OrdinaryBinding
+    },
+    initializer,
+    info.type_,
+    scope,
+    { parameters: [] },
+  )
   self.require_effect_equals(Empty, effect)
 }
 
@@ -201,14 +209,15 @@ fn VerifyContext::verify_top_letrec(
   scope : ValueScope,
 ) -> Unit {
   for binding in bindings {
-    if !binding.rhs.is_recursable_function() {
+    if !binding.rhs.is_direct_function_implementation() {
       self.report(InvalidLetRecRhs(binding.id))
     }
     guard self.program.metadata.value_info(binding.id) is Some(info) else {
       self.report(UnknownValue(binding.id))
       continue
     }
-    let effect = self.check_function_implementation(
+    let effect = self.check_binding_initializer(
+      FunctionBinding,
       binding.rhs,
       info.type_,
       scope,
@@ -790,7 +799,8 @@ fn VerifyContext::synthesize_let(
     self.report(UnknownValue(id))
     return self.synthesize_expr(body, value_scope, type_scope)
   }
-  let initializer_effect = self.check_expr(
+  let initializer_effect = self.check_binding_initializer(
+    OrdinaryBinding,
     initializer,
     info.type_,
     value_scope,
@@ -818,14 +828,15 @@ fn VerifyContext::synthesize_letrec(
     body_scope.values.push(binding.id)
   }
   for binding in bindings {
-    if !binding.rhs.is_recursable_function() {
+    if !binding.rhs.is_direct_function_implementation() {
       self.report(InvalidLetRecRhs(binding.id))
     }
     guard self.program.metadata.value_info(binding.id) is Some(info) else {
       self.report(UnknownValue(binding.id))
       continue
     }
-    let rhs_effect = self.check_function_implementation(
+    let rhs_effect = self.check_binding_initializer(
+      FunctionBinding,
       binding.rhs,
       info.type_,
       body_scope,
@@ -1405,15 +1416,6 @@ fn Literal::type_(self : Literal) -> Type {
     Int(_) => Primitive(Int)
     Double(_) => Primitive(Double)
     String(_) => Primitive(String)
-  }
-}
-
-///|
-fn Expr::is_recursable_function(self : Expr) -> Bool {
-  match self {
-    Function(_) => true
-    TypeLambda(_, body) => body.is_recursable_function()
-    _ => false
   }
 }
 

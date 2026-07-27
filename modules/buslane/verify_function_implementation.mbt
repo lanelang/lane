@@ -1,4 +1,38 @@
 ///|
+priv enum BindingImplementationKind {
+  OrdinaryBinding
+  FunctionBinding
+}
+
+///|
+fn Expr::is_direct_function_implementation(self : Expr) -> Bool {
+  match self {
+    Function(_) => true
+    TypeLambda(_, body) => body.is_direct_function_implementation()
+    _ => false
+  }
+}
+
+///|
+fn VerifyContext::check_binding_initializer(
+  self : VerifyContext,
+  implementation_kind : BindingImplementationKind,
+  initializer : Expr,
+  expected : Type,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> Effect {
+  if implementation_kind is FunctionBinding &&
+    initializer.is_direct_function_implementation() {
+    self.check_function_implementation(
+      initializer, expected, value_scope, type_scope,
+    )
+  } else {
+    self.check_expr(initializer, expected, value_scope, type_scope)
+  }
+}
+
+///|
 fn VerifyContext::function_implementation_matches(
   self : VerifyContext,
   implementation : Type,
