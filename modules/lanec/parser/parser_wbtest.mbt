@@ -25,6 +25,110 @@ fn parse_error_kinds(source : String) -> Array[ParseErrorKind] {
 }
 
 ///|
+test "parse aliased qualified import with binder spans" {
+  let file = expect_parse_ok("import Basic.Data.List as List")
+  guard file.imports
+    is [Qualified(module_path~, module_alias=Some(module_alias), loc~)] else {
+    abort("expected one aliased qualified import")
+  }
+  debug_inspect(
+    (module_path, module_alias, loc),
+    content=(
+      #|(
+      #|  {
+      #|    components: ["Basic", "Data", "List"],
+      #|    loc: {
+      #|      start_offset: 19,
+      #|      end_offset: 34,
+      #|      start_line: 2,
+      #|      start_column: 8,
+      #|      end_line: 2,
+      #|      end_column: 23,
+      #|    },
+      #|  },
+      #|  {
+      #|    name: "List",
+      #|    name_loc: {
+      #|      start_offset: 38,
+      #|      end_offset: 42,
+      #|      start_line: 2,
+      #|      start_column: 27,
+      #|      end_line: 2,
+      #|      end_column: 31,
+      #|    },
+      #|    loc: {
+      #|      start_offset: 35,
+      #|      end_offset: 42,
+      #|      start_line: 2,
+      #|      start_column: 24,
+      #|      end_line: 2,
+      #|      end_column: 31,
+      #|    },
+      #|  },
+      #|  {
+      #|    start_offset: 12,
+      #|    end_offset: 42,
+      #|    start_line: 2,
+      #|    start_column: 1,
+      #|    end_line: 2,
+      #|    end_column: 31,
+      #|  },
+      #|)
+    ),
+  )
+}
+
+///|
+test "import aliases are rejected on open and selective imports" {
+  debug_inspect(
+    parse_error_kinds("import Basic.Data.List.* as List"),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`as`" },
+      #|    [
+      #|      { label: "end of file" },
+      #|      { label: "`struct`" },
+      #|      { label: "`enum`" },
+      #|      { label: "`effect`" },
+      #|      { label: "`fn`" },
+      #|      { label: "`let`" },
+      #|      { label: "`type`" },
+      #|      { label: "`offer`" },
+      #|      { label: "`extern`" },
+      #|      { label: "`import`" },
+      #|      { label: "`pub`" },
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+  debug_inspect(
+    parse_error_kinds("import Basic.Data.List.{ empty } as List"),
+    content=(
+      #|[
+      #|  UnexpectedToken(
+      #|    { label: "`as`" },
+      #|    [
+      #|      { label: "end of file" },
+      #|      { label: "`struct`" },
+      #|      { label: "`enum`" },
+      #|      { label: "`effect`" },
+      #|      { label: "`fn`" },
+      #|      { label: "`let`" },
+      #|      { label: "`type`" },
+      #|      { label: "`offer`" },
+      #|      { label: "`extern`" },
+      #|      { label: "`import`" },
+      #|      { label: "`pub`" },
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 priv struct ParseFailureConcreteSummary {
   errors : Array[ParseErrorKind]
   trivia : Array[@lexer.TriviaKind]

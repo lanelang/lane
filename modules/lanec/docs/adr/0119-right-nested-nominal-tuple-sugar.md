@@ -2,9 +2,9 @@
 
 The grammar recognizes tuple syntax independently of imports. A uniform
 pre-resolution surface pass rewrites tuple types, expressions, and patterns
-into ordinary qualified nominal syntax. The same pass now owns list literal
-expansion, so resolver and typechecker contain no List- or Tuple-specific
-lookup path.
+into nominal syntax carrying structured canonical provider targets. The same
+pass owns list literal expansion, so resolver and typechecker contain no
+List- or Tuple-specific lookup path.
 
 Expansion targets the fixed language ABI `Basic.Data.Tuple.Tuple`,
 `Basic.Data.Tuple.Tuple::tuple`, `Basic.Data.List.List`,
@@ -12,8 +12,10 @@ Expansion targets the fixed language ABI `Basic.Data.Tuple.Tuple`,
 not configurable, and the compiler does not search for declarations with a
 compatible shape. The sugar adds no hidden dependency: missing imports,
 declarations, or compatible signatures use ordinary resolution and
-typechecking diagnostics. Qualified, open, and selective imports all establish
-the ordinary module binding needed by the generated qualified references.
+typechecking diagnostics. Qualified, aliased qualified, open, and selective
+imports all make the canonical target module available. Authored qualified
+names still resolve only through their lexical module bindings, as specified
+by ADR 0122.
 
 Checked source and Buslane retain the right-nested nominal representation.
 Linked whole-program optimization may scalarize tuple chains or avoid

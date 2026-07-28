@@ -180,10 +180,14 @@ fn unused_import_exposure_diagnostic(
   exposure : @resolve.ResolvedImportExposure,
 ) -> CompilerDiagnostic {
   let (message, label) = match exposure.kind {
-    QualifiedModuleBinding =>
+    QualifiedModuleBinding(name~, ..) =>
       (
         "unused import",
-        "imported module `\{exposure.module_path_text}` is never used",
+        if name == exposure.module_path_text {
+          "imported module `\{exposure.module_path_text}` is never used"
+        } else {
+          "imported module binding `\{name}` is never used"
+        },
       )
     OpenBinding =>
       (
@@ -195,7 +199,7 @@ fn unused_import_exposure_diagnostic(
         "unused import item",
         "imported item `\{name}` from `\{exposure.module_path_text}` is never used",
       )
-    ImportedModuleBinding =>
+    ImportedModuleBinding(..) =>
       (
         "unused import",
         "imported module `\{exposure.module_path_text}` is never used",

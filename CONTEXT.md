@@ -13,7 +13,8 @@ The source declaration that gives a **Module** its language-level identity.
 _Avoid_: file path, package name, implicit filename module
 
 **Module Binding**:
-A name made available by importing a **Module Path** for module-qualified access.
+A source-local qualifier name that refers to exactly one imported **Module**
+for module-qualified access.
 _Avoid_: value declaration, type declaration, filesystem directory component
 
 **Source File**:
@@ -35,6 +36,11 @@ _Avoid_: compiler diagnostic adapter, Lane error taxonomy, command report
 **Module Path**:
 A dotted name that identifies a **Module**.
 _Avoid_: filesystem path, package URL, source filename
+
+**Module Path Prefix**:
+Leading components shared by otherwise independent **Module Paths**, without
+implying module containment or hierarchy.
+_Avoid_: parent module, child module, submodule
 
 **Double**:
 A Lane primitive type representing IEEE 754 binary64 floating-point values.
@@ -233,6 +239,10 @@ _Avoid_: library override, search path priority, last-one-wins
 **Qualified Import**:
 An import that makes an external **Module** name visible without placing its members directly in local scope.
 _Avoid_: open import, textual include, prelude concatenation
+
+**Aliased Qualified Import**:
+A **Qualified Import** that binds one explicit local module name in place of the imported module's complete **Module Path**.
+_Avoid_: additional module shorthand, member rename, open import alias
 
 **Import Section**:
 The contiguous import declarations after a **Module Declaration** and before ordinary declarations.
@@ -445,15 +455,44 @@ _Avoid_: VS Code extension, compiler front end
 - First-stage imports are qualified imports, open imports, and selective imports.
 - A **Duplicate Import** is an error.
 - The same **Module** may be imported through multiple non-identical import declarations.
+- The same **Module** may have multiple distinct local **Module Bindings**,
+  including multiple aliases; each binding has independent unused-import
+  status.
 - A default **Qualified Import** binds the full **Module Path** for **Qualified Access**.
+- An **Aliased Qualified Import** binds only its explicit local module name; the
+  complete imported **Module Path** is not also bound by that declaration.
+- The local module name of an **Aliased Qualified Import** is one identifier,
+  not a dotted **Module Path**.
+- Each local module name identifies at most one imported **Module Binding**;
+  competing imports are a **Module Name Ambiguity** even when they target the
+  same **Module**.
 - A **Module Binding** is separate from value and type namespaces.
 - Value and type declarations do not shadow **Module Bindings**.
+- Default and aliased **Module Bindings** use the same namespace and ambiguity
+  rules; an alias has no special lookup or shadowing priority.
+- An imported **Module** retains its complete **Module Path** independently of
+  every source-local **Module Binding** that refers to it.
+- A module alias is the binder of its local **Module Binding**. Source-level
+  qualifier references target that binder, while qualified members target
+  their original exported declarations.
+- A module alias is lexical only: resolved declarations retain the imported
+  **Module** and its complete **Module Path** as their semantic and artifact
+  identity.
+- Semantic type and artifact presentation uses the complete **Module Path**,
+  not a source-local module alias.
+- An authored qualified access uses only the specific **Module Binding** named
+  by the source. A fixed language sugar use marks every import that provides
+  its canonical module target as used, without selecting an order-dependent
+  owner.
 - Module-qualified value access is written as `Module.Path.name`.
 - Module-qualified type access is written as `Module.Path.Type`.
 - Module-qualified effect and **Effect Set Alias** access is written as `Module.Path.Name`.
 - Module-qualified nominal member access combines both separators, such as `Module.Path.Type::{ ... }` and `Module.Path.Type::variant`.
 - The left side of module-qualified access must be an imported complete **Module Path**.
-- Importing `Module` does not make `Module.Child.name` or `Module.Child.Type` available.
+- Sharing a **Module Path Prefix** does not make one **Module** reachable through
+  another.
+- A module alias names exactly one imported **Module** and is not a prefix
+  rewrite for other **Module Paths**.
 - **Double Literals** produce **Double** values directly; Lane does not use
   numeric literal overloading or implicit conversion between `Int` and
   **Double**.
@@ -485,12 +524,17 @@ _Avoid_: VS Code extension, compiler front end
 - **Deep Effect Handlers** make resumed computation run under the same handler, but effects produced directly by handler arm bodies are not self-captured.
 - A **Resume Continuation** is first-class and multi-shot; its type returns the handler result and carries only the handler's **Residual Effect Set**.
 - An **Unhandled Perform State** is impossible for well-typed complete safe programs.
-- Importing a module does not implicitly import its dotted child module paths.
+- Every independent **Module Path** used for qualified access requires its own
+  **Module Binding**.
 - A **Selective Import** imports top-level **Exported Declarations**, not **Owner-Visible Members**.
 - A **Selective Import** introduces selected exported declarations as unqualified names.
 - A **Selective Import** may list exported value and type declarations together.
 - A **Selective Import** item is ambiguous if the same imported name matches multiple namespaces without syntactic disambiguation.
-- Import declarations do not support `as` aliases or renaming.
+- An **Aliased Qualified Import** renames its **Module Binding**, not any
+  exported declaration.
+- Only a **Qualified Import** may use `as`; open and selective imports cannot
+  carry a module alias.
+- `as` is a reserved language keyword rather than a contextual import marker.
 - An **Open Import** opens top-level **Exported Declarations**, not **Owner-Visible Members**.
 - An **Open Import** contributes exported offers as **Visible Offers**.
 - A **Selective Import** contributes selected exported offers as **Visible Offers**.

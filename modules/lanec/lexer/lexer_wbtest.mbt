@@ -63,6 +63,11 @@ test "Type and Effect are kind keywords" {
 }
 
 ///|
+test "as is a reserved import alias keyword" {
+  debug_inspect(token_values("as alias"), content="[AS, IDENT(\"alias\"), EOF]")
+}
+
+///|
 test "tokenize maximal munch operators and punctuation" {
   let tokens = token_values(
     "a == b != c <= d >= e && f || g |> h :: k::. (::x) .{ _ ;",

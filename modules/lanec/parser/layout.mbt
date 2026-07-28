@@ -184,6 +184,7 @@ fn layout_token_role(token : @lexer.Token) -> LayoutTokenRole {
     | LBRACKET => { ends_item: false, starts_item: true }
     EOF
     | AUTO
+    | AS
     | ELSE
     | WITH
     | FINAL

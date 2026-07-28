@@ -1,0 +1,23 @@
+module Examples.Valid.AliasedQualifiedImports
+
+import Basic.Data.Option as Maybe
+import Basic.Data.Tuple as Pair
+import Basic.Eff.Read as Reader
+import Basic.Io as Console
+
+fn demand() -> Int ! Reader.Read[Int] {
+  Reader.Read::read!()
+}
+
+fn selected() -> Maybe.Option[(Int, Bool)] {
+  Maybe.Option::some((42, true))
+}
+
+pub fn answer() -> Unit ! Io {
+  let value = Reader.run_read(demand, 42)()
+  match selected() {
+    Maybe.Option::some(Pair.Tuple::tuple(_, _)) =>
+      Console.println("aliased qualified imports=42")
+    Maybe.Option::none() => Console.println("aliased qualified imports failed")
+  }
+}

@@ -20,6 +20,7 @@ let keyword_table : @hashmap.HashMap[String, Token] = [
     ("extern", EXTERN),
     ("module", MODULE),
     ("import", IMPORT),
+    ("as", AS),
     ("pub", PUB),
     ("true", TRUE),
     ("false", FALSE),

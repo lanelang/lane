@@ -14,13 +14,24 @@ pub(all) struct ModulePath {
 
 ///|
 pub(all) enum ImportDeclaration {
-  Qualified(module_path~ : ModulePath, loc~ : SourceSpan)
+  Qualified(
+    module_path~ : ModulePath,
+    module_alias~ : ModuleAlias?,
+    loc~ : SourceSpan
+  )
   Open(module_path~ : ModulePath, loc~ : SourceSpan)
   Selective(
     module_path~ : ModulePath,
     items~ : Array[ImportItem],
     loc~ : SourceSpan
   )
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleAlias {
+  name : String
+  name_loc : SourceSpan
+  loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|

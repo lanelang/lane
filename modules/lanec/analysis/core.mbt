@@ -8,6 +8,7 @@ pub(all) enum AnalysisSymbol {
   Operation(@symbol.OperationSymbolId)
   TypeParameter(@symbol.TypeParameterId)
   TypeMember(@symbol.TypeMemberSymbolId)
+  ModuleBinding(source_id~ : String, exposure_id~ : Int)
 } derive(Debug, Eq)
 
 ///|

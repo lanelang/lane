@@ -274,8 +274,28 @@ fn ImportDeclaration::to_doc(
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
   let doc = match self {
-    Qualified(module_path~, ..) =>
-      keyword("import") + space + module_path.to_doc()
+    Qualified(module_path~, module_alias~, ..) => {
+      let import_path = keyword("import") + space + module_path.to_doc()
+      match module_alias {
+        None => import_path
+        Some(module_alias) => {
+          let alias_doc = boundary_separated(
+            keyword("as"),
+            text(module_alias.name),
+            module_alias.loc.ascii_prefix(2).end_offset,
+            module_alias.name_loc.start_offset,
+            trivia,
+          )
+          boundary_separated(
+            import_path,
+            alias_doc,
+            module_path.loc.end_offset,
+            module_alias.loc.start_offset,
+            trivia,
+          )
+        }
+      }
+    }
     Open(module_path~, ..) =>
       keyword("import") + space + module_path.to_doc() + text(".*")
     Selective(module_path~, items~, ..) => {

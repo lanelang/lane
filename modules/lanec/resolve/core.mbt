@@ -5,14 +5,15 @@ pub(all) struct ResolvedSourceFile {
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
+  module_binding_references : Array[ResolvedModuleBindingReference]
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum ResolvedImportExposureKind {
-  QualifiedModuleBinding
-  ImportedModuleBinding
+  QualifiedModuleBinding(name~ : String, name_loc~ : SourceSpan)
+  ImportedModuleBinding(name~ : String, name_loc~ : SourceSpan)
   OpenBinding
   SelectiveBinding(name~ : String)
 } derive(Debug, Eq)
@@ -27,6 +28,12 @@ pub(all) struct ResolvedImportExposure {
 
 ///|
 pub(all) struct ResolvedImportUse {
+  exposure_id : Int
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedModuleBindingReference {
   exposure_id : Int
   loc : SourceSpan
 } derive(Debug, Eq)
@@ -77,6 +84,7 @@ pub(all) enum ResolveDiagnosticKind {
     existing_loc~ : SourceSpan?,
     existing_origin~ : String?
   )
+  AmbiguousModuleBinding(name~ : String, existing_loc~ : SourceSpan)
   ConflictingTopLevelTypeAndEffectName(
     name~ : String,
     type_kind~ : String,

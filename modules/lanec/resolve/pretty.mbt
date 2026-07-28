@@ -105,6 +105,8 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       space +
       text("effect=") +
       text(effect_kind)
+    AmbiguousModuleBinding(name~, ..) =>
+      text("ambiguous_module_binding") + space + text(name)
     AmbiguousModuleValue(name) =>
       text("ambiguous_module_value") + space + text(name)
     AmbiguousUnqualifiedVariant(name~, candidates~) =>

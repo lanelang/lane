@@ -50,6 +50,7 @@ pub(all) enum Token {
   EXTERN
   MODULE
   IMPORT
+  AS
   PUB
   PLUS
   MINUS
@@ -127,6 +128,7 @@ pub(all) enum TokenKind {
   TK_EXTERN
   TK_MODULE
   TK_IMPORT
+  TK_AS
   TK_PUB
   TK_PLUS
   TK_MINUS

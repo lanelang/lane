@@ -23,15 +23,16 @@ _Avoid_: atomized core shape, source-only syntax, basic blocks
 
 **Surface Sugar Expansion**:
 A recursive pre-resolution transformation that replaces source-only type,
-expression, and pattern sugar with ordinary qualified source syntax while the
-parsed Syntax AST remains available to formatting and source tooling. For
-expression sugar, expansion preserves the lexical left-to-right evaluation of
-authored child expressions and never duplicates or discards their evaluation.
-_Avoid_: resolver special case, typechecker sugar rule, formatter reconstruction
+expression, and pattern sugar with nominal syntax carrying structured
+canonical provider targets while the parsed Syntax AST remains available to
+formatting and source tooling. For expression sugar, expansion preserves the
+lexical left-to-right evaluation of authored child expressions and never
+duplicates or discards their evaluation.
+_Avoid_: textual generated qualifier, typechecker sugar rule, formatter reconstruction
 
 **Surface Source Provenance**:
 The mapping from nodes introduced by Surface Sugar Expansion to the real source
-span of the authored sugar node that produced them. Generated qualified names
+span of the authored sugar node that produced them. Generated canonical targets
 do not invent identifier-token spans.
 _Avoid_: synthetic token location, generated-name source text, Buslane span field
 
@@ -351,7 +352,9 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 - A parsed **Syntax AST** undergoes **Surface Sugar Expansion** before it is
   resolved into a **Resolved AST**.
 - List and tuple syntax are absent after **Surface Sugar Expansion**; resolution
-  and typechecking observe only ordinary qualified nominal syntax.
+  resolves their canonical provider targets to the same nominal symbols used
+  by authored qualified access, and typechecking observes only those resolved
+  nominal symbols.
 - Nodes introduced by **Surface Sugar Expansion** carry **Surface Source
   Provenance**, so diagnostics and source tooling point to authored sugar rather
   than synthetic qualified names.

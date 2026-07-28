@@ -155,6 +155,27 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
         helps=["rename either the effect or the type/type alias"],
         context~,
       )
+    AmbiguousModuleBinding(name~, existing_loc~) =>
+      @compiler_diag.compiler_error(
+        "ambiguous module binding `\{name}`",
+        span~,
+        code=Some("E2008"),
+        labels=[
+          @compiler_diag.compiler_primary_label(
+            diagnostic.loc,
+            "this import also binds `\{name}`",
+          ),
+          @compiler_diag.compiler_secondary_label(
+            existing_loc,
+            "`\{name}` was first bound here",
+          ),
+        ],
+        notes=[
+          "Lane module bindings do not shadow one another or use import-order priority",
+        ],
+        helps=["choose a distinct alias or remove one of the imports"],
+        context~,
+      )
     AmbiguousModuleValue(name) =>
       @compiler_diag.compiler_error(
         "ambiguous module-qualified value `\{name}`",

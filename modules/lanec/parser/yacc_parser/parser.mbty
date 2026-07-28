@@ -35,6 +35,7 @@
 %token EXTERN "extern"
 %token MODULE "module"
 %token IMPORT "import"
+%token AS "as"
 %token PUB "pub"
 %token PLUS "+"
 %token MINUS "-"
@@ -144,13 +145,22 @@ import_declarations -> Array[ImportDeclaration]
 
 import_declaration -> ImportDeclaration
   : "import" module_path {
-    Qualified(module_path=$2, loc=span($sloc))
+    Qualified(module_path=$2, module_alias=None, loc=span($sloc))
+  }
+  | "import" module_path module_alias {
+    Qualified(module_path=$2, module_alias=Some($3), loc=span($sloc))
   }
   | "import" module_path ".*" {
     Open(module_path=$2, loc=span($sloc))
   }
   | "import" module_path ".{" import_item_list "}" {
     Selective(module_path=$2, items=$4, loc=span($sloc))
+  }
+  ;
+
+module_alias -> ModuleAlias
+  : "as" identifier {
+    { name: $2.name, name_loc: $2.loc, loc: span($sloc) }
   }
   ;
 
@@ -533,7 +543,15 @@ tuple_type_tail -> Array[Type]
 
 qualified_type_name -> Type
   : IDENT "." IDENT {
-    QualifiedName(module_path={ components: [ $1 ], loc: span($sloc) }, name=$3, loc=span($sloc))
+    let loc = span($sloc)
+    QualifiedName(
+      module_path={
+        components: [ $1 ],
+        loc: loc.ascii_prefix($1.length()),
+      },
+      name=$3,
+      loc~,
+    )
   }
   | qualified_type_name "." IDENT {
     extend_qualified_type_name($1, $3, span($sloc))

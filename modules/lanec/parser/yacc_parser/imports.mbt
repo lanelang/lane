@@ -25,6 +25,7 @@ using @syntax {
   type LetDeclaration,
   type LocalItem,
   type MatchArm,
+  type ModuleAlias,
   type ModulePath,
   type CallArgument,
   type Parameter,
@@ -185,10 +186,10 @@ fn extend_qualified_type_name(
   loc : SourceSpan,
 ) -> Type {
   match type_ {
-    QualifiedName(module_path~, name=previous_name, ..) => {
+    QualifiedName(module_path~, name=previous_name, loc=previous_loc) => {
       let components = module_path.components.copy()
       components.push(previous_name)
-      QualifiedName(module_path={ components, loc }, name~, loc~)
+      QualifiedName(module_path={ components, loc: previous_loc }, name~, loc~)
     }
     _ => type_
   }

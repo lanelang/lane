@@ -28,6 +28,7 @@ pub(all) enum Token {
   EXTERN
   MODULE
   IMPORT
+  AS
   PUB
   PLUS
   MINUS

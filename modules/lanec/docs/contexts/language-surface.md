@@ -202,9 +202,10 @@ _Avoid_: enum variant, nominal constructor
 - Resolving **Tuple Syntax** follows ordinary module availability: without an
   import of `Basic.Data.Tuple`, its qualified nominal type and constructor
   references remain unresolved and produce diagnostics.
-- Qualified, open, and selective imports of `Basic.Data.Tuple` all establish
-  the module binding needed by **Tuple Syntax**; the sugar does not depend on
-  which declarations the import also exposes as unqualified names.
+- Qualified, aliased qualified, open, and selective imports of
+  `Basic.Data.Tuple` all make the canonical module target available to
+  **Tuple Syntax**. The sugar does not depend on the local module binding name
+  or on which declarations the import also exposes as unqualified names.
 - **Surface Sugar Expansion** targets the exact declarations in the **Sugar
   Provider ABI**. Missing imports, declarations, or incompatible signatures use
   ordinary resolution and typechecking diagnostics; the compiler neither

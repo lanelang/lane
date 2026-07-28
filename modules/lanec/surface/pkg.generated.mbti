@@ -19,8 +19,8 @@ pub(all) struct SurfaceExpansion {
 } derive(Eq, @debug.Debug)
 
 pub(all) enum SurfaceGeneratedReference {
-  Type(name~ : String, loc~ : @basic.SourceSpan)
-  Variant(type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
+  Type(module_path~ : String, name~ : String, loc~ : @basic.SourceSpan)
+  Variant(module_path~ : String, type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -237,6 +237,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     EXTERN => "`extern`"
     MODULE => "`module`"
     IMPORT => "`import`"
+    AS => "`as`"
     PUB => "`pub`"
     PLUS => "`+`"
     MINUS => "`-`"
@@ -316,6 +317,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_EXTERN => "`extern`"
     TK_MODULE => "`module`"
     TK_IMPORT => "`import`"
+    TK_AS => "`as`"
     TK_PUB => "`pub`"
     TK_PLUS => "`+`"
     TK_MINUS => "`-`"
@@ -395,6 +397,7 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     EXTERN => EXTERN
     MODULE => MODULE
     IMPORT => IMPORT
+    AS => AS
     PUB => PUB
     PLUS => PLUS
     MINUS => MINUS

@@ -3,7 +3,9 @@ priv struct Resolver {
   registry : SymbolRegistry
   declaration_symbols : @symbol.DeclarationSymbolScope
   local_module : LocalModuleNamespace
-  modules : Array[ModuleBinding]
+  imported_modules : Array[ImportedModule]
+  module_bindings : Array[ModuleBinding]
+  ambiguous_module_binding_names : Array[String]
   types : Array[TypeBinding]
   effects : Array[EffectBinding]
   type_aliases : Array[TypeAliasBinding]
@@ -13,14 +15,19 @@ priv struct Resolver {
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
+  module_binding_references : Array[ResolvedModuleBindingReference]
   generated_reference_reports : Map[GeneratedReferenceKey, Bool]
   diagnostics : Array[ResolveDiagnostic]
 }
 
 ///|
 priv enum GeneratedReferenceName {
-  TypeReference(String)
-  VariantReference(type_name~ : String, variant~ : String)
+  TypeReference(module_path~ : String, name~ : String)
+  VariantReference(
+    module_path~ : String,
+    type_name~ : String,
+    variant~ : String
+  )
 } derive(Eq, Hash)
 
 ///|
@@ -31,9 +38,17 @@ priv struct GeneratedReferenceKey {
 } derive(Eq, Hash)
 
 ///|
-priv struct ModuleBinding {
+priv struct ImportedModule {
   path_text : String
   interface : @module_interface.ModuleInterface
+  provider_origins : Array[Int]
+}
+
+///|
+priv struct ModuleBinding {
+  name_text : String
+  name_loc : SourceSpan
+  imported : ImportedModule
   import_origin : Int?
 }
 
@@ -48,7 +63,11 @@ priv struct LocalModuleNamespace {
 ///|
 priv enum ModuleNamespaceSource {
   LocalModule(LocalModuleNamespace)
-  ImportedModule(ModuleBinding)
+  ImportedModule(
+    imported~ : ImportedModule,
+    import_origins~ : Array[Int],
+    authored_binding_origin~ : Int?
+  )
 }
 
 ///|
@@ -59,11 +78,18 @@ priv enum ModuleTypeBindingKind {
 }
 
 ///|
+priv enum ModuleLookupMode {
+  AuthoredModuleLookup
+  CanonicalModuleLookup
+}
+
+///|
 priv struct ModuleTypeBinding {
   owner_module_path : String
   parameter_kinds : Array[@types.Kind]
   kind : ModuleTypeBindingKind
-  import_origin : Int?
+  import_origins : Array[Int]
+  authored_binding_origin : Int?
 }
 
 ///|
@@ -186,6 +212,7 @@ fn Resolver::resolve_source_file_result(
     import_exposures: self.import_exposures,
     import_uses: self.import_uses,
     import_symbols: self.import_symbols,
+    module_binding_references: self.module_binding_references,
     declarations,
     loc: source.loc,
   }
@@ -210,7 +237,9 @@ fn Resolver::Resolver(
       effects: [],
       type_aliases: [],
     },
-    modules: [],
+    imported_modules: [],
+    module_bindings: [],
+    ambiguous_module_binding_names: [],
     types: [],
     effects: [],
     type_aliases: [],
@@ -220,6 +249,7 @@ fn Resolver::Resolver(
     import_exposures: [],
     import_uses: [],
     import_symbols: [],
+    module_binding_references: [],
     generated_reference_reports: generated_reference_reports(
       generated_references,
     ),
@@ -232,15 +262,15 @@ fn surface_generated_reference_key(
   reference : @surface.SurfaceGeneratedReference,
 ) -> GeneratedReferenceKey {
   match reference {
-    Type(name~, loc~) =>
+    Type(module_path~, name~, loc~) =>
       {
-        name: TypeReference(name),
+        name: TypeReference(module_path~, name~),
         start_offset: loc.start_offset,
         end_offset: loc.end_offset,
       }
-    Variant(type_name~, variant~, loc~) =>
+    Variant(module_path~, type_name~, variant~, loc~) =>
       {
-        name: VariantReference(type_name~, variant~),
+        name: VariantReference(module_path~, type_name~, variant~),
         start_offset: loc.start_offset,
         end_offset: loc.end_offset,
       }
@@ -264,9 +294,22 @@ fn generated_reference_key(
   loc : SourceSpan,
 ) -> GeneratedReferenceKey? {
   let name = match kind {
-    UnresolvedType(name) => TypeReference(name)
+    UnresolvedType(name) =>
+      match qualified_name_text(name) {
+        Some(qualified) =>
+          TypeReference(module_path=qualified.module_path, name=qualified.name)
+        None => return None
+      }
     UnresolvedQualifiedVariant(type_name~, variant~) =>
-      VariantReference(type_name~, variant~)
+      match qualified_name_text(type_name) {
+        Some(qualified) =>
+          VariantReference(
+            module_path=qualified.module_path,
+            type_name=qualified.name,
+            variant~,
+          )
+        None => return None
+      }
     _ => return None
   }
   Some({ name, start_offset: loc.start_offset, end_offset: loc.end_offset })
@@ -280,17 +323,24 @@ fn Resolver::publish_imported_bindings(
 ) -> Unit {
   for import_ in source.imports {
     match import_ {
-      Qualified(module_path~, loc~) => {
+      Qualified(module_path~, module_alias~, loc~) => {
         let module_path_text = @module_interface.module_path_text(module_path)
+        let (binding_name, binding_loc) = match module_alias {
+          Some(module_alias) => (module_alias.name, module_alias.name_loc)
+          None => (module_path_text, module_path.loc)
+        }
         let module_origin = self.define_import_exposure(
           module_path_text,
-          QualifiedModuleBinding,
+          QualifiedModuleBinding(name=binding_name, name_loc=binding_loc),
           loc,
         )
         self.publish_imported_module_binding(
+          binding_name,
+          binding_loc,
           module_path,
           imported_environment,
           Some(module_origin),
+          provider_origin=Some(module_origin),
         )
       }
       Open(module_path~, loc~) =>
@@ -304,7 +354,10 @@ fn Resolver::publish_imported_bindings(
             )
             let module_origin = self.define_import_exposure(
               module_path_text,
-              ImportedModuleBinding,
+              ImportedModuleBinding(
+                name=module_path_text,
+                name_loc=module_path.loc,
+              ),
               loc,
             )
             let open_origin = self.define_import_exposure(
@@ -313,9 +366,12 @@ fn Resolver::publish_imported_bindings(
               loc,
             )
             self.publish_imported_module_binding(
+              module_path_text,
+              module_path.loc,
               module_path,
               imported_environment,
               Some(module_origin),
+              provider_origin=Some(open_origin),
             )
             self.publish_imported_public_types(imported, Some(open_origin))
             self.publish_imported_public_effects(imported, Some(open_origin))
@@ -338,13 +394,19 @@ fn Resolver::publish_imported_bindings(
             )
             let module_origin = self.define_import_exposure(
               module_path_text,
-              ImportedModuleBinding,
+              ImportedModuleBinding(
+                name=module_path_text,
+                name_loc=module_path.loc,
+              ),
               loc,
             )
             self.publish_imported_module_binding(
+              module_path_text,
+              module_path.loc,
               module_path,
               imported_environment,
               Some(module_origin),
+              provider_origin=Some(module_origin),
             )
             let item_origins = self.define_selective_import_origins(
               imported, items,
@@ -387,6 +449,41 @@ fn Resolver::record_import_use(
 }
 
 ///|
+fn Resolver::record_import_uses(
+  self : Resolver,
+  origins : Array[Int],
+  loc : SourceSpan,
+) -> Unit {
+  for origin in origins {
+    self.record_import_use(Some(origin), loc)
+  }
+}
+
+///|
+fn Resolver::record_module_binding_reference(
+  self : Resolver,
+  exposure_id : Int?,
+  loc : SourceSpan,
+) -> Unit {
+  if exposure_id is Some(exposure_id) {
+    self.record_import_use(Some(exposure_id), loc)
+    if !self.module_binding_references.any(fn(reference) {
+        reference.exposure_id == exposure_id && reference.loc == loc
+      }) {
+      self.module_binding_references.push({ exposure_id, loc })
+    }
+  }
+}
+
+///|
+fn optional_import_origin(origin : Int?) -> Array[Int] {
+  match origin {
+    Some(origin) => [origin]
+    None => []
+  }
+}
+
+///|
 fn Resolver::record_import_symbol(
   self : Resolver,
   origin : Int?,
@@ -423,16 +520,49 @@ fn Resolver::define_selective_import_origins(
 ///|
 fn Resolver::publish_imported_module_binding(
   self : Resolver,
+  binding_name : String,
+  binding_loc : SourceSpan,
   module_path : @syntax.ModulePath,
   imported_environment : @module_interface.ImportedEnvironment,
   import_origin : Int?,
+  provider_origin~ : Int?,
 ) -> Unit {
   let path_text = @module_interface.module_path_text(module_path)
   guard imported_environment.find(path_text) is Some(interface) else { return }
-  if self.modules.any(fn(binding) { binding.path_text == path_text }) {
-    return
+  let imported = match self.imported_module(path_text) {
+    Some(imported) => imported
+    None => {
+      let imported = ImportedModule::{
+        path_text,
+        interface,
+        provider_origins: [],
+      }
+      self.imported_modules.push(imported)
+      imported
+    }
   }
-  self.modules.push({ path_text, interface, import_origin })
+  if provider_origin is Some(origin) &&
+    !imported.provider_origins.contains(origin) {
+    imported.provider_origins.push(origin)
+  }
+  for binding in self.module_bindings {
+    if binding.name_text == binding_name {
+      if !self.ambiguous_module_binding_names.contains(binding_name) {
+        self.ambiguous_module_binding_names.push(binding_name)
+      }
+      self.report(
+        AmbiguousModuleBinding(name=binding_name, existing_loc=binding.name_loc),
+        binding_loc,
+      )
+      return
+    }
+  }
+  self.module_bindings.push({
+    name_text: binding_name,
+    name_loc: binding_loc,
+    imported,
+    import_origin,
+  })
 }
 
 ///|
@@ -1589,11 +1719,12 @@ fn @syntax.Type::resolve_type_application_arguments(
               resolve_default_generic_arguments(arguments, resolver, scope)
           }
       }
-    QualifiedName(module_path~, name~, ..) =>
+    QualifiedName(module_path~, name~, loc~) =>
       match
-        resolver.module_type_binding(
+        resolver.module_type_binding_for_type_reference(
           @module_interface.module_path_text(module_path),
           name,
+          loc,
         ) {
         Some(binding) =>
           resolve_generic_arguments(
@@ -1645,6 +1776,7 @@ fn resolve_type_name_arguments(
   arguments : Array[@syntax.GenericArgument],
   resolver : Resolver,
   scope : ResolveScope,
+  lookup_mode? : ModuleLookupMode = AuthoredModuleLookup,
 ) -> Array[ResolvedGenericArgument] {
   match resolver.type_binding(type_name) {
     Some(binding) => {
@@ -1677,9 +1809,10 @@ fn resolve_type_name_arguments(
           match split_qualified_name(type_name) {
             Some(qualified) =>
               match
-                resolver.module_type_binding(
+                resolver.module_type_binding_with_mode(
                   qualified.module_path,
                   qualified.name,
+                  lookup_mode,
                 ) {
                 Some(binding) =>
                   resolve_generic_arguments(
@@ -1715,18 +1848,46 @@ fn owner_type_name(owner : @syntax.Type) -> String {
 }
 
 ///|
+fn nominal_owner_type_name(owner : @syntax.Type) -> String {
+  match owner {
+    Apply(callee~, ..) => owner_type_name(callee)
+    _ => owner_type_name(owner)
+  }
+}
+
+///|
 fn resolve_owner_generic_arguments(
   owner : @syntax.Type,
   resolver : Resolver,
   scope : ResolveScope,
+  lookup_mode? : ModuleLookupMode = AuthoredModuleLookup,
 ) -> ResolvedOwnerArguments {
+  if lookup_mode is AuthoredModuleLookup {
+    let base = match owner {
+      Apply(callee~, ..) => callee
+      _ => owner
+    }
+    if base is QualifiedName(module_path~, ..) {
+      let module_path_text = @module_interface.module_path_text(module_path)
+      if resolver.module_binding(module_path_text) is Some(binding) {
+        resolver.record_module_binding_reference(
+          binding.import_origin,
+          module_path.loc,
+        )
+      }
+    }
+  }
   match owner {
     Apply(callee~, arguments~, ..) => {
       let type_name = owner_type_name(callee)
       {
         type_name,
         arguments: resolve_type_name_arguments(
-          type_name, arguments, resolver, scope,
+          type_name,
+          arguments,
+          resolver,
+          scope,
+          lookup_mode~,
         ),
       }
     }
@@ -1866,9 +2027,14 @@ fn Resolver::resolve_module_qualified_type(
 ) -> ResolvedType {
   let full_name = module_qualified_name(module_path, name)
   let module_path_text = @module_interface.module_path_text(module_path)
-  match self.module_type_binding(module_path_text, name) {
+  match
+    self.module_type_binding_for_type_reference(module_path_text, name, loc) {
     Some(binding) => {
-      self.record_import_use(binding.import_origin, loc)
+      self.record_import_uses(binding.import_origins, loc)
+      self.record_module_binding_reference(
+        binding.authored_binding_origin,
+        module_path.loc,
+      )
       match binding.kind {
         NominalType(symbol~, ..) =>
           return Constructor(symbol~, name=full_name, loc~)
@@ -1906,7 +2072,11 @@ fn Resolver::resolve_module_qualified_effect_type(
       name,
     ) {
     Some(binding) => {
-      self.record_import_use(binding.import_origin, loc)
+      self.record_import_uses(binding.import_origins, loc)
+      self.record_module_binding_reference(
+        binding.authored_binding_origin,
+        module_path.loc,
+      )
       match binding.kind {
         EffectType(symbol) => {
           let arguments = resolve_generic_arguments(
@@ -2160,8 +2330,16 @@ fn @syntax.Expr::resolve_expr(
       arguments~,
       loc~
     ) => {
+      let lookup_mode = resolver.variant_lookup_mode(
+        nominal_owner_type_name(owner),
+        variant,
+        variant_loc,
+      )
       let resolved_owner = resolve_owner_generic_arguments(
-        owner, resolver, scope,
+        owner,
+        resolver,
+        scope,
+        lookup_mode~,
       )
       QualifiedVariant(
         type_name=resolved_owner.type_name,
@@ -2175,6 +2353,7 @@ fn @syntax.Expr::resolve_expr(
         reference=resolver.variant_reference(
           resolved_owner.type_name,
           variant,
+          owner.loc(),
           variant_loc,
         ),
         arguments=arguments.map(fn(argument) {
@@ -2563,12 +2742,16 @@ fn Resolver::resolve_module_value_field_chain(
   let value_name = segments[segments.length() - 1]
   match self.module_binding(module_path_text) {
     Some(module_) => {
-      self.record_import_use(module_.import_origin, loc)
+      let qualifier_loc = match expr {
+        Field(base~, ..) => base.loc()
+        _ => loc
+      }
+      self.record_module_binding_reference(module_.import_origin, qualifier_loc)
       if scope.value_reference(segments[0]) is Symbol(_) {
         self.report(AmbiguousModuleValue(full_name), loc)
         return Some(Var(name=full_name, reference=Unresolved(full_name), loc~))
       }
-      for value in module_.interface.values {
+      for value in module_.imported.interface.values {
         if value.name == value_name {
           return Some(Var(name=full_name, reference=Symbol(value.symbol), loc~))
         }
@@ -2614,11 +2797,27 @@ fn dotted_prefix_text(segments : Array[String], end : Int) -> String {
 ///|
 fn Resolver::module_binding(
   self : Resolver,
-  path_text : String,
+  name_text : String,
 ) -> ModuleBinding? {
-  for binding in self.modules {
-    if binding.path_text == path_text {
+  if self.ambiguous_module_binding_names.contains(name_text) {
+    return None
+  }
+  for binding in self.module_bindings {
+    if binding.name_text == name_text {
       return Some(binding)
+    }
+  }
+  None
+}
+
+///|
+fn Resolver::imported_module(
+  self : Resolver,
+  path_text : String,
+) -> ImportedModule? {
+  for imported in self.imported_modules {
+    if imported.path_text == path_text {
+      return Some(imported)
     }
   }
   None
@@ -2627,13 +2826,20 @@ fn Resolver::module_binding(
 ///|
 fn Resolver::module_namespace_source(
   self : Resolver,
-  path_text : String,
+  name_text : String,
 ) -> ModuleNamespaceSource? {
-  if path_text == self.local_module.path_text {
+  if name_text == self.local_module.path_text {
     Some(LocalModule(self.local_module))
   } else {
-    match self.module_binding(path_text) {
-      Some(binding) => Some(ImportedModule(binding))
+    match self.module_binding(name_text) {
+      Some(binding) =>
+        Some(
+          ImportedModule(
+            imported=binding.imported,
+            import_origins=optional_import_origin(binding.import_origin),
+            authored_binding_origin=binding.import_origin,
+          ),
+        )
       None => None
     }
   }
@@ -2652,7 +2858,8 @@ fn ModuleNamespaceSource::type_binding(
             owner_module_path: local_module.path_text,
             parameter_kinds: binding.parameter_kinds,
             kind: NominalType(symbol=binding.symbol, variants=binding.variants),
-            import_origin: None,
+            import_origins: [],
+            authored_binding_origin: None,
           })
         }
       }
@@ -2662,7 +2869,8 @@ fn ModuleNamespaceSource::type_binding(
             owner_module_path: local_module.path_text,
             parameter_kinds: binding.parameter_kinds,
             kind: EffectType(binding.symbol),
-            import_origin: None,
+            import_origins: [],
+            authored_binding_origin: None,
           })
         }
       }
@@ -2672,27 +2880,29 @@ fn ModuleNamespaceSource::type_binding(
             owner_module_path: local_module.path_text,
             parameter_kinds: binding.parameter_kinds,
             kind: TypeAlias(is_effect=binding.is_effect),
-            import_origin: None,
+            import_origins: [],
+            authored_binding_origin: None,
           })
         }
       }
       None
     }
-    ImportedModule(module_) => {
-      for type_ in module_.interface.types {
+    ImportedModule(imported~, import_origins~, authored_binding_origin~) => {
+      for type_ in imported.interface.types {
         match type_ {
           Struct(declaration) if declaration.name == name =>
             return Some({
-              owner_module_path: module_.path_text,
+              owner_module_path: imported.path_text,
               parameter_kinds: interface_type_parameter_kinds(
                 declaration.type_parameters,
               ),
               kind: NominalType(symbol=declaration.symbol, variants=[]),
-              import_origin: module_.import_origin,
+              import_origins,
+              authored_binding_origin,
             })
           Enum(declaration) if declaration.name == name =>
             return Some({
-              owner_module_path: module_.path_text,
+              owner_module_path: imported.path_text,
               parameter_kinds: interface_type_parameter_kinds(
                 declaration.type_parameters,
               ),
@@ -2702,39 +2912,43 @@ fn ModuleNamespaceSource::type_binding(
                   { name: variant.name, symbol: variant.symbol }
                 }),
               ),
-              import_origin: module_.import_origin,
+              import_origins,
+              authored_binding_origin,
             })
           External(declaration) if declaration.name == name =>
             return Some({
-              owner_module_path: module_.path_text,
+              owner_module_path: imported.path_text,
               parameter_kinds: [],
               kind: NominalType(symbol=declaration.symbol, variants=[]),
-              import_origin: module_.import_origin,
+              import_origins,
+              authored_binding_origin,
             })
           _ => ()
         }
       }
-      for effect in module_.interface.effects {
+      for effect in imported.interface.effects {
         if effect.name == name {
           return Some({
-            owner_module_path: module_.path_text,
+            owner_module_path: imported.path_text,
             parameter_kinds: interface_type_parameter_kinds(
               effect.type_parameters,
             ),
             kind: EffectType(effect.symbol),
-            import_origin: module_.import_origin,
+            import_origins,
+            authored_binding_origin,
           })
         }
       }
-      for type_alias in module_.interface.type_aliases {
+      for type_alias in imported.interface.type_aliases {
         if type_alias.name == name {
           return Some({
-            owner_module_path: module_.path_text,
+            owner_module_path: imported.path_text,
             parameter_kinds: interface_type_parameter_kinds(
               type_alias.type_parameters,
             ),
             kind: TypeAlias(is_effect=type_alias.kind == Effect),
-            import_origin: module_.import_origin,
+            import_origins,
+            authored_binding_origin,
           })
         }
       }
@@ -2752,6 +2966,123 @@ fn Resolver::module_type_binding(
   match self.module_namespace_source(module_path) {
     Some(source) => source.type_binding(name)
     None => None
+  }
+}
+
+///|
+fn Resolver::canonical_module_type_binding(
+  self : Resolver,
+  module_path : String,
+  name : String,
+) -> ModuleTypeBinding? {
+  if module_path == self.local_module.path_text {
+    return ModuleNamespaceSource::LocalModule(self.local_module).type_binding(
+      name,
+    )
+  }
+  match self.imported_module(module_path) {
+    Some(imported) =>
+      ModuleNamespaceSource::ImportedModule(
+        imported~,
+        import_origins=imported.provider_origins,
+        authored_binding_origin=None,
+      ).type_binding(name)
+    None => None
+  }
+}
+
+///|
+fn Resolver::module_type_binding_with_mode(
+  self : Resolver,
+  module_path : String,
+  name : String,
+  mode : ModuleLookupMode,
+) -> ModuleTypeBinding? {
+  match mode {
+    AuthoredModuleLookup => self.module_type_binding(module_path, name)
+    CanonicalModuleLookup =>
+      self.canonical_module_type_binding(module_path, name)
+  }
+}
+
+///|
+fn Resolver::is_generated_type_reference(
+  self : Resolver,
+  module_path : String,
+  name : String,
+  loc : SourceSpan,
+) -> Bool {
+  self.generated_reference_reports.contains({
+    name: TypeReference(module_path~, name~),
+    start_offset: loc.start_offset,
+    end_offset: loc.end_offset,
+  })
+}
+
+///|
+fn Resolver::is_generated_variant_reference(
+  self : Resolver,
+  module_path : String,
+  type_name : String,
+  variant : String,
+  loc : SourceSpan,
+) -> Bool {
+  self.generated_reference_reports.contains({
+    name: VariantReference(module_path~, type_name~, variant~),
+    start_offset: loc.start_offset,
+    end_offset: loc.end_offset,
+  })
+}
+
+///|
+fn Resolver::module_type_binding_for_type_reference(
+  self : Resolver,
+  module_path : String,
+  name : String,
+  loc : SourceSpan,
+) -> ModuleTypeBinding? {
+  if self.is_generated_type_reference(module_path, name, loc) {
+    self.canonical_module_type_binding(module_path, name)
+  } else {
+    self.module_type_binding(module_path, name)
+  }
+}
+
+///|
+fn Resolver::module_type_binding_for_variant_reference(
+  self : Resolver,
+  module_path : String,
+  type_name : String,
+  variant : String,
+  loc : SourceSpan,
+) -> ModuleTypeBinding? {
+  if self.is_generated_variant_reference(module_path, type_name, variant, loc) {
+    self.canonical_module_type_binding(module_path, type_name)
+  } else {
+    self.module_type_binding(module_path, type_name)
+  }
+}
+
+///|
+fn Resolver::variant_lookup_mode(
+  self : Resolver,
+  type_name : String,
+  variant : String,
+  loc : SourceSpan,
+) -> ModuleLookupMode {
+  match qualified_name_text(type_name) {
+    Some(qualified) =>
+      if self.is_generated_variant_reference(
+          qualified.module_path,
+          qualified.name,
+          variant,
+          loc,
+        ) {
+        CanonicalModuleLookup
+      } else {
+        AuthoredModuleLookup
+      }
+    None => AuthoredModuleLookup
   }
 }
 
@@ -3221,7 +3552,9 @@ fn @syntax.Pattern::resolve_pattern(
         variant~,
         variant_loc~,
         type_binders~,
-        reference=resolver.variant_reference(type_name, variant, variant_loc),
+        reference=resolver.variant_reference(
+          type_name, variant, type_name_loc, variant_loc,
+        ),
         arguments=arguments.map(fn(argument) {
           argument.resolve_pattern(resolver, scope)
         }),
@@ -3390,8 +3723,19 @@ fn Resolver::type_reference(
         Some(qualified) =>
           match
             self.module_type_binding(qualified.module_path, qualified.name) {
-            Some({ kind: NominalType(symbol~, ..), import_origin, .. }) => {
-              self.record_import_use(import_origin, loc)
+            Some(
+              {
+                kind: NominalType(symbol~, ..),
+                import_origins,
+                authored_binding_origin,
+                ..,
+              }
+            ) => {
+              self.record_import_uses(import_origins, loc)
+              self.record_module_binding_reference(
+                authored_binding_origin,
+                loc.ascii_prefix(qualified.module_path.length()),
+              )
               Symbol(symbol)
             }
             _ => Unresolved(name)
@@ -3469,8 +3813,8 @@ fn Resolver::field_symbol_opt(
       }
     }
   }
-  for module_ in self.modules {
-    for type_ in module_.interface.types {
+  for imported in self.imported_modules {
+    for type_ in imported.interface.types {
       if type_ is Struct(declaration) && declaration.symbol == owner {
         for field in declaration.fields {
           if field.name == name {
@@ -3501,8 +3845,8 @@ fn Resolver::type_has_member(
   if self.type_binding_for_symbol(owner) is Some(binding) {
     return binding.type_members.contains(name)
   }
-  for module_ in self.modules {
-    for type_ in module_.interface.types {
+  for imported in self.imported_modules {
+    for type_ in imported.interface.types {
       if type_ is Struct(declaration) && declaration.symbol == owner {
         return declaration.type_members.any(fn(item) { item.name == name })
       }
@@ -3689,8 +4033,8 @@ fn Resolver::operation_binding(
       }
     }
   }
-  for module_ in self.modules {
-    for effect in module_.interface.effects {
+  for imported in self.imported_modules {
+    for effect in imported.interface.effects {
       if effect.symbol == owner {
         for operation in effect.operations {
           if operation.name == name {
@@ -3857,9 +4201,11 @@ fn Resolver::variant_reference(
   self : Resolver,
   type_name : String,
   variant : String,
+  type_name_loc : SourceSpan,
   loc : SourceSpan,
 ) -> ResolvedVariantReference {
-  if self.qualified_variant_symbol(type_name, variant, loc) is Some(symbol) {
+  if self.qualified_variant_symbol(type_name, variant, type_name_loc, loc)
+    is Some(symbol) {
     return Symbol(symbol)
   }
   if self.type_binding(type_name) is Some(binding) {
@@ -3898,13 +4244,31 @@ fn Resolver::qualified_variant_symbol(
   self : Resolver,
   type_name : String,
   variant : String,
+  type_name_loc : SourceSpan,
   loc : SourceSpan,
 ) -> VariantSymbolId? {
   match qualified_name_text(type_name) {
     Some(qualified) =>
-      match self.module_type_binding(qualified.module_path, qualified.name) {
-        Some({ kind: NominalType(variants~, ..), import_origin, .. }) => {
-          self.record_import_use(import_origin, loc)
+      match
+        self.module_type_binding_for_variant_reference(
+          qualified.module_path,
+          qualified.name,
+          variant,
+          loc,
+        ) {
+        Some(
+          {
+            kind: NominalType(variants~, ..),
+            import_origins,
+            authored_binding_origin,
+            ..,
+          }
+        ) => {
+          self.record_import_uses(import_origins, loc)
+          self.record_module_binding_reference(
+            authored_binding_origin,
+            type_name_loc.ascii_prefix(qualified.module_path.length()),
+          )
           for item in variants {
             if item.name == variant {
               return Some(item.symbol)

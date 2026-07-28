@@ -34,6 +34,7 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
   PayloadlessVariantWithoutParens(String)
   ConflictingTopLevelValue(name~ : String, existing~ : String, incoming~ : String, existing_source_id~ : String?, existing_loc~ : @basic.SourceSpan?, existing_origin~ : String?)
+  AmbiguousModuleBinding(name~ : String, existing_loc~ : @basic.SourceSpan)
   ConflictingTopLevelTypeAndEffectName(name~ : String, type_kind~ : String, effect_kind~ : String)
   AmbiguousModuleValue(String)
   AmbiguousUnqualifiedVariant(name~ : String, candidates~ : Array[ResolveVariantCandidate])
@@ -250,8 +251,8 @@ pub(all) struct ResolvedImportExposure {
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ResolvedImportExposureKind {
-  QualifiedModuleBinding
-  ImportedModuleBinding
+  QualifiedModuleBinding(name~ : String, name_loc~ : @basic.SourceSpan)
+  ImportedModuleBinding(name~ : String, name_loc~ : @basic.SourceSpan)
   OpenBinding
   SelectiveBinding(name~ : String)
 } derive(Eq, @debug.Debug)
@@ -307,6 +308,11 @@ pub(all) struct ResolvedMatchArm {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedMatchArm
 
+pub(all) struct ResolvedModuleBindingReference {
+  exposure_id : Int
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
 pub(all) enum ResolvedOperationReference {
   Symbol(@symbol.OperationSymbolId)
   Unresolved(String)
@@ -340,6 +346,7 @@ pub(all) struct ResolvedSourceFile {
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
+  module_binding_references : Array[ResolvedModuleBindingReference]
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

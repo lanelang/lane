@@ -8,6 +8,7 @@ priv enum AnalysisSymbolKey {
   OperationKey(Int)
   TypeParameterKey(Int)
   TypeMemberKey(Int)
+  ModuleBindingKey(source_id~ : String, exposure_id~ : Int)
 } derive(Eq, Hash)
 
 ///|
@@ -58,5 +59,7 @@ fn analysis_symbol_key(symbol : AnalysisSymbol) -> AnalysisSymbolKey {
     Operation(id) => OperationKey(id.index)
     TypeParameter(id) => TypeParameterKey(id.index)
     TypeMember(id) => TypeMemberKey(id.index)
+    ModuleBinding(source_id~, exposure_id~) =>
+      ModuleBindingKey(source_id~, exposure_id~)
   }
 }

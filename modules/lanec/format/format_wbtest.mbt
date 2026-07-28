@@ -30,6 +30,28 @@ fn canonical_syntax(source : String) -> String {
 }
 
 ///|
+test "format source preserves comments around an import alias" {
+  assert_format(
+    (
+      #|module Test
+      #|import Basic.Data.List // before as
+      #|as // before alias
+      #|List
+    ),
+    (
+      #|module Test
+      #|
+      #|import Basic.Data.List
+      #|// before as
+      #|as
+      #|// before alias
+      #|List
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves omitted struct type member kinds" {
   assert_format(
     "module Test\nstruct Packed { type T; value : T }\nstruct Explicit { type T : Type; value : T }",

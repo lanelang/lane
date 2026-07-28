@@ -1,7 +1,12 @@
 ///|
 pub(all) enum SurfaceGeneratedReference {
-  Type(name~ : String, loc~ : @basic.SourceSpan)
-  Variant(type_name~ : String, variant~ : String, loc~ : @basic.SourceSpan)
+  Type(module_path~ : String, name~ : String, loc~ : @basic.SourceSpan)
+  Variant(
+    module_path~ : String,
+    type_name~ : String,
+    variant~ : String,
+    loc~ : @basic.SourceSpan
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -181,7 +186,9 @@ fn SurfaceExpander::expand_type(
         loc~,
       )
     Tuple(items~, loc~) => {
-      self.generated_references.push(Type(name="Basic.Data.Tuple.Tuple", loc~))
+      self.generated_references.push(
+        Type(module_path="Basic.Data.Tuple", name="Tuple", loc~),
+      )
       expand_right_nested(items, fn(item) { self.expand_type(item) }, fn(
         left,
         right,
@@ -305,17 +312,32 @@ fn SurfaceExpander::expand_expression(
     ListLiteral(items~, loc~) => {
       if !items.is_empty() {
         self.generated_references.push(
-          Variant(type_name="Basic.Data.List.List", variant="cons", loc~),
+          Variant(
+            module_path="Basic.Data.List",
+            type_name="List",
+            variant="cons",
+            loc~,
+          ),
         )
       }
       self.generated_references.push(
-        Variant(type_name="Basic.Data.List.List", variant="empty", loc~),
+        Variant(
+          module_path="Basic.Data.List",
+          type_name="List",
+          variant="empty",
+          loc~,
+        ),
       )
       self.expand_list_expression(items, 0, loc)
     }
     TupleLiteral(items~, loc~) => {
       self.generated_references.push(
-        Variant(type_name="Basic.Data.Tuple.Tuple", variant="tuple", loc~),
+        Variant(
+          module_path="Basic.Data.Tuple",
+          type_name="Tuple",
+          variant="tuple",
+          loc~,
+        ),
       )
       expand_right_nested(items, fn(item) { self.expand_expression(item) }, fn(
         left,
@@ -556,7 +578,12 @@ fn SurfaceExpander::expand_pattern(
       )
     Tuple(items~, loc~) => {
       self.generated_references.push(
-        Variant(type_name="Basic.Data.Tuple.Tuple", variant="tuple", loc~),
+        Variant(
+          module_path="Basic.Data.Tuple",
+          type_name="Tuple",
+          variant="tuple",
+          loc~,
+        ),
       )
       expand_right_nested(items, fn(item) { self.expand_pattern(item) }, fn(
         left,

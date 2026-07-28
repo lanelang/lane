@@ -1561,6 +1561,15 @@
       }
     },
     {
+      "name": "77 aliased qualified imports",
+      "file": "examples/valid/77_aliased_qualified_imports.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "aliased qualified imports=42"
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
@@ -1581,6 +1590,17 @@
         "contains": [
           "error[E3006]",
           "expected `Tuple[Bool, String]`, found `Bool`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 72 alias does not bind canonical path",
+      "file": "examples/invalid/72_alias_does_not_bind_canonical_path.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E2000]",
+          "cannot find type `Basic.Data.Option.Option`"
         ]
       }
     },

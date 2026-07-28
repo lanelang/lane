@@ -209,7 +209,7 @@ pub(all) struct HandlerWithBlock {
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ImportDeclaration {
-  Qualified(module_path~ : ModulePath, loc~ : @basic.SourceSpan)
+  Qualified(module_path~ : ModulePath, module_alias~ : ModuleAlias?, loc~ : @basic.SourceSpan)
   Open(module_path~ : ModulePath, loc~ : @basic.SourceSpan)
   Selective(module_path~ : ModulePath, items~ : Array[ImportItem], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
@@ -262,6 +262,12 @@ pub(all) struct MatchArm {
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for MatchArm
 pub impl @prettyprinter.Pretty for MatchArm
+
+pub(all) struct ModuleAlias {
+  name : String
+  name_loc : @basic.SourceSpan
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModulePath {
   components : Array[String]

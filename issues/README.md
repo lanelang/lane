@@ -271,6 +271,11 @@ graph TD
   ISS_240["ISS-240: Separate coverage witnesses from checked source patterns"]
   ISS_241["ISS-241: Deepen completion cursor classification"]
   ISS_242["ISS-242: Split resolver collection by semantic responsibility"]
+  ISS_243["ISS-243: Implement aliased qualified imports"]
+  ISS_244["ISS-244: Record aliased qualified import semantics"]
+  ISS_245["ISS-245: Add aliased import syntax and source representation"]
+  ISS_246["ISS-246: Separate imported modules from lexical module bindings"]
+  ISS_247["ISS-247: Complete alias analysis and end-to-end validation"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -499,6 +504,13 @@ graph TD
   ISS_232 --> ISS_234
   ISS_233 --> ISS_235
   ISS_234 --> ISS_235
+  ISS_244 --> ISS_243
+  ISS_245 --> ISS_243
+  ISS_246 --> ISS_243
+  ISS_247 --> ISS_243
+  ISS_244 --> ISS_245
+  ISS_245 --> ISS_246
+  ISS_246 --> ISS_247
 ```
 
 ## Warnings
