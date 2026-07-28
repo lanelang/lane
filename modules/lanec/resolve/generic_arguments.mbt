@@ -160,19 +160,6 @@ fn resolve_owner_generic_arguments(
   resolver : Resolver,
   scope : ResolveScope,
 ) -> ResolvedOwnerArguments {
-  let base = match owner {
-    Apply(callee~, ..) => callee
-    _ => owner
-  }
-  if base is QualifiedName(module_path~, ..) {
-    let module_path_text = @module_interface.module_path_text(module_path)
-    if resolver.module_binding(module_path_text) is Some(binding) {
-      resolver.record_module_binding_reference(
-        binding.import_origin,
-        module_path.loc,
-      )
-    }
-  }
   match owner {
     Apply(callee~, arguments~, ..) => {
       let type_name = owner_type_name(callee)

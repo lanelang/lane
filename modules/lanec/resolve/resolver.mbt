@@ -66,7 +66,6 @@ priv struct ModuleTypeBinding {
   parameter_kinds : Array[@types.Kind]
   kind : ModuleTypeBindingKind
   import_origins : Array[Int]
-  authored_binding_origin : Int?
 }
 
 ///|

@@ -94,6 +94,43 @@ test "module alias qualifiers navigate to their source binder" {
 }
 
 ///|
+test "module alias qualifiers navigate when qualified members are missing" {
+  let root =
+    #|module Main
+    #|import Basic.Long.Library as L
+    #|
+    #|pub fn type_use(value : L.Missing) -> Unit { () }
+    #|pub fn effect_use() -> Unit ! L.Missing { () }
+    #|pub fn variant_use() -> Unit {
+    #|  match () {
+    #|    L.Missing::missing() => ()
+    #|  }
+    #|}
+  let snapshot = import_alias_snapshot(root, [
+    ("file:///Library.lane", import_alias_library()),
+  ])
+  let alias_definition : AnalysisLocation = {
+    source_id: "file:///Main.lane",
+    span: {
+      start_offset: 41,
+      end_offset: 42,
+      start_line: 2,
+      start_column: 30,
+      end_line: 2,
+      end_column: 31,
+    },
+  }
+  assert_eq(
+    [
+      snapshot.definition_at("file:///Main.lane", 4, 25),
+      snapshot.definition_at("file:///Main.lane", 5, 31),
+      snapshot.definition_at("file:///Main.lane", 8, 5),
+    ],
+    [Some(alias_definition), Some(alias_definition), Some(alias_definition)],
+  )
+}
+
+///|
 test "qualified members keep their original definitions through an alias" {
   let root =
     #|module Main

@@ -291,6 +291,27 @@ fn Resolver::module_namespace_source(
 }
 
 ///|
+fn Resolver::resolve_authored_module_namespace(
+  self : Resolver,
+  name_text : String,
+  qualifier_loc : SourceSpan,
+) -> ModuleNamespaceSource? {
+  match self.module_namespace_source(name_text) {
+    Some(source) => {
+      match source {
+        ImportedModule(authored_binding_origin~, ..) =>
+          self.record_module_binding_reference(
+            authored_binding_origin, qualifier_loc,
+          )
+        LocalModule(_) => ()
+      }
+      Some(source)
+    }
+    None => None
+  }
+}
+
+///|
 fn ModuleNamespaceSource::type_binding(
   self : ModuleNamespaceSource,
   name : String,
@@ -304,7 +325,6 @@ fn ModuleNamespaceSource::type_binding(
             parameter_kinds: binding.parameter_kinds,
             kind: NominalType(symbol=binding.symbol, variants=binding.variants),
             import_origins: [],
-            authored_binding_origin: None,
           })
         }
       }
@@ -315,7 +335,6 @@ fn ModuleNamespaceSource::type_binding(
             parameter_kinds: binding.parameter_kinds,
             kind: EffectType(binding.symbol),
             import_origins: [],
-            authored_binding_origin: None,
           })
         }
       }
@@ -326,13 +345,12 @@ fn ModuleNamespaceSource::type_binding(
             parameter_kinds: binding.parameter_kinds,
             kind: TypeAlias(symbol=binding.symbol, is_effect=binding.is_effect),
             import_origins: [],
-            authored_binding_origin: None,
           })
         }
       }
       None
     }
-    ImportedModule(imported~, import_origins~, authored_binding_origin~) => {
+    ImportedModule(imported~, import_origins~, ..) => {
       for type_ in imported.interface.types {
         match type_ {
           Struct(declaration) if declaration.name == name =>
@@ -343,7 +361,6 @@ fn ModuleNamespaceSource::type_binding(
               ),
               kind: NominalType(symbol=declaration.symbol, variants=[]),
               import_origins,
-              authored_binding_origin,
             })
           Enum(declaration) if declaration.name == name =>
             return Some({
@@ -358,7 +375,6 @@ fn ModuleNamespaceSource::type_binding(
                 }),
               ),
               import_origins,
-              authored_binding_origin,
             })
           External(declaration) if declaration.name == name =>
             return Some({
@@ -366,7 +382,6 @@ fn ModuleNamespaceSource::type_binding(
               parameter_kinds: [],
               kind: NominalType(symbol=declaration.symbol, variants=[]),
               import_origins,
-              authored_binding_origin,
             })
           _ => ()
         }
@@ -380,7 +395,6 @@ fn ModuleNamespaceSource::type_binding(
             ),
             kind: EffectType(effect.symbol),
             import_origins,
-            authored_binding_origin,
           })
         }
       }
@@ -396,7 +410,6 @@ fn ModuleNamespaceSource::type_binding(
               is_effect=type_alias.kind == Effect,
             ),
             import_origins,
-            authored_binding_origin,
           })
         }
       }
@@ -549,23 +562,19 @@ fn Resolver::type_reference(
       match qualified_name_text(name) {
         Some(qualified) =>
           match
-            self.module_type_binding(qualified.module_path, qualified.name) {
-            Some(
-              {
-                kind: NominalType(symbol~, ..),
-                import_origins,
-                authored_binding_origin,
-                ..,
+            self.resolve_authored_module_namespace(
+              qualified.module_path,
+              loc.ascii_prefix(qualified.module_path.length()),
+            ) {
+            Some(source) =>
+              match source.type_binding(qualified.name) {
+                Some({ kind: NominalType(symbol~, ..), import_origins, .. }) => {
+                  self.record_import_uses(import_origins, loc)
+                  Symbol(symbol)
+                }
+                _ => Unresolved(name)
               }
-            ) => {
-              self.record_import_uses(import_origins, loc)
-              self.record_module_binding_reference(
-                authored_binding_origin,
-                loc.ascii_prefix(qualified.module_path.length()),
-              )
-              Symbol(symbol)
-            }
-            _ => Unresolved(name)
+            None => Unresolved(name)
           }
         None => Unresolved(name)
       }
@@ -1008,28 +1017,25 @@ fn Resolver::qualified_variant_symbol(
 ) -> VariantSymbolId? {
   match qualified_name_text(type_name) {
     Some(qualified) =>
-      match self.module_type_binding(qualified.module_path, qualified.name) {
-        Some(
-          {
-            kind: NominalType(variants~, ..),
-            import_origins,
-            authored_binding_origin,
-            ..,
-          }
-        ) => {
-          self.record_import_uses(import_origins, loc)
-          self.record_module_binding_reference(
-            authored_binding_origin,
-            type_name_loc.ascii_prefix(qualified.module_path.length()),
-          )
-          for item in variants {
-            if item.name == variant {
-              return Some(item.symbol)
+      match
+        self.resolve_authored_module_namespace(
+          qualified.module_path,
+          type_name_loc.ascii_prefix(qualified.module_path.length()),
+        ) {
+        Some(source) =>
+          match source.type_binding(qualified.name) {
+            Some({ kind: NominalType(variants~, ..), import_origins, .. }) => {
+              self.record_import_uses(import_origins, loc)
+              for item in variants {
+                if item.name == variant {
+                  return Some(item.symbol)
+                }
+              }
+              None
             }
+            _ => None
           }
-          None
-        }
-        _ => None
+        None => None
       }
     None => None
   }

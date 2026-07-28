@@ -116,17 +116,18 @@ fn Resolver::resolve_module_qualified_effect_type(
   loc : SourceSpan,
 ) -> ResolvedEffectTerm {
   let full_name = module_qualified_name(module_path, name)
-  match
-    self.module_type_binding(
+  guard self.resolve_authored_module_namespace(
       @module_interface.module_path_text(module_path),
-      name,
-    ) {
+      module_path.loc,
+    )
+    is Some(source) else {
+    let arguments = resolve_default_generic_arguments(arguments, self, scope)
+    self.report(UnresolvedType(full_name), loc)
+    return Unresolved(name=full_name, arguments~, loc~)
+  }
+  match source.type_binding(name) {
     Some(binding) => {
       self.record_import_uses(binding.import_origins, loc)
-      self.record_module_binding_reference(
-        binding.authored_binding_origin,
-        module_path.loc,
-      )
       match binding.kind {
         EffectType(symbol) => {
           let arguments = resolve_generic_arguments(
@@ -154,16 +155,12 @@ fn Resolver::resolve_module_qualified_effect_type(
         }
         NominalType(_) | TypeAlias(is_effect=false, ..) => ()
       }
-      let arguments = resolve_default_generic_arguments(arguments, self, scope)
-      self.report(UnresolvedType(full_name), loc)
-      Unresolved(name=full_name, arguments~, loc~)
     }
-    None => {
-      let arguments = resolve_default_generic_arguments(arguments, self, scope)
-      self.report(UnresolvedType(full_name), loc)
-      Unresolved(name=full_name, arguments~, loc~)
-    }
+    None => ()
   }
+  let arguments = resolve_default_generic_arguments(arguments, self, scope)
+  self.report(UnresolvedType(full_name), loc)
+  Unresolved(name=full_name, arguments~, loc~)
 }
 
 ///|

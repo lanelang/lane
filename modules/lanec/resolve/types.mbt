@@ -101,13 +101,17 @@ fn Resolver::resolve_module_qualified_type(
 ) -> ResolvedType {
   let full_name = module_qualified_name(module_path, name)
   let module_path_text = @module_interface.module_path_text(module_path)
-  match self.module_type_binding(module_path_text, name) {
+  guard self.resolve_authored_module_namespace(
+      module_path_text,
+      module_path.loc,
+    )
+    is Some(source) else {
+    self.report(UnresolvedType(full_name), loc)
+    return Unresolved(name=full_name, arguments=[], loc~)
+  }
+  match source.type_binding(name) {
     Some(binding) => {
       self.record_import_uses(binding.import_origins, loc)
-      self.record_module_binding_reference(
-        binding.authored_binding_origin,
-        module_path.loc,
-      )
       match binding.kind {
         NominalType(symbol~, ..) =>
           return Constructor(symbol~, name=full_name, loc~)
@@ -120,14 +124,11 @@ fn Resolver::resolve_module_qualified_type(
           )
         EffectType(_) => ()
       }
-      self.report(UnresolvedType(full_name), loc)
-      Unresolved(name=full_name, arguments=[], loc~)
     }
-    None => {
-      self.report(UnresolvedType(full_name), loc)
-      Unresolved(name=full_name, arguments=[], loc~)
-    }
+    None => ()
   }
+  self.report(UnresolvedType(full_name), loc)
+  Unresolved(name=full_name, arguments=[], loc~)
 }
 
 ///|
