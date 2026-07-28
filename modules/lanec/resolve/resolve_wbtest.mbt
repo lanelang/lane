@@ -1018,7 +1018,7 @@ test "report unresolved operator operation name" {
 ///|
 test "resolver reports repeated diagnostics independently" {
   let file = expect_parse_ok("fn value() -> Int { 0 }")
-  let resolver = Resolver::Resolver(SymbolRegistry(), None, "Test", [])
+  let resolver = Resolver::Resolver(SymbolRegistry(), None, "Test")
   resolver.report(UnresolvedValue("missing"), file.loc)
   resolver.report(UnresolvedValue("missing"), file.loc)
   inspect(
@@ -1033,7 +1033,7 @@ test "resolver reports repeated diagnostics independently" {
 }
 
 ///|
-test "surface expansion reports each generated reference once" {
+test "sugar resolution resolves each canonical provider once" {
   let file = expect_parse_ok(
     (
       #|fn tuple_type(value : (Int, Bool, String, Double)) -> Int {

@@ -164,7 +164,7 @@ right.
 _Avoid_: flat n-tuple, arity-specific tuple type, singleton tuple
 
 **Sugar Provider ABI**:
-The fixed fully qualified declarations targeted by built-in surface expansion:
+The fixed fully qualified declarations targeted by built-in sugar resolution:
 `Basic.Data.Tuple.Tuple`, `Basic.Data.Tuple.Tuple::tuple`,
 `Basic.Data.List.List`, `Basic.Data.List.List::empty`, and
 `Basic.Data.List.List::cons`.
@@ -206,7 +206,7 @@ _Avoid_: enum variant, nominal constructor
   `Basic.Data.Tuple` all make the canonical module target available to
   **Tuple Syntax**. The sugar does not depend on the local module binding name
   or on which declarations the import also exposes as unqualified names.
-- **Surface Sugar Expansion** targets the exact declarations in the **Sugar
+- **Sugar Resolution** targets the exact declarations in the **Sugar
   Provider ABI**. Missing imports, declarations, or incompatible signatures use
   ordinary resolution and typechecking diagnostics; the compiler neither
   configures providers nor searches for structurally similar declarations.

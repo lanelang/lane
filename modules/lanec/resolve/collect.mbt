@@ -16,26 +16,8 @@ priv struct Resolver {
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
   module_binding_references : Array[ResolvedModuleBindingReference]
-  generated_reference_reports : Map[GeneratedReferenceKey, Bool]
   diagnostics : Array[ResolveDiagnostic]
 }
-
-///|
-priv enum GeneratedReferenceName {
-  TypeReference(module_path~ : String, name~ : String)
-  VariantReference(
-    module_path~ : String,
-    type_name~ : String,
-    variant~ : String
-  )
-} derive(Eq, Hash)
-
-///|
-priv struct GeneratedReferenceKey {
-  name : GeneratedReferenceName
-  start_offset : Int
-  end_offset : Int
-} derive(Eq, Hash)
 
 ///|
 priv struct ImportedModule {
@@ -75,12 +57,6 @@ priv enum ModuleTypeBindingKind {
   NominalType(symbol~ : TypeSymbolId, variants~ : Array[VariantBinding])
   EffectType(EffectSymbolId)
   TypeAlias(is_effect~ : Bool)
-}
-
-///|
-priv enum ModuleLookupMode {
-  AuthoredModuleLookup
-  CanonicalModuleLookup
 }
 
 ///|
@@ -153,25 +129,18 @@ priv struct QualifiedNameText {
 }
 
 ///|
-fn[T] surface_sugar_reached_resolver() -> T {
-  abort("surface sugar must be expanded before name resolution")
-}
-
-///|
 /// Resolves a syntax source file and returns diagnostics with the result.
 ///
 /// Example: resolving `fn f(x : Missing) -> Int { x }` records an unresolved
 /// type diagnostic while still returning a resolved tree for later phases.
 pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult {
   let registry = SymbolRegistry()
-  let expanded = @surface.expand_source(source)
   let resolver = Resolver::Resolver(
     registry,
     None,
-    @module_interface.module_path_text(expanded.source.module_path),
-    expanded.generated_references,
+    @module_interface.module_path_text(source.module_path),
   )
-  resolver.resolve_source_file_result(expanded.source)
+  resolver.resolve_source_file_result(source)
 }
 
 ///|
@@ -183,15 +152,13 @@ pub fn resolve_source_file_with_imports_result(
   imported_environment : @module_interface.ImportedEnvironment,
   previous_declarations? : @symbol.DeclarationIdentities? = None,
 ) -> ResolveResult {
-  let expanded = @surface.expand_source(source)
   let resolver = Resolver::Resolver(
     registry,
     previous_declarations,
-    @module_interface.module_path_text(expanded.source.module_path),
-    expanded.generated_references,
+    @module_interface.module_path_text(source.module_path),
   )
-  resolver.publish_imported_bindings(expanded.source, imported_environment)
-  resolver.resolve_source_file_result(expanded.source)
+  resolver.publish_imported_bindings(source, imported_environment)
+  resolver.resolve_source_file_result(source)
 }
 
 ///|
@@ -224,7 +191,6 @@ fn Resolver::Resolver(
   registry : SymbolRegistry,
   previous_declarations : @symbol.DeclarationIdentities?,
   current_module_path : String,
-  generated_references : Array[@surface.SurfaceGeneratedReference],
 ) -> Resolver {
   {
     registry,
@@ -250,69 +216,8 @@ fn Resolver::Resolver(
     import_uses: [],
     import_symbols: [],
     module_binding_references: [],
-    generated_reference_reports: generated_reference_reports(
-      generated_references,
-    ),
     diagnostics: [],
   }
-}
-
-///|
-fn surface_generated_reference_key(
-  reference : @surface.SurfaceGeneratedReference,
-) -> GeneratedReferenceKey {
-  match reference {
-    Type(module_path~, name~, loc~) =>
-      {
-        name: TypeReference(module_path~, name~),
-        start_offset: loc.start_offset,
-        end_offset: loc.end_offset,
-      }
-    Variant(module_path~, type_name~, variant~, loc~) =>
-      {
-        name: VariantReference(module_path~, type_name~, variant~),
-        start_offset: loc.start_offset,
-        end_offset: loc.end_offset,
-      }
-  }
-}
-
-///|
-fn generated_reference_reports(
-  references : Array[@surface.SurfaceGeneratedReference],
-) -> Map[GeneratedReferenceKey, Bool] {
-  let reports : Map[GeneratedReferenceKey, Bool] = Map([])
-  for reference in references {
-    reports[surface_generated_reference_key(reference)] = false
-  }
-  reports
-}
-
-///|
-fn generated_reference_key(
-  kind : ResolveDiagnosticKind,
-  loc : SourceSpan,
-) -> GeneratedReferenceKey? {
-  let name = match kind {
-    UnresolvedType(name) =>
-      match qualified_name_text(name) {
-        Some(qualified) =>
-          TypeReference(module_path=qualified.module_path, name=qualified.name)
-        None => return None
-      }
-    UnresolvedQualifiedVariant(type_name~, variant~) =>
-      match qualified_name_text(type_name) {
-        Some(qualified) =>
-          VariantReference(
-            module_path=qualified.module_path,
-            type_name=qualified.name,
-            variant~,
-          )
-        None => return None
-      }
-    _ => return None
-  }
-  Some({ name, start_offset: loc.start_offset, end_offset: loc.end_offset })
 }
 
 ///|
@@ -1635,7 +1540,7 @@ fn @syntax.Type::resolve_type(
                       match resolver.qualified_type_symbol_opt(name) {
                         Some(symbol) => Constructor(symbol~, name~, loc~)
                         None => {
-                          resolver.report_reference(UnresolvedType(name), loc)
+                          resolver.report(UnresolvedType(name), loc)
                           Unresolved(name~, arguments=[], loc~)
                         }
                       }
@@ -1683,7 +1588,7 @@ fn @syntax.Type::resolve_type(
         loc~,
       )
     }
-    Tuple(_) => surface_sugar_reached_resolver()
+    Tuple(_) => self.resolve_tuple_type(resolver, scope)
     Grouped(type_~, ..) => type_.resolve_type(resolver, scope)
   }
 }
@@ -1719,12 +1624,11 @@ fn @syntax.Type::resolve_type_application_arguments(
               resolve_default_generic_arguments(arguments, resolver, scope)
           }
       }
-    QualifiedName(module_path~, name~, loc~) =>
+    QualifiedName(module_path~, name~, ..) =>
       match
-        resolver.module_type_binding_for_type_reference(
+        resolver.module_type_binding(
           @module_interface.module_path_text(module_path),
           name,
-          loc,
         ) {
         Some(binding) =>
           resolve_generic_arguments(
@@ -1776,7 +1680,6 @@ fn resolve_type_name_arguments(
   arguments : Array[@syntax.GenericArgument],
   resolver : Resolver,
   scope : ResolveScope,
-  lookup_mode? : ModuleLookupMode = AuthoredModuleLookup,
 ) -> Array[ResolvedGenericArgument] {
   match resolver.type_binding(type_name) {
     Some(binding) => {
@@ -1809,10 +1712,9 @@ fn resolve_type_name_arguments(
           match split_qualified_name(type_name) {
             Some(qualified) =>
               match
-                resolver.module_type_binding_with_mode(
+                resolver.module_type_binding(
                   qualified.module_path,
                   qualified.name,
-                  lookup_mode,
                 ) {
                 Some(binding) =>
                   resolve_generic_arguments(
@@ -1848,33 +1750,22 @@ fn owner_type_name(owner : @syntax.Type) -> String {
 }
 
 ///|
-fn nominal_owner_type_name(owner : @syntax.Type) -> String {
-  match owner {
-    Apply(callee~, ..) => owner_type_name(callee)
-    _ => owner_type_name(owner)
-  }
-}
-
-///|
 fn resolve_owner_generic_arguments(
   owner : @syntax.Type,
   resolver : Resolver,
   scope : ResolveScope,
-  lookup_mode? : ModuleLookupMode = AuthoredModuleLookup,
 ) -> ResolvedOwnerArguments {
-  if lookup_mode is AuthoredModuleLookup {
-    let base = match owner {
-      Apply(callee~, ..) => callee
-      _ => owner
-    }
-    if base is QualifiedName(module_path~, ..) {
-      let module_path_text = @module_interface.module_path_text(module_path)
-      if resolver.module_binding(module_path_text) is Some(binding) {
-        resolver.record_module_binding_reference(
-          binding.import_origin,
-          module_path.loc,
-        )
-      }
+  let base = match owner {
+    Apply(callee~, ..) => callee
+    _ => owner
+  }
+  if base is QualifiedName(module_path~, ..) {
+    let module_path_text = @module_interface.module_path_text(module_path)
+    if resolver.module_binding(module_path_text) is Some(binding) {
+      resolver.record_module_binding_reference(
+        binding.import_origin,
+        module_path.loc,
+      )
     }
   }
   match owner {
@@ -1883,11 +1774,7 @@ fn resolve_owner_generic_arguments(
       {
         type_name,
         arguments: resolve_type_name_arguments(
-          type_name,
-          arguments,
-          resolver,
-          scope,
-          lookup_mode~,
+          type_name, arguments, resolver, scope,
         ),
       }
     }
@@ -1986,7 +1873,7 @@ fn @syntax.Type::resolve_effect_type(
                   let resolved_arguments = arguments.map(fn(argument) {
                     argument.resolve_default_generic_argument(resolver, scope)
                   })
-                  resolver.report_reference(UnresolvedType(name), loc)
+                  resolver.report(UnresolvedType(name), loc)
                   Unresolved(name~, arguments=resolved_arguments, loc~)
                 }
               }
@@ -2027,8 +1914,7 @@ fn Resolver::resolve_module_qualified_type(
 ) -> ResolvedType {
   let full_name = module_qualified_name(module_path, name)
   let module_path_text = @module_interface.module_path_text(module_path)
-  match
-    self.module_type_binding_for_type_reference(module_path_text, name, loc) {
+  match self.module_type_binding(module_path_text, name) {
     Some(binding) => {
       self.record_import_uses(binding.import_origins, loc)
       self.record_module_binding_reference(
@@ -2046,11 +1932,11 @@ fn Resolver::resolve_module_qualified_type(
           )
         EffectType(_) => ()
       }
-      self.report_reference(UnresolvedType(full_name), loc)
+      self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments=[], loc~)
     }
     None => {
-      self.report_reference(UnresolvedType(full_name), loc)
+      self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments=[], loc~)
     }
   }
@@ -2104,12 +1990,12 @@ fn Resolver::resolve_module_qualified_effect_type(
         NominalType(_) | TypeAlias(is_effect=false) => ()
       }
       let arguments = resolve_default_generic_arguments(arguments, self, scope)
-      self.report_reference(UnresolvedType(full_name), loc)
+      self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
     None => {
       let arguments = resolve_default_generic_arguments(arguments, self, scope)
-      self.report_reference(UnresolvedType(full_name), loc)
+      self.report(UnresolvedType(full_name), loc)
       Unresolved(name=full_name, arguments~, loc~)
     }
   }
@@ -2330,16 +2216,8 @@ fn @syntax.Expr::resolve_expr(
       arguments~,
       loc~
     ) => {
-      let lookup_mode = resolver.variant_lookup_mode(
-        nominal_owner_type_name(owner),
-        variant,
-        variant_loc,
-      )
       let resolved_owner = resolve_owner_generic_arguments(
-        owner,
-        resolver,
-        scope,
-        lookup_mode~,
+        owner, resolver, scope,
       )
       QualifiedVariant(
         type_name=resolved_owner.type_name,
@@ -2375,7 +2253,8 @@ fn @syntax.Expr::resolve_expr(
         loc~,
       )
     }
-    ListLiteral(_) | TupleLiteral(_) => surface_sugar_reached_resolver()
+    ListLiteral(_) => self.resolve_list_literal(resolver, scope)
+    TupleLiteral(_) => self.resolve_tuple_literal(resolver, scope)
     Builtin(name, loc~) => Builtin(name, loc~)
     Extern(name, loc~) => Extern(name, loc~)
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
@@ -2970,123 +2849,6 @@ fn Resolver::module_type_binding(
 }
 
 ///|
-fn Resolver::canonical_module_type_binding(
-  self : Resolver,
-  module_path : String,
-  name : String,
-) -> ModuleTypeBinding? {
-  if module_path == self.local_module.path_text {
-    return ModuleNamespaceSource::LocalModule(self.local_module).type_binding(
-      name,
-    )
-  }
-  match self.imported_module(module_path) {
-    Some(imported) =>
-      ModuleNamespaceSource::ImportedModule(
-        imported~,
-        import_origins=imported.provider_origins,
-        authored_binding_origin=None,
-      ).type_binding(name)
-    None => None
-  }
-}
-
-///|
-fn Resolver::module_type_binding_with_mode(
-  self : Resolver,
-  module_path : String,
-  name : String,
-  mode : ModuleLookupMode,
-) -> ModuleTypeBinding? {
-  match mode {
-    AuthoredModuleLookup => self.module_type_binding(module_path, name)
-    CanonicalModuleLookup =>
-      self.canonical_module_type_binding(module_path, name)
-  }
-}
-
-///|
-fn Resolver::is_generated_type_reference(
-  self : Resolver,
-  module_path : String,
-  name : String,
-  loc : SourceSpan,
-) -> Bool {
-  self.generated_reference_reports.contains({
-    name: TypeReference(module_path~, name~),
-    start_offset: loc.start_offset,
-    end_offset: loc.end_offset,
-  })
-}
-
-///|
-fn Resolver::is_generated_variant_reference(
-  self : Resolver,
-  module_path : String,
-  type_name : String,
-  variant : String,
-  loc : SourceSpan,
-) -> Bool {
-  self.generated_reference_reports.contains({
-    name: VariantReference(module_path~, type_name~, variant~),
-    start_offset: loc.start_offset,
-    end_offset: loc.end_offset,
-  })
-}
-
-///|
-fn Resolver::module_type_binding_for_type_reference(
-  self : Resolver,
-  module_path : String,
-  name : String,
-  loc : SourceSpan,
-) -> ModuleTypeBinding? {
-  if self.is_generated_type_reference(module_path, name, loc) {
-    self.canonical_module_type_binding(module_path, name)
-  } else {
-    self.module_type_binding(module_path, name)
-  }
-}
-
-///|
-fn Resolver::module_type_binding_for_variant_reference(
-  self : Resolver,
-  module_path : String,
-  type_name : String,
-  variant : String,
-  loc : SourceSpan,
-) -> ModuleTypeBinding? {
-  if self.is_generated_variant_reference(module_path, type_name, variant, loc) {
-    self.canonical_module_type_binding(module_path, type_name)
-  } else {
-    self.module_type_binding(module_path, type_name)
-  }
-}
-
-///|
-fn Resolver::variant_lookup_mode(
-  self : Resolver,
-  type_name : String,
-  variant : String,
-  loc : SourceSpan,
-) -> ModuleLookupMode {
-  match qualified_name_text(type_name) {
-    Some(qualified) =>
-      if self.is_generated_variant_reference(
-          qualified.module_path,
-          qualified.name,
-          variant,
-          loc,
-        ) {
-        CanonicalModuleLookup
-      } else {
-        AuthoredModuleLookup
-      }
-    None => AuthoredModuleLookup
-  }
-}
-
-///|
 fn Resolver::has_imported_module_prefix(
   self : Resolver,
   segments : Array[String],
@@ -3591,7 +3353,7 @@ fn @syntax.Pattern::resolve_pattern(
         loc~,
       )
     }
-    Tuple(_) => surface_sugar_reached_resolver()
+    Tuple(_) => self.resolve_tuple_pattern(resolver, scope)
   }
 }
 
@@ -4249,13 +4011,7 @@ fn Resolver::qualified_variant_symbol(
 ) -> VariantSymbolId? {
   match qualified_name_text(type_name) {
     Some(qualified) =>
-      match
-        self.module_type_binding_for_variant_reference(
-          qualified.module_path,
-          qualified.name,
-          variant,
-          loc,
-        ) {
+      match self.module_type_binding(qualified.module_path, qualified.name) {
         Some(
           {
             kind: NominalType(variants~, ..),
@@ -4344,23 +4100,6 @@ fn Resolver::report(
 }
 
 ///|
-fn Resolver::report_reference(
-  self : Resolver,
-  kind : ResolveDiagnosticKind,
-  loc : SourceSpan,
-) -> Unit {
-  if generated_reference_key(kind, loc) is Some(key) &&
-    self.generated_reference_reports.get(key) is Some(reported) {
-    if !reported {
-      self.generated_reference_reports[key] = true
-      self.report(kind, loc)
-    }
-  } else {
-    self.report(kind, loc)
-  }
-}
-
-///|
 fn Resolver::report_unresolved_value(
   self : Resolver,
   reference : ResolvedValueReference,
@@ -4393,10 +4132,7 @@ fn resolver_report_qualified_variant(
   variant : String,
   loc : SourceSpan,
 ) -> Unit {
-  resolver.report_reference(
-    UnresolvedQualifiedVariant(type_name~, variant~),
-    loc,
-  )
+  resolver.report(UnresolvedQualifiedVariant(type_name~, variant~), loc)
 }
 
 ///|

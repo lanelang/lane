@@ -36,13 +36,13 @@ contain the same canonical symbols. Checked types, module interfaces,
 artifacts, fingerprints, linking, and semantic type presentation do not retain
 alias spelling.
 
-Fixed language sugar resolves through canonical imported-module availability,
-not through an authored qualifier spelling. Therefore an aliased import of
-`Basic.Data.List` enables list syntax and an aliased import of
-`Basic.Data.Tuple` enables tuple syntax, while the replaced complete path
-remains unavailable to authored qualified access. Compiler-generated canonical
-targets and authored module names remain structurally distinct only until name
-resolution; both resolve to the same symbols.
+Fixed language sugar resolves its typed syntax nodes through canonical
+imported-module availability, not through an authored qualifier spelling.
+Therefore an aliased import of `Basic.Data.List` enables list syntax and an
+aliased import of `Basic.Data.Tuple` enables tuple syntax, while the replaced
+complete path remains unavailable to authored qualified access. Sugar targets
+and authored module names use separate resolver entry points and both produce
+the same ordinary resolved symbols.
 
 Authored qualified access marks only the named module binding as used. A fixed
 sugar reference marks every import declaration that provides its canonical

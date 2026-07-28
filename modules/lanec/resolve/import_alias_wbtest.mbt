@@ -247,6 +247,36 @@ test "tuple sugar resolves canonically through an aliased import" {
 }
 
 ///|
+test "tuple sugar does not change authored module lookup" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    (
+      #|import Basic.Data.Tuple as Pair
+      #|fn generated() -> (Int, Bool) { (1, true) }
+      #|fn authored(value : Basic.Data.Tuple.Tuple) -> Unit { () }
+    ),
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: UnresolvedType("Basic.Data.Tuple.Tuple"),
+      #|    loc: {
+      #|      start_offset: 108,
+      #|      end_offset: 130,
+      #|      start_line: 4,
+      #|      start_column: 21,
+      #|      end_line: 4,
+      #|      end_column: 43,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "module aliases do not rewrite longer path prefixes" {
   let result = resolve_import_alias_source(
     import_alias_fixture(),

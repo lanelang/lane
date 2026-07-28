@@ -1,10 +1,11 @@
 # Preserve nominal tuple semantics and optimize after linking
 
-The grammar recognizes tuple syntax independently of imports. A uniform
-pre-resolution surface pass rewrites tuple types, expressions, and patterns
-into nominal syntax carrying structured canonical provider targets. The same
-pass owns list literal expansion, so resolver and typechecker contain no
-List- or Tuple-specific lookup path.
+The grammar recognizes tuple syntax independently of imports. Tuple types,
+expressions, and patterns remain typed sugar nodes through parsing and enter
+name resolution unchanged. The resolver converts each sugar node directly to
+ordinary nominal Resolved AST using a structured canonical provider target.
+List literals use the same resolver-owned conversion. No generated identifier
+or source-span side table mediates this semantic choice.
 
 Expansion targets the fixed language ABI `Basic.Data.Tuple.Tuple`,
 `Basic.Data.Tuple.Tuple::tuple`, `Basic.Data.List.List`,
@@ -39,13 +40,12 @@ materialize nested nominal values when they escape.
 - `f(a, b)` passes two arguments, while `f((a, b))` passes one tuple value.
 - Formatting flattens right-nested tuple-syntax chains but preserves left
   nesting whose removal would change nominal structure.
-- Surface expansion visits children left to right and preserves their authored
+- Sugar resolution visits children left to right and preserves their authored
   spans. It never reorders, duplicates, or discards child-expression
   evaluation.
-- Surface expansion records one diagnostic origin for each provider reference
-  introduced by an authored sugar form. Resolver failures share that origin;
-  ordinary resolver diagnostics remain independent and are never globally
-  deduplicated.
+- Each sugar node resolves each required canonical provider once, so a flat
+  right-nested chain reports one failure per provider target without global
+  diagnostic deduplication.
 - Incomplete tuple syntax exposes zero-width expected type, expression, or
   pattern slots through the tolerant parser. Completion consumes those roles
   without punctuation scans or tuple-specific inference.

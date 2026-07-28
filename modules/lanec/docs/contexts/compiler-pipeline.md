@@ -21,20 +21,14 @@ _Avoid_: ANF IR, resolved surface AST, environment-only check result
 The expression structure of the source language, such as blocks, conditionals, matches, calls, literals, and function literals, preserved before ANF lowering.
 _Avoid_: atomized core shape, source-only syntax, basic blocks
 
-**Surface Sugar Expansion**:
-A recursive pre-resolution transformation that replaces source-only type,
-expression, and pattern sugar with nominal syntax carrying structured
-canonical provider targets while the parsed Syntax AST remains available to
-formatting and source tooling. For expression sugar, expansion preserves the
-lexical left-to-right evaluation of authored child expressions and never
-duplicates or discards their evaluation.
-_Avoid_: textual generated qualifier, typechecker sugar rule, formatter reconstruction
-
-**Surface Source Provenance**:
-The mapping from nodes introduced by Surface Sugar Expansion to the real source
-span of the authored sugar node that produced them. Generated canonical targets
-do not invent identifier-token spans.
-_Avoid_: synthetic token location, generated-name source text, Buslane span field
+**Sugar Resolution**:
+The resolver-owned conversion from typed tuple or list Syntax AST nodes to
+ordinary nominal Resolved AST nodes. Each sugar node selects a structured
+canonical provider target directly; generated identifiers are never inserted
+into the Syntax AST and never recovered from source spans. Expression sugar is
+resolved in lexical left-to-right child order and never duplicates or discards
+authored evaluation.
+_Avoid_: pre-resolution rewrite, generated qualifier side table, typechecker sugar rule
 
 **Expected Syntax Slot**:
 A zero-width tolerant-parser/CST node recording the grammar category expected
@@ -349,19 +343,17 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 
 ## Relationships
 
-- A parsed **Syntax AST** undergoes **Surface Sugar Expansion** before it is
-  resolved into a **Resolved AST**.
-- List and tuple syntax are absent after **Surface Sugar Expansion**; resolution
-  resolves their canonical provider targets to the same nominal symbols used
-  by authored qualified access, and typechecking observes only those resolved
-  nominal symbols.
-- Nodes introduced by **Surface Sugar Expansion** carry **Surface Source
-  Provenance**, so diagnostics and source tooling point to authored sugar rather
-  than synthetic qualified names.
+- A parsed **Syntax AST** enters name resolution with typed list and tuple sugar
+  nodes intact; **Sugar Resolution** converts them into a **Resolved AST**.
+- List and tuple syntax are absent after **Sugar Resolution**. Their structured
+  canonical provider targets resolve to the same nominal symbols used by
+  authored qualified access, and typechecking observes only those symbols.
+- **Sugar Resolution** attaches diagnostics directly to the authored sugar
+  node; no generated name or synthetic identifier span exists.
 - Incomplete surface lists expose **Expected Syntax Slots** through the tolerant
   parser/CST; completion uses their type, expression, or pattern roles without
   recognizing tuple syntax or scanning punctuation.
-- Expression **Surface Sugar Expansion** preserves authored child-expression
+- Expression **Sugar Resolution** preserves authored child-expression
   evaluation order even when the expanded nominal representation is
   right-nested.
 - A **Resolved AST** attaches **Symbol Identity** to resolved names while preserving source names for diagnostics.
