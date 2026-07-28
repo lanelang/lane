@@ -184,6 +184,58 @@ test "effect widening preserves indirect call ABI across production backends" {
 }
 
 ///|
+test "chained generic effect handlers preserve layout witnesses" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|
+      #|effect Ask {
+      #|  read() -> Int
+      #|}
+      #|
+      #|effect Log {
+      #|  write(Int) -> Unit
+      #|}
+      #|
+      #|fn program() -> Int ! { Ask, Log } {
+      #|  let value = Ask::read!()
+      #|  let _ = Log::write!(value)
+      #|  value
+      #|}
+      #|
+      #|fn[A, E : Effect] handle_ask(task : () -> A ! { Ask, E }) -> () -> A ! E {
+      #|  fn() {
+      #|    handle task() with {
+      #|      Ask::read(resume) => resume(42)
+      #|    } final value {
+      #|      value
+      #|    }
+      #|  }
+      #|}
+      #|
+      #|fn[A, E : Effect] handle_log(task : () -> A ! { Log, E }) -> () -> A ! E {
+      #|  fn() {
+      #|    handle task() with {
+      #|      Log::write(_value, resume) => resume(())
+      #|    } final value {
+      #|      value
+      #|    }
+      #|  }
+      #|}
+      #|
+      #|let handled_value : Int = handle_log(handle_ask(program))()
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  let _value = handled_value
+      #|  println("42")
+      #|}
+    ),
+    ["42"],
+  )
+}
+
+///|
 test "algebraic effect widening preserves anonymous function ABI" {
   assert_effect_conformance(
     (

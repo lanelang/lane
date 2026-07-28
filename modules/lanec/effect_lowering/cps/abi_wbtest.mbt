@@ -303,6 +303,82 @@ test "selective CPS rewrites monadic function and tail call ABI" {
 }
 
 ///|
+test "selective CPS synchronizes local generic callable metadata" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect = metadata.define_effect("Effect", [])
+  let latent : @buslane.Effect = Singleton(effect, [])
+  let local_type : @buslane.Type = Function([], Primitive(Int), latent)
+  let local_function = metadata.define_value("local", Local, local_type)
+  let outer = metadata.define_value(
+    "outer",
+    Function,
+    Function([], local_type, Empty),
+  )
+  let output = rewrite_test_program({
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: outer,
+          rhs: Function({
+            parameters: [],
+            result_type: local_type,
+            body: LetRec(
+              [
+                {
+                  id: local_function,
+                  rhs: Function({
+                    parameters: [],
+                    result_type: Primitive(Int),
+                    body: Literal(Int(1L)),
+                  }),
+                },
+              ],
+              Ref(local_function),
+            ),
+          }),
+        },
+      ]),
+    ],
+  })
+  guard output.terms
+    is [
+      LetRec(
+        [
+          {
+            rhs: Function(
+              {
+                body: LetRec(
+                  [{ rhs: TypeLambda([answer], Function(local_cps)), .. }],
+                  _
+                ),
+                ..,
+              }
+            ),
+            ..,
+          },
+        ]
+      ),
+    ] else {
+    abort("expected a local CPS callable")
+  }
+  assert_eq(
+    metadata.value_info(local_function).unwrap().type_,
+    Forall(
+      [answer],
+      Function(
+        local_cps.parameters.map(parameter => {
+          metadata.value_info(parameter).unwrap().type_
+        }),
+        Parameter(answer),
+        Empty,
+      ),
+    ),
+  )
+  assert_cps_ordinary_output(output)
+}
+
+///|
 test "selective CPS composes an explicit bind continuation" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
