@@ -156,7 +156,7 @@ fn lower_cps_residual_bind(
   continuation : Expr,
 ) -> Expr raise SynthesisError {
   let facts = synthesize_expr_or_raise(program.metadata, expression)
-  let binder = program.metadata.define_value(
+  let binder = schema.metadata.define_value(
     "%residual",
     Parameter,
     schema.rewrite_type(facts.type_),
@@ -196,7 +196,7 @@ fn lower_cps_residual_computation(
   )
   let parameter = match binder {
     Some(parameter) => parameter
-    None => program.metadata.define_value("%residual", Parameter, value_type)
+    None => schema.metadata.define_value("%residual", Parameter, value_type)
   }
   Bind({
     computation,

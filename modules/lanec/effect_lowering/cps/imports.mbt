@@ -8,6 +8,7 @@ using @effect_lowering_core {
   type MatchExpr,
   type OperationClause,
   type Program,
+  type RecursiveBinding,
   type SynthesisError,
   type TopTerm,
   effect_has_parameter,

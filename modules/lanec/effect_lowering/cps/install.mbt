@@ -15,7 +15,7 @@ fn lower_cps_direct_install(
     raise MissingEffectContext(facts.effect)
   }
   let result_type = schema.rewrite_type(install.result_type)
-  let result = program.metadata.define_value(
+  let result = schema.metadata.define_value(
     "%handler_result",
     Parameter,
     result_type,
@@ -88,7 +88,7 @@ fn lower_cps_install(
     body,
   )
   residual.run(
-    program.metadata,
+    schema.metadata,
     scoped,
     outer_environment,
     answer_type,
@@ -141,7 +141,7 @@ fn build_handler_dictionary_plan(
       hidden_witnesses: [],
       payloads: fields,
     })
-    let id = program.metadata.define_value(
+    let id = schema.metadata.define_value(
       "%handler_dictionary",
       Local,
       schema.context_term_type(
@@ -187,13 +187,13 @@ fn lower_handler_operation_clause(
   })
   let function_type = instantiate_clause_field_type(field_type, type_binders)
   guard function_type is Function(parameter_types, result_type, function_effect) &&
-    program.metadata.effects_definitionally_equal(
+    schema.metadata.effects_definitionally_equal(
       function_effect,
       residual.residual_effect,
     ) else {
     raise ExpectedFunction(function_type)
   }
-  if !program.metadata.types_definitionally_equal(result_type, residual.type_) {
+  if !schema.metadata.types_definitionally_equal(result_type, residual.type_) {
     raise ExpectedFunction(function_type)
   }
   let source_parameters = source_function.parameters.copy()
@@ -206,16 +206,16 @@ fn lower_handler_operation_clause(
   }
   guard direct_resume_type
     is Function([operation_result], direct_result, resume_effect) &&
-    program.metadata.effects_definitionally_equal(
+    schema.metadata.effects_definitionally_equal(
       resume_effect,
       residual.residual_effect,
     ) else {
     raise ExpectedFunction(direct_resume_type)
   }
-  if !program.metadata.types_definitionally_equal(direct_result, residual.type_) {
+  if !schema.metadata.types_definitionally_equal(direct_result, residual.type_) {
     raise ExpectedFunction(direct_resume_type)
   }
-  let direct_resume = program.metadata.define_value(
+  let direct_resume = schema.metadata.define_value(
     "%resume_continuation",
     Parameter,
     direct_resume_type,
@@ -224,13 +224,14 @@ fn lower_handler_operation_clause(
   let resume_value = build_handler_resume_value(
     schema, program, residual, operation_result, direct_resume,
   )
+  commit_cps_binding_type(schema.metadata, source_resume, resume_value)
   let clause_body = lower_cps_with_continuation(
     schema,
     program,
     source_function.body,
     relay_environment,
     residual.type_,
-    build_residual_result_continuation(schema, program, residual),
+    build_residual_result_continuation(schema, residual),
   )
   source_parameters.push(direct_resume)
   let function = Expr::Function({
@@ -274,7 +275,7 @@ fn build_handler_resume_value(
   operation_result : @buslane.Type,
   direct_resume : @buslane.ValueId,
 ) -> Expr raise SynthesisError {
-  let parameter = program.metadata.define_value(
+  let parameter = schema.metadata.define_value(
     "%resume_result",
     Parameter,
     operation_result,
@@ -287,11 +288,11 @@ fn build_handler_resume_value(
       body: resumed,
     })
   } else {
-    let frame = residual.fresh_frame(schema, program)
+    let frame = residual.fresh_frame(schema)
     frame.wrap_with_parameter(
       parameter,
       residual.run(
-        program.metadata,
+        schema.metadata,
         resumed,
         frame.environment,
         frame.answer_type,
@@ -320,10 +321,9 @@ fn ResidualFrame::wrap_with_parameter(
 ///|
 fn build_residual_result_continuation(
   schema : DictionaryCpsSchema,
-  program : Program,
   residual : ResidualComputationSchema,
 ) -> Expr raise SynthesisError {
-  let result = program.metadata.define_value(
+  let result = schema.metadata.define_value(
     "%handler_result",
     Parameter,
     residual.result_type,
@@ -331,7 +331,7 @@ fn build_residual_result_continuation(
   Function({
     parameters: [result],
     result_type: residual.type_,
-    body: residual.pure(schema, program, Ref(result)),
+    body: residual.pure(schema, Ref(result)),
   })
 }
 
@@ -353,7 +353,7 @@ fn lower_handler_final_clause(
       final_clause.body,
       relay_environment,
       residual.type_,
-      build_residual_result_continuation(schema, program, residual),
+      build_residual_result_continuation(schema, residual),
     ),
   })
 }
