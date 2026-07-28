@@ -26,7 +26,9 @@ module, but one local module name cannot target competing imports.
 
 Aliases use the existing module namespace and ambiguity rules. They do not open
 members or offers, do not shadow values or types specially, and do not rewrite
-module-path prefixes. Lane module paths may share components but do not form a
+module-path prefixes. The current module's complete path already occupies its
+module binding name, so an import cannot reuse that path as an alias or other
+local module binding. Lane module paths may share components but do not form a
 parent/child module hierarchy.
 
 An alias is a source binder. Qualifier references navigate and rename through

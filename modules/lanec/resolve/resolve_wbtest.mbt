@@ -1018,7 +1018,7 @@ test "report unresolved operator operation name" {
 ///|
 test "resolver reports repeated diagnostics independently" {
   let file = expect_parse_ok("fn value() -> Int { 0 }")
-  let resolver = Resolver::Resolver(SymbolRegistry(), None, "Test")
+  let resolver = Resolver::Resolver(SymbolRegistry(), None, file.module_path)
   resolver.report(UnresolvedValue("missing"), file.loc)
   resolver.report(UnresolvedValue("missing"), file.loc)
   inspect(

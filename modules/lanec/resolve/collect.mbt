@@ -37,6 +37,7 @@ priv struct ModuleBinding {
 ///|
 priv struct LocalModuleNamespace {
   path_text : String
+  name_loc : SourceSpan
   types : Array[TypeBinding]
   effects : Array[EffectBinding]
   type_aliases : Array[TypeAliasBinding]
@@ -135,11 +136,7 @@ priv struct QualifiedNameText {
 /// type diagnostic while still returning a resolved tree for later phases.
 pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult {
   let registry = SymbolRegistry()
-  let resolver = Resolver::Resolver(
-    registry,
-    None,
-    @module_interface.module_path_text(source.module_path),
-  )
+  let resolver = Resolver::Resolver(registry, None, source.module_path)
   resolver.resolve_source_file_result(source)
 }
 
@@ -155,7 +152,7 @@ pub fn resolve_source_file_with_imports_result(
   let resolver = Resolver::Resolver(
     registry,
     previous_declarations,
-    @module_interface.module_path_text(source.module_path),
+    source.module_path,
   )
   resolver.publish_imported_bindings(source, imported_environment)
   resolver.resolve_source_file_result(source)
@@ -190,7 +187,7 @@ fn Resolver::resolve_source_file_result(
 fn Resolver::Resolver(
   registry : SymbolRegistry,
   previous_declarations : @symbol.DeclarationIdentities?,
-  current_module_path : String,
+  current_module : @syntax.ModulePath,
 ) -> Resolver {
   {
     registry,
@@ -198,7 +195,8 @@ fn Resolver::Resolver(
       previous=previous_declarations,
     ),
     local_module: {
-      path_text: current_module_path,
+      path_text: @module_interface.module_path_text(current_module),
+      name_loc: current_module.loc,
       types: [],
       effects: [],
       type_aliases: [],
@@ -433,6 +431,16 @@ fn Resolver::publish_imported_module_binding(
   provider_origin~ : Int?,
 ) -> Unit {
   let path_text = @module_interface.module_path_text(module_path)
+  if binding_name == self.local_module.path_text {
+    self.report(
+      AmbiguousModuleBinding(
+        name=binding_name,
+        existing_loc=self.local_module.name_loc,
+      ),
+      binding_loc,
+    )
+    return
+  }
   guard imported_environment.find(path_text) is Some(interface) else { return }
   let imported = match self.imported_module(path_text) {
     Some(imported) => imported

@@ -223,6 +223,42 @@ test "a local module binding name is unique" {
 }
 
 ///|
+test "the current module name cannot be reused as an import binding" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    "import Lib as Test",
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: AmbiguousModuleBinding(
+      #|      name="Test",
+      #|      existing_loc={
+      #|        start_offset: 7,
+      #|        end_offset: 11,
+      #|        start_line: 1,
+      #|        start_column: 8,
+      #|        end_line: 1,
+      #|        end_column: 12,
+      #|      },
+      #|    ),
+      #|    loc: {
+      #|      start_offset: 26,
+      #|      end_offset: 30,
+      #|      start_line: 2,
+      #|      start_column: 15,
+      #|      end_line: 2,
+      #|      end_column: 19,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "tuple sugar resolves canonically through an aliased import" {
   let fixture = import_alias_fixture()
   let result = resolve_import_alias_source(
