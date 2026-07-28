@@ -41,8 +41,8 @@ test "interface freshening reuses type alias identities by module path" {
         symbol: source_symbol,
         name: "Signals",
         type_parameters: [],
-        body: EffectBody(@types.Empty),
-        kind: @types.Effect,
+        body: EffectBody(Empty),
+        kind: Effect,
         loc: @basic.SourceSpan::dummy(),
       },
     ],
@@ -50,7 +50,7 @@ test "interface freshening reuses type alias identities by module path" {
     optimization_hints: [],
   }
   let environment = InterfaceFresheningEnvironment::{
-    registry: @symbol.SymbolRegistry::SymbolRegistry(),
+    registry: SymbolRegistry(),
     types: [],
     type_aliases: [],
     effects: [],

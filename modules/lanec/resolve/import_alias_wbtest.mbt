@@ -149,7 +149,7 @@ test "aliased qualified import replaces the canonical authored qualifier" {
       #|fn read() -> Int { Short.value }
     ),
   )
-  debug_inspect(aliased.diagnostics, content="[]")
+  assert_eq(aliased.diagnostics, [])
   guard aliased.source.declarations[0] is Function(function) else {
     abort("expected function")
   }
@@ -186,7 +186,7 @@ test "distinct aliases may bind the same imported module" {
       #|fn second() -> Int { Second.value }
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(result.diagnostics, [])
   assert_eq(used_import_exposure_ids(result.source), [0, 1])
 }
 
@@ -200,7 +200,7 @@ test "authored access marks only its local module binding" {
       #|fn read() -> Int { First.value }
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(result.diagnostics, [])
   assert_eq(used_import_exposure_ids(result.source), [0])
 }
 
@@ -214,7 +214,7 @@ test "selective import does not conflict with a qualified module binding" {
       #|fn read() -> Int { value }
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(result.diagnostics, [])
   debug_inspect(
     result.source.import_exposures.map(fn(exposure) { exposure.kind }),
     content=(
@@ -246,7 +246,7 @@ test "open import does not conflict with a qualified module binding" {
       #|fn read() -> Int { Lib.value }
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(result.diagnostics, [])
 }
 
 ///|
@@ -337,7 +337,7 @@ test "the current module name cannot be reused as an import binding" {
       #|]
     ),
   )
-  debug_inspect(result.source.import_exposures, content="[]")
+  assert_eq(result.source.import_exposures, [])
 }
 
 ///|
@@ -351,7 +351,7 @@ test "tuple sugar resolves canonically through an aliased import" {
       #|fn generated() -> (Int, Bool) { (1, true) }
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(result.diagnostics, [])
   guard result.source.declarations[0] is Function(authored) &&
     authored.body
     is Block(result=QualifiedVariant(reference=Symbol(authored_tuple), ..), ..) &&
@@ -444,7 +444,7 @@ test "list sugar resolves canonically through aliased imports" {
       #|fn generated() -> First.List { [] }
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(result.diagnostics, [])
   guard result.source.declarations[0] is Function(authored) &&
     authored.body
     is Block(result=QualifiedVariant(reference=Symbol(authored_empty), ..), ..) &&

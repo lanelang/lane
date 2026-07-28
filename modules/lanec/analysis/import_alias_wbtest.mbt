@@ -248,20 +248,100 @@ test "completion exposes an alias and completes its canonical interface" {
     27,
     TriggerCharacter("."),
   )
-  assert_true(
-    surface_entries.any(fn(entry) {
-      entry.label == "answer" && entry.kind is Function
-    }),
-  )
-  assert_true(
-    surface_entries.any(fn(entry) {
-      entry.label == "Item" && entry.kind is Type
-    }),
-  )
-  assert_true(
-    surface_entries.any(fn(entry) {
-      entry.label == "Read" && entry.kind is Effect
-    }),
+  debug_inspect(
+    surface_entries,
+    content=(
+      #|[
+      #|  {
+      #|    label: "Item",
+      #|    kind: Type,
+      #|    is_offered: false,
+      #|    detail: Some("struct Item"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 72,
+      #|          end_offset: 72,
+      #|          start_line: 4,
+      #|          start_column: 27,
+      #|          end_line: 4,
+      #|          end_column: 27,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("30:Item"),
+      #|  },
+      #|  {
+      #|    label: "Read",
+      #|    kind: Effect,
+      #|    is_offered: false,
+      #|    detail: Some("effect Read"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 72,
+      #|          end_offset: 72,
+      #|          start_line: 4,
+      #|          start_column: 27,
+      #|          end_line: 4,
+      #|          end_column: 27,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("32:Read"),
+      #|  },
+      #|  {
+      #|    label: "answer",
+      #|    kind: Function,
+      #|    is_offered: false,
+      #|    detail: Some("answer : () -> Int"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 72,
+      #|          end_offset: 72,
+      #|          start_line: 4,
+      #|          start_column: 27,
+      #|          end_line: 4,
+      #|          end_column: 27,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("20:answer"),
+      #|  },
+      #|  {
+      #|    label: "Choice",
+      #|    kind: Type,
+      #|    is_offered: false,
+      #|    detail: Some("enum Choice"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 72,
+      #|          end_offset: 72,
+      #|          start_line: 4,
+      #|          start_column: 27,
+      #|          end_line: 4,
+      #|          end_column: 27,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("30:Choice"),
+      #|  },
+      #|]
+    ),
   )
 }
 
@@ -280,12 +360,12 @@ test "rejected current-module alias does not enter completion" {
     .diagnostics()
     .any(fn(diagnostic) { diagnostic.code == Some("E2008") }),
   )
-  debug_inspect(
+  assert_eq(
     snapshot
     .complete("file:///Main.lane", 4, 26, Manual)
     .filter(fn(entry) { entry.kind is Module })
     .map(fn(entry) { (entry.label, entry.detail) }),
-    content="[]",
+    [],
   )
 }
 
@@ -314,7 +394,7 @@ test "completion excludes open and selective imports from module bindings" {
     6,
     Manual,
   ).filter(fn(entry) { entry.kind is Module })
-  debug_inspect(entries, content="[]")
+  assert_eq(entries, [])
 }
 
 ///|

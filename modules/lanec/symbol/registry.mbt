@@ -274,7 +274,7 @@ fn SymbolRegistry::allocate_type_alias(
     self.allocator.next_type_alias = index + 1
     index
   }
-  TypeAliasSymbolId::{ index, }
+  { index, }
 }
 
 ///|

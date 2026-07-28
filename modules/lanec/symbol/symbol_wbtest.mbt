@@ -100,18 +100,16 @@ test "measurement registries use a temporary identity namespace" {
   let value = measurement.define_value("first", LocalBinding, loc())
   let symbols = [
     SymbolId::Type(type_),
-    SymbolId::TypeAlias(type_alias),
-    SymbolId::TypeParameter(type_parameter),
-    SymbolId::TypeMember(
+    TypeAlias(type_alias),
+    TypeParameter(type_parameter),
+    TypeMember(
       measurement.define_type_member(type_, "T", 0, type_parameter, loc()),
     ),
-    SymbolId::Value(value),
-    SymbolId::Field(measurement.define_field(type_, "field", 0, loc())),
-    SymbolId::Variant(measurement.define_variant(type_, "variant", 0, 0, loc())),
-    SymbolId::Effect(effect),
-    SymbolId::Operation(
-      measurement.define_operation(effect, "operation", 0, 0, loc()),
-    ),
+    Value(value),
+    Field(measurement.define_field(type_, "field", 0, loc())),
+    Variant(measurement.define_variant(type_, "variant", 0, 0, loc())),
+    Effect(effect),
+    Operation(measurement.define_operation(effect, "operation", 0, 0, loc())),
   ]
   debug_inspect(
     symbols,
@@ -133,7 +131,7 @@ test "measurement registries use a temporary identity namespace" {
   let persistent = registry.define_value("persistent", TopLevelValue, loc())
   assert_eq(
     (persistent, second, registry.value_metadata(value)),
-    (ValueSymbolId::{ index: 1 }, ValueSymbolId::{ index: -10 }, None),
+    ({ index: 1 }, { index: -10 }, None),
   )
 }
 

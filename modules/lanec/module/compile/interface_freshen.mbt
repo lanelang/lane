@@ -1,64 +1,32 @@
 ///|
-priv struct TypeSymbolMapEntry {
-  source : @symbol.TypeSymbolId
-  target : @symbol.TypeSymbolId
+priv struct SymbolMapEntry[T] {
+  source : T
+  target : T
 }
 
 ///|
-priv struct TypeAliasSymbolMapEntry {
-  source : @symbol.TypeAliasSymbolId
-  target : @symbol.TypeAliasSymbolId
-}
-
-///|
-priv struct TypeParameterMapEntry {
-  source : @symbol.TypeParameterId
-  target : @symbol.TypeParameterId
-}
-
-///|
-priv struct EffectSymbolMapEntry {
-  source : @symbol.EffectSymbolId
-  target : @symbol.EffectSymbolId
-}
-
-///|
-priv struct StableTypeSymbolEntry {
+priv struct StableSymbolEntry[T] {
   module_path : String
   name : String
-  target : @symbol.TypeSymbolId
-}
-
-///|
-priv struct StableTypeAliasSymbolEntry {
-  module_path : String
-  name : String
-  target : @symbol.TypeAliasSymbolId
-}
-
-///|
-priv struct StableEffectSymbolEntry {
-  module_path : String
-  name : String
-  target : @symbol.EffectSymbolId
+  target : T
 }
 
 ///|
 priv struct InterfaceFresheningEnvironment {
   registry : @symbol.SymbolRegistry
-  types : Array[StableTypeSymbolEntry]
-  type_aliases : Array[StableTypeAliasSymbolEntry]
-  effects : Array[StableEffectSymbolEntry]
+  types : Array[StableSymbolEntry[@symbol.TypeSymbolId]]
+  type_aliases : Array[StableSymbolEntry[@symbol.TypeAliasSymbolId]]
+  effects : Array[StableSymbolEntry[@symbol.EffectSymbolId]]
 }
 
 ///|
 priv struct InterfaceSymbolFreshener {
   environment : InterfaceFresheningEnvironment
   interface : @module_interface.ModuleInterface
-  types : Array[TypeSymbolMapEntry]
-  type_aliases : Array[TypeAliasSymbolMapEntry]
-  type_parameters : Array[TypeParameterMapEntry]
-  effects : Array[EffectSymbolMapEntry]
+  types : Array[SymbolMapEntry[@symbol.TypeSymbolId]]
+  type_aliases : Array[SymbolMapEntry[@symbol.TypeAliasSymbolId]]
+  type_parameters : Array[SymbolMapEntry[@symbol.TypeParameterId]]
+  effects : Array[SymbolMapEntry[@symbol.EffectSymbolId]]
 }
 
 ///|
@@ -474,14 +442,14 @@ fn InterfaceSymbolFreshener::freshen_type_parameter(
   self : InterfaceSymbolFreshener,
   parameter : @types.TypeParameter,
 ) -> @types.TypeParameter {
-  match self.lookup_type_parameter(parameter.id) {
+  match lookup_symbol_mapping(self.type_parameters, parameter.id) {
     Some(id) => { id, name: parameter.name, kind: parameter.kind }
     None => {
       let id = self.environment.registry.define_type_parameter(
         parameter.name,
         @basic.SourceSpan::dummy(),
       )
-      self.type_parameters.push({ source: parameter.id, target: id })
+      store_symbol_mapping(self.type_parameters, parameter.id, id)
       { id, name: parameter.name, kind: parameter.kind }
     }
   }
@@ -566,7 +534,7 @@ fn InterfaceSymbolFreshener::define_type(
   arity : Int,
   loc : @basic.SourceSpan,
 ) -> @symbol.TypeSymbolId {
-  match self.lookup_type_symbol(source) {
+  match lookup_symbol_mapping(self.types, source) {
     Some(symbol) => symbol
     None => {
       let target = self.environment.define_type(
@@ -576,7 +544,7 @@ fn InterfaceSymbolFreshener::define_type(
         arity,
         loc,
       )
-      self.types.push({ source, target })
+      store_symbol_mapping(self.types, source, target)
       target
     }
   }
@@ -591,7 +559,7 @@ fn InterfaceSymbolFreshener::define_effect(
   flavor : @symbol.EffectFlavor,
   loc : @basic.SourceSpan,
 ) -> @symbol.EffectSymbolId {
-  match self.lookup_effect_symbol(source) {
+  match lookup_symbol_mapping(self.effects, source) {
     Some(symbol) => symbol
     None => {
       let target = self.environment.define_effect(
@@ -601,7 +569,7 @@ fn InterfaceSymbolFreshener::define_effect(
         flavor,
         loc,
       )
-      self.effects.push({ source, target })
+      store_symbol_mapping(self.effects, source, target)
       target
     }
   }
@@ -614,7 +582,7 @@ fn InterfaceSymbolFreshener::define_type_alias(
   name : String,
   loc : @basic.SourceSpan,
 ) -> @symbol.TypeAliasSymbolId {
-  match self.lookup_type_alias_symbol(source) {
+  match lookup_symbol_mapping(self.type_aliases, source) {
     Some(symbol) => symbol
     None => {
       let target = self.environment.define_type_alias(
@@ -622,7 +590,7 @@ fn InterfaceSymbolFreshener::define_type_alias(
         name,
         loc,
       )
-      self.type_aliases.push({ source, target })
+      store_symbol_mapping(self.type_aliases, source, target)
       target
     }
   }
@@ -633,13 +601,17 @@ fn InterfaceSymbolFreshener::remap_type_symbol(
   self : InterfaceSymbolFreshener,
   source : @symbol.TypeSymbolId,
 ) -> @symbol.TypeSymbolId {
-  match self.lookup_type_symbol(source) {
+  match lookup_symbol_mapping(self.types, source) {
     Some(target) => target
     None => {
       for reference in self.interface.type_references {
         if reference.symbol == source {
           match
-            self.environment.find_type(reference.module_path, reference.name) {
+            find_stable_symbol(
+              self.environment.types,
+              reference.module_path,
+              reference.name,
+            ) {
             Some(target) => return target
             None =>
               abort(
@@ -658,7 +630,7 @@ fn InterfaceSymbolFreshener::remap_type_alias_symbol(
   self : InterfaceSymbolFreshener,
   source : @symbol.TypeAliasSymbolId,
 ) -> @symbol.TypeAliasSymbolId {
-  match self.lookup_type_alias_symbol(source) {
+  match lookup_symbol_mapping(self.type_aliases, source) {
     Some(target) => target
     None => abort("missing canonical interface type alias reference")
   }
@@ -669,7 +641,7 @@ fn InterfaceSymbolFreshener::remap_type_parameter(
   self : InterfaceSymbolFreshener,
   source : @symbol.TypeParameterId,
 ) -> @symbol.TypeParameterId {
-  match self.lookup_type_parameter(source) {
+  match lookup_symbol_mapping(self.type_parameters, source) {
     Some(target) => target
     None =>
       abort(
@@ -683,13 +655,17 @@ fn InterfaceSymbolFreshener::remap_effect_symbol(
   self : InterfaceSymbolFreshener,
   source : @symbol.EffectSymbolId,
 ) -> @symbol.EffectSymbolId {
-  match self.lookup_effect_symbol(source) {
+  match lookup_symbol_mapping(self.effects, source) {
     Some(target) => target
     None => {
       for reference in self.interface.effect_references {
         if reference.symbol == source {
           match
-            self.environment.find_effect(reference.module_path, reference.name) {
+            find_stable_symbol(
+              self.environment.effects,
+              reference.module_path,
+              reference.name,
+            ) {
             Some(target) => return target
             None =>
               abort(
@@ -712,28 +688,14 @@ fn InterfaceFresheningEnvironment::define_type(
   arity : Int,
   loc : @basic.SourceSpan,
 ) -> @symbol.TypeSymbolId {
-  match self.find_type(module_path, name) {
+  match find_stable_symbol(self.types, module_path, name) {
     Some(target) => target
     None => {
       let target = self.registry.define_type(name, kind, arity, loc)
-      self.types.push({ module_path, name, target })
+      store_stable_symbol(self.types, module_path, name, target)
       target
     }
   }
-}
-
-///|
-fn InterfaceFresheningEnvironment::find_type(
-  self : InterfaceFresheningEnvironment,
-  module_path : String,
-  name : String,
-) -> @symbol.TypeSymbolId? {
-  for entry in self.types {
-    if entry.module_path == module_path && entry.name == name {
-      return Some(entry.target)
-    }
-  }
-  None
 }
 
 ///|
@@ -743,28 +705,14 @@ fn InterfaceFresheningEnvironment::define_type_alias(
   name : String,
   loc : @basic.SourceSpan,
 ) -> @symbol.TypeAliasSymbolId {
-  match self.find_type_alias(module_path, name) {
+  match find_stable_symbol(self.type_aliases, module_path, name) {
     Some(target) => target
     None => {
       let target = self.registry.define_type_alias(name, loc)
-      self.type_aliases.push({ module_path, name, target })
+      store_stable_symbol(self.type_aliases, module_path, name, target)
       target
     }
   }
-}
-
-///|
-fn InterfaceFresheningEnvironment::find_type_alias(
-  self : InterfaceFresheningEnvironment,
-  module_path : String,
-  name : String,
-) -> @symbol.TypeAliasSymbolId? {
-  for entry in self.type_aliases {
-    if entry.module_path == module_path && entry.name == name {
-      return Some(entry.target)
-    }
-  }
-  None
 }
 
 ///|
@@ -776,23 +724,45 @@ fn InterfaceFresheningEnvironment::define_effect(
   flavor : @symbol.EffectFlavor,
   loc : @basic.SourceSpan,
 ) -> @symbol.EffectSymbolId {
-  match self.find_effect(module_path, name) {
+  match find_stable_symbol(self.effects, module_path, name) {
     Some(target) => target
     None => {
       let target = self.registry.define_effect(name, arity, loc, flavor~)
-      self.effects.push({ module_path, name, target })
+      store_stable_symbol(self.effects, module_path, name, target)
       target
     }
   }
 }
 
 ///|
-fn InterfaceFresheningEnvironment::find_effect(
-  self : InterfaceFresheningEnvironment,
+fn[T : Eq] lookup_symbol_mapping(
+  entries : Array[SymbolMapEntry[T]],
+  source : T,
+) -> T? {
+  for entry in entries {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn[T] store_symbol_mapping(
+  entries : Array[SymbolMapEntry[T]],
+  source : T,
+  target : T,
+) -> Unit {
+  entries.push({ source, target })
+}
+
+///|
+fn[T] find_stable_symbol(
+  entries : Array[StableSymbolEntry[T]],
   module_path : String,
   name : String,
-) -> @symbol.EffectSymbolId? {
-  for entry in self.effects {
+) -> T? {
+  for entry in entries {
     if entry.module_path == module_path && entry.name == name {
       return Some(entry.target)
     }
@@ -801,53 +771,11 @@ fn InterfaceFresheningEnvironment::find_effect(
 }
 
 ///|
-fn InterfaceSymbolFreshener::lookup_type_symbol(
-  self : InterfaceSymbolFreshener,
-  source : @symbol.TypeSymbolId,
-) -> @symbol.TypeSymbolId? {
-  for entry in self.types {
-    if entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
-}
-
-///|
-fn InterfaceSymbolFreshener::lookup_type_alias_symbol(
-  self : InterfaceSymbolFreshener,
-  source : @symbol.TypeAliasSymbolId,
-) -> @symbol.TypeAliasSymbolId? {
-  for entry in self.type_aliases {
-    if entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
-}
-
-///|
-fn InterfaceSymbolFreshener::lookup_effect_symbol(
-  self : InterfaceSymbolFreshener,
-  source : @symbol.EffectSymbolId,
-) -> @symbol.EffectSymbolId? {
-  for entry in self.effects {
-    if entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
-}
-
-///|
-fn InterfaceSymbolFreshener::lookup_type_parameter(
-  self : InterfaceSymbolFreshener,
-  source : @symbol.TypeParameterId,
-) -> @symbol.TypeParameterId? {
-  for entry in self.type_parameters {
-    if entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
+fn[T] store_stable_symbol(
+  entries : Array[StableSymbolEntry[T]],
+  module_path : String,
+  name : String,
+  target : T,
+) -> Unit {
+  entries.push({ module_path, name, target })
 }
