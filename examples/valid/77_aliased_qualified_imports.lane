@@ -6,7 +6,7 @@ import Basic.Eff.Read as Reader
 import Basic.Io as Console
 
 fn demand() -> Int ! Reader.Read[Int] {
-  Reader.Read::read!()
+  Reader.Read[Int]::read!()
 }
 
 fn selected() -> Maybe.Option[(Int, Bool)] {
@@ -15,9 +15,10 @@ fn selected() -> Maybe.Option[(Int, Bool)] {
 
 pub fn answer() -> Unit ! Io {
   let value = Reader.run_read(demand, 42)()
-  match selected() {
-    Maybe.Option::some(Pair.Tuple::tuple(_, _)) =>
-      Console.println("aliased qualified imports=42")
-    Maybe.Option::none() => Console.println("aliased qualified imports failed")
+  match (value, selected()) {
+    (42, Maybe.Option::some(Pair.Tuple::tuple(_, _))) => Console.println(
+      "aliased qualified imports=42"
+    )
+    _ => Console.println("aliased qualified imports failed")
   }
 }
