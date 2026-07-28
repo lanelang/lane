@@ -223,3 +223,178 @@ fn resolve_variant_candidates_text(
   .map(fn(candidate) { "\{candidate.owner}::\{candidate.variant}" })
   .join(", ")
 }
+
+///|
+fn Resolver::report_type_effect_conflict_if_effect_exists(
+  self : Resolver,
+  name : String,
+  type_kind : String,
+  loc : SourceSpan,
+) -> Unit {
+  if self.effect_binding(name) is Some(_) {
+    self.report(
+      ConflictingTopLevelTypeAndEffectName(
+        name~,
+        type_kind~,
+        effect_kind="effect",
+      ),
+      loc,
+    )
+  }
+}
+
+///|
+fn Resolver::report_effect_type_conflict_if_type_exists(
+  self : Resolver,
+  name : String,
+  loc : SourceSpan,
+) -> Unit {
+  if self.type_binding(name) is Some(_) {
+    self.report(
+      ConflictingTopLevelTypeAndEffectName(
+        name~,
+        type_kind="type",
+        effect_kind="effect",
+      ),
+      loc,
+    )
+  } else if self.type_alias_binding(name) is Some(_) {
+    self.report(
+      ConflictingTopLevelTypeAndEffectName(
+        name~,
+        type_kind="type alias",
+        effect_kind="effect",
+      ),
+      loc,
+    )
+  }
+}
+
+///|
+fn UnqualifiedNameUse::report_payloadless_variant_without_parens(
+  self : UnqualifiedNameUse,
+  resolver : Resolver,
+  symbol : VariantSymbolId,
+  name : String,
+) -> Unit {
+  guard self is BareUse(_) else { return }
+  guard resolver.registry.variant_metadata(symbol) is Some(metadata) else {
+    return
+  }
+  if metadata.payload_count == 0 {
+    resolver.report(PayloadlessVariantWithoutParens(name), self.loc())
+  }
+}
+
+///|
+fn Resolver::report_conflicting_top_level_value(
+  self : Resolver,
+  incoming : ValueBinding,
+  existing : ValueBinding,
+  loc : SourceSpan,
+) -> Unit {
+  self.conflicting_top_value_names.push(incoming.name)
+  self.report(
+    ConflictingTopLevelValue(
+      name=incoming.name,
+      existing=self.binding_display(existing),
+      incoming=self.binding_display(incoming),
+      existing_source_id=binding_source_id(existing),
+      existing_loc=self.binding_loc(existing),
+      existing_origin=binding_origin(existing),
+    ),
+    loc,
+  )
+}
+
+///|
+fn Resolver::binding_display(self : Resolver, binding : ValueBinding) -> String {
+  match binding.reference {
+    Symbol(symbol) =>
+      match self.registry.value_metadata(symbol) {
+        Some(metadata) => metadata.name
+        None => binding.name
+      }
+    Unresolved(name) => name
+  }
+}
+
+///|
+fn binding_source_id(binding : ValueBinding) -> String? {
+  match binding.source {
+    ExternalSource(source_id~) => Some(source_id)
+    _ => None
+  }
+}
+
+///|
+fn Resolver::binding_loc(
+  self : Resolver,
+  binding : ValueBinding,
+) -> SourceSpan? {
+  match binding.source {
+    NoSource(_) => None
+    _ =>
+      match binding.reference {
+        Symbol(symbol) =>
+          match self.registry.value_metadata(symbol) {
+            Some(metadata) => Some(metadata.loc)
+            None => None
+          }
+        Unresolved(_) => None
+      }
+  }
+}
+
+///|
+fn binding_origin(binding : ValueBinding) -> String? {
+  match binding.source {
+    NoSource(origin~) => Some(origin)
+    _ => None
+  }
+}
+
+///|
+fn Resolver::report(
+  self : Resolver,
+  kind : ResolveDiagnosticKind,
+  loc : SourceSpan,
+) -> Unit {
+  self.diagnostics.push({ kind, loc })
+}
+
+///|
+fn Resolver::report_unresolved_value(
+  self : Resolver,
+  reference : ResolvedValueReference,
+  loc : SourceSpan,
+) -> Unit {
+  match reference {
+    Symbol(_) => ()
+    Unresolved(name) => self.report(UnresolvedValue(name), loc)
+  }
+}
+
+///|
+fn Resolver::report_unresolved_field(
+  self : Resolver,
+  owner : TypeSymbolId,
+  field : String,
+  loc : SourceSpan,
+) -> Unit {
+  let type_name = match self.registry.type_metadata(owner) {
+    Some(metadata) => metadata.name
+    None => "<unknown>"
+  }
+  self.report(UnresolvedField(type_name~, field~), loc)
+}
+
+///|
+fn resolver_report_qualified_variant(
+  resolver : Resolver,
+  type_name : String,
+  variant : String,
+  loc : SourceSpan,
+) -> Unit {
+  resolver.report(UnresolvedQualifiedVariant(type_name~, variant~), loc)
+}
