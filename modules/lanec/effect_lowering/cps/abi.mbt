@@ -45,7 +45,7 @@ fn rewrite_selective_cps_abis_or_raise(
     values: program.metadata.values.length(),
   }
   let source = Program::{
-    metadata: copy_cps_source_metadata(program.metadata),
+    metadata: program.metadata.snapshot(),
     terms: program.terms,
   }
   let schema = build_dictionary_cps_schema_or_raise(program.metadata)

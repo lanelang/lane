@@ -6,21 +6,6 @@ priv struct CpsSourceCounts {
 }
 
 ///|
-fn copy_cps_source_metadata(
-  metadata : @buslane.MetadataRegistry,
-) -> @buslane.MetadataRegistry {
-  {
-    next_unique: metadata.next_unique,
-    types: metadata.types.copy(),
-    type_parameters: metadata.type_parameters.copy(),
-    values: metadata.values.copy(),
-    data_constructors: metadata.data_constructors.copy(),
-    effects: metadata.effects.copy(),
-    operations: metadata.operations.copy(),
-  }
-}
-
-///|
 fn rewrite_cps_source_metadata(
   schema : DictionaryCpsSchema,
   counts : CpsSourceCounts,

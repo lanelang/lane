@@ -385,10 +385,7 @@ test "direct CPS lowering commits local binding metadata" {
   let latent : @buslane.Effect = Singleton(effect, [])
   let local_type : @buslane.Type = Function([], Primitive(Int), latent)
   let local_function = metadata.define_value("local", Local, local_type)
-  let source = Program::{
-    metadata: copy_cps_source_metadata(metadata),
-    terms: [],
-  }
+  let source = Program::{ metadata: metadata.snapshot(), terms: [] }
   let counts = CpsSourceCounts::{
     types: metadata.types.length(),
     data_constructors: metadata.data_constructors.length(),

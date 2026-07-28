@@ -179,6 +179,7 @@ pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
 pub fn MetadataRegistry::effect_is_subeffect_of(Self, Effect, Effect) -> Bool
 pub fn MetadataRegistry::effects_definitionally_equal(Self, Effect, Effect) -> Bool
 pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
+pub fn MetadataRegistry::snapshot(Self) -> Self
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
 pub fn MetadataRegistry::type_parameter_info(Self, TypeParameterId) -> TypeParameterInfo?
 pub fn MetadataRegistry::types_definitionally_equal(Self, Type, Type) -> Bool

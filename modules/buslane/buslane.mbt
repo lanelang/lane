@@ -301,6 +301,22 @@ pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
 }
 
 ///|
+/// Returns a snapshot with independent registry table storage.
+///
+/// Metadata payload values are shared.
+pub fn MetadataRegistry::snapshot(self : MetadataRegistry) -> MetadataRegistry {
+  {
+    next_unique: self.next_unique,
+    types: self.types.copy(),
+    type_parameters: self.type_parameters.copy(),
+    values: self.values.copy(),
+    data_constructors: self.data_constructors.copy(),
+    effects: self.effects.copy(),
+    operations: self.operations.copy(),
+  }
+}
+
+///|
 fn MetadataRegistry::fresh_name(
   self : MetadataRegistry,
   name_space : NameNamespace,
