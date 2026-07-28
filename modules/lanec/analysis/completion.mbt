@@ -389,16 +389,15 @@ fn add_module_binding_entries(
   prefix : String,
   replace : @basic.SourceSpan,
 ) -> Unit {
-  for binding in module_.index.module_bindings {
-    let name = semantic_module_binding_name(binding)
+  for _, binding in module_.index.module_bindings {
     add_completion_entry(
       entries,
       source_id,
       prefix,
       replace,
-      name,
+      binding.name,
       Module,
-      Some(semantic_module_binding_detail(binding)),
+      Some(binding.detail),
       "40",
     )
   }
@@ -454,9 +453,9 @@ fn imported_interface_for_owner(
   module_ : CachedSemanticModule,
   owner : String,
 ) -> @module_interface.ModuleInterface? {
-  for binding in module_.index.module_bindings {
-    if semantic_module_binding_name(binding) == owner {
-      return module_.imported.find(binding.module_path_text)
+  for _, binding in module_.index.module_bindings {
+    if binding.name == owner {
+      return module_.imported.find(binding.module_path)
     }
   }
   None
@@ -828,7 +827,7 @@ fn completion_context(
   line : Int,
   column : Int,
   trigger : CompletionTrigger,
-  module_bindings : Array[@resolve.ResolvedImportExposure],
+  module_bindings : Map[Int, SemanticModuleBindingFact],
 ) -> CompletionContext {
   let offset = source.offset(line, column)
   let prefix_start = identifier_prefix_start(source.text, offset)
@@ -999,10 +998,10 @@ fn completion_owner_before_separator(
 ///|
 fn module_owner_visible(
   owner : String,
-  bindings : Array[@resolve.ResolvedImportExposure],
+  bindings : Map[Int, SemanticModuleBindingFact],
 ) -> Bool {
-  for binding in bindings {
-    if semantic_module_binding_name(binding) == owner {
+  for _, binding in bindings {
+    if binding.name == owner {
       return true
     }
   }

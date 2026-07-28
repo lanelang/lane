@@ -11,8 +11,9 @@ The compiler owns prefix filtering, replacement ranges, stable ordering, and sem
 Completion context classification should be explicit. V1 distinguishes ordinary identifier completion, module-qualified completion, nominal-qualified constructor or variant completion, receiver member completion, effect operation completion, and unsupported contexts. Because `.` can mean module-qualified access or receiver access, a visible module binding on the left side takes priority over treating the same text as an expression receiver.
 
 Visible module bindings come from resolver-produced `ResolvedImportExposure`
-facts stored by the semantic index. Completion does not reinterpret syntax
-imports to reconstruct alias, open, or selective binding behavior.
+values normalized once into exposure-id-keyed semantic binding facts.
+Definitions, references, and completion consume those facts rather than
+reinterpreting syntax imports or resolver exposures.
 
 The `::` completion context is limited to owner-defined named members. Nominal type owners complete variants or constructor-like members according to the source language, effect owners complete operations, and module-qualified owners such as `Lib.Option::` or `Lib.Console::` use only the imported module interface surface. `Lib::x` is not a module-member completion form because module access uses `.`.
 

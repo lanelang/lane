@@ -125,6 +125,15 @@ priv struct ParameterHintParameter {
 }
 
 ///|
+priv struct SemanticModuleBindingFact {
+  symbol : AnalysisSymbol
+  name : String
+  module_path : String
+  name_loc : @basic.SourceSpan
+  detail : String
+}
+
+///|
 priv struct SemanticIndex {
   registry : @symbol.SymbolRegistry
   source_id : String
@@ -134,7 +143,7 @@ priv struct SemanticIndex {
   annotated_values : Array[@symbol.ValueSymbolId]
   generic_parameters : Array[GenericParameterFact]
   generic_parameter_references : Array[@symbol.TypeParameterId]
-  module_bindings : Array[@resolve.ResolvedImportExposure]
+  module_bindings : Map[Int, SemanticModuleBindingFact]
   used_import_symbols : Array[@resolve.ResolvedImportSymbol]
   top_level_declarations : Array[TopLevelDeclarationFact]
   top_level_references : Array[TopLevelReferenceFact]
@@ -154,6 +163,10 @@ fn SemanticIndex::from_sources(
   source_id : String,
   _source_text : String,
 ) -> SemanticIndex {
+  let module_bindings = semantic_module_binding_facts(
+    source_id,
+    resolved.import_exposures,
+  )
   let index = SemanticIndex::{
     registry: resolved.symbols,
     source_id,
@@ -163,12 +176,7 @@ fn SemanticIndex::from_sources(
     annotated_values: [],
     generic_parameters: [],
     generic_parameter_references: [],
-    module_bindings: resolved.import_exposures.filter(fn(exposure) {
-      match exposure.kind {
-        QualifiedModuleBinding(..) | ImportedModuleBinding(..) => true
-        OpenBinding | SelectiveBinding(_) => false
-      }
-    }),
+    module_bindings,
     used_import_symbols: [],
     top_level_declarations: [],
     top_level_references: [],
@@ -202,57 +210,49 @@ fn SemanticIndex::add_module_bindings(
   self : SemanticIndex,
   references : Array[@resolve.ResolvedModuleBindingReference],
 ) -> Unit {
-  for exposure in self.module_bindings {
-    let name = semantic_module_binding_name(exposure)
-    let name_loc = match exposure.kind {
-      QualifiedModuleBinding(name_loc~, ..)
-      | ImportedModuleBinding(name_loc~, ..) => name_loc
-      OpenBinding | SelectiveBinding(_) =>
-        abort("semantic module binding must originate from a module exposure")
-    }
-    let symbol = AnalysisSymbol::ModuleBinding(
-      source_id=self.source_id,
-      exposure_id=exposure.id,
+  for _, binding in self.module_bindings {
+    self.add_definition(
+      binding.symbol,
+      binding.name_loc,
+      binding.name,
+      binding.detail,
     )
-    let detail = semantic_module_binding_detail(exposure)
-    self.add_definition(symbol, name_loc, name, detail)
   }
   for reference in references {
-    for exposure in self.module_bindings {
-      if exposure.id != reference.exposure_id {
-        continue
+    guard self.module_bindings.get(reference.exposure_id) is Some(binding) else {
+      abort("resolved module binding reference must target a module binding")
+    }
+    self.add_reference(binding.symbol, reference.loc, Some(binding.detail))
+  }
+}
+
+///|
+fn semantic_module_binding_facts(
+  source_id : String,
+  exposures : Array[@resolve.ResolvedImportExposure],
+) -> Map[Int, SemanticModuleBindingFact] {
+  let bindings : Map[Int, SemanticModuleBindingFact] = Map([])
+  for exposure in exposures {
+    match exposure.kind {
+      QualifiedModuleBinding(name~, name_loc~)
+      | ImportedModuleBinding(name~, name_loc~) => {
+        let detail = if name == exposure.module_path_text {
+          "module \{name}"
+        } else {
+          "module \{name} = \{exposure.module_path_text}"
+        }
+        bindings[exposure.id] = {
+          symbol: ModuleBinding(source_id~, exposure_id=exposure.id),
+          name,
+          module_path: exposure.module_path_text,
+          name_loc,
+          detail,
+        }
       }
-      self.add_reference(
-        ModuleBinding(source_id=self.source_id, exposure_id=exposure.id),
-        reference.loc,
-        Some(semantic_module_binding_detail(exposure)),
-      )
-      break
+      OpenBinding | SelectiveBinding(_) => ()
     }
   }
-}
-
-///|
-fn semantic_module_binding_name(
-  exposure : @resolve.ResolvedImportExposure,
-) -> String {
-  match exposure.kind {
-    QualifiedModuleBinding(name~, ..) | ImportedModuleBinding(name~, ..) => name
-    OpenBinding | SelectiveBinding(_) =>
-      abort("semantic module binding must originate from a module exposure")
-  }
-}
-
-///|
-fn semantic_module_binding_detail(
-  exposure : @resolve.ResolvedImportExposure,
-) -> String {
-  let name = semantic_module_binding_name(exposure)
-  if name == exposure.module_path_text {
-    "module \{name}"
-  } else {
-    "module \{name} = \{exposure.module_path_text}"
-  }
+  bindings
 }
 
 ///|
