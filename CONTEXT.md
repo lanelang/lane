@@ -488,7 +488,8 @@ _Avoid_: VS Code extension, compiler front end
 - Module-qualified type access is written as `Module.Path.Type`.
 - Module-qualified effect and **Effect Set Alias** access is written as `Module.Path.Name`.
 - Module-qualified nominal member access combines both separators, such as `Module.Path.Type::{ ... }` and `Module.Path.Type::variant`.
-- The left side of module-qualified access must be an imported complete **Module Path**.
+- The left side of module-qualified access must be an imported local **Module
+  Binding**, which may be a complete **Module Path** or an alias.
 - Sharing a **Module Path Prefix** does not make one **Module** reachable through
   another.
 - A module alias names exactly one imported **Module** and is not a prefix
