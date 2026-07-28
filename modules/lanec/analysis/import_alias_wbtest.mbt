@@ -229,6 +229,30 @@ test "completion exposes an alias and completes its canonical interface" {
 }
 
 ///|
+test "rejected current-module alias does not enter completion" {
+  let root =
+    #|module Main
+    #|import Basic.Long.Library as Main
+    #|
+    #|pub fn use() -> Int { Main.answer() }
+  let snapshot = import_alias_snapshot(root, [
+    ("file:///Library.lane", import_alias_library()),
+  ])
+  assert_true(
+    snapshot
+    .diagnostics()
+    .any(fn(diagnostic) { diagnostic.code == Some("E2008") }),
+  )
+  debug_inspect(
+    snapshot
+    .complete("file:///Main.lane", 4, 26, Manual)
+    .filter(fn(entry) { entry.kind is Module })
+    .map(fn(entry) { (entry.label, entry.detail) }),
+    content="[]",
+  )
+}
+
+///|
 test "completion excludes open and selective imports from module bindings" {
   let root =
     #|module Main

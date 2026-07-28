@@ -337,6 +337,7 @@ test "the current module name cannot be reused as an import binding" {
       #|]
     ),
   )
+  debug_inspect(result.source.import_exposures, content="[]")
 }
 
 ///|

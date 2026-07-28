@@ -12,18 +12,8 @@ fn Resolver::publish_imported_bindings(
           Some(module_alias) => (module_alias.name, module_alias.name_loc)
           None => (module_path_text, module_path.loc)
         }
-        let module_origin = self.define_import_exposure(
-          module_path_text,
-          QualifiedModuleBinding(name=binding_name, name_loc=binding_loc),
-          loc,
-        )
-        self.publish_lexical_module_binding(
-          binding_name,
-          binding_loc,
-          module_path,
-          imported_environment,
-          Some(module_origin),
-          provider_origin=Some(module_origin),
+        self.publish_qualified_import(
+          binding_name, binding_loc, module_path, loc, imported_environment,
         )
       }
       Open(module_path~, loc~) =>
@@ -175,14 +165,13 @@ fn Resolver::define_selective_import_origins(
 }
 
 ///|
-fn Resolver::publish_lexical_module_binding(
+fn Resolver::publish_qualified_import(
   self : Resolver,
   binding_name : String,
   binding_loc : SourceSpan,
   module_path : @syntax.ModulePath,
+  import_loc : SourceSpan,
   imported_environment : @module_interface.ImportedEnvironment,
-  import_origin : Int?,
-  provider_origin~ : Int?,
 ) -> Unit {
   let path_text = @module_interface.module_path_text(module_path)
   if binding_name == self.local_module.path_text {
@@ -196,7 +185,6 @@ fn Resolver::publish_lexical_module_binding(
     return
   }
   guard imported_environment.find(path_text) is Some(interface) else { return }
-  let imported = self.register_imported_module(interface, provider_origin~)
   for binding in self.module_bindings {
     if binding.name_text == binding_name {
       if !self.ambiguous_module_binding_names.contains(binding_name) {
@@ -209,11 +197,20 @@ fn Resolver::publish_lexical_module_binding(
       return
     }
   }
+  let import_origin = self.define_import_exposure(
+    path_text,
+    QualifiedModuleBinding(name=binding_name, name_loc=binding_loc),
+    import_loc,
+  )
+  let imported = self.register_imported_module(
+    interface,
+    provider_origin=Some(import_origin),
+  )
   self.module_bindings.push({
     name_text: binding_name,
     name_loc: binding_loc,
     imported,
-    import_origin,
+    import_origin: Some(import_origin),
   })
 }
 
