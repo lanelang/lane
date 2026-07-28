@@ -85,8 +85,8 @@ fn Resolver::publish_imported_bindings(
 fn Resolver::validate_qualified_imports(
   self : Resolver,
   source : @syntax.SourceFile,
-) -> Map[String, Unit] {
-  let conflicting_bindings : Map[String, Unit] = Map([])
+) -> @hashset.HashSet[String] {
+  let conflicting_bindings : @hashset.HashSet[String] = HashSet([])
   let first_binding_locs : Map[String, SourceSpan] = Map([])
   for import_ in source.imports {
     if import_ is Qualified(module_path~, module_alias~, ..) {
@@ -104,7 +104,7 @@ fn Resolver::validate_qualified_imports(
       } else {
         match first_binding_locs.get(binding_name) {
           Some(existing_loc) => {
-            conflicting_bindings[binding_name] = ()
+            conflicting_bindings.add(binding_name)
             self.report(
               AmbiguousModuleBinding(name=binding_name, existing_loc~),
               binding_loc,

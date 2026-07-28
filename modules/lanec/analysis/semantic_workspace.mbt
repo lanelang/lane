@@ -64,7 +64,7 @@ pub struct SemanticWorkspace {
   priv mut sources : Map[String, @module_frontend.SourceInput]
   priv mut source_layout : SourceLayout
   priv dirty_sources : Array[String]
-  priv dirty_source_set : Map[String, Bool]
+  priv dirty_source_set : @hashset.HashSet[String]
   priv mut current : SemanticSnapshot?
   priv mut allocator : @symbol.SymbolIdentityAllocator
   priv parse_cache : Map[String, CachedParsedSource]
@@ -82,7 +82,7 @@ pub fn SemanticWorkspace::new() -> SemanticWorkspace {
     sources: Map([]),
     source_layout: SourceLayout::from_ids([]),
     dirty_sources: [],
-    dirty_source_set: Map([]),
+    dirty_source_set: HashSet([]),
     current: None,
     allocator: SymbolIdentityAllocator(),
     parse_cache: Map([]),
@@ -219,8 +219,7 @@ fn SemanticWorkspace::enqueue_dirty_source(
   self : SemanticWorkspace,
   source_id : String,
 ) -> Unit {
-  if !self.dirty_source_set.contains(source_id) {
-    self.dirty_source_set[source_id] = true
+  if self.dirty_source_set.add_and_check(source_id) {
     self.dirty_sources.push(source_id)
   }
 }
