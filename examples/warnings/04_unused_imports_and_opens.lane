@@ -1,6 +1,6 @@
 module Examples.Warnings.UnusedImportsAndOpens
 
-import Basic.Builtins as Builtins
+import Basic.Builtins
 import Basic.Builtins.{ double_nan }
 import Basic.Trait.Ops.*
 import Basic.Io.{ println }

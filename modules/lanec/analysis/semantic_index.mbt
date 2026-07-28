@@ -234,8 +234,7 @@ fn semantic_module_binding_facts(
   let bindings : Map[Int, SemanticModuleBindingFact] = Map([])
   for exposure in exposures {
     match exposure.kind {
-      QualifiedModuleBinding(name~, name_loc~)
-      | ImportedModuleBinding(name~, name_loc~) => {
+      QualifiedModuleBinding(name~, name_loc~) => {
         let detail = if name == exposure.module_path_text {
           "module \{name}"
         } else {
@@ -381,10 +380,7 @@ fn SemanticIndex::unused_import_exposures(
     }
   }
   source.import_exposures.filter(fn(exposure) {
-    match exposure.kind {
-      ImportedModuleBinding(..) => false
-      _ => !used_exposure_ids.contains(exposure.id)
-    }
+    !used_exposure_ids.contains(exposure.id)
   })
 }
 

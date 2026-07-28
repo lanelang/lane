@@ -252,7 +252,6 @@ pub(all) struct ResolvedImportExposure {
 
 pub(all) enum ResolvedImportExposureKind {
   QualifiedModuleBinding(name~ : String, name_loc~ : @basic.SourceSpan)
-  ImportedModuleBinding(name~ : String, name_loc~ : @basic.SourceSpan)
   OpenBinding
   SelectiveBinding(name~ : String)
 } derive(Eq, @debug.Debug)

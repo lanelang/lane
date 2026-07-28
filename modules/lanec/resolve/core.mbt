@@ -13,7 +13,6 @@ pub(all) struct ResolvedSourceFile {
 ///|
 pub(all) enum ResolvedImportExposureKind {
   QualifiedModuleBinding(name~ : String, name_loc~ : SourceSpan)
-  ImportedModuleBinding(name~ : String, name_loc~ : SourceSpan)
   OpenBinding
   SelectiveBinding(name~ : String)
 } derive(Debug, Eq)

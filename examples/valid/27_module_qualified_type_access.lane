@@ -1,5 +1,6 @@
 module Examples.Valid.ModuleQualifiedTypeAccess
 
+import Basic.Trait.Ops
 import Basic.Trait.Ops.*
 import Basic.Io.{ println }
 import Basic.Builtins

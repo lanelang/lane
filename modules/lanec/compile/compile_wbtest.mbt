@@ -1820,7 +1820,7 @@ test "effect aliases export through interface artifacts" {
     (
       #|module Main
       #|import Lib.*
-      #|pub fn program() -> Unit ! Lib.UI {
+      #|pub fn program() -> Unit ! UI {
       #|  let ignored : Int = Console::read!()
       #|  Log::write!("ok")
       #|}
@@ -1849,8 +1849,8 @@ test "effect aliases export through interface artifacts" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 67,
-      #|          end_offset: 74,
+      #|          start_offset: 63,
+      #|          end_offset: 70,
       #|          start_line: 4,
       #|          start_column: 7,
       #|          end_line: 4,
@@ -1865,8 +1865,8 @@ test "effect aliases export through interface artifacts" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 67,
-      #|            end_offset: 74,
+      #|            start_offset: 63,
+      #|            end_offset: 70,
       #|            start_line: 4,
       #|            start_column: 7,
       #|            end_line: 4,
@@ -4084,7 +4084,7 @@ test "a sugar provider resolves its own fully qualified nominal expansion" {
     (
       #|module Main
       #|import Basic.Data.List.*
-      #|pub let number : Basic.Data.List.List[Int] = singleton(1)
+      #|pub let number : List[Int] = singleton(1)
     ),
     [
       (
@@ -4374,7 +4374,7 @@ test "tuple and list sugar do not use unqualified fallback providers" {
 }
 
 ///|
-test "all import exposure forms provide the module binding used by sugar" {
+test "all import exposure forms provide canonical modules used by sugar" {
   for
     imports in [
       "import Basic.Data.Tuple\nimport Basic.Data.List", "import Basic.Data.Tuple.*\nimport Basic.Data.List.*",
@@ -4383,7 +4383,14 @@ test "all import exposure forms provide the module binding used by sugar" {
     let result = check_sources(
       "module Main\n" +
       imports +
-      "\npub let pair : (Int, Bool) = (1, true)\npub let numbers : Basic.Data.List.List[Int] = [1, 2]",
+      (
+        #|
+        #|pub fn sugars() -> Unit {
+        #|  let _pair = (1, true)
+        #|  let _numbers = [1, 2]
+        #|  ()
+        #|}
+      ),
       [
         (
           #|module Basic.Data.Tuple

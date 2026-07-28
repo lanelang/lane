@@ -199,11 +199,6 @@ fn unused_import_exposure_diagnostic(
         "unused import item",
         "imported item `\{name}` from `\{exposure.module_path_text}` is never used",
       )
-    ImportedModuleBinding(..) =>
-      (
-        "unused import",
-        "imported module `\{exposure.module_path_text}` is never used",
-      )
   }
   diagnostic(
     message,

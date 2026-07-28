@@ -237,7 +237,7 @@ fn Resolver::publish_imported_bindings(
           QualifiedModuleBinding(name=binding_name, name_loc=binding_loc),
           loc,
         )
-        self.publish_imported_module_binding(
+        self.publish_lexical_module_binding(
           binding_name,
           binding_loc,
           module_path,
@@ -255,26 +255,16 @@ fn Resolver::publish_imported_bindings(
             let module_path_text = @module_interface.module_path_text(
               module_path,
             )
-            let module_origin = self.define_import_exposure(
-              module_path_text,
-              ImportedModuleBinding(
-                name=module_path_text,
-                name_loc=module_path.loc,
-              ),
-              loc,
-            )
             let open_origin = self.define_import_exposure(
               module_path_text,
               OpenBinding,
               loc,
             )
-            self.publish_imported_module_binding(
-              module_path_text,
-              module_path.loc,
-              module_path,
-              imported_environment,
-              Some(module_origin),
-              provider_origin=Some(open_origin),
+            ignore(
+              self.register_imported_module(
+                imported,
+                provider_origin=Some(open_origin),
+              ),
             )
             self.publish_imported_public_types(imported, Some(open_origin))
             self.publish_imported_public_effects(imported, Some(open_origin))
@@ -292,24 +282,8 @@ fn Resolver::publish_imported_bindings(
             @module_interface.module_path_text(module_path),
           ) {
           Some(imported) => {
-            let module_path_text = @module_interface.module_path_text(
-              module_path,
-            )
-            let module_origin = self.define_import_exposure(
-              module_path_text,
-              ImportedModuleBinding(
-                name=module_path_text,
-                name_loc=module_path.loc,
-              ),
-              loc,
-            )
-            self.publish_imported_module_binding(
-              module_path_text,
-              module_path.loc,
-              module_path,
-              imported_environment,
-              Some(module_origin),
-              provider_origin=Some(module_origin),
+            ignore(
+              self.register_imported_module(imported, provider_origin=None),
             )
             let item_origins = self.define_selective_import_origins(
               imported, items,
@@ -421,7 +395,7 @@ fn Resolver::define_selective_import_origins(
 }
 
 ///|
-fn Resolver::publish_imported_module_binding(
+fn Resolver::publish_lexical_module_binding(
   self : Resolver,
   binding_name : String,
   binding_loc : SourceSpan,
@@ -442,22 +416,7 @@ fn Resolver::publish_imported_module_binding(
     return
   }
   guard imported_environment.find(path_text) is Some(interface) else { return }
-  let imported = match self.imported_module(path_text) {
-    Some(imported) => imported
-    None => {
-      let imported = ImportedModule::{
-        path_text,
-        interface,
-        provider_origins: [],
-      }
-      self.imported_modules.push(imported)
-      imported
-    }
-  }
-  if provider_origin is Some(origin) &&
-    !imported.provider_origins.contains(origin) {
-    imported.provider_origins.push(origin)
-  }
+  let imported = self.register_imported_module(interface, provider_origin~)
   for binding in self.module_bindings {
     if binding.name_text == binding_name {
       if !self.ambiguous_module_binding_names.contains(binding_name) {
@@ -476,6 +435,31 @@ fn Resolver::publish_imported_module_binding(
     imported,
     import_origin,
   })
+}
+
+///|
+fn Resolver::register_imported_module(
+  self : Resolver,
+  interface : @module_interface.ModuleInterface,
+  provider_origin~ : Int?,
+) -> ImportedModule {
+  let imported = match self.imported_module(interface.module_path) {
+    Some(imported) => imported
+    None => {
+      let imported = ImportedModule::{
+        path_text: interface.module_path,
+        interface,
+        provider_origins: [],
+      }
+      self.imported_modules.push(imported)
+      imported
+    }
+  }
+  if provider_origin is Some(origin) &&
+    !imported.provider_origins.contains(origin) {
+    imported.provider_origins.push(origin)
+  }
+  imported
 }
 
 ///|

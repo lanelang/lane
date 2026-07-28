@@ -172,7 +172,7 @@ test "completion exposes an alias and completes its canonical interface" {
 }
 
 ///|
-test "completion consumes open and selective module exposures" {
+test "completion excludes open and selective imports from module bindings" {
   let root =
     #|module Main
     #|import Basic.Long.Library.*
@@ -196,57 +196,7 @@ test "completion consumes open and selective module exposures" {
     6,
     Manual,
   ).filter(fn(entry) { entry.kind is Module })
-  debug_inspect(
-    entries,
-    content=(
-      #|[
-      #|  {
-      #|    label: "Basic.Other",
-      #|    kind: Module,
-      #|    is_offered: false,
-      #|    detail: Some("module Basic.Other"),
-      #|    documentation: None,
-      #|    insert_text: None,
-      #|    replace: Some(
-      #|      {
-      #|        source_id: "file:///Main.lane",
-      #|        span: {
-      #|          start_offset: 94,
-      #|          end_offset: 97,
-      #|          start_line: 6,
-      #|          start_column: 3,
-      #|          end_line: 6,
-      #|          end_column: 6,
-      #|        },
-      #|      },
-      #|    ),
-      #|    sort_text: Some("40:Basic.Other"),
-      #|  },
-      #|  {
-      #|    label: "Basic.Long.Library",
-      #|    kind: Module,
-      #|    is_offered: false,
-      #|    detail: Some("module Basic.Long.Library"),
-      #|    documentation: None,
-      #|    insert_text: None,
-      #|    replace: Some(
-      #|      {
-      #|        source_id: "file:///Main.lane",
-      #|        span: {
-      #|          start_offset: 94,
-      #|          end_offset: 97,
-      #|          start_line: 6,
-      #|          start_column: 3,
-      #|          end_line: 6,
-      #|          end_column: 6,
-      #|        },
-      #|      },
-      #|    ),
-      #|    sort_text: Some("40:Basic.Long.Library"),
-      #|  },
-      #|]
-    ),
-  )
+  debug_inspect(entries, content="[]")
 }
 
 ///|

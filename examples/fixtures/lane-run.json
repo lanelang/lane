@@ -562,7 +562,7 @@
         "contains": [
           "warning[W2004]",
           "unused import",
-          "imported module binding `Builtins` is never used",
+          "imported module `Basic.Builtins` is never used",
           "unused open import",
           "open import `Basic.Trait.Ops.*` contributes no used names",
           "unused import item",

@@ -205,6 +205,87 @@ test "authored access marks only its local module binding" {
 }
 
 ///|
+test "selective import does not conflict with a qualified module binding" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    (
+      #|import Lib
+      #|import Lib.{ value }
+      #|fn read() -> Int { value }
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  debug_inspect(
+    result.source.import_exposures.map(fn(exposure) { exposure.kind }),
+    content=(
+      #|[
+      #|  QualifiedModuleBinding(
+      #|    name="Lib",
+      #|    name_loc={
+      #|      start_offset: 19,
+      #|      end_offset: 22,
+      #|      start_line: 2,
+      #|      start_column: 8,
+      #|      end_line: 2,
+      #|      end_column: 11,
+      #|    },
+      #|  ),
+      #|  SelectiveBinding(name="value"),
+      #|]
+    ),
+  )
+}
+
+///|
+test "open import does not conflict with a qualified module binding" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    (
+      #|import Lib
+      #|import Lib.*
+      #|fn read() -> Int { Lib.value }
+    ),
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "open import does not publish a lexical module binding" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    (
+      #|import Lib.*
+      #|fn read() -> Int { Lib.value }
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content="[unresolved_value Lib]",
+  )
+}
+
+///|
+test "selective import does not publish a lexical module binding" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    (
+      #|import Lib.{ value }
+      #|fn read() -> Int { Lib.value }
+    ),
+  )
+  inspect(
+    @prettyprinter.render(
+      result.diagnostics.map(fn(diagnostic) { diagnostic.kind }),
+      width=100,
+    ),
+    content="[unresolved_value Lib]",
+  )
+}
+
+///|
 test "a local module binding name is unique" {
   let result = resolve_import_alias_source(
     import_alias_fixture(),
