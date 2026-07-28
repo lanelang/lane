@@ -370,6 +370,52 @@ test "rejected current-module alias does not enter completion" {
 }
 
 ///|
+test "conflicting aliases do not enter completion in either import order" {
+  let other =
+    #|module Basic.Other
+    #|
+    #|pub fn value() -> Int { 1 }
+  let libraries = [
+    ("file:///Library.lane", import_alias_library()),
+    ("file:///Other.lane", other),
+  ]
+  let roots = [
+    (
+      #|module Main
+      #|import Basic.Long.Library as Shared
+      #|import Basic.Other as Shared
+      #|
+      #|pub fn use() -> Unit {
+      #|  Sha
+      #|}
+    ),
+    (
+      #|module Main
+      #|import Basic.Other as Shared
+      #|import Basic.Long.Library as Shared
+      #|
+      #|pub fn use() -> Unit {
+      #|  Sha
+      #|}
+    ),
+  ]
+  let results = roots.map(root => {
+    let snapshot = import_alias_snapshot(root, libraries)
+    (
+      snapshot
+      .diagnostics()
+      .filter(fn(diagnostic) { diagnostic.code == Some("E2008") })
+      .length(),
+      snapshot
+      .complete("file:///Main.lane", 6, 6, Manual)
+      .filter(fn(entry) { entry.kind is Module })
+      .map(fn(entry) { (entry.label, entry.detail) }),
+    )
+  })
+  assert_eq(results, [(1, []), (1, [])])
+}
+
+///|
 test "completion excludes open and selective imports from module bindings" {
   let root =
     #|module Main

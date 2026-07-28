@@ -244,9 +244,6 @@ fn Resolver::module_binding(
   self : Resolver,
   name_text : String,
 ) -> ModuleBinding? {
-  if self.ambiguous_module_binding_names.contains(name_text) {
-    return None
-  }
   for binding in self.module_bindings {
     if binding.name_text == name_text {
       return Some(binding)

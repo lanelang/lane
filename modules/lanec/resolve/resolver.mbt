@@ -5,7 +5,6 @@ priv struct Resolver {
   local_module : LocalModuleNamespace
   imported_modules : Array[ImportedModule]
   module_bindings : Array[ModuleBinding]
-  ambiguous_module_binding_names : Array[String]
   types : Array[TypeBinding]
   effects : Array[EffectBinding]
   type_aliases : Array[TypeAliasBinding]
@@ -29,7 +28,6 @@ priv struct ImportedModule {
 ///|
 priv struct ModuleBinding {
   name_text : String
-  name_loc : SourceSpan
   imported : ImportedModule
   import_origin : Int?
 }
@@ -203,7 +201,6 @@ fn Resolver::Resolver(
     },
     imported_modules: [],
     module_bindings: [],
-    ambiguous_module_binding_names: [],
     types: [],
     effects: [],
     type_aliases: [],

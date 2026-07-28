@@ -291,7 +291,7 @@ test "a local module binding name is unique" {
     import_alias_fixture(),
     (
       #|import Lib as Shared
-      #|import Lib as Shared
+      #|import Basic.Data.List as Shared
     ),
   )
   inspect(
@@ -301,6 +301,7 @@ test "a local module binding name is unique" {
     ),
     content="[ambiguous_module_binding Shared]",
   )
+  assert_eq(result.source.import_exposures, [])
 }
 
 ///|

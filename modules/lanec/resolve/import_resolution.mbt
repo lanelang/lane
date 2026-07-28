@@ -1,20 +1,33 @@
 ///|
+fn qualified_import_binding(
+  module_path : @syntax.ModulePath,
+  module_alias : @syntax.ModuleAlias?,
+) -> (String, SourceSpan) {
+  match module_alias {
+    Some(module_alias) => (module_alias.name, module_alias.name_loc)
+    None => (@module_interface.module_path_text(module_path), module_path.loc)
+  }
+}
+
+///|
 fn Resolver::publish_imported_bindings(
   self : Resolver,
   source : @syntax.SourceFile,
   imported_environment : @module_interface.ImportedEnvironment,
 ) -> Unit {
+  let conflicting_qualified_imports = self.validate_qualified_imports(source)
   for import_ in source.imports {
     match import_ {
       Qualified(module_path~, module_alias~, loc~) => {
-        let module_path_text = @module_interface.module_path_text(module_path)
-        let (binding_name, binding_loc) = match module_alias {
-          Some(module_alias) => (module_alias.name, module_alias.name_loc)
-          None => (module_path_text, module_path.loc)
-        }
-        self.publish_qualified_import(
-          binding_name, binding_loc, module_path, loc, imported_environment,
+        let (binding_name, binding_loc) = qualified_import_binding(
+          module_path, module_alias,
         )
+        if binding_name != self.local_module.path_text &&
+          !conflicting_qualified_imports.contains(binding_name) {
+          self.publish_qualified_import(
+            binding_name, binding_loc, module_path, loc, imported_environment,
+          )
+        }
       }
       Open(module_path~, loc~) =>
         match
@@ -66,6 +79,43 @@ fn Resolver::publish_imported_bindings(
         }
     }
   }
+}
+
+///|
+fn Resolver::validate_qualified_imports(
+  self : Resolver,
+  source : @syntax.SourceFile,
+) -> Map[String, Unit] {
+  let conflicting_bindings : Map[String, Unit] = Map([])
+  let first_binding_locs : Map[String, SourceSpan] = Map([])
+  for import_ in source.imports {
+    if import_ is Qualified(module_path~, module_alias~, ..) {
+      let (binding_name, binding_loc) = qualified_import_binding(
+        module_path, module_alias,
+      )
+      if binding_name == self.local_module.path_text {
+        self.report(
+          AmbiguousModuleBinding(
+            name=binding_name,
+            existing_loc=self.local_module.name_loc,
+          ),
+          binding_loc,
+        )
+      } else {
+        match first_binding_locs.get(binding_name) {
+          Some(existing_loc) => {
+            conflicting_bindings[binding_name] = ()
+            self.report(
+              AmbiguousModuleBinding(name=binding_name, existing_loc~),
+              binding_loc,
+            )
+          }
+          None => first_binding_locs[binding_name] = binding_loc
+        }
+      }
+    }
+  }
+  conflicting_bindings
 }
 
 ///|
@@ -174,29 +224,7 @@ fn Resolver::publish_qualified_import(
   imported_environment : @module_interface.ImportedEnvironment,
 ) -> Unit {
   let path_text = @module_interface.module_path_text(module_path)
-  if binding_name == self.local_module.path_text {
-    self.report(
-      AmbiguousModuleBinding(
-        name=binding_name,
-        existing_loc=self.local_module.name_loc,
-      ),
-      binding_loc,
-    )
-    return
-  }
   guard imported_environment.find(path_text) is Some(interface) else { return }
-  for binding in self.module_bindings {
-    if binding.name_text == binding_name {
-      if !self.ambiguous_module_binding_names.contains(binding_name) {
-        self.ambiguous_module_binding_names.push(binding_name)
-      }
-      self.report(
-        AmbiguousModuleBinding(name=binding_name, existing_loc=binding.name_loc),
-        binding_loc,
-      )
-      return
-    }
-  }
   let import_origin = self.define_import_exposure(
     path_text,
     QualifiedModuleBinding(name=binding_name, name_loc=binding_loc),
@@ -208,7 +236,6 @@ fn Resolver::publish_qualified_import(
   )
   self.module_bindings.push({
     name_text: binding_name,
-    name_loc: binding_loc,
     imported,
     import_origin: Some(import_origin),
   })
