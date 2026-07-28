@@ -79,34 +79,6 @@ priv struct CompletionSource {
 }
 
 ///|
-priv struct CompletionModuleBinding {
-  name : String
-  module_path : String
-}
-
-///|
-fn completion_module_bindings(
-  source : @syntax.SourceFile,
-) -> Array[CompletionModuleBinding] {
-  source.imports.map(fn(import_) {
-    match import_ {
-      Qualified(module_path~, module_alias~, ..) =>
-        {
-          name: match module_alias {
-            Some(module_alias) => module_alias.name
-            None => @module_interface.module_path_text(module_path)
-          },
-          module_path: @module_interface.module_path_text(module_path),
-        }
-      Open(module_path~, ..) | Selective(module_path~, ..) => {
-        let module_path = @module_interface.module_path_text(module_path)
-        { name: module_path, module_path }
-      }
-    }
-  })
-}
-
-///|
 fn CompletionSource::from_input(
   input : @module_frontend.ParsedModuleInput,
 ) -> CompletionSource {
@@ -158,7 +130,7 @@ fn CompletionIndex::complete(
         line,
         column,
         trigger,
-        completion_module_bindings(module_.input.source),
+        module_.index.module_bindings,
       )
       self.entries_for_context(
         module_, source_id, context, display, line, column,
@@ -417,21 +389,16 @@ fn add_module_binding_entries(
   prefix : String,
   replace : @basic.SourceSpan,
 ) -> Unit {
-  for binding in completion_module_bindings(module_.input.source) {
+  for binding in module_.index.module_bindings {
+    let name = semantic_module_binding_name(binding)
     add_completion_entry(
       entries,
       source_id,
       prefix,
       replace,
-      binding.name,
+      name,
       Module,
-      Some(
-        if binding.name == binding.module_path {
-          "module \{binding.name}"
-        } else {
-          "module \{binding.name} = \{binding.module_path}"
-        },
-      ),
+      Some(semantic_module_binding_detail(binding)),
       "40",
     )
   }
@@ -487,9 +454,9 @@ fn imported_interface_for_owner(
   module_ : CachedSemanticModule,
   owner : String,
 ) -> @module_interface.ModuleInterface? {
-  for binding in completion_module_bindings(module_.input.source) {
-    if binding.name == owner {
-      return module_.imported.find(binding.module_path)
+  for binding in module_.index.module_bindings {
+    if semantic_module_binding_name(binding) == owner {
+      return module_.imported.find(binding.module_path_text)
     }
   }
   None
@@ -861,7 +828,7 @@ fn completion_context(
   line : Int,
   column : Int,
   trigger : CompletionTrigger,
-  module_bindings : Array[CompletionModuleBinding],
+  module_bindings : Array[@resolve.ResolvedImportExposure],
 ) -> CompletionContext {
   let offset = source.offset(line, column)
   let prefix_start = identifier_prefix_start(source.text, offset)
@@ -1032,10 +999,10 @@ fn completion_owner_before_separator(
 ///|
 fn module_owner_visible(
   owner : String,
-  bindings : Array[CompletionModuleBinding],
+  bindings : Array[@resolve.ResolvedImportExposure],
 ) -> Bool {
   for binding in bindings {
-    if binding.name == owner {
+    if semantic_module_binding_name(binding) == owner {
       return true
     }
   }

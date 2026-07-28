@@ -10,6 +10,10 @@ The compiler owns prefix filtering, replacement ranges, stable ordering, and sem
 
 Completion context classification should be explicit. V1 distinguishes ordinary identifier completion, module-qualified completion, nominal-qualified constructor or variant completion, receiver member completion, effect operation completion, and unsupported contexts. Because `.` can mean module-qualified access or receiver access, a visible module binding on the left side takes priority over treating the same text as an expression receiver.
 
+Visible module bindings come from resolver-produced `ResolvedImportExposure`
+facts stored by the semantic index. Completion does not reinterpret syntax
+imports to reconstruct alias, open, or selective binding behavior.
+
 The `::` completion context is limited to owner-defined named members. Nominal type owners complete variants or constructor-like members according to the source language, effect owners complete operations, and module-qualified owners such as `Lib.Option::` or `Lib.Console::` use only the imported module interface surface. `Lib::x` is not a module-member completion form because module access uses `.`.
 
 Receiver completion for `expr.` is selector completion, not method completion. Lane has no method concept, so v1 completes only source-language selectors such as struct fields and any existing type-member access forms supported by the language. Ordinary functions are never suggested after `expr.` merely because their first parameter type matches the receiver.

@@ -172,6 +172,84 @@ test "completion exposes an alias and completes its canonical interface" {
 }
 
 ///|
+test "completion consumes open and selective module exposures" {
+  let root =
+    #|module Main
+    #|import Basic.Long.Library.*
+    #|import Basic.Other.{ value }
+    #|
+    #|pub fn use() -> Int {
+    #|  Bas
+    #|}
+  let other =
+    #|module Basic.Other
+    #|
+    #|pub let value : Int = 1
+  let entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: root },
+    [
+      { source_id: "file:///Library.lane", text: import_alias_library() },
+      { source_id: "file:///Other.lane", text: other },
+    ],
+    "file:///Main.lane",
+    6,
+    6,
+    Manual,
+  ).filter(fn(entry) { entry.kind is Module })
+  debug_inspect(
+    entries,
+    content=(
+      #|[
+      #|  {
+      #|    label: "Basic.Other",
+      #|    kind: Module,
+      #|    is_offered: false,
+      #|    detail: Some("module Basic.Other"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 94,
+      #|          end_offset: 97,
+      #|          start_line: 6,
+      #|          start_column: 3,
+      #|          end_line: 6,
+      #|          end_column: 6,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("40:Basic.Other"),
+      #|  },
+      #|  {
+      #|    label: "Basic.Long.Library",
+      #|    kind: Module,
+      #|    is_offered: false,
+      #|    detail: Some("module Basic.Long.Library"),
+      #|    documentation: None,
+      #|    insert_text: None,
+      #|    replace: Some(
+      #|      {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 94,
+      #|          end_offset: 97,
+      #|          start_line: 6,
+      #|          start_column: 3,
+      #|          end_line: 6,
+      #|          end_column: 6,
+      #|        },
+      #|      },
+      #|    ),
+      #|    sort_text: Some("40:Basic.Long.Library"),
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "canonical tuple sugar marks every provider alias as used" {
   let root =
     #|module Main
