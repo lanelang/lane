@@ -1,0 +1,178 @@
+module Examples.Valid.StructuralDerivation
+
+import Basic.Data.Tuple
+import Basic.Data.Void.{ Void }
+import Basic.Io.{ println }
+import Basic.Trait.Derive.{ Deriver, FieldInfo, Iso, Product, Sum, TypeInfo, VariantInfo }
+import Basic.Trait.Ops.*
+
+struct RoundTrip[T] {
+  type_name : String
+  component_name : String
+  run : (T) -> T
+}
+
+fn round_trip_unit() -> RoundTrip[Unit] {
+  RoundTrip::{
+    type_name: "Unit",
+    component_name: "",
+    run: fn(value) {
+      value
+    }
+  }
+}
+
+fn[A, B] round_trip_product(head : RoundTrip[A], tail : RoundTrip[B]) -> RoundTrip[Product[A, B]] {
+  RoundTrip::{
+    type_name: "Product",
+    component_name: head.component_name,
+    run: fn(value) {
+      Product::{ head: head.run(value.head), tail: tail.run(value.tail) }
+    }
+  }
+}
+
+fn round_trip_void() -> RoundTrip[Void] {
+  RoundTrip::{
+    type_name: "Void",
+    component_name: "",
+    run: fn(value) {
+      value
+    }
+  }
+}
+
+fn[A, B] round_trip_sum(here : RoundTrip[A], there : RoundTrip[B]) -> RoundTrip[Sum[A, B]] {
+  RoundTrip::{
+    type_name: "Sum",
+    component_name: here.component_name,
+    run: fn(value) {
+      match value {
+        Sum::here(value) => Sum::here(here.run(value))
+        Sum::there(value) => Sum::there(there.run(value))
+      }
+    }
+  }
+}
+
+fn[A] round_trip_field(info : FieldInfo, value : RoundTrip[A]) -> RoundTrip[A] {
+  RoundTrip::{ type_name: value.type_name, component_name: info.name, run: value.run }
+}
+
+fn[A] round_trip_variant(info : VariantInfo, value : RoundTrip[A]) -> RoundTrip[A] {
+  RoundTrip::{ type_name: value.type_name, component_name: info.name, run: value.run }
+}
+
+fn[T, R] round_trip_iso(
+  info : TypeInfo,
+  iso : Iso[T, R],
+  representation : RoundTrip[R]
+) -> RoundTrip[T] {
+  RoundTrip::{
+    type_name: info.qualified_name,
+    component_name: representation.component_name,
+    run: fn(value) {
+      iso.from(iso.to(value))
+    }
+  }
+}
+
+offer derive_round_trip : Deriver[RoundTrip] = Deriver::{
+  unit: round_trip_unit,
+  product: round_trip_product,
+  void: round_trip_void,
+  sum: round_trip_sum,
+  field: round_trip_field,
+  variant: round_trip_variant,
+  record: round_trip_iso,
+  enumeration: round_trip_iso
+}
+
+fn selected_deriver() -> Deriver[RoundTrip] ! Io {
+  println("derive operand")
+  derive_round_trip
+}
+
+offer int_round_trip : RoundTrip[Int] = RoundTrip::{
+  type_name: "Int",
+  component_name: "",
+  run: fn(value) {
+    value
+  }
+}
+
+offer bool_round_trip : RoundTrip[Bool] = RoundTrip::{
+  type_name: "Bool",
+  component_name: "",
+  run: fn(value) {
+    value
+  }
+}
+
+struct Point {
+  x : Int
+  y : Int
+}
+
+type Position = Point
+
+enum Choice {
+  none()
+  one(Int)
+  pair(Bool, Int)
+}
+
+let point_round_trip : RoundTrip[Position] = derive[RoundTrip, Position]()
+
+let choice_round_trip : RoundTrip[Choice] = derive[RoundTrip, Choice]()
+
+let tuple_round_trip : RoundTrip[(Int, Bool)] = derive[RoundTrip, (Int, Bool)]()
+
+pub fn answer() -> Unit ! Io {
+  let point = point_round_trip.run(Point::{ x: 40, y: 2 })
+  if point.x + point.y != 42 {
+    println("structural derive failed: record")
+  }
+  let explicit_point_round_trip = derive[RoundTrip, Point](deriver=selected_deriver())
+  let explicit_point = explicit_point_round_trip.run(Point::{ x: 40, y: 2 })
+  if explicit_point.x + explicit_point.y != 42 {
+    println("structural derive failed: explicit deriver")
+  }
+  let choice_none = choice_round_trip.run(Choice::none())
+  match choice_none {
+    Choice::none() => ()
+    Choice::one(_) => println("structural derive failed: empty variant")
+    Choice::pair(_, _) => println("structural derive failed: empty variant")
+  }
+  let choice_one = choice_round_trip.run(Choice::one(42))
+  match choice_one {
+    Choice::one(42) => ()
+    Choice::none() => println("structural derive failed: unary variant")
+    Choice::one(_) => println("structural derive failed: unary variant")
+    Choice::pair(_, _) => println("structural derive failed: unary variant")
+  }
+  let choice_pair = choice_round_trip.run(Choice::pair(true, 42))
+  match choice_pair {
+    Choice::pair(true, 42) => ()
+    Choice::none() => println("structural derive failed: binary variant")
+    Choice::one(_) => println("structural derive failed: binary variant")
+    Choice::pair(_, _) => println("structural derive failed: binary variant")
+  }
+  let (tuple_number, tuple_flag) = tuple_round_trip.run((42, true))
+  if tuple_number != 42 || !tuple_flag {
+    println("structural derive failed: tuple")
+  }
+  if point_round_trip.type_name != "Examples.Valid.StructuralDerivation.Point" {
+    println("structural derive failed: record metadata")
+  }
+  if point_round_trip.component_name != "x" {
+    println("structural derive failed: field metadata")
+  }
+  if choice_round_trip.type_name != "Examples.Valid.StructuralDerivation.Choice" {
+    println("structural derive failed: enum metadata")
+  }
+  if choice_round_trip.component_name != "none" {
+    println("structural derive failed: variant metadata")
+  }
+  println("structural derive=42")
+}

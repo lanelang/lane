@@ -1478,6 +1478,54 @@ fn Expr::render_with_precedence(
         ),
       )
     }
+    Derive(capability~, target~, arguments~, loc~) => {
+      let type_arguments = [capability, target]
+      let type_argument_docs = type_arguments.map(fn(type_) {
+        type_.to_doc(trivia~)
+      })
+      let type_argument_spans = type_arguments.map(Type::loc)
+      let argument_docs = arguments.map(fn(argument) {
+        argument.to_doc(trivia~)
+      })
+      let argument_spans = arguments.map(CallArgument::loc)
+      let (type_dangling, force_type_break) = trivia.take_delimited(
+        '[',
+        loc.start_offset,
+        loc.end_offset,
+        child_spans=type_argument_spans,
+      )
+      let (argument_dangling, force_argument_break) = trivia.take_delimited(
+        '(',
+        loc.start_offset,
+        loc.end_offset,
+        child_spans=argument_spans,
+      )
+      let derive_open = trivia.join_token_prefix(
+        loc,
+        [keyword("derive"), char('[')],
+        separator=empty,
+      )
+      rendered_expr(
+        10,
+        delimited_comma_list(
+          derive_open,
+          char(']'),
+          softline,
+          type_argument_docs,
+          item_spans=type_argument_spans,
+          trivia~,
+          dangling=type_dangling,
+          force_break=force_type_break,
+        ) +
+        parenthesized_comma_list(
+          argument_docs,
+          item_spans=argument_spans,
+          trivia~,
+          dangling=argument_dangling,
+          force_break=force_argument_break,
+        ),
+      )
+    }
     Builtin(name, loc~) => {
       let (dangling, force_break) = trivia.take_delimited(
         '(',

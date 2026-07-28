@@ -24,6 +24,7 @@ pub(all) enum Token {
   HANDLE
   WITH
   FINAL
+  DERIVE
   BUILTIN
   EXTERN
   MODULE

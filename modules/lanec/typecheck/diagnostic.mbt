@@ -239,6 +239,78 @@ fn typecheck_diagnostic(
       contextual_offer_diagnostic(
         diagnostic_, display, span, expected, candidates,
       )
+    MissingDeriveEvidence(required~, paths~) =>
+      diagnostic(
+        "missing structural derivation evidence",
+        span~,
+        severity=Error,
+        code=Some("E3030"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "no exact contextual offer is available for `\{display.type_text(required)}`",
+            style: Primary,
+          },
+        ],
+        notes=["required by: " + paths.join(", ")],
+        helps=["provide one visible offer of the required component capability"],
+      )
+    AmbiguousDeriveEvidence(required~, paths~, candidates~) =>
+      diagnostic(
+        "ambiguous structural derivation evidence",
+        span~,
+        severity=Error,
+        code=Some("E3031"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "multiple contextual offers match `\{display.type_text(required)}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "required by: " + paths.join(", "),
+          "candidates: " +
+          candidates.map(fn(candidate) { candidate.name }).join(", "),
+        ],
+        helps=["hide or rename offers so exactly one candidate is visible"],
+      )
+    InvalidStructuralDerivationInterface(reason~) =>
+      diagnostic(
+        "invalid structural derivation interface",
+        span~,
+        severity=Error,
+        code=Some("E3032"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: reason,
+            style: Primary,
+          },
+        ],
+        notes=[],
+        helps=[
+          "provide the canonical `Basic.Trait.Derive` interface required by the language",
+        ],
+      )
+    UnrepresentableStructuralDerivationTarget(target~, reason~) =>
+      diagnostic(
+        "cannot structurally derive this type",
+        span~,
+        severity=Error,
+        code=Some("E3033"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "`\{display.type_text(target)}` has no representable nominal layer",
+            style: Primary,
+          },
+        ],
+        notes=[reason],
+        helps=[
+          "derive a nominal struct or enum whose representation is visible at this site",
+        ],
+      )
     TypeAliasCycle(name~) =>
       diagnostic(
         "type alias `\{name}` is recursive",

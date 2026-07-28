@@ -105,6 +105,12 @@ priv struct GenericArgumentList {
 }
 
 ///|
+priv struct DeriveTypeArguments {
+  capability : Type
+  target : Type
+}
+
+///|
 fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
   SourceSpan::join(loc.0, loc.1)
 }

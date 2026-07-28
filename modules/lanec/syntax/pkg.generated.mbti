@@ -108,6 +108,7 @@ pub(all) enum Expr {
   StructLiteral(owner~ : Type, fields~ : Array[StructLiteralField], loc~ : @basic.SourceSpan)
   ListLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
   TupleLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
+  Derive(capability~ : Type, target~ : Type, arguments~ : Array[CallArgument], loc~ : @basic.SourceSpan)
   Builtin(String, loc~ : @basic.SourceSpan)
   Extern(String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
@@ -323,6 +324,7 @@ pub(all) struct SourceFile {
   declarations : Array[TopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn SourceFile::first_derive_loc(Self) -> @basic.SourceSpan?
 pub fn SourceFile::syntactic_identifier_index(Self) -> SyntacticIdentifierIndex
 pub impl @source_prettyprinter.Pretty for SourceFile
 pub impl @prettyprinter.Pretty for SourceFile
@@ -332,7 +334,7 @@ pub(all) struct SourceFormatTrivia {
   trailing : (@basic.SourceSpan) -> (@source_prettyprinter.Document, Bool)
   has_leading : (@basic.SourceSpan) -> Bool
   boundary : (Int, Int) -> (@source_prettyprinter.Document, Bool)
-  token_prefix_separators : (@basic.SourceSpan, Int) -> Array[@source_prettyprinter.Document]
+  token_prefix_separators : (@basic.SourceSpan, Int, @source_prettyprinter.Document) -> Array[@source_prettyprinter.Document]
   delimited : (Char, Int, Int, Array[@basic.SourceSpan]) -> (@source_prettyprinter.Document, Bool)
   comma_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document
   item_separator : (@basic.SourceSpan, @basic.SourceSpan) -> @source_prettyprinter.Document

@@ -12,6 +12,12 @@ pub fn CheckedExpr::for_each_child_expr(
     FunctionLiteral(body~, ..) => visit(body)
     FunctionEffectWiden(value~, ..) => visit(value)
     GenericApplication(callee~, ..) => visit(callee)
+    Derive(plan~, ..) => {
+      visit(plan.deriver)
+      for evidence in plan.evidence {
+        visit(evidence.value)
+      }
+    }
     Block(items~, result~, ..) => {
       for item in items {
         item.for_each_child_expr(visit)

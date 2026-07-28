@@ -1,0 +1,14 @@
+module Examples.Invalid.StructuralDerivationMissingEvidence
+
+import Basic.Trait.Derive.{ Deriver }
+
+struct Witness[_T] {}
+
+struct Pair {
+  first : Int
+  second : Int
+}
+
+fn missing_component_evidence(deriver : Deriver[Witness]) -> Witness[Pair] {
+  derive[Witness, Pair](deriver=deriver)
+}

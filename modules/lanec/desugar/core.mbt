@@ -145,6 +145,12 @@ pub(all) enum DesugaredExpr {
     fields~ : Array[DesugaredStructLiteralField],
     loc~ : SourceSpan
   )
+  Derive(
+    capability~ : @resolve.ResolvedType,
+    target~ : @resolve.ResolvedType,
+    arguments~ : Array[DesugaredCallArgument],
+    loc~ : SourceSpan
+  )
   Builtin(String, loc~ : SourceSpan)
   Extern(String, loc~ : SourceSpan)
   ErrorRecovery(loc~ : SourceSpan)
@@ -211,6 +217,7 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | Var(loc~, ..)
     | VariantCall(loc~, ..)
     | StructLiteral(loc~, ..)
+    | Derive(loc~, ..)
     | Builtin(_, loc~)
     | Extern(_, loc~)
     | ErrorRecovery(loc~)

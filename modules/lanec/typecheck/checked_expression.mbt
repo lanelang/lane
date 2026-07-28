@@ -252,6 +252,12 @@ fn SemanticChecker::check_checked_expr_with_expectation(
       )
       self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
+    Derive(capability~, target~, arguments~, loc~) => {
+      let synthesis = self.synthesize_checked_derive(
+        scope, capability, target, arguments, loc,
+      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
+    }
     Handler(body~, handlers~, final_branch~, loc~) => {
       let synthesis = self.synthesize_checked_handler(
         scope, body, handlers, final_branch, loc,
@@ -382,6 +388,8 @@ fn SemanticChecker::synthesize_checked_expr(
       )
     GenericApplication(callee~, arguments~, loc~) =>
       self.synthesize_checked_generic_application(scope, callee, arguments, loc)
+    Derive(capability~, target~, arguments~, loc~) =>
+      self.synthesize_checked_derive(scope, capability, target, arguments, loc)
     Handler(body~, handlers~, final_branch~, loc~) =>
       self.synthesize_checked_handler(scope, body, handlers, final_branch, loc)
     Block(items~, result~, loc~) =>

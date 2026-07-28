@@ -14,7 +14,6 @@ using @prettyprinter {
   line,
   line_comment,
   separate,
-  space,
   text,
 }
 
@@ -360,8 +359,10 @@ fn ConcreteLayoutSession::source_format_trivia(
     boundary: fn(start, end) {
       dangling_comment_doc(comments, claimed, start, end)
     },
-    token_prefix_separators: fn(span, count) {
-      token_prefix_separator_docs(comments, claimed, tokens, span, count)
+    token_prefix_separators: fn(span, count, separator) {
+      token_prefix_separator_docs(
+        comments, claimed, tokens, span, count, separator,
+      )
     },
     delimited: fn(open, start, end, children) {
       delimited_comment_doc(
@@ -574,6 +575,7 @@ fn token_prefix_separator_docs(
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
   span : @basic.SourceSpan,
   count : Int,
+  separator : Document,
 ) -> Array[Document] {
   let separators = []
   let first = first_token_at_or_after(tokens, span.start_offset)
@@ -582,7 +584,7 @@ fn token_prefix_separator_docs(
     guard tokens.get(index) is Some((_, left)) &&
       tokens.get(index + 1) is Some((_, right)) &&
       right.end_offset <= span.end_offset else {
-      separators.push(space)
+      separators.push(separator)
       continue
     }
     separators.push(
@@ -592,7 +594,7 @@ fn token_prefix_separator_docs(
         left,
         right,
         empty,
-        space,
+        separator,
         true,
         include_attached=true,
       ),

@@ -302,6 +302,16 @@ fn collect_expression_identifier_roles(
       for item in items {
         collect_expression_identifier_roles(item, slots)
       }
+    Derive(capability~, target~, arguments~, ..) => {
+      collect_type_identifier_roles(capability, TypeIdentifier, slots)
+      collect_type_identifier_roles(target, TypeIdentifier, slots)
+      for argument in arguments {
+        match argument {
+          Positional(value~, ..) | Named(value~, ..) =>
+            collect_expression_identifier_roles(value, slots)
+        }
+      }
+    }
     FunctionLiteral(parameters~, return_type~, effect~, body~, ..) => {
       for parameter in parameters {
         if parameter.type_annotation is Some(type_) {

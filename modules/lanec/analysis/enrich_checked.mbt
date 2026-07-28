@@ -514,6 +514,15 @@ fn SemanticIndex::collect_checked_expr_types(
       }
       self.collect_checked_type(type_)
     }
+    Derive(plan~, type_~, ..) => {
+      self.collect_checked_type(plan.capability)
+      self.collect_checked_type(plan.target)
+      self.collect_checked_type(plan.representation)
+      for evidence in plan.evidence {
+        self.collect_checked_type(evidence.required_type)
+      }
+      self.collect_checked_type(type_)
+    }
     OperationCall(operation~, generic_witnesses~, effect~, type_~, ..) => {
       if self.registry.operation_metadata(operation) is Some(metadata) {
         self.add_top_level_reference(TopLevelEffect(metadata.owner))

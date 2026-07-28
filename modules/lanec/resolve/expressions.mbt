@@ -63,6 +63,15 @@ fn @syntax.Expr::resolve_expr(
     }
     ListLiteral(_) => self.resolve_list_literal(resolver, scope)
     TupleLiteral(_) => self.resolve_tuple_literal(resolver, scope)
+    Derive(capability~, target~, arguments~, loc~) =>
+      Derive(
+        capability=capability.resolve_type(resolver, scope),
+        target=target.resolve_type(resolver, scope),
+        arguments=arguments.map(fn(argument) {
+          argument.resolve_call_argument(resolver, scope)
+        }),
+        loc~,
+      )
     Builtin(name, loc~) => Builtin(name, loc~)
     Extern(name, loc~) => Extern(name, loc~)
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>

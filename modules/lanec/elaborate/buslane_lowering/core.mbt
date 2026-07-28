@@ -121,6 +121,7 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
   lowerer.collect_data_constructors(source)
   lowerer.collect_effect_operations(source)
   lowerer.collect_field_selectors(source)
+  lowerer.seed_structural_derive_dependencies(source, imported.available)
   lowerer.collect_top_values(source, include_entries=true)
   let external_start = lowerer.external_terms.length()
   let builtin_start = lowerer.builtin_externals.length()

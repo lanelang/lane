@@ -188,6 +188,31 @@ pub(all) struct CheckedCallArgument {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CheckedDeriveEvidence {
+  path : String
+  required_type : @types.Type
+  value : CheckedExpr
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDeriveMetadata {
+  name : String
+  qualified_name : String
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDerivePlan {
+  capability : @types.Type
+  target : @types.Type
+  representation : @types.Type
+  deriver : CheckedExpr
+  evidence : Array[CheckedDeriveEvidence]
+  metadata : CheckedDeriveMetadata
+  iso : CheckedExpr
+  expansion : CheckedExpr
+} derive(Debug, Eq)
+
+///|
 pub(all) enum CheckedExpr {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : SourceSpan)
   Value(
@@ -227,6 +252,7 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
+  Derive(plan~ : CheckedDerivePlan, type_~ : @types.Type, loc~ : SourceSpan)
   Block(
     items~ : Array[CheckedLocalItem],
     result~ : CheckedExpr,
@@ -406,6 +432,7 @@ pub fn CheckedExpr::type_(self : CheckedExpr) -> @types.Type {
     | FunctionLiteral(type_~, ..)
     | FunctionEffectWiden(type_~, ..)
     | GenericApplication(type_~, ..)
+    | Derive(type_~, ..)
     | Block(type_~, ..)
     | If(type_~, ..)
     | Match(type_~, ..)
@@ -430,6 +457,7 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | FunctionLiteral(loc~, ..)
     | FunctionEffectWiden(loc~, ..)
     | GenericApplication(loc~, ..)
+    | Derive(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)

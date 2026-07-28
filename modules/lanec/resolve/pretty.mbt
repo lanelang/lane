@@ -719,6 +719,10 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(ResolvedStructLiteralField::pretty))
+    Derive(capability~, target~, arguments~, ..) =>
+      text("derive") +
+      @pretty.bracketed_inline([capability.pretty(), target.pretty()]) +
+      @pretty.parenthesized_inline(arguments.map(ResolvedCallArgument::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
     Extern(name, ..) => text("extern") + text("(") + text(name) + text(")")
     FunctionLiteral(

@@ -46,6 +46,7 @@ pub(all) enum Token {
   HANDLE
   WITH
   FINAL
+  DERIVE
   BUILTIN
   EXTERN
   MODULE
@@ -124,6 +125,7 @@ pub(all) enum TokenKind {
   TK_HANDLE
   TK_WITH
   TK_FINAL
+  TK_DERIVE
   TK_BUILTIN
   TK_EXTERN
   TK_MODULE

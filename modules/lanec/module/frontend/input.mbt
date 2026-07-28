@@ -235,10 +235,20 @@ pub fn parse_module_inputs(
 
 ///|
 fn module_header(source : @syntax.SourceFile) -> ModuleHeader {
+  let imports = source.imports.map(import_header)
+  let current_module_path = module_path_text(source.module_path)
+  if source.first_derive_loc() is Some(import_span) {
+    for dependency in ["Basic.Trait.Derive", "Basic.Data.Void"] {
+      if current_module_path != dependency &&
+        !imports.any(fn(import_) { import_.module_path_text == dependency }) {
+        imports.push({ module_path_text: dependency, import_span })
+      }
+    }
+  }
   {
-    module_path_text: module_path_text(source.module_path),
+    module_path_text: current_module_path,
     module_span: source.module_path.loc,
-    imports: source.imports.map(import_header),
+    imports,
   }
 }
 

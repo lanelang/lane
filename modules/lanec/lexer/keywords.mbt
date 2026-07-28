@@ -16,6 +16,7 @@ let keyword_table : @hashmap.HashMap[String, Token] = [
     ("handle", HANDLE),
     ("with", WITH),
     ("final", FINAL),
+    ("derive", DERIVE),
     ("builtin", BUILTIN),
     ("extern", EXTERN),
     ("module", MODULE),

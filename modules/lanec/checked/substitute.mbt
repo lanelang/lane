@@ -50,6 +50,12 @@ pub fn CheckedExpr::substitute(
         type_=type_.substitute(substitution),
         loc~,
       )
+    Derive(plan~, type_~, loc~) =>
+      Derive(
+        plan=plan.substitute(substitution),
+        type_=type_.substitute(substitution),
+        loc~,
+      )
     Block(items~, result~, type_~, loc~) =>
       Block(
         items=items.map(fn(item) { item.substitute(substitution) }),
@@ -160,6 +166,29 @@ pub fn CheckedExpr::substitute(
         type_=type_.substitute(substitution),
         loc~,
       )
+  }
+}
+
+///|
+fn CheckedDerivePlan::substitute(
+  self : CheckedDerivePlan,
+  substitution : @types.TypeSubstitution,
+) -> CheckedDerivePlan {
+  {
+    capability: self.capability.substitute(substitution),
+    target: self.target.substitute(substitution),
+    representation: self.representation.substitute(substitution),
+    deriver: self.deriver.substitute(substitution),
+    evidence: self.evidence.map(fn(evidence) {
+      {
+        path: evidence.path,
+        required_type: evidence.required_type.substitute(substitution),
+        value: evidence.value.substitute(substitution),
+      }
+    }),
+    metadata: self.metadata,
+    iso: self.iso.substitute(substitution),
+    expansion: self.expansion.substitute(substitution),
   }
 }
 

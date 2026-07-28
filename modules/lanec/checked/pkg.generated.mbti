@@ -21,6 +21,28 @@ pub(all) struct CheckedCallArgument {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) struct CheckedDeriveEvidence {
+  path : String
+  required_type : @types.Type
+  value : CheckedExpr
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CheckedDeriveMetadata {
+  name : String
+  qualified_name : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CheckedDerivePlan {
+  capability : @types.Type
+  target : @types.Type
+  representation : @types.Type
+  deriver : CheckedExpr
+  evidence : Array[CheckedDeriveEvidence]
+  metadata : CheckedDeriveMetadata
+  iso : CheckedExpr
+  expansion : CheckedExpr
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedDoubleLiteral {
   raw : String
   value : Double
@@ -70,6 +92,7 @@ pub(all) enum CheckedExpr {
   FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionEffectWiden(value~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : CheckedExpr, arguments~ : Array[@types.GenericArgument], type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Derive(plan~ : CheckedDerivePlan, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Block(items~ : Array[CheckedLocalItem], result~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   If(condition~ : CheckedExpr, then_branch~ : CheckedExpr, else_branch~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : CheckedExpr, arms~ : Array[CheckedMatchArm], type_~ : @types.Type, loc~ : @basic.SourceSpan)

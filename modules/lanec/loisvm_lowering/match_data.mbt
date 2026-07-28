@@ -16,6 +16,9 @@ fn FunctionLowerer::lower_data_match(
     owner_info.parameters,
     type_arguments,
   )
+  if owner_info.constructors.is_empty() {
+    return self.lower_unreachable_match_result(match_.result_type)
+  }
   if owner_info.constructors is [data_constructor] {
     let alternative = match
       find_data_alternative(match_.alternatives, data_constructor) {
@@ -108,6 +111,21 @@ fn FunctionLowerer::lower_data_match(
   self.terminate(Unreachable)
   self.enter_block(join_block)
   join_value.1
+}
+
+///|
+fn FunctionLowerer::lower_unreachable_match_result(
+  self : FunctionLowerer,
+  result_type : @buslane.Type,
+) -> LocalValue raise LoisvmLoweringError {
+  self.terminate(Unreachable)
+  let result = self.fresh_optional_slot(result_type)
+  let parameters = match result.0 {
+    Some(slot) => [slot]
+    None => []
+  }
+  self.enter_block(self.new_block(parameters))
+  result.1
 }
 
 ///|

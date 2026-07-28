@@ -277,6 +277,43 @@ fn SemanticChecker::contextual_offer_expr(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
+  match self.lookup_contextual_offer(scope, expected, loc) {
+    ContextualOfferFound(offer) => Some(offer.expression)
+    ContextualOfferMissing => {
+      self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
+      None
+    }
+    ContextualOfferAmbiguous(matches) => {
+      self.diagnostics.push({
+        kind: AmbiguousContextualOffer(
+          expected~,
+          candidates=matches.map(fn(offer) {
+            contextual_offer_diagnostic_candidate(offer)
+          }),
+        ),
+        loc,
+      })
+      None
+    }
+    ContextualOfferComputationFailed => None
+  }
+}
+
+///|
+priv enum ContextualOfferLookup {
+  ContextualOfferFound(ContextualOffer)
+  ContextualOfferMissing
+  ContextualOfferAmbiguous(Array[ContextualOffer])
+  ContextualOfferComputationFailed
+}
+
+///|
+fn SemanticChecker::lookup_contextual_offer(
+  self : SemanticChecker,
+  scope : TypeScope,
+  expected : @types.Type,
+  loc : SourceSpan,
+) -> ContextualOfferLookup {
   // Offer matching uses ordinary checked-expression compatibility over the
   // visible lexical offer scope. It must not infer generics from the offer set.
   let matches = []
@@ -289,29 +326,12 @@ fn SemanticChecker::contextual_offer_expr(
     }
   })
   if computation_failed {
-    return None
+    return ContextualOfferComputationFailed
   }
   match matches.length() {
-    0 => {
-      self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
-      None
-    }
-    1 => {
-      let offer = matches[0]
-      Some(offer.expression)
-    }
-    _ => {
-      self.diagnostics.push({
-        kind: AmbiguousContextualOffer(
-          expected~,
-          candidates=matches.map(fn(offer) {
-            contextual_offer_diagnostic_candidate(offer)
-          }),
-        ),
-        loc,
-      })
-      None
-    }
+    0 => ContextualOfferMissing
+    1 => ContextualOfferFound(matches[0])
+    _ => ContextualOfferAmbiguous(matches)
   }
 }
 

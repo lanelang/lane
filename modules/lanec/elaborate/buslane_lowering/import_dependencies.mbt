@@ -117,6 +117,94 @@ fn BuslaneLowerer::seed_imported_type_dependency(
 }
 
 ///|
+fn BuslaneLowerer::seed_structural_derive_dependencies(
+  self : BuslaneLowerer,
+  source : @checked.CheckedSourceFile,
+  available : @module_interface.ImportedEnvironment,
+) -> Unit {
+  let symbols : Array[@symbol.TypeSymbolId] = []
+  for declaration in source.declarations {
+    match declaration {
+      Function(declaration) =>
+        collect_structural_derive_target_symbols(declaration.body, symbols)
+      Let(declaration) =>
+        collect_structural_derive_target_symbols(
+          declaration.initializer,
+          symbols,
+        )
+      _ => ()
+    }
+  }
+  for symbol in symbols {
+    if checked_source_declares_type(source, symbol) {
+      continue
+    }
+    guard find_available_interface_type_by_symbol(available, symbol)
+      is Some((module_path, type_)) else {
+      abort("checked derive target is missing from the lowering environment")
+    }
+    match type_ {
+      Struct(declaration) =>
+        if self.registry.find_struct_constructor(declaration.symbol) is None {
+          self.seed_imported_type_constructors(module_path, type_)
+        }
+      Enum(declaration) => {
+        if declaration.variants.is_empty() {
+          continue
+        }
+        let mut present = 0
+        for variant in declaration.variants {
+          if self.registry.find_data_constructor(variant.symbol) is Some(_) {
+            present += 1
+          }
+        }
+        if present == declaration.variants.length() {
+          continue
+        }
+        if present != 0 {
+          abort("partially seeded imported enum constructors")
+        }
+        self.seed_imported_type_constructors(module_path, type_)
+      }
+      External(_) => ()
+    }
+  }
+}
+
+///|
+fn checked_source_declares_type(
+  source : @checked.CheckedSourceFile,
+  symbol : @symbol.TypeSymbolId,
+) -> Bool {
+  source.declarations.any(fn(declaration) {
+    match declaration {
+      Struct(declaration) => declaration.symbol == symbol
+      Enum(declaration) => declaration.symbol == symbol
+      ExternalType(declaration) => declaration.symbol == symbol
+      _ => false
+    }
+  })
+}
+
+///|
+fn collect_structural_derive_target_symbols(
+  expression : @checked.CheckedExpr,
+  symbols : Array[@symbol.TypeSymbolId],
+) -> Unit {
+  if expression is Derive(plan~, ..) {
+    let symbol = match plan.target {
+      Constructor(symbol) => symbol
+      Apply(Constructor(symbol), _) => symbol
+      _ => abort("checked derive target must be a normalized nominal type")
+    }
+    append_type_symbol(symbols, symbol)
+  }
+  expression.for_each_child_expr(fn(child) {
+    collect_structural_derive_target_symbols(child, symbols)
+  })
+}
+
+///|
 fn collect_interface_dependency_symbols(
   interface : @module_interface.ModuleInterface,
   type_symbols : Array[@symbol.TypeSymbolId],
@@ -304,6 +392,21 @@ fn find_available_interface_type(
     }
     if type_name == name {
       return Some(type_)
+    }
+  }
+  None
+}
+
+///|
+fn find_available_interface_type_by_symbol(
+  available : @module_interface.ImportedEnvironment,
+  symbol : @symbol.TypeSymbolId,
+) -> (String, @module_interface.ModuleInterfaceType)? {
+  for interface in available.modules {
+    for type_ in interface.types {
+      if interface_type_symbol(type_) == symbol {
+        return Some((interface.module_path, type_))
+      }
     }
   }
   None

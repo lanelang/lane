@@ -31,6 +31,7 @@
 %token HANDLE "handle"
 %token WITH "with"
 %token FINAL "final"
+%token DERIVE "derive"
 %token BUILTIN "builtin"
 %token EXTERN "extern"
 %token MODULE "module"
@@ -736,6 +737,7 @@ non_owner_primary_expression -> Expr
   | handler_expression { $1 }
   | function_literal { $1 }
   | "[" list_literal_items "]" { ListLiteral(items=$2, loc=span($sloc)) }
+  | derive_expression { $1 }
   | builtin_expression { $1 }
   | extern_expression { $1 }
   ;
@@ -749,6 +751,26 @@ tuple_expression_tail -> Array[Expr]
   : MISSING_TUPLE_EXPRESSION_ITEM_ERROR { abort("missing tuple expression item token must not be shifted") }
   | expression { [ $1 ] }
   | tuple_expression_tail "," expression { comma_push($1, $3) }
+  ;
+
+derive_expression -> Expr
+  : "derive" "[" derive_type_arguments "]" "(" argument_list ")" {
+    Derive(
+      capability=$3.capability,
+      target=$3.target,
+      arguments=$6,
+      loc=span($sloc),
+    )
+  }
+  ;
+
+derive_type_arguments -> DeriveTypeArguments
+  : type layout_list_separator type {
+    { capability: $1, target: $3 }
+  }
+  | type layout_list_separator type layout_list_separator {
+    { capability: $1, target: $3 }
+  }
   ;
 
 operation_type_witnesses -> Array[GenericArgument]

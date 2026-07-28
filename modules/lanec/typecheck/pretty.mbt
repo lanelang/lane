@@ -341,6 +341,32 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
         candidates.map(fn(candidate) { candidate.name }).join(", ") +
         "]",
       )
+    MissingDeriveEvidence(required~, paths~) =>
+      text("missing_derive_evidence") +
+      space +
+      required.pretty() +
+      space +
+      text("paths=[" + paths.join(", ") + "]")
+    AmbiguousDeriveEvidence(required~, paths~, candidates~) =>
+      text("ambiguous_derive_evidence") +
+      space +
+      required.pretty() +
+      space +
+      text("paths=[" + paths.join(", ") + "]") +
+      space +
+      text(
+        "candidates=[" +
+        candidates.map(fn(candidate) { candidate.name }).join(", ") +
+        "]",
+      )
+    InvalidStructuralDerivationInterface(reason~) =>
+      text("invalid_structural_derivation_interface") + space + text(reason)
+    UnrepresentableStructuralDerivationTarget(target~, reason~) =>
+      text("unrepresentable_structural_derivation_target") +
+      space +
+      target.pretty() +
+      space +
+      text(reason)
     TypeAliasCycle(name~) => text("type_alias_cycle") + space + text(name)
     KindMismatch(expected~, actual~) =>
       text("kind_mismatch") +

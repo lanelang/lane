@@ -330,6 +330,8 @@ fn first_checked_handler_expr_for_elaborate_test(
 ) -> (Array[@checked.CheckedHandlerTable], @types.Type)? {
   match expression {
     Handler(handlers~, type_~, ..) => Some((handlers, type_))
+    Derive(plan~, ..) =>
+      first_checked_handler_expr_for_elaborate_test(plan.expansion)
     Block(items~, result~, ..) => {
       for item in items {
         match item {

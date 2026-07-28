@@ -1,38 +1,5 @@
 ///|
-pub fn ResolvedExpr::loc(self : ResolvedExpr) -> SourceSpan {
-  match self {
-    IntLiteral(_, loc~)
-    | DoubleLiteral(_, loc~)
-    | StringLiteral(_, loc~)
-    | BoolLiteral(_, loc~)
-    | UnitLiteral(loc~)
-    | Var(loc~, ..)
-    | QualifiedVariant(loc~, ..)
-    | UnqualifiedVariant(loc~, ..)
-    | StructLiteral(loc~, ..)
-    | Derive(loc~, ..)
-    | Builtin(_, loc~)
-    | Extern(_, loc~)
-    | FunctionLiteral(loc~, ..)
-    | EffectOperationCall(loc~, ..)
-    | GenericApplication(loc~, ..)
-    | Handler(loc~, ..)
-    | Block(loc~, ..)
-    | If(loc~, ..)
-    | Match(loc~, ..)
-    | Call(loc~, ..)
-    | Field(loc~, ..)
-    | Unary(loc~, ..)
-    | Binary(loc~, ..)
-    | Pipeline(loc~, ..) => loc
-  }
-}
-
-///|
-pub fn ResolvedExpr::for_each_child_expr(
-  self : ResolvedExpr,
-  visit : (ResolvedExpr) -> Unit,
-) -> Unit {
+fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
   match self {
     IntLiteral(_)
     | DoubleLiteral(_)
@@ -42,11 +9,9 @@ pub fn ResolvedExpr::for_each_child_expr(
     | Var(_)
     | Builtin(_)
     | Extern(_) => ()
-    Derive(arguments~, ..) =>
-      for argument in arguments {
-        argument.for_each_child_expr(visit)
-      }
-    QualifiedVariant(arguments~, ..) | UnqualifiedVariant(arguments~, ..) =>
+    QualifiedVariant(arguments~, ..)
+    | ListLiteral(items=arguments, ..)
+    | TupleLiteral(items=arguments, ..) =>
       for argument in arguments {
         visit(argument)
       }
@@ -56,12 +21,16 @@ pub fn ResolvedExpr::for_each_child_expr(
           visit(value)
         }
       }
+    Derive(arguments~, ..) =>
+      for argument in arguments {
+        argument.for_each_child_expr(visit)
+      }
     FunctionLiteral(body~, ..) => visit(body)
     EffectOperationCall(arguments~, ..) =>
       for argument in arguments {
         visit(argument)
       }
-    GenericApplication(callee~, ..) => visit(callee)
+    TypeApplication(callee~, ..) => visit(callee)
     Handler(body~, handlers~, final_branch~, ..) => {
       visit(body)
       for handler in handlers {
@@ -97,7 +66,7 @@ pub fn ResolvedExpr::for_each_child_expr(
       }
     }
     Field(base~, ..) => visit(base)
-    Unary(operand~, ..) => visit(operand)
+    Unary(operand~, ..) | Grouped(expression=operand, ..) => visit(operand)
     Binary(left~, right~, ..) | Pipeline(left~, right~, ..) => {
       visit(left)
       visit(right)
@@ -106,24 +75,52 @@ pub fn ResolvedExpr::for_each_child_expr(
 }
 
 ///|
-pub fn ResolvedLocalItem::for_each_child_expr(
-  self : ResolvedLocalItem,
-  visit : (ResolvedExpr) -> Unit,
+fn LocalItem::for_each_child_expr(
+  self : LocalItem,
+  visit : (Expr) -> Unit,
 ) -> Unit {
   match self {
     Let(declaration) => visit(declaration.initializer)
     PatternLet(declaration) => visit(declaration.initializer)
     Function(declaration) => visit(declaration.body)
-    Expression(expression) => visit(expression)
+    Expression(expression~) => visit(expression)
   }
 }
 
 ///|
-pub fn ResolvedCallArgument::for_each_child_expr(
-  self : ResolvedCallArgument,
-  visit : (ResolvedExpr) -> Unit,
+fn CallArgument::for_each_child_expr(
+  self : CallArgument,
+  visit : (Expr) -> Unit,
 ) -> Unit {
   match self {
     Positional(value~, ..) | Named(value~, ..) => visit(value)
   }
+}
+
+///|
+/// Returns the first authored `derive` expression location, including
+/// expressions nested inside declarations.
+pub fn SourceFile::first_derive_loc(self : SourceFile) -> SourceSpan? {
+  let found : Ref[SourceSpan?] = { val: None }
+  fn visit(expression : Expr, found : Ref[SourceSpan?]) -> Unit {
+    if found.val is Some(_) {
+      return
+    }
+    if expression is Derive(loc~, ..) {
+      found.val = Some(loc)
+      return
+    }
+    expression.for_each_child_expr(fn(child) { visit(child, found) })
+  }
+  for declaration in self.declarations {
+    if found.val is Some(_) {
+      break
+    }
+    match declaration {
+      Function(declaration) => visit(declaration.body, found)
+      Let(declaration) => visit(declaration.initializer, found)
+      Struct(_) | Enum(_) | Effect(_) | ExternalType(_) | TypeAlias(_) => ()
+    }
+  }
+  found.val
 }

@@ -174,6 +174,7 @@ fn layout_token_role(token : @lexer.Token) -> LayoutTokenRole {
     | IF
     | MATCH
     | HANDLE
+    | DERIVE
     | BUILTIN
     | EXTERN
     | MODULE

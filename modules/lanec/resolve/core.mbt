@@ -522,6 +522,12 @@ pub(all) enum ResolvedExpr {
     fields~ : Array[ResolvedStructLiteralField],
     loc~ : SourceSpan
   )
+  Derive(
+    capability~ : ResolvedType,
+    target~ : ResolvedType,
+    arguments~ : Array[ResolvedCallArgument],
+    loc~ : SourceSpan
+  )
   Builtin(String, loc~ : SourceSpan)
   Extern(String, loc~ : SourceSpan)
   FunctionLiteral(

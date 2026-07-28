@@ -645,6 +645,10 @@ fn SemanticIndex::collect_resolved_expr_types(
       for argument in arguments {
         self.collect_resolved_generic_argument(argument)
       }
+    Derive(capability~, target~, ..) => {
+      self.collect_resolved_type(capability)
+      self.collect_resolved_type(target)
+    }
     _ => ()
   }
 }

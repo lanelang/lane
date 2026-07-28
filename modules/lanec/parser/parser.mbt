@@ -233,6 +233,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     HANDLE => "`handle`"
     WITH => "`with`"
     FINAL => "`final`"
+    DERIVE => "`derive`"
     BUILTIN => "`builtin`"
     EXTERN => "`extern`"
     MODULE => "`module`"
@@ -313,6 +314,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_HANDLE => "`handle`"
     TK_WITH => "`with`"
     TK_FINAL => "`final`"
+    TK_DERIVE => "`derive`"
     TK_BUILTIN => "`builtin`"
     TK_EXTERN => "`extern`"
     TK_MODULE => "`module`"
@@ -393,6 +395,7 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     HANDLE => HANDLE
     WITH => WITH
     FINAL => FINAL
+    DERIVE => DERIVE
     BUILTIN => BUILTIN
     EXTERN => EXTERN
     MODULE => MODULE

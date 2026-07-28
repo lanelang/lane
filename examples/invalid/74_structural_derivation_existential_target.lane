@@ -1,0 +1,14 @@
+module Examples.Invalid.StructuralDerivationExistentialTarget
+
+import Basic.Trait.Derive.{ Deriver }
+
+struct Witness[_T] {}
+
+struct Hidden {
+  type Value : Type
+  value : Value
+}
+
+fn hidden_representation(deriver : Deriver[Witness]) -> Witness[Hidden] {
+  derive[Witness, Hidden](deriver=deriver)
+}

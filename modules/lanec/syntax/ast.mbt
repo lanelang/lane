@@ -327,6 +327,12 @@ pub(all) enum Expr {
   )
   ListLiteral(items~ : Array[Expr], loc~ : SourceSpan)
   TupleLiteral(items~ : Array[Expr], loc~ : SourceSpan)
+  Derive(
+    capability~ : Type,
+    target~ : Type,
+    arguments~ : Array[CallArgument],
+    loc~ : SourceSpan
+  )
   Builtin(String, loc~ : SourceSpan)
   Extern(String, loc~ : SourceSpan)
   FunctionLiteral(
@@ -389,6 +395,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | StructLiteral(loc~, ..)
     | ListLiteral(loc~, ..)
     | TupleLiteral(loc~, ..)
+    | Derive(loc~, ..)
     | Builtin(_, loc~)
     | Extern(_, loc~)
     | FunctionLiteral(loc~, ..)

@@ -16,6 +16,9 @@ fn BuslaneLowerer::lower_pattern_decision(
   }
   guard binders.get(0) is Some(binder) else { abort("missing pattern binder") }
   guard types.get(0) is Some(type_) else { abort("missing pattern type") }
+  if self.complete_alt_constructors_for_type(type_) is Some([]) {
+    return Match({ scrutinee, binder, result_type, alternatives: [] })
+  }
   let constructors = self.lower_first_column_signatures(rows)
   if constructors.is_empty() {
     return self.lower_pattern_decision(
@@ -250,7 +253,6 @@ fn BuslaneLowerer::lower_constructor_set_complete(
   constructors : Array[LowerConstructorSignature],
 ) -> Bool {
   if self.complete_alt_constructors_for_type(type_) is Some(complete) {
-    !complete.is_empty() &&
     complete.all(fn(alt_constructor) {
       lower_signature_contains(constructors, alt_constructor)
     })

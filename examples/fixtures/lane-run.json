@@ -1570,6 +1570,15 @@
       }
     },
     {
+      "name": "78 structural derivation",
+      "file": "examples/valid/78_structural_derivation.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "derive operand\nstructural derive=42"
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
@@ -1601,6 +1610,30 @@
         "contains": [
           "error[E2000]",
           "cannot find type `Basic.Data.Option.Option`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 73 structural derivation missing evidence",
+      "file": "examples/invalid/73_structural_derivation_missing_evidence.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3030]",
+          "missing structural derivation evidence",
+          "required by: Pair.first, Pair.second"
+        ]
+      }
+    },
+    {
+      "name": "invalid 74 structural derivation existential target",
+      "file": "examples/invalid/74_structural_derivation_existential_target.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3033]",
+          "cannot structurally derive this type",
+          "target declares hidden existential type members"
         ]
       }
     },

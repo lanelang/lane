@@ -738,6 +738,7 @@ test "parse rejects repeated item separators" {
       #|        { label: "`if`" },
       #|        { label: "`match`" },
       #|        { label: "`handle`" },
+      #|        { label: "`derive`" },
       #|        { label: "`builtin`" },
       #|        { label: "`extern`" },
       #|        { label: "`-`" },

@@ -373,6 +373,13 @@ fn expression_doc(expression : CheckedExpr) -> Document {
       text("widen_effect") + text("(") + expression_doc(value) + text(")")
     GenericApplication(callee~, arguments~, ..) =>
       expression_doc(callee) + generic_arguments_doc(arguments)
+    Derive(plan~, ..) =>
+      text("derive") +
+      generic_arguments_doc([
+        TypeArgument(plan.capability),
+        TypeArgument(plan.target),
+      ]) +
+      text("(<checked>)")
     Block(items~, result~, ..) => block_doc(items, result)
     If(condition~, then_branch~, else_branch~, ..) =>
       text("if") +

@@ -219,6 +219,13 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         fields=desugar_struct_literal_fields(fields),
         loc~,
       )
+    Derive(capability~, target~, arguments~, loc~) =>
+      Derive(
+        capability~,
+        target~,
+        arguments=arguments.map(desugar_call_argument),
+        loc~,
+      )
     Builtin(name, loc~) => Builtin(name, loc~)
     Extern(name, loc~) => Extern(name, loc~)
     FunctionLiteral(

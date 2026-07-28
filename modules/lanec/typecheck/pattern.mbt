@@ -1233,7 +1233,6 @@ fn constructor_signatures_complete(
   complete : Array[ConstructorSignature],
   seen : Array[ConstructorSignature],
 ) -> Bool {
-  !complete.is_empty() &&
   complete.all(fn(signature) {
     constructor_signature_contains(seen, signature.tag)
   })
