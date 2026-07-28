@@ -1,0 +1,162 @@
+module Examples.Valid.StructuralDerivationEqual
+
+import Basic.Data.List.*
+import Basic.Data.Void.{ Void }
+import Basic.Io.{ println }
+import Basic.Trait.Derive.{ Deriver, Iso, Lift, Product, Recursive, Sum }
+import Basic.Trait.Ops.*
+
+struct Box[T] {
+  value : T
+}
+
+struct Point {
+  x : Int
+  y : Int
+}
+
+struct Tree {
+  value : Int
+  children : List[Tree]
+}
+
+fn equal_unit() -> Equal[Unit] {
+  Equal::{
+    equal: fn(_left, _right) {
+      true
+    }
+  }
+}
+
+fn[A, B] equal_product(equal_a : Equal[A], equal_b : Equal[B]) -> Equal[Product[A, B]] {
+  Equal::{
+    equal: fn(left, right) {
+      equal_a.equal(left.head, right.head) && equal_b.equal(left.tail, right.tail)
+    }
+  }
+}
+
+fn equal_void() -> Equal[Void] {
+  Equal::{
+    equal: fn(left, _right) {
+      match left {}
+    }
+  }
+}
+
+fn[A, B] equal_sum(equal_a : Equal[A], equal_b : Equal[B]) -> Equal[Sum[A, B]] {
+  Equal::{
+    equal: fn(left, right) {
+      match left {
+        here(left) =>
+          match right {
+            here(right) => equal_a.equal(left, right)
+            there(_) => false
+          }
+        there(left) =>
+          match right {
+            here(_) => false
+            there(right) => equal_b.equal(left, right)
+          }
+      }
+    }
+  }
+}
+
+fn[T, R] equal_iso(iso : Iso[T, R], representation : Equal[R]) -> Equal[T] {
+  Equal::{
+    equal: fn(left, right) {
+      representation.equal(iso.to(left), iso.to(right))
+    }
+  }
+}
+
+offer derive_equal : Deriver[Equal] = Deriver::{
+  unit: equal_unit,
+  product: equal_product,
+  void: equal_void,
+  sum: equal_sum,
+  field: fn[A](_info, equal) {
+    equal
+  },
+  variant: fn[A](_info, equal) {
+    equal
+  },
+  record: fn[T, R](_info, iso, representation) {
+    equal_iso(iso, representation)
+  },
+  enumeration: fn[T, R](_info, iso, representation) {
+    equal_iso(iso, representation)
+  }
+}
+
+let recursive_equal : Recursive[Equal] = Recursive::{
+  defer: fn[T](get_equal) {
+    Equal::{
+      equal: fn(left, right) {
+        get_equal().equal(left, right)
+      }
+    }
+  }
+}
+
+let list_equal_lift : Lift[Equal, List] = Lift::{
+  lift: fn[A](equal) {
+    list_impl_equal(equal=equal)
+  }
+}
+
+fn build_int_list_equal() -> Equal[List[Int]] {
+  offer recursive_list_equal : Equal[List[Int]] = recursive_equal.defer(
+    fn() {
+      build_int_list_equal()
+    }
+  )
+  derive[Equal, List[Int]]()
+}
+
+fn build_tree_equal() -> Equal[Tree] {
+  offer recursive_tree_equal : Equal[Tree] = recursive_equal.defer(
+    fn() {
+      build_tree_equal()
+    }
+  )
+  offer children_equal : Equal[List[Tree]] = list_equal_lift.lift(recursive_tree_equal)
+  derive[Equal, Tree]()
+}
+
+let box_equal : Equal[Box[Int]] = derive[Equal, Box[Int]]()
+
+let list_equal : Equal[List[Int]] = build_int_list_equal()
+
+let point_equal : Equal[Point] = derive[Equal, Point]()
+
+let tree_equal : Equal[Tree] = build_tree_equal()
+
+fn leaf(value : Int) -> Tree {
+  Tree::{ value, children: [] }
+}
+
+pub fn answer() -> Unit ! Io {
+  let box_ok =
+    box_equal.equal(Box::{ value: 1 }, Box::{ value: 1 })
+      && !box_equal.equal(Box::{ value: 1 }, Box::{ value: 2 })
+  let list_ok = list_equal.equal([1, 2], [1, 2]) && !list_equal.equal([1, 2], [1, 3])
+  let point_ok =
+    point_equal.equal(Point::{ x: 1, y: 2 }, Point::{ x: 1, y: 2 })
+      && !point_equal.equal(Point::{ x: 1, y: 2 }, Point::{ x: 2, y: 1 })
+  let tree_ok =
+    tree_equal.equal(
+      Tree::{ value: 1, children: [leaf(2), leaf(3)] },
+      Tree::{ value: 1, children: [leaf(2), leaf(3)] }
+    )
+      && !tree_equal.equal(
+        Tree::{ value: 1, children: [leaf(2), leaf(3)] },
+        Tree::{ value: 1, children: [leaf(2), leaf(4)] }
+      )
+  if box_ok && list_ok && point_ok && tree_ok {
+    println("derive equal: box list point tree")
+  } else {
+    println("derive equal failed")
+  }
+}

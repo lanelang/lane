@@ -1,0 +1,258 @@
+module Examples.Valid.StructuralDerivationCompare
+
+import Basic.Data.List.*
+import Basic.Data.Void.{ Void }
+import Basic.Io.{ println }
+import Basic.Trait.Derive.{ Deriver, Iso, Lift, Product, Recursive, Sum }
+import Basic.Trait.Ops.*
+
+struct Box[T] {
+  value : T
+}
+
+struct Point {
+  x : Int
+  y : Int
+}
+
+struct Tree {
+  value : Int
+  children : List[Tree]
+}
+
+fn compare_unit() -> Compare[Unit] {
+  Compare::{
+    equal_impl: Equal::{
+      equal: fn(_left, _right) {
+        true
+      }
+    },
+    less: fn(_left, _right) {
+      false
+    }
+  }
+}
+
+fn[A, B] compare_product(compare_a : Compare[A], compare_b : Compare[B]) -> Compare[Product[A, B]] {
+  Compare::{
+    equal_impl: Equal::{
+      equal: fn(left, right) {
+        compare_a.equal_impl.equal(left.head, right.head)
+          && compare_b.equal_impl.equal(left.tail, right.tail)
+      }
+    },
+    less: fn(left, right) {
+      if compare_a.less(left.head, right.head) {
+        true
+      } else if compare_a.equal_impl.equal(left.head, right.head) {
+        compare_b.less(left.tail, right.tail)
+      } else {
+        false
+      }
+    }
+  }
+}
+
+fn compare_void() -> Compare[Void] {
+  Compare::{
+    equal_impl: Equal::{
+      equal: fn(left, _right) {
+        match left {}
+      }
+    },
+    less: fn(left, _right) {
+      match left {}
+    }
+  }
+}
+
+fn[A, B] compare_sum(compare_a : Compare[A], compare_b : Compare[B]) -> Compare[Sum[A, B]] {
+  Compare::{
+    equal_impl: Equal::{
+      equal: fn(left, right) {
+        match left {
+          here(left) =>
+            match right {
+              here(right) => compare_a.equal_impl.equal(left, right)
+              there(_) => false
+            }
+          there(left) =>
+            match right {
+              here(_) => false
+              there(right) => compare_b.equal_impl.equal(left, right)
+            }
+        }
+      }
+    },
+    less: fn(left, right) {
+      match left {
+        here(left) =>
+          match right {
+            here(right) => compare_a.less(left, right)
+            there(_) => true
+          }
+        there(left) =>
+          match right {
+            here(_) => false
+            there(right) => compare_b.less(left, right)
+          }
+      }
+    }
+  }
+}
+
+fn[T, R] compare_iso(iso : Iso[T, R], representation : Compare[R]) -> Compare[T] {
+  Compare::{
+    equal_impl: Equal::{
+      equal: fn(left, right) {
+        representation.equal_impl.equal(iso.to(left), iso.to(right))
+      }
+    },
+    less: fn(left, right) {
+      representation.less(iso.to(left), iso.to(right))
+    }
+  }
+}
+
+offer derive_compare : Deriver[Compare] = Deriver::{
+  unit: compare_unit,
+  product: compare_product,
+  void: compare_void,
+  sum: compare_sum,
+  field: fn[A](_info, compare) {
+    compare
+  },
+  variant: fn[A](_info, compare) {
+    compare
+  },
+  record: fn[T, R](_info, iso, representation) {
+    compare_iso(iso, representation)
+  },
+  enumeration: fn[T, R](_info, iso, representation) {
+    compare_iso(iso, representation)
+  }
+}
+
+let recursive_compare : Recursive[Compare] = Recursive::{
+  defer: fn[T](get_compare) {
+    Compare::{
+      equal_impl: Equal::{
+        equal: fn(left, right) {
+          get_compare().equal_impl.equal(left, right)
+        }
+      },
+      less: fn(left, right) {
+        get_compare().less(left, right)
+      }
+    }
+  }
+}
+
+fn[A] list_equal_with(compare : Compare[A], left : List[A], right : List[A]) -> Bool {
+  match left {
+    empty() =>
+      match right {
+        empty() => true
+        cons(_, _) => false
+      }
+    cons(left_head, left_tail) =>
+      match right {
+        empty() => false
+        cons(right_head, right_tail) => compare.equal_impl.equal(left_head, right_head)
+          && list_equal_with(compare, left_tail, right_tail)
+      }
+  }
+}
+
+fn[A] list_less_with(compare : Compare[A], left : List[A], right : List[A]) -> Bool {
+  match left {
+    empty() =>
+      match right {
+        empty() => false
+        cons(_, _) => true
+      }
+    cons(left_head, left_tail) =>
+      match right {
+        empty() => false
+        cons(right_head, right_tail) =>
+          if compare.less(left_head, right_head) {
+            true
+          } else if compare.equal_impl.equal(left_head, right_head) {
+            list_less_with(compare, left_tail, right_tail)
+          } else {
+            false
+          }
+      }
+  }
+}
+
+fn[A] compare_list(compare : Compare[A]) -> Compare[List[A]] {
+  Compare::{
+    equal_impl: Equal::{
+      equal: fn(left, right) {
+        list_equal_with(compare, left, right)
+      }
+    },
+    less: fn(left, right) {
+      list_less_with(compare, left, right)
+    }
+  }
+}
+
+let list_compare_lift : Lift[Compare, List] = Lift::{
+  lift: fn[A](compare) {
+    compare_list(compare)
+  }
+}
+
+fn build_int_list_compare() -> Compare[List[Int]] {
+  offer recursive_list_compare : Compare[List[Int]] = recursive_compare.defer(
+    fn() {
+      build_int_list_compare()
+    }
+  )
+  derive[Compare, List[Int]]()
+}
+
+fn build_tree_compare() -> Compare[Tree] {
+  offer recursive_tree_compare : Compare[Tree] = recursive_compare.defer(
+    fn() {
+      build_tree_compare()
+    }
+  )
+  offer children_compare : Compare[List[Tree]] = list_compare_lift.lift(recursive_tree_compare)
+  derive[Compare, Tree]()
+}
+
+let box_compare : Compare[Box[Int]] = derive[Compare, Box[Int]]()
+
+let list_compare : Compare[List[Int]] = build_int_list_compare()
+
+let point_compare : Compare[Point] = derive[Compare, Point]()
+
+let tree_compare : Compare[Tree] = build_tree_compare()
+
+fn leaf(value : Int) -> Tree {
+  Tree::{ value, children: [] }
+}
+
+fn[T] orders(compare : Compare[T], low : T, high : T) -> Bool {
+  compare.less(low, high) && !compare.less(high, low) && compare.equal_impl.equal(low, low)
+    && !compare.equal_impl.equal(low, high)
+}
+
+pub fn answer() -> Unit ! Io {
+  let box_ok = orders(box_compare, Box::{ value: 1 }, Box::{ value: 2 })
+  let list_ok = orders(list_compare, [1, 2], [1, 3])
+  let point_ok = orders(point_compare, Point::{ x: 1, y: 2 }, Point::{ x: 1, y: 3 })
+  let tree_ok = orders(
+    tree_compare,
+    Tree::{ value: 1, children: [leaf(2), leaf(3)] },
+    Tree::{ value: 1, children: [leaf(2), leaf(4)] }
+  )
+  if box_ok && list_ok && point_ok && tree_ok {
+    println("derive compare: box list point tree")
+  } else {
+    println("derive compare failed")
+  }
+}

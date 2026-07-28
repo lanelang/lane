@@ -1,0 +1,188 @@
+module Examples.Valid.StructuralDerivationShow
+
+import Basic.Builtins.{ int_equal }
+import Basic.Data.List.*
+import Basic.Data.Void.{ Void }
+import Basic.Io.{ println }
+import Basic.Trait.Derive.{ Deriver, Iso, Lift, Product, Recursive, Sum }
+
+struct Show[T] {
+  show : (T) -> Unit ! Io
+}
+
+struct Box[T] {
+  value : T
+}
+
+struct Point {
+  x : Int
+  y : Int
+}
+
+struct Tree {
+  value : Int
+  children : List[Tree]
+}
+
+fn show_unit() -> Show[Unit] {
+  Show::{
+    show: fn(_value) {
+      ()
+    }
+  }
+}
+
+fn[A, B] show_product(show_a : Show[A], show_b : Show[B]) -> Show[Product[A, B]] {
+  Show::{
+    show: fn(value) {
+      show_a.show(value.head)
+      show_b.show(value.tail)
+    }
+  }
+}
+
+fn show_void() -> Show[Void] {
+  Show::{
+    show: fn(value) {
+      match value {}
+    }
+  }
+}
+
+fn[A, B] show_sum(show_a : Show[A], show_b : Show[B]) -> Show[Sum[A, B]] {
+  Show::{
+    show: fn(value) {
+      match value {
+        here(value) => show_a.show(value)
+        there(value) => show_b.show(value)
+      }
+    }
+  }
+}
+
+fn[T, R] show_iso(type_name : String, iso : Iso[T, R], representation : Show[R]) -> Show[T] {
+  Show::{
+    show: fn(value) {
+      println(type_name)
+      representation.show(iso.to(value))
+    }
+  }
+}
+
+offer derive_show : Deriver[Show] = Deriver::{
+  unit: show_unit,
+  product: show_product,
+  void: show_void,
+  sum: show_sum,
+  field: fn[A](info, show) {
+    Show::{
+      show: fn(value) {
+        println(info.name)
+        show.show(value)
+      }
+    }
+  },
+  variant: fn[A](info, show) {
+    Show::{
+      show: fn(value) {
+        println(info.name)
+        show.show(value)
+      }
+    }
+  },
+  record: fn[T, R](info, iso, representation) {
+    show_iso(info.name, iso, representation)
+  },
+  enumeration: fn[T, R](info, iso, representation) {
+    show_iso(info.name, iso, representation)
+  }
+}
+
+offer int_show : Show[Int] = Show::{
+  show: fn(value) {
+    if int_equal(value, 0) {
+      println("0")
+    } else if int_equal(value, 1) {
+      println("1")
+    } else if int_equal(value, 2) {
+      println("2")
+    } else if int_equal(value, 3) {
+      println("3")
+    } else if int_equal(value, 4) {
+      println("4")
+    } else {
+      println("Int")
+    }
+  }
+}
+
+let recursive_show : Recursive[Show] = Recursive::{
+  defer: fn[T](get_show) {
+    Show::{
+      show: fn(value) {
+        get_show().show(value)
+      }
+    }
+  }
+}
+
+fn[A] show_list(show : Show[A], values : List[A]) -> Unit ! Io {
+  println("List")
+  match values {
+    empty() => println("empty")
+    cons(head, tail) => {
+      println("cons")
+      show.show(head)
+      show_list(show, tail)
+    }
+  }
+}
+
+let list_show_lift : Lift[Show, List] = Lift::{
+  lift: fn[A](show) {
+    Show::{
+      show: fn(values) {
+        show_list(show, values)
+      }
+    }
+  }
+}
+
+fn build_int_list_show() -> Show[List[Int]] {
+  offer recursive_list_show : Show[List[Int]] = recursive_show.defer(
+    fn() {
+      build_int_list_show()
+    }
+  )
+  derive[Show, List[Int]]()
+}
+
+fn build_tree_show() -> Show[Tree] {
+  offer recursive_tree_show : Show[Tree] = recursive_show.defer(
+    fn() {
+      build_tree_show()
+    }
+  )
+  offer children_show : Show[List[Tree]] = list_show_lift.lift(recursive_tree_show)
+  derive[Show, Tree]()
+}
+
+let box_show : Show[Box[Int]] = derive[Show, Box[Int]]()
+
+let list_show : Show[List[Int]] = build_int_list_show()
+
+let point_show : Show[Point] = derive[Show, Point]()
+
+let tree_show : Show[Tree] = build_tree_show()
+
+fn leaf(value : Int) -> Tree {
+  Tree::{ value, children: [] }
+}
+
+pub fn answer() -> Unit ! Io {
+  box_show.show(Box::{ value: 1 })
+  list_show.show([1, 2])
+  point_show.show(Point::{ x: 1, y: 2 })
+  tree_show.show(Tree::{ value: 1, children: [leaf(2), leaf(3)] })
+  println("derive show: box list point tree")
+}

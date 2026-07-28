@@ -1579,6 +1579,33 @@
       }
     },
     {
+      "name": "79 structural derivation equal",
+      "file": "examples/valid/79_structural_derivation_equal.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "derive equal: box list point tree"
+      }
+    },
+    {
+      "name": "80 structural derivation compare",
+      "file": "examples/valid/80_structural_derivation_compare.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "derive compare: box list point tree"
+      }
+    },
+    {
+      "name": "81 structural derivation show",
+      "file": "examples/valid/81_structural_derivation_show.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "Box\nvalue\n1\nList\ncons\n1\nList\ncons\n2\nList\nempty\nPoint\nx\n1\ny\n2\nTree\nvalue\n1\nchildren\nList\ncons\nTree\nvalue\n2\nchildren\nList\nempty\nList\ncons\nTree\nvalue\n3\nchildren\nList\nempty\nList\nempty\nderive show: box list point tree"
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
