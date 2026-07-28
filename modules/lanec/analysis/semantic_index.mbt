@@ -4,7 +4,7 @@ priv enum SemanticBindingIdentity {
   TypeBinding(@symbol.TypeSymbolId)
   EffectBinding(@symbol.EffectSymbolId)
   TypeParameterBinding(@symbol.TypeParameterId)
-  AliasBinding(String)
+  AliasBinding(@symbol.TypeAliasSymbolId)
 } derive(Eq)
 
 ///|
@@ -81,7 +81,7 @@ priv enum TopLevelSymbol {
   TopLevelValue(@symbol.ValueSymbolId)
   TopLevelType(@symbol.TypeSymbolId)
   TopLevelEffect(@symbol.EffectSymbolId)
-  TopLevelAlias(String)
+  TopLevelAlias(@symbol.TypeAliasSymbolId)
 } derive(Eq)
 
 ///|

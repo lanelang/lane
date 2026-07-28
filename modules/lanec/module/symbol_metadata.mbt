@@ -53,6 +53,7 @@ pub fn ModuleInterface::exported_symbol_metadata(
     }
   }
   for type_alias in self.type_aliases {
+    symbols.push(TypeAlias(type_alias.symbol))
     collect_type_parameters(type_alias.type_parameters, symbols)
     match type_alias.body {
       TypeBody(type_) => collect_type_symbols(type_, symbols)

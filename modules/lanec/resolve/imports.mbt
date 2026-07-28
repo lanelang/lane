@@ -12,6 +12,7 @@ using @symbol {
   type OperationSymbolId,
   type SymbolRegistry,
   type TypeMemberSymbolId,
+  type TypeAliasSymbolId,
   type TypeParameterId,
   type TypeSymbolId,
   type ValueSymbolId,

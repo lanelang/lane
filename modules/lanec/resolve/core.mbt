@@ -204,6 +204,7 @@ pub(all) struct ResolvedEffectOperationDeclaration {
 ///|
 pub(all) struct ResolvedTypeAliasDeclaration {
   is_public : Bool
+  symbol : TypeAliasSymbolId
   name : String
   name_loc : SourceSpan
   type_parameters : Array[ResolvedTypeParameter]
@@ -280,7 +281,12 @@ pub(all) struct ResolvedValueParameter {
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : SourceSpan)
   Constructor(symbol~ : TypeSymbolId, name~ : String, loc~ : SourceSpan)
-  Alias(owner_module_path~ : String?, name~ : String, loc~ : SourceSpan)
+  Alias(
+    symbol~ : TypeAliasSymbolId,
+    owner_module_path~ : String?,
+    name~ : String,
+    loc~ : SourceSpan
+  )
   Apply(
     callee~ : ResolvedType,
     arguments~ : Array[ResolvedGenericArgument],
@@ -318,6 +324,7 @@ pub(all) enum ResolvedEffectTerm {
   )
   Parameter(symbol~ : TypeParameterId, name~ : String, loc~ : SourceSpan)
   Alias(
+    symbol~ : TypeAliasSymbolId,
     owner_module_path~ : String?,
     name~ : String,
     arguments~ : Array[ResolvedEffectAliasArgument],

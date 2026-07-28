@@ -289,6 +289,7 @@ fn SemanticChecker::interface_type_aliases(
           TypeBody(body) => {
             let result = checker.synthesize_type(body)
             aliases.push({
+              symbol: declaration.symbol,
               name: declaration.name,
               type_parameters,
               body: TypeBody(
@@ -312,6 +313,7 @@ fn SemanticChecker::interface_type_aliases(
             )
             if checked is Some(checked) {
               aliases.push({
+                symbol: declaration.symbol,
                 name: declaration.name,
                 type_parameters,
                 body: EffectBody(checked),

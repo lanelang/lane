@@ -75,7 +75,7 @@ fn TypeExpressionChecker::check_effect(
       }
       Parameter(symbol)
     }
-    Alias(owner_module_path~, name~, arguments~, loc~) =>
+    Alias(owner_module_path~, name~, arguments~, loc~, ..) =>
       self.expand_effect_alias(owner_module_path, name, arguments, loc)
     Union(items~, ..) =>
       effect_union(items.map(fn(item) { self.check_effect(item) }))

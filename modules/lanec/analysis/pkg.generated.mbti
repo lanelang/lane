@@ -39,6 +39,7 @@ pub fn AnalysisResult::inlay_hints_in_range(Self, String, Int, Int, Int, Int) ->
 pub(all) enum AnalysisSymbol {
   Value(@symbol.ValueSymbolId)
   Type(@symbol.TypeSymbolId)
+  TypeAlias(@symbol.TypeAliasSymbolId)
   Field(@symbol.FieldSymbolId)
   Variant(@symbol.VariantSymbolId)
   Effect(@symbol.EffectSymbolId)

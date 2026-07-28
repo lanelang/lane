@@ -14,6 +14,21 @@ fn @bytecodec.ByteReader::read_type_symbol_id(
 }
 
 ///|
+fn @bytecodec.ByteWriter::write_type_alias_symbol_id(
+  self : @bytecodec.ByteWriter,
+  id : @symbol.TypeAliasSymbolId,
+) -> Unit {
+  self.write_u32_le_int(id.index)
+}
+
+///|
+fn @bytecodec.ByteReader::read_type_alias_symbol_id(
+  self : @bytecodec.ByteReader,
+) -> @symbol.TypeAliasSymbolId raise {
+  { index: self.read_u32_le_int() }
+}
+
+///|
 fn @bytecodec.ByteWriter::write_type_parameter_symbol_id(
   self : @bytecodec.ByteWriter,
   id : @symbol.TypeParameterId,

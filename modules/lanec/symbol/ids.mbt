@@ -4,6 +4,11 @@ pub(all) struct TypeSymbolId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) struct TypeAliasSymbolId {
+  index : Int
+} derive(Debug, Eq, Compare)
+
+///|
 pub(all) struct TypeParameterId {
   index : Int
 } derive(Debug, Eq, Compare)
@@ -43,6 +48,7 @@ pub(all) struct OperationSymbolId {
 /// interface snapshot.
 pub(all) enum SymbolId {
   Type(TypeSymbolId)
+  TypeAlias(TypeAliasSymbolId)
   TypeParameter(TypeParameterId)
   TypeMember(TypeMemberSymbolId)
   Value(ValueSymbolId)

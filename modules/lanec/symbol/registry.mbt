@@ -6,6 +6,7 @@
 /// disjoint namespaces.
 pub struct SymbolIdentityAllocator {
   mut next_type : Int
+  mut next_type_alias : Int
   mut next_type_parameter : Int
   mut next_type_member : Int
   mut next_value : Int
@@ -20,6 +21,7 @@ pub struct SymbolIdentityAllocator {
 /// Metadata owned by one module snapshot or exported interface snapshot.
 pub struct SymbolMetadataArena {
   types : Map[Int, TypeSymbolMetadata]
+  type_aliases : Map[Int, TypeAliasSymbolMetadata]
   type_parameters : Map[Int, TypeParameterMetadata]
   type_members : Map[Int, TypeMemberSymbolMetadata]
   values : Map[Int, ValueSymbolMetadata]
@@ -33,6 +35,7 @@ pub struct SymbolMetadataArena {
 /// Stable declaration identities owned by one module revision.
 pub struct DeclarationIdentities {
   types : Map[String, TypeSymbolId]
+  type_aliases : Map[String, TypeAliasSymbolId]
   values : Map[String, ValueSymbolId]
   effects : Map[String, EffectSymbolId]
   type_members : Map[String, TypeMemberSymbolId]
@@ -57,6 +60,7 @@ pub struct DeclarationSymbolScope {
   registry : SymbolRegistry
   previous : DeclarationIdentities?
   claimed_types : Map[String, Bool]
+  claimed_type_aliases : Map[String, Bool]
   claimed_values : Map[String, Bool]
   claimed_effects : Map[String, Bool]
   claimed_type_members : Map[String, Bool]
@@ -69,6 +73,7 @@ pub struct DeclarationSymbolScope {
 pub fn SymbolIdentityAllocator::SymbolIdentityAllocator() -> SymbolIdentityAllocator {
   {
     next_type: 0,
+    next_type_alias: 0,
     next_type_parameter: 0,
     next_type_member: 0,
     next_value: 0,
@@ -84,6 +89,7 @@ pub fn SymbolIdentityAllocator::SymbolIdentityAllocator() -> SymbolIdentityAlloc
 fn SymbolMetadataArena::empty() -> SymbolMetadataArena {
   {
     types: Map([]),
+    type_aliases: Map([]),
     type_parameters: Map([]),
     type_members: Map([]),
     values: Map([]),
@@ -98,6 +104,7 @@ fn SymbolMetadataArena::empty() -> SymbolMetadataArena {
 fn DeclarationIdentities::empty() -> DeclarationIdentities {
   {
     types: Map([]),
+    type_aliases: Map([]),
     values: Map([]),
     effects: Map([]),
     type_members: Map([]),
@@ -144,6 +151,7 @@ pub fn SymbolRegistry::measurement_registry(
     uses_measurement_identities: true,
     metadata: {
       types: self.metadata.types.copy(),
+      type_aliases: self.metadata.type_aliases.copy(),
       type_parameters: self.metadata.type_parameters.copy(),
       type_members: self.metadata.type_members.copy(),
       values: self.metadata.values.copy(),
@@ -155,6 +163,7 @@ pub fn SymbolRegistry::measurement_registry(
     imports: self.imports,
     declarations: {
       types: self.declarations.types.copy(),
+      type_aliases: self.declarations.type_aliases.copy(),
       values: self.declarations.values.copy(),
       effects: self.declarations.effects.copy(),
       type_members: self.declarations.type_members.copy(),
@@ -182,6 +191,7 @@ pub fn SymbolRegistry::declaration_scope(
     registry: self,
     previous,
     claimed_types: Map([]),
+    claimed_type_aliases: Map([]),
     claimed_values: Map([]),
     claimed_effects: Map([]),
     claimed_type_members: Map([]),
@@ -202,6 +212,10 @@ pub fn SymbolRegistry::metadata_for(
       Type(id) =>
         if self.type_metadata(id) is Some(value) {
           metadata.types[id.index] = value
+        }
+      TypeAlias(id) =>
+        if self.type_alias_metadata(id) is Some(value) {
+          metadata.type_aliases[id.index] = value
         }
       TypeParameter(id) =>
         if self.type_parameter_metadata(id) is Some(value) {
@@ -247,6 +261,20 @@ fn SymbolRegistry::allocate_type(self : SymbolRegistry) -> TypeSymbolId {
   }
   let id = TypeSymbolId::{ index, }
   id
+}
+
+///|
+fn SymbolRegistry::allocate_type_alias(
+  self : SymbolRegistry,
+) -> TypeAliasSymbolId {
+  let index = if self.uses_measurement_identities {
+    self.allocator.allocate_measurement()
+  } else {
+    let index = self.allocator.next_type_alias
+    self.allocator.next_type_alias = index + 1
+    index
+  }
+  TypeAliasSymbolId::{ index, }
 }
 
 ///|
@@ -387,6 +415,38 @@ pub fn DeclarationSymbolScope::define_type(
   }
   let id = self.registry.define_type(name, kind, arity, loc)
   self.registry.declarations.types[name] = id
+  id
+}
+
+///|
+pub fn SymbolRegistry::define_type_alias(
+  self : SymbolRegistry,
+  name : String,
+  loc : SourceSpan,
+) -> TypeAliasSymbolId {
+  let id = self.allocate_type_alias()
+  self.metadata.type_aliases[id.index] = { id, name, loc }
+  id
+}
+
+///|
+pub fn DeclarationSymbolScope::define_type_alias(
+  self : DeclarationSymbolScope,
+  name : String,
+  loc : SourceSpan,
+) -> TypeAliasSymbolId {
+  if self.claimed_type_aliases.contains(name) {
+    return self.registry.define_type_alias(name, loc)
+  }
+  self.claimed_type_aliases[name] = true
+  if self.previous is Some(previous) &&
+    previous.type_aliases.get(name) is Some(id) {
+    self.registry.metadata.type_aliases[id.index] = { id, name, loc }
+    self.registry.declarations.type_aliases[name] = id
+    return id
+  }
+  let id = self.registry.define_type_alias(name, loc)
+  self.registry.declarations.type_aliases[name] = id
   id
 }
 
@@ -709,6 +769,22 @@ pub fn SymbolRegistry::type_metadata(
   }
   for imported in self.imports {
     if imported.types.get(id.index) is Some(value) {
+      return Some(value)
+    }
+  }
+  None
+}
+
+///|
+pub fn SymbolRegistry::type_alias_metadata(
+  self : SymbolRegistry,
+  id : TypeAliasSymbolId,
+) -> TypeAliasSymbolMetadata? {
+  if self.metadata.type_aliases.get(id.index) is Some(value) {
+    return Some(value)
+  }
+  for imported in self.imports {
+    if imported.type_aliases.get(id.index) is Some(value) {
       return Some(value)
     }
   }

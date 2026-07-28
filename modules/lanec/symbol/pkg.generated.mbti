@@ -14,6 +14,7 @@ import {
 // Types and methods
 pub struct DeclarationIdentities {
   types : Map[String, TypeSymbolId]
+  type_aliases : Map[String, TypeAliasSymbolId]
   values : Map[String, ValueSymbolId]
   effects : Map[String, EffectSymbolId]
   type_members : Map[String, TypeMemberSymbolId]
@@ -26,6 +27,7 @@ pub struct DeclarationSymbolScope {
   registry : SymbolRegistry
   previous : DeclarationIdentities?
   claimed_types : Map[String, Bool]
+  claimed_type_aliases : Map[String, Bool]
   claimed_values : Map[String, Bool]
   claimed_effects : Map[String, Bool]
   claimed_type_members : Map[String, Bool]
@@ -37,6 +39,7 @@ pub fn DeclarationSymbolScope::define_effect(Self, String, Int, @basic.SourceSpa
 pub fn DeclarationSymbolScope::define_field(Self, TypeSymbolId, String, Int, @basic.SourceSpan) -> FieldSymbolId
 pub fn DeclarationSymbolScope::define_operation(Self, EffectSymbolId, String, Int, Int, @basic.SourceSpan) -> OperationSymbolId
 pub fn DeclarationSymbolScope::define_type(Self, String, NominalTypeKind, Int, @basic.SourceSpan) -> TypeSymbolId
+pub fn DeclarationSymbolScope::define_type_alias(Self, String, @basic.SourceSpan) -> TypeAliasSymbolId
 pub fn DeclarationSymbolScope::define_type_member(Self, TypeSymbolId, String, Int, TypeParameterId, @basic.SourceSpan) -> TypeMemberSymbolId
 pub fn DeclarationSymbolScope::define_value(Self, String, ValueSymbolKind, @basic.SourceSpan) -> ValueSymbolId
 pub fn DeclarationSymbolScope::define_variant(Self, TypeSymbolId, String, Int, Int, @basic.SourceSpan) -> VariantSymbolId
@@ -99,6 +102,7 @@ pub impl @prettyprinter.Pretty for OperationSymbolMetadata
 
 pub(all) enum SymbolId {
   Type(TypeSymbolId)
+  TypeAlias(TypeAliasSymbolId)
   TypeParameter(TypeParameterId)
   TypeMember(TypeMemberSymbolId)
   Value(ValueSymbolId)
@@ -110,6 +114,7 @@ pub(all) enum SymbolId {
 
 pub struct SymbolIdentityAllocator {
   mut next_type : Int
+  mut next_type_alias : Int
   mut next_type_parameter : Int
   mut next_type_member : Int
   mut next_value : Int
@@ -124,6 +129,7 @@ pub fn SymbolIdentityAllocator::registry(Self, imports? : Array[SymbolMetadataAr
 
 pub struct SymbolMetadataArena {
   types : Map[Int, TypeSymbolMetadata]
+  type_aliases : Map[Int, TypeAliasSymbolMetadata]
   type_parameters : Map[Int, TypeParameterMetadata]
   type_members : Map[Int, TypeMemberSymbolMetadata]
   values : Map[Int, ValueSymbolMetadata]
@@ -148,6 +154,7 @@ pub fn SymbolRegistry::define_field(Self, TypeSymbolId, String, Int, @basic.Sour
 pub fn SymbolRegistry::define_generated_local(Self, String, @basic.SourceSpan) -> ValueSymbolId
 pub fn SymbolRegistry::define_operation(Self, EffectSymbolId, String, Int, Int, @basic.SourceSpan) -> OperationSymbolId
 pub fn SymbolRegistry::define_type(Self, String, NominalTypeKind, Int, @basic.SourceSpan) -> TypeSymbolId
+pub fn SymbolRegistry::define_type_alias(Self, String, @basic.SourceSpan) -> TypeAliasSymbolId
 pub fn SymbolRegistry::define_type_member(Self, TypeSymbolId, String, Int, TypeParameterId, @basic.SourceSpan) -> TypeMemberSymbolId
 pub fn SymbolRegistry::define_type_parameter(Self, String, @basic.SourceSpan) -> TypeParameterId
 pub fn SymbolRegistry::define_value(Self, String, ValueSymbolKind, @basic.SourceSpan) -> ValueSymbolId
@@ -157,12 +164,25 @@ pub fn SymbolRegistry::field_metadata(Self, FieldSymbolId) -> FieldSymbolMetadat
 pub fn SymbolRegistry::measurement_registry(Self) -> Self
 pub fn SymbolRegistry::metadata_for(Self, Array[SymbolId]) -> SymbolMetadataArena
 pub fn SymbolRegistry::operation_metadata(Self, OperationSymbolId) -> OperationSymbolMetadata?
+pub fn SymbolRegistry::type_alias_metadata(Self, TypeAliasSymbolId) -> TypeAliasSymbolMetadata?
 pub fn SymbolRegistry::type_member_metadata(Self, TypeMemberSymbolId) -> TypeMemberSymbolMetadata?
 pub fn SymbolRegistry::type_metadata(Self, TypeSymbolId) -> TypeSymbolMetadata?
 pub fn SymbolRegistry::type_parameter_metadata(Self, TypeParameterId) -> TypeParameterMetadata?
 pub fn SymbolRegistry::value_metadata(Self, ValueSymbolId) -> ValueSymbolMetadata?
 pub fn SymbolRegistry::variant_metadata(Self, VariantSymbolId) -> VariantSymbolMetadata?
 pub impl @prettyprinter.Pretty for SymbolRegistry
+
+pub(all) struct TypeAliasSymbolId {
+  index : Int
+} derive(Compare, Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeAliasSymbolId
+
+pub(all) struct TypeAliasSymbolMetadata {
+  id : TypeAliasSymbolId
+  name : String
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for TypeAliasSymbolMetadata
 
 pub(all) struct TypeMemberSymbolId {
   index : Int

@@ -285,6 +285,12 @@ _Avoid_: kind-tagged universal symbol id, string namespace
 A type-namespace symbol identity for a declared struct or enum type constructor.
 _Avoid_: type parameter, source type name
 
+**Type Alias Symbol**:
+A stable source-binder identity for a transparent top-level type or effect alias,
+used by resolved references, module interfaces, and semantic navigation without
+making the alias nominal in type equality or lowering.
+_Avoid_: nominal type symbol, name-only alias reference, normalized type identity
+
 **Type Parameter Identity**:
 A compiler identity for a type parameter introduced by a generic binder.
 _Avoid_: nominal type symbol, erased runtime type
@@ -357,6 +363,9 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
   evaluation order even when the expanded nominal representation is
   right-nested.
 - A **Resolved AST** attaches **Symbol Identity** to resolved names while preserving source names for diagnostics.
+- Transparent aliases retain a **Type Alias Symbol** through resolution and
+  module interfaces for tooling, while checked normalization and Buslane remain
+  alias-free.
 - Lane compiler IR uses **Separated Symbol Identity** and **Separated Namespaces**.
 - **Source Elaboration** consumes type checking information and produces a **Checked Source AST**.
 - **Typechecking Judgments** are bidirectional and local: synthesis computes

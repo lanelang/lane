@@ -57,7 +57,7 @@ priv enum ModuleNamespaceSource {
 priv enum ModuleTypeBindingKind {
   NominalType(symbol~ : TypeSymbolId, variants~ : Array[VariantBinding])
   EffectType(EffectSymbolId)
-  TypeAlias(is_effect~ : Bool)
+  TypeAlias(symbol~ : TypeAliasSymbolId, is_effect~ : Bool)
 }
 
 ///|
@@ -109,6 +109,7 @@ priv struct EffectBinding {
 
 ///|
 priv struct TypeAliasBinding {
+  symbol : TypeAliasSymbolId
   name : String
   owner_module_path : String?
   is_effect : Bool
@@ -502,6 +503,7 @@ fn Resolver::publish_imported_public_types(
   }
   for type_alias in interface.type_aliases {
     self.type_aliases.push({
+      symbol: type_alias.symbol,
       name: type_alias.name,
       owner_module_path: Some(interface.module_path),
       is_effect: type_alias.kind == Effect,
@@ -568,6 +570,7 @@ fn Resolver::publish_imported_selected_types(
     for type_alias in interface.type_aliases {
       if type_alias.name == item.name {
         self.type_aliases.push({
+          symbol: type_alias.symbol,
           name: type_alias.name,
           owner_module_path: Some(interface.module_path),
           is_effect: type_alias.kind == Effect,
@@ -796,6 +799,10 @@ fn Resolver::collect_top_level_headers(
           declaration.loc,
         )
         let binding : TypeAliasBinding = {
+          symbol: symbols.define_type_alias(
+            declaration.name,
+            declaration.name_loc,
+          ),
           name: declaration.name,
           owner_module_path: None,
           is_effect: declaration.body is EffectBody(_),
@@ -1100,6 +1107,7 @@ fn @syntax.TypeAliasDeclaration::resolve_type_alias(
   let body = self.body.resolve_type_alias_body(resolver, scope)
   {
     is_public: self.is_public,
+    symbol: resolver.type_alias_binding(self.name).unwrap().symbol,
     name: self.name,
     name_loc: self.name_loc,
     type_parameters,
@@ -1523,6 +1531,7 @@ fn @syntax.Type::resolve_type(
                     Some(binding) => {
                       resolver.record_import_use(binding.import_origin, loc)
                       Alias(
+                        symbol=binding.symbol,
                         owner_module_path=binding.owner_module_path,
                         name~,
                         loc~,
@@ -1855,6 +1864,7 @@ fn @syntax.Type::resolve_effect_type(
                     scope,
                   )
                   Alias(
+                    symbol=binding.symbol,
                     owner_module_path=binding.owner_module_path,
                     name~,
                     arguments=resolved_arguments,
@@ -1916,8 +1926,9 @@ fn Resolver::resolve_module_qualified_type(
       match binding.kind {
         NominalType(symbol~, ..) =>
           return Constructor(symbol~, name=full_name, loc~)
-        TypeAlias(_) =>
+        TypeAlias(symbol~, ..) =>
           return Alias(
+            symbol~,
             owner_module_path=Some(binding.owner_module_path),
             name=full_name,
             loc~,
@@ -1965,7 +1976,7 @@ fn Resolver::resolve_module_qualified_effect_type(
           )
           return Singleton(symbol~, name=full_name, arguments~, loc~)
         }
-        TypeAlias(is_effect=true) => {
+        TypeAlias(symbol~, is_effect=true) => {
           let arguments = resolve_effect_alias_arguments(
             arguments,
             binding.parameter_kinds,
@@ -1973,13 +1984,14 @@ fn Resolver::resolve_module_qualified_effect_type(
             scope,
           )
           return Alias(
+            symbol~,
             owner_module_path=Some(binding.owner_module_path),
             name=full_name,
             arguments~,
             loc~,
           )
         }
-        NominalType(_) | TypeAlias(is_effect=false) => ()
+        NominalType(_) | TypeAlias(is_effect=false, ..) => ()
       }
       let arguments = resolve_default_generic_arguments(arguments, self, scope)
       self.report(UnresolvedType(full_name), loc)
@@ -2109,7 +2121,7 @@ fn Resolver::module_qualified_name_can_be_effect_alias_argument(
       @module_interface.module_path_text(module_path),
       name,
     ) {
-    Some({ kind: EffectType(_) | TypeAlias(is_effect=true), .. }) => true
+    Some({ kind: EffectType(_) | TypeAlias(is_effect=true, ..), .. }) => true
     _ => false
   }
 }
@@ -2750,7 +2762,7 @@ fn ModuleNamespaceSource::type_binding(
           return Some({
             owner_module_path: local_module.path_text,
             parameter_kinds: binding.parameter_kinds,
-            kind: TypeAlias(is_effect=binding.is_effect),
+            kind: TypeAlias(symbol=binding.symbol, is_effect=binding.is_effect),
             import_origins: [],
             authored_binding_origin: None,
           })
@@ -2817,7 +2829,10 @@ fn ModuleNamespaceSource::type_binding(
             parameter_kinds: interface_type_parameter_kinds(
               type_alias.type_parameters,
             ),
-            kind: TypeAlias(is_effect=type_alias.kind == Effect),
+            kind: TypeAlias(
+              symbol=type_alias.symbol,
+              is_effect=type_alias.kind == Effect,
+            ),
             import_origins,
             authored_binding_origin,
           })

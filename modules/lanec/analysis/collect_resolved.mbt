@@ -73,7 +73,7 @@ fn SemanticIndex::add_top_level_declaration(
       })
     TypeAlias(declaration) =>
       self.top_level_declarations.push({
-        symbol: TopLevelAlias(declaration.name),
+        symbol: TopLevelAlias(declaration.symbol),
         name: declaration.name,
         kind: match declaration.body {
           TypeBody(_) => TypeAliasDeclaration
@@ -116,7 +116,7 @@ fn SemanticIndex::top_level_symbol(
     Enum(declaration) => Some(TopLevelType(declaration.symbol))
     ExternalType(declaration) => Some(TopLevelType(declaration.symbol))
     Effect(declaration) => Some(TopLevelEffect(declaration.symbol))
-    TypeAlias(declaration) => Some(TopLevelAlias(declaration.name))
+    TypeAlias(declaration) => Some(TopLevelAlias(declaration.symbol))
     Function(declaration) => Some(TopLevelValue(declaration.symbol))
     Let(declaration) => Some(TopLevelValue(declaration.symbol))
   }
@@ -148,7 +148,7 @@ fn SemanticIndex::add_binding(
       TypeBinding(symbol) => Some(Type(symbol))
       EffectBinding(symbol) => Some(Effect(symbol))
       TypeParameterBinding(symbol) => Some(TypeParameter(symbol))
-      AliasBinding(_) => None
+      AliasBinding(symbol) => Some(TypeAlias(symbol))
     }
     if symbol is Some(symbol) {
       self.add_definition(symbol, loc, name, detail)
@@ -312,11 +312,12 @@ fn SemanticIndex::collect_resolved_declaration_body(
         EffectBody(_) => (EffectBindingKind, "effect alias \{declaration.name}")
       }
       self.add_binding(
-        AliasBinding(declaration.name),
+        AliasBinding(declaration.symbol),
         declaration.name,
         kind,
         detail,
         GlobalBinding,
+        loc=declaration.name_loc,
       )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
@@ -876,12 +877,9 @@ fn SemanticIndex::collect_resolved_type(
       self.add_reference(Type(symbol), loc, Some("type \{name}"))
       self.add_top_level_reference(TopLevelType(symbol))
     }
-    Alias(name~, loc~, ..) => {
-      self.add_top_level_reference(TopLevelAlias(name))
-      self.hovers.push({
-        location: { source_id: self.source_id, span: loc },
-        contents: "type alias \{name}",
-      })
+    Alias(symbol~, name~, loc~, ..) => {
+      self.add_top_level_reference(TopLevelAlias(symbol))
+      self.add_reference(TypeAlias(symbol), loc, Some("type alias \{name}"))
     }
     Apply(callee~, arguments~, ..) => {
       self.collect_resolved_type(callee)
@@ -934,12 +932,9 @@ fn SemanticIndex::collect_resolved_effect(
       self.generic_parameter_references.push(symbol)
       self.add_reference(TypeParameter(symbol), loc, Some("effect \{name}"))
     }
-    Alias(name~, arguments~, loc~, ..) => {
-      self.add_top_level_reference(TopLevelAlias(name))
-      self.hovers.push({
-        location: { source_id: self.source_id, span: loc },
-        contents: "effect alias \{name}",
-      })
+    Alias(symbol~, name~, arguments~, loc~, ..) => {
+      self.add_top_level_reference(TopLevelAlias(symbol))
+      self.add_reference(TypeAlias(symbol), loc, Some("effect alias \{name}"))
       for argument in arguments {
         match argument {
           TypeArgument(type_) => self.collect_resolved_type(type_)

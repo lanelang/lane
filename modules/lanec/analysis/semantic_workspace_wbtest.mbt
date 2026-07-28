@@ -260,6 +260,57 @@ test "semantic workspace preserves imported definitions across source renames" {
 }
 
 ///|
+test "semantic workspace preserves imported alias definitions across revisions" {
+  let workspace = SemanticWorkspace::new()
+  let source_a =
+    #|module A
+    #|
+    #|pub type Number = Int
+  let source_b =
+    #|module B
+    #|import A as L
+    #|
+    #|pub type Local = L.Number
+  guard workspace.replace_sources([
+      { source_id: "file:///A.lane", text: source_a },
+      { source_id: "file:///B.lane", text: source_b },
+    ])
+    is Some(initial) else {
+    abort("expected initial semantic snapshot")
+  }
+  guard definition_symbol(initial, "file:///A.lane", "Number")
+    is TypeAlias(initial_symbol) &&
+    initial.definition_at("file:///B.lane", 4, 20) is Some(initial_location) else {
+    abort("expected initial imported alias definition")
+  }
+  assert_eq(
+    (initial_location.source_id, initial_location.span.start_line),
+    ("file:///A.lane", 3),
+  )
+  guard workspace.upsert_source({
+      source_id: "file:///A.lane",
+      text: source_a.replace(old="\n\npub", new="\n\n\npub"),
+    })
+    is Some(updated) else {
+    abort("expected updated semantic snapshot")
+  }
+  guard definition_symbol(updated, "file:///A.lane", "Number")
+    is TypeAlias(updated_symbol) &&
+    updated.definition_at("file:///B.lane", 4, 20) is Some(updated_location) else {
+    abort("expected updated imported alias definition")
+  }
+  assert_eq(updated_symbol, initial_symbol)
+  assert_eq(
+    (updated_location.source_id, updated_location.span.start_line),
+    ("file:///A.lane", 4),
+  )
+  assert_eq(
+    initial.definition_at("file:///B.lane", 4, 20),
+    Some(initial_location),
+  )
+}
+
+///|
 test "semantic workspace invalidates importers only when the public interface changes" {
   let workspace = SemanticWorkspace::new()
   let source_a =

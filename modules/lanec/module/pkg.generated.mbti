@@ -108,6 +108,7 @@ pub(all) enum ModuleInterfaceType {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceTypeAlias {
+  symbol : @symbol.TypeAliasSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
   body : ModuleInterfaceTypeAliasBody

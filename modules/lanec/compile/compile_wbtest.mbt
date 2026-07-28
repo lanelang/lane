@@ -1910,6 +1910,7 @@ test "effect aliases export through interface artifacts" {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
+  assert_eq(decoded_binary, lib_artifact.interface)
   inspect(
     interface_alias_signatures(decoded_binary.interface),
     content=(
@@ -1929,7 +1930,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  (none)
@@ -2099,7 +2100,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  (none)
@@ -2519,7 +2520,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  (none)
@@ -4059,7 +4060,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 7
+      #|schema: 8
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0

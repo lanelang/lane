@@ -5,6 +5,12 @@ priv struct TypeSymbolMapEntry {
 }
 
 ///|
+priv struct TypeAliasSymbolMapEntry {
+  source : @symbol.TypeAliasSymbolId
+  target : @symbol.TypeAliasSymbolId
+}
+
+///|
 priv struct TypeParameterMapEntry {
   source : @symbol.TypeParameterId
   target : @symbol.TypeParameterId
@@ -24,6 +30,13 @@ priv struct StableTypeSymbolEntry {
 }
 
 ///|
+priv struct StableTypeAliasSymbolEntry {
+  module_path : String
+  name : String
+  target : @symbol.TypeAliasSymbolId
+}
+
+///|
 priv struct StableEffectSymbolEntry {
   module_path : String
   name : String
@@ -34,6 +47,7 @@ priv struct StableEffectSymbolEntry {
 priv struct InterfaceFresheningEnvironment {
   registry : @symbol.SymbolRegistry
   types : Array[StableTypeSymbolEntry]
+  type_aliases : Array[StableTypeAliasSymbolEntry]
   effects : Array[StableEffectSymbolEntry]
 }
 
@@ -42,6 +56,7 @@ priv struct InterfaceSymbolFreshener {
   environment : InterfaceFresheningEnvironment
   interface : @module_interface.ModuleInterface
   types : Array[TypeSymbolMapEntry]
+  type_aliases : Array[TypeAliasSymbolMapEntry]
   type_parameters : Array[TypeParameterMapEntry]
   effects : Array[EffectSymbolMapEntry]
 }
@@ -54,6 +69,7 @@ fn freshen_module_interface_artifacts(
   let environment = InterfaceFresheningEnvironment::{
     registry,
     types: [],
+    type_aliases: [],
     effects: [],
   }
   let modules = []
@@ -72,6 +88,7 @@ fn freshen_module_interface(
     environment, interface,
   )
   freshener.predeclare_nominal_types(interface)
+  freshener.predeclare_type_aliases(interface)
   freshener.predeclare_effects(interface)
   {
     module_path: interface.module_path,
@@ -107,7 +124,14 @@ fn InterfaceSymbolFreshener::InterfaceSymbolFreshener(
   environment : InterfaceFresheningEnvironment,
   interface : @module_interface.ModuleInterface,
 ) -> InterfaceSymbolFreshener {
-  { environment, interface, types: [], type_parameters: [], effects: [] }
+  {
+    environment,
+    interface,
+    types: [],
+    type_aliases: [],
+    type_parameters: [],
+    effects: [],
+  }
 }
 
 ///|
@@ -165,6 +189,18 @@ fn InterfaceSymbolFreshener::predeclare_effects(
         effect.flavor,
         effect.loc,
       ),
+    )
+  }
+}
+
+///|
+fn InterfaceSymbolFreshener::predeclare_type_aliases(
+  self : InterfaceSymbolFreshener,
+  interface : @module_interface.ModuleInterface,
+) -> Unit {
+  for type_alias in interface.type_aliases {
+    ignore(
+      self.define_type_alias(type_alias.symbol, type_alias.name, type_alias.loc),
     )
   }
 }
@@ -358,6 +394,7 @@ fn InterfaceSymbolFreshener::freshen_type_alias(
   type_alias : @module_interface.ModuleInterfaceTypeAlias,
 ) -> @module_interface.ModuleInterfaceTypeAlias {
   {
+    symbol: self.remap_type_alias_symbol(type_alias.symbol),
     name: type_alias.name,
     type_parameters: type_alias.type_parameters.map(fn(parameter) {
       self.freshen_type_parameter(parameter)
@@ -571,6 +608,27 @@ fn InterfaceSymbolFreshener::define_effect(
 }
 
 ///|
+fn InterfaceSymbolFreshener::define_type_alias(
+  self : InterfaceSymbolFreshener,
+  source : @symbol.TypeAliasSymbolId,
+  name : String,
+  loc : @basic.SourceSpan,
+) -> @symbol.TypeAliasSymbolId {
+  match self.lookup_type_alias_symbol(source) {
+    Some(symbol) => symbol
+    None => {
+      let target = self.environment.define_type_alias(
+        self.interface.module_path,
+        name,
+        loc,
+      )
+      self.type_aliases.push({ source, target })
+      target
+    }
+  }
+}
+
+///|
 fn InterfaceSymbolFreshener::remap_type_symbol(
   self : InterfaceSymbolFreshener,
   source : @symbol.TypeSymbolId,
@@ -592,6 +650,17 @@ fn InterfaceSymbolFreshener::remap_type_symbol(
       }
       abort("missing canonical interface type reference")
     }
+  }
+}
+
+///|
+fn InterfaceSymbolFreshener::remap_type_alias_symbol(
+  self : InterfaceSymbolFreshener,
+  source : @symbol.TypeAliasSymbolId,
+) -> @symbol.TypeAliasSymbolId {
+  match self.lookup_type_alias_symbol(source) {
+    Some(target) => target
+    None => abort("missing canonical interface type alias reference")
   }
 }
 
@@ -668,6 +737,37 @@ fn InterfaceFresheningEnvironment::find_type(
 }
 
 ///|
+fn InterfaceFresheningEnvironment::define_type_alias(
+  self : InterfaceFresheningEnvironment,
+  module_path : String,
+  name : String,
+  loc : @basic.SourceSpan,
+) -> @symbol.TypeAliasSymbolId {
+  match self.find_type_alias(module_path, name) {
+    Some(target) => target
+    None => {
+      let target = self.registry.define_type_alias(name, loc)
+      self.type_aliases.push({ module_path, name, target })
+      target
+    }
+  }
+}
+
+///|
+fn InterfaceFresheningEnvironment::find_type_alias(
+  self : InterfaceFresheningEnvironment,
+  module_path : String,
+  name : String,
+) -> @symbol.TypeAliasSymbolId? {
+  for entry in self.type_aliases {
+    if entry.module_path == module_path && entry.name == name {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
 fn InterfaceFresheningEnvironment::define_effect(
   self : InterfaceFresheningEnvironment,
   module_path : String,
@@ -706,6 +806,19 @@ fn InterfaceSymbolFreshener::lookup_type_symbol(
   source : @symbol.TypeSymbolId,
 ) -> @symbol.TypeSymbolId? {
   for entry in self.types {
+    if entry.source == source {
+      return Some(entry.target)
+    }
+  }
+  None
+}
+
+///|
+fn InterfaceSymbolFreshener::lookup_type_alias_symbol(
+  self : InterfaceSymbolFreshener,
+  source : @symbol.TypeAliasSymbolId,
+) -> @symbol.TypeAliasSymbolId? {
+  for entry in self.type_aliases {
     if entry.source == source {
       return Some(entry.target)
     }

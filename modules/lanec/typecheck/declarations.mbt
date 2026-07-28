@@ -714,7 +714,7 @@ fn TypeExpressionChecker::synthesize_type(
         { type_: Constructor(symbol), kind }
       }
     }
-    Alias(owner_module_path~, name~, loc~) =>
+    Alias(owner_module_path~, name~, loc~, ..) =>
       self.expand_alias(owner_module_path, name, loc)
     Apply(callee~, arguments~, loc~) => {
       let callee_result = self.synthesize_type(callee)

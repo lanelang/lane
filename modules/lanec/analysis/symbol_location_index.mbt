@@ -2,6 +2,7 @@
 priv enum AnalysisSymbolKey {
   ValueKey(Int)
   TypeKey(Int)
+  TypeAliasKey(Int)
   FieldKey(Int)
   VariantKey(Int)
   EffectKey(Int)
@@ -53,6 +54,7 @@ fn analysis_symbol_key(symbol : AnalysisSymbol) -> AnalysisSymbolKey {
   match symbol {
     Value(id) => ValueKey(id.index)
     Type(id) => TypeKey(id.index)
+    TypeAlias(id) => TypeAliasKey(id.index)
     Field(id) => FieldKey(id.index)
     Variant(id) => VariantKey(id.index)
     Effect(id) => EffectKey(id.index)

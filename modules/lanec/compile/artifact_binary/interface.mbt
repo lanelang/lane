@@ -403,6 +403,7 @@ fn @bytecodec.ByteWriter::write_module_interface_type_aliases(
 ) -> Unit {
   self.write_u32_le_int(items.length())
   for item in items {
+    self.write_type_alias_symbol_id(item.symbol)
     self.write_string(item.name)
     self.write_type_parameters(item.type_parameters)
     self.write_type_alias_body(item.body)
@@ -418,6 +419,7 @@ fn @bytecodec.ByteReader::read_module_interface_type_aliases(
   let items : Array[@module_interface.ModuleInterfaceTypeAlias] = []
   for _ in 0..<self.read_u32_le_int() {
     items.push({
+      symbol: self.read_type_alias_symbol_id(),
       name: self.read_string(),
       type_parameters: self.read_type_parameters(),
       body: self.read_type_alias_body(),

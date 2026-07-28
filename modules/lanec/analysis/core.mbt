@@ -2,6 +2,7 @@
 pub(all) enum AnalysisSymbol {
   Value(@symbol.ValueSymbolId)
   Type(@symbol.TypeSymbolId)
+  TypeAlias(@symbol.TypeAliasSymbolId)
   Field(@symbol.FieldSymbolId)
   Variant(@symbol.VariantSymbolId)
   Effect(@symbol.EffectSymbolId)

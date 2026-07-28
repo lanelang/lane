@@ -203,6 +203,7 @@ test "resolve local effect alias references" {
     content=(
       #|[
       #|  Alias(
+      #|    symbol={ index: 0 },
       #|    owner_module_path=None,
       #|    name="UI",
       #|    arguments=[],
@@ -237,6 +238,7 @@ test "resolve local effect alias references" {
     program.effect,
     content=(
       #|Alias(
+      #|  symbol={ index: 0 },
       #|  owner_module_path=None,
       #|  name="UI",
       #|  arguments=[],
@@ -257,6 +259,7 @@ test "resolve local effect alias references" {
 test "resolve module-qualified effect alias references" {
   let registry = SymbolRegistry()
   let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())
+  let ui = registry.define_type_alias("UI", @basic.SourceSpan::dummy())
   let imported : @module_interface.ImportedEnvironment = {
     modules: [
       {
@@ -277,6 +280,7 @@ test "resolve module-qualified effect alias references" {
         ],
         type_aliases: [
           {
+            symbol: ui,
             name: "UI",
             type_parameters: [],
             body: EffectBody(Empty),
@@ -326,6 +330,7 @@ test "resolve module-qualified effect alias references" {
       #|    },
       #|  ),
       #|  Alias(
+      #|    symbol={ index: 0 },
       #|    owner_module_path=Some("Lib"),
       #|    name="Lib.UI",
       #|    arguments=[],
@@ -348,6 +353,7 @@ test "resolve module-qualified effect alias references" {
     program.effect,
     content=(
       #|Alias(
+      #|  symbol={ index: 0 },
       #|  owner_module_path=Some("Lib"),
       #|  name="Lib.UI",
       #|  arguments=[],

@@ -115,6 +115,7 @@ pub(all) struct ModuleInterfaceOperation {
 
 ///|
 pub(all) struct ModuleInterfaceTypeAlias {
+  symbol : TypeAliasSymbolId
   name : String
   type_parameters : Array[@types.TypeParameter]
   body : ModuleInterfaceTypeAliasBody

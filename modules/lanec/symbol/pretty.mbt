@@ -11,6 +11,13 @@ pub impl @prettyprinter.Pretty for TypeSymbolId with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for TypeAliasSymbolId with fn pretty(
+  id : TypeAliasSymbolId,
+) {
+  id_doc("alias", id.index)
+}
+
+///|
 pub impl @prettyprinter.Pretty for TypeParameterId with fn pretty(
   id : TypeParameterId,
 ) {
@@ -103,6 +110,13 @@ pub impl @prettyprinter.Pretty for TypeSymbolMetadata with fn pretty(
   metadata.kind.pretty() +
   space +
   text("\{metadata.name}/\{metadata.arity}")
+}
+
+///|
+pub impl @prettyprinter.Pretty for TypeAliasSymbolMetadata with fn pretty(
+  metadata : TypeAliasSymbolMetadata,
+) {
+  metadata.id.pretty() + space + text(metadata.name)
 }
 
 ///|

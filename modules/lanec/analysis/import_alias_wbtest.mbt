@@ -123,6 +123,63 @@ test "qualified members keep their original definitions through an alias" {
 }
 
 ///|
+test "qualified type and effect aliases keep their original definitions" {
+  let root =
+    #|module Main
+    #|import Basic.Long.Library as L
+    #|
+    #|pub type LocalNumber = L.Number
+    #|pub type LocalSignals = L.Signals
+  let library =
+    #|module Basic.Long.Library
+    #|
+    #|pub type Number = Int
+    #|
+    #|pub effect Read {
+    #|  read() -> Unit
+    #|}
+    #|
+    #|pub type Signals = { Read }
+  let snapshot = import_alias_snapshot(root, [("file:///Library.lane", library)])
+  debug_inspect(
+    [
+      snapshot.definition_at("file:///Main.lane", 4, 25),
+      snapshot.definition_at("file:///Main.lane", 5, 26),
+    ],
+    content=(
+      #|[
+      #|  Some(
+      #|    {
+      #|      source_id: "file:///Library.lane",
+      #|      span: {
+      #|        start_offset: 36,
+      #|        end_offset: 42,
+      #|        start_line: 3,
+      #|        start_column: 10,
+      #|        end_line: 3,
+      #|        end_column: 16,
+      #|      },
+      #|    },
+      #|  ),
+      #|  Some(
+      #|    {
+      #|      source_id: "file:///Library.lane",
+      #|      span: {
+      #|        start_offset: 97,
+      #|        end_offset: 104,
+      #|        start_line: 9,
+      #|        start_column: 10,
+      #|        end_line: 9,
+      #|        end_column: 17,
+      #|      },
+      #|    },
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "completion exposes an alias and completes its canonical interface" {
   let root =
     #|module Main

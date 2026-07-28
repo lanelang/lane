@@ -94,11 +94,13 @@ test "measurement registries use a temporary identity namespace" {
   let measurement = registry.measurement_registry()
   let other_measurement = registry.measurement_registry()
   let type_ = measurement.define_type("Temporary", Struct, 0, loc())
+  let type_alias = measurement.define_type_alias("TemporaryAlias", loc())
   let type_parameter = measurement.define_type_parameter("T", loc())
   let effect = measurement.define_effect("TemporaryEffect", 0, loc())
   let value = measurement.define_value("first", LocalBinding, loc())
   let symbols = [
     SymbolId::Type(type_),
+    SymbolId::TypeAlias(type_alias),
     SymbolId::TypeParameter(type_parameter),
     SymbolId::TypeMember(
       measurement.define_type_member(type_, "T", 0, type_parameter, loc()),
@@ -116,13 +118,14 @@ test "measurement registries use a temporary identity namespace" {
     content=(
       #|[
       #|  Type({ index: -1 }),
-      #|  TypeParameter({ index: -2 }),
-      #|  TypeMember({ index: -5 }),
-      #|  Value({ index: -4 }),
-      #|  Field({ index: -6 }),
-      #|  Variant({ index: -7 }),
-      #|  Effect({ index: -3 }),
-      #|  Operation({ index: -8 }),
+      #|  TypeAlias({ index: -2 }),
+      #|  TypeParameter({ index: -3 }),
+      #|  TypeMember({ index: -6 }),
+      #|  Value({ index: -5 }),
+      #|  Field({ index: -7 }),
+      #|  Variant({ index: -8 }),
+      #|  Effect({ index: -4 }),
+      #|  Operation({ index: -9 }),
       #|]
     ),
   )
@@ -130,7 +133,7 @@ test "measurement registries use a temporary identity namespace" {
   let persistent = registry.define_value("persistent", TopLevelValue, loc())
   assert_eq(
     (persistent, second, registry.value_metadata(value)),
-    (ValueSymbolId::{ index: 1 }, ValueSymbolId::{ index: -9 }, None),
+    (ValueSymbolId::{ index: 1 }, ValueSymbolId::{ index: -10 }, None),
   )
 }
 
@@ -140,6 +143,7 @@ test "declaration scopes keep stable identities across revisions" {
   let first_registry = allocator.registry()
   let first = first_registry.declaration_scope()
   let first_type = first.define_type("Item", Struct, 0, loc())
+  let first_alias = first.define_type_alias("Number", loc())
   let first_parameter = first_registry.define_type_parameter("T", loc())
   let first_type_member = first.define_type_member(
     first_type,
@@ -164,6 +168,7 @@ test "declaration scopes keep stable identities across revisions" {
     previous=Some(first_registry.declaration_identities()),
   )
   let revised_type = revised.define_type("Item", Struct, 0, loc())
+  let revised_alias = revised.define_type_alias("Number", loc())
   let revised_parameter = revised_registry.define_type_parameter("T", loc())
   let revised_type_member = revised.define_type_member(
     revised_type,
@@ -193,9 +198,14 @@ test "declaration scopes keep stable identities across revisions" {
     .registry()
     .declaration_scope()
     .define_type("Item", Struct, 0, loc())
+  let other_alias = allocator
+    .registry()
+    .declaration_scope()
+    .define_type_alias("Number", loc())
   debug_inspect(
     [
       first_type == revised_type,
+      first_alias == revised_alias,
       first_type_member == revised_type_member,
       first_value == revised_value,
       first_effect == revised_effect,
@@ -203,8 +213,9 @@ test "declaration scopes keep stable identities across revisions" {
       first_variant == revised_variant,
       first_operation == revised_operation,
       first_type == other_type,
+      first_alias == other_alias,
     ],
-    content="[true, true, true, true, true, true, true, false]",
+    content="[true, true, true, true, true, true, true, true, false, false]",
   )
 }
 

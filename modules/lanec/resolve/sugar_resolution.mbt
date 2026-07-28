@@ -75,8 +75,13 @@ fn Resolver::resolve_canonical_type(
       self.record_import_uses(binding.import_origins, loc)
       match binding.kind {
         NominalType(symbol~, ..) => Constructor(symbol~, name~, loc~)
-        TypeAlias(_) =>
-          Alias(owner_module_path=Some(binding.owner_module_path), name~, loc~)
+        TypeAlias(symbol~, ..) =>
+          Alias(
+            symbol~,
+            owner_module_path=Some(binding.owner_module_path),
+            name~,
+            loc~,
+          )
         EffectType(_) => {
           self.report(UnresolvedType(name), loc)
           Unresolved(name~, arguments=[], loc~)

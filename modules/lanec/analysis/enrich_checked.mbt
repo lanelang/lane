@@ -42,7 +42,7 @@ fn SemanticIndex::enrich_binding(
     TypeBinding(symbol) => Some(Type(symbol))
     EffectBinding(symbol) => Some(Effect(symbol))
     TypeParameterBinding(symbol) => Some(TypeParameter(symbol))
-    AliasBinding(_) => None
+    AliasBinding(symbol) => Some(TypeAlias(symbol))
   }
   if symbol is Some(symbol) {
     self.enrich_definition(symbol, detail)

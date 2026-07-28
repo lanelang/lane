@@ -37,6 +37,13 @@ pub(all) struct TypeSymbolMetadata {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct TypeAliasSymbolMetadata {
+  id : TypeAliasSymbolId
+  name : String
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub(all) struct TypeParameterMetadata {
   id : TypeParameterId
   name : String
