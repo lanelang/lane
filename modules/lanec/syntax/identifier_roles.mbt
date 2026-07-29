@@ -228,8 +228,8 @@ fn collect_pattern_identifier_roles(
     | BoolLiteral(_, ..) => ()
     Binding(_, loc~) =>
       push_syntactic_identifier_role(slots, loc, PatternIdentifier)
-    QualifiedVariant(type_name_loc~, variant_loc~, arguments~, ..) => {
-      push_syntactic_identifier_role(slots, type_name_loc, TypeIdentifier)
+    QualifiedVariant(owner~, variant_loc~, arguments~, ..) => {
+      collect_type_identifier_roles(owner, TypeIdentifier, slots)
       push_syntactic_identifier_role(slots, variant_loc, PatternIdentifier)
       for argument in arguments {
         collect_pattern_identifier_roles(argument, slots)
@@ -241,8 +241,8 @@ fn collect_pattern_identifier_roles(
         collect_pattern_identifier_roles(argument, slots)
       }
     }
-    Struct(type_name_loc~, fields~, ..) => {
-      push_syntactic_identifier_role(slots, type_name_loc, TypeIdentifier)
+    Struct(owner~, fields~, ..) => {
+      collect_type_identifier_roles(owner, TypeIdentifier, slots)
       for field in fields {
         if field is Value(pattern=Some(pattern), ..) {
           collect_pattern_identifier_roles(pattern, slots)

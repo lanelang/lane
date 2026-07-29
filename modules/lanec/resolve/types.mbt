@@ -22,7 +22,11 @@ fn @syntax.Type::resolve_type(
               match resolver.type_binding(name) {
                 Some(binding) => {
                   resolver.record_import_use(binding.import_origin, loc)
-                  Constructor(symbol=binding.symbol, name~, loc~)
+                  Constructor(
+                    symbol=binding.symbol,
+                    name=Unqualified(name),
+                    loc~,
+                  )
                 }
                 None =>
                   match resolver.type_alias_binding(name) {
@@ -31,18 +35,14 @@ fn @syntax.Type::resolve_type(
                       Alias(
                         symbol=binding.symbol,
                         owner_module_path=binding.owner_module_path,
-                        name~,
+                        name=Unqualified(name),
                         loc~,
                       )
                     }
-                    None =>
-                      match resolver.qualified_type_symbol_opt(name) {
-                        Some(symbol) => Constructor(symbol~, name~, loc~)
-                        None => {
-                          resolver.report(UnresolvedType(name), loc)
-                          Unresolved(name~, arguments=[], loc~)
-                        }
-                      }
+                    None => {
+                      resolver.report(UnresolvedType(name), loc)
+                      Unresolved(name~, arguments=[], loc~)
+                    }
                   }
               }
           }
@@ -99,8 +99,12 @@ fn Resolver::resolve_module_qualified_type(
   name : String,
   loc : SourceSpan,
 ) -> ResolvedType {
-  let full_name = module_qualified_name(module_path, name)
   let module_path_text = @module_interface.module_path_text(module_path)
+  let resolved_name = ResolvedNominalName::Qualified({
+    module_binding: module_path_text,
+    name,
+  })
+  let full_name = resolved_name.display_text()
   guard self.resolve_authored_module_namespace(
       module_path_text,
       module_path.loc,
@@ -114,12 +118,12 @@ fn Resolver::resolve_module_qualified_type(
       self.record_import_uses(binding.import_origins, loc)
       match binding.kind {
         NominalType(symbol~, ..) =>
-          return Constructor(symbol~, name=full_name, loc~)
+          return Constructor(symbol~, name=resolved_name, loc~)
         TypeAlias(symbol~, ..) =>
           return Alias(
             symbol~,
             owner_module_path=Some(binding.owner_module_path),
-            name=full_name,
+            name=resolved_name,
             loc~,
           )
         EffectType(_) => ()
@@ -129,14 +133,6 @@ fn Resolver::resolve_module_qualified_type(
   }
   self.report(UnresolvedType(full_name), loc)
   Unresolved(name=full_name, arguments=[], loc~)
-}
-
-///|
-fn module_qualified_name(
-  module_path : @syntax.ModulePath,
-  name : String,
-) -> String {
-  @module_interface.module_path_text(module_path) + "." + name
 }
 
 ///|

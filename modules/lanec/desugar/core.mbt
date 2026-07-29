@@ -127,7 +127,7 @@ pub(all) enum DesugaredExpr {
     loc~ : SourceSpan
   )
   VariantCall(
-    type_name~ : String?,
+    type_name~ : @resolve.ResolvedNominalName?,
     type_name_loc~ : SourceSpan?,
     generic_arguments~ : Array[@resolve.ResolvedGenericArgument],
     variant~ : String,
@@ -138,7 +138,7 @@ pub(all) enum DesugaredExpr {
     loc~ : SourceSpan
   )
   StructLiteral(
-    type_name~ : String,
+    type_name~ : @resolve.ResolvedNominalName,
     type_name_loc~ : SourceSpan,
     reference~ : @resolve.ResolvedTypeReference,
     generic_arguments~ : Array[@resolve.ResolvedGenericArgument],

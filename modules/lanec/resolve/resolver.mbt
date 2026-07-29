@@ -123,12 +123,6 @@ priv enum SelectiveImportBinding {
 }
 
 ///|
-priv struct QualifiedNameText {
-  module_path : String
-  name : String
-}
-
-///|
 /// Resolves a syntax source file and returns diagnostics with the result.
 ///
 /// Example: resolving `fn f(x : Missing) -> Int { x }` records an unresolved

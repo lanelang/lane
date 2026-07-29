@@ -38,8 +38,8 @@ fn list_cons_target() -> CanonicalVariantTarget {
 ///|
 fn CanonicalNominalTarget::qualified_name(
   self : CanonicalNominalTarget,
-) -> String {
-  self.module_path + "." + self.type_name
+) -> ResolvedNominalName {
+  Qualified({ module_binding: self.module_path, name: self.type_name })
 }
 
 ///|
@@ -83,14 +83,14 @@ fn Resolver::resolve_canonical_type(
             loc~,
           )
         EffectType(_) => {
-          self.report(UnresolvedType(name), loc)
-          Unresolved(name~, arguments=[], loc~)
+          self.report(UnresolvedType(name.display_text()), loc)
+          Unresolved(name=name.display_text(), arguments=[], loc~)
         }
       }
     }
     None => {
-      self.report(UnresolvedType(name), loc)
-      Unresolved(name~, arguments=[], loc~)
+      self.report(UnresolvedType(name.display_text()), loc)
+      Unresolved(name=name.display_text(), arguments=[], loc~)
     }
   }
 }
@@ -114,7 +114,10 @@ fn Resolver::resolve_canonical_variant(
     _ => ()
   }
   self.report(
-    UnresolvedQualifiedVariant(type_name~, variant=target.variant),
+    UnresolvedQualifiedVariant(
+      type_name=type_name.display_text(),
+      variant=target.variant,
+    ),
     loc,
   )
   Unresolved(type_name~, variant=target.variant)

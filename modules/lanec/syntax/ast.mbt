@@ -507,8 +507,7 @@ pub(all) enum Pattern {
   StringLiteral(String, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   QualifiedVariant(
-    type_name~ : String,
-    type_name_loc~ : SourceSpan,
+    owner~ : Type,
     variant~ : String,
     variant_loc~ : SourceSpan,
     type_binders~ : Array[TypeBinder],
@@ -522,12 +521,7 @@ pub(all) enum Pattern {
     arguments~ : Array[Pattern],
     loc~ : SourceSpan
   )
-  Struct(
-    type_name~ : String,
-    type_name_loc~ : SourceSpan,
-    fields~ : Array[StructPatternField],
-    loc~ : SourceSpan
-  )
+  Struct(owner~ : Type, fields~ : Array[StructPatternField], loc~ : SourceSpan)
   Tuple(items~ : Array[Pattern], loc~ : SourceSpan)
 } derive(Debug, Eq)
 

@@ -2384,7 +2384,7 @@ fn Pattern::to_doc(
     DoubleLiteral(value, ..) => text(value)
     StringLiteral(value, ..) => source_string(value)
     BoolLiteral(value, ..) => text(value.to_string())
-    QualifiedVariant(type_name~, variant~, type_binders~, arguments~, loc~, ..) => {
+    QualifiedVariant(owner~, variant~, type_binders~, arguments~, loc~, ..) => {
       let binders_doc = if type_binders.is_empty() {
         empty
       } else {
@@ -2402,7 +2402,10 @@ fn Pattern::to_doc(
           force_break~,
         )
       }
-      let head = text(type_name) + text("::") + text(variant) + binders_doc
+      let head = owner.to_doc(trivia~) +
+        text("::") +
+        text(variant) +
+        binders_doc
       let argument_docs = arguments.map(fn(argument) {
         argument.to_doc(trivia~)
       })
@@ -2458,7 +2461,7 @@ fn Pattern::to_doc(
         force_break~,
       )
     }
-    Struct(type_name~, fields~, loc~, ..) => {
+    Struct(owner~, fields~, loc~) => {
       let field_docs = fields.map(fn(field) { field.to_doc(trivia~) })
       let (dangling, force_break) = trivia.take_delimited(
         '{',
@@ -2466,7 +2469,7 @@ fn Pattern::to_doc(
         loc.end_offset,
         child_spans=fields.map(StructPatternField::loc),
       )
-      text(type_name) +
+      owner.to_doc(trivia~) +
       text("::") +
       braced_comma_list(
         field_docs,

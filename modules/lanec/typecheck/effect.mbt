@@ -44,7 +44,12 @@ fn TypeExpressionChecker::check_effect(
       Io
     }
     Singleton(symbol~, name~, arguments~, loc~) => {
-      self.check_effect_arity(symbol, name, arguments.length(), loc)
+      self.check_effect_arity(
+        symbol,
+        name.display_text(),
+        arguments.length(),
+        loc,
+      )
       let parameters = self.effect_type_parameters(symbol)
       Singleton(
         symbol,
@@ -135,7 +140,7 @@ fn EffectSubstitution::lookup(
 fn TypeExpressionChecker::expand_effect_alias(
   self : TypeExpressionChecker,
   owner_module_path : String?,
-  name : String,
+  name : @resolve.ResolvedNominalName,
   arguments : Array[@resolve.ResolvedEffectAliasArgument],
   loc : SourceSpan,
 ) -> @types.Effect {
@@ -151,11 +156,14 @@ fn TypeExpressionChecker::expand_effect_alias(
   // and effect parameters are substituted into the body and normalized.
   let identity = alias_identity(owner_module_path, name)
   if self.expanding.contains(identity) {
-    self.diagnostics.push({ kind: TypeAliasCycle(name~), loc })
+    self.diagnostics.push({
+      kind: TypeAliasCycle(name=name.display_text()),
+      loc,
+    })
     return Empty
   }
   let local_alias = match owner_module_path {
-    None => self.find_alias(name)
+    None => self.find_alias(name.local_name())
     Some(_) => None
   }
   match local_alias {
@@ -175,7 +183,10 @@ fn TypeExpressionChecker::expand_effect_alias(
         type_alias.type_parameters,
       )
       let (type_substitution, effect_substitution, has_error) = self.check_effect_alias_arguments(
-        checked_parameters, arguments, name, loc,
+        checked_parameters,
+        arguments,
+        name.display_text(),
+        loc,
       )
       if has_error {
         return Empty
@@ -211,7 +222,7 @@ fn TypeExpressionChecker::expand_effect_alias(
               let (type_substitution, effect_substitution, has_error) = self.check_effect_alias_arguments(
                 type_alias.type_parameters,
                 arguments,
-                name,
+                name.display_text(),
                 loc,
               )
               if has_error {
@@ -240,7 +251,10 @@ fn TypeExpressionChecker::expand_effect_alias(
           for argument in arguments {
             self.check_effect_alias_argument(argument)
           }
-          self.diagnostics.push({ kind: UnresolvedType(name), loc })
+          self.diagnostics.push({
+            kind: UnresolvedType(name.display_text()),
+            loc,
+          })
           Empty
         }
       }

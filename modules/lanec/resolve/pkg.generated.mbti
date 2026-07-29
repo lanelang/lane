@@ -100,9 +100,9 @@ pub impl @prettyprinter.Pretty for ResolvedEffectOperationName
 pub(all) enum ResolvedEffectTerm {
   Empty(loc~ : @basic.SourceSpan)
   Io(arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
-  Singleton(symbol~ : @symbol.EffectSymbolId, name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
+  Singleton(symbol~ : @symbol.EffectSymbolId, name~ : ResolvedNominalName, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
-  Alias(symbol~ : @symbol.TypeAliasSymbolId, owner_module_path~ : String?, name~ : String, arguments~ : Array[ResolvedEffectAliasArgument], loc~ : @basic.SourceSpan)
+  Alias(symbol~ : @symbol.TypeAliasSymbolId, owner_module_path~ : String?, name~ : ResolvedNominalName, arguments~ : Array[ResolvedEffectAliasArgument], loc~ : @basic.SourceSpan)
   Union(items~ : Array[ResolvedEffectTerm], loc~ : @basic.SourceSpan)
   Unresolved(name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
@@ -137,9 +137,9 @@ pub(all) enum ResolvedExpr {
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
   UnitLiteral(loc~ : @basic.SourceSpan)
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : @basic.SourceSpan)
-  QualifiedVariant(type_name~ : String, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[ResolvedGenericArgument], variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
+  QualifiedVariant(type_name~ : ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[ResolvedGenericArgument], variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, variant_generic_arguments~ : Array[ResolvedGenericArgument], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
-  StructLiteral(type_name~ : String, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
+  StructLiteral(type_name~ : ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   Derive(capability~ : ResolvedType, target~ : ResolvedType, arguments~ : Array[ResolvedCallArgument], source~ : @basic.DeriveSourceSite)
   Builtin(String, loc~ : @basic.SourceSpan)
   Extern(String, loc~ : @basic.SourceSpan)
@@ -152,8 +152,8 @@ pub(all) enum ResolvedExpr {
   Match(scrutinee~ : ResolvedExpr, arms~ : Array[ResolvedMatchArm], loc~ : @basic.SourceSpan)
   Call(callee~ : ResolvedExpr, arguments~ : Array[ResolvedCallArgument], loc~ : @basic.SourceSpan)
   Field(base~ : ResolvedExpr, name~ : String, name_loc~ : @basic.SourceSpan, reference~ : ResolvedFieldReference, loc~ : @basic.SourceSpan)
-  Unary(operator~ : @syntax.UnaryOperator, reference~ : ResolvedValueReference, operand~ : ResolvedExpr, loc~ : @basic.SourceSpan)
-  Binary(operator~ : @syntax.BinaryOperator, reference~ : ResolvedValueReference, left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
+  Unary(operator~ : @syntax.UnaryOperator, target~ : ResolvedOperatorTarget, operand~ : ResolvedExpr, loc~ : @basic.SourceSpan)
+  Binary(operator~ : @syntax.BinaryOperator, target~ : ResolvedOperatorTarget, left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Pipeline(left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn ResolvedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
@@ -314,10 +314,22 @@ pub(all) struct ResolvedModuleBindingReference {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) enum ResolvedNominalName {
+  Unqualified(String)
+  Qualified(ResolvedQualifiedName)
+} derive(Eq, @debug.Debug)
+pub fn ResolvedNominalName::display_text(Self) -> String
+pub fn ResolvedNominalName::local_name(Self) -> String
+
 pub(all) enum ResolvedOperationReference {
   Symbol(@symbol.OperationSymbolId)
   Unresolved(String)
   Ambiguous(name~ : String, candidates~ : Array[@symbol.OperationSymbolId])
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ResolvedOperatorTarget {
+  name : String
+  reference : ResolvedValueReference
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ResolvedPattern {
@@ -327,9 +339,9 @@ pub(all) enum ResolvedPattern {
   DoubleLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
-  QualifiedVariant(type_name~ : String, type_name_loc~ : @basic.SourceSpan, variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[ResolvedTypeParameter], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
+  QualifiedVariant(type_name~ : ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[ResolvedTypeParameter], reference~ : ResolvedVariantReference, arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
   UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[ResolvedTypeParameter], arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
-  Struct(type_name~ : String, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, fields~ : Array[ResolvedStructPatternField], loc~ : @basic.SourceSpan)
+  Struct(type_name~ : ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, fields~ : Array[ResolvedStructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedPattern
 
@@ -340,6 +352,11 @@ pub(all) struct ResolvedPatternLetDeclaration {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
+
+pub(all) struct ResolvedQualifiedName {
+  module_binding : String
+  name : String
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
@@ -396,8 +413,8 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration
 
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : @basic.SourceSpan)
-  Constructor(symbol~ : @symbol.TypeSymbolId, name~ : String, loc~ : @basic.SourceSpan)
-  Alias(symbol~ : @symbol.TypeAliasSymbolId, owner_module_path~ : String?, name~ : String, loc~ : @basic.SourceSpan)
+  Constructor(symbol~ : @symbol.TypeSymbolId, name~ : ResolvedNominalName, loc~ : @basic.SourceSpan)
+  Alias(symbol~ : @symbol.TypeAliasSymbolId, owner_module_path~ : String?, name~ : ResolvedNominalName, loc~ : @basic.SourceSpan)
   Apply(callee~ : ResolvedType, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
   TypeLambda(parameters~ : Array[ResolvedTypeParameter], body~ : ResolvedType, loc~ : @basic.SourceSpan)
   Parameter(symbol~ : @symbol.TypeParameterId, name~ : String, loc~ : @basic.SourceSpan)
@@ -446,7 +463,7 @@ pub impl @prettyprinter.Pretty for ResolvedTypeParameter
 
 pub(all) enum ResolvedTypeReference {
   Symbol(@symbol.TypeSymbolId)
-  Unresolved(String)
+  Unresolved(ResolvedNominalName)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ResolvedValueParameter {
@@ -468,7 +485,7 @@ pub impl @prettyprinter.Pretty for ResolvedValueReference
 
 pub(all) enum ResolvedVariantReference {
   Symbol(@symbol.VariantSymbolId)
-  Unresolved(type_name~ : String, variant~ : String)
+  Unresolved(type_name~ : ResolvedNominalName, variant~ : String)
   UnresolvedUnqualified(String)
   Ambiguous(name~ : String, candidates~ : Array[@symbol.VariantSymbolId])
 } derive(Eq, @debug.Debug)

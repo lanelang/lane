@@ -47,7 +47,7 @@ fn @syntax.Type::resolve_effect_type(
               )
               Singleton(
                 symbol=binding.symbol,
-                name~,
+                name=Unqualified(name),
                 arguments=resolved_arguments,
                 loc~,
               )
@@ -65,7 +65,7 @@ fn @syntax.Type::resolve_effect_type(
                   Alias(
                     symbol=binding.symbol,
                     owner_module_path=binding.owner_module_path,
-                    name~,
+                    name=Unqualified(name),
                     arguments=resolved_arguments,
                     loc~,
                   )
@@ -115,7 +115,11 @@ fn Resolver::resolve_module_qualified_effect_type(
   scope : ResolveScope,
   loc : SourceSpan,
 ) -> ResolvedEffectTerm {
-  let full_name = module_qualified_name(module_path, name)
+  let resolved_name = ResolvedNominalName::Qualified({
+    module_binding: @module_interface.module_path_text(module_path),
+    name,
+  })
+  let full_name = resolved_name.display_text()
   guard self.resolve_authored_module_namespace(
       @module_interface.module_path_text(module_path),
       module_path.loc,
@@ -136,7 +140,7 @@ fn Resolver::resolve_module_qualified_effect_type(
             self,
             scope,
           )
-          return Singleton(symbol~, name=full_name, arguments~, loc~)
+          return Singleton(symbol~, name=resolved_name, arguments~, loc~)
         }
         TypeAlias(symbol~, is_effect=true) => {
           let arguments = resolve_effect_alias_arguments(
@@ -148,7 +152,7 @@ fn Resolver::resolve_module_qualified_effect_type(
           return Alias(
             symbol~,
             owner_module_path=Some(binding.owner_module_path),
-            name=full_name,
+            name=resolved_name,
             arguments~,
             loc~,
           )

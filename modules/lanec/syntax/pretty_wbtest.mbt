@@ -112,8 +112,7 @@ test "pretty print source file" {
             arms=[
               {
                 pattern: QualifiedVariant(
-                  type_name="Option",
-                  type_name_loc=test_loc(),
+                  owner=Name(name="Option", loc=test_loc()),
                   variant="none",
                   variant_loc=test_loc(),
                   type_binders=[],
@@ -125,8 +124,7 @@ test "pretty print source file" {
               },
               {
                 pattern: QualifiedVariant(
-                  type_name="Option",
-                  type_name_loc=test_loc(),
+                  owner=Name(name="Option", loc=test_loc()),
                   variant="some",
                   variant_loc=test_loc(),
                   type_binders=[],

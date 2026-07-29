@@ -710,9 +710,9 @@ fn SemanticIndex::collect_resolved_expr_symbols(
         self.add_reference(Field(symbol), loc, Some(name))
       }
     }
-    Unary(reference~, loc~, ..) | Binary(reference~, loc~, ..) => {
-      self.collect_resolved_value_reference(reference)
-      if !self.has_checked_source && reference is Symbol(symbol) {
+    Unary(target~, loc~, ..) | Binary(target~, loc~, ..) => {
+      self.collect_resolved_value_reference(target.reference)
+      if !self.has_checked_source && target.reference is Symbol(symbol) {
         self.add_reference(Value(symbol), loc, None)
       }
     }
@@ -880,12 +880,16 @@ fn SemanticIndex::collect_resolved_type(
   match type_ {
     Primitive(_) => ()
     Constructor(symbol~, name~, loc~) => {
-      self.add_reference(Type(symbol), loc, Some("type \{name}"))
+      self.add_reference(Type(symbol), loc, Some("type \{name.display_text()}"))
       self.add_top_level_reference(TopLevelType(symbol))
     }
     Alias(symbol~, name~, loc~, ..) => {
       self.add_top_level_reference(TopLevelAlias(symbol))
-      self.add_reference(TypeAlias(symbol), loc, Some("type alias \{name}"))
+      self.add_reference(
+        TypeAlias(symbol),
+        loc,
+        Some("type alias \{name.display_text()}"),
+      )
     }
     Apply(callee~, arguments~, ..) => {
       self.collect_resolved_type(callee)
@@ -928,7 +932,11 @@ fn SemanticIndex::collect_resolved_effect(
         self.collect_resolved_generic_argument(argument)
       }
     Singleton(symbol~, name~, arguments~, loc~) => {
-      self.add_reference(Effect(symbol), loc, Some("effect \{name}"))
+      self.add_reference(
+        Effect(symbol),
+        loc,
+        Some("effect \{name.display_text()}"),
+      )
       self.add_top_level_reference(TopLevelEffect(symbol))
       for argument in arguments {
         self.collect_resolved_generic_argument(argument)
@@ -940,7 +948,11 @@ fn SemanticIndex::collect_resolved_effect(
     }
     Alias(symbol~, name~, arguments~, loc~, ..) => {
       self.add_top_level_reference(TopLevelAlias(symbol))
-      self.add_reference(TypeAlias(symbol), loc, Some("effect alias \{name}"))
+      self.add_reference(
+        TypeAlias(symbol),
+        loc,
+        Some("effect alias \{name.display_text()}"),
+      )
       for argument in arguments {
         match argument {
           TypeArgument(type_) => self.collect_resolved_type(type_)

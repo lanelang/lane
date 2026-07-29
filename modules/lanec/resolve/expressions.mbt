@@ -181,27 +181,27 @@ fn @syntax.Expr::resolve_expr(
         }
       }
     Unary(operator~, operand~, loc~) => {
-      let reference = resolver.operator_reference(
+      let target = resolver.operator_target(
         scope,
         operator.operation_name(),
         loc,
       )
       Unary(
         operator~,
-        reference~,
+        target~,
         operand=operand.resolve_expr(resolver, scope),
         loc~,
       )
     }
     Binary(operator~, left~, right~, loc~) => {
-      let reference = resolver.operator_reference(
+      let target = resolver.operator_target(
         scope,
         operator.operation_name(),
         loc,
       )
       Binary(
         operator~,
-        reference~,
+        target~,
         left=left.resolve_expr(resolver, scope),
         right=right.resolve_expr(resolver, scope),
         loc~,

@@ -59,14 +59,14 @@ pub struct SymbolRegistry {
 pub struct DeclarationSymbolScope {
   registry : SymbolRegistry
   previous : DeclarationIdentities?
-  claimed_types : Map[String, Bool]
-  claimed_type_aliases : Map[String, Bool]
-  claimed_values : Map[String, Bool]
-  claimed_effects : Map[String, Bool]
-  claimed_type_members : Map[String, Bool]
-  claimed_fields : Map[String, Bool]
-  claimed_variants : Map[String, Bool]
-  claimed_operations : Map[String, Bool]
+  claimed_types : @hashset.HashSet[String]
+  claimed_type_aliases : @hashset.HashSet[String]
+  claimed_values : @hashset.HashSet[String]
+  claimed_effects : @hashset.HashSet[String]
+  claimed_type_members : @hashset.HashSet[String]
+  claimed_fields : @hashset.HashSet[String]
+  claimed_variants : @hashset.HashSet[String]
+  claimed_operations : @hashset.HashSet[String]
 }
 
 ///|
@@ -190,14 +190,14 @@ pub fn SymbolRegistry::declaration_scope(
   {
     registry: self,
     previous,
-    claimed_types: Map([]),
-    claimed_type_aliases: Map([]),
-    claimed_values: Map([]),
-    claimed_effects: Map([]),
-    claimed_type_members: Map([]),
-    claimed_fields: Map([]),
-    claimed_variants: Map([]),
-    claimed_operations: Map([]),
+    claimed_types: @hashset.HashSet([]),
+    claimed_type_aliases: @hashset.HashSet([]),
+    claimed_values: @hashset.HashSet([]),
+    claimed_effects: @hashset.HashSet([]),
+    claimed_type_members: @hashset.HashSet([]),
+    claimed_fields: @hashset.HashSet([]),
+    claimed_variants: @hashset.HashSet([]),
+    claimed_operations: @hashset.HashSet([]),
   }
 }
 
@@ -404,10 +404,9 @@ pub fn DeclarationSymbolScope::define_type(
   arity : Int,
   loc : SourceSpan,
 ) -> TypeSymbolId {
-  if self.claimed_types.contains(name) {
+  if !self.claimed_types.add_and_check(name) {
     return self.registry.define_type(name, kind, arity, loc)
   }
-  self.claimed_types[name] = true
   if self.previous is Some(previous) && previous.types.get(name) is Some(id) {
     self.registry.metadata.types[id.index] = { id, name, kind, arity, loc }
     self.registry.declarations.types[name] = id
@@ -435,10 +434,9 @@ pub fn DeclarationSymbolScope::define_type_alias(
   name : String,
   loc : SourceSpan,
 ) -> TypeAliasSymbolId {
-  if self.claimed_type_aliases.contains(name) {
+  if !self.claimed_type_aliases.add_and_check(name) {
     return self.registry.define_type_alias(name, loc)
   }
-  self.claimed_type_aliases[name] = true
   if self.previous is Some(previous) &&
     previous.type_aliases.get(name) is Some(id) {
     self.registry.metadata.type_aliases[id.index] = { id, name, loc }
@@ -492,12 +490,11 @@ pub fn DeclarationSymbolScope::define_type_member(
   loc : SourceSpan,
 ) -> TypeMemberSymbolId {
   let key = owned_symbol_name(owner.index, name)
-  if self.claimed_type_members.contains(key) {
+  if !self.claimed_type_members.add_and_check(key) {
     return self.registry.define_type_member(
       owner, name, index, type_parameter, loc,
     )
   }
-  self.claimed_type_members[key] = true
   if self.previous is Some(previous) &&
     previous.type_members.get(key) is Some(id) {
     self.registry.metadata.type_members[id.index] = {
@@ -555,10 +552,9 @@ pub fn DeclarationSymbolScope::define_value(
   kind : ValueSymbolKind,
   loc : SourceSpan,
 ) -> ValueSymbolId {
-  if self.claimed_values.contains(name) {
+  if !self.claimed_values.add_and_check(name) {
     return self.registry.define_value(name, kind, loc)
   }
-  self.claimed_values[name] = true
   if self.previous is Some(previous) && previous.values.get(name) is Some(id) {
     self.registry.metadata.values[id.index] = {
       id,
@@ -630,10 +626,9 @@ pub fn DeclarationSymbolScope::define_effect(
   loc : SourceSpan,
   flavor? : EffectFlavor = Algebraic,
 ) -> EffectSymbolId {
-  if self.claimed_effects.contains(name) {
+  if !self.claimed_effects.add_and_check(name) {
     return self.registry.define_effect(name, arity, loc, flavor~)
   }
-  self.claimed_effects[name] = true
   if self.previous is Some(previous) && previous.effects.get(name) is Some(id) {
     self.registry.metadata.effects[id.index] = { id, name, flavor, arity, loc }
     self.registry.declarations.effects[name] = id
@@ -653,10 +648,9 @@ pub fn DeclarationSymbolScope::define_field(
   loc : SourceSpan,
 ) -> FieldSymbolId {
   let key = owned_symbol_name(owner.index, name)
-  if self.claimed_fields.contains(key) {
+  if !self.claimed_fields.add_and_check(key) {
     return self.registry.define_field(owner, name, index, loc)
   }
-  self.claimed_fields[key] = true
   if self.previous is Some(previous) && previous.fields.get(key) is Some(id) {
     self.registry.metadata.fields[id.index] = { id, owner, name, index, loc }
     self.registry.declarations.fields[key] = id
@@ -677,10 +671,9 @@ pub fn DeclarationSymbolScope::define_variant(
   loc : SourceSpan,
 ) -> VariantSymbolId {
   let key = owned_symbol_name(owner.index, name)
-  if self.claimed_variants.contains(key) {
+  if !self.claimed_variants.add_and_check(key) {
     return self.registry.define_variant(owner, name, index, payload_count, loc)
   }
-  self.claimed_variants[key] = true
   if self.previous is Some(previous) && previous.variants.get(key) is Some(id) {
     self.registry.metadata.variants[id.index] = {
       id,
@@ -708,12 +701,11 @@ pub fn DeclarationSymbolScope::define_operation(
   loc : SourceSpan,
 ) -> OperationSymbolId {
   let key = owned_symbol_name(owner.index, name)
-  if self.claimed_operations.contains(key) {
+  if !self.claimed_operations.add_and_check(key) {
     return self.registry.define_operation(
       owner, name, index, payload_count, loc,
     )
   }
-  self.claimed_operations[key] = true
   if self.previous is Some(previous) && previous.operations.get(key) is Some(id) {
     self.registry.metadata.operations[id.index] = {
       id,

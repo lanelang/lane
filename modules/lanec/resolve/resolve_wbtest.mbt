@@ -165,7 +165,7 @@ test "resolve local effect alias references" {
       #|[
       #|  Singleton(
       #|    symbol={ index: 0 },
-      #|    name="Console",
+      #|    name=Unqualified("Console"),
       #|    arguments=[],
       #|    loc={
       #|      start_offset: 95,
@@ -178,7 +178,7 @@ test "resolve local effect alias references" {
       #|  ),
       #|  Singleton(
       #|    symbol={ index: 1 },
-      #|    name="Log",
+      #|    name=Unqualified("Log"),
       #|    arguments=[],
       #|    loc={
       #|      start_offset: 104,
@@ -205,7 +205,7 @@ test "resolve local effect alias references" {
       #|  Alias(
       #|    symbol={ index: 0 },
       #|    owner_module_path=None,
-      #|    name="UI",
+      #|    name=Unqualified("UI"),
       #|    arguments=[],
       #|    loc={
       #|      start_offset: 136,
@@ -240,7 +240,7 @@ test "resolve local effect alias references" {
       #|Alias(
       #|  symbol={ index: 0 },
       #|  owner_module_path=None,
-      #|  name="UI",
+      #|  name=Unqualified("UI"),
       #|  arguments=[],
       #|  loc={
       #|    start_offset: 167,
@@ -318,7 +318,7 @@ test "resolve module-qualified effect alias references" {
       #|[
       #|  Singleton(
       #|    symbol={ index: 0 },
-      #|    name="Lib.Console",
+      #|    name=Qualified({ module_binding: "Lib", name: "Console" }),
       #|    arguments=[],
       #|    loc={
       #|      start_offset: 38,
@@ -332,7 +332,7 @@ test "resolve module-qualified effect alias references" {
       #|  Alias(
       #|    symbol={ index: 0 },
       #|    owner_module_path=Some("Lib"),
-      #|    name="Lib.UI",
+      #|    name=Qualified({ module_binding: "Lib", name: "UI" }),
       #|    arguments=[],
       #|    loc={
       #|      start_offset: 51,
@@ -355,7 +355,7 @@ test "resolve module-qualified effect alias references" {
       #|Alias(
       #|  symbol={ index: 0 },
       #|  owner_module_path=Some("Lib"),
-      #|  name="Lib.UI",
+      #|  name=Qualified({ module_binding: "Lib", name: "UI" }),
       #|  arguments=[],
       #|  loc={
       #|    start_offset: 83,
@@ -958,6 +958,38 @@ test "resolve top level function bodies with complete top level values" {
 }
 
 ///|
+test "operator target mapping covers every syntax operator" {
+  assert_eq(
+    [
+      @syntax.UnaryOperator::Neg.operation_name(),
+      @syntax.UnaryOperator::Not.operation_name(),
+    ],
+    ["op_neg", "op_not"],
+  )
+  assert_eq(
+    [
+      @syntax.BinaryOperator::Add.operation_name(),
+      @syntax.BinaryOperator::Sub.operation_name(),
+      @syntax.BinaryOperator::Mul.operation_name(),
+      @syntax.BinaryOperator::Div.operation_name(),
+      @syntax.BinaryOperator::Rem.operation_name(),
+      @syntax.BinaryOperator::Equal.operation_name(),
+      @syntax.BinaryOperator::NotEqual.operation_name(),
+      @syntax.BinaryOperator::Less.operation_name(),
+      @syntax.BinaryOperator::LessEqual.operation_name(),
+      @syntax.BinaryOperator::Greater.operation_name(),
+      @syntax.BinaryOperator::GreaterEqual.operation_name(),
+      @syntax.BinaryOperator::And.operation_name(),
+      @syntax.BinaryOperator::Or.operation_name(),
+    ],
+    [
+      "op_add", "op_sub", "op_mul", "op_div", "op_rem", "op_equal", "op_not_equal",
+      "op_less", "op_less_eq", "op_greater", "op_greater_eq", "op_and", "op_or",
+    ],
+  )
+}
+
+///|
 test "resolve operator aliases through operation names" {
   let file = expect_parse_ok(
     (
@@ -971,6 +1003,22 @@ test "resolve operator aliases through operation names" {
   )
   let result = resolve_source_file_result(file)
   debug_inspect(result.diagnostics, content="[]")
+  guard result.source.declarations[1]
+    is Function(
+      {
+        body: Block(
+          result=Binary(
+            target={ name: "op_add", reference: Symbol(operator_symbol) },
+            ..
+          ),
+          ..
+        ),
+        ..,
+      }
+    ) else {
+    abort("expected resolved operator target")
+  }
+  assert_eq(operator_symbol, @symbol.ValueSymbolId::{ index: 0 })
   inspect(
     @prettyprinter.render(result.source, width=100),
     content=(

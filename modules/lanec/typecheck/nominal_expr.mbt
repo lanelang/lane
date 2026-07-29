@@ -2,7 +2,7 @@
 fn SemanticChecker::synthesize_checked_variant_call(
   self : SemanticChecker,
   scope : TypeScope,
-  type_name : String?,
+  type_name : @resolve.ResolvedNominalName?,
   type_name_loc : SourceSpan?,
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
@@ -40,7 +40,7 @@ fn SemanticChecker::synthesize_checked_variant_call(
 fn SemanticChecker::synthesize_checked_qualified_variant(
   self : SemanticChecker,
   scope : TypeScope,
-  type_name : String,
+  type_name : @resolve.ResolvedNominalName,
   _type_name_loc : SourceSpan,
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
   variant : String,
@@ -56,7 +56,7 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
       self.synthesize_checked_variant_symbol(
         scope,
         symbol,
-        type_name + "::" + variant,
+        type_name.display_text() + "::" + variant,
         variant_loc,
         generic_arguments,
         variant_generic_arguments,
@@ -67,7 +67,10 @@ fn SemanticChecker::synthesize_checked_qualified_variant(
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
         kind: VariantReferenceFailure(
-          label="unresolved variant " + type_name + "::" + variant,
+          label="unresolved variant " +
+            type_name.display_text() +
+            "::" +
+            variant,
         ),
         loc,
       })
@@ -126,7 +129,10 @@ fn SemanticChecker::synthesize_checked_unqualified_variant(
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
         kind: VariantReferenceFailure(
-          label="unresolved variant " + type_name + "::" + variant,
+          label="unresolved variant " +
+            type_name.display_text() +
+            "::" +
+            variant,
         ),
         loc,
       })
@@ -402,7 +408,7 @@ priv struct StructLiteralGenericEvidence {
 fn SemanticChecker::synthesize_checked_struct_literal(
   self : SemanticChecker,
   scope : TypeScope,
-  type_name : String,
+  type_name : @resolve.ResolvedNominalName,
   type_name_loc : SourceSpan,
   reference : @resolve.ResolvedTypeReference,
   generic_arguments : Array[@resolve.ResolvedGenericArgument],
@@ -414,7 +420,10 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   // after substituting owner generic arguments and explicit existential type
   // witnesses supplied by the literal.
   guard reference is Symbol(symbol) else {
-    self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
+    self.diagnostics.push({
+      kind: UnresolvedType(type_name.display_text()),
+      loc,
+    })
     return checked_expression_none_reported(Error)
   }
   guard self.declarations.checked_struct(symbol) is Some(struct_declaration) else {
@@ -448,7 +457,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
     self.source.symbols,
     self.diagnostics,
     symbol,
-    type_name,
+    type_name.display_text(),
     arguments.length(),
     loc,
   )

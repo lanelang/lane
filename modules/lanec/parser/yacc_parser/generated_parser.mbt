@@ -594,10 +594,6 @@ priv suberror YYObj_GenericArgument {
   YYObj_GenericArgument(GenericArgument)
 }
 
-priv suberror YYObj_NominalTypeName {
-  YYObj_NominalTypeName(NominalTypeName)
-}
-
 priv suberror YYObj_OwnerExpression {
   YYObj_OwnerExpression(OwnerExpression)
 }
@@ -2309,27 +2305,27 @@ fn yy_action_132(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1074|    nominal_type_name "tight ::" IDENT variant_pattern_arguments { QualifiedVariant(type_name=$1.name, type_name_loc=$1.loc, variant=$3, variant_loc=$1.loc.ascii_after(2, $3.length()), type_binders=$4.type_binders, arguments=$4.arguments, loc=span(($startpos, $endpos))) }
+// 1074|    nominal_type_name "tight ::" IDENT variant_pattern_arguments { QualifiedVariant(owner=$1, variant=$3, variant_loc=$1.loc().ascii_after(2, $3.length()), type_binders=$4.type_binders, arguments=$4.arguments, loc=span(($startpos, $endpos))) }
 fn yy_action_133(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_NominalTypeName(_dollar1)
+  guard _args[0].0 is YYObj_Type(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
   guard _args[3].0 is YYObj_VariantPatternArguments(_dollar4)
   let _start_pos = if _args.length() == 0 { _last_pos } else { _args[0].1 }
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Pattern({();  QualifiedVariant(type_name=_dollar1.name, type_name_loc=_dollar1.loc, variant=_dollar3, variant_loc=_dollar1.loc.ascii_after(2, _dollar3.length()), type_binders=_dollar4.type_binders, arguments=_dollar4.arguments, loc=span((_start_pos, _end_pos))) })
+  YYObj_Pattern({();  QualifiedVariant(owner=_dollar1, variant=_dollar3, variant_loc=_dollar1.loc().ascii_after(2, _dollar3.length()), type_binders=_dollar4.type_binders, arguments=_dollar4.arguments, loc=span((_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
 // 1084|    nominal_type_name "tight ::" "{" struct_pattern_fields "}" {
-// 1085|    Struct(type_name=$1.name, type_name_loc=$1.loc, fields=$4, loc=span($sloc))
+// 1085|    Struct(owner=$1, fields=$4, loc=span($sloc))
 // 1086|  }
 fn yy_action_134(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_NominalTypeName(_dollar1)
+  guard _args[0].0 is YYObj_Type(_dollar1)
   guard _args[3].0 is YYObj_Array_StructPatternField_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Pattern({(); 
-    Struct(type_name=_dollar1.name, type_name_loc=_dollar1.loc, fields=_dollar4, loc=span((_symbol_start_pos, _end_pos)))
+    Struct(owner=_dollar1, fields=_dollar4, loc=span((_symbol_start_pos, _end_pos)))
   })
 }
 
@@ -2513,12 +2509,12 @@ fn yy_action_155(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 801|    IDENT { { name: $1, loc: span($sloc) } }
+// 801|    IDENT { Name(name=$1, loc=span($sloc)) }
 fn yy_action_156(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_NominalTypeName({();  { name: _dollar1, loc: span((_symbol_start_pos, _end_pos)) } })
+  YYObj_Type({();  Name(name=_dollar1, loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
@@ -2531,10 +2527,10 @@ fn yy_action_157(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 802|    qualified_type_name { { name: type_name_text($1), loc: $1.loc() } }
+// 802|    qualified_type_name { $1 }
 fn yy_action_158(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
-  YYObj_NominalTypeName({();  { name: type_name_text(_dollar1), loc: _dollar1.loc() } })
+  YYObj_Type({();  _dollar1 })
 }
 
 // file:///./parser.mbty

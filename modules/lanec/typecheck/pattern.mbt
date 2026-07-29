@@ -281,7 +281,7 @@ fn SemanticChecker::check_pattern(
 fn SemanticChecker::check_variant_pattern(
   self : SemanticChecker,
   scope : TypeScope,
-  type_name : String,
+  type_name : @resolve.ResolvedNominalName,
   _type_name_loc : SourceSpan,
   variant : String,
   variant_loc : SourceSpan,
@@ -305,7 +305,10 @@ fn SemanticChecker::check_variant_pattern(
     Unresolved(type_name~, variant~) => {
       self.diagnostics.push({
         kind: VariantReferenceFailure(
-          label="unresolved variant " + type_name + "::" + variant,
+          label="unresolved variant " +
+            type_name.display_text() +
+            "::" +
+            variant,
         ),
         loc,
       })
@@ -325,7 +328,7 @@ fn SemanticChecker::check_variant_pattern(
 fn SemanticChecker::check_variant_symbol_pattern(
   self : SemanticChecker,
   scope : TypeScope,
-  type_name : String,
+  type_name : @resolve.ResolvedNominalName,
   variant : String,
   variant_loc : SourceSpan,
   symbol : VariantSymbolId,
@@ -347,7 +350,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
     self.diagnostics.push({
       kind: VariantReferenceFailure(
-        label="unknown variant " + type_name + "::" + variant,
+        label="unknown variant " + type_name.display_text() + "::" + variant,
       ),
       loc,
     })
@@ -355,7 +358,9 @@ fn SemanticChecker::check_variant_symbol_pattern(
   }
   guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
     self.diagnostics.push({
-      kind: VariantReferenceFailure(label="unknown variant owner " + type_name),
+      kind: VariantReferenceFailure(
+        label="unknown variant owner " + type_name.display_text(),
+      ),
       loc,
     })
     return Wildcard(type_=Error, loc~)
@@ -363,7 +368,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   guard declaration.variant(symbol) is Some(variant_declaration) else {
     self.diagnostics.push({
       kind: VariantReferenceFailure(
-        label="unknown variant " + type_name + "::" + variant,
+        label="unknown variant " + type_name.display_text() + "::" + variant,
       ),
       loc,
     })
@@ -398,7 +403,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   if variant_declaration.payload.length() != arguments.length() {
     self.diagnostics.push({
       kind: PatternArityMismatch(
-        name=type_name + "::" + variant,
+        name=type_name.display_text() + "::" + variant,
         expected=variant_declaration.payload.length(),
         actual=arguments.length(),
       ),
@@ -412,7 +417,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   if type_binders.length() != variant_declaration.type_parameters.length() {
     self.diagnostics.push({
       kind: GenericArgumentArityMismatch(
-        subject=Named(name=type_name + "::" + variant),
+        subject=Named(name=type_name.display_text() + "::" + variant),
         expected=variant_declaration.type_parameters.length(),
         actual=type_binders.length(),
       ),
@@ -526,7 +531,7 @@ fn SemanticChecker::check_unqualified_variant_pattern(
   }
   self.check_variant_symbol_pattern(
     scope,
-    "",
+    Unqualified(declaration.name),
     variant,
     variant_loc,
     variant_declaration.symbol,
@@ -542,7 +547,7 @@ fn SemanticChecker::check_unqualified_variant_pattern(
 fn SemanticChecker::check_struct_pattern(
   self : SemanticChecker,
   scope : TypeScope,
-  type_name : String,
+  type_name : @resolve.ResolvedNominalName,
   type_name_loc : SourceSpan,
   reference : @resolve.ResolvedTypeReference,
   fields : Array[@resolve.ResolvedStructPatternField],
@@ -560,7 +565,10 @@ fn SemanticChecker::check_struct_pattern(
   // emitted in declaration order so ANF and later execution lowering do
   // not depend on source spelling order.
   guard reference is Symbol(symbol) else {
-    self.diagnostics.push({ kind: UnresolvedType(type_name), loc })
+    self.diagnostics.push({
+      kind: UnresolvedType(type_name.display_text()),
+      loc,
+    })
     return Wildcard(type_=Error, loc~)
   }
   let generic_arguments = match

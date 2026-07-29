@@ -283,25 +283,25 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
       )
     Field(base~, name~, name_loc~, reference~, loc~) =>
       Field(base=desugar_expr(base), name~, name_loc~, reference~, loc~)
-    Unary(operator~, reference~, operand~, loc~) =>
+    Unary(target~, operand~, loc~, ..) =>
       desugar_operator_call(
-        operator.operation_name(),
-        reference,
+        target.name,
+        target.reference,
         [desugar_expr(operand)],
         loc,
       )
-    Binary(operator~, reference~, left~, right~, loc~) =>
+    Binary(operator~, target~, left~, right~, loc~) =>
       if operator.is_lazy_bool_operator() {
         desugar_operator_call(
-          operator.operation_name(),
-          reference,
+          target.name,
+          target.reference,
           [desugar_expr(left), desugar_bool_thunk(right, loc)],
           loc,
         )
       } else {
         desugar_operator_call(
-          operator.operation_name(),
-          reference,
+          target.name,
+          target.reference,
           [desugar_expr(left), desugar_expr(right)],
           loc,
         )
@@ -402,37 +402,6 @@ fn desugar_bool_thunk(
     body=desugar_expr(body),
     loc~,
   )
-}
-
-///|
-fn @syntax.UnaryOperator::operation_name(
-  self : @syntax.UnaryOperator,
-) -> String {
-  match self {
-    Neg => "op_neg"
-    Not => "op_not"
-  }
-}
-
-///|
-fn @syntax.BinaryOperator::operation_name(
-  self : @syntax.BinaryOperator,
-) -> String {
-  match self {
-    Add => "op_add"
-    Sub => "op_sub"
-    Mul => "op_mul"
-    Div => "op_div"
-    Rem => "op_rem"
-    Equal => "op_equal"
-    NotEqual => "op_not_equal"
-    Less => "op_less"
-    LessEqual => "op_less_eq"
-    Greater => "op_greater"
-    GreaterEqual => "op_greater_eq"
-    And => "op_and"
-    Or => "op_or"
-  }
 }
 
 ///|

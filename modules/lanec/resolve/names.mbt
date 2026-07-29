@@ -5,16 +5,16 @@ priv enum UnqualifiedNameUse {
 }
 
 ///|
-fn Resolver::operator_reference(
+fn Resolver::operator_target(
   self : Resolver,
   scope : ResolveScope,
   name : String,
   loc : SourceSpan,
-) -> ResolvedValueReference {
+) -> ResolvedOperatorTarget {
   let reference = scope.value_reference(name)
   self.record_import_use(scope.value_import_origin(reference), loc)
   self.report_unresolved_value(reference, loc)
-  reference
+  { name, reference }
 }
 
 ///|
@@ -547,31 +547,31 @@ fn Resolver::type_symbol(self : Resolver, name : String) -> TypeSymbolId {
 ///|
 fn Resolver::type_reference(
   self : Resolver,
-  name : String,
+  name : ResolvedNominalName,
   loc : SourceSpan,
 ) -> ResolvedTypeReference {
-  match self.type_binding(name) {
-    Some(binding) => {
-      self.record_import_use(binding.import_origin, loc)
-      Symbol(binding.symbol)
-    }
-    None =>
-      match qualified_name_text(name) {
-        Some(qualified) =>
-          match
-            self.resolve_authored_module_namespace(
-              qualified.module_path,
-              loc.ascii_prefix(qualified.module_path.length()),
-            ) {
-            Some(source) =>
-              match source.type_binding(qualified.name) {
-                Some({ kind: NominalType(symbol~, ..), import_origins, .. }) => {
-                  self.record_import_uses(import_origins, loc)
-                  Symbol(symbol)
-                }
-                _ => Unresolved(name)
-              }
-            None => Unresolved(name)
+  match name {
+    Unqualified(name) =>
+      match self.type_binding(name) {
+        Some(binding) => {
+          self.record_import_use(binding.import_origin, loc)
+          Symbol(binding.symbol)
+        }
+        None => Unresolved(Unqualified(name))
+      }
+    Qualified(qualified) =>
+      match
+        self.resolve_authored_module_namespace(
+          qualified.module_binding,
+          loc.ascii_prefix(qualified.module_binding.length()),
+        ) {
+        Some(source) =>
+          match source.type_binding(qualified.name) {
+            Some({ kind: NominalType(symbol~, ..), import_origins, .. }) => {
+              self.record_import_uses(import_origins, loc)
+              Symbol(symbol)
+            }
+            _ => Unresolved(name)
           }
         None => Unresolved(name)
       }
@@ -579,34 +579,51 @@ fn Resolver::type_reference(
 }
 
 ///|
-fn Resolver::qualified_type_symbol_opt(
+fn Resolver::variant_reference(
   self : Resolver,
-  name : String,
-) -> TypeSymbolId? {
-  match qualified_name_text(name) {
-    Some(qualified) =>
-      match self.module_type_binding(qualified.module_path, qualified.name) {
-        Some({ kind: NominalType(symbol~, ..), .. }) => Some(symbol)
-        _ => None
+  type_name : ResolvedNominalName,
+  variant : String,
+  type_name_loc : SourceSpan,
+  loc : SourceSpan,
+) -> ResolvedVariantReference {
+  match type_name {
+    Qualified(qualified) =>
+      match
+        self.resolve_authored_module_namespace(
+          qualified.module_binding,
+          type_name_loc.ascii_prefix(qualified.module_binding.length()),
+        ) {
+        Some(source) =>
+          match source.type_binding(qualified.name) {
+            Some({ kind: NominalType(variants~, ..), import_origins, .. }) => {
+              self.record_import_uses(import_origins, loc)
+              for item in variants {
+                if item.name == variant {
+                  return Symbol(item.symbol)
+                }
+              }
+            }
+            _ => ()
+          }
+        None => ()
       }
-    None => None
+    Unqualified(name) =>
+      if self.type_binding(name) is Some(binding) {
+        self.record_import_use(binding.import_origin, loc)
+        for item in binding.variants {
+          if item.name == variant {
+            return Symbol(item.symbol)
+          }
+        }
+      }
   }
-}
-
-///|
-fn qualified_name_text(name : String) -> QualifiedNameText? {
-  let parts = name.split(".").map(StringView::to_owned).collect()
-  if parts.length() < 2 {
-    return None
-  }
-  let module_segments = []
-  for index in 0..<(parts.length() - 1) {
-    module_segments.push(parts[index])
-  }
-  Some({
-    module_path: module_segments.join("."),
-    name: parts[parts.length() - 1],
-  })
+  resolver_report_qualified_variant(
+    self,
+    type_name.display_text(),
+    variant,
+    loc,
+  )
+  Unresolved(type_name~, variant~)
 }
 
 ///|
@@ -962,33 +979,6 @@ fn Resolver::has_conflicting_top_value_name(
 }
 
 ///|
-fn Resolver::variant_reference(
-  self : Resolver,
-  type_name : String,
-  variant : String,
-  type_name_loc : SourceSpan,
-  loc : SourceSpan,
-) -> ResolvedVariantReference {
-  if self.qualified_variant_symbol(type_name, variant, type_name_loc, loc)
-    is Some(symbol) {
-    return Symbol(symbol)
-  }
-  if self.type_binding(type_name) is Some(binding) {
-    self.record_import_use(binding.import_origin, loc)
-    for item in binding.variants {
-      if item.name == variant {
-        return Symbol(item.symbol)
-      }
-    }
-    resolver_report_qualified_variant(self, type_name, variant, loc)
-    Unresolved(type_name~, variant~)
-  } else {
-    resolver_report_qualified_variant(self, type_name, variant, loc)
-    Unresolved(type_name~, variant~)
-  }
-}
-
-///|
 fn Resolver::variant_symbol(
   self : Resolver,
   owner : TypeSymbolId,
@@ -1002,40 +992,6 @@ fn Resolver::variant_symbol(
     }
   }
   abort("missing predeclared variant symbol")
-}
-
-///|
-fn Resolver::qualified_variant_symbol(
-  self : Resolver,
-  type_name : String,
-  variant : String,
-  type_name_loc : SourceSpan,
-  loc : SourceSpan,
-) -> VariantSymbolId? {
-  match qualified_name_text(type_name) {
-    Some(qualified) =>
-      match
-        self.resolve_authored_module_namespace(
-          qualified.module_path,
-          type_name_loc.ascii_prefix(qualified.module_path.length()),
-        ) {
-        Some(source) =>
-          match source.type_binding(qualified.name) {
-            Some({ kind: NominalType(variants~, ..), import_origins, .. }) => {
-              self.record_import_uses(import_origins, loc)
-              for item in variants {
-                if item.name == variant {
-                  return Some(item.symbol)
-                }
-              }
-              None
-            }
-            _ => None
-          }
-        None => None
-      }
-    None => None
-  }
 }
 
 ///|

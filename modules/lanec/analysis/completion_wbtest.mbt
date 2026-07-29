@@ -747,6 +747,56 @@ test "completion returns owner members after double colon" {
 }
 
 ///|
+test "owner completion preserves multi-segment paths and aliases" {
+  let option =
+    #|module Basic.Data.Option
+    #|
+    #|pub enum Option[A] {
+    #|  none()
+    #|  some(A)
+    #|}
+  let qualified =
+    #|module Main
+    #|import Basic.Data.Option
+    #|pub fn use() -> Basic.Data.Option.Option[Int] {
+    #|  Basic.Data.Option.Option::none()
+    #|}
+  let aliased =
+    #|module Main
+    #|import Basic.Data.Option as O
+    #|pub fn use() -> O.Option[Int] {
+    #|  O.Option::none()
+    #|}
+  let sources : Array[@module_frontend.SourceInput] = [
+    { source_id: "file:///Option.lane", text: option },
+  ]
+  let qualified_entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: qualified },
+    sources,
+    "file:///Main.lane",
+    4,
+    29,
+    TriggerCharacter(":"),
+  )
+  let aliased_entries = complete_test_source_inputs(
+    { source_id: "file:///Main.lane", text: aliased },
+    sources,
+    "file:///Main.lane",
+    4,
+    13,
+    TriggerCharacter(":"),
+  )
+  assert_eq(qualified_entries.map(fn(entry) { (entry.label, entry.kind) }), [
+    ("none", Variant),
+    ("some", Variant),
+  ])
+  assert_eq(aliased_entries.map(fn(entry) { (entry.label, entry.kind) }), [
+    ("none", Variant),
+    ("some", Variant),
+  ])
+}
+
+///|
 test "completion inserts parens for imported payloadless owner variants" {
   let root =
     #|module Main

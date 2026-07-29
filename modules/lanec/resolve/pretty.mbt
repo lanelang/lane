@@ -399,8 +399,9 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
 ) {
   match type_ {
     Primitive(primitive, ..) => primitive.pretty()
-    Constructor(symbol~, name~, ..) => symbol.pretty() + space + text(name)
-    Alias(name~, ..) => text("alias") + space + text(name)
+    Constructor(symbol~, name~, ..) =>
+      symbol.pretty() + space + text(name.display_text())
+    Alias(name~, ..) => text("alias") + space + text(name.display_text())
     Apply(callee~, arguments~, ..) =>
       callee.pretty() + generic_arguments_doc(arguments)
     TypeLambda(parameters~, body~, ..) =>
@@ -438,13 +439,18 @@ pub impl @prettyprinter.Pretty for ResolvedEffectTerm with fn pretty(
     Empty(..) => text("{}")
     Io(arguments~, ..) => text("Io") + generic_arguments_doc(arguments)
     Singleton(symbol~, name~, arguments~, ..) =>
-      symbol.pretty() + space + text(name) + generic_arguments_doc(arguments)
+      symbol.pretty() +
+      space +
+      text(name.display_text()) +
+      generic_arguments_doc(arguments)
     Parameter(symbol~, name~, ..) => symbol.pretty() + space + text(name)
     Alias(name~, arguments~, ..) =>
       if arguments.is_empty() {
-        text("alias ") + text(name)
+        text("alias ") + text(name.display_text())
       } else {
-        text("alias ") + text(name) + effect_alias_arguments_doc(arguments)
+        text("alias ") +
+        text(name.display_text()) +
+        effect_alias_arguments_doc(arguments)
       }
     Union(items~, ..) =>
       @pretty.braced_block(items.map(ResolvedEffectTerm::pretty))
@@ -543,7 +549,7 @@ pub impl @prettyprinter.Pretty for ResolvedVariantReference with fn pretty(
   match reference {
     Symbol(symbol) => symbol.pretty()
     Unresolved(type_name~, variant~) =>
-      text("?") + text(type_name) + text("::") + text(variant)
+      text("?") + text(type_name.display_text()) + text("::") + text(variant)
     UnresolvedUnqualified(name) => text("?") + text(name)
     Ambiguous(name~, candidates~) =>
       text("?ambiguous") +
@@ -702,7 +708,7 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
     ) =>
       reference.pretty() +
       space +
-      text(type_name) +
+      text(type_name.display_text()) +
       generic_arguments_doc(generic_arguments) +
       text("::") +
       text(variant) +
@@ -721,7 +727,7 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       generic_arguments_doc(variant_generic_arguments) +
       @pretty.parenthesized_inline(arguments.map(ResolvedExpr::pretty))
     StructLiteral(type_name~, generic_arguments~, fields~, ..) =>
-      text(type_name) +
+      text(type_name.display_text()) +
       generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(ResolvedStructLiteralField::pretty))
@@ -798,16 +804,16 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       @pretty.parenthesized_inline(arguments.map(ResolvedCallArgument::pretty))
     Field(base~, name~, reference~, ..) =>
       base.pretty() + text(".") + reference.pretty() + space + text(name)
-    Unary(operator~, reference~, operand~, ..) =>
+    Unary(operator~, target~, operand~, ..) =>
       @prettyprinter.pretty(operator) +
-      operator_reference_doc(reference) +
+      operator_reference_doc(target.reference) +
       space +
       operand.pretty()
-    Binary(operator~, reference~, left~, right~, ..) =>
+    Binary(operator~, target~, left~, right~, ..) =>
       left.pretty() +
       space +
       @prettyprinter.pretty(operator) +
-      operator_reference_doc(reference) +
+      operator_reference_doc(target.reference) +
       space +
       right.pretty()
     Pipeline(left~, right~, ..) =>
@@ -842,7 +848,7 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
     ) => {
       let head = reference.pretty() +
         space +
-        text(type_name) +
+        text(type_name.display_text()) +
         text("::") +
         text(variant) +
         type_parameters_doc(type_binders)
@@ -863,7 +869,7 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
       }
     }
     Struct(type_name~, fields~, ..) =>
-      text(type_name) +
+      text(type_name.display_text()) +
       @pretty.braced_block(fields.map(ResolvedStructPatternField::pretty))
   }
 }

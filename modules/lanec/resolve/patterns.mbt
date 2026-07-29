@@ -20,14 +20,15 @@ fn @syntax.Pattern::resolve_pattern(
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
     QualifiedVariant(
-      type_name~,
-      type_name_loc~,
+      owner~,
       variant~,
       variant_loc~,
       type_binders~,
       arguments~,
       loc~
     ) => {
+      let type_name = owner_type_name(owner)
+      let type_name_loc = owner.loc()
       let type_binders = resolver.resolve_type_parameter_names(
         type_binders.map(fn(binder) { binder.name }),
         loc,
@@ -64,7 +65,9 @@ fn @syntax.Pattern::resolve_pattern(
         loc~,
       )
     }
-    Struct(type_name~, type_name_loc~, fields~, loc~) => {
+    Struct(owner~, fields~, loc~) => {
+      let type_name = owner_type_name(owner)
+      let type_name_loc = owner.loc()
       let reference = resolver.type_reference(type_name, type_name_loc)
       let owner = match reference {
         Symbol(symbol) => Some(symbol)

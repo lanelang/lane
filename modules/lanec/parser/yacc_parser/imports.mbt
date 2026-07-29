@@ -62,12 +62,6 @@ priv struct Identifier {
 }
 
 ///|
-priv struct NominalTypeName {
-  name : String
-  loc : SourceSpan
-}
-
-///|
 priv struct ReturnAnnotation {
   return_type : Type?
   effect : EffectTerm?
@@ -207,16 +201,6 @@ fn extend_qualified_type_name(
       QualifiedName(module_path={ components, loc: previous_loc }, name~, loc~)
     }
     _ => type_
-  }
-}
-
-///|
-fn type_name_text(type_ : Type) -> String {
-  match type_ {
-    Name(name~, ..) => name
-    QualifiedName(module_path~, name~, ..) =>
-      module_path.components.join(".") + "." + name
-    _ => ""
   }
 }
 

@@ -52,7 +52,7 @@ priv enum CompletionContext {
     replace~ : @basic.SourceSpan
   )
   OwnerQualified(
-    owner~ : String,
+    owner~ : @resolve.ResolvedNominalName,
     prefix~ : String,
     replace~ : @basic.SourceSpan
   )
@@ -562,55 +562,30 @@ fn CompletionIndex::add_owner_entries(
   entries : Array[CompletionEntry],
   module_ : CachedSemanticModule,
   source_id : String,
-  owner : String,
+  owner : @resolve.ResolvedNominalName,
   prefix : String,
   replace : @basic.SourceSpan,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  match split_qualified_owner(owner) {
-    Some((module_owner, member_owner)) =>
-      if imported_interface_for_owner(module_, module_owner) is Some(interface) {
+  match owner {
+    Qualified(owner) =>
+      if imported_interface_for_owner(module_, owner.module_binding)
+        is Some(interface) {
         self.add_interface_owner_entries(
-          entries, source_id, prefix, replace, interface, member_owner, display,
+          entries,
+          source_id,
+          prefix,
+          replace,
+          interface,
+          owner.name,
+          display,
         )
       }
-    None =>
+    Unqualified(owner) =>
       self.add_local_owner_entries(
         entries, module_, source_id, prefix, replace, owner,
       )
   }
-}
-
-///|
-fn split_qualified_owner(owner : String) -> (String, String)? {
-  match string_last_index(owner, ".") {
-    Some(index) =>
-      Some(
-        (
-          owner.unsafe_substring(start=0, end=index),
-          owner.unsafe_substring(start=index + 1, end=owner.length()),
-        ),
-      )
-    None => None
-  }
-}
-
-///|
-fn string_last_index(text : String, needle : String) -> Int? {
-  let mut search_start = 0
-  let mut last = None
-  while search_start < text.length() {
-    let rest = text.unsafe_substring(start=search_start, end=text.length())
-    match rest.find(needle) {
-      Some(relative) => {
-        let index = search_start + relative
-        last = Some(index)
-        search_start = index + needle.length()
-      }
-      None => search_start = text.length()
-    }
-  }
-  last
 }
 
 ///|
@@ -839,13 +814,18 @@ fn completion_context(
   }
   if source.tokens.get(token_count - 1)
     is Some((TIGHT_COLONCOLON | COLONCOLON, _)) {
-    let owner = completion_owner_before_separator(source.tokens, token_count)
-    if owner != "" {
-      return OwnerQualified(owner~, prefix~, replace~)
+    let owner = completion_owner_components(source.tokens, token_count)
+    if !owner.is_empty() {
+      match resolved_completion_owner(owner, module_bindings) {
+        Some(owner) => return OwnerQualified(owner~, prefix~, replace~)
+        None => return Unsupported
+      }
     }
   }
   if source.tokens.get(token_count - 1) is Some((DOT, _)) {
-    let owner = completion_owner_before_separator(source.tokens, token_count)
+    let owner = completion_owner_components(source.tokens, token_count).join(
+      ".",
+    )
     if owner != "" {
       if module_owner_visible(owner, module_bindings) {
         return ModuleQualified(owner~, prefix~, replace~)
@@ -973,18 +953,18 @@ fn CompletionSource::line_starts_with_import(
 }
 
 ///|
-fn completion_owner_before_separator(
+fn completion_owner_components(
   tokens : Array[(@lexer.Token, @basic.SourceSpan)],
   token_count : Int,
-) -> String {
+) -> Array[String] {
   let mut index = token_count - 2
-  let mut owner = ""
+  let owner = []
   let mut expect_identifier = true
   while index >= 0 {
     let token = tokens[index].0
     if expect_identifier {
       guard token is IDENT(name) else { break }
-      owner = if owner == "" { name } else { "\{name}.\{owner}" }
+      owner.insert(0, name)
       expect_identifier = false
     } else {
       guard token is DOT else { break }
@@ -993,6 +973,27 @@ fn completion_owner_before_separator(
     index -= 1
   }
   owner
+}
+
+///|
+fn resolved_completion_owner(
+  components : Array[String],
+  bindings : Map[Int, SemanticModuleBindingFact],
+) -> @resolve.ResolvedNominalName? {
+  guard components.length() > 1 else { return Some(Unqualified(components[0])) }
+  let module_components = []
+  for index in 0..<(components.length() - 1) {
+    module_components.push(components[index])
+  }
+  let module_binding = module_components.join(".")
+  for _, binding in bindings {
+    if binding.name == module_binding {
+      return Some(
+        Qualified({ module_binding, name: components[components.length() - 1] }),
+      )
+    }
+  }
+  None
 }
 
 ///|

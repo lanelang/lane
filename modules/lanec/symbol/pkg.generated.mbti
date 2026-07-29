@@ -5,6 +5,7 @@ import {
   "Milky2018/lanec/basic",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
+  "moonbitlang/core/hashset",
 }
 
 // Values
@@ -26,14 +27,14 @@ pub struct DeclarationIdentities {
 pub struct DeclarationSymbolScope {
   registry : SymbolRegistry
   previous : DeclarationIdentities?
-  claimed_types : Map[String, Bool]
-  claimed_type_aliases : Map[String, Bool]
-  claimed_values : Map[String, Bool]
-  claimed_effects : Map[String, Bool]
-  claimed_type_members : Map[String, Bool]
-  claimed_fields : Map[String, Bool]
-  claimed_variants : Map[String, Bool]
-  claimed_operations : Map[String, Bool]
+  claimed_types : @hashset.HashSet[String]
+  claimed_type_aliases : @hashset.HashSet[String]
+  claimed_values : @hashset.HashSet[String]
+  claimed_effects : @hashset.HashSet[String]
+  claimed_type_members : @hashset.HashSet[String]
+  claimed_fields : @hashset.HashSet[String]
+  claimed_variants : @hashset.HashSet[String]
+  claimed_operations : @hashset.HashSet[String]
 }
 pub fn DeclarationSymbolScope::define_effect(Self, String, Int, @basic.SourceSpan, flavor? : EffectFlavor) -> EffectSymbolId
 pub fn DeclarationSymbolScope::define_field(Self, TypeSymbolId, String, Int, @basic.SourceSpan) -> FieldSymbolId

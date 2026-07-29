@@ -69,6 +69,40 @@ pub(all) struct ResolveVariantCandidate {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct ResolvedQualifiedName {
+  module_binding : String
+  name : String
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ResolvedNominalName {
+  Unqualified(String)
+  Qualified(ResolvedQualifiedName)
+} derive(Debug, Eq)
+
+///|
+pub fn ResolvedNominalName::display_text(self : ResolvedNominalName) -> String {
+  match self {
+    Unqualified(name) => name
+    Qualified(name) => name.module_binding + "." + name.name
+  }
+}
+
+///|
+pub fn ResolvedNominalName::local_name(self : ResolvedNominalName) -> String {
+  match self {
+    Unqualified(name) => name
+    Qualified(name) => name.name
+  }
+}
+
+///|
+pub(all) struct ResolvedOperatorTarget {
+  name : String
+  reference : ResolvedValueReference
+} derive(Debug, Eq)
+
+///|
 pub(all) enum ResolveDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
@@ -281,11 +315,15 @@ pub(all) struct ResolvedValueParameter {
 ///|
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : SourceSpan)
-  Constructor(symbol~ : TypeSymbolId, name~ : String, loc~ : SourceSpan)
+  Constructor(
+    symbol~ : TypeSymbolId,
+    name~ : ResolvedNominalName,
+    loc~ : SourceSpan
+  )
   Alias(
     symbol~ : TypeAliasSymbolId,
     owner_module_path~ : String?,
-    name~ : String,
+    name~ : ResolvedNominalName,
     loc~ : SourceSpan
   )
   Apply(
@@ -319,7 +357,7 @@ pub(all) enum ResolvedEffectTerm {
   Io(arguments~ : Array[ResolvedGenericArgument], loc~ : SourceSpan)
   Singleton(
     symbol~ : EffectSymbolId,
-    name~ : String,
+    name~ : ResolvedNominalName,
     arguments~ : Array[ResolvedGenericArgument],
     loc~ : SourceSpan
   )
@@ -327,7 +365,7 @@ pub(all) enum ResolvedEffectTerm {
   Alias(
     symbol~ : TypeAliasSymbolId,
     owner_module_path~ : String?,
-    name~ : String,
+    name~ : ResolvedNominalName,
     arguments~ : Array[ResolvedEffectAliasArgument],
     loc~ : SourceSpan
   )
@@ -360,7 +398,7 @@ pub(all) enum ResolvedValueReference {
 ///|
 pub(all) enum ResolvedTypeReference {
   Symbol(TypeSymbolId)
-  Unresolved(String)
+  Unresolved(ResolvedNominalName)
 } derive(Debug, Eq)
 
 ///|
@@ -373,7 +411,7 @@ pub(all) enum ResolvedFieldReference {
 ///|
 pub(all) enum ResolvedVariantReference {
   Symbol(VariantSymbolId)
-  Unresolved(type_name~ : String, variant~ : String)
+  Unresolved(type_name~ : ResolvedNominalName, variant~ : String)
   UnresolvedUnqualified(String)
   Ambiguous(name~ : String, candidates~ : Array[VariantSymbolId])
 } derive(Debug, Eq)
@@ -497,7 +535,7 @@ pub(all) enum ResolvedExpr {
   UnitLiteral(loc~ : SourceSpan)
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : SourceSpan)
   QualifiedVariant(
-    type_name~ : String,
+    type_name~ : ResolvedNominalName,
     type_name_loc~ : SourceSpan,
     generic_arguments~ : Array[ResolvedGenericArgument],
     variant~ : String,
@@ -516,7 +554,7 @@ pub(all) enum ResolvedExpr {
     loc~ : SourceSpan
   )
   StructLiteral(
-    type_name~ : String,
+    type_name~ : ResolvedNominalName,
     type_name_loc~ : SourceSpan,
     reference~ : ResolvedTypeReference,
     generic_arguments~ : Array[ResolvedGenericArgument],
@@ -586,13 +624,13 @@ pub(all) enum ResolvedExpr {
   )
   Unary(
     operator~ : @syntax.UnaryOperator,
-    reference~ : ResolvedValueReference,
+    target~ : ResolvedOperatorTarget,
     operand~ : ResolvedExpr,
     loc~ : SourceSpan
   )
   Binary(
     operator~ : @syntax.BinaryOperator,
-    reference~ : ResolvedValueReference,
+    target~ : ResolvedOperatorTarget,
     left~ : ResolvedExpr,
     right~ : ResolvedExpr,
     loc~ : SourceSpan
@@ -609,7 +647,7 @@ pub(all) enum ResolvedPattern {
   StringLiteral(String, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   QualifiedVariant(
-    type_name~ : String,
+    type_name~ : ResolvedNominalName,
     type_name_loc~ : SourceSpan,
     variant~ : String,
     variant_loc~ : SourceSpan,
@@ -626,7 +664,7 @@ pub(all) enum ResolvedPattern {
     loc~ : SourceSpan
   )
   Struct(
-    type_name~ : String,
+    type_name~ : ResolvedNominalName,
     type_name_loc~ : SourceSpan,
     reference~ : ResolvedTypeReference,
     fields~ : Array[ResolvedStructPatternField],

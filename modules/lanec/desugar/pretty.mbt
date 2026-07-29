@@ -179,7 +179,7 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
     ) => {
       let owner = match type_name {
         Some(type_name) =>
-          text(type_name) +
+          text(type_name.display_text()) +
           generic_arguments_doc(generic_arguments) +
           text("::")
         None => empty
@@ -192,7 +192,7 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       @pretty.parenthesized_inline(arguments.map(DesugaredExpr::pretty))
     }
     StructLiteral(type_name~, generic_arguments~, fields~, ..) =>
-      text(type_name) +
+      text(type_name.display_text()) +
       generic_arguments_doc(generic_arguments) +
       text("::") +
       @pretty.braced_block(fields.map(DesugaredStructLiteralField::pretty))

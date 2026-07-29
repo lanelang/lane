@@ -81,26 +81,14 @@ fn resolve_generic_arguments(
 
 ///|
 fn resolve_type_name_arguments(
-  type_name : String,
+  type_name : ResolvedNominalName,
   arguments : Array[@syntax.GenericArgument],
   resolver : Resolver,
   scope : ResolveScope,
 ) -> Array[ResolvedGenericArgument] {
-  match resolver.type_binding(type_name) {
-    Some(binding) => {
-      resolver.record_import_use(
-        binding.import_origin,
-        @basic.SourceSpan::dummy(),
-      )
-      resolve_generic_arguments(
-        arguments,
-        binding.parameter_kinds,
-        resolver,
-        scope,
-      )
-    }
-    None =>
-      match resolver.type_alias_binding(type_name) {
+  match type_name {
+    Unqualified(name) =>
+      match resolver.type_binding(name) {
         Some(binding) => {
           resolver.record_import_use(
             binding.import_origin,
@@ -114,42 +102,53 @@ fn resolve_type_name_arguments(
           )
         }
         None =>
-          match split_qualified_name(type_name) {
-            Some(qualified) =>
-              match
-                resolver.module_type_binding(
-                  qualified.module_path,
-                  qualified.name,
-                ) {
-                Some(binding) =>
-                  resolve_generic_arguments(
-                    arguments,
-                    binding.parameter_kinds,
-                    resolver,
-                    scope,
-                  )
-                None =>
-                  resolve_default_generic_arguments(arguments, resolver, scope)
-              }
+          match resolver.type_alias_binding(name) {
+            Some(binding) => {
+              resolver.record_import_use(
+                binding.import_origin,
+                @basic.SourceSpan::dummy(),
+              )
+              resolve_generic_arguments(
+                arguments,
+                binding.parameter_kinds,
+                resolver,
+                scope,
+              )
+            }
             None =>
               resolve_default_generic_arguments(arguments, resolver, scope)
           }
+      }
+    Qualified(qualified) =>
+      match
+        resolver.module_type_binding(qualified.module_binding, qualified.name) {
+        Some(binding) =>
+          resolve_generic_arguments(
+            arguments,
+            binding.parameter_kinds,
+            resolver,
+            scope,
+          )
+        None => resolve_default_generic_arguments(arguments, resolver, scope)
       }
   }
 }
 
 ///|
 priv struct ResolvedOwnerArguments {
-  type_name : String
+  type_name : ResolvedNominalName
   arguments : Array[ResolvedGenericArgument]
 }
 
 ///|
-fn owner_type_name(owner : @syntax.Type) -> String {
+fn owner_type_name(owner : @syntax.Type) -> ResolvedNominalName {
   match owner {
-    Name(name~, ..) => name
+    Name(name~, ..) => Unqualified(name)
     QualifiedName(module_path~, name~, ..) =>
-      module_path.components.join(".") + "." + name
+      Qualified({
+        module_binding: @module_interface.module_path_text(module_path),
+        name,
+      })
     _ => abort("expected nominal owner type")
   }
 }
@@ -175,19 +174,6 @@ fn resolve_owner_generic_arguments(
       { type_name, arguments: [] }
     }
   }
-}
-
-///|
-fn split_qualified_name(type_name : String) -> QualifiedNameText? {
-  let parts = type_name.split(".").map(StringView::to_owned).collect()
-  if parts.length() < 2 {
-    return None
-  }
-  let module_parts = []
-  for index in 0..<(parts.length() - 1) {
-    module_parts.push(parts[index])
-  }
-  Some({ module_path: module_parts.join("."), name: parts[parts.length() - 1] })
 }
 
 ///|

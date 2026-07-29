@@ -797,9 +797,9 @@ non_empty_generic_argument_list -> Array[GenericArgument]
   | non_empty_generic_argument_list layout_list_separator { $1 }
   ;
 
-nominal_type_name -> NominalTypeName
-  : IDENT { { name: $1, loc: span($sloc) } }
-  | qualified_type_name { { name: type_name_text($1), loc: $1.loc() } }
+nominal_type_name -> Type
+  : IDENT { Name(name=$1, loc=span($sloc)) }
+  | qualified_type_name { $1 }
   ;
 
 variant_type_arguments -> Array[GenericArgument]
@@ -1071,7 +1071,7 @@ pattern -> Pattern
   | IDENT %prec PATTERN_BINDING { Binding($1, loc=span($sloc)) }
   | IDENT variant_pattern_arguments { UnqualifiedVariant(variant=$1, variant_loc=span(($startpos, $endpos)).ascii_prefix($1.length()), type_binders=$2.type_binders, arguments=$2.arguments, loc=span(($startpos, $endpos))) }
   | struct_pattern { $1 }
-  | nominal_type_name "tight ::" IDENT variant_pattern_arguments { QualifiedVariant(type_name=$1.name, type_name_loc=$1.loc, variant=$3, variant_loc=$1.loc.ascii_after(2, $3.length()), type_binders=$4.type_binders, arguments=$4.arguments, loc=span(($startpos, $endpos))) }
+  | nominal_type_name "tight ::" IDENT variant_pattern_arguments { QualifiedVariant(owner=$1, variant=$3, variant_loc=$1.loc().ascii_after(2, $3.length()), type_binders=$4.type_binders, arguments=$4.arguments, loc=span(($startpos, $endpos))) }
   ;
 
 tuple_pattern_tail -> Array[Pattern]
@@ -1082,7 +1082,7 @@ tuple_pattern_tail -> Array[Pattern]
 
 struct_pattern -> Pattern
   : nominal_type_name "tight ::" "{" struct_pattern_fields "}" {
-    Struct(type_name=$1.name, type_name_loc=$1.loc, fields=$4, loc=span($sloc))
+    Struct(owner=$1, fields=$4, loc=span($sloc))
   }
   ;
 

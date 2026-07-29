@@ -430,16 +430,49 @@ test "tuple sugar resolves canonically through an aliased import" {
       #|import Basic.Data.Tuple as Pair
       #|fn authored() -> Pair.Tuple { Pair.Tuple::tuple(1, true) }
       #|fn generated() -> (Int, Bool) { (1, true) }
+      #|fn destructure(value : Pair.Tuple) -> Int {
+      #|  match value {
+      #|    Pair.Tuple::tuple(first, _) => first
+      #|  }
+      #|}
     ),
   )
   assert_eq(result.diagnostics, [])
   guard result.source.declarations[0] is Function(authored) &&
     authored.body
-    is Block(result=QualifiedVariant(reference=Symbol(authored_tuple), ..), ..) &&
+    is Block(
+      result=QualifiedVariant(
+        type_name=Qualified({ module_binding: "Pair", name: "Tuple" }),
+        reference=Symbol(authored_tuple),
+        ..
+      ),
+      ..
+    ) &&
     result.source.declarations[1] is Function(generated) &&
     generated.body
-    is Block(result=QualifiedVariant(reference=Symbol(generated_tuple), ..), ..) else {
-    abort("expected authored and generated tuple variants")
+    is Block(result=QualifiedVariant(reference=Symbol(generated_tuple), ..), ..) &&
+    result.source.declarations[2]
+    is Function(
+      {
+        body: Block(
+          result=Match(
+            arms=[
+              {
+                pattern: QualifiedVariant(
+                  type_name=Qualified({ module_binding: "Pair", name: "Tuple" }),
+                  ..
+                ),
+                ..,
+              },
+            ],
+            ..
+          ),
+          ..
+        ),
+        ..,
+      }
+    ) else {
+    abort("expected structured authored tuple owners")
   }
   assert_eq(authored_tuple, fixture.tuple)
   assert_eq(generated_tuple, fixture.tuple)

@@ -925,16 +925,19 @@ fn TypeExpressionChecker::expect_kind(
 fn TypeExpressionChecker::expand_alias(
   self : TypeExpressionChecker,
   owner_module_path : String?,
-  name : String,
+  name : @resolve.ResolvedNominalName,
   loc : SourceSpan,
 ) -> TypeExpressionResult {
   let identity = alias_identity(owner_module_path, name)
   if self.expanding.contains(identity) {
-    self.diagnostics.push({ kind: TypeAliasCycle(name~), loc })
+    self.diagnostics.push({
+      kind: TypeAliasCycle(name=name.display_text()),
+      loc,
+    })
     return { type_: Error, kind: Type }
   }
   let local_alias = match owner_module_path {
-    None => self.find_alias(name)
+    None => self.find_alias(name.local_name())
     Some(_) => None
   }
   match local_alias {
@@ -972,7 +975,10 @@ fn TypeExpressionChecker::expand_alias(
             }
           }
         None => {
-          self.diagnostics.push({ kind: UnresolvedType(name), loc })
+          self.diagnostics.push({
+            kind: UnresolvedType(name.display_text()),
+            loc,
+          })
           { type_: Error, kind: Type }
         }
       }
@@ -998,13 +1004,13 @@ fn TypeExpressionChecker::find_alias(
 fn TypeExpressionChecker::find_interface_alias(
   self : TypeExpressionChecker,
   owner_module_path : String?,
-  name : String,
+  name : @resolve.ResolvedNominalName,
 ) -> @module_interface.ModuleInterfaceTypeAlias? {
   guard owner_module_path is Some(module_path) else { return None }
   guard self.imported_environment.find(module_path) is Some(module_) else {
     return None
   }
-  let local_name = alias_local_name(name)
+  let local_name = name.local_name()
   for type_alias in module_.type_aliases {
     if type_alias.name == local_name {
       return Some(type_alias)
@@ -1014,19 +1020,13 @@ fn TypeExpressionChecker::find_interface_alias(
 }
 
 ///|
-fn alias_local_name(name : String) -> String {
-  let parts = name.split(".").map(StringView::to_owned).collect()
-  match parts.last() {
-    Some(name) => name
-    None => name
-  }
-}
-
-///|
-fn alias_identity(owner_module_path : String?, name : String) -> String {
+fn alias_identity(
+  owner_module_path : String?,
+  name : @resolve.ResolvedNominalName,
+) -> String {
   match owner_module_path {
-    Some(module_path) => module_path + "." + alias_local_name(name)
-    None => name
+    Some(module_path) => module_path + "." + name.local_name()
+    None => name.display_text()
   }
 }
 
@@ -1166,7 +1166,8 @@ fn resolved_generic_argument_loc(
 fn resolved_type_name(type_ : @resolve.ResolvedType) -> String {
   match type_ {
     Primitive(primitive, ..) => @prettyprinter.render(primitive, width=80)
-    Constructor(name~, ..) | Alias(name~, ..) | Unresolved(name~, ..) => name
+    Constructor(name~, ..) | Alias(name~, ..) => name.display_text()
+    Unresolved(name~, ..) => name
     Parameter(name~, ..) => name
     Apply(callee~, ..) => resolved_type_name(callee)
     TypeLambda(..) => "<type-lambda>"
