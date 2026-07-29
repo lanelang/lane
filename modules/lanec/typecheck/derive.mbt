@@ -85,23 +85,21 @@ fn SemanticChecker::synthesize_checked_derive(
   let deriver_type = @types.nominal_type_generic(abi.deriver.symbol, [
     TypeArgument(capability),
   ])
-  guard self.checked_derive_deriver(scope, arguments, deriver_type, loc)
-    is Some(deriver_synthesis) &&
+  let deriver_result = self.checked_derive_deriver(
+    scope, arguments, deriver_type, loc,
+  )
+  let evidence_result = self.checked_derive_evidence(
+    scope,
+    capability,
+    target_plan.components(),
+    loc,
+  )
+  guard deriver_result is Some(deriver_synthesis) &&
     self.require_checked_expression(
       deriver_synthesis, loc, "structural derivation deriver",
     )
-    is Some(deriver) else {
-    return checked_expression_none_reported(
-      apply_unary_type_constructor(capability, target),
-    )
-  }
-  guard self.checked_derive_evidence(
-      scope,
-      capability,
-      target_plan.components(),
-      loc,
-    )
-    is Some(evidence) else {
+    is Some(deriver) &&
+    evidence_result is Some(evidence) else {
     return checked_expression_none_reported(
       apply_unary_type_constructor(capability, target),
     )

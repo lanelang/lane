@@ -498,6 +498,152 @@ test "derive groups ambiguous component evidence by required type" {
 }
 
 ///|
+test "derive collects component evidence diagnostics after missing deriver" {
+  let result = compile_sources(
+    (
+      #|module Main
+      #|
+      #|pub struct Witness[_T] {}
+      #|
+      #|pub struct Pair {
+      #|  first : Int
+      #|  second : Bool
+      #|}
+      #|
+      #|pub let pair_witness : Witness[Pair] = derive[Witness, Pair]()
+    ),
+    [derive_void_source(), derive_interface_source()],
+  )
+  debug_inspect(
+    result.diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "missing contextual offer",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 130,
+      #|          end_offset: 153,
+      #|          start_line: 10,
+      #|          start_column: 40,
+      #|          end_line: 10,
+      #|          end_column: 63,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3013"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 130,
+      #|            end_offset: 153,
+      #|            start_line: 10,
+      #|            start_column: 40,
+      #|            end_line: 10,
+      #|            end_column: 63,
+      #|          },
+      #|        ),
+      #|        message: "no visible offer matches required type `Deriver[Witness]`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["contextual arguments are inserted only from visible `offer` bindings with matching type"],
+      #|    helps: ["pass the argument explicitly or add a visible `offer` with type `Deriver[Witness]`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "missing structural derivation evidence",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 130,
+      #|          end_offset: 153,
+      #|          start_line: 10,
+      #|          start_column: 40,
+      #|          end_line: 10,
+      #|          end_column: 63,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3030"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 130,
+      #|            end_offset: 153,
+      #|            start_line: 10,
+      #|            start_column: 40,
+      #|            end_line: 10,
+      #|            end_column: 63,
+      #|          },
+      #|        ),
+      #|        message: "no exact contextual offer is available for `Witness[Int]`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["required by: Pair.first"],
+      #|    helps: ["provide one visible offer of the required component capability"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "missing structural derivation evidence",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 130,
+      #|          end_offset: 153,
+      #|          start_line: 10,
+      #|          start_column: 40,
+      #|          end_line: 10,
+      #|          end_column: 63,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3030"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 130,
+      #|            end_offset: 153,
+      #|            start_line: 10,
+      #|            start_column: 40,
+      #|            end_line: 10,
+      #|            end_column: 63,
+      #|          },
+      #|        ),
+      #|        message: "no exact contextual offer is available for `Witness[Bool]`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["required by: Pair.second"],
+      #|    helps: ["provide one visible offer of the required component capability"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 fn derive_void_source() -> String {
   (
     #|module Basic.Data.Void
