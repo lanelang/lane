@@ -144,6 +144,8 @@ Generated calls for a field or payload of type `A` receive `C[A]` through Lane's
 A capability and its structural semantics are ordinary user code:
 
 ```lane
+import Basic.Data.Void.{ Void, absurd }
+
 pub struct Equal[T] {
   equal : (T, T) -> Bool
 }
@@ -174,7 +176,7 @@ fn[A, B] equal_product(
 fn equal_void() -> Equal[Void] {
   Equal::{
     equal: fn(left, _right) {
-      match left {}
+      absurd[Bool](left)
     },
   }
 }

@@ -1,7 +1,7 @@
 module Examples.Valid.StructuralDerivationEqual
 
 import Basic.Data.List.*
-import Basic.Data.Void.{ Void }
+import Basic.Data.Void.{ Void, absurd }
 import Basic.Io.{ println }
 import Basic.Trait.Derive.{ Deriver, Iso, Lift, Product, Recursive, Sum }
 import Basic.Trait.Ops.*
@@ -39,7 +39,7 @@ fn[A, B] equal_product(equal_a : Equal[A], equal_b : Equal[B]) -> Equal[Product[
 fn equal_void() -> Equal[Void] {
   Equal::{
     equal: fn(left, _right) {
-      match left {}
+      absurd[Bool](left)
     }
   }
 }

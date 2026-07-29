@@ -2,7 +2,7 @@ module Examples.Valid.StructuralDerivationShow
 
 import Basic.Builtins.{ int_equal }
 import Basic.Data.List.*
-import Basic.Data.Void.{ Void }
+import Basic.Data.Void.{ Void, absurd }
 import Basic.Io.{ println }
 import Basic.Trait.Derive.{ Deriver, Iso, Lift, Product, Recursive, Sum }
 
@@ -44,7 +44,7 @@ fn[A, B] show_product(show_a : Show[A], show_b : Show[B]) -> Show[Product[A, B]]
 fn show_void() -> Show[Void] {
   Show::{
     show: fn(value) {
-      match value {}
+      absurd[Unit](value)
     }
   }
 }

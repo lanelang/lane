@@ -1,7 +1,7 @@
 module Examples.Valid.StructuralDerivationCompare
 
 import Basic.Data.List.*
-import Basic.Data.Void.{ Void }
+import Basic.Data.Void.{ Void, absurd }
 import Basic.Io.{ println }
 import Basic.Trait.Derive.{ Deriver, Iso, Lift, Product, Recursive, Sum }
 import Basic.Trait.Ops.*
@@ -57,11 +57,11 @@ fn compare_void() -> Compare[Void] {
   Compare::{
     equal_impl: Equal::{
       equal: fn(left, _right) {
-        match left {}
+        absurd[Bool](left)
       }
     },
     less: fn(left, _right) {
-      match left {}
+      absurd[Bool](left)
     }
   }
 }
