@@ -1,5 +1,5 @@
 ///|
-priv struct StructuralDeriveAbi {
+priv struct StructuralDeriveDeclarations {
   deriver : CheckedStructDeclaration
   product : CheckedStructDeclaration
   sum : CheckedEnumDeclaration
@@ -11,10 +11,22 @@ priv struct StructuralDeriveAbi {
 }
 
 ///|
+priv struct StructuralDeriveMethods {
+  unit : CheckedFieldDeclaration
+  product : CheckedFieldDeclaration
+  void_method : CheckedFieldDeclaration
+  sum : CheckedFieldDeclaration
+  field : CheckedFieldDeclaration
+  variant : CheckedFieldDeclaration
+  record : CheckedFieldDeclaration
+  enumeration : CheckedFieldDeclaration
+}
+
+///|
 fn SemanticChecker::structural_derive_abi(
   self : SemanticChecker,
   loc : SourceSpan,
-) -> StructuralDeriveAbi? {
+) -> @checked.CheckedDeriveAbi? {
   guard self.canonical_struct("Deriver") is Some(deriver) &&
     self.canonical_struct("Product") is Some(product) &&
     self.canonical_enum("Sum") is Some(sum) &&
@@ -28,7 +40,7 @@ fn SemanticChecker::structural_derive_abi(
     )
     return None
   }
-  let abi = {
+  let declarations = {
     deriver,
     product,
     sum,
@@ -38,11 +50,13 @@ fn SemanticChecker::structural_derive_abi(
     variant_info,
     void_declaration,
   }
-  if abi.validate() is Some(reason) {
-    self.report_invalid_derive_abi(reason, loc)
-    return None
+  match declarations.validate() {
+    Ok(abi) => Some(abi)
+    Err(reason) => {
+      self.report_invalid_derive_abi(reason, loc)
+      None
+    }
   }
-  Some(abi)
 }
 
 ///|
@@ -126,7 +140,9 @@ fn SemanticChecker::report_invalid_derive_abi(
 }
 
 ///|
-fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
+fn StructuralDeriveDeclarations::validate(
+  self : StructuralDeriveDeclarations,
+) -> Result[@checked.CheckedDeriveAbi, String] {
   for
     entry in [
       ("Deriver", self.deriver),
@@ -138,12 +154,12 @@ fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
     ] {
     let (name, declaration) = entry
     if !declaration.type_members.is_empty() {
-      return Some("`\{name}` must not declare hidden type members")
+      return Err("`\{name}` must not declare hidden type members")
     }
   }
   guard self.void_declaration.type_parameters.is_empty() &&
     self.void_declaration.variants.is_empty() else {
-    return Some("`Basic.Data.Void.Void` must be an empty enum")
+    return Err("`Basic.Data.Void.Void` must be an empty enum")
   }
   guard self.product.type_parameters is [product_a, product_b] &&
     product_a.kind == Type &&
@@ -153,7 +169,7 @@ fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
     product_head.type_ == Parameter(product_a.id) &&
     product_tail.name == "tail" &&
     product_tail.type_ == Parameter(product_b.id) else {
-    return Some("`Product[A, B]` must contain `head : A` and `tail : B`")
+    return Err("`Product[A, B]` must contain `head : A` and `tail : B`")
   }
   guard self.sum.type_parameters is [sum_a, sum_b] &&
     sum_a.kind == Type &&
@@ -165,7 +181,7 @@ fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
     sum_there.name == "there" &&
     sum_there.type_parameters.is_empty() &&
     sum_there.payload == [Parameter(sum_b.id)] else {
-    return Some("`Sum[A, B]` must contain `here(A)` and `there(B)`")
+    return Err("`Sum[A, B]` must contain `here(A)` and `there(B)`")
   }
   guard self.iso.type_parameters is [iso_t, iso_r] &&
     iso_t.kind == Type &&
@@ -176,7 +192,7 @@ fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
     iso_from.name == "from" &&
     iso_from.type_ ==
     Function([Parameter(iso_r.id)], Parameter(iso_t.id), Empty) else {
-    return Some(
+    return Err(
       "`Iso[T, R]` must contain the canonical `to` and `from` functions",
     )
   }
@@ -186,44 +202,43 @@ fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
     ]) &&
     metadata_struct_valid(self.field_info, [("name", Primitive(String))]) &&
     metadata_struct_valid(self.variant_info, [("name", Primitive(String))]) else {
-    return Some("structural derivation metadata declarations are malformed")
+    return Err("structural derivation metadata declarations are malformed")
   }
-  self.validate_deriver()
-}
-
-///|
-fn StructuralDeriveAbi::checked(
-  self : StructuralDeriveAbi,
-) -> @checked.CheckedDeriveAbi {
-  {
+  let methods = match self.validate_deriver() {
+    Ok(methods) => methods
+    Err(reason) => return Err(reason)
+  }
+  Ok({
     deriver: self.deriver.symbol,
-    deriver_unit: self.deriver.required_field("unit").symbol,
-    deriver_product: self.deriver.required_field("product").symbol,
-    deriver_void: self.deriver.required_field("void").symbol,
-    deriver_sum: self.deriver.required_field("sum").symbol,
-    deriver_field: self.deriver.required_field("field").symbol,
-    deriver_variant: self.deriver.required_field("variant").symbol,
-    deriver_record: self.deriver.required_field("record").symbol,
-    deriver_enumeration: self.deriver.required_field("enumeration").symbol,
+    deriver_unit: methods.unit.symbol,
+    deriver_product: methods.product.symbol,
+    deriver_void: methods.void_method.symbol,
+    deriver_sum: methods.sum.symbol,
+    deriver_field: methods.field.symbol,
+    deriver_variant: methods.variant.symbol,
+    deriver_record: methods.record.symbol,
+    deriver_enumeration: methods.enumeration.symbol,
     product: self.product.symbol,
-    product_head: self.product.required_field("head").symbol,
-    product_tail: self.product.required_field("tail").symbol,
+    product_head: product_head.symbol,
+    product_tail: product_tail.symbol,
     sum: self.sum.symbol,
-    sum_here: self.sum.required_variant("here").symbol,
-    sum_there: self.sum.required_variant("there").symbol,
+    sum_here: sum_here.symbol,
+    sum_there: sum_there.symbol,
     iso: self.iso.symbol,
     type_info: self.type_info.symbol,
     field_info: self.field_info.symbol,
     variant_info: self.variant_info.symbol,
     void_type: self.void_declaration.symbol,
-  }
+  })
 }
 
 ///|
-fn StructuralDeriveAbi::validate_deriver(self : StructuralDeriveAbi) -> String? {
+fn StructuralDeriveDeclarations::validate_deriver(
+  self : StructuralDeriveDeclarations,
+) -> Result[StructuralDeriveMethods, String] {
   guard self.deriver.type_parameters is [capability] &&
     capability.kind == Function([Type], Type) else {
-    return Some("`Deriver` must have one `[Type] -> Type` parameter")
+    return Err("`Deriver` must have one `[Type] -> Type` parameter")
   }
   guard self.deriver.fields
     is [unit, product, void_method, sum, field, variant, record, enumeration] &&
@@ -235,7 +250,7 @@ fn StructuralDeriveAbi::validate_deriver(self : StructuralDeriveAbi) -> String? 
     variant.name == "variant" &&
     record.name == "record" &&
     enumeration.name == "enumeration" else {
-    return Some("`Deriver` fields must match the canonical declaration order")
+    return Err("`Deriver` fields must match the canonical declaration order")
   }
   let c = @types.Type::Parameter(capability.id)
   let c_unit = apply_unary_type_constructor(c, Primitive(Unit))
@@ -245,15 +260,15 @@ fn StructuralDeriveAbi::validate_deriver(self : StructuralDeriveAbi) -> String? 
   )
   guard unit.type_ == Function([], c_unit, Empty) &&
     void_method.type_ == Function([], c_void, Empty) else {
-    return Some("`Deriver.unit` or `Deriver.void` has the wrong type")
+    return Err("`Deriver.unit` or `Deriver.void` has the wrong type")
   }
   guard validate_binary_deriver_method(product.type_, c, self.product.symbol) &&
     validate_binary_deriver_method(sum.type_, c, self.sum.symbol) else {
-    return Some("`Deriver.product` or `Deriver.sum` has the wrong type")
+    return Err("`Deriver.product` or `Deriver.sum` has the wrong type")
   }
   guard validate_named_deriver_method(field.type_, c, self.field_info.symbol) &&
     validate_named_deriver_method(variant.type_, c, self.variant_info.symbol) else {
-    return Some("`Deriver.field` or `Deriver.variant` has the wrong type")
+    return Err("`Deriver.field` or `Deriver.variant` has the wrong type")
   }
   guard validate_nominal_deriver_method(
       record.type_,
@@ -267,9 +282,9 @@ fn StructuralDeriveAbi::validate_deriver(self : StructuralDeriveAbi) -> String? 
       self.type_info.symbol,
       self.iso.symbol,
     ) else {
-    return Some("`Deriver.record` or `Deriver.enumeration` has the wrong type")
+    return Err("`Deriver.record` or `Deriver.enumeration` has the wrong type")
   }
-  None
+  Ok({ unit, product, void_method, sum, field, variant, record, enumeration })
 }
 
 ///|
@@ -358,30 +373,4 @@ fn apply_unary_type_constructor(
   argument : @types.Type,
 ) -> @types.Type {
   Apply(type_constructor, [TypeArgument(argument)])
-}
-
-///|
-fn CheckedStructDeclaration::required_field(
-  self : CheckedStructDeclaration,
-  name : String,
-) -> CheckedFieldDeclaration {
-  for field in self.fields {
-    if field.name == name {
-      return field
-    }
-  }
-  abort("validated structural derivation field is missing")
-}
-
-///|
-fn CheckedEnumDeclaration::required_variant(
-  self : CheckedEnumDeclaration,
-  name : String,
-) -> CheckedVariantDeclaration {
-  for variant in self.variants {
-    if variant.name == name {
-      return variant
-    }
-  }
-  abort("validated structural derivation variant is missing")
 }

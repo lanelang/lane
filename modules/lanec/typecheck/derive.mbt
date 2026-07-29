@@ -80,7 +80,7 @@ fn SemanticChecker::synthesize_checked_derive(
       apply_unary_type_constructor(capability, target),
     )
   }
-  let deriver_type = @types.nominal_type_generic(abi.deriver.symbol, [
+  let deriver_type = @types.nominal_type_generic(abi.deriver, [
     TypeArgument(capability),
   ])
   let deriver_result = self.checked_derive_deriver(
@@ -107,15 +107,7 @@ fn SemanticChecker::synthesize_checked_derive(
   let metadata = target_plan.metadata()
   checked_expression_with_effect(
     Derive(
-      plan={
-        capability,
-        target,
-        abi: abi.checked(),
-        shape,
-        deriver,
-        evidence,
-        metadata,
-      },
+      plan={ capability, target, abi, shape, deriver, evidence, metadata },
       type_=result_type,
       loc~,
     ),
@@ -332,13 +324,13 @@ fn StructuralDeriveTarget::metadata(
 ///|
 fn StructuralDeriveTarget::checked_shape(
   self : StructuralDeriveTarget,
-  abi : StructuralDeriveAbi,
+  abi : @checked.CheckedDeriveAbi,
 ) -> @checked.CheckedDeriveShape {
   match self {
     RecordTarget(fields~, ..) =>
       Record(
         product=@checked.CheckedDeriveProduct::make(
-          abi.product.symbol,
+          abi.product,
           fields.map(fn(field) {
             ({ symbol: field.symbol, name: field.name }, field.type_)
           }),
@@ -347,14 +339,14 @@ fn StructuralDeriveTarget::checked_shape(
     EnumerationTarget(variants~, ..) =>
       Enumeration(
         sum=@checked.CheckedDeriveSum::make(
-          abi.sum.symbol,
-          abi.void_declaration.symbol,
+          abi.sum,
+          abi.void_type,
           variants.map(fn(variant) {
             {
               symbol: variant.symbol,
               name: variant.name,
               payload: @checked.CheckedDeriveProduct::make(
-                abi.product.symbol,
+                abi.product,
                 variant.payload.map(fn(type_) { ((), type_) }),
               ),
             }
