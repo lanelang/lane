@@ -15,6 +15,13 @@ You can browse and install extra skills here:
 - In the toplevel directory, there is a `moon.mod` file listing module
   metadata.
 
+## Human-owned files
+
+- `docs/roadmap.md` may only be modified directly by humans. Agents must not
+  create, edit, reformat, rename, or delete it. Agents may read and discuss the
+  file, and may stage and commit human-authored changes verbatim when explicitly
+  requested.
+
 ## Coding convention
 
 - MoonBit code is organized in block style, each block is separated by `///|`,
