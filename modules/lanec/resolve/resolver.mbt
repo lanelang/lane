@@ -115,10 +115,11 @@ priv struct TypeAliasBinding {
 }
 
 ///|
-priv struct SelectiveImportOrigin {
-  name : String
-  origin : Int
-  loc : SourceSpan
+priv enum SelectiveImportBinding {
+  ImportedType(@module_interface.ModuleInterfaceType)
+  ImportedTypeAlias(@module_interface.ModuleInterfaceTypeAlias)
+  ImportedEffect(@module_interface.ModuleInterfaceEffect)
+  ImportedValue(@module_interface.ModuleInterfaceValue)
 }
 
 ///|

@@ -32,6 +32,7 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedValue(String)
   UnresolvedField(type_name~ : String, field~ : String)
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
+  UnresolvedImportItem(module_path~ : String, name~ : String)
   PayloadlessVariantWithoutParens(String)
   ConflictingTopLevelValue(name~ : String, existing~ : String, incoming~ : String, existing_source_id~ : String?, existing_loc~ : @basic.SourceSpan?, existing_origin~ : String?)
   AmbiguousModuleBinding(name~ : String, existing_loc~ : @basic.SourceSpan)

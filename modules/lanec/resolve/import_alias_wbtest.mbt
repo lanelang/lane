@@ -342,6 +342,86 @@ test "the current module name cannot be reused as an import binding" {
 }
 
 ///|
+test "missing selective import item is rejected without an exposure" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    "import Lib.{ missing }",
+  )
+  debug_inspect(
+    (result.diagnostics, result.source.import_exposures),
+    content=(
+      #|(
+      #|  [
+      #|    {
+      #|      kind: UnresolvedImportItem(module_path="Lib", name="missing"),
+      #|      loc: {
+      #|        start_offset: 25,
+      #|        end_offset: 32,
+      #|        start_line: 2,
+      #|        start_column: 14,
+      #|        end_line: 2,
+      #|        end_column: 21,
+      #|      },
+      #|    },
+      #|  ],
+      #|  [],
+      #|)
+    ),
+  )
+}
+
+///|
+test "missing selective item does not discard a valid sibling" {
+  let result = resolve_import_alias_source(
+    import_alias_fixture(),
+    (
+      #|import Lib.{ value, missing }
+      #|fn read() -> Int { value }
+    ),
+  )
+  debug_inspect(
+    (
+      result.diagnostics,
+      result.source.import_exposures,
+      used_import_exposure_ids(result.source),
+    ),
+    content=(
+      #|(
+      #|  [
+      #|    {
+      #|      kind: UnresolvedImportItem(module_path="Lib", name="missing"),
+      #|      loc: {
+      #|        start_offset: 32,
+      #|        end_offset: 39,
+      #|        start_line: 2,
+      #|        start_column: 21,
+      #|        end_line: 2,
+      #|        end_column: 28,
+      #|      },
+      #|    },
+      #|  ],
+      #|  [
+      #|    {
+      #|      id: 0,
+      #|      module_path_text: "Lib",
+      #|      kind: SelectiveBinding(name="value"),
+      #|      loc: {
+      #|        start_offset: 25,
+      #|        end_offset: 30,
+      #|        start_line: 2,
+      #|        start_column: 14,
+      #|        end_line: 2,
+      #|        end_column: 19,
+      #|      },
+      #|    },
+      #|  ],
+      #|  [0],
+      #|)
+    ),
+  )
+}
+
+///|
 test "tuple sugar resolves canonically through an aliased import" {
   let fixture = import_alias_fixture()
   let result = resolve_import_alias_source(

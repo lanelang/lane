@@ -81,6 +81,25 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
         ],
         context~,
       )
+    UnresolvedImportItem(module_path~, name~) =>
+      @compiler_diag.compiler_error(
+        "cannot import `\{name}` from `\{module_path}`",
+        span~,
+        code=Some("E2009"),
+        labels=[
+          @compiler_diag.compiler_primary_label(
+            diagnostic.loc,
+            "`\{module_path}` has no exported declaration named `\{name}`",
+          ),
+        ],
+        notes=[
+          "selective imports can name only top-level declarations exported by the imported module",
+        ],
+        helps=[
+          "check the name spelling or select a declaration exported by `\{module_path}`",
+        ],
+        context~,
+      )
     PayloadlessVariantWithoutParens(name) =>
       @compiler_diag.compiler_error(
         "payloadless variant `\{name}` must use empty parentheses",

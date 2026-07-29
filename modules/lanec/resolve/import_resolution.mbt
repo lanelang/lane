@@ -68,12 +68,7 @@ fn Resolver::publish_imported_bindings(
             ignore(
               self.register_imported_module(imported, provider_origin=None),
             )
-            let item_origins = self.define_selective_import_origins(
-              imported, items,
-            )
-            self.publish_imported_selected_types(imported, item_origins)
-            self.publish_imported_selected_effects(imported, item_origins)
-            self.publish_imported_selected_values(imported, item_origins)
+            self.publish_selective_import(imported, items)
           }
           None => ignore(loc)
         }
@@ -196,22 +191,68 @@ fn Resolver::record_import_symbol(
 }
 
 ///|
-fn Resolver::define_selective_import_origins(
+fn selective_import_bindings(
+  interface : @module_interface.ModuleInterface,
+  name : String,
+) -> Array[SelectiveImportBinding] {
+  let bindings = []
+  for type_ in interface.types {
+    let type_name = match type_ {
+      Struct(declaration) => declaration.name
+      Enum(declaration) => declaration.name
+      External(declaration) => declaration.name
+    }
+    if type_name == name {
+      bindings.push(ImportedType(type_))
+    }
+  }
+  for type_alias in interface.type_aliases {
+    if type_alias.name == name {
+      bindings.push(ImportedTypeAlias(type_alias))
+    }
+  }
+  for effect in interface.effects {
+    if effect.name == name {
+      bindings.push(ImportedEffect(effect))
+    }
+  }
+  for value in interface.values {
+    if value.name == name {
+      bindings.push(ImportedValue(value))
+    }
+  }
+  bindings
+}
+
+///|
+fn Resolver::publish_selective_import(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
   items : Array[@syntax.ImportItem],
-) -> Array[SelectiveImportOrigin] {
-  items.map(fn(item) {
-    {
-      name: item.name,
-      origin: self.define_import_exposure(
-        interface.module_path,
-        SelectiveBinding(name=item.name),
+) -> Unit {
+  for item in items {
+    let bindings = selective_import_bindings(interface, item.name)
+    if bindings.is_empty() {
+      self.report(
+        UnresolvedImportItem(module_path=interface.module_path, name=item.name),
         item.loc,
-      ),
-      loc: item.loc,
+      )
+      continue
     }
-  })
+    let origin = self.define_import_exposure(
+      interface.module_path,
+      SelectiveBinding(name=item.name),
+      item.loc,
+    )
+    for binding in bindings {
+      self.publish_selective_import_binding(
+        interface,
+        binding,
+        origin,
+        item.loc,
+      )
+    }
+  }
 }
 
 ///|
@@ -273,49 +314,70 @@ fn Resolver::publish_imported_public_types(
   import_origin : Int?,
 ) -> Unit {
   for type_ in interface.types {
-    match type_ {
-      Struct(declaration) =>
-        self.publish_type_binding(
-          declaration.name,
-          declaration.symbol,
-          interface_type_parameter_kinds(declaration.type_parameters),
-          type_members=declaration.type_members.map(fn(item) { item.name }),
-          fields=declaration.fields.map(fn(field) {
-            { name: field.name, symbol: field.symbol }
-          }),
-          import_origin,
-        )
-      Enum(declaration) =>
-        self.publish_type_binding(
-          declaration.name,
-          declaration.symbol,
-          interface_type_parameter_kinds(declaration.type_parameters),
-          variants=declaration.variants.map(fn(variant) {
-            { name: variant.name, symbol: variant.symbol }
-          }),
-          import_origin,
-        )
-      External(declaration) =>
-        self.publish_type_binding(
-          declaration.name,
-          declaration.symbol,
-          [],
-          import_origin,
-        )
-    }
+    self.publish_imported_type(type_, import_origin)
   }
   for type_alias in interface.type_aliases {
-    self.type_aliases.push({
-      symbol: type_alias.symbol,
-      name: type_alias.name,
-      owner_module_path: Some(interface.module_path),
-      is_effect: type_alias.kind == Effect,
-      parameter_kinds: interface_type_parameter_kinds(
-        type_alias.type_parameters,
-      ),
+    self.publish_imported_type_alias(
+      interface.module_path,
+      type_alias,
       import_origin,
-    })
+    )
   }
+}
+
+///|
+fn Resolver::publish_imported_type(
+  self : Resolver,
+  type_ : @module_interface.ModuleInterfaceType,
+  import_origin : Int?,
+) -> Unit {
+  match type_ {
+    Struct(declaration) =>
+      self.publish_type_binding(
+        declaration.name,
+        declaration.symbol,
+        interface_type_parameter_kinds(declaration.type_parameters),
+        type_members=declaration.type_members.map(fn(item) { item.name }),
+        fields=declaration.fields.map(fn(field) {
+          { name: field.name, symbol: field.symbol }
+        }),
+        import_origin,
+      )
+    Enum(declaration) =>
+      self.publish_type_binding(
+        declaration.name,
+        declaration.symbol,
+        interface_type_parameter_kinds(declaration.type_parameters),
+        variants=declaration.variants.map(fn(variant) {
+          { name: variant.name, symbol: variant.symbol }
+        }),
+        import_origin,
+      )
+    External(declaration) =>
+      self.publish_type_binding(
+        declaration.name,
+        declaration.symbol,
+        [],
+        import_origin,
+      )
+  }
+}
+
+///|
+fn Resolver::publish_imported_type_alias(
+  self : Resolver,
+  module_path : String,
+  type_alias : @module_interface.ModuleInterfaceTypeAlias,
+  import_origin : Int?,
+) -> Unit {
+  self.type_aliases.push({
+    symbol: type_alias.symbol,
+    name: type_alias.name,
+    owner_module_path: Some(module_path),
+    is_effect: type_alias.kind == Effect,
+    parameter_kinds: interface_type_parameter_kinds(type_alias.type_parameters),
+    import_origin,
+  })
 }
 
 ///|
@@ -325,65 +387,7 @@ fn Resolver::publish_imported_public_effects(
   import_origin : Int?,
 ) -> Unit {
   for effect in interface.effects {
-    self.publish_effect_binding(
-      effect.name,
-      effect.symbol,
-      interface_type_parameter_kinds(effect.type_parameters),
-      operations=effect.operations.map(fn(operation) {
-        { name: operation.name, symbol: operation.symbol }
-      }),
-      import_origin,
-    )
-  }
-}
-
-///|
-fn Resolver::publish_imported_selected_types(
-  self : Resolver,
-  interface : @module_interface.ModuleInterface,
-  item_origins : Array[SelectiveImportOrigin],
-) -> Unit {
-  for item in item_origins {
-    for type_ in interface.types {
-      match type_ {
-        Struct(declaration) if declaration.name == item.name =>
-          self.publish_type_binding(
-            declaration.name,
-            declaration.symbol,
-            interface_type_parameter_kinds(declaration.type_parameters),
-            type_members=declaration.type_members.map(fn(item) { item.name }),
-            fields=declaration.fields.map(fn(field) {
-              { name: field.name, symbol: field.symbol }
-            }),
-            Some(item.origin),
-          )
-        Enum(declaration) if declaration.name == item.name =>
-          self.publish_type_binding(
-            declaration.name,
-            declaration.symbol,
-            interface_type_parameter_kinds(declaration.type_parameters),
-            variants=declaration.variants.map(fn(variant) {
-              { name: variant.name, symbol: variant.symbol }
-            }),
-            Some(item.origin),
-          )
-        _ => ()
-      }
-    }
-    for type_alias in interface.type_aliases {
-      if type_alias.name == item.name {
-        self.type_aliases.push({
-          symbol: type_alias.symbol,
-          name: type_alias.name,
-          owner_module_path: Some(interface.module_path),
-          is_effect: type_alias.kind == Effect,
-          parameter_kinds: interface_type_parameter_kinds(
-            type_alias.type_parameters,
-          ),
-          import_origin: Some(item.origin),
-        })
-      }
-    }
+    self.publish_imported_effect(effect, import_origin)
   }
 }
 
@@ -421,26 +425,20 @@ fn @syntax.Kind::to_binding_kind(self : @syntax.Kind) -> @types.Kind {
 }
 
 ///|
-fn Resolver::publish_imported_selected_effects(
+fn Resolver::publish_imported_effect(
   self : Resolver,
-  interface : @module_interface.ModuleInterface,
-  item_origins : Array[SelectiveImportOrigin],
+  effect : @module_interface.ModuleInterfaceEffect,
+  import_origin : Int?,
 ) -> Unit {
-  for item in item_origins {
-    for effect in interface.effects {
-      if effect.name == item.name {
-        self.publish_effect_binding(
-          effect.name,
-          effect.symbol,
-          interface_type_parameter_kinds(effect.type_parameters),
-          operations=effect.operations.map(fn(operation) {
-            { name: operation.name, symbol: operation.symbol }
-          }),
-          Some(item.origin),
-        )
-      }
-    }
-  }
+  self.publish_effect_binding(
+    effect.name,
+    effect.symbol,
+    interface_type_parameter_kinds(effect.type_parameters),
+    operations=effect.operations.map(fn(operation) {
+      { name: operation.name, symbol: operation.symbol }
+    }),
+    import_origin,
+  )
 }
 
 ///|
@@ -451,34 +449,45 @@ fn Resolver::publish_imported_public_values(
   import_origin : Int?,
 ) -> Unit {
   for value in interface.values {
-    let binding = imported_interface_value_binding(
-      interface, value, import_origin,
-    )
-    self.publish_complete_top_level_binding(binding, loc)
-    self.publish_ordered_top_level_binding(binding, loc)
-    self.record_import_symbol(import_origin, ValueSymbol(value.symbol))
+    self.publish_imported_value(interface, value, loc, import_origin)
   }
 }
 
 ///|
-fn Resolver::publish_imported_selected_values(
+fn Resolver::publish_imported_value(
   self : Resolver,
   interface : @module_interface.ModuleInterface,
-  item_origins : Array[SelectiveImportOrigin],
+  value : @module_interface.ModuleInterfaceValue,
+  loc : SourceSpan,
+  import_origin : Int?,
 ) -> Unit {
-  for item in item_origins {
-    for value in interface.values {
-      if value.name == item.name {
-        let binding = imported_interface_value_binding(
-          interface,
-          value,
-          Some(item.origin),
-        )
-        self.publish_complete_top_level_binding(binding, item.loc)
-        self.publish_ordered_top_level_binding(binding, item.loc)
-        self.record_import_symbol(Some(item.origin), ValueSymbol(value.symbol))
-      }
-    }
+  let binding = imported_interface_value_binding(
+    interface, value, import_origin,
+  )
+  self.publish_complete_top_level_binding(binding, loc)
+  self.publish_ordered_top_level_binding(binding, loc)
+  self.record_import_symbol(import_origin, ValueSymbol(value.symbol))
+}
+
+///|
+fn Resolver::publish_selective_import_binding(
+  self : Resolver,
+  interface : @module_interface.ModuleInterface,
+  binding : SelectiveImportBinding,
+  origin : Int,
+  loc : SourceSpan,
+) -> Unit {
+  match binding {
+    ImportedType(type_) => self.publish_imported_type(type_, Some(origin))
+    ImportedTypeAlias(type_alias) =>
+      self.publish_imported_type_alias(
+        interface.module_path,
+        type_alias,
+        Some(origin),
+      )
+    ImportedEffect(effect) => self.publish_imported_effect(effect, Some(origin))
+    ImportedValue(value) =>
+      self.publish_imported_value(interface, value, loc, Some(origin))
   }
 }
 

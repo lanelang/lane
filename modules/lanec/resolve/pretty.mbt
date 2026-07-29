@@ -83,6 +83,12 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       text(type_name) +
       text("::") +
       text(variant)
+    UnresolvedImportItem(module_path~, name~) =>
+      text("unresolved_import_item") +
+      space +
+      text(module_path) +
+      text(".") +
+      text(name)
     PayloadlessVariantWithoutParens(name) =>
       text("payloadless_variant_without_parens") + space + text(name)
     ConflictingTopLevelValue(name~, existing~, incoming~, ..) =>

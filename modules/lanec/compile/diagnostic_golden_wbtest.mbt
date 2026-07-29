@@ -498,6 +498,70 @@ test "golden resolver diagnostic renders span summary and guidance" {
 }
 
 ///|
+test "golden missing selective import item diagnostic is specific" {
+  let diagnostic = single_check_sources_diagnostic(
+    (
+      #|module Main
+      #|import Lib.{ missing }
+    ),
+    [
+      (
+        #|module Lib
+        #|pub let value : Int = 1
+      ),
+    ],
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E2009", "cannot import `missing` from `Lib`",
+  )
+  debug_inspect(
+    diagnostic,
+    content=(
+      #|{
+      #|  source_id: Some("<root>"),
+      #|  message: "cannot import `missing` from `Lib`",
+      #|  span: Some(
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
+      #|        start_offset: 25,
+      #|        end_offset: 32,
+      #|        start_line: 2,
+      #|        start_column: 14,
+      #|        end_line: 2,
+      #|        end_column: 21,
+      #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E2009"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 25,
+      #|          end_offset: 32,
+      #|          start_line: 2,
+      #|          start_column: 14,
+      #|          end_line: 2,
+      #|          end_column: 21,
+      #|        },
+      #|      ),
+      #|      message: "`Lib` has no exported declaration named `missing`",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["selective imports can name only top-level declarations exported by the imported module"],
+      #|  helps: ["check the name spelling or select a declaration exported by `Lib`"],
+      #|  facts: [],
+      #|  suggestions: [],
+      #|}
+    ),
+  )
+}
+
+///|
 test "golden type diagnostic renders span summary and facts" {
   let diagnostic = single_check_diagnostic(
     (

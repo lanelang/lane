@@ -74,6 +74,7 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedValue(String)
   UnresolvedField(type_name~ : String, field~ : String)
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
+  UnresolvedImportItem(module_path~ : String, name~ : String)
   PayloadlessVariantWithoutParens(String)
   ConflictingTopLevelValue(
     name~ : String,
