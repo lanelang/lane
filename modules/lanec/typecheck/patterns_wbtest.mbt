@@ -422,6 +422,19 @@ test "typecheck exhaustive enum match" {
 }
 
 ///|
+test "pattern completeness does not treat type errors as uninhabited" {
+  let declarations : CheckedDeclarationEnvironment = {
+    types: [],
+    type_members: [],
+    fields: [],
+    variants: [],
+    effects: [],
+    operations: [],
+  }
+  assert_true(complete_constructor_signatures(declarations, Error) is None)
+}
+
+///|
 test "typecheck unqualified enum variant patterns from expected type" {
   let result = expect_typecheck_result(
     (

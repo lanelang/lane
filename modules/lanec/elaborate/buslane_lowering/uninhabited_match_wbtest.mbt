@@ -14,3 +14,9 @@ test "elaborate empty enum match into verifiable buslane" {
   }
   debug_inspect(@buslane.verify_program(program), content="{ diagnostics: [] }")
 }
+
+///|
+test "lowering does not treat type errors as uninhabited" {
+  let lowerer = BuslaneLowerer::BuslaneLowerer()
+  assert_true(lowerer.complete_alt_constructors_for_type(Error) is None)
+}

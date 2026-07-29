@@ -1131,14 +1131,13 @@ fn complete_constructor_signatures(
     return None
   }
   match type_ {
-    Error => Some([])
     Primitive(Bool) =>
       Some([
         { tag: BoolConstructor(false), argument_types: [] },
         { tag: BoolConstructor(true), argument_types: [] },
       ])
     Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [] }])
-    Primitive(Int) | Primitive(Double) | Primitive(String) => None
+    Error | Primitive(Int) | Primitive(Double) | Primitive(String) => None
     Parameter(_)
     | Constructor(_)
     | Apply(_, _)
