@@ -414,16 +414,9 @@ fn VerifyContext::synthesize_type_apply(
     )
     return { type_: body, effect: callee_result.effect }
   }
-  let substitution = TypeSubstitution::TypeSubstitution()
-  for index in 0..<parameters.length() {
-    guard self.program.metadata.type_parameter_info(parameters[index])
-      is Some(info) else {
-      self.report(UnknownTypeParameter(parameters[index]))
-      continue
-    }
-    self.verify_generic_argument_kind(arguments[index], info.kind, type_scope)
-    substitution.insert_argument(parameters[index], arguments[index])
-  }
+  let substitution = self.verified_substitution(
+    parameters, arguments, type_scope,
+  )
   { type_: body.substitute(substitution), effect: callee_result.effect }
 }
 
@@ -467,35 +460,19 @@ fn VerifyContext::synthesize_construct(
       ),
     )
   }
-  let substitution = TypeSubstitution::TypeSubstitution()
-  for
-    index in 0..<owner.parameters
-    .length()
-    .min(construct.type_arguments.length()) {
-    let argument = construct.type_arguments[index]
-    guard self.program.metadata.type_parameter_info(owner.parameters[index])
-      is Some(parameter_info) else {
-      self.report(UnknownTypeParameter(owner.parameters[index]))
-      continue
-    }
-    self.verify_generic_argument_kind(argument, parameter_info.kind, type_scope)
-    substitution.insert_argument(owner.parameters[index], argument)
-  }
-  for
-    index in 0..<info.hidden_type_parameters
-    .length()
-    .min(construct.hidden_witnesses.length()) {
-    let witness = construct.hidden_witnesses[index]
-    guard self.program.metadata.type_parameter_info(
-        info.hidden_type_parameters[index],
-      )
-      is Some(parameter_info) else {
-      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
-      continue
-    }
-    self.verify_generic_argument_kind(witness, parameter_info.kind, type_scope)
-    substitution.insert_argument(info.hidden_type_parameters[index], witness)
-  }
+  let substitution = self
+    .verified_substitution(
+      owner.parameters,
+      construct.type_arguments,
+      type_scope,
+    )
+    .overlay(
+      self.verified_substitution(
+        info.hidden_type_parameters,
+        construct.hidden_witnesses,
+        type_scope,
+      ),
+    )
   let effects = []
   for index in 0..<info.payload_types.length().min(construct.payloads.length()) {
     let payload_effect = self.check_expr(
@@ -543,41 +520,19 @@ fn VerifyContext::synthesize_perform(
       ),
     )
   }
-  let substitution = TypeSubstitution::TypeSubstitution()
-  for
-    index in 0..<owner.parameters
-    .length()
-    .min(perform.effect_arguments.length()) {
-    guard self.program.metadata.type_parameter_info(owner.parameters[index])
-      is Some(parameter_info) else {
-      self.report(UnknownTypeParameter(owner.parameters[index]))
-      continue
-    }
-    self.verify_generic_argument_kind(
-      perform.effect_arguments[index],
-      parameter_info.kind,
+  let substitution = self
+    .verified_substitution(
+      owner.parameters,
+      perform.effect_arguments,
       type_scope,
     )
-    substitution.insert_argument(
-      owner.parameters[index],
-      perform.effect_arguments[index],
+    .overlay(
+      self.verified_substitution(
+        info.hidden_type_parameters,
+        perform.hidden_witnesses,
+        type_scope,
+      ),
     )
-  }
-  for
-    index in 0..<info.hidden_type_parameters
-    .length()
-    .min(perform.hidden_witnesses.length()) {
-    let witness = perform.hidden_witnesses[index]
-    guard self.program.metadata.type_parameter_info(
-        info.hidden_type_parameters[index],
-      )
-      is Some(parameter_info) else {
-      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
-      continue
-    }
-    self.verify_generic_argument_kind(witness, parameter_info.kind, type_scope)
-    substitution.insert_argument(info.hidden_type_parameters[index], witness)
-  }
   if info.payload_types.length() != perform.payloads.length() {
     self.report(
       ArityMismatch(
@@ -643,10 +598,18 @@ fn VerifyContext::synthesize_handle(
   )
   effects.push(final_effect)
   for table in handle.handlers {
-    self.verify_effect(table.handled_effect, type_scope)
+    let owner_substitution = match table.handled_effect {
+      Singleton(owner, arguments) =>
+        self.verify_effect_singleton(owner, arguments, type_scope)
+      effect => {
+        self.verify_effect(effect, type_scope)
+        None
+      }
+    }
     for alternative in table.operations {
       let arm_effect = self.verify_operation_alternative(
         table.handled_effect,
+        owner_substitution,
         alternative,
         handle.result_type,
         value_scope,
@@ -665,6 +628,7 @@ fn VerifyContext::synthesize_handle(
 fn VerifyContext::verify_operation_alternative(
   self : VerifyContext,
   handled_effect : Effect,
+  owner_substitution : TypeSubstitution?,
   alternative : OperationAlternative,
   handler_result : Type,
   value_scope : ValueScope,
@@ -683,9 +647,8 @@ fn VerifyContext::verify_operation_alternative(
       ),
     )
   }
-  let substitution = TypeSubstitution::TypeSubstitution()
   match handled_effect {
-    Singleton(owner, arguments) => {
+    Singleton(owner, _) =>
       if owner != info.owner {
         self.report(
           EffectMismatch(
@@ -694,48 +657,26 @@ fn VerifyContext::verify_operation_alternative(
           ),
         )
       }
-      if self.program.metadata.effect_info(info.owner) is Some(effect_info) {
-        for index in 0..<effect_info.parameters.length().min(arguments.length()) {
-          substitution.insert_argument(
-            effect_info.parameters[index],
-            arguments[index],
-          )
-        }
-      }
-    }
     _ => self.report(EffectMismatch(expected=handled_effect, actual=Empty))
   }
   let arm_type_scope = type_scope.copy()
+  let hidden_substitution = TypeSubstitution::TypeSubstitution()
   for
     index in 0..<alternative.type_binders
     .length()
     .min(info.hidden_type_parameters.length()) {
     let binder = alternative.type_binders[index]
-    guard self.program.metadata.type_parameter_info(binder) is Some(binder_info) else {
-      self.report(UnknownTypeParameter(binder))
-      continue
-    }
-    guard self.program.metadata.type_parameter_info(
-        info.hidden_type_parameters[index],
-      )
-      is Some(hidden_info) else {
-      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
-      continue
-    }
-    if binder_info.kind != hidden_info.kind {
-      self.report(
-        KindMismatch(expected=hidden_info.kind, actual=binder_info.kind),
-      )
-    }
-    if hidden_info.kind == Effect {
-      substitution.insert_effect(
-        info.hidden_type_parameters[index],
-        Parameter(binder),
-      )
-    } else {
-      substitution.insert(info.hidden_type_parameters[index], Parameter(binder))
-    }
     arm_type_scope.parameters.push(binder)
+    self.insert_verified_binder(
+      hidden_substitution,
+      info.hidden_type_parameters[index],
+      binder,
+      arm_type_scope,
+    )
+  }
+  let substitution = match owner_substitution {
+    Some(owner_substitution) => owner_substitution.overlay(hidden_substitution)
+    None => hidden_substitution
   }
   if alternative.payload_binders.length() != info.payload_types.length() {
     self.report(
@@ -923,6 +864,10 @@ fn VerifyContext::verify_alternative(
 ) -> Effect {
   let body_scope = value_scope.copy()
   let alternative_type_scope = type_scope.copy()
+  for binder in alternative.type_binders {
+    self.require_type_parameter(binder)
+    alternative_type_scope.parameters.push(binder)
+  }
   match alternative.alt_constructor {
     Default => ()
     Literal(literal) => {
@@ -937,10 +882,6 @@ fn VerifyContext::verify_alternative(
       self.verify_data_alternative(
         data_constructor, alternative, scrutinee_type, body_scope, alternative_type_scope,
       )
-  }
-  for binder in alternative.type_binders {
-    self.require_type_parameter(binder)
-    alternative_type_scope.parameters.push(binder)
   }
   for binder in alternative.value_binders {
     self.require_value(binder)
@@ -990,30 +931,21 @@ fn VerifyContext::verify_data_alternative(
     self.report(UnknownType(info.owner))
     return
   }
-  let substitution = TypeSubstitution::TypeSubstitution()
-  for index in 0..<owner.parameters.length().min(type_arguments.length()) {
-    substitution.insert_argument(owner.parameters[index], type_arguments[index])
-  }
+  let substitution = self.verified_substitution(
+    owner.parameters,
+    type_arguments,
+    type_scope,
+  )
+  let hidden_substitution = TypeSubstitution::TypeSubstitution()
   for index in 0..<info.hidden_type_parameters.length() {
-    guard self.program.metadata.type_parameter_info(
-        info.hidden_type_parameters[index],
-      )
-      is Some(hidden_info) else {
-      self.report(UnknownTypeParameter(info.hidden_type_parameters[index]))
-      continue
-    }
-    if hidden_info.kind == Effect {
-      substitution.insert_effect(
-        info.hidden_type_parameters[index],
-        Parameter(alternative.type_binders[index]),
-      )
-    } else {
-      substitution.insert(
-        info.hidden_type_parameters[index],
-        Parameter(alternative.type_binders[index]),
-      )
-    }
+    self.insert_verified_binder(
+      hidden_substitution,
+      info.hidden_type_parameters[index],
+      alternative.type_binders[index],
+      type_scope,
+    )
   }
+  let substitution = substitution.overlay(hidden_substitution)
   for index in 0..<alternative.value_binders.length() {
     let binder = alternative.value_binders[index]
     guard self.program.metadata.value_info(binder) is Some(binder_info) else {
@@ -1028,9 +960,6 @@ fn VerifyContext::verify_data_alternative(
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
     body_scope.values.push(binder)
-  }
-  for binder in alternative.type_binders {
-    type_scope.parameters.push(binder)
   }
 }
 
@@ -1114,9 +1043,20 @@ fn VerifyContext::verify_type_kind(
   expected : Kind,
   scope : TypeScope,
 ) -> Unit {
-  let actual = self.synthesize_type_kind(type_, scope)
-  if actual != expected {
+  ignore(self.require_kind(expected, self.synthesize_type_kind(type_, scope)))
+}
+
+///|
+fn VerifyContext::require_kind(
+  self : VerifyContext,
+  expected : Kind,
+  actual : Kind,
+) -> Bool {
+  if actual == expected {
+    true
+  } else {
     self.report(KindMismatch(expected~, actual~))
+    false
   }
 }
 
@@ -1126,15 +1066,80 @@ fn VerifyContext::verify_generic_argument_kind(
   argument : GenericArgument,
   expected : Kind,
   scope : TypeScope,
-) -> Unit {
+) -> Bool {
   match argument {
-    TypeArgument(type_) => self.verify_type_kind(type_, expected, scope)
-    EffectArgument(effect) => {
-      self.verify_effect(effect, scope)
-      if expected != Effect {
-        self.report(KindMismatch(expected~, actual=Effect))
+    TypeArgument(type_) => {
+      let actual = self.synthesize_type_kind(type_, scope)
+      if expected == Effect {
+        self.require_kind(expected, Type)
+      } else {
+        self.require_kind(expected, actual)
       }
     }
+    EffectArgument(effect) => {
+      self.verify_effect(effect, scope)
+      self.require_kind(expected, Effect)
+    }
+  }
+}
+
+///|
+fn VerifyContext::verified_substitution(
+  self : VerifyContext,
+  parameters : Array[TypeParameterId],
+  arguments : Array[GenericArgument],
+  scope : TypeScope,
+) -> TypeSubstitution {
+  let substitution = TypeSubstitution::TypeSubstitution()
+  for index in 0..<parameters.length().min(arguments.length()) {
+    self.insert_verified_argument(
+      substitution,
+      parameters[index],
+      arguments[index],
+      scope,
+    )
+  }
+  substitution
+}
+
+///|
+fn VerifyContext::insert_verified_argument(
+  self : VerifyContext,
+  substitution : TypeSubstitution,
+  parameter : TypeParameterId,
+  argument : GenericArgument,
+  scope : TypeScope,
+) -> Unit {
+  guard self.program.metadata.type_parameter_info(parameter)
+    is Some(parameter_info) else {
+    self.report(UnknownTypeParameter(parameter))
+    return
+  }
+  if self.verify_generic_argument_kind(argument, parameter_info.kind, scope) {
+    substitution.insert_argument(parameter, argument)
+  }
+}
+
+///|
+fn VerifyContext::insert_verified_binder(
+  self : VerifyContext,
+  substitution : TypeSubstitution,
+  parameter : TypeParameterId,
+  binder : TypeParameterId,
+  scope : TypeScope,
+) -> Unit {
+  guard self.program.metadata.type_parameter_info(parameter)
+    is Some(parameter_info) else {
+    self.report(UnknownTypeParameter(parameter))
+    return
+  }
+  let argument = if parameter_info.kind == Effect {
+    EffectArgument(Parameter(binder))
+  } else {
+    TypeArgument(Parameter(binder))
+  }
+  if self.verify_generic_argument_kind(argument, parameter_info.kind, scope) {
+    substitution.insert_argument(parameter, argument)
   }
 }
 
@@ -1200,10 +1205,12 @@ fn VerifyContext::synthesize_type_kind(
       for index in 0..<arguments.length() {
         let argument = arguments[index]
         if index < parameter_kinds.length() {
-          self.verify_generic_argument_kind(
-            argument,
-            parameter_kinds[index],
-            scope,
+          ignore(
+            self.verify_generic_argument_kind(
+              argument,
+              parameter_kinds[index],
+              scope,
+            ),
           )
         } else {
           match argument {
@@ -1256,38 +1263,36 @@ fn VerifyContext::verify_effect(
 ) -> Unit {
   match effect {
     Empty | Io => ()
-    Singleton(id, arguments) => {
-      guard self.program.metadata.effect_info(id) is Some(info) else {
-        self.report(UnknownEffect(id))
-        return
-      }
-      if info.parameters.length() != arguments.length() {
-        self.report(
-          ArityMismatch(
-            expected=info.parameters.length(),
-            actual=arguments.length(),
-          ),
-        )
-      }
-      for index in 0..<info.parameters.length().min(arguments.length()) {
-        guard self.program.metadata.type_parameter_info(info.parameters[index])
-          is Some(parameter_info) else {
-          self.report(UnknownTypeParameter(info.parameters[index]))
-          continue
-        }
-        self.verify_generic_argument_kind(
-          arguments[index],
-          parameter_info.kind,
-          scope,
-        )
-      }
-    }
+    Singleton(id, arguments) =>
+      ignore(self.verify_effect_singleton(id, arguments, scope))
     Parameter(parameter) => self.verify_effect_parameter(parameter, scope)
     Union(effects) =>
       for nested in effects {
         self.verify_effect(nested, scope)
       }
   }
+}
+
+///|
+fn VerifyContext::verify_effect_singleton(
+  self : VerifyContext,
+  id : EffectId,
+  arguments : Array[GenericArgument],
+  scope : TypeScope,
+) -> TypeSubstitution? {
+  guard self.program.metadata.effect_info(id) is Some(info) else {
+    self.report(UnknownEffect(id))
+    return None
+  }
+  if info.parameters.length() != arguments.length() {
+    self.report(
+      ArityMismatch(
+        expected=info.parameters.length(),
+        actual=arguments.length(),
+      ),
+    )
+  }
+  Some(self.verified_substitution(info.parameters, arguments, scope))
 }
 
 ///|

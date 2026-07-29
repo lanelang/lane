@@ -819,12 +819,6 @@ pub(all) suberror TypeSubstitutionError {
 } derive(Debug, Eq)
 
 ///|
-priv enum TypeSubstitutionMismatchPolicy {
-  RecoverKindMismatch
-  RejectKindMismatch
-}
-
-///|
 pub fn TypeSubstitution::TypeSubstitution() -> TypeSubstitution {
   { entries: [] }
 }
@@ -901,7 +895,7 @@ pub fn TypeSubstitution::type_argument(
   self : TypeSubstitution,
   parameter : TypeParameterId,
 ) -> Type? raise TypeSubstitutionError {
-  self.lookup_type(parameter, [], RejectKindMismatch)
+  self.lookup_type(parameter, [])
 }
 
 ///|
@@ -909,7 +903,7 @@ pub fn TypeSubstitution::effect_argument(
   self : TypeSubstitution,
   parameter : TypeParameterId,
 ) -> Effect? raise TypeSubstitutionError {
-  self.lookup_effect(parameter, [], RejectKindMismatch)
+  self.lookup_effect(parameter, [])
 }
 
 ///|
@@ -934,15 +928,10 @@ fn TypeSubstitution::lookup_type(
   self : TypeSubstitution,
   parameter : TypeParameterId,
   bound : Array[TypeParameterId],
-  mismatch_policy : TypeSubstitutionMismatchPolicy,
 ) -> Type? raise TypeSubstitutionError {
   match self.lookup_argument(parameter, bound) {
     Some(TypeArgument(type_)) => Some(type_)
-    Some(EffectArgument(_)) =>
-      match mismatch_policy {
-        RecoverKindMismatch => None
-        RejectKindMismatch => raise ExpectedTypeArgument(parameter~)
-      }
+    Some(EffectArgument(_)) => raise ExpectedTypeArgument(parameter~)
     None => None
   }
 }
@@ -952,15 +941,10 @@ fn TypeSubstitution::lookup_effect(
   self : TypeSubstitution,
   parameter : TypeParameterId,
   bound : Array[TypeParameterId],
-  mismatch_policy : TypeSubstitutionMismatchPolicy,
 ) -> Effect? raise TypeSubstitutionError {
   match self.lookup_argument(parameter, bound) {
     Some(EffectArgument(effect)) => Some(effect)
-    Some(TypeArgument(_)) =>
-      match mismatch_policy {
-        RecoverKindMismatch => None
-        RejectKindMismatch => raise ExpectedEffectArgument(parameter~)
-      }
+    Some(TypeArgument(_)) => raise ExpectedEffectArgument(parameter~)
     None => None
   }
 }
@@ -986,7 +970,7 @@ pub fn GenericArgument::try_substitute(
   self : GenericArgument,
   substitution : TypeSubstitution,
 ) -> GenericArgument raise TypeSubstitutionError {
-  self.substitute_with_bound(substitution, [], RejectKindMismatch)
+  self.substitute_with_bound(substitution, [])
 }
 
 ///|
@@ -994,17 +978,12 @@ fn GenericArgument::substitute_with_bound(
   self : GenericArgument,
   substitution : TypeSubstitution,
   bound : Array[TypeParameterId],
-  mismatch_policy : TypeSubstitutionMismatchPolicy,
 ) -> GenericArgument raise TypeSubstitutionError {
   match self {
     TypeArgument(type_) =>
-      TypeArgument(
-        type_.substitute_with_bound(substitution, bound, mismatch_policy),
-      )
+      TypeArgument(type_.substitute_with_bound(substitution, bound))
     EffectArgument(effect) =>
-      EffectArgument(
-        effect.substitute_with_bound(substitution, bound, mismatch_policy),
-      )
+      EffectArgument(effect.substitute_with_bound(substitution, bound))
   }
 }
 
@@ -1073,8 +1052,9 @@ fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
 }
 
 ///|
+/// Applies a well-formed substitution, aborting if an entry has the wrong generic-argument kind. Use `try_substitute` when malformed substitutions are an expected input.
 pub fn Type::substitute(self : Type, substitution : TypeSubstitution) -> Type {
-  try! self.substitute_with_bound(substitution, [], RecoverKindMismatch)
+  try! self.substitute_with_bound(substitution, [])
 }
 
 ///|
@@ -1082,7 +1062,7 @@ pub fn Type::try_substitute(
   self : Type,
   substitution : TypeSubstitution,
 ) -> Type raise TypeSubstitutionError {
-  self.substitute_with_bound(substitution, [], RejectKindMismatch)
+  self.substitute_with_bound(substitution, [])
 }
 
 ///|
@@ -1090,20 +1070,19 @@ fn Type::substitute_with_bound(
   self : Type,
   substitution : TypeSubstitution,
   bound : Array[TypeParameterId],
-  mismatch_policy : TypeSubstitutionMismatchPolicy,
 ) -> Type raise TypeSubstitutionError {
   match self {
     Primitive(_) | Constructor(_) => self
     Parameter(parameter) =>
-      match substitution.lookup_type(parameter, bound, mismatch_policy) {
+      match substitution.lookup_type(parameter, bound) {
         Some(replacement) => replacement
         None => self
       }
     Apply(callee, arguments) =>
       Apply(
-        callee.substitute_with_bound(substitution, bound, mismatch_policy),
+        callee.substitute_with_bound(substitution, bound),
         arguments.map(argument => {
-          argument.substitute_with_bound(substitution, bound, mismatch_policy)
+          argument.substitute_with_bound(substitution, bound)
         }),
       )
     TypeLambda(parameters, body) => {
@@ -1113,36 +1092,34 @@ fn Type::substitute_with_bound(
       }
       TypeLambda(
         parameters,
-        body.substitute_with_bound(substitution, next_bound, mismatch_policy),
+        body.substitute_with_bound(substitution, next_bound),
       )
     }
     Function(parameters, result, effect) =>
       Function(
         parameters.map(parameter => {
-          parameter.substitute_with_bound(substitution, bound, mismatch_policy)
+          parameter.substitute_with_bound(substitution, bound)
         }),
-        result.substitute_with_bound(substitution, bound, mismatch_policy),
-        effect.substitute_with_bound(substitution, bound, mismatch_policy),
+        result.substitute_with_bound(substitution, bound),
+        effect.substitute_with_bound(substitution, bound),
       )
     Forall(parameters, body) => {
       let next_bound = bound.copy()
       for parameter in parameters {
         next_bound.push(parameter)
       }
-      Forall(
-        parameters,
-        body.substitute_with_bound(substitution, next_bound, mismatch_policy),
-      )
+      Forall(parameters, body.substitute_with_bound(substitution, next_bound))
     }
   }
 }
 
 ///|
+/// Applies a well-formed substitution, aborting if an entry has the wrong generic-argument kind. Use `try_substitute` when malformed substitutions are an expected input.
 pub fn Effect::substitute(
   self : Effect,
   substitution : TypeSubstitution,
 ) -> Effect {
-  try! self.substitute_with_bound(substitution, [], RecoverKindMismatch)
+  try! self.substitute_with_bound(substitution, [])
 }
 
 ///|
@@ -1150,7 +1127,7 @@ pub fn Effect::try_substitute(
   self : Effect,
   substitution : TypeSubstitution,
 ) -> Effect raise TypeSubstitutionError {
-  self.substitute_with_bound(substitution, [], RejectKindMismatch)
+  self.substitute_with_bound(substitution, [])
 }
 
 ///|
@@ -1158,12 +1135,11 @@ fn Effect::substitute_with_bound(
   self : Effect,
   substitution : TypeSubstitution,
   bound : Array[TypeParameterId],
-  mismatch_policy : TypeSubstitutionMismatchPolicy,
 ) -> Effect raise TypeSubstitutionError {
   match self {
     Empty | Io => self
     Parameter(parameter) =>
-      match substitution.lookup_effect(parameter, bound, mismatch_policy) {
+      match substitution.lookup_effect(parameter, bound) {
         Some(replacement) => replacement
         None => self
       }
@@ -1171,14 +1147,12 @@ fn Effect::substitute_with_bound(
       Singleton(
         id,
         arguments.map(argument => {
-          argument.substitute_with_bound(substitution, bound, mismatch_policy)
+          argument.substitute_with_bound(substitution, bound)
         }),
       )
     Union(effects) =>
       Union(
-        effects.map(effect => {
-          effect.substitute_with_bound(substitution, bound, mismatch_policy)
-        }),
+        effects.map(effect => effect.substitute_with_bound(substitution, bound)),
       )
   }
 }

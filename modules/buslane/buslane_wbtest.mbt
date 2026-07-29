@@ -319,6 +319,15 @@ test "buslane substitution reports argument kind mismatches" {
 }
 
 ///|
+test "panic buslane substitution rejects argument kind mismatches" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let type_ = metadata.define_type_parameter("T", Type)
+  let malformed = TypeSubstitution::TypeSubstitution()
+  malformed.insert_effect(type_, Empty)
+  Type::Parameter(type_).substitute(malformed) |> ignore
+}
+
+///|
 test "buslane canonical effect equality ignores ordering and duplicates" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let console_parameter = metadata.define_type_parameter("T", Type)
@@ -568,7 +577,7 @@ test "verify buslane handler preserves open residual effect row" {
               result_type: int_type(),
               body: Handle({
                 body: Call(
-                  TypeApply(Ref(external), [TypeArgument(Parameter(row))]),
+                  TypeApply(Ref(external), [EffectArgument(Parameter(row))]),
                   [],
                 ),
                 result_binder: final_binder,
@@ -969,6 +978,65 @@ test "verify buslane generic function parameter scope" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {}
+    ),
+  )
+}
+
+///|
+test "verify buslane skips kind-invalid substitution bindings" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let type_parameter = metadata.define_type_parameter("T", Type)
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let type_polymorphic = metadata.define_value(
+    "value",
+    External,
+    Forall([type_parameter], Parameter(type_parameter)),
+  )
+  let effect_polymorphic = metadata.define_value(
+    "value",
+    External,
+    Forall(
+      [effect_parameter],
+      Function([], int_type(), Parameter(effect_parameter)),
+    ),
+  )
+  let type_result = metadata.define_value("value", Value, int_type())
+  let effect_result = metadata.define_value(
+    "value",
+    Value,
+    Function([], int_type(), Empty),
+  )
+  let program = Program::{
+    metadata,
+    terms: [
+      External(type_polymorphic),
+      External(effect_polymorphic),
+      Let(
+        type_result,
+        TypeApply(Ref(type_polymorphic), [EffectArgument(Empty)]),
+      ),
+      Let(
+        effect_result,
+        TypeApply(Ref(effect_polymorphic), [TypeArgument(int_type())]),
+      ),
+    ],
+  }
+  debug_inspect(
+    verify_program(program),
+    content=(
+      #|{
+      #|  diagnostics: [
+      #|    { kind: KindMismatch(expected=Type, actual=Effect) },
+      #|    { kind: TypeMismatch(expected=Primitive(Int), actual=Parameter({ index: 0 })) },
+      #|    { kind: KindMismatch(expected=Effect, actual=Type) },
+      #|    {
+      #|      kind: TypeMismatch(
+      #|        expected=Function([], Primitive(Int), Empty),
+      #|        actual=Function([], Primitive(Int), Parameter({ index: 1 })),
+      #|      ),
+      #|    },
+      #|  ],
+      #|}
     ),
   )
 }

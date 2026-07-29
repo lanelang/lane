@@ -161,7 +161,7 @@ test "verify nominal construction and matching" {
 
 ### Substitute types and effects
 
-`TypeSubstitution` replaces both `Type`-kind and `Effect`-kind parameters in one traversal.
+`TypeSubstitution` replaces both `Type`-kind and `Effect`-kind parameters in one traversal. `substitute` requires every entry to use the matching generic-argument kind and aborts on malformed substitutions; use `try_substitute` at boundaries that accept untrusted substitutions and need a structured `TypeSubstitutionError`.
 
 ```mbt check
 ///|
