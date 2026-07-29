@@ -68,7 +68,7 @@ test "executable lowering emits reachable instance globals in source order" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(image) => image
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_eq(image.entry, { value: 1 })
   assert_eq(image.initializer, Some({ value: 2 }))
@@ -182,7 +182,7 @@ test "executable initializer materializes function-valued data fields" {
       },
     ) {
     Ok(image) => image
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.initializer is Some(initializer) else {
     fail("expected executable initializer")

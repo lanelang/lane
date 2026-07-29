@@ -62,7 +62,7 @@ fn bytecode_image_code_lines(image : BytecodeImage) -> Array[String] {
     lines.push("constant table:")
     for index, constant in image.constants {
       let value = @utf8.decode(constant) catch { _ => "<invalid UTF-8>" }
-      lines.push("  c\{index} = \{to_repr(value)}")
+      lines.push("  c\{index} = \{Repr(value)}")
     }
     lines.push("")
   }
@@ -78,7 +78,7 @@ fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
         .join(", ")
       [
         "function f\{id} = runtime_import(",
-        "  symbol=\{to_repr(import_.symbol)},",
+        "  symbol=\{Repr(import_.symbol)},",
         "  abi_major=\{import_.abi_major},",
         "  parameters=[\{parameters}],",
         "  result=\{render_runtime_value_kind(import_.result)}",

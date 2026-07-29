@@ -78,7 +78,7 @@ fn verify_jit_artifact(
   )
   let loaded = @wasmoon_jit.verify_artifact(artifact, compatibility) catch {
     error =>
-      return Err("Wasmoon JIT artifact verification failed: \{to_repr(error)}")
+      return Err("Wasmoon JIT artifact verification failed: \{Repr(error)}")
   }
   Ok(loaded)
 }

@@ -6,7 +6,7 @@ fn assert_cps_ordinary_output(program : Program) -> Unit raise {
   }
   let result = @buslane.verify_program(ordinary)
   if !result.is_ok() {
-    fail("ordinary CPS verification failed: \{to_repr(result)}")
+    fail("ordinary CPS verification failed: \{Repr(result)}")
   }
 }
 

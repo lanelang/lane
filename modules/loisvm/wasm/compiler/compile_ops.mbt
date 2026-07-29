@@ -793,7 +793,7 @@ fn compile_terminator(
     unsupported =>
       raise UnsupportedInstruction(
         function_id~,
-        instruction="\{to_repr(unsupported)}",
+        instruction="\{Repr(unsupported)}",
       )
   }
 }

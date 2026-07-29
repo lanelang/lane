@@ -113,7 +113,7 @@ fn elaborate_linked_executable(
 ) -> Result[@executable.ExecutableProgram, CliError] {
   match @executable.elaborate(linked, entry) {
     Ok(executable) => Ok(executable)
-    Err(error) => Err(ExecutionImageLowering(message="\{to_repr(error)}"))
+    Err(error) => Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }
 }
 
@@ -123,7 +123,7 @@ fn lower_executable_image(
 ) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
   match @artifact_binary.lower_executable_to_loisvm_bytecode(executable) {
     Ok(image) => Ok(image)
-    Err(error) => Err(ExecutionImageLowering(message="\{to_repr(error)}"))
+    Err(error) => Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }
 }
 
@@ -183,22 +183,20 @@ fn execute_loisvm_image_with_output(
     Ok(loaded) => loaded
     Err(error) =>
       return LaneCommandOutcome::user_error(
-        ExecutionImageLoad(message="\{to_repr(error)}"),
+        ExecutionImageLoad(message="\{Repr(error)}"),
       )
   }
   let instance = match loaded.new_instance() {
     Ok(instance) => instance
     Err(error) =>
       return LaneCommandOutcome::user_error(
-        ExecutionImageLoad(message="\{to_repr(error)}"),
+        ExecutionImageLoad(message="\{Repr(error)}"),
       )
   }
   match instance.execute() {
     Ok(_) => Succeeded
     Err(error) =>
-      LaneCommandOutcome::user_error(
-        ExecutionFailed(message="\{to_repr(error)}"),
-      )
+      LaneCommandOutcome::user_error(ExecutionFailed(message="\{Repr(error)}"))
   }
 }
 

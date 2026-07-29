@@ -132,7 +132,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_eq(image.entry, { value: 2 })
   guard image.functions is [BytecodeBody(helper_body), BytecodeBody(main_body)] else {
@@ -151,7 +151,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   let loaded = match
     @interp.load(image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
 }
@@ -201,7 +201,7 @@ test "runtime import origin wins over intrinsic-looking symbol" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(image) => image
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions is [BytecodeBody(_), RuntimeImport(import_)] else {
     fail("expected entry body and one runtime import")
@@ -293,7 +293,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions
     is [
@@ -333,7 +333,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -460,7 +460,7 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -480,7 +480,7 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -526,7 +526,7 @@ test "primitive external functions become runtime imports" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_true(
     image.functions
@@ -561,7 +561,7 @@ test "primitive external functions become runtime imports" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -621,7 +621,7 @@ test "external host types erase to Opaque runtime import kinds" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(image) => image
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   debug_inspect(
     (
@@ -716,7 +716,7 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_true(
     image.functions
@@ -803,7 +803,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(image) => image
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   debug_inspect(
     image.functions.filter_map(fn(entry) {
@@ -871,7 +871,7 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
@@ -898,7 +898,7 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, "Lane")
@@ -973,7 +973,7 @@ test "Bool matches lower to explicit CFG branches" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
@@ -1007,7 +1007,7 @@ test "Bool matches lower to explicit CFG branches" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 1L)
@@ -1087,7 +1087,7 @@ test "non-generic data construction and matching lower through object shapes" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_eq(image.object_shapes.length(), 2)
   guard image.functions[0] is BytecodeBody(main_body) else {
@@ -1117,7 +1117,7 @@ test "non-generic data construction and matching lower through object shapes" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 7L)
@@ -1198,7 +1198,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[1] is BytecodeBody(apply_body) else {
     fail("expected apply bytecode body")
@@ -1230,7 +1230,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -1300,7 +1300,7 @@ test "nested functions lift with explicit reference-counted environments" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_eq(image.object_shapes.length(), 1)
   guard image.functions[0] is BytecodeBody(main_body) else {
@@ -1343,7 +1343,7 @@ test "nested functions lift with explicit reference-counted environments" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -1443,7 +1443,7 @@ test "local recursive functions share a cycle-free captured environment" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_eq(image.object_shapes.length(), 1)
   guard image.functions[1] is BytecodeBody(loop_body) else {
@@ -1472,7 +1472,7 @@ test "local recursive functions share a cycle-free captured environment" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -1564,7 +1564,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(identity_body) else {
     fail("expected identity bytecode body")
@@ -1607,7 +1607,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -1722,7 +1722,7 @@ test "generic calls adapt callable arguments and callable results" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -1754,7 +1754,7 @@ test "generic calls adapt callable arguments and callable results" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 4L)
@@ -1852,7 +1852,7 @@ test "generic nested closures capture erased values and layout witnesses" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   let observed : Array[Int64] = []
   fn registry(observed : Array[Int64]) -> @loisvm_runtime.RuntimeRegistry {
@@ -1887,7 +1887,7 @@ test "generic nested closures capture erased values and layout witnesses" {
   }
   let interpreted = match @interp.load(image, registry(observed)) {
     Ok(value) => value
-    Err(error) => fail("interpreter load failed: \{to_repr(error)}")
+    Err(error) => fail("interpreter load failed: \{Repr(error)}")
   }
   assert_eq(interpreted.new_instance().execute(), Ok(()))
   assert_eq(observed, [4L])
@@ -1967,7 +1967,7 @@ test "single-constructor matches keep owned captures in the current block" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
@@ -1991,7 +1991,7 @@ test "single-constructor matches keep owned captures in the current block" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_true(observed)
@@ -2076,7 +2076,7 @@ test "generic data stores layout witnesses beside erased payloads" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_true(
     image.object_shapes.any(shape => {
@@ -2119,7 +2119,7 @@ test "generic data stores layout witnesses beside erased payloads" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 7L)
@@ -2228,7 +2228,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_true(
     image.object_shapes.any(shape => {
@@ -2276,7 +2276,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -2370,7 +2370,7 @@ test "payload-free existential data still opens its hidden witness" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_true(
     image.object_shapes.any(shape => {
@@ -2408,7 +2408,7 @@ test "payload-free existential data still opens its hidden witness" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 9L)
@@ -2473,7 +2473,7 @@ test "effect-kind existential binders remain fully erased" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_true(
     image.object_shapes.any(shape => {
@@ -2491,7 +2491,7 @@ test "effect-kind existential binders remain fully erased" {
   let loaded = match
     @interp.load(image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
 }
@@ -2585,7 +2585,7 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(consume_body) else {
     fail("expected consume bytecode body")
@@ -2614,7 +2614,7 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)
@@ -2694,7 +2694,7 @@ test "primitive literal matches lower to comparison decision chains" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
@@ -2729,7 +2729,7 @@ test "primitive literal matches lower to comparison decision chains" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 2L)
@@ -2805,7 +2805,7 @@ test "generic nested functions lower as type-applied callable values" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
@@ -2833,7 +2833,7 @@ test "generic nested functions lower as type-applied callable values" {
   )
   let loaded = match @interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 42L)

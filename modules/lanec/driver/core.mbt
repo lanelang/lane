@@ -164,7 +164,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         request.entry,
         stages,
         diagnostics,
-        Some("executable elaboration failed: \{to_repr(error)}"),
+        Some("executable elaboration failed: \{Repr(error)}"),
       )
   }
   stages.push(
@@ -195,7 +195,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         request.entry,
         stages,
         diagnostics,
-        Some("LoisVM lowering failed: \{to_repr(error)}"),
+        Some("LoisVM lowering failed: \{Repr(error)}"),
       )
   }
   stages.push(
@@ -212,7 +212,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         request.entry,
         stages,
         diagnostics,
-        Some("Wasm lowering failed: \{to_repr(error)}"),
+        Some("Wasm lowering failed: \{Repr(error)}"),
       )
   }
   stages.push(

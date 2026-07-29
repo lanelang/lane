@@ -326,7 +326,7 @@ async test "native module artifacts are binary and readable" {
     Ok(executable) => executable
     Err(error) => {
       cleanup_library_fixture(workspace)
-      abort("executable elaboration failed: \{to_repr(error)}")
+      abort("executable elaboration failed: \{Repr(error)}")
     }
   }
   match write_linked_program_artifact(program_path, executable) {

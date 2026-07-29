@@ -120,7 +120,7 @@ fn run_with_interpreter(image : @bytecode.BytecodeImage) -> Array[Int64] raise {
   let observed : Array[Int64] = []
   let loaded = match @interp.load(image, example_registry(observed)) {
     Ok(value) => value
-    Err(error) => fail("interpreter load failed: \{to_repr(error)}")
+    Err(error) => fail("interpreter load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   observed
@@ -131,11 +131,11 @@ fn run_with_wasm(image : @bytecode.BytecodeImage) -> Array[Int64] raise {
   let observed : Array[Int64] = []
   let loaded = match @wasm.load(image, example_registry(observed)) {
     Ok(value) => value
-    Err(error) => fail("Wasm load failed: \{to_repr(error)}")
+    Err(error) => fail("Wasm load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(value) => value
-    Err(error) => fail("Wasm instantiation failed: \{to_repr(error)}")
+    Err(error) => fail("Wasm instantiation failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Ok(()))
   observed
@@ -147,7 +147,7 @@ test "one LoisVM image runs through both execution tiers" {
   let bytes = @bytecode.bytecode_image_to_binary(original)
   let decoded = match @bytecode.parse_bytecode_image_binary(bytes) {
     Ok(value) => value
-    Err(error) => fail("bytecode decode failed: \{to_repr(error)}")
+    Err(error) => fail("bytecode decode failed: \{Repr(error)}")
   }
   assert_eq(decoded, original)
   assert_eq(run_with_interpreter(decoded), [42L])

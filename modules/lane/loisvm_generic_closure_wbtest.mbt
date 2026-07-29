@@ -110,7 +110,7 @@ test "generic nested closures preserve erased captures in both backends" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   execute_callable_image_in_both_backends(image, 4L)
 }
@@ -249,7 +249,7 @@ test "nominal values cross erased generic boundaries in both backends" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   assert_true(image.layouts.contains(Reference))
   execute_callable_image_in_both_backends(image, 4L)

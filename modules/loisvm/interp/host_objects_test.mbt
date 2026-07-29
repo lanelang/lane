@@ -125,7 +125,7 @@ test "interpreter stores shared Host Objects in data and environments" {
   }
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let result = loaded.new_instance().execute()
   debug_inspect((result, observed, finalized.val), content="(Ok(()), [1], 2)")
@@ -160,7 +160,7 @@ test "interpreter finalizes Host Object globals during normal shutdown" {
   }
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   debug_inspect(
     (loaded.new_instance().execute(), finalized.val),
@@ -193,7 +193,7 @@ test "interpreter rolls back rejected Host Object results" {
   }
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let object_limit = loaded
     .new_instance(config={
@@ -287,7 +287,7 @@ test "interpreter reports Host Object use after explicit close" {
   }
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   debug_inspect(
     (loaded.new_instance().execute(), finalized.val),

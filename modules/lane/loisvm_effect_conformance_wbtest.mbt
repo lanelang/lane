@@ -12,9 +12,7 @@ fn compile_effect_conformance_image(
 ) -> @loisvm_bytecode.BytecodeImage raise {
   let result = @compile.compile_sources(source, [effect_conformance_basic_io()])
   if !result.diagnostics.is_empty() {
-    fail(
-      "effect conformance compilation failed: \{to_repr(result.diagnostics)}",
-    )
+    fail("effect conformance compilation failed: \{Repr(result.diagnostics)}")
   }
   guard result.program is Some(program) else {
     fail("effect conformance source produced no program")
@@ -29,7 +27,7 @@ fn compile_effect_conformance_image(
       entry,
     ) {
     Ok(image) => image
-    Err(error) => fail("effect conformance lowering failed: \{to_repr(error)}")
+    Err(error) => fail("effect conformance lowering failed: \{Repr(error)}")
   }
 }
 
@@ -64,7 +62,7 @@ fn run_effect_conformance_interpreter(
   let loaded = match
     @loisvm_interp.load(image, effect_conformance_registry(output)) {
     Ok(value) => value
-    Err(error) => fail("LoisVM interpreter load failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM interpreter load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   output
@@ -78,11 +76,11 @@ fn run_effect_conformance_wasm(
   let loaded = match
     @loisvm_wasm.load(image, effect_conformance_registry(output)) {
     Ok(value) => value
-    Err(error) => fail("LoisVM Wasm load failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM Wasm load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(value) => value
-    Err(error) => fail("LoisVM Wasm instantiation failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM Wasm instantiation failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Ok(()))
   output
@@ -418,7 +416,7 @@ fn wasm_resolution_error(
 ) -> @loisvm_runtime.RuntimeImportResolutionError raise {
   match @loisvm_wasm.load(image, registry) {
     Err(RuntimeImportResolution(error~)) => error
-    Err(error) => fail("unexpected LoisVM Wasm load failure: \{to_repr(error)}")
+    Err(error) => fail("unexpected LoisVM Wasm load failure: \{Repr(error)}")
     Ok(_) => fail("expected LoisVM Wasm load to fail")
   }
 }
@@ -447,7 +445,7 @@ fn run_effect_conformance_interpreter_failure(
 ) -> Result[Unit, @loisvm_runtime.ExecutionError] raise {
   let loaded = match @loisvm_interp.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("LoisVM interpreter load failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM interpreter load failed: \{Repr(error)}")
   }
   loaded.new_instance().execute()
 }
@@ -459,11 +457,11 @@ fn run_effect_conformance_wasm_failure(
 ) -> Result[Unit, @loisvm_runtime.ExecutionError] raise {
   let loaded = match @loisvm_wasm.load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("LoisVM Wasm load failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM Wasm load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(value) => value
-    Err(error) => fail("LoisVM Wasm instantiation failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM Wasm instantiation failed: \{Repr(error)}")
   }
   instance.execute()
 }

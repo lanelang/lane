@@ -39,9 +39,8 @@ fn buslane_lowering_diagnostic(
   error : @buslane_lowering.BuslaneLoweringError,
 ) -> CompilerDiagnostic {
   let dependency = match error {
-    MissingTypeReference(symbol) => "unresolved type symbol \{to_repr(symbol)}"
-    MissingEffectReference(symbol) =>
-      "unresolved effect symbol \{to_repr(symbol)}"
+    MissingTypeReference(symbol) => "unresolved type symbol \{Repr(symbol)}"
+    MissingEffectReference(symbol) => "unresolved effect symbol \{Repr(symbol)}"
     MissingTypeDependency(module_path, name) => "type `\{module_path}.\{name}`"
     MissingEffectDependency(module_path, name) =>
       "effect `\{module_path}.\{name}`"

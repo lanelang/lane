@@ -46,11 +46,11 @@ fn loaded_instance(
 ) -> ExecutionInstance raise {
   let loaded = match load(image, registry, mode~) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   match loaded.new_instance() {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
 }
 
@@ -398,7 +398,7 @@ test "host String allocation preserves live heap resource failures" {
       registry,
     ) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = match
     loaded.new_instance(config={
@@ -407,7 +407,7 @@ test "host String allocation preserves live heap resource failures" {
       max_host_objects: None,
     }) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
 }

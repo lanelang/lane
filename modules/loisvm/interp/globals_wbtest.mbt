@@ -114,7 +114,7 @@ test "instance globals clean trivial reference callable and erased roots" {
   let loaded = match
     load(lifecycle_image(lifecycle_entry()), @runtime.RuntimeRegistry::new()) {
     Ok(loaded) => loaded
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = loaded.new_instance()
   assert_eq(instance.execute(), Ok(()))
@@ -131,7 +131,7 @@ test "cleanup-capable entry failures release initialized global roots" {
       @runtime.RuntimeRegistry::new(),
     ) {
     Ok(loaded) => loaded
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = loaded.new_instance()
   assert_eq(
@@ -153,7 +153,7 @@ test "cleanup-capable initializer failures release initialized global roots" {
   image.functions[0] = BytecodeBody(initializer)
   let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
     Ok(loaded) => loaded
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = loaded.new_instance()
   assert_eq(

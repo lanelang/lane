@@ -41,7 +41,7 @@ fn execute_callable_image_in_both_backends(
   let interpreted = match
     @loisvm_interp.load(image, callable_boundary_registry(interpreted_observed)) {
     Ok(value) => value
-    Err(error) => fail("interpreter load failed: \{to_repr(error)}")
+    Err(error) => fail("interpreter load failed: \{Repr(error)}")
   }
   assert_eq(interpreted.new_instance().execute(), Ok(()))
   assert_eq(interpreted_observed, [expected])
@@ -49,11 +49,11 @@ fn execute_callable_image_in_both_backends(
   let wasm = match
     @loisvm_wasm.load(image, callable_boundary_registry(wasm_observed)) {
     Ok(value) => value
-    Err(error) => fail("Wasm load failed: \{to_repr(error)}")
+    Err(error) => fail("Wasm load failed: \{Repr(error)}")
   }
   let instance = match wasm.new_instance() {
     Ok(value) => value
-    Err(error) => fail("Wasm instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("Wasm instantiate failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Ok(()))
   assert_eq(wasm_observed, [expected])
@@ -142,16 +142,16 @@ test "existential lowering executes through Wasm with opened ARC witnesses" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   let loaded = match
     @loisvm_wasm.load(image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("Wasm load failed: \{to_repr(error)}")
+    Err(error) => fail("Wasm load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(value) => value
-    Err(error) => fail("Wasm instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("Wasm instantiate failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Ok(()))
 }
@@ -288,7 +288,7 @@ test "existential callable fields adapt covariant results and contravariant para
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   execute_callable_image_in_both_backends(image, 4L)
 }
@@ -473,7 +473,7 @@ test "existential callable adapters recurse through callable parameters" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   execute_callable_image_in_both_backends(image, 4L)
 }
@@ -679,7 +679,7 @@ test "generic container fields round-trip callable values through erasure" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   execute_callable_image_in_both_backends(image, 4L)
 }
@@ -853,7 +853,7 @@ test "existential callable adapters forward explicit forall witnesses" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   execute_callable_image_in_both_backends(image, 4L)
 }

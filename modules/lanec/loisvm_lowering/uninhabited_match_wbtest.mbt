@@ -46,7 +46,7 @@ test "empty data match lowers to unreachable bytecode" {
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.functions is [BytecodeBody(main_body), RuntimeImport(_)] else {
     fail("expected main bytecode body and one runtime import")

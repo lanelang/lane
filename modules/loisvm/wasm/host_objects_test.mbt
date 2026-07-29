@@ -59,11 +59,11 @@ fn load_wasm_host_instance(
 ) -> ExecutionInstance raise {
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   match loaded.new_instance(config~) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
 }
 

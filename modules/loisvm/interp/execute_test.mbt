@@ -150,7 +150,7 @@ test "interpreter initializer and entry share one runtime context" {
   }
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   debug_inspect(
@@ -198,7 +198,7 @@ test "interpreter execution can be interrupted" {
   }
   let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let polls = [0]
   let instance = loaded.new_instance()
@@ -257,7 +257,7 @@ test "interpreter synthesizes logical Unit runtime arguments" {
   }
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_true(called)
@@ -378,7 +378,7 @@ test "object witnesses load independently from data and environment members" {
   }
   let loaded = match load(image, registry) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
   assert_eq(observed, 2)
@@ -438,7 +438,7 @@ test "non-positive execution limits provide zero budget" {
   }
   let empty_loaded = match load(empty_image, @runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   for limit in [0, -1] {
     let instance = empty_loaded.new_instance(config={
@@ -476,7 +476,7 @@ test "non-positive execution limits provide zero budget" {
   let allocating_loaded = match
     load(allocating_image, @runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   for limit in [0, -1] {
     let instance = allocating_loaded.new_instance(config={

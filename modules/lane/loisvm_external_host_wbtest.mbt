@@ -102,7 +102,7 @@ fn run_external_counter_interpreter(
       external_counter_registry(observed, closed, finalized),
     ) {
     Ok(value) => value
-    Err(error) => fail("LoisVM interpreter load failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM interpreter load failed: \{Repr(error)}")
   }
   let result = loaded.new_instance().execute()
   { result, observed, closed: closed.val, finalized: finalized.val }
@@ -121,11 +121,11 @@ fn run_external_counter_wasm(
       external_counter_registry(observed, closed, finalized),
     ) {
     Ok(value) => value
-    Err(error) => fail("LoisVM Wasm load failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM Wasm load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(value) => value
-    Err(error) => fail("LoisVM Wasm instantiation failed: \{to_repr(error)}")
+    Err(error) => fail("LoisVM Wasm instantiation failed: \{Repr(error)}")
   }
   let result = instance.execute()
   { result, observed, closed: closed.val, finalized: finalized.val }

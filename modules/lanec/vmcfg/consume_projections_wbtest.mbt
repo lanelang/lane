@@ -78,7 +78,7 @@ test "select consuming field projection for returned owned member" {
   )
   let image = match finalize(test_image(body)) {
     Ok(image) => image
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")

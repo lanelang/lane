@@ -2,7 +2,7 @@
 fn single_check_diagnostic(source : String) -> CompilerDiagnostic {
   let result = check_source(source)
   guard result.diagnostics is [diagnostic] else {
-    abort("\{to_repr(result.diagnostics)}")
+    abort("\{Repr(result.diagnostics)}")
   }
   diagnostic
 }
@@ -23,7 +23,7 @@ fn single_check_sources_diagnostic(
 ) -> CompilerDiagnostic {
   let result = check_sources(root_source, library_sources)
   guard result.diagnostics is [diagnostic] else {
-    abort("\{to_repr(result.diagnostics)}")
+    abort("\{Repr(result.diagnostics)}")
   }
   diagnostic
 }
@@ -35,10 +35,10 @@ fn assert_diagnostic_headline(
   message : String,
 ) -> Unit {
   guard diagnostic.code == Some(code) else {
-    abort("unexpected diagnostic: \{to_repr(diagnostic)}")
+    abort("unexpected diagnostic: \{Repr(diagnostic)}")
   }
   guard diagnostic.message == message else {
-    abort("unexpected diagnostic: \{to_repr(diagnostic)}")
+    abort("unexpected diagnostic: \{Repr(diagnostic)}")
   }
 }
 

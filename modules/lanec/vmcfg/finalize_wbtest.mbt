@@ -88,7 +88,7 @@ test "finalize transfers global owners and promotes global borrows" {
       ],
     }) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -138,7 +138,7 @@ test "finalize preserves erased companions for promoted global borrows" {
       ],
     }) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -195,7 +195,7 @@ test "finalize promotes a borrowed call argument to an owner" {
       ],
     }) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -223,7 +223,7 @@ test "finalize releases an owned value left live at return" {
   }
   let image = match finalize(test_image(body)) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -250,7 +250,7 @@ test "finalize transfers an owned return without releasing it" {
   }
   let image = match finalize(test_image(body)) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -282,7 +282,7 @@ test "finalize preserves object witness loads as non-consuming reads" {
   }
   let image = match finalize(test_image(body)) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -328,7 +328,7 @@ test "finalize retains an owned call argument that is used afterward" {
       ],
     }) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -367,7 +367,7 @@ test "finalize inserts path-specific releases for owned values at a branch" {
   }
   let image = match finalize(test_image(body)) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -419,7 +419,7 @@ test "finalize inserts path-specific releases for every switch edge" {
   }
   let image = match finalize(test_image(body)) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -481,7 +481,7 @@ test "finalize threads an owned function input into its using branch" {
   }
   let image = match finalize(test_image(body)) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
@@ -583,7 +583,7 @@ test "finalize promotes a borrowed global before it crosses a branch" {
       ],
     }) {
     Ok(value) => value
-    Err(error) => fail("finalize failed: \{to_repr(error)}")
+    Err(error) => fail("finalize failed: \{Repr(error)}")
   }
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")

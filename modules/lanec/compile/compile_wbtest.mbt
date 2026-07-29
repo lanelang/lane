@@ -17,7 +17,7 @@ fn test_executable_program(
   match @executable.elaborate(program, program.entries[0]) {
     Ok(executable) => executable
     Err(error) =>
-      abort("unexpected executable elaboration error: \{to_repr(error)}")
+      abort("unexpected executable elaboration error: \{Repr(error)}")
   }
 }
 
@@ -1771,7 +1771,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   let linked_artifact = match
     @artifact_binary.executable_to_loisvm_artifact(executable) {
     Ok(artifact) => artifact
-    Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
+    Err(error) => abort("unexpected LoisVM lowering error: \{Repr(error)}")
   }
   let runtime_imports = linked_artifact.bytecode.functions.filter_map(fn(
     function,
@@ -2381,7 +2381,7 @@ test "module artifact binary rejects wrong kind" {
       test_executable_program(program),
     ) {
     Ok(artifact) => artifact
-    Err(error) => abort("unexpected LoisVM lowering error: \{to_repr(error)}")
+    Err(error) => abort("unexpected LoisVM lowering error: \{Repr(error)}")
   }
   let program_binary = @artifact_binary.linked_program_artifact_to_binary(
     artifact,

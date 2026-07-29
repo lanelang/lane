@@ -134,7 +134,7 @@ test "monadic-lift preserves erased effect-kind existentials" {
       introduce_monadic_binds(elaborate_handlers(source)).unwrap(),
     ) {
     Ok(value) => value
-    Err(error) => fail("mon-trans failed: \{to_repr(error)}")
+    Err(error) => fail("mon-trans failed: \{Repr(error)}")
   }
   let lifted = lift_monadic_continuations(
     resolve_open_contexts(transformed).unwrap(),

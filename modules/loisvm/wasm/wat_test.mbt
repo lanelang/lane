@@ -17,7 +17,7 @@ test "generated LoisVM Wasm text parses as WAT" {
   }
   let module_ = match @compiler.compile(image) {
     Ok(module_) => module_
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let wat = @compiler.module_to_wat(module_)
   ignore(@wat.parse(wat)) catch {

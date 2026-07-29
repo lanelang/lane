@@ -75,7 +75,7 @@ test "trivial functions omit frame liveness locals" {
   }
   let wasm_module = match compile(image) {
     Ok(module_) => module_
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   debug_inspect(wasm_module.codes[0].locals, content="[I64, I64, I64]")
 }

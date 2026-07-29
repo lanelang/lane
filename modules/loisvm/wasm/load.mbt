@@ -74,7 +74,7 @@ pub fn load(
       }
       Ok({ wasm_module, imports, backend })
     }
-    Err(error) => Err(BackendCompileFailure(detail=to_repr(error).to_string()))
+    Err(error) => Err(BackendCompileFailure(detail=Repr(error).to_string()))
   }
 }
 

@@ -111,7 +111,7 @@ test "fieldless data construction reuses an immortal image singleton" {
   }
   let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = loaded.new_instance()
   assert_eq(instance.execute(), Ok(()))
@@ -158,7 +158,7 @@ test "engine traps discard the instance without ARC unwinding" {
   }
   let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = loaded.new_instance()
   assert_eq(

@@ -110,7 +110,7 @@ test "linked executable lowers through the LoisVM boundary" {
   }
   let executable = match @executable.elaborate(linked, entry) {
     Ok(executable) => executable
-    Err(error) => fail("elaboration failed: \{to_repr(error)}")
+    Err(error) => fail("elaboration failed: \{Repr(error)}")
   }
   assert_true(
     lower_executable_to_loisvm_bytecode(executable)
@@ -175,11 +175,11 @@ test "linked program roundtrips and inspects instance globals" {
   }
   let executable = match @executable.elaborate(linked, entry) {
     Ok(executable) => executable
-    Err(error) => fail("elaboration failed: \{to_repr(error)}")
+    Err(error) => fail("elaboration failed: \{Repr(error)}")
   }
   let binary = match executable_to_loisvm_binary(executable) {
     Ok(binary) => binary
-    Err(error) => fail("lowering failed: \{to_repr(error)}")
+    Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard parse_loisvm_linked_program_binary(binary) is Ok(image) else {
     fail("linked program did not roundtrip")

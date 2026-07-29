@@ -66,12 +66,12 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
   }
   let loaded = match load(image, registry) {
     Ok(loaded) => loaded
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.wasm_module().globals.length(), 11)
   let instance = match loaded.new_instance() {
     Ok(instance) => instance
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   let heap_base = instance.store
     .get_global(instance.instance.global_addrs[1])
@@ -140,11 +140,11 @@ test "Wasm initializer and entry share one runtime context" {
   }
   let loaded = match load(image, registry) {
     Ok(loaded) => loaded
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(instance) => instance
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Ok(()))
   debug_inspect(
@@ -158,7 +158,7 @@ test "Wasm initializer and entry share one runtime context" {
   )
   let second_instance = match loaded.new_instance() {
     Ok(instance) => instance
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(second_instance.execute(), Ok(()))
   debug_inspect(
@@ -283,11 +283,11 @@ fn wasm_global_instance(
 ) -> ExecutionInstance raise {
   let loaded = match load(image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(loaded) => loaded
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   match loaded.new_instance(config~) {
     Ok(instance) => instance
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
 }
 

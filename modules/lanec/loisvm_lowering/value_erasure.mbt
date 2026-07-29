@@ -9,7 +9,7 @@ fn FunctionLowerer::find_witness(
     }
   }
   raise InvalidTypeApplication(
-    detail="missing in-scope layout witness for \{to_repr(parameter)}",
+    detail="missing in-scope layout witness for \{Repr(parameter)}",
   )
 }
 

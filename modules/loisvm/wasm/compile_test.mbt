@@ -137,7 +137,7 @@ fn edge(
 fn run_entry(body : @bytecode.FunctionBody) -> Unit raise {
   let wasm_module = match compile(image([BytecodeBody(body)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
@@ -161,7 +161,7 @@ test "compiled scalar bytecode executes with Wasmoon" {
   let wasm_module = match
     compile(image([BytecodeBody(entry), BytecodeBody(target)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
@@ -175,7 +175,7 @@ test "compiled tail calls use Wasmoon tail-call support" {
   let wasm_module = match
     compile(image([BytecodeBody(entry), BytecodeBody(target)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_true(contains_return_call(wasm_module.codes[0].body, 1))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
@@ -237,7 +237,7 @@ test "structured CFG executes boolean branches and dense tag switches" {
   }
   let branch_module = match compile(image([BytecodeBody(branch_body)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_false(contains_br_table(branch_module.codes[0].body))
   let (branch_store, branch_instance) = @executor.instantiate_module_with_init(
@@ -282,7 +282,7 @@ test "reducible loops use Wasm loop control" {
   }
   let wasm_module = match compile(image([BytecodeBody(loop_body)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_true(contains_loop(wasm_module.codes[0].body))
   assert_false(contains_br_table(wasm_module.codes[0].body))
@@ -332,7 +332,7 @@ test "nested reducible loops preserve structured branch depths" {
   }
   let wasm_module = match compile(image([BytecodeBody(nested)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_true(contains_loop(wasm_module.codes[0].body))
   assert_false(contains_br_table(wasm_module.codes[0].body))
@@ -367,7 +367,7 @@ test "irreducible CFG uses the dispatcher fallback" {
   }
   let wasm_module = match compile(image([BytecodeBody(irreducible)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_true(contains_br_table(wasm_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
@@ -434,7 +434,7 @@ test "packed callables execute through the canonical function table" {
   let wasm_module = match
     compile(image([BytecodeBody(entry), BytecodeBody(identity)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
@@ -463,7 +463,7 @@ test "packed closure environment and indirect tail call execute" {
   let wasm_module = match
     compile(image([BytecodeBody(entry), BytecodeBody(target)])) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_true(contains_return_call_indirect(wasm_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
@@ -507,7 +507,7 @@ test "static image materializes layout descriptors and immortal strings" {
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_eq(wasm_module.memories[0].limits.min, 1L)
   assert_eq(wasm_module.datas[0].init.length(), 88)
@@ -544,7 +544,7 @@ test "fieldless data construction reuses an immortal static singleton" {
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   let heap_base = store.get_global(instance.global_addrs[1]).get()
@@ -618,7 +618,7 @@ test "dynamic String primitives allocate, copy, compare, and release" {
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
@@ -728,7 +728,7 @@ test "canonical Data and Environment layouts construct and project" {
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   let memory = store.get_mem(instance.mem_addrs[0])
@@ -776,7 +776,7 @@ test "descriptor destructors preserve owners across consuming projection" {
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
@@ -837,7 +837,7 @@ test "Wasm loads an object witness independently from members" {
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
@@ -889,7 +889,7 @@ test "OwnedErased ARC dispatches through its layout witness" {
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
-    Err(error) => fail("compile failed: \{to_repr(error)}")
+    Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
@@ -910,7 +910,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
       @loisvm_runtime.RuntimeRegistry::new(),
     ) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let returning_instance = match
     returning_loaded.new_instance(config={
@@ -919,7 +919,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
       max_host_objects: None,
     }) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(
     returning_instance.execute(),
@@ -932,7 +932,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
       @loisvm_runtime.RuntimeRegistry::new(),
     ) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let tail_instance = match
     tail_loaded.new_instance(config={
@@ -941,7 +941,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
       max_host_objects: None,
     }) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(tail_instance.execute(), Ok(()))
 }
@@ -952,11 +952,11 @@ test "Wasmoon execution can be interrupted at a Wasm safepoint" {
   let loaded = match
     load(image([BytecodeBody(entry)]), @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   let polls = [0]
   assert_eq(
@@ -995,7 +995,7 @@ test "call depth exhaustion releases arguments transferred into the callee" {
   let loaded = match
     load(bytecode_image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = match
     loaded.new_instance(config={
@@ -1004,7 +1004,7 @@ test "call depth exhaustion releases arguments transferred into the callee" {
       max_host_objects: None,
     }) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
   assert_eq(
@@ -1034,7 +1034,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
   let loaded = match
     load(bytecode_image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let limited = match
     loaded.new_instance(config={
@@ -1043,7 +1043,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
       max_host_objects: None,
     }) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(limited.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
   let exact = match
@@ -1053,7 +1053,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
       max_host_objects: None,
     }) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(exact.execute(), Ok(()))
 }
@@ -1083,7 +1083,7 @@ test "live heap exhaustion unwinds owners from the current frame" {
   let loaded = match
     load(bytecode_image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = match
     loaded.new_instance(config={
@@ -1092,7 +1092,7 @@ test "live heap exhaustion unwinds owners from the current frame" {
       max_host_objects: None,
     }) {
     Ok(value) => value
-    Err(error) => fail("instantiate failed: \{to_repr(error)}")
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
   assert_eq(
@@ -1106,7 +1106,7 @@ test "non-positive execution limits provide zero budget" {
   let empty_loaded = match
     load(image([BytecodeBody(body())]), @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   for limit in [0, -1] {
     let instance = match
@@ -1116,7 +1116,7 @@ test "non-positive execution limits provide zero budget" {
         max_host_objects: None,
       }) {
       Ok(value) => value
-      Err(error) => fail("instantiate failed: \{to_repr(error)}")
+      Err(error) => fail("instantiate failed: \{Repr(error)}")
     }
     assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
   }
@@ -1139,7 +1139,7 @@ test "non-positive execution limits provide zero budget" {
   let allocating_loaded = match
     load(allocating_image, @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
-    Err(error) => fail("load failed: \{to_repr(error)}")
+    Err(error) => fail("load failed: \{Repr(error)}")
   }
   for limit in [0, -1] {
     let instance = match
@@ -1149,7 +1149,7 @@ test "non-positive execution limits provide zero budget" {
         max_host_objects: None,
       }) {
       Ok(value) => value
-      Err(error) => fail("instantiate failed: \{to_repr(error)}")
+      Err(error) => fail("instantiate failed: \{Repr(error)}")
     }
     assert_eq(
       instance.execute(),

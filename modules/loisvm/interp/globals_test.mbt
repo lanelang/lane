@@ -84,7 +84,7 @@ test "interpreter reports invalid instance-global initialization" {
     let (image, expected) = case
     let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
       Ok(loaded) => loaded
-      Err(error) => fail("load failed: \{to_repr(error)}")
+      Err(error) => fail("load failed: \{Repr(error)}")
     }
     assert_eq(loaded.new_instance().execute(), Err(expected))
   }

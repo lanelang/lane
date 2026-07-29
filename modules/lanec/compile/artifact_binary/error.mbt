@@ -16,10 +16,10 @@ fn[T] artifact_binary_decode_result(
   decode : () -> T raise,
 ) -> Result[T, String] {
   Ok(decode()) catch {
-    ByteError(error) => Err("invalid artifact binary: \{to_repr(error)}")
-    BuslaneError(error) => Err("invalid Buslane payload: \{to_repr(error)}")
+    ByteError(error) => Err("invalid artifact binary: \{Repr(error)}")
+    BuslaneError(error) => Err("invalid Buslane payload: \{Repr(error)}")
     LoisvmBytecodeError(error) =>
-      Err("invalid LoisVM bytecode payload: \{to_repr(error)}")
+      Err("invalid LoisVM bytecode payload: \{Repr(error)}")
     UnsupportedContainerVersion(version~) =>
       Err("unsupported artifact binary container version \{version}")
     UnsupportedArtifactSchema(kind~, version~) =>
@@ -38,7 +38,7 @@ fn[T] artifact_binary_decode_result(
       Err(
         "wrong artifact binary kind: expected \{artifact_binary_kind_name(expected)}, got \{artifact_binary_kind_name(actual)}",
       )
-    error => Err("invalid artifact binary: \{to_repr(error)}")
+    error => Err("invalid artifact binary: \{Repr(error)}")
   }
 }
 

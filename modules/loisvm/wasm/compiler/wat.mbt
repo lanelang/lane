@@ -569,7 +569,7 @@ fn write_instruction(
     F64ReinterpretI64 => builder.write_string("f64.reinterpret_i64")
     unsupported => {
       builder.write_string("(; unsupported ")
-      builder.write_string(to_repr(unsupported).to_string())
+      builder.write_string(Repr(unsupported).to_string())
       builder.write_string(" ;)")
     }
   }
