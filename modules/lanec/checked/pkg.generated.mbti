@@ -21,10 +21,39 @@ pub(all) struct CheckedCallArgument {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) struct CheckedDeriveAbi {
+  deriver : @symbol.TypeSymbolId
+  deriver_unit : @symbol.FieldSymbolId
+  deriver_product : @symbol.FieldSymbolId
+  deriver_void : @symbol.FieldSymbolId
+  deriver_sum : @symbol.FieldSymbolId
+  deriver_field : @symbol.FieldSymbolId
+  deriver_variant : @symbol.FieldSymbolId
+  deriver_record : @symbol.FieldSymbolId
+  deriver_enumeration : @symbol.FieldSymbolId
+  product : @symbol.TypeSymbolId
+  product_head : @symbol.FieldSymbolId
+  product_tail : @symbol.FieldSymbolId
+  sum : @symbol.TypeSymbolId
+  sum_here : @symbol.VariantSymbolId
+  sum_there : @symbol.VariantSymbolId
+  iso : @symbol.TypeSymbolId
+  type_info : @symbol.TypeSymbolId
+  field_info : @symbol.TypeSymbolId
+  variant_info : @symbol.TypeSymbolId
+  void_type : @symbol.TypeSymbolId
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedDeriveEvidence {
   path : String
   required_type : @types.Type
   value : CheckedExpr
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CheckedDeriveField {
+  symbol : @symbol.FieldSymbolId
+  name : String
+  type_ : @types.Type
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedDeriveMetadata {
@@ -36,11 +65,22 @@ pub(all) struct CheckedDerivePlan {
   capability : @types.Type
   target : @types.Type
   representation : @types.Type
+  abi : CheckedDeriveAbi
+  shape : CheckedDeriveShape
   deriver : CheckedExpr
   evidence : Array[CheckedDeriveEvidence]
   metadata : CheckedDeriveMetadata
-  iso : CheckedExpr
-  expansion : CheckedExpr
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CheckedDeriveShape {
+  Record(fields~ : Array[CheckedDeriveField])
+  Enumeration(variants~ : Array[CheckedDeriveVariant])
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CheckedDeriveVariant {
+  symbol : @symbol.VariantSymbolId
+  name : String
+  payload : Array[@types.Type]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedDoubleLiteral {

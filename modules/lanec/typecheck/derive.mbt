@@ -23,7 +23,6 @@ priv struct StructuralDeriveVariant {
 priv enum StructuralDeriveTarget {
   RecordTarget(
     declaration~ : CheckedStructDeclaration,
-    arguments~ : Array[@types.GenericArgument],
     fields~ : Array[StructuralDeriveField],
     representation~ : @types.Type,
     metadata~ : @checked.CheckedDeriveMetadata
@@ -108,11 +107,7 @@ fn SemanticChecker::synthesize_checked_derive(
     )
   }
   let representation = target_plan.representation()
-  let iso = self.build_structural_derive_iso(abi, target, target_plan, loc)
   let result_type = apply_unary_type_constructor(capability, target)
-  let expansion = self.build_structural_derive_expansion(
-    abi, capability, target, target_plan, deriver, evidence, iso, result_type, loc,
-  )
   let metadata = target_plan.metadata()
   checked_expression_with_effect(
     Derive(
@@ -120,11 +115,11 @@ fn SemanticChecker::synthesize_checked_derive(
         capability,
         target,
         representation,
+        abi: abi.checked(),
+        shape: target_plan.checked_shape(),
         deriver,
         evidence,
         metadata,
-        iso,
-        expansion,
       },
       type_=result_type,
       loc~,
@@ -233,7 +228,6 @@ fn SemanticChecker::structural_derive_target(
     return Some(
       RecordTarget(
         declaration~,
-        arguments~,
         fields~,
         representation=product_representation_type(
           abi,
@@ -365,6 +359,30 @@ fn StructuralDeriveTarget::metadata(
 ) -> @checked.CheckedDeriveMetadata {
   match self {
     RecordTarget(metadata~, ..) | EnumerationTarget(metadata~, ..) => metadata
+  }
+}
+
+///|
+fn StructuralDeriveTarget::checked_shape(
+  self : StructuralDeriveTarget,
+) -> @checked.CheckedDeriveShape {
+  match self {
+    RecordTarget(fields~, ..) =>
+      Record(
+        fields=fields.map(fn(field) {
+          { symbol: field.symbol, name: field.name, type_: field.type_ }
+        }),
+      )
+    EnumerationTarget(variants~, ..) =>
+      Enumeration(
+        variants=variants.map(fn(variant) {
+          {
+            symbol: variant.symbol,
+            name: variant.name,
+            payload: variant.payload,
+          }
+        }),
+      )
   }
 }
 

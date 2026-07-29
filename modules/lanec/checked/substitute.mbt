@@ -178,6 +178,8 @@ fn CheckedDerivePlan::substitute(
     capability: self.capability.substitute(substitution),
     target: self.target.substitute(substitution),
     representation: self.representation.substitute(substitution),
+    abi: self.abi,
+    shape: self.shape.substitute(substitution),
     deriver: self.deriver.substitute(substitution),
     evidence: self.evidence.map(fn(evidence) {
       {
@@ -187,8 +189,32 @@ fn CheckedDerivePlan::substitute(
       }
     }),
     metadata: self.metadata,
-    iso: self.iso.substitute(substitution),
-    expansion: self.expansion.substitute(substitution),
+  }
+}
+
+///|
+fn CheckedDeriveShape::substitute(
+  self : CheckedDeriveShape,
+  substitution : @types.TypeSubstitution,
+) -> CheckedDeriveShape {
+  match self {
+    Record(fields~) =>
+      Record(
+        fields=fields.map(fn(field) {
+          { ..field, type_: field.type_.substitute(substitution) }
+        }),
+      )
+    Enumeration(variants~) =>
+      Enumeration(
+        variants=variants.map(fn(variant) {
+          {
+            ..variant,
+            payload: variant.payload.map(fn(type_) {
+              type_.substitute(substitution)
+            }),
+          }
+        }),
+      )
   }
 }
 

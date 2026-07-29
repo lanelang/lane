@@ -10,9 +10,9 @@ test "checked derive preserves traversal substitution and value-use contracts" {
     location,
   )
   let result_symbol = registry.define_value("derived", TopLevelValue, location)
-  let generated_symbol = registry.define_generated_local(
-    "_derive_expansion", location,
-  )
+  let abi_type = registry.define_type("Abi", Struct, 0, location)
+  let abi_field = registry.define_field(abi_type, "field", 0, location)
+  let abi_variant = registry.define_variant(abi_type, "variant", 0, 0, location)
   let parameter_type = @types.Type::Parameter(parameter)
   let deriver = CheckedExpr::Value(
     name="deriver",
@@ -26,29 +26,42 @@ test "checked derive preserves traversal substitution and value-use contracts" {
     type_=parameter_type,
     loc=location,
   )
-  let iso = CheckedExpr::Literal(
-    literal=Unit,
-    type_=Primitive(Unit),
-    loc=location,
-  )
-  let expansion = CheckedExpr::Value(
-    name="_derive_expansion",
-    symbol=generated_symbol,
-    type_=parameter_type,
-    loc=location,
-  )
+  let abi : CheckedDeriveAbi = {
+    deriver: abi_type,
+    deriver_unit: abi_field,
+    deriver_product: abi_field,
+    deriver_void: abi_field,
+    deriver_sum: abi_field,
+    deriver_field: abi_field,
+    deriver_variant: abi_field,
+    deriver_record: abi_field,
+    deriver_enumeration: abi_field,
+    product: abi_type,
+    product_head: abi_field,
+    product_tail: abi_field,
+    sum: abi_type,
+    sum_here: abi_variant,
+    sum_there: abi_variant,
+    iso: abi_type,
+    type_info: abi_type,
+    field_info: abi_type,
+    variant_info: abi_type,
+    void_type: abi_type,
+  }
   let expression = CheckedExpr::Derive(
     plan={
       capability: parameter_type,
       target: parameter_type,
       representation: parameter_type,
+      abi,
+      shape: Record(fields=[
+        { symbol: abi_field, name: "value", type_: parameter_type },
+      ]),
       deriver,
       evidence: [
         { path: "Item.value", required_type: parameter_type, value: evidence },
       ],
       metadata: { name: "Item", qualified_name: "Test.Item" },
-      iso,
-      expansion,
     },
     type_=parameter_type,
     loc=location,
@@ -66,6 +79,10 @@ test "checked derive preserves traversal substitution and value-use contracts" {
         capability: Primitive(Int),
         target: Primitive(Int),
         representation: Primitive(Int),
+        abi,
+        shape: Record(fields=[
+          { symbol: abi_field, name: "value", type_: Primitive(Int) },
+        ]),
         deriver: Value(
           name="deriver",
           symbol=deriver_symbol,
@@ -85,13 +102,6 @@ test "checked derive preserves traversal substitution and value-use contracts" {
           },
         ],
         metadata: { name: "Item", qualified_name: "Test.Item" },
-        iso,
-        expansion: Value(
-          name="_derive_expansion",
-          symbol=generated_symbol,
-          type_=Primitive(Int),
-          loc=location,
-        ),
       },
       type_=Primitive(Int),
       loc=location,

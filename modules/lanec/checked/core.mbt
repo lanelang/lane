@@ -201,15 +201,59 @@ pub(all) struct CheckedDeriveMetadata {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CheckedDeriveAbi {
+  deriver : TypeSymbolId
+  deriver_unit : FieldSymbolId
+  deriver_product : FieldSymbolId
+  deriver_void : FieldSymbolId
+  deriver_sum : FieldSymbolId
+  deriver_field : FieldSymbolId
+  deriver_variant : FieldSymbolId
+  deriver_record : FieldSymbolId
+  deriver_enumeration : FieldSymbolId
+  product : TypeSymbolId
+  product_head : FieldSymbolId
+  product_tail : FieldSymbolId
+  sum : TypeSymbolId
+  sum_here : VariantSymbolId
+  sum_there : VariantSymbolId
+  iso : TypeSymbolId
+  type_info : TypeSymbolId
+  field_info : TypeSymbolId
+  variant_info : TypeSymbolId
+  void_type : TypeSymbolId
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDeriveField {
+  symbol : FieldSymbolId
+  name : String
+  type_ : @types.Type
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDeriveVariant {
+  symbol : VariantSymbolId
+  name : String
+  payload : Array[@types.Type]
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CheckedDeriveShape {
+  Record(fields~ : Array[CheckedDeriveField])
+  Enumeration(variants~ : Array[CheckedDeriveVariant])
+} derive(Debug, Eq)
+
+///|
 pub(all) struct CheckedDerivePlan {
   capability : @types.Type
   target : @types.Type
   representation : @types.Type
+  abi : CheckedDeriveAbi
+  shape : CheckedDeriveShape
   deriver : CheckedExpr
   evidence : Array[CheckedDeriveEvidence]
   metadata : CheckedDeriveMetadata
-  iso : CheckedExpr
-  expansion : CheckedExpr
 } derive(Debug, Eq)
 
 ///|

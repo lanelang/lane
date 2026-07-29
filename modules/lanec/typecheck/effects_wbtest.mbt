@@ -433,7 +433,19 @@ fn find_first_handler_resume_callee_type(
       } nobreak {
         None
       }
-    Derive(plan~, ..) => find_first_handler_resume_callee_type(plan.expansion)
+    Derive(plan~, ..) =>
+      match find_first_handler_resume_callee_type(plan.deriver) {
+        Some(type_) => Some(type_)
+        None =>
+          for evidence in plan.evidence {
+            if find_first_handler_resume_callee_type(evidence.value)
+              is Some(type_) {
+              return Some(type_)
+            }
+          } nobreak {
+            None
+          }
+      }
     Call(callee~, arguments~, ..) => {
       if callee is Value(type_~, ..) {
         return Some(type_)

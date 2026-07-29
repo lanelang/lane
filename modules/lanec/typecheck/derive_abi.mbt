@@ -192,6 +192,34 @@ fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
 }
 
 ///|
+fn StructuralDeriveAbi::checked(
+  self : StructuralDeriveAbi,
+) -> @checked.CheckedDeriveAbi {
+  {
+    deriver: self.deriver.symbol,
+    deriver_unit: self.deriver.required_field("unit").symbol,
+    deriver_product: self.deriver.required_field("product").symbol,
+    deriver_void: self.deriver.required_field("void").symbol,
+    deriver_sum: self.deriver.required_field("sum").symbol,
+    deriver_field: self.deriver.required_field("field").symbol,
+    deriver_variant: self.deriver.required_field("variant").symbol,
+    deriver_record: self.deriver.required_field("record").symbol,
+    deriver_enumeration: self.deriver.required_field("enumeration").symbol,
+    product: self.product.symbol,
+    product_head: self.product.required_field("head").symbol,
+    product_tail: self.product.required_field("tail").symbol,
+    sum: self.sum.symbol,
+    sum_here: self.sum.required_variant("here").symbol,
+    sum_there: self.sum.required_variant("there").symbol,
+    iso: self.iso.symbol,
+    type_info: self.type_info.symbol,
+    field_info: self.field_info.symbol,
+    variant_info: self.variant_info.symbol,
+    void_type: self.void_declaration.symbol,
+  }
+}
+
+///|
 fn StructuralDeriveAbi::validate_deriver(self : StructuralDeriveAbi) -> String? {
   guard self.deriver.type_parameters is [capability] &&
     capability.kind == Function([Type], Type) else {

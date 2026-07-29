@@ -344,7 +344,7 @@ derive_equal.record(
 )
 ```
 
-The checked derive plan records the selected capability, normalized target, deriver operand, canonical representation, component evidence, metadata, and generated `Iso`. Lowering before Buslane translates the plan into ordinary struct and enum construction, pattern matching, field access, closures, and function calls.
+The checked derive plan records the selected capability, normalized target, validated canonical ABI identities, declaration shape, deriver operand, canonical representation, component evidence, and metadata. It contains the complete typed recipe for constructing the generated `Iso`, but no generated expression tree. Lowering before Buslane translates that recipe into ordinary struct and enum construction, pattern matching, field access, closures, and function calls.
 
 ## Evaluation
 

@@ -331,7 +331,18 @@ fn first_checked_handler_expr_for_elaborate_test(
   match expression {
     Handler(handlers~, type_~, ..) => Some((handlers, type_))
     Derive(plan~, ..) =>
-      first_checked_handler_expr_for_elaborate_test(plan.expansion)
+      match first_checked_handler_expr_for_elaborate_test(plan.deriver) {
+        Some(handler) => Some(handler)
+        None =>
+          for evidence in plan.evidence {
+            if first_checked_handler_expr_for_elaborate_test(evidence.value)
+              is Some(handler) {
+              return Some(handler)
+            }
+          } nobreak {
+            None
+          }
+      }
     Block(items~, result~, ..) => {
       for item in items {
         match item {

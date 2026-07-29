@@ -30,7 +30,7 @@ fn BuslaneLowerer::lower_expr(
         self.lower_expr(callee),
         arguments.map(fn(argument) { self.lower_generic_argument(argument) }),
       )
-    Derive(plan~, ..) => self.lower_expr(plan.expansion)
+    Derive(plan~, ..) => self.lower_derive(plan)
     Block(items~, result~, ..) => self.lower_items(items, 0, result)
     If(condition~, then_branch~, else_branch~, type_~, ..) =>
       self.lower_if(condition, then_branch, else_branch, type_)
