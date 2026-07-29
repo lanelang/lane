@@ -436,15 +436,17 @@ fn find_first_handler_resume_callee_type(
     Derive(plan~, ..) =>
       match find_first_handler_resume_callee_type(plan.deriver) {
         Some(type_) => Some(type_)
-        None =>
-          for evidence in plan.evidence {
-            if find_first_handler_resume_callee_type(evidence.value)
+        None => {
+          let mut found = None
+          plan.shape.for_each_evidence(fn(evidence) {
+            if found is None &&
+              find_first_handler_resume_callee_type(evidence.value)
               is Some(type_) {
-              return Some(type_)
+              found = Some(type_)
             }
-          } nobreak {
-            None
-          }
+          })
+          found
+        }
       }
     Call(callee~, arguments~, ..) => {
       if callee is Value(type_~, ..) {

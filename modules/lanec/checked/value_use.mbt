@@ -281,9 +281,9 @@ fn CheckedValueUseCollector::collect_expr(
     GenericApplication(callee~, ..) => self.collect_expr(callee, current_origin)
     Derive(plan~, ..) => {
       self.collect_expr(plan.deriver, current_origin)
-      for evidence in plan.evidence {
+      plan.shape.for_each_evidence(fn(evidence) {
         self.collect_expr(evidence.value, current_origin)
-      }
+      })
     }
     Block(items~, result~, ..) => {
       for item in items {

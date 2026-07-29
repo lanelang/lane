@@ -235,6 +235,7 @@ pub(all) struct CheckedDeriveProductStep[A] {
   head : A
   head_type : @types.Type
   tail_type : @types.Type
+  evidence : CheckedDeriveEvidence
 } derive(Debug, Eq)
 
 ///|
@@ -275,7 +276,6 @@ pub(all) struct CheckedDerivePlan {
   abi : CheckedDeriveAbi
   shape : CheckedDeriveShape
   deriver : CheckedExpr
-  evidence : Array[CheckedDeriveEvidence]
   metadata : CheckedDeriveMetadata
 } derive(Debug, Eq)
 

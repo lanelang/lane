@@ -271,8 +271,10 @@ test "derive uses a contextual deriver without importing its canonical module" {
     if declaration is Let(declaration) &&
       declaration.name == "choice_box" &&
       declaration.initializer is Derive(plan~, ..) {
+      let paths = []
+      plan.shape.for_each_evidence(fn(evidence) { paths.push(evidence.path) })
       debug_inspect(
-        plan.evidence.map(fn(evidence) { evidence.path }),
+        paths,
         content=(
           #|["Choice.one[0]", "Choice.pair[0]", "Choice.pair[1]"]
         ),

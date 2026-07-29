@@ -14,9 +14,7 @@ pub fn CheckedExpr::for_each_child_expr(
     GenericApplication(callee~, ..) => visit(callee)
     Derive(plan~, ..) => {
       visit(plan.deriver)
-      for evidence in plan.evidence {
-        visit(evidence.value)
-      }
+      plan.shape.for_each_evidence(fn(evidence) { visit(evidence.value) })
     }
     Block(items~, result~, ..) => {
       for item in items {

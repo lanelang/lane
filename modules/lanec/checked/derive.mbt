@@ -1,7 +1,7 @@
 ///|
 pub fn[A] CheckedDeriveProduct::make(
   type_constructor : TypeSymbolId,
-  components : Array[(A, @types.Type)],
+  components : Array[(A, @types.Type, CheckedDeriveEvidence)],
 ) -> CheckedDeriveProduct[A] {
   let suffixes = Array::make(
     components.length() + 1,
@@ -20,6 +20,7 @@ pub fn[A] CheckedDeriveProduct::make(
         head: component.0,
         head_type: component.1,
         tail_type: suffixes[index + 1],
+        evidence: component.2,
       }
     }),
   }
@@ -56,5 +57,24 @@ pub fn CheckedDeriveShape::representation(
   match self {
     Record(product~) => product.representation
     Enumeration(sum~) => sum.representation
+  }
+}
+
+///|
+pub fn CheckedDeriveShape::for_each_evidence(
+  self : CheckedDeriveShape,
+  visit : (CheckedDeriveEvidence) -> Unit,
+) -> Unit {
+  match self {
+    Record(product~) =>
+      for step in product.steps {
+        visit(step.evidence)
+      }
+    Enumeration(sum~) =>
+      for sum_step in sum.steps {
+        for payload_step in sum_step.head.payload.steps {
+          visit(payload_step.evidence)
+        }
+      }
   }
 }

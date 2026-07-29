@@ -42,7 +42,7 @@ fn BuslaneLowerer::lower_record_derive(
       [TypeArgument(step.head_type)],
       [
         self.lower_derive_metadata(plan.abi.field_info, [field.name]),
-        self.lower_derive_evidence(plan.evidence, index),
+        self.lower_expr(step.evidence.value),
       ],
     )
     derived = self.lower_derive_method_call(
@@ -69,12 +69,6 @@ fn BuslaneLowerer::lower_enumeration_derive(
   deriver : @buslane.ValueId,
   sum : @checked.CheckedDeriveSum,
 ) -> @buslane.Expr {
-  let evidence_offsets = []
-  let mut evidence_offset = 0
-  for step in sum.steps {
-    evidence_offsets.push(evidence_offset)
-    evidence_offset += step.head.payload.steps.length()
-  }
   let mut derived = self.lower_derive_method_call(
     plan,
     deriver,
@@ -106,13 +100,7 @@ fn BuslaneLowerer::lower_enumeration_derive(
           TypeArgument(payload_step.head_type),
           TypeArgument(payload_step.tail_type),
         ],
-        [
-          self.lower_derive_evidence(
-            plan.evidence,
-            evidence_offsets[variant_index] + payload_index,
-          ),
-          payload_derived,
-        ],
+        [self.lower_expr(payload_step.evidence.value), payload_derived],
       )
     }
     let variant_derived = self.lower_derive_method_call(
@@ -168,18 +156,6 @@ fn BuslaneLowerer::lower_derive_method_call(
     )
   }
   Call(callee, arguments)
-}
-
-///|
-fn BuslaneLowerer::lower_derive_evidence(
-  self : BuslaneLowerer,
-  evidence : Array[@checked.CheckedDeriveEvidence],
-  index : Int,
-) -> @buslane.Expr {
-  guard evidence.get(index) is Some(value) else {
-    abort("checked structural derivation evidence is incomplete")
-  }
-  self.lower_expr(value.value)
 }
 
 ///|

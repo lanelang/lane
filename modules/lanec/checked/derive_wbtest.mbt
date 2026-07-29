@@ -26,6 +26,11 @@ test "checked derive preserves traversal substitution and value-use contracts" {
     type_=parameter_type,
     loc=location,
   )
+  let checked_evidence : CheckedDeriveEvidence = {
+    path: "Item.value",
+    required_type: parameter_type,
+    value: evidence,
+  }
   let field : CheckedDeriveField = { symbol: abi_field, name: "value" }
   let abi : CheckedDeriveAbi = {
     deriver: abi_type,
@@ -55,12 +60,11 @@ test "checked derive preserves traversal substitution and value-use contracts" {
       target: parameter_type,
       abi,
       shape: Record(
-        product=CheckedDeriveProduct::make(abi_type, [(field, parameter_type)]),
+        product=CheckedDeriveProduct::make(abi_type, [
+          (field, parameter_type, checked_evidence),
+        ]),
       ),
       deriver,
-      evidence: [
-        { path: "Item.value", required_type: parameter_type, value: evidence },
-      ],
       metadata: { name: "Item", qualified_name: "Test.Item" },
     },
     type_=parameter_type,
@@ -80,7 +84,22 @@ test "checked derive preserves traversal substitution and value-use contracts" {
         target: Primitive(Int),
         abi,
         shape: Record(
-          product=CheckedDeriveProduct::make(abi_type, [(field, Primitive(Int))]),
+          product=CheckedDeriveProduct::make(abi_type, [
+            (
+              field,
+              Primitive(Int),
+              {
+                path: "Item.value",
+                required_type: Primitive(Int),
+                value: Value(
+                  name="evidence",
+                  symbol=evidence_symbol,
+                  type_=Primitive(Int),
+                  loc=location,
+                ),
+              },
+            ),
+          ]),
         ),
         deriver: Value(
           name="deriver",
@@ -88,18 +107,6 @@ test "checked derive preserves traversal substitution and value-use contracts" {
           type_=Primitive(Int),
           loc=location,
         ),
-        evidence: [
-          {
-            path: "Item.value",
-            required_type: Primitive(Int),
-            value: Value(
-              name="evidence",
-              symbol=evidence_symbol,
-              type_=Primitive(Int),
-              loc=location,
-            ),
-          },
-        ],
         metadata: { name: "Item", qualified_name: "Test.Item" },
       },
       type_=Primitive(Int),
@@ -143,9 +150,16 @@ test "checked derive recipe owns right-nested product and sum representations" {
   let second = registry.define_field(product, "second", 1, location)
   let variant = registry.define_variant(sum, "variant", 0, 0, location)
   let empty_variant = registry.define_variant(sum, "empty", 1, 0, location)
+  let evidence_for = fn(path : String, type_ : @types.Type) {
+    CheckedDeriveEvidence::{
+      path,
+      required_type: type_,
+      value: ErrorRecovery(type_~, loc=location),
+    }
+  }
   let payload = CheckedDeriveProduct::make(product, [
-    ((), Primitive(Int)),
-    ((), Primitive(Bool)),
+    ((), Primitive(Int), evidence_for("item[0]", Primitive(Int))),
+    ((), Primitive(Bool), evidence_for("item[1]", Primitive(Bool))),
   ])
   let checked_sum = CheckedDeriveSum::make(sum, void_type, [
     { symbol: variant, name: "item", payload },
@@ -158,8 +172,16 @@ test "checked derive recipe owns right-nested product and sum representations" {
   debug_inspect(
     (
       CheckedDeriveProduct::make(product, [
-        (CheckedDeriveField::{ symbol: first, name: "first" }, Primitive(Int)),
-        ({ symbol: second, name: "second" }, Primitive(Bool)),
+        (
+          CheckedDeriveField::{ symbol: first, name: "first" },
+          Primitive(Int),
+          evidence_for("first", Primitive(Int)),
+        ),
+        (
+          { symbol: second, name: "second" },
+          Primitive(Bool),
+          evidence_for("second", Primitive(Bool)),
+        ),
       ]),
       checked_sum,
     ),
@@ -186,11 +208,41 @@ test "checked derive recipe owns right-nested product and sum representations" {
       #|          Constructor({ index: 0 }),
       #|          [TypeArgument(Primitive(Bool)), TypeArgument(Primitive(Unit))],
       #|        ),
+      #|        evidence: {
+      #|          path: "first",
+      #|          required_type: Primitive(Int),
+      #|          value: ErrorRecovery(
+      #|            type_=Primitive(Int),
+      #|            loc={
+      #|              start_offset: 0,
+      #|              end_offset: 0,
+      #|              start_line: 1,
+      #|              start_column: 1,
+      #|              end_line: 1,
+      #|              end_column: 1,
+      #|            },
+      #|          ),
+      #|        },
       #|      },
       #|      {
       #|        head: { symbol: { index: 1 }, name: "second" },
       #|        head_type: Primitive(Bool),
       #|        tail_type: Primitive(Unit),
+      #|        evidence: {
+      #|          path: "second",
+      #|          required_type: Primitive(Bool),
+      #|          value: ErrorRecovery(
+      #|            type_=Primitive(Bool),
+      #|            loc={
+      #|              start_offset: 0,
+      #|              end_offset: 0,
+      #|              start_line: 1,
+      #|              start_column: 1,
+      #|              end_line: 1,
+      #|              end_column: 1,
+      #|            },
+      #|          ),
+      #|        },
       #|      },
       #|    ],
       #|  },
@@ -249,8 +301,42 @@ test "checked derive recipe owns right-nested product and sum representations" {
       #|                  Constructor({ index: 0 }),
       #|                  [TypeArgument(Primitive(Bool)), TypeArgument(Primitive(Unit))],
       #|                ),
+      #|                evidence: {
+      #|                  path: "item[0]",
+      #|                  required_type: Primitive(Int),
+      #|                  value: ErrorRecovery(
+      #|                    type_=Primitive(Int),
+      #|                    loc={
+      #|                      start_offset: 0,
+      #|                      end_offset: 0,
+      #|                      start_line: 1,
+      #|                      start_column: 1,
+      #|                      end_line: 1,
+      #|                      end_column: 1,
+      #|                    },
+      #|                  ),
+      #|                },
       #|              },
-      #|              { head: (), head_type: Primitive(Bool), tail_type: Primitive(Unit) },
+      #|              {
+      #|                head: (),
+      #|                head_type: Primitive(Bool),
+      #|                tail_type: Primitive(Unit),
+      #|                evidence: {
+      #|                  path: "item[1]",
+      #|                  required_type: Primitive(Bool),
+      #|                  value: ErrorRecovery(
+      #|                    type_=Primitive(Bool),
+      #|                    loc={
+      #|                      start_offset: 0,
+      #|                      end_offset: 0,
+      #|                      start_line: 1,
+      #|                      start_column: 1,
+      #|                      end_line: 1,
+      #|                      end_column: 1,
+      #|                    },
+      #|                  ),
+      #|                },
+      #|              },
       #|            ],
       #|          },
       #|        },

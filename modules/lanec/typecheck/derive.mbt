@@ -1,33 +1,37 @@
 ///|
 priv struct StructuralDeriveComponent {
-  index : Int
   path : String
   type_ : @types.Type
+  mut evidence : @checked.CheckedDeriveEvidence?
 }
 
 ///|
 priv struct StructuralDeriveField {
   symbol : FieldSymbolId
   name : String
-  type_ : @types.Type
+  component : StructuralDeriveComponent
 }
 
 ///|
 priv struct StructuralDeriveVariant {
   symbol : VariantSymbolId
   name : String
-  payload : Array[@types.Type]
+  payload : Array[StructuralDeriveComponent]
+}
+
+///|
+priv struct StructuralDeriveEvidenceRequirement {
+  component : StructuralDeriveComponent
+  required_type : @types.Type
 }
 
 ///|
 priv enum StructuralDeriveTarget {
   RecordTarget(
-    declaration~ : CheckedStructDeclaration,
     fields~ : Array[StructuralDeriveField],
     metadata~ : @checked.CheckedDeriveMetadata
   )
   EnumerationTarget(
-    declaration~ : CheckedEnumDeclaration,
     variants~ : Array[StructuralDeriveVariant],
     metadata~ : @checked.CheckedDeriveMetadata
   )
@@ -97,17 +101,27 @@ fn SemanticChecker::synthesize_checked_derive(
       deriver_synthesis, loc, "structural derivation deriver",
     )
     is Some(deriver) &&
-    evidence_result is Some(evidence) else {
+    evidence_result is Some(_) else {
     return checked_expression_none_reported(
       apply_unary_type_constructor(capability, target),
     )
   }
-  let shape = target_plan.checked_shape(abi)
+  guard target_plan.checked_shape(abi) is Some(shape) else {
+    self.diagnostics.push({
+      kind: InternalTypecheckFailure(
+        label="complete structural derivation evidence was not attached to its component",
+      ),
+      loc,
+    })
+    return checked_expression_none_reported(
+      apply_unary_type_constructor(capability, target),
+    )
+  }
   let result_type = apply_unary_type_constructor(capability, target)
   let metadata = target_plan.metadata()
   checked_expression_with_effect(
     Derive(
-      plan={ capability, target, abi, shape, deriver, evidence, metadata },
+      plan={ capability, target, abi, shape, deriver, metadata },
       type_=result_type,
       loc~,
     ),
@@ -204,14 +218,18 @@ fn SemanticChecker::structural_derive_target(
       StructuralDeriveField::{
         symbol: field.symbol,
         name: field.name,
-        type_: field.type_.substitute(substitution),
+        component: {
+          path: declaration.name + "." + field.name,
+          type_: field.type_.substitute(substitution),
+          evidence: None,
+        },
       }
     })
     guard self.structural_derive_metadata(symbol, declaration.name, loc)
       is Some(metadata) else {
       return None
     }
-    return Some(RecordTarget(declaration~, fields~, metadata~))
+    return Some(RecordTarget(fields~, metadata~))
   }
   if self.declarations.checked_enum(symbol) is Some(declaration) {
     if declaration.variants.any(fn(variant) {
@@ -227,14 +245,28 @@ fn SemanticChecker::structural_derive_target(
       StructuralDeriveVariant::{
         symbol: variant.symbol,
         name: variant.name,
-        payload: variant_payload_types(declaration, variant, arguments),
+        payload: variant_payload_types(declaration, variant, arguments).mapi(fn(
+          index,
+          type_,
+        ) {
+          {
+            path: declaration.name +
+            "." +
+            variant.name +
+            "[" +
+            index.to_string() +
+            "]",
+            type_,
+            evidence: None,
+          }
+        }),
       }
     })
     guard self.structural_derive_metadata(symbol, declaration.name, loc)
       is Some(metadata) else {
       return None
     }
-    return Some(EnumerationTarget(declaration~, variants~, metadata~))
+    return Some(EnumerationTarget(variants~, metadata~))
   }
   self.report_unrepresentable_derive_target(
     target, "the normalized nominal declaration is neither a struct nor an enum",
@@ -325,34 +357,53 @@ fn StructuralDeriveTarget::metadata(
 fn StructuralDeriveTarget::checked_shape(
   self : StructuralDeriveTarget,
   abi : @checked.CheckedDeriveAbi,
-) -> @checked.CheckedDeriveShape {
+) -> @checked.CheckedDeriveShape? {
   match self {
-    RecordTarget(fields~, ..) =>
-      Record(
-        product=@checked.CheckedDeriveProduct::make(
-          abi.product,
-          fields.map(fn(field) {
-            ({ symbol: field.symbol, name: field.name }, field.type_)
-          }),
+    RecordTarget(fields~, ..) => {
+      let components = []
+      for field in fields {
+        guard field.component.evidence is Some(evidence) else { return None }
+        components.push(
+          (
+            @checked.CheckedDeriveField::{
+              symbol: field.symbol,
+              name: field.name,
+            },
+            field.component.type_,
+            evidence,
+          ),
+        )
+      }
+      Some(
+        Record(
+          product=@checked.CheckedDeriveProduct::make(abi.product, components),
         ),
       )
-    EnumerationTarget(variants~, ..) =>
-      Enumeration(
-        sum=@checked.CheckedDeriveSum::make(
-          abi.sum,
-          abi.void_type,
-          variants.map(fn(variant) {
-            {
-              symbol: variant.symbol,
-              name: variant.name,
-              payload: @checked.CheckedDeriveProduct::make(
-                abi.product,
-                variant.payload.map(fn(type_) { ((), type_) }),
-              ),
-            }
-          }),
+    }
+    EnumerationTarget(variants~, ..) => {
+      let checked_variants = []
+      for variant in variants {
+        let payload = []
+        for component in variant.payload {
+          guard component.evidence is Some(evidence) else { return None }
+          payload.push(((), component.type_, evidence))
+        }
+        checked_variants.push(@checked.CheckedDeriveVariant::{
+          symbol: variant.symbol,
+          name: variant.name,
+          payload: @checked.CheckedDeriveProduct::make(abi.product, payload),
+        })
+      }
+      Some(
+        Enumeration(
+          sum=@checked.CheckedDeriveSum::make(
+            abi.sum,
+            abi.void_type,
+            checked_variants,
+          ),
         ),
       )
+    }
   }
 }
 
@@ -361,24 +412,12 @@ fn StructuralDeriveTarget::components(
   self : StructuralDeriveTarget,
 ) -> Array[StructuralDeriveComponent] {
   match self {
-    RecordTarget(declaration~, fields~, ..) =>
-      fields.mapi(fn(index, field) {
-        { index, path: declaration.name + "." + field.name, type_: field.type_ }
-      })
-    EnumerationTarget(declaration~, variants~, ..) => {
+    RecordTarget(fields~, ..) => fields.map(fn(field) { field.component })
+    EnumerationTarget(variants~, ..) => {
       let components = []
       for variant in variants {
-        for index in 0..<variant.payload.length() {
-          components.push({
-            index: components.length(),
-            path: declaration.name +
-            "." +
-            variant.name +
-            "[" +
-            index.to_string() +
-            "]",
-            type_: variant.payload[index],
-          })
+        for component in variant.payload {
+          components.push(component)
         }
       }
       components
@@ -393,8 +432,8 @@ fn SemanticChecker::checked_derive_evidence(
   capability : @types.Type,
   components : Array[StructuralDeriveComponent],
   loc : SourceSpan,
-) -> Array[@checked.CheckedDeriveEvidence]? {
-  let groups : Array[Array[StructuralDeriveComponent]] = []
+) -> Unit? {
+  let groups : Array[Array[StructuralDeriveEvidenceRequirement]] = []
   for component in components {
     let required = normalize_type_or_report(
       self.diagnostics,
@@ -403,28 +442,24 @@ fn SemanticChecker::checked_derive_evidence(
       context="structural derivation component evidence",
     )
     guard required is Some(required) else { return None }
-    let normalized = { ..component, type_: required }
+    let requirement = { component, required_type: required }
     let mut group_index = -1
     for index in 0..<groups.length() {
-      if groups[index][0].type_.alpha_equal(required) {
+      if groups[index][0].required_type.alpha_equal(required) {
         group_index = index
         break
       }
     }
     if group_index < 0 {
-      groups.push([normalized])
+      groups.push([requirement])
     } else {
-      groups[group_index].push(normalized)
+      groups[group_index].push(requirement)
     }
   }
-  let evidence_slots : Array[@checked.CheckedDeriveEvidence?] = Array::make(
-    components.length(),
-    None,
-  )
   let mut complete = true
   for group in groups {
-    let required = group[0].type_
-    let paths = group.map(fn(component) { component.path })
+    let required = group[0].required_type
+    let paths = group.map(fn(requirement) { requirement.component.path })
     match self.lookup_contextual_offer(scope, required, loc) {
       ContextualOfferFound(offer) => {
         let checked = self.check_checked_expr(scope, offer.expression, required)
@@ -435,9 +470,9 @@ fn SemanticChecker::checked_derive_evidence(
           complete = false
           continue
         }
-        for component in group {
-          evidence_slots[component.index] = Some({
-            path: component.path,
+        for requirement in group {
+          requirement.component.evidence = Some({
+            path: requirement.component.path,
             required_type: required,
             value,
           })
@@ -467,14 +502,7 @@ fn SemanticChecker::checked_derive_evidence(
     }
   }
   if complete {
-    let evidence = []
-    for slot in evidence_slots {
-      guard slot is Some(value) else {
-        abort("complete structural derivation evidence is missing")
-      }
-      evidence.push(value)
-    }
-    Some(evidence)
+    Some(())
   } else {
     None
   }

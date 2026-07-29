@@ -518,9 +518,9 @@ fn SemanticIndex::collect_checked_expr_types(
       self.collect_checked_type(plan.capability)
       self.collect_checked_type(plan.target)
       self.collect_checked_type(plan.shape.representation())
-      for evidence in plan.evidence {
+      plan.shape.for_each_evidence(fn(evidence) {
         self.collect_checked_type(evidence.required_type)
-      }
+      })
       self.collect_checked_type(type_)
     }
     OperationCall(operation~, generic_witnesses~, effect~, type_~, ..) => {

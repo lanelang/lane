@@ -344,7 +344,7 @@ derive_equal.record(
 )
 ```
 
-The checked derive plan records the selected capability, normalized target, validated canonical ABI identities, declaration shape, deriver operand, component evidence, and metadata. Its checked shape uniquely owns the canonical representation and every typed `Product`/`Sum` suffix, forming the complete recipe for constructing the generated `Iso` without storing a generated expression tree. Lowering before Buslane only consumes that recipe to emit ordinary struct and enum construction, pattern matching, field access, closures, and function calls; it does not reconstruct the representation algebra.
+The checked derive plan records the selected capability, normalized target, validated canonical ABI identities, deriver operand, and metadata. Its checked shape uniquely owns the canonical representation, every typed `Product`/`Sum` suffix, and the component evidence attached to each corresponding product step, forming the complete recipe for constructing the generated `Iso` without storing a generated expression tree. Lowering before Buslane only consumes that recipe to emit ordinary struct and enum construction, pattern matching, field access, closures, and function calls; it does not reconstruct the representation algebra.
 
 ## Evaluation
 

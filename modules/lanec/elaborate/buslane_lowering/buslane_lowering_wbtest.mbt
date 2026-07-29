@@ -333,15 +333,17 @@ fn first_checked_handler_expr_for_elaborate_test(
     Derive(plan~, ..) =>
       match first_checked_handler_expr_for_elaborate_test(plan.deriver) {
         Some(handler) => Some(handler)
-        None =>
-          for evidence in plan.evidence {
-            if first_checked_handler_expr_for_elaborate_test(evidence.value)
+        None => {
+          let mut found = None
+          plan.shape.for_each_evidence(fn(evidence) {
+            if found is None &&
+              first_checked_handler_expr_for_elaborate_test(evidence.value)
               is Some(handler) {
-              return Some(handler)
+              found = Some(handler)
             }
-          } nobreak {
-            None
-          }
+          })
+          found
+        }
       }
     Block(items~, result~, ..) => {
       for item in items {

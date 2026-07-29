@@ -180,13 +180,6 @@ fn CheckedDerivePlan::substitute(
     abi: self.abi,
     shape: self.shape.substitute(substitution),
     deriver: self.deriver.substitute(substitution),
-    evidence: self.evidence.map(fn(evidence) {
-      {
-        path: evidence.path,
-        required_type: evidence.required_type.substitute(substitution),
-        value: evidence.value.substitute(substitution),
-      }
-    }),
     metadata: self.metadata,
   }
 }
@@ -226,6 +219,11 @@ fn[A] CheckedDeriveProduct::substitute(
         head: step.head,
         head_type: step.head_type.substitute(substitution),
         tail_type: step.tail_type.substitute(substitution),
+        evidence: {
+          path: step.evidence.path,
+          required_type: step.evidence.required_type.substitute(substitution),
+          value: step.evidence.value.substitute(substitution),
+        },
       }
     }),
   }
