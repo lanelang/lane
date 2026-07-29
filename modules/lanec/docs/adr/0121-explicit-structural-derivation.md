@@ -310,19 +310,44 @@ Mutually recursive capabilities use a recursive function group. Each builder cre
 
 ## Elaboration
 
-The compiler constructs deriver calls using these right folds:
+The compiler constructs deriver calls using right folds. The representative
+expansions below show the empty, one-element, and two-element cases; longer
+sequences continue the same right-associated pattern:
 
 ```text
-fields([])        = deriver.unit()
-fields(f :: fs)   = deriver.product(deriver.field(info(f), evidence(f)), fields(fs))
-record(T)         = deriver.record(info(T), iso(T), fields(T.fields))
+fields([])     = deriver.unit()
+fields([f])    = deriver.product(
+  deriver.field(info(f), evidence(f)),
+  deriver.unit()
+)
+fields([f, g]) = deriver.product(
+  deriver.field(info(f), evidence(f)),
+  deriver.product(
+    deriver.field(info(g), evidence(g)),
+    deriver.unit()
+  )
+)
+record(T)      = deriver.record(info(T), iso(T), fields(T.fields))
 
-payloads([])      = deriver.unit()
-payloads(A :: as) = deriver.product(evidence(A), payloads(as))
-variant(v)        = deriver.variant(info(v), payloads(v.payloads))
-variants([])      = deriver.void()
-variants(v :: vs) = deriver.sum(variant(v), variants(vs))
-enumeration(T)    = deriver.enumeration(info(T), iso(T), variants(T.variants))
+payloads([])     = deriver.unit()
+payloads([A])    = deriver.product(evidence(A), deriver.unit())
+payloads([A, B]) = deriver.product(
+  evidence(A),
+  deriver.product(evidence(B), deriver.unit())
+)
+variant(v)       = deriver.variant(info(v), payloads(v.payloads))
+
+variants([])     = deriver.void()
+variants([v])    = deriver.sum(variant(v), deriver.void())
+variants([v, w]) = deriver.sum(
+  variant(v),
+  deriver.sum(variant(w), deriver.void())
+)
+enumeration(T)   = deriver.enumeration(
+  info(T),
+  iso(T),
+  variants(T.variants)
+)
 ```
 
 For `Geometry.Point`, the compiler selects `Product[Int,Product[Int,Unit]]`, constructs the corresponding `Iso`, and elaborates the capability composition conceptually to the expression below. `point_product_iso` denotes that compiler-generated ordinary `Iso[Point,Product[Int,Product[Int,Unit]]]` value.
