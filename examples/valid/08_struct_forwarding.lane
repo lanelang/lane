@@ -1,7 +1,9 @@
 module Examples.Valid08
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
+import Basic.Trait.Equal.{ Equal }
 
 pub struct Meter {
   value : Int
@@ -15,9 +17,9 @@ pub struct MeterOps {
   equal_impl : Equal[Meter]
 }
 
-pub offer meter_equal_ops : Equal[Meter] = Equal::{ equal: meter_equal }
+pub offer meter_impl_equal : Equal[Meter] = Equal::{ equal: meter_equal }
 
-pub let meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
+pub let meter_ops : MeterOps = MeterOps::{ equal_impl: meter_impl_equal }
 
 pub fn use_explicit_offer() -> Int {
   if Meter::{ value: 1 } == Meter::{ value: 1 } {

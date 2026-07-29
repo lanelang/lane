@@ -2,7 +2,9 @@ module Examples.Valid.TupleAliasNominalInterop
 
 import Basic.Data.Tuple.*
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
+import Basic.Data.Bool.*
 
 type Pair[A, B] = (A, B)
 

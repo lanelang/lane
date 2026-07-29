@@ -4,7 +4,8 @@
 module Examples.Valid.ParameterizedHigherKindedAliasResultKind
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 
 pub struct Box[A] {
   value : A

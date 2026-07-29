@@ -2,7 +2,8 @@ module Examples.Valid.TupleEvaluationOrder
 
 import Basic.Data.Tuple
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 
 fn mark(label : String, value : Int) -> Int ! Io {
   println(label)

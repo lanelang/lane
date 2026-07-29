@@ -1,6 +1,7 @@
 module Examples.Valid.SingleVariantPatternLet
 
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 import Basic.Io.{ println }
 
 pub enum Id[A] {

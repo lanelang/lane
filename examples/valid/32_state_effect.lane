@@ -1,7 +1,8 @@
 module Examples.Valid.StateEffect
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 
 pub struct StateResult {
   value : Int

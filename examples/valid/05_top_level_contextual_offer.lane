@@ -1,15 +1,17 @@
 module Examples.Valid05
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
+import Basic.Trait.Num.{ Add }
 
 pub fn custom_add(a : Int, _b : Int) -> Int {
   a
 }
 
-pub offer custom_add_ops : Add[Int] = Add::{ add: custom_add }
+pub offer custom_impl_add : Add[Int] = Add::{ add: custom_add }
 
-pub let chosen : Int = op_add(1, 2, op=custom_add_ops)
+pub let chosen : Int = op_add(1, 2, op=custom_impl_add)
 
 pub fn use_offered_add() -> Int {
   chosen

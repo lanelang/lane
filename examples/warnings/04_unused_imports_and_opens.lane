@@ -2,7 +2,7 @@ module Examples.Warnings.UnusedImportsAndOpens
 
 import Basic.Builtins
 import Basic.Builtins.{ double_nan }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
 import Basic.Io.{ println }
 
 pub fn answer() -> Unit ! Io {

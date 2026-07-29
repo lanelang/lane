@@ -1,6 +1,8 @@
 module Examples.Valid.NestedPatternExhaustiveness
 
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
+import Basic.Data.Bool.*
 import Basic.Io.{ println }
 
 pub enum Option[A] {

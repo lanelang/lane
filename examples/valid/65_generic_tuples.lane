@@ -2,7 +2,10 @@ module Examples.Valid.GenericTuples
 
 import Basic.Data.Tuple
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.String.*
+import Basic.Data.Int.*
+import Basic.Data.Bool.*
 
 fn[A, B] swap(value : (A, B)) -> (B, A) {
   let (left, right) = value

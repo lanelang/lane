@@ -27,13 +27,14 @@ fn SemanticChecker::structural_derive_abi(
   self : SemanticChecker,
   loc : SourceSpan,
 ) -> @checked.CheckedDeriveAbi? {
-  guard self.canonical_struct("Deriver") is Some(deriver) &&
-    self.canonical_struct("Product") is Some(product) &&
-    self.canonical_enum("Sum") is Some(sum) &&
-    self.canonical_struct("Iso") is Some(iso) &&
-    self.canonical_struct("TypeInfo") is Some(type_info) &&
-    self.canonical_struct("FieldInfo") is Some(field_info) &&
-    self.canonical_struct("VariantInfo") is Some(variant_info) &&
+  guard self.module_struct("Basic.Trait.Derive", "Deriver") is Some(deriver) &&
+    self.module_struct("Basic.Trait.Derive", "Product") is Some(product) &&
+    self.module_enum("Basic.Trait.Derive", "Sum") is Some(sum) &&
+    self.module_struct("Basic.Trait.Iso", "Iso") is Some(iso) &&
+    self.module_struct("Basic.Trait.Derive", "TypeInfo") is Some(type_info) &&
+    self.module_struct("Basic.Trait.Derive", "FieldInfo") is Some(field_info) &&
+    self.module_struct("Basic.Trait.Derive", "VariantInfo")
+    is Some(variant_info) &&
     self.module_enum("Basic.Data.Void", "Void") is Some(void_declaration) else {
     self.report_invalid_derive_abi(
       "required canonical declarations are missing", loc,
@@ -60,22 +61,15 @@ fn SemanticChecker::structural_derive_abi(
 }
 
 ///|
-fn SemanticChecker::canonical_struct(
+fn SemanticChecker::module_struct(
   self : SemanticChecker,
+  module_path : String,
   name : String,
 ) -> CheckedStructDeclaration? {
-  guard self.module_type_symbol("Basic.Trait.Derive", name) is Some(symbol) else {
+  guard self.module_type_symbol(module_path, name) is Some(symbol) else {
     return None
   }
   self.declarations.checked_struct(symbol)
-}
-
-///|
-fn SemanticChecker::canonical_enum(
-  self : SemanticChecker,
-  name : String,
-) -> CheckedEnumDeclaration? {
-  self.module_enum("Basic.Trait.Derive", name)
 }
 
 ///|

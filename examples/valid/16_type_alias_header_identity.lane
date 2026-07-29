@@ -3,7 +3,8 @@
 
 module Examples.Valid16
 
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 import Basic.Io.{ println }
 
 pub type Id[A] = A

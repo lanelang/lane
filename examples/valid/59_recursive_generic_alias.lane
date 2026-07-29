@@ -1,7 +1,9 @@
 module Examples.Valid.RecursiveGenericAlias
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
+import Basic.Trait.Equal.{ Equal }
 
 fn[A] recurse(n : Int, value : A, auto op : Equal[A]) -> Bool {
   let again = recurse

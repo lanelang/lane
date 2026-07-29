@@ -1,7 +1,9 @@
 module Examples.Valid.FlipEffect
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
+import Basic.Data.Bool.*
 
 pub enum BoolList {
   nil()

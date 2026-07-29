@@ -2,7 +2,9 @@ module Examples.Valid.HigherOrderTuple
 
 import Basic.Data.Tuple
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Bool.*
+import Basic.Data.Int.*
 
 fn apply_transforms(transforms : ((Int) -> Int, (Bool) -> Bool)) -> (Int, Bool) {
   let (transform_int, transform_bool) = transforms

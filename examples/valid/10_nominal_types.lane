@@ -1,6 +1,7 @@
 module Examples.Valid10
 
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 import Basic.Io.{ println }
 
 pub struct UserId {

@@ -1,15 +1,17 @@
 module Examples.Valid09
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
+import Basic.Trait.Num.{ Add }
 
 pub fn weird_add(a : Int, _b : Int) -> Int {
   a
 }
 
 pub fn use_weird_add(a : Int, b : Int) -> Int {
-  let weird_add_ops : Add[Int] = Add::{ add: weird_add }
-  op_add(a, b, op=weird_add_ops)
+  let weird_impl_add : Add[Int] = Add::{ add: weird_add }
+  op_add(a, b, op=weird_impl_add)
 }
 
 pub fn answer() -> Unit ! Io {

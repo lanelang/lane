@@ -1,7 +1,9 @@
 module Examples.Valid.DoubleOperations
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Double.*
+import Basic.Data.Bool.*
 
 pub fn answer() -> Unit ! Io {
   if !(1.5 + 2.5 == 4.0) {

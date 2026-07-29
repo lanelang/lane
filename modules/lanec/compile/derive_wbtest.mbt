@@ -33,7 +33,7 @@ test "explicit derive checks through the canonical structural interface" {
       #|  derive[Equal, Wrapper[T]](deriver=deriver)
       #|}
     ),
-    [derive_void_source(), derive_interface_source()],
+    [derive_void_source(), derive_iso_source(), derive_interface_source()],
   )
   debug_inspect(result.diagnostics, content="[]")
 }
@@ -60,7 +60,7 @@ test "derive rejects a malformed canonical structural interface" {
       #|  derive[Box, Point](deriver=deriver)
       #|}
     ),
-    [derive_void_source(), malformed_interface],
+    [derive_void_source(), derive_iso_source(), malformed_interface],
   )
   debug_inspect(
     result.diagnostics,
@@ -102,7 +102,7 @@ test "derive rejects a malformed canonical structural interface" {
       #|      },
       #|    ],
       #|    notes: [],
-      #|    helps: ["provide the canonical `Basic.Trait.Derive` interface required by the language"],
+      #|    helps: ["provide the canonical structural derivation interfaces required by the language"],
       #|    facts: [],
       #|    suggestions: [],
       #|  },
@@ -128,6 +128,7 @@ test "derive rejects hidden type members in canonical structs" {
   for case in cases {
     let (name, old, new) = case
     let malformed_interface = derive_interface_source().replace(old~, new~)
+    let malformed_iso = derive_iso_source().replace(old~, new~)
     let result = compile_sources(
       (
         #|module Main
@@ -144,7 +145,7 @@ test "derive rejects hidden type members in canonical structs" {
         #|  derive[Box, Point](deriver=deriver)
         #|}
       ),
-      [derive_void_source(), malformed_interface],
+      [derive_void_source(), malformed_iso, malformed_interface],
     )
     if result.diagnostics is [diagnostic] {
       assert_diagnostic_headline(
@@ -154,7 +155,7 @@ test "derive rejects hidden type members in canonical structs" {
         "`\{name}` must not declare hidden type members",
       ])
       assert_single_help(
-        diagnostic, "provide the canonical `Basic.Trait.Derive` interface required by the language",
+        diagnostic, "provide the canonical structural derivation interfaces required by the language",
       )
     } else {
       missing_diagnostics.push(name)
@@ -182,7 +183,7 @@ test "derive rejects a nonempty canonical void type" {
       #|  derive[Box, Empty](deriver=deriver)
       #|}
     ),
-    [nonempty_void, derive_interface_source()],
+    [nonempty_void, derive_iso_source(), derive_interface_source()],
   )
   debug_inspect(
     result.diagnostics,
@@ -224,7 +225,7 @@ test "derive rejects a nonempty canonical void type" {
       #|      },
       #|    ],
       #|    notes: [],
-      #|    helps: ["provide the canonical `Basic.Trait.Derive` interface required by the language"],
+      #|    helps: ["provide the canonical structural derivation interfaces required by the language"],
       #|    facts: [],
       #|    suggestions: [],
       #|  },
@@ -263,7 +264,12 @@ test "derive uses a contextual deriver without importing its canonical module" {
       #|pub let empty_box : Box[Empty] = derive[Box, Empty]()
       #|pub let never_box : Box[Never] = derive[Box, Never]()
     ),
-    [derive_void_source(), derive_interface_source(), derive_support_source()],
+    [
+      derive_void_source(),
+      derive_iso_source(),
+      derive_interface_source(),
+      derive_support_source(),
+    ],
   )
   debug_inspect(result.diagnostics, content="[]")
   guard result.source is Some(source) else { abort("expected checked source") }
@@ -301,7 +307,12 @@ test "nested derive adds its canonical compiler dependencies" {
       #|  derive[Box, Point]()
       #|}
     ),
-    [derive_void_source(), derive_interface_source(), derive_support_source()],
+    [
+      derive_void_source(),
+      derive_iso_source(),
+      derive_interface_source(),
+      derive_support_source(),
+    ],
   )
   debug_inspect(result.diagnostics, content="[]")
 }
@@ -321,6 +332,7 @@ test "derive metadata follows a normalized target through an imported alias" {
     ),
     [
       derive_void_source(),
+      derive_iso_source(),
       derive_interface_source(),
       derive_support_source(),
       (
@@ -377,7 +389,12 @@ test "derive treats a closed existential nominal as ordinary component evidence"
       #|
       #|pub let container_box : Box[Container] = derive[Box, Container]()
     ),
-    [derive_void_source(), derive_interface_source(), derive_support_source()],
+    [
+      derive_void_source(),
+      derive_iso_source(),
+      derive_interface_source(),
+      derive_support_source(),
+    ],
   )
   debug_inspect(result.diagnostics, content="[]")
 }
@@ -400,6 +417,7 @@ test "derive type arguments retain semantic navigation" {
   guard workspace.replace_sources([
       { source_id: "file:///Main.lane", text: root },
       { source_id: "file:///Void.lane", text: derive_void_source() },
+      { source_id: "file:///Iso.lane", text: derive_iso_source() },
       { source_id: "file:///Derive.lane", text: derive_interface_source() },
       { source_id: "file:///Support.lane", text: derive_support_source() },
     ])
@@ -445,7 +463,7 @@ test "derive groups ambiguous component evidence by required type" {
       #|  derive[Witness, Pair](deriver=deriver)
       #|}
     ),
-    [derive_void_source(), derive_interface_source()],
+    [derive_void_source(), derive_iso_source(), derive_interface_source()],
   )
   debug_inspect(
     result.diagnostics,
@@ -514,7 +532,7 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|
       #|pub let pair_witness : Witness[Pair] = derive[Witness, Pair]()
     ),
-    [derive_void_source(), derive_interface_source()],
+    [derive_void_source(), derive_iso_source(), derive_interface_source()],
   )
   debug_inspect(
     result.diagnostics,
@@ -655,11 +673,24 @@ fn derive_void_source() -> String {
 }
 
 ///|
+fn derive_iso_source() -> String {
+  (
+    #|module Basic.Trait.Iso
+    #|
+    #|pub struct Iso[T, R] {
+    #|  to : (T) -> R
+    #|  from : (R) -> T
+    #|}
+  )
+}
+
+///|
 fn derive_interface_source() -> String {
   (
     #|module Basic.Trait.Derive
     #|
     #|import Basic.Data.Void.{ Void }
+    #|import Basic.Trait.Iso.{ Iso }
     #|
     #|pub struct Deriver[C : [Type] -> Type] {
     #|  unit : () -> C[Unit]
@@ -680,11 +711,6 @@ fn derive_interface_source() -> String {
     #|pub enum Sum[A, B] {
     #|  here(A)
     #|  there(B)
-    #|}
-    #|
-    #|pub struct Iso[T, R] {
-    #|  to : (T) -> R
-    #|  from : (R) -> T
     #|}
     #|
     #|pub struct TypeInfo {
@@ -708,7 +734,8 @@ fn derive_support_source() -> String {
     #|module Support
     #|
     #|import Basic.Data.Void.{ Void }
-    #|import Basic.Trait.Derive.{ Deriver, FieldInfo, Iso, Product, Sum, TypeInfo, VariantInfo }
+    #|import Basic.Trait.Derive.{ Deriver, FieldInfo, Product, Sum, TypeInfo, VariantInfo }
+    #|import Basic.Trait.Iso.{ Iso }
     #|
     #|pub struct Box[_T] {}
     #|

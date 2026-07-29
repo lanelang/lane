@@ -290,7 +290,7 @@ fn typecheck_diagnostic(
         ],
         notes=[],
         helps=[
-          "provide the canonical `Basic.Trait.Derive` interface required by the language",
+          "provide the canonical structural derivation interfaces required by the language",
         ],
       )
     UnrepresentableStructuralDerivationTarget(target~, reason~) =>

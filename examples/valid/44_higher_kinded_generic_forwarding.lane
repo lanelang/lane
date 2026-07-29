@@ -1,7 +1,8 @@
 module Examples.Valid44
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 
 struct Box[A] {
   value : A

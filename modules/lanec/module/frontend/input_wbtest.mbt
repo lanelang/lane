@@ -56,3 +56,27 @@ test "module input headers keep aliased imports canonical" {
     ),
   )
 }
+
+///|
+test "derive module header includes every canonical compiler dependency" {
+  let parsed = parse_module_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: "module Main\npub let value : Capability[Target] = derive[Capability, Target]()",
+    },
+    [],
+  )
+  debug_inspect(parsed.diagnostics, content="[]")
+  debug_inspect(
+    parsed.headers,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: "file:///Main.lane",
+      #|    module_path_text: "Main",
+      #|    imports: ["Basic.Trait.Derive", "Basic.Trait.Iso", "Basic.Data.Void"],
+      #|  },
+      #|]
+    ),
+  )
+}

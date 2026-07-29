@@ -34,12 +34,14 @@ pub offer point_impl_equal : Equal[Point] =
 
 ## Structural interface
 
-The canonical structural interface lives in `Basic.Trait.Derive`:
+The canonical structural algebra lives in `Basic.Trait.Derive`, while the
+general-purpose isomorphism type lives in `Basic.Trait.Iso`:
 
 ```lane
 module Basic.Trait.Derive
 
 import Basic.Data.Void.{ Void }
+import Basic.Trait.Iso.{ Iso }
 
 pub struct Deriver[C : [Type] -> Type] {
   unit : () -> C[Unit]
@@ -73,11 +75,6 @@ pub enum Sum[A, B] {
   there(B)
 }
 
-pub struct Iso[T, R] {
-  to : (T) -> R
-  from : (R) -> T
-}
-
 pub struct TypeInfo {
   name : String
   qualified_name : String
@@ -92,7 +89,16 @@ pub struct VariantInfo {
 }
 ```
 
-`Deriver[C]` is an ordinary value. The compiler obtains `Deriver`, `Product`, `Sum`, `Iso`, `TypeInfo`, `FieldInfo`, and `VariantInfo` by their canonical declarations in the configured `Basic.Trait.Derive` Module interface and calls them according to the target declaration. The `derive` keyword does not require a source import. Source code follows ordinary import rules only when it names these declarations directly, and deriver offers follow ordinary lexical visibility. A conforming Basic library provides the canonical interface; the compiler does not select declarations by unqualified name or by structural similarity.
+```lane
+module Basic.Trait.Iso
+
+pub struct Iso[T, R] {
+  to : (T) -> R
+  from : (R) -> T
+}
+```
+
+`Deriver[C]` is an ordinary value. The compiler obtains `Deriver`, `Product`, `Sum`, `TypeInfo`, `FieldInfo`, and `VariantInfo` by their canonical declarations in the configured `Basic.Trait.Derive` Module interface, and obtains `Iso` from the configured `Basic.Trait.Iso` Module interface. It calls them according to the target declaration. The `derive` keyword does not require a source import. Source code follows ordinary import rules only when it names these declarations directly, and deriver offers follow ordinary lexical visibility. A conforming Basic library provides the canonical interfaces; the compiler does not select declarations by unqualified name or by structural similarity.
 
 `Deriver[C]` has no compiler-assumed algebraic laws. Every generated call and its canonical nesting are observable ordinary Lane semantics. The compiler does not reassociate or remove structural calls based on their `Deriver[C]` type and applies only optimizations justified for the generated ordinary program.
 

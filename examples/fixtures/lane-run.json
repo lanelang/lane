@@ -564,7 +564,7 @@
           "unused import",
           "imported module `Basic.Builtins` is never used",
           "unused open import",
-          "open import `Basic.Trait.Ops.*` contributes no used names",
+          "open import `Basic.Ops.*` contributes no used names",
           "unused import item",
           "imported item `double_nan` from `Basic.Builtins` is never used"
         ]
@@ -794,8 +794,8 @@
         "contains": [
           "error[E3013]",
           "ambiguous contextual offer",
-          "candidate `custom_add_ops` has type `Add[Int]`",
-          "candidate `int_add_ops` has type `Add[Int]`",
+          "candidate `custom_impl_add` has type `Add[Int]`",
+          "candidate `int_impl_add` has type `Add[Int]`",
           "pass the argument explicitly or keep only one matching visible offer"
         ]
       }

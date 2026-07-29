@@ -2,7 +2,8 @@ module Examples.Valid.TupleShapes
 
 import Basic.Data.Tuple
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 
 fn flat_score(value : (Int, Bool, String)) -> Int {
   let (number, enabled, _label) = value

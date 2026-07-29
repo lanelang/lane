@@ -1,6 +1,7 @@
 module Examples.Valid.ExceptionEffect
 
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 import Basic.Io.{ println }
 
 effect Exception {

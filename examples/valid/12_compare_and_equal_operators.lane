@@ -1,7 +1,9 @@
 module Examples.Valid12
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Bool.*
+import Basic.Data.Int.*
 
 pub fn compare_ints(a : Int, b : Int) -> Bool {
   if a < b {

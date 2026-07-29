@@ -238,7 +238,8 @@ fn module_header(source : @syntax.SourceFile) -> ModuleHeader {
   let imports = source.imports.map(import_header)
   let current_module_path = module_path_text(source.module_path)
   if source.first_derive_loc() is Some(import_span) {
-    for dependency in ["Basic.Trait.Derive", "Basic.Data.Void"] {
+    for
+      dependency in ["Basic.Trait.Derive", "Basic.Trait.Iso", "Basic.Data.Void"] {
       if current_module_path != dependency &&
         !imports.any(fn(import_) { import_.module_path_text == dependency }) {
         imports.push({ module_path_text: dependency, import_span })

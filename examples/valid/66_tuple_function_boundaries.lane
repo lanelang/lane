@@ -2,7 +2,8 @@ module Examples.Valid.TupleFunctionBoundaries
 
 import Basic.Data.Tuple
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 
 fn apply_tuple(callee : ((Int, Bool)) -> Int, value : (Int, Bool)) -> Int {
   callee(value)

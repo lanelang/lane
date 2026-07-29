@@ -1,7 +1,8 @@
 module Examples.Valid.ExplicitGenericFunctionApplication
 
 import Basic.Io.{ println }
-import Basic.Trait.Ops.*
+import Basic.Ops.*
+import Basic.Data.Int.*
 
 effect Log {
   log(Int) -> Unit

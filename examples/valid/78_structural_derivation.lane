@@ -3,8 +3,12 @@ module Examples.Valid.StructuralDerivation
 import Basic.Data.Tuple
 import Basic.Data.Void.{ Void }
 import Basic.Io.{ println }
-import Basic.Trait.Derive.{ Deriver, FieldInfo, Iso, Product, Sum, TypeInfo, VariantInfo }
-import Basic.Trait.Ops.*
+import Basic.Trait.Derive.{ Deriver, FieldInfo, Product, Sum, TypeInfo, VariantInfo }
+import Basic.Trait.Iso.{ Iso }
+import Basic.Ops.*
+import Basic.Data.Bool.*
+import Basic.Data.String.*
+import Basic.Data.Int.*
 
 struct RoundTrip[T] {
   type_name : String

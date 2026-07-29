@@ -3,8 +3,13 @@ module Examples.Valid.StructuralDerivationCompare
 import Basic.Data.List.*
 import Basic.Data.Void.{ Void, absurd }
 import Basic.Io.{ println }
-import Basic.Trait.Derive.{ Deriver, Iso, Lift, Product, Recursive, Sum }
-import Basic.Trait.Ops.*
+import Basic.Trait.Compare.{ Compare }
+import Basic.Trait.Derive.{ Deriver, Lift, Product, Recursive, Sum }
+import Basic.Trait.Equal.{ Equal }
+import Basic.Trait.Iso.{ Iso }
+import Basic.Ops.*
+import Basic.Data.Bool.*
+import Basic.Data.Int.{ int_impl_compare }
 
 struct Box[T] {
   value : T
