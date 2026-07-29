@@ -82,9 +82,7 @@ The metadata registry allocates IDs and globally unique readable names. Expressi
 
 ### Canonicalize effects
 
-The metadata registry owns effect equality and canonicalization because nested
-binders require their declared kinds. Canonicalization treats unions as sets and
-removes empty and duplicate members.
+The metadata registry owns effect equality and canonicalization because nested binders require their declared kinds. Canonicalization treats unions as sets and removes empty and duplicate members.
 
 ```mbt check
 ///|
@@ -229,11 +227,7 @@ Effects include:
 - `Parameter(type_parameter_id)` for an open effect row;
 - `Union(effects)` for a set of effects.
 
-Use `MetadataRegistry::canonicalize_effect` or
-`MetadataRegistry::effects_definitionally_equal` when comparing effect sets.
-Canonicalization removes empty terms and duplicates while making equality
-independent from union ordering and respecting the declared kinds of nested
-binders.
+Use `MetadataRegistry::canonicalize_effect` or `MetadataRegistry::effects_definitionally_equal` when comparing effect sets. Canonicalization removes empty terms and duplicates while making equality independent from union ordering and respecting the declared kinds of nested binders.
 
 ### Expressions
 

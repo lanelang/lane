@@ -155,9 +155,7 @@ test "one LoisVM image runs through both execution tiers" {
 }
 ```
 
-`@wasm.load` prepares Wasmoon JIT code by default. Pass
-`mode=@wasm.ExecutionMode::Interpreter` to execute the generated WebAssembly
-with Wasmoon's instruction interpreter instead.
+`@wasm.load` prepares Wasmoon JIT code by default. Pass `mode=@wasm.ExecutionMode::Interpreter` to execute the generated WebAssembly with Wasmoon's instruction interpreter instead.
 
 Run this README from the LoisVM module directory:
 
@@ -194,16 +192,9 @@ Bindings declare their full direct-value signature through `RuntimeBinding`:
 
 String parameters arrive as `BorrowedString(HostStringView)` and are valid only for the duration of the call. Copy them with `to_string()` or `to_bytes()` if the host needs an owned value. String results use `HostValue::String`. V1 Strings and bytecode constants are ASCII.
 
-Use `RuntimeBinding::typed`, `HostParameters`, `HostParameter`, and `HostResult`
-to register typed host functions without manually indexing erased argument
-arrays. A `HostObjectStore[T]` owns the typed host values for one fixed runtime
-capability. `HostParameter::host_object(store)` resolves an `Opaque` parameter
-through that store, while `HostResult::host_object(store, finalizer~)` creates
-an independently owned result whose finalizer runs when Lane releases its final
-wrapper.
+Use `RuntimeBinding::typed`, `HostParameters`, `HostParameter`, and `HostResult` to register typed host functions without manually indexing erased argument arrays. A `HostObjectStore[T]` owns the typed host values for one fixed runtime capability. `HostParameter::host_object(store)` resolves an `Opaque` parameter through that store, while `HostResult::host_object(store, finalizer~)` creates an independently owned result whose finalizer runs when Lane releases its final wrapper.
 
-For a Lane library, an opaque host API can be declared without teaching the
-compiler any symbol-specific behavior:
+For a Lane library, an opaque host API can be declared without teaching the compiler any symbol-specific behavior:
 
 ```lane
 extern type Counter : Type
@@ -214,10 +205,7 @@ let counter_add : (Counter, Int) -> Int ! CounterIo = extern("counter.add")
 let counter_close : (Counter) -> Unit ! CounterIo = extern("counter.close")
 ```
 
-The embedding registers the corresponding direct ABI. Primitive descriptors
-decode to ordinary MoonBit values. The bindings for one external type share a
-typed `HostObjectStore[T]`. The store borrows parameters for one synchronous
-call and accepts independently finalized results transferred into Lane:
+The embedding registers the corresponding direct ABI. Primitive descriptors decode to ordinary MoonBit values. The bindings for one external type share a typed `HostObjectStore[T]`. The store borrows parameters for one synchronous call and accepts independently finalized results transferred into Lane:
 
 ```moonbit check
 ///|
@@ -320,21 +308,9 @@ test "typed host registration declares primitive and Opaque ABI kinds" {
 }
 ```
 
-Every `Opaque` result creates one execution-local Host Object Table entry and
-one Lane ARC wrapper. Lane copies retain the wrapper and share the same mutable
-payload. An `Opaque` parameter is borrowed and must not be retained by the
-binding. The per-result finalizer runs exactly once after the last wrapper is
-released during normal execution; explicit effectful cleanup such as
-`counter.close` should mark the payload closed so the finalizer can act as a
-non-observable fallback without releasing the resource twice.
+Every `Opaque` result creates one execution-local Host Object Table entry and one Lane ARC wrapper. Lane copies retain the wrapper and share the same mutable payload. An `Opaque` parameter is borrowed and must not be retained by the binding. The per-result finalizer runs exactly once after the last wrapper is released during normal execution; explicit effectful cleanup such as `counter.close` should mark the payload closed so the finalizer can act as a non-observable fallback without releasing the resource twice.
 
-Host Object handles never enter the public binding API, bytecode, or Wasm
-linear memory. Each host type uses one embedding-owned `HostObjectStore[T]`;
-the execution-local Host Object Table stores only a typed-store key and release
-closure. Runtime linking verifies `Opaque` versus primitive kinds but does not
-serialize source External Type identities. Host Objects are execution-local and
-thread-affine, and `ExecutionConfig.max_host_objects` bounds the number of live
-entries.
+Host Object handles never enter the public binding API, bytecode, or Wasm linear memory. Each host type uses one embedding-owned `HostObjectStore[T]`; the execution-local Host Object Table stores only a typed-store key and release closure. Runtime linking verifies `Opaque` versus primitive kinds but does not serialize source External Type identities. Host Objects are execution-local and thread-affine, and `ExecutionConfig.max_host_objects` bounds the number of live entries.
 
 Host calls are synchronous. A binding must not retain a borrowed VM value or re-enter the active execution instance. Report host failures by raising `RuntimeImportFailure::Failure`; both backends convert it into `ExecutionError::RuntimeImportFailure`.
 

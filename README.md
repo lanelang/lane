@@ -4,11 +4,9 @@ This repository contains the core Lane implementation workspace.
 
 ## Modules
 
-- `modules/buslane`: Buslane typed core language, verifier, interpreter, and
-  pretty printer.
+- `modules/buslane`: Buslane typed core language, verifier, interpreter, and pretty printer.
 - `modules/lanec`: Lane compiler frontend and lowering pipeline.
-- `modules/lane`: native command line tool, including the `lane lsp` language
-  server subcommand.
+- `modules/lane`: native command line tool, including the `lane lsp` language server subcommand.
 
 ## Fixtures
 
