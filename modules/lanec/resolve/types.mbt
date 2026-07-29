@@ -13,7 +13,7 @@ fn @syntax.Type::resolve_type(
     Name(name~, loc~) =>
       // Type names are resolved in the language order: primitives first, then
       // in-scope type parameters, then nominal type constructors, then aliases.
-      match primitive_type(name) {
+      match @types.PrimitiveType::from_name(name) {
         Some(primitive) => Primitive(primitive, loc~)
         None =>
           match scope.type_parameter(name) {
@@ -147,16 +147,4 @@ fn Resolver::type_alias_binding(
     }
   }
   None
-}
-
-///|
-fn primitive_type(name : String) -> @types.PrimitiveType? {
-  match name {
-    "Int" => Some(Int)
-    "Double" => Some(Double)
-    "Bool" => Some(Bool)
-    "String" => Some(String)
-    "Unit" => Some(Unit)
-    _ => None
-  }
 }

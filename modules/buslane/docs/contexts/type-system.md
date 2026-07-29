@@ -182,8 +182,12 @@ A globally unique Buslane identity for a type parameter introduced by a forall o
 _Avoid_: source generic parameter name, de Bruijn index, compiler-front-end type variable
 
 **Primitive Type**:
-A built-in type provided by the language core: `Int`, `Bool`, `String`, or `Unit`.
+A built-in type provided by the language core: `Int`, `Double`, `Bool`, `String`, `Unit`, `Byte`, or `Bytes`.
 _Avoid_: Basic library type, numeric tower
+
+**Byte Scalar Carrier**:
+The normalized integer machine representation used to pass and compute a Byte Value while preserving the semantic `Byte` type and the invariant that its value lies in `0..255`. This scalar carrier does not determine the packed one-byte element representation inside a Bytes Value.
+_Avoid_: Byte type alias for Int, one integer word per Bytes element, implicit integer conversion
 
 **Primitive Literal**:
 A direct inhabitant of a primitive type, such as `true`, `42`, `"abc"`, or `()`.
@@ -373,7 +377,8 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - Type constructors are **Type-Level Expressions**, not value-level values.
 - Value parameter types, return types, fields, payloads, let annotations, contextual offers, and Buslane value metadata require **Value-Level Types**.
 - A bare non-nullary nominal constructor is a valid **Type-Level Expression** but produces a **Kind Mismatch** in a **Value-Level Type** position.
-- Lane v1 has four **Primitive Types**: `Int`, `Bool`, `String`, and `Unit`.
+- Lane v1 has seven **Primitive Types**: `Int`, `Double`, `Bool`, `String`, `Unit`, `Byte`, and `Bytes`.
+- The **Byte Scalar Carrier** preserves the semantic distinction between `Byte` and `Int`; it does not determine the packed representation of Bytes elements.
 - **Primitive Literals** are not nominal data constructors.
 - Buslane stores primitive literals as normalized values rather than source spelling.
 - A **Normalized Int Literal** is a signed 64-bit value.

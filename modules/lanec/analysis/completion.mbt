@@ -328,6 +328,23 @@ fn CompletionIndex::add_identifier_entries(
       )
     }
   }
+  match space {
+    AnySpace | TypeSpace =>
+      for primitive in @types.PrimitiveType::all() {
+        let name = primitive.name()
+        add_completion_entry(
+          entries,
+          source_id,
+          prefix,
+          replace,
+          name,
+          Type,
+          Some("primitive type \{name}"),
+          "30",
+        )
+      }
+    _ => ()
+  }
   add_module_binding_entries(entries, module_, source_id, prefix, replace)
 }
 

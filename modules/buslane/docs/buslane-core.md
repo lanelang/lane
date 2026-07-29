@@ -175,7 +175,10 @@ PrimitiveType =
   Unit
   Bool
   Int
+  Double
   String
+  Byte
+  Bytes
 ```
 
 Type substitution is simultaneous and capture-avoiding. Extending a lexical

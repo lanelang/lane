@@ -398,6 +398,42 @@ fn finalize_instruction(
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
+    ByteToInt(destination, source) =>
+      ByteToInt(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    IntToByte(destination, source) =>
+      IntToByte(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    BytesMake(destination, length, fill) =>
+      BytesMake(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, length)),
+        value_to_slot(borrow_value(remaining, fill)),
+      )
+    BytesLength(destination, source) =>
+      BytesLength(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    BytesGet(destination, source, index) =>
+      BytesGet(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+        value_to_slot(borrow_value(remaining, index)),
+      )
+    BytesSet(destination, source, index, value) =>
+      BytesSet(
+        value_to_slot(destination),
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, source),
+        ),
+        value_to_slot(borrow_value(remaining, index)),
+        value_to_slot(borrow_value(remaining, value)),
+      )
     IntAdd(destination, left, right) =>
       IntAdd(
         value_to_slot(destination),
@@ -722,6 +758,12 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | StringConcat(destination, _, _)
     | StringSlice(destination, _, _, _)
     | StringEq(destination, _, _)
+    | ByteToInt(destination, _)
+    | IntToByte(destination, _)
+    | BytesMake(destination, _, _)
+    | BytesLength(destination, _)
+    | BytesGet(destination, _, _)
+    | BytesSet(destination, _, _, _)
     | IntAdd(destination, _, _)
     | IntSub(destination, _, _)
     | IntMul(destination, _, _)

@@ -201,6 +201,18 @@ fn ExecutionInstance::execute_instruction(
         self.heap.string_bytes(frame.i32(right))
       frame.write(destination, I32(if equal { 1 } else { 0 }))
     }
+    ByteToInt(destination, source) =>
+      frame.write(destination, I64(frame.i32(source).to_int64()))
+    IntToByte(destination, source) =>
+      frame.write(destination, I32((frame.i64(source) & 255L).to_int()))
+    BytesMake(destination, length, fill) =>
+      self.bytes_make(frame, destination, length, fill)
+    BytesLength(destination, source) =>
+      self.bytes_length(frame, destination, source)
+    BytesGet(destination, source, index) =>
+      self.bytes_get(frame, destination, source, index)
+    BytesSet(destination, source, index, value) =>
+      self.bytes_set(frame, destination, source, index, value)
     IntAdd(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a + b })
     IntSub(destination, left, right) =>

@@ -1145,7 +1145,12 @@ fn complete_constructor_signatures(
         { tag: BoolConstructor(true), argument_types: [] },
       ])
     Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [] }])
-    Error | Primitive(Int) | Primitive(Double) | Primitive(String) => None
+    Error
+    | Primitive(Int)
+    | Primitive(Double)
+    | Primitive(String)
+    | Primitive(Byte)
+    | Primitive(Bytes) => None
     Parameter(_)
     | Constructor(_)
     | Apply(_, _)

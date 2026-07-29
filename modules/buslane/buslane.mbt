@@ -64,6 +64,8 @@ pub(all) enum PrimitiveType {
   Int
   Double
   String
+  Byte
+  Bytes
 } derive(Debug, Eq)
 
 ///|

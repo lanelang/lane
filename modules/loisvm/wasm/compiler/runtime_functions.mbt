@@ -9,6 +9,11 @@ priv struct RuntimeFunctions {
   string_concat : Int
   string_slice : Int
   host_object_new : Int
+  bytes_new : Int
+  bytes_make : Int
+  bytes_index : Int
+  bytes_get : Int
+  bytes_set : Int
 }
 
 ///|
@@ -23,6 +28,11 @@ fn runtime_function_indices(first_index : Int) -> RuntimeFunctions {
     string_concat: first_index + 6,
     string_slice: first_index + 7,
     host_object_new: first_index + 8,
+    bytes_new: first_index + 9,
+    bytes_make: first_index + 10,
+    bytes_index: first_index + 11,
+    bytes_get: first_index + 12,
+    bytes_set: first_index + 13,
   }
 }
 
@@ -66,7 +76,7 @@ fn append_runtime_functions(
     [I32],
     [I32],
     [I32],
-    string_new_body(functions.allocate, static_image.string_layout_id),
+    byte_sequence_new_body(functions.allocate, static_image.string_layout_id),
   )
   append_runtime_function(
     wasm_module,
@@ -95,6 +105,45 @@ fn append_runtime_functions(
     [I32],
     [I32],
     host_object_new_body(functions.allocate, static_image.reference_layout_id),
+  )
+  append_runtime_function(
+    wasm_module,
+    [I32],
+    [I32],
+    [I32],
+    byte_sequence_new_body(functions.allocate, static_image.bytes_layout_id),
+  )
+  append_runtime_function(
+    wasm_module,
+    [I64, I32],
+    [I32],
+    [I32, I32, I32],
+    bytes_make_body(functions.bytes_new),
+  )
+  append_runtime_function(
+    wasm_module,
+    [I32, I64],
+    [I32],
+    [],
+    bytes_index_body(),
+  )
+  append_runtime_function(
+    wasm_module,
+    [I32, I64],
+    [I32],
+    [],
+    bytes_get_body(functions.bytes_index),
+  )
+  append_runtime_function(
+    wasm_module,
+    [I32, I64, I32],
+    [I32],
+    [I32, I32],
+    bytes_set_body(
+      functions.bytes_new,
+      functions.bytes_index,
+      functions.release_ref,
+    ),
   )
 }
 
@@ -336,9 +385,9 @@ fn release_ref_body(
 }
 
 ///|
-fn string_new_body(
+fn byte_sequence_new_body(
   allocate_index : Int,
-  string_layout_id : Int,
+  layout_id : Int,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
@@ -358,7 +407,7 @@ fn string_new_body(
     I32Const(1),
     I32Store(0, 2, 0L),
     LocalGet(1),
-    I32Const(string_layout_id),
+    I32Const(layout_id),
     I32Store(0, 2, 4L),
     LocalGet(1),
     LocalGet(0),
@@ -386,6 +435,131 @@ fn host_object_new_body(
     LocalGet(0),
     I64Store(0, 3, 8L),
     LocalGet(1),
+  ]
+}
+
+///|
+fn bytes_make_body(bytes_new_index : Int) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(0),
+    I64Const(2147483636L),
+    I64LtU,
+    I32Eqz,
+    If(Empty, [Unreachable], []),
+    LocalGet(0),
+    I32WrapI64,
+    LocalSet(2),
+    LocalGet(2),
+    Call(bytes_new_index),
+    LocalSet(3),
+    I32Const(0),
+    LocalSet(4),
+    Block(Empty, [
+      Loop(Empty, [
+        LocalGet(4),
+        LocalGet(2),
+        I32GeU,
+        BrIf(1),
+        LocalGet(3),
+        LocalGet(4),
+        I32Add,
+        LocalGet(1),
+        I32Store8(0, 0, 12L),
+        LocalGet(4),
+        I32Const(1),
+        I32Add,
+        LocalSet(4),
+        Br(0),
+      ]),
+    ]),
+    LocalGet(3),
+  ]
+}
+
+///|
+fn bytes_index_body() -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(1),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I64ExtendI32U,
+    I64LtU,
+    I32Eqz,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I32WrapI64,
+  ]
+}
+
+///|
+fn bytes_get_body(bytes_index_index : Int) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    LocalGet(0),
+    LocalGet(1),
+    Call(bytes_index_index),
+    I32Add,
+    I32Load8U(0, 0, 12L),
+  ]
+}
+
+///|
+fn bytes_set_body(
+  bytes_new_index : Int,
+  bytes_index_index : Int,
+  release_ref_index : Int,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    LocalGet(1),
+    Call(bytes_index_index),
+    LocalSet(3),
+    LocalGet(0),
+    I32Load(0, 2, 0L),
+    I32Const(1),
+    I32Eq,
+    If(
+      Empty,
+      [
+        LocalGet(0),
+        LocalGet(3),
+        I32Add,
+        LocalGet(2),
+        I32Store8(0, 0, 12L),
+        LocalGet(0),
+        Return,
+      ],
+      [],
+    ),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    Call(bytes_new_index),
+    LocalSet(4),
+    LocalGet(4),
+    I32Const(12),
+    I32Add,
+    LocalGet(0),
+    I32Const(12),
+    I32Add,
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    MemoryCopy(0, 0),
+    LocalGet(4),
+    LocalGet(3),
+    I32Add,
+    LocalGet(2),
+    I32Store8(0, 0, 12L),
+    LocalGet(0),
+    Call(release_ref_index),
+    LocalGet(4),
   ]
 }
 

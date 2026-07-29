@@ -52,6 +52,8 @@ fn FunctionLowerer::layout_witness(
     Primitive(Int) => Int
     Primitive(Double) => Double
     Primitive(String) => String
+    Primitive(Byte) => Byte
+    Primitive(Bytes) => Bytes
     Function(_, _, _) | Forall(_, _) => Callable
     Constructor(_) | Apply(_, _) => Reference
     _ => raise UnsupportedType(type_~)
@@ -78,6 +80,8 @@ fn FunctionLowerer::erase_value(
       Slot(source, _),
       Primitive(Bool)
       | Primitive(String)
+      | Primitive(Byte)
+      | Primitive(Bytes)
       | Constructor(_)
       | Apply(_, _),
     ) => self.emit(EraseI32(destination, source))
@@ -114,7 +118,12 @@ fn FunctionLowerer::unerase_value(
       self.emit(UneraseUnit(source))
       Unit
     }
-    Primitive(Bool) | Primitive(String) | Constructor(_) | Apply(_, _) => {
+    Primitive(Bool)
+    | Primitive(String)
+    | Primitive(Byte)
+    | Primitive(Bytes)
+    | Constructor(_)
+    | Apply(_, _) => {
       let destination = self.fresh_slot(type_)
       self.emit(UneraseI32(destination, source))
       Slot(destination, type_)

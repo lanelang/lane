@@ -723,6 +723,8 @@ fn buslane_primitive_text(primitive : @buslane.PrimitiveType) -> String {
     Int => "Int"
     Double => "Double"
     String => "String"
+    Byte => "Byte"
+    Bytes => "Bytes"
   }
 }
 

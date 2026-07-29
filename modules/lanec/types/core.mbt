@@ -5,7 +5,37 @@ pub(all) enum PrimitiveType {
   Bool
   String
   Unit
+  Byte
+  Bytes
 } derive(Debug, Eq)
+
+///|
+pub fn PrimitiveType::all() -> Array[PrimitiveType] {
+  [Int, Double, Bool, String, Unit, Byte, Bytes]
+}
+
+///|
+pub fn PrimitiveType::name(self : PrimitiveType) -> String {
+  match self {
+    Int => "Int"
+    Double => "Double"
+    Bool => "Bool"
+    String => "String"
+    Unit => "Unit"
+    Byte => "Byte"
+    Bytes => "Bytes"
+  }
+}
+
+///|
+pub fn PrimitiveType::from_name(name : String) -> PrimitiveType? {
+  for primitive in PrimitiveType::all() {
+    if primitive.name() == name {
+      return Some(primitive)
+    }
+  }
+  None
+}
 
 ///|
 pub(all) enum Kind {

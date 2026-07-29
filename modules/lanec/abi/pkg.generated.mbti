@@ -35,14 +35,30 @@ pub(all) enum Intrinsic {
   F64NegativeInf
   F64Nan
   StringEqual
+  ByteToInt
+  IntToByte
+  BytesMake
+  BytesLength
+  BytesGet
+  BytesSet
 } derive(Eq, @debug.Debug)
 pub fn Intrinsic::from_name(String) -> Self?
 pub fn Intrinsic::name(Self) -> String
 pub fn Intrinsic::signature(Self) -> IntrinsicSignature
 
 pub(all) enum IntrinsicSignature {
-  Value(ValueKind)
-  Function(parameters~ : Array[ValueKind], result~ : ValueKind)
+  Value(IntrinsicValueKind)
+  Function(parameters~ : Array[IntrinsicValueKind], result~ : IntrinsicValueKind)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum IntrinsicValueKind {
+  Unit
+  Bool
+  Int
+  Double
+  String
+  Byte
+  Bytes
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ValueKind {

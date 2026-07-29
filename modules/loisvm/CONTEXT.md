@@ -464,6 +464,13 @@ An immutable ARC object with `byte_length:u32` at object offset eight and ASCII
 bytes at offset twelve, with total size rounded to eight-byte alignment.
 _Avoid_: mutable bytes, NUL-terminated C string, parent-backed slice
 
+**Runtime Bytes Object**:
+An ARC object containing one logical length and exactly that many packed byte
+elements, with no spare capacity. A pure update consumes its owned input
+reference and may reuse uniquely owned storage or copy shared storage, but
+cannot change any previously observable Bytes Value.
+_Avoid_: one integer word per element, shared mutable buffer, capacity-bearing vector
+
 **Borrowed Host String View**:
 A temporary non-owning view of a VM String's ASCII bytes exposed only during one
 synchronous runtime-import invocation.

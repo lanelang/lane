@@ -343,6 +343,8 @@ fn CanonicalInterfaceEncoder::write_type(
           Bool => 2
           String => 3
           Unit => 4
+          Byte => 5
+          Bytes => 6
         },
       )
     }

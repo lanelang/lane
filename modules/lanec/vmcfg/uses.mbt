@@ -22,6 +22,9 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | LoadTag(_, source)
     | LoadObjectWitness(_, _, source, _)
     | StringLength(_, source)
+    | ByteToInt(_, source)
+    | IntToByte(_, source)
+    | BytesLength(_, source)
     | IntNeg(_, source)
     | IntNot(_, source)
     | BoolNot(_, source)
@@ -38,6 +41,8 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | InitGlobal(_, source) => [source]
     StringConcat(_, left, right)
     | StringEq(_, left, right)
+    | BytesMake(_, left, right)
+    | BytesGet(_, left, right)
     | IntAdd(_, left, right)
     | IntSub(_, left, right)
     | IntMul(_, left, right)
@@ -66,7 +71,8 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | DoubleLe(_, left, right)
     | DoubleGt(_, left, right)
     | DoubleGe(_, left, right) => [left, right]
-    StringSlice(_, string, start, length) => [string, start, length]
+    StringSlice(_, string, start, length)
+    | BytesSet(_, string, start, length) => [string, start, length]
     CallDirect(_, environment, witnesses, arguments, _) => {
       let uses = []
       if environment is Some(value) {

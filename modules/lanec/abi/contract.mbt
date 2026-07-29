@@ -15,9 +15,23 @@ pub(all) struct HostSignature {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum IntrinsicValueKind {
+  Unit
+  Bool
+  Int
+  Double
+  String
+  Byte
+  Bytes
+} derive(Debug, Eq)
+
+///|
 pub(all) enum IntrinsicSignature {
-  Value(ValueKind)
-  Function(parameters~ : Array[ValueKind], result~ : ValueKind)
+  Value(IntrinsicValueKind)
+  Function(
+    parameters~ : Array[IntrinsicValueKind],
+    result~ : IntrinsicValueKind
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -41,6 +55,12 @@ pub(all) enum Intrinsic {
   F64NegativeInf
   F64Nan
   StringEqual
+  ByteToInt
+  IntToByte
+  BytesMake
+  BytesLength
+  BytesGet
+  BytesSet
 } derive(Debug, Eq)
 
 ///|
@@ -65,6 +85,12 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%f64_ninf" => Some(F64NegativeInf)
     "%f64_nan" => Some(F64Nan)
     "%string_equal" => Some(StringEqual)
+    "%byte_to_int" => Some(ByteToInt)
+    "%int_to_byte" => Some(IntToByte)
+    "%bytes_make" => Some(BytesMake)
+    "%bytes_length" => Some(BytesLength)
+    "%bytes_get" => Some(BytesGet)
+    "%bytes_set" => Some(BytesSet)
     _ => None
   }
 }
@@ -91,6 +117,12 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     F64NegativeInf => "%f64_ninf"
     F64Nan => "%f64_nan"
     StringEqual => "%string_equal"
+    ByteToInt => "%byte_to_int"
+    IntToByte => "%int_to_byte"
+    BytesMake => "%bytes_make"
+    BytesLength => "%bytes_length"
+    BytesGet => "%bytes_get"
+    BytesSet => "%bytes_set"
   }
 }
 
@@ -107,5 +139,11 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     F64Equal | F64Less => Function(parameters=[Double, Double], result=Bool)
     F64Inf | F64NegativeInf | F64Nan => Value(Double)
     StringEqual => Function(parameters=[String, String], result=Bool)
+    ByteToInt => Function(parameters=[Byte], result=Int)
+    IntToByte => Function(parameters=[Int], result=Byte)
+    BytesMake => Function(parameters=[Int, Byte], result=Bytes)
+    BytesLength => Function(parameters=[Bytes], result=Int)
+    BytesGet => Function(parameters=[Bytes, Int], result=Byte)
+    BytesSet => Function(parameters=[Bytes, Int, Byte], result=Bytes)
   }
 }

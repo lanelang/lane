@@ -138,6 +138,8 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "Int" => INT_TYPE
     "Double" => DOUBLE_TYPE
     "String" => STRING_TYPE
+    "Byte" => BYTE_TYPE
+    "Bytes" => BYTES_TYPE
     "kind_fn" => KIND_FN
     "empty_effect" => EMPTY_EFFECT
     "io_effect" => IO_EFFECT

@@ -100,6 +100,20 @@ fn slot_metadata(
         ownership: Owned,
         erased_companion: None,
       }
+    Primitive(Byte) =>
+      {
+        representation: I32,
+        cleanup: Trivial,
+        ownership: Trivial,
+        erased_companion: None,
+      }
+    Primitive(Bytes) =>
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        ownership: Owned,
+        erased_companion: None,
+      }
     Function(_, _, _) | Forall(_, _) =>
       {
         representation: I64,
@@ -144,7 +158,12 @@ fn result_representation(
 ) -> @bytecode.ResultRepresentation raise LoisvmLoweringError {
   match type_ {
     Primitive(Unit) => Unit
-    Primitive(Bool) | Primitive(String) | Constructor(_) | Apply(_, _) => I32
+    Primitive(Bool)
+    | Primitive(String)
+    | Primitive(Byte)
+    | Primitive(Bytes)
+    | Constructor(_)
+    | Apply(_, _) => I32
     Primitive(Int) | Function(_, _, _) | Forall(_, _) | Parameter(_) => I64
     Primitive(Double) => F64
     _ => raise UnsupportedType(type_~)

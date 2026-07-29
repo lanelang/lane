@@ -8,6 +8,7 @@ priv struct StaticImage {
   singleton_refs : Array[Int]
   singleton_layout_ids : Array[Int]
   string_layout_id : Int
+  bytes_layout_id : Int
   reference_layout_id : Int
   shape_layouts : Array[ShapeLayout]
   object_shapes : Array[@bytecode.ObjectShape]
@@ -73,6 +74,8 @@ fn layout_rep_kind(layout : @bytecode.LayoutRecipe) -> Int {
     Data(_) => 7
     Environment(_) => 8
     Reference => 9
+    Byte => 10
+    Bytes => 11
   }
 }
 
@@ -84,9 +87,9 @@ fn layout_fixed_size(
   host_objects_enabled : Bool,
 ) -> Int? {
   match layout {
-    Unit | Bool | Int | Double | Callable => Some(0)
+    Unit | Bool | Int | Double | Callable | Byte => Some(0)
     Reference => Some(if host_objects_enabled { 16 } else { 0 })
-    String => None
+    String | Bytes => None
     Data(shape) | Environment(shape) => {
       ignore(image)
       Some(shape_layouts[shape.value].size)
@@ -120,10 +123,14 @@ fn build_static_image(
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
   let mut string_layout_id = 0
+  let mut bytes_layout_id = 0
   let mut reference_layout_id = 0
   for index, layout in image.layouts {
     if layout == String {
       string_layout_id = index + 1
+    }
+    if layout == Bytes {
+      bytes_layout_id = index + 1
     }
     if layout == Reference {
       reference_layout_id = index + 1
@@ -137,28 +144,28 @@ fn build_static_image(
       }
       None => {
         writer.write_u32_le_int(2)
-        writer.write_u32_le_int(helper_functions.string_sizer_table)
+        writer.write_u32_le_int(helper_functions.byte_sequence_sizer_table)
       }
     }
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | Double | Callable => 1
-        String | Data(_) | Environment(_) | Reference => 8
+        Unit | Bool | Int | Double | Callable | Byte => 1
+        String | Bytes | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | Double => helper_functions.noop_erased_table
+        Unit | Bool | Int | Double | Byte => helper_functions.noop_erased_table
         Callable => helper_functions.retain_callable_table
-        String | Data(_) | Environment(_) | Reference =>
+        String | Bytes | Data(_) | Environment(_) | Reference =>
           helper_functions.retain_ref_erased_table
       },
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | Double => helper_functions.noop_erased_table
+        Unit | Bool | Int | Double | Byte => helper_functions.noop_erased_table
         Callable => helper_functions.release_callable_table
-        String | Data(_) | Environment(_) | Reference =>
+        String | Bytes | Data(_) | Environment(_) | Reference =>
           helper_functions.release_ref_erased_table
       },
     )
@@ -168,8 +175,15 @@ fn build_static_image(
           helper_functions.destroy_shape_table_base + shape.value
         Reference if host_objects_enabled =>
           helper_functions.destroy_host_object_table
-        Unit | Bool | Int | Double | Callable | String | Reference =>
-          helper_functions.destroy_noop_table
+        Unit
+        | Bool
+        | Int
+        | Double
+        | Callable
+        | String
+        | Byte
+        | Bytes
+        | Reference => helper_functions.destroy_noop_table
       },
     )
     writer.write_u32_le_int(0)
@@ -224,6 +238,7 @@ fn build_static_image(
     singleton_refs,
     singleton_layout_ids,
     string_layout_id,
+    bytes_layout_id,
     reference_layout_id,
     shape_layouts,
     object_shapes: image.object_shapes,

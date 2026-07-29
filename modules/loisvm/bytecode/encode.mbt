@@ -184,6 +184,8 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
       self.write_object_shape_id(shape)
     }
     Reference => self.write_u8(0x09)
+    Byte => self.write_u8(0x0A)
+    Bytes => self.write_u8(0x0B)
   }
 }
 
@@ -467,6 +469,23 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_u8(0x45)
       self.write_slot_id(destination)
       self.write_global_id(global)
+    }
+    ByteToInt(destination, source) =>
+      self.write_binary_slots(0x46, destination, source)
+    IntToByte(destination, source) =>
+      self.write_binary_slots(0x47, destination, source)
+    BytesMake(destination, length, fill) =>
+      self.write_ternary_slots(0x48, destination, length, fill)
+    BytesLength(destination, source) =>
+      self.write_binary_slots(0x49, destination, source)
+    BytesGet(destination, source, index) =>
+      self.write_ternary_slots(0x4A, destination, source, index)
+    BytesSet(destination, source, index, value) => {
+      self.write_u8(0x4B)
+      self.write_slot_id(destination)
+      self.write_slot_id(source)
+      self.write_slot_id(index)
+      self.write_slot_id(value)
     }
   }
 }

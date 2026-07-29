@@ -262,6 +262,8 @@ fn Decoder::read_layout_recipe(
     0x07 => Data(self.read_object_shape_id())
     0x08 => Environment(self.read_object_shape_id())
     0x09 => Reference
+    0x0A => Byte
+    0x0B => Bytes
     tag => self.invalid_tag(offset~, domain="layout recipe", tag~)
   }
 }
@@ -498,6 +500,20 @@ fn Decoder::read_instruction(
       )
     0x44 => InitGlobal(self.read_global_id(), self.read_slot_id())
     0x45 => BorrowGlobal(self.read_slot_id(), self.read_global_id())
+    0x46 => ByteToInt(self.read_slot_id(), self.read_slot_id())
+    0x47 => IntToByte(self.read_slot_id(), self.read_slot_id())
+    0x48 =>
+      BytesMake(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x49 => BytesLength(self.read_slot_id(), self.read_slot_id())
+    0x4A =>
+      BytesGet(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x4B =>
+      BytesSet(
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+      )
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }

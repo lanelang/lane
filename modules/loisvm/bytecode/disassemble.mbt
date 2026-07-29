@@ -176,6 +176,18 @@ fn render_instruction(instruction : Instruction) -> String {
       "string_slice \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(start)}, \{render_slot(length)}"
     StringEq(destination, left, right) =>
       binary_instruction("string_eq", destination, left, right)
+    ByteToInt(destination, source) =>
+      unary_instruction("byte_to_int", destination, source)
+    IntToByte(destination, source) =>
+      unary_instruction("int_to_byte", destination, source)
+    BytesMake(destination, length, fill) =>
+      binary_instruction("bytes_make", destination, length, fill)
+    BytesLength(destination, source) =>
+      unary_instruction("bytes_length", destination, source)
+    BytesGet(destination, source, index) =>
+      binary_instruction("bytes_get", destination, source, index)
+    BytesSet(destination, source, index, value) =>
+      "bytes_set \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(index)}, \{render_slot(value)}"
     IntAdd(destination, left, right) =>
       binary_instruction("int_add", destination, left, right)
     IntSub(destination, left, right) =>
@@ -450,6 +462,8 @@ fn render_layout_recipe(recipe : LayoutRecipe) -> String {
     Data(shape) => "data(\{render_shape(shape)})"
     Environment(shape) => "environment(\{render_shape(shape)})"
     Reference => "reference"
+    Byte => "byte"
+    Bytes => "bytes"
   }
 }
 

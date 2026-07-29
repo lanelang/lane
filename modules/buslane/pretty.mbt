@@ -74,6 +74,8 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
     Int => text("Int")
     Double => text("Double")
     String => text("String")
+    Byte => text("Byte")
+    Bytes => text("Bytes")
   }
 }
 

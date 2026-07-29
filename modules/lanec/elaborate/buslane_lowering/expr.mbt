@@ -486,6 +486,8 @@ fn lower_primitive_type(
     Bool => Bool
     String => String
     Unit => Unit
+    Byte => Byte
+    Bytes => Bytes
   }
 }
 

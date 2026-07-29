@@ -114,6 +114,8 @@ fn token_label(token : Token) -> String {
     INT_TYPE => "Int"
     DOUBLE_TYPE => "Double"
     STRING_TYPE => "String"
+    BYTE_TYPE => "Byte"
+    BYTES_TYPE => "Bytes"
     KIND_FN => "kind_fn"
     EMPTY_EFFECT => "empty_effect"
     IO_EFFECT => "io_effect"
@@ -431,6 +433,8 @@ fn primitive_doc(primitive : @buslane.PrimitiveType) -> Document {
     Int => text("Int")
     Double => text("Double")
     String => text("String")
+    Byte => text("Byte")
+    Bytes => text("Bytes")
   }
 }
 

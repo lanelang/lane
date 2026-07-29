@@ -104,6 +104,30 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       StringEqual
     }
+    [u8be(19), .. rest] => {
+      self.update_view(rest)
+      ByteToInt
+    }
+    [u8be(20), .. rest] => {
+      self.update_view(rest)
+      IntToByte
+    }
+    [u8be(21), .. rest] => {
+      self.update_view(rest)
+      BytesMake
+    }
+    [u8be(22), .. rest] => {
+      self.update_view(rest)
+      BytesLength
+    }
+    [u8be(23), .. rest] => {
+      self.update_view(rest)
+      BytesGet
+    }
+    [u8be(24), .. rest] => {
+      self.update_view(rest)
+      BytesSet
+    }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
       invalid_binary_tag(

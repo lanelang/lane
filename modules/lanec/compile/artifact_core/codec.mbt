@@ -120,6 +120,12 @@ fn write_intrinsic(
       F64NegativeInf => 16
       F64Nan => 17
       StringEqual => 18
+      ByteToInt => 19
+      IntToByte => 20
+      BytesMake => 21
+      BytesLength => 22
+      BytesGet => 23
+      BytesSet => 24
     },
   )
 }

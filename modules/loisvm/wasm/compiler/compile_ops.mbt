@@ -263,6 +263,56 @@ fn compile_instruction(
       }
       result
     }
+    ByteToInt(destination, source) =>
+      [
+        LocalGet(slot_local(parameter_count, source)),
+        I64ExtendI32U,
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+    IntToByte(destination, source) =>
+      [
+        LocalGet(slot_local(parameter_count, source)),
+        I64Const(255L),
+        I64And,
+        I32WrapI64,
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+    BytesMake(destination, length, fill) => {
+      let result : Array[@wasm_types.Instruction] = [
+        LocalGet(slot_local(parameter_count, length)),
+        LocalGet(slot_local(parameter_count, fill)),
+        Call(runtime_functions.bytes_make),
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+      result.append(mark_slot_live(live_base, slots, destination))
+      result
+    }
+    BytesLength(destination, source) =>
+      [
+        LocalGet(slot_local(parameter_count, source)),
+        I32Load(0, 2, 8L),
+        I64ExtendI32U,
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+    BytesGet(destination, source, index) =>
+      [
+        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(slot_local(parameter_count, index)),
+        Call(runtime_functions.bytes_get),
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+    BytesSet(destination, source, index, value) => {
+      let result : Array[@wasm_types.Instruction] = [
+        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(slot_local(parameter_count, index)),
+        LocalGet(slot_local(parameter_count, value)),
+        Call(runtime_functions.bytes_set),
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+      result.append(mark_slot_dead(live_base, slots, source))
+      result.append(mark_slot_live(live_base, slots, destination))
+      result
+    }
     StringLength(destination, string) =>
       [
         LocalGet(slot_local(parameter_count, string)),

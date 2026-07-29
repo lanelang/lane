@@ -240,6 +240,8 @@ pub(all) enum PrimitiveType {
   Int
   Double
   String
+  Byte
+  Bytes
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for PrimitiveType
 

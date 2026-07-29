@@ -33,6 +33,18 @@ _Avoid_: recursive top-level values, forward top-level value reference
 The rule that an expression is evaluated when it is reached, and function arguments are evaluated before the function body runs.
 _Avoid_: eager mode, non-lazy evaluation
 
+**Pure Array Value Semantics**:
+The rule that an array update produces a new array value without changing any previously observable array value or alias.
+_Avoid_: shared mutable array, observable in-place update, reference-identity array
+
+**Byte Value**:
+A value of the built-in primitive type `Byte`: an unsigned scalar in the inclusive range `0..255`, with explicit modulo conversion from `Int` and explicit zero-extending conversion to `Int`. Lane provides no dedicated Byte literal or implicit numeric conversion.
+_Avoid_: signed byte, implicit integer conversion, checked integer conversion
+
+**Bytes Value**:
+A value of the built-in primitive type `Bytes`: a contiguous sequence of Byte Values whose updates cannot change any previously observable Bytes Value or alias. Lane provides no dedicated Bytes literal syntax. Primitive construction and indexing operations panic when given a negative length or an out-of-bounds index; recoverable validation belongs in ordinary library APIs.
+_Avoid_: ASCII String, byte list, shared mutable buffer
+
 **Keyword-Delimited Top Level**:
 Top-level definitions are separated by their defining keywords rather than semicolons or MoonBit block separators.
 _Avoid_: `///|` separator, semicolon-delimited top level
@@ -182,6 +194,8 @@ _Avoid_: enum variant, nominal constructor
 ## Relationships
 
 - A Lane source file contains **Top-Level Definitions**, not an executable entrypoint.
+- Byte and Bytes Values follow **Pure Array Value Semantics**: an update cannot change a previously observable value or alias.
+- Byte and Bytes Values have no dedicated literal syntax; construction and conversion use ordinary functions backed by closed compiler primitives.
 - Top-level functions and types may form a **Recursive Definition Group**.
 - Top-level immutable values follow **Ordered Top-Level Value Scope**.
 - A top-level **Immutable Value Definition** must include an explicit type annotation.

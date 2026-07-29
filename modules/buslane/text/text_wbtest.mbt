@@ -153,6 +153,22 @@ test "buslane text roundtrips double primitive and literal" {
 }
 
 ///|
+test "buslane text roundtrips Byte and Bytes primitives" {
+  let type_ : @buslane.Type = Function(
+    [Primitive(Byte)],
+    Primitive(Bytes),
+    Empty,
+  )
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_type(type_)
+  assert_eq(text, "fn_type([Byte], Bytes)")
+  let decoded = match parse_type_text(text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + text)
+  }
+  assert_type_equal(decoded, type_)
+}
+
+///|
 test "buslane text roundtrips effectful function type" {
   let type_ : @buslane.Type = Function(
     [Primitive(String)],

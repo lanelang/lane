@@ -431,6 +431,11 @@ fn FunctionLowerer::lower_intrinsic(
   type_ : @buslane.Type,
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
+  match intrinsic {
+    BytesMake | BytesLength | BytesGet | BytesSet =>
+      ignore(self.image.intern_layout(Bytes))
+    _ => ()
+  }
   let result_type = callable_result_type(type_)
   let slots = arguments.map(fn(argument) {
     match argument {
@@ -456,6 +461,13 @@ fn FunctionLowerer::lower_intrinsic(
     (F64Equal, [left, right]) => DoubleEq(destination, left, right)
     (F64Less, [left, right]) => DoubleLt(destination, left, right)
     (StringEqual, [left, right]) => StringEq(destination, left, right)
+    (ByteToInt, [source]) => ByteToInt(destination, source)
+    (IntToByte, [source]) => IntToByte(destination, source)
+    (BytesMake, [length, fill]) => BytesMake(destination, length, fill)
+    (BytesLength, [source]) => BytesLength(destination, source)
+    (BytesGet, [source, index]) => BytesGet(destination, source, index)
+    (BytesSet, [source, index, value]) =>
+      BytesSet(destination, source, index, value)
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)

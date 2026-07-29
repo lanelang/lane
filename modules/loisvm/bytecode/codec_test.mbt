@@ -241,6 +241,12 @@ test "all instructions roundtrip" {
     BorrowCapture(shape(1), one, 0, projection),
     ConsumeCaptures(shape(1), one, [{ member_index: 0, result: projection }]),
     MakeClosure(one, function(1), zero),
+    ByteToInt(one, zero),
+    IntToByte(zero, one),
+    BytesMake(zero, one, zero),
+    BytesLength(one, zero),
+    BytesGet(zero, zero, one),
+    BytesSet(zero, zero, one, zero),
     StringLength(zero, one),
     StringConcat(zero, one, two),
     StringSlice(zero, one, two, zero),
@@ -342,6 +348,8 @@ test "function, layout, shape, and constant tables roundtrip" {
       Data(shape(0)),
       Environment(shape(1)),
       Reference,
+      Byte,
+      Bytes,
     ],
     object_shapes: [
       Data({

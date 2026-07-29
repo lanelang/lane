@@ -60,14 +60,14 @@ Every `SlotId` has one immutable `SlotMetadata` entry. The representation fixes 
 
 | Representation | Runtime contents |
 | --- | --- |
-| `I32` | Boolean values, layout witnesses, object references, String references, and other 32-bit runtime values |
+| `I32` | Boolean and Byte values, layout witnesses, object references, String references, Bytes references, and other 32-bit runtime values |
 | `I64` | Lane `Int`, packed callable values, and erased payloads |
 | `F64` | Lane `Double` |
 
 | Cleanup | Legal representation | Meaning |
 | --- | --- | --- |
 | `Trivial` | `I32`, `I64`, or `F64` | The bits require no cleanup. |
-| `OwnedRef` | `I32` | The slot owns one reference-counted object or String reference. |
+| `OwnedRef` | `I32` | The slot owns one reference-counted object, String, or Bytes reference. |
 | `OwnedCallable` | `I64` | The slot owns one callable value; a captured callable owns its environment reference. |
 | `OwnedErased` | `I64` | The slot owns an erased payload whose retain and release operations are selected by an `I32 + Trivial` layout companion slot. |
 
@@ -83,7 +83,7 @@ Instruction operands use the following conventions:
 
 ## Object and layout model
 
-`LayoutRecipe` describes a runtime layout. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
+`LayoutRecipe` describes a runtime layout. `Byte` is the trivial scalar-byte layout and `Bytes` is the owned packed-byte-sequence layout. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
 
 A `DataShape` stores a constructor tag, stored layout witnesses, and ordered field schemas. An `EnvironmentShape` stores layout witnesses and ordered capture schemas. A `MemberSchema` fixes the member representation and cleanup; an `OwnedErased` member must name the stored-witness ordinal used for its cleanup.
 
@@ -151,6 +151,21 @@ Shapes, member indices, witness ordinals, field counts, capture counts, member r
 | `0x18` | `StringEq(destination, left, right)` | `string_eq`; borrows both Strings and writes canonical Boolean byte equality to an `I32 + Trivial` destination. |
 
 Strings and constant-pool entries are ASCII in the current bytecode contract, so byte length and character length coincide. A producer must prove `start >= 0`, `length >= 0`, and `start + length <= source.length`.
+
+### Byte and Bytes
+
+`Byte` values use canonical unsigned values in the low eight bits of an `I32 + Trivial` slot. `Bytes` values use `I32 + OwnedRef` slots and point to exact-length ARC objects whose elements occupy one byte each.
+
+| Opcode | Constructor | Semantics |
+| --- | --- | --- |
+| `0x46` | `ByteToInt(destination, source)` | `byte_to_int`; zero-extends a canonical Byte from `I32 + Trivial` to Lane `Int` in `I64 + Trivial`. |
+| `0x47` | `IntToByte(destination, source)` | `int_to_byte`; writes the low eight bits of an `I64 + Trivial` Lane `Int` as a canonical `I32 + Trivial` Byte. |
+| `0x48` | `BytesMake(destination, length, fill)` | `bytes_make`; borrows an `I64` length and `I32` Byte, creates an exact-length packed object filled with that Byte, and writes one `I32 + OwnedRef` owner. |
+| `0x49` | `BytesLength(destination, source)` | `bytes_length`; borrows a Bytes owner and writes its nonnegative length as `I64 + Trivial`. |
+| `0x4A` | `BytesGet(destination, source, index)` | `bytes_get`; borrows a Bytes owner and an `I64` index and writes the selected Byte as `I32 + Trivial`. |
+| `0x4B` | `BytesSet(destination, source, index, value)` | `bytes_set`; consumes one Bytes owner, borrows the index and Byte, and writes one owning Bytes result with the selected element replaced. A unique source may be updated in place; a shared source must be copied so other owners retain their original value. |
+
+`BytesMake` traps for a negative or unrepresentable length. `BytesGet` and `BytesSet` trap for a negative or out-of-bounds index. These failures do not publish a partial Bytes owner.
 
 ### Integer operations
 

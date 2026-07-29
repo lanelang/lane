@@ -8,6 +8,7 @@ pub enum VMValue {
 ///|
 pub enum ObjectPayload {
   String(Bytes)
+  BytesObject(Array[Byte])
   HostObject(@runtime.HostObjectHandle)
   Data(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
   Environment(
@@ -59,7 +60,7 @@ fn Heap::new(
         ref_count: 0,
         layout,
         payload: String(bytes),
-        size: string_allocation_size(bytes.length()),
+        size: byte_sequence_allocation_size(bytes.length()),
         immortal: true,
       }),
     )
@@ -124,7 +125,19 @@ fn Heap::allocate_string(
   self.allocate(
     layout=self.string_layout(),
     payload=String(bytes),
-    size=string_allocation_size(bytes.length()),
+    size=byte_sequence_allocation_size(bytes.length()),
+  )
+}
+
+///|
+fn Heap::allocate_bytes(
+  self : Heap,
+  bytes : Array[Byte],
+) -> Int raise ExecutionFailure {
+  self.allocate(
+    layout=self.bytes_layout(),
+    payload=BytesObject(bytes),
+    size=byte_sequence_allocation_size(bytes.length()),
   )
 }
 
@@ -220,6 +233,26 @@ fn Heap::string_bytes(
 }
 
 ///|
+fn Heap::bytes_array(
+  self : Heap,
+  reference : Int,
+) -> Array[Byte] raise ExecutionFailure {
+  match self.object(reference).payload {
+    BytesObject(bytes) => bytes
+    _ => raise InternalFailure(detail="object is not Bytes")
+  }
+}
+
+///|
+fn Heap::reference_is_unique(
+  self : Heap,
+  reference : Int,
+) -> Bool raise ExecutionFailure {
+  let object = self.object(reference)
+  !object.immortal && object.ref_count == 1
+}
+
+///|
 fn Heap::retain_reference(
   self : Heap,
   reference : Int,
@@ -284,7 +317,7 @@ fn Heap::retain_erased(
 ) -> Unit raise ExecutionFailure {
   match self.image.layouts[layout.value - 1] {
     Callable => self.retain_callable(payload)
-    String | Data(_) | Environment(_) | Reference =>
+    String | Bytes | Data(_) | Environment(_) | Reference =>
       self.retain_reference((payload & 0xFFFFFFFFL).to_int())
     _ => ()
   }
@@ -298,7 +331,7 @@ fn Heap::release_erased(
 ) -> Unit raise ExecutionFailure {
   match self.image.layouts[layout.value - 1] {
     Callable => self.release_callable(payload)
-    String | Data(_) | Environment(_) | Reference =>
+    String | Bytes | Data(_) | Environment(_) | Reference =>
       self.release_reference((payload & 0xFFFFFFFFL).to_int())
     _ => ()
   }
@@ -310,7 +343,7 @@ fn Heap::destroy_payload(
   payload : ObjectPayload,
 ) -> Unit raise ExecutionFailure {
   match payload {
-    String(_) => ()
+    String(_) | BytesObject(_) => ()
     HostObject(handle) =>
       self.runtime.release_host_object(handle) catch {
         InvalidHostObjectHandle(detail~) => raise InternalFailure(detail~)
@@ -401,6 +434,14 @@ fn Heap::string_layout(
 }
 
 ///|
+fn Heap::bytes_layout(self : Heap) -> @bytecode.LayoutId raise ExecutionFailure {
+  match find_bytes_layout(self.image.layouts) {
+    Some(index) => { value: index + 1 }
+    None => raise InternalFailure(detail="bytecode image has no Bytes layout")
+  }
+}
+
+///|
 fn callable(function : @bytecode.FunctionId, environment : Int) -> Int64 {
   function.value.to_int64() | (environment.to_int64() << 32)
 }
@@ -421,7 +462,7 @@ fn host_object_allocation_size() -> Int {
 }
 
 ///|
-fn string_allocation_size(length : Int) -> Int {
+fn byte_sequence_allocation_size(length : Int) -> Int {
   align_up(12 + length, 8)
 }
 
@@ -447,6 +488,16 @@ fn object_allocation_size(shape : @bytecode.ObjectShape) -> Int {
 fn find_string_layout(layouts : Array[@bytecode.LayoutRecipe]) -> Int? {
   for index, recipe in layouts {
     if recipe is String {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn find_bytes_layout(layouts : Array[@bytecode.LayoutRecipe]) -> Int? {
+  for index, recipe in layouts {
+    if recipe is Bytes {
       return Some(index)
     }
   }

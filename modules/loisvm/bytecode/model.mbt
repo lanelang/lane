@@ -103,6 +103,8 @@ pub(all) enum LayoutRecipe {
   Double
   Callable
   String
+  Byte
+  Bytes
   Data(ObjectShapeId)
   Environment(ObjectShapeId)
   Reference
@@ -179,6 +181,12 @@ pub(all) enum Instruction {
   StringConcat(SlotId, SlotId, SlotId)
   StringSlice(SlotId, SlotId, SlotId, SlotId)
   StringEq(SlotId, SlotId, SlotId)
+  ByteToInt(SlotId, SlotId)
+  IntToByte(SlotId, SlotId)
+  BytesMake(SlotId, SlotId, SlotId)
+  BytesLength(SlotId, SlotId)
+  BytesGet(SlotId, SlotId, SlotId)
+  BytesSet(SlotId, SlotId, SlotId, SlotId)
   IntAdd(SlotId, SlotId, SlotId)
   IntSub(SlotId, SlotId, SlotId)
   IntMul(SlotId, SlotId, SlotId)

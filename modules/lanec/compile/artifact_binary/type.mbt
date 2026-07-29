@@ -145,6 +145,8 @@ fn @bytecodec.ByteWriter::write_lane_primitive_type(
       Bool => 2
       String => 3
       Unit => 4
+      Byte => 5
+      Bytes => 6
     },
   )
 }
@@ -174,6 +176,14 @@ fn @bytecodec.ByteReader::read_lane_primitive_type(
     [u8be(4), .. rest] => {
       self.update_view(rest)
       Unit
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      Byte
+    }
+    [u8be(6), .. rest] => {
+      self.update_view(rest)
+      Bytes
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

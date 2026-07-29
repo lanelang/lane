@@ -766,6 +766,23 @@ fn map_instruction_values(
       )
     StringEq(destination, left, right) =>
       StringEq(transform(destination), transform(left), transform(right))
+    ByteToInt(destination, source) =>
+      ByteToInt(transform(destination), transform(source))
+    IntToByte(destination, source) =>
+      IntToByte(transform(destination), transform(source))
+    BytesMake(destination, length, fill) =>
+      BytesMake(transform(destination), transform(length), transform(fill))
+    BytesLength(destination, source) =>
+      BytesLength(transform(destination), transform(source))
+    BytesGet(destination, source, index) =>
+      BytesGet(transform(destination), transform(source), transform(index))
+    BytesSet(destination, source, index, value) =>
+      BytesSet(
+        transform(destination),
+        transform(source),
+        transform(index),
+        transform(value),
+      )
     IntAdd(destination, left, right) =>
       IntAdd(transform(destination), transform(left), transform(right))
     IntSub(destination, left, right) =>

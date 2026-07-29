@@ -46,6 +46,8 @@
 %token INT_TYPE "Int"
 %token DOUBLE_TYPE "Double"
 %token STRING_TYPE "String"
+%token BYTE_TYPE "Byte"
+%token BYTES_TYPE "Bytes"
 %token KIND_FN "kind_fn"
 %token EMPTY_EFFECT "empty_effect"
 %token IO_EFFECT "io_effect"
@@ -319,6 +321,8 @@ primitive_type -> PrimitiveType
   | "Int" { Int }
   | "Double" { Double }
   | "String" { String }
+  | "Byte" { Byte }
+  | "Bytes" { Bytes }
   ;
 
 value_kind -> ValueKind

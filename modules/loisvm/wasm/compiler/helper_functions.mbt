@@ -9,7 +9,7 @@ priv struct HelperFunctions {
   destroy_noop_wasm : Int
   destroy_host_object_wasm : Int
   destroy_shape_wasm_base : Int
-  string_sizer_wasm : Int
+  byte_sequence_sizer_wasm : Int
   noop_erased_table : Int
   retain_ref_erased_table : Int
   release_ref_erased_table : Int
@@ -18,7 +18,7 @@ priv struct HelperFunctions {
   destroy_noop_table : Int
   destroy_host_object_table : Int
   destroy_shape_table_base : Int
-  string_sizer_table : Int
+  byte_sequence_sizer_table : Int
 }
 
 ///|
@@ -27,7 +27,7 @@ fn helper_function_indices(
   shape_count : Int,
   runtime_wasm_base : Int,
 ) -> HelperFunctions {
-  let wasm_base = runtime_wasm_base + 9
+  let wasm_base = runtime_wasm_base + 14
   let table_base = lane_function_count + 1
   {
     count: 8 + shape_count,
@@ -39,7 +39,7 @@ fn helper_function_indices(
     destroy_noop_wasm: wasm_base + 5,
     destroy_host_object_wasm: wasm_base + 6,
     destroy_shape_wasm_base: wasm_base + 7,
-    string_sizer_wasm: wasm_base + 7 + shape_count,
+    byte_sequence_sizer_wasm: wasm_base + 7 + shape_count,
     noop_erased_table: table_base,
     retain_ref_erased_table: table_base + 1,
     release_ref_erased_table: table_base + 2,
@@ -48,7 +48,7 @@ fn helper_function_indices(
     destroy_noop_table: table_base + 5,
     destroy_host_object_table: table_base + 6,
     destroy_shape_table_base: table_base + 7,
-    string_sizer_table: table_base + 7 + shape_count,
+    byte_sequence_sizer_table: table_base + 7 + shape_count,
   }
 }
 
@@ -66,7 +66,7 @@ fn HelperFunctions::wasm_indices(self : HelperFunctions) -> Array[Int] {
   for index in 0..<(self.count - 8) {
     result.push(self.destroy_shape_wasm_base + index)
   }
-  result.push(self.string_sizer_wasm)
+  result.push(self.byte_sequence_sizer_wasm)
   result
 }
 

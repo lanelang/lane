@@ -61,14 +61,17 @@ fn compiler_intrinsic_type(intrinsic : @abi.Intrinsic) -> @types.Type {
 }
 
 ///|
-fn intrinsic_primitive_type(kind : @abi.ValueKind) -> @types.PrimitiveType {
+fn intrinsic_primitive_type(
+  kind : @abi.IntrinsicValueKind,
+) -> @types.PrimitiveType {
   match kind {
     Unit => Unit
     Bool => Bool
     Int => Int
     Double => Double
     String => String
-    Opaque => abort("compiler intrinsic cannot use an opaque ABI value")
+    Byte => Byte
+    Bytes => Bytes
   }
 }
 
