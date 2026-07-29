@@ -19,7 +19,7 @@ fn ImageLowerer::lower_function_body(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: [],
+    substitutions: TypeSubstitution(),
   }
   let input_witnesses = []
   for parameter in type_parameters {

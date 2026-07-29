@@ -178,6 +178,12 @@ PrimitiveType =
   String
 ```
 
+Type substitution is simultaneous and capture-avoiding. Extending a lexical
+scope uses an explicit overlay whose new bindings shadow the base substitution;
+replacement terms are not recursively reinterpreted as another substitution
+program. Construction and strict application report type/effect argument-kind
+mismatches instead of treating a mismatched binding as absent.
+
 Function types use n-ary parameter lists and carry a latent effect. Buslane does
 not curry function types, does not tuple arguments implicitly, and does not
 support implicit partial application.

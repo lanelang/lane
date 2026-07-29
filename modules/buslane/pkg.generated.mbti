@@ -10,6 +10,12 @@ import {
 pub fn verify_program(Program) -> VerifyResult
 
 // Errors
+pub(all) suberror TypeSubstitutionError {
+  ArgumentCountMismatch(expected~ : Int, actual~ : Int)
+  MissingParameterMetadata(parameter~ : TypeParameterId)
+  ExpectedTypeArgument(parameter~ : TypeParameterId)
+  ExpectedEffectArgument(parameter~ : TypeParameterId)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub(all) enum AltCon {
@@ -67,6 +73,7 @@ pub(all) enum Effect {
   Union(Array[Effect])
 } derive(Eq, @debug.Debug)
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
+pub fn Effect::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for Effect
 
 pub(all) enum EffectFlavor {
@@ -116,6 +123,7 @@ pub(all) enum GenericArgument {
   EffectArgument(Effect)
 } derive(Eq, @debug.Debug)
 pub fn GenericArgument::normalize(Self) -> Self
+pub fn GenericArgument::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for GenericArgument
 
 pub(all) struct HandleExpr {
@@ -264,6 +272,7 @@ pub(all) enum Type {
   Forall(Array[TypeParameterId], Type)
 } derive(Eq, @debug.Debug)
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
+pub fn Type::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for Type
 
 pub(all) enum TypeFlavor {
@@ -299,9 +308,13 @@ pub struct TypeSubstitution {
   entries : Array[TypeSubstitutionEntry]
 } derive(Eq, @debug.Debug)
 pub fn TypeSubstitution::TypeSubstitution() -> Self
+pub fn TypeSubstitution::effect_argument(Self, TypeParameterId) -> Effect? raise TypeSubstitutionError
+pub fn TypeSubstitution::from_arguments(MetadataRegistry, Array[TypeParameterId], Array[GenericArgument]) -> Self raise TypeSubstitutionError
 pub fn TypeSubstitution::insert(Self, TypeParameterId, Type) -> Unit
 pub fn TypeSubstitution::insert_argument(Self, TypeParameterId, GenericArgument) -> Unit
 pub fn TypeSubstitution::insert_effect(Self, TypeParameterId, Effect) -> Unit
+pub fn TypeSubstitution::overlay(Self, Self) -> Self
+pub fn TypeSubstitution::type_argument(Self, TypeParameterId) -> Type? raise TypeSubstitutionError
 
 pub struct TypeSubstitutionEntry {
   parameter : TypeParameterId

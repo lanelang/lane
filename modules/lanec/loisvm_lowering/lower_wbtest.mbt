@@ -2855,38 +2855,6 @@ test "function type parts collect every nested forall layer" {
 }
 
 ///|
-test "type substitution propagates nominal effect arguments" {
-  let formal : @buslane.TypeParameterId = { index: 110 }
-  let actual : @buslane.TypeParameterId = { index: 111 }
-  let type_id : @buslane.TypeId = { index: 12 }
-  assert_eq(
-    substitute_type(
-      Apply(Constructor(type_id), [EffectArgument(Parameter(formal))]),
-      [{ parameter: formal, argument: EffectArgument(Parameter(actual)) }],
-    ),
-    Apply(Constructor(type_id), [EffectArgument(Parameter(actual))]),
-  )
-}
-
-///|
-test "type substitution resolves parameters inside replacement types" {
-  let element : @buslane.TypeParameterId = { index: 112 }
-  let result : @buslane.TypeParameterId = { index: 113 }
-  assert_eq(
-    substitute_type(Parameter(result), [
-      { parameter: element, argument: TypeArgument(Primitive(Int)) },
-      {
-        parameter: result,
-        argument: TypeArgument(
-          Function([Parameter(element)], Parameter(element), Empty),
-        ),
-      },
-    ]),
-    Function([Primitive(Int)], Primitive(Int), Empty),
-  )
-}
-
-///|
 test "concrete effect contexts use erased Unit or reference layouts" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect : @buslane.EffectId = { index: 3 }
@@ -2922,6 +2890,8 @@ test "callable adapters skip target parameters specialized to Unit" {
   let source_answer : @buslane.TypeParameterId = { index: 120 }
   let target_answer : @buslane.TypeParameterId = { index: 121 }
   let empty_context : @buslane.TypeParameterId = { index: 122 }
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert(empty_context, Primitive(Unit))
   assert_eq(
     callable_parameter_targets(
       Forall(
@@ -2947,7 +2917,7 @@ test "callable adapters skip target parameters specialized to Unit" {
           Empty,
         ),
       ),
-      [{ parameter: empty_context, argument: TypeArgument(Primitive(Unit)) }],
+      substitutions,
     ),
     [0, 2],
   )

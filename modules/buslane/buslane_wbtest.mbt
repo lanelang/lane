@@ -245,6 +245,80 @@ test "buslane function latent effects participate in type equality and substitut
 }
 
 ///|
+test "buslane substitution is simultaneous and capture avoiding" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let element = metadata.define_type_parameter("Element", Type)
+  let result = metadata.define_type_parameter("Result", Type)
+  let substitution = TypeSubstitution::from_arguments(
+    metadata,
+    [element, result],
+    [
+      TypeArgument(int_type()),
+      TypeArgument(Function([Parameter(element)], Parameter(element), Empty)),
+    ],
+  )
+  assert_eq(
+    Type::Parameter(result).try_substitute(substitution),
+    Function([Parameter(element)], Parameter(element), Empty),
+  )
+  assert_eq(
+    Forall([element], Function([], Parameter(element), Empty)).try_substitute(
+      substitution,
+    ),
+    Forall([element], Function([], Parameter(element), Empty)),
+  )
+}
+
+///|
+test "buslane substitution overlay shadows without mutating its base" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let parameter = metadata.define_type_parameter("T", Type)
+  let base = TypeSubstitution::from_arguments(metadata, [parameter], [
+    TypeArgument(int_type()),
+  ])
+  let shadowing = TypeSubstitution::from_arguments(metadata, [parameter], [
+    TypeArgument(bool_type()),
+  ])
+  assert_eq(Type::Parameter(parameter).try_substitute(base), int_type())
+  assert_eq(
+    Type::Parameter(parameter).try_substitute(base.overlay(shadowing)),
+    bool_type(),
+  )
+  assert_eq(Type::Parameter(parameter).try_substitute(base), int_type())
+}
+
+///|
+test "buslane substitution reports argument kind mismatches" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let effect = metadata.define_type_parameter("E", Effect)
+  try
+    TypeSubstitution::from_arguments(metadata, [effect], [
+      TypeArgument(int_type()),
+    ])
+  catch {
+    error =>
+      debug_inspect(
+        error,
+        content="ExpectedEffectArgument(parameter={ index: 0 })",
+      )
+  } noraise {
+    _ => fail("expected an effect argument mismatch")
+  }
+  let type_ = metadata.define_type_parameter("T", Type)
+  let malformed = TypeSubstitution::TypeSubstitution()
+  malformed.insert_effect(type_, Empty)
+  try Type::Parameter(type_).try_substitute(malformed) catch {
+    error =>
+      debug_inspect(
+        error,
+        content="ExpectedTypeArgument(parameter={ index: 1 })",
+      )
+  } noraise {
+    _ => fail("expected a type argument mismatch")
+  }
+}
+
+///|
 test "buslane canonical effect equality ignores ordering and duplicates" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let console_parameter = metadata.define_type_parameter("T", Type)

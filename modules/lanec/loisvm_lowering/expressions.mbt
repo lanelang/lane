@@ -117,16 +117,15 @@ fn FunctionLowerer::lower_construct(
         data_constructor=construct.data_constructor,
       )
   }
-  let substitutions = self.data_type_substitutions(
+  let owner_substitutions = self.data_type_substitutions(
     owner_info.parameters,
     construct.type_arguments,
   )
-  substitutions.append(
-    self.data_type_substitutions(
-      info.hidden_type_parameters,
-      construct.hidden_witnesses,
-    ),
+  let hidden_substitutions = self.data_type_substitutions(
+    info.hidden_type_parameters,
+    construct.hidden_witnesses,
   )
+  let substitutions = owner_substitutions.overlay(hidden_substitutions)
   if construct.payloads.length() != info.payload_types.length() {
     raise InvalidDataPayloadCount(
       data_constructor=construct.data_constructor,
@@ -135,20 +134,23 @@ fn FunctionLowerer::lower_construct(
     )
   }
   let witnesses = []
-  for substitution in substitutions {
-    if self.image.requires_layout_witness(substitution.parameter) {
-      guard substitution.argument is TypeArgument(type_) else {
-        raise InvalidTypeApplication(
-          detail="data layout requires a type argument",
-        )
-      }
+  for parameter in owner_info.parameters + info.hidden_type_parameters {
+    if self.image.requires_layout_witness(parameter) {
+      witnesses.push(
+        self.layout_witness(
+          required_type_substitution_argument(substitutions, parameter),
+        ),
+      )
+    }
+    if self.image.effect_companion(parameter) is Some(companion) &&
+      type_substitution_type_argument(substitutions, companion) is Some(type_) {
       witnesses.push(self.layout_witness(type_))
     }
   }
   let fields = []
   for index, payload in construct.payloads {
     let formal_type = info.payload_types[index]
-    let actual_type = substitute_type(formal_type, substitutions)
+    let actual_type = apply_type_substitution(formal_type, substitutions)
     let lowered = self.materialize_local(
       self.adapt_local_value_with_substitutions(
         self.lower_atom(payload),

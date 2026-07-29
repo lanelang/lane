@@ -136,19 +136,19 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   scrutinee_type : @buslane.Type,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
-  substitutions : Array[TypeArgumentBinding],
+  substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
-  let substitution_count = self.substitutions.length()
+  let original_substitutions = self.substitutions
   self.bind_data_alternative(
     binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
   )
   let result = self.materialize_local(self.lower_expr(alternative.body))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
-  self.restore_substitutions(substitution_count)
+  self.substitutions = original_substitutions
   result
 }
 
@@ -163,12 +163,12 @@ fn FunctionLowerer::lower_data_alternative(
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
-  substitutions : Array[TypeArgumentBinding],
+  substitutions : @buslane.TypeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
-  let substitution_count = self.substitutions.length()
+  let original_substitutions = self.substitutions
   self.enter_block(block)
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
@@ -190,7 +190,7 @@ fn FunctionLowerer::lower_data_alternative(
   self.terminate(Jump({ target: join, arguments }))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
-  self.restore_substitutions(substitution_count)
+  self.substitutions = original_substitutions
   self.environment = original_environment
 }
 
@@ -202,7 +202,7 @@ fn FunctionLowerer::bind_data_alternative(
   scrutinee_type : @buslane.Type,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
-  substitutions : Array[TypeArgumentBinding],
+  substitutions : @buslane.TypeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
   let info = match self.image.metadata.data_constructor_info(data_constructor) {
     Some(info) => info
@@ -233,7 +233,7 @@ fn FunctionLowerer::bind_data_alternative(
     )
   }
   self.bindings.push({ value: binder, lowered: Slot(scrutinee, scrutinee_type) })
-  let branch_substitutions = substitutions.copy()
+  let hidden_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
   if binds_payloads {
     let shape = self.image.data_shape(data_constructor, info)
     let owner_info = match self.image.metadata.type_info(info.owner) {
@@ -255,7 +255,7 @@ fn FunctionLowerer::bind_data_alternative(
             detail="hidden data parameter metadata is missing",
           )
       }
-      branch_substitutions.push({ parameter: hidden_parameter, argument })
+      hidden_substitutions.insert_argument(hidden_parameter, argument)
       if self.image.requires_layout_witness(hidden_parameter) {
         let witness = self.fresh_metadata(layout_witness_metadata())
         self.emit(LoadObjectWitness(witness, shape, scrutinee, witness_ordinal))
@@ -263,9 +263,12 @@ fn FunctionLowerer::bind_data_alternative(
         witness_ordinal += 1
       }
     }
+    let branch_substitutions = substitutions.overlay(hidden_substitutions)
     for index, value_binder in alternative.value_binders {
       let formal_type = info.payload_types[index]
-      let payload_type = substitute_type(formal_type, branch_substitutions)
+      let payload_type = apply_type_substitution(
+        formal_type, branch_substitutions,
+      )
       let stored = if formal_type is Parameter(_) {
         let witness = self.fresh_metadata(layout_witness_metadata())
         let erased = self.fresh_erased_slot(witness, Borrowed)
@@ -297,8 +300,10 @@ fn FunctionLowerer::bind_data_alternative(
       )
       self.bindings.push({ value: value_binder, lowered })
     }
+    self.substitutions = self.substitutions.overlay(branch_substitutions)
+  } else {
+    self.substitutions = self.substitutions.overlay(substitutions)
   }
-  self.substitutions.append(branch_substitutions)
 }
 
 ///|
@@ -387,16 +392,6 @@ fn FunctionLowerer::restore_witnesses(
 ) -> Unit {
   while self.witnesses.length() > witness_count {
     ignore(self.witnesses.pop())
-  }
-}
-
-///|
-fn FunctionLowerer::restore_substitutions(
-  self : FunctionLowerer,
-  substitution_count : Int,
-) -> Unit {
-  while self.substitutions.length() > substitution_count {
-    ignore(self.substitutions.pop())
   }
 }
 

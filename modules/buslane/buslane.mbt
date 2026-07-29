@@ -811,8 +811,52 @@ pub struct TypeSubstitution {
 } derive(Debug, Eq)
 
 ///|
+pub(all) suberror TypeSubstitutionError {
+  ArgumentCountMismatch(expected~ : Int, actual~ : Int)
+  MissingParameterMetadata(parameter~ : TypeParameterId)
+  ExpectedTypeArgument(parameter~ : TypeParameterId)
+  ExpectedEffectArgument(parameter~ : TypeParameterId)
+} derive(Debug, Eq)
+
+///|
+priv enum TypeSubstitutionMismatchPolicy {
+  RecoverKindMismatch
+  RejectKindMismatch
+}
+
+///|
 pub fn TypeSubstitution::TypeSubstitution() -> TypeSubstitution {
   { entries: [] }
+}
+
+///|
+pub fn TypeSubstitution::from_arguments(
+  metadata : MetadataRegistry,
+  parameters : Array[TypeParameterId],
+  arguments : Array[GenericArgument],
+) -> TypeSubstitution raise TypeSubstitutionError {
+  if parameters.length() != arguments.length() {
+    raise ArgumentCountMismatch(
+      expected=parameters.length(),
+      actual=arguments.length(),
+    )
+  }
+  let substitution = TypeSubstitution::TypeSubstitution()
+  for index, parameter in parameters {
+    let kind = match metadata.type_parameter_info(parameter) {
+      Some(info) => info.kind
+      None => raise MissingParameterMetadata(parameter~)
+    }
+    let argument = arguments[index]
+    match (kind, argument) {
+      (Effect, EffectArgument(_)) | (Type | Function(_), TypeArgument(_)) =>
+        substitution.insert_argument(parameter, argument)
+      (Effect, TypeArgument(_)) => raise ExpectedEffectArgument(parameter~)
+      (Type | Function(_), EffectArgument(_)) =>
+        raise ExpectedTypeArgument(parameter~)
+    }
+  }
+  substitution
 }
 
 ///|
@@ -843,6 +887,32 @@ pub fn TypeSubstitution::insert_argument(
 }
 
 ///|
+pub fn TypeSubstitution::overlay(
+  self : TypeSubstitution,
+  shadowing : TypeSubstitution,
+) -> TypeSubstitution {
+  let entries = shadowing.entries.copy()
+  entries.append(self.entries)
+  { entries, }
+}
+
+///|
+pub fn TypeSubstitution::type_argument(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+) -> Type? raise TypeSubstitutionError {
+  self.lookup_type(parameter, [], RejectKindMismatch)
+}
+
+///|
+pub fn TypeSubstitution::effect_argument(
+  self : TypeSubstitution,
+  parameter : TypeParameterId,
+) -> Effect? raise TypeSubstitutionError {
+  self.lookup_effect(parameter, [], RejectKindMismatch)
+}
+
+///|
 fn TypeSubstitution::lookup_argument(
   self : TypeSubstitution,
   parameter : TypeParameterId,
@@ -864,10 +934,16 @@ fn TypeSubstitution::lookup_type(
   self : TypeSubstitution,
   parameter : TypeParameterId,
   bound : Array[TypeParameterId],
-) -> Type? {
+  mismatch_policy : TypeSubstitutionMismatchPolicy,
+) -> Type? raise TypeSubstitutionError {
   match self.lookup_argument(parameter, bound) {
     Some(TypeArgument(type_)) => Some(type_)
-    _ => None
+    Some(EffectArgument(_)) =>
+      match mismatch_policy {
+        RecoverKindMismatch => None
+        RejectKindMismatch => raise ExpectedTypeArgument(parameter~)
+      }
+    None => None
   }
 }
 
@@ -876,10 +952,16 @@ fn TypeSubstitution::lookup_effect(
   self : TypeSubstitution,
   parameter : TypeParameterId,
   bound : Array[TypeParameterId],
-) -> Effect? {
+  mismatch_policy : TypeSubstitutionMismatchPolicy,
+) -> Effect? raise TypeSubstitutionError {
   match self.lookup_argument(parameter, bound) {
     Some(EffectArgument(effect)) => Some(effect)
-    _ => None
+    Some(TypeArgument(_)) =>
+      match mismatch_policy {
+        RecoverKindMismatch => None
+        RejectKindMismatch => raise ExpectedEffectArgument(parameter~)
+      }
+    None => None
   }
 }
 
@@ -900,16 +982,29 @@ fn GenericArgument::normalize_with_fuel(
 }
 
 ///|
+pub fn GenericArgument::try_substitute(
+  self : GenericArgument,
+  substitution : TypeSubstitution,
+) -> GenericArgument raise TypeSubstitutionError {
+  self.substitute_with_bound(substitution, [], RejectKindMismatch)
+}
+
+///|
 fn GenericArgument::substitute_with_bound(
   self : GenericArgument,
   substitution : TypeSubstitution,
   bound : Array[TypeParameterId],
-) -> GenericArgument {
+  mismatch_policy : TypeSubstitutionMismatchPolicy,
+) -> GenericArgument raise TypeSubstitutionError {
   match self {
     TypeArgument(type_) =>
-      TypeArgument(type_.substitute_with_bound(substitution, bound))
+      TypeArgument(
+        type_.substitute_with_bound(substitution, bound, mismatch_policy),
+      )
     EffectArgument(effect) =>
-      EffectArgument(effect.substitute_with_bound(substitution, bound))
+      EffectArgument(
+        effect.substitute_with_bound(substitution, bound, mismatch_policy),
+      )
   }
 }
 
@@ -979,7 +1074,15 @@ fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
 
 ///|
 pub fn Type::substitute(self : Type, substitution : TypeSubstitution) -> Type {
-  self.substitute_with_bound(substitution, [])
+  try! self.substitute_with_bound(substitution, [], RecoverKindMismatch)
+}
+
+///|
+pub fn Type::try_substitute(
+  self : Type,
+  substitution : TypeSubstitution,
+) -> Type raise TypeSubstitutionError {
+  self.substitute_with_bound(substitution, [], RejectKindMismatch)
 }
 
 ///|
@@ -987,19 +1090,20 @@ fn Type::substitute_with_bound(
   self : Type,
   substitution : TypeSubstitution,
   bound : Array[TypeParameterId],
-) -> Type {
+  mismatch_policy : TypeSubstitutionMismatchPolicy,
+) -> Type raise TypeSubstitutionError {
   match self {
     Primitive(_) | Constructor(_) => self
     Parameter(parameter) =>
-      match substitution.lookup_type(parameter, bound) {
+      match substitution.lookup_type(parameter, bound, mismatch_policy) {
         Some(replacement) => replacement
         None => self
       }
     Apply(callee, arguments) =>
       Apply(
-        callee.substitute_with_bound(substitution, bound),
-        arguments.map(fn(argument) {
-          argument.substitute_with_bound(substitution, bound)
+        callee.substitute_with_bound(substitution, bound, mismatch_policy),
+        arguments.map(argument => {
+          argument.substitute_with_bound(substitution, bound, mismatch_policy)
         }),
       )
     TypeLambda(parameters, body) => {
@@ -1009,23 +1113,26 @@ fn Type::substitute_with_bound(
       }
       TypeLambda(
         parameters,
-        body.substitute_with_bound(substitution, next_bound),
+        body.substitute_with_bound(substitution, next_bound, mismatch_policy),
       )
     }
     Function(parameters, result, effect) =>
       Function(
-        parameters.map(fn(parameter) {
-          parameter.substitute_with_bound(substitution, bound)
+        parameters.map(parameter => {
+          parameter.substitute_with_bound(substitution, bound, mismatch_policy)
         }),
-        result.substitute_with_bound(substitution, bound),
-        effect.substitute_with_bound(substitution, bound),
+        result.substitute_with_bound(substitution, bound, mismatch_policy),
+        effect.substitute_with_bound(substitution, bound, mismatch_policy),
       )
     Forall(parameters, body) => {
       let next_bound = bound.copy()
       for parameter in parameters {
         next_bound.push(parameter)
       }
-      Forall(parameters, body.substitute_with_bound(substitution, next_bound))
+      Forall(
+        parameters,
+        body.substitute_with_bound(substitution, next_bound, mismatch_policy),
+      )
     }
   }
 }
@@ -1035,7 +1142,15 @@ pub fn Effect::substitute(
   self : Effect,
   substitution : TypeSubstitution,
 ) -> Effect {
-  self.substitute_with_bound(substitution, [])
+  try! self.substitute_with_bound(substitution, [], RecoverKindMismatch)
+}
+
+///|
+pub fn Effect::try_substitute(
+  self : Effect,
+  substitution : TypeSubstitution,
+) -> Effect raise TypeSubstitutionError {
+  self.substitute_with_bound(substitution, [], RejectKindMismatch)
 }
 
 ///|
@@ -1043,25 +1158,26 @@ fn Effect::substitute_with_bound(
   self : Effect,
   substitution : TypeSubstitution,
   bound : Array[TypeParameterId],
-) -> Effect {
+  mismatch_policy : TypeSubstitutionMismatchPolicy,
+) -> Effect raise TypeSubstitutionError {
   match self {
     Empty | Io => self
     Parameter(parameter) =>
-      match substitution.lookup_effect(parameter, bound) {
+      match substitution.lookup_effect(parameter, bound, mismatch_policy) {
         Some(replacement) => replacement
         None => self
       }
     Singleton(id, arguments) =>
       Singleton(
         id,
-        arguments.map(fn(argument) {
-          argument.substitute_with_bound(substitution, bound)
+        arguments.map(argument => {
+          argument.substitute_with_bound(substitution, bound, mismatch_policy)
         }),
       )
     Union(effects) =>
       Union(
-        effects.map(fn(effect) {
-          effect.substitute_with_bound(substitution, bound)
+        effects.map(effect => {
+          effect.substitute_with_bound(substitution, bound, mismatch_policy)
         }),
       )
   }

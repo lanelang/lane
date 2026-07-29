@@ -102,8 +102,8 @@ fn collect_free_runtime_type_parameters(
 fn FunctionLowerer::canonical_callable_type(
   self : FunctionLowerer,
   type_ : @buslane.Type,
-) -> (@buslane.Type, Array[TypeArgumentBinding]) raise LoisvmLoweringError {
-  let bindings = []
+) -> (@buslane.Type, @buslane.TypeSubstitution) raise LoisvmLoweringError {
+  let bindings = @buslane.TypeSubstitution::TypeSubstitution()
   let canonical = self.canonical_callable_type_with_bound(type_, [], bindings)
   (canonical, bindings)
 }
@@ -113,7 +113,7 @@ fn FunctionLowerer::canonical_callable_type_with_bound(
   self : FunctionLowerer,
   type_ : @buslane.Type,
   bound : Array[@buslane.TypeParameterId],
-  bindings : Array[TypeArgumentBinding],
+  bindings : @buslane.TypeSubstitution,
 ) -> @buslane.Type raise LoisvmLoweringError {
   match type_ {
     Forall(parameters, body) => {
@@ -141,7 +141,7 @@ fn FunctionLowerer::canonical_callable_value_type(
   self : FunctionLowerer,
   type_ : @buslane.Type,
   bound : Array[@buslane.TypeParameterId],
-  bindings : Array[TypeArgumentBinding],
+  bindings : @buslane.TypeSubstitution,
 ) -> @buslane.Type {
   if type_ == Primitive(Unit) {
     return type_
@@ -150,7 +150,7 @@ fn FunctionLowerer::canonical_callable_value_type(
     return type_
   }
   let parameter = self.image.fresh_synthetic_parameter()
-  bindings.push({ parameter, argument: TypeArgument(type_) })
+  bindings.insert(parameter, type_)
   Parameter(parameter)
 }
 
@@ -158,24 +158,14 @@ fn FunctionLowerer::canonical_callable_value_type(
 fn FunctionLowerer::adapter_witness(
   self : FunctionLowerer,
   parameter : @buslane.TypeParameterId,
-  substitutions : Array[TypeArgumentBinding],
+  substitutions : @buslane.TypeSubstitution,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  for substitution in substitutions.rev_iter() {
-    if substitution.parameter == parameter {
-      guard substitution.argument is TypeArgument(type_) else {
-        raise InvalidTypeApplication(
-          detail="callable adapter witness requires a type argument",
-        )
-      }
-      return self.layout_witness(type_)
-    }
+  if type_substitution_type_argument(substitutions, parameter) is Some(type_) {
+    return self.layout_witness(type_)
   }
   if self.image.effect_source(parameter) is Some(source) {
-    for substitution in substitutions.rev_iter() {
-      if substitution.parameter == source &&
-        substitution.argument is EffectArgument(effect) {
-        return self.effect_context_witness(effect)
-      }
+    if type_substitution_effect_argument(substitutions, source) is Some(effect) {
+      return self.effect_context_witness(effect)
     }
   }
   self.find_witness(parameter)
@@ -187,7 +177,7 @@ fn FunctionLowerer::make_callable_adapter(
   source : @vmcfg.ValueId,
   source_type : @buslane.Type,
   target_type : @buslane.Type,
-  substitutions : Array[TypeArgumentBinding],
+  substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   if self.image.metadata.types_definitionally_equal(source_type, target_type) {
     return Slot(source, target_type)
@@ -223,7 +213,7 @@ fn FunctionLowerer::make_callable_adapter(
 fn callable_parameter_targets(
   source_type : @buslane.Type,
   target_type : @buslane.Type,
-  substitutions : Array[TypeArgumentBinding],
+  substitutions : @buslane.TypeSubstitution,
 ) -> Array[Int] raise LoisvmLoweringError {
   let (source_type_parameters, source_parameters, _) = function_type_parts(
     source_type,
@@ -239,17 +229,15 @@ fn callable_parameter_targets(
   if source_parameters.length() == target_parameters.length() {
     return source_parameters.mapi((index, _parameter) => index)
   }
-  let alignment_substitutions = substitutions.copy()
+  let alignment = @buslane.TypeSubstitution::TypeSubstitution()
   for index, target_parameter in target_type_parameters {
-    alignment_substitutions.push({
-      parameter: target_parameter,
-      argument: TypeArgument(Parameter(source_type_parameters[index])),
-    })
+    alignment.insert(target_parameter, Parameter(source_type_parameters[index]))
   }
+  let alignment_substitutions = substitutions.overlay(alignment)
   let source_parameter_targets = []
   let mut source_index = 0
   for target_index, target_parameter in target_parameters {
-    let actual_target = substitute_type(
+    let actual_target = apply_type_substitution(
       target_parameter, alignment_substitutions,
     )
     if source_index < source_parameters.length() &&
@@ -277,7 +265,12 @@ fn FunctionLowerer::adapt_local_value(
   source_type : @buslane.Type,
   target_type : @buslane.Type,
 ) -> LocalValue raise LoisvmLoweringError {
-  self.adapt_local_value_with_substitutions(value, source_type, target_type, [])
+  self.adapt_local_value_with_substitutions(
+    value,
+    source_type,
+    target_type,
+    TypeSubstitution(),
+  )
 }
 
 ///|
@@ -286,7 +279,7 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
   value : LocalValue,
   source_type : @buslane.Type,
   target_type : @buslane.Type,
-  substitutions : Array[TypeArgumentBinding],
+  substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   let source_type = local_value_type(value).unwrap_or(source_type)
   if self.image.metadata.types_definitionally_equal(source_type, target_type) {
@@ -387,7 +380,7 @@ fn ImageLowerer::lower_callable_adapter(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: [],
+    substitutions: TypeSubstitution(),
   }
   let input_witnesses = []
   for index, parameter in target_type_parameters {

@@ -24,7 +24,7 @@ priv struct FunctionLowerer {
   temps : Array[TempBinding]
   mut environment : @vmcfg.ValueId?
   witnesses : Array[WitnessBinding]
-  substitutions : Array[TypeArgumentBinding]
+  mut substitutions : @buslane.TypeSubstitution
 }
 
 ///|

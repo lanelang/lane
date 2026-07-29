@@ -127,12 +127,6 @@ priv struct WitnessBinding {
 }
 
 ///|
-priv struct TypeArgumentBinding {
-  parameter : @buslane.TypeParameterId
-  argument : @buslane.GenericArgument
-}
-
-///|
 priv struct ValueBinding {
   value : @buslane.ValueId
   lowered : LocalValue
