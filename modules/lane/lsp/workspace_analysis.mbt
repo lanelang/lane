@@ -8,6 +8,37 @@ priv struct LspWorkspaceAnalysis {
 priv struct LspAnalysisSources {
   root : @module_frontend.SourceInput
   libraries : Array[@module_frontend.SourceInput]
+  scan_issues : Array[WorkspaceScanIssue]
+}
+
+///|
+priv struct WorkspaceInitialization {
+  publications : Array[DiagnosticPublication]
+  scan_issues : Array[WorkspaceScanIssue]
+}
+
+///|
+priv enum WorkspaceScanOperation {
+  ReadDirectory
+  InspectEntry
+  ReadSource
+}
+
+///|
+priv struct WorkspaceScanIssue {
+  operation : WorkspaceScanOperation
+  path : String
+}
+
+///|
+priv struct WorkspaceScanResult {
+  sources : Array[@module_frontend.SourceInput]
+  issues : Array[WorkspaceScanIssue]
+}
+
+///|
+priv suberror WorkspaceScanError {
+  WorkspaceRootReadFailed(path~ : String)
 }
 
 ///|
@@ -23,10 +54,13 @@ async fn LspWorkspaceAnalysis::initialize_workspace(
   self : LspWorkspaceAnalysis,
   workspace : @analysis.SemanticWorkspace,
   document : DocumentSnapshot,
-) -> Array[DiagnosticPublication] {
+) -> WorkspaceInitialization {
   let sources = self.analysis_sources(document)
   ignore(workspace.replace_sources(sources.all_inputs()))
-  self.workspace_diagnostics(workspace, document.uri)
+  {
+    publications: self.workspace_diagnostics(workspace, document.uri),
+    scan_issues: sources.scan_issues,
+  }
 }
 
 ///|
@@ -107,12 +141,14 @@ async fn LspWorkspaceAnalysis::analysis_sources(
   }
   match self.workspace_root {
     Some(root) => {
-      let libraries = self
-        .workspace_sources(root)
-        .without_source_id(document.uri)
-      { root: root_input, libraries }
+      let libraries = self.workspace_sources(root)
+      {
+        root: root_input,
+        libraries: libraries.sources.without_source_id(document.uri),
+        scan_issues: libraries.issues,
+      }
     }
-    None => { root: root_input, libraries: [] }
+    None => { root: root_input, libraries: [], scan_issues: [] }
   }
 }
 
@@ -120,14 +156,21 @@ async fn LspWorkspaceAnalysis::analysis_sources(
 async fn LspWorkspaceAnalysis::workspace_sources(
   self : LspWorkspaceAnalysis,
   root : String,
-) -> Array[@module_frontend.SourceInput] {
+) -> WorkspaceScanResult {
   let library_identities : @hashset.HashSet[String] = @hashset.HashSet([])
   let sources = self.open_document_library_sources(root, library_identities)
-  append_lane_sources(root, library_identities, sources)
+  let issues = []
+  append_lane_sources(
+    root,
+    library_identities,
+    sources,
+    issues,
+    is_workspace_root=true,
+  )
   sources.sort_by(fn(left, right) {
     String::compare(left.source_id, right.source_id)
   })
-  sources
+  { sources, issues }
 }
 
 ///|
@@ -169,24 +212,52 @@ async fn append_lane_sources(
   path : String,
   library_identities : @hashset.HashSet[String],
   sources : Array[@module_frontend.SourceInput],
+  issues : Array[WorkspaceScanIssue],
+  is_workspace_root~ : Bool,
 ) -> Unit {
-  let entries = @fs.readdir(path, sort=true)
+  let entries = @fs.readdir(path, sort=true) catch {
+    _ =>
+      if is_workspace_root {
+        raise WorkspaceRootReadFailed(path~)
+      } else {
+        issues.push({ operation: ReadDirectory, path })
+        return
+      }
+  }
   for entry in entries {
     if should_skip_workspace_entry(entry) {
       continue
     }
     let child = "\{path}/\{entry}"
-    match @fs.kind(child) {
-      Directory => append_lane_sources(child, library_identities, sources)
+    let kind = @fs.kind(child) catch {
+      _ => {
+        issues.push({ operation: InspectEntry, path: child })
+        continue
+      }
+    }
+    match kind {
+      Directory =>
+        append_lane_sources(
+          child,
+          library_identities,
+          sources,
+          issues,
+          is_workspace_root=false,
+        )
       Regular if child.has_suffix(".lane") => {
         let identity = lsp_source_identity(child)
-        if !library_identities.add_and_check(identity) {
+        if library_identities.contains(identity) {
           continue
         }
-        sources.push({
-          source_id: path_to_file_uri(child),
-          text: @fs.read_file(child).text(),
-        })
+        let text = @fs.read_file(child).text() catch {
+          _ => {
+            issues.push({ operation: ReadSource, path: child })
+            continue
+          }
+        }
+        if library_identities.add_and_check(identity) {
+          sources.push({ source_id: path_to_file_uri(child), text })
+        }
       }
       _ => ()
     }

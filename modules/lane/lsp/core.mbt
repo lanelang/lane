@@ -65,6 +65,17 @@ async fn ServerState::handle_request(
   self : ServerState,
   request : @jsonrpc.Request,
 ) -> HandlerResult {
+  self.dispatch_request(request) catch {
+    WorkspaceRootReadFailed(path~) => workspace_scan_failure(path)
+    error => raise error
+  }
+}
+
+///|
+async fn ServerState::dispatch_request(
+  self : ServerState,
+  request : @jsonrpc.Request,
+) -> HandlerResult {
   match request.method_ {
     "initialize" => self.handle_initialize(request)
     "shutdown" => self.handle_shutdown(request)
@@ -131,18 +142,7 @@ async fn ServerState::handle_did_open(
     return respond(request, Err(invalid_params(invalid_did_open_params())))
   }
   self.documents[document.uri] = document
-  {
-    outgoing: self
-    .synchronize_document(document)
-    .map(fn(publication) {
-      publish_diagnostics(
-        publication.uri,
-        publication.diagnostics,
-        sources=publication.sources,
-      )
-    }),
-    exit_requested: false,
-  }
+  workspace_synchronization_result(self.synchronize_document(document))
 }
 
 ///|
@@ -154,18 +154,7 @@ async fn ServerState::handle_did_change(
     return respond(request, Err(invalid_params(invalid_did_change_params())))
   }
   self.documents[document.uri] = document
-  {
-    outgoing: self
-    .synchronize_document(document)
-    .map(fn(publication) {
-      publish_diagnostics(
-        publication.uri,
-        publication.diagnostics,
-        sources=publication.sources,
-      )
-    }),
-    exit_requested: false,
-  }
+  workspace_synchronization_result(self.synchronize_document(document))
 }
 
 ///|
@@ -201,16 +190,66 @@ async fn ServerState::handle_did_close(
 async fn ServerState::synchronize_document(
   self : ServerState,
   document : DocumentSnapshot,
-) -> Array[DiagnosticPublication] {
+) -> WorkspaceInitialization {
   if self.workspace_loaded {
-    self.workspace_analysis().update_document(self.semantic_workspace, document)
+    {
+      publications: self
+      .workspace_analysis()
+      .update_document(self.semantic_workspace, document),
+      scan_issues: [],
+    }
   } else {
-    let publications = self
+    let initialization = self
       .workspace_analysis()
       .initialize_workspace(self.semantic_workspace, document)
     self.workspace_loaded = true
-    publications
+    initialization
   }
+}
+
+///|
+fn workspace_synchronization_result(
+  initialization : WorkspaceInitialization,
+) -> HandlerResult {
+  let outgoing = initialization.publications.map(fn(publication) {
+    publish_diagnostics(
+      publication.uri,
+      publication.diagnostics,
+      sources=publication.sources,
+    )
+  })
+  outgoing.append(initialization.scan_issues.map(workspace_scan_issue_log))
+  { outgoing, exit_requested: false }
+}
+
+///|
+fn workspace_scan_failure(path : String) -> HandlerResult {
+  {
+    outgoing: [
+      @jsonrpc.new_notification("window/showMessage", {
+        "type": 1,
+        "message": "Lane could not scan workspace root `\{path}`; the workspace was not loaded.",
+      }),
+      @jsonrpc.new_notification("window/logMessage", {
+        "type": 1,
+        "message": "Workspace scan failed: could not read directory `\{path}`.",
+      }),
+    ],
+    exit_requested: false,
+  }
+}
+
+///|
+fn workspace_scan_issue_log(issue : WorkspaceScanIssue) -> @jsonrpc.Message {
+  let action = match issue.operation {
+    ReadDirectory => "read directory"
+    InspectEntry => "inspect entry"
+    ReadSource => "read Lane source"
+  }
+  @jsonrpc.new_notification("window/logMessage", {
+    "type": 2,
+    "message": "Workspace scan skipped `\{issue.path}`: could not \{action}.",
+  })
 }
 
 ///|
