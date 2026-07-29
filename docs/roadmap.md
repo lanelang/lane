@@ -6,7 +6,6 @@
 - [x] `derive` should be considered by `lane lsp`, type inlay, argument inlay and so on
 - [x] inlay: if there is only one argument and it is `auto`, it will still be a inlayed comma
 - [ ] recovered parsing 
-- [ ] binary output
+- [ ] C ABI and binary executable with libc
 - [ ] command `make-exe`, `make-wasm`
-- [ ] C ABI
 - [ ] 
