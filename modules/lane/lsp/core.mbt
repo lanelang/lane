@@ -205,10 +205,11 @@ async fn ServerState::synchronize_document(
   if self.workspace_loaded {
     self.workspace_analysis().update_document(self.semantic_workspace, document)
   } else {
+    let publications = self
+      .workspace_analysis()
+      .initialize_workspace(self.semantic_workspace, document)
     self.workspace_loaded = true
-    self
-    .workspace_analysis()
-    .initialize_workspace(self.semantic_workspace, document)
+    publications
   }
 }
 

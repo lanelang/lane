@@ -121,11 +121,9 @@ async fn LspWorkspaceAnalysis::workspace_sources(
   self : LspWorkspaceAnalysis,
   root : String,
 ) -> Array[@module_frontend.SourceInput] {
-  let library_identities = []
+  let library_identities : @hashset.HashSet[String] = @hashset.HashSet([])
   let sources = self.open_document_library_sources(root, library_identities)
-  append_lane_sources(root, library_identities, sources) catch {
-    _ => ()
-  }
+  append_lane_sources(root, library_identities, sources)
   sources.sort_by(fn(left, right) {
     String::compare(left.source_id, right.source_id)
   })
@@ -136,16 +134,15 @@ async fn LspWorkspaceAnalysis::workspace_sources(
 async fn LspWorkspaceAnalysis::open_document_library_sources(
   self : LspWorkspaceAnalysis,
   root : String,
-  library_identities : Array[String],
+  library_identities : @hashset.HashSet[String],
 ) -> Array[@module_frontend.SourceInput] {
   let sources : Array[@module_frontend.SourceInput] = []
   for _, document in self.documents {
     guard file_uri_to_path(document.uri) is Some(path) else { continue }
     let identity = lsp_source_identity(path)
-    if !library_identities.contains(identity) &&
-      path.has_suffix(".lane") &&
-      path_is_under_workspace(path, root) {
-      library_identities.push(identity)
+    if path.has_suffix(".lane") &&
+      path_is_under_workspace(path, root) &&
+      library_identities.add_and_check(identity) {
       sources.push({ source_id: document.uri, text: document.text })
     }
   }
@@ -170,7 +167,7 @@ async fn lsp_source_identity(path : String) -> String {
 ///|
 async fn append_lane_sources(
   path : String,
-  library_identities : Array[String],
+  library_identities : @hashset.HashSet[String],
   sources : Array[@module_frontend.SourceInput],
 ) -> Unit {
   let entries = @fs.readdir(path, sort=true)
@@ -183,10 +180,9 @@ async fn append_lane_sources(
       Directory => append_lane_sources(child, library_identities, sources)
       Regular if child.has_suffix(".lane") => {
         let identity = lsp_source_identity(child)
-        if library_identities.contains(identity) {
+        if !library_identities.add_and_check(identity) {
           continue
         }
-        library_identities.push(identity)
         sources.push({
           source_id: path_to_file_uri(child),
           text: @fs.read_file(child).text(),
