@@ -38,14 +38,21 @@ priv enum StructuralDeriveTarget {
 }
 
 ///|
+priv struct CheckedDeriveDeriverSynthesis {
+  deriver : @checked.CheckedDeriveDeriver
+  effect : @types.Effect
+}
+
+///|
 fn SemanticChecker::synthesize_checked_derive(
   self : SemanticChecker,
   scope : TypeScope,
   capability_syntax : @resolve.ResolvedType,
   target_syntax : @resolve.ResolvedType,
   arguments : Array[@desugar.DesugaredCallArgument],
-  loc : SourceSpan,
+  source : @basic.DeriveSourceSite,
 ) -> CheckedExpressionSynthesis {
+  let loc = source.loc
   let type_checker = TypeExpressionChecker::{
     source: self.resolved_source,
     imported_environment: self.imported_environment,
@@ -96,12 +103,7 @@ fn SemanticChecker::synthesize_checked_derive(
     target_plan.components(),
     loc,
   )
-  guard deriver_result is Some(deriver_synthesis) &&
-    self.require_checked_expression(
-      deriver_synthesis, loc, "structural derivation deriver",
-    )
-    is Some(deriver) &&
-    evidence_result is Some(_) else {
+  guard deriver_result is Some(deriver_synthesis) && evidence_result is Some(_) else {
     return checked_expression_none_reported(
       apply_unary_type_constructor(capability, target),
     )
@@ -121,9 +123,16 @@ fn SemanticChecker::synthesize_checked_derive(
   let metadata = target_plan.metadata()
   checked_expression_with_effect(
     Derive(
-      plan={ capability, target, abi, shape, deriver, metadata },
+      plan={
+        capability,
+        target,
+        abi,
+        shape,
+        deriver: deriver_synthesis.deriver,
+        metadata,
+      },
       type_=result_type,
-      loc~,
+      source~,
     ),
     result_type,
     deriver_synthesis.effect,
@@ -137,12 +146,27 @@ fn SemanticChecker::checked_derive_deriver(
   arguments : Array[@desugar.DesugaredCallArgument],
   expected : @types.Type,
   loc : SourceSpan,
-) -> CheckedExpressionSynthesis? {
+) -> CheckedDeriveDeriverSynthesis? {
   if arguments.is_empty() {
-    guard self.contextual_offer_expr(scope, expected, loc) is Some(expression) else {
+    guard self.required_contextual_offer(scope, expected, loc) is Some(offer) else {
       return None
     }
-    return Some(self.check_checked_expr(scope, expression, expected))
+    let synthesis = self.check_checked_expr(scope, offer.expression, expected)
+    guard self.require_checked_expression(
+        synthesis, loc, "structural derivation deriver",
+      )
+      is Some(value) else {
+      return None
+    }
+    return Some({
+      deriver: Contextual({
+        symbol: offer.symbol,
+        name: offer.name,
+        type_: offer.type_,
+        value,
+      }),
+      effect: synthesis.effect,
+    })
   }
   let mut value : @desugar.DesugaredExpr? = None
   let mut valid = true
@@ -180,7 +204,14 @@ fn SemanticChecker::checked_derive_deriver(
     self.diagnostics.push({ kind: CallArityMismatch(expected=1, actual=0), loc })
     return None
   }
-  Some(self.check_checked_expr(scope, value, expected))
+  let synthesis = self.check_checked_expr(scope, value, expected)
+  guard self.require_checked_expression(
+      synthesis, loc, "structural derivation deriver",
+    )
+    is Some(value) else {
+    return None
+  }
+  Some({ deriver: Explicit(value), effect: synthesis.effect })
 }
 
 ///|
@@ -474,7 +505,12 @@ fn SemanticChecker::checked_derive_evidence(
           requirement.component.evidence = Some({
             path: requirement.component.path,
             required_type: required,
-            value,
+            selection: {
+              symbol: offer.symbol,
+              name: offer.name,
+              type_: offer.type_,
+              value,
+            },
           })
         }
       }

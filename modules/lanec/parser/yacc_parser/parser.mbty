@@ -759,7 +759,7 @@ derive_expression -> Expr
       capability=$3.capability,
       target=$3.target,
       arguments=$6,
-      loc=span($sloc),
+      source=derive_source_site(span($sloc)),
     )
   }
   ;

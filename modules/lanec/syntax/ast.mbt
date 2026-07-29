@@ -331,7 +331,7 @@ pub(all) enum Expr {
     capability~ : Type,
     target~ : Type,
     arguments~ : Array[CallArgument],
-    loc~ : SourceSpan
+    source~ : @basic.DeriveSourceSite
   )
   Builtin(String, loc~ : SourceSpan)
   Extern(String, loc~ : SourceSpan)
@@ -395,7 +395,6 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | StructLiteral(loc~, ..)
     | ListLiteral(loc~, ..)
     | TupleLiteral(loc~, ..)
-    | Derive(loc~, ..)
     | Builtin(_, loc~)
     | Extern(_, loc~)
     | FunctionLiteral(loc~, ..)
@@ -411,6 +410,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | Binary(loc~, ..)
     | Pipeline(loc~, ..)
     | Grouped(loc~, ..) => loc
+    Derive(source~, ..) => source.loc
   }
 }
 

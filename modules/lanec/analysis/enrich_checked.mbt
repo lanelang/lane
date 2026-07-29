@@ -319,6 +319,8 @@ fn SemanticIndex::enrich_checked_expr(
       }
       self.enrich_checked_expr(body, display)
     }
+    Derive(plan~, type_~, source~) =>
+      self.enrich_checked_derive(plan, type_, source, display)
     Block(items~, result~, ..) => {
       for item in items {
         self.enrich_checked_local_item(item, display)

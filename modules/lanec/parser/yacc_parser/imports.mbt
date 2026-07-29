@@ -116,6 +116,15 @@ fn span(loc : (SourceSpan, SourceSpan)) -> SourceSpan {
 }
 
 ///|
+fn derive_source_site(loc : SourceSpan) -> @basic.DeriveSourceSite {
+  {
+    loc,
+    keyword_loc: loc.ascii_prefix(6),
+    close_paren_loc: loc.ascii_suffix(1),
+  }
+}
+
+///|
 fn make_external_type(
   is_public : Bool,
   identifier : Identifier,

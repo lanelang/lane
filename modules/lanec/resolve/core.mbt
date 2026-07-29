@@ -527,7 +527,7 @@ pub(all) enum ResolvedExpr {
     capability~ : ResolvedType,
     target~ : ResolvedType,
     arguments~ : Array[ResolvedCallArgument],
-    loc~ : SourceSpan
+    source~ : @basic.DeriveSourceSite
   )
   Builtin(String, loc~ : SourceSpan)
   Extern(String, loc~ : SourceSpan)

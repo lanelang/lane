@@ -277,8 +277,21 @@ fn SemanticChecker::contextual_offer_expr(
   expected : @types.Type,
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
+  guard self.required_contextual_offer(scope, expected, loc) is Some(offer) else {
+    return None
+  }
+  Some(offer.expression)
+}
+
+///|
+fn SemanticChecker::required_contextual_offer(
+  self : SemanticChecker,
+  scope : TypeScope,
+  expected : @types.Type,
+  loc : SourceSpan,
+) -> ContextualOffer? {
   match self.lookup_contextual_offer(scope, expected, loc) {
-    ContextualOfferFound(offer) => Some(offer.expression)
+    ContextualOfferFound(offer) => Some(offer)
     ContextualOfferMissing => {
       self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
       None

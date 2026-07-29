@@ -149,7 +149,7 @@ pub(all) enum DesugaredExpr {
     capability~ : @resolve.ResolvedType,
     target~ : @resolve.ResolvedType,
     arguments~ : Array[DesugaredCallArgument],
-    loc~ : SourceSpan
+    source~ : @basic.DeriveSourceSite
   )
   Builtin(String, loc~ : SourceSpan)
   Extern(String, loc~ : SourceSpan)
@@ -217,7 +217,6 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | Var(loc~, ..)
     | VariantCall(loc~, ..)
     | StructLiteral(loc~, ..)
-    | Derive(loc~, ..)
     | Builtin(_, loc~)
     | Extern(_, loc~)
     | ErrorRecovery(loc~)
@@ -230,5 +229,6 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | Match(loc~, ..)
     | Call(loc~, ..)
     | Field(loc~, ..) => loc
+    Derive(source~, ..) => source.loc
   }
 }

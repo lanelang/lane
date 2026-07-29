@@ -21,6 +21,13 @@ pub(all) struct CheckedCallArgument {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) struct CheckedContextualSelection {
+  symbol : @symbol.ValueSymbolId
+  name : String
+  type_ : @types.Type
+  value : CheckedExpr
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedDeriveAbi {
   deriver : @symbol.TypeSymbolId
   deriver_unit : @symbol.FieldSymbolId
@@ -44,10 +51,16 @@ pub(all) struct CheckedDeriveAbi {
   void_type : @symbol.TypeSymbolId
 } derive(Eq, @debug.Debug)
 
+pub(all) enum CheckedDeriveDeriver {
+  Explicit(CheckedExpr)
+  Contextual(CheckedContextualSelection)
+} derive(Eq, @debug.Debug)
+pub fn CheckedDeriveDeriver::value(Self) -> CheckedExpr
+
 pub(all) struct CheckedDeriveEvidence {
   path : String
   required_type : @types.Type
-  value : CheckedExpr
+  selection : CheckedContextualSelection
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedDeriveField {
@@ -65,7 +78,7 @@ pub(all) struct CheckedDerivePlan {
   target : @types.Type
   abi : CheckedDeriveAbi
   shape : CheckedDeriveShape
-  deriver : CheckedExpr
+  deriver : CheckedDeriveDeriver
   metadata : CheckedDeriveMetadata
 } derive(Eq, @debug.Debug)
 
@@ -155,7 +168,7 @@ pub(all) enum CheckedExpr {
   FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionEffectWiden(value~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : CheckedExpr, arguments~ : Array[@types.GenericArgument], type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  Derive(plan~ : CheckedDerivePlan, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  Derive(plan~ : CheckedDerivePlan, type_~ : @types.Type, source~ : @basic.DeriveSourceSite)
   Block(items~ : Array[CheckedLocalItem], result~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   If(condition~ : CheckedExpr, then_branch~ : CheckedExpr, else_branch~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Match(scrutinee~ : CheckedExpr, arms~ : Array[CheckedMatchArm], type_~ : @types.Type, loc~ : @basic.SourceSpan)

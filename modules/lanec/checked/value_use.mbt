@@ -280,9 +280,9 @@ fn CheckedValueUseCollector::collect_expr(
     FunctionEffectWiden(value~, ..) => self.collect_expr(value, current_origin)
     GenericApplication(callee~, ..) => self.collect_expr(callee, current_origin)
     Derive(plan~, ..) => {
-      self.collect_expr(plan.deriver, current_origin)
+      self.collect_expr(plan.deriver.value(), current_origin)
       plan.shape.for_each_evidence(fn(evidence) {
-        self.collect_expr(evidence.value, current_origin)
+        self.collect_expr(evidence.selection.value, current_origin)
       })
     }
     Block(items~, result~, ..) => {

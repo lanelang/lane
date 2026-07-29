@@ -50,11 +50,11 @@ pub fn CheckedExpr::substitute(
         type_=type_.substitute(substitution),
         loc~,
       )
-    Derive(plan~, type_~, loc~) =>
+    Derive(plan~, type_~, source~) =>
       Derive(
         plan=plan.substitute(substitution),
         type_=type_.substitute(substitution),
-        loc~,
+        source~,
       )
     Block(items~, result~, type_~, loc~) =>
       Block(
@@ -185,6 +185,30 @@ fn CheckedDerivePlan::substitute(
 }
 
 ///|
+fn CheckedDeriveDeriver::substitute(
+  self : CheckedDeriveDeriver,
+  substitution : @types.TypeSubstitution,
+) -> CheckedDeriveDeriver {
+  match self {
+    Explicit(value) => Explicit(value.substitute(substitution))
+    Contextual(selection) => Contextual(selection.substitute(substitution))
+  }
+}
+
+///|
+fn CheckedContextualSelection::substitute(
+  self : CheckedContextualSelection,
+  substitution : @types.TypeSubstitution,
+) -> CheckedContextualSelection {
+  {
+    symbol: self.symbol,
+    name: self.name,
+    type_: self.type_.substitute(substitution),
+    value: self.value.substitute(substitution),
+  }
+}
+
+///|
 fn CheckedDeriveShape::substitute(
   self : CheckedDeriveShape,
   substitution : @types.TypeSubstitution,
@@ -222,7 +246,7 @@ fn[A] CheckedDeriveProduct::substitute(
         evidence: {
           path: step.evidence.path,
           required_type: step.evidence.required_type.substitute(substitution),
-          value: step.evidence.value.substitute(substitution),
+          selection: step.evidence.selection.substitute(substitution),
         },
       }
     }),

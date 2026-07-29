@@ -15,7 +15,7 @@ fn BuslaneLowerer::lower_derive(
     Record(product~) => self.lower_record_derive(plan, deriver, product)
     Enumeration(sum~) => self.lower_enumeration_derive(plan, deriver, sum)
   }
-  Let(deriver, self.lower_expr(plan.deriver), body)
+  Let(deriver, self.lower_expr(plan.deriver.value()), body)
 }
 
 ///|
@@ -42,7 +42,7 @@ fn BuslaneLowerer::lower_record_derive(
       [TypeArgument(step.head_type)],
       [
         self.lower_derive_metadata(plan.abi.field_info, [field.name]),
-        self.lower_expr(step.evidence.value),
+        self.lower_expr(step.evidence.selection.value),
       ],
     )
     derived = self.lower_derive_method_call(
@@ -100,7 +100,10 @@ fn BuslaneLowerer::lower_enumeration_derive(
           TypeArgument(payload_step.head_type),
           TypeArgument(payload_step.tail_type),
         ],
-        [self.lower_expr(payload_step.evidence.value), payload_derived],
+        [
+          self.lower_expr(payload_step.evidence.selection.value),
+          payload_derived,
+        ],
       )
     }
     let variant_derived = self.lower_derive_method_call(

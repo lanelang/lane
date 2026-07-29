@@ -35,6 +35,13 @@ pub fn SourceSpan::dummy() -> SourceSpan {
 }
 
 ///|
+pub(all) struct DeriveSourceSite {
+  loc : SourceSpan
+  keyword_loc : SourceSpan
+  close_paren_loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
 /// Returns the leading ASCII subspan with `length` bytes.
 pub fn SourceSpan::ascii_prefix(self : SourceSpan, length : Int) -> SourceSpan {
   {

@@ -10,7 +10,6 @@ pub fn ResolvedExpr::loc(self : ResolvedExpr) -> SourceSpan {
     | QualifiedVariant(loc~, ..)
     | UnqualifiedVariant(loc~, ..)
     | StructLiteral(loc~, ..)
-    | Derive(loc~, ..)
     | Builtin(_, loc~)
     | Extern(_, loc~)
     | FunctionLiteral(loc~, ..)
@@ -25,6 +24,7 @@ pub fn ResolvedExpr::loc(self : ResolvedExpr) -> SourceSpan {
     | Unary(loc~, ..)
     | Binary(loc~, ..)
     | Pipeline(loc~, ..) => loc
+    Derive(source~, ..) => source.loc
   }
 }
 

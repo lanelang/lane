@@ -13,8 +13,10 @@ pub fn CheckedExpr::for_each_child_expr(
     FunctionEffectWiden(value~, ..) => visit(value)
     GenericApplication(callee~, ..) => visit(callee)
     Derive(plan~, ..) => {
-      visit(plan.deriver)
-      plan.shape.for_each_evidence(fn(evidence) { visit(evidence.value) })
+      visit(plan.deriver.value())
+      plan.shape.for_each_evidence(fn(evidence) {
+        visit(evidence.selection.value)
+      })
     }
     Block(items~, result~, ..) => {
       for item in items {

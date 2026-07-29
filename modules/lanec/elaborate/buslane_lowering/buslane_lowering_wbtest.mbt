@@ -331,13 +331,16 @@ fn first_checked_handler_expr_for_elaborate_test(
   match expression {
     Handler(handlers~, type_~, ..) => Some((handlers, type_))
     Derive(plan~, ..) =>
-      match first_checked_handler_expr_for_elaborate_test(plan.deriver) {
+      match
+        first_checked_handler_expr_for_elaborate_test(plan.deriver.value()) {
         Some(handler) => Some(handler)
         None => {
           let mut found = None
           plan.shape.for_each_evidence(fn(evidence) {
             if found is None &&
-              first_checked_handler_expr_for_elaborate_test(evidence.value)
+              first_checked_handler_expr_for_elaborate_test(
+                evidence.selection.value,
+              )
               is Some(handler) {
               found = Some(handler)
             }

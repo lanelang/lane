@@ -35,6 +35,22 @@ fn SemanticIndex::add_reference(
 }
 
 ///|
+fn SemanticIndex::upsert_hover(
+  self : SemanticIndex,
+  span : @basic.SourceSpan,
+  contents : String,
+) -> Unit {
+  let loc = AnalysisLocation::{ source_id: self.source_id, span }
+  for index, hover in self.hovers {
+    if hover.location == loc {
+      self.hovers[index] = { location: loc, contents }
+      return
+    }
+  }
+  self.hovers.push({ location: loc, contents })
+}
+
+///|
 fn SemanticIndex::enrich_definition(
   self : SemanticIndex,
   symbol : AnalysisSymbol,

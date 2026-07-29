@@ -2721,7 +2721,7 @@ fn yy_action_179(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 // 759|      capability=$3.capability,
 // 760|      target=$3.target,
 // 761|      arguments=$6,
-// 762|      loc=span($sloc),
+// 762|      source=derive_source_site(span($sloc)),
 // 763|    )
 // 764|  }
 fn yy_action_180(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
@@ -2734,7 +2734,7 @@ fn yy_action_180(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
       capability=_dollar3.capability,
       target=_dollar3.target,
       arguments=_dollar6,
-      loc=span((_symbol_start_pos, _end_pos)),
+      source=derive_source_site(span((_symbol_start_pos, _end_pos))),
     )
   })
 }

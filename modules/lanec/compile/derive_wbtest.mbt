@@ -437,6 +437,148 @@ test "derive type arguments retain semantic navigation" {
     abort("expected derive target hover")
   }
   assert_eq(hover.contents, "type Pair")
+  debug_inspect(
+    (
+      snapshot.definition_at("file:///Main.lane", 11, 33),
+      snapshot.hover_at("file:///Main.lane", 11, 33),
+      snapshot.inlay_hints_in_range("file:///Main.lane", 11, 1, 11, 51),
+    ),
+    content=(
+      #|(
+      #|  Some(
+      #|    {
+      #|      source_id: "file:///Support.lane",
+      #|      span: {
+      #|        start_offset: 825,
+      #|        end_offset: 835,
+      #|        start_line: 26,
+      #|        start_column: 11,
+      #|        end_line: 26,
+      #|        end_column: 21,
+      #|      },
+      #|    },
+      #|  ),
+      #|  Some(
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 160,
+      #|          end_offset: 166,
+      #|          start_line: 11,
+      #|          start_column: 32,
+      #|          end_line: 11,
+      #|          end_column: 38,
+      #|        },
+      #|      },
+      #|      contents: "derive[Box, Pair]() : Box[Pair]\nderiver: derive_box : Deriver[Box]\nevidence:\n  Pair.value: int_box : Box[Int]\n// `C` must have kind `[Type] -> Type`.\n// `T` must normalize to a struct or enum application.\n// A bare generic type parameter cannot be used as `T` because its structure is unknown.\n// Omitting `deriver` selects one visible `Deriver[C]` offer.",
+      #|    },
+      #|  ),
+      #|  [
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 178,
+      #|          end_offset: 178,
+      #|          start_line: 11,
+      #|          start_column: 50,
+      #|          end_line: 11,
+      #|          end_column: 50,
+      #|        },
+      #|      },
+      #|      kind: ImplicitArgumentHint,
+      #|      label: ", deriver=derive_box",
+      #|    },
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
+test "explicit derive has hover without implicit navigation" {
+  let workspace = @analysis.SemanticWorkspace::new()
+  let root =
+    #|module Main
+    #|
+    #|import Basic.Trait.Derive.{ Deriver }
+    #|import Support.{ Box }
+    #|
+    #|pub struct Pair {
+    #|  value : Int
+    #|}
+    #|
+    #|pub offer int_box : Box[Int] = Box[Int]::{}
+    #|
+    #|pub fn explicit(deriver : Deriver[Box]) -> Box[Pair] {
+    #|  derive[Box, Pair](deriver=deriver)
+    #|}
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: root },
+      { source_id: "file:///Void.lane", text: derive_void_source() },
+      { source_id: "file:///Iso.lane", text: derive_iso_source() },
+      { source_id: "file:///Derive.lane", text: derive_interface_source() },
+      { source_id: "file:///Support.lane", text: derive_support_source() },
+    ])
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  debug_inspect(snapshot.diagnostics(), content="[]")
+  assert_eq(snapshot.definition_at("file:///Main.lane", 13, 4), None)
+  assert_eq(snapshot.inlay_hints_in_range("file:///Main.lane", 13, 1, 13, 40), [])
+  guard snapshot.hover_at("file:///Main.lane", 13, 4) is Some(hover) else {
+    abort("expected explicit derive hover")
+  }
+  assert_eq(
+    hover.contents,
+    (
+      #|derive[Box, Pair](deriver=...) : Box[Pair]
+      #|deriver: explicit : Deriver[Box]
+      #|evidence:
+      #|  Pair.value: int_box : Box[Int]
+      #|// `C` must have kind `[Type] -> Type`.
+      #|// `T` must normalize to a struct or enum application.
+      #|// A bare generic type parameter cannot be used as `T` because its structure is unknown.
+      #|// Omitting `deriver` selects one visible `Deriver[C]` offer.
+    ),
+  )
+}
+
+///|
+test "invalid generic derive target retains explanatory hover" {
+  let workspace = @analysis.SemanticWorkspace::new()
+  let root =
+    #|module Main
+    #|
+    #|import Support.{ Box, derive_box }
+    #|
+    #|pub fn[T] invalid() -> Box[T] {
+    #|  derive[Box, T]()
+    #|}
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: root },
+      { source_id: "file:///Void.lane", text: derive_void_source() },
+      { source_id: "file:///Iso.lane", text: derive_iso_source() },
+      { source_id: "file:///Derive.lane", text: derive_interface_source() },
+      { source_id: "file:///Support.lane", text: derive_support_source() },
+    ])
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  guard snapshot.hover_at("file:///Main.lane", 6, 4) is Some(hover) else {
+    abort("expected derive hover after typechecking failure")
+  }
+  assert_eq(
+    hover.contents,
+    (
+      #|derive[C, T](deriver=...) -> C[T]
+      #|// `C` must have kind `[Type] -> Type`.
+      #|// `T` must normalize to a struct or enum application.
+      #|// A bare generic type parameter cannot be used as `T` because its structure is unknown.
+      #|// Omitting `deriver` selects one visible `Deriver[C]` offer.
+    ),
+  )
 }
 
 ///|

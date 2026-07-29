@@ -188,10 +188,32 @@ pub(all) struct CheckedCallArgument {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CheckedContextualSelection {
+  symbol : ValueSymbolId
+  name : String
+  type_ : @types.Type
+  value : CheckedExpr
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CheckedDeriveDeriver {
+  Explicit(CheckedExpr)
+  Contextual(CheckedContextualSelection)
+} derive(Debug, Eq)
+
+///|
+pub fn CheckedDeriveDeriver::value(self : CheckedDeriveDeriver) -> CheckedExpr {
+  match self {
+    Explicit(value) => value
+    Contextual(selection) => selection.value
+  }
+}
+
+///|
 pub(all) struct CheckedDeriveEvidence {
   path : String
   required_type : @types.Type
-  value : CheckedExpr
+  selection : CheckedContextualSelection
 } derive(Debug, Eq)
 
 ///|
@@ -275,7 +297,7 @@ pub(all) struct CheckedDerivePlan {
   target : @types.Type
   abi : CheckedDeriveAbi
   shape : CheckedDeriveShape
-  deriver : CheckedExpr
+  deriver : CheckedDeriveDeriver
   metadata : CheckedDeriveMetadata
 } derive(Debug, Eq)
 
@@ -319,7 +341,11 @@ pub(all) enum CheckedExpr {
     type_~ : @types.Type,
     loc~ : SourceSpan
   )
-  Derive(plan~ : CheckedDerivePlan, type_~ : @types.Type, loc~ : SourceSpan)
+  Derive(
+    plan~ : CheckedDerivePlan,
+    type_~ : @types.Type,
+    source~ : @basic.DeriveSourceSite
+  )
   Block(
     items~ : Array[CheckedLocalItem],
     result~ : CheckedExpr,
@@ -524,7 +550,6 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | FunctionLiteral(loc~, ..)
     | FunctionEffectWiden(loc~, ..)
     | GenericApplication(loc~, ..)
-    | Derive(loc~, ..)
     | Block(loc~, ..)
     | If(loc~, ..)
     | Match(loc~, ..)
@@ -534,6 +559,7 @@ pub fn CheckedExpr::loc(self : CheckedExpr) -> SourceSpan {
     | Field(loc~, ..)
     | StructLiteral(loc~, ..)
     | Variant(loc~, ..) => loc
+    Derive(source~, ..) => source.loc
   }
 }
 

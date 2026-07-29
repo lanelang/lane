@@ -106,8 +106,8 @@ pub fn SourceFile::first_derive_loc(self : SourceFile) -> SourceSpan? {
     if found.val is Some(_) {
       return
     }
-    if expression is Derive(loc~, ..) {
-      found.val = Some(loc)
+    if expression is Derive(source~, ..) {
+      found.val = Some(source.loc)
       return
     }
     expression.for_each_child_expr(fn(child) { visit(child, found) })

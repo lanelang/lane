@@ -1478,7 +1478,8 @@ fn Expr::render_with_precedence(
         ),
       )
     }
-    Derive(capability~, target~, arguments~, loc~) => {
+    Derive(capability~, target~, arguments~, source~) => {
+      let loc = source.loc
       let type_arguments = [capability, target]
       let type_argument_docs = type_arguments.map(fn(type_) {
         type_.to_doc(trivia~)

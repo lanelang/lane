@@ -716,6 +716,8 @@ fn SemanticIndex::collect_resolved_expr_symbols(
         self.add_reference(Value(symbol), loc, None)
       }
     }
+    Derive(source~, ..) =>
+      self.upsert_hover(source.keyword_loc, unresolved_derive_hover())
     _ => ()
   }
 }
