@@ -127,6 +127,20 @@ fn SemanticChecker::report_invalid_derive_abi(
 
 ///|
 fn StructuralDeriveAbi::validate(self : StructuralDeriveAbi) -> String? {
+  for
+    entry in [
+      ("Deriver", self.deriver),
+      ("Product", self.product),
+      ("Iso", self.iso),
+      ("TypeInfo", self.type_info),
+      ("FieldInfo", self.field_info),
+      ("VariantInfo", self.variant_info),
+    ] {
+    let (name, declaration) = entry
+    if !declaration.type_members.is_empty() {
+      return Some("`\{name}` must not declare hidden type members")
+    }
+  }
   guard self.void_declaration.type_parameters.is_empty() &&
     self.void_declaration.variants.is_empty() else {
     return Some("`Basic.Data.Void.Void` must be an empty enum")
@@ -236,7 +250,6 @@ fn metadata_struct_valid(
   expected : Array[(String, @types.Type)],
 ) -> Bool {
   if !declaration.type_parameters.is_empty() ||
-    !declaration.type_members.is_empty() ||
     declaration.fields.length() != expected.length() {
     return false
   }

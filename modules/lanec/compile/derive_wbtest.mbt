@@ -112,6 +112,58 @@ test "derive rejects a malformed canonical structural interface" {
 }
 
 ///|
+test "derive rejects hidden type members in canonical structs" {
+  let cases = [
+    (
+      "Deriver", "pub struct Deriver[C : [Type] -> Type] {", "pub struct Deriver[C : [Type] -> Type] {\n  type Hidden : Type",
+    ),
+    (
+      "Product", "pub struct Product[A, B] {", "pub struct Product[A, B] {\n  type Hidden : Type",
+    ),
+    (
+      "Iso", "pub struct Iso[T, R] {", "pub struct Iso[T, R] {\n  type Hidden : Type",
+    ),
+  ]
+  let missing_diagnostics = []
+  for case in cases {
+    let (name, old, new) = case
+    let malformed_interface = derive_interface_source().replace(old~, new~)
+    let result = compile_sources(
+      (
+        #|module Main
+        #|
+        #|import Basic.Trait.Derive.{ Deriver }
+        #|
+        #|pub struct Box[_T] {}
+        #|pub struct Point { value : Int }
+        #|
+        #|pub fn point_box(
+        #|  deriver : Deriver[Box],
+        #|  auto offer int_box : Box[Int]
+        #|) -> Box[Point] {
+        #|  derive[Box, Point](deriver=deriver)
+        #|}
+      ),
+      [derive_void_source(), malformed_interface],
+    )
+    if result.diagnostics is [diagnostic] {
+      assert_diagnostic_headline(
+        diagnostic, "E3032", "invalid structural derivation interface",
+      )
+      assert_eq(diagnostic.labels.map(fn(label) { label.message }), [
+        "`\{name}` must not declare hidden type members",
+      ])
+      assert_single_help(
+        diagnostic, "provide the canonical `Basic.Trait.Derive` interface required by the language",
+      )
+    } else {
+      missing_diagnostics.push(name)
+    }
+  }
+  assert_eq(missing_diagnostics, [])
+}
+
+///|
 test "derive rejects a nonempty canonical void type" {
   let nonempty_void = derive_void_source().replace(
     old="pub enum Void {}",
