@@ -42,6 +42,7 @@ fn SemanticIndex::enrich_checked_derive(
         self.inlay_hints,
         self.source_id,
         source.close_paren_loc.ascii_prefix(0),
+        "",
         ["deriver=\{selection.name}"],
       )
       self.collect_checked_expr_types(selection.value)

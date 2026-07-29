@@ -488,7 +488,7 @@ test "derive type arguments retain semantic navigation" {
       #|        },
       #|      },
       #|      kind: ImplicitArgumentHint,
-      #|      label: ", deriver=derive_box",
+      #|      label: "deriver=derive_box",
       #|    },
       #|  ],
       #|)

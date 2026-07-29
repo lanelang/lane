@@ -5782,6 +5782,37 @@ test "analysis combines implicit argument inlay hints at the call end" {
 }
 
 ///|
+test "analysis omits the separator for an auto-only call" {
+  let result = analyze_test_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|
+        #|pub struct Default {
+        #|  value : Int
+        #|}
+        #|
+        #|pub fn use(auto impl : Default) -> Int {
+        #|  impl.value
+        #|}
+        #|
+        #|offer default_impl : Default = Default::{ value: 1 }
+        #|
+        #|pub fn answer() -> Int {
+        #|  use()
+        #|}
+      ),
+    },
+    [],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(implicit_inlay_hint_labels(result.inlay_hints), [
+    "impl=default_impl",
+  ])
+}
+
+///|
 test "analysis does not mark explicit named auto arguments as implicit" {
   let result = analyze_test_source_inputs(
     {

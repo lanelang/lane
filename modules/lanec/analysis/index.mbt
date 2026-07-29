@@ -294,6 +294,7 @@ fn add_implicit_argument_inlay_hint(
   inlay_hints : Array[InlayHintEntry],
   source_id : String,
   span : @basic.SourceSpan,
+  prefix : String,
   arguments : Array[String],
 ) -> Unit {
   add_inlay_hint(
@@ -301,7 +302,7 @@ fn add_implicit_argument_inlay_hint(
     source_id,
     ImplicitArgumentHint,
     span,
-    ", \{arguments.join(", ")}",
+    "\{prefix}\{arguments.join(", ")}",
   )
 }
 

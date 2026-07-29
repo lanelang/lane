@@ -278,10 +278,15 @@ fn add_argument_inlay_hints(
     parameters.length()
   }
   let implicit_arguments = []
+  let mut has_authored_argument = source_operator_call
   for index in 0..<count {
     let argument = arguments[index]
     let parameter = parameters[index]
-    if parameter.is_auto && !call_loc.contains_span(argument.loc) {
+    let authored_argument = call_loc.contains_span(argument.loc)
+    if authored_argument {
+      has_authored_argument = true
+    }
+    if parameter.is_auto && !authored_argument {
       if implicit_argument_name(argument.value) is Some(name) {
         implicit_arguments.push("\{parameter.name}=\{name}")
       }
@@ -299,6 +304,11 @@ fn add_argument_inlay_hints(
       inlay_hints,
       source_id,
       implicit_argument_insertion_span(call_loc, source_operator_call),
+      if has_authored_argument {
+        ", "
+      } else {
+        ""
+      },
       implicit_arguments,
     )
   }
