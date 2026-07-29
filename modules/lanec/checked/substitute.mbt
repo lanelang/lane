@@ -177,7 +177,6 @@ fn CheckedDerivePlan::substitute(
   {
     capability: self.capability.substitute(substitution),
     target: self.target.substitute(substitution),
-    representation: self.representation.substitute(substitution),
     abi: self.abi,
     shape: self.shape.substitute(substitution),
     deriver: self.deriver.substitute(substitution),
@@ -198,23 +197,37 @@ fn CheckedDeriveShape::substitute(
   substitution : @types.TypeSubstitution,
 ) -> CheckedDeriveShape {
   match self {
-    Record(fields~) =>
-      Record(
-        fields=fields.map(fn(field) {
-          { ..field, type_: field.type_.substitute(substitution) }
-        }),
-      )
-    Enumeration(variants~) =>
-      Enumeration(
-        variants=variants.map(fn(variant) {
+    Record(product~) => Record(product=product.substitute(substitution))
+    Enumeration(sum~) =>
+      Enumeration(sum={
+        representation: sum.representation.substitute(substitution),
+        steps: sum.steps.map(fn(step) {
           {
-            ..variant,
-            payload: variant.payload.map(fn(type_) {
-              type_.substitute(substitution)
-            }),
+            head: {
+              ..step.head,
+              payload: step.head.payload.substitute(substitution),
+            },
+            tail_type: step.tail_type.substitute(substitution),
           }
         }),
-      )
+      })
+  }
+}
+
+///|
+fn[A] CheckedDeriveProduct::substitute(
+  self : CheckedDeriveProduct[A],
+  substitution : @types.TypeSubstitution,
+) -> CheckedDeriveProduct[A] {
+  {
+    representation: self.representation.substitute(substitution),
+    steps: self.steps.map(fn(step) {
+      {
+        head: step.head,
+        head_type: step.head_type.substitute(substitution),
+        tail_type: step.tail_type.substitute(substitution),
+      }
+    }),
   }
 }
 

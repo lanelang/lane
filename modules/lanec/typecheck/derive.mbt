@@ -24,13 +24,11 @@ priv enum StructuralDeriveTarget {
   RecordTarget(
     declaration~ : CheckedStructDeclaration,
     fields~ : Array[StructuralDeriveField],
-    representation~ : @types.Type,
     metadata~ : @checked.CheckedDeriveMetadata
   )
   EnumerationTarget(
     declaration~ : CheckedEnumDeclaration,
     variants~ : Array[StructuralDeriveVariant],
-    representation~ : @types.Type,
     metadata~ : @checked.CheckedDeriveMetadata
   )
 }
@@ -77,7 +75,7 @@ fn SemanticChecker::synthesize_checked_derive(
   guard self.structural_derive_abi(loc) is Some(abi) else {
     return checked_expression_none_reported(Error)
   }
-  guard self.structural_derive_target(abi, target, loc) is Some(target_plan) else {
+  guard self.structural_derive_target(target, loc) is Some(target_plan) else {
     return checked_expression_none_reported(
       apply_unary_type_constructor(capability, target),
     )
@@ -104,7 +102,7 @@ fn SemanticChecker::synthesize_checked_derive(
       apply_unary_type_constructor(capability, target),
     )
   }
-  let representation = target_plan.representation()
+  let shape = target_plan.checked_shape(abi)
   let result_type = apply_unary_type_constructor(capability, target)
   let metadata = target_plan.metadata()
   checked_expression_with_effect(
@@ -112,9 +110,8 @@ fn SemanticChecker::synthesize_checked_derive(
       plan={
         capability,
         target,
-        representation,
         abi: abi.checked(),
-        shape: target_plan.checked_shape(),
+        shape,
         deriver,
         evidence,
         metadata,
@@ -183,7 +180,6 @@ fn SemanticChecker::checked_derive_deriver(
 ///|
 fn SemanticChecker::structural_derive_target(
   self : SemanticChecker,
-  abi : StructuralDeriveAbi,
   target : @types.Type,
   loc : SourceSpan,
 ) -> StructuralDeriveTarget? {
@@ -223,17 +219,7 @@ fn SemanticChecker::structural_derive_target(
       is Some(metadata) else {
       return None
     }
-    return Some(
-      RecordTarget(
-        declaration~,
-        fields~,
-        representation=product_representation_type(
-          abi,
-          fields.map(fn(field) { field.type_ }),
-        ),
-        metadata~,
-      ),
-    )
+    return Some(RecordTarget(declaration~, fields~, metadata~))
   }
   if self.declarations.checked_enum(symbol) is Some(declaration) {
     if declaration.variants.any(fn(variant) {
@@ -256,14 +242,7 @@ fn SemanticChecker::structural_derive_target(
       is Some(metadata) else {
       return None
     }
-    return Some(
-      EnumerationTarget(
-        declaration~,
-        variants~,
-        representation=sum_representation_type(abi, variants),
-        metadata~,
-      ),
-    )
+    return Some(EnumerationTarget(declaration~, variants~, metadata~))
   }
   self.report_unrepresentable_derive_target(
     target, "the normalized nominal declaration is neither a struct nor an enum",
@@ -342,16 +321,6 @@ fn SemanticChecker::nominal_module_path(
 }
 
 ///|
-fn StructuralDeriveTarget::representation(
-  self : StructuralDeriveTarget,
-) -> @types.Type {
-  match self {
-    RecordTarget(representation~, ..)
-    | EnumerationTarget(representation~, ..) => representation
-  }
-}
-
-///|
 fn StructuralDeriveTarget::metadata(
   self : StructuralDeriveTarget,
 ) -> @checked.CheckedDeriveMetadata {
@@ -363,23 +332,34 @@ fn StructuralDeriveTarget::metadata(
 ///|
 fn StructuralDeriveTarget::checked_shape(
   self : StructuralDeriveTarget,
+  abi : StructuralDeriveAbi,
 ) -> @checked.CheckedDeriveShape {
   match self {
     RecordTarget(fields~, ..) =>
       Record(
-        fields=fields.map(fn(field) {
-          { symbol: field.symbol, name: field.name, type_: field.type_ }
-        }),
+        product=@checked.CheckedDeriveProduct::make(
+          abi.product.symbol,
+          fields.map(fn(field) {
+            ({ symbol: field.symbol, name: field.name }, field.type_)
+          }),
+        ),
       )
     EnumerationTarget(variants~, ..) =>
       Enumeration(
-        variants=variants.map(fn(variant) {
-          {
-            symbol: variant.symbol,
-            name: variant.name,
-            payload: variant.payload,
-          }
-        }),
+        sum=@checked.CheckedDeriveSum::make(
+          abi.sum.symbol,
+          abi.void_declaration.symbol,
+          variants.map(fn(variant) {
+            {
+              symbol: variant.symbol,
+              name: variant.name,
+              payload: @checked.CheckedDeriveProduct::make(
+                abi.product.symbol,
+                variant.payload.map(fn(type_) { ((), type_) }),
+              ),
+            }
+          }),
+        ),
       )
   }
 }
@@ -412,58 +392,6 @@ fn StructuralDeriveTarget::components(
       components
     }
   }
-}
-
-///|
-fn product_representation_type(
-  abi : StructuralDeriveAbi,
-  components : Array[@types.Type],
-) -> @types.Type {
-  product_suffix_types(abi, components)[0]
-}
-
-///|
-fn product_suffix_types(
-  abi : StructuralDeriveAbi,
-  components : Array[@types.Type],
-) -> Array[@types.Type] {
-  let suffixes = Array::make(
-    components.length() + 1,
-    @types.Type::Primitive(Unit),
-  )
-  for index = components.length() - 1; index >= 0; index = index - 1 {
-    suffixes[index] = @types.nominal_type(abi.product.symbol, [
-      components[index],
-      suffixes[index + 1],
-    ])
-  }
-  suffixes
-}
-
-///|
-fn sum_representation_type(
-  abi : StructuralDeriveAbi,
-  variants : Array[StructuralDeriveVariant],
-) -> @types.Type {
-  sum_suffix_types(abi, variants)[0]
-}
-
-///|
-fn sum_suffix_types(
-  abi : StructuralDeriveAbi,
-  variants : Array[StructuralDeriveVariant],
-) -> Array[@types.Type] {
-  let suffixes = Array::make(
-    variants.length() + 1,
-    @types.Type::Constructor(abi.void_declaration.symbol),
-  )
-  for index = variants.length() - 1; index >= 0; index = index - 1 {
-    suffixes[index] = @types.nominal_type(abi.sum.symbol, [
-      product_representation_type(abi, variants[index].payload),
-      suffixes[index + 1],
-    ])
-  }
-  suffixes
 }
 
 ///|

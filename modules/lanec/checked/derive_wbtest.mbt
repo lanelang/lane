@@ -26,6 +26,7 @@ test "checked derive preserves traversal substitution and value-use contracts" {
     type_=parameter_type,
     loc=location,
   )
+  let field : CheckedDeriveField = { symbol: abi_field, name: "value" }
   let abi : CheckedDeriveAbi = {
     deriver: abi_type,
     deriver_unit: abi_field,
@@ -52,11 +53,10 @@ test "checked derive preserves traversal substitution and value-use contracts" {
     plan={
       capability: parameter_type,
       target: parameter_type,
-      representation: parameter_type,
       abi,
-      shape: Record(fields=[
-        { symbol: abi_field, name: "value", type_: parameter_type },
-      ]),
+      shape: Record(
+        product=CheckedDeriveProduct::make(abi_type, [(field, parameter_type)]),
+      ),
       deriver,
       evidence: [
         { path: "Item.value", required_type: parameter_type, value: evidence },
@@ -78,11 +78,10 @@ test "checked derive preserves traversal substitution and value-use contracts" {
       plan={
         capability: Primitive(Int),
         target: Primitive(Int),
-        representation: Primitive(Int),
         abi,
-        shape: Record(fields=[
-          { symbol: abi_field, name: "value", type_: Primitive(Int) },
-        ]),
+        shape: Record(
+          product=CheckedDeriveProduct::make(abi_type, [(field, Primitive(Int))]),
+        ),
         deriver: Value(
           name="deriver",
           symbol=deriver_symbol,
@@ -131,4 +130,149 @@ test "checked derive preserves traversal substitution and value-use contracts" {
       { target: evidence_symbol, origin_binder: None, loc: location },
     ],
   })
+}
+
+///|
+test "checked derive recipe owns right-nested product and sum representations" {
+  let registry = @symbol.SymbolRegistry::SymbolRegistry()
+  let location = SourceSpan::dummy()
+  let product = registry.define_type("Product", Struct, 0, location)
+  let sum = registry.define_type("Sum", Enum, 0, location)
+  let void_type = registry.define_type("Void", Enum, 0, location)
+  let first = registry.define_field(product, "first", 0, location)
+  let second = registry.define_field(product, "second", 1, location)
+  let variant = registry.define_variant(sum, "variant", 0, 0, location)
+  let empty_variant = registry.define_variant(sum, "empty", 1, 0, location)
+  let payload = CheckedDeriveProduct::make(product, [
+    ((), Primitive(Int)),
+    ((), Primitive(Bool)),
+  ])
+  let checked_sum = CheckedDeriveSum::make(sum, void_type, [
+    { symbol: variant, name: "item", payload },
+    {
+      symbol: empty_variant,
+      name: "empty",
+      payload: CheckedDeriveProduct::make(product, []),
+    },
+  ])
+  debug_inspect(
+    (
+      CheckedDeriveProduct::make(product, [
+        (CheckedDeriveField::{ symbol: first, name: "first" }, Primitive(Int)),
+        ({ symbol: second, name: "second" }, Primitive(Bool)),
+      ]),
+      checked_sum,
+    ),
+    content=(
+      #|(
+      #|  {
+      #|    representation: Apply(
+      #|      Constructor({ index: 0 }),
+      #|      [
+      #|        TypeArgument(Primitive(Int)),
+      #|        TypeArgument(
+      #|          Apply(
+      #|            Constructor({ index: 0 }),
+      #|            [TypeArgument(Primitive(Bool)), TypeArgument(Primitive(Unit))],
+      #|          ),
+      #|        ),
+      #|      ],
+      #|    ),
+      #|    steps: [
+      #|      {
+      #|        head: { symbol: { index: 0 }, name: "first" },
+      #|        head_type: Primitive(Int),
+      #|        tail_type: Apply(
+      #|          Constructor({ index: 0 }),
+      #|          [TypeArgument(Primitive(Bool)), TypeArgument(Primitive(Unit))],
+      #|        ),
+      #|      },
+      #|      {
+      #|        head: { symbol: { index: 1 }, name: "second" },
+      #|        head_type: Primitive(Bool),
+      #|        tail_type: Primitive(Unit),
+      #|      },
+      #|    ],
+      #|  },
+      #|  {
+      #|    representation: Apply(
+      #|      Constructor({ index: 1 }),
+      #|      [
+      #|        TypeArgument(
+      #|          Apply(
+      #|            Constructor({ index: 0 }),
+      #|            [
+      #|              TypeArgument(Primitive(Int)),
+      #|              TypeArgument(
+      #|                Apply(
+      #|                  Constructor({ index: 0 }),
+      #|                  [TypeArgument(Primitive(Bool)), TypeArgument(Primitive(Unit))],
+      #|                ),
+      #|              ),
+      #|            ],
+      #|          ),
+      #|        ),
+      #|        TypeArgument(
+      #|          Apply(
+      #|            Constructor({ index: 1 }),
+      #|            [
+      #|              TypeArgument(Primitive(Unit)),
+      #|              TypeArgument(Constructor({ index: 2 })),
+      #|            ],
+      #|          ),
+      #|        ),
+      #|      ],
+      #|    ),
+      #|    steps: [
+      #|      {
+      #|        head: {
+      #|          symbol: { index: 0 },
+      #|          name: "item",
+      #|          payload: {
+      #|            representation: Apply(
+      #|              Constructor({ index: 0 }),
+      #|              [
+      #|                TypeArgument(Primitive(Int)),
+      #|                TypeArgument(
+      #|                  Apply(
+      #|                    Constructor({ index: 0 }),
+      #|                    [TypeArgument(Primitive(Bool)), TypeArgument(Primitive(Unit))],
+      #|                  ),
+      #|                ),
+      #|              ],
+      #|            ),
+      #|            steps: [
+      #|              {
+      #|                head: (),
+      #|                head_type: Primitive(Int),
+      #|                tail_type: Apply(
+      #|                  Constructor({ index: 0 }),
+      #|                  [TypeArgument(Primitive(Bool)), TypeArgument(Primitive(Unit))],
+      #|                ),
+      #|              },
+      #|              { head: (), head_type: Primitive(Bool), tail_type: Primitive(Unit) },
+      #|            ],
+      #|          },
+      #|        },
+      #|        tail_type: Apply(
+      #|          Constructor({ index: 1 }),
+      #|          [
+      #|            TypeArgument(Primitive(Unit)),
+      #|            TypeArgument(Constructor({ index: 2 })),
+      #|          ],
+      #|        ),
+      #|      },
+      #|      {
+      #|        head: {
+      #|          symbol: { index: 1 },
+      #|          name: "empty",
+      #|          payload: { representation: Primitive(Unit), steps: [] },
+      #|        },
+      #|        tail_type: Constructor({ index: 2 }),
+      #|      },
+      #|    ],
+      #|  },
+      #|)
+    ),
+  )
 }

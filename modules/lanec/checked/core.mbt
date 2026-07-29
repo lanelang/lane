@@ -228,27 +228,50 @@ pub(all) struct CheckedDeriveAbi {
 pub(all) struct CheckedDeriveField {
   symbol : FieldSymbolId
   name : String
-  type_ : @types.Type
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDeriveProductStep[A] {
+  head : A
+  head_type : @types.Type
+  tail_type : @types.Type
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDeriveProduct[A] {
+  representation : @types.Type
+  steps : Array[CheckedDeriveProductStep[A]]
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct CheckedDeriveVariant {
   symbol : VariantSymbolId
   name : String
-  payload : Array[@types.Type]
+  payload : CheckedDeriveProduct[Unit]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDeriveSumStep {
+  head : CheckedDeriveVariant
+  tail_type : @types.Type
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedDeriveSum {
+  representation : @types.Type
+  steps : Array[CheckedDeriveSumStep]
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum CheckedDeriveShape {
-  Record(fields~ : Array[CheckedDeriveField])
-  Enumeration(variants~ : Array[CheckedDeriveVariant])
+  Record(product~ : CheckedDeriveProduct[CheckedDeriveField])
+  Enumeration(sum~ : CheckedDeriveSum)
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct CheckedDerivePlan {
   capability : @types.Type
   target : @types.Type
-  representation : @types.Type
   abi : CheckedDeriveAbi
   shape : CheckedDeriveShape
   deriver : CheckedExpr
