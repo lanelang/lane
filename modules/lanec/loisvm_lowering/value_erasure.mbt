@@ -50,6 +50,7 @@ fn FunctionLowerer::layout_witness(
     Primitive(Unit) => Unit
     Primitive(Bool) => Bool
     Primitive(Int) => Int
+    Primitive(S32) => S32
     Primitive(Double) => Double
     Primitive(String) => String
     Primitive(Byte) => Byte
@@ -79,6 +80,7 @@ fn FunctionLowerer::erase_value(
     (
       Slot(source, _),
       Primitive(Bool)
+      | Primitive(S32)
       | Primitive(String)
       | Primitive(Byte)
       | Primitive(Bytes)
@@ -119,6 +121,7 @@ fn FunctionLowerer::unerase_value(
       Unit
     }
     Primitive(Bool)
+    | Primitive(S32)
     | Primitive(String)
     | Primitive(Byte)
     | Primitive(Bytes)

@@ -79,6 +79,13 @@ fn slot_metadata(
         ownership: Trivial,
         erased_companion: None,
       }
+    Primitive(S32) =>
+      {
+        representation: I32,
+        cleanup: Trivial,
+        ownership: Trivial,
+        erased_companion: None,
+      }
     Primitive(Int) =>
       {
         representation: I64,
@@ -159,6 +166,7 @@ fn result_representation(
   match type_ {
     Primitive(Unit) => Unit
     Primitive(Bool)
+    | Primitive(S32)
     | Primitive(String)
     | Primitive(Byte)
     | Primitive(Bytes)

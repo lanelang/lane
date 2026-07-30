@@ -153,6 +153,33 @@ test "buslane text roundtrips double primitive and literal" {
 }
 
 ///|
+test "buslane text roundtrips S32 primitive and literal" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value("value", Value, Primitive(S32))
+  let program = @buslane.Program::{
+    metadata,
+    terms: [Let(value, Literal(S32(-2147483647 - 1)))],
+  }
+  let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
+  inspect(
+    text,
+    content=(
+      #|buslane {
+      #|  metadata {
+      #|    value value#0 name "value" unique 0 value : S32;
+      #|  }
+      #|  let value#0 = s32(-2147483648);
+      #|}
+    ),
+  )
+  let decoded = match parse_program_text(text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + text)
+  }
+  assert_program_equal(decoded, program)
+}
+
+///|
 test "buslane text roundtrips Byte and Bytes primitives" {
   let type_ : @buslane.Type = Function(
     [Primitive(Byte)],

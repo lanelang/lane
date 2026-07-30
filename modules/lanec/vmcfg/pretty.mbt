@@ -122,6 +122,8 @@ fn render_instruction(instruction : Instruction) -> String {
     Release(source) => "release \{render_value(source)}"
     ConstInt(destination, value) =>
       "const_int \{render_value(destination)}, \{value}"
+    ConstS32(destination, value) =>
+      "const_s32 \{render_value(destination)}, \{value}"
     ConstDouble(destination, bits) =>
       "const_double \{render_value(destination)}, bits=\{bits}"
     ConstBool(destination, value) =>
@@ -174,6 +176,26 @@ fn render_instruction(instruction : Instruction) -> String {
       binary_instruction("bytes_get", destination, source, index)
     BytesSet(destination, source, index, value) =>
       "bytes_set \{render_value(destination)}, \{render_value(source)}, \{render_value(index)}, \{render_value(value)}"
+    S32Add(destination, left, right) =>
+      binary_instruction("s32_add", destination, left, right)
+    S32Sub(destination, left, right) =>
+      binary_instruction("s32_sub", destination, left, right)
+    S32Mul(destination, left, right) =>
+      binary_instruction("s32_mul", destination, left, right)
+    S32Neg(destination, source) =>
+      unary_instruction("s32_neg", destination, source)
+    S32Div(destination, left, right) =>
+      binary_instruction("s32_div", destination, left, right)
+    S32Rem(destination, left, right) =>
+      binary_instruction("s32_rem", destination, left, right)
+    S32Eq(destination, left, right) =>
+      binary_instruction("s32_eq", destination, left, right)
+    S32Lt(destination, left, right) =>
+      binary_instruction("s32_lt", destination, left, right)
+    S32ToInt(destination, source) =>
+      unary_instruction("s32_to_int", destination, source)
+    IntToS32(destination, source) =>
+      unary_instruction("int_to_s32", destination, source)
     IntAdd(destination, left, right) =>
       binary_instruction("int_add", destination, left, right)
     IntSub(destination, left, right) =>
@@ -463,6 +485,7 @@ fn render_layout_recipe(recipe : @bytecode.LayoutRecipe) -> String {
     Unit => "unit"
     Bool => "bool"
     Int => "int"
+    S32 => "s32"
     Double => "double"
     Callable => "callable"
     String => "string"

@@ -46,6 +46,7 @@ pub struct BuslaneRuntimeValue {
 pub fn BuslaneRuntimeValue::as_bool(Self) -> Bool?
 pub fn BuslaneRuntimeValue::as_double(Self) -> Double?
 pub fn BuslaneRuntimeValue::as_int(Self) -> Int64?
+pub fn BuslaneRuntimeValue::as_s32(Self) -> Int?
 pub fn BuslaneRuntimeValue::as_string(Self) -> String?
 pub fn BuslaneRuntimeValue::bool(Bool) -> Self
 pub fn BuslaneRuntimeValue::call(Self, Array[Self], BuslaneExternalRuntime) -> Self raise BuslaneRuntimeError
@@ -56,6 +57,7 @@ pub fn BuslaneRuntimeValue::int(Int64) -> Self
 pub fn BuslaneRuntimeValue::is_function(Self) -> Bool
 pub fn BuslaneRuntimeValue::native_function((Array[Self]) -> Self raise BuslaneRuntimeError) -> Self
 pub fn BuslaneRuntimeValue::pretty_with_type(Self, @buslane.Type) -> @prettyprinter.Document
+pub fn BuslaneRuntimeValue::s32(Int) -> Self
 pub fn BuslaneRuntimeValue::string(String) -> Self
 pub fn BuslaneRuntimeValue::unit() -> Self
 pub impl @prettyprinter.Pretty for BuslaneRuntimeValue

@@ -132,6 +132,7 @@ fn compatible_trivial_values(
 fn instruction_is_scalar_constant(instruction : Instruction) -> Bool {
   match instruction {
     ConstInt(_, _)
+    | ConstS32(_, _)
     | ConstDouble(_, _)
     | ConstBool(_, _)
     | ConstLayout(_, _)
@@ -158,6 +159,7 @@ fn find_equivalent_constant(
 fn scalar_constants_equal(left : Instruction, right : Instruction) -> Bool {
   match (left, right) {
     (ConstInt(_, left), ConstInt(_, right)) => left == right
+    (ConstS32(_, left), ConstS32(_, right)) => left == right
     (ConstDouble(_, left), ConstDouble(_, right)) => left == right
     (ConstBool(_, left), ConstBool(_, right)) => left == right
     (ConstLayout(_, left), ConstLayout(_, right)) => left == right
@@ -245,10 +247,19 @@ fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
   match instruction {
     Copy(_, _)
     | ConstInt(_, _)
+    | ConstS32(_, _)
     | ConstDouble(_, _)
     | ConstBool(_, _)
     | ConstLayout(_, _)
     | ConstFunction(_, _)
+    | S32Add(_, _, _)
+    | S32Sub(_, _, _)
+    | S32Mul(_, _, _)
+    | S32Neg(_, _)
+    | S32Eq(_, _, _)
+    | S32Lt(_, _, _)
+    | S32ToInt(_, _)
+    | IntToS32(_, _)
     | IntAdd(_, _, _)
     | IntSub(_, _, _)
     | IntMul(_, _, _)
@@ -678,6 +689,7 @@ fn map_instruction_values(
       RetainCopy(transform(destination), transform(source))
     Release(value) => Release(transform(value))
     ConstInt(destination, value) => ConstInt(transform(destination), value)
+    ConstS32(destination, value) => ConstS32(transform(destination), value)
     ConstDouble(destination, bits) => ConstDouble(transform(destination), bits)
     ConstBool(destination, value) => ConstBool(transform(destination), value)
     ConstLayout(destination, layout) =>
@@ -783,6 +795,26 @@ fn map_instruction_values(
         transform(index),
         transform(value),
       )
+    S32Add(destination, left, right) =>
+      S32Add(transform(destination), transform(left), transform(right))
+    S32Sub(destination, left, right) =>
+      S32Sub(transform(destination), transform(left), transform(right))
+    S32Mul(destination, left, right) =>
+      S32Mul(transform(destination), transform(left), transform(right))
+    S32Neg(destination, source) =>
+      S32Neg(transform(destination), transform(source))
+    S32Div(destination, left, right) =>
+      S32Div(transform(destination), transform(left), transform(right))
+    S32Rem(destination, left, right) =>
+      S32Rem(transform(destination), transform(left), transform(right))
+    S32Eq(destination, left, right) =>
+      S32Eq(transform(destination), transform(left), transform(right))
+    S32Lt(destination, left, right) =>
+      S32Lt(transform(destination), transform(left), transform(right))
+    S32ToInt(destination, source) =>
+      S32ToInt(transform(destination), transform(source))
+    IntToS32(destination, source) =>
+      IntToS32(transform(destination), transform(source))
     IntAdd(destination, left, right) =>
       IntAdd(transform(destination), transform(left), transform(right))
     IntSub(destination, left, right) =>

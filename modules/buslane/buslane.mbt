@@ -62,6 +62,7 @@ pub(all) enum PrimitiveType {
   Unit
   Bool
   Int
+  S32
   Double
   String
   Byte
@@ -99,6 +100,7 @@ pub(all) enum Literal {
   Unit
   Bool(Bool)
   Int(Int64)
+  S32(Int)
   Double(Double)
   String(String)
 } derive(Debug, Eq)

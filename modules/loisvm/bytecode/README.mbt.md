@@ -60,7 +60,7 @@ Every `SlotId` has one immutable `SlotMetadata` entry. The representation fixes 
 
 | Representation | Runtime contents |
 | --- | --- |
-| `I32` | Boolean and Byte values, layout witnesses, object references, String references, Bytes references, and other 32-bit runtime values |
+| `I32` | Lane `S32`, Boolean and Byte values, layout witnesses, object references, String references, Bytes references, and other 32-bit runtime values |
 | `I64` | Lane `Int`, packed callable values, and erased payloads |
 | `F64` | Lane `Double` |
 
@@ -83,7 +83,7 @@ Instruction operands use the following conventions:
 
 ## Object and layout model
 
-`LayoutRecipe` describes a runtime layout. `Byte` is the trivial scalar-byte layout and `Bytes` is the owned packed-byte-sequence layout. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
+`LayoutRecipe` describes a runtime layout. `S32` is the trivial signed 32-bit integer layout, `Byte` is the trivial scalar-byte layout, and `Bytes` is the owned packed-byte-sequence layout. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
 
 A `DataShape` stores a constructor tag, stored layout witnesses, and ordered field schemas. An `EnvironmentShape` stores layout witnesses and ordered capture schemas. A `MemberSchema` fixes the member representation and cleanup; an `OwnedErased` member must name the stored-witness ordinal used for its cleanup.
 
@@ -97,7 +97,7 @@ Environments, callable values, and user arguments are transferred into calls. La
 
 ## Instruction encoding
 
-Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstInt` and `ConstDouble` payloads use little-endian 64-bit bits; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements.
+Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstS32` uses a little-endian signed 32-bit payload; `ConstInt` and `ConstDouble` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements.
 
 The constructor spelling is the public MoonBit API. The lowercase spelling shown in descriptions is the human-readable disassembly name.
 
@@ -115,6 +115,7 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 | `0x08` | `ConstLayout(destination, layout)` | `const_layout`; writes the nonzero `LayoutId` value to an `I32 + Trivial` destination. |
 | `0x09` | `ConstFunction(destination, function)` | `const_function`; creates a capture-free callable for the function-table entry in an `I64 + OwnedCallable` destination. |
 | `0x0A` | `ConstString(destination, constant)` | `const_string`; creates an owning String reference for the ASCII constant-pool entry in an `I32 + OwnedRef` destination. |
+| `0x4C` | `ConstS32(destination, value)` | `const_s32`; writes the signed 32-bit integer to an `I32 + Trivial` destination. |
 
 ### Calls and closures
 
@@ -166,6 +167,23 @@ Strings and constant-pool entries are ASCII in the current bytecode contract, so
 | `0x4B` | `BytesSet(destination, source, index, value)` | `bytes_set`; consumes one Bytes owner, borrows the index and Byte, and writes one owning Bytes result with the selected element replaced. A unique source may be updated in place; a shared source must be copied so other owners retain their original value. |
 
 `BytesMake` traps for a negative or unrepresentable length. `BytesGet` and `BytesSet` trap for a negative or out-of-bounds index. These failures do not publish a partial Bytes owner.
+
+### S32 operations and conversions
+
+S32 operands and arithmetic destinations use `I32 + Trivial`; comparison destinations also use canonical Boolean `I32 + Trivial`. Addition, subtraction, multiplication, and negation wrap modulo 2^32. Division and comparison interpret operands as signed values.
+
+| Opcode | Constructor | Semantics |
+| --- | --- | --- |
+| `0x4D` | `S32Add(destination, left, right)` | `s32_add`; computes wrapping `left + right`. |
+| `0x4E` | `S32Sub(destination, left, right)` | `s32_sub`; computes wrapping `left - right`. |
+| `0x4F` | `S32Mul(destination, left, right)` | `s32_mul`; computes wrapping `left * right`. |
+| `0x50` | `S32Neg(destination, source)` | `s32_neg`; computes wrapping `0 - source`. |
+| `0x51` | `S32Div(destination, left, right)` | `s32_div`; computes signed division truncated toward zero and traps on division by zero or `-2147483648 / -1`. |
+| `0x52` | `S32Rem(destination, left, right)` | `s32_rem`; computes signed remainder, traps on division by zero, and yields zero for `-2147483648 % -1`. |
+| `0x53` | `S32Eq(destination, left, right)` | `s32_eq`; writes whether the operands are equal. |
+| `0x54` | `S32Lt(destination, left, right)` | `s32_lt`; writes whether `left < right` under signed ordering. |
+| `0x55` | `S32ToInt(destination, source)` | `s32_to_int`; sign-extends the `I32` S32 value into an `I64 + Trivial` Lane Int. |
+| `0x56` | `IntToS32(destination, source)` | `int_to_s32`; retains the low 32 bits of an `I64 + Trivial` Lane Int in an `I32 + Trivial` S32 destination. |
 
 ### Integer operations
 

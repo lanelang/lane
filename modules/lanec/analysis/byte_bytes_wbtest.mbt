@@ -56,6 +56,7 @@ test "type-space completion includes every primitive type" {
     .map(entry => (entry.label, entry.kind, entry.detail)),
     [
       ("Int", Type, Some("primitive type Int")),
+      ("S32", Type, Some("primitive type S32")),
       ("Bool", Type, Some("primitive type Bool")),
       ("Byte", Type, Some("primitive type Byte")),
       ("Unit", Type, Some("primitive type Unit")),

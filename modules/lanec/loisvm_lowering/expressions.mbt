@@ -321,6 +321,12 @@ fn FunctionLowerer::lower_literal(
       self.emit(ConstInt(slot, value))
       Slot(slot, type_)
     }
+    S32(value) => {
+      let type_ = @buslane.Type::Primitive(S32)
+      let slot = self.fresh_slot(type_)
+      self.emit(ConstS32(slot, value))
+      Slot(slot, type_)
+    }
     Double(value) => {
       let type_ = @buslane.Type::Primitive(Double)
       let slot = self.fresh_slot(type_)

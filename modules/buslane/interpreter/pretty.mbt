@@ -17,6 +17,7 @@ pub impl @prettyprinter.Pretty for BuslaneRuntimeValue with fn pretty(
 ) {
   match value.kind {
     Int(value) => text("int") + space + text(value.to_string())
+    S32(value) => text("s32") + space + text(value.to_string())
     Double(value) => text("double") + space + text(value.to_string())
     Bool(value) => text("bool") + space + text(value.to_string())
     String(value) => text("string") + space + quoted(value)
@@ -48,6 +49,7 @@ pub fn BuslaneRuntimeValue::pretty_with_type(
 fn runtime_value_source_doc(value : BuslaneRuntimeValue) -> Document {
   match value.kind {
     Int(value) => text(value.to_string())
+    S32(value) => text(value.to_string())
     Bool(value) => text(value.to_string())
     String(value) => quoted(value)
     Unit => text("()")

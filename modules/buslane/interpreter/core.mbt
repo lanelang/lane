@@ -1,6 +1,7 @@
 ///|
 enum BuslaneRuntimeValueKind {
   Int(Int64)
+  S32(Int)
   Double(Double)
   Bool(Bool)
   String(String)
@@ -98,6 +99,12 @@ pub fn BuslaneRuntimeValue::int(value : Int64) -> BuslaneRuntimeValue {
 }
 
 ///|
+/// Creates a signed 32-bit Buslane runtime value.
+pub fn BuslaneRuntimeValue::s32(value : Int) -> BuslaneRuntimeValue {
+  { kind: S32(value) }
+}
+
+///|
 /// Creates a double Buslane runtime value.
 pub fn BuslaneRuntimeValue::double(value : Double) -> BuslaneRuntimeValue {
   { kind: Double(value) }
@@ -126,6 +133,15 @@ pub fn BuslaneRuntimeValue::unit() -> BuslaneRuntimeValue {
 pub fn BuslaneRuntimeValue::as_int(self : BuslaneRuntimeValue) -> Int64? {
   match self.kind {
     Int(value) => Some(value)
+    _ => None
+  }
+}
+
+///|
+/// Returns this runtime value as S32 when it is an S32 value.
+pub fn BuslaneRuntimeValue::as_s32(self : BuslaneRuntimeValue) -> Int? {
+  match self.kind {
+    S32(value) => Some(value)
     _ => None
   }
 }

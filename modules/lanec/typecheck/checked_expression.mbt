@@ -217,6 +217,32 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         ErrorRecovery(type_=expectation.type_, loc~),
         expectation.type_,
       ).with_expectation_match(MatchesExpectation)
+    Literal(literal=Int(raw), loc~) if expectation.type_ == Primitive(S32) =>
+      checked_expression(
+        Literal(
+          literal=S32(self.check_s32_literal(raw, loc)),
+          type_=expectation.type_,
+          loc~,
+        ),
+        expectation.type_,
+      ).with_expectation_match(MatchesExpectation)
+    Unary(operator=Neg, operand=Literal(literal=Int(raw), ..), loc~, ..) if expectation.type_ ==
+      Primitive(S32) =>
+      checked_expression(
+        Literal(
+          literal=S32(self.check_negated_s32_literal(raw, loc)),
+          type_=expectation.type_,
+          loc~,
+        ),
+        expectation.type_,
+      ).with_expectation_match(MatchesExpectation)
+    Unary(target~, operand~, loc~, ..) => {
+      let synthesis = self.synthesize_checked_expr(
+        scope,
+        desugared_unary_call(target, operand, loc),
+      )
+      self.check_synthesis_against_expectation(synthesis, expectation, loc)
+    }
     Literal(..) | Field(..) => {
       let synthesis = self.synthesize_checked_expr(scope, expression)
       self.check_synthesis_against_expectation(
@@ -381,6 +407,11 @@ fn SemanticChecker::synthesize_checked_expr(
       self.synthesize_checked_match(scope, scrutinee, arms, loc)
     Call(callee~, arguments~, loc~) =>
       self.synthesize_checked_call(scope, callee, arguments, loc)
+    Unary(target~, operand~, loc~, ..) =>
+      self.synthesize_checked_expr(
+        scope,
+        desugared_unary_call(target, operand, loc),
+      )
     EffectOperationCall(name~, generic_witnesses~, arguments~, loc~) =>
       self.synthesize_checked_operation_call(
         scope,
@@ -446,6 +477,19 @@ fn SemanticChecker::synthesize_checked_expr(
     Extern(name, loc~) => self.synthesize_extern_binding(name, loc)
     ErrorRecovery(..) => checked_expression_none_reported(Error)
   }
+}
+
+///|
+fn desugared_unary_call(
+  target : @resolve.ResolvedOperatorTarget,
+  operand : @desugar.DesugaredExpr,
+  loc : SourceSpan,
+) -> @desugar.DesugaredExpr {
+  Call(
+    callee=Var(name=target.name, reference=target.reference, loc~),
+    arguments=[Positional(value=operand, loc=operand.loc())],
+    loc~,
+  )
 }
 
 ///|

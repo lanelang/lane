@@ -186,6 +186,7 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
     Reference => self.write_u8(0x09)
     Byte => self.write_u8(0x0A)
     Bytes => self.write_u8(0x0B)
+    S32 => self.write_u8(0x0C)
   }
 }
 
@@ -487,6 +488,31 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_slot_id(index)
       self.write_slot_id(value)
     }
+    ConstS32(destination, value) => {
+      self.write_u8(0x4C)
+      self.write_slot_id(destination)
+      self.write_i32_le(value)
+    }
+    S32Add(destination, left, right) =>
+      self.write_ternary_slots(0x4D, destination, left, right)
+    S32Sub(destination, left, right) =>
+      self.write_ternary_slots(0x4E, destination, left, right)
+    S32Mul(destination, left, right) =>
+      self.write_ternary_slots(0x4F, destination, left, right)
+    S32Neg(destination, source) =>
+      self.write_binary_slots(0x50, destination, source)
+    S32Div(destination, left, right) =>
+      self.write_ternary_slots(0x51, destination, left, right)
+    S32Rem(destination, left, right) =>
+      self.write_ternary_slots(0x52, destination, left, right)
+    S32Eq(destination, left, right) =>
+      self.write_ternary_slots(0x53, destination, left, right)
+    S32Lt(destination, left, right) =>
+      self.write_ternary_slots(0x54, destination, left, right)
+    S32ToInt(destination, source) =>
+      self.write_binary_slots(0x55, destination, source)
+    IntToS32(destination, source) =>
+      self.write_binary_slots(0x56, destination, source)
   }
 }
 

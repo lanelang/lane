@@ -280,6 +280,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   PrivateTypeEscape(name~ : String)
   PrivateEffectEscape(name~ : String)
   InvalidIntLiteral(String)
+  InvalidS32Literal(String)
   InvalidDoubleLiteral(String)
   UnknownBuiltin(name~ : String)
   BuiltinSignatureMismatch(

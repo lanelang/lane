@@ -100,6 +100,7 @@ pub(all) enum LayoutRecipe {
   Unit
   Bool
   Int
+  S32
   Double
   Callable
   String
@@ -161,6 +162,7 @@ pub(all) enum Instruction {
   RetainCopy(SlotId, SlotId)
   Release(SlotId)
   ConstInt(SlotId, Int64)
+  ConstS32(SlotId, Int)
   ConstDouble(SlotId, Int64)
   ConstBool(SlotId, Bool)
   ConstLayout(SlotId, LayoutId)
@@ -187,6 +189,16 @@ pub(all) enum Instruction {
   BytesLength(SlotId, SlotId)
   BytesGet(SlotId, SlotId, SlotId)
   BytesSet(SlotId, SlotId, SlotId, SlotId)
+  S32Add(SlotId, SlotId, SlotId)
+  S32Sub(SlotId, SlotId, SlotId)
+  S32Mul(SlotId, SlotId, SlotId)
+  S32Neg(SlotId, SlotId)
+  S32Div(SlotId, SlotId, SlotId)
+  S32Rem(SlotId, SlotId, SlotId)
+  S32Eq(SlotId, SlotId, SlotId)
+  S32Lt(SlotId, SlotId, SlotId)
+  S32ToInt(SlotId, SlotId)
+  IntToS32(SlotId, SlotId)
   IntAdd(SlotId, SlotId, SlotId)
   IntSub(SlotId, SlotId, SlotId)
   IntMul(SlotId, SlotId, SlotId)

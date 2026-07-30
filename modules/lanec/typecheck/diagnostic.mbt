@@ -840,6 +840,22 @@ fn typecheck_diagnostic(
         ],
         helps=["use a smaller integer literal"],
       )
+    InvalidS32Literal(raw) =>
+      diagnostic(
+        "invalid S32 literal `\{raw}`",
+        span~,
+        severity=Error,
+        code=Some("E3034"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "`\{raw}` cannot be represented as a Lane `S32`",
+            style: Primary,
+          },
+        ],
+        notes=["Lane `S32` literals must be between -2147483648 and 2147483647"],
+        helps=["use a value in the signed 32-bit range"],
+      )
     InvalidDoubleLiteral(raw) =>
       diagnostic(
         "invalid double literal `\{raw}`",

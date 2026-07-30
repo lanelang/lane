@@ -55,6 +55,7 @@ pub impl @prettyprinter.Pretty for Kind
 
 pub(all) enum PrimitiveType {
   Int
+  S32
   Double
   Bool
   String

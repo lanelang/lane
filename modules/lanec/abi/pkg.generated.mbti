@@ -24,6 +24,16 @@ pub(all) enum Intrinsic {
   I64Neg
   I64Equal
   I64Less
+  I32Add
+  I32Sub
+  I32Mul
+  I32Div
+  I32Rem
+  I32Neg
+  I32Equal
+  I32Less
+  S32ToInt
+  IntToS32
   F64Add
   F64Sub
   F64Mul
@@ -55,6 +65,7 @@ pub(all) enum IntrinsicValueKind {
   Unit
   Bool
   Int
+  S32
   Double
   String
   Byte

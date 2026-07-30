@@ -1930,7 +1930,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 9
+      #|schema: 10
       #|
       #|imported interfaces:
       #|  (none)
@@ -2006,7 +2006,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 12
+      #|schema: 13
       #|
       #|imported interfaces:
       #|  (none)
@@ -2100,7 +2100,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 9
+      #|schema: 10
       #|
       #|imported interfaces:
       #|  (none)
@@ -2520,7 +2520,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 9
+      #|schema: 10
       #|
       #|imported interfaces:
       #|  (none)
@@ -2542,7 +2542,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 12
+      #|schema: 13
       #|
       #|imported interfaces:
       #|  (none)
@@ -4060,7 +4060,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 9
+      #|schema: 10
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0

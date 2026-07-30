@@ -251,6 +251,7 @@ fn finalize_instruction(
       Release(value_to_slot(consumed))
     }
     ConstInt(destination, value) => ConstInt(value_to_slot(destination), value)
+    ConstS32(destination, value) => ConstS32(value_to_slot(destination), value)
     ConstDouble(destination, bits) =>
       ConstDouble(value_to_slot(destination), bits)
     ConstBool(destination, value) =>
@@ -433,6 +434,63 @@ fn finalize_instruction(
         ),
         value_to_slot(borrow_value(remaining, index)),
         value_to_slot(borrow_value(remaining, value)),
+      )
+    S32Add(destination, left, right) =>
+      S32Add(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    S32Sub(destination, left, right) =>
+      S32Sub(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    S32Mul(destination, left, right) =>
+      S32Mul(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    S32Neg(destination, source) =>
+      S32Neg(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    S32Div(destination, left, right) =>
+      S32Div(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    S32Rem(destination, left, right) =>
+      S32Rem(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    S32Eq(destination, left, right) =>
+      S32Eq(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    S32Lt(destination, left, right) =>
+      S32Lt(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    S32ToInt(destination, source) =>
+      S32ToInt(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    IntToS32(destination, source) =>
+      IntToS32(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
       )
     IntAdd(destination, left, right) =>
       IntAdd(
@@ -744,6 +802,7 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | Move(destination, _)
     | RetainCopy(destination, _)
     | ConstInt(destination, _)
+    | ConstS32(destination, _)
     | ConstDouble(destination, _)
     | ConstBool(destination, _)
     | ConstLayout(destination, _)
@@ -764,6 +823,16 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | BytesLength(destination, _)
     | BytesGet(destination, _, _)
     | BytesSet(destination, _, _, _)
+    | S32Add(destination, _, _)
+    | S32Sub(destination, _, _)
+    | S32Mul(destination, _, _)
+    | S32Neg(destination, _)
+    | S32Div(destination, _, _)
+    | S32Rem(destination, _, _)
+    | S32Eq(destination, _, _)
+    | S32Lt(destination, _, _)
+    | S32ToInt(destination, _)
+    | IntToS32(destination, _)
     | IntAdd(destination, _, _)
     | IntSub(destination, _, _)
     | IntMul(destination, _, _)

@@ -264,6 +264,7 @@ fn Decoder::read_layout_recipe(
     0x09 => Reference
     0x0A => Byte
     0x0B => Bytes
+    0x0C => S32
     tag => self.invalid_tag(offset~, domain="layout recipe", tag~)
   }
 }
@@ -514,6 +515,23 @@ fn Decoder::read_instruction(
         self.read_slot_id(),
         self.read_slot_id(),
       )
+    0x4C =>
+      ConstS32(self.read_slot_id(), self.read_i32(expected="S32 constant"))
+    0x4D =>
+      S32Add(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x4E =>
+      S32Sub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x4F =>
+      S32Mul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x50 => S32Neg(self.read_slot_id(), self.read_slot_id())
+    0x51 =>
+      S32Div(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x52 =>
+      S32Rem(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x53 => S32Eq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x54 => S32Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x55 => S32ToInt(self.read_slot_id(), self.read_slot_id())
+    0x56 => IntToS32(self.read_slot_id(), self.read_slot_id())
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }
@@ -773,6 +791,17 @@ fn Decoder::read_i64(
 ) -> Int64 raise BytecodeDecodeError {
   let offset = self.offset()
   self.reader.read_i64_le() catch {
+    _ => self.fail_at(offset, "expected \{expected}")
+  }
+}
+
+///|
+fn Decoder::read_i32(
+  self : Decoder,
+  expected~ : String,
+) -> Int raise BytecodeDecodeError {
+  let offset = self.offset()
+  self.reader.read_i32_le() catch {
     _ => self.fail_at(offset, "expected \{expected}")
   }
 }

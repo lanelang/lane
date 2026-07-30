@@ -270,6 +270,7 @@ pub impl @prettyprinter.Pretty for CheckedLetDeclaration
 
 pub(all) enum CheckedLiteral {
   Int(CheckedIntLiteral)
+  S32(CheckedS32Literal)
   Double(CheckedDoubleLiteral)
   String(String)
   Bool(Bool)
@@ -309,6 +310,11 @@ pub(all) struct CheckedPatternLetDeclaration {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedPatternLetDeclaration
+
+pub(all) struct CheckedS32Literal {
+  raw : String
+  value : Int
+} derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedSourceFile {
   module_path : @syntax.ModulePath

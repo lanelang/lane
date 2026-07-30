@@ -283,13 +283,8 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
       )
     Field(base~, name~, name_loc~, reference~, loc~) =>
       Field(base=desugar_expr(base), name~, name_loc~, reference~, loc~)
-    Unary(target~, operand~, loc~, ..) =>
-      desugar_operator_call(
-        target.name,
-        target.reference,
-        [desugar_expr(operand)],
-        loc,
-      )
+    Unary(operator~, target~, operand~, loc~) =>
+      Unary(operator~, target~, operand=desugar_expr(operand), loc~)
     Binary(operator~, target~, left~, right~, loc~) =>
       if operator.is_lazy_bool_operator() {
         desugar_operator_call(

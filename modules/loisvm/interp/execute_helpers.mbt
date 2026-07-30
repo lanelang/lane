@@ -134,6 +134,17 @@ fn Frame::binary_i64(
 }
 
 ///|
+fn Frame::binary_i32(
+  self : Frame,
+  destination : @bytecode.SlotId,
+  left : @bytecode.SlotId,
+  right : @bytecode.SlotId,
+  operation : (Int, Int) -> Int,
+) -> Unit raise ExecutionFailure {
+  self.write(destination, I32(operation(self.i32(left), self.i32(right))))
+}
+
+///|
 fn Frame::binary_f64(
   self : Frame,
   destination : @bytecode.SlotId,

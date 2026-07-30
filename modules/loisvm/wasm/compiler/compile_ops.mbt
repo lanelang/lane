@@ -82,6 +82,8 @@ fn compile_instruction(
     }
     ConstInt(destination, value) =>
       [I64Const(value), LocalSet(slot_local(parameter_count, destination))]
+    ConstS32(destination, value) =>
+      [I32Const(value), LocalSet(slot_local(parameter_count, destination))]
     ConstDouble(destination, bits) =>
       [
         F64Const(bits.reinterpret_as_double()),
@@ -351,6 +353,31 @@ fn compile_instruction(
         Call(runtime_functions.string_eq),
         LocalSet(slot_local(parameter_count, destination)),
       ]
+    S32Add(destination, left, right) =>
+      binary(parameter_count, destination, left, right, I32Add)
+    S32Sub(destination, left, right) =>
+      binary(parameter_count, destination, left, right, I32Sub)
+    S32Mul(destination, left, right) =>
+      binary(parameter_count, destination, left, right, I32Mul)
+    S32Neg(destination, source) =>
+      [
+        I32Const(0),
+        LocalGet(slot_local(parameter_count, source)),
+        I32Sub,
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+    S32Div(destination, left, right) =>
+      binary(parameter_count, destination, left, right, I32DivS)
+    S32Rem(destination, left, right) =>
+      binary(parameter_count, destination, left, right, I32RemS)
+    S32Eq(destination, left, right) =>
+      binary(parameter_count, destination, left, right, I32Eq)
+    S32Lt(destination, left, right) =>
+      binary(parameter_count, destination, left, right, I32LtS)
+    S32ToInt(destination, source) =>
+      unary(parameter_count, destination, source, I64ExtendI32S)
+    IntToS32(destination, source) =>
+      unary(parameter_count, destination, source, I32WrapI64)
     IntAdd(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Add)
     IntSub(destination, left, right) =>

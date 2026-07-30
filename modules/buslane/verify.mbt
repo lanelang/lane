@@ -1533,6 +1533,7 @@ fn Literal::type_(self : Literal) -> Type {
     Unit => Primitive(Unit)
     Bool(_) => Primitive(Bool)
     Int(_) => Primitive(Int)
+    S32(_) => Primitive(S32)
     Double(_) => Primitive(Double)
     String(_) => Primitive(String)
   }

@@ -154,6 +154,7 @@ fn ExecutionInstance::execute_instruction(
       frame.consume_owner(slot)
     }
     ConstInt(destination, value) => frame.write(destination, I64(value))
+    ConstS32(destination, value) => frame.write(destination, I32(value))
     ConstDouble(destination, bits) =>
       frame.write(destination, F64(bits.reinterpret_as_double()))
     ConstBool(destination, value) =>
@@ -213,6 +214,43 @@ fn ExecutionInstance::execute_instruction(
       self.bytes_get(frame, destination, source, index)
     BytesSet(destination, source, index, value) =>
       self.bytes_set(frame, destination, source, index, value)
+    S32Add(destination, left, right) =>
+      frame.binary_i32(destination, left, right, fn(a, b) { a + b })
+    S32Sub(destination, left, right) =>
+      frame.binary_i32(destination, left, right, fn(a, b) { a - b })
+    S32Mul(destination, left, right) =>
+      frame.binary_i32(destination, left, right, fn(a, b) { a * b })
+    S32Neg(destination, source) =>
+      frame.write(destination, I32(0 - frame.i32(source)))
+    S32Div(destination, left, right) => {
+      let dividend = frame.i32(left)
+      let divisor = frame.i32(right)
+      if divisor == 0 || (dividend == -2147483647 - 1 && divisor == -1) {
+        raise Trap(detail="invalid signed 32-bit integer division")
+      }
+      frame.write(destination, I32(dividend / divisor))
+    }
+    S32Rem(destination, left, right) => {
+      let dividend = frame.i32(left)
+      let divisor = frame.i32(right)
+      if divisor == 0 {
+        raise Trap(detail="signed 32-bit integer remainder by zero")
+      }
+      let value = if dividend == -2147483647 - 1 && divisor == -1 {
+        0
+      } else {
+        dividend % divisor
+      }
+      frame.write(destination, I32(value))
+    }
+    S32Eq(destination, left, right) =>
+      frame.compare_i32(destination, left, right, fn(a, b) { a == b })
+    S32Lt(destination, left, right) =>
+      frame.compare_i32(destination, left, right, fn(a, b) { a < b })
+    S32ToInt(destination, source) =>
+      frame.write(destination, I64(frame.i32(source).to_int64()))
+    IntToS32(destination, source) =>
+      frame.write(destination, I32(frame.i64(source).to_int()))
     IntAdd(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a + b })
     IntSub(destination, left, right) =>

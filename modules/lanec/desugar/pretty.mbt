@@ -270,6 +270,12 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       @pretty.parenthesized_inline(arguments.map(DesugaredCallArgument::pretty))
     Field(base~, name~, reference~, ..) =>
       base.pretty() + text(".") + reference.pretty() + space + text(name)
+    Unary(operator~, target~, operand~, ..) =>
+      @prettyprinter.Pretty::pretty(operator) +
+      space +
+      target.reference.pretty() +
+      space +
+      operand.pretty()
   }
 }
 

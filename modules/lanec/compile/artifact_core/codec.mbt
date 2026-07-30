@@ -126,6 +126,16 @@ fn write_intrinsic(
       BytesLength => 22
       BytesGet => 23
       BytesSet => 24
+      I32Add => 25
+      I32Sub => 26
+      I32Mul => 27
+      I32Div => 28
+      I32Rem => 29
+      I32Neg => 30
+      I32Equal => 31
+      I32Less => 32
+      S32ToInt => 33
+      IntToS32 => 34
     },
   )
 }

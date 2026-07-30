@@ -41,6 +41,13 @@ fn read_i64_le(
 }
 
 ///|
+fn read_i32_le(reader : @bytecodec.ByteReader) -> Int raise BuslaneDecodeError {
+  reader.read_i32_le() catch {
+    error => raise ByteError(error)
+  }
+}
+
+///|
 fn read_f64_le(
   reader : @bytecodec.ByteReader,
 ) -> Double raise BuslaneDecodeError {

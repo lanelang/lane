@@ -112,6 +112,7 @@ fn token_label(token : Token) -> String {
     UNIT_TYPE => "Unit"
     BOOL_TYPE => "Bool"
     INT_TYPE => "Int"
+    S32_TYPE => "S32"
     DOUBLE_TYPE => "Double"
     STRING_TYPE => "String"
     BYTE_TYPE => "Byte"
@@ -147,6 +148,7 @@ fn token_label(token : Token) -> String {
     TRUE => "true"
     FALSE => "false"
     INT_LITERAL => "int"
+    S32_LITERAL => "s32"
     DOUBLE_LITERAL => "double"
     STRING_LITERAL => "string"
     UNIT_LITERAL => "unit"
@@ -431,6 +433,7 @@ fn primitive_doc(primitive : @buslane.PrimitiveType) -> Document {
     Unit => text("Unit")
     Bool => text("Bool")
     Int => text("Int")
+    S32 => text("S32")
     Double => text("Double")
     String => text("String")
     Byte => text("Byte")
@@ -597,6 +600,7 @@ fn literal_doc(literal : @buslane.Literal) -> Document {
     Unit => call_doc("unit", [])
     Bool(value) => text(if value { "true" } else { "false" })
     Int(value) => call_doc("int", [text(value.to_string())])
+    S32(value) => call_doc("s32", [text(value.to_string())])
     Double(value) => call_doc("double", [text(value.to_string())])
     String(value) => call_doc("string", [text(quote_string(value))])
   }

@@ -207,6 +207,12 @@ pub(all) enum DesugaredExpr {
     reference~ : @resolve.ResolvedFieldReference,
     loc~ : SourceSpan
   )
+  Unary(
+    operator~ : @syntax.UnaryOperator,
+    target~ : @resolve.ResolvedOperatorTarget,
+    operand~ : DesugaredExpr,
+    loc~ : SourceSpan
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -228,7 +234,8 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | If(loc~, ..)
     | Match(loc~, ..)
     | Call(loc~, ..)
-    | Field(loc~, ..) => loc
+    | Field(loc~, ..)
+    | Unary(loc~, ..) => loc
     Derive(source~, ..) => source.loc
   }
 }

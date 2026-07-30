@@ -18,7 +18,10 @@ fn FunctionLowerer::lower_match(
     Slot(condition, scrutinee_type) =>
       match scrutinee_type {
         Primitive(Bool) => self.lower_bool_match(match_, condition, scrutinee)
-        Primitive(Int) | Primitive(Double) | Primitive(String) =>
+        Primitive(Int)
+        | Primitive(S32)
+        | Primitive(Double)
+        | Primitive(String) =>
           self.lower_literal_match(match_, condition, scrutinee_type, scrutinee)
         Function(_, _, _) | Forall(_, _) => {
           let alternative = match
@@ -167,6 +170,7 @@ fn FunctionLowerer::emit_literal_equality(
   let condition = self.fresh_slot(Primitive(Bool))
   let instruction : @vmcfg.Instruction = match scrutinee_type {
     Primitive(Int) => IntEq(condition, scrutinee, expected)
+    Primitive(S32) => S32Eq(condition, scrutinee, expected)
     Primitive(Double) => DoubleEq(condition, scrutinee, expected)
     Primitive(String) => StringEq(condition, scrutinee, expected)
     _ =>

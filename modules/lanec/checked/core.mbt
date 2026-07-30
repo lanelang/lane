@@ -165,6 +165,14 @@ pub(all) struct CheckedIntLiteral {
 } derive(Debug, Eq)
 
 ///|
+/// A checked S32 literal keeps the source spelling for diagnostics and pretty
+/// printing, while `value` is the compiler's semantic signed 32-bit value.
+pub(all) struct CheckedS32Literal {
+  raw : String
+  value : Int
+} derive(Debug, Eq)
+
+///|
 /// A checked double literal keeps the source spelling for diagnostics and
 /// pretty printing, while `value` is the compiler's semantic binary64 value.
 pub(all) struct CheckedDoubleLiteral {
@@ -175,6 +183,7 @@ pub(all) struct CheckedDoubleLiteral {
 ///|
 pub(all) enum CheckedLiteral {
   Int(CheckedIntLiteral)
+  S32(CheckedS32Literal)
   Double(CheckedDoubleLiteral)
   String(String)
   Bool(Bool)

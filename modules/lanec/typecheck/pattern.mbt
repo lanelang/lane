@@ -228,12 +228,20 @@ fn SemanticChecker::check_pattern(
       Binding(name~, symbol~, type_=expected, loc~)
     }
     IntLiteral(raw, loc~) => {
-      self.expect_type(expected, Primitive(Int), loc)
-      Literal(
-        literal=Int(self.check_int_literal(raw, loc)),
-        type_=expected,
-        loc~,
-      )
+      let (literal, literal_type) = if expected ==
+        @types.Type::Primitive(@types.PrimitiveType::S32) {
+        (
+          @checked.CheckedLiteral::S32(self.check_s32_literal(raw, loc)),
+          @types.Type::Primitive(@types.PrimitiveType::S32),
+        )
+      } else {
+        (
+          @checked.CheckedLiteral::Int(self.check_int_literal(raw, loc)),
+          @types.Type::Primitive(@types.PrimitiveType::Int),
+        )
+      }
+      self.expect_type(expected, literal_type, loc)
+      @checked.CheckedPattern::Literal(literal~, type_=expected, loc~)
     }
     DoubleLiteral(raw, loc~) => {
       self.expect_type(expected, Primitive(Double), loc)
@@ -806,6 +814,7 @@ fn PatternMatrix::is_exhaustive(
 priv enum MatrixConstructor {
   BoolConstructor(Bool)
   IntConstructor(Int64)
+  S32Constructor(Int)
   DoubleConstructor(Double)
   StringConstructor(String)
   UnitConstructor
@@ -1147,6 +1156,7 @@ fn complete_constructor_signatures(
     Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [] }])
     Error
     | Primitive(Int)
+    | Primitive(S32)
     | Primitive(Double)
     | Primitive(String)
     | Primitive(Byte)
@@ -1193,6 +1203,8 @@ fn constructor_signature_for_pattern(
         Bool(value) => Some({ tag: BoolConstructor(value), argument_types: [] })
         Int(value) =>
           Some({ tag: IntConstructor(value.value), argument_types: [] })
+        S32(value) =>
+          Some({ tag: S32Constructor(value.value), argument_types: [] })
         Double(value) =>
           Some({ tag: DoubleConstructor(value.value), argument_types: [] })
         String(value) =>

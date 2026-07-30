@@ -27,6 +27,62 @@ fn SemanticChecker::invalid_int_literal(
 }
 
 ///|
+fn SemanticChecker::check_s32_literal(
+  self : SemanticChecker,
+  raw : String,
+  loc : SourceSpan,
+) -> @checked.CheckedS32Literal {
+  if !is_decimal_int_literal(raw) {
+    return self.invalid_s32_literal(raw, loc)
+  }
+  try @string.parse_int64(raw, base=10) catch {
+    _ => self.invalid_s32_literal(raw, loc)
+  } noraise {
+    value =>
+      if value < -2147483648L || value > 2147483647L {
+        self.invalid_s32_literal(raw, loc)
+      } else {
+        { raw, value: value.to_int() }
+      }
+  }
+}
+
+///|
+fn SemanticChecker::check_negated_s32_literal(
+  self : SemanticChecker,
+  raw : String,
+  loc : SourceSpan,
+) -> @checked.CheckedS32Literal {
+  try @string.parse_int64(raw, base=10) catch {
+    _ => self.invalid_s32_literal("-" + raw, loc)
+  } noraise {
+    value =>
+      if value > 2147483648L {
+        self.invalid_s32_literal("-" + raw, loc)
+      } else {
+        {
+          raw: "-" + raw,
+          value: if value == 2147483648L {
+            -2147483647 - 1
+          } else {
+            0 - value.to_int()
+          },
+        }
+      }
+  }
+}
+
+///|
+fn SemanticChecker::invalid_s32_literal(
+  self : SemanticChecker,
+  raw : String,
+  loc : SourceSpan,
+) -> @checked.CheckedS32Literal {
+  self.diagnostics.push({ kind: InvalidS32Literal(raw), loc })
+  { raw, value: 0 }
+}
+
+///|
 fn SemanticChecker::check_double_literal(
   self : SemanticChecker,
   raw : String,
@@ -70,7 +126,11 @@ fn double_significand_has_nonzero_digit(raw : String) -> Bool {
 
 ///|
 fn is_decimal_int_literal(raw : String) -> Bool {
-  for view = raw.view(), seen_digit = false {
+  let digits = match raw.view() {
+    ['-', .. rest] => rest
+    view => view
+  }
+  for view = digits, seen_digit = false {
     match view {
       ['0'..='9', .. rest] => continue rest, true
       [] => break seen_digit

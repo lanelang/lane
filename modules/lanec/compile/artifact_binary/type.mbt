@@ -147,6 +147,7 @@ fn @bytecodec.ByteWriter::write_lane_primitive_type(
       Unit => 4
       Byte => 5
       Bytes => 6
+      S32 => 7
     },
   )
 }
@@ -184,6 +185,10 @@ fn @bytecodec.ByteReader::read_lane_primitive_type(
     [u8be(6), .. rest] => {
       self.update_view(rest)
       Bytes
+    }
+    [u8be(7), .. rest] => {
+      self.update_view(rest)
+      S32
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
