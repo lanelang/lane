@@ -38,7 +38,7 @@ The rule that an array update produces a new array value without changing any pr
 _Avoid_: shared mutable array, observable in-place update, reference-identity array
 
 **Byte Value**:
-A value of the built-in primitive type `Byte`: an unsigned scalar in the inclusive range `0..255`, with explicit modulo conversion from `Int` and explicit zero-extending conversion to `Int`. Lane provides no dedicated Byte literal or implicit numeric conversion.
+A value of the built-in primitive type `Byte`: an unsigned scalar in the inclusive range `0..255`, with explicit modulo conversion from `I64` and explicit zero-extending conversion to `I64`. Lane provides no dedicated Byte literal or implicit numeric conversion.
 _Avoid_: signed byte, implicit integer conversion, checked integer conversion
 
 **Bytes Value**:

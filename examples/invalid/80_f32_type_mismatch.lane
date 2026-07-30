@@ -1,0 +1,7 @@
+module Examples.Invalid.F32TypeMismatch
+
+let value : F32 = 1.0
+
+pub let bad_f64 : F64 = value
+
+pub let bad_i32 : I32 = value

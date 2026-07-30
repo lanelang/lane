@@ -152,13 +152,21 @@ _Avoid_: ordinary comment text, pipeline-specific newline checks, post-render re
 A blank line separating a comment group from adjacent syntax; pure blank-line-only gaps do not attach to AST nodes and are regenerated from syntax structure.
 _Avoid_: raw whitespace, vertical padding, empty statement
 
-**Parsed Double Literal**:
-A source `Double` literal after validation, retaining the original source text for diagnostics and a binary64 value for semantic lowering.
+**Parsed F64 Literal**:
+A source `F64` literal after validation, retaining the original source text for diagnostics and a binary64 value for semantic lowering.
 _Avoid_: string-only float literal, arbitrary-precision decimal constant, overloaded numeric literal
 
-**Double Literal Pattern**:
-A refutable pattern that matches a `Double` value by floating-point equality without making `Double` an exhaustively enumerable primitive.
+**Parsed F32 Literal**:
+A source floating literal checked under an explicit `F32` expectation, rounded once to binary32 while retaining the original source text for diagnostics.
+_Avoid_: implicit F64 conversion, suffixed literal, binary64 payload labeled as F32
+
+**F64 Literal Pattern**:
+A refutable pattern that matches a `F64` value by floating-point equality without making `F64` an exhaustively enumerable primitive.
 _Avoid_: exhaustive numeric pattern set, NaN pattern literal, arbitrary-precision decimal pattern
+
+**F32 Literal Pattern**:
+A refutable pattern that matches an `F32` value by binary32 floating-point equality without making `F32` an exhaustively enumerable primitive.
+_Avoid_: exhaustive numeric pattern set, NaN pattern literal, binary64 comparison
 
 **Semantic Completion**:
 A compiler-analysis completion result derived from Lane symbols, types, effects, modules, and source context.

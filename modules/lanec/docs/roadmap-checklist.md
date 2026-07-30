@@ -23,7 +23,7 @@ The checked-source to Buslane boundary is defined in
   type binders such as `hide[T](T)`.
 - [x] Existential: extend syntax, parser, and pretty printers for struct type
   members such as `type T : Type`, struct literal type witnesses such as
-  `T = Int`, and struct patterns such as `Hide::{ T, val }`.
+  `T = I64`, and struct patterns such as `Hide::{ T, val }`.
 - [x] Existential: decide and implement the wildcard spelling for ignored
   hidden type binders in struct patterns.
 - [ ] F-Omega: promote higher-kinded types, type-level lambdas, top-level type

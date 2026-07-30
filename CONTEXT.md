@@ -42,21 +42,29 @@ Leading components shared by otherwise independent **Module Paths**, without
 implying module containment or hierarchy.
 _Avoid_: parent module, child module, submodule
 
-**Double**:
+**F64**:
 A Lane primitive type representing IEEE 754 binary64 floating-point values.
 _Avoid_: Float, Float64, Basic library number type
 
-**Double Literal**:
-A source numeric literal containing digits with a decimal fraction or exponent and whose type is **Double**.
-_Avoid_: overloaded numeric literal, Float literal, decimal arbitrary-precision value
+**F32**:
+A Lane primitive type representing IEEE 754 binary32 floating-point values.
+_Avoid_: Float, Float32, Basic library number type
 
-**S32**:
-A Lane primitive type representing signed two's-complement 32-bit integer values and remaining semantically distinct from `Int`.
-_Avoid_: internal I32 carrier, Int alias, implicit narrow integer
+**Floating Literal**:
+A source numeric literal containing a decimal fraction or exponent that defaults to **F64** and instead elaborates to **F32** when checked under an explicit F32 expectation.
+_Avoid_: implicit F64-to-F32 conversion, suffixed floating syntax, decimal arbitrary-precision value
+
+**I64**:
+A Lane primitive type representing signed two's-complement 64-bit integer values.
+_Avoid_: host Int64 type, arbitrary-precision integer, Basic library number type
+
+**I32**:
+A Lane primitive type representing signed two's-complement 32-bit integer values and remaining semantically distinct from `I64`.
+_Avoid_: internal I32 carrier, I64 alias, implicit narrow integer
 
 **Integer Literal**:
-A decimal source literal that defaults to `Int` and instead elaborates to **S32** when checked under an explicit S32 expectation.
-_Avoid_: implicit Int-to-S32 conversion, always-Int literal, suffixed integer syntax
+A decimal source literal that defaults to `I64` and instead elaborates to **I32** when checked under an explicit I32 expectation.
+_Avoid_: implicit I64-to-I32 conversion, always-I64 literal, suffixed integer syntax
 
 **UTF-8 String**:
 A Lane `String` value containing a sequence of **Unicode Scalar Values** whose byte sequence is always valid UTF-8 text.
@@ -534,9 +542,7 @@ _Avoid_: VS Code extension, compiler front end
   another.
 - A module alias names exactly one imported **Module** and is not a prefix
   rewrite for other **Module Paths**.
-- **Double Literals** produce **Double** values directly; Lane does not use
-  numeric literal overloading or implicit conversion between `Int` and
-  **Double**.
+- **Floating Literals** default to **F64** and elaborate to **F32** only under an explicit F32 expectation; Lane inserts no implicit conversion among **I64**, **I32**, **F64**, and **F32**.
 - Lane effect sets contain **Typed Algebraic Effects** and **Built-in Effect Types**; **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
 - A closed effect row containing only **Built-in Effect Types** does not require monadic translation because it has neither an open tail nor handled operations that may resume repeatedly; this follows from the general monadic-effect predicate rather than a built-in-effect special case. Such a row remains non-pure and visible to effect-sensitive optimization until type erasure.
 - A **Compiler Intrinsic** is understood and lowered by the compiler, while an **Extern Binding** is resolved by the execution host and is checked only against its asserted surrounding type.

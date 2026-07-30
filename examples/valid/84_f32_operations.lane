@@ -1,0 +1,30 @@
+module Examples.Valid.F32Operations
+
+import Basic.Data.F32.*
+import Basic.Data.I64.{ i64_impl_equal }
+import Basic.Ops.*
+import Test.Assert.{ Assert, execute_all_test }
+
+fn test_f32_operations() -> Unit ! Assert {
+  let one_and_half : F32 = 1.5
+  let one : F32 = 1.0
+  let one_half : F32 = 0.5
+  let two = from_i64(2)
+  let three : F32 = 3.0
+  let three_and_half : F32 = 3.5
+  let zero : F32 = 0.0
+  assert_true!(one_and_half + two == three_and_half)
+  assert_true!(two - one_and_half == one_half)
+  assert_true!(one_and_half * two == three)
+  assert_true!(two / two == one)
+  assert_true!(-one_and_half < zero)
+  assert_true!(ninf < inf)
+  assert_false!(nan == nan)
+  assert_eq!(to_i64(from_f64(42.75)), 42, i64_impl_equal)
+  assert_true!(from_f64(to_f64(one_and_half)) == one_and_half)
+}
+
+pub fn answer() -> Unit ! Io {
+  test_f32_operations
+    |> execute_all_test()
+}

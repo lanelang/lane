@@ -51,7 +51,7 @@ _Avoid_: loaded image, resumable failure, concurrent VM
 
 **VM Value**:
 The uniform tagged runtime value stored in bytecode local slots, including
-primitive cases such as `Double`.
+primitive cases such as `F64`.
 _Avoid_: Lane type object, typed unboxed slot, Buslane interpreter value
 
 **Image Constant Pool**:
@@ -148,9 +148,7 @@ and ownership behavior.
 _Avoid_: dynamic type object, heap descriptor, reference-counted metadata
 
 **Portable Layout Recipe**:
-The tagged Unit, Bool, Int, Double, Callable, String, Data, Environment, or
-Reference recipe
-serialized for one LayoutId before backend-specific descriptor materialization.
+The tagged Unit, Bool, I64, I32, Char, F64, F32, Callable, ByteSequence, Byte, Data, Environment, or Reference recipe serialized for one LayoutId before backend-specific descriptor materialization.
 _Avoid_: source type descriptor, Wasm helper index, raw member offset
 
 **Erased Reference Layout**:

@@ -566,7 +566,7 @@
           "unused open import",
           "open import `Basic.Ops.*` contributes no used names",
           "unused import item",
-          "imported item `double_nan` from `Basic.Builtins` is never used"
+          "imported item `f64_nan` from `Basic.Builtins` is never used"
         ]
       }
     },
@@ -1085,7 +1085,7 @@
       "expect": {
         "contains": [
           "error[E3010]",
-          "generic argument constraint mismatch for `consume_int`",
+          "generic argument constraint mismatch for `consume_i64`",
           "generic inference expected `F`, found `Pair`",
           "adjust the argument or expected result type so the generic constraints match"
         ]
@@ -1624,6 +1624,15 @@
       }
     },
     {
+      "name": "84 F32 operations",
+      "file": "examples/valid/84_f32_operations.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": ""
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
@@ -1715,6 +1724,42 @@
           "error[E1003]",
           "invalid literal escape",
           "not a supported escape sequence"
+        ]
+      }
+    },
+    {
+      "name": "invalid 78 F32 literal overflow",
+      "file": "examples/invalid/78_f32_literal_overflow.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3035]",
+          "invalid F32 literal `3.5e38`",
+          "cannot be represented as a finite Lane `F32`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 79 F32 literal underflow",
+      "file": "examples/invalid/79_f32_literal_underflow.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3035]",
+          "invalid F32 literal `1.0e-50`",
+          "cannot be represented as a finite Lane `F32`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 80 F32 type mismatch",
+      "file": "examples/invalid/80_f32_type_mismatch.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3006]",
+          "expected `F64`, found `F32`",
+          "expected `I32`, found `F32`"
         ]
       }
     },

@@ -190,14 +190,14 @@ A globally unique Buslane identity for a type parameter introduced by a forall o
 _Avoid_: source generic parameter name, de Bruijn index, compiler-front-end type variable
 
 **Primitive Type**:
-A built-in type provided by the language core: `Int`, `S32`, `Double`, `Bool`, `Byte`, `Char`, `String`, `Bytes`, or `Unit`.
+A built-in type provided by the language core: `I64`, `I32`, `F64`, `F32`, `Bool`, `Byte`, `Char`, `String`, `Bytes`, or `Unit`.
 _Avoid_: Basic library type, numeric tower
 
 **Primitive Literal**:
 A direct inhabitant of a primitive type, such as `true`, `42`, `"abc"`, or `()`.
 _Avoid_: enum variant, nominal constructor
 
-**Normalized Int Literal**:
+**Normalized I64 Literal**:
 A Buslane integer literal stored as a signed 64-bit value.
 _Avoid_: decimal source spelling, arbitrary precision literal
 
@@ -371,7 +371,7 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - A **Higher-Kinded Type Argument** is valid when its kind exactly matches the corresponding type-application parameter kind.
 - Type constructor applications use **General Type Application Callee** syntax; the callee is not restricted to a nominal name or type parameter name.
 - Repeated type-argument postfixes use **Left-Associative Type Application**.
-- A **Nominal Type Constructor Object** and **Uniform Type Application** are separate type objects; `Option[Int]` is an application of the `Option` constructor.
+- A **Nominal Type Constructor Object** and **Uniform Type Application** are separate type objects; `Option[I64]` is an application of the `Option` constructor.
 - A **Nominal Constructor Kind** is `[K1, ..., Kn] -> Type` for a declaration with binders `A1 : K1, ..., An : Kn`; a declaration with no type parameters has kind `Type`.
 - Lane kind arrows use **Parameter-List Kind** syntax and are not curried.
 - Bracket syntax follows **Position-Directed Bracket Parsing**.
@@ -385,10 +385,10 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - Type constructors are **Type-Level Expressions**, not value-level values.
 - Value parameter types, return types, fields, payloads, let annotations, contextual offers, and Buslane value metadata require **Value-Level Types**.
 - A bare non-nullary nominal constructor is a valid **Type-Level Expression** but produces a **Kind Mismatch** in a **Value-Level Type** position.
-- Lane has nine **Primitive Types**: `Int`, `S32`, `Double`, `Bool`, `Byte`, `Char`, `String`, `Bytes`, and `Unit`.
+- Lane has ten **Primitive Types**: `I64`, `I32`, `F64`, `F32`, `Bool`, `Byte`, `Char`, `String`, `Bytes`, and `Unit`.
 - **Primitive Literals** are not nominal data constructors.
 - Buslane stores primitive literals as normalized values rather than source spelling.
-- A **Normalized Int Literal** is a signed 64-bit value.
+- A **Normalized I64 Literal** is a signed 64-bit value.
 - A **Normalized String Literal** is an exact Unicode scalar sequence encoded as valid UTF-8 at the runtime boundary.
 - **Enum Types** and **Struct Types** create **Nominal Types**.
 - A generic struct or enum uses **Generic Type Definition** syntax and is used with **Generic Type Application** syntax.
@@ -410,7 +410,7 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - Runtime type erasure happens after Buslane, not during Buslane construction.
 - **Nominal Existential Members** do not create a standalone `Exists` type constructor.
 - A **Higher-Kinded Existential Witness** is valid when its kind exactly matches the declared existential member kind.
-- Existential escape checking treats higher-kinded hidden members like ordinary hidden members; a result type mentioning `F[Int]` still mentions hidden `F`.
+- Existential escape checking treats higher-kinded hidden members like ordinary hidden members; a result type mentioning `F[I64]` still mentions hidden `F`.
 - **Local Type Inference** uses **Direct Context Inference** and does not infer a local function's parameters from later calls.
 - Generic functions and data constructors use **Implicit Generic Instantiation**.
 - **Higher-Kinded Generic Instantiation** may bind an unsolved type parameter to a same-kind type-level expression by structural matching.

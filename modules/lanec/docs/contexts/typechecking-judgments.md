@@ -117,7 +117,7 @@ collect(F[A], ActualF[B]) binds F := ActualF and merges Sub
 
 This is structural matching, not higher-order unification. The checker never
 synthesizes a new type lambda such as `[X] => Pair[X, Bool]` to satisfy
-`F[Int] ~ Pair[Int, Bool]`; users must pass that type-level lambda explicitly
+`F[I64] ~ Pair[I64, Bool]`; users must pass that type-level lambda explicitly
 when they need partial application. Every inferred higher-kinded binding is
 kind-checked immediately and rejected if it would recursively mention the
 parameter being solved.

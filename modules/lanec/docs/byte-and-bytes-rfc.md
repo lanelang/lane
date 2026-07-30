@@ -455,7 +455,7 @@ overlap.
 - Conversion tests cover `0`, `1`, `255`, `256`, `257`, `-1`, `-255`, and
   `I64` extrema.
 - Round trips satisfy
-  `byte_to_int(int_to_byte(value)) == canonical_modulo_256(value)`.
+  `byte_to_i64(i64_to_byte(value)) == canonical_modulo_256(value)`.
 - Byte survives function arguments/results, local bindings, fields, enum
   payloads, closures, globals, and generic erasure.
 

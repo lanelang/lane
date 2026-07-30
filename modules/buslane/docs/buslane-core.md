@@ -174,8 +174,11 @@ GenericArgument =
 PrimitiveType =
   Unit
   Bool
-  Int
-  Double
+  I64
+  I32
+  Char
+  F64
+  F32
   String
   Byte
   Bytes
@@ -214,14 +217,15 @@ Primitive values are not nominal data constructors:
 Literal =
   Unit
   Bool(Bool)
-  Int(Int64)
-  S32(Int)
+  I64(Int64)
+  I32(Int)
   Char(Int)
-  Double(Double)
+  F64(Double)
+  F32(Float)
   String(String)
 ```
 
-Literals store normalized primitive values rather than source spelling. String values are exact Unicode scalar sequences and lower to validated UTF-8 bytes; Char values are Unicode scalar values; S32 values are signed 32-bit integers.
+Literals store normalized primitive values rather than source spelling. String values are exact Unicode scalar sequences and lower to validated UTF-8 bytes; Char values are Unicode scalar values; I32 values are signed 32-bit integers.
 
 ## Top-Level Terms
 

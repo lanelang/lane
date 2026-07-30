@@ -20,7 +20,7 @@ struct Box[T] {
 }
 ```
 
-The type of a value keeps the chosen parameter, such as `Box[Int]`.
+The type of a value keeps the chosen parameter, such as `Box[I64]`.
 
 Existential parameters are chosen by the constructor or provider and hidden
 from the consumer:
@@ -70,7 +70,7 @@ enum Hide {
 Construction chooses a witness type:
 
 ```lane
-let h : Hide = Hide::hide[Int](5)
+let h : Hide = Hide::hide[I64](5)
 ```
 
 Pattern matching opens the hidden type:
@@ -83,7 +83,7 @@ match h {
 
 Inside the arm, `T : Type` is available in the type environment and
 `val : T` is available in the value environment. `T` is abstract; the arm must
-not assume it is `Int` unless the value was already refined by some separate
+not assume it is `I64` unless the value was already refined by some separate
 static mechanism.
 
 ## Existential Structs
@@ -103,7 +103,7 @@ provider chooses `T`; the consumer sees only `Hide`.
 Construction supplies type-member witnesses with `=` and value fields with `:`:
 
 ```lane
-let h : Hide = Hide::{ T = Int, val: 5 }
+let h : Hide = Hide::{ T = I64, val: 5 }
 ```
 
 Elimination uses a struct pattern:
@@ -170,7 +170,7 @@ syntax is intended to extend to higher kinds:
 ```lane
 struct HideF {
   type F : [Type] -> Type
-  val : F[Int]
+  val : F[I64]
 }
 
 let h : HideF = HideF::{ F = Option, val: Option::some(1) }
@@ -178,7 +178,7 @@ let h : HideF = HideF::{ F = Option, val: Option::some(1) }
 let HideF::{ F, val } = h
 ```
 
-Inside the scope after elimination, `F : [Type] -> Type` and `val : F[Int]`
+Inside the scope after elimination, `F : [Type] -> Type` and `val : F[I64]`
 are available.
 
 ## Typing Rules
@@ -216,7 +216,7 @@ Gamma |- unpack e as [A, x] in body : R
 Lane surface syntax maps to these rules:
 
 ```lane
-Hide::{ T = Int, val: 5 }
+Hide::{ T = I64, val: 5 }
 ```
 
 is an existential introduction, and:

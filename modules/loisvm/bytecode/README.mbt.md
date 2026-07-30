@@ -63,10 +63,11 @@ Every `SlotId` has one immutable `SlotMetadata` entry. The representation fixes 
 | `I32` | Lane `I32`, `Char`, Boolean and Byte values, layout witnesses, object references, ByteSequence references used by semantic String and Bytes values, and other 32-bit runtime values |
 | `I64` | Lane `I64`, packed callable values, and erased payloads |
 | `F64` | Lane `F64` |
+| `F32` | Lane `F32` |
 
 | Cleanup | Legal representation | Meaning |
 | --- | --- | --- |
-| `Trivial` | `I32`, `I64`, or `F64` | The bits require no cleanup. |
+| `Trivial` | `I32`, `I64`, `F64`, or `F32` | The bits require no cleanup. |
 | `OwnedRef` | `I32` | The slot owns one reference-counted object or ByteSequence reference. |
 | `OwnedCallable` | `I64` | The slot owns one callable value; a captured callable owns its environment reference. |
 | `OwnedErased` | `I64` | The slot owns an erased payload whose retain and release operations are selected by an `I32 + Trivial` layout companion slot. |
@@ -83,7 +84,7 @@ Instruction operands use the following conventions:
 
 ## Object and layout model
 
-`LayoutRecipe` describes a runtime layout. `I32` is the trivial signed 32-bit integer layout, `Char` is the trivial Unicode-scalar layout, `Byte` is the trivial scalar-byte layout, and `ByteSequence` is the single owned packed-byte-sequence layout shared by semantic String and Bytes values. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
+`LayoutRecipe` describes a runtime layout. `I64`, `I32`, `F64`, and `F32` are the four trivial numeric layouts, `Char` is the trivial Unicode-scalar layout, `Byte` is the trivial scalar-byte layout, and `ByteSequence` is the single owned packed-byte-sequence layout shared by semantic String and Bytes values. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
 
 A `DataShape` stores a constructor tag, stored layout witnesses, and ordered field schemas. An `EnvironmentShape` stores layout witnesses and ordered capture schemas. A `MemberSchema` fixes the member representation and cleanup; an `OwnedErased` member must name the stored-witness ordinal used for its cleanup.
 
@@ -97,7 +98,7 @@ Environments, callable values, and user arguments are transferred into calls. La
 
 ## Instruction encoding
 
-Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32` and `ConstChar` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements.
+Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32`, `ConstChar`, and `ConstF32` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements.
 
 The constructor spelling is the public MoonBit API. The lowercase spelling shown in descriptions is the human-readable disassembly name.
 
@@ -117,6 +118,7 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 | `0x0A` | `ConstString(destination, constant)` | `const_string`; creates an owning String reference for the valid UTF-8 constant-pool entry in an `I32 + OwnedRef` destination. |
 | `0x4C` | `ConstI32(destination, value)` | `const_i32`; writes the signed 32-bit integer to an `I32 + Trivial` destination. |
 | `0x57` | `ConstChar(destination, value)` | `const_char`; writes the Unicode scalar value to an `I32 + Trivial` destination. |
+| `0x5C` | `ConstF32(destination, bits)` | `const_f32`; reinterprets the supplied 32-bit pattern as an IEEE 754 binary32 value and writes an `F32 + Trivial` destination. |
 
 ### Calls and closures
 
@@ -234,6 +236,28 @@ F64 operands and arithmetic destinations use `F64 + Trivial`; comparison destina
 | `0x39` | `I64ToF64(destination, source)` | `i64_to_f64`; converts a signed `I64` integer to `F64`, rounding according to IEEE 754. |
 | `0x3A` | `F64ToI64(destination, source)` | `f64_to_i64`; truncates `F64` toward zero to signed `I64` and traps for NaN or a value outside `[-2^63, 2^63)`. |
 
+### F32 operations and conversions
+
+F32 operands and arithmetic destinations use `F32 + Trivial`; comparison destinations use `I32 + Trivial`. Arithmetic and ordered comparisons follow WebAssembly IEEE 754 binary32 semantics, including NaN behavior.
+
+| Opcode | Constructor | Semantics |
+| --- | --- | --- |
+| `0x5D` | `F32Add(destination, left, right)` | `f32_add`; computes `left + right`. |
+| `0x5E` | `F32Sub(destination, left, right)` | `f32_sub`; computes `left - right`. |
+| `0x5F` | `F32Mul(destination, left, right)` | `f32_mul`; computes `left * right`. |
+| `0x60` | `F32Div(destination, left, right)` | `f32_div`; computes IEEE 754 division. |
+| `0x61` | `F32Neg(destination, source)` | `f32_neg`; negates the source. |
+| `0x62` | `F32Eq(destination, left, right)` | `f32_eq`; writes ordered equality. |
+| `0x63` | `F32Ne(destination, left, right)` | `f32_ne`; writes inequality, including true for an unordered NaN comparison. |
+| `0x64` | `F32Lt(destination, left, right)` | `f32_lt`; writes ordered `left < right`. |
+| `0x65` | `F32Le(destination, left, right)` | `f32_le`; writes ordered `left <= right`. |
+| `0x66` | `F32Gt(destination, left, right)` | `f32_gt`; writes ordered `left > right`. |
+| `0x67` | `F32Ge(destination, left, right)` | `f32_ge`; writes ordered `left >= right`. |
+| `0x68` | `I64ToF32(destination, source)` | `i64_to_f32`; converts a signed `I64` integer to `F32`, rounding according to IEEE 754. |
+| `0x69` | `F32ToI64(destination, source)` | `f32_to_i64`; truncates `F32` toward zero to signed `I64` and traps for NaN or a value outside the I64 range. |
+| `0x6A` | `F32ToF64(destination, source)` | `f32_to_f64`; exactly widens binary32 to binary64. |
+| `0x6B` | `F64ToF32(destination, source)` | `f64_to_f32`; narrows binary64 to binary32 using IEEE 754 rounding. |
+
 ### Representation erasure
 
 Erasure instructions are ownership transfers between natural representations and the uniform `I64` erased representation. The source owner is consumed and the destination owner becomes live; no retain is implied.
@@ -248,6 +272,8 @@ Erasure instructions are ownership transfers between natural representations and
 | `0x40` | `UneraseF64(destination, source)` | `unerase_f64`; reinterprets the erased `I64` bit pattern as `F64`. |
 | `0x41` | `EraseUnit(destination)` | `erase_unit`; writes the canonical zero erased payload to an `I64` destination. |
 | `0x42` | `UneraseUnit(source)` | `unerase_unit`; consumes an erased payload and produces no runtime value. |
+| `0x6C` | `EraseF32(destination, source)` | `erase_f32`; zero-extends the raw binary32 bits into an erased `I64` payload. |
+| `0x6D` | `UneraseF32(destination, source)` | `unerase_f32`; extracts the low 32 bits of an erased `I64` payload as `F32`. |
 
 An `OwnedErased` destination must name the layout companion governing the payload's retain and release behavior. Natural trivial values may use `Trivial` erased destinations when no ownership operation is required.
 

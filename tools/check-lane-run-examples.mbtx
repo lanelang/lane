@@ -357,7 +357,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
       #|module A
       #|
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|
       #|pub let box : Box = Box::{ value: 42 }
@@ -369,7 +369,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
       #|module Extra
       #|
       #|pub struct Noise {
-      #|  value : Int
+      #|  value : I64
       #|}
     ),
   )
@@ -392,12 +392,12 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
       #|
       #|import B.*
       #|
-      #|fn ignore_int(_value : Int) -> Unit {
+      #|fn ignore_i64(_value : I64) -> Unit {
       #|  ()
       #|}
       #|
       #|pub fn main() -> Unit {
-      #|  ignore_int(forwarded.value)
+      #|  ignore_i64(forwarded.value)
       #|}
     ),
   )

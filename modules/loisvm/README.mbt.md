@@ -187,6 +187,7 @@ Bindings declare their full direct-value signature through `RuntimeBinding`:
 - `Bool`
 - `I64`, represented to the host as `Int64`
 - `F64`, represented to the host as `Double`
+- `F32`, represented to the host as `Float`
 - `String`
 - `Opaque`, represented to bindings as borrowed or owned Host Objects
 

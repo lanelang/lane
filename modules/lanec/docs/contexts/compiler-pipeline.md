@@ -210,7 +210,7 @@ A Buslane match alternative binder introduced by data-constructor payload positi
 _Avoid_: field-name binder, labeled payload binder
 
 **Buslane Primitive Literal**:
-A core literal value for `Unit`, `Bool`, `Int`, or `String` that is not represented as a data constructor.
+A core literal value for `Unit`, `Bool`, `I64`, `I32`, `Char`, `F64`, `F32`, or `String` that is not represented as a data constructor.
 _Avoid_: primitive data constructor, nominal primitive wrapper
 
 **Normalized Buslane Literal**:
