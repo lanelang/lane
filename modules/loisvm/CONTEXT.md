@@ -352,11 +352,11 @@ An embedding-owned secondary map from private generational keys to values of one
 _Avoid_: heterogeneous `Any` store, unchecked payload cast, serialized External Type fingerprint
 
 **Borrowed Host String**:
-An immutable String byte view valid only during one synchronous runtime-import call and requiring an explicit host copy for retention.
+An immutable UTF-8 String byte view valid only during one synchronous runtime-import call and requiring an explicit host copy for retention.
 _Avoid_: host-owned Lane String, persistent VM byte view, mutable string argument
 
 **Copied Host String Result**:
-A host-provided byte sequence validated and copied into a newly owned Lane String before a runtime import returns.
+A host-provided UTF-8 byte sequence validated and copied into a newly owned Lane String before a runtime import returns.
 _Avoid_: borrowed result bytes, host-finalized string, zero-copy external string
 
 **Runtime Import Contract Validation**:
@@ -459,20 +459,12 @@ A RuntimeContext call to an approved non-Lane service export such as
 invoke entry, closures, or ordinary `FunctionId` targets.
 _Avoid_: Lane callback, general same-instance reentry, asynchronous host call
 
-**Runtime String Object**:
-An immutable ARC object with `byte_length:u32` at object offset eight and ASCII
-bytes at offset twelve, with total size rounded to eight-byte alignment.
-_Avoid_: mutable bytes, NUL-terminated C string, parent-backed slice
-
-**Runtime Bytes Object**:
-An ARC object containing one logical length and exactly that many packed byte
-elements, with no spare capacity. A pure update consumes its owned input
-reference and may reuse uniquely owned storage or copy shared storage, but
-cannot change any previously observable Bytes Value.
-_Avoid_: one integer word per element, shared mutable buffer, capacity-bearing vector
+**Runtime Byte Sequence Object**:
+An exact-length ARC object containing packed bytes and serving as the shared runtime representation of statically distinct String and Bytes values. String references guarantee valid UTF-8, while a pure Bytes update may reuse uniquely owned storage or copy shared storage without changing any previously observable value.
+_Avoid_: unified source type, mutable String, separate String and Bytes layouts, capacity-bearing vector
 
 **Borrowed Host String View**:
-A temporary non-owning view of a VM String's ASCII bytes exposed only during one
+A temporary non-owning view of a VM String's UTF-8 bytes exposed only during one
 synchronous runtime-import invocation.
 _Avoid_: retained host pointer, copied input, owned string result
 

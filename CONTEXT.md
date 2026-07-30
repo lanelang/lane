@@ -50,6 +50,46 @@ _Avoid_: Float, Float64, Basic library number type
 A source numeric literal containing digits with a decimal fraction or exponent and whose type is **Double**.
 _Avoid_: overloaded numeric literal, Float literal, decimal arbitrary-precision value
 
+**S32**:
+A Lane primitive type representing signed two's-complement 32-bit integer values and remaining semantically distinct from `Int`.
+_Avoid_: internal I32 carrier, Int alias, implicit narrow integer
+
+**Integer Literal**:
+A decimal source literal that defaults to `Int` and instead elaborates to **S32** when checked under an explicit S32 expectation.
+_Avoid_: implicit Int-to-S32 conversion, always-Int literal, suffixed integer syntax
+
+**UTF-8 String**:
+A Lane `String` value containing a sequence of **Unicode Scalar Values** whose byte sequence is always valid UTF-8 text.
+_Avoid_: ASCII-only string, arbitrary byte sequence, implicitly decoded Bytes
+
+**Unicode Scalar Value**:
+A Unicode code point outside the surrogate range, used as the elemental text unit of a **UTF-8 String**.
+_Avoid_: UTF-8 byte, UTF-16 code unit, grapheme cluster
+
+**Char**:
+A Lane primitive value containing exactly one **Unicode Scalar Value**.
+_Avoid_: one-byte character, UTF-16 code unit, one-character String
+
+**Char Literal**:
+A source literal whose decoded value is exactly one **Char** and whose type is never overloaded.
+_Avoid_: Byte literal, one-character String literal, context-dependent character literal
+
+**UTF-8 String Literal**:
+A source literal whose direct characters and Unicode escapes decode to the exact **Unicode Scalar Values** of one **UTF-8 String**.
+_Avoid_: escaped source spelling as value, ASCII-only literal, raw byte literal
+
+**Scalar Index**:
+A zero-based position between **Unicode Scalar Values** in a **UTF-8 String**, used by ordinary String lookup, range, and search interfaces.
+_Avoid_: UTF-8 byte offset, grapheme index, code-unit index
+
+**UTF-8 Byte Offset**:
+A zero-based position in the encoded bytes of a **UTF-8 String**, exposed only through explicit UTF-8 or Bytes interfaces.
+_Avoid_: String index, character position, scalar index
+
+**Exact String Equality**:
+Equality of two **UTF-8 Strings** when they contain the same **Unicode Scalar Values** in the same order, without implicit Unicode normalization or locale rules.
+_Avoid_: canonical equivalence, grapheme equality, locale collation, normalized comparison
+
 **Basic Library Module**:
 A normal library **Module** supplied explicitly as a **Library Input**.
 _Avoid_: prelude, implicit builtin scope, compiler magic module
