@@ -10,9 +10,11 @@ fn ExecutionInstance::bytes_make(
   if value < 0L || value > 2147483635L {
     raise Trap(detail="Bytes length is out of range")
   }
-  let reference = self.heap.allocate_bytes(
-    Array::make(value.to_int(), frame.i32(fill).to_byte()),
-  )
+  let length = value.to_int()
+  let fill = frame.i32(fill).to_byte()
+  let reference = self.heap.allocate_bytes(length, () => {
+    Array::make(length, fill)
+  })
   frame.write(destination, I32(reference))
 }
 
@@ -68,9 +70,11 @@ fn ExecutionInstance::bytes_set(
     bytes[index] = value
     reference
   } else {
-    let copy = bytes.copy()
-    copy[index] = value
-    let result = self.heap.allocate_bytes(copy)
+    let result = self.heap.allocate_bytes(bytes.length(), () => {
+      let copy = bytes.copy()
+      copy[index] = value
+      copy
+    })
     self.heap.release_reference(reference)
     result
   }

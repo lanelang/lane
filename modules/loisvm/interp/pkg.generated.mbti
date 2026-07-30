@@ -40,7 +40,7 @@ pub struct Heap {
   objects : Array[HeapObject?]
   constant_refs : Array[Int]
   singleton_refs : Array[Int?]
-  mut live_bytes : Int
+  mut live_bytes : Int64
   max_live_bytes : Int?
   // private fields
 }
@@ -49,7 +49,7 @@ pub struct HeapObject {
   mut ref_count : Int
   layout : @bytecode.LayoutId
   payload : ObjectPayload
-  size : Int
+  size : Int64
   immortal : Bool
 }
 

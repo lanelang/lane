@@ -23,7 +23,7 @@ pub struct HeapObject {
   mut ref_count : Int
   layout : @bytecode.LayoutId
   payload : ObjectPayload
-  size : Int
+  size : Int64
   immortal : Bool
 }
 
@@ -34,7 +34,7 @@ pub struct Heap {
   objects : Array[HeapObject?]
   constant_refs : Array[Int]
   singleton_refs : Array[Int?]
-  mut live_bytes : Int
+  mut live_bytes : Int64
   max_live_bytes : Int?
 }
 
@@ -80,7 +80,7 @@ fn Heap::new(
           ref_count: 0,
           layout,
           payload: Data({ value: shape_index }, [], []),
-          size: object_allocation_size(shape),
+          size: object_allocation_size(shape).to_int64(),
           immortal: true,
         }),
       )
@@ -113,7 +113,7 @@ fn Heap::allocate_host_object(
   self.allocate(
     layout=self.reference_layout(),
     payload=HostObject(handle),
-    size=host_object_allocation_size(),
+    size=host_object_allocation_size().to_int64(),
   )
 }
 
@@ -132,13 +132,13 @@ fn Heap::allocate_string(
 ///|
 fn Heap::allocate_bytes(
   self : Heap,
-  bytes : Array[Byte],
+  length : Int,
+  materialize : () -> Array[Byte],
 ) -> Int raise ExecutionFailure {
-  self.allocate(
-    layout=self.bytes_layout(),
-    payload=BytesObject(bytes),
-    size=byte_sequence_allocation_size(bytes.length()),
-  )
+  let layout = self.bytes_layout()
+  let size = byte_sequence_allocation_size(length)
+  self.check_allocation_capacity(size)
+  self.publish_allocation(layout~, payload=BytesObject(materialize()), size~)
 }
 
 ///|
@@ -155,7 +155,7 @@ fn Heap::allocate_data(
     self.object(reference).layout == layout {
     return reference
   }
-  let size = object_allocation_size(self.image.object_shapes[shape.value])
+  let size = object_allocation_size(self.image.object_shapes[shape.value]).to_int64()
   self.allocate(layout~, payload=Data(shape, witnesses, fields), size~)
 }
 
@@ -167,7 +167,7 @@ fn Heap::allocate_environment(
   witnesses : Array[@bytecode.LayoutId],
   captures : Array[VMValue],
 ) -> Int raise ExecutionFailure {
-  let size = object_allocation_size(self.image.object_shapes[shape.value])
+  let size = object_allocation_size(self.image.object_shapes[shape.value]).to_int64()
   self.allocate(layout~, payload=Environment(shape, witnesses, captures), size~)
 }
 
@@ -176,12 +176,32 @@ fn Heap::allocate(
   self : Heap,
   layout~ : @bytecode.LayoutId,
   payload~ : ObjectPayload,
-  size~ : Int,
+  size~ : Int64,
 ) -> Int raise ExecutionFailure {
-  if self.max_live_bytes is Some(maximum) &&
-    (maximum < size || self.live_bytes > maximum - size) {
-    raise ResourceLimit(LiveHeapBytes)
+  self.check_allocation_capacity(size)
+  self.publish_allocation(layout~, payload~, size~)
+}
+
+///|
+fn Heap::check_allocation_capacity(
+  self : Heap,
+  size : Int64,
+) -> Unit raise ExecutionFailure {
+  if self.max_live_bytes is Some(maximum) {
+    let maximum = maximum.to_int64()
+    if maximum < size || self.live_bytes > maximum - size {
+      raise ResourceLimit(LiveHeapBytes)
+    }
   }
+}
+
+///|
+fn Heap::publish_allocation(
+  self : Heap,
+  layout~ : @bytecode.LayoutId,
+  payload~ : ObjectPayload,
+  size~ : Int64,
+) -> Int {
   let reference = self.objects.length()
   self.objects.push(
     Some({ ref_count: 1, layout, payload, size, immortal: false }),
@@ -462,8 +482,9 @@ fn host_object_allocation_size() -> Int {
 }
 
 ///|
-fn byte_sequence_allocation_size(length : Int) -> Int {
-  align_up(12 + length, 8)
+fn byte_sequence_allocation_size(length : Int) -> Int64 {
+  let unaligned = 12L + length.to_int64()
+  (unaligned + 7L) / 8L * 8L
 }
 
 ///|

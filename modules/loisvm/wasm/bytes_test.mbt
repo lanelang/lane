@@ -385,6 +385,26 @@ test "Bytes allocation exhaustion agrees across interpreter and Wasm backends" {
 }
 
 ///|
+test "large Bytes allocation is rejected before materialization across backends" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  assert_bytes_backends(
+    wasm_bytes_single_block([i64, i32, owned], [
+      ConstInt({ value: 0 }, 2147483635L),
+      IntToByte({ value: 1 }, { value: 0 }),
+      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+    ]),
+    LiveHeapLimit,
+    config={
+      max_call_depth: None,
+      max_live_heap_bytes: Some(15),
+      max_host_objects: None,
+    },
+  )
+}
+
+///|
 test "Bytes invalid lengths and indices are fatal across backends" {
   let i32 = wasm_bytes_trivial_slot(I32)
   let i64 = wasm_bytes_trivial_slot(I64)
