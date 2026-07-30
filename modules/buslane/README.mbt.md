@@ -103,7 +103,7 @@ test "canonicalize a Buslane effect set" {
   assert_true(
     metadata.effects_definitionally_equal(
       effect,
-      Effect::Union([Io, Singleton(state, [])]),
+      Union([Io, Singleton(state, [])]),
     ),
   )
 }

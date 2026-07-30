@@ -336,7 +336,7 @@ fn effect_union(
   metadata : @buslane.MetadataRegistry,
   effects : Array[@buslane.Effect],
 ) -> @buslane.Effect {
-  metadata.canonicalize_effect(@buslane.Effect::Union(effects))
+  metadata.canonicalize_effect(Union(effects))
 }
 
 ///|

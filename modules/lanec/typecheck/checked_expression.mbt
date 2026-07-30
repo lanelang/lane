@@ -1404,12 +1404,8 @@ fn SemanticChecker::check_checked_function_literal(
         }
         match expected.kind {
           Effect =>
-            substitution.insert_effect(
-              expected.id,
-              @types.Effect::Parameter(actual.id),
-            )
-          _ =>
-            substitution.insert(expected.id, @types.Type::Parameter(actual.id))
+            substitution.insert_effect(expected.id, Parameter(actual.id))
+          _ => substitution.insert(expected.id, Parameter(actual.id))
         }
       }
       if !kinds_compatible {

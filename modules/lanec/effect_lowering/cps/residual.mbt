@@ -98,7 +98,7 @@ fn ResidualComputationSchema::fresh_frame(
     context_parameters,
     environment: {
       effect: schema.metadata.canonicalize_effect(
-        @buslane.Effect::Union([self.effect, self.residual_effect]),
+        Union([self.effect, self.residual_effect]),
       ),
       bindings,
     },

@@ -54,7 +54,7 @@ fn lower_cps_install(
   )
   let relay_environment = CpsEnvironment::{
     effect: program.metadata.canonicalize_effect(
-      @buslane.Effect::Union([residual.effect, residual.residual_effect]),
+      Union([residual.effect, residual.residual_effect]),
     ),
     bindings: relay.bindings,
   }
@@ -70,7 +70,7 @@ fn lower_cps_install(
   )
   let inner_environment = CpsEnvironment::{
     effect: program.metadata.canonicalize_effect(
-      @buslane.Effect::Union([body_facts.effect, residual.residual_effect]),
+      Union([body_facts.effect, residual.residual_effect]),
     ),
     bindings: handlers.bindings + relay.bindings,
   }

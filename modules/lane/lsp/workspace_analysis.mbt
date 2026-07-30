@@ -157,7 +157,7 @@ async fn LspWorkspaceAnalysis::workspace_sources(
   self : LspWorkspaceAnalysis,
   root : String,
 ) -> WorkspaceScanResult {
-  let library_identities : @hashset.HashSet[String] = @hashset.HashSet([])
+  let library_identities : @hashset.HashSet[String] = HashSet([])
   let sources = self.open_document_library_sources(root, library_identities)
   let issues = []
   append_lane_sources(

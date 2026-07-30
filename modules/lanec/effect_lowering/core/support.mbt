@@ -30,7 +30,7 @@ pub fn mon_effect_part(
   effect : @buslane.Effect,
 ) -> @buslane.Effect {
   metadata.canonicalize_effect(
-    @buslane.Effect::Union(
+    Union(
       effect_terms(metadata, effect).filter(fn(term) {
         match term {
           Io => false
@@ -51,7 +51,7 @@ pub fn residual_effect_part(
   effect : @buslane.Effect,
 ) -> @buslane.Effect {
   metadata.canonicalize_effect(
-    @buslane.Effect::Union(
+    Union(
       effect_terms(metadata, effect).filter(fn(term) {
         match term {
           Io => true

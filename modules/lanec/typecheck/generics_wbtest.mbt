@@ -1316,10 +1316,8 @@ test "generic effect occurs-check sees latent effects in type arguments" {
     kind: Effect,
   }
   let candidate : @types.GenericArgument = EffectArgument(
-    @types.Effect::Singleton({ index: 0 }, [
-      TypeArgument(
-        Function([], Primitive(Unit), @types.Effect::Parameter(parameter.id)),
-      ),
+    Singleton({ index: 0 }, [
+      TypeArgument(Function([], Primitive(Unit), Parameter(parameter.id))),
     ]),
   )
   let inference = empty_generic_argument_inference()

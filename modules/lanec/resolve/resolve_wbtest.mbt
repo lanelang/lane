@@ -1018,7 +1018,7 @@ test "resolve operator aliases through operation names" {
     ) else {
     abort("expected resolved operator target")
   }
-  assert_eq(operator_symbol, @symbol.ValueSymbolId::{ index: 0 })
+  assert_eq(operator_symbol, { index: 0 })
   inspect(
     @prettyprinter.render(result.source, width=100),
     content=(

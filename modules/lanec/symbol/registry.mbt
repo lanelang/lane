@@ -190,14 +190,14 @@ pub fn SymbolRegistry::declaration_scope(
   {
     registry: self,
     previous,
-    claimed_types: @hashset.HashSet([]),
-    claimed_type_aliases: @hashset.HashSet([]),
-    claimed_values: @hashset.HashSet([]),
-    claimed_effects: @hashset.HashSet([]),
-    claimed_type_members: @hashset.HashSet([]),
-    claimed_fields: @hashset.HashSet([]),
-    claimed_variants: @hashset.HashSet([]),
-    claimed_operations: @hashset.HashSet([]),
+    claimed_types: HashSet([]),
+    claimed_type_aliases: HashSet([]),
+    claimed_values: HashSet([]),
+    claimed_effects: HashSet([]),
+    claimed_type_members: HashSet([]),
+    claimed_fields: HashSet([]),
+    claimed_variants: HashSet([]),
+    claimed_operations: HashSet([]),
   }
 }
 
