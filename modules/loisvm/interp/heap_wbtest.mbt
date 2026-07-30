@@ -3,11 +3,28 @@ test "byte sequence allocation size uses checked Int64 arithmetic" {
   assert_eq(
     [
       checked_byte_sequence_allocation_size(-1L),
+      checked_byte_sequence_allocation_size(0L),
+      checked_byte_sequence_allocation_size(1L),
+      checked_byte_sequence_allocation_size(4L),
+      checked_byte_sequence_allocation_size(5L),
+      checked_byte_sequence_allocation_size(12L),
+      checked_byte_sequence_allocation_size(13L),
       checked_byte_sequence_allocation_size(2147483635L),
       checked_byte_sequence_allocation_size(2147483636L),
       checked_byte_sequence_allocation_size(9223372036854775807L),
     ],
-    [None, Some(2147483648L), Some(2147483648L), None],
+    [
+      None,
+      Some(16L),
+      Some(16L),
+      Some(16L),
+      Some(24L),
+      Some(24L),
+      Some(32L),
+      Some(2147483648L),
+      Some(2147483648L),
+      None,
+    ],
   )
 }
 

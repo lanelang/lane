@@ -203,6 +203,60 @@ test "Bytes zero length agrees across interpreter and Wasm backends" {
 }
 
 ///|
+test "Bytes make fills every position across backends" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  let edge = fn(target : Int) -> @bytecode.Edge {
+    { target: { value: target }, arguments: [] }
+  }
+  assert_bytes_backends(
+    wasm_bytes_body(
+      [
+        i64, i32, owned, i64, i64, i64, i64, i32, i32, i32, i32, i64, i64, i64, i64,
+        i64, i64, i64, i64, i32,
+      ],
+      [
+        {
+          parameters: [],
+          instructions: [
+            ConstInt({ value: 0 }, 4L),
+            ConstInt({ value: 18 }, 255L),
+            IntToByte({ value: 1 }, { value: 18 }),
+            BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+            ConstInt({ value: 3 }, 0L),
+            ConstInt({ value: 4 }, 1L),
+            ConstInt({ value: 5 }, 2L),
+            ConstInt({ value: 6 }, 3L),
+            BytesGet({ value: 7 }, { value: 2 }, { value: 3 }),
+            BytesGet({ value: 8 }, { value: 2 }, { value: 4 }),
+            BytesGet({ value: 9 }, { value: 2 }, { value: 5 }),
+            BytesGet({ value: 10 }, { value: 2 }, { value: 6 }),
+            ByteToInt({ value: 11 }, { value: 7 }),
+            ByteToInt({ value: 12 }, { value: 8 }),
+            ByteToInt({ value: 13 }, { value: 9 }),
+            ByteToInt({ value: 14 }, { value: 10 }),
+            IntAdd({ value: 15 }, { value: 11 }, { value: 12 }),
+            IntAdd({ value: 16 }, { value: 13 }, { value: 14 }),
+            IntAdd({ value: 17 }, { value: 15 }, { value: 16 }),
+            ConstInt({ value: 18 }, 1020L),
+            IntEq({ value: 19 }, { value: 17 }, { value: 18 }),
+          ],
+          terminator: BranchBool({ value: 19 }, edge(1), edge(2)),
+        },
+        {
+          parameters: [],
+          instructions: [Release({ value: 2 })],
+          terminator: Return(None),
+        },
+        { parameters: [], instructions: [], terminator: Unreachable },
+      ],
+    ),
+    Completed,
+  )
+}
+
+///|
 test "Bytes first middle and final updates agree across backends" {
   let i32 = wasm_bytes_trivial_slot(I32)
   let i64 = wasm_bytes_trivial_slot(I64)
@@ -385,6 +439,28 @@ test "Bytes allocation exhaustion agrees across interpreter and Wasm backends" {
 }
 
 ///|
+test "Bytes allocation accounting follows the aligned object size" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  let body = fn(length : Int64) {
+    wasm_bytes_single_block([i64, i32, owned], [
+      ConstInt({ value: 0 }, length),
+      IntToByte({ value: 1 }, { value: 0 }),
+      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      Release({ value: 2 }),
+    ])
+  }
+  let config : @loisvm_runtime.ExecutionConfig = {
+    max_call_depth: None,
+    max_live_heap_bytes: Some(16),
+    max_host_objects: None,
+  }
+  assert_bytes_backends(body(4L), Completed, config~)
+  assert_bytes_backends(body(5L), LiveHeapLimit, config~)
+}
+
+///|
 test "large Bytes allocation is rejected before materialization across backends" {
   let i32 = wasm_bytes_trivial_slot(I32)
   let i64 = wasm_bytes_trivial_slot(I64)
@@ -409,17 +485,19 @@ test "Bytes invalid lengths and indices are fatal across backends" {
   let i32 = wasm_bytes_trivial_slot(I32)
   let i64 = wasm_bytes_trivial_slot(I64)
   let owned = wasm_bytes_owned_slot()
-  assert_bytes_backends(
+  let invalid_length_body = fn(length : Int64) {
     wasm_bytes_single_block([i64, i32, owned], [
-      ConstInt({ value: 0 }, -1L),
+      ConstInt({ value: 0 }, length),
       IntToByte({ value: 1 }, { value: 0 }),
       BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
-    ]),
-    Fatal,
-  )
-  let invalid_index_body = fn(index : Int64, update : Bool) {
+    ])
+  }
+  for length in [-1L, 4294967296L, 9223372036854775807L] {
+    assert_bytes_backends(invalid_length_body(length), Fatal)
+  }
+  let invalid_index_body = fn(length : Int64, index : Int64, update : Bool) {
     let instructions : Array[@bytecode.Instruction] = [
-      ConstInt({ value: 0 }, 1L),
+      ConstInt({ value: 0 }, length),
       IntToByte({ value: 1 }, { value: 0 }),
       BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
       ConstInt({ value: 3 }, index),
@@ -436,7 +514,15 @@ test "Bytes invalid lengths and indices are fatal across backends" {
       instructions,
     )
   }
-  for case in [(-1L, false), (1L, false), (-1L, true), (1L, true)] {
-    assert_bytes_backends(invalid_index_body(case.0, case.1), Fatal)
+  for
+    case in [
+      (1L, -1L, false),
+      (1L, 1L, false),
+      (1L, -1L, true),
+      (1L, 1L, true),
+      (0L, 0L, false),
+      (0L, 0L, true),
+    ] {
+    assert_bytes_backends(invalid_index_body(case.0, case.1, case.2), Fatal)
   }
 }

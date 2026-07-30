@@ -24,6 +24,47 @@ fn compile_byte_bytes_image(source : String) -> @bytecode.BytecodeImage raise {
 }
 
 ///|
+test "compiler removes discarded empty-effect Byte and Bytes operations" {
+  let bytecode = compile_byte_bytes_image(
+    (
+      #|module Test
+      #|
+      #|let int_to_byte : (Int) -> Byte = builtin("%int_to_byte")
+      #|let bytes_make : (Int, Byte) -> Bytes = builtin("%bytes_make")
+      #|let bytes_get : (Bytes, Int) -> Byte = builtin("%bytes_get")
+      #|
+      #|pub fn answer() -> Unit {
+      #|  let _ = bytes_get(bytes_make(0, int_to_byte(0)), 0)
+      #|  ()
+      #|}
+    ),
+  )
+  debug_inspect(
+    bytecode,
+    content=(
+      #|{
+      #|  entry: { value: 1 },
+      #|  initializer: None,
+      #|  functions: [
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [],
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|        result: Unit,
+      #|        blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+      #|      },
+      #|    ),
+      #|  ],
+      #|  globals: [],
+      #|  layouts: [],
+      #|  object_shapes: [],
+      #|  constants: [],
+      #|}
+    ),
+  )
+}
+
+///|
 test "compiler preserves Byte and Bytes through executable lowering" {
   let bytecode = compile_byte_bytes_image(
     (
