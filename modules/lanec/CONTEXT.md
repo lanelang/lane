@@ -605,10 +605,11 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   observable extern calls before removing or reordering computations; later
   administrative cleanup may simplify only forms whose effect semantics have
   already been discharged.
-- After selective CPS, a continuation call may encode handled effect behavior
-  even when its remaining latent effect is empty. **Effect-Aware Core
-  Optimization** therefore treats unresolved calls as observable unless a
-  semantics-preserving rewrite first exposes the called body.
+- After selective CPS, a call whose remaining latent effect is definitionally
+  empty may be removed when its result is unused, even if the callee body is not
+  exposed. An extern call with observable host behavior must therefore carry an
+  appropriate non-empty **External Effect**; unresolved call identity alone is
+  not an effect barrier.
 - **Core Partial Evaluation** specializes small known direct calls with atomic
   arguments, including generic calls and structurally known operation
   dictionaries. It is selected by Core shape rather than source symbols.
