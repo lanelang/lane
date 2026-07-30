@@ -44,7 +44,14 @@ pub(all) enum Intrinsic {
   F64Inf
   F64NegativeInf
   F64Nan
-  StringEqual
+  CharToS32
+  S32ToChar
+  StringToBytes
+  BytesIsValidUtf8
+  BytesToString
+  BytesEqual
+  BytesConcat
+  BytesSlice
   ByteToInt
   IntToByte
   BytesMake
@@ -66,6 +73,7 @@ pub(all) enum IntrinsicValueKind {
   Bool
   Int
   S32
+  Char
   Double
   String
   Byte

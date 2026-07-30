@@ -119,7 +119,6 @@ fn write_intrinsic(
       F64Inf => 15
       F64NegativeInf => 16
       F64Nan => 17
-      StringEqual => 18
       ByteToInt => 19
       IntToByte => 20
       BytesMake => 21
@@ -136,6 +135,14 @@ fn write_intrinsic(
       I32Less => 32
       S32ToInt => 33
       IntToS32 => 34
+      CharToS32 => 35
+      S32ToChar => 36
+      StringToBytes => 37
+      BytesIsValidUtf8 => 38
+      BytesToString => 39
+      BytesEqual => 40
+      BytesConcat => 41
+      BytesSlice => 42
     },
   )
 }

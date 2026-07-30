@@ -20,6 +20,7 @@ pub(all) enum IntrinsicValueKind {
   Bool
   Int
   S32
+  Char
   Double
   String
   Byte
@@ -65,7 +66,14 @@ pub(all) enum Intrinsic {
   F64Inf
   F64NegativeInf
   F64Nan
-  StringEqual
+  CharToS32
+  S32ToChar
+  StringToBytes
+  BytesIsValidUtf8
+  BytesToString
+  BytesEqual
+  BytesConcat
+  BytesSlice
   ByteToInt
   IntToByte
   BytesMake
@@ -105,7 +113,14 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%f64_inf" => Some(F64Inf)
     "%f64_ninf" => Some(F64NegativeInf)
     "%f64_nan" => Some(F64Nan)
-    "%string_equal" => Some(StringEqual)
+    "%char_to_s32" => Some(CharToS32)
+    "%s32_to_char" => Some(S32ToChar)
+    "%string_to_bytes" => Some(StringToBytes)
+    "%bytes_is_valid_utf8" => Some(BytesIsValidUtf8)
+    "%bytes_to_string" => Some(BytesToString)
+    "%bytes_equal" => Some(BytesEqual)
+    "%bytes_concat" => Some(BytesConcat)
+    "%bytes_slice" => Some(BytesSlice)
     "%byte_to_int" => Some(ByteToInt)
     "%int_to_byte" => Some(IntToByte)
     "%bytes_make" => Some(BytesMake)
@@ -147,7 +162,14 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     F64Inf => "%f64_inf"
     F64NegativeInf => "%f64_ninf"
     F64Nan => "%f64_nan"
-    StringEqual => "%string_equal"
+    CharToS32 => "%char_to_s32"
+    S32ToChar => "%s32_to_char"
+    StringToBytes => "%string_to_bytes"
+    BytesIsValidUtf8 => "%bytes_is_valid_utf8"
+    BytesToString => "%bytes_to_string"
+    BytesEqual => "%bytes_equal"
+    BytesConcat => "%bytes_concat"
+    BytesSlice => "%bytes_slice"
     ByteToInt => "%byte_to_int"
     IntToByte => "%int_to_byte"
     BytesMake => "%bytes_make"
@@ -175,7 +197,14 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     F64Neg => Function(parameters=[Double], result=Double)
     F64Equal | F64Less => Function(parameters=[Double, Double], result=Bool)
     F64Inf | F64NegativeInf | F64Nan => Value(Double)
-    StringEqual => Function(parameters=[String, String], result=Bool)
+    CharToS32 => Function(parameters=[Char], result=S32)
+    S32ToChar => Function(parameters=[S32], result=Char)
+    StringToBytes => Function(parameters=[String], result=Bytes)
+    BytesIsValidUtf8 => Function(parameters=[Bytes], result=Bool)
+    BytesToString => Function(parameters=[Bytes], result=String)
+    BytesEqual => Function(parameters=[Bytes, Bytes], result=Bool)
+    BytesConcat => Function(parameters=[Bytes, Bytes], result=Bytes)
+    BytesSlice => Function(parameters=[Bytes, Int, Int], result=Bytes)
     ByteToInt => Function(parameters=[Byte], result=Int)
     IntToByte => Function(parameters=[Int], result=Byte)
     BytesMake => Function(parameters=[Int, Byte], result=Bytes)

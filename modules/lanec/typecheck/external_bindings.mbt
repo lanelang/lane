@@ -69,6 +69,7 @@ fn intrinsic_primitive_type(
     Bool => Bool
     Int => Int
     S32 => S32
+    Char => Char
     Double => Double
     String => String
     Byte => Byte

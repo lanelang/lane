@@ -100,10 +100,6 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       F64Nan
     }
-    [u8be(18), .. rest] => {
-      self.update_view(rest)
-      StringEqual
-    }
     [u8be(19), .. rest] => {
       self.update_view(rest)
       ByteToInt
@@ -127,6 +123,78 @@ fn @bytecodec.ByteReader::read_intrinsic(
     [u8be(24), .. rest] => {
       self.update_view(rest)
       BytesSet
+    }
+    [u8be(25), .. rest] => {
+      self.update_view(rest)
+      I32Add
+    }
+    [u8be(26), .. rest] => {
+      self.update_view(rest)
+      I32Sub
+    }
+    [u8be(27), .. rest] => {
+      self.update_view(rest)
+      I32Mul
+    }
+    [u8be(28), .. rest] => {
+      self.update_view(rest)
+      I32Div
+    }
+    [u8be(29), .. rest] => {
+      self.update_view(rest)
+      I32Rem
+    }
+    [u8be(30), .. rest] => {
+      self.update_view(rest)
+      I32Neg
+    }
+    [u8be(31), .. rest] => {
+      self.update_view(rest)
+      I32Equal
+    }
+    [u8be(32), .. rest] => {
+      self.update_view(rest)
+      I32Less
+    }
+    [u8be(33), .. rest] => {
+      self.update_view(rest)
+      S32ToInt
+    }
+    [u8be(34), .. rest] => {
+      self.update_view(rest)
+      IntToS32
+    }
+    [u8be(35), .. rest] => {
+      self.update_view(rest)
+      CharToS32
+    }
+    [u8be(36), .. rest] => {
+      self.update_view(rest)
+      S32ToChar
+    }
+    [u8be(37), .. rest] => {
+      self.update_view(rest)
+      StringToBytes
+    }
+    [u8be(38), .. rest] => {
+      self.update_view(rest)
+      BytesIsValidUtf8
+    }
+    [u8be(39), .. rest] => {
+      self.update_view(rest)
+      BytesToString
+    }
+    [u8be(40), .. rest] => {
+      self.update_view(rest)
+      BytesEqual
+    }
+    [u8be(41), .. rest] => {
+      self.update_view(rest)
+      BytesConcat
+    }
+    [u8be(42), .. rest] => {
+      self.update_view(rest)
+      BytesSlice
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

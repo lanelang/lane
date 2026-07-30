@@ -431,12 +431,17 @@ fn FunctionLowerer::lower_intrinsic(
   type_ : @buslane.Type,
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
+  let result_type = callable_result_type(type_)
+  match (intrinsic, arguments) {
+    (CharToS32 | S32ToChar | StringToBytes | BytesToString, [Slot(source, _)]) =>
+      return Slot(source, result_type)
+    _ => ()
+  }
   match intrinsic {
     BytesMake | BytesLength | BytesGet | BytesSet =>
       ignore(self.image.intern_layout(Bytes))
     _ => ()
   }
-  let result_type = callable_result_type(type_)
   let slots = arguments.map(fn(argument) {
     match argument {
       Slot(slot, _) => slot
@@ -470,7 +475,6 @@ fn FunctionLowerer::lower_intrinsic(
     (F64Neg, [source]) => DoubleNeg(destination, source)
     (F64Equal, [left, right]) => DoubleEq(destination, left, right)
     (F64Less, [left, right]) => DoubleLt(destination, left, right)
-    (StringEqual, [left, right]) => StringEq(destination, left, right)
     (ByteToInt, [source]) => ByteToInt(destination, source)
     (IntToByte, [source]) => IntToByte(destination, source)
     (BytesMake, [length, fill]) => BytesMake(destination, length, fill)
