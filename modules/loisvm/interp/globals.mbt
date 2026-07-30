@@ -159,7 +159,7 @@ fn ExecutionInstance::require_global_representation(
 ) -> Unit raise ExecutionFailure {
   ignore(self)
   let matches = match (metadata.representation, value) {
-    (I32, I32(_)) | (I64, I64(_)) | (F64, F64(_)) => true
+    (I32, I32(_)) | (I64, I64(_)) | (F64, F64(_)) | (F32, F32(_)) => true
     _ => false
   }
   if !matches {

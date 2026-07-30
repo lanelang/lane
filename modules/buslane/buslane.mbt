@@ -65,6 +65,7 @@ pub(all) enum PrimitiveType {
   I32
   Char
   F64
+  F32
   String
   Byte
   Bytes
@@ -104,6 +105,7 @@ pub(all) enum Literal {
   I32(Int)
   Char(Int)
   F64(Double)
+  F32(Float)
   String(String)
 } derive(Debug, Eq)
 

@@ -158,6 +158,8 @@ fn ExecutionInstance::execute_instruction(
     ConstChar(destination, value) => frame.write(destination, I32(value))
     ConstF64(destination, bits) =>
       frame.write(destination, F64(bits.reinterpret_as_double()))
+    ConstF32(destination, bits) =>
+      frame.write(destination, F32(Float::reinterpret_from_int(bits)))
     ConstBool(destination, value) =>
       frame.write(destination, I32(if value { 1 } else { 0 }))
     ConstLayout(destination, layout) =>
@@ -346,6 +348,43 @@ fn ExecutionInstance::execute_instruction(
       }
       frame.write(destination, I64(value.to_int64()))
     }
+    F32Add(destination, left, right) =>
+      frame.binary_f32(destination, left, right, fn(a, b) { a + b })
+    F32Sub(destination, left, right) =>
+      frame.binary_f32(destination, left, right, fn(a, b) { a - b })
+    F32Mul(destination, left, right) =>
+      frame.binary_f32(destination, left, right, fn(a, b) { a * b })
+    F32Div(destination, left, right) =>
+      frame.binary_f32(destination, left, right, fn(a, b) { a / b })
+    F32Neg(destination, source) =>
+      frame.write(destination, F32(-frame.f32(source)))
+    F32Eq(destination, left, right) =>
+      frame.compare_f32(destination, left, right, fn(a, b) { a == b })
+    F32Ne(destination, left, right) =>
+      frame.compare_f32(destination, left, right, fn(a, b) { a != b })
+    F32Lt(destination, left, right) =>
+      frame.compare_f32(destination, left, right, fn(a, b) { a < b })
+    F32Le(destination, left, right) =>
+      frame.compare_f32(destination, left, right, fn(a, b) { a <= b })
+    F32Gt(destination, left, right) =>
+      frame.compare_f32(destination, left, right, fn(a, b) { a > b })
+    F32Ge(destination, left, right) =>
+      frame.compare_f32(destination, left, right, fn(a, b) { a >= b })
+    I64ToF32(destination, source) =>
+      frame.write(destination, F32(Float::from_int64(frame.i64(source))))
+    F32ToI64(destination, source) => {
+      let value = frame.f32(source)
+      if value.is_nan() ||
+        value < Float::from_double(-9223372036854775808.0) ||
+        value >= Float::from_double(9223372036854775808.0) {
+        raise Trap(detail="invalid F32-to-I64 conversion")
+      }
+      frame.write(destination, I64(value.to_double().to_int64()))
+    }
+    F32ToF64(destination, source) =>
+      frame.write(destination, F64(frame.f32(source).to_double()))
+    F64ToF32(destination, source) =>
+      frame.write(destination, F32(Float::from_double(frame.f64(source))))
     EraseI32(destination, source) => {
       let value = frame.i32(source).to_int64() & 0xFFFFFFFFL
       frame.transfer_value(destination, source, I64(value))
@@ -371,6 +410,22 @@ fn ExecutionInstance::execute_instruction(
         destination,
         source,
         F64(frame.i64(source).reinterpret_as_double()),
+      )
+    EraseF32(destination, source) =>
+      frame.transfer_value(
+        destination,
+        source,
+        I64(frame.f32(source).reinterpret_as_int().to_int64() & 0xFFFFFFFFL),
+      )
+    UneraseF32(destination, source) =>
+      frame.transfer_value(
+        destination,
+        source,
+        F32(
+          Float::reinterpret_from_int(
+            (frame.i64(source) & 0xFFFFFFFFL).to_int(),
+          ),
+        ),
       )
     EraseUnit(destination) => frame.write(destination, I64(0L))
     UneraseUnit(source) => frame.consume_owner(source)

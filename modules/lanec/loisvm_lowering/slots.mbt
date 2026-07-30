@@ -93,6 +93,13 @@ fn slot_metadata(
         ownership: Trivial,
         erased_companion: None,
       }
+    Primitive(F32) =>
+      {
+        representation: F32,
+        cleanup: Trivial,
+        ownership: Trivial,
+        erased_companion: None,
+      }
     Primitive(F64) =>
       {
         representation: F64,
@@ -174,6 +181,7 @@ fn result_representation(
     | Constructor(_)
     | Apply(_, _) => I32
     Primitive(I64) | Function(_, _, _) | Forall(_, _) | Parameter(_) => I64
+    Primitive(F32) => F32
     Primitive(F64) => F64
     _ => raise UnsupportedType(type_~)
   }

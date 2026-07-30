@@ -76,6 +76,7 @@ pub enum VMValue {
   I32(Int)
   I64(Int64)
   F64(Double)
+  F32(Float)
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -143,6 +143,20 @@ fn write_intrinsic(
       BytesEqual => 40
       BytesConcat => 41
       BytesSlice => 42
+      F32Add => 43
+      F32Sub => 44
+      F32Mul => 45
+      F32Div => 46
+      F32Neg => 47
+      F32Equal => 48
+      F32Less => 49
+      F32Inf => 50
+      F32NegativeInf => 51
+      F32Nan => 52
+      I64ToF32 => 53
+      F32ToI64 => 54
+      F32ToF64 => 55
+      F64ToF32 => 56
     },
   )
 }
@@ -172,6 +186,7 @@ fn write_host_value_kind(
       F64 => 3
       String => 4
       Opaque => 5
+      F32 => 6
     },
   )
 }

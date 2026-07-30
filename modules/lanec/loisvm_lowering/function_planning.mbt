@@ -100,6 +100,30 @@ fn ImageLowerer::plan_intrinsic(
   external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> Unit {
   match external.intrinsic {
+    F32Inf =>
+      self.globals.push({
+        value,
+        lowered: FloatConstant(
+          Float::from_double(1.0 / 0.0).reinterpret_as_int(),
+          external.type_,
+        ),
+      })
+    F32NegativeInf =>
+      self.globals.push({
+        value,
+        lowered: FloatConstant(
+          Float::from_double(-1.0 / 0.0).reinterpret_as_int(),
+          external.type_,
+        ),
+      })
+    F32Nan =>
+      self.globals.push({
+        value,
+        lowered: FloatConstant(
+          Float::from_double(0.0 / 0.0).reinterpret_as_int(),
+          external.type_,
+        ),
+      })
     F64Inf =>
       self.globals.push({
         value,

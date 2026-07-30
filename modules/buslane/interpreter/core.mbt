@@ -4,6 +4,7 @@ enum BuslaneRuntimeValueKind {
   I32(Int)
   Char(Int)
   F64(Double)
+  F32(Float)
   Bool(Bool)
   String(String)
   Unit
@@ -118,6 +119,12 @@ pub fn BuslaneRuntimeValue::f64(value : Double) -> BuslaneRuntimeValue {
 }
 
 ///|
+/// Creates a binary32 Buslane runtime value.
+pub fn BuslaneRuntimeValue::f32(value : Float) -> BuslaneRuntimeValue {
+  { kind: F32(value) }
+}
+
+///|
 /// Creates a boolean Buslane runtime value.
 pub fn BuslaneRuntimeValue::bool(value : Bool) -> BuslaneRuntimeValue {
   { kind: Bool(value) }
@@ -167,6 +174,15 @@ pub fn BuslaneRuntimeValue::as_char(self : BuslaneRuntimeValue) -> Int? {
 pub fn BuslaneRuntimeValue::as_f64(self : BuslaneRuntimeValue) -> Double? {
   match self.kind {
     F64(value) => Some(value)
+    _ => None
+  }
+}
+
+///|
+/// Returns this runtime value as binary32 when it is an F32 value.
+pub fn BuslaneRuntimeValue::as_f32(self : BuslaneRuntimeValue) -> Float? {
+  match self.kind {
+    F32(value) => Some(value)
     _ => None
   }
 }

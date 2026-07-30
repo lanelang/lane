@@ -244,6 +244,7 @@ fn global_store(
     I32 => I32Store(0, 2, offset)
     I64 => I64Store(0, 3, offset)
     F64 => F64Store(0, 3, offset)
+    F32 => F32Store(0, 2, offset)
   }
 }
 
@@ -256,6 +257,7 @@ fn global_load(
     I32 => I32Load(0, 2, offset)
     I64 => I64Load(0, 3, offset)
     F64 => F64Load(0, 3, offset)
+    F32 => F32Load(0, 2, offset)
   }
 }
 

@@ -26,6 +26,7 @@ priv enum GlobalValue {
   UnitValue
   Function(@bytecode.FunctionId, @buslane.Type)
   Intrinsic(@abi.Intrinsic, @buslane.Type)
+  FloatConstant(Int, @buslane.Type)
   DoubleConstant(Int64, @buslane.Type)
   InstanceGlobal(@bytecode.GlobalId, @buslane.Type)
 }

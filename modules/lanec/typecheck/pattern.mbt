@@ -244,12 +244,15 @@ fn SemanticChecker::check_pattern(
       @checked.CheckedPattern::Literal(literal~, type_=expected, loc~)
     }
     FloatingLiteral(raw, loc~) => {
-      self.expect_type(expected, Primitive(F64), loc)
-      Literal(
-        literal=F64(self.check_f64_literal(raw, loc)),
-        type_=expected,
-        loc~,
-      )
+      let checked : (@checked.CheckedLiteral, @types.Type) = if expected ==
+        Primitive(F32) {
+        (F32(self.check_f32_literal(raw, loc)), Primitive(F32))
+      } else {
+        (F64(self.check_f64_literal(raw, loc)), Primitive(F64))
+      }
+      let (literal, literal_type) = checked
+      self.expect_type(expected, literal_type, loc)
+      Literal(literal~, type_=expected, loc~)
     }
     StringLiteral(value, loc~) => {
       self.expect_type(expected, Primitive(String), loc)
@@ -820,6 +823,7 @@ priv enum MatrixConstructor {
   I64Constructor(Int64)
   I32Constructor(Int)
   CharConstructor(Int)
+  F32Constructor(Float)
   F64Constructor(Double)
   StringConstructor(String)
   UnitConstructor
@@ -1164,6 +1168,7 @@ fn complete_constructor_signatures(
     | Primitive(I32)
     | Primitive(Char)
     | Primitive(F64)
+    | Primitive(F32)
     | Primitive(String)
     | Primitive(Byte)
     | Primitive(Bytes) => None
@@ -1212,6 +1217,8 @@ fn constructor_signature_for_pattern(
         I32(value) =>
           Some({ tag: I32Constructor(value.value), argument_types: [] })
         Char(value) => Some({ tag: CharConstructor(value), argument_types: [] })
+        F32(value) =>
+          Some({ tag: F32Constructor(value.value), argument_types: [] })
         F64(value) =>
           Some({ tag: F64Constructor(value.value), argument_types: [] })
         String(value) =>

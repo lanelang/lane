@@ -351,6 +351,7 @@ fn lower_literal(literal : @checked.CheckedLiteral) -> @buslane.Literal {
     I64(literal) => I64(literal.value)
     I32(literal) => I32(literal.value)
     F64(literal) => F64(literal.value)
+    F32(literal) => F32(literal.value)
     String(value) => String(value)
     Char(value) => Char(value)
     Bool(value) => Bool(value)
@@ -487,6 +488,7 @@ fn lower_primitive_type(
     I32 => I32
     Char => Char
     F64 => F64
+    F32 => F32
     Bool => Bool
     String => String
     Unit => Unit

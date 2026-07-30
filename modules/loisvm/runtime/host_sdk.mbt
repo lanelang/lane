@@ -57,6 +57,19 @@ pub fn HostParameter::f64() -> HostParameter[Double] {
 }
 
 ///|
+pub fn HostParameter::f32() -> HostParameter[Float] {
+  {
+    kind: F32,
+    decode: value => {
+      match value {
+        F32(value) => value
+        _ => abort("typed host binding received a non-F32 value")
+      }
+    },
+  }
+}
+
+///|
 pub fn HostParameter::string() -> HostParameter[HostStringView] {
   {
     kind: String,
@@ -163,6 +176,11 @@ pub fn HostResult::i64() -> HostResult[Int64] {
 ///|
 pub fn HostResult::f64() -> HostResult[Double] {
   { kind: F64, encode: value => F64(value) }
+}
+
+///|
+pub fn HostResult::f32() -> HostResult[Float] {
+  { kind: F32, encode: value => F32(value) }
 }
 
 ///|

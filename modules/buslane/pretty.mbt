@@ -75,6 +75,7 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
     I32 => text("I32")
     Char => text("Char")
     F64 => text("F64")
+    F32 => text("F32")
     String => text("String")
     Byte => text("Byte")
     Bytes => text("Bytes")
@@ -139,6 +140,7 @@ pub impl @prettyprinter.Pretty for Literal with fn pretty(literal : Literal) {
     I32(value) => text(value.to_string())
     Char(value) => text(value.to_string())
     F64(value) => text(value.to_string())
+    F32(value) => text(value.to_string())
     String(value) => quoted(value)
   }
 }

@@ -3,6 +3,7 @@ pub(all) enum PrimitiveType {
   I64
   I32
   F64
+  F32
   Bool
   String
   Char
@@ -13,7 +14,7 @@ pub(all) enum PrimitiveType {
 
 ///|
 pub fn PrimitiveType::all() -> Array[PrimitiveType] {
-  [I64, I32, F64, Bool, String, Char, Unit, Byte, Bytes]
+  [I64, I32, F64, F32, Bool, String, Char, Unit, Byte, Bytes]
 }
 
 ///|
@@ -22,6 +23,7 @@ pub fn PrimitiveType::name(self : PrimitiveType) -> String {
     I64 => "I64"
     I32 => "I32"
     F64 => "F64"
+    F32 => "F32"
     Bool => "Bool"
     String => "String"
     Char => "Char"

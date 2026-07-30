@@ -57,6 +57,15 @@ fn read_f64_le(
 }
 
 ///|
+fn read_f32_le(
+  reader : @bytecodec.ByteReader,
+) -> Float raise BuslaneDecodeError {
+  reader.read_f32_le() catch {
+    error => raise ByteError(error)
+  }
+}
+
+///|
 fn read_string(
   reader : @bytecodec.ByteReader,
 ) -> String raise BuslaneDecodeError {

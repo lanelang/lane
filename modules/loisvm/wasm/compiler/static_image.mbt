@@ -31,7 +31,7 @@ fn align_up(value : Int, alignment : Int) -> Int {
 ///|
 fn representation_size(representation : @bytecode.Representation) -> Int {
   match representation {
-    I32 => 4
+    I32 | F32 => 4
     I64 | F64 => 8
   }
 }
@@ -76,6 +76,7 @@ fn layout_rep_kind(layout : @bytecode.LayoutRecipe) -> Int {
     Byte => 10
     I32 => 12
     Char => 13
+    F32 => 14
   }
 }
 
@@ -87,7 +88,7 @@ fn layout_fixed_size(
   host_objects_enabled : Bool,
 ) -> Int? {
   match layout {
-    Unit | Bool | I64 | I32 | Char | F64 | Callable | Byte => Some(0)
+    Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => Some(0)
     Reference => Some(if host_objects_enabled { 16 } else { 0 })
     ByteSequence => None
     Data(shape) | Environment(shape) => {
@@ -145,13 +146,13 @@ fn build_static_image(
     }
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | I64 | I32 | Char | F64 | Callable | Byte => 1
+        Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => 1
         ByteSequence | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | I64 | I32 | Char | F64 | Byte =>
+        Unit | Bool | I64 | I32 | Char | F64 | F32 | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.retain_callable_table
         ByteSequence | Data(_) | Environment(_) | Reference =>
@@ -160,7 +161,7 @@ fn build_static_image(
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | I64 | I32 | Char | F64 | Byte =>
+        Unit | Bool | I64 | I32 | Char | F64 | F32 | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.release_callable_table
         ByteSequence | Data(_) | Environment(_) | Reference =>
@@ -179,6 +180,7 @@ fn build_static_image(
         | I32
         | Char
         | F64
+        | F32
         | Callable
         | ByteSequence
         | Byte

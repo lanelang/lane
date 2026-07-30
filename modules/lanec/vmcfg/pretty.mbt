@@ -124,6 +124,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "const_i64 \{render_value(destination)}, \{value}"
     ConstI32(destination, value) =>
       "const_i32 \{render_value(destination)}, \{value}"
+    ConstF32(destination, bits) =>
+      "const_f32 \{render_value(destination)}, bits=\{bits}"
     ConstChar(destination, value) =>
       "const_char \{render_value(destination)}, \{value}"
     ConstF64(destination, bits) =>
@@ -240,6 +242,36 @@ fn render_instruction(instruction : Instruction) -> String {
       binary_instruction("bool_eq", destination, left, right)
     BoolNe(destination, left, right) =>
       binary_instruction("bool_ne", destination, left, right)
+    F32Add(destination, left, right) =>
+      binary_instruction("f32_add", destination, left, right)
+    F32Sub(destination, left, right) =>
+      binary_instruction("f32_sub", destination, left, right)
+    F32Mul(destination, left, right) =>
+      binary_instruction("f32_mul", destination, left, right)
+    F32Div(destination, left, right) =>
+      binary_instruction("f32_div", destination, left, right)
+    F32Neg(destination, source) =>
+      unary_instruction("f32_neg", destination, source)
+    F32Eq(destination, left, right) =>
+      binary_instruction("f32_eq", destination, left, right)
+    F32Ne(destination, left, right) =>
+      binary_instruction("f32_ne", destination, left, right)
+    F32Lt(destination, left, right) =>
+      binary_instruction("f32_lt", destination, left, right)
+    F32Le(destination, left, right) =>
+      binary_instruction("f32_le", destination, left, right)
+    F32Gt(destination, left, right) =>
+      binary_instruction("f32_gt", destination, left, right)
+    F32Ge(destination, left, right) =>
+      binary_instruction("f32_ge", destination, left, right)
+    I64ToF32(destination, source) =>
+      unary_instruction("i64_to_f32", destination, source)
+    F32ToI64(destination, source) =>
+      unary_instruction("f32_to_i64", destination, source)
+    F32ToF64(destination, source) =>
+      unary_instruction("f32_to_f64", destination, source)
+    F64ToF32(destination, source) =>
+      unary_instruction("f64_to_f32", destination, source)
     F64Add(destination, left, right) =>
       binary_instruction("f64_add", destination, left, right)
     F64Sub(destination, left, right) =>
@@ -274,6 +306,10 @@ fn render_instruction(instruction : Instruction) -> String {
       unary_instruction("erase_i64", destination, source)
     UneraseI64(destination, source) =>
       unary_instruction("unerase_i64", destination, source)
+    EraseF32(destination, source) =>
+      unary_instruction("erase_f32", destination, source)
+    UneraseF32(destination, source) =>
+      unary_instruction("unerase_f32", destination, source)
     EraseF64(destination, source) =>
       unary_instruction("erase_f64", destination, source)
     UneraseF64(destination, source) =>
@@ -445,6 +481,7 @@ fn render_representation(representation : @bytecode.Representation) -> String {
   match representation {
     I32 => "i32"
     I64 => "i64"
+    F32 => "f32"
     F64 => "f64"
   }
 }
@@ -465,6 +502,7 @@ fn render_result(result : @bytecode.ResultRepresentation) -> String {
     Unit => "unit"
     I32 => "i32"
     I64 => "i64"
+    F32 => "f32"
     F64 => "f64"
   }
 }
@@ -475,6 +513,7 @@ fn render_runtime_value_kind(kind : @bytecode.RuntimeValueKind) -> String {
     Unit => "unit"
     Bool => "bool"
     I64 => "i64"
+    F32 => "f32"
     F64 => "f64"
     String => "string"
     Opaque => "opaque"
@@ -489,6 +528,7 @@ fn render_layout_recipe(recipe : @bytecode.LayoutRecipe) -> String {
     I64 => "i64"
     I32 => "i32"
     Char => "char"
+    F32 => "f32"
     F64 => "f64"
     Callable => "callable"
     ByteSequence => "byte_sequence"

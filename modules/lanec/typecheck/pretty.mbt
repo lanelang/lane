@@ -453,6 +453,7 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     InvalidI64Literal(raw) => text("invalid_i64_literal") + space + text(raw)
     InvalidI32Literal(raw) => text("invalid_i32_literal") + space + text(raw)
     InvalidF64Literal(raw) => text("invalid_f64_literal") + space + text(raw)
+    InvalidF32Literal(raw) => text("invalid_f32_literal") + space + text(raw)
     UnknownBuiltin(name~) => text("unknown_builtin") + space + text(name)
     BuiltinSignatureMismatch(name~, expected~, actual~) =>
       text("builtin_signature_mismatch") +

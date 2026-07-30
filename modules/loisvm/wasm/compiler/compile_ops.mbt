@@ -91,6 +91,11 @@ fn compile_instruction(
         F64Const(bits.reinterpret_as_double()),
         LocalSet(slot_local(parameter_count, destination)),
       ]
+    ConstF32(destination, bits) =>
+      [
+        F32Const(Float::reinterpret_from_int(bits)),
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
     ConstBool(destination, value) =>
       [
         I32Const(if value { 1 } else { 0 }),
@@ -457,6 +462,36 @@ fn compile_instruction(
       unary(parameter_count, destination, source, F64ConvertI64S)
     F64ToI64(destination, source) =>
       unary(parameter_count, destination, source, I64TruncF64S)
+    F32Add(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Add)
+    F32Sub(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Sub)
+    F32Mul(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Mul)
+    F32Div(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Div)
+    F32Neg(destination, source) =>
+      unary(parameter_count, destination, source, F32Neg)
+    F32Eq(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Eq)
+    F32Ne(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Ne)
+    F32Lt(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Lt)
+    F32Le(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Le)
+    F32Gt(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Gt)
+    F32Ge(destination, left, right) =>
+      binary(parameter_count, destination, left, right, F32Ge)
+    I64ToF32(destination, source) =>
+      unary(parameter_count, destination, source, F32ConvertI64S)
+    F32ToI64(destination, source) =>
+      unary(parameter_count, destination, source, I64TruncF32S)
+    F32ToF64(destination, source) =>
+      unary(parameter_count, destination, source, F64PromoteF32)
+    F64ToF32(destination, source) =>
+      unary(parameter_count, destination, source, F32DemoteF64)
     EraseI32(destination, source) =>
       compile_erasure_transfer(
         parameter_count,
@@ -464,7 +499,7 @@ fn compile_instruction(
         slots,
         destination,
         source,
-        I64ExtendI32U,
+        [I64ExtendI32U],
       )
     UneraseI32(destination, source) =>
       compile_erasure_transfer(
@@ -473,7 +508,7 @@ fn compile_instruction(
         slots,
         destination,
         source,
-        I32WrapI64,
+        [I32WrapI64],
       )
     EraseI64(destination, source) | UneraseI64(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
@@ -491,7 +526,7 @@ fn compile_instruction(
         slots,
         destination,
         source,
-        I64ReinterpretF64,
+        [I64ReinterpretF64],
       )
     UneraseF64(destination, source) =>
       compile_erasure_transfer(
@@ -500,7 +535,25 @@ fn compile_instruction(
         slots,
         destination,
         source,
-        F64ReinterpretI64,
+        [F64ReinterpretI64],
+      )
+    EraseF32(destination, source) =>
+      compile_erasure_transfer(
+        parameter_count,
+        live_base,
+        slots,
+        destination,
+        source,
+        [I32ReinterpretF32, I64ExtendI32U],
+      )
+    UneraseF32(destination, source) =>
+      compile_erasure_transfer(
+        parameter_count,
+        live_base,
+        slots,
+        destination,
+        source,
+        [I32WrapI64, F32ReinterpretI32],
       )
     EraseUnit(destination) =>
       [I64Const(0L), LocalSet(slot_local(parameter_count, destination))]
@@ -679,6 +732,7 @@ fn compile_store(
       I32 => I32Store(0, 2, offset.to_int64())
       I64 => I64Store(0, 3, offset.to_int64())
       F64 => F64Store(0, 3, offset.to_int64())
+      F32 => F32Store(0, 2, offset.to_int64())
     },
   )
   instructions
@@ -764,6 +818,7 @@ fn compile_projection(
       I32 => I32Load(0, 2, shape_layout.member_offsets[member_index].to_int64())
       I64 => I64Load(0, 3, shape_layout.member_offsets[member_index].to_int64())
       F64 => F64Load(0, 3, shape_layout.member_offsets[member_index].to_int64())
+      F32 => F32Load(0, 2, shape_layout.member_offsets[member_index].to_int64())
     },
   )
   instructions.push(
@@ -883,9 +938,13 @@ fn compile_erasure_transfer(
   slots : Array[@bytecode.SlotMetadata],
   destination : @bytecode.SlotId,
   source : @bytecode.SlotId,
-  operation : @wasm_types.Instruction,
+  operations : Array[@wasm_types.Instruction],
 ) -> Array[@wasm_types.Instruction] {
-  let instructions = unary(parameter_count, destination, source, operation)
+  let instructions : Array[@wasm_types.Instruction] = [
+    LocalGet(slot_local(parameter_count, source)),
+  ]
+  instructions.append(operations)
+  instructions.push(LocalSet(slot_local(parameter_count, destination)))
   instructions.append(mark_slot_dead(live_base, slots, source))
   instructions.append(mark_slot_live(live_base, slots, destination))
   instructions

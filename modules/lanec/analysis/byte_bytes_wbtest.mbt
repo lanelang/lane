@@ -55,6 +55,7 @@ test "type-space completion includes every primitive type" {
     })
     .map(entry => (entry.label, entry.kind, entry.detail)),
     [
+      ("F32", Type, Some("primitive type F32")),
       ("F64", Type, Some("primitive type F64")),
       ("I32", Type, Some("primitive type I32")),
       ("I64", Type, Some("primitive type I64")),

@@ -29,6 +29,10 @@ fn @bytecodec.ByteWriter::write_literal(
       self.write_u8(6)
       self.write_i32_le(value)
     }
+    F32(value) => {
+      self.write_u8(7)
+      self.write_f32_le(value)
+    }
   }
 }
 
@@ -65,6 +69,10 @@ fn @bytecodec.ByteReader::read_literal(
     [u8be(6), .. rest] => {
       self.update_view(rest)
       Char(read_i32_le(self))
+    }
+    [u8be(7), .. rest] => {
+      self.update_view(rest)
+      F32(read_f32_le(self))
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

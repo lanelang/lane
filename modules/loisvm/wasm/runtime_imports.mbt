@@ -33,6 +33,11 @@ fn invoke_runtime_binding(
         arguments.push(F64(value))
         value_index += 1
       }
+      F32 => {
+        guard values[value_index] is F32(value) else { raise TypeMismatch }
+        arguments.push(F32(value))
+        value_index += 1
+      }
       String => {
         guard values[value_index] is I32(pointer) else { raise TypeMismatch }
         guard values[value_index + 1] is I32(length) else { raise TypeMismatch }
@@ -160,6 +165,7 @@ fn default_runtime_result(
     Bool => [I32(0)]
     I64 => [I64(0L)]
     F64 => [F64(0.0)]
+    F32 => [F32(0.0F)]
     String => [I32(0)]
     Opaque => [I32(0)]
   }
@@ -180,6 +186,7 @@ fn host_result_to_wasm(
     (Bool, Bool(value)) => [I32(if value { 1 } else { 0 })]
     (I64, I64(value)) => [I64(value)]
     (F64, F64(value)) => [F64(value)]
+    (F32, F32(value)) => [F32(value)]
     (String, String(bytes)) => {
       ignore(
         @utf8.decode(bytes) catch {

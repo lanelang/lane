@@ -123,6 +123,17 @@ fn Frame::f64(
 }
 
 ///|
+fn Frame::f32(
+  self : Frame,
+  slot : @bytecode.SlotId,
+) -> Float raise ExecutionFailure {
+  match self.value(slot) {
+    F32(value) => value
+    _ => raise InternalFailure(detail="expected F32 slot")
+  }
+}
+
+///|
 fn Frame::binary_i64(
   self : Frame,
   destination : @bytecode.SlotId,
@@ -153,6 +164,17 @@ fn Frame::binary_f64(
   operation : (Double, Double) -> Double,
 ) -> Unit raise ExecutionFailure {
   self.write(destination, F64(operation(self.f64(left), self.f64(right))))
+}
+
+///|
+fn Frame::binary_f32(
+  self : Frame,
+  destination : @bytecode.SlotId,
+  left : @bytecode.SlotId,
+  right : @bytecode.SlotId,
+  operation : (Float, Float) -> Float,
+) -> Unit raise ExecutionFailure {
+  self.write(destination, F32(operation(self.f32(left), self.f32(right))))
 }
 
 ///|
@@ -194,6 +216,20 @@ fn Frame::compare_f64(
   self.write(
     destination,
     I32(if predicate(self.f64(left), self.f64(right)) { 1 } else { 0 }),
+  )
+}
+
+///|
+fn Frame::compare_f32(
+  self : Frame,
+  destination : @bytecode.SlotId,
+  left : @bytecode.SlotId,
+  right : @bytecode.SlotId,
+  predicate : (Float, Float) -> Bool,
+) -> Unit raise ExecutionFailure {
+  self.write(
+    destination,
+    I32(if predicate(self.f32(left), self.f32(right)) { 1 } else { 0 }),
   )
 }
 
@@ -418,6 +454,7 @@ fn ExecutionInstance::to_host_value(
     (Bool, I32(value)) => Bool(value != 0)
     (I64, I64(value)) => I64(value)
     (F64, F64(value)) => F64(value)
+    (F32, F32(value)) => F32(value)
     (String, I32(reference)) => {
       let bytes = self.heap.byte_sequence(reference)
       BorrowedString(
@@ -448,6 +485,7 @@ fn ExecutionInstance::from_host_value(
     (Bool, Bool(value)) => Some(I32(if value { 1 } else { 0 }))
     (I64, I64(value)) => Some(I64(value))
     (F64, F64(value)) => Some(F64(value))
+    (F32, F32(value)) => Some(F32(value))
     (String, String(bytes)) => {
       ignore(
         @utf8.decode(bytes) catch {

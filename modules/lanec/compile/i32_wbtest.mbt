@@ -1,6 +1,6 @@
 ///|
 test "compiler preserves I32 literal and arithmetic through executable lowering" {
-  let bytecode = compile_byte_bytes_image(
+  let bytecode = compile_test_loisvm_image(
     (
       #|module Test
       #|

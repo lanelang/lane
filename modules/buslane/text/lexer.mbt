@@ -138,6 +138,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "I64" => I64_TYPE
     "I32" => I32_TYPE
     "Char" => CHAR_TYPE
+    "F32" => F32_TYPE
     "F64" => F64_TYPE
     "String" => STRING_TYPE
     "Byte" => BYTE_TYPE
@@ -174,6 +175,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "i64" => I64_LITERAL
     "i32" => I32_LITERAL
     "char" => CHAR_LITERAL
+    "f32" => F32_LITERAL
     "f64" => F64_LITERAL
     "string" => STRING_LITERAL
     "unit" => UNIT_LITERAL

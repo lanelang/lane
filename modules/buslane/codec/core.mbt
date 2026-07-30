@@ -1,5 +1,5 @@
 ///|
-let buslane_codec_version = 4
+let buslane_codec_version = 5
 
 ///|
 pub suberror BuslaneDecodeError {

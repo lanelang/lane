@@ -72,6 +72,7 @@ pub(all) enum HostValue {
   Bool(Bool)
   I64(Int64)
   F64(Double)
+  F32(Float)
   BorrowedString(HostStringView)
   String(Bytes)
   BorrowedOpaque(BorrowedHostObject)

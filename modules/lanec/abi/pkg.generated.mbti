@@ -44,6 +44,20 @@ pub(all) enum Intrinsic {
   F64Inf
   F64NegativeInf
   F64Nan
+  F32Add
+  F32Sub
+  F32Mul
+  F32Div
+  F32Neg
+  F32Equal
+  F32Less
+  F32Inf
+  F32NegativeInf
+  F32Nan
+  I64ToF32
+  F32ToI64
+  F32ToF64
+  F64ToF32
   CharToI32
   I32ToChar
   StringToBytes
@@ -75,6 +89,7 @@ pub(all) enum IntrinsicValueKind {
   I32
   Char
   F64
+  F32
   String
   Byte
   Bytes
@@ -85,6 +100,7 @@ pub(all) enum ValueKind {
   Bool
   I64
   F64
+  F32
   String
   Opaque
 } derive(Eq, @debug.Debug)

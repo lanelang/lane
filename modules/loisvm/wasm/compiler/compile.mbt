@@ -188,6 +188,7 @@ fn wasm_function_results(
     I32 => [I32]
     I64 => [I64]
     F64 => [F64]
+    F32 => [F32]
   }
 }
 
@@ -199,6 +200,7 @@ fn wasm_representation(
     I32 => I32
     I64 => I64
     F64 => F64
+    F32 => F32
   }
 }
 

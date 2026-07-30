@@ -31,6 +31,7 @@ fn test_host_value_kind(type_ : @buslane.Type) -> @abi.ValueKind {
     Primitive(Unit) => Unit
     Primitive(Bool) => Bool
     Primitive(I64) => I64
+    Primitive(F32) => F32
     Primitive(F64) => F64
     Primitive(String) => String
     Constructor(_) => Opaque

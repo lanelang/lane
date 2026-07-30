@@ -110,25 +110,25 @@ test "program binary codec roundtrips core structures" {
 }
 
 ///|
-test "program codec writes schema version 4" {
+test "program codec writes schema version 5" {
   let bytes = encode_program({ metadata: MetadataRegistry(), terms: [] })
   guard bytes is [i32le(version), ..] else {
     fail("expected Buslane codec version prefix")
   }
-  assert_eq(version, 4)
+  assert_eq(version, 5)
 }
 
 ///|
-test "program decoder rejects schema version 3 at the version boundary" {
+test "program decoder rejects schema version 4 at the version boundary" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(3)
+  writer.write_u32_le_int(4)
   let error = try {
     ignore(decode_program(writer.to_bytes()))
     None
   } catch {
     error => Some(error)
   }
-  assert_eq(error, Some(UnsupportedCodecVersion(version=3)))
+  assert_eq(error, Some(UnsupportedCodecVersion(version=4)))
 }
 
 ///|
@@ -167,7 +167,7 @@ test "program decoder rejects trailing bytes" {
 ///|
 test "program decoder rejects invalid top term tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(4) // codec version
+  writer.write_u32_le_int(5) // codec version
   writer.write_u32_le_int(0) // metadata next_unique
   writer.write_u32_le_int(0) // types
   writer.write_u32_le_int(0) // type parameters
@@ -198,6 +198,17 @@ test "program codec roundtrips I32 type and literal" {
   let program : Program = {
     metadata,
     terms: [Let(value, Literal(I32(-2147483647 - 1)))],
+  }
+  assert_eq(decode_program(encode_program(program)), program)
+}
+
+///|
+test "program codec roundtrips F32 type and literal" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value("value", Value, Primitive(F32))
+  let program : Program = {
+    metadata,
+    terms: [Let(value, Literal(F32(Float::reinterpret_from_int(0x3EAAAAAB))))],
   }
   assert_eq(decode_program(encode_program(program)), program)
 }

@@ -132,6 +132,7 @@ fn Decoder::read_runtime_value_kind(
     0x03 => F64
     0x04 => String
     0x05 => Opaque
+    0x06 => F32
     tag => self.invalid_tag(offset~, domain="runtime value kind", tag~)
   }
 }
@@ -217,6 +218,7 @@ fn Decoder::read_representation(
     0x01 => I32
     0x02 => I64
     0x03 => F64
+    0x04 => F32
     tag => self.invalid_tag(offset~, domain="representation", tag~)
   }
 }
@@ -243,6 +245,7 @@ fn Decoder::read_result_representation(
     0x02 => I32
     0x03 => I64
     0x04 => F64
+    0x05 => F32
     tag => self.invalid_tag(offset~, domain="result", tag~)
   }
 }
@@ -265,6 +268,7 @@ fn Decoder::read_layout_recipe(
     0x0A => Byte
     0x0C => I32
     0x0D => Char
+    0x0E => F32
     tag => self.invalid_tag(offset~, domain="layout recipe", tag~)
   }
 }
@@ -539,6 +543,28 @@ fn Decoder::read_instruction(
         self.read_slot_id(),
       )
     0x5B => ByteSequenceIsValidUtf8(self.read_slot_id(), self.read_slot_id())
+    0x5C => ConstF32(self.read_slot_id(), self.read_i32(expected="F32 bits"))
+    0x5D =>
+      F32Add(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x5E =>
+      F32Sub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x5F =>
+      F32Mul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x60 =>
+      F32Div(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x61 => F32Neg(self.read_slot_id(), self.read_slot_id())
+    0x62 => F32Eq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x63 => F32Ne(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x64 => F32Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x65 => F32Le(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x66 => F32Gt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x67 => F32Ge(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x68 => I64ToF32(self.read_slot_id(), self.read_slot_id())
+    0x69 => F32ToI64(self.read_slot_id(), self.read_slot_id())
+    0x6A => F32ToF64(self.read_slot_id(), self.read_slot_id())
+    0x6B => F64ToF32(self.read_slot_id(), self.read_slot_id())
+    0x6C => EraseF32(self.read_slot_id(), self.read_slot_id())
+    0x6D => UneraseF32(self.read_slot_id(), self.read_slot_id())
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }
@@ -1013,6 +1039,7 @@ fn validate_global_metadata(
     let legal = match (global.representation, global.cleanup) {
       (I32, Trivial | OwnedRef) => true
       (I64, Trivial | OwnedCallable | OwnedErased) => true
+      (F32, Trivial) => true
       (F64, Trivial) => true
       _ => false
     }
@@ -1069,6 +1096,7 @@ fn validate_function_body_metadata(
     let legal = match (slot.representation, slot.cleanup) {
       (I32, Trivial | OwnedRef) => true
       (I64, Trivial | OwnedCallable | OwnedErased) => true
+      (F32, Trivial) => true
       (F64, Trivial) => true
       _ => false
     }

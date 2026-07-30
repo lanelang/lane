@@ -62,6 +62,7 @@ fn @bytecodec.ByteWriter::write_runtime_value_kind(
       F64 => 0x03
       String => 0x04
       Opaque => 0x05
+      F32 => 0x06
     },
   )
 }
@@ -129,6 +130,7 @@ fn @bytecodec.ByteWriter::write_representation(
       I32 => 0x01
       I64 => 0x02
       F64 => 0x03
+      F32 => 0x04
     },
   )
 }
@@ -159,6 +161,7 @@ fn @bytecodec.ByteWriter::write_result_representation(
       I32 => 0x02
       I64 => 0x03
       F64 => 0x04
+      F32 => 0x05
     },
   )
 }
@@ -187,6 +190,7 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
     Byte => self.write_u8(0x0A)
     I32 => self.write_u8(0x0C)
     Char => self.write_u8(0x0D)
+    F32 => self.write_u8(0x0E)
   }
 }
 
@@ -518,6 +522,45 @@ fn @bytecodec.ByteWriter::write_instruction(
     }
     ByteSequenceIsValidUtf8(destination, source) =>
       self.write_binary_slots(0x5B, destination, source)
+    ConstF32(destination, bits) => {
+      self.write_u8(0x5C)
+      self.write_slot_id(destination)
+      self.write_i32_le(bits)
+    }
+    F32Add(destination, left, right) =>
+      self.write_ternary_slots(0x5D, destination, left, right)
+    F32Sub(destination, left, right) =>
+      self.write_ternary_slots(0x5E, destination, left, right)
+    F32Mul(destination, left, right) =>
+      self.write_ternary_slots(0x5F, destination, left, right)
+    F32Div(destination, left, right) =>
+      self.write_ternary_slots(0x60, destination, left, right)
+    F32Neg(destination, source) =>
+      self.write_binary_slots(0x61, destination, source)
+    F32Eq(destination, left, right) =>
+      self.write_ternary_slots(0x62, destination, left, right)
+    F32Ne(destination, left, right) =>
+      self.write_ternary_slots(0x63, destination, left, right)
+    F32Lt(destination, left, right) =>
+      self.write_ternary_slots(0x64, destination, left, right)
+    F32Le(destination, left, right) =>
+      self.write_ternary_slots(0x65, destination, left, right)
+    F32Gt(destination, left, right) =>
+      self.write_ternary_slots(0x66, destination, left, right)
+    F32Ge(destination, left, right) =>
+      self.write_ternary_slots(0x67, destination, left, right)
+    I64ToF32(destination, source) =>
+      self.write_binary_slots(0x68, destination, source)
+    F32ToI64(destination, source) =>
+      self.write_binary_slots(0x69, destination, source)
+    F32ToF64(destination, source) =>
+      self.write_binary_slots(0x6A, destination, source)
+    F64ToF32(destination, source) =>
+      self.write_binary_slots(0x6B, destination, source)
+    EraseF32(destination, source) =>
+      self.write_binary_slots(0x6C, destination, source)
+    UneraseF32(destination, source) =>
+      self.write_binary_slots(0x6D, destination, source)
   }
 }
 

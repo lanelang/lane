@@ -189,6 +189,11 @@ pub(all) struct CheckedExternalTypeDeclaration {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
 
+pub(all) struct CheckedF32Literal {
+  raw : String
+  value : Float
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedF64Literal {
   raw : String
   value : Double
@@ -277,6 +282,7 @@ pub(all) enum CheckedLiteral {
   I64(CheckedI64Literal)
   I32(CheckedI32Literal)
   F64(CheckedF64Literal)
+  F32(CheckedF32Literal)
   String(String)
   Char(Int)
   Bool(Bool)

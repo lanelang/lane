@@ -59,6 +59,11 @@ fn FunctionLowerer::materialize_local(
       self.emit(ConstF64(destination, bits))
       Slot(destination, type_)
     }
+    Global(FloatConstant(bits, type_)) => {
+      let destination = self.fresh_slot(type_)
+      self.emit(ConstF32(destination, bits))
+      Slot(destination, type_)
+    }
     RecursiveFunction(function, type_, environment) => {
       let destination = self.fresh_slot(type_)
       match environment {
@@ -474,6 +479,17 @@ fn FunctionLowerer::lower_intrinsic(
     (I32Less, [left, right]) => I32Lt(destination, left, right)
     (I32ToI64, [source]) => I32ToI64(destination, source)
     (I64ToI32, [source]) => I64ToI32(destination, source)
+    (F32Add, [left, right]) => F32Add(destination, left, right)
+    (F32Sub, [left, right]) => F32Sub(destination, left, right)
+    (F32Mul, [left, right]) => F32Mul(destination, left, right)
+    (F32Div, [left, right]) => F32Div(destination, left, right)
+    (F32Neg, [source]) => F32Neg(destination, source)
+    (F32Equal, [left, right]) => F32Eq(destination, left, right)
+    (F32Less, [left, right]) => F32Lt(destination, left, right)
+    (I64ToF32, [source]) => I64ToF32(destination, source)
+    (F32ToI64, [source]) => F32ToI64(destination, source)
+    (F32ToF64, [source]) => F32ToF64(destination, source)
+    (F64ToF32, [source]) => F64ToF32(destination, source)
     (F64Add, [left, right]) => F64Add(destination, left, right)
     (F64Sub, [left, right]) => F64Sub(destination, left, right)
     (F64Mul, [left, right]) => F64Mul(destination, left, right)

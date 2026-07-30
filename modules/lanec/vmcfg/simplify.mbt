@@ -133,6 +133,7 @@ fn instruction_is_scalar_constant(instruction : Instruction) -> Bool {
   match instruction {
     ConstI64(_, _)
     | ConstI32(_, _)
+    | ConstF32(_, _)
     | ConstChar(_, _)
     | ConstF64(_, _)
     | ConstBool(_, _)
@@ -161,6 +162,7 @@ fn scalar_constants_equal(left : Instruction, right : Instruction) -> Bool {
   match (left, right) {
     (ConstI64(_, left), ConstI64(_, right)) => left == right
     (ConstI32(_, left), ConstI32(_, right)) => left == right
+    (ConstF32(_, left), ConstF32(_, right)) => left == right
     (ConstChar(_, left), ConstChar(_, right)) => left == right
     (ConstF64(_, left), ConstF64(_, right)) => left == right
     (ConstBool(_, left), ConstBool(_, right)) => left == right
@@ -250,6 +252,7 @@ fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
     Copy(_, _)
     | ConstI64(_, _)
     | ConstI32(_, _)
+    | ConstF32(_, _)
     | ConstChar(_, _)
     | ConstF64(_, _)
     | ConstBool(_, _)
@@ -282,6 +285,20 @@ fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
     | BoolNot(_, _)
     | BoolEq(_, _, _)
     | BoolNe(_, _, _)
+    | F32Add(_, _, _)
+    | F32Sub(_, _, _)
+    | F32Mul(_, _, _)
+    | F32Div(_, _, _)
+    | F32Neg(_, _)
+    | F32Eq(_, _, _)
+    | F32Ne(_, _, _)
+    | F32Lt(_, _, _)
+    | F32Le(_, _, _)
+    | F32Gt(_, _, _)
+    | F32Ge(_, _, _)
+    | I64ToF32(_, _)
+    | F32ToF64(_, _)
+    | F64ToF32(_, _)
     | F64Add(_, _, _)
     | F64Sub(_, _, _)
     | F64Mul(_, _, _)
@@ -298,6 +315,8 @@ fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
     | UneraseI32(_, _)
     | EraseI64(_, _)
     | UneraseI64(_, _)
+    | EraseF32(_, _)
+    | UneraseF32(_, _)
     | EraseF64(_, _)
     | UneraseF64(_, _)
     | EraseUnit(_) => true
@@ -693,6 +712,7 @@ fn map_instruction_values(
     Release(value) => Release(transform(value))
     ConstI64(destination, value) => ConstI64(transform(destination), value)
     ConstI32(destination, value) => ConstI32(transform(destination), value)
+    ConstF32(destination, bits) => ConstF32(transform(destination), bits)
     ConstChar(destination, value) => ConstChar(transform(destination), value)
     ConstF64(destination, bits) => ConstF64(transform(destination), bits)
     ConstBool(destination, value) => ConstBool(transform(destination), value)
@@ -877,6 +897,36 @@ fn map_instruction_values(
       BoolEq(transform(destination), transform(left), transform(right))
     BoolNe(destination, left, right) =>
       BoolNe(transform(destination), transform(left), transform(right))
+    F32Add(destination, left, right) =>
+      F32Add(transform(destination), transform(left), transform(right))
+    F32Sub(destination, left, right) =>
+      F32Sub(transform(destination), transform(left), transform(right))
+    F32Mul(destination, left, right) =>
+      F32Mul(transform(destination), transform(left), transform(right))
+    F32Div(destination, left, right) =>
+      F32Div(transform(destination), transform(left), transform(right))
+    F32Neg(destination, source) =>
+      F32Neg(transform(destination), transform(source))
+    F32Eq(destination, left, right) =>
+      F32Eq(transform(destination), transform(left), transform(right))
+    F32Ne(destination, left, right) =>
+      F32Ne(transform(destination), transform(left), transform(right))
+    F32Lt(destination, left, right) =>
+      F32Lt(transform(destination), transform(left), transform(right))
+    F32Le(destination, left, right) =>
+      F32Le(transform(destination), transform(left), transform(right))
+    F32Gt(destination, left, right) =>
+      F32Gt(transform(destination), transform(left), transform(right))
+    F32Ge(destination, left, right) =>
+      F32Ge(transform(destination), transform(left), transform(right))
+    I64ToF32(destination, source) =>
+      I64ToF32(transform(destination), transform(source))
+    F32ToI64(destination, source) =>
+      F32ToI64(transform(destination), transform(source))
+    F32ToF64(destination, source) =>
+      F32ToF64(transform(destination), transform(source))
+    F64ToF32(destination, source) =>
+      F64ToF32(transform(destination), transform(source))
     F64Add(destination, left, right) =>
       F64Add(transform(destination), transform(left), transform(right))
     F64Sub(destination, left, right) =>
@@ -911,6 +961,10 @@ fn map_instruction_values(
       EraseI64(transform(destination), transform(source))
     UneraseI64(destination, source) =>
       UneraseI64(transform(destination), transform(source))
+    EraseF32(destination, source) =>
+      EraseF32(transform(destination), transform(source))
+    UneraseF32(destination, source) =>
+      UneraseF32(transform(destination), transform(source))
     EraseF64(destination, source) =>
       EraseF64(transform(destination), transform(source))
     UneraseF64(destination, source) =>

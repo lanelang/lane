@@ -33,7 +33,7 @@ test "module artifacts roundtrip every Char and UTF-8 intrinsic" {
 
 ///|
 test "compiler erases representation-identical Char conversion" {
-  let bytecode = compile_byte_bytes_image(
+  let bytecode = compile_test_loisvm_image(
     (
       #|module Test
       #|
@@ -108,7 +108,7 @@ test "artifact decoders reject pre UTF-8 schema versions" {
   }
   let interface = module_.to_interface_artifact()
   let object = module_.to_object_artifact()
-  let bytecode = compile_byte_bytes_image(
+  let bytecode = compile_test_loisvm_image(
     (
       #|module Test
       #|pub fn answer() -> Unit {

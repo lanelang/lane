@@ -114,6 +114,7 @@ fn token_label(token : Token) -> String {
     I64_TYPE => "I64"
     I32_TYPE => "I32"
     CHAR_TYPE => "Char"
+    F32_TYPE => "F32"
     F64_TYPE => "F64"
     STRING_TYPE => "String"
     BYTE_TYPE => "Byte"
@@ -151,6 +152,7 @@ fn token_label(token : Token) -> String {
     I64_LITERAL => "i64"
     I32_LITERAL => "i32"
     CHAR_LITERAL => "char"
+    F32_LITERAL => "f32"
     F64_LITERAL => "f64"
     STRING_LITERAL => "string"
     UNIT_LITERAL => "unit"
@@ -438,6 +440,7 @@ fn primitive_doc(primitive : @buslane.PrimitiveType) -> Document {
     I32 => text("I32")
     Char => text("Char")
     F64 => text("F64")
+    F32 => text("F32")
     String => text("String")
     Byte => text("Byte")
     Bytes => text("Bytes")
@@ -606,6 +609,7 @@ fn literal_doc(literal : @buslane.Literal) -> Document {
     I32(value) => call_doc("i32", [text(value.to_string())])
     Char(value) => call_doc("char", [text(value.to_string())])
     F64(value) => call_doc("f64", [text(value.to_string())])
+    F32(value) => call_doc("f32", [text(value.to_string())])
     String(value) => call_doc("string", [text(quote_string(value))])
   }
 }

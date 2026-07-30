@@ -70,6 +70,7 @@ fn intrinsic_primitive_type(
     I64 => I64
     I32 => I32
     Char => Char
+    F32 => F32
     F64 => F64
     String => String
     Byte => Byte
@@ -155,6 +156,7 @@ fn SemanticChecker::extern_value_kind(
     Primitive(Unit) => Some(Unit)
     Primitive(Bool) => Some(Bool)
     Primitive(I64) => Some(I64)
+    Primitive(F32) => Some(F32)
     Primitive(F64) => Some(F64)
     Primitive(String) => Some(String)
     Constructor(symbol) =>

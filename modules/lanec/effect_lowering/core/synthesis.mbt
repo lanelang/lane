@@ -309,6 +309,7 @@ fn literal_type(literal : @buslane.Literal) -> @buslane.Type {
     I32(_) => Primitive(I32)
     Char(_) => Primitive(Char)
     F64(_) => Primitive(F64)
+    F32(_) => Primitive(F32)
     String(_) => Primitive(String)
   }
 }

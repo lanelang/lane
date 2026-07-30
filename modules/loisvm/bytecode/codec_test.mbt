@@ -164,6 +164,69 @@ test "globals and initializer roundtrip" {
 }
 
 ///|
+test "F32 bytecode instructions roundtrip" {
+  let f32 : SlotMetadata = {
+    representation: F32,
+    cleanup: Trivial,
+    erased_companion: None,
+  }
+  let i32 : SlotMetadata = {
+    representation: I32,
+    cleanup: Trivial,
+    erased_companion: None,
+  }
+  let i64 : SlotMetadata = {
+    representation: I64,
+    cleanup: Trivial,
+    erased_companion: None,
+  }
+  let f64 : SlotMetadata = {
+    representation: F64,
+    cleanup: Trivial,
+    erased_companion: None,
+  }
+  let erased : SlotMetadata = {
+    representation: I64,
+    cleanup: OwnedErased,
+    erased_companion: Some(slot(6)),
+  }
+  let body = {
+    ..minimal_body(instructions=[
+      ConstF32(slot(0), 0x3FC00000),
+      ConstF32(slot(1), 0x40100000),
+      F32Add(slot(2), slot(0), slot(1)),
+      F32Sub(slot(2), slot(0), slot(1)),
+      F32Mul(slot(2), slot(0), slot(1)),
+      F32Div(slot(2), slot(0), slot(1)),
+      F32Neg(slot(2), slot(0)),
+      F32Eq(slot(3), slot(0), slot(1)),
+      F32Ne(slot(3), slot(0), slot(1)),
+      F32Lt(slot(3), slot(0), slot(1)),
+      F32Le(slot(3), slot(0), slot(1)),
+      F32Gt(slot(3), slot(0), slot(1)),
+      F32Ge(slot(3), slot(0), slot(1)),
+      ConstI64(slot(4), 42L),
+      I64ToF32(slot(2), slot(4)),
+      F32ToI64(slot(4), slot(2)),
+      F32ToF64(slot(5), slot(2)),
+      F64ToF32(slot(2), slot(5)),
+      EraseF32(slot(7), slot(2)),
+      UneraseF32(slot(2), slot(7)),
+    ]),
+    slots: [f32, f32, f32, i32, i64, f64, i32, erased],
+  }
+  let image = {
+    ..minimal_image(),
+    functions: [BytecodeBody(body)],
+    layouts: [F32],
+  }
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(image)),
+    Ok(image),
+  )
+}
+
+///|
 test "global image has canonical disassembly" {
   inspect(
     @prettyprinter.render(global_image(), width=100),

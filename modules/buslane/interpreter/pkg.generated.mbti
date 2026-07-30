@@ -45,6 +45,7 @@ pub struct BuslaneRuntimeValue {
 }
 pub fn BuslaneRuntimeValue::as_bool(Self) -> Bool?
 pub fn BuslaneRuntimeValue::as_char(Self) -> Int?
+pub fn BuslaneRuntimeValue::as_f32(Self) -> Float?
 pub fn BuslaneRuntimeValue::as_f64(Self) -> Double?
 pub fn BuslaneRuntimeValue::as_i32(Self) -> Int?
 pub fn BuslaneRuntimeValue::as_i64(Self) -> Int64?
@@ -54,6 +55,7 @@ pub fn BuslaneRuntimeValue::call(Self, Array[Self], BuslaneExternalRuntime) -> S
 pub fn BuslaneRuntimeValue::char(Int) -> Self
 pub fn BuslaneRuntimeValue::data(@buslane.DataConId, Array[Self]) -> Self
 pub fn BuslaneRuntimeValue::external(@buslane.ValueId) -> Self
+pub fn BuslaneRuntimeValue::f32(Float) -> Self
 pub fn BuslaneRuntimeValue::f64(Double) -> Self
 pub fn BuslaneRuntimeValue::i32(Int) -> Self
 pub fn BuslaneRuntimeValue::i64(Int64) -> Self

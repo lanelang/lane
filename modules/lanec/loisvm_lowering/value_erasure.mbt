@@ -52,6 +52,7 @@ fn FunctionLowerer::layout_witness(
     Primitive(I64) => I64
     Primitive(I32) => I32
     Primitive(Char) => Char
+    Primitive(F32) => F32
     Primitive(F64) => F64
     Primitive(String) => ByteSequence
     Primitive(Byte) => Byte
@@ -91,6 +92,8 @@ fn FunctionLowerer::erase_value(
     ) => self.emit(EraseI32(destination, source))
     (Slot(source, _), Primitive(I64)) =>
       self.emit(EraseI64(destination, source))
+    (Slot(source, _), Primitive(F32)) =>
+      self.emit(EraseF32(destination, source))
     (Slot(source, _), Function(_, _, _) | Forall(_, _)) => {
       let (canonical_type, bindings) = self.canonical_callable_type(type_)
       guard self.make_callable_adapter(source, type_, canonical_type, bindings)
@@ -137,6 +140,11 @@ fn FunctionLowerer::unerase_value(
     Primitive(I64) => {
       let destination = self.fresh_slot(type_)
       self.emit(UneraseI64(destination, source))
+      Slot(destination, type_)
+    }
+    Primitive(F32) => {
+      let destination = self.fresh_slot(type_)
+      self.emit(UneraseF32(destination, source))
       Slot(destination, type_)
     }
     Function(_, _, _) | Forall(_, _) => {

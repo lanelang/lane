@@ -20,6 +20,7 @@ pub impl @prettyprinter.Pretty for BuslaneRuntimeValue with fn pretty(
     I32(value) => text("i32") + space + text(value.to_string())
     Char(value) => text("char") + space + text(value.to_string())
     F64(value) => text("f64") + space + text(value.to_string())
+    F32(value) => text("f32") + space + text(value.to_string())
     Bool(value) => text("bool") + space + text(value.to_string())
     String(value) => text("string") + space + quoted(value)
     Unit => text("unit")

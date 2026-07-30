@@ -21,6 +21,7 @@ fn FunctionLowerer::lower_match(
         Primitive(I64)
         | Primitive(I32)
         | Primitive(Char)
+        | Primitive(F32)
         | Primitive(F64)
         | Primitive(String) =>
           self.lower_literal_match(match_, condition, scrutinee_type, scrutinee)
@@ -173,6 +174,7 @@ fn FunctionLowerer::emit_literal_equality(
     Primitive(I64) => I64Eq(condition, scrutinee, expected)
     Primitive(I32) => I32Eq(condition, scrutinee, expected)
     Primitive(Char) => I32Eq(condition, scrutinee, expected)
+    Primitive(F32) => F32Eq(condition, scrutinee, expected)
     Primitive(F64) => F64Eq(condition, scrutinee, expected)
     Primitive(String) => ByteSequenceEqual(condition, scrutinee, expected)
     _ =>

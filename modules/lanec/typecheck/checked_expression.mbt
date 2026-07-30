@@ -226,6 +226,15 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         ),
         expectation.type_,
       ).with_expectation_match(MatchesExpectation)
+    Literal(literal=Floating(raw), loc~) if expectation.type_ == Primitive(F32) =>
+      checked_expression(
+        Literal(
+          literal=F32(self.check_f32_literal(raw, loc)),
+          type_=expectation.type_,
+          loc~,
+        ),
+        expectation.type_,
+      ).with_expectation_match(MatchesExpectation)
     Unary(operator=Neg, operand=Literal(literal=Integer(raw), ..), loc~, ..) if expectation.type_ ==
       Primitive(I32) =>
       checked_expression(

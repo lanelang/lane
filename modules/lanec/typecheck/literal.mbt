@@ -96,7 +96,7 @@ fn SemanticChecker::check_f64_literal(
   if value.is_nan() || value.is_inf() {
     return self.invalid_f64_literal(raw, loc)
   }
-  if value == 0.0 && f64_significand_has_nonzero_digit(raw) {
+  if value == 0.0 && floating_significand_has_nonzero_digit(raw) {
     return self.invalid_f64_literal(raw, loc)
   }
   { raw, value }
@@ -113,7 +113,42 @@ fn SemanticChecker::invalid_f64_literal(
 }
 
 ///|
-fn f64_significand_has_nonzero_digit(raw : String) -> Bool {
+fn SemanticChecker::check_f32_literal(
+  self : SemanticChecker,
+  raw : String,
+  loc : SourceSpan,
+) -> @checked.CheckedF32Literal {
+  let parsed = try @string.parse_double(raw) catch {
+    _ => return self.invalid_f32_literal(raw, loc)
+  } noraise {
+    value => value
+  }
+  if parsed.is_nan() || parsed.is_inf() {
+    return self.invalid_f32_literal(raw, loc)
+  }
+  let value = Float::from_double(parsed)
+  if value.is_nan() || value.is_inf() {
+    return self.invalid_f32_literal(raw, loc)
+  }
+  if value == Float::from_double(0.0) &&
+    floating_significand_has_nonzero_digit(raw) {
+    return self.invalid_f32_literal(raw, loc)
+  }
+  { raw, value }
+}
+
+///|
+fn SemanticChecker::invalid_f32_literal(
+  self : SemanticChecker,
+  raw : String,
+  loc : SourceSpan,
+) -> @checked.CheckedF32Literal {
+  self.diagnostics.push({ kind: InvalidF32Literal(raw), loc })
+  { raw, value: Float::from_double(0.0) }
+}
+
+///|
+fn floating_significand_has_nonzero_digit(raw : String) -> Bool {
   for view = raw.view() {
     match view {
       ['e' | 'E', ..] => break false

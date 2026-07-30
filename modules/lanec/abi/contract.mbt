@@ -4,6 +4,7 @@ pub(all) enum ValueKind {
   Bool
   I64
   F64
+  F32
   String
   Opaque
 } derive(Debug, Eq)
@@ -22,6 +23,7 @@ pub(all) enum IntrinsicValueKind {
   I32
   Char
   F64
+  F32
   String
   Byte
   Bytes
@@ -66,6 +68,20 @@ pub(all) enum Intrinsic {
   F64Inf
   F64NegativeInf
   F64Nan
+  F32Add
+  F32Sub
+  F32Mul
+  F32Div
+  F32Neg
+  F32Equal
+  F32Less
+  F32Inf
+  F32NegativeInf
+  F32Nan
+  I64ToF32
+  F32ToI64
+  F32ToF64
+  F64ToF32
   CharToI32
   I32ToChar
   StringToBytes
@@ -113,6 +129,20 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%f64_inf" => Some(F64Inf)
     "%f64_ninf" => Some(F64NegativeInf)
     "%f64_nan" => Some(F64Nan)
+    "%f32_add" => Some(F32Add)
+    "%f32_sub" => Some(F32Sub)
+    "%f32_mul" => Some(F32Mul)
+    "%f32_div" => Some(F32Div)
+    "%f32_neg" => Some(F32Neg)
+    "%f32_equal" => Some(F32Equal)
+    "%f32_less" => Some(F32Less)
+    "%f32_inf" => Some(F32Inf)
+    "%f32_ninf" => Some(F32NegativeInf)
+    "%f32_nan" => Some(F32Nan)
+    "%i64_to_f32" => Some(I64ToF32)
+    "%f32_to_i64" => Some(F32ToI64)
+    "%f32_to_f64" => Some(F32ToF64)
+    "%f64_to_f32" => Some(F64ToF32)
     "%char_to_i32" => Some(CharToI32)
     "%i32_to_char" => Some(I32ToChar)
     "%string_to_bytes" => Some(StringToBytes)
@@ -162,6 +192,20 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     F64Inf => "%f64_inf"
     F64NegativeInf => "%f64_ninf"
     F64Nan => "%f64_nan"
+    F32Add => "%f32_add"
+    F32Sub => "%f32_sub"
+    F32Mul => "%f32_mul"
+    F32Div => "%f32_div"
+    F32Neg => "%f32_neg"
+    F32Equal => "%f32_equal"
+    F32Less => "%f32_less"
+    F32Inf => "%f32_inf"
+    F32NegativeInf => "%f32_ninf"
+    F32Nan => "%f32_nan"
+    I64ToF32 => "%i64_to_f32"
+    F32ToI64 => "%f32_to_i64"
+    F32ToF64 => "%f32_to_f64"
+    F64ToF32 => "%f64_to_f32"
     CharToI32 => "%char_to_i32"
     I32ToChar => "%i32_to_char"
     StringToBytes => "%string_to_bytes"
@@ -197,6 +241,15 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     F64Neg => Function(parameters=[F64], result=F64)
     F64Equal | F64Less => Function(parameters=[F64, F64], result=Bool)
     F64Inf | F64NegativeInf | F64Nan => Value(F64)
+    F32Add | F32Sub | F32Mul | F32Div =>
+      Function(parameters=[F32, F32], result=F32)
+    F32Neg => Function(parameters=[F32], result=F32)
+    F32Equal | F32Less => Function(parameters=[F32, F32], result=Bool)
+    F32Inf | F32NegativeInf | F32Nan => Value(F32)
+    I64ToF32 => Function(parameters=[I64], result=F32)
+    F32ToI64 => Function(parameters=[F32], result=I64)
+    F32ToF64 => Function(parameters=[F32], result=F64)
+    F64ToF32 => Function(parameters=[F64], result=F32)
     CharToI32 => Function(parameters=[Char], result=I32)
     I32ToChar => Function(parameters=[I32], result=Char)
     StringToBytes => Function(parameters=[String], result=Bytes)

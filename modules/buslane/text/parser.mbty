@@ -46,6 +46,7 @@
 %token I64_TYPE "I64"
 %token I32_TYPE "I32"
 %token CHAR_TYPE "Char"
+%token F32_TYPE "F32"
 %token F64_TYPE "F64"
 %token STRING_TYPE "String"
 %token BYTE_TYPE "Byte"
@@ -83,6 +84,7 @@
 %token I64_LITERAL "i64"
 %token I32_LITERAL "i32"
 %token CHAR_LITERAL "char"
+%token F32_LITERAL "f32"
 %token F64_LITERAL "f64"
 %token STRING_LITERAL "string"
 %token UNIT_LITERAL "unit"
@@ -292,6 +294,7 @@ literal -> Literal
   | "i64" "(" INT ")" { I64(@string.parse_int64($3, base=10) catch { _ => 0L }) }
   | "i32" "(" INT ")" { I32(@string.parse_int($3, base=10) catch { _ => 0 }) }
   | "char" "(" INT ")" { Char(@string.parse_int($3, base=10) catch { _ => 0 }) }
+  | "f32" "(" DOUBLE ")" { F32(Float::from_double(@string.parse_double($3) catch { _ => 0.0 })) }
   | "f64" "(" DOUBLE ")" { F64(@string.parse_double($3) catch { _ => 0.0 }) }
   | "string" "(" STRING ")" { String($3) }
   ;
@@ -327,6 +330,7 @@ primitive_type -> PrimitiveType
   | "I64" { I64 }
   | "I32" { I32 }
   | "Char" { Char }
+  | "F32" { F32 }
   | "F64" { F64 }
   | "String" { String }
   | "Byte" { Byte }

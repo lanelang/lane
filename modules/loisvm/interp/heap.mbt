@@ -3,6 +3,7 @@ pub enum VMValue {
   I32(Int)
   I64(Int64)
   F64(Double)
+  F32(Float)
 } derive(Debug, Eq)
 
 ///|
@@ -588,7 +589,7 @@ fn object_allocation_size(shape : @bytecode.ObjectShape) -> Int64 {
   let mut offset = initial_offset
   for schema in members {
     let (size, alignment) = match schema.representation {
-      I32 => (4L, 4L)
+      I32 | F32 => (4L, 4L)
       I64 | F64 => (8L, 8L)
     }
     offset = align_up(offset, alignment) + size

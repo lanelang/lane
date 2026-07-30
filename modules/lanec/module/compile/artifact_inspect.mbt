@@ -723,6 +723,7 @@ fn buslane_primitive_text(primitive : @buslane.PrimitiveType) -> String {
     I64 => "I64"
     I32 => "I32"
     Char => "Char"
+    F32 => "F32"
     F64 => "F64"
     String => "String"
     Byte => "Byte"

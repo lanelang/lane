@@ -181,10 +181,17 @@ pub(all) struct CheckedF64Literal {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CheckedF32Literal {
+  raw : String
+  value : Float
+} derive(Debug, Eq)
+
+///|
 pub(all) enum CheckedLiteral {
   I64(CheckedI64Literal)
   I32(CheckedI32Literal)
   F64(CheckedF64Literal)
+  F32(CheckedF32Literal)
   String(String)
   Char(Int)
   Bool(Bool)

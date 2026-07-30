@@ -252,6 +252,7 @@ fn finalize_instruction(
     }
     ConstI64(destination, value) => ConstI64(value_to_slot(destination), value)
     ConstI32(destination, value) => ConstI32(value_to_slot(destination), value)
+    ConstF32(destination, bits) => ConstF32(value_to_slot(destination), bits)
     ConstChar(destination, value) =>
       ConstChar(value_to_slot(destination), value)
     ConstF64(destination, bits) => ConstF64(value_to_slot(destination), bits)
@@ -620,6 +621,91 @@ fn finalize_instruction(
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
+    F32Add(destination, left, right) =>
+      F32Add(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Sub(destination, left, right) =>
+      F32Sub(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Mul(destination, left, right) =>
+      F32Mul(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Div(destination, left, right) =>
+      F32Div(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Neg(destination, source) =>
+      F32Neg(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    F32Eq(destination, left, right) =>
+      F32Eq(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Ne(destination, left, right) =>
+      F32Ne(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Lt(destination, left, right) =>
+      F32Lt(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Le(destination, left, right) =>
+      F32Le(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Gt(destination, left, right) =>
+      F32Gt(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    F32Ge(destination, left, right) =>
+      F32Ge(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    I64ToF32(destination, source) =>
+      I64ToF32(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    F32ToI64(destination, source) =>
+      F32ToI64(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    F32ToF64(destination, source) =>
+      F32ToF64(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    F64ToF32(destination, source) =>
+      F64ToF32(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
     F64Add(destination, left, right) =>
       F64Add(
         value_to_slot(destination),
@@ -723,6 +809,20 @@ fn finalize_instruction(
           consume_value(body, block, live, remaining, prefix, source),
         ),
       )
+    EraseF32(destination, source) =>
+      EraseF32(
+        value_to_slot(destination),
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, source),
+        ),
+      )
+    UneraseF32(destination, source) =>
+      UneraseF32(
+        value_to_slot(destination),
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, source),
+        ),
+      )
     EraseF64(destination, source) =>
       EraseF64(
         value_to_slot(destination),
@@ -808,6 +908,7 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | RetainCopy(destination, _)
     | ConstI64(destination, _)
     | ConstI32(destination, _)
+    | ConstF32(destination, _)
     | ConstChar(destination, _)
     | ConstF64(destination, _)
     | ConstBool(destination, _)
@@ -860,6 +961,21 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | BoolNot(destination, _)
     | BoolEq(destination, _, _)
     | BoolNe(destination, _, _)
+    | F32Add(destination, _, _)
+    | F32Sub(destination, _, _)
+    | F32Mul(destination, _, _)
+    | F32Div(destination, _, _)
+    | F32Neg(destination, _)
+    | F32Eq(destination, _, _)
+    | F32Ne(destination, _, _)
+    | F32Lt(destination, _, _)
+    | F32Le(destination, _, _)
+    | F32Gt(destination, _, _)
+    | F32Ge(destination, _, _)
+    | I64ToF32(destination, _)
+    | F32ToI64(destination, _)
+    | F32ToF64(destination, _)
+    | F64ToF32(destination, _)
     | F64Add(destination, _, _)
     | F64Sub(destination, _, _)
     | F64Mul(destination, _, _)
@@ -877,6 +993,8 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | UneraseI32(destination, _)
     | EraseI64(destination, _)
     | UneraseI64(destination, _)
+    | EraseF32(destination, _)
+    | UneraseF32(destination, _)
     | EraseF64(destination, _)
     | UneraseF64(destination, _)
     | EraseUnit(destination)

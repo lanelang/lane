@@ -196,6 +196,62 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       BytesSlice
     }
+    [u8be(43), .. rest] => {
+      self.update_view(rest)
+      F32Add
+    }
+    [u8be(44), .. rest] => {
+      self.update_view(rest)
+      F32Sub
+    }
+    [u8be(45), .. rest] => {
+      self.update_view(rest)
+      F32Mul
+    }
+    [u8be(46), .. rest] => {
+      self.update_view(rest)
+      F32Div
+    }
+    [u8be(47), .. rest] => {
+      self.update_view(rest)
+      F32Neg
+    }
+    [u8be(48), .. rest] => {
+      self.update_view(rest)
+      F32Equal
+    }
+    [u8be(49), .. rest] => {
+      self.update_view(rest)
+      F32Less
+    }
+    [u8be(50), .. rest] => {
+      self.update_view(rest)
+      F32Inf
+    }
+    [u8be(51), .. rest] => {
+      self.update_view(rest)
+      F32NegativeInf
+    }
+    [u8be(52), .. rest] => {
+      self.update_view(rest)
+      F32Nan
+    }
+    [u8be(53), .. rest] => {
+      self.update_view(rest)
+      I64ToF32
+    }
+    [u8be(54), .. rest] => {
+      self.update_view(rest)
+      F32ToI64
+    }
+    [u8be(55), .. rest] => {
+      self.update_view(rest)
+      F32ToF64
+    }
+    [u8be(56), .. rest] => {
+      self.update_view(rest)
+      F64ToF32
+    }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
       invalid_binary_tag(
@@ -248,6 +304,10 @@ fn @bytecodec.ByteReader::read_host_value_kind(
     [u8be(5), .. rest] => {
       self.update_view(rest)
       Opaque
+    }
+    [u8be(6), .. rest] => {
+      self.update_view(rest)
+      F32
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

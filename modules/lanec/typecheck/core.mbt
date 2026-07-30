@@ -282,6 +282,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   InvalidI64Literal(String)
   InvalidI32Literal(String)
   InvalidF64Literal(String)
+  InvalidF32Literal(String)
   UnknownBuiltin(name~ : String)
   BuiltinSignatureMismatch(
     name~ : String,

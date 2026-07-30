@@ -38,6 +38,7 @@ pub(all) enum Representation {
   I32
   I64
   F64
+  F32
 } derive(Debug, Eq)
 
 ///|
@@ -68,6 +69,7 @@ pub(all) enum ResultRepresentation {
   I32
   I64
   F64
+  F32
 } derive(Debug, Eq)
 
 ///|
@@ -83,6 +85,7 @@ pub(all) enum RuntimeValueKind {
   Bool
   I64
   F64
+  F32
   String
   Opaque
 } derive(Debug, Eq)
@@ -103,6 +106,7 @@ pub(all) enum LayoutRecipe {
   I32
   Char
   F64
+  F32
   Callable
   ByteSequence
   Byte
@@ -165,6 +169,7 @@ pub(all) enum Instruction {
   ConstI32(SlotId, Int)
   ConstChar(SlotId, Int)
   ConstF64(SlotId, Int64)
+  ConstF32(SlotId, Int)
   ConstBool(SlotId, Bool)
   ConstLayout(SlotId, LayoutId)
   ConstFunction(SlotId, FunctionId)
@@ -234,12 +239,29 @@ pub(all) enum Instruction {
   F64Ge(SlotId, SlotId, SlotId)
   I64ToF64(SlotId, SlotId)
   F64ToI64(SlotId, SlotId)
+  F32Add(SlotId, SlotId, SlotId)
+  F32Sub(SlotId, SlotId, SlotId)
+  F32Mul(SlotId, SlotId, SlotId)
+  F32Div(SlotId, SlotId, SlotId)
+  F32Neg(SlotId, SlotId)
+  F32Eq(SlotId, SlotId, SlotId)
+  F32Ne(SlotId, SlotId, SlotId)
+  F32Lt(SlotId, SlotId, SlotId)
+  F32Le(SlotId, SlotId, SlotId)
+  F32Gt(SlotId, SlotId, SlotId)
+  F32Ge(SlotId, SlotId, SlotId)
+  I64ToF32(SlotId, SlotId)
+  F32ToI64(SlotId, SlotId)
+  F32ToF64(SlotId, SlotId)
+  F64ToF32(SlotId, SlotId)
   EraseI32(SlotId, SlotId)
   UneraseI32(SlotId, SlotId)
   EraseI64(SlotId, SlotId)
   UneraseI64(SlotId, SlotId)
   EraseF64(SlotId, SlotId)
   UneraseF64(SlotId, SlotId)
+  EraseF32(SlotId, SlotId)
+  UneraseF32(SlotId, SlotId)
   EraseUnit(SlotId)
   UneraseUnit(SlotId)
   InitGlobal(GlobalId, SlotId)

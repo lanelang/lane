@@ -1,5 +1,5 @@
 ///|
-fn compile_byte_bytes_image(source : String) -> @bytecode.BytecodeImage raise {
+fn compile_test_loisvm_image(source : String) -> @bytecode.BytecodeImage raise {
   let compiled = compile_modules(source, [])
   assert_eq(compiled.diagnostics, [])
   guard compiled.modules is Some(modules) else {
@@ -25,7 +25,7 @@ fn compile_byte_bytes_image(source : String) -> @bytecode.BytecodeImage raise {
 
 ///|
 test "compiler removes discarded empty-effect Byte and Bytes operations" {
-  let bytecode = compile_byte_bytes_image(
+  let bytecode = compile_test_loisvm_image(
     (
       #|module Test
       #|
@@ -66,7 +66,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
 
 ///|
 test "compiler preserves Byte and Bytes through executable lowering" {
-  let bytecode = compile_byte_bytes_image(
+  let bytecode = compile_test_loisvm_image(
     (
       #|module Test
       #|
@@ -228,7 +228,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
 
 ///|
 test "compiler preserves Byte and Bytes in fields enum payloads closures and globals" {
-  let bytecode = compile_byte_bytes_image(
+  let bytecode = compile_test_loisvm_image(
     (
       #|module Test
       #|

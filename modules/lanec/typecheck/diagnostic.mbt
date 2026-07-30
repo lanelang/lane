@@ -874,6 +874,24 @@ fn typecheck_diagnostic(
         ],
         helps=["use a finite F64 literal within the binary64 range"],
       )
+    InvalidF32Literal(raw) =>
+      diagnostic(
+        "invalid F32 literal `\{raw}`",
+        span~,
+        severity=Error,
+        code=Some("E3035"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "`\{raw}` cannot be represented as a finite Lane `F32`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "Lane `F32` literals must round to a finite, nonzero IEEE 754 binary32 value",
+        ],
+        helps=["use a finite F32 literal within the binary32 range"],
+      )
     UnknownBuiltin(name~) =>
       diagnostic(
         "unknown builtin `\{name}`",

@@ -1930,7 +1930,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 10
+      #|schema: 11
       #|
       #|imported interfaces:
       #|  (none)
@@ -2006,7 +2006,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 13
+      #|schema: 14
       #|
       #|imported interfaces:
       #|  (none)
@@ -2100,7 +2100,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 10
+      #|schema: 11
       #|
       #|imported interfaces:
       #|  (none)
@@ -2520,7 +2520,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 10
+      #|schema: 11
       #|
       #|imported interfaces:
       #|  (none)
@@ -2542,7 +2542,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 13
+      #|schema: 14
       #|
       #|imported interfaces:
       #|  (none)
@@ -2701,7 +2701,7 @@ fn interface_alias_body_signature(
 }
 
 ///|
-test "module object binary rejects obsolete schema nine artifact" {
+test "module binaries reject immediately preceding schema versions" {
   let compiled = compile_modules(
     (
       #|module Main
@@ -2716,20 +2716,38 @@ test "module object binary rejects obsolete schema nine artifact" {
   guard modules.modules.get(0) is Some(module_) else {
     abort("expected compiled module")
   }
-  let damaged = @artifact_binary.module_object_artifact_to_binary(
+  let interface_bytes = @artifact_binary.module_interface_artifact_to_binary(
+    module_.to_interface_artifact(),
+  ).to_array()
+  interface_bytes[14] = b'\x0A'
+  interface_bytes[15] = b'\x00'
+  interface_bytes[16] = b'\x00'
+  interface_bytes[17] = b'\x00'
+  let object_bytes = @artifact_binary.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  damaged[14] = b'\x09'
-  damaged[15] = b'\x00'
-  damaged[16] = b'\x00'
-  damaged[17] = b'\x00'
-  let parsed = @artifact_binary.parse_module_object_artifact_binary(
-    Bytes::from_array(damaged),
-  )
-  guard parsed is Err(message) else {
-    abort("expected old object schema failure")
+  object_bytes[14] = b'\x0D'
+  object_bytes[15] = b'\x00'
+  object_bytes[16] = b'\x00'
+  object_bytes[17] = b'\x00'
+  let messages = []
+  match
+    @artifact_binary.parse_module_interface_artifact_binary(
+      Bytes::from_array(interface_bytes),
+    ) {
+    Err(message) => messages.push(message)
+    Ok(_) => fail("expected old interface schema failure")
   }
-  inspect(message, content="unsupported object artifact schema version 9")
+  match
+    @artifact_binary.parse_module_object_artifact_binary(
+      Bytes::from_array(object_bytes),
+    ) {
+    Err(message) => messages.push(message)
+    Ok(_) => fail("expected old object schema failure")
+  }
+  assert_eq(messages, [
+    "unsupported interface artifact schema version 10", "unsupported object artifact schema version 13",
+  ])
 }
 
 ///|
@@ -4060,7 +4078,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 10
+      #|schema: 11
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0
