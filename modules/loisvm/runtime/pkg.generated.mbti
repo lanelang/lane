@@ -100,7 +100,7 @@ pub(all) enum HostValue {
   Int(Int64)
   Double(Double)
   BorrowedString(HostStringView)
-  String(String)
+  String(Bytes)
   BorrowedOpaque(BorrowedHostObject)
   OwnedOpaque(OwnedHostObject)
 } derive(@debug.Debug)

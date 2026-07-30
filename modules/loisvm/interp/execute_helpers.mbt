@@ -448,16 +448,16 @@ fn ExecutionInstance::from_host_value(
     (Bool, Bool(value)) => Some(I32(if value { 1 } else { 0 }))
     (Int, Int(value)) => Some(I64(value))
     (Double, Double(value)) => Some(F64(value))
-    (String, String(value)) => {
-      let bytes = @utf8.encode(value)
-      for byte in bytes {
-        if byte.to_int() > 0x7F {
-          raise ImportFailure(
-            symbol~,
-            message="runtime import returned non-ASCII String",
-          )
-        }
-      }
+    (String, String(bytes)) => {
+      ignore(
+        @utf8.decode(bytes) catch {
+          _ =>
+            raise ImportFailure(
+              symbol~,
+              message="runtime import returned invalid UTF-8 String",
+            )
+        },
+      )
       Some(I32(self.heap.allocate_byte_sequence(bytes)))
     }
     (Opaque, OwnedOpaque(object)) => {

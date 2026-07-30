@@ -40,12 +40,6 @@ fn invoke_runtime_binding(
           Some(value) => value
           None => raise UndefinedElement
         }
-        for index in 0..<length {
-          let byte = memory.read_byte(pointer + index)
-          if byte.to_int() > 0x7F {
-            raise TypeMismatch
-          }
-        }
         arguments.push(
           BorrowedString(
             @loisvm_runtime.HostStringView::new(length~, read_byte=index => {
@@ -186,7 +180,22 @@ fn host_result_to_wasm(
     (Bool, Bool(value)) => [I32(if value { 1 } else { 0 })]
     (Int, Int(value)) => [I64(value)]
     (Double, Double(value)) => [F64(value)]
-    (String, String(value)) => [I32(copy_host_string(caller, value))]
+    (String, String(bytes)) => {
+      ignore(
+        @utf8.decode(bytes) catch {
+          _ => {
+            failure.error = Some(
+              RuntimeImportFailure(
+                symbol~,
+                message="runtime import returned invalid UTF-8 String",
+              ),
+            )
+            raise TypeMismatch
+          }
+        },
+      )
+      [I32(copy_host_string(caller, bytes))]
+    }
     (Opaque, OwnedOpaque(object)) => {
       let adopted : Result[Int, @wasmoon_runtime.RuntimeError] = runtime.adopt_host_object(
         object,
@@ -266,14 +275,8 @@ fn copy_host_object(
 ///|
 fn copy_host_string(
   caller : @wasmoon_runtime.Caller,
-  value : String,
+  bytes : Bytes,
 ) -> Int raise @wasmoon_runtime.RuntimeError {
-  let bytes = @utf8.encode(value)
-  for byte in bytes {
-    if byte.to_int() > 0x7F {
-      raise TypeMismatch
-    }
-  }
   let instance = caller.instance()
   let mut service_index = -1
   for export_ in instance.exports {

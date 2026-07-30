@@ -41,7 +41,7 @@ pub fn HostStringView::to_bytes(self : HostStringView) -> Bytes {
 ///|
 pub fn HostStringView::to_string(self : HostStringView) -> String {
   @utf8.decode(self.to_bytes()) catch {
-    _ => abort("HostStringView contains non-ASCII bytes")
+    _ => abort("HostStringView contains invalid UTF-8")
   }
 }
 
@@ -73,7 +73,7 @@ pub(all) enum HostValue {
   Int(Int64)
   Double(Double)
   BorrowedString(HostStringView)
-  String(String)
+  String(Bytes)
   BorrowedOpaque(BorrowedHostObject)
   OwnedOpaque(OwnedHostObject)
 } derive(Debug)

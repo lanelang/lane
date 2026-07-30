@@ -167,7 +167,7 @@ pub fn HostResult::double() -> HostResult[Double] {
 
 ///|
 pub fn HostResult::string() -> HostResult[String] {
-  { kind: String, encode: value => String(value) }
+  { kind: String, encode: value => String(@utf8.encode(value)) }
 }
 
 ///|

@@ -38,7 +38,10 @@ fn wasm_bytes_body(
 }
 
 ///|
-fn wasm_bytes_image(body : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
+fn wasm_bytes_image(
+  body : @bytecode.FunctionBody,
+  constants? : Array[Bytes] = [],
+) -> @bytecode.BytecodeImage {
   {
     entry: { value: 1 },
     initializer: None,
@@ -46,7 +49,7 @@ fn wasm_bytes_image(body : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
     functions: [BytecodeBody(body)],
     layouts: [ByteSequence],
     object_shapes: [],
-    constants: [],
+    constants,
   }
 }
 
@@ -97,8 +100,9 @@ fn execute_bytes_wasm(
 fn execute_bytes_backends(
   body : @bytecode.FunctionBody,
   config? : @loisvm_runtime.ExecutionConfig = @loisvm_runtime.ExecutionConfig::defaults(),
+  constants? : Array[Bytes] = [],
 ) -> BytesBackendOutcomes raise {
-  let image = wasm_bytes_image(body)
+  let image = wasm_bytes_image(body, constants~)
   {
     direct_interpreter: execute_bytes_direct(image, config),
     wasm_interpreter: execute_bytes_wasm(image, config, Interpreter),
@@ -111,12 +115,100 @@ fn assert_bytes_backends(
   body : @bytecode.FunctionBody,
   expected : BytesExecutionOutcome,
   config? : @loisvm_runtime.ExecutionConfig = @loisvm_runtime.ExecutionConfig::defaults(),
+  constants? : Array[Bytes] = [],
 ) -> Unit raise {
-  assert_eq(execute_bytes_backends(body, config~), {
+  assert_eq(execute_bytes_backends(body, config~, constants~), {
     direct_interpreter: expected,
     wasm_interpreter: expected,
     wasm_jit: expected,
   })
+}
+
+///|
+test "ByteSequence UTF-8 validation agrees across interpreter and Wasm backends" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let owned = wasm_bytes_owned_slot()
+  let cases : Array[(Bytes, Bool)] = [
+    (Bytes::from_array([]), true),
+    (Bytes::from_array([b'a']), true),
+    (Bytes::from_array([b'\xC2', b'\xA2']), true),
+    (Bytes::from_array([b'\xE4', b'\xB8', b'\xAD']), true),
+    (Bytes::from_array([b'\xF0', b'\x9F', b'\x98', b'\x80']), true),
+    (Bytes::from_array([b'\x80']), false),
+    (Bytes::from_array([b'\xC0', b'\x80']), false),
+    (Bytes::from_array([b'\xC2']), false),
+    (Bytes::from_array([b'\xE0', b'\x80', b'\x80']), false),
+    (Bytes::from_array([b'\xED', b'\xA0', b'\x80']), false),
+    (Bytes::from_array([b'\xF0', b'\x80', b'\x80', b'\x80']), false),
+    (Bytes::from_array([b'\xF4', b'\x90', b'\x80', b'\x80']), false),
+    (Bytes::from_array([b'\xF5', b'\x80', b'\x80', b'\x80']), false),
+  ]
+  let blocks : Array[@bytecode.Block] = []
+  for index, case in cases {
+    blocks.push({
+      parameters: [],
+      instructions: [
+        ConstString({ value: 0 }, { value: index }),
+        ByteSequenceIsValidUtf8({ value: 1 }, { value: 0 }),
+        ConstBool({ value: 2 }, case.1),
+        BoolEq({ value: 3 }, { value: 1 }, { value: 2 }),
+        Release({ value: 0 }),
+      ],
+      terminator: BranchBool(
+        { value: 3 },
+        { target: { value: index + 1 }, arguments: [] },
+        { target: { value: cases.length() + 1 }, arguments: [] },
+      ),
+    })
+  }
+  blocks.push({ parameters: [], instructions: [], terminator: Return(None) })
+  blocks.push({ parameters: [], instructions: [], terminator: Unreachable })
+  assert_bytes_backends(
+    wasm_bytes_body([owned, i32, i32, i32], blocks),
+    Completed,
+    constants=cases.map(case => case.0),
+  )
+}
+
+///|
+test "ByteSequence equality concatenation and slicing agree across backends" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  assert_bytes_backends(
+    wasm_bytes_body([owned, owned, owned, i64, i64, owned, owned, i32], [
+      {
+        parameters: [],
+        instructions: [
+          ConstString({ value: 0 }, { value: 0 }),
+          ConstString({ value: 1 }, { value: 1 }),
+          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+          ConstInt({ value: 3 }, 1L),
+          ConstInt({ value: 4 }, 4L),
+          ByteSequenceSlice({ value: 5 }, { value: 2 }, { value: 3 }, {
+            value: 4,
+          }),
+          ConstString({ value: 6 }, { value: 2 }),
+          ByteSequenceEqual({ value: 7 }, { value: 5 }, { value: 6 }),
+          Release({ value: 5 }),
+          Release({ value: 6 }),
+        ],
+        terminator: BranchBool(
+          { value: 7 },
+          { target: { value: 1 }, arguments: [] },
+          { target: { value: 2 }, arguments: [] },
+        ),
+      },
+      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Unreachable },
+    ]),
+    Completed,
+    constants=[
+      Bytes::from_array([b'a', b'b']),
+      Bytes::from_array([b'c', b'd', b'e']),
+      Bytes::from_array([b'b', b'c', b'd', b'e']),
+    ],
+  )
 }
 
 ///|

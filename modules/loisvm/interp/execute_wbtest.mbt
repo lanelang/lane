@@ -30,7 +30,7 @@ test "ARC releases dynamic runtime String owners" {
       abi_major=1,
       parameters=[],
       result=String,
-      invoke=fn(_context, _arguments) { String("abc") },
+      invoke=fn(_context, _arguments) { String(@utf8.encode("中\u{0}🙂")) },
     ),
   )
   let owned_string : @bytecode.SlotMetadata = {
@@ -73,11 +73,69 @@ test "ARC releases dynamic runtime String owners" {
   }
   let instance = loaded.new_instance(config={
     max_call_depth: None,
-    max_live_heap_bytes: Some(16),
+    max_live_heap_bytes: Some(24),
     max_host_objects: None,
   })
   assert_eq(instance.execute(), Ok(()))
   assert_eq(instance.heap.live_bytes, 0)
+}
+
+///|
+test "interpreter rejects invalid host String UTF-8" {
+  let registry = @runtime.RuntimeRegistry::new()
+  registry.register(
+    @runtime.RuntimeBinding::new(
+      symbol="lane.test.invalid_string",
+      abi_major=1,
+      parameters=[],
+      result=String,
+      invoke=fn(_context, _arguments) { String(Bytes::from_array([b'\xFF'])) },
+    ),
+  )
+  let owned_string : @bytecode.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    erased_companion: None,
+  }
+  let entry = body(
+    slots=[owned_string],
+    result=Unit,
+    instructions=[
+      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+      Release({ value: 0 }),
+    ],
+    terminator=Return(None),
+  )
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    initializer: None,
+    globals: [],
+    functions: [
+      BytecodeBody(entry),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [],
+        result: String,
+        symbol: "lane.test.invalid_string",
+      }),
+    ],
+    layouts: [ByteSequence],
+    object_shapes: [],
+    constants: [],
+  }
+  let loaded = match load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{Repr(error)}")
+  }
+  assert_eq(
+    loaded.new_instance().execute(),
+    Err(
+      RuntimeImportFailure(
+        symbol="lane.test.invalid_string",
+        message="runtime import returned invalid UTF-8 String",
+      ),
+    ),
+  )
 }
 
 ///|

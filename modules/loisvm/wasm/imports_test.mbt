@@ -158,7 +158,9 @@ test "Wasm adapters synthesize logical Unit runtime arguments" {
 }
 
 ///|
-test "String import reads borrowed bytes and allocates its result in Lane memory" {
+test "String import transports multibyte UTF-8 and embedded NUL" {
+  let mut observed_input = ""
+  let mut observed_output = ""
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
@@ -167,8 +169,23 @@ test "String import reads borrowed bytes and allocates its result in Lane memory
       parameters=[String],
       result=String,
       invoke=fn(_context, arguments) {
-        guard arguments is [BorrowedString(value)] else { return String("") }
-        String(value.to_string() + "!")
+        guard arguments is [BorrowedString(value)] else { return String(b"") }
+        observed_input = value.to_string()
+        String(@utf8.encode(value.to_string() + "🙂"))
+      },
+    ),
+  )
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.observe_string",
+      abi_major=1,
+      parameters=[String],
+      result=Unit,
+      invoke=fn(_context, arguments) {
+        if arguments is [BorrowedString(value)] {
+          observed_output = value.to_string()
+        }
+        Unit
       },
     ),
   )
@@ -180,24 +197,38 @@ test "String import reads borrowed bytes and allocates its result in Lane memory
     [
       ConstString({ value: 0 }, { value: 0 }),
       CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
-      Release({ value: 1 }),
+      CallDirect({ value: 3 }, None, [], [{ value: 1 }], None),
     ],
   )
-  let instance = loaded_instance(
-    import_test_image(
-      body,
-      {
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    initializer: None,
+    functions: [
+      BytecodeBody(body),
+      RuntimeImport({
         abi_major: 1,
         parameters: [String],
         result: String,
         symbol: "lane.test.suffix",
-      },
-      layouts=[ByteSequence],
-      constants=[b"Lane"],
-    ),
-    registry,
-  )
-  assert_eq(instance.execute(), Ok(()))
+      }),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [String],
+        result: Unit,
+        symbol: "lane.test.observe_string",
+      }),
+    ],
+    globals: [],
+    layouts: [ByteSequence],
+    object_shapes: [],
+    constants: [@utf8.encode("中\u{0}")],
+  }
+  for mode in [ExecutionMode::Jit, Interpreter] {
+    let instance = loaded_instance(image, registry, mode~)
+    assert_eq(instance.execute(), Ok(()))
+    assert_eq(observed_input, "中\u{0}")
+    assert_eq(observed_output, "中\u{0}🙂")
+  }
 }
 
 ///|
@@ -337,34 +368,39 @@ test "invalid host String results become runtime import failures" {
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="lane.test.non_ascii",
+      symbol="lane.test.invalid_utf8",
       abi_major=1,
       parameters=[],
       result=String,
-      invoke=fn(_context, _arguments) { String("é") },
+      invoke=fn(_context, _arguments) { String(Bytes::from_array([b'\xFF'])) },
     ),
   )
   let body = import_test_body([import_test_slot(I32, cleanup=OwnedRef)], [
     CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
     Release({ value: 0 }),
   ])
-  let instance = loaded_instance(
-    import_test_image(
-      body,
-      {
-        abi_major: 1,
-        parameters: [],
-        result: String,
-        symbol: "lane.test.non_ascii",
-      },
-      layouts=[ByteSequence],
-    ),
-    registry,
+  let image = import_test_image(
+    body,
+    {
+      abi_major: 1,
+      parameters: [],
+      result: String,
+      symbol: "lane.test.invalid_utf8",
+    },
+    layouts=[ByteSequence],
   )
-  assert_true(
-    instance.execute()
-    is Err(RuntimeImportFailure(symbol="lane.test.non_ascii", message=_)),
-  )
+  for mode in [ExecutionMode::Jit, Interpreter] {
+    let instance = loaded_instance(image, registry, mode~)
+    assert_eq(
+      instance.execute(),
+      Err(
+        RuntimeImportFailure(
+          symbol="lane.test.invalid_utf8",
+          message="runtime import returned invalid UTF-8 String",
+        ),
+      ),
+    )
+  }
 }
 
 ///|
@@ -376,7 +412,7 @@ test "host String allocation preserves live heap resource failures" {
       abi_major=1,
       parameters=[],
       result=String,
-      invoke=fn(_context, _arguments) { String("Lane") },
+      invoke=fn(_context, _arguments) { String(b"Lane") },
     ),
   )
   let body = import_test_body([import_test_slot(I32, cleanup=OwnedRef)], [
