@@ -357,7 +357,7 @@ pub impl @prettyprinter.Pretty for StructDeclaration
 
 pub(all) enum StructLiteralField {
   Value(name~ : String, value~ : Expr?, loc~ : @basic.SourceSpan)
-  TypeWitness(name~ : String, witness~ : Type, loc~ : @basic.SourceSpan)
+  TypeWitness(name~ : String, witness~ : GenericArgument, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @source_prettyprinter.Pretty for StructLiteralField
 pub impl @prettyprinter.Pretty for StructLiteralField

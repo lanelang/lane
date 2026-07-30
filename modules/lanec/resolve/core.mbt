@@ -462,7 +462,11 @@ pub(all) enum ResolvedStructLiteralField {
     punned_reference~ : ResolvedValueReference?,
     loc~ : SourceSpan
   )
-  TypeWitness(name~ : String, witness~ : ResolvedType, loc~ : SourceSpan)
+  TypeWitness(
+    name~ : String,
+    witness~ : ResolvedGenericArgument,
+    loc~ : SourceSpan
+  )
 } derive(Debug, Eq)
 
 ///|

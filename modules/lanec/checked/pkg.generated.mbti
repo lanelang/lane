@@ -357,7 +357,7 @@ pub impl @prettyprinter.Pretty for CheckedStructTypeBinder
 pub(all) struct CheckedStructTypeWitness {
   symbol : @symbol.TypeMemberSymbolId
   name : String
-  type_ : @types.Type
+  argument : @types.GenericArgument
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedStructTypeWitness

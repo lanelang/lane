@@ -383,7 +383,7 @@ pub impl @prettyprinter.Pretty for ResolvedStructDeclaration
 
 pub(all) enum ResolvedStructLiteralField {
   Value(name~ : String, value~ : ResolvedExpr?, punned_reference~ : ResolvedValueReference?, loc~ : @basic.SourceSpan)
-  TypeWitness(name~ : String, witness~ : ResolvedType, loc~ : @basic.SourceSpan)
+  TypeWitness(name~ : String, witness~ : ResolvedGenericArgument, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedStructLiteralField
 

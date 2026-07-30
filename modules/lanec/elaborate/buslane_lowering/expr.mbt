@@ -60,7 +60,7 @@ fn BuslaneLowerer::lower_expr(
           self.lower_generic_argument(argument)
         }),
         hidden_witnesses: type_witnesses.map(fn(witness) {
-          TypeArgument(self.lower_type(witness.type_))
+          self.lower_generic_argument(witness.argument)
         }),
         payloads: fields.map(fn(field) { self.lower_expr(field.value) }),
       })

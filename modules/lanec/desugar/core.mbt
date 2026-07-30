@@ -64,7 +64,7 @@ pub(all) enum DesugaredStructLiteralField {
   Value(name~ : String, value~ : DesugaredExpr, loc~ : SourceSpan)
   TypeWitness(
     name~ : String,
-    witness~ : @resolve.ResolvedType,
+    witness~ : @resolve.ResolvedGenericArgument,
     loc~ : SourceSpan
   )
 } derive(Debug, Eq)

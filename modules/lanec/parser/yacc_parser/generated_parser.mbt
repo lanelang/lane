@@ -3284,10 +3284,10 @@ fn yy_action_228(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 824|    IDENT "=" type { TypeWitness(name=$1, witness=$3, loc=span($sloc)) }
+// 824|    IDENT "=" generic_argument { TypeWitness(name=$1, witness=$3, loc=span($sloc)) }
 fn yy_action_229(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
-  guard _args[2].0 is YYObj_Type(_dollar3)
+  guard _args[2].0 is YYObj_GenericArgument(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_StructLiteralField({();  TypeWitness(name=_dollar1, witness=_dollar3, loc=span((_symbol_start_pos, _end_pos))) })
@@ -6775,11 +6775,13 @@ fn yy_state_234(_lookahead : YYSymbol) -> YYDecision {
     NT_type_primary => Shift(yy_state_56)
     T_TYPE => Shift(yy_state_57)
     NT_type_application => Shift(yy_state_61)
+    T_LBRACE => Shift(yy_state_64)
     NT_function_type => Shift(yy_state_67)
     NT_type_lambda => Shift(yy_state_68)
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_69)
     T_LBRACKET => Shift(yy_state_70)
-    NT_type => Shift(yy_state_235)
+    NT_type => Shift(yy_state_95)
+    NT_generic_argument => Shift(yy_state_235)
     _ => Error
   }
 }

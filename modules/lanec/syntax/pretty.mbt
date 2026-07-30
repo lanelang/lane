@@ -2113,7 +2113,7 @@ fn StructLiteralField::to_doc(
         None => (loc, text(name))
       }
     TypeWitness(name~, witness~, loc~) =>
-      (loc, text(name) + space + text("=") + space + witness.to_doc())
+      (loc, text(name) + space + text("=") + space + witness.to_doc(trivia~))
   }
   trivia.decorate(span, doc)
 }

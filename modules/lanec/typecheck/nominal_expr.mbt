@@ -699,7 +699,14 @@ fn SemanticChecker::check_struct_type_witnesses(
         let checked : @checked.CheckedStructTypeWitness = {
           symbol: type_member.symbol,
           name,
-          type_: self.check_type_in_scope(scope, witness),
+          argument: check_resolved_generic_argument(
+            self.resolved_source,
+            self.imported_environment,
+            self.diagnostics,
+            scope.type_kinds,
+            type_member.kind,
+            witness,
+          ),
           loc: field_loc,
         }
         if witnesses[type_member.index] is None {

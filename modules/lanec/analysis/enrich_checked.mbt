@@ -394,7 +394,9 @@ fn SemanticIndex::enrich_checked_expr(
         self.add_reference(
           TypeMember(witness.symbol),
           witness.loc,
-          Some(type_member_witness_detail(witness.name, witness.type_, display)),
+          Some(
+            type_member_witness_detail(witness.name, witness.argument, display),
+          ),
         )
       }
       for field in fields {
@@ -557,7 +559,7 @@ fn SemanticIndex::collect_checked_expr_types(
         self.collect_checked_generic_argument(argument)
       }
       for witness in type_witnesses {
-        self.collect_checked_type(witness.type_)
+        self.collect_checked_generic_argument(witness.argument)
       }
       self.collect_checked_type(type_)
     }

@@ -821,7 +821,7 @@ non_empty_struct_literal_fields -> Array[StructLiteralField]
 struct_literal_field -> StructLiteralField
   : IDENT { Value(name=$1, value=None, loc=span($sloc)) }
   | IDENT ":" expression { Value(name=$1, value=Some($3), loc=span($sloc)) }
-  | IDENT "=" type { TypeWitness(name=$1, witness=$3, loc=span($sloc)) }
+  | IDENT "=" generic_argument { TypeWitness(name=$1, witness=$3, loc=span($sloc)) }
   ;
 
 variant_arguments -> Array[Expr]

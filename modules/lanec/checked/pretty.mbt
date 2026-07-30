@@ -226,7 +226,7 @@ pub impl @prettyprinter.Pretty for CheckedStructTypeWitness with fn pretty(
   space +
   text("=") +
   space +
-  witness.type_.pretty()
+  witness.argument.pretty()
 }
 
 ///|

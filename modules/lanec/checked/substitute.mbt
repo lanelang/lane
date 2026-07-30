@@ -145,7 +145,7 @@ pub fn CheckedExpr::substitute(
           {
             symbol: witness.symbol,
             name: witness.name,
-            type_: witness.type_.substitute(substitution),
+            argument: witness.argument.substitute(substitution),
             loc: witness.loc,
           }
         }),

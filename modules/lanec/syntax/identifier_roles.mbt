@@ -293,7 +293,7 @@ fn collect_expression_identifier_roles(
           Value(value=Some(value), ..) =>
             collect_expression_identifier_roles(value, slots)
           TypeWitness(witness~, ..) =>
-            collect_type_identifier_roles(witness, TypeIdentifier, slots)
+            collect_generic_argument_identifier_roles(witness, slots)
           Value(value=None, ..) => ()
         }
       }

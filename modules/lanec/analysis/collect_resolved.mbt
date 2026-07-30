@@ -633,7 +633,7 @@ fn SemanticIndex::collect_resolved_expr_types(
       }
       for field in fields {
         if field is TypeWitness(witness~, ..) {
-          self.collect_resolved_type(witness)
+          self.collect_resolved_generic_argument(witness)
         }
       }
     }

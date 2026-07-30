@@ -211,12 +211,20 @@ fn CheckedStructDeclaration::existential_substitution(
   for witness in witnesses {
     if self.type_member(witness.symbol) is Some(type_member) {
       seen.push(witness.symbol)
-      substitution.insert(type_member.type_parameter.id, witness.type_)
+      substitution.insert_argument(
+        type_member.type_parameter.id,
+        witness.argument,
+      )
     }
   }
   for type_member in self.type_members {
     if !seen.contains(type_member.symbol) {
-      substitution.insert(type_member.type_parameter.id, Error)
+      match type_member.kind {
+        Effect =>
+          substitution.insert_effect(type_member.type_parameter.id, Empty)
+        Type | Function(_) =>
+          substitution.insert(type_member.type_parameter.id, Error)
+      }
     }
   }
   substitution

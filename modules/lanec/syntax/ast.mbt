@@ -488,7 +488,7 @@ pub fn CallArgument::loc(self : CallArgument) -> SourceSpan {
 ///|
 pub(all) enum StructLiteralField {
   Value(name~ : String, value~ : Expr?, loc~ : SourceSpan)
-  TypeWitness(name~ : String, witness~ : Type, loc~ : SourceSpan)
+  TypeWitness(name~ : String, witness~ : GenericArgument, loc~ : SourceSpan)
 } derive(Debug, Eq)
 
 ///|

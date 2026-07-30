@@ -389,7 +389,11 @@ fn @syntax.StructLiteralField::resolve_struct_literal_field(
       )
     }
     TypeWitness(name~, witness~, loc~) =>
-      TypeWitness(name~, witness=witness.resolve_type(resolver, scope), loc~)
+      TypeWitness(
+        name~,
+        witness=witness.resolve_generic_argument(resolver, scope),
+        loc~,
+      )
   }
 }
 

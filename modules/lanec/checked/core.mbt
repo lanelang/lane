@@ -418,7 +418,7 @@ pub(all) enum CheckedExpr {
 pub(all) struct CheckedStructTypeWitness {
   symbol : TypeMemberSymbolId
   name : String
-  type_ : @types.Type
+  argument : @types.GenericArgument
   loc : SourceSpan
 } derive(Debug, Eq)
 

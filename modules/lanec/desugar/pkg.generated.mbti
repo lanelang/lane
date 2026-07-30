@@ -140,7 +140,7 @@ pub impl @prettyprinter.Pretty for DesugaredSourceFile
 
 pub(all) enum DesugaredStructLiteralField {
   Value(name~ : String, value~ : DesugaredExpr, loc~ : @basic.SourceSpan)
-  TypeWitness(name~ : String, witness~ : @resolve.ResolvedType, loc~ : @basic.SourceSpan)
+  TypeWitness(name~ : String, witness~ : @resolve.ResolvedGenericArgument, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for DesugaredStructLiteralField
 

@@ -179,10 +179,10 @@ fn type_reference_detail(
 ///|
 fn type_member_witness_detail(
   name : String,
-  type_ : @types.Type,
+  argument : @types.GenericArgument,
   display : @typecheck.TypeDisplayContext,
 ) -> String {
-  "\{name} = \{display.type_text(type_)}"
+  "\{name} = \{display.generic_argument_text(argument)}"
 }
 
 ///|
