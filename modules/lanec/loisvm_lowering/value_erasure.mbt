@@ -53,9 +53,9 @@ fn FunctionLowerer::layout_witness(
     Primitive(S32) => S32
     Primitive(Char) => Char
     Primitive(Double) => Double
-    Primitive(String) => String
+    Primitive(String) => ByteSequence
     Primitive(Byte) => Byte
-    Primitive(Bytes) => Bytes
+    Primitive(Bytes) => ByteSequence
     Function(_, _, _) | Forall(_, _) => Callable
     Constructor(_) | Apply(_, _) => Reference
     _ => raise UnsupportedType(type_~)

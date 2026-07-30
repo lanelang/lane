@@ -177,7 +177,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|              ),
       #|              UneraseI32({ value: 1 }, { value: 6 }),
       #|              ConstInt({ value: 0 }, 2),
-      #|              BytesMake({ value: 7 }, { value: 0 }, { value: 1 }),
+      #|              ByteSequenceMake({ value: 7 }, { value: 0 }, { value: 1 }),
       #|              ConstLayout({ value: 1 }, { value: 2 }),
       #|              EraseI32({ value: 9 }, { value: 7 }),
       #|              CallDirect(
@@ -191,10 +191,15 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|              ConstInt({ value: 0 }, 0),
       #|              IntToByte({ value: 1 }, { value: 0 }),
       #|              ConstInt({ value: 0 }, 1),
-      #|              BytesSet({ value: 13 }, { value: 12 }, { value: 0 }, { value: 1 }),
-      #|              BytesLength({ value: 14 }, { value: 13 }),
+      #|              ByteSequenceSet(
+      #|                { value: 13 },
+      #|                { value: 12 },
+      #|                { value: 0 },
+      #|                { value: 1 },
+      #|              ),
+      #|              ByteSequenceLength({ value: 14 }, { value: 13 }),
       #|              CallDirect({ value: 3 }, None, [], [{ value: 14 }], None),
-      #|              BytesGet({ value: 1 }, { value: 13 }, { value: 0 }),
+      #|              ByteSequenceGet({ value: 1 }, { value: 13 }, { value: 0 }),
       #|              ByteToInt({ value: 0 }, { value: 1 }),
       #|              Release({ value: 13 }),
       #|            ],
@@ -213,7 +218,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|    ),
       #|  ],
       #|  globals: [],
-      #|  layouts: [Byte, Bytes],
+      #|  layouts: [Byte, ByteSequence],
       #|  object_shapes: [],
       #|  constants: [],
       #|}
@@ -463,7 +468,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|              InitGlobal({ value: 0 }, { value: 1 }),
       #|              ConstInt({ value: 0 }, 1),
       #|              BorrowGlobal({ value: 1 }, { value: 0 }),
-      #|              BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      #|              ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       #|              InitGlobal({ value: 1 }, { value: 2 }),
       #|            ],
       #|            terminator: Return(None),
@@ -502,7 +507,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|                { value_destination: { value: 2 }, witness_destination: None },
       #|              ),
       #|              ByteToInt({ value: 3 }, { value: 1 }),
-      #|              BytesGet({ value: 1 }, { value: 2 }, { value: 3 }),
+      #|              ByteSequenceGet({ value: 1 }, { value: 2 }, { value: 3 }),
       #|              Release({ value: 0 }),
       #|            ],
       #|            terminator: Return(Some({ value: 1 })),
@@ -523,7 +528,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    { representation: I32, cleanup: Trivial, erased_companion: None },
       #|    { representation: I32, cleanup: OwnedRef, erased_companion: None },
       #|  ],
-      #|  layouts: [Environment({ value: 1 }), Data({ value: 0 }), Bytes],
+      #|  layouts: [Environment({ value: 1 }), Data({ value: 0 }), ByteSequence],
       #|  object_shapes: [
       #|    Data(
       #|      {

@@ -459,7 +459,7 @@ test "non-positive execution limits provide zero budget" {
     instructions=[
       ConstString({ value: 0 }, { value: 0 }),
       ConstString({ value: 1 }, { value: 1 }),
-      StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
       Release({ value: 2 }),
     ],
     terminator=Return(None),
@@ -469,7 +469,7 @@ test "non-positive execution limits provide zero budget" {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(allocating_entry)],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"a", b"b"],
   }

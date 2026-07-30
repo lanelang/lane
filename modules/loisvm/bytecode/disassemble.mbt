@@ -172,26 +172,26 @@ fn render_instruction(instruction : Instruction) -> String {
       "consume_captures \{render_shape(shape)}, \{render_slot(source)}, [\{render_selections(selections)}]"
     MakeClosure(destination, function, environment) =>
       "make_closure \{render_slot(destination)}, \{render_function(function)}, \{render_slot(environment)}"
-    StringLength(destination, source) =>
-      unary_instruction("string_length", destination, source)
-    StringConcat(destination, left, right) =>
-      binary_instruction("string_concat", destination, left, right)
-    StringSlice(destination, source, start, length) =>
-      "string_slice \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(start)}, \{render_slot(length)}"
-    StringEq(destination, left, right) =>
-      binary_instruction("string_eq", destination, left, right)
     ByteToInt(destination, source) =>
       unary_instruction("byte_to_int", destination, source)
     IntToByte(destination, source) =>
       unary_instruction("int_to_byte", destination, source)
-    BytesMake(destination, length, fill) =>
-      binary_instruction("bytes_make", destination, length, fill)
-    BytesLength(destination, source) =>
-      unary_instruction("bytes_length", destination, source)
-    BytesGet(destination, source, index) =>
-      binary_instruction("bytes_get", destination, source, index)
-    BytesSet(destination, source, index, value) =>
-      "bytes_set \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(index)}, \{render_slot(value)}"
+    ByteSequenceMake(destination, length, fill) =>
+      binary_instruction("byte_sequence_make", destination, length, fill)
+    ByteSequenceLength(destination, source) =>
+      unary_instruction("byte_sequence_length", destination, source)
+    ByteSequenceGet(destination, source, index) =>
+      binary_instruction("byte_sequence_get", destination, source, index)
+    ByteSequenceSet(destination, source, index, value) =>
+      "byte_sequence_set \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(index)}, \{render_slot(value)}"
+    ByteSequenceEqual(destination, left, right) =>
+      binary_instruction("byte_sequence_equal", destination, left, right)
+    ByteSequenceConcat(destination, left, right) =>
+      binary_instruction("byte_sequence_concat", destination, left, right)
+    ByteSequenceSlice(destination, source, start, length) =>
+      "byte_sequence_slice \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(start)}, \{render_slot(length)}"
+    ByteSequenceIsValidUtf8(destination, source) =>
+      unary_instruction("byte_sequence_is_valid_utf8", destination, source)
     S32Add(destination, left, right) =>
       binary_instruction("s32_add", destination, left, right)
     S32Sub(destination, left, right) =>
@@ -484,12 +484,11 @@ fn render_layout_recipe(recipe : LayoutRecipe) -> String {
     Char => "char"
     Double => "double"
     Callable => "callable"
-    String => "string"
+    ByteSequence => "byte_sequence"
     Data(shape) => "data(\{render_shape(shape)})"
     Environment(shape) => "environment(\{render_shape(shape)})"
     Reference => "reference"
     Byte => "byte"
-    Bytes => "bytes"
   }
 }
 

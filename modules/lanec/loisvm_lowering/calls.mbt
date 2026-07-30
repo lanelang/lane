@@ -438,8 +438,14 @@ fn FunctionLowerer::lower_intrinsic(
     _ => ()
   }
   match intrinsic {
-    BytesMake | BytesLength | BytesGet | BytesSet =>
-      ignore(self.image.intern_layout(Bytes))
+    BytesMake
+    | BytesLength
+    | BytesGet
+    | BytesSet
+    | BytesEqual
+    | BytesConcat
+    | BytesSlice
+    | BytesIsValidUtf8 => ignore(self.image.intern_layout(ByteSequence))
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
@@ -477,11 +483,16 @@ fn FunctionLowerer::lower_intrinsic(
     (F64Less, [left, right]) => DoubleLt(destination, left, right)
     (ByteToInt, [source]) => ByteToInt(destination, source)
     (IntToByte, [source]) => IntToByte(destination, source)
-    (BytesMake, [length, fill]) => BytesMake(destination, length, fill)
-    (BytesLength, [source]) => BytesLength(destination, source)
-    (BytesGet, [source, index]) => BytesGet(destination, source, index)
+    (BytesMake, [length, fill]) => ByteSequenceMake(destination, length, fill)
+    (BytesLength, [source]) => ByteSequenceLength(destination, source)
+    (BytesGet, [source, index]) => ByteSequenceGet(destination, source, index)
     (BytesSet, [source, index, value]) =>
-      BytesSet(destination, source, index, value)
+      ByteSequenceSet(destination, source, index, value)
+    (BytesEqual, [left, right]) => ByteSequenceEqual(destination, left, right)
+    (BytesConcat, [left, right]) => ByteSequenceConcat(destination, left, right)
+    (BytesSlice, [source, start, length]) =>
+      ByteSequenceSlice(destination, source, start, length)
+    (BytesIsValidUtf8, [source]) => ByteSequenceIsValidUtf8(destination, source)
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)

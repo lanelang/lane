@@ -343,7 +343,7 @@ fn FunctionLowerer::lower_literal(
       let type_ = @buslane.Type::Primitive(String)
       let slot = self.fresh_slot(type_)
       let constant = self.image.intern_string(value)
-      ignore(self.image.intern_layout(String))
+      ignore(self.image.intern_layout(ByteSequence))
       self.emit(ConstString(slot, constant))
       Slot(slot, type_)
     }

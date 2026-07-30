@@ -35,13 +35,13 @@ test "Bytes heap capacity is checked before payload materialization" {
     initializer: None,
     globals: [],
     functions: [],
-    layouts: [Bytes],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [],
   }
   let heap = Heap::new(image, @runtime.ExecutionRuntime::new(), Some(15))
   let result : Result[Int, Unit] = try
-    heap.allocate_filled_bytes(2147483636L, b'\x00')
+    heap.allocate_filled_byte_sequence(2147483636L, b'\x00')
   catch {
     ResourceLimit(LiveHeapBytes) => Err(())
     _ => fail("unexpected allocation failure")
@@ -58,15 +58,15 @@ test "Bytes heap capacity is checked before shared payload copying" {
     initializer: None,
     globals: [],
     functions: [],
-    layouts: [Bytes],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [],
   }
   let heap = Heap::new(image, @runtime.ExecutionRuntime::new(), Some(16))
-  let reference = heap.allocate_filled_bytes(1L, b'\x01')
-  let source = heap.bytes_array(reference)
+  let reference = heap.allocate_filled_byte_sequence(1L, b'\x01')
+  let source = heap.byte_sequence(reference)
   let result : Result[Int, Unit] = try
-    heap.allocate_updated_bytes(source, 0, b'\x02')
+    heap.allocate_updated_byte_sequence(source, 0, b'\x02')
   catch {
     ResourceLimit(LiveHeapBytes) => Err(())
     _ => fail("unexpected allocation failure")

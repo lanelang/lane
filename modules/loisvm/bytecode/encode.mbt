@@ -174,7 +174,7 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
     Int => self.write_u8(0x03)
     Double => self.write_u8(0x04)
     Callable => self.write_u8(0x05)
-    String => self.write_u8(0x06)
+    ByteSequence => self.write_u8(0x06)
     Data(shape) => {
       self.write_u8(0x07)
       self.write_object_shape_id(shape)
@@ -185,7 +185,6 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
     }
     Reference => self.write_u8(0x09)
     Byte => self.write_u8(0x0A)
-    Bytes => self.write_u8(0x0B)
     S32 => self.write_u8(0x0C)
     Char => self.write_u8(0x0D)
   }
@@ -354,19 +353,6 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_function_id(function)
       self.write_slot_id(environment)
     }
-    StringLength(destination, source) =>
-      self.write_binary_slots(0x15, destination, source)
-    StringConcat(destination, left, right) =>
-      self.write_ternary_slots(0x16, destination, left, right)
-    StringSlice(destination, source, start, length) => {
-      self.write_u8(0x17)
-      self.write_slot_id(destination)
-      self.write_slot_id(source)
-      self.write_slot_id(start)
-      self.write_slot_id(length)
-    }
-    StringEq(destination, left, right) =>
-      self.write_ternary_slots(0x18, destination, left, right)
     IntAdd(destination, left, right) =>
       self.write_ternary_slots(0x19, destination, left, right)
     IntSub(destination, left, right) =>
@@ -476,13 +462,13 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_binary_slots(0x46, destination, source)
     IntToByte(destination, source) =>
       self.write_binary_slots(0x47, destination, source)
-    BytesMake(destination, length, fill) =>
+    ByteSequenceMake(destination, length, fill) =>
       self.write_ternary_slots(0x48, destination, length, fill)
-    BytesLength(destination, source) =>
+    ByteSequenceLength(destination, source) =>
       self.write_binary_slots(0x49, destination, source)
-    BytesGet(destination, source, index) =>
+    ByteSequenceGet(destination, source, index) =>
       self.write_ternary_slots(0x4A, destination, source, index)
-    BytesSet(destination, source, index, value) => {
+    ByteSequenceSet(destination, source, index, value) => {
       self.write_u8(0x4B)
       self.write_slot_id(destination)
       self.write_slot_id(source)
@@ -519,6 +505,19 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_slot_id(destination)
       self.write_i32_le(value)
     }
+    ByteSequenceEqual(destination, left, right) =>
+      self.write_ternary_slots(0x58, destination, left, right)
+    ByteSequenceConcat(destination, left, right) =>
+      self.write_ternary_slots(0x59, destination, left, right)
+    ByteSequenceSlice(destination, source, start, length) => {
+      self.write_u8(0x5A)
+      self.write_slot_id(destination)
+      self.write_slot_id(source)
+      self.write_slot_id(start)
+      self.write_slot_id(length)
+    }
+    ByteSequenceIsValidUtf8(destination, source) =>
+      self.write_binary_slots(0x5B, destination, source)
   }
 }
 

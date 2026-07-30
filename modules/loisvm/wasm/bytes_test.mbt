@@ -44,7 +44,7 @@ fn wasm_bytes_image(body : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(body)],
-    layouts: [Bytes],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [],
   }
@@ -185,8 +185,8 @@ test "Bytes zero length agrees across interpreter and Wasm backends" {
         instructions: [
           ConstInt({ value: 0 }, 0L),
           IntToByte({ value: 1 }, { value: 0 }),
-          BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
-          BytesLength({ value: 3 }, { value: 2 }),
+          ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
+          ByteSequenceLength({ value: 3 }, { value: 2 }),
           IntEq({ value: 4 }, { value: 3 }, { value: 0 }),
         ],
         terminator: BranchBool({ value: 4 }, edge(1), edge(2)),
@@ -223,15 +223,15 @@ test "Bytes make fills every position across backends" {
             ConstInt({ value: 0 }, 4L),
             ConstInt({ value: 18 }, 255L),
             IntToByte({ value: 1 }, { value: 18 }),
-            BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+            ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
             ConstInt({ value: 3 }, 0L),
             ConstInt({ value: 4 }, 1L),
             ConstInt({ value: 5 }, 2L),
             ConstInt({ value: 6 }, 3L),
-            BytesGet({ value: 7 }, { value: 2 }, { value: 3 }),
-            BytesGet({ value: 8 }, { value: 2 }, { value: 4 }),
-            BytesGet({ value: 9 }, { value: 2 }, { value: 5 }),
-            BytesGet({ value: 10 }, { value: 2 }, { value: 6 }),
+            ByteSequenceGet({ value: 7 }, { value: 2 }, { value: 3 }),
+            ByteSequenceGet({ value: 8 }, { value: 2 }, { value: 4 }),
+            ByteSequenceGet({ value: 9 }, { value: 2 }, { value: 5 }),
+            ByteSequenceGet({ value: 10 }, { value: 2 }, { value: 6 }),
             ByteToInt({ value: 11 }, { value: 7 }),
             ByteToInt({ value: 12 }, { value: 8 }),
             ByteToInt({ value: 13 }, { value: 9 }),
@@ -275,19 +275,23 @@ test "Bytes first middle and final updates agree across backends" {
         instructions: [
           ConstInt({ value: 0 }, 3L),
           IntToByte({ value: 1 }, { value: 0 }),
-          BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+          ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
           ConstInt({ value: 3 }, 0L),
           ConstInt({ value: 4 }, 1L),
           ConstInt({ value: 5 }, 2L),
           IntToByte({ value: 6 }, { value: 3 }),
           IntToByte({ value: 7 }, { value: 4 }),
           IntToByte({ value: 8 }, { value: 5 }),
-          BytesSet({ value: 9 }, { value: 2 }, { value: 3 }, { value: 6 }),
-          BytesSet({ value: 10 }, { value: 9 }, { value: 4 }, { value: 7 }),
-          BytesSet({ value: 11 }, { value: 10 }, { value: 5 }, { value: 8 }),
-          BytesGet({ value: 12 }, { value: 11 }, { value: 3 }),
-          BytesGet({ value: 13 }, { value: 11 }, { value: 4 }),
-          BytesGet({ value: 14 }, { value: 11 }, { value: 5 }),
+          ByteSequenceSet({ value: 9 }, { value: 2 }, { value: 3 }, { value: 6 }),
+          ByteSequenceSet({ value: 10 }, { value: 9 }, { value: 4 }, {
+            value: 7,
+          }),
+          ByteSequenceSet({ value: 11 }, { value: 10 }, { value: 5 }, {
+            value: 8,
+          }),
+          ByteSequenceGet({ value: 12 }, { value: 11 }, { value: 3 }),
+          ByteSequenceGet({ value: 13 }, { value: 11 }, { value: 4 }),
+          ByteSequenceGet({ value: 14 }, { value: 11 }, { value: 5 }),
           ByteToInt({ value: 15 }, { value: 12 }),
           ByteToInt({ value: 16 }, { value: 13 }),
           ByteToInt({ value: 17 }, { value: 14 }),
@@ -308,7 +312,7 @@ test "Bytes first middle and final updates agree across backends" {
       {
         parameters: [],
         instructions: [
-          BytesLength({ value: 19 }, { value: 11 }),
+          ByteSequenceLength({ value: 19 }, { value: 11 }),
           IntEq({ value: 18 }, { value: 19 }, { value: 0 }),
         ],
         terminator: BranchBool({ value: 18 }, edge(4), edge(5)),
@@ -341,13 +345,15 @@ test "Bytes shared update preserves the retained alias across backends" {
           instructions: [
             ConstInt({ value: 0 }, 1L),
             IntToByte({ value: 1 }, { value: 0 }),
-            BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+            ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
             RetainCopy({ value: 3 }, { value: 2 }),
             ConstInt({ value: 4 }, 0L),
             IntToByte({ value: 5 }, { value: 4 }),
-            BytesSet({ value: 6 }, { value: 2 }, { value: 4 }, { value: 5 }),
-            BytesGet({ value: 7 }, { value: 3 }, { value: 4 }),
-            BytesGet({ value: 8 }, { value: 6 }, { value: 4 }),
+            ByteSequenceSet({ value: 6 }, { value: 2 }, { value: 4 }, {
+              value: 5,
+            }),
+            ByteSequenceGet({ value: 7 }, { value: 3 }, { value: 4 }),
+            ByteSequenceGet({ value: 8 }, { value: 6 }, { value: 4 }),
             ByteToInt({ value: 9 }, { value: 7 }),
             ByteToInt({ value: 10 }, { value: 8 }),
             ConstInt({ value: 11 }, 1L),
@@ -381,9 +387,9 @@ test "Bytes unique update reuses its allocation across backends" {
     wasm_bytes_single_block([i64, i32, owned, i64, owned], [
       ConstInt({ value: 0 }, 1L),
       IntToByte({ value: 1 }, { value: 0 }),
-      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       ConstInt({ value: 3 }, 0L),
-      BytesSet({ value: 4 }, { value: 2 }, { value: 3 }, { value: 1 }),
+      ByteSequenceSet({ value: 4 }, { value: 2 }, { value: 3 }, { value: 1 }),
       Release({ value: 4 }),
     ]),
     Completed,
@@ -404,10 +410,10 @@ test "Bytes shared update needs a second allocation across backends" {
     wasm_bytes_single_block([i64, i32, owned, owned, i64, owned], [
       ConstInt({ value: 0 }, 1L),
       IntToByte({ value: 1 }, { value: 0 }),
-      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       RetainCopy({ value: 3 }, { value: 2 }),
       ConstInt({ value: 4 }, 0L),
-      BytesSet({ value: 5 }, { value: 2 }, { value: 4 }, { value: 1 }),
+      ByteSequenceSet({ value: 5 }, { value: 2 }, { value: 4 }, { value: 1 }),
     ]),
     LiveHeapLimit,
     config={
@@ -427,7 +433,7 @@ test "Bytes allocation exhaustion agrees across interpreter and Wasm backends" {
     wasm_bytes_single_block([i64, i32, owned], [
       ConstInt({ value: 0 }, 1L),
       IntToByte({ value: 1 }, { value: 0 }),
-      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
     ]),
     LiveHeapLimit,
     config={
@@ -447,7 +453,7 @@ test "Bytes allocation accounting follows the aligned object size" {
     wasm_bytes_single_block([i64, i32, owned], [
       ConstInt({ value: 0 }, length),
       IntToByte({ value: 1 }, { value: 0 }),
-      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       Release({ value: 2 }),
     ])
   }
@@ -469,7 +475,7 @@ test "large Bytes allocation is rejected before materialization across backends"
     wasm_bytes_single_block([i64, i32, owned], [
       ConstInt({ value: 0 }, 2147483636L),
       IntToByte({ value: 1 }, { value: 0 }),
-      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
     ]),
     LiveHeapLimit,
     config={
@@ -489,7 +495,7 @@ test "Bytes invalid lengths and indices are fatal across backends" {
     wasm_bytes_single_block([i64, i32, owned], [
       ConstInt({ value: 0 }, length),
       IntToByte({ value: 1 }, { value: 0 }),
-      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
     ])
   }
   for length in [-1L, 4294967296L, 9223372036854775807L] {
@@ -499,15 +505,17 @@ test "Bytes invalid lengths and indices are fatal across backends" {
     let instructions : Array[@bytecode.Instruction] = [
       ConstInt({ value: 0 }, length),
       IntToByte({ value: 1 }, { value: 0 }),
-      BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       ConstInt({ value: 3 }, index),
     ]
     if update {
       instructions.push(
-        BytesSet({ value: 4 }, { value: 2 }, { value: 3 }, { value: 1 }),
+        ByteSequenceSet({ value: 4 }, { value: 2 }, { value: 3 }, { value: 1 }),
       )
     } else {
-      instructions.push(BytesGet({ value: 4 }, { value: 2 }, { value: 3 }))
+      instructions.push(
+        ByteSequenceGet({ value: 4 }, { value: 2 }, { value: 3 }),
+      )
     }
     wasm_bytes_single_block(
       [i64, i32, owned, i64, if update { owned } else { i32 }],

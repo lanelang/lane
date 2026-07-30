@@ -156,7 +156,7 @@ fn compile_or_raise(
   wasm_module.exports.push({ name: "lane.memory", desc: Memory(0) })
   wasm_module.exports.push({
     name: "lane.runtime.string.new",
-    desc: Func(runtime_functions.string_new),
+    desc: Func(runtime_functions.byte_sequence_new),
   })
   wasm_module.exports.push({
     name: "lane.runtime.host_object.new",

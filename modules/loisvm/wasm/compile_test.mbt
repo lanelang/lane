@@ -486,7 +486,7 @@ test "static image materializes layout descriptors and immortal strings" {
         parameters: [],
         instructions: [
           ConstString({ value: 0 }, { value: 0 }),
-          StringLength({ value: 1 }, { value: 0 }),
+          ByteSequenceLength({ value: 1 }, { value: 0 }),
           ConstInt({ value: 2 }, 3L),
           IntEq({ value: 3 }, { value: 1 }, { value: 2 }),
         ],
@@ -501,7 +501,7 @@ test "static image materializes layout descriptors and immortal strings" {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"abc"],
   }
@@ -580,9 +580,9 @@ test "dynamic String primitives allocate, copy, compare, and release" {
         instructions: [
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),
-          StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
           ConstString({ value: 3 }, { value: 2 }),
-          StringEq({ value: 8 }, { value: 2 }, { value: 3 }),
+          ByteSequenceEqual({ value: 8 }, { value: 2 }, { value: 3 }),
           Release({ value: 3 }),
         ],
         terminator: BranchBool({ value: 8 }, edge(1), edge(3)),
@@ -592,9 +592,11 @@ test "dynamic String primitives allocate, copy, compare, and release" {
         instructions: [
           ConstInt({ value: 6 }, 1L),
           ConstInt({ value: 7 }, 2L),
-          StringSlice({ value: 4 }, { value: 2 }, { value: 6 }, { value: 7 }),
+          ByteSequenceSlice({ value: 4 }, { value: 2 }, { value: 6 }, {
+            value: 7,
+          }),
           ConstString({ value: 5 }, { value: 3 }),
-          StringEq({ value: 8 }, { value: 4 }, { value: 5 }),
+          ByteSequenceEqual({ value: 8 }, { value: 4 }, { value: 5 }),
           Release({ value: 5 }),
         ],
         terminator: BranchBool({ value: 8 }, edge(2), edge(3)),
@@ -612,7 +614,7 @@ test "dynamic String primitives allocate, copy, compare, and release" {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"ab", b"cd", b"abcd", b"bc"],
   }
@@ -977,7 +979,7 @@ test "call depth exhaustion releases arguments transferred into the callee" {
   let entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
     ConstString({ value: 0 }, { value: 0 }),
     ConstString({ value: 1 }, { value: 1 }),
-    StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
     CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
   ])
   let target = body(slots=[ref_slot], parameters=[{ value: 0 }], instructions=[
@@ -988,7 +990,7 @@ test "call depth exhaustion releases arguments transferred into the callee" {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"a", b"b"],
   }
@@ -1019,7 +1021,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
   let entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
     ConstString({ value: 0 }, { value: 0 }),
     ConstString({ value: 1 }, { value: 1 }),
-    StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
     Release({ value: 2 }),
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
@@ -1027,7 +1029,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"a", b"b"],
   }
@@ -1064,10 +1066,10 @@ test "live heap exhaustion unwinds owners from the current frame" {
   let entry = body(slots=[ref_slot, ref_slot, ref_slot, ref_slot], instructions=[
     ConstString({ value: 0 }, { value: 0 }),
     ConstString({ value: 1 }, { value: 1 }),
-    StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
     ConstString({ value: 0 }, { value: 0 }),
     ConstString({ value: 1 }, { value: 1 }),
-    StringConcat({ value: 3 }, { value: 0 }, { value: 1 }),
+    ByteSequenceConcat({ value: 3 }, { value: 0 }, { value: 1 }),
     Release({ value: 2 }),
     Release({ value: 3 }),
   ])
@@ -1076,7 +1078,7 @@ test "live heap exhaustion unwinds owners from the current frame" {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"a", b"b"],
   }
@@ -1124,7 +1126,7 @@ test "non-positive execution limits provide zero budget" {
   let allocating_entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
     ConstString({ value: 0 }, { value: 0 }),
     ConstString({ value: 1 }, { value: 1 }),
-    StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
     Release({ value: 2 }),
   ])
   let allocating_image : @bytecode.BytecodeImage = {
@@ -1132,7 +1134,7 @@ test "non-positive execution limits provide zero budget" {
     initializer: None,
     globals: [],
     functions: [BytecodeBody(allocating_entry)],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"a", b"b"],
   }

@@ -104,9 +104,8 @@ pub(all) enum LayoutRecipe {
   Char
   Double
   Callable
-  String
+  ByteSequence
   Byte
-  Bytes
   Data(ObjectShapeId)
   Environment(ObjectShapeId)
   Reference
@@ -181,16 +180,16 @@ pub(all) enum Instruction {
   BorrowCapture(ObjectShapeId, SlotId, Int, ProjectionResult)
   ConsumeCaptures(ObjectShapeId, SlotId, Array[ProjectionSelection])
   MakeClosure(SlotId, FunctionId, SlotId)
-  StringLength(SlotId, SlotId)
-  StringConcat(SlotId, SlotId, SlotId)
-  StringSlice(SlotId, SlotId, SlotId, SlotId)
-  StringEq(SlotId, SlotId, SlotId)
   ByteToInt(SlotId, SlotId)
   IntToByte(SlotId, SlotId)
-  BytesMake(SlotId, SlotId, SlotId)
-  BytesLength(SlotId, SlotId)
-  BytesGet(SlotId, SlotId, SlotId)
-  BytesSet(SlotId, SlotId, SlotId, SlotId)
+  ByteSequenceMake(SlotId, SlotId, SlotId)
+  ByteSequenceLength(SlotId, SlotId)
+  ByteSequenceGet(SlotId, SlotId, SlotId)
+  ByteSequenceSet(SlotId, SlotId, SlotId, SlotId)
+  ByteSequenceEqual(SlotId, SlotId, SlotId)
+  ByteSequenceConcat(SlotId, SlotId, SlotId)
+  ByteSequenceSlice(SlotId, SlotId, SlotId, SlotId)
+  ByteSequenceIsValidUtf8(SlotId, SlotId)
   S32Add(SlotId, SlotId, SlotId)
   S32Sub(SlotId, SlotId, SlotId)
   S32Mul(SlotId, SlotId, SlotId)

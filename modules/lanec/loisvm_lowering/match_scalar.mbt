@@ -174,7 +174,7 @@ fn FunctionLowerer::emit_literal_equality(
     Primitive(S32) => S32Eq(condition, scrutinee, expected)
     Primitive(Char) => S32Eq(condition, scrutinee, expected)
     Primitive(Double) => DoubleEq(condition, scrutinee, expected)
-    Primitive(String) => StringEq(condition, scrutinee, expected)
+    Primitive(String) => ByteSequenceEqual(condition, scrutinee, expected)
     _ =>
       raise UnsupportedExpression(
         detail="unsupported literal pattern representation",

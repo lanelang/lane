@@ -190,31 +190,26 @@ fn ExecutionInstance::execute_instruction(
       frame.consume_owner(environment)
       frame.write(destination, I64(callable(function, reference)))
     }
-    StringLength(destination, source) => {
-      let length = self.heap.string_bytes(frame.i32(source)).length()
-      frame.write(destination, I64(length.to_int64()))
-    }
-    StringConcat(destination, left, right) =>
-      self.string_concat(frame, destination, left, right)
-    StringSlice(destination, source, start, length) =>
-      self.string_slice(frame, destination, source, start, length)
-    StringEq(destination, left, right) => {
-      let equal = self.heap.string_bytes(frame.i32(left)) ==
-        self.heap.string_bytes(frame.i32(right))
-      frame.write(destination, I32(if equal { 1 } else { 0 }))
-    }
     ByteToInt(destination, source) =>
       frame.write(destination, I64(frame.i32(source).to_int64()))
     IntToByte(destination, source) =>
       frame.write(destination, I32((frame.i64(source) & 255L).to_int()))
-    BytesMake(destination, length, fill) =>
-      self.bytes_make(frame, destination, length, fill)
-    BytesLength(destination, source) =>
-      self.bytes_length(frame, destination, source)
-    BytesGet(destination, source, index) =>
-      self.bytes_get(frame, destination, source, index)
-    BytesSet(destination, source, index, value) =>
-      self.bytes_set(frame, destination, source, index, value)
+    ByteSequenceMake(destination, length, fill) =>
+      self.byte_sequence_make(frame, destination, length, fill)
+    ByteSequenceLength(destination, source) =>
+      self.byte_sequence_length(frame, destination, source)
+    ByteSequenceGet(destination, source, index) =>
+      self.byte_sequence_get(frame, destination, source, index)
+    ByteSequenceSet(destination, source, index, value) =>
+      self.byte_sequence_set(frame, destination, source, index, value)
+    ByteSequenceEqual(destination, left, right) =>
+      self.byte_sequence_equal(frame, destination, left, right)
+    ByteSequenceConcat(destination, left, right) =>
+      self.byte_sequence_concat(frame, destination, left, right)
+    ByteSequenceSlice(destination, source, start, length) =>
+      self.byte_sequence_slice(frame, destination, source, start, length)
+    ByteSequenceIsValidUtf8(destination, source) =>
+      self.byte_sequence_is_valid_utf8(frame, destination, source)
     S32Add(destination, left, right) =>
       frame.binary_i32(destination, left, right, fn(a, b) { a + b })
     S32Sub(destination, left, right) =>

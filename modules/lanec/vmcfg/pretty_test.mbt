@@ -60,7 +60,7 @@ test "VM CFG pretty printer exposes control flow and ownership" {
     globals: [
       { representation: I32, cleanup: OwnedRef, erased_companion: None },
     ],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"Lane"],
   }
@@ -104,7 +104,7 @@ test "VM CFG pretty printer exposes control flow and ownership" {
       #|  g0 = i32 + owned_ref
       #|
       #|layout table:
-      #|  l1 = string
+      #|  l1 = byte_sequence
       #|
       #|constant table:
       #|  c0 = "Lane"

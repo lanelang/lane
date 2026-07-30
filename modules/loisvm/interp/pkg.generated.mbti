@@ -66,8 +66,7 @@ pub struct LoadedImage {
 pub fn LoadedImage::new_instance(Self, config? : @runtime.ExecutionConfig) -> ExecutionInstance
 
 pub enum ObjectPayload {
-  String(Bytes)
-  BytesObject(Array[Byte])
+  ByteSequence(Array[Byte])
   HostObject(@runtime.HostObjectHandle)
   Data(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
   Environment(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])

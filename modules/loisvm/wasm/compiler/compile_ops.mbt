@@ -281,54 +281,47 @@ fn compile_instruction(
         I32WrapI64,
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    BytesMake(destination, length, fill) => {
+    ByteSequenceMake(destination, length, fill) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(slot_local(parameter_count, length)),
         LocalGet(slot_local(parameter_count, fill)),
-        Call(runtime_functions.bytes_make),
+        Call(runtime_functions.byte_sequence_make),
         LocalSet(slot_local(parameter_count, destination)),
       ]
       result.append(mark_slot_live(live_base, slots, destination))
       result
     }
-    BytesLength(destination, source) =>
+    ByteSequenceLength(destination, source) =>
       [
         LocalGet(slot_local(parameter_count, source)),
         I32Load(0, 2, 8L),
         I64ExtendI32U,
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    BytesGet(destination, source, index) =>
+    ByteSequenceGet(destination, source, index) =>
       [
         LocalGet(slot_local(parameter_count, source)),
         LocalGet(slot_local(parameter_count, index)),
-        Call(runtime_functions.bytes_get),
+        Call(runtime_functions.byte_sequence_get),
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    BytesSet(destination, source, index, value) => {
+    ByteSequenceSet(destination, source, index, value) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(slot_local(parameter_count, source)),
         LocalGet(slot_local(parameter_count, index)),
         LocalGet(slot_local(parameter_count, value)),
-        Call(runtime_functions.bytes_set),
+        Call(runtime_functions.byte_sequence_set),
         LocalSet(slot_local(parameter_count, destination)),
       ]
       result.append(mark_slot_dead(live_base, slots, source))
       result.append(mark_slot_live(live_base, slots, destination))
       result
     }
-    StringLength(destination, string) =>
-      [
-        LocalGet(slot_local(parameter_count, string)),
-        I32Load(0, 2, 8L),
-        I64ExtendI32U,
-        LocalSet(slot_local(parameter_count, destination)),
-      ]
-    StringConcat(destination, left, right) => {
+    ByteSequenceConcat(destination, left, right) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(slot_local(parameter_count, left)),
         LocalGet(slot_local(parameter_count, right)),
-        Call(runtime_functions.string_concat),
+        Call(runtime_functions.byte_sequence_concat),
         LocalSet(slot_local(parameter_count, destination)),
       ]
       result.append(mark_slot_dead(live_base, slots, left))
@@ -336,23 +329,29 @@ fn compile_instruction(
       result.append(mark_slot_live(live_base, slots, destination))
       result
     }
-    StringSlice(destination, string, start, length) => {
+    ByteSequenceSlice(destination, string, start, length) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(slot_local(parameter_count, string)),
         LocalGet(slot_local(parameter_count, start)),
         LocalGet(slot_local(parameter_count, length)),
-        Call(runtime_functions.string_slice),
+        Call(runtime_functions.byte_sequence_slice),
         LocalSet(slot_local(parameter_count, destination)),
       ]
       result.append(mark_slot_dead(live_base, slots, string))
       result.append(mark_slot_live(live_base, slots, destination))
       result
     }
-    StringEq(destination, left, right) =>
+    ByteSequenceEqual(destination, left, right) =>
       [
         LocalGet(slot_local(parameter_count, left)),
         LocalGet(slot_local(parameter_count, right)),
-        Call(runtime_functions.string_eq),
+        Call(runtime_functions.byte_sequence_equal),
+        LocalSet(slot_local(parameter_count, destination)),
+      ]
+    ByteSequenceIsValidUtf8(destination, source) =>
+      [
+        LocalGet(slot_local(parameter_count, source)),
+        Call(runtime_functions.byte_sequence_is_valid_utf8),
         LocalSet(slot_local(parameter_count, destination)),
       ]
     S32Add(destination, left, right) =>

@@ -769,36 +769,52 @@ fn map_instruction_values(
       )
     MakeClosure(destination, function, environment) =>
       MakeClosure(transform(destination), function, transform(environment))
-    StringLength(destination, source) =>
-      StringLength(transform(destination), transform(source))
-    StringConcat(destination, left, right) =>
-      StringConcat(transform(destination), transform(left), transform(right))
-    StringSlice(destination, string, start, length) =>
-      StringSlice(
-        transform(destination),
-        transform(string),
-        transform(start),
-        transform(length),
-      )
-    StringEq(destination, left, right) =>
-      StringEq(transform(destination), transform(left), transform(right))
     ByteToInt(destination, source) =>
       ByteToInt(transform(destination), transform(source))
     IntToByte(destination, source) =>
       IntToByte(transform(destination), transform(source))
-    BytesMake(destination, length, fill) =>
-      BytesMake(transform(destination), transform(length), transform(fill))
-    BytesLength(destination, source) =>
-      BytesLength(transform(destination), transform(source))
-    BytesGet(destination, source, index) =>
-      BytesGet(transform(destination), transform(source), transform(index))
-    BytesSet(destination, source, index, value) =>
-      BytesSet(
+    ByteSequenceMake(destination, length, fill) =>
+      ByteSequenceMake(
+        transform(destination),
+        transform(length),
+        transform(fill),
+      )
+    ByteSequenceLength(destination, source) =>
+      ByteSequenceLength(transform(destination), transform(source))
+    ByteSequenceGet(destination, source, index) =>
+      ByteSequenceGet(
+        transform(destination),
+        transform(source),
+        transform(index),
+      )
+    ByteSequenceSet(destination, source, index, value) =>
+      ByteSequenceSet(
         transform(destination),
         transform(source),
         transform(index),
         transform(value),
       )
+    ByteSequenceEqual(destination, left, right) =>
+      ByteSequenceEqual(
+        transform(destination),
+        transform(left),
+        transform(right),
+      )
+    ByteSequenceConcat(destination, left, right) =>
+      ByteSequenceConcat(
+        transform(destination),
+        transform(left),
+        transform(right),
+      )
+    ByteSequenceSlice(destination, source, start, length) =>
+      ByteSequenceSlice(
+        transform(destination),
+        transform(source),
+        transform(start),
+        transform(length),
+      )
+    ByteSequenceIsValidUtf8(destination, source) =>
+      ByteSequenceIsValidUtf8(transform(destination), transform(source))
     S32Add(destination, left, right) =>
       S32Add(transform(destination), transform(left), transform(right))
     S32Sub(destination, left, right) =>

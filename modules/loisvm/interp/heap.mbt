@@ -7,8 +7,7 @@ pub enum VMValue {
 
 ///|
 pub enum ObjectPayload {
-  String(Bytes)
-  BytesObject(Array[Byte])
+  ByteSequence(Array[Byte])
   HostObject(@runtime.HostObjectHandle)
   Data(@bytecode.ObjectShapeId, Array[@bytecode.LayoutId], Array[VMValue])
   Environment(
@@ -45,7 +44,7 @@ priv struct HeapAllocationReservation {
 }
 
 ///|
-priv struct BytesAllocationReservation {
+priv struct ByteSequenceAllocationReservation {
   allocation : HeapAllocationReservation
   length : Int
 }
@@ -58,9 +57,9 @@ fn Heap::new(
 ) -> Heap {
   let objects : Array[HeapObject?] = [None]
   let constant_refs : Array[Int] = []
-  let string_layout = find_string_layout(image.layouts)
+  let byte_sequence_layout = find_byte_sequence_layout(image.layouts)
   let layout : @bytecode.LayoutId = {
-    value: match string_layout {
+    value: match byte_sequence_layout {
       Some(index) => index + 1
       None => 0
     },
@@ -71,7 +70,7 @@ fn Heap::new(
       Some({
         ref_count: 0,
         layout,
-        payload: String(bytes),
+        payload: ByteSequence(bytes.to_array()),
         size: host_byte_sequence_allocation_size(bytes.length()),
         immortal: true,
       }),
@@ -130,54 +129,88 @@ fn Heap::allocate_host_object(
 }
 
 ///|
-fn Heap::allocate_string(
+fn Heap::allocate_byte_sequence(
   self : Heap,
   bytes : Bytes,
 ) -> Int raise ExecutionFailure {
-  self.allocate(
-    layout=self.string_layout(),
-    payload=String(bytes),
-    size=host_byte_sequence_allocation_size(bytes.length()),
+  let reservation = self.reserve_byte_sequence_allocation(
+    bytes.length().to_int64(),
+  )
+  self.publish_allocation(
+    reservation.allocation,
+    ByteSequence(bytes.to_array()),
   )
 }
 
 ///|
-fn Heap::allocate_filled_bytes(
+fn Heap::allocate_filled_byte_sequence(
   self : Heap,
   length : Int64,
   fill : Byte,
 ) -> Int raise ExecutionFailure {
-  let reservation = self.reserve_bytes_allocation(length)
+  let reservation = self.reserve_byte_sequence_allocation(length)
   let bytes = Array::make(reservation.length, fill)
-  self.publish_allocation(reservation.allocation, BytesObject(bytes))
+  self.publish_allocation(reservation.allocation, ByteSequence(bytes))
 }
 
 ///|
-fn Heap::allocate_updated_bytes(
+fn Heap::allocate_updated_byte_sequence(
   self : Heap,
   source : Array[Byte],
   index : Int,
   value : Byte,
 ) -> Int raise ExecutionFailure {
-  let reservation = self.reserve_bytes_allocation(source.length().to_int64())
+  let reservation = self.reserve_byte_sequence_allocation(
+    source.length().to_int64(),
+  )
   let bytes = source.copy()
   bytes[index] = value
-  self.publish_allocation(reservation.allocation, BytesObject(bytes))
+  self.publish_allocation(reservation.allocation, ByteSequence(bytes))
 }
 
 ///|
-fn Heap::reserve_bytes_allocation(
+fn Heap::allocate_concatenated_byte_sequence(
+  self : Heap,
+  left : Array[Byte],
+  right : Array[Byte],
+) -> Int raise ExecutionFailure {
+  let left_length = left.length().to_int64()
+  let right_length = right.length().to_int64()
+  let combined_length = left_length + right_length
+  if combined_length < left_length {
+    raise Trap(detail="ByteSequence length is out of range")
+  }
+  let reservation = self.reserve_byte_sequence_allocation(combined_length)
+  let bytes = left.copy()
+  bytes.append(right)
+  self.publish_allocation(reservation.allocation, ByteSequence(bytes))
+}
+
+///|
+fn Heap::allocate_sliced_byte_sequence(
+  self : Heap,
+  source : Array[Byte],
+  start : Int,
+  length : Int,
+) -> Int raise ExecutionFailure {
+  let reservation = self.reserve_byte_sequence_allocation(length.to_int64())
+  let bytes = source[start:start + length].to_owned()
+  self.publish_allocation(reservation.allocation, ByteSequence(bytes))
+}
+
+///|
+fn Heap::reserve_byte_sequence_allocation(
   self : Heap,
   length : Int64,
-) -> BytesAllocationReservation raise ExecutionFailure {
+) -> ByteSequenceAllocationReservation raise ExecutionFailure {
   let size = match checked_byte_sequence_allocation_size(length) {
     Some(size) => size
-    None => raise Trap(detail="Bytes length is out of range")
+    None => raise Trap(detail="ByteSequence length is out of range")
   }
-  let allocation = self.reserve_allocation(self.bytes_layout(), size)
+  let allocation = self.reserve_allocation(self.byte_sequence_layout(), size)
   let host_length = length.to_int()
   if host_length < 0 || host_length.to_int64() != length {
-    raise Trap(detail="Bytes length is out of range")
+    raise Trap(detail="ByteSequence length is out of range")
   }
   { allocation, length: host_length }
 }
@@ -298,24 +331,13 @@ fn Heap::borrow_host_object(
 }
 
 ///|
-fn Heap::string_bytes(
-  self : Heap,
-  reference : Int,
-) -> Bytes raise ExecutionFailure {
-  match self.object(reference).payload {
-    String(bytes) => bytes
-    _ => raise InternalFailure(detail="object is not a String")
-  }
-}
-
-///|
-fn Heap::bytes_array(
+fn Heap::byte_sequence(
   self : Heap,
   reference : Int,
 ) -> Array[Byte] raise ExecutionFailure {
   match self.object(reference).payload {
-    BytesObject(bytes) => bytes
-    _ => raise InternalFailure(detail="object is not Bytes")
+    ByteSequence(bytes) => bytes
+    _ => raise InternalFailure(detail="object is not a ByteSequence")
   }
 }
 
@@ -393,7 +415,7 @@ fn Heap::retain_erased(
 ) -> Unit raise ExecutionFailure {
   match self.image.layouts[layout.value - 1] {
     Callable => self.retain_callable(payload)
-    String | Bytes | Data(_) | Environment(_) | Reference =>
+    ByteSequence | Data(_) | Environment(_) | Reference =>
       self.retain_reference((payload & 0xFFFFFFFFL).to_int())
     _ => ()
   }
@@ -407,7 +429,7 @@ fn Heap::release_erased(
 ) -> Unit raise ExecutionFailure {
   match self.image.layouts[layout.value - 1] {
     Callable => self.release_callable(payload)
-    String | Bytes | Data(_) | Environment(_) | Reference =>
+    ByteSequence | Data(_) | Environment(_) | Reference =>
       self.release_reference((payload & 0xFFFFFFFFL).to_int())
     _ => ()
   }
@@ -419,7 +441,7 @@ fn Heap::destroy_payload(
   payload : ObjectPayload,
 ) -> Unit raise ExecutionFailure {
   match payload {
-    String(_) | BytesObject(_) => ()
+    ByteSequence(_) => ()
     HostObject(handle) =>
       self.runtime.release_host_object(handle) catch {
         InvalidHostObjectHandle(detail~) => raise InternalFailure(detail~)
@@ -500,20 +522,13 @@ fn Heap::reference_layout(
 }
 
 ///|
-fn Heap::string_layout(
+fn Heap::byte_sequence_layout(
   self : Heap,
 ) -> @bytecode.LayoutId raise ExecutionFailure {
-  match find_string_layout(self.image.layouts) {
+  match find_byte_sequence_layout(self.image.layouts) {
     Some(index) => { value: index + 1 }
-    None => raise InternalFailure(detail="bytecode image has no String layout")
-  }
-}
-
-///|
-fn Heap::bytes_layout(self : Heap) -> @bytecode.LayoutId raise ExecutionFailure {
-  match find_bytes_layout(self.image.layouts) {
-    Some(index) => { value: index + 1 }
-    None => raise InternalFailure(detail="bytecode image has no Bytes layout")
+    None =>
+      raise InternalFailure(detail="bytecode image has no ByteSequence layout")
   }
 }
 
@@ -582,19 +597,9 @@ fn object_allocation_size(shape : @bytecode.ObjectShape) -> Int64 {
 }
 
 ///|
-fn find_string_layout(layouts : Array[@bytecode.LayoutRecipe]) -> Int? {
+fn find_byte_sequence_layout(layouts : Array[@bytecode.LayoutRecipe]) -> Int? {
   for index, recipe in layouts {
-    if recipe is String {
-      return Some(index)
-    }
-  }
-  None
-}
-
-///|
-fn find_bytes_layout(layouts : Array[@bytecode.LayoutRecipe]) -> Int? {
-  for index, recipe in layouts {
-    if recipe is Bytes {
+    if recipe is ByteSequence {
       return Some(index)
     }
   }

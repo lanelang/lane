@@ -45,7 +45,7 @@ fn test_image(body : FunctionBody) -> Image {
     initializer: None,
     functions: [Body(body)],
     globals: [],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [b"Lane"],
   }
@@ -308,7 +308,7 @@ test "finalize retains an owned call argument that is used afterward" {
         parameters: [],
         instructions: [
           CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
-          StringLength({ value: 1 }, { value: 0 }),
+          ByteSequenceLength({ value: 1 }, { value: 0 }),
         ],
         terminator: Return(None),
       },
@@ -337,7 +337,7 @@ test "finalize retains an owned call argument that is used afterward" {
   assert_eq(lowered.blocks[0].instructions, [
     RetainCopy({ value: 2 }, { value: 0 }),
     CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
-    StringLength({ value: 1 }, { value: 0 }),
+    ByteSequenceLength({ value: 1 }, { value: 0 }),
     Release({ value: 0 }),
   ])
 }
@@ -525,7 +525,7 @@ test "finalize rejects a borrowed function input used across blocks" {
       },
       {
         parameters: [],
-        instructions: [StringLength({ value: 2 }, { value: 1 })],
+        instructions: [ByteSequenceLength({ value: 2 }, { value: 1 })],
         terminator: Return(Some({ value: 2 })),
       },
       {

@@ -192,7 +192,7 @@ test "String import reads borrowed bytes and allocates its result in Lane memory
         result: String,
         symbol: "lane.test.suffix",
       },
-      layouts=[String],
+      layouts=[ByteSequence],
       constants=[b"Lane"],
     ),
     registry,
@@ -249,7 +249,7 @@ test "failing String import releases its transferred argument" {
     [
       ConstString({ value: 0 }, { value: 0 }),
       ConstString({ value: 1 }, { value: 1 }),
-      StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
       CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
     ],
   )
@@ -262,7 +262,7 @@ test "failing String import releases its transferred argument" {
         result: Unit,
         symbol: "lane.test.fail_string",
       },
-      layouts=[String],
+      layouts=[ByteSequence],
       constants=[b"Lane", b"!"],
     ),
     registry,
@@ -298,7 +298,7 @@ test "fatal import unwinding releases owners retained by the caller frame" {
     [
       ConstString({ value: 0 }, { value: 0 }),
       ConstString({ value: 1 }, { value: 1 }),
-      StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
       CallDirect({ value: 2 }, None, [], [], None),
       Release({ value: 2 }),
     ],
@@ -312,7 +312,7 @@ test "fatal import unwinding releases owners retained by the caller frame" {
         result: Unit,
         symbol: "lane.test.fail_with_live_owner",
       },
-      layouts=[String],
+      layouts=[ByteSequence],
       constants=[b"Lane", b"!"],
     ),
     registry,
@@ -357,7 +357,7 @@ test "invalid host String results become runtime import failures" {
         result: String,
         symbol: "lane.test.non_ascii",
       },
-      layouts=[String],
+      layouts=[ByteSequence],
     ),
     registry,
   )
@@ -393,7 +393,7 @@ test "host String allocation preserves live heap resource failures" {
           result: String,
           symbol: "lane.test.host_string",
         },
-        layouts=[String],
+        layouts=[ByteSequence],
       ),
       registry,
     ) {

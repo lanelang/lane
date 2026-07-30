@@ -31,11 +31,11 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
           InitGlobal({ value: 0 }, { value: 7 }),
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),
-          StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
           InitGlobal({ value: 1 }, { value: 2 }),
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),
-          StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
           MakeEnv({ value: 3 }, { value: 0 }, Immediate({ value: 2 }), [], [
             { value: 2 },
           ]),
@@ -43,7 +43,7 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
           InitGlobal({ value: 2 }, { value: 4 }),
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),
-          StringConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
           ConstLayout({ value: 5 }, { value: 1 }),
           EraseI32({ value: 6 }, { value: 2 }),
           InitGlobal({ value: 4 }, { value: 6 }),
@@ -96,7 +96,7 @@ fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
         erased_companion: Some({ value: 3 }),
       },
     ],
-    layouts: [String, Environment({ value: 0 })],
+    layouts: [ByteSequence, Environment({ value: 0 })],
     object_shapes: [
       Environment({
         stored_witness_count: 0,

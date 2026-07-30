@@ -45,7 +45,7 @@ test "ARC releases dynamic runtime String owners" {
       CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
       RetainCopy({ value: 1 }, { value: 0 }),
       Release({ value: 0 }),
-      StringLength({ value: 2 }, { value: 1 }),
+      ByteSequenceLength({ value: 2 }, { value: 1 }),
       Release({ value: 1 }),
     ],
     terminator=Return(None),
@@ -63,7 +63,7 @@ test "ARC releases dynamic runtime String owners" {
         symbol: "lane.test.string",
       }),
     ],
-    layouts: [String],
+    layouts: [ByteSequence],
     object_shapes: [],
     constants: [],
   }

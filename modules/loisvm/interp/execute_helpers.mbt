@@ -419,7 +419,7 @@ fn ExecutionInstance::to_host_value(
     (Int, I64(value)) => Int(value)
     (Double, F64(value)) => Double(value)
     (String, I32(reference)) => {
-      let bytes = self.heap.string_bytes(reference)
+      let bytes = self.heap.byte_sequence(reference)
       BorrowedString(
         @runtime.HostStringView::new(length=bytes.length(), read_byte=index => {
           bytes[index]
@@ -458,7 +458,7 @@ fn ExecutionInstance::from_host_value(
           )
         }
       }
-      Some(I32(self.heap.allocate_string(bytes)))
+      Some(I32(self.heap.allocate_byte_sequence(bytes)))
     }
     (Opaque, OwnedOpaque(object)) => {
       let result : Result[Int, ExecutionFailure] = self.runtime.adopt_host_object(

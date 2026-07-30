@@ -21,10 +21,10 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | Release(source)
     | LoadTag(_, source)
     | LoadObjectWitness(_, _, source, _)
-    | StringLength(_, source)
     | ByteToInt(_, source)
     | IntToByte(_, source)
-    | BytesLength(_, source)
+    | ByteSequenceLength(_, source)
+    | ByteSequenceIsValidUtf8(_, source)
     | S32Neg(_, source)
     | S32ToInt(_, source)
     | IntToS32(_, source)
@@ -42,10 +42,10 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(_, source)
     | UneraseUnit(source)
     | InitGlobal(_, source) => [source]
-    StringConcat(_, left, right)
-    | StringEq(_, left, right)
-    | BytesMake(_, left, right)
-    | BytesGet(_, left, right)
+    ByteSequenceConcat(_, left, right)
+    | ByteSequenceEqual(_, left, right)
+    | ByteSequenceMake(_, left, right)
+    | ByteSequenceGet(_, left, right)
     | S32Add(_, left, right)
     | S32Sub(_, left, right)
     | S32Mul(_, left, right)
@@ -81,8 +81,8 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | DoubleLe(_, left, right)
     | DoubleGt(_, left, right)
     | DoubleGe(_, left, right) => [left, right]
-    StringSlice(_, string, start, length)
-    | BytesSet(_, string, start, length) => [string, start, length]
+    ByteSequenceSlice(_, string, start, length)
+    | ByteSequenceSet(_, string, start, length) => [string, start, length]
     CallDirect(_, environment, witnesses, arguments, _) => {
       let uses = []
       if environment is Some(value) {

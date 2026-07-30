@@ -7,8 +7,7 @@ priv struct StaticImage {
   constant_refs : Array[Int]
   singleton_refs : Array[Int]
   singleton_layout_ids : Array[Int]
-  string_layout_id : Int
-  bytes_layout_id : Int
+  byte_sequence_layout_id : Int
   reference_layout_id : Int
   shape_layouts : Array[ShapeLayout]
   object_shapes : Array[@bytecode.ObjectShape]
@@ -70,12 +69,11 @@ fn layout_rep_kind(layout : @bytecode.LayoutRecipe) -> Int {
     Int => 3
     Double => 4
     Callable => 5
-    String => 6
+    ByteSequence => 6
     Data(_) => 7
     Environment(_) => 8
     Reference => 9
     Byte => 10
-    Bytes => 11
     S32 => 12
     Char => 13
   }
@@ -91,7 +89,7 @@ fn layout_fixed_size(
   match layout {
     Unit | Bool | Int | S32 | Char | Double | Callable | Byte => Some(0)
     Reference => Some(if host_objects_enabled { 16 } else { 0 })
-    String | Bytes => None
+    ByteSequence => None
     Data(shape) | Environment(shape) => {
       ignore(image)
       Some(shape_layouts[shape.value].size)
@@ -124,15 +122,11 @@ fn build_static_image(
   write_zeroes(writer, 8)
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
-  let mut string_layout_id = 0
-  let mut bytes_layout_id = 0
+  let mut byte_sequence_layout_id = 0
   let mut reference_layout_id = 0
   for index, layout in image.layouts {
-    if layout == String {
-      string_layout_id = index + 1
-    }
-    if layout == Bytes {
-      bytes_layout_id = index + 1
+    if layout == ByteSequence {
+      byte_sequence_layout_id = index + 1
     }
     if layout == Reference {
       reference_layout_id = index + 1
@@ -152,7 +146,7 @@ fn build_static_image(
     writer.write_u32_le_int(
       match layout {
         Unit | Bool | Int | S32 | Char | Double | Callable | Byte => 1
-        String | Bytes | Data(_) | Environment(_) | Reference => 8
+        ByteSequence | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
@@ -160,7 +154,7 @@ fn build_static_image(
         Unit | Bool | Int | S32 | Char | Double | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.retain_callable_table
-        String | Bytes | Data(_) | Environment(_) | Reference =>
+        ByteSequence | Data(_) | Environment(_) | Reference =>
           helper_functions.retain_ref_erased_table
       },
     )
@@ -169,7 +163,7 @@ fn build_static_image(
         Unit | Bool | Int | S32 | Char | Double | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.release_callable_table
-        String | Bytes | Data(_) | Environment(_) | Reference =>
+        ByteSequence | Data(_) | Environment(_) | Reference =>
           helper_functions.release_ref_erased_table
       },
     )
@@ -186,15 +180,14 @@ fn build_static_image(
         | Char
         | Double
         | Callable
-        | String
+        | ByteSequence
         | Byte
-        | Bytes
         | Reference => helper_functions.destroy_noop_table
       },
     )
     writer.write_u32_le_int(0)
   }
-  if !image.constants.is_empty() && string_layout_id == 0 {
+  if !image.constants.is_empty() && byte_sequence_layout_id == 0 {
     raise MissingStringLayout
   }
   let constant_refs : Array[Int] = []
@@ -202,7 +195,7 @@ fn build_static_image(
     pad_to(writer, 8)
     constant_refs.push(writer.length())
     writer.write_i32_le(-1)
-    writer.write_u32_le_int(string_layout_id)
+    writer.write_u32_le_int(byte_sequence_layout_id)
     writer.write_u32_le_int(constant.length())
     writer.write_raw_bytes(constant)
     pad_to(writer, 8)
@@ -243,8 +236,7 @@ fn build_static_image(
     constant_refs,
     singleton_refs,
     singleton_layout_ids,
-    string_layout_id,
-    bytes_layout_id,
+    byte_sequence_layout_id,
     reference_layout_id,
     shape_layouts,
     object_shapes: image.object_shapes,

@@ -377,30 +377,6 @@ fn finalize_instruction(
           consume_value(body, block, live, remaining, prefix, environment),
         ),
       )
-    StringLength(destination, string) =>
-      StringLength(
-        value_to_slot(destination),
-        value_to_slot(borrow_value(remaining, string)),
-      )
-    StringConcat(destination, left, right) =>
-      StringConcat(
-        value_to_slot(destination),
-        value_to_slot(borrow_value(remaining, left)),
-        value_to_slot(borrow_value(remaining, right)),
-      )
-    StringSlice(destination, string, start, length) =>
-      StringSlice(
-        value_to_slot(destination),
-        value_to_slot(borrow_value(remaining, string)),
-        value_to_slot(borrow_value(remaining, start)),
-        value_to_slot(borrow_value(remaining, length)),
-      )
-    StringEq(destination, left, right) =>
-      StringEq(
-        value_to_slot(destination),
-        value_to_slot(borrow_value(remaining, left)),
-        value_to_slot(borrow_value(remaining, right)),
-      )
     ByteToInt(destination, source) =>
       ByteToInt(
         value_to_slot(destination),
@@ -411,31 +387,59 @@ fn finalize_instruction(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    BytesMake(destination, length, fill) =>
-      BytesMake(
+    ByteSequenceMake(destination, length, fill) =>
+      ByteSequenceMake(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, length)),
         value_to_slot(borrow_value(remaining, fill)),
       )
-    BytesLength(destination, source) =>
-      BytesLength(
+    ByteSequenceLength(destination, source) =>
+      ByteSequenceLength(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    BytesGet(destination, source, index) =>
-      BytesGet(
+    ByteSequenceGet(destination, source, index) =>
+      ByteSequenceGet(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
         value_to_slot(borrow_value(remaining, index)),
       )
-    BytesSet(destination, source, index, value) =>
-      BytesSet(
+    ByteSequenceSet(destination, source, index, value) =>
+      ByteSequenceSet(
         value_to_slot(destination),
         value_to_slot(
           consume_value(body, block, live, remaining, prefix, source),
         ),
         value_to_slot(borrow_value(remaining, index)),
         value_to_slot(borrow_value(remaining, value)),
+      )
+    ByteSequenceEqual(destination, left, right) =>
+      ByteSequenceEqual(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, left)),
+        value_to_slot(borrow_value(remaining, right)),
+      )
+    ByteSequenceConcat(destination, left, right) =>
+      ByteSequenceConcat(
+        value_to_slot(destination),
+        value_to_slot(consume_value(body, block, live, remaining, prefix, left)),
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, right),
+        ),
+      )
+    ByteSequenceSlice(destination, source, start, length) =>
+      ByteSequenceSlice(
+        value_to_slot(destination),
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, source),
+        ),
+        value_to_slot(borrow_value(remaining, start)),
+        value_to_slot(borrow_value(remaining, length)),
+      )
+    ByteSequenceIsValidUtf8(destination, source) =>
+      ByteSequenceIsValidUtf8(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
       )
     S32Add(destination, left, right) =>
       S32Add(
@@ -816,16 +820,16 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | LoadObjectWitness(destination, _, _, _)
     | MakeEnv(destination, _, _, _, _)
     | MakeClosure(destination, _, _)
-    | StringLength(destination, _)
-    | StringConcat(destination, _, _)
-    | StringSlice(destination, _, _, _)
-    | StringEq(destination, _, _)
     | ByteToInt(destination, _)
     | IntToByte(destination, _)
-    | BytesMake(destination, _, _)
-    | BytesLength(destination, _)
-    | BytesGet(destination, _, _)
-    | BytesSet(destination, _, _, _)
+    | ByteSequenceMake(destination, _, _)
+    | ByteSequenceLength(destination, _)
+    | ByteSequenceGet(destination, _, _)
+    | ByteSequenceSet(destination, _, _, _)
+    | ByteSequenceEqual(destination, _, _)
+    | ByteSequenceConcat(destination, _, _)
+    | ByteSequenceSlice(destination, _, _, _)
+    | ByteSequenceIsValidUtf8(destination, _)
     | S32Add(destination, _, _)
     | S32Sub(destination, _, _)
     | S32Mul(destination, _, _)

@@ -258,12 +258,11 @@ fn Decoder::read_layout_recipe(
     0x03 => Int
     0x04 => Double
     0x05 => Callable
-    0x06 => String
+    0x06 => ByteSequence
     0x07 => Data(self.read_object_shape_id())
     0x08 => Environment(self.read_object_shape_id())
     0x09 => Reference
     0x0A => Byte
-    0x0B => Bytes
     0x0C => S32
     0x0D => Char
     tag => self.invalid_tag(offset~, domain="layout recipe", tag~)
@@ -414,22 +413,6 @@ fn Decoder::read_instruction(
         self.read_function_id(),
         self.read_slot_id(),
       )
-    0x15 => StringLength(self.read_slot_id(), self.read_slot_id())
-    0x16 =>
-      StringConcat(
-        self.read_slot_id(),
-        self.read_slot_id(),
-        self.read_slot_id(),
-      )
-    0x17 =>
-      StringSlice(
-        self.read_slot_id(),
-        self.read_slot_id(),
-        self.read_slot_id(),
-        self.read_slot_id(),
-      )
-    0x18 =>
-      StringEq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x19 =>
       IntAdd(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x1A =>
@@ -505,12 +488,20 @@ fn Decoder::read_instruction(
     0x46 => ByteToInt(self.read_slot_id(), self.read_slot_id())
     0x47 => IntToByte(self.read_slot_id(), self.read_slot_id())
     0x48 =>
-      BytesMake(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x49 => BytesLength(self.read_slot_id(), self.read_slot_id())
+      ByteSequenceMake(
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+      )
+    0x49 => ByteSequenceLength(self.read_slot_id(), self.read_slot_id())
     0x4A =>
-      BytesGet(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      ByteSequenceGet(
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+      )
     0x4B =>
-      BytesSet(
+      ByteSequenceSet(
         self.read_slot_id(),
         self.read_slot_id(),
         self.read_slot_id(),
@@ -535,6 +526,26 @@ fn Decoder::read_instruction(
     0x56 => IntToS32(self.read_slot_id(), self.read_slot_id())
     0x57 =>
       ConstChar(self.read_slot_id(), self.read_i32(expected="Char constant"))
+    0x58 =>
+      ByteSequenceEqual(
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+      )
+    0x59 =>
+      ByteSequenceConcat(
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+      )
+    0x5A =>
+      ByteSequenceSlice(
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+        self.read_slot_id(),
+      )
+    0x5B => ByteSequenceIsValidUtf8(self.read_slot_id(), self.read_slot_id())
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }
