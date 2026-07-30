@@ -45,51 +45,132 @@ test "compiler preserves Byte and Bytes through executable lowering" {
     Ok(artifact) => artifact
     Err(error) => fail("LoisVM lowering failed: \{Repr(error)}")
   }
-  let instructions : Array[@loisvm_bytecode.Instruction] = []
-  for function in artifact.bytecode.functions {
-    if function is BytecodeBody(body) {
-      for block in body.blocks {
-        instructions.append(block.instructions)
-      }
-    }
-  }
-  assert_eq(instructions, [
-    ConstInt({ value: 0 }, 255L),
-    IntToByte({ value: 1 }, { value: 0 }),
-    ConstLayout({ value: 2 }, { value: 1 }),
-    EraseI32({ value: 4 }, { value: 1 }),
-    CallDirect(
-      { value: 1 },
-      None,
-      [{ value: 2 }],
-      [{ value: 4 }],
-      Some({ value: 6 }),
+  debug_inspect(
+    artifact.bytecode,
+    content=(
+      #|{
+      #|  entry: { value: 2 },
+      #|  initializer: None,
+      #|  functions: [
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [
+      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
+      #|          {
+      #|            representation: I64,
+      #|            cleanup: OwnedErased,
+      #|            erased_companion: Some({ value: 0 }),
+      #|          },
+      #|        ],
+      #|        inputs: {
+      #|          environment: None,
+      #|          witnesses: [{ value: 0 }],
+      #|          user_parameters: [{ value: 1 }],
+      #|        },
+      #|        result: I64,
+      #|        blocks: [
+      #|          {
+      #|            parameters: [],
+      #|            instructions: [],
+      #|            terminator: Return(Some({ value: 1 })),
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [
+      #|          { representation: I64, cleanup: Trivial, erased_companion: None },
+      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
+      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
+      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
+      #|          {
+      #|            representation: I64,
+      #|            cleanup: OwnedErased,
+      #|            erased_companion: Some({ value: 3 }),
+      #|          },
+      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
+      #|          {
+      #|            representation: I64,
+      #|            cleanup: OwnedErased,
+      #|            erased_companion: Some({ value: 5 }),
+      #|          },
+      #|          { representation: I32, cleanup: OwnedRef, erased_companion: None },
+      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
+      #|          {
+      #|            representation: I64,
+      #|            cleanup: OwnedErased,
+      #|            erased_companion: Some({ value: 8 }),
+      #|          },
+      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
+      #|          {
+      #|            representation: I64,
+      #|            cleanup: OwnedErased,
+      #|            erased_companion: Some({ value: 10 }),
+      #|          },
+      #|          { representation: I32, cleanup: OwnedRef, erased_companion: None },
+      #|          { representation: I32, cleanup: OwnedRef, erased_companion: None },
+      #|          { representation: I64, cleanup: Trivial, erased_companion: None },
+      #|        ],
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|        result: Unit,
+      #|        blocks: [
+      #|          {
+      #|            parameters: [],
+      #|            instructions: [
+      #|              ConstInt({ value: 0 }, 255),
+      #|              IntToByte({ value: 1 }, { value: 0 }),
+      #|              ConstLayout({ value: 2 }, { value: 1 }),
+      #|              EraseI32({ value: 4 }, { value: 1 }),
+      #|              CallDirect(
+      #|                { value: 1 },
+      #|                None,
+      #|                [{ value: 2 }],
+      #|                [{ value: 4 }],
+      #|                Some({ value: 6 }),
+      #|              ),
+      #|              UneraseI32({ value: 1 }, { value: 6 }),
+      #|              ConstInt({ value: 0 }, 2),
+      #|              BytesMake({ value: 7 }, { value: 0 }, { value: 1 }),
+      #|              ConstLayout({ value: 1 }, { value: 2 }),
+      #|              EraseI32({ value: 9 }, { value: 7 }),
+      #|              CallDirect(
+      #|                { value: 1 },
+      #|                None,
+      #|                [{ value: 1 }],
+      #|                [{ value: 9 }],
+      #|                Some({ value: 11 }),
+      #|              ),
+      #|              UneraseI32({ value: 12 }, { value: 11 }),
+      #|              ConstInt({ value: 0 }, 0),
+      #|              IntToByte({ value: 1 }, { value: 0 }),
+      #|              ConstInt({ value: 0 }, 1),
+      #|              BytesSet({ value: 13 }, { value: 12 }, { value: 0 }, { value: 1 }),
+      #|              BytesLength({ value: 14 }, { value: 13 }),
+      #|              CallDirect({ value: 3 }, None, [], [{ value: 14 }], None),
+      #|              BytesGet({ value: 1 }, { value: 13 }, { value: 0 }),
+      #|              ByteToInt({ value: 0 }, { value: 1 }),
+      #|              Release({ value: 13 }),
+      #|            ],
+      #|            terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 0 }]),
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    RuntimeImport(
+      #|      {
+      #|        abi_major: 1,
+      #|        parameters: [Int],
+      #|        result: Unit,
+      #|        symbol: "lane.test.observe",
+      #|      },
+      #|    ),
+      #|  ],
+      #|  globals: [],
+      #|  layouts: [Byte, Bytes],
+      #|  object_shapes: [],
+      #|  constants: [],
+      #|}
     ),
-    UneraseI32({ value: 1 }, { value: 6 }),
-    ConstInt({ value: 0 }, 2L),
-    BytesMake({ value: 7 }, { value: 0 }, { value: 1 }),
-    ConstLayout({ value: 1 }, { value: 2 }),
-    EraseI32({ value: 9 }, { value: 7 }),
-    CallDirect(
-      { value: 1 },
-      None,
-      [{ value: 1 }],
-      [{ value: 9 }],
-      Some({ value: 11 }),
-    ),
-    UneraseI32({ value: 12 }, { value: 11 }),
-    ConstInt({ value: 0 }, 0L),
-    IntToByte({ value: 1 }, { value: 0 }),
-    ConstInt({ value: 0 }, 1L),
-    BytesSet({ value: 13 }, { value: 12 }, { value: 0 }, { value: 1 }),
-    BytesLength({ value: 14 }, { value: 13 }),
-    CallDirect({ value: 3 }, None, [], [{ value: 14 }], None),
-    BytesGet({ value: 1 }, { value: 13 }, { value: 0 }),
-    ByteToInt({ value: 0 }, { value: 1 }),
-    Release({ value: 13 }),
-  ])
-  assert_eq(
-    artifact.bytecode.layouts.filter(layout => layout is Byte || layout is Bytes),
-    [Byte, Bytes],
   )
 }
