@@ -745,22 +745,24 @@ fn buslane_kind_text(kind : @buslane.Kind) -> String {
 fn import_reference_text(
   import_ : @artifact_core.ModuleImportedReference,
 ) -> String {
-  "\{export_kind_text(import_.kind)} \{import_.module_path_text}::\{import_.name}"
+  "\{module_reference_kind_text(import_.reference)} \{import_.module_path_text}::\{import_.name}"
 }
 
 ///|
 fn export_text(export_ : @buslane_lowering.BuslaneModuleExport) -> String {
-  "\{export_kind_text(export_.kind)} \{export_.name}"
+  "\{module_reference_kind_text(export_.reference)} \{export_.name}"
 }
 
 ///|
-fn export_kind_text(kind : @buslane_lowering.BuslaneModuleExportKind) -> String {
-  match kind {
-    Type => "type"
-    DataConstructor => "data constructor"
-    Effect => "effect"
-    Operation => "operation"
-    FieldSelector => "field selector"
-    Value => "value"
+fn module_reference_kind_text(
+  reference : @buslane_lowering.BuslaneModuleReference,
+) -> String {
+  match reference {
+    Type(_) => "type"
+    DataConstructor(_) => "data constructor"
+    Effect(_) => "effect"
+    Operation(_) => "operation"
+    FieldSelector(_) => "field selector"
+    Value(_) => "value"
   }
 }

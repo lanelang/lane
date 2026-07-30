@@ -60,33 +60,14 @@ pub(all) struct BuslaneLoweringImports {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleExport {
-  kind : BuslaneModuleExportKind
   name : String
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
-} derive(Eq, @debug.Debug)
-
-pub(all) enum BuslaneModuleExportKind {
-  Type
-  DataConstructor
-  Effect
-  Operation
-  FieldSelector
-  Value
+  reference : BuslaneModuleReference
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleImport {
   module_path_text : String
-  kind : BuslaneModuleExportKind
   name : String
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
+  reference : BuslaneModuleReference
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleObject {
@@ -101,6 +82,15 @@ pub(all) struct BuslaneModuleObject {
 
 pub(all) struct BuslaneModuleObjectSet {
   objects : Array[BuslaneModuleObject]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum BuslaneModuleReference {
+  Type(@buslane.TypeId)
+  DataConstructor(@buslane.DataConId)
+  Effect(@buslane.EffectId)
+  Operation(@buslane.OperationId)
+  FieldSelector(@buslane.ValueId)
+  Value(@buslane.ValueId)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneRuntimeImport {

@@ -1,5 +1,6 @@
 ///|
 priv struct ResponseSummary {
+  schema_version : Int
   compiler : String
   root : String
   selected_entry : String?
@@ -57,6 +58,7 @@ test "explore request returns the complete protocol v1 report" {
     ),
     content=(
       #|{
+      #|  schema_version: 1,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -157,6 +159,7 @@ test "explore request accepts multiple source files" {
     ),
     content=(
       #|{
+      #|  schema_version: 1,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -252,6 +255,7 @@ test "explore request preserves failed and unavailable stage states" {
     ),
     content=(
       #|{
+      #|  schema_version: 1,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: None,
@@ -360,6 +364,7 @@ fn entry_response_summary(response : Json) -> EntryResponseSummary {
 fn response_summary(response : Json) -> ResponseSummary {
   guard response
     is {
+      "schemaVersion": Number(schema_version, ..),
       "compiler": {
         "name": String(compiler_name),
         "version": String(compiler_version),
@@ -415,6 +420,7 @@ fn response_summary(response : Json) -> ResponseSummary {
     message
   })
   {
+    schema_version: schema_version.to_int(),
     compiler: "\{compiler_name}@\{compiler_version}",
     root: "\{source_id}:\{module_path}",
     selected_entry,

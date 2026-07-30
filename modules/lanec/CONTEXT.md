@@ -203,7 +203,7 @@ A compiler-created local value whose registry metadata carries explicit `Generat
 _Avoid_: missing metadata sentinel, authored local binding, source name convention
 
 **Explore Stage**:
-A compiler-owned, named, and intentionally stable observation point exposed by Executable IR Exploration. Its identity combines the represented IR with the semantic transformation boundary, so one IR form may appear in multiple stages. An Explore Stage represents a useful semantic boundary and does not automatically correspond to every internal compiler pass.
+A compiler-owned, named, and intentionally stable observation point exposed by Executable IR Exploration. Its identity combines the represented IR with the semantic transformation boundary, so one IR form may appear in multiple stages. Every report contains all eighteen ordered Explore Stages, each completed with a snapshot, failed with diagnostics, or unavailable. An Explore Stage represents a useful semantic boundary and does not automatically correspond to every internal compiler pass.
 _Avoid_: arbitrary pass output, compiler trace event, private helper boundary
 
 **Executable IR Exploration**:
@@ -227,15 +227,15 @@ An optional read-only recipient of Explore Stage snapshots emitted by the canoni
 _Avoid_: alternate explore pipeline, compiler plugin, pass manager, transformation callback
 
 **Explore Snapshot**:
-A single human-readable textual document emitted for one completed Explore Stage, together with its stable identity, display metadata, text format, and diagnostics. Pre-link snapshots show only the module that owns the selected entry; linked and later snapshots show the complete whole-program IR consumed by the next stage. It is an observation payload rather than the stage's typed compiler IR.
+A single human-readable textual document emitted for one completed Explore Stage, together with its compiler or backend domain, text format, and diagnostics. The enclosing Explore Stage owns stable identity and display metadata. Pre-link snapshots show only the module that owns the selected entry; linked and later snapshots show the complete whole-program IR consumed by the next stage. It is an observation payload rather than the stage's typed compiler IR.
 _Avoid_: typed IR ownership transfer, serialization contract, mutable compiler state
 
 **Explore Report**:
-The fixed ordered sequence of Explore Snapshots produced for one selected entry. Hosts present the sequence as one level of stage tabs; they do not introduce a second module-selection level.
+The versioned result for one selected entry, containing compiler identity, root identity, optional artifact-selected entry, typed overall status, diagnostics, and exactly eighteen ordered Explore Stage states. Hosts present the stages as one level of tabs; they do not introduce a second module-selection level.
 _Avoid_: entry chooser, module tree, mutable compilation session, runtime trace
 
 **Explore Report Protocol**:
-The explicitly versioned public data schema for an Explore Report, including compiler identity, root, selected entry, status, diagnostics, and ordered snapshots with stable machine stage identities. The protocol does not make IR pretty text a machine-readable serialization format.
+The explicitly versioned public data schema for an Explore Report, including compiler identity, root, selected entry, typed status, diagnostics, and ordered completed, failed, or unavailable stages with stable machine identities. The protocol does not make IR pretty text a machine-readable serialization format and has no untyped fallback failure string.
 _Avoid_: IR interchange format, HTML template, unversioned ad hoc JSON, compiler debug object
 
 **Artifact Entry Enumeration**:

@@ -1463,14 +1463,14 @@ test "transitive public dependencies add only required nominal imports" {
   }
   debug_inspect(
     main.object.imports.map(fn(import_) {
-      (import_.module_path_text, import_.kind, import_.name)
+      (import_.module_path_text, import_.reference, import_.name)
     }),
     content=(
       #|[
-      #|  ("Types", Type, "Token"),
-      #|  ("Types", FieldSelector, "Token.value"),
-      #|  ("Facade", Value, "make_token"),
-      #|  ("Facade", Value, "read_token"),
+      #|  ("Types", Type({ index: 0 }), "Token"),
+      #|  ("Types", FieldSelector({ index: 0 }), "Token.value"),
+      #|  ("Facade", Value({ index: 1 }), "make_token"),
+      #|  ("Facade", Value({ index: 2 }), "read_token"),
       #|]
     ),
   )
@@ -2006,7 +2006,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 15
+      #|schema: 16
       #|
       #|imported interfaces:
       #|  (none)
@@ -2542,7 +2542,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 15
+      #|schema: 16
       #|
       #|imported interfaces:
       #|  (none)
@@ -2726,7 +2726,7 @@ test "module binaries reject immediately preceding schema versions" {
   let object_bytes = @artifact_binary.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  object_bytes[14] = b'\x0E'
+  object_bytes[14] = b'\x0F'
   object_bytes[15] = b'\x00'
   object_bytes[16] = b'\x00'
   object_bytes[17] = b'\x00'
@@ -2746,7 +2746,7 @@ test "module binaries reject immediately preceding schema versions" {
     Ok(_) => fail("expected old object schema failure")
   }
   assert_eq(messages, [
-    "unsupported interface artifact schema version 10", "unsupported object artifact schema version 14",
+    "unsupported interface artifact schema version 10", "unsupported object artifact schema version 15",
   ])
 }
 
@@ -3414,14 +3414,9 @@ test "link module artifacts rejects stale imported reference fingerprint" {
         ) {
           {
             module_path_text: imported.module_path_text,
-            kind: imported.kind,
             name: imported.name,
             fingerprint: { value: "stale" },
-            type_id: imported.type_id,
-            data_constructor: imported.data_constructor,
-            effect_id: imported.effect_id,
-            operation: imported.operation,
-            value: imported.value,
+            reference: imported.reference,
           }
         },
       )

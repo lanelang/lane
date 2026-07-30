@@ -31,6 +31,7 @@ _Avoid_: compiler API, language server, MoonBit runtime
 ## Relationships
 
 - Lane Wasm and the native Lane Command consume the same `lanec/driver` orchestration, Explore Stage order, diagnostics, and Partial Explore Report semantics.
+- Explorer JSON encodes all eighteen compiler-owned stage states; completed stages carry domain, format, text, and diagnostics, failed stages carry diagnostics, and later unavailable stages remain present.
 - The website supplies a complete in-memory Explore Source Set; Lane Wasm does not discover project files.
 - Artifact Entry Enumeration returns the root module artifact's existing entries and does not define a second entry model.
 - The website selects an entry before requesting an Explore Report.

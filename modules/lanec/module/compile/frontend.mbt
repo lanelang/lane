@@ -1,18 +1,33 @@
 ///|
-priv struct CompileOneModuleSuccess {
-  module_ : CompiledModule
+priv struct CheckedModule {
+  module_path_text : String
+  checked : @checked.CheckedSourceFile
+  interface : @module_interface.ModuleInterface
+  interface_fingerprint : @artifact_core.CompilationFingerprint
+  fingerprint : @artifact_core.CompilationFingerprint
+  imported_interface_fingerprints : Array[
+    @artifact_core.ImportedInterfaceFingerprint,
+  ]
   exported_symbols : @symbol.SymbolMetadataArena
+  diagnostics : Array[CompilerDiagnostic]
+}
+
+///|
+priv struct CheckedModuleSet {
+  root_module_path_text : String
+  modules : Array[CheckedModule]
+  reachable_module_path_texts : Array[String]
   diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|
 fn imported_interfaces(
   header : @module_frontend.ModuleHeader,
-  modules : Array[CompiledModule],
+  modules : Array[CheckedModule],
 ) -> @module_interface.ImportedEnvironment {
   let imported = []
   for import_ in header.imports {
-    if find_compiled_module(modules, import_.module_path_text) is Some(module_) {
+    if find_checked_module(modules, import_.module_path_text) is Some(module_) {
       imported.push(module_.interface)
     }
   }
@@ -22,7 +37,7 @@ fn imported_interfaces(
 ///|
 fn imported_interface_closure(
   roots : Array[String],
-  modules : Array[CompiledModule],
+  modules : Array[CheckedModule],
 ) -> @module_interface.ImportedEnvironment {
   let included : Array[String] = []
   for root in roots {
@@ -30,7 +45,7 @@ fn imported_interface_closure(
   }
   {
     modules: modules
-    .filter(fn(module_) { included.contains(module_.object.module_path_text) })
+    .filter(fn(module_) { included.contains(module_.module_path_text) })
     .map(fn(module_) { module_.interface }),
   }
 }
@@ -38,16 +53,16 @@ fn imported_interface_closure(
 ///|
 fn collect_imported_interface_paths(
   module_path : String,
-  modules : Array[CompiledModule],
+  modules : Array[CheckedModule],
   included : Array[String],
 ) -> Unit {
   if included.contains(module_path) {
     return
   }
-  guard find_compiled_module(modules, module_path) is Some(module_) else {
+  guard find_checked_module(modules, module_path) is Some(module_) else {
     return
   }
-  for imported in module_.object.imported_interface_fingerprints {
+  for imported in module_.imported_interface_fingerprints {
     collect_imported_interface_paths(
       imported.module_path_text,
       modules,
@@ -94,7 +109,7 @@ fn compile_one_module(
   direct : @module_interface.ImportedEnvironment,
   available : @module_interface.ImportedEnvironment,
   observe : (String, ModuleCompileStage) -> Unit,
-) -> Result[CompileOneModuleSuccess, Array[CompilerDiagnostic]] {
+) -> Result[CheckedModule, Array[CompilerDiagnostic]] {
   let display = @typecheck.TypeDisplayContext::from_registry(registry)
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
@@ -121,13 +136,13 @@ fn compile_one_module(
   }
   match (checked.source, checked.module_interface) {
     (Some(checked), Some(interface)) => {
-      let warning_diagnostics = @analysis.checked_unused_local_value_binding_diagnostics(
+      let warning_diagnostics = @lint.checked_unused_local_value_binding_diagnostics(
         checked,
         registry,
         input.text,
       )
       warning_diagnostics.append(
-        @analysis.checked_semantic_warning_diagnostics(
+        @lint.checked_semantic_warning_diagnostics(
           resolved.source,
           checked,
           input.text,
@@ -140,33 +155,13 @@ fn compile_one_module(
       let imported_fingerprints = imported_environment_fingerprints(direct)
       let interface_fingerprint = interface_fingerprint(interface)
       let fingerprint = module_fingerprint(interface, imported_fingerprints)
-      let object_fingerprint = module_object_fingerprint(
-        fingerprint,
-        interface_fingerprint,
-        MetadataRegistry(),
-        [],
-        { builtins: [], runtime_imports: [] },
-        [],
-        [],
-        [],
-        imported_fingerprints,
-      )
-      let object : ModuleObject = {
+      Ok({
         module_path_text: input.header.module_path_text,
         checked,
+        interface,
         interface_fingerprint,
-        metadata: MetadataRegistry(),
-        terms: [],
-        externals: { builtins: [], runtime_imports: [] },
-        entries: [],
-        exports: [],
-        imports: [],
         fingerprint,
-        object_fingerprint,
         imported_interface_fingerprints: imported_fingerprints,
-      }
-      Ok({
-        module_: { interface, object },
         exported_symbols: interface.exported_symbol_metadata(registry),
         diagnostics: warning_diagnostics,
       })
@@ -178,4 +173,17 @@ fn compile_one_module(
         ),
       ])
   }
+}
+
+///|
+fn find_checked_module(
+  modules : Array[CheckedModule],
+  path : String,
+) -> CheckedModule? {
+  for module_ in modules {
+    if module_.module_path_text == path {
+      return Some(module_)
+    }
+  }
+  None
 }

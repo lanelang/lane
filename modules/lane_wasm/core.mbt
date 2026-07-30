@@ -142,9 +142,10 @@ fn parse_source_input(
 
 ///|
 fn invalid_request_response(reason : String) -> Json {
-  response_json(
-    status_invalid_request,
-    [
+  {
+    "schemaVersion": 1,
+    "status": status_invalid_request,
+    "diagnostics": [
       {
         "source": "lane_wasm",
         "severity": "error",
@@ -152,28 +153,8 @@ fn invalid_request_response(reason : String) -> Json {
         "range": range_json(@basic.SourceSpan::dummy()),
       },
     ],
-    [],
-    None,
-  )
-}
-
-///|
-fn response_json(
-  status : Int,
-  diagnostics : Array[Json],
-  stages : Array[Json],
-  failure : String?,
-) -> Json {
-  let fields : Map[String, Json] = {
-    "schemaVersion": 1,
-    "status": status,
-    "diagnostics": diagnostics,
-    "stages": stages,
+    "stages": [],
   }
-  if failure is Some(message) {
-    fields["failure"] = message.to_json()
-  }
-  fields.to_json()
 }
 
 ///|

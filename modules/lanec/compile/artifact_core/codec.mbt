@@ -216,84 +216,35 @@ pub fn write_entry(
 }
 
 ///|
-pub fn write_export_kind(
+pub fn write_module_reference(
   writer : @bytecodec.ByteWriter,
-  kind : @buslane_lowering.BuslaneModuleExportKind,
+  reference : @buslane_lowering.BuslaneModuleReference,
 ) -> Unit {
-  writer.write_u8(
-    match kind {
-      Type => 0
-      DataConstructor => 1
-      Effect => 2
-      Operation => 3
-      FieldSelector => 4
-      Value => 5
-    },
-  )
-}
-
-///|
-pub fn write_optional_type_id(
-  writer : @bytecodec.ByteWriter,
-  id : @buslane.TypeId?,
-) -> Unit {
-  if id is Some(id) {
-    writer.write_bool(true)
-    write_buslane_type_id(writer, id)
-  } else {
-    writer.write_bool(false)
-  }
-}
-
-///|
-pub fn write_optional_data_con_id(
-  writer : @bytecodec.ByteWriter,
-  id : @buslane.DataConId?,
-) -> Unit {
-  if id is Some(id) {
-    writer.write_bool(true)
-    write_buslane_data_con_id(writer, id)
-  } else {
-    writer.write_bool(false)
-  }
-}
-
-///|
-pub fn write_optional_effect_id(
-  writer : @bytecodec.ByteWriter,
-  id : @buslane.EffectId?,
-) -> Unit {
-  if id is Some(id) {
-    writer.write_bool(true)
-    write_buslane_effect_id(writer, id)
-  } else {
-    writer.write_bool(false)
-  }
-}
-
-///|
-pub fn write_optional_operation_id(
-  writer : @bytecodec.ByteWriter,
-  id : @buslane.OperationId?,
-) -> Unit {
-  if id is Some(id) {
-    writer.write_bool(true)
-    write_buslane_operation_id(writer, id)
-  } else {
-    writer.write_bool(false)
-  }
-}
-
-///|
-pub fn write_optional_value_id(
-  writer : @bytecodec.ByteWriter,
-  id : @buslane.ValueId?,
-) -> Unit {
-  if id is Some(id) {
-    writer.write_bool(true)
-    write_buslane_value_id(writer, id)
-  } else {
-    writer.write_bool(false)
+  match reference {
+    Type(id) => {
+      writer.write_u8(0)
+      write_buslane_type_id(writer, id)
+    }
+    DataConstructor(id) => {
+      writer.write_u8(1)
+      write_buslane_data_con_id(writer, id)
+    }
+    Effect(id) => {
+      writer.write_u8(2)
+      write_buslane_effect_id(writer, id)
+    }
+    Operation(id) => {
+      writer.write_u8(3)
+      write_buslane_operation_id(writer, id)
+    }
+    FieldSelector(id) => {
+      writer.write_u8(4)
+      write_buslane_value_id(writer, id)
+    }
+    Value(id) => {
+      writer.write_u8(5)
+      write_buslane_value_id(writer, id)
+    }
   }
 }
 
@@ -304,13 +255,8 @@ pub fn write_exports(
 ) -> Unit {
   writer.write_u32_le_int(exports.length())
   for export_ in exports {
-    write_export_kind(writer, export_.kind)
     writer.write_string(export_.name)
-    write_optional_type_id(writer, export_.type_id)
-    write_optional_data_con_id(writer, export_.data_constructor)
-    write_optional_effect_id(writer, export_.effect_id)
-    write_optional_operation_id(writer, export_.operation)
-    write_optional_value_id(writer, export_.value)
+    write_module_reference(writer, export_.reference)
   }
 }
 
@@ -322,13 +268,8 @@ pub fn write_imports(
   writer.write_u32_le_int(imports.length())
   for import_ in imports {
     writer.write_string(import_.module_path_text)
-    write_export_kind(writer, import_.kind)
     writer.write_string(import_.name)
     write_compilation_fingerprint(writer, import_.fingerprint)
-    write_optional_type_id(writer, import_.type_id)
-    write_optional_data_con_id(writer, import_.data_constructor)
-    write_optional_effect_id(writer, import_.effect_id)
-    write_optional_operation_id(writer, import_.operation)
-    write_optional_value_id(writer, import_.value)
+    write_module_reference(writer, import_.reference)
   }
 }

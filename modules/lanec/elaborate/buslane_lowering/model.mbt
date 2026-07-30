@@ -28,36 +28,26 @@ pub(all) struct BuslaneEntry {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum BuslaneModuleExportKind {
-  Type
-  DataConstructor
-  Effect
-  Operation
-  FieldSelector
-  Value
+pub(all) enum BuslaneModuleReference {
+  Type(@buslane.TypeId)
+  DataConstructor(@buslane.DataConId)
+  Effect(@buslane.EffectId)
+  Operation(@buslane.OperationId)
+  FieldSelector(@buslane.ValueId)
+  Value(@buslane.ValueId)
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneModuleExport {
-  kind : BuslaneModuleExportKind
   name : String
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
+  reference : BuslaneModuleReference
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct BuslaneModuleImport {
   module_path_text : String
-  kind : BuslaneModuleExportKind
   name : String
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
+  reference : BuslaneModuleReference
 } derive(Debug, Eq)
 
 ///|

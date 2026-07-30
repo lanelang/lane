@@ -353,99 +353,44 @@ fn @bytecodec.ByteReader::read_entry(
 }
 
 ///|
-fn @bytecodec.ByteReader::read_export_kind(
+fn @bytecodec.ByteReader::read_module_reference(
   self : @bytecodec.ByteReader,
-) -> @buslane_lowering.BuslaneModuleExportKind raise {
+) -> @buslane_lowering.BuslaneModuleReference raise {
   let offset = self.offset()
   match self.view() {
     [u8be(0), .. rest] => {
       self.update_view(rest)
-      Type
+      Type(self.read_buslane_type_id())
     }
     [u8be(1), .. rest] => {
       self.update_view(rest)
-      DataConstructor
+      DataConstructor(self.read_buslane_data_con_id())
     }
     [u8be(2), .. rest] => {
       self.update_view(rest)
-      Effect
+      Effect(self.read_buslane_effect_id())
     }
     [u8be(3), .. rest] => {
       self.update_view(rest)
-      Operation
+      Operation(self.read_buslane_operation_id())
     }
     [u8be(4), .. rest] => {
       self.update_view(rest)
-      FieldSelector
+      FieldSelector(self.read_buslane_value_id())
     }
     [u8be(5), .. rest] => {
       self.update_view(rest)
-      Value
+      Value(self.read_buslane_value_id())
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
       invalid_binary_tag(
         offset~,
-        domain="BuslaneModuleExportKind",
+        domain="BuslaneModuleReference",
         tag=tag.reinterpret_as_int(),
       )
     }
     _ => unexpected_u8(self)
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_optional_type_id(
-  self : @bytecodec.ByteReader,
-) -> @buslane.TypeId? raise {
-  if self.read_bool() {
-    Some(self.read_buslane_type_id())
-  } else {
-    None
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_optional_data_con_id(
-  self : @bytecodec.ByteReader,
-) -> @buslane.DataConId? raise {
-  if self.read_bool() {
-    Some(self.read_buslane_data_con_id())
-  } else {
-    None
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_optional_effect_id(
-  self : @bytecodec.ByteReader,
-) -> @buslane.EffectId? raise {
-  if self.read_bool() {
-    Some(self.read_buslane_effect_id())
-  } else {
-    None
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_optional_operation_id(
-  self : @bytecodec.ByteReader,
-) -> @buslane.OperationId? raise {
-  if self.read_bool() {
-    Some(self.read_buslane_operation_id())
-  } else {
-    None
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_optional_value_id(
-  self : @bytecodec.ByteReader,
-) -> @buslane.ValueId? raise {
-  if self.read_bool() {
-    Some(self.read_buslane_value_id())
-  } else {
-    None
   }
 }
 
@@ -456,13 +401,8 @@ fn @bytecodec.ByteReader::read_exports(
   let exports : Array[@buslane_lowering.BuslaneModuleExport] = []
   for _ in 0..<self.read_u32_le_int() {
     exports.push({
-      kind: self.read_export_kind(),
       name: self.read_string(),
-      type_id: self.read_optional_type_id(),
-      data_constructor: self.read_optional_data_con_id(),
-      effect_id: self.read_optional_effect_id(),
-      operation: self.read_optional_operation_id(),
-      value: self.read_optional_value_id(),
+      reference: self.read_module_reference(),
     })
   }
   exports
@@ -476,14 +416,9 @@ fn @bytecodec.ByteReader::read_imports(
   for _ in 0..<self.read_u32_le_int() {
     imports.push({
       module_path_text: self.read_string(),
-      kind: self.read_export_kind(),
       name: self.read_string(),
       fingerprint: self.read_compilation_fingerprint(),
-      type_id: self.read_optional_type_id(),
-      data_constructor: self.read_optional_data_con_id(),
-      effect_id: self.read_optional_effect_id(),
-      operation: self.read_optional_operation_id(),
-      value: self.read_optional_value_id(),
+      reference: self.read_module_reference(),
     })
   }
   imports

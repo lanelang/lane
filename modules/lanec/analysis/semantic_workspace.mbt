@@ -695,16 +695,18 @@ fn build_cached_semantic_module(
   )
   if checked_source is Some(source) {
     diagnostics.append(
-      checked_unused_local_value_binding_diagnostics(
+      @lint.checked_unused_local_value_binding_diagnostics(
         source,
         registry,
         input.text,
       ).map(fn(diagnostic) { diagnostic.with_source_id(input.source_id) }),
     )
     diagnostics.append(
-      semantic_warning_diagnostics_from_index(index, resolved.source).map(fn(
-        diagnostic,
-      ) {
+      @lint.checked_semantic_warning_diagnostics(
+        resolved.source,
+        source,
+        input.text,
+      ).map(fn(diagnostic) {
         diagnostic.with_source_id(input.source_id)
       }),
     )

@@ -1,6 +1,42 @@
 ///|
+priv enum CoveragePattern {
+  Any(@types.Type)
+  Literal(@checked.CheckedLiteral, @types.Type)
+  Variant(VariantSymbolId, Array[CoveragePattern], @types.Type)
+  Struct(TypeSymbolId, Array[CoveragePattern], @types.Type)
+}
+
+///|
+fn CoveragePattern::from_checked(
+  pattern : @checked.CheckedPattern,
+) -> CoveragePattern {
+  match pattern {
+    Wildcard(type_~, ..) | Binding(type_~, ..) => Any(type_)
+    Literal(literal~, type_~, ..) => Literal(literal, type_)
+    Variant(symbol~, arguments~, type_~, ..) =>
+      Variant(symbol, arguments.map(CoveragePattern::from_checked), type_)
+    Struct(symbol~, fields~, type_~, ..) =>
+      Struct(
+        symbol,
+        fields.map(field => CoveragePattern::from_checked(field.pattern)),
+        type_,
+      )
+  }
+}
+
+///|
+fn CoveragePattern::type_(self : CoveragePattern) -> @types.Type {
+  match self {
+    Any(type_)
+    | Literal(_, type_)
+    | Variant(_, _, type_)
+    | Struct(_, _, type_) => type_
+  }
+}
+
+///|
 priv struct PatternMatrix {
-  rows : Array[Array[@checked.CheckedPattern]]
+  rows : Array[Array[CoveragePattern]]
   mut computation_error : @types.TypeComputationError?
 }
 
@@ -35,7 +71,7 @@ fn PatternMatrix::add(
   self : PatternMatrix,
   pattern : @checked.CheckedPattern,
 ) -> Unit {
-  self.rows.push([pattern])
+  self.rows.push([CoveragePattern::from_checked(pattern)])
 }
 
 ///|
@@ -43,7 +79,7 @@ fn PatternMatrix::add_row(
   self : PatternMatrix,
   patterns : Array[@checked.CheckedPattern],
 ) -> Unit {
-  self.rows.push(patterns)
+  self.rows.push(patterns.map(CoveragePattern::from_checked))
 }
 
 ///|
@@ -53,7 +89,12 @@ fn PatternMatrix::is_row_useful(
   patterns : Array[@checked.CheckedPattern],
   types : Array[@types.Type],
 ) -> Bool {
-  matrix_useful(declarations, self.rows, patterns, types) catch {
+  matrix_useful(
+    declarations,
+    self.rows,
+    patterns.map(CoveragePattern::from_checked),
+    types,
+  ) catch {
     error => {
       self.record_computation_error(error)
       true
@@ -102,7 +143,10 @@ fn PatternMatrix::try_missing_witness(
   if type_ is Error {
     return None
   }
-  for candidate in coverage_candidates(declarations, type_, 6) {
+  for
+    candidate in coverage_candidates(
+      declarations, type_, witness_expansion_budget,
+    ) {
     if matrix_useful(declarations, self.rows, [candidate.pattern], [type_]) {
       return Some(candidate.witness.to_text())
     }
@@ -832,14 +876,22 @@ priv struct ConstructorSignature {
 }
 
 ///|
+/// Maximum nominal nesting expanded in a missing-pattern diagnostic.
+///
+/// Reaching this presentation budget emits `_` for the remaining subtree.
+/// Exhaustiveness and redundancy use the unbounded pattern matrix and do not
+/// depend on this value.
+let witness_expansion_budget : Int = 6
+
+///|
 priv struct CoverageCandidate {
-  pattern : @checked.CheckedPattern
+  pattern : CoveragePattern
   witness : CoverageWitness
 }
 
 ///|
 priv struct CoverageCandidateRow {
-  patterns : Array[@checked.CheckedPattern]
+  patterns : Array[CoveragePattern]
   witnesses : Array[CoverageWitness]
 }
 
@@ -871,22 +923,10 @@ fn coverage_candidates(
     Error => []
     Primitive(Bool) =>
       [
-        {
-          pattern: Literal(literal=Bool(false), type_~, loc=SourceSpan::dummy()),
-          witness: WitnessBool(false),
-        },
-        {
-          pattern: Literal(literal=Bool(true), type_~, loc=SourceSpan::dummy()),
-          witness: WitnessBool(true),
-        },
+        { pattern: Literal(Bool(false), type_), witness: WitnessBool(false) },
+        { pattern: Literal(Bool(true), type_), witness: WitnessBool(true) },
       ]
-    Primitive(Unit) =>
-      [
-        {
-          pattern: Literal(literal=Unit, type_~, loc=SourceSpan::dummy()),
-          witness: WitnessUnit,
-        },
-      ]
+    Primitive(Unit) => [{ pattern: Literal(Unit, type_), witness: WitnessUnit }]
     _ =>
       match type_.decompose_nominal() {
         Some((symbol, arguments)) =>
@@ -932,14 +972,7 @@ fn enum_coverage_candidates(
     let payload_types = variant_payload_types(declaration, variant, arguments)
     for row in coverage_candidate_rows(declarations, payload_types, depth - 1) {
       candidates.push({
-        pattern: Variant(
-          symbol=variant.symbol,
-          variant_loc=SourceSpan::dummy(),
-          generic_arguments=[],
-          arguments=row.patterns,
-          type_~,
-          loc=SourceSpan::dummy(),
-        ),
+        pattern: Variant(variant.symbol, row.patterns, type_),
         witness: WitnessVariant(name=variant.name, arguments=row.witnesses),
       })
     }
@@ -957,15 +990,6 @@ fn struct_coverage_candidates(
 ) -> Array[CoverageCandidate] raise @types.TypeComputationError {
   let field_types = struct_field_types(declaration, arguments)
   coverage_candidate_rows(declarations, field_types, depth - 1).map(fn(row) {
-    let fields : Array[@checked.CheckedStructPatternField] = []
-    for index in 0..<declaration.fields.length() {
-      fields.push({
-        symbol: declaration.fields[index].symbol,
-        name: declaration.fields[index].name,
-        pattern: row.patterns[index],
-        loc: SourceSpan::dummy(),
-      })
-    }
     let witness_fields : Array[CoverageWitnessField] = []
     for index in 0..<declaration.fields.length() {
       witness_fields.push({
@@ -974,14 +998,7 @@ fn struct_coverage_candidates(
       })
     }
     {
-      pattern: Struct(
-        symbol=declaration.symbol,
-        type_name_loc=SourceSpan::dummy(),
-        type_binders=[],
-        fields~,
-        type_~,
-        loc=SourceSpan::dummy(),
-      ),
+      pattern: Struct(declaration.symbol, row.patterns, type_),
       witness: WitnessStruct(name=declaration.name, fields=witness_fields),
     }
   })
@@ -1013,7 +1030,7 @@ fn coverage_candidate_rows(
 
 ///|
 fn coverage_wildcard_candidate(type_ : @types.Type) -> CoverageCandidate {
-  { pattern: wildcard_pattern(type_), witness: Any }
+  { pattern: Any(type_), witness: Any }
 }
 
 ///|
@@ -1037,8 +1054,8 @@ fn CoverageWitnessField::to_text(self : CoverageWitnessField) -> String {
 ///|
 fn matrix_useful(
   declarations : CheckedDeclarationEnvironment,
-  matrix : Array[Array[@checked.CheckedPattern]],
-  vector : Array[@checked.CheckedPattern],
+  matrix : Array[Array[CoveragePattern]],
+  vector : Array[CoveragePattern],
   types : Array[@types.Type],
 ) -> Bool raise @types.TypeComputationError {
   if vector.is_empty() {
@@ -1077,9 +1094,9 @@ fn matrix_useful(
 
 ///|
 fn specialize_matrix(
-  matrix : Array[Array[@checked.CheckedPattern]],
+  matrix : Array[Array[CoveragePattern]],
   signature : ConstructorSignature,
-) -> Array[Array[@checked.CheckedPattern]] {
+) -> Array[Array[CoveragePattern]] {
   let specialized = []
   for row in matrix {
     if specialize_row(row, signature) is Some(row) {
@@ -1091,13 +1108,13 @@ fn specialize_matrix(
 
 ///|
 fn specialize_row(
-  row : Array[@checked.CheckedPattern],
+  row : Array[CoveragePattern],
   signature : ConstructorSignature,
-) -> Array[@checked.CheckedPattern]? {
+) -> Array[CoveragePattern]? {
   guard row.get(0) is Some(head) else { return None }
   let row_tail = pattern_tail(row)
   match head {
-    Wildcard(..) | Binding(..) =>
+    Any(_) =>
       Some(
         pattern_concat(wildcard_patterns(signature.argument_types), row_tail),
       )
@@ -1110,12 +1127,12 @@ fn specialize_row(
 
 ///|
 fn default_matrix(
-  matrix : Array[Array[@checked.CheckedPattern]],
-) -> Array[Array[@checked.CheckedPattern]] {
+  matrix : Array[Array[CoveragePattern]],
+) -> Array[Array[CoveragePattern]] {
   let rows = []
   for row in matrix {
     guard row.get(0) is Some(head) else { continue }
-    if head is Wildcard(..) || head is Binding(..) {
+    if head is Any(_) {
       rows.push(pattern_tail(row))
     }
   }
@@ -1199,11 +1216,11 @@ fn struct_field_types(
 
 ///|
 fn constructor_signature_for_pattern(
-  pattern : @checked.CheckedPattern,
+  pattern : CoveragePattern,
 ) -> ConstructorSignature? {
   match pattern {
-    Wildcard(..) | Binding(..) => None
-    Literal(literal~, ..) =>
+    Any(_) => None
+    Literal(literal, _) =>
       match literal {
         Bool(value) => Some({ tag: BoolConstructor(value), argument_types: [] })
         I64(value) =>
@@ -1219,33 +1236,32 @@ fn constructor_signature_for_pattern(
           Some({ tag: StringConstructor(value), argument_types: [] })
         Unit => Some({ tag: UnitConstructor, argument_types: [] })
       }
-    Variant(symbol~, arguments~, ..) =>
+    Variant(symbol, arguments, _) =>
       Some({
         tag: VariantConstructor(symbol),
         argument_types: arguments.map(fn(argument) { argument.type_() }),
       })
-    Struct(symbol~, fields~, ..) =>
+    Struct(symbol, fields, _) =>
       Some({
         tag: StructConstructor(symbol),
-        argument_types: fields.map(fn(field) { field.pattern.type_() }),
+        argument_types: fields.map(CoveragePattern::type_),
       })
   }
 }
 
 ///|
 fn constructor_arguments_for_pattern(
-  pattern : @checked.CheckedPattern,
-) -> Array[@checked.CheckedPattern] {
+  pattern : CoveragePattern,
+) -> Array[CoveragePattern] {
   match pattern {
-    Variant(arguments~, ..) => arguments
-    Struct(fields~, ..) => fields.map(fn(field) { field.pattern })
+    Variant(_, arguments, _) | Struct(_, arguments, _) => arguments
     _ => []
   }
 }
 
 ///|
 fn first_column_constructor_signatures(
-  matrix : Array[Array[@checked.CheckedPattern]],
+  matrix : Array[Array[CoveragePattern]],
 ) -> Array[ConstructorSignature] {
   let signatures = []
   for row in matrix {
@@ -1279,21 +1295,17 @@ fn constructor_signature_contains(
 }
 
 ///|
-fn wildcard_pattern(type_ : @types.Type) -> @checked.CheckedPattern {
-  Wildcard(type_~, loc=SourceSpan::dummy())
+fn wildcard_pattern(type_ : @types.Type) -> CoveragePattern {
+  Any(type_)
 }
 
 ///|
-fn wildcard_patterns(
-  types : Array[@types.Type],
-) -> Array[@checked.CheckedPattern] {
+fn wildcard_patterns(types : Array[@types.Type]) -> Array[CoveragePattern] {
   types.map(wildcard_pattern)
 }
 
 ///|
-fn pattern_tail(
-  patterns : Array[@checked.CheckedPattern],
-) -> Array[@checked.CheckedPattern] {
+fn pattern_tail(patterns : Array[CoveragePattern]) -> Array[CoveragePattern] {
   let tail = []
   for index in 1..<patterns.length() {
     tail.push(patterns[index])
@@ -1312,9 +1324,9 @@ fn type_tail(types : Array[@types.Type]) -> Array[@types.Type] {
 
 ///|
 fn pattern_concat(
-  head : Array[@checked.CheckedPattern],
-  tail : Array[@checked.CheckedPattern],
-) -> Array[@checked.CheckedPattern] {
+  head : Array[CoveragePattern],
+  tail : Array[CoveragePattern],
+) -> Array[CoveragePattern] {
   let result = head.copy()
   result.append(tail)
   result

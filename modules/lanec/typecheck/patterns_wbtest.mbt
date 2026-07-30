@@ -565,6 +565,64 @@ test "typecheck reports non-exhaustive nested enum patterns" {
 }
 
 ///|
+test "typecheck abbreviates missing witnesses at the expansion budget" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Chain {
+      #|  done()
+      #|  more(Chain)
+      #|}
+      #|fn bad(value : Chain) -> I64 {
+      #|  match value {
+      #|    Chain::done() => 0
+      #|    Chain::more(Chain::done()) => 1
+      #|    Chain::more(Chain::more(Chain::done())) => 2
+      #|    Chain::more(Chain::more(Chain::more(Chain::done()))) => 3
+      #|    Chain::more(Chain::more(Chain::more(Chain::more(Chain::done())))) => 4
+      #|    Chain::more(Chain::more(Chain::more(Chain::more(Chain::more(Chain::done()))))) => 5
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[non_exhaustive_match type#0 missing=`more(more(more(more(more(more(_))))))` @ 7:3-14:4]
+    ),
+  )
+}
+
+///|
+test "typecheck coverage decisions do not depend on witness expansion" {
+  let result = expect_typecheck_result(
+    (
+      #|enum Chain {
+      #|  done()
+      #|  more(Chain)
+      #|}
+      #|fn bad(value : Chain) -> I64 {
+      #|  match value {
+      #|    Chain::done() => 0
+      #|    Chain::more(Chain::done()) => 1
+      #|    Chain::more(Chain::more(Chain::done())) => 2
+      #|    Chain::more(Chain::more(Chain::more(Chain::done()))) => 3
+      #|    Chain::more(Chain::more(Chain::more(Chain::more(Chain::done())))) => 4
+      #|    Chain::more(Chain::more(Chain::more(Chain::more(Chain::more(Chain::done()))))) => 5
+      #|    Chain::more(Chain::more(Chain::more(Chain::more(Chain::more(Chain::more(_)))))) => 6
+      #|    Chain::more(Chain::more(Chain::more(Chain::more(Chain::more(Chain::more(Chain::done())))))) => 7
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[unreachable_match_arm @ 15:5-15:101]
+    ),
+  )
+}
+
+///|
 test "typecheck reports unreachable nested enum pattern" {
   let result = expect_typecheck_result(
     (

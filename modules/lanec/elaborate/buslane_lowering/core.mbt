@@ -225,108 +225,60 @@ fn BuslaneLowerer::module_exports(
     match declaration {
       Struct(declaration) if declaration.is_public => {
         exports.push({
-          kind: Type,
           name: declaration.name,
-          type_id: Some(self.type_id(declaration.symbol)),
-          data_constructor: None,
-          effect_id: None,
-          operation: None,
-          value: None,
+          reference: Type(self.type_id(declaration.symbol)),
         })
         exports.push({
-          kind: DataConstructor,
           name: declaration.name,
-          type_id: None,
-          data_constructor: Some(self.struct_constructor_id(declaration.symbol)),
-          effect_id: None,
-          operation: None,
-          value: None,
+          reference: DataConstructor(
+            self.struct_constructor_id(declaration.symbol),
+          ),
         })
         for field in declaration.fields {
           exports.push({
-            kind: FieldSelector,
             name: field_selector_export_name(declaration.name, field.name),
-            type_id: None,
-            data_constructor: None,
-            effect_id: None,
-            operation: None,
-            value: Some(self.field_selector_id(field.symbol)),
+            reference: FieldSelector(self.field_selector_id(field.symbol)),
           })
         }
       }
       Enum(declaration) if declaration.is_public => {
         exports.push({
-          kind: Type,
           name: declaration.name,
-          type_id: Some(self.type_id(declaration.symbol)),
-          data_constructor: None,
-          effect_id: None,
-          operation: None,
-          value: None,
+          reference: Type(self.type_id(declaration.symbol)),
         })
         for variant in declaration.variants {
           exports.push({
-            kind: DataConstructor,
             name: variant.name,
-            type_id: None,
-            data_constructor: Some(self.data_constructor_id(variant.symbol)),
-            effect_id: None,
-            operation: None,
-            value: None,
+            reference: DataConstructor(self.data_constructor_id(variant.symbol)),
           })
         }
       }
       ExternalType(declaration) if declaration.is_public =>
         exports.push({
-          kind: Type,
           name: declaration.name,
-          type_id: Some(self.type_id(declaration.symbol)),
-          data_constructor: None,
-          effect_id: None,
-          operation: None,
-          value: None,
+          reference: Type(self.type_id(declaration.symbol)),
         })
       Effect(declaration) if declaration.is_public => {
         exports.push({
-          kind: Effect,
           name: declaration.name,
-          type_id: None,
-          data_constructor: None,
-          effect_id: Some(self.effect_id(declaration.symbol)),
-          operation: None,
-          value: None,
+          reference: Effect(self.effect_id(declaration.symbol)),
         })
         for operation in declaration.operations {
           exports.push({
-            kind: Operation,
             name: effect_operation_export_name(declaration.name, operation.name),
-            type_id: None,
-            data_constructor: None,
-            effect_id: None,
-            operation: Some(self.operation_id(operation.symbol)),
-            value: None,
+            reference: Operation(self.operation_id(operation.symbol)),
           })
         }
       }
       Function(declaration) if declaration.is_public =>
         exports.push({
-          kind: Value,
           name: declaration.name,
-          type_id: None,
-          data_constructor: None,
-          effect_id: None,
-          operation: None,
-          value: Some(self.value_id(declaration.symbol)),
+          reference: Value(self.value_id(declaration.symbol)),
         })
       Let(declaration) if declaration.is_public =>
         exports.push({
-          kind: Value,
           name: declaration.name,
-          type_id: None,
-          data_constructor: None,
-          effect_id: None,
-          operation: None,
-          value: Some(self.value_id(declaration.symbol)),
+          reference: Value(self.value_id(declaration.symbol)),
         })
       _ => ()
     }

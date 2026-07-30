@@ -58,13 +58,8 @@ fn BuslaneLowerer::seed_imported_type_header(
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
-        kind: Type,
         name: declaration.name,
-        type_id: Some(target),
-        data_constructor: None,
-        effect_id: None,
-        operation: None,
-        value: None,
+        reference: Type(target),
       })
     }
     Enum(declaration) => {
@@ -80,13 +75,8 @@ fn BuslaneLowerer::seed_imported_type_header(
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
-        kind: Type,
         name: declaration.name,
-        type_id: Some(target),
-        data_constructor: None,
-        effect_id: None,
-        operation: None,
-        value: None,
+        reference: Type(target),
       })
     }
     External(declaration) => {
@@ -98,13 +88,8 @@ fn BuslaneLowerer::seed_imported_type_header(
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
-        kind: Type,
         name: declaration.name,
-        type_id: Some(target),
-        data_constructor: None,
-        effect_id: None,
-        operation: None,
-        value: None,
+        reference: Type(target),
       })
     }
   }
@@ -161,13 +146,8 @@ fn BuslaneLowerer::seed_imported_type_constructors(
       )
       self.imports.push({
         module_path_text,
-        kind: DataConstructor,
         name: declaration.name,
-        type_id: None,
-        data_constructor: Some(data_constructor),
-        effect_id: None,
-        operation: None,
-        value: None,
+        reference: DataConstructor(data_constructor),
       })
       for field in declaration.fields {
         self.seed_imported_field_selector(module_path_text, declaration, field)
@@ -196,13 +176,8 @@ fn BuslaneLowerer::seed_imported_type_constructors(
         )
         self.imports.push({
           module_path_text,
-          kind: DataConstructor,
           name: variant.name,
-          type_id: None,
-          data_constructor: Some(data_constructor),
-          effect_id: None,
-          operation: None,
-          value: None,
+          reference: DataConstructor(data_constructor),
         })
       }
     }
@@ -225,13 +200,8 @@ fn BuslaneLowerer::seed_imported_field_selector(
   ignore(self.registry.register_field_selector(field.symbol, selector))
   self.imports.push({
     module_path_text,
-    kind: FieldSelector,
     name: field_selector_export_name(declaration.name, field.name),
-    type_id: None,
-    data_constructor: None,
-    effect_id: None,
-    operation: None,
-    value: Some(selector),
+    reference: FieldSelector(selector),
   })
 }
 
@@ -285,13 +255,8 @@ fn BuslaneLowerer::seed_imported_effect_header(
   ignore(self.registry.register_effect(effect.symbol, target))
   self.imports.push({
     module_path_text,
-    kind: Effect,
     name: effect.name,
-    type_id: None,
-    data_constructor: None,
-    effect_id: Some(target),
-    operation: None,
-    value: None,
+    reference: Effect(target),
   })
 }
 
@@ -313,13 +278,8 @@ fn BuslaneLowerer::seed_imported_effect_operations(
     )
     self.imports.push({
       module_path_text,
-      kind: Operation,
       name: effect_operation_export_name(effect.name, operation.name),
-      type_id: None,
-      data_constructor: None,
-      effect_id: None,
-      operation: Some(target),
-      value: None,
+      reference: Operation(target),
     })
   }
 }
@@ -338,12 +298,7 @@ fn BuslaneLowerer::seed_imported_value(
   let target = self.define_value(value.symbol, value.name, kind, type_)
   self.imports.push({
     module_path_text,
-    kind: Value,
     name: value.name,
-    type_id: None,
-    data_constructor: None,
-    effect_id: None,
-    operation: None,
-    value: Some(target),
+    reference: Value(target),
   })
 }

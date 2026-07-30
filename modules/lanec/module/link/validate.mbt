@@ -45,44 +45,6 @@ fn validate_link_object(
 }
 
 ///|
-fn validate_buslane_object(
-  object : LinkModuleObject,
-) -> Array[CompilerDiagnostic] {
-  let metadata = object.metadata.snapshot()
-  for builtin in object.externals.builtins {
-    ignore(metadata.define_value("<builtin-side-type>", Value, builtin.type_))
-  }
-  for import_ in object.externals.runtime_imports {
-    ignore(
-      metadata.define_value("<runtime-import-side-type>", Value, import_.type_),
-    )
-  }
-  for entry in object.entries {
-    ignore(metadata.define_value("<entry-side-type>", Value, entry.type_))
-  }
-  let terms = object.terms.copy()
-  for import_ in object.imports {
-    if import_.value is Some(value) {
-      terms.push(Let(value, Ref(value)))
-    }
-  }
-  let result = @buslane.verify_program({ metadata, terms })
-  result.diagnostics.filter_map(diagnostic => {
-    match diagnostic.kind {
-      UnknownTypeParameter(id) if object.metadata.type_parameter_info(id)
-        is Some(_) => None
-      _ =>
-        Some(
-          invalid_module_object(
-            object,
-            "Buslane verification failed: \{Repr(diagnostic.kind)}",
-          ),
-        )
-    }
-  })
-}
-
-///|
 fn validate_object_side_tables(
   object : LinkModuleObject,
 ) -> Array[CompilerDiagnostic] {
@@ -129,8 +91,12 @@ fn validate_object_side_tables(
     }
   }
   for import_ in object.imports {
-    if import_.value is Some(value) && !external_values.contains(value) {
-      external_values.push(value)
+    match import_.reference {
+      FieldSelector(value) | Value(value) =>
+        if !external_values.contains(value) {
+          external_values.push(value)
+        }
+      _ => ()
     }
   }
   for term in object.terms {
@@ -226,32 +192,7 @@ fn validate_export_reference(
   object : LinkModuleObject,
   export_ : @buslane_lowering.BuslaneModuleExport,
 ) -> Array[CompilerDiagnostic] {
-  if !module_reference_shape_is_exact(
-      export_.kind,
-      export_.type_id,
-      export_.data_constructor,
-      export_.effect_id,
-      export_.operation,
-      export_.value,
-    ) {
-    return [
-      invalid_module_object(
-        object,
-        "export `\{export_.name}` has an invalid identity shape",
-      ),
-    ]
-  }
-  validate_reference_identity(
-    object,
-    export_.kind,
-    export_.name,
-    export_.type_id,
-    export_.data_constructor,
-    export_.effect_id,
-    export_.operation,
-    export_.value,
-    "export",
-  )
+  validate_reference_identity(object, export_.name, export_.reference, "export")
 }
 
 ///|
@@ -259,100 +200,22 @@ fn validate_import_reference(
   object : LinkModuleObject,
   import_ : @artifact_core.ModuleImportedReference,
 ) -> Array[CompilerDiagnostic] {
-  if !module_reference_shape_is_exact(
-      import_.kind,
-      import_.type_id,
-      import_.data_constructor,
-      import_.effect_id,
-      import_.operation,
-      import_.value,
-    ) {
-    return [
-      invalid_module_object(
-        object,
-        "import `\{import_.module_path_text}::\{import_.name}` has an invalid identity shape",
-      ),
-    ]
-  }
-  validate_reference_identity(
-    object,
-    import_.kind,
-    import_.name,
-    import_.type_id,
-    import_.data_constructor,
-    import_.effect_id,
-    import_.operation,
-    import_.value,
-    "import",
-  )
-}
-
-///|
-fn module_reference_shape_is_exact(
-  kind : @buslane_lowering.BuslaneModuleExportKind,
-  type_id : @buslane.TypeId?,
-  data_constructor : @buslane.DataConId?,
-  effect_id : @buslane.EffectId?,
-  operation : @buslane.OperationId?,
-  value : @buslane.ValueId?,
-) -> Bool {
-  match kind {
-    Type =>
-      type_id is Some(_) &&
-      data_constructor is None &&
-      effect_id is None &&
-      operation is None &&
-      value is None
-    DataConstructor =>
-      type_id is None &&
-      data_constructor is Some(_) &&
-      effect_id is None &&
-      operation is None &&
-      value is None
-    Effect =>
-      type_id is None &&
-      data_constructor is None &&
-      effect_id is Some(_) &&
-      operation is None &&
-      value is None
-    Operation =>
-      type_id is None &&
-      data_constructor is None &&
-      effect_id is None &&
-      operation is Some(_) &&
-      value is None
-    FieldSelector | Value =>
-      type_id is None &&
-      data_constructor is None &&
-      effect_id is None &&
-      operation is None &&
-      value is Some(_)
-  }
+  validate_reference_identity(object, import_.name, import_.reference, "import")
 }
 
 ///|
 fn validate_reference_identity(
   object : LinkModuleObject,
-  kind : @buslane_lowering.BuslaneModuleExportKind,
   name : String,
-  type_id : @buslane.TypeId?,
-  data_constructor : @buslane.DataConId?,
-  effect_id : @buslane.EffectId?,
-  operation : @buslane.OperationId?,
-  value : @buslane.ValueId?,
+  reference : @buslane_lowering.BuslaneModuleReference,
   role : String,
 ) -> Array[CompilerDiagnostic] {
-  let valid = match kind {
-    Type => type_id is Some(id) && object.metadata.type_info(id) is Some(_)
-    DataConstructor =>
-      data_constructor is Some(id) &&
-      object.metadata.data_constructor_info(id) is Some(_)
-    Effect =>
-      effect_id is Some(id) && object.metadata.effect_info(id) is Some(_)
-    Operation =>
-      operation is Some(id) && object.metadata.operation_info(id) is Some(_)
-    FieldSelector | Value =>
-      value is Some(id) && object.metadata.value_info(id) is Some(_)
+  let valid = match reference {
+    Type(id) => object.metadata.type_info(id) is Some(_)
+    DataConstructor(id) => object.metadata.data_constructor_info(id) is Some(_)
+    Effect(id) => object.metadata.effect_info(id) is Some(_)
+    Operation(id) => object.metadata.operation_info(id) is Some(_)
+    FieldSelector(id) | Value(id) => object.metadata.value_info(id) is Some(_)
   }
   if valid {
     []
@@ -360,7 +223,7 @@ fn validate_reference_identity(
     [
       invalid_module_object(
         object,
-        "\{role} `\{name}` references an unknown \{module_reference_kind_name(kind)} identity",
+        "\{role} `\{name}` references an unknown \{module_reference_kind_name(reference)} identity",
       ),
     ]
   }
@@ -368,14 +231,14 @@ fn validate_reference_identity(
 
 ///|
 fn module_reference_kind_name(
-  kind : @buslane_lowering.BuslaneModuleExportKind,
+  reference : @buslane_lowering.BuslaneModuleReference,
 ) -> String {
-  match kind {
-    Type => "type"
-    DataConstructor => "data constructor"
-    Effect => "effect"
-    Operation => "operation"
-    FieldSelector | Value => "value"
+  match reference {
+    Type(_) => "type"
+    DataConstructor(_) => "data constructor"
+    Effect(_) => "effect"
+    Operation(_) => "operation"
+    FieldSelector(_) | Value(_) => "value"
   }
 }
 
@@ -414,22 +277,10 @@ fn validate_imported_references(
           match
             find_module_export(
               imported_module.exports,
-              imported.kind,
+              imported.reference,
               imported.name,
             ) {
-            Some(item) =>
-              if !imported_reference_shape_matches_export(imported, item) {
-                diagnostics.push(
-                  link_diagnostic(
-                    ImportedReferenceMismatch(
-                      importer=object.module_path_text,
-                      imported=imported.module_path_text,
-                      name=imported.name,
-                    ),
-                    None,
-                  ),
-                )
-              }
+            Some(_) => ()
             None =>
               diagnostics.push(
                 link_diagnostic(
@@ -458,33 +309,16 @@ fn validate_imported_references(
 ///|
 fn find_module_export(
   exports : Array[@buslane_lowering.BuslaneModuleExport],
-  kind : @buslane_lowering.BuslaneModuleExportKind,
+  reference : @buslane_lowering.BuslaneModuleReference,
   name : String,
 ) -> @buslane_lowering.BuslaneModuleExport? {
   for item in exports {
-    if item.kind == kind && item.name == name {
+    if module_references_have_same_kind(item.reference, reference) &&
+      item.name == name {
       return Some(item)
     }
   }
   None
-}
-
-///|
-fn imported_reference_shape_matches_export(
-  imported : @artifact_core.ModuleImportedReference,
-  item : @buslane_lowering.BuslaneModuleExport,
-) -> Bool {
-  if imported.kind != item.kind {
-    return false
-  }
-  match imported.kind {
-    Type => imported.type_id is Some(_) && item.type_id is Some(_)
-    DataConstructor =>
-      imported.data_constructor is Some(_) && item.data_constructor is Some(_)
-    Effect => imported.effect_id is Some(_) && item.effect_id is Some(_)
-    Operation => imported.operation is Some(_) && item.operation is Some(_)
-    FieldSelector | Value => imported.value is Some(_) && item.value is Some(_)
-  }
 }
 
 ///|
@@ -608,7 +442,7 @@ fn module_exports_value(
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
-  exports.any(fn(item) { item.kind is Value && item.name == name })
+  exports.any(fn(item) { item.reference is Value(_) && item.name == name })
 }
 
 ///|
@@ -616,7 +450,7 @@ fn module_exports_type(
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
-  exports.any(fn(item) { item.kind is Type && item.name == name })
+  exports.any(fn(item) { item.reference is Type(_) && item.name == name })
 }
 
 ///|
@@ -624,7 +458,9 @@ fn module_exports_data_constructor(
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
-  exports.any(fn(item) { item.kind is DataConstructor && item.name == name })
+  exports.any(fn(item) {
+    item.reference is DataConstructor(_) && item.name == name
+  })
 }
 
 ///|
@@ -632,7 +468,7 @@ fn module_exports_effect(
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
-  exports.any(fn(item) { item.kind is Effect && item.name == name })
+  exports.any(fn(item) { item.reference is Effect(_) && item.name == name })
 }
 
 ///|
@@ -640,7 +476,7 @@ fn module_exports_operation(
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
-  exports.any(fn(item) { item.kind is Operation && item.name == name })
+  exports.any(fn(item) { item.reference is Operation(_) && item.name == name })
 }
 
 ///|
@@ -648,7 +484,9 @@ fn module_exports_field_selector(
   exports : Array[@buslane_lowering.BuslaneModuleExport],
   name : String,
 ) -> Bool {
-  exports.any(fn(item) { item.kind is FieldSelector && item.name == name })
+  exports.any(fn(item) {
+    item.reference is FieldSelector(_) && item.name == name
+  })
 }
 
 ///|

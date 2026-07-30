@@ -33,19 +33,16 @@ fn BuslaneLinker::remap_module_object(
     }),
     exports: object.exports.map(fn(item) {
       {
-        kind: item.kind,
         name: item.name,
-        type_id: item.type_id.map(fn(id) { self.remap_type_id(object, id) }),
-        data_constructor: item.data_constructor.map(fn(id) {
-          self.remap_data_constructor_id(object, id)
-        }),
-        effect_id: item.effect_id.map(fn(id) {
-          self.remap_effect_id(object, id)
-        }),
-        operation: item.operation.map(fn(id) {
-          self.remap_operation_id(object, id)
-        }),
-        value: item.value.map(fn(id) { self.remap_value_id(object, id) }),
+        reference: match item.reference {
+          Type(id) => Type(self.remap_type_id(object, id))
+          DataConstructor(id) =>
+            DataConstructor(self.remap_data_constructor_id(object, id))
+          Effect(id) => Effect(self.remap_effect_id(object, id))
+          Operation(id) => Operation(self.remap_operation_id(object, id))
+          FieldSelector(id) => FieldSelector(self.remap_value_id(object, id))
+          Value(id) => Value(self.remap_value_id(object, id))
+        },
       }
     }),
     fingerprint: object.fingerprint,

@@ -371,6 +371,94 @@ test "explore graph failure preserves syntax and fails resolved" {
 }
 
 ///|
+test "explore resolve failure preserves syntax and fails resolved" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|pub fn main() -> I64 { missing }
+      ),
+    ),
+  )
+  debug_inspect(
+    (
+      report.status,
+      report.diagnostics,
+      report.stages
+      .ordered()
+      .map(stage => (stage.id, explore_stage_evidence(stage).1)),
+    ),
+    content=(
+      #|(
+      #|  Failed(Resolved),
+      #|  [
+      #|    {
+      #|      source_id: Some("Main.lane"),
+      #|      message: "cannot find value `missing`",
+      #|      span: Some(
+      #|        Source(
+      #|          source_id="Main.lane",
+      #|          span={
+      #|            start_offset: 35,
+      #|            end_offset: 42,
+      #|            start_line: 2,
+      #|            start_column: 24,
+      #|            end_line: 2,
+      #|            end_column: 31,
+      #|          },
+      #|        ),
+      #|      ),
+      #|      severity: Error,
+      #|      code: Some("E2001"),
+      #|      labels: [
+      #|        {
+      #|          span: Source(
+      #|            source_id="Main.lane",
+      #|            span={
+      #|              start_offset: 35,
+      #|              end_offset: 42,
+      #|              start_line: 2,
+      #|              start_column: 24,
+      #|              end_line: 2,
+      #|              end_column: 31,
+      #|            },
+      #|          ),
+      #|          message: "no value named `missing` is visible here",
+      #|          style: Primary,
+      #|        },
+      #|      ],
+      #|      notes: ["Lane value lookup uses local bindings, top-level values, and explicitly imported public values"],
+      #|      helps: ["define `missing` before this use, import it, or qualify it with its module path"],
+      #|      facts: [],
+      #|      suggestions: [],
+      #|    },
+      #|  ],
+      #|  [
+      #|    ("syntax", "completed"),
+      #|    ("resolved", "failed"),
+      #|    ("checked", "unavailable"),
+      #|    ("buslane.module", "unavailable"),
+      #|    ("buslane.linked", "unavailable"),
+      #|    ("buslane.effect-specialized", "unavailable"),
+      #|    ("buslane.handlers-elaborated", "unavailable"),
+      #|    ("buslane.monadic", "unavailable"),
+      #|    ("buslane.selective-cps", "unavailable"),
+      #|    ("buslane.open-context-resolved", "unavailable"),
+      #|    ("buslane.monadic-lifted", "unavailable"),
+      #|    ("buslane.core-optimized", "unavailable"),
+      #|    ("buslane.effects-erased", "unavailable"),
+      #|    ("executable", "unavailable"),
+      #|    ("anf", "unavailable"),
+      #|    ("vmcfg.initial", "unavailable"),
+      #|    ("loisvm.bytecode", "unavailable"),
+      #|    ("wasm", "unavailable"),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
 test "explore typecheck and entry-selection failures retain completed stages" {
   let typecheck = explore(
     explore_test_request(
@@ -430,14 +518,14 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|    ],
       #|  ),
       #|  (
-      #|    Failed(BuslaneEffectSpecialized),
+      #|    Failed(BuslaneLinked),
       #|    [
       #|      ("syntax", "completed"),
       #|      ("resolved", "completed"),
       #|      ("checked", "completed"),
       #|      ("buslane.module", "completed"),
-      #|      ("buslane.linked", "completed"),
-      #|      ("buslane.effect-specialized", "failed"),
+      #|      ("buslane.linked", "failed"),
+      #|      ("buslane.effect-specialized", "unavailable"),
       #|      ("buslane.handlers-elaborated", "unavailable"),
       #|      ("buslane.monadic", "unavailable"),
       #|      ("buslane.selective-cps", "unavailable"),

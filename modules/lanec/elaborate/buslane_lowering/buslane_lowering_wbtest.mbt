@@ -706,19 +706,13 @@ test "buslane lowering registry covers nominal and effect declarations" {
   assert_eq(object.metadata.data_constructors.length(), 1)
   assert_eq(object.metadata.effects.length(), 1)
   assert_eq(object.metadata.operations.length(), 1)
-  guard object.exports.any(fn(item) {
-    item.kind is Type && item.type_id is Some(_)
-  }) else {
+  guard object.exports.any(fn(item) { item.reference is Type(_) }) else {
     abort("expected type export")
   }
-  guard object.exports.any(fn(item) {
-    item.kind is Effect && item.effect_id is Some(_)
-  }) else {
+  guard object.exports.any(fn(item) { item.reference is Effect(_) }) else {
     abort("expected effect export")
   }
-  guard object.exports.any(fn(item) {
-    item.kind is Operation && item.operation is Some(_)
-  }) else {
+  guard object.exports.any(fn(item) { item.reference is Operation(_) }) else {
     abort("expected operation export")
   }
 }
@@ -785,29 +779,19 @@ test "buslane lowering registry covers imported references" {
       #|}
     ),
   )
-  guard object.imports.any(fn(item) {
-    item.kind is Type && item.type_id is Some(_)
-  }) else {
+  guard object.imports.any(fn(item) { item.reference is Type(_) }) else {
     abort("expected imported type")
   }
-  guard object.imports.any(fn(item) {
-    item.kind is FieldSelector && item.value is Some(_)
-  }) else {
+  guard object.imports.any(fn(item) { item.reference is FieldSelector(_) }) else {
     abort("expected imported field selector")
   }
-  guard object.imports.any(fn(item) {
-    item.kind is Effect && item.effect_id is Some(_)
-  }) else {
+  guard object.imports.any(fn(item) { item.reference is Effect(_) }) else {
     abort("expected imported effect")
   }
-  guard object.imports.any(fn(item) {
-    item.kind is Operation && item.operation is Some(_)
-  }) else {
+  guard object.imports.any(fn(item) { item.reference is Operation(_) }) else {
     abort("expected imported operation")
   }
-  guard object.imports.any(fn(item) {
-    item.kind is Value && item.value is Some(_)
-  }) else {
+  guard object.imports.any(fn(item) { item.reference is Value(_) }) else {
     abort("expected imported value")
   }
 }

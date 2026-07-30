@@ -94,14 +94,9 @@ fn BuslaneLinker::remap_module_objects(
     for item in remapped.exports {
       exports.push({
         module_path_text: remapped.module_path_text,
-        kind: item.kind,
         name: item.name,
         fingerprint: remapped.fingerprint,
-        type_id: item.type_id,
-        data_constructor: item.data_constructor,
-        effect_id: item.effect_id,
-        operation: item.operation,
-        value: item.value,
+        reference: item.reference,
       })
     }
   }
@@ -116,15 +111,12 @@ fn BuslaneLinker::seed_imports(
 ) -> Unit {
   for imported in object.imports {
     guard find_linked_export(exports, imported) is Some(item) else { continue }
-    match (imported.type_id, item.type_id) {
-      (Some(source), Some(target)) =>
+    match (imported.reference, item.reference) {
+      (Type(source), Type(target)) =>
         ignore(
           self.identities.bind_type(object.module_path_text, source, target),
         )
-      _ => ()
-    }
-    match (imported.data_constructor, item.data_constructor) {
-      (Some(source), Some(target)) =>
+      (DataConstructor(source), DataConstructor(target)) =>
         ignore(
           self.identities.bind_data_constructor(
             object.module_path_text,
@@ -132,24 +124,16 @@ fn BuslaneLinker::seed_imports(
             target,
           ),
         )
-      _ => ()
-    }
-    match (imported.value, item.value) {
-      (Some(source), Some(target)) =>
+      (FieldSelector(source), FieldSelector(target))
+      | (Value(source), Value(target)) =>
         ignore(
           self.identities.bind_value(object.module_path_text, source, target),
         )
-      _ => ()
-    }
-    match (imported.effect_id, item.effect_id) {
-      (Some(source), Some(target)) =>
+      (Effect(source), Effect(target)) =>
         ignore(
           self.identities.bind_effect(object.module_path_text, source, target),
         )
-      _ => ()
-    }
-    match (imported.operation, item.operation) {
-      (Some(source), Some(target)) =>
+      (Operation(source), Operation(target)) =>
         ignore(
           self.identities.bind_operation(
             object.module_path_text,
@@ -169,13 +153,29 @@ fn find_linked_export(
 ) -> LinkedModuleExport? {
   for item in exports {
     if item.module_path_text == imported.module_path_text &&
-      item.kind == imported.kind &&
+      module_references_have_same_kind(item.reference, imported.reference) &&
       item.name == imported.name &&
       item.fingerprint == imported.fingerprint {
       return Some(item)
     }
   }
   None
+}
+
+///|
+fn module_references_have_same_kind(
+  left : @buslane_lowering.BuslaneModuleReference,
+  right : @buslane_lowering.BuslaneModuleReference,
+) -> Bool {
+  match (left, right) {
+    (Type(_), Type(_))
+    | (DataConstructor(_), DataConstructor(_))
+    | (Effect(_), Effect(_))
+    | (Operation(_), Operation(_))
+    | (FieldSelector(_), FieldSelector(_))
+    | (Value(_), Value(_)) => true
+    _ => false
+  }
 }
 
 ///|

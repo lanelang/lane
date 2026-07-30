@@ -86,11 +86,6 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       diagnostics,
     )
   }
-  stages.complete(
-    BuslaneLinked,
-    render_buslane_code(linked_program.program),
-    linked.diagnostics,
-  )
   guard select_entry(linked_program.entries, request.entry) is Some(entry) else {
     diagnostics.push(
       exploration_error(
@@ -106,6 +101,11 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       diagnostics,
     )
   }
+  stages.complete(
+    BuslaneLinked,
+    render_buslane_code(linked_program.program),
+    linked.diagnostics,
+  )
   let selected_entry = Some(entry_summary(entry))
   let executable = match
     @executable.elaborate_observed(linked_program, entry, observed => {

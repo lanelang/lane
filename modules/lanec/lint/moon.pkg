@@ -1,0 +1,8 @@
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/diagnostic" @compiler_diag,
+  "Milky2018/lanec/resolve",
+  "Milky2018/lanec/symbol",
+  "Milky2018/lanec/types",
+}

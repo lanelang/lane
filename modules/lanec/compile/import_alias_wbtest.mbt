@@ -33,13 +33,13 @@ test "compiled aliases retain canonical interface and object identities" {
   )
   debug_inspect(
     main.object.imports.map(fn(import_) {
-      (import_.module_path_text, import_.kind, import_.name)
+      (import_.module_path_text, import_.reference, import_.name)
     }),
     content=(
       #|[
-      #|  ("Types", Type, "Item"),
-      #|  ("Types", DataConstructor, "Item"),
-      #|  ("Types", FieldSelector, "Item.value"),
+      #|  ("Types", Type({ index: 0 }), "Item"),
+      #|  ("Types", DataConstructor({ index: 0 }), "Item"),
+      #|  ("Types", FieldSelector({ index: 0 }), "Item.value"),
       #|]
     ),
   )

@@ -69,14 +69,9 @@ priv struct RemappedModuleObject {
 ///|
 priv struct LinkedModuleExport {
   module_path_text : String
-  kind : @buslane_lowering.BuslaneModuleExportKind
   name : String
   fingerprint : @artifact_core.CompilationFingerprint
-  type_id : @buslane.TypeId?
-  data_constructor : @buslane.DataConId?
-  effect_id : @buslane.EffectId?
-  operation : @buslane.OperationId?
-  value : @buslane.ValueId?
+  reference : @buslane_lowering.BuslaneModuleReference
 }
 
 ///|

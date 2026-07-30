@@ -232,34 +232,10 @@ fn imported_interface_fingerprints_from_artifacts(
 }
 
 ///|
-fn CompiledModule::with_imported_interface_fingerprints(
-  self : CompiledModule,
+fn CheckedModule::with_imported_interface_fingerprints(
+  self : CheckedModule,
   imported : Array[@artifact_core.ImportedInterfaceFingerprint],
-) -> CompiledModule {
+) -> CheckedModule {
   let fingerprint = module_fingerprint(self.interface, imported)
-  let object : ModuleObject = {
-    module_path_text: self.object.module_path_text,
-    checked: self.object.checked,
-    interface_fingerprint: self.object.interface_fingerprint,
-    metadata: self.object.metadata,
-    terms: self.object.terms,
-    externals: self.object.externals,
-    entries: self.object.entries,
-    exports: self.object.exports,
-    imports: self.object.imports,
-    fingerprint,
-    object_fingerprint: module_object_fingerprint(
-      fingerprint,
-      self.object.interface_fingerprint,
-      self.object.metadata,
-      self.object.terms,
-      self.object.externals,
-      self.object.entries,
-      self.object.exports,
-      self.object.imports,
-      imported,
-    ),
-    imported_interface_fingerprints: imported,
-  }
-  { interface: self.interface, object }
+  { ..self, fingerprint, imported_interface_fingerprints: imported }
 }

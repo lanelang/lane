@@ -62,7 +62,7 @@ Generic representation erasure stores the raw 32 bits of F32 in the low half of 
 
 ## Persistence
 
-The current persisted formats are Buslane codec version 5, module interface schema 11, module object schema 15, and linked program schema 8. Module object schema 15 adds the I64/F64 conversion intrinsic tags to the numeric model introduced by schema 14. Their decoders reject versions 4, 10, 14, and 7 respectively; there is no compatibility alias or migration decoder for the removed numeric identities.
+The current persisted formats are Buslane codec version 5, module interface schema 11, module object schema 16, and linked program schema 8. Module object schema 15 added the I64/F64 conversion intrinsic tags to the numeric model introduced by schema 14; schema 16 replaced module-reference kinds plus optional identities with one closed tagged reference. Their decoders reject versions 4, 10, 15, and 7 respectively; there is no compatibility alias or migration decoder for removed representations.
 
 The stable new tags within those current formats are:
 

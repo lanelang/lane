@@ -8,8 +8,6 @@ import {
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
-  "moonbitlang/core/env",
-  "moonbitlang/x/fs",
 } for "wbtest"
 
 import {
