@@ -1,6 +1,7 @@
 ///|
 fn lower_compiled_module_objects(
   modules : Array[CompiledModule],
+  observe : (String, ModuleCompileStage) -> Unit,
 ) -> Result[Array[CompiledModule], CompilerDiagnostic] {
   let lowered_modules : Array[CompiledModule] = []
   for module_ in modules {
@@ -25,9 +26,17 @@ fn lower_compiled_module_objects(
           buslane_lowering_diagnostic(module_.object.module_path_text, error),
         )
     }
-    lowered_modules.push(
-      attach_lowered_object(module_, lowered, lowered_modules),
+    let lowered_module = attach_lowered_object(
+      module_, lowered, lowered_modules,
     )
+    observe(
+      lowered_module.object.module_path_text,
+      BuslaneModule({
+        metadata: lowered_module.object.metadata,
+        terms: lowered_module.object.terms,
+      }),
+    )
+    lowered_modules.push(lowered_module)
   }
   Ok(lowered_modules)
 }

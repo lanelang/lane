@@ -25,9 +25,12 @@ fn explore_request(request_text : String) -> ExploreResult {
       return { status, json: invalid_request_response(reason).stringify() }
     }
   }
-  let response = explore_source_set(request)
-  let status = response_status(response)
-  { status, json: response.stringify() }
+  let report = @driver.explore(request)
+  let status = match report.status {
+    Succeeded => status_ok
+    Failed(_) => status_diagnostics
+  }
+  { status, json: report_json(report).stringify() }
 }
 
 ///|
@@ -138,26 +141,6 @@ fn parse_source_input(
 }
 
 ///|
-fn response_status(response : Json) -> Int {
-  match response {
-    { "status": Number(status, ..), .. } => status.to_int()
-    _ => status_ok
-  }
-}
-
-///|
-fn explore_source_set(request : @driver.ExploreRequest) -> Json {
-  let report = @driver.explore(request)
-  let status = if report.failure is Some(_) ||
-    report.diagnostics.any(diagnostic => diagnostic.severity is Error) {
-    status_diagnostics
-  } else {
-    status_ok
-  }
-  report_json(status, report)
-}
-
-///|
 fn invalid_request_response(reason : String) -> Json {
   response_json(
     status_invalid_request,
@@ -194,23 +177,60 @@ fn response_json(
 }
 
 ///|
-fn report_json(status : Int, report : @driver.ExploreReport) -> Json {
+fn report_json(report : @driver.ExploreReport) -> Json {
+  let root : Map[String, Json] = { "sourceId": report.root.source_id.to_json() }
+  if report.root.module_path_text is Some(module_) {
+    root["module"] = module_.to_json()
+  }
   let fields : Map[String, Json] = {
     "schemaVersion": report.schema_version,
-    "status": status,
-    "entry": report.entry,
+    "compiler": {
+      "name": report.compiler.name,
+      "version": report.compiler.version,
+    },
+    "root": root,
+    "status": report_status_json(report.status),
     "diagnostics": report.diagnostics.map(compile_diagnostic_json),
-    "stages": report.stages.map(stage_json),
+    "stages": report.stages.ordered().map(stage_json),
   }
-  if report.failure is Some(message) {
-    fields["failure"] = message.to_json()
+  if report.selected_entry is Some(entry) {
+    fields["selectedEntry"] = {
+      "module": entry.module_path_text,
+      "name": entry.name,
+      "type": entry.type_text,
+    }
   }
   fields.to_json()
 }
 
 ///|
 fn stage_json(stage : @driver.ExploreStage) -> Json {
-  { "id": stage.id, "title": stage.title, "text": stage.text }
+  let fields : Map[String, Json] = { "id": stage.id, "title": stage.title }
+  match stage.state {
+    Completed(snapshot) => {
+      fields["status"] = "completed"
+      fields["domain"] = snapshot.domain.name().to_json()
+      fields["format"] = snapshot.text_format.name().to_json()
+      fields["text"] = snapshot.text.to_json()
+      fields["diagnostics"] = snapshot.diagnostics
+        .map(compile_diagnostic_json)
+        .to_json()
+    }
+    Failed(diagnostics) => {
+      fields["status"] = "failed"
+      fields["diagnostics"] = diagnostics.map(compile_diagnostic_json).to_json()
+    }
+    Unavailable => fields["status"] = "unavailable"
+  }
+  fields.to_json()
+}
+
+///|
+fn report_status_json(status : @driver.ExploreStatus) -> Json {
+  match status {
+    Succeeded => { "kind": "succeeded" }
+    Failed(stage) => { "kind": "failed", "stage": stage.key() }
+  }
 }
 
 ///|

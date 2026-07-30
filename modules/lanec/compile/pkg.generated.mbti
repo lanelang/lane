@@ -26,6 +26,8 @@ pub fn compile_module_input_with_interface_artifacts(@frontend.SourceInput, Arra
 
 pub fn compile_module_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> CompileModulesResult
 
+pub fn compile_module_inputs_observed(@frontend.SourceInput, Array[@frontend.SourceInput], (SourceCompilationStage) -> Unit) -> CompileModulesResult
+
 pub fn compile_module_with_interface_artifacts(String, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CompileModulesResult
 
 pub fn compile_modules(String, Array[String]) -> CompileModulesResult
@@ -57,6 +59,11 @@ pub(all) struct CompileResult {
   entries : Array[@buslane_lowering.BuslaneEntry]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
+
+pub(all) enum SourceCompilationStage {
+  Syntax(@frontend.ParsedModuleInput)
+  Module(String, @Milky2018/lanec/module/compile.ModuleCompileStage)
+}
 
 // Type aliases
 

@@ -19,6 +19,12 @@ pub(all) struct CompileModulesResult {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum SourceCompilationStage {
+  Syntax(@module_frontend.ParsedModuleInput)
+  Module(String, @module_compile.ModuleCompileStage)
+}
+
+///|
 /// Checks one Lane source module.
 pub fn check_source(source : String) -> CheckResult {
   check_sources(source, [])
@@ -133,7 +139,19 @@ pub fn compile_module_inputs(
   root_source : @module_frontend.SourceInput,
   library_sources : Array[@module_frontend.SourceInput],
 ) -> CompileModulesResult {
-  match compile_module_set_from_source_inputs(root_source, library_sources) {
+  compile_module_inputs_observed(root_source, library_sources, _ => ())
+}
+
+///|
+pub fn compile_module_inputs_observed(
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
+  observe : (SourceCompilationStage) -> Unit,
+) -> CompileModulesResult {
+  match
+    compile_module_set_from_source_inputs_observed(
+      root_source, library_sources, observe,
+    ) {
     Ok(modules) => { modules: Some(modules), diagnostics: modules.diagnostics }
     Err(diagnostics) => { modules: None, diagnostics }
   }
@@ -240,15 +258,32 @@ fn compile_module_set_from_source_inputs(
   root_source : @module_frontend.SourceInput,
   library_sources : Array[@module_frontend.SourceInput],
 ) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
+  compile_module_set_from_source_inputs_observed(root_source, library_sources, _ => {
+    ()
+  })
+}
+
+///|
+fn compile_module_set_from_source_inputs_observed(
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
+  observe : (SourceCompilationStage) -> Unit,
+) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
   match
-    @module_frontend.parse_import_reachable_module_input_set_from_inputs(
-      root_source, library_sources,
+    @module_frontend.parse_import_reachable_module_input_set_from_inputs_observed(
+      root_source,
+      library_sources,
+      root => observe(Syntax(root)),
     ) {
     Err(diagnostics) => Err(diagnostics)
     Ok(inputs) =>
       match @module_frontend.build_module_graph(inputs) {
         Err(diagnostics) => Err(diagnostics)
-        Ok(graph) => @module_compile.compile_module_graph(graph)
+        Ok(graph) =>
+          @module_compile.compile_module_graph_observed(graph, (
+            module_path_text,
+            stage,
+          ) => observe(Module(module_path_text, stage)))
       }
   }
 }

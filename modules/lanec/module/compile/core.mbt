@@ -65,6 +65,8 @@ pub(all) struct CompiledModuleSet {
 ///|
 pub(all) enum ModuleCompileStage {
   Resolved(@resolve.ResolvedSourceFile)
+  Checked(@checked.CheckedSourceFile)
+  BuslaneModule(@buslane.Program)
 }
 
 ///|
@@ -92,6 +94,10 @@ pub fn compile_module_graph_observed(
     let registry = allocator.registry(imports=visible_symbols)
     match compile_one_module(input, registry, direct, available, observe) {
       Ok(compiled) => {
+        observe(
+          input.header.module_path_text,
+          Checked(compiled.module_.object.checked),
+        )
         modules.push(compiled.module_)
         visible_symbols.push(compiled.exported_symbols)
         diagnostics.append(compiled.diagnostics)
@@ -102,7 +108,7 @@ pub fn compile_module_graph_observed(
   if find_compiled_module(modules, graph.root_module_path_text) is None {
     return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
   }
-  let modules = match lower_compiled_module_objects(modules) {
+  let modules = match lower_compiled_module_objects(modules, observe) {
     Ok(modules) => modules
     Err(diagnostic) => return Err([diagnostic])
   }

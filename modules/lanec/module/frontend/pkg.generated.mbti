@@ -18,6 +18,8 @@ pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result
 
 pub fn parse_import_reachable_module_input_set_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
 
+pub fn parse_import_reachable_module_input_set_from_inputs_observed(SourceInput, Array[SourceInput], (ParsedModuleInput) -> Unit) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
+
 pub fn parse_module_input_set_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
 
 pub fn parse_module_inputs(SourceInput, Array[SourceInput]) -> ParseModuleInputsResult

@@ -6,14 +6,37 @@ test "explorer HTML escaping covers markup and attributes" {
 ///|
 test "explorer HTML body contains only stage navigation and code" {
   let report : @driver.ExploreReport = {
-    schema_version: 99,
-    entry: "<hidden-entry>",
-    stages: [
-      { id: "stage<one", title: "Stage & One", text: "let answer = 42\n<&>" },
-      { id: "stage-two", title: "Stage Two", text: "return answer" },
-    ],
+    schema_version: 1,
+    compiler: { name: "Milky2018/lanec", version: "0.1.0" },
+    root: { source_id: "<root>", module_path_text: Some("Main") },
+    selected_entry: None,
+    status: Failed(Resolved),
     diagnostics: [],
-    failure: Some("hidden failure"),
+    stages: {
+      syntax: Completed({
+        domain: Compiler,
+        text_format: Lane,
+        text: "let answer = 42\n<&>",
+        diagnostics: [],
+      }),
+      resolved: Failed([]),
+      checked: Unavailable,
+      buslane_module: Unavailable,
+      buslane_linked: Unavailable,
+      buslane_effect_specialized: Unavailable,
+      buslane_handlers_elaborated: Unavailable,
+      buslane_monadic: Unavailable,
+      buslane_selective_cps: Unavailable,
+      buslane_open_context_resolved: Unavailable,
+      buslane_monadic_lifted: Unavailable,
+      buslane_core_optimized: Unavailable,
+      buslane_effects_erased: Unavailable,
+      executable: Unavailable,
+      anf: Unavailable,
+      vmcfg_initial: Unavailable,
+      loisvm_bytecode: Unavailable,
+      wasm: Unavailable,
+    },
   }
   inspect(
     render_explore_html(report),
@@ -35,8 +58,8 @@ test "explorer HTML body contains only stage navigation and code" {
       #|</style>
       #|</head>
       #|<body>
-      #|<main><nav><button type="button" role="tab" aria-selected="true" data-stage="stage&lt;one">Stage &amp; One</button><button type="button" role="tab" aria-selected="false" data-stage="stage-two">Stage Two</button></nav><div class="content"><section class="stage active" data-stage="stage&lt;one"><pre>let answer = 42
-      #|&lt;&amp;&gt;</pre></section><section class="stage" data-stage="stage-two"><pre>return answer</pre></section></div></main>
+      #|<main><nav><button type="button" role="tab" aria-selected="true" data-stage="syntax" data-status="completed">Syntax AST</button><button type="button" role="tab" aria-selected="false" data-stage="resolved" data-status="failed">Resolved AST</button><button type="button" role="tab" aria-selected="false" data-stage="checked" data-status="unavailable">Checked Source AST</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.module" data-status="unavailable">Buslane (Module Lowering)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.linked" data-status="unavailable">Buslane (Linking)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.effect-specialized" data-status="unavailable">Buslane (Reachable Effect Specialization)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.handlers-elaborated" data-status="unavailable">Buslane (Handler Elaboration)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.monadic" data-status="unavailable">Buslane (Monadic Transformation)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.selective-cps" data-status="unavailable">Buslane (Selective CPS)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.open-context-resolved" data-status="unavailable">Buslane (Open Context Resolution)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.monadic-lifted" data-status="unavailable">Buslane (Monadic Lift)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.core-optimized" data-status="unavailable">Buslane (Effect-Aware Core Optimization)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.effects-erased" data-status="unavailable">Buslane (Effect Erasure)</button><button type="button" role="tab" aria-selected="false" data-stage="executable" data-status="unavailable">Executable Program (Whole-Program Elaboration)</button><button type="button" role="tab" aria-selected="false" data-stage="anf" data-status="unavailable">ANF</button><button type="button" role="tab" aria-selected="false" data-stage="vmcfg.initial" data-status="unavailable">VM CFG (Initial Lowering)</button><button type="button" role="tab" aria-selected="false" data-stage="loisvm.bytecode" data-status="unavailable">LoisVM Bytecode (ARC and Slot Finalization)</button><button type="button" role="tab" aria-selected="false" data-stage="wasm" data-status="unavailable">Wasm (LoisVM Backend Lowering)</button></nav><div class="content"><section class="stage active" data-stage="syntax"><pre>let answer = 42
+      #|&lt;&amp;&gt;</pre></section><section class="stage" data-stage="resolved"><pre>Stage failed. See compiler diagnostics.</pre></section><section class="stage" data-stage="checked"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.module"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.linked"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.effect-specialized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.handlers-elaborated"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.monadic"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.selective-cps"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.open-context-resolved"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.monadic-lifted"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.core-optimized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.effects-erased"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="executable"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="anf"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="vmcfg.initial"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="loisvm.bytecode"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="wasm"><pre>Unavailable because an earlier stage failed.</pre></section></div></main>
       #|<script>
       #|const buttons=[...document.querySelectorAll('button[data-stage]')];
       #|const stages=[...document.querySelectorAll('.stage[data-stage]')];

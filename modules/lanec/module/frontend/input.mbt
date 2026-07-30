@@ -62,6 +62,19 @@ pub fn parse_import_reachable_module_input_set_from_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
 ) -> Result[ModuleInputSet, Array[@compiler_diag.CompilerDiagnostic]] {
+  parse_import_reachable_module_input_set_from_inputs_observed(
+    root_source,
+    library_sources,
+    _ => (),
+  )
+}
+
+///|
+pub fn parse_import_reachable_module_input_set_from_inputs_observed(
+  root_source : SourceInput,
+  library_sources : Array[SourceInput],
+  observe_root : (ParsedModuleInput) -> Unit,
+) -> Result[ModuleInputSet, Array[@compiler_diag.CompilerDiagnostic]] {
   let parsed = parse_module_inputs(root_source, library_sources)
   let root_diagnostics = parsed.diagnostics_for_source(root_source.source_id)
   if !root_diagnostics.is_empty() {
@@ -70,6 +83,7 @@ pub fn parse_import_reachable_module_input_set_from_inputs(
   guard parsed.modules.get(0) is Some(root) else {
     return Err([module_frontend_diagnostic(NoRootSourceModule, None)])
   }
+  observe_root(root)
   let reachable = reachable_modules(
     parsed.modules,
     root.header.module_path_text,

@@ -41,9 +41,6 @@ async fn lane_explore(
       false,
     )
   }
-  if report.failure is Some(message) {
-    return LaneCommandOutcome::user_error(ExecutionImageLowering(message~))
-  }
   if !report.diagnostics.is_empty() {
     LaneCommandOutcome::compile_diagnostics(
       report.diagnostics,
@@ -78,6 +75,7 @@ async fn write_explore_report_atomic(
 ///|
 fn render_explore_html(report : @driver.ExploreReport) -> String {
   let html = StringBuilder::new()
+  let stages = report.stages.ordered()
   html <+
     #|<!doctype html>
     #|<html lang="en">
@@ -97,16 +95,17 @@ fn render_explore_html(report : @driver.ExploreReport) -> String {
     #|</head>
     #|<body>
     #|<main><nav>
-  for index, stage in report.stages {
+  for index, stage in stages {
     let selected = if index == 0 { "true" } else { "false" }
+    let status = explore_stage_status(stage.state)
     html <+
-      "<button type=\"button\" role=\"tab\" aria-selected=\"\{selected}\" data-stage=\"\{escape_html(stage.id)}\">\{escape_html(stage.title)}</button>"
+      "<button type=\"button\" role=\"tab\" aria-selected=\"\{selected}\" data-stage=\"\{escape_html(stage.id)}\" data-status=\"\{status}\">\{escape_html(stage.title)}</button>"
   }
   html <+ "</nav><div class=\"content\">"
-  for index, stage in report.stages {
+  for index, stage in stages {
     let class_name = if index == 0 { "stage active" } else { "stage" }
     html <+
-      "<section class=\"\{class_name}\" data-stage=\"\{escape_html(stage.id)}\"><pre>\{escape_html(stage.text)}</pre></section>"
+      "<section class=\"\{class_name}\" data-stage=\"\{escape_html(stage.id)}\"><pre>\{escape_html(explore_stage_text(stage.state))}</pre></section>"
   }
   html <+
     #|</div></main>
@@ -118,6 +117,24 @@ fn render_explore_html(report : @driver.ExploreReport) -> String {
     #|</body>
     #|</html>
   html.to_string()
+}
+
+///|
+fn explore_stage_status(state : @driver.ExploreStageState) -> String {
+  match state {
+    Completed(_) => "completed"
+    Failed(_) => "failed"
+    Unavailable => "unavailable"
+  }
+}
+
+///|
+fn explore_stage_text(state : @driver.ExploreStageState) -> String {
+  match state {
+    Completed(snapshot) => snapshot.text
+    Failed(_) => "Stage failed. See compiler diagnostics."
+    Unavailable => "Unavailable because an earlier stage failed."
+  }
 }
 
 ///|

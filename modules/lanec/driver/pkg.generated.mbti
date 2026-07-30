@@ -27,12 +27,19 @@ pub(all) struct EntrySummary {
   type_text : String
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ExploreCompilerIdentity {
+  name : String
+  version : String
+} derive(Eq, @debug.Debug)
+
 pub(all) struct ExploreReport {
   schema_version : Int
-  entry : String
-  stages : Array[ExploreStage]
+  compiler : ExploreCompilerIdentity
+  root : ExploreRootIdentity
+  selected_entry : EntrySummary?
+  status : ExploreStatus
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
-  failure : String?
+  stages : ExploreStages
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExploreRequest {
@@ -41,11 +48,97 @@ pub(all) struct ExploreRequest {
   entry : String
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ExploreRootIdentity {
+  source_id : String
+  module_path_text : String?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreSnapshot {
+  domain : ExploreStageDomain
+  text_format : ExploreTextFormat
+  text : String
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
+} derive(Eq, @debug.Debug)
+
 pub(all) struct ExploreStage {
   id : String
   title : String
-  text : String
+  state : ExploreStageState
 } derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreStageDomain {
+  Compiler
+  Backend
+} derive(Eq, @debug.Debug)
+pub fn ExploreStageDomain::name(Self) -> String
+
+pub(all) enum ExploreStageId {
+  Syntax
+  Resolved
+  Checked
+  BuslaneModule
+  BuslaneLinked
+  BuslaneEffectSpecialized
+  BuslaneHandlersElaborated
+  BuslaneMonadic
+  BuslaneSelectiveCps
+  BuslaneOpenContextResolved
+  BuslaneMonadicLifted
+  BuslaneCoreOptimized
+  BuslaneEffectsErased
+  Executable
+  Anf
+  VmcfgInitial
+  LoisvmBytecode
+  Wasm
+} derive(Eq, @debug.Debug)
+pub fn ExploreStageId::key(Self) -> String
+
+pub(all) enum ExploreStageState {
+  Completed(ExploreSnapshot)
+  Failed(Array[@diagnostic.CompilerDiagnostic])
+  Unavailable
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreStages {
+  syntax : ExploreStageState
+  resolved : ExploreStageState
+  checked : ExploreStageState
+  buslane_module : ExploreStageState
+  buslane_linked : ExploreStageState
+  buslane_effect_specialized : ExploreStageState
+  buslane_handlers_elaborated : ExploreStageState
+  buslane_monadic : ExploreStageState
+  buslane_selective_cps : ExploreStageState
+  buslane_open_context_resolved : ExploreStageState
+  buslane_monadic_lifted : ExploreStageState
+  buslane_core_optimized : ExploreStageState
+  buslane_effects_erased : ExploreStageState
+  executable : ExploreStageState
+  anf : ExploreStageState
+  vmcfg_initial : ExploreStageState
+  loisvm_bytecode : ExploreStageState
+  wasm : ExploreStageState
+} derive(Eq, @debug.Debug)
+pub fn ExploreStages::ordered(Self) -> Array[ExploreStage]
+
+pub(all) enum ExploreStatus {
+  Succeeded
+  Failed(ExploreStageId)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreTextFormat {
+  Lane
+  ResolvedLane
+  CheckedLane
+  Buslane
+  EffectLowering
+  Anf
+  Vmcfg
+  LoisvmBytecode
+  Wat
+} derive(Eq, @debug.Debug)
+pub fn ExploreTextFormat::name(Self) -> String
 
 // Type aliases
 

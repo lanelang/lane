@@ -45,7 +45,7 @@ fn link_index(
 
 ///|
 fn link_ordered_modules(
-  modules : Array[LinkModuleObject],
+  modules : Array[ValidatedLinkModuleObject],
   entry_mode : LinkedEntryMode,
 ) -> LinkResult {
   let remapper = BuslaneLinker::BuslaneLinker()
@@ -82,11 +82,12 @@ fn link_ordered_modules(
 ///|
 fn BuslaneLinker::remap_module_objects(
   self : BuslaneLinker,
-  objects : Array[LinkModuleObject],
+  objects : Array[ValidatedLinkModuleObject],
 ) -> Array[RemappedModuleObject] {
   let remapped_objects = []
   let exports : Array[LinkedModuleExport] = []
-  for object in objects {
+  for validated in objects {
+    let object = validated.object
     self.seed_imports(object, exports)
     let remapped = self.remap_module_object(object)
     remapped_objects.push(remapped)
@@ -285,12 +286,20 @@ fn LinkModuleIndex::find(
 fn LinkModuleIndex::validate_order(
   self : LinkModuleIndex,
   modules : Array[LinkModuleObject],
-) -> Result[Array[LinkModuleObject], Array[CompilerDiagnostic]] {
+) -> Result[Array[ValidatedLinkModuleObject], Array[CompilerDiagnostic]] {
+  let validated = []
+  let diagnostics = []
   for module_ in modules {
-    let diagnostics = validate_link_object(self, module_)
-    if !diagnostics.is_empty() {
-      return Err(diagnostics)
+    let module_diagnostics = validate_link_object(self, module_)
+    if module_diagnostics.is_empty() {
+      validated.push({ object: module_ })
+    } else {
+      diagnostics.append(module_diagnostics)
     }
   }
-  Ok(modules)
+  if diagnostics.is_empty() {
+    Ok(validated)
+  } else {
+    Err(diagnostics)
+  }
 }

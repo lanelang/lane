@@ -1,9 +1,12 @@
 ///|
 priv struct ResponseSummary {
-  status : Int
-  stage_ids : Array[String]
+  compiler : String
+  root : String
+  selected_entry : String?
+  status : String
+  failed_stage : String?
+  stages : Array[(String, String, String?, String?)]
   diagnostic_messages : Array[String]
-  failure : String?
 } derive(Debug)
 
 ///|
@@ -36,7 +39,7 @@ test "entry request enumerates artifact-defined entries" {
 }
 
 ///|
-test "explore request returns every curated stage" {
+test "explore request returns the complete protocol v1 report" {
   debug_inspect(
     response_summary(
       parsed_response_json(
@@ -54,29 +57,77 @@ test "explore request returns every curated stage" {
     ),
     content=(
       #|{
-      #|  status: 0,
-      #|  stage_ids: [
-      #|    "syntax",
-      #|    "resolved",
-      #|    "checked",
-      #|    "buslane.module",
-      #|    "buslane.linked",
-      #|    "buslane.effect-specialized",
-      #|    "buslane.handlers-elaborated",
-      #|    "buslane.monadic",
-      #|    "buslane.selective-cps",
-      #|    "buslane.open-context-resolved",
-      #|    "buslane.monadic-lifted",
-      #|    "buslane.core-optimized",
-      #|    "buslane.effects-erased",
-      #|    "executable",
-      #|    "anf",
-      #|    "vmcfg.initial",
-      #|    "loisvm.bytecode",
-      #|    "wasm",
+      #|  compiler: "Milky2018/lanec@0.1.0",
+      #|  root: "main.lane:Main",
+      #|  selected_entry: Some("Main.main"),
+      #|  status: "succeeded",
+      #|  failed_stage: None,
+      #|  stages: [
+      #|    ("syntax", "completed", Some("compiler"), Some("lane")),
+      #|    ("resolved", "completed", Some("compiler"), Some("lane-resolved")),
+      #|    ("checked", "completed", Some("compiler"), Some("lane-checked")),
+      #|    ("buslane.module", "completed", Some("compiler"), Some("buslane")),
+      #|    ("buslane.linked", "completed", Some("compiler"), Some("buslane")),
+      #|    (
+      #|      "buslane.effect-specialized",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.handlers-elaborated",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.monadic",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.selective-cps",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.open-context-resolved",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.monadic-lifted",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.core-optimized",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.effects-erased",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    ("executable", "completed", Some("compiler"), Some("buslane")),
+      #|    ("anf", "completed", Some("compiler"), Some("anf")),
+      #|    ("vmcfg.initial", "completed", Some("compiler"), Some("vmcfg")),
+      #|    (
+      #|      "loisvm.bytecode",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("loisvm-bytecode"),
+      #|    ),
+      #|    ("wasm", "completed", Some("backend"), Some("wat")),
       #|  ],
       #|  diagnostic_messages: [],
-      #|  failure: None,
       #|}
     ),
   )
@@ -106,36 +157,84 @@ test "explore request accepts multiple source files" {
     ),
     content=(
       #|{
-      #|  status: 0,
-      #|  stage_ids: [
-      #|    "syntax",
-      #|    "resolved",
-      #|    "checked",
-      #|    "buslane.module",
-      #|    "buslane.linked",
-      #|    "buslane.effect-specialized",
-      #|    "buslane.handlers-elaborated",
-      #|    "buslane.monadic",
-      #|    "buslane.selective-cps",
-      #|    "buslane.open-context-resolved",
-      #|    "buslane.monadic-lifted",
-      #|    "buslane.core-optimized",
-      #|    "buslane.effects-erased",
-      #|    "executable",
-      #|    "anf",
-      #|    "vmcfg.initial",
-      #|    "loisvm.bytecode",
-      #|    "wasm",
+      #|  compiler: "Milky2018/lanec@0.1.0",
+      #|  root: "main.lane:Main",
+      #|  selected_entry: Some("Main.main"),
+      #|  status: "succeeded",
+      #|  failed_stage: None,
+      #|  stages: [
+      #|    ("syntax", "completed", Some("compiler"), Some("lane")),
+      #|    ("resolved", "completed", Some("compiler"), Some("lane-resolved")),
+      #|    ("checked", "completed", Some("compiler"), Some("lane-checked")),
+      #|    ("buslane.module", "completed", Some("compiler"), Some("buslane")),
+      #|    ("buslane.linked", "completed", Some("compiler"), Some("buslane")),
+      #|    (
+      #|      "buslane.effect-specialized",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.handlers-elaborated",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.monadic",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.selective-cps",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.open-context-resolved",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane-effect-lowering"),
+      #|    ),
+      #|    (
+      #|      "buslane.monadic-lifted",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.core-optimized",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.effects-erased",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    ("executable", "completed", Some("compiler"), Some("buslane")),
+      #|    ("anf", "completed", Some("compiler"), Some("anf")),
+      #|    ("vmcfg.initial", "completed", Some("compiler"), Some("vmcfg")),
+      #|    (
+      #|      "loisvm.bytecode",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("loisvm-bytecode"),
+      #|    ),
+      #|    ("wasm", "completed", Some("backend"), Some("wat")),
       #|  ],
       #|  diagnostic_messages: [],
-      #|  failure: None,
       #|}
     ),
   )
 }
 
 ///|
-test "explore request preserves partial stages on diagnostics" {
+test "explore request preserves failed and unavailable stage states" {
   debug_inspect(
     response_summary(
       parsed_response_json(
@@ -143,20 +242,42 @@ test "explore request preserves partial stages on diagnostics" {
           #|{
           #|  "root": {
           #|    "sourceId": "main.lane",
-          #|    "text": "module Main\npub let answer = 42"
+          #|    "text": "module Main\npub fn main() -> I64 { true }"
           #|  },
           #|  "libraries": [],
-          #|  "entry": "answer"
+          #|  "entry": "main"
           #|}
         ),
       ),
     ),
     content=(
       #|{
-      #|  status: 1,
-      #|  stage_ids: [],
-      #|  diagnostic_messages: ["declaration needs a type annotation"],
-      #|  failure: None,
+      #|  compiler: "Milky2018/lanec@0.1.0",
+      #|  root: "main.lane:Main",
+      #|  selected_entry: None,
+      #|  status: "failed",
+      #|  failed_stage: Some("checked"),
+      #|  stages: [
+      #|    ("syntax", "completed", Some("compiler"), Some("lane")),
+      #|    ("resolved", "completed", Some("compiler"), Some("lane-resolved")),
+      #|    ("checked", "failed", None, None),
+      #|    ("buslane.module", "unavailable", None, None),
+      #|    ("buslane.linked", "unavailable", None, None),
+      #|    ("buslane.effect-specialized", "unavailable", None, None),
+      #|    ("buslane.handlers-elaborated", "unavailable", None, None),
+      #|    ("buslane.monadic", "unavailable", None, None),
+      #|    ("buslane.selective-cps", "unavailable", None, None),
+      #|    ("buslane.open-context-resolved", "unavailable", None, None),
+      #|    ("buslane.monadic-lifted", "unavailable", None, None),
+      #|    ("buslane.core-optimized", "unavailable", None, None),
+      #|    ("buslane.effects-erased", "unavailable", None, None),
+      #|    ("executable", "unavailable", None, None),
+      #|    ("anf", "unavailable", None, None),
+      #|    ("vmcfg.initial", "unavailable", None, None),
+      #|    ("loisvm.bytecode", "unavailable", None, None),
+      #|    ("wasm", "unavailable", None, None),
+      #|  ],
+      #|  diagnostic_messages: ["type mismatch"],
       #|}
     ),
   )
@@ -165,14 +286,32 @@ test "explore request preserves partial stages on diagnostics" {
 ///|
 test "explore request rejects malformed requests" {
   debug_inspect(
-    response_summary(parsed_response_json("{\"text\":\"module Test\"}")),
+    parsed_response_json("{\"text\":\"module Test\"}"),
     content=(
-      #|{
-      #|  status: 3,
-      #|  stage_ids: [],
-      #|  diagnostic_messages: ["expected `root`, `libraries`, and `entry` fields in the request object"],
-      #|  failure: None,
-      #|}
+      #|Object(
+      #|  {
+      #|    "schemaVersion": Number(1),
+      #|    "status": Number(3),
+      #|    "diagnostics": Array(
+      #|      [
+      #|        Object(
+      #|          {
+      #|            "source": String("lane_wasm"),
+      #|            "severity": String("error"),
+      #|            "message": String("expected `root`, `libraries`, and `entry` fields in the request object"),
+      #|            "range": Object(
+      #|              {
+      #|                "start": Object({ "line": Number(1), "column": Number(1), "offset": Number(0) }),
+      #|                "end": Object({ "line": Number(1), "column": Number(1), "offset": Number(0) }),
+      #|              },
+      #|            ),
+      #|          },
+      #|        ),
+      #|      ],
+      #|    ),
+      #|    "stages": Array([]),
+      #|  },
+      #|)
     ),
   )
 }
@@ -221,16 +360,53 @@ fn entry_response_summary(response : Json) -> EntryResponseSummary {
 fn response_summary(response : Json) -> ResponseSummary {
   guard response
     is {
-      "status": Number(status, ..),
+      "compiler": {
+        "name": String(compiler_name),
+        "version": String(compiler_version),
+        ..
+      },
+      "root": root_json,
+      "status": status_json,
       "diagnostics": Array(diagnostics),
       "stages": Array(stages),
       ..
     } else {
     abort("expected explorer response object")
   }
-  let stage_ids = stages.map(stage => {
-    guard stage is { "id": String(id), .. } else { abort("expected stage id") }
-    id
+  guard root_json is { "sourceId": String(source_id), .. } else {
+    abort("expected root identity")
+  }
+  let module_path = match root_json {
+    { "module": String(module_path), .. } => module_path
+    _ => "<unavailable>"
+  }
+  guard status_json is { "kind": String(status), .. } else {
+    abort("expected report status")
+  }
+  let selected_entry = match response {
+    {
+      "selectedEntry": { "module": String(module_), "name": String(name), .. },
+      ..
+    } => Some("\{module_}.\{name}")
+    _ => None
+  }
+  let failed_stage = match status_json {
+    { "stage": String(stage), .. } => Some(stage)
+    _ => None
+  }
+  let stage_summaries = stages.map(stage => {
+    guard stage is { "id": String(id), "status": String(stage_status), .. } else {
+      abort("expected stage identity and status")
+    }
+    let domain = match stage {
+      { "domain": String(domain), .. } => Some(domain)
+      _ => None
+    }
+    let format = match stage {
+      { "format": String(format), .. } => Some(format)
+      _ => None
+    }
+    (id, stage_status, domain, format)
   })
   let diagnostic_messages = diagnostics.map(diagnostic => {
     guard diagnostic is { "message": String(message), .. } else {
@@ -238,9 +414,13 @@ fn response_summary(response : Json) -> ResponseSummary {
     }
     message
   })
-  let failure = match response {
-    { "failure": String(message), .. } => Some(message)
-    _ => None
+  {
+    compiler: "\{compiler_name}@\{compiler_version}",
+    root: "\{source_id}:\{module_path}",
+    selected_entry,
+    status,
+    failed_stage,
+    stages: stage_summaries,
+    diagnostic_messages,
   }
-  { status: status.to_int(), stage_ids, diagnostic_messages, failure }
 }

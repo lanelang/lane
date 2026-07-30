@@ -17,6 +17,11 @@ pub(all) struct LinkModuleObject {
 } derive(Debug, Eq)
 
 ///|
+priv struct ValidatedLinkModuleObject {
+  object : LinkModuleObject
+}
+
+///|
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
   program : @buslane.Program

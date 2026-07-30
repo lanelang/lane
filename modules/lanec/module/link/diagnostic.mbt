@@ -62,6 +62,7 @@ priv enum LinkDiagnosticKind {
     name~ : String,
     importer~ : String
   )
+  InvalidModuleObject(module_path_text~ : String, reason~ : String)
   StaleModuleObject(module_path_text~ : String, reason~ : String)
 }
 
@@ -160,6 +161,15 @@ impl @compiler_diag.ToCompilerDiagnostic for LinkDiagnostic with fn to_compiler_
         label="missing exported \{kind} \{provider}::\{name} imported by \{importer}",
         note="the imported interface advertises a public item that the object does not export",
         help="recompile the provider module and use matching `.lmi` and `.lmo` artifacts",
+      )
+    InvalidModuleObject(module_path_text~, reason~) =>
+      compile_report(
+        "invalid module object `\{module_path_text}`",
+        diagnostic_.span,
+        code="E4208",
+        label=reason,
+        note="\{reason}; module objects must be internally valid before identity remapping begins",
+        help="recompile the module object from valid Lane source",
       )
     StaleModuleObject(module_path_text~, reason~) =>
       compile_report(
